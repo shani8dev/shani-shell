@@ -1,0 +1,19 @@
+// niri config — control run (no blur at all)
+prefer-no-csd
+
+hotkey-overlay {
+    skip-at-startup
+}
+
+input {
+    keyboard {
+        xkb {
+            layout "us"
+        }
+    }
+}
+
+layout {
+    gaps 12
+    background-color "#0b0d12"
+}

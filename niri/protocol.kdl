@@ -1,0 +1,24 @@
+// niri config — protocol blur run (shell asks for blur itself)
+prefer-no-csd
+
+hotkey-overlay {
+    skip-at-startup
+}
+
+input {
+    keyboard {
+        xkb {
+            layout "us"
+        }
+    }
+}
+
+layout {
+    gaps 12
+    background-color "#0b0d12"
+}
+
+blur {
+    passes 3
+    offset 3
+}

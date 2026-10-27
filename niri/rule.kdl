@@ -1,0 +1,34 @@
+// niri config — compositor-side blur run (no protocol request from the shell)
+prefer-no-csd
+
+hotkey-overlay {
+    skip-at-startup
+}
+
+input {
+    keyboard {
+        xkb {
+            layout "us"
+        }
+    }
+}
+
+layout {
+    gaps 12
+    background-color "#0b0d12"
+}
+
+blur {
+    passes 3
+    offset 3
+}
+
+layer-rule {
+    match namespace="^shani-(panel|launcher|notifications|chronoa|chronoa-cue)$"
+    background-effect {
+        blur true
+        xray false
+        noise 0.02
+        saturation 1.2
+    }
+}
