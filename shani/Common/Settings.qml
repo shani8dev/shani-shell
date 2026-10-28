@@ -148,6 +148,8 @@ Singleton {
             property string fxIr: ""
             property real fxWidth: 1
             property bool fxCrossfeed: false
+            property bool fxLoudness: false          // hold loudness near -16 LUFS
+            property bool micNoise: false            // RNNoise on the microphone
             property string captionLanguage: "en"
             property bool flashAlerts: false
             property bool speakNotifications: false
@@ -173,6 +175,27 @@ Singleton {
             property int keyRepeatRate: 30
             // screens, by connector: { mode, scale, transform, x, y, vrr, off } (Displays)
             property var displays: ({})
+            property string kbCompose: ""            // xkb: "" | ralt | rwin | menu | caps
+            property string kbCaps: ""               // xkb: "" | ctrl:nocaps | caps:escape | caps:backspace
+            // your own shortcuts: [{ key: "Mod+Alt+T", title, command }]
+            property var customBinds: []
+            // windows (niri layout)
+            property int winGaps: 12
+            property int winFocusRing: 2
+            property real winDefaultWidth: 0.5
+            property bool winFocusFollowsMouse: true
+            property bool winAnimations: true
+            property string screenshotDir: "~/Pictures/Screenshots"
+            property bool rememberRecent: true
+            property bool lockPreviews: false         // notification titles on the lock screen
+            property string proxyMode: "none"         // none | manual | auto
+            property string proxyHttp: ""             // host:port
+            property string proxyHttps: ""
+            property string proxySocks: ""
+            property string proxyPac: ""
+            property int batteryLimit: 100            // stop charging here (shani-admin battery-limit)
+            property bool systemSounds: true          // volume click, screenshot shutter
+            property int trashDays: 0                 // empty trash older than this; 0 = never
             property list<string> kbLayouts: []      // xkb "layout" or "layout+variant"; [] = the system's (localectl)
             property string kbSwitch: "grp:win_space_toggle"
             property real touchX: 24

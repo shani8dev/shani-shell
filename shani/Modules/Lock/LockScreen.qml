@@ -246,10 +246,23 @@ Scope {
                         font.family: Theme.font
                         font.pixelSize: 12 * Theme.fontScale
                     }
+                    // the newest few, by title — only if the person chose that (Privacy)
+                    Repeater {
+                        model: Settings.data.lockPreviews ? Notifs.list.slice(0, 3) : []
+                        Text {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            text: (modelData.appName ? modelData.appName + ": " : "") + modelData.summary
+                            color: Theme.text
+                            elide: Text.ElideRight
+                            font.family: Theme.font
+                            font.pixelSize: 12 * Theme.fontScale
+                        }
+                    }
                     Text {
                         Layout.fillWidth: true
                         visible: Notifs.count > 0
-                        // how many, never what: the content stays behind the lock
+                        // how many, not what (unless previews are on): the content stays behind the lock
                         text: Notifs.count + (Notifs.count === 1 ? " notification" : " notifications")
                         color: Theme.dim
                         font.family: Theme.font

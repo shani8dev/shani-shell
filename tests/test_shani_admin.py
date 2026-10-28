@@ -120,3 +120,23 @@ def test_power_keys(machine, monkeypatch):
 def test_only_known_commands(capsys):
     assert sa.main(["x", "user-add autologin"]) == 2
     assert sa.main(["x"]) == 2
+
+
+def test_battery_limit(machine, tmp_path, monkeypatch):
+    ps = tmp_path / "ps"
+    (ps / "BAT0").mkdir(parents=True)
+    (ps / "BAT0" / "charge_control_end_threshold").write_text("100\n")
+    monkeypatch.setattr(sa, "POWER_SUPPLY", ps)
+    monkeypatch.setattr(sa, "BATTERY_TMPFILES", tmp_path / "tmpfiles.conf")
+    assert sa.battery_limit({"percent": 80}) == {"batteries": 1}
+    assert (ps / "BAT0" / "charge_control_end_threshold").read_text() == "80\n"
+    assert "w " + str(ps / "BAT0" / "charge_control_end_threshold") + " - - - - 80" in (tmp_path / "tmpfiles.conf").read_text()
+    sa.battery_limit({"percent": 100})
+    assert not (tmp_path / "tmpfiles.conf").exists()
+    refused(sa.battery_limit, {"percent": 20}, "between 50 and 100")
+    refused(sa.battery_limit, {"percent": "80; reboot"}, "between 50 and 100")
+
+
+def test_no_battery_no_limit(machine, tmp_path, monkeypatch):
+    monkeypatch.setattr(sa, "POWER_SUPPLY", tmp_path)
+    refused(sa.battery_limit, {"percent": 80}, "no charge limit")

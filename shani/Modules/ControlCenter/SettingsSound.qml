@@ -37,6 +37,57 @@ ColumnLayout {
         }
     }
 
+    // ---- devices: each sound card's profile (HDMI or analog, headset mic modes) ----
+    property var cards: []                // [{ name, label, active, profiles: [{ name, label }] }]
+    Component.onCompleted: cardList.running = true
+    Process {
+        id: cardList
+        command: ["pactl", "-f", "json", "list", "cards"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    page.cards = JSON.parse(text).map(c => ({
+                        name: c.name,
+                        label: (c.properties || {})["device.description"] || c.name,
+                        active: c.active_profile,
+                        profiles: Object.keys(c.profiles || {}).filter(k => c.profiles[k].available !== false && k !== "off")
+                            .map(k => ({ name: k, label: c.profiles[k].description || k }))
+                    })).filter(c => c.profiles.length > 1);
+                } catch (e) {}
+            }
+        }
+    }
+    Process { id: setProfile; onExited: cardList.running = true }
+
+    SectionTitle { Layout.fillWidth: true; text: "Sound" }
+    SwitchRow { Layout.fillWidth: true; text: "System sounds"; hint: "a click when the volume changes, a shutter for screenshots"; checked: page.d.systemSounds; onToggled: on => page.d.systemSounds = on }
+    Repeater {
+        model: page.cards
+        ColumnLayout {
+            id: card
+            required property var modelData
+            Layout.fillWidth: true
+            spacing: 6
+            Text { text: card.modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+            Flow {
+                Layout.fillWidth: true
+                spacing: 6
+                Repeater {
+                    model: card.modelData.profiles
+                    Choice {
+                        required property var modelData
+                        text: modelData.label
+                        selected: card.modelData.active === modelData.name
+                        onClicked: {
+                            setProfile.command = ["pactl", "set-card-profile", card.modelData.name, modelData.name];
+                            setProfile.running = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     SectionTitle { Layout.fillWidth: true; text: "Sound effects" }
     SwitchRow {
         Layout.fillWidth: true
@@ -146,6 +197,23 @@ ColumnLayout {
         hint: "a little of each side in the other, as speakers would — less tiring on headphones"
         checked: page.d.fxCrossfeed
         onToggled: on => page.d.fxCrossfeed = on
+    }
+
+    SwitchRow {
+        Layout.fillWidth: true
+        text: "Even out loudness"
+        hint: "quiet and loud videos at one level (EBU R128)"
+        checked: page.d.fxLoudness
+        onToggled: on => page.d.fxLoudness = on
+    }
+
+    SectionTitle { Layout.fillWidth: true; text: "Microphone" }
+    SwitchRow {
+        Layout.fillWidth: true
+        text: "Noise suppression"
+        hint: SoundFx.micError ? SoundFx.micError : "keyboard, fan and traffic out of calls and recordings (RNNoise)"
+        checked: page.d.micNoise
+        onToggled: on => page.d.micNoise = on
     }
 
     SectionTitle { Layout.fillWidth: true; text: "Headphone correction" }

@@ -31,7 +31,7 @@ input {
         click-method "clickfinger"
         scroll-factor 0.8
     }
-    focus-follows-mouse max-scroll-amount="0%"
+    // focus-follows-mouse is the shell's (Settings > Windows): a flag here could not be turned off
 }
 // written by shani-shell (Settings > Keyboard & input); niri reloads it on change
 include optional=true "~/.config/niri/shani-input.kdl"

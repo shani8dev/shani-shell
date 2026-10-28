@@ -18,13 +18,15 @@ ColumnLayout {
     property string powerKey: ""
     property bool hasLid: false
     property string note: ""
+    property int limit: -1                // the battery's charge limit; -1: it has none
     onActiveChanged: if (active) read.running = true
 
     Process {
         id: read
         command: ["sh", "-c", 'for p in HandleLidSwitch HandleLidSwitchExternalPower HandlePowerKey; do
                 busctl get-property org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager $p 2>/dev/null | sed "s/^s \\"\\(.*\\)\\"/\\1/"; done
-            ls /proc/acpi/button/lid 2>/dev/null | head -1; [ -d /sys/class/power_supply/BAT0 ] || [ -d /sys/class/power_supply/BAT1 ] && echo battery']
+            ls /proc/acpi/button/lid 2>/dev/null | head -1; [ -d /sys/class/power_supply/BAT0 ] || [ -d /sys/class/power_supply/BAT1 ] && echo battery
+            f=$(ls /sys/class/power_supply/BAT*/charge_control_end_threshold 2>/dev/null | head -1); [ -n "$f" ] && echo "limit=$(cat "$f")"']
         stdout: StdioCollector {
             onStreamFinished: {
                 const l = text.split("\n");
@@ -32,6 +34,8 @@ ColumnLayout {
                 page.lidOnPower = l[1] || "suspend";
                 page.powerKey = l[2] || "poweroff";
                 page.hasLid = text.indexOf("LID") >= 0 || text.indexOf("battery") >= 0;
+                const lim = /limit=(\d+)/.exec(text);
+                page.limit = lim ? parseInt(lim[1]) : -1;
             }
         }
     }
@@ -48,6 +52,12 @@ ColumnLayout {
             }
         }
         onStarted: { write(payload + "\n"); stdinEnabled = false; }
+    }
+    function saveLimit(pct) {
+        write.payload = JSON.stringify({ percent: pct });
+        write.command = adminCmd.concat(["battery-limit"]);
+        write.stdinEnabled = true;
+        write.running = true;
     }
     function save(patch) {
         const req = Object.assign({ lid: lid, lidOnPower: lidOnPower, powerKey: powerKey }, patch);
@@ -82,7 +92,7 @@ ColumnLayout {
     }
     readonly property var lidOptions: [{ label: "Sleep", value: "suspend" }, { label: "Lock", value: "lock" }, { label: "Nothing", value: "ignore" }, { label: "Power off", value: "poweroff" }]
 
-    SectionTitle { Layout.fillWidth: true; text: "Lid and power button" }
+    SectionTitle { Layout.fillWidth: true; text: "Lid, power button and battery" }
     Picks { visible: page.hasLid; label: "Closing the lid"; options: page.lidOptions; current: page.lid; onPicked: v => page.save({ lid: v }) }
     Picks { visible: page.hasLid; label: "Closing the lid while plugged in"; options: page.lidOptions; current: page.lidOnPower; onPicked: v => page.save({ lidOnPower: v }) }
     Picks {
@@ -90,6 +100,13 @@ ColumnLayout {
         options: [{ label: "Power off", value: "poweroff" }, { label: "Sleep", value: "suspend" }, { label: "Lock", value: "lock" }, { label: "Nothing", value: "ignore" }]
         current: page.powerKey
         onPicked: v => page.save({ powerKey: v })
+    }
+    Picks {
+        visible: page.limit > 0
+        label: "Stop charging at (keeps the battery healthy when mostly plugged in)"
+        options: [{ label: "60 %", value: "60" }, { label: "80 %", value: "80" }, { label: "90 %", value: "90" }, { label: "Full", value: "100" }]
+        current: String(page.limit)
+        onPicked: v => page.saveLimit(parseInt(v))
     }
     Text {
         Layout.fillWidth: true

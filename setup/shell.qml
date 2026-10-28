@@ -17,6 +17,7 @@ import Quickshell.Services.Greetd
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
+import "strings.js" as Strings
 
 ShellRoot {
     id: root
@@ -30,6 +31,8 @@ ShellRoot {
     readonly property var pages: ["welcome", "keyboard", "network", "time", "account", "done"]
     property int page: 0
     readonly property string pageId: pages[page]
+    // the wizard's words, in the language picked on the first page (strings.js)
+    function t(key) { return Strings.tr(root.locale, key); }
 
     // what will be applied
     property string locale: ""
@@ -109,15 +112,15 @@ ShellRoot {
     }
 
     readonly property string accountProblem: {
-        if (fullname.trim() === "") return "Your name, please";
-        if (!/^[a-z_][a-z0-9_-]{0,31}$/.test(username)) return "The user name: lower-case letters, digits, '-' and '_'";
-        if (password.length < 1) return "Choose a password";
-        if (password !== password2) return "The passwords do not match";
-        if (hostname && !/^[A-Za-z0-9][A-Za-z0-9-]{0,62}$/.test(hostname)) return "The computer name: letters, digits and '-'";
+        if (fullname.trim() === "") return root.t("needName");
+        if (!/^[a-z_][a-z0-9_-]{0,31}$/.test(username)) return root.t("badUser");
+        if (password.length < 1) return root.t("needPassword");
+        if (password !== password2) return root.t("mismatch");
+        if (hostname && !/^[A-Za-z0-9][A-Za-z0-9-]{0,62}$/.test(hostname)) return root.t("badHost");
         return "";
     }
-    readonly property string strength: password.length === 0 ? "" : password.length < 8 ? "Weak — 8 or more characters is better"
-        : (/[A-Z]/.test(password) + /[a-z]/.test(password) + /[0-9]/.test(password) + /[^A-Za-z0-9]/.test(password)) >= 3 && password.length >= 10 ? "Strong" : "Fair"
+    readonly property string strength: password.length === 0 ? "" : password.length < 8 ? root.t("weak")
+        : (/[A-Z]/.test(password) + /[a-z]/.test(password) + /[0-9]/.test(password) + /[^A-Za-z0-9]/.test(password)) >= 3 && password.length >= 10 ? root.t("strong") : root.t("fair")
 
     function next() {
         if (pageId === "account") {
@@ -189,7 +192,7 @@ ShellRoot {
             return JSON.stringify({ page: root.pageId, locale: root.locale, keymap: root.keymap, timezone: root.timezone,
                                     username: root.username, hostname: root.hostname, problem: root.accountProblem,
                                     status: root.status, warnings: root.warnings, greetd: String(Greetd.state),
-                                    locales: root.locales.length, zones: root.zones.length });
+                                    locales: root.locales.length, zones: root.zones.length, nextWord: root.t("next") });
         }
         function next() { root.next(); }
         function back() { root.back(); }
@@ -232,9 +235,9 @@ ShellRoot {
                 anchors.margins: 20
                 spacing: 6
                 Icon { name: "preferences-desktop-accessibility"; size: 20; color: Theme.text; anchors.verticalCenter: parent.verticalCenter }
-                Choice { text: "Larger text"; selected: Settings.data.largeText; onClicked: Settings.data.largeText = !Settings.data.largeText }
-                Choice { text: "High contrast"; selected: Settings.data.highContrast; onClicked: Settings.data.highContrast = !Settings.data.highContrast }
-                Choice { text: "Screen reader"; selected: root.screenReader; onClicked: root.screenReader = !root.screenReader }
+                Choice { text: root.t("larger"); selected: Settings.data.largeText; onClicked: Settings.data.largeText = !Settings.data.largeText }
+                Choice { text: root.t("contrast"); selected: Settings.data.highContrast; onClicked: Settings.data.highContrast = !Settings.data.highContrast }
+                Choice { text: root.t("reader"); selected: root.screenReader; onClicked: root.screenReader = !root.screenReader }
             }
 
             Glass {
@@ -269,8 +272,8 @@ ShellRoot {
                     Text {
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter
-                        text: ({ welcome: "Welcome to ShaniOS", keyboard: "Your keyboard", network: "Get connected",
-                                 time: "Your time zone", account: "About you", done: "All set" })[root.pageId]
+                        text: ({ welcome: root.t("welcome"), keyboard: root.t("keyboard"), network: root.t("network"),
+                                 time: root.t("time"), account: root.t("account"), done: root.t("done") })[root.pageId]
                         color: Theme.text
                         font.family: Theme.font
                         font.pixelSize: 26 * Theme.fontScale
@@ -280,12 +283,12 @@ ShellRoot {
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.Wrap
-                        text: ({ welcome: "Choose your language. It can be changed later in Settings.",
-                                 keyboard: "Add the layouts you type in. Super+Space switches between them.",
-                                 network: "Connect now for the right time and updates — or skip this.",
-                                 time: "Search for a city or region near you.",
-                                 account: "This is the computer's first account, and its administrator.",
-                                 done: root.status === "signing-in" ? "Signing you in…" : "" })[root.pageId]
+                        text: ({ welcome: root.t("welcomeSub"),
+                                 keyboard: root.t("keyboardSub"),
+                                 network: root.t("networkSub"),
+                                 time: root.t("timeSub"),
+                                 account: root.t("accountSub"),
+                                 done: root.status === "signing-in" ? root.t("signingIn") : "" })[root.pageId]
                         color: Theme.dim
                         font.family: Theme.font
                         font.pixelSize: 13 * Theme.fontScale
@@ -301,7 +304,7 @@ ShellRoot {
                             anchors.fill: parent
                             visible: root.pageId === "welcome"
                             spacing: 8
-                            TextField { id: langSearch; Layout.fillWidth: true; placeholder: "Search — English, मराठी, Deutsch…" }
+                            TextField { id: langSearch; Layout.fillWidth: true; placeholder: root.t("searchLang") }
                             ListView {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
@@ -338,12 +341,12 @@ ShellRoot {
                                         visible: root.keymap.length > 1
                                         icon: "edit-delete"
                                         size: 24
-                                        Accessible.name: "Remove " + kmRow.title
+                                        Accessible.name: root.t("remove") + kmRow.title
                                         onClicked: root.keymap = root.keymap.filter(x => x !== kmRow.modelData)
                                     }
                                 }
                             }
-                            TextField { id: kmSearch; Layout.fillWidth: true; placeholder: "Add a layout — marathi, german, dvorak…" }
+                            TextField { id: kmSearch; Layout.fillWidth: true; placeholder: root.t("addLayout") }
                             ListView {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
@@ -376,7 +379,7 @@ ShellRoot {
                             property string pending: ""
                             onVisibleChanged: if (wifi) wifi.scannerEnabled = visible
                             Text {
-                                text: netPage.online ? "Connected to the internet." : netPage.wifi ? "Choose a Wi-Fi network." : "No Wi-Fi here — plug in a cable, or skip."
+                                text: netPage.online ? root.t("online") : netPage.wifi ? root.t("chooseWifi") : root.t("noWifi")
                                 color: netPage.online ? Theme.accent : Theme.dim
                                 font.family: Theme.font
                                 font.pixelSize: 13 * Theme.fontScale
@@ -396,14 +399,14 @@ ShellRoot {
                                         Layout.fillWidth: true
                                         icon: "network-wireless"
                                         title: wRow.modelData.name
-                                        subtitle: wRow.modelData.connected ? "Connected" : wRow.modelData.stateChanging ? "Connecting…" : ""
+                                        subtitle: wRow.modelData.connected ? root.t("connected") : wRow.modelData.stateChanging ? root.t("connecting") : ""
                                         selected: wRow.modelData.connected
                                         onClicked: wRow.modelData.security === WifiSecurityType.Open ? wRow.modelData.connect() : netPage.pending = wRow.modelData.name
                                     }
                                     TextField {
                                         Layout.fillWidth: true
                                         visible: netPage.pending === wRow.modelData.name
-                                        placeholder: "Password for " + wRow.modelData.name
+                                        placeholder: root.t("passwordFor") + wRow.modelData.name
                                         secret: true
                                         onAccepted: { wRow.modelData.connectWithPsk(text); text = ""; netPage.pending = ""; }
                                     }
@@ -422,7 +425,7 @@ ShellRoot {
                                 font.family: Theme.font
                                 font.pixelSize: 15 * Theme.fontScale
                             }
-                            TextField { id: tzSearch; Layout.fillWidth: true; placeholder: "Search — Kolkata, Pune is Asia/Kolkata, Berlin, New York…" }
+                            TextField { id: tzSearch; Layout.fillWidth: true; placeholder: root.t("searchZone") }
                             ListView {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
@@ -445,25 +448,25 @@ ShellRoot {
                             anchors.fill: parent
                             visible: root.pageId === "account"
                             spacing: 10
-                            TextField { id: nameField; Layout.fillWidth: true; placeholder: "Your full name"; onTextChanged: root.fullname = text }
+                            TextField { id: nameField; Layout.fillWidth: true; placeholder: root.t("fullName"); onTextChanged: root.fullname = text }
                             TextField {
                                 Layout.fillWidth: true
-                                placeholder: "User name"
+                                placeholder: root.t("userName")
                                 text: root.username
                                 onTextChanged: if (text !== root.username) { root.usernameEdited = true; root.username = text; }
                             }
-                            TextField { Layout.fillWidth: true; placeholder: "Password"; secret: true; onTextChanged: root.password = text }
-                            TextField { Layout.fillWidth: true; placeholder: "Password again"; secret: true; onTextChanged: root.password2 = text; onAccepted: root.next() }
+                            TextField { Layout.fillWidth: true; placeholder: root.t("password"); secret: true; onTextChanged: root.password = text }
+                            TextField { Layout.fillWidth: true; placeholder: root.t("passwordAgain"); secret: true; onTextChanged: root.password2 = text; onAccepted: root.next() }
                             Text {
                                 visible: root.strength !== ""
-                                text: "Password: " + root.strength
-                                color: root.strength === "Strong" ? Theme.accent : Theme.dim
+                                text: root.t("passwordIs") + root.strength
+                                color: root.strength === root.t("strong") ? Theme.accent : Theme.dim
                                 font.family: Theme.font
                                 font.pixelSize: 12 * Theme.fontScale
                             }
                             TextField {
                                 Layout.fillWidth: true
-                                placeholder: "Computer name"
+                                placeholder: root.t("computerName")
                                 text: root.hostname
                                 onTextChanged: if (text !== root.hostname) { root.hostnameEdited = true; root.hostname = text; }
                             }
@@ -478,7 +481,7 @@ ShellRoot {
                             Icon { Layout.alignment: Qt.AlignHCenter; name: "emblem-ok-symbolic"; size: 56; color: Theme.accent }
                             Repeater {
                                 model: root.warnings
-                                Text { required property string modelData; text: "Note: " + modelData; color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+                                Text { required property string modelData; text: root.t("note") + modelData; color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
                             }
                         }
                     }
@@ -497,12 +500,12 @@ ShellRoot {
                     RowLayout {
                         Layout.fillWidth: true
                         visible: root.pageId !== "done"
-                        Button { visible: root.page > 0; text: "Back"; onClicked: root.back() }
+                        Button { visible: root.page > 0; text: root.t("back"); onClicked: root.back() }
                         Item { Layout.fillWidth: true }
-                        Button { visible: root.pageId === "network"; text: "Skip"; onClicked: root.next() }
+                        Button { visible: root.pageId === "network"; text: root.t("skip"); onClicked: root.next() }
                         Button {
                             kind: "primary"
-                            text: root.pageId === "account" ? (root.status === "working" ? "Setting up…" : "Start using ShaniOS") : "Next"
+                            text: root.pageId === "account" ? (root.status === "working" ? root.t("working") : root.t("start")) : root.t("next")
                             enabled: root.pageId !== "account" || (root.accountProblem === "" && root.status !== "working")
                             onClicked: root.next()
                         }

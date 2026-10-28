@@ -55,7 +55,7 @@ ColumnLayout {
 
     // Deepin's control centre in a sidebar: a grid of categories, then one at a time
     readonly property string cat: Ui.settingsCat
-    readonly property var cats: [{ id: "personal", label: "Personalisation", icon: "preferences-desktop-wallpaper" }, { id: "notifications", label: "Notifications", icon: "preferences-system-notifications" }, { id: "displays", label: "Displays", icon: "video-display" }, { id: "sound", label: "Sound", icon: "audio-speakers" }, { id: "access", label: "Accessibility", icon: "preferences-desktop-accessibility" }, { id: "input", label: "Keyboard & input", icon: "input-keyboard" }, { id: "time", label: "Date & language", icon: "preferences-system-time" }, { id: "apps", label: "Default apps", icon: "preferences-desktop-default-applications" }, { id: "account", label: "Your account", icon: "avatar-default" }, { id: "users", label: "Users", icon: "system-users" }, { id: "power", label: "Power", icon: "preferences-system-power" }, { id: "about", label: "About", icon: "help-about" }]
+    readonly property var cats: [{ id: "personal", label: "Personalisation", icon: "preferences-desktop-wallpaper" }, { id: "notifications", label: "Notifications", icon: "preferences-system-notifications" }, { id: "network", label: "Network", icon: "network-workgroup" }, { id: "displays", label: "Displays", icon: "video-display" }, { id: "windows", label: "Windows", icon: "preferences-system-windows" }, { id: "sound", label: "Sound", icon: "audio-speakers" }, { id: "access", label: "Accessibility", icon: "preferences-desktop-accessibility" }, { id: "input", label: "Keyboard & input", icon: "input-keyboard" }, { id: "time", label: "Date & language", icon: "preferences-system-time" }, { id: "apps", label: "Default apps", icon: "preferences-desktop-default-applications" }, { id: "privacy", label: "Privacy", icon: "preferences-system-privacy" }, { id: "account", label: "Your account", icon: "avatar-default" }, { id: "users", label: "Users", icon: "system-users" }, { id: "power", label: "Power", icon: "preferences-system-power" }, { id: "about", label: "About", icon: "help-about" }]
     readonly property string catTitle: (cats.find(c => c.id === cat) || { label: "Shell settings" }).label
     GridLayout {
         Layout.fillWidth: true
@@ -461,6 +461,7 @@ ColumnLayout {
         }
 
         SettingsInput { Layout.fillWidth: true }
+        SettingsShortcuts { Layout.fillWidth: true; active: page.cat === "input" }
     }
     ColumnLayout {
         Layout.fillWidth: true
@@ -487,12 +488,26 @@ ColumnLayout {
         }
 
         SettingsDefaultApps { Layout.fillWidth: true; active: page.cat === "apps" }
+        SettingsStartup { Layout.fillWidth: true; active: page.cat === "apps" }
+        SettingsAppPermissions { Layout.fillWidth: true; active: page.cat === "apps" }
     }
     ColumnLayout {
         Layout.fillWidth: true
         visible: page.cat === "account"
         spacing: 12
         SettingsAccount { Layout.fillWidth: true; active: page.cat === "account" }
+    }
+    ColumnLayout {
+        Layout.fillWidth: true
+        visible: page.cat === "network"
+        spacing: 12
+        SettingsNetwork { Layout.fillWidth: true; active: page.cat === "network" }
+    }
+    ColumnLayout {
+        Layout.fillWidth: true
+        visible: page.cat === "windows"
+        spacing: 12
+        SettingsWindows { Layout.fillWidth: true }
     }
     ColumnLayout {
         Layout.fillWidth: true
@@ -505,6 +520,12 @@ ColumnLayout {
         visible: page.cat === "sound"
         spacing: 12
         SettingsSound { Layout.fillWidth: true }
+    }
+    ColumnLayout {
+        Layout.fillWidth: true
+        visible: page.cat === "privacy"
+        spacing: 12
+        SettingsPrivacy { Layout.fillWidth: true; active: page.cat === "privacy" }
     }
     ColumnLayout {
         Layout.fillWidth: true

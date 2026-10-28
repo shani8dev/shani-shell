@@ -9,6 +9,7 @@ one on stdout ({"ok": true} or {"ok": false, "error": "..."}).
     shani-admin.py user-password   {"username", "password"}
     shani-admin.py autologin       {"username"}            ("" turns it off)
     shani-admin.py power-keys      {"lid", "lidOnPower", "powerKey"}
+    shani-admin.py battery-limit   {"percent"}             (100 = charge fully)
 
 polkit (shani-desktop-niri's 50-shani-admin.rules) asks a wheel member for an
 administrator's password for the user-* commands, and their own for the
@@ -45,6 +46,8 @@ GREETD_CONFIG = Path("/etc/greetd/shani-niri.toml")
 AUTOLOGIN_CONFIG = Path("/etc/greetd/shani-niri-autologin.toml")
 AUTOLOGIN_DROPIN = Path("/etc/systemd/system/greetd.service.d/20-shani-autologin.conf")
 LOGIND_DROPIN = Path("/etc/systemd/logind.conf.d/50-shani-shell.conf")
+POWER_SUPPLY = Path("/sys/class/power_supply")
+BATTERY_TMPFILES = Path("/etc/tmpfiles.d/50-shani-battery.conf")
 LID_ACTIONS = {"suspend", "hibernate", "hybrid-sleep", "suspend-then-hibernate", "lock", "ignore", "poweroff"}
 KEY_ACTIONS = {"poweroff", "suspend", "hibernate", "ignore", "lock", "reboot"}
 
@@ -194,8 +197,31 @@ def power_keys(req: dict) -> dict:
     return {}
 
 
+def battery_limit(req: dict) -> dict:
+    """Stop charging at a percentage (laptops whose firmware offers it): the
+    kernel's charge_control_end_threshold, now and — through tmpfiles.d — at
+    every boot. 100 removes the limit."""
+    pct = req.get("percent")
+    if not isinstance(pct, int) or not 50 <= pct <= 100:
+        raise Refused("a limit between 50 and 100")
+    files = sorted(POWER_SUPPLY.glob("BAT*/charge_control_end_threshold"))
+    if not files:
+        raise Refused("this computer's battery has no charge limit")
+    for f in files:
+        f.write_text(f"{pct}\n")
+    if pct == 100:
+        BATTERY_TMPFILES.unlink(missing_ok=True)
+    else:
+        BATTERY_TMPFILES.parent.mkdir(parents=True, exist_ok=True)
+        BATTERY_TMPFILES.write_text("# shani-shell: Settings > Power > charge limit (delete to charge fully)\n"
+                                    + "".join(f"w {f} - - - - {pct}\n" for f in files))
+        BATTERY_TMPFILES.chmod(0o644)
+    return {"batteries": len(files)}
+
+
 COMMANDS = {"user-add": user_add, "user-remove": user_remove, "user-admin": user_admin,
-            "user-password": user_password, "autologin": autologin, "power-keys": power_keys}
+            "user-password": user_password, "autologin": autologin, "power-keys": power_keys,
+            "battery-limit": battery_limit}
 
 
 def main(argv: list[str]) -> int:

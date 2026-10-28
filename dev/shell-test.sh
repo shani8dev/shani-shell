@@ -562,6 +562,13 @@ shot 69-bt-passkey 0.3
 echo '{"cancel": true}' > /tmp/bt-ask
 waitfor "d['btShow'] == ''" 3 && result bt-cancel-closes PASS || result bt-cancel-closes FAIL
 
+# ---- a file over Bluetooth: asked about as a notification; arrival announced -----------
+echo '{"ask": "push", "id": 3, "device": "Pixel 8", "file": "IMG_2041.jpg", "size": 2381904}' > /tmp/obex-ask
+waitfor "'Pixel 8 is sending a file' in d['notificationSummaries']" 4 && result bluetooth-push-asks PASS || result bluetooth-push-asks FAIL "$(q "['notificationSummaries']")"
+shot 90-bluetooth-push 0.4
+echo '{"received": "/root/Downloads/IMG_2041.jpg"}' > /tmp/obex-ask
+waitfor "d['bluetoothReceived'] == 1 and 'File received' in d['notificationSummaries']" 4 && result bluetooth-received-announced PASS || result bluetooth-received-announced FAIL
+
 # ---- notification card: avatar letter, picture with badge, actions row ----------------
 notify-send -a Messages -i mail-unread -h string:image-path:/tmp/frame.png -A reply=Reply -A call=Call "Asha" "Are we still on for 6?" &
 notify-send -a "Build bot" "Pipeline passed" "shani-shell · main · 4 min"
@@ -687,6 +694,29 @@ python3 -c "import sys; f1,f4,c1,c4=map(int,sys.argv[1:]); sys.exit(0 if f1>50 a
 settings '{}'
 waitfor "not d['fx'] and d['sinkName'] == 'speakers'" 5 && result fx-off-restores-output PASS || result fx-off-restores-output FAIL "$(q "['sinkName']")"
 
+# loudness levelling: a tone ten times quieter comes out far less than ten times quieter
+qtone() { python3 -c "import math,wave,array,sys; a=float(sys.argv[1]); w=wave.open(sys.argv[2],'wb'); w.setnchannels(2); w.setsampwidth(2); w.setframerate(48000); w.writeframes(array.array('h',[int(a*math.sin(2*math.pi*1000*i/48000)) for i in range(48000*5) for _ in (0,1)]).tobytes())" "$1" "$2"; }
+qlevel() {
+    timeout 5.6 parecord -d speakers.monitor --rate 48000 --channels 1 --format s16le --raw /tmp/rec.raw 2>/dev/null &
+    sleep 0.3; paplay "$1"; wait
+    python3 -c "import array,math; a=array.array('h',open('/tmp/rec.raw','rb').read()); a=a[len(a)*3//5:len(a)*4//5]; print(int(math.sqrt(sum(x*x for x in a)/max(1,len(a)))))"
+}
+qtone 600 /tmp/quiet.wav; qtone 6000 /tmp/loud.wav
+settings '{"fxEnabled": true, "fxLoudness": true}'
+waitfor "d['fxRunning'] and d['sinkName'] == 'effect_input.shani'" 8 && result fx-loudness-graph-loads PASS || result fx-loudness-graph-loads FAIL "$(q "['fxError']")"
+lq=$(qlevel /tmp/quiet.wav); ll=$(qlevel /tmp/loud.wav)
+python3 -c "import sys; q,l=map(int,sys.argv[1:]); sys.exit(0 if q>0 and l/q < 4 else 1)" "$lq" "$ll" \
+    && result fx-loudness-evens-out PASS "quiet $lq, loud $ll (10x apart going in)" || result fx-loudness-evens-out FAIL "quiet $lq, loud $ll"
+settings '{}'
+waitfor "d['sinkName'] == 'speakers'" 5
+
+# microphone noise suppression: the cleaned-up source becomes the default, and goes
+src0=$(q "['sourceName']")
+settings '{"micNoise": true}'
+waitfor "d['micRunning'] and d['sourceName'] == 'effect_output.shani_mic'" 8 && result mic-noise-suppression-on PASS || result mic-noise-suppression-on FAIL "$(q "['sourceName'], d['micError']")"
+settings '{}'
+waitfor "d['sourceName'] == '$src0'" 5 && result mic-noise-suppression-off PASS || result mic-noise-suppression-off FAIL "$(q "['sourceName']")"
+
 # ---- displays: niri applies the shell's output block; kept, or reverted by itself ------
 ipc settingsCategory displays
 ipc display winit scale 1.5
@@ -738,6 +768,43 @@ notify-send -a Chime "Quiet" "no sound"
 sleep 1
 [ "$(q "['notifSounds']")" = "$s1" ] && result notification-sound-off PASS || result notification-sound-off FAIL
 settings '{}'
+
+# ---- windows, special keys, your own shortcut: all through niri's include ---------------
+f=/root/.config/niri/shani-input.kdl
+settings '{"winGaps": 6, "winFocusFollowsMouse": false, "winAnimations": false, "kbCompose": "ralt", "kbCaps": "caps:escape", "customBinds": [{"key": "Mod+Alt+J", "title": "test bind", "command": "touch /tmp/bind-ran"}]}'
+sleep 1.5
+grep -q 'gaps 6' $f && ! grep -q 'focus-follows-mouse' $f && grep -q 'animations' $f && grep -q 'options "compose:ralt,caps:escape"' $f \
+    && niri validate -c /work/dev/niri/session.kdl >/dev/null 2>&1 && result windows-and-keys-reach-niri PASS || result windows-and-keys-reach-niri FAIL "$(niri validate -c /work/dev/niri/session.kdl 2>&1 | tail -2; cat $f)"
+# niri does not run binds for virtual-keyboard input (wtype), so the press itself
+# is a real-keyboard check; here: the bind as niri will load it
+grep -q 'Mod+Alt+J hotkey-overlay-title="test bind" { spawn "sh" "-c" "touch /tmp/bind-ran"; }' $f \
+    && result own-shortcut-in-niri PASS || result own-shortcut-in-niri FAIL "$(grep -A2 '^binds' $f)"
+ipc settingsCategory input
+shot 88-settings-shortcuts 0.8
+settings '{}'
+
+# ---- trash emptied by age; proxy reaches GNOME settings and the environment -----------
+T=/root/.local/share/Trash; mkdir -p $T/files $T/info
+for n in old new; do echo x > $T/files/$n.txt; printf '[Trash Info]\nPath=/root/%s.txt\nDeletionDate=2026-01-01T00:00:00\n' $n > $T/info/$n.txt.trashinfo; done
+touch -d '40 days ago' $T/info/old.txt.trashinfo
+settings '{"trashDays": 30}'
+waitfor "d['trashEmptied'] == 1" 5 && [ ! -e $T/files/old.txt ] && [ -e $T/files/new.txt ] && result trash-emptied-by-age PASS || result trash-emptied-by-age FAIL "$(ls $T/files)"
+settings '{"proxyMode": "manual", "proxyHttp": "proxy.lan:3128"}'
+sleep 1.5
+[ "$(gsettings get org.gnome.system.proxy mode)" = "'manual'" ] && [ "$(gsettings get org.gnome.system.proxy.http host)" = "'proxy.lan'" ] \
+    && [ "$(gsettings get org.gnome.system.proxy.http port)" = 3128 ] && grep -q 'http_proxy=http://proxy.lan:3128/' /root/.config/environment.d/50-shani-proxy.conf \
+    && result proxy-applied PASS || result proxy-applied FAIL "$(gsettings get org.gnome.system.proxy mode) $(gsettings get org.gnome.system.proxy.http host)"
+settings '{}'
+sleep 1.5
+[ "$(gsettings get org.gnome.system.proxy mode)" = "'none'" ] && [ ! -e /root/.config/environment.d/50-shani-proxy.conf ] && result proxy-off PASS || result proxy-off FAIL
+ipc settingsCategory privacy
+shot 89-settings-privacy 0.6
+
+# ---- the volume click ------------------------------------------------------------------
+v0=$(q "['systemSoundsPlayed']")
+wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.30
+waitfor "d['systemSoundsPlayed'] > $v0" 3 && result volume-click PASS || result volume-click FAIL
+wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.35
 
 # ---- clipboard history can be cleared ------------------------------------------------
 printf 'secret-token-123' | wl-copy; sleep 0.8

@@ -109,6 +109,23 @@ Singleton {
             if (cf)
                 links.push(`{ output = "dl${o}:Out" input = "mix${c}:In 3" }`);
         }
+        // loudness levelling last: an EBU R128 meter, its short-term loudness
+        // turned into a gain that holds it near the target (PipeWire's ebur128 plugin)
+        let outs = ["mixL:Out", "mixR:Out"];
+        if (d.fxLoudness) {
+            nodes.push(`{ type = ebur128 name = meter label = ebur128 }`);
+            nodes.push(`{ type = ebur128 name = level label = lufs2gain control = { "Target LUFS" = -16 } }`);
+            nodes.push(`{ type = builtin name = lvL label = mixer }`);
+            nodes.push(`{ type = builtin name = lvR label = mixer }`);
+            links.push(`{ output = "mixL:Out" input = "meter:In FL" }`);
+            links.push(`{ output = "mixR:Out" input = "meter:In FR" }`);
+            links.push(`{ output = "meter:Out FL" input = "lvL:In 1" }`);
+            links.push(`{ output = "meter:Out FR" input = "lvR:In 1" }`);
+            links.push(`{ output = "meter:Shortterm LUFS" input = "level:LUFS" }`);
+            links.push(`{ output = "level:Gain" input = "lvL:Gain 1" }`);
+            links.push(`{ output = "level:Gain" input = "lvR:Gain 1" }`);
+            outs = ["lvL:Out", "lvR:Out"];
+        }
         const first = c => filters.length ? "f" + c + "0" : d.fxIr ? "ir" + c : "in" + c;
         return `# written by shani-shell (Settings > Sound effects); rewritten on every change
 context.properties = { log.level = 0 }
@@ -130,7 +147,7 @@ context.modules = [
           ${links.join("\n          ")}
         ]
         inputs = [ "${first("L")}:In" "${first("R")}:In" ]
-        outputs = [ "mixL:Out" "mixR:Out" ]
+        outputs = [ "${outs[0]}" "${outs[1]}" ]
       }
       audio.channels = 2
       audio.position = [ FL FR ]
@@ -175,6 +192,72 @@ context.modules = [
     }
     property string error: ""
     onRunningChanged: if (running) error = ""
+
+    // ---- the microphone: RNNoise between the real mic and a cleaned-up source ----
+    readonly property bool micOn: d.micNoise
+    readonly property string micPath: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/shani-mic.conf"
+    readonly property string micName: "effect_output.shani_mic"
+    property string micTarget: ""
+    readonly property var defaultSource: Pipewire.defaultAudioSource
+    readonly property string micConf: `# written by shani-shell (Settings > Sound > Noise suppression)
+context.properties = { log.level = 0 }
+context.spa-libs = { audio.convert.* = audioconvert/libspa-audioconvert support.* = support/libspa-support }
+context.modules = [
+  { name = libpipewire-module-rt args = { } flags = [ ifexists nofail ] }
+  { name = libpipewire-module-protocol-native }
+  { name = libpipewire-module-client-node }
+  { name = libpipewire-module-adapter }
+  { name = libpipewire-module-filter-chain
+    args = {
+      node.description = "ShaniOS noise-cancelled microphone"
+      media.name = "ShaniOS noise-cancelled microphone"
+      filter.graph = { nodes = [ { type = ladspa name = rnnoise plugin = "librnnoise_ladspa" label = noise_suppressor_mono control = { "VAD Threshold (%)" = 50.0 } } ] }
+      audio.channels = 1
+      audio.position = [ MONO ]
+      capture.props = { node.name = "effect_input.shani_mic" node.passive = true${micTarget ? ` target.object = "${micTarget}"` : ""} }
+      playback.props = { node.name = "${micName}" media.class = Audio/Source }
+    }
+  }
+]
+`
+    onMicOnChanged: {
+        if (micOn) {
+            if (defaultSource && defaultSource.name !== micName)
+                micTarget = defaultSource.name;
+            micRebuild.restart();
+        } else {
+            mic.running = false;
+            const real = Pipewire.nodes.values.find(n => n.name === root.micTarget);
+            if (real)
+                Pipewire.preferredDefaultAudioSource = real;
+        }
+    }
+    onMicConfChanged: if (micOn) micRebuild.restart()
+    Timer {
+        id: micRebuild
+        interval: 300
+        onTriggered: {
+            mic.running = false;
+            micSave.command = ["sh", "-c", 'printf "%s" "$2" > "$1.tmp" && mv "$1.tmp" "$1"', "sh", root.micPath, root.micConf];
+            micSave.running = true;
+        }
+    }
+    Process { id: micSave; onExited: code => { if (code === 0 && root.micOn) mic.running = true; } }
+    Process {
+        id: mic
+        command: ["pipewire", "-c", root.micPath]
+        stderr: StdioCollector { id: micErr }
+        onExited: code => { if (root.micOn && code !== 0) root.micError = micErr.text.trim().split("\n").pop() || "noise suppression stopped"; }
+    }
+    property string micError: ""
+    readonly property bool micRunning: mic.running
+    readonly property var micNode: Pipewire.nodes.values.find(n => n.name === micName) || null
+    onMicNodeChanged: if (micOn && micNode) Pipewire.preferredDefaultAudioSource = micNode
+    onDefaultSourceChanged: {
+        if (!micOn || !defaultSource || defaultSource.name === micName || defaultSource.name === "effect_input.shani_mic")
+            return;
+        micTarget = defaultSource.name;
+    }
 
     // our output appears: make it the default. Another output picked while on:
     // that becomes the target, and ours the default again.

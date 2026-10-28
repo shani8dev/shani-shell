@@ -70,7 +70,7 @@ ShellRoot {
     ChronoaSurface { id: chronoa }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera]
+    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive]
 
     IpcHandler {
         target: "shani"
@@ -200,6 +200,8 @@ ShellRoot {
                 nightLightMode: NightLight.mode,
                 iconsNeedRestart: Appearance.iconsNeedRestart,
                 fx: SoundFx.on, fxRunning: SoundFx.running, fxTarget: SoundFx.target, fxError: SoundFx.error,
+                micNoise: SoundFx.micOn, micRunning: SoundFx.micRunning, micError: SoundFx.micError,
+                sourceName: Audio.source ? Audio.source.name : "",
                 nightLightCommand: NightLight.command.join(" "),
                 hotCorner: HotCornerActions.last,
                 overview: Niri.overviewOpen,
@@ -218,6 +220,9 @@ ShellRoot {
                 displayPending: Displays.pending,
                 mediaPlaying: Mpris.players.values.some(x => x.isPlaying),
                 notifSounds: Notifs.sounds,
+                trashEmptied: Housekeeping.emptied,
+                systemSoundsPlayed: SystemSounds.played,
+                bluetoothReceived: ObexReceive.received,
                 cameras: Camera.cameras.length, cameraPhase: Camera.phase, cameraLast: Camera.last,
                 inputMethod: Ime.current,
                 osk: Osk.shown,

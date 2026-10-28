@@ -305,3 +305,10 @@ the fake greetd.
 | two-word launcher searches | "default browser", "time zone", "add user" fell through to "Ask Chronoa": an action matched only when one of its words began with the whole query | every word typed must begin some word of the title or keywords, any order |
 | smart suggestion came back | a later suggestion was replaced by the earlier copy's: wl-clip-persist takes the clipboard over after each copy, so wl-paste --watch announces the same text twice | the same text again is not a new copy |
 | autologin check in a container | `systemctl cat greetd.service` had nothing: greetd was not in the dev image | greetd installed; the test reads what systemd will run (`systemctl show -p ExecStart`) |
+| refused display change asked to be kept | turning off the last screen was refused, yet "Keep these display settings?" counted down: the old settings were recorded before the change was checked | record only once the change is known to be one |
+| keyring locked after every login | greetd's PAM stack has no pam_gnome_keyring | `/etc/pam.d/shani-greetd` (greetd's stack + the keyring), named by `[general] service` |
+| no play/pause/next keys | niri's config bound only volume and brightness | XF86Audio{Play,Pause,Next,Prev,Stop} through the shell to the playing MPRIS player |
+| first copy after start swallowed | "skip the first clipboard event" assumed one is announced at start; an empty clipboard announces nothing | by time: only what arrives in the first 1.5 s |
+| own shortcut press in a test | `wtype` keys never reach niri's binds (virtual keyboards go to the client) | the test checks the bind niri loads; the press is a real-keyboard check |
+| stale test containers | `timeout -s KILL docker run` kills the client, not the container: an old run kept writing into the same work directory | named containers, removed before and after |
+| loudness levelling ports | PipeWire's ebur128 plugin documents no port names | read from the plugin and proven by loading the graph: `Shortterm LUFS` → `lufs2gain:LUFS`, `Gain` → a mixer's `Gain 1` |

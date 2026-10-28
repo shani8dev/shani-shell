@@ -13,9 +13,10 @@ export SHANI_DICTATE_TOOL=/work/bridge/dictate.py SHANI_DICTATE_ENGINE=whisper-c
 export SHANI_WHISPER_MODEL=/opt/whisper/ggml-tiny.en.bin
 # no Bluetooth in a container: a stand-in for bridge/bt-agent.py (tests/test_bt_agent.py
 # runs the real one against a fake BlueZ) that asks what /tmp/bt-ask holds
-export SHANI_BT_AGENT=/work/dev/fake-bt-agent.py
+export SHANI_BT_AGENT=/work/dev/fake-bt-agent.py SHANI_OBEX_AGENT=/work/dev/fake-obex-agent.py
 # no camera either: a stand-in for libcamera's cam (dev/fake-cam.sh)
 export SHANI_CAM_TOOL=/work/dev/fake-cam.sh
+export SHANI_NIRI_CONFIG=/work/dev/niri/session.kdl
 export XDG_CONFIG_HOME=/root/.config SHANI_SHELL_SETTINGS=/tmp/shani-settings.json
 # the lock screen's PAM file in its real place: its "include login" resolves
 # against the directory it sits in, so a copy elsewhere can never authenticate

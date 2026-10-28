@@ -57,6 +57,13 @@ shot() { sleep "${2:-0.8}"; grim "/work/docs/shots/$1.png" 2>/dev/null || true; 
 
 waitfor "d['locales'] > 0 and d['zones'] > 0 and d['locale'] != ''" 10 && result setup-reads-system PASS || result setup-reads-system FAIL "$(st)"
 shot 80-setup-welcome 1.5
+# the wizard speaks the language picked on its first page
+call set locale mr_IN.UTF-8
+waitfor "d['nextWord'] == 'पुढे'" 3 && result setup-speaks-marathi PASS || result setup-speaks-marathi FAIL "$(st)"
+shot 80b-setup-marathi 0.6
+call set locale de_DE.UTF-8
+waitfor "d['nextWord'] == 'Weiter'" 3 && result setup-speaks-german PASS || result setup-speaks-german FAIL
+call set locale en_US.UTF-8
 call next
 waitfor "d['page'] == 'keyboard'" 3
 call set keymap "us,in+marathi"

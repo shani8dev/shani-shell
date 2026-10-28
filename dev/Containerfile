@@ -38,3 +38,5 @@ RUN pacman -Sy --noconfirm --needed glibc-locales && pacman -Scc --noconfirm
 RUN pacman -Sy --noconfirm --needed greetd && pacman -Scc --noconfirm
 # the notification sound (freedesktop theme), as shani-desktop-niri ships it
 RUN pacman -Sy --noconfirm --needed sound-theme-freedesktop && pacman -Scc --noconfirm
+# microphone noise suppression (RNNoise LADSPA), as shani-desktop-niri ships it
+RUN pacman -Sy --noconfirm --needed noise-suppression-for-voice && pacman -Scc --noconfirm
