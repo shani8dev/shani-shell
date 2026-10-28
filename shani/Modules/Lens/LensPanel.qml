@@ -48,7 +48,7 @@ PanelWindow {
                     text: Lens.phase === "reading" ? "Lens · reading…" : "Lens"
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 15
+                    font.pixelSize: 15 * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
                 IconButton { icon: "view-refresh"; size: 28; onClicked: Lens.capture() }
@@ -103,7 +103,7 @@ PanelWindow {
                     selectionColor: Theme.accent
                     selectedTextColor: Theme.accentInk
                     font.family: Theme.font
-                    font.pixelSize: 13
+                    font.pixelSize: 13 * Theme.fontScale
                 }
             }
 

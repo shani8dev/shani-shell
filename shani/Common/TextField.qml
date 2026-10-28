@@ -25,7 +25,7 @@ Rectangle {
         color: Theme.text
         selectionColor: Theme.accent
         font.family: Theme.font
-        font.pixelSize: 13
+        font.pixelSize: 13 * Theme.fontScale
         echoMode: root.secret ? TextInput.Password : TextInput.Normal
         clip: true
         onAccepted: root.accepted()

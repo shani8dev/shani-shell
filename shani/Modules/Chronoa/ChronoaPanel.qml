@@ -164,21 +164,28 @@ PanelWindow {
         const options = JSON.parse(row.optionsJson || "[]");
         if (options.length === 0)
             return decision;
+        // Exact label match first (e.g. "Allow for this session" == "Allow for this session")
         if (options.indexOf(decision) >= 0)
             return decision;
+        // Pattern-based fallback for "deny" decision code
         if (decision === "deny") {
             for (let i = 0; i < options.length; i++) {
                 if (/deny|no\b|cancel|stop/i.test(options[i]))
                     return options[i];
             }
+            // No pattern match: return the last option as default
             return options[options.length - 1];
         }
+        // Pattern-based fallback for "always" decision code
         if (decision === "always") {
             for (let i = 0; i < options.length; i++) {
                 if (/session|always/i.test(options[i]))
                     return options[i];
             }
+            // No pattern match: return the first option as default
+            return options[0];
         }
+        // No pattern matched: return the first option as default
         return options[0];
     }
 
@@ -229,7 +236,7 @@ PanelWindow {
 
     Rectangle {
         anchors.fill: parent
-        color: Qt.rgba(0, 0, 0, 0.42)
+        color: Theme.scrim
 
         MouseArea {
             anchors.fill: parent
@@ -243,9 +250,9 @@ PanelWindow {
         height: Math.min(620, parent.height - 120)
         anchors.centerIn: parent
         radius: 22
-        color: Qt.rgba(0.045, 0.06, 0.085, 0.80)
+        color: Theme.glassStrong
         border.width: 1
-        border.color: Qt.rgba(1, 1, 1, 0.12)
+        border.color: Theme.alpha(Theme.text, 0.12)
 
         // NOTE: no decorative glow here — a flat translucent circle reads as a
         // hard-edged blob at 0.07 alpha, and a real radial gradient would need
@@ -289,7 +296,7 @@ PanelWindow {
                     text: "Chronoa"
                     color: panel.textColor
                     font.family: "Noto Sans"
-                    font.pixelSize: 16
+                    font.pixelSize: 16 * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
 
@@ -297,7 +304,7 @@ PanelWindow {
                     text: panel.stateLabel()
                     color: panel.stateColor()
                     font.family: "Noto Sans"
-                    font.pixelSize: 12
+                    font.pixelSize: 12 * Theme.fontScale
                 }
 
                 Text {
@@ -305,7 +312,7 @@ PanelWindow {
                     text: "· " + panel.detail
                     color: panel.dimColor
                     font.family: "Noto Sans"
-                    font.pixelSize: 11
+                    font.pixelSize: 11 * Theme.fontScale
                     elide: Text.ElideRight
                     Layout.maximumWidth: 280
                 }
@@ -316,9 +323,9 @@ PanelWindow {
                     width: modelChip.implicitWidth + 16
                     height: 22
                     radius: 11
-                    color: Qt.rgba(1, 1, 1, 0.05)
+                    color: Theme.alpha(Theme.text, 0.05)
                     border.width: 1
-                    border.color: Qt.rgba(1, 1, 1, 0.08)
+                    border.color: Theme.alpha(Theme.text, 0.08)
 
                     Text {
                         id: modelChip
@@ -326,7 +333,7 @@ PanelWindow {
                         text: panel.modelLabel
                         color: panel.dimColor
                         font.family: "DejaVu Sans Mono"
-                        font.pixelSize: 10
+                        font.pixelSize: 10 * Theme.fontScale
                     }
                 }
 
@@ -334,13 +341,13 @@ PanelWindow {
                     width: 26
                     height: 26
                     radius: 13
-                    color: closeArea.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
+                    color: closeArea.containsMouse ? Theme.alpha(Theme.text, 0.10) : "transparent"
 
                     Text {
                         anchors.centerIn: parent
                         text: "×"
                         color: panel.dimColor
-                        font.pixelSize: 16
+                        font.pixelSize: 16 * Theme.fontScale
                     }
                     MouseArea {
                         id: closeArea
@@ -355,7 +362,7 @@ PanelWindow {
             Rectangle {
                 Layout.fillWidth: true
                 height: 1
-                color: Qt.rgba(1, 1, 1, 0.07)
+                color: Theme.alpha(Theme.text, 0.07)
             }
 
             // ---- transcript ---------------------------------------------
@@ -364,9 +371,9 @@ PanelWindow {
                 Layout.fillHeight: true
                 visible: panel.model.count === 0
                 text: "Ask for a job.\n\nChronoa runs it on this machine,\nand asks before anything changes."
-                color: Qt.rgba(0.56, 0.63, 0.71, 0.55)
+                color: Theme.alpha(Theme.dim, 0.55)
                 font.family: "Noto Sans"
-                font.pixelSize: 15
+                font.pixelSize: 15 * Theme.fontScale
                 lineHeight: 1.5
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
@@ -431,9 +438,9 @@ PanelWindow {
                                 width: Math.min(row.width * 0.72, userText.implicitWidth + 28)
                                 height: userText.implicitHeight + 18
                                 radius: 12
-                                color: Qt.rgba(0.50, 0.82, 0.76, 0.16)
+                                color: Theme.alpha(Theme.accent, 0.16)
                                 border.width: 1
-                                border.color: Qt.rgba(0.50, 0.82, 0.76, 0.28)
+                                border.color: Theme.alpha(Theme.accent, 0.28)
 
                                 Text {
                                     id: userText
@@ -442,7 +449,7 @@ PanelWindow {
                                     text: row.text
                                     color: panel.textColor
                                     font.family: "Noto Sans"
-                                    font.pixelSize: 13
+                                    font.pixelSize: 13 * Theme.fontScale
                                     wrapMode: Text.WordWrap
                                 }
                             }
@@ -457,7 +464,7 @@ PanelWindow {
                                 text: row.text
                                 color: panel.textColor
                                 font.family: "Noto Sans"
-                                font.pixelSize: 13
+                                font.pixelSize: 13 * Theme.fontScale
                                 lineHeight: 1.35
                                 wrapMode: Text.WordWrap
                             }
@@ -470,9 +477,9 @@ PanelWindow {
                                 width: toolRow.implicitWidth + 22
                                 height: 28
                                 radius: 8
-                                color: Qt.rgba(0.88, 0.69, 0.41, 0.10)
+                                color: Theme.alpha(Theme.amber, 0.10)
                                 border.width: 1
-                                border.color: Qt.rgba(0.88, 0.69, 0.41, 0.25)
+                                border.color: Theme.alpha(Theme.amber, 0.25)
 
                                 Row {
                                     id: toolRow
@@ -488,9 +495,9 @@ PanelWindow {
                                     }
                                     Text {
                                         text: row.text
-                                        color: "#f0d3a4"
+                                        color: Theme.amber
                                         font.family: "DejaVu Sans Mono"
-                                        font.pixelSize: 10
+                                        font.pixelSize: 10 * Theme.fontScale
                                         anchors.verticalCenter: parent.verticalCenter
                                     }
                                 }
@@ -504,9 +511,9 @@ PanelWindow {
                                 anchors.right: parent.right
                                 height: approvalCol.implicitHeight + 24
                                 radius: 12
-                                color: Qt.rgba(0.88, 0.69, 0.41, 0.08)
+                                color: Theme.alpha(Theme.amber, 0.08)
                                 border.width: 1
-                                border.color: Qt.rgba(0.88, 0.69, 0.41, 0.35)
+                                border.color: Theme.alpha(Theme.amber, 0.35)
 
                                 Rectangle {
                                     width: 3
@@ -531,7 +538,7 @@ PanelWindow {
                                         text: row.title
                                         color: panel.textColor
                                         font.family: "Noto Sans"
-                                        font.pixelSize: 13
+                                        font.pixelSize: 13 * Theme.fontScale
                                         font.weight: Font.DemiBold
                                     }
                                     Text {
@@ -539,7 +546,7 @@ PanelWindow {
                                         text: row.detail
                                         color: panel.dimColor
                                         font.family: "Noto Sans"
-                                        font.pixelSize: 11
+                                        font.pixelSize: 11 * Theme.fontScale
                                         wrapMode: Text.WordWrap
                                     }
 
@@ -558,12 +565,12 @@ PanelWindow {
                                                 height: 28
                                                 radius: 8
                                                 color: index === 0
-                                                ? Qt.rgba(0.50, 0.82, 0.76, 0.22)
-                                                : Qt.rgba(1, 1, 1, 0.06)
+                                                ? Theme.alpha(Theme.accent, 0.22)
+                                                : Theme.alpha(Theme.text, 0.06)
                                                 border.width: 1
                                                 border.color: index === 0
-                                                ? Qt.rgba(0.50, 0.82, 0.76, 0.55)
-                                                : Qt.rgba(1, 1, 1, 0.10)
+                                                ? Theme.alpha(Theme.accent, 0.55)
+                                                : Theme.alpha(Theme.text, 0.10)
 
                                                 Text {
                                                     id: btnLabel
@@ -573,7 +580,7 @@ PanelWindow {
                                                     elide: Text.ElideRight
                                                     color: panel.textColor
                                                     font.family: "Noto Sans"
-                                                    font.pixelSize: 11
+                                                    font.pixelSize: 11 * Theme.fontScale
                                                 }
                                                 MouseArea {
                                                     anchors.fill: parent
@@ -592,7 +599,7 @@ PanelWindow {
                                         + row.decision
                                         color: panel.accent
                                         font.family: "Noto Sans"
-                                        font.pixelSize: 11
+                                        font.pixelSize: 11 * Theme.fontScale
                                     }
                                 }
                             }
@@ -606,7 +613,7 @@ PanelWindow {
                                 text: row.text
                                 color: panel.dimColor
                                 font.family: "DejaVu Sans Mono"
-                                font.pixelSize: 10
+                                font.pixelSize: 10 * Theme.fontScale
                                 wrapMode: Text.WordWrap
                             }
                         }
@@ -633,9 +640,9 @@ PanelWindow {
                         width: chipLabel.implicitWidth + 20
                         height: 26
                         radius: 13
-                        color: chipArea.containsMouse ? Qt.rgba(0.50, 0.82, 0.76, 0.16) : Qt.rgba(1, 1, 1, 0.04)
+                        color: chipArea.containsMouse ? Theme.alpha(Theme.accent, 0.16) : Theme.alpha(Theme.text, 0.04)
                         border.width: 1
-                        border.color: Qt.rgba(1, 1, 1, 0.08)
+                        border.color: Theme.alpha(Theme.text, 0.08)
 
                         Text {
                             id: chipLabel
@@ -643,7 +650,7 @@ PanelWindow {
                             text: modelData.label
                             color: panel.dimColor
                             font.family: "Noto Sans"
-                            font.pixelSize: 11
+                            font.pixelSize: 11 * Theme.fontScale
                         }
                         MouseArea {
                             id: chipArea
@@ -668,9 +675,9 @@ PanelWindow {
                 Layout.fillWidth: true
                 height: 48
                 radius: 14
-                color: Qt.rgba(1, 1, 1, 0.05)
+                color: Theme.alpha(Theme.text, 0.05)
                 border.width: 1
-                border.color: input.activeFocus ? Qt.rgba(0.50, 0.82, 0.76, 0.55) : Qt.rgba(1, 1, 1, 0.10)
+                border.color: input.activeFocus ? Theme.alpha(Theme.accent, 0.55) : Theme.alpha(Theme.text, 0.10)
 
                 RowLayout {
                     anchors.fill: parent
@@ -683,8 +690,8 @@ PanelWindow {
                         Layout.fillWidth: true
                         color: panel.textColor
                         font.family: "Noto Sans"
-                        font.pixelSize: 14
-                        selectionColor: Qt.rgba(0.5, 0.82, 0.76, 0.35)
+                        font.pixelSize: 14 * Theme.fontScale
+                        selectionColor: Theme.alpha(Theme.accent, 0.35)
                         clip: true
 
                         Keys.onEscapePressed: panel.dismiss()
@@ -695,9 +702,9 @@ PanelWindow {
                     Text {
                         visible: input.text === ""
                         text: "Ask Chronoa, or describe a task…"
-                        color: Qt.rgba(0.56, 0.63, 0.71, 0.75)
+                        color: Theme.alpha(Theme.dim, 0.75)
                         font.family: "Noto Sans"
-                        font.pixelSize: 14
+                        font.pixelSize: 14 * Theme.fontScale
                         Layout.fillWidth: true
                     }
 
@@ -705,7 +712,7 @@ PanelWindow {
                         width: 32
                         height: 32
                         radius: 9
-                        color: micArea.containsMouse ? Qt.rgba(0.50, 0.82, 0.76, 0.18) : Qt.rgba(1, 1, 1, 0.05)
+                        color: micArea.containsMouse ? Theme.alpha(Theme.accent, 0.18) : Theme.alpha(Theme.text, 0.05)
                         visible: panel.state !== "listening"
 
                         Text {
@@ -713,7 +720,7 @@ PanelWindow {
                             text: "mic"
                             color: panel.dimColor
                             font.family: "DejaVu Sans Mono"
-                            font.pixelSize: 9
+                            font.pixelSize: 9 * Theme.fontScale
                         }
                         MouseArea {
                             id: micArea
@@ -735,7 +742,7 @@ PanelWindow {
                             anchors.centerIn: parent
                             text: "■"
                             color: Theme.accentInk
-                            font.pixelSize: 12
+                            font.pixelSize: 12 * Theme.fontScale
                         }
                         MouseArea {
                             anchors.fill: parent
@@ -748,15 +755,15 @@ PanelWindow {
                         width: 34
                         height: 32
                         radius: 9
-                        color: input.text.trim() === "" ? Qt.rgba(1, 1, 1, 0.04) : Qt.rgba(0.50, 0.82, 0.76, 0.30)
+                        color: input.text.trim() === "" ? Theme.alpha(Theme.text, 0.04) : Theme.alpha(Theme.accent, 0.30)
                         border.width: 1
-                        border.color: input.text.trim() === "" ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(0.50, 0.82, 0.76, 0.55)
+                        border.color: input.text.trim() === "" ? Theme.alpha(Theme.text, 0.06) : Theme.alpha(Theme.accent, 0.55)
 
                         Text {
                             anchors.centerIn: parent
                             text: "↵"
                             color: input.text.trim() === "" ? panel.dimColor : panel.textColor
-                            font.pixelSize: 14
+                            font.pixelSize: 14 * Theme.fontScale
                         }
                         MouseArea {
                             anchors.fill: parent
@@ -770,9 +777,9 @@ PanelWindow {
             Text {
                 Layout.fillWidth: true
                 text: "↵ send    esc close    ·    tools ask before they change anything"
-                color: Qt.rgba(0.56, 0.63, 0.71, 0.65)
+                color: Theme.alpha(Theme.dim, 0.65)
                 font.family: "Noto Sans"
-                font.pixelSize: 10
+                font.pixelSize: 10 * Theme.fontScale
             }
         }
     }

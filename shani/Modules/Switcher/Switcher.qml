@@ -97,7 +97,7 @@ PanelWindow {
             text: "No windows open"
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: 13
+            font.pixelSize: 13 * Theme.fontScale
         }
 
         ListView {
@@ -142,7 +142,7 @@ PanelWindow {
                         maximumLineCount: 2
                         wrapMode: Text.Wrap
                         font.family: Theme.font
-                        font.pixelSize: 11
+                        font.pixelSize: 11 * Theme.fontScale
                     }
                     Text {
                         Layout.fillWidth: true
@@ -150,7 +150,7 @@ PanelWindow {
                         text: Niri.workspaceLabel(cell.modelData.workspace_id)
                         color: Theme.faint
                         font.family: Theme.font
-                        font.pixelSize: 10
+                        font.pixelSize: 10 * Theme.fontScale
                     }
                 }
                 MouseArea {

@@ -12,6 +12,8 @@
 // aim the mascot's gaze at the pointer.
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Services.Pipewire
+import Quickshell.Services.Mpris
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
@@ -24,6 +26,35 @@ PanelWindow {
     property bool asking: false
     readonly property bool hasApproval: Chronoa.approval !== null
     readonly property bool working: Chronoa.busy || Chronoa.cueText !== "" || Chronoa.step !== ""
+    // Live Activities (after iOS): with Chronoa idle, the Island carries the
+    // one thing in progress that matters most — and a click acts on it
+    readonly property var player: Mpris.players.values.find(p => p.isPlaying) || null
+    readonly property var activity: {
+        if (Camera.phase === "counting")
+            return { icon: "camera-photo", text: "Photo in " + Camera.countdown + "…", color: Theme.accent, run: () => {} };
+        if (Camera.phase === "recording")
+            return { icon: "camera-video", text: "Recording video · " + Camera.elapsed, color: Theme.red, run: () => Camera.video() };
+        if (CallRecorder.recording)
+            return { icon: "call-start", text: "Recording call · " + CallRecorder.elapsed, color: Theme.red, run: () => CallRecorder.stop() };
+        if (Smart.suggestion)
+            return { icon: Smart.suggestion.icon, text: Smart.suggestion.text, color: Smart.suggestion.color || Theme.accent, run: () => { const s = Smart.suggestion; Smart.suggestion = null; s.run(); } };
+        if (Recorder.recording)
+            return { icon: "media-record", text: "Recording · " + Recorder.elapsed, color: Theme.red, run: () => Recorder.stop() };
+        if (Dictation.phase === "recording")
+            return { icon: "audio-input-microphone", text: "Listening — tap to stop", color: Theme.red, run: () => Dictation.toggle() };
+        if (Dictation.phase === "transcribing")
+            return { icon: "audio-input-microphone", text: "Writing it down…", color: Theme.accent, run: () => {} };
+        if (FocusTimer.running)
+            return { icon: "alarm", text: "Focus · " + FocusTimer.label, color: Theme.accent, run: () => Ui.toggleControlCenter("timer") };
+        if (Audio.screenShared)
+            return { icon: "screen-shared", text: "Sharing your screen", color: Theme.red, run: () => {} };
+        if (Backup.running)
+            return { icon: "drive-harddisk", text: "Backing up…", color: Theme.accent, run: () => {} };
+        if (player)
+            return { icon: "media-playback-pause", text: player.trackTitle + (player.trackArtist ? " · " + player.trackArtist : ""), color: Theme.text, run: () => player.togglePlaying() };
+        return null;
+    }
+    onActivityChanged: Ui.islandActivity = activity ? activity.text : ""
     readonly property string mode: hasApproval ? "approval" : asking ? "ask" : working ? "working" : "rest"
     readonly property string line: {
         if (Chronoa.state === "offline")
@@ -34,6 +65,8 @@ PanelWindow {
             return Chronoa.step;
         if (Chronoa.busy)
             return Chronoa.title || (Chronoa.state === "speaking" ? "Speaking" : "Working on it");
+        if (win.activity)
+            return win.activity.text;
         return Chronoa.title && Chronoa.title !== "Ready when you are" ? Chronoa.title : "Ask me anything";
     }
 
@@ -49,6 +82,15 @@ PanelWindow {
     WlrLayershell.keyboardFocus: asking ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     BackgroundEffect.blurRegion: Settings.data.blur ? islandRegion : null
     Region { id: islandRegion; item: card; radius: card.radius }
+
+    // the voice, live: Chronoa's own (the speakers) while it speaks, yours
+    // (the microphone) while it listens — the halo swells with the level
+    PwNodePeakMonitor {
+        id: voice
+        node: Chronoa.state === "speaking" ? Audio.sink : Chronoa.state === "listening" ? Audio.source : null
+        enabled: node !== null
+    }
+    readonly property real level: voice.enabled ? Math.min(1, voice.peak * 1.6) : 0
 
     function report() {
         if (!Bridge.connected)
@@ -100,8 +142,11 @@ PanelWindow {
                     border.width: 2
                     border.color: Chronoa.color
                     opacity: win.working ? 0.9 : 0.35
+                    // with a voice, the level drives it; otherwise it breathes
+                    scale: win.level > 0 ? 1 + win.level * 0.35 : 1
+                    Behavior on scale { enabled: win.level > 0; NumberAnimation { duration: 60 } }
                     SequentialAnimation on scale {
-                        running: win.working
+                        running: win.working && win.level === 0
                         loops: Animation.Infinite
                         NumberAnimation { from: 1.0; to: 1.12; duration: 700; easing.type: Easing.InOutSine }
                         NumberAnimation { from: 1.12; to: 1.0; duration: 700; easing.type: Easing.InOutSine }
@@ -174,19 +219,30 @@ PanelWindow {
             }
 
             // ---- the line / the question field ----------------------------
+            Icon {
+                visible: win.mode === "rest" && win.activity !== null
+                name: win.activity ? win.activity.icon : ""
+                size: 14
+                color: win.activity ? win.activity.color : Theme.dim
+            }
             Text {
                 visible: win.mode !== "ask"
                 Layout.fillWidth: win.mode !== "rest"
                 Layout.maximumWidth: 340
+                Layout.preferredWidth: win.mode === "rest" && win.activity ? Math.min(260, implicitWidth) : implicitWidth
                 text: win.line
                 color: win.working ? Theme.text : Theme.dim
                 elide: Text.ElideRight
                 font.family: Chronoa.step !== "" || Chronoa.cueText !== "" ? Theme.mono : Theme.font
-                font.pixelSize: 12
+                font.pixelSize: 12 * Theme.fontScale
                 MouseArea {
                     anchors.fill: parent
-                    cursorShape: Qt.IBeamCursor
+                    cursorShape: win.mode === "rest" && win.activity ? Qt.PointingHandCursor : Qt.IBeamCursor
                     onClicked: {
+                        if (win.mode === "rest" && win.activity) {
+                            win.activity.run();
+                            return;
+                        }
                         win.asking = true;
                         askInput.forceActiveFocus();
                     }
@@ -200,7 +256,7 @@ PanelWindow {
                 color: Theme.text
                 selectionColor: Theme.accent
                 font.family: Theme.font
-                font.pixelSize: 13
+                font.pixelSize: 13 * Theme.fontScale
                 clip: true
                 Keys.onEscapePressed: {
                     text = "";
@@ -226,7 +282,7 @@ PanelWindow {
                 text: Chronoa.label
                 color: Chronoa.color
                 font.family: Theme.font
-                font.pixelSize: 11
+                font.pixelSize: 11 * Theme.fontScale
             }
         }
 
@@ -245,7 +301,7 @@ PanelWindow {
                 color: Theme.text
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: 13
+                font.pixelSize: 13 * Theme.fontScale
                 font.weight: Font.DemiBold
             }
             Text {
@@ -257,7 +313,7 @@ PanelWindow {
                 maximumLineCount: 4
                 elide: Text.ElideRight
                 font.family: Theme.mono
-                font.pixelSize: 11
+                font.pixelSize: 11 * Theme.fontScale
             }
             Flow {
                 Layout.fillWidth: true

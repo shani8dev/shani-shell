@@ -8,6 +8,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Widgets
 import Quickshell.Services.Mpris
+import Quickshell.Services.Pipewire
 import Quickshell.Services.Notifications
 import Quickshell.Bluetooth
 import Quickshell.Networking
@@ -67,10 +68,16 @@ PanelWindow {
                 spacing: 12
                 RowLayout {
                     Layout.fillWidth: true
-                    IconButton { icon: "go-previous"; onClicked: Ui.expanded = "" }
-                    Text { text: "Shell settings"; color: Theme.text; font.family: Theme.font; font.pixelSize: 16; font.weight: Font.DemiBold; Layout.fillWidth: true }
+                    // back: out of a category, then out of settings
+                    IconButton { icon: "go-previous"; Accessible.name: "Back"; onClicked: Ui.settingsCat !== "" ? Ui.settingsCat = "" : Ui.expanded = "" }
+                    Text { text: settingsPage.catTitle; color: Theme.text; font.family: Theme.font; font.pixelSize: 16 * Theme.fontScale; font.weight: Font.DemiBold; Layout.fillWidth: true }
                 }
-                SettingsPage { Layout.fillWidth: true; visible: Ui.expanded === "settings" }
+                SettingsPage {
+                    id: settingsPage
+                    Layout.fillWidth: true
+                    visible: Ui.expanded === "settings"
+                    onVisibleChanged: if (!visible) Ui.settingsCat = ""
+                }
             }
         }
 
@@ -95,17 +102,30 @@ PanelWindow {
                         Layout.fillWidth: true
                         Text {
                             text: Qt.formatDateTime(clock.date, Settings.data.use24h ? "HH:mm" : "h:mm AP")
+                            font.features: { "tnum": 1 }
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: 34
+                            font.pixelSize: 34 * Theme.fontScale
                             font.weight: Font.Light
                         }
                         Text {
                             text: Qt.formatDateTime(clock.date, "dddd, d MMMM")
                                   + (Power.hasBattery ? "  ·  " + Math.round(Power.percent * 100) + "%" + (Power.timeLeft ? " · " + Power.timeLeft : "") : "")
+                            font.features: { "tnum": 1 }
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: 12
+                            font.pixelSize: 12 * Theme.fontScale
+                        }
+                        Row {
+                            visible: Weather.summary !== ""
+                            spacing: 6
+                            Icon { name: Weather.icon; size: 14; color: Theme.dim; anchors.verticalCenter: parent.verticalCenter }
+                            Text {
+                                text: Weather.summary + "  ·  " + Settings.data.weatherCity
+                                color: Theme.dim
+                                font.family: Theme.font
+                                font.pixelSize: 12 * Theme.fontScale
+                            }
                         }
                     }
                     IconButton { icon: "preferences-system"; onClicked: Ui.expanded = "settings" }
@@ -172,6 +192,24 @@ PanelWindow {
                 }
                 SliderRow {
                     Layout.fillWidth: true
+                    visible: Audio.source !== null
+                    icon: Audio.micMuted ? "microphone-sensitivity-muted" : "audio-input-microphone"
+                    value: Audio.micVolume
+                    muted: Audio.micMuted
+                    level: micLevel.enabled ? Math.min(1, micLevel.peak * 1.5) : -1
+                    hasDetail: true
+                    expanded: Ui.expanded === "audio"
+                    onMoved: v => Audio.setMicVolume(v)
+                    onIconClicked: Audio.toggleMic()
+                    onDetail: Ui.expanded = Ui.expanded === "audio" ? "" : "audio"
+                    PwNodePeakMonitor {
+                        id: micLevel
+                        node: Audio.source
+                        enabled: win.visible && Ui.controlCenter && !Audio.micMuted
+                    }
+                }
+                SliderRow {
+                    Layout.fillWidth: true
                     visible: Brightness.available
                     icon: "display-brightness"
                     value: Brightness.value
@@ -209,7 +247,7 @@ PanelWindow {
                                 text: Audio.streamName(modelData)
                                 color: Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: 10
+                                font.pixelSize: 10 * Theme.fontScale
                                 Layout.maximumWidth: 90
                                 elide: Text.ElideRight
                             }
@@ -227,27 +265,36 @@ PanelWindow {
                             onClicked: Audio.useSource(modelData)
                         }
                     }
-                    SliderRow {
-                        Layout.fillWidth: true
-                        visible: Audio.source !== null
-                        icon: Audio.micMuted ? "microphone-sensitivity-muted" : "audio-input-microphone"
-                        value: Audio.micVolume
-                        muted: Audio.micMuted
-                        onMoved: v => Audio.setMicVolume(v)
-                        onIconClicked: Audio.toggleMic()
-                    }
                 }
 
                 // ---- tiles ----------------------------------------------------
-                GridLayout {
+                // tiles in the person's order (Settings: tileOrder, hiddenTiles); a tile
+                // that cannot work here (no Wi-Fi, no camera …) leaves no gap
+                Item {
+                    id: tileGrid
                     Layout.fillWidth: true
-                    columns: 2
-                    columnSpacing: 8
-                    rowSpacing: 8
+                    readonly property real gap: 8
+                    readonly property real cell: (width - gap) / 2
+                    readonly property var known: ["wifi", "bluetooth", "airplane", "hotspot", "vpn", "dnd", "focus", "phone", "timer", "caffeine", "power", "nightlight", "dark", "mic", "camera", "photo", "record", "screenshot", "lens", "colorpicker", "rotate", "flashlight", "display", "osk", "keyboard", "clipboard", "backup", "access", "captions", "transcribe", "speak", "magnifier", "callrecord", "cast", "touch", "chronoa"]
+                    readonly property var order: {
+                        const o = Settings.data.tileOrder.filter(t => known.indexOf(t) >= 0);
+                        return o.concat(known.filter(t => o.indexOf(t) < 0));       // new tiles join at the end
+                    }
+                    property var can: ({})
+                    readonly property var shown: order.filter(t => can[t] !== false && Settings.data.hiddenTiles.indexOf(t) < 0)
+                    onShownChanged: Ui.tilesShown = shown
+                    implicitHeight: Math.ceil(shown.length / 2) * (58 + gap)
+                    function place(tile) {
+                        const i = shown.indexOf(tile.tid);
+                        tile.visible = i >= 0;
+                        tile.x = (i % 2) * (cell + gap);
+                        tile.y = Math.floor(i / 2) * (58 + gap);
+                        tile.width = cell;
+                    }
 
                     Tile {
-                        Layout.fillWidth: true
-                        visible: Net.hasWifi
+                        tid: "wifi"
+                        can: Net.hasWifi
                         icon: Net.wifiEnabled ? "network-wireless-signal-excellent" : "network-wireless-disabled"
                         title: "Wi-Fi"
                         subtitle: Net.activeWifi ? Net.activeWifi.name : (Net.wifiEnabled ? "Not connected" : "Off")
@@ -258,8 +305,8 @@ PanelWindow {
                         onDetail: Ui.expanded = Ui.expanded === "wifi" ? "" : "wifi"
                     }
                     Tile {
-                        Layout.fillWidth: true
-                        visible: win.bt !== null
+                        tid: "bluetooth"
+                        can: win.bt !== null
                         icon: win.bt && win.bt.enabled ? "bluetooth-active" : "bluetooth-disabled"
                         title: "Bluetooth"
                         subtitle: {
@@ -275,7 +322,7 @@ PanelWindow {
                         onDetail: Ui.expanded = Ui.expanded === "bluetooth" ? "" : "bluetooth"
                     }
                     Tile {
-                        Layout.fillWidth: true
+                        tid: "airplane"
                         icon: "airplane-mode"
                         title: "Airplane mode"
                         subtitle: Net.airplane ? "On" : "Off"
@@ -283,8 +330,8 @@ PanelWindow {
                         onToggled: Net.setAirplane(!Net.airplane)
                     }
                     Tile {
-                        Layout.fillWidth: true
-                        visible: Net.hasWifi
+                        tid: "hotspot"
+                        can: Net.hasWifi
                         icon: "network-wireless-hotspot"
                         title: "Hotspot"
                         subtitle: Net.hotspotOn ? "Sharing" : "Off"
@@ -292,8 +339,8 @@ PanelWindow {
                         onToggled: Net.setHotspot(!Net.hotspotOn)
                     }
                     Tile {
-                        Layout.fillWidth: true
-                        visible: Net.vpns.length > 0
+                        tid: "vpn"
+                        can: Net.vpns.length > 0
                         icon: "network-vpn"
                         title: "VPN"
                         subtitle: (Net.vpns.find(v => v.active) || { name: "Off" }).name
@@ -307,7 +354,7 @@ PanelWindow {
                         onDetail: Ui.expanded = Ui.expanded === "vpn" ? "" : "vpn"
                     }
                     Tile {
-                        Layout.fillWidth: true
+                        tid: "dnd"
                         icon: Notifs.dnd ? "notifications-disabled" : "preferences-system-notifications"
                         title: "Do Not Disturb"
                         subtitle: Notifs.dnd ? "Only critical" : "Off"
@@ -315,7 +362,40 @@ PanelWindow {
                         onToggled: Notifs.setDnd(!Notifs.dnd)
                     }
                     Tile {
-                        Layout.fillWidth: true
+                        tid: "focus"
+                        icon: Focus.mode ? Focus.mode.icon : "weather-clear-night"
+                        title: "Focus"
+                        subtitle: Focus.on ? Focus.active + (Settings.data.focusMode === "" ? " · scheduled" : "") : "Off"
+                        on: Focus.on
+                        hasDetail: true
+                        expanded: Ui.expanded === "focus"
+                        onToggled: Ui.expanded = Ui.expanded === "focus" ? "" : "focus"
+                        onDetail: Ui.expanded = Ui.expanded === "focus" ? "" : "focus"
+                    }
+                    Tile {
+                        tid: "phone"
+                        can: Phone.available
+                        icon: "phone"
+                        title: Phone.name || "Phone"
+                        subtitle: !Phone.reachable ? "Pair a phone" : Phone.battery >= 0 ? Phone.battery + "% battery" : "Connected"
+                        hasDetail: true
+                        expanded: Ui.expanded === "phone"
+                        onToggled: Ui.expanded = Ui.expanded === "phone" ? "" : "phone"
+                        onDetail: Ui.expanded = Ui.expanded === "phone" ? "" : "phone"
+                    }
+                    Tile {
+                        tid: "timer"
+                        icon: "alarm"
+                        title: "Focus timer"
+                        subtitle: FocusTimer.running ? FocusTimer.label + " left" : "25 min of Work focus"
+                        on: FocusTimer.running
+                        hasDetail: true
+                        expanded: Ui.expanded === "timer"
+                        onToggled: FocusTimer.running ? FocusTimer.stop() : FocusTimer.start(25)
+                        onDetail: Ui.expanded = Ui.expanded === "timer" ? "" : "timer"
+                    }
+                    Tile {
+                        tid: "caffeine"
                         icon: "preferences-desktop-screensaver"
                         title: "Caffeine"
                         subtitle: Idle.caffeine ? "Staying awake" : "Off"
@@ -323,7 +403,7 @@ PanelWindow {
                         onToggled: Idle.setCaffeine(!Idle.caffeine)
                     }
                     Tile {
-                        Layout.fillWidth: true
+                        tid: "power"
                         icon: Power.profileIcon
                         title: "Power mode"
                         subtitle: Power.profileName
@@ -331,8 +411,8 @@ PanelWindow {
                         onToggled: Power.cycleProfile()
                     }
                     Tile {
-                        Layout.fillWidth: true
-                        visible: NightLight.available
+                        tid: "nightlight"
+                        can: NightLight.available
                         icon: "night-light"
                         title: "Night light"
                         subtitle: NightLight.active ? Settings.data.nightLightTemp + " K" : "Off"
@@ -340,7 +420,7 @@ PanelWindow {
                         onToggled: NightLight.toggle()
                     }
                     Tile {
-                        Layout.fillWidth: true
+                        tid: "dark"
                         icon: "weather-clear-night"
                         title: "Dark style"
                         subtitle: Appearance.dark ? "On" : "Off"
@@ -348,8 +428,8 @@ PanelWindow {
                         onToggled: Appearance.toggle()
                     }
                     Tile {
-                        Layout.fillWidth: true
-                        visible: Audio.source !== null
+                        tid: "mic"
+                        can: Audio.source !== null
                         icon: Audio.micMuted ? "microphone-sensitivity-muted" : "audio-input-microphone"
                         title: "Microphone"
                         subtitle: Audio.micMuted ? "Muted" : (Privacy.micInUse ? "In use" : "On")
@@ -357,8 +437,8 @@ PanelWindow {
                         onToggled: Audio.toggleMic()
                     }
                     Tile {
-                        Layout.fillWidth: true
-                        visible: Privacy.cameraPresent
+                        tid: "camera"
+                        can: Privacy.cameraPresent
                         icon: Privacy.cameraEnabled ? "camera-web" : "camera-disabled"
                         title: "Camera"
                         subtitle: !Privacy.cameraEnabled ? "Off" : (Privacy.cameraInUse ? "In use" : "On")
@@ -366,8 +446,25 @@ PanelWindow {
                         onToggled: Privacy.toggleCamera()
                     }
                     Tile {
-                        Layout.fillWidth: true
-                        visible: Recorder.available
+                        tid: "photo"
+                        can: Camera.available && Privacy.cameraEnabled
+                        icon: "camera-photo"
+                        title: "Photo"
+                        subtitle: Camera.phase === "recording" ? "Video · " + Camera.elapsed : "Camera"
+                        on: Camera.phase === "recording"
+                        hasDetail: true
+                        onToggled: {
+                            Ui.closeAll();
+                            Camera.photo();
+                        }
+                        onDetail: {
+                            Ui.closeAll();
+                            Camera.open();
+                        }
+                    }
+                    Tile {
+                        tid: "record"
+                        can: Recorder.available
                         icon: "media-record"
                         title: "Screen record"
                         subtitle: Recorder.recording ? Recorder.elapsed : "Focused screen"
@@ -378,7 +475,7 @@ PanelWindow {
                         }
                     }
                     Tile {
-                        Layout.fillWidth: true
+                        tid: "screenshot"
                         icon: "applets-screenshooter"
                         title: "Screenshot"
                         subtitle: "Select or window"
@@ -388,8 +485,8 @@ PanelWindow {
                         }
                     }
                     Tile {
-                        Layout.fillWidth: true
-                        visible: Lens.available
+                        tid: "lens"
+                        can: Lens.available
                         icon: "system-search"
                         title: "Lens"
                         subtitle: "Read & ask about the screen"
@@ -399,7 +496,68 @@ PanelWindow {
                         }
                     }
                     Tile {
-                        Layout.fillWidth: true
+                        tid: "captions"
+                        icon: "media-view-subtitles"
+                        title: "Live captions"
+                        subtitle: Captions.on && Captions.source === "speakers" ? "On" : "What is playing"
+                        on: Captions.on && Captions.source === "speakers"
+                        onToggled: Captions.toggle()
+                    }
+                    Tile {
+                        tid: "transcribe"
+                        icon: "audio-input-microphone"
+                        title: "Live transcribe"
+                        subtitle: Captions.on && Captions.source === "mic" ? "On · saving" : "The room, as text"
+                        on: Captions.on && Captions.source === "mic"
+                        onToggled: Captions.transcribe()
+                    }
+                    Tile {
+                        tid: "speak"
+                        icon: "audio-speakers"
+                        title: "Read aloud"
+                        subtitle: Speak.speaking ? "Tap to stop" : "Selected text"
+                        on: Speak.speaking
+                        onToggled: Speak.speaking ? Speak.stop() : Speak.speakSelection()
+                    }
+                    Tile {
+                        tid: "magnifier"
+                        icon: "zoom-in"
+                        title: "Magnifier"
+                        subtitle: "Loupe"
+                        onToggled: {
+                            Ui.closeAll();
+                            Ui.magnifier = true;
+                        }
+                    }
+                    Tile {
+                        tid: "callrecord"
+                        icon: "call-start"
+                        title: "Call record"
+                        subtitle: CallRecorder.recording ? CallRecorder.elapsed : "Both sides"
+                        on: CallRecorder.recording
+                        onToggled: CallRecorder.toggle()
+                    }
+                    Tile {
+                        tid: "cast"
+                        can: Cast.available
+                        icon: "video-display"
+                        title: "Cast"
+                        subtitle: "Miracast"
+                        onToggled: {
+                            Ui.closeAll();
+                            Cast.open();
+                        }
+                    }
+                    Tile {
+                        tid: "touch"
+                        icon: "input-touchpad"
+                        title: "Smart touch"
+                        subtitle: "Floating bubble"
+                        on: Settings.data.assistiveTouch
+                        onToggled: Settings.data.assistiveTouch = !Settings.data.assistiveTouch
+                    }
+                    Tile {
+                        tid: "colorpicker"
                         icon: "color-select"
                         title: "Color picker"
                         subtitle: "Copies hex"
@@ -409,8 +567,8 @@ PanelWindow {
                         }
                     }
                     Tile {
-                        Layout.fillWidth: true
-                        visible: AutoRotate.available
+                        tid: "rotate"
+                        can: AutoRotate.available
                         icon: AutoRotate.active ? "rotation-allowed" : "rotation-locked"
                         title: "Auto-rotate"
                         subtitle: AutoRotate.active ? "On" : "Locked"
@@ -418,8 +576,8 @@ PanelWindow {
                         onToggled: AutoRotate.toggle()
                     }
                     Tile {
-                        Layout.fillWidth: true
-                        visible: Brightness.torch !== ""
+                        tid: "flashlight"
+                        can: Brightness.torch !== ""
                         icon: "media-flash"
                         title: "Flashlight"
                         subtitle: Brightness.torchOn ? "On" : "Off"
@@ -427,7 +585,7 @@ PanelWindow {
                         onToggled: Brightness.toggleTorch()
                     }
                     Tile {
-                        Layout.fillWidth: true
+                        tid: "display"
                         icon: "video-display"
                         title: "Display"
                         subtitle: Displays.mirroring ? "Mirroring" : (Displays.outputs.length > 1 ? Displays.outputs.length + " screens" : "Scale")
@@ -438,8 +596,8 @@ PanelWindow {
                         onDetail: Ui.expanded = Ui.expanded === "display" ? "" : "display"
                     }
                     Tile {
-                        Layout.fillWidth: true
-                        visible: Osk.available
+                        tid: "osk"
+                        can: Osk.available
                         icon: "input-keyboard"
                         title: "Screen keyboard"
                         hasDetail: false
@@ -448,8 +606,8 @@ PanelWindow {
                         onToggled: Osk.toggle()
                     }
                     Tile {
-                        Layout.fillWidth: true
-                        visible: Ime.running || Niri.layouts.length > 1
+                        tid: "keyboard"
+                        can: Ime.running || Niri.layouts.length > 1
                         icon: "input-keyboard"
                         title: Ime.running ? "Input method" : "Keyboard"
                         subtitle: Ime.running ? Ime.current : Niri.layout
@@ -459,15 +617,36 @@ PanelWindow {
                         onDetail: { Ui.closeAll(); Ime.configure(); }
                     }
                     Tile {
-                        Layout.fillWidth: true
-                        visible: Clipboard.available
+                        tid: "clipboard"
+                        can: Clipboard.available
                         icon: "edit-paste"
                         title: "Clipboard"
                         subtitle: "History"
                         onToggled: Ui.toggleLauncher("c ")
                     }
                     Tile {
-                        Layout.fillWidth: true
+                        tid: "backup"
+                        can: Backup.available
+                        icon: "drive-harddisk"
+                        title: Backup.running ? "Backing up…" : "Backup"
+                        subtitle: Backup.summary
+                        on: Backup.running
+                        onToggled: if (!Backup.running) Backup.backupNow()
+                    }
+                    Tile {
+                        tid: "access"
+                        icon: "preferences-desktop-accessibility"
+                        title: "Accessibility"
+                        subtitle: [Settings.data.screenReader ? "Screen reader" : "", Settings.data.largeText ? "Large text" : "",
+                                   Settings.data.highContrast ? "High contrast" : "", Settings.data.monoAudio ? "Mono" : ""].filter(x => x).join(" · ") || "Off"
+                        on: Settings.data.screenReader || Settings.data.largeText || Settings.data.highContrast || Settings.data.monoAudio
+                        hasDetail: true
+                        expanded: Ui.expanded === "access"
+                        onToggled: Ui.expanded = Ui.expanded === "access" ? "" : "access"
+                        onDetail: Ui.expanded = Ui.expanded === "access" ? "" : "access"
+                    }
+                    Tile {
+                        tid: "chronoa"
                         icon: "face-smile-big"
                         title: "Chronoa"
                         subtitle: Chronoa.state === "offline" ? "Offline" : "Ask anything"
@@ -487,6 +666,8 @@ PanelWindow {
                     spacing: 2
                     onVisibleChanged: Net.scan(visible)
                     property string pending: ""     // network waiting for a password
+                    property string failed: ""      // the one whose password was refused
+                    property bool hiddenOpen: false
 
                     SectionTitle {
                         text: "Wi-Fi networks"
@@ -504,15 +685,34 @@ PanelWindow {
                                 Layout.fillWidth: true
                                 icon: modelData.signalStrength > 0.75 ? "network-wireless-signal-excellent" : modelData.signalStrength > 0.5 ? "network-wireless-signal-good" : modelData.signalStrength > 0.25 ? "network-wireless-signal-ok" : "network-wireless-signal-weak"
                                 title: modelData.name
-                                subtitle: modelData.connected ? "Connected" : modelData.stateChanging ? "Connecting…" : (modelData.known ? "Saved" : "")
+                                subtitle: modelData.connected ? "Connected" : modelData.stateChanging ? "Connecting…"
+                                    : wifiList.failed === modelData.name ? "Couldn’t connect — check the password"
+                                    : (modelData.known ? "Saved" : netRow.secured ? "" : "Open network")
                                 selected: modelData.connected
                                 onClicked: {
+                                    wifiList.failed = "";
                                     if (modelData.connected)
                                         modelData.disconnect();
                                     else if (modelData.known || !netRow.secured)
                                         modelData.connect();
                                     else
                                         wifiList.pending = modelData.name;
+                                }
+                                IconButton {
+                                    visible: netRow.modelData.known
+                                    icon: "edit-delete"
+                                    size: 24
+                                    Accessible.name: "Forget " + netRow.modelData.name
+                                    onClicked: netRow.modelData.forget()
+                                }
+                            }
+                            // a refused password: ask again, in place
+                            Connections {
+                                target: netRow.modelData
+                                function onConnectionFailed(reason) {
+                                    wifiList.failed = netRow.modelData.name;
+                                    if (netRow.secured)
+                                        wifiList.pending = netRow.modelData.name;
                                 }
                             }
                             TextField {
@@ -524,8 +724,37 @@ PanelWindow {
                                     netRow.modelData.connectWithPsk(text);
                                     text = "";
                                     wifiList.pending = "";
+                                    wifiList.failed = "";
                                 }
                             }
+                        }
+                    }
+                    ListRow {
+                        Layout.fillWidth: true
+                        icon: "network-wireless-hidden"
+                        title: "Hidden network…"
+                        subtitle: Net.hiddenStatus === "connecting" ? "Connecting…" : Net.hiddenStatus.startsWith("failed") ? Net.hiddenStatus.slice(8) : ""
+                        onClicked: wifiList.hiddenOpen = !wifiList.hiddenOpen
+                    }
+                    TextField {
+                        id: hiddenSsid
+                        Layout.fillWidth: true
+                        visible: wifiList.hiddenOpen
+                        placeholder: "Network name"
+                        onAccepted: hiddenPsk.input.forceActiveFocus()
+                    }
+                    TextField {
+                        id: hiddenPsk
+                        Layout.fillWidth: true
+                        visible: wifiList.hiddenOpen
+                        placeholder: "Password (empty for an open network)"
+                        secret: true
+                        onAccepted: {
+                            if (hiddenSsid.text.trim() === "")
+                                return;
+                            Net.connectHidden(hiddenSsid.text.trim(), text);
+                            text = "";
+                            wifiList.hiddenOpen = false;
                         }
                     }
                 }
@@ -534,7 +763,11 @@ PanelWindow {
                     visible: Ui.expanded === "bluetooth" && win.bt !== null
                     Layout.fillWidth: true
                     spacing: 2
-                    onVisibleChanged: if (win.bt) win.bt.discovering = visible && win.bt.enabled
+                    // while open: searching, and visible to others (so a phone can find this computer)
+                    onVisibleChanged: if (win.bt) {
+                        win.bt.discovering = visible && win.bt.enabled;
+                        win.bt.discoverable = visible && win.bt.enabled;
+                    }
                     SectionTitle {
                         text: win.bt && win.bt.discovering ? "Bluetooth · searching" : "Bluetooth"
                         IconButton { icon: "preferences-system"; size: 24; onClicked: { Ui.closeAll(); Quickshell.execDetached(["blueman-manager"]); } }
@@ -542,6 +775,7 @@ PanelWindow {
                     Repeater {
                         model: Bluetooth.devices.values.slice().sort((a, b) => (b.connected - a.connected) || (b.paired - a.paired))
                         ListRow {
+                            id: btRow
                             required property var modelData
                             Layout.fillWidth: true
                             icon: modelData.icon || "bluetooth-active"
@@ -558,6 +792,13 @@ PanelWindow {
                                     modelData.trusted = true;
                                     modelData.pair();
                                 }
+                            }
+                            IconButton {
+                                visible: btRow.modelData.paired
+                                icon: "edit-delete"
+                                size: 24
+                                Accessible.name: "Forget " + (btRow.modelData.name || btRow.modelData.address)
+                                onClicked: btRow.modelData.forget()
                             }
                         }
                     }
@@ -595,7 +836,7 @@ PanelWindow {
                             required property var modelData
                             Layout.fillWidth: true
                             spacing: 4
-                            Text { text: out.modelData.label + "  ·  " + out.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: 12 }
+                            Text { text: out.modelData.label + "  ·  " + out.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
                             Flow {
                                 Layout.fillWidth: true
                                 spacing: 6
@@ -614,6 +855,254 @@ PanelWindow {
                                     selected: Displays.mirroring
                                     onClicked: Displays.toggleMirror(out.modelData.name)
                                 }
+                            }
+                        }
+                    }
+                    ListRow {
+                        Layout.fillWidth: true
+                        icon: "preferences-desktop-display"
+                        title: "Display settings…"
+                        subtitle: "resolution, refresh rate, rotation, arrangement"
+                        onClicked: { Ui.expanded = "settings"; Ui.settingsCat = "displays"; }
+                    }
+                }
+
+                ColumnLayout {
+                    visible: Ui.expanded === "focus"
+                    Layout.fillWidth: true
+                    spacing: 2
+                    SectionTitle { text: "Focus" }
+                    ListRow {
+                        Layout.fillWidth: true
+                        icon: "window-close"
+                        title: "Off"
+                        selected: !Focus.on
+                        onClicked: Settings.data.focusMode = ""
+                    }
+                    Repeater {
+                        model: Focus.modes
+                        ListRow {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            icon: modelData.icon || "weather-clear-night"
+                            title: modelData.name
+                            subtitle: [modelData.schedule && modelData.schedule.on ? modelData.schedule.from + "–" + modelData.schedule.to : "",
+                                       (modelData.allow || []).length ? "allows " + modelData.allow.join(", ") : "notifications held",
+                                       modelData.nightLight ? "night light" : ""].filter(x => x).join(" · ")
+                            trailing: Focus.active === modelData.name ? (Settings.data.focusMode === "" ? "scheduled" : "on") : ""
+                            selected: Focus.active === modelData.name
+                            onClicked: Focus.set(modelData.name)
+                        }
+                    }
+                }
+
+                ColumnLayout {
+                    visible: Ui.expanded === "phone" && Phone.available
+                    Layout.fillWidth: true
+                    spacing: 2
+                    onVisibleChanged: if (visible) Phone.search()
+                    SectionTitle {
+                        text: "Phones · KDE Connect"
+                        IconButton { icon: "view-refresh"; size: 24; Accessible.name: "Search again"; onClicked: Phone.search() }
+                    }
+                    Repeater {
+                        model: Phone.devices
+                        ColumnLayout {
+                            id: devRow
+                            required property var modelData
+                            Layout.fillWidth: true
+                            spacing: 2
+                            ListRow {
+                                Layout.fillWidth: true
+                                icon: "phone"
+                                title: devRow.modelData.name
+                                subtitle: devRow.modelData.paired ? (devRow.modelData.reachable ? "Connected" : "Paired · not nearby") : "Nearby · click to pair"
+                                selected: devRow.modelData.paired && devRow.modelData.reachable
+                                onClicked: if (!devRow.modelData.paired) Phone.pair(devRow.modelData.id)
+                                IconButton {
+                                    visible: devRow.modelData.paired
+                                    icon: "edit-delete"
+                                    size: 24
+                                    Accessible.name: "Unpair " + devRow.modelData.name
+                                    onClicked: Phone.unpair(devRow.modelData.id)
+                                }
+                            }
+                            RowLayout {
+                                visible: devRow.modelData.paired && devRow.modelData.reachable
+                                Layout.leftMargin: 40
+                                spacing: 6
+                                Button { text: "Ring"; onClicked: Phone.ring(devRow.modelData.id) }
+                                Button { text: "Ping"; onClicked: Phone.ping(devRow.modelData.id) }
+                                Button { text: "Send clipboard"; onClicked: Phone.sendClipboard(devRow.modelData.id) }
+                            }
+                        }
+                    }
+                    Text {
+                        visible: Phone.devices.length === 0
+                        Layout.fillWidth: true
+                        text: "No phone found. Open KDE Connect on the phone, on the same Wi-Fi, then search again."
+                        color: Theme.dim
+                        wrapMode: Text.Wrap
+                        font.family: Theme.font
+                        font.pixelSize: 12 * Theme.fontScale
+                    }
+                }
+
+                RowLayout {
+                    visible: Ui.expanded === "timer"
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Repeater {
+                        model: [15, 25, 45, 60]
+                        Choice {
+                            required property int modelData
+                            text: modelData + " min"
+                            selected: FocusTimer.running && FocusTimer.total === modelData * 60
+                            onClicked: FocusTimer.start(modelData)
+                        }
+                    }
+                    Choice { visible: FocusTimer.running; text: "Stop"; onClicked: FocusTimer.stop() }
+                }
+
+                ColumnLayout {
+                    visible: Ui.expanded === "access"
+                    Layout.fillWidth: true
+                    spacing: 8
+                    SectionTitle { text: "Accessibility" }
+                    SwitchRow { Layout.fillWidth: true; text: "Screen reader"; hint: Access.hasOrca ? "Orca reads the screen aloud" : "install orca"; checked: Settings.data.screenReader; onToggled: on => Settings.data.screenReader = on }
+                    SwitchRow { Layout.fillWidth: true; text: "Large text"; hint: "the shell and apps, 125 %"; checked: Settings.data.largeText; onToggled: on => Settings.data.largeText = on }
+                    SwitchRow { Layout.fillWidth: true; text: "High contrast"; checked: Settings.data.highContrast; onToggled: on => Settings.data.highContrast = on }
+                    SwitchRow { Layout.fillWidth: true; text: "Reduce motion"; checked: Settings.data.reduceMotion; onToggled: on => Settings.data.reduceMotion = on }
+                    SwitchRow { Layout.fillWidth: true; text: "Mono audio"; hint: "both ears hear everything"; checked: Settings.data.monoAudio; onToggled: on => Settings.data.monoAudio = on }
+                    SwitchRow { Layout.fillWidth: true; text: "Screen keyboard"; checked: Osk.shown; onToggled: on => { if (on !== Osk.shown) Osk.toggle(); } }
+                }
+
+                // ---- quick notes ---------------------------------------------------
+                SectionTitle { Layout.fillWidth: true; text: "Notes" }
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: Math.max(64, notes.contentHeight + 20)
+                    radius: Theme.radiusSmall
+                    color: Theme.hover
+                    border.width: notes.activeFocus ? 1 : 0
+                    border.color: Theme.accentLine
+                    TextEdit {
+                        id: notes
+                        anchors.fill: parent
+                        anchors.margins: 10
+                        text: QuickNotes.text
+                        color: Theme.text
+                        selectionColor: Theme.accent
+                        selectedTextColor: Theme.accentInk
+                        wrapMode: TextEdit.Wrap
+                        font.family: Theme.font
+                        font.pixelSize: 12 * Theme.fontScale
+                        onTextChanged: if (activeFocus) QuickNotes.set(text)
+                        Text {
+                            visible: notes.text === ""
+                            text: "Jot something down — saved to Documents/Notes/quick.md"
+                            color: Theme.faint
+                            font: notes.font
+                        }
+                    }
+                }
+
+                // ---- screen time -------------------------------------------------
+                ColumnLayout {
+                    visible: Settings.data.screenTime && ScreenTime.todayTotal >= 60
+                    Layout.fillWidth: true
+                    spacing: 6
+                    SectionTitle { text: "Screen time today · " + ScreenTime.label(ScreenTime.todayTotal) }
+                    Repeater {
+                        model: ScreenTime.top
+                        RowLayout {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            spacing: 8
+                            Text {
+                                Layout.preferredWidth: 110
+                                text: modelData.app
+                                color: Theme.text
+                                elide: Text.ElideRight
+                                font.family: Theme.font
+                                font.pixelSize: 11 * Theme.fontScale
+                            }
+                            Rectangle {
+                                Layout.fillWidth: true
+                                implicitHeight: 6
+                                radius: 3
+                                color: Theme.hover
+                                Rectangle {
+                                    width: parent.width * modelData.seconds / Math.max(1, ScreenTime.top[0].seconds)
+                                    height: parent.height
+                                    radius: 3
+                                    color: Theme.accent
+                                }
+                            }
+                            Text {
+                                Layout.preferredWidth: 70
+                                horizontalAlignment: Text.AlignRight
+                                text: ScreenTime.label(modelData.seconds)
+                                color: Theme.dim
+                                font.family: Theme.font
+                                font.pixelSize: 10 * Theme.fontScale
+                            }
+                        }
+                    }
+                }
+
+                // ---- shelf: the newest screenshots, recordings, downloads -------
+                ColumnLayout {
+                    visible: Shelf.items.length > 0
+                    Layout.fillWidth: true
+                    spacing: 4
+                    Component.onCompleted: Shelf.refresh()
+                    Connections { target: Ui; function onControlCenterChanged() { if (Ui.controlCenter) Shelf.refresh(); } }
+                    SectionTitle { text: "Shelf" }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Repeater {
+                            model: Shelf.items.filter(x => x.image).slice(0, 6)
+                            ClippingRectangle {
+                                id: shelfItem
+                                required property var modelData
+                                width: 120
+                                height: 72
+                                radius: 10
+                                color: Theme.hover
+                                Image {
+                                    anchors.fill: parent
+                                    source: "file://" + shelfItem.modelData.path
+                                    sourceSize: Qt.size(240, 144)
+                                    fillMode: Image.PreserveAspectCrop
+                                    asynchronous: true
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: e => e.button === Qt.RightButton
+                                        ? (Quickshell.clipboardText = shelfItem.modelData.path)
+                                        : Qt.openUrlExternally("file://" + shelfItem.modelData.path)
+                                }
+                            }
+                        }
+                    }
+                    Repeater {
+                        model: Shelf.items.filter(x => !x.image).slice(0, 4)
+                        ListRow {
+                            id: shelfFile
+                            required property var modelData
+                            Layout.fillWidth: true
+                            icon: /\.(mp4|mkv|webm)$/i.test(modelData.name) ? "video-x-generic" : "text-x-generic"
+                            title: modelData.name
+                            onClicked: Qt.openUrlExternally("file://" + modelData.path)
+                            IconButton {
+                                visible: Phone.reachable
+                                icon: "phone"
+                                size: 24
+                                onClicked: Phone.send(shelfFile.modelData.path)
                             }
                         }
                     }
@@ -679,7 +1168,7 @@ PanelWindow {
                                 color: Theme.text
                                 elide: Text.ElideRight
                                 font.family: Theme.font
-                                font.pixelSize: 13
+                                font.pixelSize: 13 * Theme.fontScale
                                 font.weight: Font.DemiBold
                             }
                             Text {
@@ -688,7 +1177,36 @@ PanelWindow {
                                 color: Theme.dim
                                 elide: Text.ElideRight
                                 font.family: Theme.font
-                                font.pixelSize: 11
+                                font.pixelSize: 11 * Theme.fontScale
+                            }
+                            // the output level over the last second and a half
+                            Row {
+                                id: meter
+                                spacing: 2
+                                height: 14
+                                property var history: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                                PwNodePeakMonitor {
+                                    id: outLevel
+                                    node: Audio.sink
+                                    enabled: win.visible && win.player !== null && win.player.isPlaying
+                                }
+                                Timer {
+                                    interval: 80
+                                    running: outLevel.enabled
+                                    repeat: true
+                                    onTriggered: meter.history = meter.history.slice(1).concat([Math.min(1, outLevel.peak * 1.5)])
+                                }
+                                Repeater {
+                                    model: meter.history
+                                    Rectangle {
+                                        required property real modelData
+                                        width: 4
+                                        height: Math.max(2, modelData * meter.height)
+                                        anchors.bottom: parent ? parent.bottom : undefined
+                                        radius: 2
+                                        color: Theme.alpha(Theme.accent, 0.4 + modelData * 0.6)
+                                    }
+                                }
                             }
                             Row {
                                 spacing: 4
@@ -710,6 +1228,7 @@ PanelWindow {
                         on: Notifs.dnd
                         onClicked: Notifs.setDnd(!Notifs.dnd)
                     }
+                    IconButton { visible: Notifs.count > 1; icon: "chat-message-new"; size: 26; onClicked: { Ui.closeAll(); Notifs.summarize(); } }
                     IconButton { visible: Notifs.count > 0; icon: "edit-clear-all"; size: 26; onClicked: Notifs.clearAll() }
                 }
                 Text {
@@ -720,7 +1239,7 @@ PanelWindow {
                     text: "You're all caught up"
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: 12
+                    font.pixelSize: 12 * Theme.fontScale
                 }
                 // grouped by app, newest group first; the app is named once
                 Repeater {
@@ -748,7 +1267,7 @@ PanelWindow {
                                 text: group.modelData.app + " · " + group.modelData.items.length
                                 color: Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: 11
+                                font.pixelSize: 11 * Theme.fontScale
                                 font.weight: Font.DemiBold
                             }
                             Button {

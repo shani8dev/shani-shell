@@ -5,6 +5,8 @@ import qs.Common
 
 Rectangle {
     id: root
+    property string tid               // its id in Settings.tileOrder / hiddenTiles
+    property bool can: true           // whether it can work on this machine
     property string icon
     property string title
     property string subtitle: ""
@@ -14,7 +16,32 @@ Rectangle {
     signal toggled()
     signal detail()
 
+    Accessible.role: Accessible.CheckBox
+    Accessible.name: root.title
+    Accessible.description: root.subtitle
+    Accessible.checkable: true
+    Accessible.checked: root.on
+    Accessible.onPressAction: root.toggled()
+    Accessible.onToggleAction: root.toggled()
+
     implicitHeight: 58
+    height: 58
+    // the grid places it: by id, in the person's order, only if it can work here
+    onCanChanged: report()
+    Component.onCompleted: report()
+    function report() {
+        if (!parent || parent.can === undefined)
+            return;
+        const c = Object.assign({}, parent.can);
+        c[tid] = can;
+        parent.can = c;
+    }
+    Connections {
+        target: parent
+        ignoreUnknownSignals: true
+        function onShownChanged() { parent.place(root); }
+        function onWidthChanged() { parent.place(root); }
+    }
     radius: 14
     color: on ? Theme.accent : (area.containsMouse ? Theme.pressed : Theme.hover)
     border.width: expanded ? 1 : 0
@@ -45,7 +72,7 @@ Rectangle {
             color: root.ink
             elide: Text.ElideRight
             font.family: Theme.font
-            font.pixelSize: 12
+            font.pixelSize: 12 * Theme.fontScale
             font.weight: Font.DemiBold
         }
         Text {
@@ -55,7 +82,7 @@ Rectangle {
             color: root.on ? Theme.alpha(Theme.accentInk, 0.75) : Theme.dim
             elide: Text.ElideRight
             font.family: Theme.font
-            font.pixelSize: 10
+            font.pixelSize: 10 * Theme.fontScale
         }
     }
 
@@ -82,7 +109,7 @@ Rectangle {
             anchors.centerIn: parent
             text: root.expanded ? "▾" : "›"
             color: root.ink
-            font.pixelSize: 15
+            font.pixelSize: 15 * Theme.fontScale
         }
         MouseArea {
             id: chevArea

@@ -5,6 +5,7 @@ pragma Singleton
 import Quickshell
 import Quickshell.Services.UPower
 import QtQuick
+import qs.Common
 
 Singleton {
     id: root
@@ -55,6 +56,24 @@ Singleton {
         } else if (p <= 15 && warned > 15) {
             warned = 15;
             Quickshell.execDetached(["notify-send", "-a", "Power", "-i", "battery-level-10", "Battery low", p + "% left" + (timeLeft ? " · " + timeLeft : "")]);
+        }
+    }
+
+    // battery saver (after Android): power saver at 20 % on battery, the
+    // previous profile back once charging — unless the person changed it since
+    property int savedProfile: -1
+    readonly property bool lowAndDischarging: hasBattery && !charging && Math.round(percent * 100) <= 20
+    onLowAndDischargingChanged: {
+        if (!Settings.data.autoPowerSaver)
+            return;
+        if (lowAndDischarging && profile !== PowerProfile.PowerSaver) {
+            savedProfile = profile;
+            PowerProfiles.profile = PowerProfile.PowerSaver;
+            Quickshell.execDetached(["notify-send", "-a", "Power", "-i", "power-profile-power-saver", "Battery saver on", "Power saver until you plug in"]);
+        } else if (!lowAndDischarging && savedProfile >= 0) {
+            if (profile === PowerProfile.PowerSaver)
+                PowerProfiles.profile = savedProfile;
+            savedProfile = -1;
         }
     }
 

@@ -4,6 +4,7 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs.Common
 
 Singleton {
     id: root
@@ -13,7 +14,39 @@ Singleton {
     property string device: ""
     property string torch: ""       // LED class device named *flash* / *torch*
     property bool torchOn: false
+    property bool adaptive: AmbientLight.available && AmbientLight.enabled
     signal changedByUser()
+
+    // Use ambient light sensor if available, otherwise use time-based
+    Connections {
+        target: AmbientLight
+        function onAvailableChanged() {
+            root.adaptive = AmbientLight.available && AmbientLight.enabled;
+        }
+        function onEnabledChanged() {
+            root.adaptive = AmbientLight.available && AmbientLight.enabled;
+        }
+    }
+
+    // When AmbientLight is disabled, restore manual brightness
+    Connections {
+        target: AmbientLight
+        function onEnabledChanged() {
+            if (!AmbientLight.enabled && AmbientLight.available) {
+                // Restore manual brightness value
+                root.value = Math.max(0.2, Math.min(1.0, root.value));
+            }
+        }
+    }
+
+    // a change made by adaptive brightness, not by a person: no OSD, no override
+    property bool automatic: false
+    function applyAuto(v) {
+        automatic = true;
+        value = Math.max(0.01, Math.min(1, v));
+        Quickshell.execDetached(["brightnessctl", "-q", "-d", device, "set", Math.round(value * 100) + "%"]);
+        automatic = false;
+    }
 
     function set(v) {
         v = Math.max(0.01, Math.min(1, v));

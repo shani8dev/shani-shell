@@ -45,7 +45,12 @@ PanelWindow {
                 { label: "Conversation", icon: "face-smile-big", act: () => Chronoa.open = true },
                 { label: "Lens", icon: "system-search", act: () => Lens.capture() }
             ] },
-            { label: "Lens", icon: "system-search", act: () => Lens.capture() },
+            { label: "Lens", icon: "system-search", children: [
+                { label: "Lens", icon: "system-search", act: () => Lens.capture() },
+                { label: "Read aloud", icon: "audio-speakers", act: () => Speak.speakSelection() },
+                { label: "Magnifier", icon: "zoom-in", act: () => { Ui.closeAll(); Ui.magnifier = true; } },
+                { label: "Captions", icon: "media-view-subtitles", act: () => Captions.toggle() }
+            ] },
             { label: "Screenshot", icon: "applets-screenshooter", children: [
                 { label: "Screen", icon: "video-display", act: () => Niri.action("screenshot-screen") },
                 { label: "Window", icon: "focus-windows", act: () => Niri.action("screenshot-window") },
@@ -122,9 +127,12 @@ PanelWindow {
         if (visible) {
             stack = [];
             items = root();
-            placed = false;
             hot = -1;
-            center = Qt.point(width / 2, height / 2);
+            placed = Ui.ringAt.x >= 0;
+            center = placed ? Qt.point(Math.max(radius + 20, Math.min(width - radius - 20, Ui.ringAt.x)),
+                                       Math.max(radius + 20, Math.min(height - radius - 20, Ui.ringAt.y)))
+                            : Qt.point(width / 2, height / 2);
+            Ui.ringAt = Qt.point(-1, -1);
             keys.forceActiveFocus();
         }
     }
@@ -211,7 +219,7 @@ PanelWindow {
                 text: win.hot >= 0 && win.items[win.hot] ? win.items[win.hot].label : (win.stack.length > 0 ? "back" : "")
                 color: win.hot >= 0 ? Theme.text : Theme.faint
                 font.family: Theme.font
-                font.pixelSize: 12
+                font.pixelSize: 12 * Theme.fontScale
                 font.weight: Font.DemiBold
             }
         }

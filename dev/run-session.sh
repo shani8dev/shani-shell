@@ -67,7 +67,7 @@ sleep 0.7
 # --- shell ----------------------------------------------------------------
 mkdir -p /root/.config/quickshell
 ln -sfn /work/shani /root/.config/quickshell/shani
-SHANI_BLUR="$BLUR" nohup qs -c shani > /work/logs/qs.log 2>&1 &
+QS_ICON_THEME=Adwaita SHANI_BLUR="$BLUR" nohup qs -c shani > /work/logs/qs.log 2>&1 &
 sleep 3
 
 echo "session up: config=$CONFIG blur=$BLUR"

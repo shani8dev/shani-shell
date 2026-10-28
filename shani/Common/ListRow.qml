@@ -12,6 +12,12 @@ Rectangle {
     default property alias extra: tail.data
     signal clicked()
 
+    Accessible.role: Accessible.ListItem
+    Accessible.name: root.title
+    Accessible.description: root.subtitle
+    Accessible.selected: root.selected
+    Accessible.onPressAction: root.clicked()
+
     implicitHeight: 40
     radius: 10
     color: selected ? Theme.accentSoft : (area.containsMouse ? Theme.hover : "transparent")
@@ -37,7 +43,7 @@ Rectangle {
             color: root.selected ? Theme.accent : Theme.text
             elide: Text.ElideRight
             font.family: Theme.font
-            font.pixelSize: 12
+            font.pixelSize: 12 * Theme.fontScale
         }
         Text {
             width: parent.width
@@ -46,7 +52,7 @@ Rectangle {
             color: Theme.dim
             elide: Text.ElideRight
             font.family: Theme.font
-            font.pixelSize: 10
+            font.pixelSize: 10 * Theme.fontScale
         }
     }
     MouseArea {
@@ -67,7 +73,7 @@ Rectangle {
             text: root.trailing
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: 10
+            font.pixelSize: 10 * Theme.fontScale
             anchors.verticalCenter: parent.verticalCenter
         }
     }

@@ -16,6 +16,10 @@ Rectangle {
     signal middleClicked()
     signal scrolled(int dir)
 
+    Accessible.role: Accessible.Button
+    Accessible.name: root.label !== "" ? root.label : root.icon.replace(/-/g, " ")
+    Accessible.onPressAction: root.clicked()
+
     implicitWidth: row.implicitWidth + 16
     implicitHeight: 28
     radius: 9
@@ -40,7 +44,7 @@ Rectangle {
             text: root.label
             color: root.tint
             font.family: root.mono ? Theme.mono : Theme.font
-            font.pixelSize: root.mono ? Theme.fontSmall : 12
+            font.pixelSize: (root.mono ? Theme.fontSmall : 12) * Theme.fontScale
             anchors.verticalCenter: parent.verticalCenter
         }
     }

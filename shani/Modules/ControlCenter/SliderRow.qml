@@ -11,6 +11,7 @@ RowLayout {
     property bool muted: false
     property bool hasDetail: false
     property bool expanded: false
+    property real level: -1              // a live input level (0..1) behind the track; -1: none
     signal moved(real v)
     signal iconClicked()
     signal detail()
@@ -35,6 +36,15 @@ RowLayout {
             height: 8
             radius: 4
             color: Theme.hover
+            // what the microphone hears right now, under the set level
+            Rectangle {
+                visible: root.level >= 0
+                width: parent.width * Math.max(0, Math.min(1, root.level))
+                height: parent.height
+                radius: 4
+                color: Theme.alpha(Theme.accent, 0.35)
+                Behavior on width { NumberAnimation { duration: 60 } }
+            }
             Rectangle {
                 width: Math.max(height, parent.width * Math.max(0, Math.min(1, root.value)))
                 height: parent.height
@@ -70,7 +80,7 @@ RowLayout {
         color: Theme.dim
         horizontalAlignment: Text.AlignRight
         font.family: Theme.font
-        font.pixelSize: 11
+        font.pixelSize: 11 * Theme.fontScale
     }
 
     IconButton {

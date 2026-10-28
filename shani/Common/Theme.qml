@@ -1,33 +1,74 @@
 pragma Singleton
 // The one place colours, type and shape live. Modules bind to these tokens and
 // never write a literal colour, so the greeter and lock screen share them too.
+//
+// Two palettes, following the Dark style switch (the same one apps follow), and
+// an accent that is either ShaniOS teal or — with "accent from wallpaper" — the
+// wallpaper's most vivid colour, lightened or darkened until it reads on the
+// current palette. Text on the accent picks black or white by its lightness.
 import Quickshell
 import QtQuick
 
 Singleton {
-    readonly property color bg: "#0b0d12"
-    readonly property color accent: "#7fd1c1"
-    readonly property color text: "#e8eef5"
-    readonly property color dim: "#8fa1b6"
-    readonly property color faint: "#5b6878"
-    readonly property color amber: "#e0af68"
-    readonly property color blue: "#7aa2f7"
-    readonly property color red: "#f7768e"
-    readonly property color danger: "#f28b82"
-    readonly property color accentInk: "#08110f"
+    id: root
+    readonly property bool dark: Settings.data.darkMode
+
+    // ---- the accent ---------------------------------------------------------
+    readonly property color brand: "#7fd1c1"
+    ColorQuantizer {
+        id: quant
+        source: Settings.data.accentFromWallpaper && root.wallpaper ? "file://" + root.wallpaper : ""
+        depth: 3                        // 8 candidates
+        rescaleSize: 96
+    }
+    // the most saturated candidate, at a lightness that reads on this palette
+    readonly property color picked: {
+        const cs = quant.colors || [];
+        let best = null, score = -1;
+        for (const c of cs) {
+            const s = c.hslSaturation * (1 - Math.abs(c.hslLightness - 0.5));
+            if (s > score) { score = s; best = c; }
+        }
+        if (!best || best.hslSaturation < 0.15)
+            return dark ? brand : "#1f8f7c";
+        return Qt.hsla(best.hslHue, Math.max(0.45, best.hslSaturation), dark ? 0.68 : 0.40, 1);
+    }
+    readonly property color accent: Settings.data.accentFromWallpaper ? picked : (dark ? brand : "#1f8f7c")
+    readonly property color accentInk: accent.hslLightness > 0.55 ? "#08110f" : "#ffffff"
+
+    // the wallpaper in use: the style's own when one is set, the one wallpaper otherwise
+    readonly property string wallpaper: (dark ? Settings.data.wallpaperDark : Settings.data.wallpaperLight) || Settings.data.wallpaper
+
+    // ---- the palette ---------------------------------------------------------
+    // high contrast: opaque surfaces, strong strokes, secondary text nearly as
+    // strong as text — for low vision and bright rooms
+    readonly property bool contrast: Settings.data.highContrast
+    readonly property color bg: dark ? (contrast ? "#000000" : "#0b0d12") : (contrast ? "#ffffff" : "#eef1f4")
+    readonly property color text: dark ? (contrast ? "#ffffff" : "#e8eef5") : (contrast ? "#000000" : "#16202b")
+    readonly property color dim: dark ? (contrast ? "#e0e6ee" : "#8fa1b6") : (contrast ? "#1a1a1a" : "#55657a")
+    readonly property color faint: dark ? (contrast ? "#b8c2cf" : "#5b6878") : (contrast ? "#333333" : "#8b97a6")
+    readonly property color amber: dark ? "#e0af68" : "#b7791f"
+    readonly property color blue: dark ? "#7aa2f7" : "#3461c1"
+    readonly property color red: dark ? "#f7768e" : "#c8364f"
+    readonly property color danger: dark ? "#f28b82" : "#c0392b"
 
     // glass: the translucent card every surface is drawn on
-    readonly property color glass: Qt.rgba(0.05, 0.07, 0.10, 0.62)
-    readonly property color glassStrong: Qt.rgba(0.05, 0.07, 0.10, 0.84)
-    readonly property color stroke: Qt.rgba(1, 1, 1, 0.10)
-    readonly property color hover: Qt.rgba(1, 1, 1, 0.06)
-    readonly property color pressed: Qt.rgba(1, 1, 1, 0.10)
-    readonly property color accentSoft: Qt.rgba(0.50, 0.82, 0.76, 0.18)
-    readonly property color accentLine: Qt.rgba(0.50, 0.82, 0.76, 0.55)
-    readonly property color scrim: Qt.rgba(0, 0, 0, 0.35)
+    readonly property color glass: contrast ? bg : (dark ? Qt.rgba(0.05, 0.07, 0.10, 0.62) : Qt.rgba(0.98, 0.99, 1.0, 0.70))
+    readonly property color glassStrong: contrast ? bg : (dark ? Qt.rgba(0.05, 0.07, 0.10, 0.86) : Qt.rgba(0.98, 0.99, 1.0, 0.92))
+    readonly property color stroke: contrast ? alpha(text, 0.85) : (dark ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(0, 0, 0, 0.09))
+    readonly property color hover: dark ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(0, 0, 0, 0.05)
+    readonly property color pressed: dark ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(0, 0, 0, 0.09)
+    readonly property color accentSoft: alpha(accent, dark ? 0.18 : 0.16)
+    readonly property color accentLine: alpha(accent, 0.55)
+    readonly property color scrim: dark ? Qt.rgba(0, 0, 0, 0.35) : Qt.rgba(0.05, 0.08, 0.12, 0.22)
+    readonly property color shadow: dark ? Qt.rgba(0, 0, 0, 0.55) : Qt.rgba(0.05, 0.1, 0.18, 0.22)
 
-    readonly property string font: "Noto Sans"
-    readonly property string mono: "DejaVu Sans Mono"
+    // ---- type and shape --------------------------------------------------------
+    // Inter where installed (shani-shell depends on it), the system sans otherwise
+    readonly property string font: Settings.data.uiFont || "Inter"
+    readonly property string mono: Settings.data.monoFont || "DejaVu Sans Mono"
+    // large text: every size in the shell is multiplied by this
+    readonly property real fontScale: Settings.data.largeText ? 1.25 : 1.0
     readonly property int fontSmall: 11
     readonly property int fontBody: 13
     readonly property int fontTitle: 15

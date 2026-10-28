@@ -20,7 +20,8 @@ Singleton {
     // application.name …) stay empty until it is tracked — measured: every
     // filter on media.class matched nothing. Playback stream = Audio|Stream|Sink.
     function has(n, f) { return (n.type & f) === f; }
-    readonly property var sinks: Pipewire.nodes.values.filter(n => has(n, PwNodeType.AudioSink) && !has(n, PwNodeType.Stream))
+    // the sound-effects output (SoundFx) is not a device: picking a device while it is on retargets it
+    readonly property var sinks: Pipewire.nodes.values.filter(n => has(n, PwNodeType.AudioSink) && !has(n, PwNodeType.Stream) && n.name !== "effect_input.shani")
     readonly property var sources: Pipewire.nodes.values.filter(n => has(n, PwNodeType.AudioSource) && !has(n, PwNodeType.Stream))
     // apps capturing from a microphone, and apps playing sound (the mixer)
     readonly property var recorders: Pipewire.nodes.values.filter(n => has(n, PwNodeType.AudioInStream))

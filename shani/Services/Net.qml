@@ -61,6 +61,19 @@ Singleton {
     function setVpn(name, on) {
         Quickshell.execDetached(["nmcli", "connection", on ? "up" : "down", name]);
     }
+    // a network that does not broadcast its name; the password goes in on
+    // nmcli's stdin (--ask), never on a command line other users can read
+    property string hiddenStatus: ""     // "", "connecting", "failed: …", "connected"
+    function connectHidden(ssid, psk) {
+        hiddenStatus = "connecting";
+        hidden.command = ["sh", "-c", 'printf "%s\n" "$2" | nmcli --ask device wifi connect "$1" hidden yes', "sh", ssid, psk];
+        hidden.running = true;
+    }
+    Process {
+        id: hidden
+        stderr: StdioCollector { id: hiddenErr }
+        onExited: code => root.hiddenStatus = code === 0 ? "connected" : "failed: " + (hiddenErr.text.trim().split("\n").pop() || "could not connect")
+    }
     function editConnections() {
         Quickshell.execDetached(["nm-connection-editor"]);
     }

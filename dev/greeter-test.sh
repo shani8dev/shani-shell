@@ -29,6 +29,10 @@ if ! pgrep -f 'weston --backend=headless' >/dev/null; then
     sleep 2
 fi
 
+# the greeter niri starts first-boot setup on a machine with no account
+# (dev/setup-test.sh covers that); the login screen needs one to exist
+getent passwd shani >/dev/null || useradd -m shani
+
 export GREETD_SOCK="$XDG_RUNTIME_DIR/greetd.sock"
 nohup python3 /work/dev/fake-greetd.py > /work/logs/greetd.log 2>&1 &
 sleep 0.5

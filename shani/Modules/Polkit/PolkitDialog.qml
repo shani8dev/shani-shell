@@ -41,7 +41,7 @@ PanelWindow {
                     text: "Authentication required"
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 16
+                    font.pixelSize: 16 * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
             }
@@ -51,7 +51,7 @@ PanelWindow {
                 color: Theme.text
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: 13
+                font.pixelSize: 13 * Theme.fontScale
             }
             Text {
                 Layout.fillWidth: true
@@ -59,7 +59,7 @@ PanelWindow {
                 visible: text !== ""
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: 12
+                font.pixelSize: 12 * Theme.fontScale
             }
             TextField {
                 id: pass
@@ -80,7 +80,7 @@ PanelWindow {
                 color: Polkit.error || (win.flow && win.flow.supplementaryIsError) ? Theme.danger : Theme.dim
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: 12
+                font.pixelSize: 12 * Theme.fontScale
             }
             Text {
                 Layout.fillWidth: true
@@ -88,7 +88,7 @@ PanelWindow {
                 color: Theme.faint
                 elide: Text.ElideMiddle
                 font.family: Theme.mono
-                font.pixelSize: 10
+                font.pixelSize: 10 * Theme.fontScale
             }
             RowLayout {
                 Layout.fillWidth: true

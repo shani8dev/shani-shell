@@ -20,7 +20,7 @@ ColumnLayout {
             text: Qt.formatDate(root.month, "MMMM yyyy")
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: 13
+            font.pixelSize: 13 * Theme.fontScale
             font.weight: Font.DemiBold
             MouseArea { anchors.fill: parent; onClicked: root.offset = 0 }
         }
@@ -42,7 +42,7 @@ ColumnLayout {
                 text: modelData
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: 10
+                font.pixelSize: 10 * Theme.fontScale
             }
         }
         Repeater {
@@ -61,7 +61,7 @@ ColumnLayout {
                     text: parent.day
                     color: parent.isToday ? Theme.accentInk : Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 11
+                    font.pixelSize: 11 * Theme.fontScale
                     font.weight: parent.isToday ? Font.DemiBold : Font.Normal
                 }
             }

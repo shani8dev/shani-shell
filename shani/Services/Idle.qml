@@ -18,7 +18,7 @@ Singleton {
     readonly property int offAfter: battery ? Settings.data.screenOffAfterBattery : Settings.data.screenOffAfter
     readonly property int suspendAfter: battery ? Settings.data.suspendAfterBattery : Settings.data.suspendAfter
     readonly property bool dimmed: dimMon.isIdle && !Lock.locked
-    readonly property bool caffeine: Settings.data.caffeine
+    readonly property bool caffeine: Settings.data.caffeine || Focus.caffeine
     readonly property bool lockIdle: lockMon.isIdle
 
     function setCaffeine(on) {

@@ -89,8 +89,12 @@ PanelWindow {
             Osk.press(k);
     }
 
+    onVisibleChanged: if (visible) boardIn.restart()
+    NumberAnimation { id: boardIn; target: boardRise; property: "y"; from: 60; to: 0; duration: Theme.anim * 1.5; easing.type: Easing.OutCubic }
+
     Glass {
         id: board
+        transform: Translate { id: boardRise }
         strong: true
         anchors.fill: parent
         anchors.margins: 8
@@ -134,6 +138,16 @@ PanelWindow {
                 Key { Layout.preferredWidth: 130; Layout.fillHeight: true; label: Osk.page === "symbols" ? "abc" : (Osk.lang === "mr" ? "?१२३" : "?123"); onTapped: Osk.page = Osk.page === "symbols" ? "letters" : "symbols" }
                 Key { Layout.preferredWidth: 90; Layout.fillHeight: true; label: "⇧"; visible: Osk.isXkb; accent: Osk.shift; onTapped: Osk.shift = !Osk.shift }
                 Key { Layout.preferredWidth: 130; Layout.fillHeight: true; label: "⇄ " + win.nextSample; visible: Osk.languages.length > 1; onTapped: Osk.nextLanguage() }
+                // voice typing: tap, speak, tap again — the words land where the keys would
+                Key {
+                    Layout.preferredWidth: 90
+                    Layout.fillHeight: true
+                    label: Dictation.phase === "transcribing" ? "…" : ""
+                    icon: Dictation.phase === "transcribing" ? "" : "audio-input-microphone"
+                    accent: Dictation.phase === "recording"
+                    danger: Dictation.phase === "recording"
+                    onTapped: Dictation.toggle()
+                }
                 Key { Layout.fillWidth: true; Layout.fillHeight: true; label: win.layoutName; dim: true; onTapped: Osk.press("space") }
                 Key { Layout.preferredWidth: 130; Layout.fillHeight: true; label: "⏎"; accent: true; onTapped: Osk.press("Return") }
                 Key { Layout.preferredWidth: 90; Layout.fillHeight: true; label: "✕"; onTapped: Osk.toggle() }
@@ -145,16 +159,29 @@ PanelWindow {
         id: key
         property string label
         property bool accent: false
+        property bool danger: false
+        property string icon: ""
         property bool dim: false
         signal tapped()
+
+        Accessible.role: Accessible.Button
+        Accessible.name: key.icon !== "" ? "microphone" : key.label
+        Accessible.onPressAction: key.tapped()
         radius: 10
-        color: key.accent ? Theme.accent : (area.pressed ? Theme.pressed : Theme.hover)
+        color: key.danger ? Theme.red : key.accent ? Theme.accent : (area.pressed ? Theme.pressed : Theme.hover)
+        Icon {
+            visible: key.icon !== ""
+            anchors.centerIn: parent
+            name: key.icon
+            size: 22
+            color: key.accent || key.danger ? Theme.accentInk : Theme.text
+        }
         Text {
             anchors.centerIn: parent
             text: key.label
             color: key.accent ? Theme.accentInk : (key.dim ? Theme.dim : Theme.text)
             font.family: Theme.font
-            font.pixelSize: key.label.length > 3 ? 13 : 20
+            font.pixelSize: (key.label.length > 3 ? 13 : 20) * Theme.fontScale
         }
         MouseArea {
             id: area

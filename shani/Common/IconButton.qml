@@ -11,6 +11,13 @@ Rectangle {
     signal clicked()
     signal rightClicked()
 
+    // for screen readers: a button named after what it does
+    Accessible.role: Accessible.Button
+    Accessible.name: root.tip !== "" ? root.tip : root.icon.replace(/-symbolic$/, "").replace(/-/g, " ")
+    Accessible.checkable: root.on
+    Accessible.checked: root.on
+    Accessible.onPressAction: root.clicked()
+
     implicitWidth: size
     implicitHeight: size
     radius: size / 2

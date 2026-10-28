@@ -7,6 +7,11 @@ Rectangle {
     property string text
     property bool selected: false
     signal clicked()
+
+    Accessible.role: Accessible.RadioButton
+    Accessible.name: root.text
+    Accessible.checked: root.selected
+    Accessible.onPressAction: root.clicked()
     implicitWidth: label.implicitWidth + 20
     implicitHeight: 28
     radius: 9
@@ -17,7 +22,7 @@ Rectangle {
         text: root.text
         color: root.selected ? Theme.accentInk : Theme.text
         font.family: Theme.font
-        font.pixelSize: 11
+        font.pixelSize: 11 * Theme.fontScale
     }
     MouseArea {
         id: area

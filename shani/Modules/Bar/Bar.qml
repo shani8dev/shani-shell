@@ -38,7 +38,7 @@ Variants {
         // Caffeine: an idle inhibitor needs a visible surface to hang on, and
         // the bar is always up. Only the first screen's bar holds it.
         IdleInhibitor {
-            enabled: Settings.data.caffeine && bar.modelData === Quickshell.screens[0]
+            enabled: Idle.caffeine && bar.modelData === Quickshell.screens[0]
             window: bar
         }
 
@@ -61,10 +61,33 @@ Variants {
                     onRightClicked: Ui.toggleLauncher("=")
                 }
 
-                // niri workspaces of this output; falls back to nothing off-niri
+                // niri workspaces of this output: one accent pill slides to the
+                // active one (iOS / Android-style), the numbers sit on top
+                Item {
+                    implicitWidth: wsRow.implicitWidth
+                    implicitHeight: 22
+                    readonly property var activeItem: {
+                        const ws = Niri.workspacesOn(bar.output);
+                        const i = ws.findIndex(w => w.is_active);
+                        return i >= 0 ? wsRepeater.itemAt(i) : null;
+                    }
+                    Rectangle {
+                        visible: parent.activeItem !== null
+                        x: parent.activeItem ? parent.activeItem.x : 0
+                        width: parent.activeItem ? parent.activeItem.width : 0
+                        height: 22
+                        radius: 8
+                        color: Theme.accentSoft
+                        border.width: 1
+                        border.color: Theme.accentLine
+                        Behavior on x { NumberAnimation { duration: Theme.anim * 1.4; easing.type: Easing.OutCubic } }
+                        Behavior on width { NumberAnimation { duration: Theme.anim * 1.4; easing.type: Easing.OutCubic } }
+                    }
                 Row {
+                    id: wsRow
                     spacing: 4
                     Repeater {
+                        id: wsRepeater
                         model: Niri.workspacesOn(bar.output)
                         Rectangle {
                             required property var modelData
@@ -72,7 +95,7 @@ Variants {
                             implicitWidth: modelData.is_active ? 30 : 22
                             implicitHeight: 22
                             radius: 8
-                            color: modelData.is_active ? Theme.accentSoft : (wsArea.containsMouse ? Theme.hover : "transparent")
+                            color: modelData.is_active ? "transparent" : (wsArea.containsMouse ? Theme.hover : "transparent")
                             border.width: modelData.is_urgent ? 1 : 0
                             border.color: Theme.red
                             Behavior on implicitWidth { NumberAnimation { duration: Theme.anim } }
@@ -82,7 +105,7 @@ Variants {
                                 text: modelData.name || modelData.idx
                                 color: modelData.is_active ? Theme.accent : (parent.occupied ? Theme.text : Theme.faint)
                                 font.family: Theme.font
-                                font.pixelSize: 12
+                                font.pixelSize: 12 * Theme.fontScale
                                 font.weight: modelData.is_active ? Font.DemiBold : Font.Normal
                             }
                             MouseArea {
@@ -95,11 +118,13 @@ Variants {
                         }
                     }
                 }
+                }
 
                 Rectangle { width: 1; height: 16; color: Theme.stroke; Layout.leftMargin: 6; Layout.rightMargin: 6 }
 
-                // focused window: app icon + title
+                // focused window: app icon + title; click for the window menu
                 Row {
+                    id: titleRow
                     spacing: 7
                     visible: Niri.focusedWindow !== null
                     Layout.maximumWidth: Math.max(120, bar.width * 0.22)
@@ -118,9 +143,19 @@ Variants {
                         color: Theme.dim
                         elide: Text.ElideRight
                         font.family: Theme.font
-                        font.pixelSize: 12
+                        font.pixelSize: 12 * Theme.fontScale
                         anchors.verticalCenter: parent.verticalCenter
                     }
+                    // a handler, not a MouseArea child: a child sized to the Row
+                    // feeds the Row's own width back into itself (it hung the shell)
+                    TapHandler {
+                        onTapped: {
+                            Ui.closeAll();
+                            Ui.windowMenuX = titleRow.mapToItem(null, 0, 0).x + 10;
+                            Ui.windowMenu = true;
+                        }
+                    }
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
                 }
             }
 
@@ -151,8 +186,18 @@ Variants {
                 Chip {
                     visible: Settings.data.showSysStats
                     mono: true
+                    active: Ui.processes
                     tint: SysStats.cpu > 0.85 || SysStats.mem > 0.9 ? Theme.amber : Theme.dim
                     label: "cpu " + Math.round(SysStats.cpu * 100) + "%  mem " + Math.round(SysStats.mem * 100) + "%"
+                    onClicked: { const was = Ui.processes; Ui.closeAll(); Ui.processes = !was; }
+                }
+                Chip {
+                    visible: FocusTimer.running
+                    icon: "alarm"
+                    tint: Theme.accent
+                    mono: true
+                    label: FocusTimer.label
+                    onClicked: Ui.toggleControlCenter("timer")
                 }
 
                 // recording + privacy: always visible when true, never hidden in a menu
@@ -248,10 +293,11 @@ Variants {
                         text: Ime.running ? Ime.label : Niri.layout.slice(0, 2).toLowerCase()
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: 11
+                        font.pixelSize: 11 * Theme.fontScale
                         anchors.verticalCenter: parent.verticalCenter
                     }
-                    Icon { visible: Settings.data.caffeine; name: "preferences-desktop-screensaver"; size: 15; color: Theme.amber; anchors.verticalCenter: parent.verticalCenter }
+                    Icon { visible: Focus.on; name: Focus.mode ? Focus.mode.icon : ""; size: 15; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
+                    Icon { visible: Idle.caffeine; name: "preferences-desktop-screensaver"; size: 15; color: Theme.amber; anchors.verticalCenter: parent.verticalCenter }
                     Icon { visible: Net.vpnActive; name: "network-vpn"; size: 15; color: Theme.text; anchors.verticalCenter: parent.verticalCenter }
                     Icon { name: Net.icon; size: 15; color: Theme.text; anchors.verticalCenter: parent.verticalCenter }
                     Icon {
@@ -275,7 +321,7 @@ Variants {
                         text: Math.round(Power.percent * 100) + "%"
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: 12
+                        font.pixelSize: 12 * Theme.fontScale
                         anchors.verticalCenter: parent.verticalCenter
                     }
                 }
@@ -301,17 +347,19 @@ Variants {
                     }
                     Text {
                         text: Qt.formatDateTime(clock.date, Settings.data.use24h ? (Settings.data.showSeconds ? "HH:mm:ss" : "HH:mm") : (Settings.data.showSeconds ? "h:mm:ss AP" : "h:mm AP"))
+                        font.features: { "tnum": 1 }
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: 13
+                        font.pixelSize: 13 * Theme.fontScale
                         font.weight: Font.DemiBold
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     Text {
                         text: Qt.formatDateTime(clock.date, "ddd d MMM")
+                        font.features: { "tnum": 1 }
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: 12
+                        font.pixelSize: 12 * Theme.fontScale
                         anchors.verticalCenter: parent.verticalCenter
                     }
                 }

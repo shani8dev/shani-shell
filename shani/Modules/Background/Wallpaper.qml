@@ -20,7 +20,7 @@ Variants {
 
         // two images, so a change fades from the old picture to the new one
         property string shown: ""
-        readonly property string wanted: Settings.data.wallpaper
+        readonly property string wanted: Theme.wallpaper
         onWantedChanged: swap()
         Component.onCompleted: swap()
         function swap() {

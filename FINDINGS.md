@@ -238,3 +238,70 @@ Screen-keyboard layouts come from libxkbcommon itself (`bridge/osk-layout.py`):
 598 layouts and variants, 45 Indian — a superset of stevia 0.58's 60 (whose only
 Indic layouts are Hindi Bolnagri and Malayalam). Gboard's transliteration
 layouts (type Latin, get Devanagari) are an input-method feature: fcitx5 + m17n.
+
+### Third round: borrowed concepts, voice typing
+
+| Bug | How it showed | Fix |
+|---|---|---|
+| shell hang | a MouseArea inside a Row, sized to the Row, fed the Row's width back into itself: every IPC call blocked | a TapHandler (handlers take no space); `st()` now times out so a hung shell fails the next check |
+| test, not product | the window-menu check's inline Python misread niri's state; the window had moved (the Lens shot showed it on workspace 3) | a plain `widx` helper; Lens clears its workspace first |
+| test, not product | absolute notification counts broke when the battery saver (reading the host laptop's battery through UPower) posted its own | deltas |
+
+Voice typing, end to end in the container: espeak-ng says "good morning everyone"
+into the null speakers, the mic (their monitor) records it, whisper.cpp's tiny
+model transcribes "Good morning everyone.", and it is typed into the launcher.
+
+### Fourth round: beauty, borrowed features, accessibility
+
+| Bug | How it showed | Fix |
+|---|---|---|
+| adaptive brightness (written alongside this work) | `Process` declared inside a JS function: the shell did not load; also an unreachable fallback, LED brightness read as lux, and every automatic change taken as a manual override (it stopped after one step); the OSD popped on each 5 s sensor read | moved the reader out; IIO illuminance only; `Brightness.applyAuto` marks automatic changes; override lapses after 30 s; OSD only on real changes |
+| settings write race | a quick on-then-off came back on: the file watcher reloaded the shell's own write over a newer change | first a flag (swallowed the next hand edit — FileView does not report its own writes), then a 300 ms window (outlived under load); finally by content: a change is applied only when the file differs from what was last written |
+| removed keys kept | JsonAdapter leaves a key missing from the file at its current value: a settings.json reset to `{}` changed nothing (a stuck Work schedule, an orange wallpaper in later tests) | outside edits apply defaults + file |
+| tabular figures script | inserted `font.features` after the first line of a two-line binding | fixed by hand; every insertion checked |
+| `Timer` service name | would shadow QtQuick's Timer | `FocusTimer` |
+
+Accessibility, checked the way Orca sees it: dev/a11y-tree.py walks the real
+AT-SPI tree; the sidebar's tile reads "check box · Do Not Disturb · checked".
+
+### Fifth round: captions, read aloud, magnifier, call recording, smart copy, smart touch
+
+| Bug | How it showed | Fix |
+|---|---|---|
+| ScreencopyView in nested niri | the magnifier's frozen frame killed the shell at load: `invalid version for zwp_linux_dmabuf_v1.get_default_feedback (3, need at least 4)` | the frame is taken by grim (wlr-screencopy), with the loupe hidden while it is taken |
+| whisper on silence | captions of playback came out "you you you": every silent 4 s chunk is heard as "you", pushing the real line out | `dictate.py` drops recordings under about -50 dBFS before the engine sees them (voice typing gains it too) |
+| `Quickshell.clipboardText` | a copy made in another app never reached the smart suggestion: it only changes while a shell window has focus | `wl-paste --watch` (wlr-data-control), one line per copy |
+| `parent` inside `ClippingRectangle` | the Shelf thumbnails never loaded (`Cannot read property 'path' of undefined`), and the launcher's image preview loaded while hidden: a child's `parent` is the clipping content item, not the rectangle | refer to the rectangle by id |
+| snooze test counted all notifications | a screenshot offer closing meanwhile made the count one short | the test looks for the snoozed notification by its summary |
+| no Bluetooth agent | Quickshell pairs but registers no agent: a phone or keyboard that shows a code could not pair under niri | `bridge/bt-agent.py`, the default agent, asks through a pairing dialog; tested against a fake BlueZ |
+| `xdg-mime` 1.2.1 | `default` exits 0 without writing when `~/.config` is missing; `query default` reads `mimeapps.list` and then answers the system default anyway | default apps through `gio mime` (what GTK apps ask) |
+| niri `include` and flags | an included file cannot switch off a flag (`tap false` is a parse error) | the base config leaves `tap`, `dwt`, `natural-scroll` and the layout to the shell's `~/.config/niri/shani-input.kdl` |
+| settings split into categories | declarations moved into the category blocks while the code still read them as `page.…`: `nameOf is not a function` | declarations hoisted back to the page root |
+| `Speak.speak()` | its own detached `pkill espeak-ng` could land after the new utterance started and cut it off | the cancel runs first, in the same command |
+
+### First-boot setup (shani-setup)
+
+ShaniOS installs no account and a factory reset removes them all; on Plasma and
+GNOME their own wizards make the first one, and the niri desktop had none — it
+would have booted to a login screen nobody could use. The greeter niri now runs
+`qs -c shani-setup` while no regular account exists (no "done" flag to lose, so
+it re-arms after a reset). Its one privileged step is `bridge/first-account.py`
+through pkexec; checked against the real polkitd (`dev/setup-polkit-test.sh`):
+only `greeter`, only that program, and the program refuses once an account
+exists. `dev/setup-test.sh` walks the wizard end to end and signs in through
+the fake greetd.
+
+| Bug | How it showed | Fix |
+|---|---|---|
+| `pgrep -f 'qs -c shani-setup'` | matched the greeter niri's own `sh -c "… qs -c shani-setup …"` line: "setup still running" on a set-up machine | anchored: `^qs -c …` |
+| `C.utf8` offered as a language | the filter dropped `C.UTF-8` only | C and POSIX in any spelling |
+| a clock beside the chosen zone | showed this machine's current zone's time, not the chosen one's | removed |
+| hostname in a container | hostnamed: EBUSY (docker bind-mounts /etc/hostname) | reported as a warning, the account still made; the check SKIPs in containers |
+
+### Users, power keys, sound effects
+
+| Bug | How it showed | Fix |
+|---|---|---|
+| two-word launcher searches | "default browser", "time zone", "add user" fell through to "Ask Chronoa": an action matched only when one of its words began with the whole query | every word typed must begin some word of the title or keywords, any order |
+| smart suggestion came back | a later suggestion was replaced by the earlier copy's: wl-clip-persist takes the clipboard over after each copy, so wl-paste --watch announces the same text twice | the same text again is not a new copy |
+| autologin check in a container | `systemctl cat greetd.service` had nothing: greetd was not in the dev image | greetd installed; the test reads what systemd will run (`systemctl show -p ExecStart`) |

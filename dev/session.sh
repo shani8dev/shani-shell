@@ -7,7 +7,15 @@
 export XDG_RUNTIME_DIR=/run/user/0 HOME=/root USER=root XDG_SESSION_TYPE=wayland
 # a login has a UTF-8 locale; C would make every non-ASCII comparison fail
 export LANG=C.UTF-8 PYTHONUTF8=1
-export SHANI_OSK_LAYOUT_TOOL=/work/bridge/osk-layout.py
+export SHANI_OSK_LAYOUT_TOOL=/work/bridge/osk-layout.py SHANI_SEARCH_PROVIDERS_TOOL=/work/bridge/search-providers.py
+# voice typing without Chronoa in the image: whisper.cpp and its tiny model
+export SHANI_DICTATE_TOOL=/work/bridge/dictate.py SHANI_DICTATE_ENGINE=whisper-cli
+export SHANI_WHISPER_MODEL=/opt/whisper/ggml-tiny.en.bin
+# no Bluetooth in a container: a stand-in for bridge/bt-agent.py (tests/test_bt_agent.py
+# runs the real one against a fake BlueZ) that asks what /tmp/bt-ask holds
+export SHANI_BT_AGENT=/work/dev/fake-bt-agent.py
+# no camera either: a stand-in for libcamera's cam (dev/fake-cam.sh)
+export SHANI_CAM_TOOL=/work/dev/fake-cam.sh
 export XDG_CONFIG_HOME=/root/.config SHANI_SHELL_SETTINGS=/tmp/shani-settings.json
 # the lock screen's PAM file in its real place: its "include login" resolves
 # against the directory it sits in, so a copy elsewhere can never authenticate
@@ -54,5 +62,8 @@ until [ -S "$XDG_RUNTIME_DIR/wayland-1" ] || [ $i -ge 40 ]; do sleep 0.25; i=$((
 export WAYLAND_DISPLAY=wayland-1
 export NIRI_SOCKET=$(ls "$XDG_RUNTIME_DIR"/niri.wayland-1.*.sock | head -1)
 
-qs -p /work/shani >$L/qs.log 2>&1 &
+# the accessibility bus, and Qt exposing its tree on it (what Orca reads)
+/usr/lib/at-spi-bus-launcher --launch-immediately >$L/atspi.log 2>&1 &
+sleep 0.5
+QS_ICON_THEME=Adwaita QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1 qs -p /work/shani >$L/qs.log 2>&1 &
 sleep 4

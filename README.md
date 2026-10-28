@@ -19,6 +19,15 @@ selection of the screen (Lens), or the pie menu.
 | **Alt+Tab** | every window, most recent first, the previous one preselected; releasing Alt switches |
 | **Screen keyboard** | the shell's own, typing through niri's virtual-keyboard protocol: hand-made English and **मराठी** (smart matras: क + आ = का), plus **any of xkb's 598 layouts** (45 Indian — Marathi, Hindi, Tamil, Telugu, Bengali, Gujarati, Kannada, Malayalam, Odia, Gurmukhi, Sanskrit …; Cyrillic, Arabic, Greek, Hebrew, Thai …) generated from the system's own xkb data by `bridge/osk-layout.py`, chosen in settings; never steals focus, never fights the input method |
 | **Input methods** | fcitx5 (English + Hindi phonetic by default, 179 m17n tables); the active one in the bar (हि), switched from the sidebar |
+| **Window menu** | click the focused window's title: close, fullscreen, float, maximize, center, move to a workspace, ask Chronoa about it (no global menus: niri has no appmenu protocol and GTK 4 apps export none) |
+| **Focus modes** | Work / Sleep / Personal (after macOS, Android): hold back notifications except allowed apps, warm or keep awake, on a schedule or by hand |
+| **Also borrowed** | hot corners (GNOME), battery saver at 20 % (Android), screen time (Digital Wellbeing), the shelf of recent screenshots/recordings/downloads (ChromeOS), Quick Look of the selected file in the launcher (macOS), the phone through KDE Connect |
+| **Accessibility** | screen reader (Orca; every shell control has an accessible role and name — verified through AT-SPI), large text (shell + apps), high contrast, reduce motion, mono audio, screen keyboard, voice typing |
+| **Look** | light and dark palettes that follow Dark style, accent from the wallpaper (optional), soft shadows, opening motion, Inter with tabular figures, a blurred lock screen with media controls and your avatar, day/night wallpapers |
+| **Live Activities** | the Island carries what is in progress when Chronoa is idle: recording, voice typing, the focus timer, screen sharing, a backup, now playing — a click acts on it |
+| **Notifications, more** | snooze 1 h, summaries by Chronoa, quiet while presenting or fullscreen (a game also gets the performance profile), screenshots offered for annotation (satty) or Chronoa |
+| **Voice typing** | the screen keyboard's mic: record, transcribe with Chronoa's own speech engine in the keyboard's language, type it where the keys would |
+| **Search providers** | the launcher asks apps' own search (GNOME SearchProvider2): Calculator, Files, Characters, Settings … |
 | **Settings** | a page in the sidebar: wallpaper picker, bar and dock items, blur, reduce motion, night-light temperature, idle timings |
 | **Lock / idle** | ext-session-lock + PAM (`/etc/pam.d/shani-lock`); dim → lock → screen off → suspend; `loginctl lock-session`; locks **before** sleep (logind delay inhibitor) |
 | **Polkit agent**, **OSD**, **notifications** (DND lets critical through), **greeter** (greetd, same theme, remembers the user) | |

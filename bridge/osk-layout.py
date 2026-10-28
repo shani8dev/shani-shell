@@ -83,7 +83,7 @@ def layout(spec: str) -> dict:
         if keys:
             rows.append(keys)
     meta = next((x for x in catalogue() if x["id"] == spec), {})
-    return {"id": spec, "name": meta.get("name", spec), "rows": rows}
+    return {"id": spec, "name": meta.get("name", spec), "langs": meta.get("langs", []), "rows": rows}
 
 
 def catalogue() -> list[dict]:

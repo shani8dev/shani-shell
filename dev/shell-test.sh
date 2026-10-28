@@ -11,7 +11,8 @@ result() {
     echo "RESULT $1 $2${3:+ ($3)}"
     [ "$2" = PASS ] || fail=1
 }
-st() { qs -p /work/shani ipc call shani state 2>/dev/null; }
+# a hung shell must fail the next check, not stall the run
+st() { timeout 5 qs -p /work/shani ipc call shani state 2>/dev/null; }
 q() { st | python3 -c "import json,sys; d=json.load(sys.stdin); print(d$1)"; }
 ipc() { qs -p /work/shani ipc call shani "$@" >/dev/null 2>&1; }
 shot() { sleep "${2:-0.8}"; grim "$SHOTS/$1.png"; }
@@ -56,17 +57,19 @@ waitfor "d['volume'] == 35" 3 && result volume-ipc-step PASS || result volume-ip
 shot 20-osd-volume 0.2
 
 # ---- notifications, DND ------------------------------------------------------
+n0=$(q "['notifications']"); p0=$(q "['popups']")
 notify-send -a Mail "Lunch at 1?" "Priya: the usual place, I'll book a table."
-waitfor "d['notifications'] == 1 and d['popups'] == 1" 4 \
+waitfor "d['notifications'] == $n0 + 1 and d['popups'] == min($p0 + 1, 4)" 4 \
     && result notification-popup PASS || result notification-popup FAIL "$(st)"
 shot 21-notification-popup 0.3
 ipc dnd
+p1=$(q "['popups']")
 notify-send -a Backup "Backup finished" "142 files, 3.1 GB"
-waitfor "d['notifications'] == 2" 4 && sleep 0.3
-[ "$(q "['popups']")" -le 1 ] && [ "$(q "['dnd']")" = True ] \
+waitfor "d['notifications'] == $n0 + 2" 4 && sleep 0.3
+[ "$(q "['popups']")" -le "$p1" ] && [ "$(q "['dnd']")" = True ] \
     && result dnd-suppresses-popups PASS || result dnd-suppresses-popups FAIL "$(st)"
 notify-send -u critical -a Power "Battery low" "5% left"
-waitfor "d['popups'] >= 1 and d['notifications'] == 3" 4 \
+waitfor "d['notifications'] == $n0 + 3 and d['popups'] >= 1" 4 \
     && result dnd-lets-critical-through PASS || result dnd-lets-critical-through FAIL "$(st)"
 ipc dnd
 
@@ -97,7 +100,7 @@ waitfor "str(d['dark']) != '$before'" 3 && result launcher-action-runs PASS || r
 mkdir -p /root/Documents && echo "Q3 numbers" > /root/Documents/quarterly-report.txt
 ipc launcher "quarterly"
 waitfor "d['topResult'] == 'quarterly-report.txt'" 5 && result launcher-finds-files PASS || result launcher-finds-files FAIL "$(q "['topResult']")"
-shot 43-launcher-file 0.4
+shot 43-launcher-file 0.6      # Quick Look: the text preview in the side pane
 wtype -M ctrl -k Return -m ctrl
 sleep 1
 grep -q "The file: /root/Documents/quarterly-report.txt" /work/logs/mock.log \
@@ -206,6 +209,47 @@ ipc closeAll
 settings '{}'
 
 
+# ---- window menu on the bar's title -------------------------------------------
+niri msg action focus-workspace 1
+sleep 0.5
+# which window, asked before the menu opens: the menu takes the keyboard,
+# and while it is up no window has focus
+wid=$(niri msg -j focused-window | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
+ipc windowMenu
+waitfor "d['windowMenu']" 3 && result window-menu-opens PASS || result window-menu-opens FAIL
+shot 44-window-menu 0.4
+ipc windowMenuAction ws3
+sleep 1
+# the window's workspace index now, from niri's own view
+widx() { python3 -c "
+import json, subprocess
+wins = json.loads(subprocess.run(['niri','msg','-j','windows'], capture_output=True, text=True).stdout)
+spaces = json.loads(subprocess.run(['niri','msg','-j','workspaces'], capture_output=True, text=True).stdout)
+w = next(x for x in wins if x['id'] == $1)
+print(next(s['idx'] for s in spaces if s['id'] == w['workspace_id']))"; }
+[ "$(widx "$wid")" = 3 ] && result window-menu-moves-window PASS || result window-menu-moves-window FAIL "window $wid on workspace $(widx "$wid")"
+niri msg action move-window-to-workspace --window-id "$wid" --focus false 1
+
+# ---- voice typing: espeak-ng speaks, the mic hears it, whisper types it ---------
+# the "microphone" is the speakers' monitor, so what is played is what is heard
+pactl set-default-source speakers.monitor
+espeak-ng -w /tmp/said.wav "good morning everyone"
+ipc launcher ""
+ipc osk
+sleep 0.5
+ipc dictate
+waitfor "d['dictation'] == 'recording'" 3 && result dictation-records PASS || result dictation-records FAIL
+shot 46-osk-dictating 0.3
+paplay /tmp/said.wav
+sleep 0.8
+ipc dictate
+waitfor "d['dictation'] == 'idle' and d['dictated'] != ''" 40 && result dictation-transcribes PASS "heard: $(q "['dictated']")" \
+    || result dictation-transcribes FAIL "$(tail -3 /work/logs/qs.log)"
+waitfor "d['topResult'].endswith(d['dictated'])" 4 && result dictation-types-into-field PASS || result dictation-types-into-field FAIL "$(q "['topResult']")"
+ipc osk
+ipc closeAll
+pactl set-default-source mic 2>/dev/null
+
 # ---- launcher: emoji, and what you use ranks first ------------------------------
 ipc launcher ":grinning face"
 waitfor "d['topResult'].startswith('😀')" 4 && result launcher-emoji PASS || result launcher-emoji FAIL "$(q "['topResult']")"
@@ -233,6 +277,155 @@ waitfor "d['micInUse']" 5 && result privacy-mic-in-use PASS || result privacy-mi
 shot 36-mic-in-use 0.3
 kill $REC 2>/dev/null
 waitfor "not d['micInUse']" 5 && result privacy-mic-released PASS || result privacy-mic-released FAIL
+
+# ---- focus modes ------------------------------------------------------------
+before=$(q "['notifications']"); pops=$(q "['popups']")
+ipc focus Work
+waitfor "d['focus'] == 'Work'" 3 && result focus-mode-on PASS || result focus-mode-on FAIL
+notify-send -a Mail "Lunch?" "held back during Work"
+waitfor "d['notifications'] > $before" 3
+[ "$(q "['popups']")" -le "$pops" ] && result focus-holds-notifications PASS || result focus-holds-notifications FAIL "$(st)"
+notify-send -u critical -a Power "Critical" "always through"
+waitfor "d['popups'] >= 1" 3 && result focus-lets-critical-through PASS || result focus-lets-critical-through FAIL
+ipc focus Sleep
+waitfor "d['focus'] == 'Sleep' and d['nightLightRunning']" 3 && result focus-sleep-warms-screen PASS || result focus-sleep-warms-screen FAIL "$(st)"
+ipc focus ""
+waitfor "d['focus'] == ''" 3 && result focus-mode-off PASS || result focus-mode-off FAIL
+# a schedule covering now turns Work on by itself
+from=$(date -d '-5 min' +%H:%M); to=$(date -d '+30 min' +%H:%M); day=$(date +%w)
+settings "{\"focusModes\": [{\"name\": \"Work\", \"icon\": \"x-office-document\", \"allow\": [], \"schedule\": {\"days\": [$day], \"from\": \"$from\", \"to\": \"$to\", \"on\": true}}]}"
+waitfor "d['focusScheduled'] == 'Work' and d['focus'] == 'Work'" 5 && result focus-schedule-applies PASS || result focus-schedule-applies FAIL "$(q "['focusScheduled']")"
+settings '{}'
+
+# ---- hot corners (the action; a nested niri has no pointer to push) -----------
+ipc hotCorner overview
+waitfor "d['overview']" 3 && result hot-corner-opens-overview PASS || result hot-corner-opens-overview FAIL "$(q "['hotCorner']")"
+ipc hotCorner overview
+waitfor "not d['overview']" 3
+
+# ---- screen time and the shelf -------------------------------------------------
+niri msg action focus-workspace 1
+sleep 16
+waitfor "d['screenTimeTotal'] >= 15" 3 && result screen-time-counts PASS || result screen-time-counts FAIL "$(q "['screenTimeTotal']")"
+mkdir -p /root/Pictures/Screenshots && cp /tmp/frame.png /root/Pictures/Screenshots/Screenshot-test.png
+ipc controlCenter ""
+waitfor "d['shelf'] >= 1" 4 && result shelf-shows-new-screenshot PASS || result shelf-shows-new-screenshot FAIL
+shot 45-sidebar-shelf 0.6
+ipc closeAll
+
+# ---- the light theme, and the accent from the wallpaper ------------------------
+ipc setting darkMode false
+waitfor "d['bg'] == '#eef1f4'" 3 && result theme-follows-dark-style PASS || result theme-follows-dark-style FAIL "$(q "['bg']")"
+shot 47-light-desktop 0.6
+ipc controlCenter ""
+shot 48-light-sidebar 0.8
+ipc closeAll
+ipc setting darkMode true
+waitfor "d['bg'] == '#0b0d12'" 3
+magick -size 1920x1080 gradient:'#ff7a18'-'#ffb347' /tmp/orange.png
+settings '{"wallpaper": "/tmp/orange.png", "accentFromWallpaper": true}'
+# an orange wallpaper must give an orange accent: red well above blue
+waitfor "int(d['accent'][1:3],16) > int(d['accent'][5:7],16) + 60" 10 && result accent-from-wallpaper PASS "$(q "['accent']")" \
+    || result accent-from-wallpaper FAIL "$(q "['accent']")"
+shot 49-accent-orange 0.6
+settings '{}'
+
+# ---- day/night wallpaper -----------------------------------------------------------
+settings '{"wallpaperLight": "/tmp/lens-bg.png", "wallpaperDark": "/tmp/orange.png"}'
+waitfor "d['wallpaperNow'] == '/tmp/orange.png'" 3 && ipc setting darkMode false \
+    && waitfor "d['wallpaperNow'] == '/tmp/lens-bg.png'" 3 && result wallpaper-follows-style PASS || result wallpaper-follows-style FAIL "$(q "['wallpaperNow']")"
+ipc setting darkMode true
+settings '{}'
+
+# ---- fullscreen holds notifications ---------------------------------------------
+niri msg action focus-workspace 1; sleep 0.4
+niri msg action fullscreen-window
+waitfor "d['fullscreen'] and d['quiet']" 4 && result fullscreen-is-quiet PASS || result fullscreen-is-quiet FAIL "$(st)"
+p0=$(q "['popups']")
+notify-send -a Mail "During the film" "should wait"
+sleep 1
+[ "$(q "['popups']")" -le "$p0" ] && result fullscreen-holds-notifications PASS || result fullscreen-holds-notifications FAIL
+niri msg action fullscreen-window
+waitfor "not d['fullscreen']" 4
+
+# ---- screenshot -> annotate / ask -----------------------------------------------
+n0=$(q "['notifications']")
+niri msg action screenshot-screen
+waitfor "d['lastScreenshot'] != ''" 6 && result screenshot-reaches-shell PASS "$(q "['lastScreenshot']")" || result screenshot-reaches-shell FAIL
+waitfor "d['notifications'] > $n0" 4 && result screenshot-offers-actions PASS || result screenshot-offers-actions FAIL
+shot 51-screenshot-offer 0.6
+
+# ---- copied pictures in the clipboard history --------------------------------------
+wl-copy --type image/png < /tmp/orange.png
+sleep 1
+ipc launcher "c "
+waitfor "d['clipImages'] >= 1 and d['topResult'].startswith('Image')" 6 && result clipboard-image-entry PASS "$(q "['topResult']")" || result clipboard-image-entry FAIL "$(q "['topResult']")"
+sleep 1
+shot 52-clipboard-image 0.4
+ipc closeAll
+
+# ---- this round: live activities, search providers, snooze, summary, tiles --------
+ipc timer 1
+waitfor "d['islandActivity'].startswith('Focus · ')" 3 && result island-live-activity PASS "$(q "['islandActivity']")" || result island-live-activity FAIL "$(q "['islandActivity']")"
+shot 53-island-activity 0.4
+ipc timer 0
+ipc launcher "12*12"
+waitfor "'From Calculator' in d['launcherSections']" 12 && result launcher-search-providers PASS || result launcher-search-providers FAIL "$(q "['launcherSections']")"
+shot 54-launcher-providers 0.4
+ipc closeAll
+notify-send -a Mail "Snooze me" "back soon"
+sleep 0.8
+n1=$(q "['notifications']")
+ipc snoozeLatest 0
+waitfor "d['snoozed'] == 1 and d['notifications'] == $n1 - 1" 3 && result notification-snoozed PASS || result notification-snoozed FAIL "$(st)"
+waitfor "d['snoozed'] == 0 and 'Snooze me' in d['notificationSummaries']" 30 && result notification-snooze-returns PASS || result notification-snooze-returns FAIL "$(st)"
+ipc summarize
+sleep 1.5
+grep -q "Summarise these notifications" /work/logs/mock.log && result notifications-summary-asks-chronoa PASS || result notifications-summary-asks-chronoa FAIL
+settings '{"hiddenTiles": ["lens"], "tileOrder": ["chronoa", "dnd"]}'
+ipc controlCenter ""
+waitfor "d['tilesShown'][:2] == ['chronoa', 'dnd'] and 'lens' not in d['tilesShown']" 4 && result tiles-reordered-and-hidden PASS || result tiles-reordered-and-hidden FAIL "$(q "['tilesShown']")"
+shot 55-sidebar-tiles-mic 0.6
+ipc closeAll
+settings '{}'
+
+# ---- accessibility ------------------------------------------------------------
+ipc controlCenter ""
+sleep 1
+python3 /work/dev/a11y-tree.py "do not disturb" > /tmp/a11y.txt 2>&1
+grep -qi "check box	Do Not Disturb" /tmp/a11y.txt && result a11y-tiles-readable-by-orca PASS "$(head -1 /tmp/a11y.txt)" \
+    || result a11y-tiles-readable-by-orca FAIL "$(head -3 /tmp/a11y.txt)"
+ipc closeAll
+ipc setting largeText true
+waitfor "d['fontScale'] == 1.25" 3 && result a11y-large-text PASS || result a11y-large-text FAIL
+ipc setting highContrast true
+waitfor "d['contrast'] and d['bg'] == '#000000'" 3 && result a11y-high-contrast PASS || result a11y-high-contrast FAIL "$(q "['bg']")"
+ipc controlCenter access
+shot 56-accessibility 0.8
+ipc closeAll
+ipc setting largeText false
+ipc setting highContrast false
+ipc setting monoAudio true
+waitfor "d['sinkName'] == 'shani-mono'" 6 && result a11y-mono-audio PASS || result a11y-mono-audio FAIL "$(q "['sinkName']")"
+ipc setting monoAudio false
+waitfor "d['sinkName'] != 'shani-mono'" 6 && result a11y-mono-audio-off PASS || result a11y-mono-audio-off FAIL
+
+# ---- focus timer, processes, weather ---------------------------------------------
+ipc timer 1
+waitfor "50 <= d['timerLeft'] <= 60 and d['focus'] == 'Work'" 3 && result timer-starts-work-focus PASS || result timer-starts-work-focus FAIL "$(st)"
+ipc timer 0
+waitfor "d['timerLeft'] == 0 and d['focus'] == ''" 3 && result timer-stop-ends-focus PASS || result timer-stop-ends-focus FAIL
+ipc processes
+waitfor "d['processes'] >= 3" 5 && result processes-listed PASS || result processes-listed FAIL
+shot 50-processes 0.4
+ipc closeAll
+if curl -sf --max-time 5 -o /dev/null https://api.open-meteo.com; then
+    ipc weather Pune
+    waitfor "d['weather'] != ''" 20 && result weather-from-open-meteo PASS "$(q "['weather']")" || result weather-from-open-meteo FAIL
+    ipc weather ""
+else
+    echo "RESULT weather-from-open-meteo SKIP (no network in this container)"
+fi
 
 # ---- the Ring (pie menu): by keyboard, since nothing here can move a pointer ----
 ipc ring
@@ -273,6 +466,10 @@ magick -size 1920x1080 xc:'#0b0d12' -fill '#e8eef5' -font DejaVu-Sans -pointsize
 settings '{"wallpaper": "/tmp/lens-bg.png"}'
 waitfor "d['wallpaper'] == '/tmp/lens-bg.png'" 3 && result wallpaper-follows-setting PASS || result wallpaper-follows-setting FAIL
 niri msg action focus-workspace 3
+# an earlier step may have left a window here; it would cover the text
+for id in $(niri msg -j windows | python3 -c "import json,sys,subprocess; sp=json.loads(subprocess.run(['niri','msg','-j','workspaces'],capture_output=True,text=True).stdout); cur=[s['id'] for s in sp if s['is_focused']][0]; print(' '.join(str(w['id']) for w in json.load(sys.stdin) if w['workspace_id']==cur))"); do
+    niri msg action move-window-to-workspace --window-id "$id" --focus false 1
+done
 sleep 1.5
 ipc lensRegion "260,460 1400x160"
 waitfor "d['lens'] == 'ready'" 15 && st | python3 -c "import json,sys; t=json.load(sys.stdin)['lensText']; sys.exit(0 if 'SHANI LENS READS THIS' in t.upper() else 1)" \
@@ -284,7 +481,310 @@ waitfor "d['lens'] == 'idle'" 4 && grep -q "look_at_image: /run/user/0/shani-len
     && result lens-asks-chronoa-with-image PASS || result lens-asks-chronoa-with-image FAIL "$(tail -3 /work/logs/mock.log)"
 niri msg action focus-workspace 1
 
+# ---- smart copy: the Island offers one next step --------------------------------
+ipc smartCopy "https://shani.dev/download"
+waitfor "d['smart'].startswith('Open shani.dev') and d['islandActivity'] == d['smart']" 3 \
+    && result smart-link-on-island PASS || result smart-link-on-island FAIL "$(q "['smart']")"
+shot 60-smart-island 0.3
+printf 'Traceback (most recent call last):\n  File "x.py"\nValueError: no' | wl-copy
+waitfor "d['smart'].startswith('Ask Chronoa')" 3 \
+    && result smart-copied-error PASS || result smart-copied-error FAIL "clipboard change not seen: $(q "['smart']")"
+ipc smartCopy "शनि ओएस मराठी"
+waitfor "d['smart'].startswith('Translate')" 3 && result smart-translate-script PASS || result smart-translate-script FAIL "$(q "['smart']")"
+ipc smartCopy "plain words"
+waitfor "d['smart'] == ''" 3 && result smart-quiet-on-plain-text PASS || result smart-quiet-on-plain-text FAIL "$(q "['smart']")"
+
+# ---- select to speak: the primary selection is read aloud -----------------------
+printf 'shani reads this aloud' | wl-copy --primary
+ipc readAloud
+waitfor "d['spoken'] == 'shani reads this aloud'" 4 && result read-aloud-selection PASS || result read-aloud-selection FAIL "$(q "['spoken']")"
+
+# ---- live captions: what plays is written out -------------------------------------
+espeak-ng -w /tmp/cap.wav "the weather is lovely today"
+ipc captions
+waitfor "d['captions']" 3 && result captions-on PASS || result captions-on FAIL
+sleep 0.5
+paplay /tmp/cap.wav; paplay /tmp/cap.wav; paplay /tmp/cap.wav
+waitfor "'lovely' in d['captionText'].lower()" 30 && result captions-transcribe-playback PASS "$(q "['captionText']")" \
+    || result captions-transcribe-playback FAIL "$(q "['captionText']")"
+shot 61-captions 0.2
+ipc captions
+waitfor "not d['captions']" 3 && result captions-off PASS || result captions-off FAIL
+
+# ---- live transcribe: the mic (here the speakers' monitor, see voice typing), saved
+rm -rf /root/Documents/Transcripts
+ipc transcribe
+waitfor "d['captions'] and d['captionSource'] == 'mic'" 3 && result transcribe-on PASS || result transcribe-on FAIL "$(st)"
+sleep 0.5
+paplay /tmp/cap.wav; paplay /tmp/cap.wav
+waitfor "'lovely' in d['captionText'].lower()" 30 && result transcribe-hears-mic PASS "$(q "['captionText']")" \
+    || result transcribe-hears-mic FAIL "$(q "['captionText']")"
+shot 66-transcribe 0.2
+grep -qi lovely /root/Documents/Transcripts/*.txt 2>/dev/null && result transcribe-saved PASS || result transcribe-saved FAIL "$(ls -R /root/Documents 2>&1 | head -5)"
+ipc captions
+waitfor "d['captions'] and d['captionSource'] == 'speakers'" 4 && result captions-switch-source PASS || result captions-switch-source FAIL "$(st)"
+ipc captions
+waitfor "not d['captions']" 3
+
+# ---- flash and speak alerts ---------------------------------------------------------
+settings '{"flashAlerts": true, "speakNotifications": true}'
+f0=$(q "['flashes']")
+notify-send -a Calendar "Standup in five" "room 2"
+waitfor "d['flashes'] > $f0" 3 && result flash-alert PASS || result flash-alert FAIL "$(q "['flashes']")"
+shot 67-flash 0.05
+waitfor "d['spoken'] == 'Calendar: Standup in five'" 3 && result speak-notification PASS || result speak-notification FAIL "$(q "['spoken']")"
+ipc dnd
+f1=$(q "['flashes']")
+notify-send -a Calendar "Held back" "dnd"
+sleep 1
+[ "$(q "['flashes']")" = "$f1" ] && result flash-respects-dnd PASS || result flash-respects-dnd FAIL
+ipc dnd
+settings '{}'
+
+# ---- Bluetooth pairing: the agent's questions are answered in the shell -------------
+rm -f /tmp/bt-answers
+echo '{"ask": "confirm", "id": 7, "device": "Pixel 8", "passkey": "012345"}' > /tmp/bt-ask
+waitfor "d['btAsk'] == 'confirm:Pixel 8'" 4 && result bt-pair-asks PASS || result bt-pair-asks FAIL "$(q "['btAsk']")"
+shot 68-bt-pair 0.4
+ipc btAnswer true ""
+waitfor "d['btAsk'] == ''" 3
+grep -q '"id": 7, "ok": true' /tmp/bt-answers 2>/dev/null || grep -q '"id":7,"ok":true' /tmp/bt-answers \
+    && result bt-pair-answer-reaches-agent PASS || result bt-pair-answer-reaches-agent FAIL "$(cat /tmp/bt-answers 2>&1)"
+echo '{"ask": "pin", "id": 8, "device": "Old Keyboard"}' > /tmp/bt-ask
+waitfor "d['btAsk'] == 'pin:Old Keyboard'" 4
+sleep 0.6     # the dialog takes the keyboard once it maps
+wtype "0000" -k Return
+waitfor "d['btAsk'] == ''" 3 && grep -q '"value":"0000"' /tmp/bt-answers \
+    && result bt-pin-typed PASS || result bt-pin-typed FAIL "$(cat /tmp/bt-answers 2>&1)"
+echo '{"show": "passkey", "device": "K380", "passkey": "045123", "entered": 0}' > /tmp/bt-ask
+waitfor "d['btShow'] == 'K380'" 4 && result bt-passkey-shown PASS || result bt-passkey-shown FAIL
+shot 69-bt-passkey 0.3
+echo '{"cancel": true}' > /tmp/bt-ask
+waitfor "d['btShow'] == ''" 3 && result bt-cancel-closes PASS || result bt-cancel-closes FAIL
+
+# ---- notification card: avatar letter, picture with badge, actions row ----------------
+notify-send -a Messages -i mail-unread -h string:image-path:/tmp/frame.png -A reply=Reply -A call=Call "Asha" "Are we still on for 6?" &
+notify-send -a "Build bot" "Pipeline passed" "shani-shell · main · 4 min"
+shot 70-notification-cards 1.0
+
+# ---- settings categories: input, default apps, language, about -----------------------
+ipc settings
+waitfor "d['settingsCat'] == '' and d['expanded'] == 'settings'" 3
+shot 71-settings-categories 0.6
+# input: the shell writes niri's include, niri reloads it
+ipc settingsCategory input
+waitfor "d['settingsCat'] == 'input'" 3
+shot 72-settings-input 0.6
+settings '{"tapToClick": false, "keyRepeatRate": 45, "touchpadSpeed": 0.4}'
+sleep 1
+f=/root/.config/niri/shani-input.kdl
+grep -q 'repeat-rate 45' $f && ! grep -q '^        tap$' $f && grep -q 'accel-speed 0.40' $f \
+    && result input-settings-written PASS || result input-settings-written FAIL "$(cat $f 2>&1)"
+niri validate -c /work/dev/niri/session.kdl >/dev/null 2>&1 && result input-include-valid PASS || result input-include-valid FAIL "$(niri validate -c /work/dev/niri/session.kdl 2>&1 | tail -3)"
+settings '{}'
+# keyboard layouts: the shell writes them, niri reloads the include and has both
+settings '{"kbLayouts": ["us", "in+marathi"], "kbSwitch": "grp:alt_shift_toggle"}'
+waitfor "True" 1
+for i in 1 2 3 4 5 6; do niri msg -j keyboard-layouts 2>/dev/null | grep -q Marathi && break; sleep 0.5; done
+niri msg -j keyboard-layouts 2>/dev/null | grep -q Marathi && grep -q 'options "grp:alt_shift_toggle"' $f \
+    && result keyboard-layouts-reach-niri PASS "$(niri msg -j keyboard-layouts | python3 -c 'import json,sys; print(json.load(sys.stdin)["names"])')" \
+    || result keyboard-layouts-reach-niri FAIL "$(cat $f; niri msg keyboard-layouts 2>&1)"
+waitfor "'Marathi' in d['layout'] or True" 1
+shot 76-settings-layouts 0.4
+settings '{}'
+for i in 1 2 3 4 5 6; do niri msg -j keyboard-layouts 2>/dev/null | grep -q Marathi || break; sleep 0.5; done
+niri msg -j keyboard-layouts 2>/dev/null | grep -q Marathi && result keyboard-layouts-removed FAIL || result keyboard-layouts-removed PASS
+ipc settingsCategory account
+sleep 1.2
+shot 77-settings-account 0.3
+# default apps: a fake app that opens text
+mkdir -p /root/.local/share/applications
+printf '[Desktop Entry]\nType=Application\nName=Scribble\nExec=true %%f\nMimeType=text/plain;\n' > /root/.local/share/applications/scribble.desktop
+ipc settingsCategory apps
+sleep 1.5
+shot 73-settings-apps 0.3
+# what the page runs to set one (gio mime), and what an app then gets from GLib
+gio mime text/plain scribble.desktop >/dev/null
+LC_ALL=C gio mime text/plain | grep -q 'Default application for .*: scribble.desktop' && grep -q 'text/plain=scribble.desktop' /root/.config/mimeapps.list \
+    && result default-apps-gio-mime PASS || result default-apps-gio-mime FAIL "$(LC_ALL=C gio mime text/plain 2>&1 | head -2)"
+ipc settingsCategory time
+sleep 1.5
+shot 74-settings-date-language 0.3
+ipc settingsCategory about
+sleep 1.5
+shot 75-settings-about 0.3
+ipc closeAll
+
+# ---- the launcher finds settings by what people call them --------------------------
+for pair in "timezone:Date & language" "time zone:Date & language" "add user:Users" "password:Your account" "default browser:Default apps" "touchpad:Keyboard & input" "hostname:About this computer"; do
+    ipc launcher "${pair%%:*}"
+    waitfor "d['topResult'] == '${pair#*:}'" 4 && result "launcher-finds-$(echo ${pair%%:*} | tr ' ' -)" PASS || result "launcher-finds-$(echo ${pair%%:*} | tr ' ' -)" FAIL "$(q "['topResult']")"
+done
+ipc launcher "timezone"; waitfor "d['topResult'] == 'Date & language'" 3
+wtype -k Return
+waitfor "d['expanded'] == 'settings' and d['settingsCat'] == 'time'" 3 && result launcher-opens-settings-category PASS || result launcher-opens-settings-category FAIL "$(st)"
+ipc closeAll
+
+# ---- per-app notifications: no pop-ups for one app, one app through DND -------------
+notify-send -a Chatty "first" "seen once"
+sleep 1
+settings '{"notifApps": ["Chatty", "Pager"], "silentApps": ["Chatty"], "dndAllowedApps": ["Pager"]}'
+n0=$(q "['notifications']")
+notify-send -a Chatty "Chatty again" "should be quiet"
+waitfor "d['notifications'] > $n0" 3
+q "['popupSummaries']" | grep -q 'Chatty again' && result silent-app-no-popup FAIL || result silent-app-no-popup PASS
+q "['notificationSummaries']" | grep -q 'Chatty again' && result silent-app-kept-in-history PASS || result silent-app-kept-in-history FAIL
+ipc dnd
+notify-send -a Pager "Paged" "through DND"
+notify-send -a Other "Held" "by DND"
+waitfor "'Paged' in d['popupSummaries']" 3 && result dnd-allowed-app-comes-through PASS || result dnd-allowed-app-comes-through FAIL "$(q "['popupSummaries']")"
+q "['popupSummaries']" | grep -q "'Held'\|\"Held\"" && result dnd-holds-others FAIL || result dnd-holds-others PASS
+ipc dnd
+settings '{}'
+
+# ---- night light on a schedule: what wlsunset is asked for ----------------------------
+settings '{"nightLightSchedule": "custom", "nightLightFrom": "20:30", "nightLightTo": "06:45"}'
+waitfor "d['nightLightMode'] == 'custom' and '-S 06:45 -s 20:30' in d['nightLightCommand']" 3 \
+    && result night-light-custom-hours PASS || result night-light-custom-hours FAIL "$(q "['nightLightCommand']")"
+settings '{"nightLightSchedule": "sunset", "weatherLat": 18.52, "weatherLon": 73.86}'
+waitfor "d['nightLightMode'] == 'sunset' and '-l 18.52 -L 73.86' in d['nightLightCommand']" 3 \
+    && result night-light-sunset-by-location PASS || result night-light-sunset-by-location FAIL "$(q "['nightLightCommand']")"
+settings '{}'
+
+# ---- icons, fonts and cursor: apps through gsettings, niri's pointer, the shell's font --
+ipc settingsCategory personal
+settings '{"iconTheme": "Pop", "cursorTheme": "Pop", "cursorSize": 32, "uiFont": "DejaVu Sans", "uiFontSize": 12, "monoFont": "DejaVu Sans Mono", "monoFontSize": 13}'
+sleep 1.5
+g() { gsettings get org.gnome.desktop.interface "$1"; }
+[ "$(g icon-theme)" = "'Pop'" ] && [ "$(g cursor-theme)" = "'Pop'" ] && [ "$(g cursor-size)" = 32 ] \
+    && [ "$(g font-name)" = "'DejaVu Sans 12'" ] && [ "$(g monospace-font-name)" = "'DejaVu Sans Mono 13'" ] \
+    && result look-reaches-apps PASS || result look-reaches-apps FAIL "$(g icon-theme) $(g cursor-theme) $(g cursor-size) $(g font-name) $(g monospace-font-name)"
+grep -q 'xcursor-theme "Pop"' /root/.config/niri/shani-input.kdl && grep -q 'xcursor-size 32' /root/.config/niri/shani-input.kdl \
+    && niri validate -c /work/dev/niri/session.kdl >/dev/null 2>&1 && result cursor-reaches-niri PASS || result cursor-reaches-niri FAIL
+waitfor "d['iconsNeedRestart']" 3 && result icon-theme-offers-restart PASS || result icon-theme-offers-restart FAIL
+shot 78-settings-look 0.6
+settings '{}'
+
+# ---- sound effects: measured at the real output -----------------------------------
+tone() { python3 -c "import math,wave,array,sys; f=float(sys.argv[1]); w=wave.open(sys.argv[2],'wb'); w.setnchannels(2); w.setsampwidth(2); w.setframerate(48000); w.writeframes(array.array('h',[int(8000*math.sin(2*math.pi*f*i/48000)) for i in range(48000*2) for _ in (0,1)]).tobytes())" "$1" "$2"; }
+level() {   # play $1 into the default output, record what reaches the speakers, print its RMS
+    timeout 2.6 parecord -d speakers.monitor --rate 48000 --channels 1 --format s16le --raw /tmp/rec.raw 2>/dev/null &
+    sleep 0.3; paplay "$1"; wait
+    python3 -c "import array,math; a=array.array('h',open('/tmp/rec.raw','rb').read()); a=a[len(a)//4:len(a)*3//4]; print(int(math.sqrt(sum(x*x for x in a)/max(1,len(a)))))"
+}
+tone 1000 /tmp/t1k.wav; tone 4000 /tmp/t4k.wav
+pactl set-default-sink speakers; sleep 0.5
+settings '{"fxEnabled": true}'
+waitfor "d['fxRunning'] and d['sinkName'] == 'effect_input.shani' and d['fxTarget'] == 'speakers'" 8 \
+    && result fx-becomes-the-output PASS || result fx-becomes-the-output FAIL "$(q "['fxRunning'], d['sinkName'], d['fxTarget'], d['fxError']")"
+shot 79-settings-sound 0.2
+flat1k=$(level /tmp/t1k.wav); flat4k=$(level /tmp/t4k.wav)
+settings '{"fxEnabled": true, "fxEq": [0, 0, 0, 0, 0, -12, 0, 0, 0, 0]}'
+sleep 2; waitfor "d['fxRunning'] and d['sinkName'] == 'effect_input.shani'" 6
+cut1k=$(level /tmp/t1k.wav); cut4k=$(level /tmp/t4k.wav)
+python3 -c "import sys; f1,f4,c1,c4=map(int,sys.argv[1:]); sys.exit(0 if f1>50 and c1<0.4*f1 and c4>0.7*f4 else 1)" "$flat1k" "$flat4k" "$cut1k" "$cut4k" \
+    && result fx-eq-cuts-its-band PASS "1 kHz $flat1k→$cut1k, 4 kHz $flat4k→$cut4k" || result fx-eq-cuts-its-band FAIL "1 kHz $flat1k→$cut1k, 4 kHz $flat4k→$cut4k $(q "['fxError']")"
+settings '{}'
+waitfor "not d['fx'] and d['sinkName'] == 'speakers'" 5 && result fx-off-restores-output PASS || result fx-off-restores-output FAIL "$(q "['sinkName']")"
+
+# ---- displays: niri applies the shell's output block; kept, or reverted by itself ------
+ipc settingsCategory displays
+ipc display winit scale 1.5
+waitfor "d['displayPending'] and 'winit:1.5@' in d['displays']" 5 && result display-change-applies PASS "$(q "['displays']")" || result display-change-applies FAIL "$(q "['displays']") $(cat /root/.config/niri/shani-input.kdl | grep -A3 output)"
+shot 85-display-confirm 0.3
+ipc displayKeep
+sleep 1
+waitfor "not d['displayPending'] and 'winit:1.5@' in d['displays']" 3 && grep -q 'scale 1.5' /root/.config/niri/shani-input.kdl \
+    && result display-kept PASS || result display-kept FAIL "$(q "['displays']")"
+ipc display winit scale 1.25
+waitfor "'winit:1.25@' in d['displays']" 5
+waitfor "not d['displayPending'] and 'winit:1.5@' in d['displays']" 20 && result display-reverts-unanswered PASS || result display-reverts-unanswered FAIL "$(q "['displays']")"
+ipc display winit off true
+sleep 1
+q "['displayPending']" | grep -q False && q "['displays']" | grep -q 'winit:1' && result last-screen-stays-on PASS || result last-screen-stays-on FAIL "$(st)"
+shot 86-settings-displays 0.3
+settings '{}'
+waitfor "'winit:1@' in d['displays']" 5
+
+# ---- camera: a photo through the shell's still path (fake cam), video failure reported ----
+waitfor "d['cameras'] == 1" 12 && result camera-listed PASS || result camera-listed FAIL "$(q "['cameras']")"
+ipc photo
+waitfor "d['cameraPhase'] == 'counting'" 2 && result photo-counts-down PASS || result photo-counts-down FAIL "$(q "['cameraPhase']")"
+shot 87-photo-countdown 0.2
+waitfor "d['cameraPhase'] == 'idle' and d['cameraLast'].endswith('.png')" 10
+f=$(q "['cameraLast']")
+python3 -c "import sys,struct; b=open(sys.argv[1],'rb').read(); sys.exit(0 if b[:8]==b'\x89PNG\r\n\x1a\n' and struct.unpack('>II', b[16:24])==(64,48) else 1)" "$f" 2>/dev/null \
+    && result photo-saved-as-png PASS "$f" || result photo-saved-as-png FAIL "$f $(ls -la "$(dirname "$f")" 2>&1 | tail -2)"
+waitfor "'Photo taken' in d['notificationSummaries']" 4 && result photo-notifies PASS || result photo-notifies FAIL
+ipc video
+waitfor "d['cameraPhase'] == 'idle' and 'Video stopped' in d['notificationSummaries']" 12 \
+    && result video-without-camera-node-reported PASS || result video-without-camera-node-reported FAIL "$(q "['cameraPhase']")"
+
+# ---- media keys reach the playing player; notifications chime -----------------------
+python3 /work/dev/fake-mpris.py "Test Song" "Test Artist" >/dev/null 2>&1 &
+MPRIS=$!
+waitfor "d['mediaPlaying']" 5
+ipc media play-pause
+waitfor "not d['mediaPlaying']" 3 && result media-key-pauses PASS || result media-key-pauses FAIL
+ipc media play-pause
+waitfor "d['mediaPlaying']" 3 && result media-key-plays PASS || result media-key-plays FAIL
+kill $MPRIS 2>/dev/null
+s0=$(q "['notifSounds']")
+notify-send -a Chime "Ding" "a sound"
+waitfor "d['notifSounds'] > $s0" 3 && result notification-sound PASS || result notification-sound FAIL
+settings '{"notifSound": false}'
+s1=$(q "['notifSounds']")
+notify-send -a Chime "Quiet" "no sound"
+sleep 1
+[ "$(q "['notifSounds']")" = "$s1" ] && result notification-sound-off PASS || result notification-sound-off FAIL
+settings '{}'
+
+# ---- clipboard history can be cleared ------------------------------------------------
+printf 'secret-token-123' | wl-copy; sleep 0.8
+cliphist list | grep -q secret-token-123 || echo "  (cliphist did not store it)"
+ipc launcher "clear clipboard"
+waitfor "d['topResult'] == 'Clear clipboard history'" 3
+wtype -k Return; sleep 1
+cliphist list | grep -q secret-token-123 && result clipboard-history-cleared FAIL || result clipboard-history-cleared PASS
+
+# ---- pop-up duration follows the setting --------------------------------------------
+settings '{"popupSeconds": 4}'
+notify-send -a Test "Four seconds" "then gone"
+waitfor "'Four seconds' in d['popupSummaries']" 2
+sleep 3; q "['popupSummaries']" | grep -q 'Four seconds' && waitfor "'Four seconds' not in d['popupSummaries']" 3 \
+    && result popup-duration-setting PASS || result popup-duration-setting FAIL "$(q "['popups']")"
+settings '{}'
+
+# ---- call recording: both sides into one file -----------------------------------
+rm -rf /root/Recordings/Calls
+ipc callRecord
+waitfor "d['callRecording']" 4 && result call-record-starts PASS || result call-record-starts FAIL "$(tail -3 /work/logs/qs.log)"
+shot 62-call-record 0.3
+paplay /tmp/cap.wav
+ipc callRecord
+waitfor "not d['callRecording']" 4
+f=$(ls /root/Recordings/Calls/*.ogg 2>/dev/null | head -1)
+[ -n "$f" ] && [ "$(stat -c %s "$f")" -gt 2000 ] && result call-record-file PASS "$(stat -c %s "$f") bytes" \
+    || result call-record-file FAIL "$(ls -la /root/Recordings/Calls 2>&1)"
+
+# ---- magnifier and smart touch ------------------------------------------------------
+ipc magnifier
+waitfor "d['magnifier']" 3 && result magnifier-opens PASS || result magnifier-opens FAIL
+shot 63-magnifier 0.8
+wtype -k Escape
+waitfor "not d['magnifier']" 3 && result magnifier-escape-closes PASS || result magnifier-escape-closes FAIL
+ipc smartTouch
+waitfor "d['assistiveTouch']" 3 && result smart-touch-on PASS || result smart-touch-on FAIL
+shot 64-smart-touch 0.4
+ipc ringAt 300 500
+waitfor "d['ring']" 3 && result ring-opens-at-point PASS || result ring-opens-at-point FAIL
+shot 65-ring-at-bubble 0.4
+wtype -k Escape
+waitfor "not d['ring']" 3
+ipc smartTouch
+
 # ---- lock screen: PAM, wrong then right ----------------------------------------
+cp /tmp/frame.png /root/.face          # the avatar the lock screen shows
 echo 'root:shani-test' | chpasswd
 ipc lock
 waitfor "d['locked'] and d['lockSecure']" 5 && result lock-engages PASS || result lock-engages FAIL "$(st)"

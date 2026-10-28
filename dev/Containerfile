@@ -22,3 +22,19 @@ RUN pacman -Sy --noconfirm --needed tesseract tesseract-data-eng slurp zbar wl-c
 RUN pacman -Sy --noconfirm --needed unicode-emoji udisks2 && pacman -Scc --noconfirm
 # input methods: fcitx5 + m17n (Devanagari phonetic/inscript and other Indic tables)
 RUN pacman -Sy --noconfirm --needed fcitx5 fcitx5-m17n fcitx5-gtk fcitx5-qt && pacman -Scc --noconfirm
+# voice typing, end to end: espeak-ng speaks, whisper.cpp (tiny model) hears
+RUN pacman -Sy --noconfirm --needed whisper-cpp espeak-ng poppler fd ripgrep && pacman -Scc --noconfirm \
+    && mkdir -p /opt/whisper && curl -sSL -o /opt/whisper/ggml-tiny.en.bin \
+       https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin
+# the shell's UI font
+RUN pacman -Sy --noconfirm --needed inter-font && pacman -Scc --noconfirm
+# accessibility: the AT-SPI bus and its bindings (what Orca reads), Orca itself
+RUN pacman -Sy --noconfirm --needed at-spi2-core python-atspi orca && pacman -Scc --noconfirm
+# every language, precompiled — what the ShaniOS images ship (glibc-locales), so
+# Settings > Date & language and first-boot setup offer what a real machine does.
+# archlinux:base keeps no locale sources (NoExtract) and generates none but C.
+RUN pacman -Sy --noconfirm --needed glibc-locales && pacman -Scc --noconfirm
+# greetd itself: dev/admin-test.sh checks that systemd takes the automatic-login drop-in
+RUN pacman -Sy --noconfirm --needed greetd && pacman -Scc --noconfirm
+# the notification sound (freedesktop theme), as shani-desktop-niri ships it
+RUN pacman -Sy --noconfirm --needed sound-theme-freedesktop && pacman -Scc --noconfirm

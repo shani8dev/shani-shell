@@ -19,10 +19,10 @@ PanelWindow {
     anchors.bottom: true
     // sized for the widest zoom once, so the surface is not resized on every pointer move
     implicitWidth: items.length * (base + 4) + (peak - base) * 3 + 80
-    implicitHeight: 140                 // room for a zoomed icon and its label
+    implicitHeight: peak + 68           // room for a zoomed icon and its label (140 at 44 px)
     color: "transparent"
     exclusionMode: Settings.data.dockAutoHide ? ExclusionMode.Ignore : ExclusionMode.Normal
-    exclusiveZone: Settings.data.dockAutoHide ? 0 : 76
+    exclusiveZone: Settings.data.dockAutoHide ? 0 : base + 32
     WlrLayershell.namespace: "shani-dock"
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
@@ -61,10 +61,10 @@ PanelWindow {
         return out;
     }
 
-    // parabolic zoom: base 44 px, up to 72 px right under the pointer,
-    // falling off over about two icons either side
-    readonly property real base: 44
-    readonly property real peak: 72
+    // parabolic zoom: base (44 px by default) up to about 1.6× right under the
+    // pointer, falling off over about two icons either side
+    readonly property real base: Settings.data.dockIconSize
+    readonly property real peak: Math.round(base * 1.64)
     property real pointerX: -1000
     function sizeAt(centerX) {
         if (!hover.hovered)
@@ -243,7 +243,7 @@ PanelWindow {
             anchors.centerIn: parent
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: 11
+            font.pixelSize: 11 * Theme.fontScale
         }
     }
 }

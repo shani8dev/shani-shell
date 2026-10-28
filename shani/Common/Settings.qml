@@ -16,6 +16,39 @@ Singleton {
 
     property alias data: adapter
     property bool loaded: false
+    // Our own write is not news: reloading it could undo a change made since
+    // (measured: a quick on-then-off came back on). Not a time window — a late
+    // notice outlived one under load — but the content: a change to the file is
+    // applied only when the file differs from what we last wrote.
+    property string lastWritten: ""
+    // The defaults, as declared below, taken before the file is read. A key
+    // missing from the file means its default: JsonAdapter on its own leaves a
+    // missing key at whatever it was (measured: a file reset to {} changed
+    // nothing), so an outside edit is applied as defaults + file.
+    property var defaults: ({})
+    Component.onCompleted: {
+        const d = {};
+        for (const k in adapter) {
+            const v = adapter[k];
+            if (typeof v === "function" || k === "objectName" || k.startsWith("__"))
+                continue;
+            d[k] = JSON.parse(JSON.stringify(v === undefined ? null : v));
+        }
+        defaults = d;
+    }
+    function applyOutside(text) {
+        let file = {};
+        try {
+            file = JSON.parse(text);
+        } catch (e) {
+            return;            // a half-saved or broken file: keep what we have
+        }
+        for (const k of Object.keys(defaults)) {
+            const v = file[k] !== undefined ? file[k] : defaults[k];
+            if (JSON.stringify(adapter[k]) !== JSON.stringify(v))
+                adapter[k] = v;
+        }
+    }
 
     // Write after a burst of changes settles, not once per slider tick.
     function save() {
@@ -31,12 +64,24 @@ Singleton {
         }
     }
 
+    // reads the file as it is on disk, to tell our write from someone else's
+    FileView {
+        id: probe
+        path: root.path
+        printErrors: false
+        onLoaded: {
+            if (root.loaded && text() !== root.lastWritten)
+                root.applyOutside(text());
+        }
+    }
+
     FileView {
         id: view
         path: root.path
         watchChanges: true
         printErrors: false
-        onFileChanged: reload()
+        onFileChanged: probe.reload()
+        onSaved: root.lastWritten = text()
         onLoaded: root.loaded = true
         onLoadFailed: root.loaded = true    // no file yet: defaults apply
         onAdapterUpdated: root.save()
@@ -54,11 +99,16 @@ Singleton {
             property bool darkMode: true
             property bool nightLight: false
             property int nightLightTemp: 4000
+            property string nightLightSchedule: "manual"   // manual | sunset (by location) | custom
+            property string nightLightFrom: "21:00"
+            property string nightLightTo: "07:00"
+            property bool adaptiveBrightness: false
             property bool autoRotate: false
             property string wallpaper: "/usr/share/backgrounds/shani/shani-shell.png"
             property string terminal: "foot"
             property bool dock: true
             property bool dockAutoHide: false
+            property int dockIconSize: 44            // the zoom peaks at about 1.6×
             // desktop-entry ids, in order; ones not installed are skipped
             property list<string> dockPinned: ["org.gnome.Nautilus", "firefox", "foot", "dev.shani.cassini", "shani-chronoa", "org.gnome.TextEditor"]
             property string recordingsDir: ""   // "" -> $XDG_VIDEOS_DIR or ~/Videos/Recordings
@@ -73,6 +123,93 @@ Singleton {
             property int suspendAfterBattery: 600
             property bool lockBeforeSuspend: true
             property bool reduceMotion: false
+            property bool accentFromWallpaper: false
+            // apps' look, through org.gnome.desktop.interface (Appearance); the
+            // shell uses the fonts itself, and the icon theme from its next start
+            property string iconTheme: "Adwaita"
+            property string cursorTheme: "Adwaita"
+            property int cursorSize: 24
+            property string uiFont: "Inter"
+            property int uiFontSize: 11
+            property string monoFont: "DejaVu Sans Mono"
+            property int monoFontSize: 11
+            // accessibility
+            property bool screenReader: false
+            property bool largeText: false
+            property bool highContrast: false
+            property bool monoAudio: false
+            // sound effects (SoundFx): a 10-band EQ in dB, bass boost, AutoEq text,
+            // an impulse response, stereo width (1 = as recorded) and crossfeed
+            property bool fxEnabled: false
+            property var fxEq: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            property string fxPreset: "Flat"
+            property real fxBass: 0
+            property string fxAutoEq: ""
+            property string fxIr: ""
+            property real fxWidth: 1
+            property bool fxCrossfeed: false
+            property string captionLanguage: "en"
+            property bool flashAlerts: false
+            property bool speakNotifications: false
+            property string speechRate: "normal"   // slow | normal | fast, for read aloud
+            property int popupSeconds: 6           // when the app does not say
+            // per app (after Android): every app that has notified, those whose
+            // pop-ups are off (they still go to the sidebar), and those that come
+            // through Do Not Disturb
+            property bool notifSound: true            // the freedesktop theme's message sound
+            property list<string> notifApps: []
+            property list<string> silentApps: []
+            property list<string> dndAllowedApps: []
+            property bool assistiveTouch: false
+            // Keyboard & input: written to ~/.config/niri/shani-input.kdl (InputConfig)
+            property bool tapToClick: true
+            property bool typingGuard: true          // touchpad off while typing (dwt)
+            property bool naturalScroll: true        // touchpad
+            property real touchpadSpeed: 0
+            property bool mouseNaturalScroll: false
+            property real mouseSpeed: 0
+            property bool leftHanded: false
+            property int keyRepeatDelay: 400
+            property int keyRepeatRate: 30
+            // screens, by connector: { mode, scale, transform, x, y, vrr, off } (Displays)
+            property var displays: ({})
+            property list<string> kbLayouts: []      // xkb "layout" or "layout+variant"; [] = the system's (localectl)
+            property string kbSwitch: "grp:win_space_toggle"
+            property real touchX: 24
+            property real touchY: 420
+            // day/night wallpaper: used with the light / dark style when set
+            property string wallpaperLight: ""
+            property string wallpaperDark: ""
+            // hold notifications while the screen is shared, and while
+            // something is fullscreen (a game also gets the performance profile)
+            property bool quietWhileSharing: true
+            // the sidebar's tiles: their order, and the ones put away
+            property list<string> tileOrder: []
+            property list<string> hiddenTiles: []
+            property bool quietWhileFullscreen: true
+            // weather: off unless a city is set — it asks open-meteo.com, which sees the location
+            property string weatherCity: ""
+            property real weatherLat: 0
+            property real weatherLon: 0
+            // hot corners: overview | launcher | sidebar | chronoa | lock | none
+            property string hotCornerTopLeft: "overview"
+            property string hotCornerTopRight: "none"
+            property string hotCornerBottomLeft: "none"
+            property string hotCornerBottomRight: "none"
+            // focus modes: notifications held back except from `allow` (app
+            // names), optional caffeine / night light, optional schedule
+            // (days: 0 = Sunday … 6; from/to "HH:MM", to may pass midnight)
+            property var focusModes: [
+                { name: "Work", icon: "x-office-document", allow: [], caffeine: false, nightLight: false,
+                  schedule: { days: [1, 2, 3, 4, 5], from: "09:30", to: "18:00", on: false } },
+                { name: "Sleep", icon: "weather-clear-night", allow: [], caffeine: false, nightLight: true,
+                  schedule: { days: [0, 1, 2, 3, 4, 5, 6], from: "22:30", to: "07:00", on: false } },
+                { name: "Personal", icon: "face-smile-big", allow: [], caffeine: false, nightLight: false,
+                  schedule: { days: [], from: "", to: "", on: false } }
+            ]
+            property string focusMode: ""       // chosen by hand; "" = schedules decide
+            property bool autoPowerSaver: true  // power saver at 20 % on battery
+            property bool screenTime: true
             // screen keyboard languages, in the order the globe key cycles them
             property list<string> oskLanguages: ["en", "mr"]
         }

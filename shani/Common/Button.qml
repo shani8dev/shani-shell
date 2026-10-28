@@ -8,6 +8,10 @@ Rectangle {
     property string kind: "plain"      // plain | primary | danger
     signal clicked()
 
+    Accessible.role: Accessible.Button
+    Accessible.name: root.text
+    Accessible.onPressAction: root.clicked()
+
     implicitWidth: label.implicitWidth + 28
     implicitHeight: 32
     radius: 10
@@ -20,7 +24,7 @@ Rectangle {
         text: root.text
         color: root.kind === "primary" ? Theme.accentInk : root.kind === "danger" ? Theme.danger : Theme.text
         font.family: Theme.font
-        font.pixelSize: 12
+        font.pixelSize: 12 * Theme.fontScale
         font.weight: Font.DemiBold
     }
     MouseArea {

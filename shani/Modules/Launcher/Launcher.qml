@@ -43,6 +43,43 @@ PanelWindow {
     property var recent: []               // [{ path, name, when }]
     property var found: []                // file search hits for the current query
     property var inside: []               // files whose contents match
+    property var provided: []             // apps' own search results (GNOME SearchProvider2)
+    readonly property string providersTool: Quickshell.env("SHANI_SEARCH_PROVIDERS_TOOL") || "/usr/lib/shani-shell/search-providers.py"
+    Process {
+        id: providerSearch
+        property var terms: []
+        command: ["python3", win.providersTool, "query"].concat(terms)
+        stdout: StdioCollector { onStreamFinished: { try { win.provided = JSON.parse(text); } catch (e) { win.provided = []; } } }
+    }
+
+    // Quick Look (after macOS): the selected file previewed in the side pane —
+    // pictures as they are, text files' first lines, a PDF's first page
+    readonly property string lookPath: current && current.kind === "file" ? current.path : ""
+    readonly property bool lookText: /\.(txt|md|log|conf|ini|json|yaml|yml|toml|csv|py|js|qml|sh|c|h|cpp|rs|go|html|css|xml)$/i.test(lookPath)
+    readonly property bool lookPdf: /\.pdf$/i.test(lookPath)
+    property string lookPdfImage: ""
+    FileView {
+        id: lookFile
+        path: win.lookText ? win.lookPath : ""
+        printErrors: false
+    }
+    Process {
+        id: pdfThumb
+        command: ["sh", "-c", 'command -v pdftoppm >/dev/null && pdftoppm -png -r 40 -f 1 -l 1 -singlefile "$1" "$2" && echo "$2.png"', "sh", win.lookPath,
+                  (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/shani-quicklook"]
+        stdout: StdioCollector { onStreamFinished: win.lookPdfImage = text.trim() }
+    }
+    onLookPathChanged: {
+        lookPdfImage = "";
+        if (lookPdf)
+            pdfThumb.running = true;
+    }
+
+    function openSettings(cat) {
+        Ui.controlCenter = true;
+        Ui.expanded = "settings";
+        Ui.settingsCat = cat;
+    }
 
     // ---- what the shell itself can do, by name -----------------------------
     readonly property var actions: [
@@ -59,7 +96,30 @@ PanelWindow {
         { title: "Color picker", words: "color colour pick hex", icon: "color-select", run: () => Quickshell.execDetached(["sh", "-c", "c=$(niri msg pick-color | sed -n 's/^Hex: //p'); [ -n \"$c\" ] && printf %s \"$c\" | wl-copy"]) },
         { title: "Screen keyboard", words: "keyboard osk touch", icon: "input-keyboard", run: () => Osk.toggle(), state: () => Osk.shown },
         { title: "Clipboard history", words: "clipboard paste history", icon: "edit-paste", run: () => Ui.toggleLauncher("c ") },
-        { title: "Shell settings", words: "settings preferences wallpaper", icon: "preferences-system", run: () => { Ui.controlCenter = true; Ui.expanded = "settings"; } },
+        { title: "Shell settings", words: "settings preferences control centre center", icon: "preferences-system", run: () => win.openSettings("") },
+        // each settings category, by what people call what is in it
+        { title: "Personalisation", words: "wallpaper background accent theme look blur dock bar tiles hot corners weather icons icon theme fonts font cursor pointer", icon: "preferences-desktop-wallpaper", run: () => win.openSettings("personal") },
+        { title: "Notification settings", words: "notifications apps pop-ups popups quiet silent do not disturb per app", icon: "preferences-system-notifications", run: () => win.openSettings("notifications") },
+        { title: "Accessibility settings", words: "accessibility screen reader orca large text contrast mono audio flash alerts captions read aloud speed", icon: "preferences-desktop-accessibility", run: () => win.openSettings("access") },
+        { title: "Keyboard & input", words: "keyboard layout language input touchpad mouse tap scroll natural pointer speed repeat left-handed osk", icon: "input-keyboard", run: () => win.openSettings("input") },
+        { title: "Date & language", words: "date time timezone time zone clock 24-hour ntp language locale region formats", icon: "preferences-system-time", run: () => win.openSettings("time") },
+        { title: "Default apps", words: "default apps browser mail email files text pictures video music pdf open with terminal", icon: "preferences-desktop-default-applications", run: () => win.openSettings("apps") },
+        { title: "Your account", words: "account user name password picture avatar photo face", icon: "system-users", run: () => win.openSettings("account") },
+        { title: "Take a photo", words: "camera photo picture selfie snap webcam", icon: "camera-photo", run: () => Camera.photo() },
+        { title: "Record a video", words: "camera video record webcam clip", icon: "camera-video", run: () => Camera.video(), state: () => Camera.phase === "recording" },
+        { title: "Camera", words: "camera viewfinder webcam preview mirror qcam", icon: "camera-web", run: () => Camera.open() },
+        { title: "Displays", words: "displays display screens monitor monitors resolution refresh rate hz scale rotation rotate arrange arrangement external projector vrr freesync", icon: "video-display", run: () => win.openSettings("displays") },
+        { title: "Sound effects", words: "sound effects equaliser equalizer eq bass boost crossfeed headphones autoeq impulse response convolver width jamesdsp viper", icon: "audio-speakers", run: () => win.openSettings("sound") },
+        { title: "Users", words: "users add user new user account accounts remove user administrator admin automatic login autologin family", icon: "system-users", run: () => win.openSettings("users") },
+        { title: "Power settings", words: "power battery saver idle lock suspend screen off sleep lid power button", icon: "preferences-system-power", run: () => win.openSettings("power") },
+        { title: "About this computer", words: "about system computer name hostname rename version kernel memory disk cpu", icon: "help-about", run: () => win.openSettings("about") },
+        { title: "Live captions", words: "captions subtitles live transcribe hearing", icon: "media-view-subtitles", run: () => Captions.toggle(), state: () => Captions.on && Captions.source === "speakers" },
+        { title: "Live transcribe", words: "transcribe transcript meeting lecture microphone dictate", icon: "audio-input-microphone", run: () => Captions.transcribe(), state: () => Captions.on && Captions.source === "mic" },
+        { title: "Read aloud", words: "read aloud speak tts selection voice", icon: "audio-speakers", run: () => Speak.speakSelection() },
+        { title: "Magnifier", words: "magnifier zoom loupe enlarge", icon: "zoom-in", run: () => Ui.magnifier = true },
+        { title: "Record a call", words: "call record recording meeting phone", icon: "call-start", run: () => CallRecorder.toggle(), state: () => CallRecorder.recording },
+        { title: "Cast screen", words: "cast miracast tv display wireless project", icon: "video-display", run: () => Cast.open() },
+        { title: "Clear clipboard history", words: "clipboard clear wipe history privacy", icon: "edit-clear-history", run: () => Clipboard.wipe() },
         { title: "Notifications", words: "notifications messages", icon: "preferences-system-notifications", run: () => Ui.toggleControlCenter("notifications") },
         { title: "Switch windows", words: "windows switch alt tab", icon: "focus-windows", run: () => Ui.switcherRequested(false) },
         { title: "Suspend", words: "suspend sleep", icon: "weather-clear-night", run: () => Power.suspend() },
@@ -140,9 +200,12 @@ PanelWindow {
                 fileSearch.running = true;
                 contentSearch.query = t;
                 contentSearch.running = true;
+                providerSearch.terms = t.split(/\s+/);
+                providerSearch.running = true;
             } else {
                 win.found = [];
                 win.inside = [];
+                win.provided = [];
             }
         }
     }
@@ -207,6 +270,12 @@ PanelWindow {
             return 80;
         return n.indexOf(q) >= 0 ? 60 : 0;
     }
+    // every word typed starts some word of the text, in any order:
+    // "default browser", "time zone", "add user"
+    function allWords(text, q) {
+        const words = text.toLowerCase().split(/[\s\-_&]+/).filter(w => w);
+        return q.split(/\s+/).filter(t => t).every(t => words.some(w => w.startsWith(t)));
+    }
     function appScore(a, q) {
         const s = score(a.name, q);
         if (s > 0)
@@ -268,7 +337,8 @@ PanelWindow {
         if (q === "c" || q.startsWith("c ")) {
             const f = q.slice(1).trim().toLowerCase();
             const items = Clipboard.entries.filter(e => f === "" || e.text.toLowerCase().indexOf(f) >= 0).slice(0, 30)
-                .map(e => ({ kind: "clip", icon: "edit-paste", title: e.text.replace(/\s+/g, " ").slice(0, 140), subtitle: "Clipboard", run: () => Clipboard.copy(e) }));
+                .map(e => ({ kind: "clip", icon: e.image ? "image-x-generic" : "edit-paste", thumb: e.image ? e.preview : "",
+                             title: e.text.replace(/\s+/g, " ").slice(0, 140), subtitle: e.image ? "Picture · Enter copies it" : "Clipboard", run: () => Clipboard.copy(e) }));
             return [{ title: "Clipboard", items: items.length ? items : [{ kind: "none", icon: "edit-paste", title: Clipboard.available ? "Clipboard history is empty" : "cliphist is not installed", subtitle: "", run: () => {} }] }];
         }
 
@@ -302,7 +372,7 @@ PanelWindow {
                 const e = DesktopEntries.heuristicLookup(w.app_id || "");
                 return { kind: "window", app: e ? e.icon : w.app_id, title: w.title || w.app_id, subtitle: Niri.workspaceLabel(w.workspace_id), run: () => Niri.action("focus-window", "--id", w.id) };
             }) });
-        const acts = win.actions.filter(a => win.score(a.title, ql) > 0 || a.words.split(" ").some(w => w.startsWith(ql))).slice(0, 6);
+        const acts = win.actions.filter(a => win.score(a.title, ql) > 0 || win.allWords(a.title + " " + a.words, ql)).slice(0, 6);
         if (acts.length)
             out.push({ title: "Actions", items: acts.map(a => ({ kind: "action", icon: a.icon, title: a.title,
                 subtitle: a.state ? (a.state() ? "On — Enter turns off" : "Off — Enter turns on") : "", run: a.run })) });
@@ -311,6 +381,11 @@ PanelWindow {
         const byContent = win.inside.filter(p => allFiles.indexOf(p) < 0).slice(0, 6);
         if (allFiles.length || byContent.length)
             out.push({ title: "Files", items: allFiles.map(fileItem).concat(byContent.map(p => Object.assign(fileItem(p), { subtitle: "contains “" + q + "” · " + p.replace(Quickshell.env("HOME"), "~") }))) });
+        // what the apps themselves found, one section per app
+        for (const app of [...new Set(win.provided.map(r => r.app))].slice(0, 4))
+            out.push({ title: "From " + app, items: win.provided.filter(r => r.app === app).slice(0, 4).map(r => ({
+                kind: "provided", app: r.icon, title: r.name, subtitle: r.description,
+                run: () => Quickshell.execDetached(["python3", win.providersTool, "activate", r.bus, r.path, r.id].concat(q.split(/\s+/))) })) });
         out.push({ title: "More", items: [
             { kind: "ask", icon: "chat-message-new", title: "Ask Chronoa: " + q, subtitle: "Ctrl+Enter from anywhere", run: () => Chronoa.ask(q) },
             { kind: "web", icon: "web-browser", title: "Search the web for “" + q + "”", subtitle: "", run: () => Qt.openUrlExternally("https://duckduckgo.com/?q=" + encodeURIComponent(q)) }
@@ -320,6 +395,7 @@ PanelWindow {
     readonly property var flat: sections.reduce((acc, s) => acc.concat(s.items), [])
     readonly property var current: flat[Math.max(0, Math.min(sel, flat.length - 1))] || null
     onFlatChanged: Ui.topResult = flat.length > 0 ? flat[0].title : ""
+    onSectionsChanged: Ui.launcherSections = sections.map(x => x.title)
     onQChanged: {
         sel = 0;
         fileDebounce.restart();
@@ -348,6 +424,7 @@ PanelWindow {
 
     onVisibleChanged: {
         if (visible) {
+            appear.restart();
             search.text = Ui.launcherQuery;
             sel = 0;
             category = "All";
@@ -364,7 +441,16 @@ PanelWindow {
         MouseArea { anchors.fill: parent; onClicked: Ui.closeAll() }
     }
 
+    // opens with a short fade and rise (instant with reduce motion)
+    ParallelAnimation {
+        id: appear
+        NumberAnimation { target: body; property: "opacity"; from: 0; to: 1; duration: Theme.anim * 1.5; easing.type: Easing.OutCubic }
+        NumberAnimation { target: rise; property: "y"; from: 18; to: 0; duration: Theme.anim * 1.5; easing.type: Easing.OutCubic }
+    }
+
     ColumnLayout {
+        id: body
+        transform: Translate { id: rise }
         anchors.fill: parent
         anchors.topMargin: Math.max(60, parent.height * 0.08)
         anchors.bottomMargin: 40
@@ -394,7 +480,7 @@ PanelWindow {
                     color: Theme.text
                     selectionColor: Theme.accent
                     font.family: Theme.font
-                    font.pixelSize: 20
+                    font.pixelSize: 20 * Theme.fontScale
                     clip: true
                     Keys.onEscapePressed: Ui.closeAll()
                     Keys.onDownPressed: win.sel = Math.min(win.sel + (win.q === "" ? 6 : 1), win.flat.length - 1)
@@ -415,14 +501,14 @@ PanelWindow {
                         text: "Search apps, files, windows and actions — or ask Chronoa"
                         color: Theme.faint
                         font.family: Theme.font
-                        font.pixelSize: 17
+                        font.pixelSize: 17 * Theme.fontScale
                     }
                 }
                 Text {
                     text: "Ctrl+Enter  Chronoa"
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: 11
+                    font.pixelSize: 11 * Theme.fontScale
                 }
             }
         }
@@ -463,7 +549,7 @@ PanelWindow {
                                     text: section.modelData.title
                                     color: Theme.dim
                                     font.family: Theme.font
-                                    font.pixelSize: 12
+                                    font.pixelSize: 12 * Theme.fontScale
                                     font.weight: Font.DemiBold
                                     font.capitalization: Font.AllUppercase
                                     font.letterSpacing: 1
@@ -516,7 +602,7 @@ PanelWindow {
                                                 color: Theme.text
                                                 elide: Text.ElideRight
                                                 font.family: Theme.font
-                                                font.pixelSize: 12
+                                                font.pixelSize: 12 * Theme.fontScale
                                             }
                                         }
                                         MouseArea {
@@ -552,8 +638,23 @@ PanelWindow {
                                             implicitSize: 28
                                             source: row.modelData.app ? Quickshell.iconPath(row.modelData.app, "application-x-executable") : ""
                                         }
+                                        ClippingRectangle {
+                                            visible: !!row.modelData.thumb
+                                            implicitWidth: 56
+                                            implicitHeight: 36
+                                            radius: 6
+                                            color: Theme.hover
+                                            Image {
+                                                anchors.fill: parent
+                                                source: row.modelData.thumb ? "file://" + row.modelData.thumb : ""
+                                                sourceSize: Qt.size(112, 72)
+                                                fillMode: Image.PreserveAspectCrop
+                                                asynchronous: true
+                                                cache: false
+                                            }
+                                        }
                                         Icon {
-                                            visible: !row.modelData.app
+                                            visible: !row.modelData.app && !row.modelData.thumb
                                             name: row.modelData.icon || ""
                                             size: 20
                                             color: row.modelData.kind === "ask" ? Theme.accent : Theme.text
@@ -564,7 +665,7 @@ PanelWindow {
                                             color: Theme.text
                                             elide: Text.ElideRight
                                             font.family: Theme.font
-                                            font.pixelSize: 14
+                                            font.pixelSize: 14 * Theme.fontScale
                                         }
                                         Text {
                                             Layout.maximumWidth: list.width * 0.4
@@ -572,7 +673,7 @@ PanelWindow {
                                             color: Theme.dim
                                             elide: Text.ElideMiddle
                                             font.family: Theme.font
-                                            font.pixelSize: 11
+                                            font.pixelSize: 11 * Theme.fontScale
                                         }
                                     }
                                     MouseArea {
@@ -607,12 +708,44 @@ PanelWindow {
                             text: "Chronoa"
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: 15
+                            font.pixelSize: 15 * Theme.fontScale
                             font.weight: Font.DemiBold
                         }
-                        Text { text: "· " + Chronoa.label; color: Chronoa.color; font.family: Theme.font; font.pixelSize: 12 }
+                        Text { text: "· " + Chronoa.label; color: Chronoa.color; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 220
+                        visible: win.lookText && lookFile.loaded
+                        radius: 12
+                        color: Theme.hover
+                        clip: true
+                        Text {
+                            anchors.fill: parent
+                            anchors.margins: 10
+                            text: lookFile.loaded ? lookFile.text().split("\n").slice(0, 16).join("\n").slice(0, 1500) : ""
+                            textFormat: Text.PlainText
+                            color: Theme.dim
+                            font.family: Theme.mono
+                            font.pixelSize: 10 * Theme.fontScale
+                            wrapMode: Text.NoWrap
+                        }
                     }
                     ClippingRectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 240
+                        visible: win.lookPdfImage !== ""
+                        radius: 12
+                        color: Theme.hover
+                        Image {
+                            anchors.fill: parent
+                            source: win.lookPdfImage ? "file://" + win.lookPdfImage : ""
+                            cache: false
+                            fillMode: Image.PreserveAspectFit
+                        }
+                    }
+                    ClippingRectangle {
+                        id: imagePreview
                         Layout.fillWidth: true
                         Layout.preferredHeight: 180
                         visible: win.current && win.current.kind === "file" && win.current.icon === "image-x-generic"
@@ -620,7 +753,7 @@ PanelWindow {
                         color: Theme.hover
                         Image {
                             anchors.fill: parent
-                            source: parent.visible ? "file://" + win.current.path : ""
+                            source: imagePreview.visible ? "file://" + win.current.path : ""
                             fillMode: Image.PreserveAspectFit
                             asynchronous: true
                             sourceSize: Qt.size(640, 360)
@@ -635,7 +768,7 @@ PanelWindow {
                             : "“" + win.q.trim() + "”"
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: 14
+                        font.pixelSize: 14 * Theme.fontScale
                     }
                     Button {
                         text: "Ask Chronoa  (Ctrl+Enter)"
@@ -649,7 +782,7 @@ PanelWindow {
                         text: "=  calc    :  emoji    c  clipboard\n>  run     ?  ask"
                         color: Theme.faint
                         font.family: Theme.mono
-                        font.pixelSize: 10
+                        font.pixelSize: 10 * Theme.fontScale
                     }
                 }
             }

@@ -9,12 +9,20 @@ RowLayout {
     property string hint: ""
     property bool checked: false
     signal toggled(bool on)
+
+    Accessible.role: Accessible.CheckBox
+    Accessible.name: root.text
+    Accessible.description: root.hint
+    Accessible.checkable: true
+    Accessible.checked: root.checked
+    Accessible.onToggleAction: root.toggled(!root.checked)
+    Accessible.onPressAction: root.toggled(!root.checked)
     spacing: 10
 
     Column {
         Layout.fillWidth: true
-        Text { text: root.text; color: Theme.text; font.family: Theme.font; font.pixelSize: 12 }
-        Text { visible: root.hint !== ""; text: root.hint; color: Theme.faint; font.family: Theme.font; font.pixelSize: 10 }
+        Text { text: root.text; color: Theme.text; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+        Text { visible: root.hint !== ""; text: root.hint; color: Theme.faint; font.family: Theme.font; font.pixelSize: 10 * Theme.fontScale }
     }
     Rectangle {
         implicitWidth: 40

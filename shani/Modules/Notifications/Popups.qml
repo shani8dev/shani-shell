@@ -1,6 +1,6 @@
 // New notifications, top right under the bar, newest at the top. Each leaves
 // after its timeout (the app's, else 6 s; critical ones stay until handled) or
-// on hover-out after being hovered. They stay in the sidebar's history.
+// with the time left paused while hovered. They stay in the sidebar's history.
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Services.Notifications
@@ -13,6 +13,7 @@ PanelWindow {
     id: win
     screen: Quickshell.screens[0]
     visible: Notifs.popups.length > 0 && !Ui.controlCenter && !Ui.launcher && !Lock.locked
+        && Lens.phase !== "selecting" && Lens.phase !== "reading"   // not what Lens is pointed at
     anchors { top: true; right: true }
     margins { top: Theme.barHeight + 18; right: 12 }
     implicitWidth: 380
@@ -39,10 +40,14 @@ PanelWindow {
                 popup: true
                 onDone: Notifs.dropPopup(modelData)
                 HoverHandler { id: hover }
-                Timer {
-                    running: !card.critical && !hover.hovered
-                    interval: card.modelData.expireTimeout > 0 ? card.modelData.expireTimeout * 1000 : 6000
-                    onTriggered: Notifs.dropPopup(card.modelData)
+                // the time left runs down, paused while the pointer rests on it
+                NumberAnimation on life {
+                    running: !card.critical
+                    paused: running && hover.hovered
+                    from: 1
+                    to: 0
+                    duration: card.modelData.expireTimeout > 0 ? card.modelData.expireTimeout * 1000 : Settings.data.popupSeconds * 1000
+                    onFinished: Notifs.dropPopup(card.modelData)
                 }
             }
         }

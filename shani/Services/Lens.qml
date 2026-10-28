@@ -33,6 +33,19 @@ Singleton {
                         "sh", image, geometry || ""];
         grab.running = true;
     }
+    // a picture already on disk (a camera photo): read it like a selection
+    function readFile(path) {
+        if (phase === "selecting" || phase === "reading")
+            return;
+        error = "";
+        text = "";
+        codes = "";
+        image = path;
+        phase = "reading";
+        ocr.running = true;
+        if (hasZbar)
+            zbar.running = true;
+    }
     function close() {
         phase = "idle";
     }

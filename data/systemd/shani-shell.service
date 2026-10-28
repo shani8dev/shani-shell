@@ -9,7 +9,10 @@ After=graphical-session.target
 Requisite=graphical-session.target
 
 [Service]
-ExecStart=/usr/bin/qs -c shani
+# the icon theme apps use (Settings > Personalisation writes it), for the
+# shell's own icons too; Quickshell has no icons without one
+# (gsettings prints it quoted: 'Adwaita' — the first and last characters go)
+ExecStart=/bin/sh -c 't=$(gsettings get org.gnome.desktop.interface icon-theme 2>/dev/null); t=$${t#?}; t=$${t%%?}; QS_ICON_THEME="$${t:-Adwaita}" exec /usr/bin/qs -c shani'
 Restart=on-failure
 RestartSec=2
 

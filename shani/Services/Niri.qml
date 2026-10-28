@@ -22,6 +22,7 @@ Singleton {
     property int layoutIndex: 0
     readonly property string layout: layouts[layoutIndex] || ""
     property bool overviewOpen: false
+    signal screenshotSaved(string path)
     property var focusOrder: []          // window ids, most recently focused first
 
     function mru() {
@@ -104,6 +105,9 @@ Singleton {
             layoutIndex = ev.KeyboardLayoutsChanged.keyboard_layouts.current_idx;
         } else if (ev.KeyboardLayoutSwitched) {
             layoutIndex = ev.KeyboardLayoutSwitched.idx;
+        } else if (ev.ScreenshotCaptured) {
+            if (ev.ScreenshotCaptured.path)
+                screenshotSaved(ev.ScreenshotCaptured.path);
         } else if (ev.OverviewOpenedOrClosed) {
             overviewOpen = ev.OverviewOpenedOrClosed.is_open;
         }

@@ -130,8 +130,39 @@ ShellRoot {
 
             Rectangle {
                 anchors.fill: parent
-                color: Qt.rgba(0.043, 0.051, 0.071, 0.45)
+                color: Theme.alpha(Theme.bg, 0.45)
             }
+
+            // accessibility, before anything is typed
+            Row {
+                visible: win.primary
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.margins: 20
+                spacing: 6
+                Icon { name: "preferences-desktop-accessibility"; size: 20; color: Theme.text; anchors.verticalCenter: parent.verticalCenter }
+                Choice { text: "Larger text"; selected: Settings.data.largeText; onClicked: Settings.data.largeText = !Settings.data.largeText }
+                Choice { text: "High contrast"; selected: Settings.data.highContrast; onClicked: Settings.data.highContrast = !Settings.data.highContrast }
+                Choice { text: "Screen reader"; selected: root.screenReader; onClicked: root.screenReader = !root.screenReader }
+            }
+            // the machine itself: sleep, restart, power off (logind; an active local session may)
+            Row {
+                visible: win.primary
+                anchors.bottom: parent.bottom
+                anchors.right: parent.right
+                anchors.margins: 20
+                spacing: 8
+                Choice {
+                    visible: root.layout !== ""
+                    text: root.layout
+                    Accessible.name: "Keyboard layout " + root.layout + ", click for the next"
+                    onClicked: { Quickshell.execDetached(["niri", "msg", "action", "switch-layout", "next"]); layoutDelay.restart(); }
+                }
+                IconButton { icon: "weather-clear-night"; Accessible.name: "Sleep"; onClicked: Quickshell.execDetached(["systemctl", "suspend"]) }
+                IconButton { icon: "system-reboot"; Accessible.name: "Restart"; onClicked: Quickshell.execDetached(["systemctl", "reboot"]) }
+                IconButton { icon: "system-shutdown"; Accessible.name: "Power off"; onClicked: Quickshell.execDetached(["systemctl", "poweroff"]) }
+            }
+            Timer { id: layoutDelay; interval: 300; onTriggered: root.readLayout() }
 
             ColumnLayout {
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -142,9 +173,10 @@ ShellRoot {
                 Text {
                     Layout.alignment: Qt.AlignHCenter
                     text: Qt.formatTime(clock.date, "HH:mm")
+                    font.features: { "tnum": 1 }
                     color: root.textColor
                     font.family: "Noto Sans"
-                    font.pixelSize: 84
+                    font.pixelSize: 84 * Theme.fontScale
                     font.weight: Font.Light
                 }
                 Text {
@@ -152,7 +184,7 @@ ShellRoot {
                     text: Qt.formatDate(clock.date, "dddd, d MMMM")
                     color: root.dimColor
                     font.family: "Noto Sans"
-                    font.pixelSize: 18
+                    font.pixelSize: 18 * Theme.fontScale
                 }
             }
 
@@ -164,8 +196,8 @@ ShellRoot {
                 width: 380
                 height: form.implicitHeight + 48
                 radius: 22
-                color: Qt.rgba(0.043, 0.051, 0.071, 0.82)
-                border.color: Qt.rgba(1, 1, 1, 0.08)
+                color: Theme.glassStrong
+                border.color: Theme.alpha(Theme.text, 0.08)
 
                 ColumnLayout {
                     id: form
@@ -173,11 +205,33 @@ ShellRoot {
                     anchors.margins: 24
                     spacing: 12
 
+                    Avatar {
+                        Layout.alignment: Qt.AlignHCenter
+                        size: 64
+                        user: userField.text.trim()
+                        home: ""            // the greeter cannot read homes; AccountsService it can
+                        visible: userField.text.trim() !== ""
+                    }
+                    // one click picks who signs in
+                    Flow {
+                        Layout.fillWidth: true
+                        visible: root.users.length > 1
+                        spacing: 6
+                        Repeater {
+                            model: root.users
+                            Choice {
+                                required property var modelData
+                                text: modelData.fullname || modelData.name
+                                selected: userField.text.trim() === modelData.name
+                                onClicked: { userField.text = modelData.name; passField.input.forceActiveFocus(); }
+                            }
+                        }
+                    }
                     Text {
                         text: "SHANI"
                         color: root.accent
                         font.family: "Noto Sans"
-                        font.pixelSize: 15
+                        font.pixelSize: 15 * Theme.fontScale
                         font.letterSpacing: 6
                         font.weight: Font.DemiBold
                     }
@@ -210,7 +264,7 @@ ShellRoot {
                         color: root.error !== "" ? root.errColor : root.dimColor
                         wrapMode: Text.Wrap
                         font.family: "Noto Sans"
-                        font.pixelSize: 13
+                        font.pixelSize: 13 * Theme.fontScale
                     }
                 }
 
@@ -218,6 +272,32 @@ ShellRoot {
             }
         }
     }
+
+    // everyone who can sign in here (UID 1000–59999 with a login shell), with a picture
+    property var users: []                // [{ name, fullname }]
+    Process {
+        running: true
+        command: ["sh", "-c", 'getent passwd | awk -F: "\\$3 >= 1000 && \\$3 < 60000 && \\$7 !~ /(nologin|false)\\$/ {print \\$1 \\":\\" \\$5}"']
+        stdout: StdioCollector {
+            onStreamFinished: root.users = text.trim().split("\n").filter(x => x).map(x => {
+                const i = x.indexOf(":");
+                return { name: x.slice(0, i), fullname: x.slice(i + 1).split(",")[0] };
+            })
+        }
+    }
+    // the keyboard layout a password will be typed in (the greeter niri's, from localed)
+    property string layout: ""
+    function readLayout() { layoutProc.running = true; }
+    Process {
+        id: layoutProc
+        running: true
+        command: ["sh", "-c", 'niri msg -j keyboard-layouts 2>/dev/null']
+        stdout: StdioCollector {
+            onStreamFinished: { try { const k = JSON.parse(text); root.layout = k.names.length > 1 ? k.names[k.current_idx] : ""; } catch (e) {} }
+        }
+    }
+    property bool screenReader: false
+    Process { running: root.screenReader; command: ["orca", "--replace"] }
 
     // the last user who logged in here, so the next login is one field
     FileView {
@@ -243,8 +323,8 @@ ShellRoot {
 
         implicitHeight: 42
         radius: 12
-        color: Qt.rgba(1, 1, 1, 0.06)
-        border.color: input.activeFocus ? root.accent : Qt.rgba(1, 1, 1, 0.10)
+        color: Theme.alpha(Theme.text, 0.06)
+        border.color: input.activeFocus ? root.accent : Theme.alpha(Theme.text, 0.10)
         opacity: enabled ? 1 : 0.5
 
         TextInput {
@@ -256,7 +336,7 @@ ShellRoot {
             color: root.textColor
             selectionColor: root.accent
             font.family: "Noto Sans"
-            font.pixelSize: 15
+            font.pixelSize: 15 * Theme.fontScale
             echoMode: field.secret ? TextInput.Password : TextInput.Normal
             enabled: field.enabled
             clip: true
