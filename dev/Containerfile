@@ -1,0 +1,24 @@
+# Dev/test image for shani-shell: a nested niri under headless weston, with the
+# services the shell's modules talk to (PipeWire, UPower, polkit, NetworkManager,
+# BlueZ, power-profiles-daemon) so each feature can be exercised, not just parsed.
+#   docker build -t shani-shell-dev -f dev/Containerfile dev
+#   docker run --rm -v "$PWD":/work shani-shell-dev sh /work/dev/<test>.sh
+FROM archlinux:latest
+RUN pacman -Syu --noconfirm --needed \
+        niri weston quickshell xwayland-satellite \
+        grim wtype foot swaybg imagemagick \
+        python python-gobject dbus libnotify playerctl \
+        pipewire wireplumber pipewire-pulse \
+        upower power-profiles-daemon polkit networkmanager bluez bluez-utils \
+        brightnessctl gnome-themes-extra adwaita-icon-theme \
+        wf-recorder wl-clipboard cliphist wlsunset \
+        nautilus gnome-text-editor gnome-calculator \
+        ttf-dejavu noto-fonts mesa \
+    && pacman -Scc --noconfirm
+# Lens (OCR, codes, region select) and the clipboard tools the session starts
+RUN pacman -Sy --noconfirm --needed tesseract tesseract-data-eng slurp zbar wl-clip-persist \
+    && pacman -Scc --noconfirm
+# the launcher's emoji mode and removable drives
+RUN pacman -Sy --noconfirm --needed unicode-emoji udisks2 && pacman -Scc --noconfirm
+# input methods: fcitx5 + m17n (Devanagari phonetic/inscript and other Indic tables)
+RUN pacman -Sy --noconfirm --needed fcitx5 fcitx5-m17n fcitx5-gtk fcitx5-qt && pacman -Scc --noconfirm

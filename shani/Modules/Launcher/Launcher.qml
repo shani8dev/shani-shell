@@ -1,0 +1,658 @@
+// The launcher: full screen, one field, every kind of answer.
+//
+// Before you type: frequent apps, recent files, and the whole app grid with
+// category chips. As you type, one ranked list in sections — top hit, apps,
+// open windows, actions (a command palette for the shell: "dark style",
+// "do not disturb", "lock" …), files, calculator, emoji, clipboard, the web —
+// and on the right, Chronoa, one keystroke away (Ctrl+Enter), with a preview
+// of the selected file or picture.
+//
+//   = 2*(3+4)  calculator  (also: 5 km in miles, 100 f to c, 2 gb in mib)
+//   : smile    emoji       c text  clipboard
+// Files are matched by name and by what is inside them (localsearch / rg / grep).
+//   > cmd      run (Shift: in a terminal)             ? text  ask Chronoa
+// Apps you launch often rank first (counts in Quickshell's state dir).
+import Quickshell
+import Quickshell.Io
+import Quickshell.Wayland
+import Quickshell.Widgets
+import QtQuick
+import QtQuick.Layouts
+import qs.Common
+import qs.Services
+
+PanelWindow {
+    id: win
+    visible: Ui.launcher
+    screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
+    anchors { top: true; bottom: true; left: true; right: true }
+    color: "transparent"
+    exclusionMode: ExclusionMode.Ignore
+    WlrLayershell.namespace: "shani-launcher"
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.keyboardFocus: Ui.launcher ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    BackgroundEffect.blurRegion: Ui.launcher && Settings.data.blur ? fullRegion : null
+    Region { id: fullRegion; item: backdrop }
+
+    property int sel: 0
+    property string category: "All"
+    readonly property string q: search.text
+    property var usage: ({})              // desktop id -> launches
+    property var emoji: []                // [{ e, name }], loaded on first ":"
+    property string emojiPath: ""
+    property var recent: []               // [{ path, name, when }]
+    property var found: []                // file search hits for the current query
+    property var inside: []               // files whose contents match
+
+    // ---- what the shell itself can do, by name -----------------------------
+    readonly property var actions: [
+        { title: "Lock screen", words: "lock away", icon: "system-lock-screen", run: () => Lock.lock() },
+        { title: "Do Not Disturb", words: "dnd quiet notifications silence", icon: "notifications-disabled", run: () => Notifs.setDnd(!Notifs.dnd), state: () => Notifs.dnd },
+        { title: "Dark style", words: "dark light theme mode", icon: "weather-clear-night", run: () => Appearance.toggle(), state: () => Appearance.dark },
+        { title: "Caffeine", words: "awake sleep idle stay", icon: "preferences-desktop-screensaver", run: () => Idle.setCaffeine(!Idle.caffeine), state: () => Idle.caffeine },
+        { title: "Night light", words: "night warm blue light", icon: "night-light", run: () => NightLight.toggle(), state: () => NightLight.active },
+        { title: "Wi-Fi", words: "wifi wireless network internet", icon: "network-wireless-signal-excellent", run: () => Net.setWifi(!Net.wifiEnabled), state: () => Net.wifiEnabled },
+        { title: "Airplane mode", words: "airplane flight radio", icon: "airplane-mode", run: () => Net.setAirplane(!Net.airplane), state: () => Net.airplane },
+        { title: "Screenshot", words: "screenshot capture print", icon: "applets-screenshooter", run: () => Niri.action("screenshot") },
+        { title: "Screen record", words: "record video capture", icon: "media-record", run: () => Recorder.toggle(), state: () => Recorder.recording },
+        { title: "Lens", words: "lens ocr read text scan qr", icon: "system-search", run: () => Lens.capture() },
+        { title: "Color picker", words: "color colour pick hex", icon: "color-select", run: () => Quickshell.execDetached(["sh", "-c", "c=$(niri msg pick-color | sed -n 's/^Hex: //p'); [ -n \"$c\" ] && printf %s \"$c\" | wl-copy"]) },
+        { title: "Screen keyboard", words: "keyboard osk touch", icon: "input-keyboard", run: () => Osk.toggle(), state: () => Osk.shown },
+        { title: "Clipboard history", words: "clipboard paste history", icon: "edit-paste", run: () => Ui.toggleLauncher("c ") },
+        { title: "Shell settings", words: "settings preferences wallpaper", icon: "preferences-system", run: () => { Ui.controlCenter = true; Ui.expanded = "settings"; } },
+        { title: "Notifications", words: "notifications messages", icon: "preferences-system-notifications", run: () => Ui.toggleControlCenter("notifications") },
+        { title: "Switch windows", words: "windows switch alt tab", icon: "focus-windows", run: () => Ui.switcherRequested(false) },
+        { title: "Suspend", words: "suspend sleep", icon: "weather-clear-night", run: () => Power.suspend() },
+        { title: "Log out", words: "logout log out sign out", icon: "system-log-out", run: () => Power.logout() },
+        // irreversible: these open the sidebar's confirm row instead of acting
+        { title: "Restart…", words: "reboot restart", icon: "system-reboot", run: () => Ui.toggleControlCenter("power") },
+        { title: "Power off…", words: "shutdown power off", icon: "system-shutdown", run: () => Ui.toggleControlCenter("power") }
+    ]
+
+    // ---- sources --------------------------------------------------------------
+    function launch(a) {
+        const u = Object.assign({}, usage);
+        u[a.id] = (u[a.id] || 0) + 1;
+        usage = u;
+        usageFile.setText(JSON.stringify(u));
+        a.execute();
+    }
+    FileView {
+        id: usageFile
+        path: Quickshell.statePath("app-usage.json")
+        printErrors: false
+        onLoaded: { try { win.usage = JSON.parse(text()); } catch (e) {} }
+    }
+    // the path is set on the first ":" — a FileView loads when given a path;
+    // a reload() of one that never had its path set loads nothing (measured)
+    FileView {
+        path: win.emojiPath
+        printErrors: false
+        onLoaded: {
+            const out = [];
+            for (const line of text().split("\n")) {
+                const m = line.match(/; fully-qualified\s+# (\S+) E[\d.]+ (.+)$/);
+                if (m)
+                    out.push({ e: m[1], name: m[2] });
+            }
+            win.emoji = out;
+        }
+    }
+    // recently used files: the desktop's shared list (GTK and most apps write it)
+    FileView {
+        path: (Quickshell.env("XDG_DATA_HOME") || Quickshell.env("HOME") + "/.local/share") + "/recently-used.xbel"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            const out = [];
+            const re = /<bookmark href="file:\/\/([^"]+)"[^>]*modified="([^"]+)"/g;
+            let m;
+            while ((m = re.exec(text())) !== null) {
+                const path = decodeURIComponent(m[1]);
+                out.push({ path: path, name: path.split("/").pop(), when: m[2] });
+            }
+            win.recent = out.sort((a, b) => a.when < b.when ? 1 : -1).slice(0, 40);
+        }
+    }
+    // files by name in the home folder: fd when installed, find otherwise
+    Process {
+        id: fileSearch
+        property string query
+        command: ["sh", "-c", 'q="$1"; if command -v fd >/dev/null; then fd -i -d 5 --max-results 15 -- "$q" "$HOME"; else find "$HOME" -maxdepth 5 -not -path "*/.*" -iname "*$q*" 2>/dev/null | head -15; fi', "sh", query]
+        stdout: StdioCollector { onStreamFinished: win.found = text.trim().split("\n").filter(x => x) }
+    }
+    // inside files: the desktop's index (localsearch) when it runs; otherwise a
+    // bounded ripgrep / grep over the folders people keep documents in
+    Process {
+        id: contentSearch
+        property string query
+        command: ["sh", "-c", 'q="$1"; d="$HOME/Documents $HOME/Desktop $HOME/Downloads"; if command -v localsearch >/dev/null && localsearch status >/dev/null 2>&1; then localsearch search --limit 8 -- "$q" 2>/dev/null | sed -n "s|.*file://\\([^ ]*\\).*|\\1|p" | head -8 ; elif command -v rg >/dev/null; then rg -l -i -F --max-depth 4 --max-filesize 2M -- "$q" $d 2>/dev/null | head -8 ; else grep -rliF --exclude-dir=".*" -- "$q" $d 2>/dev/null | head -8 ; fi',"sh", query]
+        stdout: StdioCollector { onStreamFinished: win.inside = text.trim().split("\n").filter(x => x).map(p => decodeURIComponent(p)) }
+    }
+    Timer {
+        id: fileDebounce
+        interval: 250
+        onTriggered: {
+            const t = win.q.trim();
+            if (t.length >= 3 && !/^[=:c>?]/.test(t)) {
+                fileSearch.query = t;
+                fileSearch.running = true;
+                contentSearch.query = t;
+                contentSearch.running = true;
+            } else {
+                win.found = [];
+                win.inside = [];
+            }
+        }
+    }
+
+    function calc(expr) {
+        const src = expr.replace(/\s+/g, "").replace(/\^/g, "**").replace(/×/g, "*").replace(/÷/g, "/");
+        if (!/^[0-9+\-*/%.()a-z,]+$/i.test(src) || !/[0-9]/.test(src) || /^[0-9.]+$/.test(src))
+            return null;
+        const names = src.match(/[a-z]+/gi) || [];
+        const allowed = ["sqrt", "sin", "cos", "tan", "asin", "acos", "atan", "log", "ln", "exp", "abs", "round", "floor", "ceil", "pow", "min", "max", "pi", "e"];
+        if (names.some(n => allowed.indexOf(n.toLowerCase()) < 0))
+            return null;
+        const js = src.replace(/\bln\(/gi, "log(").replace(/\bpi\b/gi, "PI").replace(/\be\b/g, "E")
+            .replace(/\b(sqrt|sin|cos|tan|asin|acos|atan|log|exp|abs|round|floor|ceil|pow|min|max|PI|E)\b/g, "Math.$1");
+        try {
+            const v = Function('"use strict"; return (' + js + ");")();
+            return typeof v === "number" && isFinite(v) ? Number(v.toPrecision(12)) : null;
+        } catch (e) {
+            return null;
+        }
+    }
+    // units: name -> [dimension, factor to the base unit]; temperatures are special
+    readonly property var units: ({
+        mm: ["len", 0.001], cm: ["len", 0.01], m: ["len", 1], km: ["len", 1000], in: ["len", 0.0254], inch: ["len", 0.0254],
+        ft: ["len", 0.3048], feet: ["len", 0.3048], foot: ["len", 0.3048], yd: ["len", 0.9144], mi: ["len", 1609.344], mile: ["len", 1609.344], miles: ["len", 1609.344],
+        mg: ["mass", 1e-6], g: ["mass", 0.001], kg: ["mass", 1], t: ["mass", 1000], oz: ["mass", 0.0283495], lb: ["mass", 0.453592], lbs: ["mass", 0.453592],
+        ml: ["vol", 0.001], l: ["vol", 1], litre: ["vol", 1], liter: ["vol", 1], gal: ["vol", 3.78541], cup: ["vol", 0.24], tsp: ["vol", 0.00492892], tbsp: ["vol", 0.0147868],
+        b: ["data", 1], kb: ["data", 1e3], mb: ["data", 1e6], gb: ["data", 1e9], tb: ["data", 1e12], kib: ["data", 1024], mib: ["data", 1048576], gib: ["data", 1073741824], tib: ["data", 1099511627776],
+        ms: ["time", 0.001], s: ["time", 1], sec: ["time", 1], min: ["time", 60], h: ["time", 3600], hr: ["time", 3600], day: ["time", 86400], days: ["time", 86400], week: ["time", 604800], weeks: ["time", 604800],
+        kmh: ["speed", 1 / 3.6], "km/h": ["speed", 1 / 3.6], mph: ["speed", 0.44704], "m/s": ["speed", 1], knot: ["speed", 0.514444], knots: ["speed", 0.514444],
+        m2: ["area", 1], km2: ["area", 1e6], ha: ["area", 1e4], acre: ["area", 4046.86], acres: ["area", 4046.86], sqft: ["area", 0.092903],
+        c: ["temp"], f: ["temp"], k: ["temp"]
+    })
+    function convert(q) {
+        const m = q.trim().toLowerCase().match(/^(-?[\d.]+)\s*([a-z\/0-9°]+)\s+(?:in|to|as)\s+([a-z\/0-9°]+)$/);
+        if (!m)
+            return null;
+        const v = parseFloat(m[1]), a = m[2].replace("°", ""), b = m[3].replace("°", "");
+        const ua = units[a], ub = units[b];
+        if (!ua || !ub || ua[0] !== ub[0] || isNaN(v))
+            return null;
+        let out;
+        if (ua[0] === "temp") {
+            const kel = a === "c" ? v + 273.15 : a === "f" ? (v - 32) * 5 / 9 + 273.15 : v;
+            out = b === "c" ? kel - 273.15 : b === "f" ? (kel - 273.15) * 9 / 5 + 32 : kel;
+        } else {
+            out = v * ua[1] / ub[1];
+        }
+        return { text: Number(out.toPrecision(8)) + " " + m[3], value: out };
+    }
+    // three-letter codes followed by "in/to": currency, which needs live rates —
+    // Chronoa's convert_currency skill has them; the shell sends no query anywhere
+    function isCurrency(q) {
+        return /^-?[\d.]+\s*[a-z]{3}\s+(in|to)\s+[a-z]{3}$/i.test(q.trim()) && convert(q) === null;
+    }
+
+    function score(text, q) {
+        const n = (text || "").toLowerCase();
+        if (n.startsWith(q))
+            return 100 - n.length / 100;
+        if (n.split(/[\s\-_.]/).some(w => w.startsWith(q)))
+            return 80;
+        return n.indexOf(q) >= 0 ? 60 : 0;
+    }
+    function appScore(a, q) {
+        const s = score(a.name, q);
+        if (s > 0)
+            return s;
+        const g = ((a.genericName || "") + " " + [].concat(a.keywords || []).join(" ") + " " + [].concat(a.categories || []).join(" ")).toLowerCase();
+        if (g.indexOf(q) >= 0)
+            return 40;
+        return (a.comment || "").toLowerCase().indexOf(q) >= 0 ? 20 : 0;
+    }
+    function fileIcon(path) {
+        const ext = (path.split(".").pop() || "").toLowerCase();
+        if (["png", "jpg", "jpeg", "webp", "gif", "svg"].indexOf(ext) >= 0) return "image-x-generic";
+        if (["mp4", "mkv", "webm", "mov"].indexOf(ext) >= 0) return "video-x-generic";
+        if (["mp3", "flac", "ogg", "opus", "wav"].indexOf(ext) >= 0) return "audio-x-generic";
+        if (["pdf"].indexOf(ext) >= 0) return "x-office-document";
+        return path.indexOf(".") < 0 ? "folder" : "text-x-generic";
+    }
+
+    readonly property var apps: DesktopEntries.applications.values.filter(a => !a.noDisplay)
+    readonly property var categories: ["All", "Internet", "Office", "Graphics", "AudioVideo", "Development", "Utility", "System", "Game"]
+    readonly property var categoryNames: ({ AudioVideo: "Media" })
+
+    // ---- the answer, as sections; `flat` is what the keyboard walks ----------
+    readonly property var sections: {
+        const q = win.q.trim();
+        const ql = q.toLowerCase();
+        const out = [];
+        const used = a => win.usage[a.id] || 0;
+        const appItem = a => ({ kind: "app", app: a.icon, title: a.name, subtitle: a.genericName || a.comment || "", run: () => win.launch(a) });
+        const fileItem = p => ({ kind: "file", icon: win.fileIcon(p), path: p, title: p.split("/").pop(), subtitle: p.replace(Quickshell.env("HOME"), "~"), run: () => Qt.openUrlExternally("file://" + p) });
+
+        if (q === "") {
+            const frequent = win.apps.filter(a => used(a) > 0).sort((a, b) => used(b) - used(a)).slice(0, 8);
+            if (frequent.length)
+                out.push({ title: "Frequent", grid: true, items: frequent.map(appItem) });
+            if (win.recent.length)
+                out.push({ title: "Recent files", items: win.recent.slice(0, 6).map(r => fileItem(r.path)) });
+            const all = win.apps.filter(a => win.category === "All" || [].concat(a.categories || []).indexOf(win.category) >= 0)
+                .sort((a, b) => a.name.localeCompare(b.name));
+            out.push({ title: "All apps", grid: true, chips: true, items: all.map(appItem) });
+            return out;
+        }
+        if (q.startsWith("?")) {
+            const t = q.slice(1).trim();
+            return [{ title: "Chronoa", items: [{ kind: "ask", icon: "chat-message-new", title: t ? "Ask Chronoa: " + t : "Ask Chronoa…", subtitle: "Enter", run: () => t && Chronoa.ask(t) }] }];
+        }
+        if (q.startsWith(">")) {
+            const cmd = q.slice(1).trim();
+            return [{ title: "Run", items: [{ kind: "run", icon: "utilities-terminal", title: cmd ? "Run: " + cmd : "Run a command…", subtitle: "Shift+Enter: in " + Settings.data.terminal,
+                     run: shift => cmd && Quickshell.execDetached(shift ? [Settings.data.terminal, "-e", "sh", "-c", cmd + "; exec $SHELL"] : ["sh", "-c", cmd]) }] }];
+        }
+        if (q.startsWith(":")) {
+            const f = q.slice(1).trim().toLowerCase();
+            if (win.emojiPath === "")
+                Qt.callLater(() => win.emojiPath = "/usr/share/unicode/emoji/emoji-test.txt");
+            return [{ title: "Emoji", items: win.emoji.filter(x => f === "" || x.name.indexOf(f) >= 0).slice(0, 40)
+                .map(x => ({ kind: "emoji", icon: "face-smile-big", title: x.e + "  " + x.name, subtitle: "Enter copies", run: () => Quickshell.clipboardText = x.e })) }];
+        }
+        if (q === "c" || q.startsWith("c ")) {
+            const f = q.slice(1).trim().toLowerCase();
+            const items = Clipboard.entries.filter(e => f === "" || e.text.toLowerCase().indexOf(f) >= 0).slice(0, 30)
+                .map(e => ({ kind: "clip", icon: "edit-paste", title: e.text.replace(/\s+/g, " ").slice(0, 140), subtitle: "Clipboard", run: () => Clipboard.copy(e) }));
+            return [{ title: "Clipboard", items: items.length ? items : [{ kind: "none", icon: "edit-paste", title: Clipboard.available ? "Clipboard history is empty" : "cliphist is not installed", subtitle: "", run: () => {} }] }];
+        }
+
+        const math = q.startsWith("=") ? q.slice(1) : q;
+        const v = math !== "" ? win.calc(math) : null;
+        if (v !== null)
+            out.push({ title: "Calculator", items: [{ kind: "calc", icon: "accessories-calculator", title: "= " + v, subtitle: "Enter copies the result", run: () => Quickshell.clipboardText = String(v) }] });
+        const conv = win.convert(q);
+        if (conv)
+            out.push({ title: "Convert", items: [{ kind: "calc", icon: "accessories-calculator", title: "= " + conv.text, subtitle: "Enter copies", run: () => Quickshell.clipboardText = String(Number(conv.value.toPrecision(8))) }] });
+        if (win.isCurrency(q))
+            out.push({ title: "Currency", items: [{ kind: "ask", icon: "chat-message-new", title: "Convert " + q + " with Chronoa", subtitle: "live rates", run: () => Chronoa.ask("Convert " + q) }] });
+        if (q.startsWith("="))
+            return out;
+
+        const ranked = win.apps.map(a => ({ a: a, s: win.appScore(a, ql) })).filter(x => x.s > 0)
+            .map(x => ({ a: x.a, s: x.s + Math.min(15, used(x.a)) })).sort((x, y) => y.s - x.s).map(x => x.a);
+        if (ranked.length) {
+            const items = [];
+            ranked.slice(0, 12).forEach((a, i) => {
+                items.push(appItem(a));
+                if (i === 0)        // the top match also offers its desktop actions
+                    for (const act of a.actions)
+                        items.push({ kind: "app", app: a.icon, title: a.name + " — " + act.name, subtitle: "action", run: () => act.execute() });
+            });
+            out.push({ title: "Apps", items: items });
+        }
+        const wins = Object.values(Niri.windows).filter(w => win.score(w.title, ql) > 0 || win.score(w.app_id, ql) > 0).slice(0, 6);
+        if (wins.length)
+            out.push({ title: "Windows", items: wins.map(w => {
+                const e = DesktopEntries.heuristicLookup(w.app_id || "");
+                return { kind: "window", app: e ? e.icon : w.app_id, title: w.title || w.app_id, subtitle: Niri.workspaceLabel(w.workspace_id), run: () => Niri.action("focus-window", "--id", w.id) };
+            }) });
+        const acts = win.actions.filter(a => win.score(a.title, ql) > 0 || a.words.split(" ").some(w => w.startsWith(ql))).slice(0, 6);
+        if (acts.length)
+            out.push({ title: "Actions", items: acts.map(a => ({ kind: "action", icon: a.icon, title: a.title,
+                subtitle: a.state ? (a.state() ? "On — Enter turns off" : "Off — Enter turns on") : "", run: a.run })) });
+        const files = win.recent.filter(r => r.name.toLowerCase().indexOf(ql) >= 0).map(r => r.path);
+        const allFiles = files.concat(win.found.filter(p => files.indexOf(p) < 0)).slice(0, 10);
+        const byContent = win.inside.filter(p => allFiles.indexOf(p) < 0).slice(0, 6);
+        if (allFiles.length || byContent.length)
+            out.push({ title: "Files", items: allFiles.map(fileItem).concat(byContent.map(p => Object.assign(fileItem(p), { subtitle: "contains “" + q + "” · " + p.replace(Quickshell.env("HOME"), "~") }))) });
+        out.push({ title: "More", items: [
+            { kind: "ask", icon: "chat-message-new", title: "Ask Chronoa: " + q, subtitle: "Ctrl+Enter from anywhere", run: () => Chronoa.ask(q) },
+            { kind: "web", icon: "web-browser", title: "Search the web for “" + q + "”", subtitle: "", run: () => Qt.openUrlExternally("https://duckduckgo.com/?q=" + encodeURIComponent(q)) }
+        ] });
+        return out;
+    }
+    readonly property var flat: sections.reduce((acc, s) => acc.concat(s.items), [])
+    readonly property var current: flat[Math.max(0, Math.min(sel, flat.length - 1))] || null
+    onFlatChanged: Ui.topResult = flat.length > 0 ? flat[0].title : ""
+    onQChanged: {
+        sel = 0;
+        fileDebounce.restart();
+        if (q === "c" || q.startsWith("c "))
+            Clipboard.refresh();
+    }
+
+    function activate(i, shift) {
+        const r = flat[Math.max(0, Math.min(i, flat.length - 1))];
+        if (!r)
+            return;
+        Ui.closeAll();
+        r.run(shift);
+    }
+    function askChronoa() {
+        const t = q.trim().replace(/^\?/, "").trim();
+        const c = current;
+        Ui.closeAll();
+        if (c && c.kind === "file")
+            Chronoa.ask((t ? t + "\n" : "What is this file, and what can I do with it?\n") + "The file: " + c.path);
+        else if (t)
+            Chronoa.ask(t);
+        else
+            Ui.askIsland();
+    }
+
+    onVisibleChanged: {
+        if (visible) {
+            search.text = Ui.launcherQuery;
+            sel = 0;
+            category = "All";
+            search.forceActiveFocus();
+        }
+    }
+
+    // ---- drawing ----------------------------------------------------------------
+    Rectangle {
+        id: backdrop
+        anchors.fill: parent
+        // dense enough to read without blur (blur off, or a compositor without it)
+        color: Theme.alpha(Theme.bg, Settings.data.blur ? 0.78 : 0.94)
+        MouseArea { anchors.fill: parent; onClicked: Ui.closeAll() }
+    }
+
+    ColumnLayout {
+        anchors.fill: parent
+        anchors.topMargin: Math.max(60, parent.height * 0.08)
+        anchors.bottomMargin: 40
+        anchors.leftMargin: Math.max(40, (parent.width - 1280) / 2)
+        anchors.rightMargin: Math.max(40, (parent.width - 1280) / 2)
+        spacing: 18
+
+        // the field
+        Glass {
+            Layout.fillWidth: true
+            Layout.preferredWidth: 760
+            Layout.maximumWidth: 760
+            Layout.alignment: Qt.AlignHCenter
+            implicitHeight: 58
+            strong: true
+            radius: 29
+            MouseArea { anchors.fill: parent }
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 22
+                anchors.rightMargin: 22
+                spacing: 12
+                Icon { name: "system-search"; size: 22; color: Theme.accent }
+                TextInput {
+                    id: search
+                    Layout.fillWidth: true
+                    color: Theme.text
+                    selectionColor: Theme.accent
+                    font.family: Theme.font
+                    font.pixelSize: 20
+                    clip: true
+                    Keys.onEscapePressed: Ui.closeAll()
+                    Keys.onDownPressed: win.sel = Math.min(win.sel + (win.q === "" ? 6 : 1), win.flat.length - 1)
+                    Keys.onUpPressed: win.sel = Math.max(win.sel - (win.q === "" ? 6 : 1), 0)
+                    Keys.onTabPressed: win.sel = (win.sel + 1) % Math.max(1, win.flat.length)
+                    Keys.onBacktabPressed: win.sel = (win.sel - 1 + win.flat.length) % Math.max(1, win.flat.length)
+                    Keys.onPressed: e => {
+                        if (win.q === "" && (e.key === Qt.Key_Right || e.key === Qt.Key_Left)) {
+                            win.sel = Math.max(0, Math.min(win.flat.length - 1, win.sel + (e.key === Qt.Key_Right ? 1 : -1)));
+                            e.accepted = true;
+                        }
+                    }
+                    Keys.onReturnPressed: e => (e.modifiers & Qt.ControlModifier) ? win.askChronoa() : win.activate(win.sel, e.modifiers & Qt.ShiftModifier)
+                    Keys.onEnterPressed: e => (e.modifiers & Qt.ControlModifier) ? win.askChronoa() : win.activate(win.sel, e.modifiers & Qt.ShiftModifier)
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: search.text === ""
+                        text: "Search apps, files, windows and actions — or ask Chronoa"
+                        color: Theme.faint
+                        font.family: Theme.font
+                        font.pixelSize: 17
+                    }
+                }
+                Text {
+                    text: "Ctrl+Enter  Chronoa"
+                    color: Theme.faint
+                    font.family: Theme.font
+                    font.pixelSize: 11
+                }
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 18
+
+            // results
+            Flickable {
+                id: list
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                contentHeight: resultCol.implicitHeight
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+
+                ColumnLayout {
+                    id: resultCol
+                    width: list.width
+                    spacing: 14
+
+                    Repeater {
+                        model: win.sections
+                        ColumnLayout {
+                            id: section
+                            required property var modelData
+                            required property int index
+                            // where this section's items start in `flat`
+                            readonly property int base: win.sections.slice(0, index).reduce((n, s) => n + s.items.length, 0)
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Text {
+                                    text: section.modelData.title
+                                    color: Theme.dim
+                                    font.family: Theme.font
+                                    font.pixelSize: 12
+                                    font.weight: Font.DemiBold
+                                    font.capitalization: Font.AllUppercase
+                                    font.letterSpacing: 1
+                                }
+                                Item { Layout.fillWidth: true }
+                                Repeater {
+                                    model: section.modelData.chips ? win.categories : []
+                                    Choice {
+                                        required property string modelData
+                                        text: win.categoryNames[modelData] || modelData
+                                        selected: win.category === modelData
+                                        onClicked: { win.category = modelData; search.forceActiveFocus(); }
+                                    }
+                                }
+                            }
+
+                            // apps as a grid
+                            GridLayout {
+                                visible: !!section.modelData.grid
+                                Layout.fillWidth: true
+                                columns: Math.max(4, Math.floor(list.width / 132))
+                                columnSpacing: 8
+                                rowSpacing: 8
+                                Repeater {
+                                    model: section.modelData.grid ? section.modelData.items : []
+                                    Rectangle {
+                                        id: tile
+                                        required property var modelData
+                                        required property int index
+                                        readonly property bool isSel: win.sel === section.base + index
+                                        Layout.fillWidth: true
+                                        implicitHeight: 112
+                                        radius: 18
+                                        color: isSel ? Theme.accentSoft : (tileArea.containsMouse ? Theme.hover : "transparent")
+                                        border.width: isSel ? 1 : 0
+                                        border.color: Theme.accentLine
+                                        ColumnLayout {
+                                            anchors.centerIn: parent
+                                            width: parent.width - 16
+                                            spacing: 8
+                                            IconImage {
+                                                Layout.alignment: Qt.AlignHCenter
+                                                implicitSize: 54
+                                                source: Quickshell.iconPath(tile.modelData.app, "application-x-executable")
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                horizontalAlignment: Text.AlignHCenter
+                                                text: tile.modelData.title
+                                                color: Theme.text
+                                                elide: Text.ElideRight
+                                                font.family: Theme.font
+                                                font.pixelSize: 12
+                                            }
+                                        }
+                                        MouseArea {
+                                            id: tileArea
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            onEntered: win.sel = section.base + tile.index
+                                            onClicked: win.activate(section.base + tile.index, false)
+                                        }
+                                    }
+                                }
+                            }
+
+                            // everything else as rows
+                            Repeater {
+                                model: section.modelData.grid ? [] : section.modelData.items
+                                Rectangle {
+                                    id: row
+                                    required property var modelData
+                                    required property int index
+                                    readonly property bool isSel: win.sel === section.base + index
+                                    Layout.fillWidth: true
+                                    implicitHeight: 48
+                                    radius: 14
+                                    color: isSel ? Theme.accentSoft : (rowArea.containsMouse ? Theme.hover : "transparent")
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 14
+                                        anchors.rightMargin: 14
+                                        spacing: 12
+                                        IconImage {
+                                            visible: !!row.modelData.app
+                                            implicitSize: 28
+                                            source: row.modelData.app ? Quickshell.iconPath(row.modelData.app, "application-x-executable") : ""
+                                        }
+                                        Icon {
+                                            visible: !row.modelData.app
+                                            name: row.modelData.icon || ""
+                                            size: 20
+                                            color: row.modelData.kind === "ask" ? Theme.accent : Theme.text
+                                        }
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: row.modelData.title
+                                            color: Theme.text
+                                            elide: Text.ElideRight
+                                            font.family: Theme.font
+                                            font.pixelSize: 14
+                                        }
+                                        Text {
+                                            Layout.maximumWidth: list.width * 0.4
+                                            text: row.modelData.subtitle
+                                            color: Theme.dim
+                                            elide: Text.ElideMiddle
+                                            font.family: Theme.font
+                                            font.pixelSize: 11
+                                        }
+                                    }
+                                    MouseArea {
+                                        id: rowArea
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        onEntered: win.sel = section.base + row.index
+                                        onClicked: win.activate(section.base + row.index, false)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Chronoa, one keystroke away, with a preview of what is selected
+            Glass {
+                visible: win.q !== "" || (win.current && win.current.kind === "file")
+                Layout.preferredWidth: 340
+                Layout.fillHeight: true
+                strong: true
+                radius: Theme.radiusLarge
+                MouseArea { anchors.fill: parent }
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 18
+                    spacing: 12
+                    RowLayout {
+                        Icon { name: "face-smile-big"; size: 20; color: Chronoa.color }
+                        Text {
+                            text: "Chronoa"
+                            color: Theme.text
+                            font.family: Theme.font
+                            font.pixelSize: 15
+                            font.weight: Font.DemiBold
+                        }
+                        Text { text: "· " + Chronoa.label; color: Chronoa.color; font.family: Theme.font; font.pixelSize: 12 }
+                    }
+                    ClippingRectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 180
+                        visible: win.current && win.current.kind === "file" && win.current.icon === "image-x-generic"
+                        radius: 12
+                        color: Theme.hover
+                        Image {
+                            anchors.fill: parent
+                            source: parent.visible ? "file://" + win.current.path : ""
+                            fillMode: Image.PreserveAspectFit
+                            asynchronous: true
+                            sourceSize: Qt.size(640, 360)
+                        }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        // the query is only shown when it says more than the file's own name
+                        text: win.current && win.current.kind === "file"
+                            ? "Ask about " + win.current.title + (win.q.trim() && win.current.title.toLowerCase().indexOf(win.q.trim().toLowerCase()) < 0 ? ": “" + win.q.trim() + "”" : "")
+                            : "“" + win.q.trim() + "”"
+                        color: Theme.text
+                        font.family: Theme.font
+                        font.pixelSize: 14
+                    }
+                    Button {
+                        text: "Ask Chronoa  (Ctrl+Enter)"
+                        kind: "primary"
+                        onClicked: win.askChronoa()
+                    }
+                    Item { Layout.fillHeight: true }
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        text: "=  calc    :  emoji    c  clipboard\n>  run     ?  ask"
+                        color: Theme.faint
+                        font.family: Theme.mono
+                        font.pixelSize: 10
+                    }
+                }
+            }
+        }
+    }
+}

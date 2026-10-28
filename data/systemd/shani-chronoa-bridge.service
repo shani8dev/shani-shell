@@ -1,0 +1,12 @@
+[Unit]
+Description=ShaniOS shell bridge to Chronoa (session D-Bus <-> shell socket)
+Documentation=https://github.com/shani8dev/shani-shell
+# Owns org.shani.Chronoa.Mascot/.Windows, so it runs only with the shell:
+# started by shani-shell.service, stopped with it.
+PartOf=shani-shell.service
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/shani-chronoa-bridge
+Restart=on-failure
+RestartSec=2

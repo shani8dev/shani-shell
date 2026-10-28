@@ -1,30 +1,72 @@
-# shani-shell — AI harness shell (Quickshell + Chronoa)
+# shani-shell — the ShaniOS AI desktop shell (Quickshell + Chronoa)
 
-Move from `/tmp/opencode/qs-spike` (container spike) to `~/Documents/shani/shani-shell`.
-Status at move: verified end-to-end; QML parses clean; Chronoa D-Bus contracted;
-blur verified 3 ways.
+An AI desktop on **niri + Quickshell 0.3.2**. Chronoa is not an app in a corner:
+its companion lives in the middle of the bar, answers approvals in place, and
+can be asked from anywhere — the Island, the launcher, a notification, a
+selection of the screen (Lens), or the pie menu.
 
+![desktop](docs/showcase-desktop.png)
+
+| Surface | What it does |
+|---|---|
+| **Island** | Chronoa's mascot (its own art, over `org.shani.Chronoa.Mascot`) in the bar; grows to show the tool step in progress; opens into an **Approve / Deny card** when Chronoa asks; click the line to ask a question; right-click for Lens |
+| **Bar** | launcher, niri workspaces, focused window, now playing, ↓/↑ net speed, cpu/mem, recording + mic/camera/**screen-sharing** privacy dots, tray, status cluster with the input method, notifications, clock with an update dot |
+| **Sidebar** | Raven-style: power row, volume/brightness, ~20 quick tiles (Wi-Fi, Bluetooth, airplane, hotspot, VPN, DND, caffeine, power mode, night light, dark style, mic, camera kill switch, screen record, screenshot, color picker, Lens, auto-rotate, flashlight, keyboard, clipboard, Chronoa) — each only where it can work — with Wi-Fi/Bluetooth/VPN/audio lists, calendar, media card, notification history grouped by app with inline reply and **Ask Chronoa**, per-app volume mixer, display scale + mirroring, removable drives (mount / eject), ShaniOS update status (shani-deploy) |
+| **Dock** | Latte-style: parabolic zoom, launch bounce, window indicators, pins |
+| **Launcher** | full screen. Empty: frequent apps, recent files, the app grid with category chips. Typing: one ranked list — apps (with their actions), open **windows**, **actions** (a command palette: dark style, DND, lock, Lens, wifi …), **files** (recent + home search via fd/find), calculator, emoji, clipboard, web — with **Chronoa** on the right, one keystroke away (Ctrl+Enter, about the selected file too). Prefixes `= : c > ?` still work |
+| **Lens** | select part of the screen: its text (Tesseract, offline), QR/barcodes (zbar), copy/search/translate — or ask Chronoa, which *sees* it through its `look_at_image` skill |
+| **Ring** | a pie menu at the pointer (Mod+X): Chronoa, Lens, screenshot, media, window, workspaces, apps, power; sub-rings on dwell |
+| **Alt+Tab** | every window, most recent first, the previous one preselected; releasing Alt switches |
+| **Screen keyboard** | the shell's own, typing through niri's virtual-keyboard protocol: hand-made English and **मराठी** (smart matras: क + आ = का), plus **any of xkb's 598 layouts** (45 Indian — Marathi, Hindi, Tamil, Telugu, Bengali, Gujarati, Kannada, Malayalam, Odia, Gurmukhi, Sanskrit …; Cyrillic, Arabic, Greek, Hebrew, Thai …) generated from the system's own xkb data by `bridge/osk-layout.py`, chosen in settings; never steals focus, never fights the input method |
+| **Input methods** | fcitx5 (English + Hindi phonetic by default, 179 m17n tables); the active one in the bar (हि), switched from the sidebar |
+| **Settings** | a page in the sidebar: wallpaper picker, bar and dock items, blur, reduce motion, night-light temperature, idle timings |
+| **Lock / idle** | ext-session-lock + PAM (`/etc/pam.d/shani-lock`); dim → lock → screen off → suspend; `loginctl lock-session`; locks **before** sleep (logind delay inhibitor) |
+| **Polkit agent**, **OSD**, **notifications** (DND lets critical through), **greeter** (greetd, same theme, remembers the user) | |
+
+![sidebar](docs/showcase-sidebar.png)
+
+## Layout
 ```
-shani/        Quickshell config: shell.qml + ChronoaPanel.qml + stats.sh
-bin/          bridge (chronoa-bridge.py), mock (mock-chronoa.py), session runners,
-              measure/shot/blur-test/demo scripts
-niri/         compositor variants: protocol (blur via ext-background-effect),
-              rule (layer-rule blur), none (control)
-assets/       wallpaper (posterized plasma + grid + SHANI wordmark)
-shots/        01–17 + blur-compare (bar/panel/approval/reply/blur)
-FINDINGS.md   contract findings (Agent turn-stream missing), measurements,
-              blink/caveats
+shani/              Quickshell config (`qs -c shani`)
+  shell.qml         root: modules + `ipc call shani <fn>` (incl. `state` as JSON)
+  Common/           Theme tokens, Settings (live JSON), Ui state, small widgets
+  Services/         one singleton per system: Niri (event stream), Audio, Net,
+                    Power, Notifs, Lock, Idle, Polkit, Lens, Recorder, Chronoa, …
+  Modules/          Bar, Island, Sidebar (ControlCenter), Dock, Launcher, Lens,
+                    Ring, Notifications, Osd, Lock, Polkit, Chronoa, Idle
+greeter/            greetd greeter (`qs -c shani-greeter`); Common -> ../shani/Common
+bridge/             shani-chronoa-bridge: D-Bus <-> the shell's socket
+                    (Chronoa's Agent/Mascot/Windows, logind lock + sleep)
+data/               systemd user units, pam.d/shani-lock
+dev/                test harness (below), mock Chronoa, fake greetd/MPRIS
+docs/shots/         every test's screenshots
 ```
+Settings: `~/.config/shani-shell/settings.json` — any subset of the keys in
+`shani/Common/Settings.qml`; edits apply live, toggles write back.
 
-## Quickshell config path
-`qs -c shani` expects `~/.config/quickshell/shani/shell.qml`. Link:
+## Packaging
+`shani-pkgbuilds/shani-shell` (this repo) and `shani-pkgbuilds/shani-desktop-niri`
+(the session: niri config with keybinds, greetd + this greeter, portals, the
+tools every tile uses). Development: link the checkout over the packaged config:
 `ln -s ~/Documents/shani/shani-shell/shani ~/.config/quickshell/shani`
 
-## Verified contracts (in `bin/` and `shani/`)
-- `org.shani.Chronoa.Mascot` / `.Windows`: bridge owns, calls from Chronoa.
-- `dev.shani.chronoa.Agent`: **proposed contract** implemented in mock + bridge;
-  needs real Chronoa adoption (`Turn`/`Approve`/`Event`).
-- `dev.shani.chronoa.Gateways`: exists; fire-and-forget `Submit`.
+## Tests — everything is run, not read
+```
+docker build -t shani-shell-dev -f dev/Containerfile dev
+docker run --rm -v "$PWD":/work shani-shell-dev sh /work/dev/shell-test.sh     # the shell
+docker run --rm -v "$PWD":/work shani-shell-dev sh /work/dev/greeter-test.sh   # greeter
+sh dev/polkit-run.sh                                                            # polkit (systemd + logind)
+python3 -m pytest tests -q                                                      # bridge: turn filter, logind
+```
+`shell-test.sh` brings up a nested niri with a system bus and the real daemons
+(NetworkManager, UPower, power-profiles-daemon, BlueZ), PipeWire with null
+sinks, the bridge and mock Chronoa, then drives each feature for real (wpctl,
+notify-send, niri actions, wtype keystrokes, gdbus into the bridge, the
+settings file) and asserts on the shell's own `state`.
 
-See `FINDINGS.md` for measurements, blur comparison, and the Agent-gap
-recommendation.
+**Not verifiable nested** (no GPU / no gamma in a nested niri), so checked on
+real outputs in shani-testbed: a real screen recording (wf-recorder gets a 0×0
+frame nested; the test checks the failure is reported), night light (needs
+wlr-gamma-control), auto-rotate (needs an accelerometer).
+
+See `FINDINGS.md` for the measurements and the bugs these tests caught.

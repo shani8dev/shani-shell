@@ -1,0 +1,4 @@
+#%PAM-1.0
+# shani-shell lock screen: the same authentication a console login uses
+# (password, faillock, systemd-homed), and nothing else.
+auth include login
