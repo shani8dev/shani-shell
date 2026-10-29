@@ -788,6 +788,16 @@ python3 -c "import sys; q,l=map(int,sys.argv[1:]); sys.exit(0 if q>0 and l/q < 4
 settings '{}'
 waitfor "d['sinkName'] == 'speakers'" 5
 
+# night mode (SC4 compressor): the same two tones come out much closer together,
+# and the chain loads with the LADSPA plugin in it
+settings '{"fxEnabled": true, "fxCompress": "night"}'
+waitfor "d['fxRunning'] and d['sinkName'] == 'effect_input.shani'" 8 && result fx-compressor-graph-loads PASS || result fx-compressor-graph-loads FAIL "$(q "['fxError']")"
+cq=$(qlevel /tmp/quiet.wav); cl=$(qlevel /tmp/loud.wav)
+python3 -c "import sys; q,l=map(int,sys.argv[1:]); sys.exit(0 if q>0 and l/q < 5 else 1)" "$cq" "$cl" \
+    && result fx-night-mode-compresses PASS "quiet $cq, loud $cl (10x apart going in)" || result fx-night-mode-compresses FAIL "quiet $cq, loud $cl"
+settings '{}'
+waitfor "d['sinkName'] == 'speakers'" 5
+
 # microphone noise suppression: the cleaned-up source becomes the default, and goes
 src0=$(q "['sourceName']")
 settings '{"micNoise": true}'
@@ -1148,6 +1158,24 @@ for i in $(seq 1 20); do ls /root/Pictures/Screenshots/Drawing*.png >/dev/null 2
 ls /root/Pictures/Screenshots/Drawing*.png >/dev/null 2>&1 && result annotate-saves PASS || result annotate-saves FAIL "$(tail -2 /work/logs/qs.log)"
 wtype -k Escape
 waitfor "not d['annotate']" 3 && result annotate-closes PASS || result annotate-closes FAIL
+
+# ---- a call from any app (Chronoa's phone, a VoIP app): carried on the Island -----------
+rm -f /tmp/call-answer
+( a=$(notify-send -a Phone -u critical -h string:category:call.incoming -A answer=Answer -A decline=Decline "Asha Patil" "Calling on your phone"); echo "$a" > /tmp/call-answer ) &
+waitfor "d['islandActivity'].startswith('Asha Patil')" 5 && result island-carries-incoming-call PASS "$(q "['islandActivity']")" || result island-carries-incoming-call FAIL "$(q "['islandActivity']")"
+ipc answerCall
+for i in $(seq 1 12); do [ -s /tmp/call-answer ] && break; sleep 0.25; done
+[ "$(cat /tmp/call-answer 2>/dev/null)" = answer ] && result island-answers-call PASS || result island-answers-call FAIL "$(cat /tmp/call-answer 2>&1)"
+waitfor "not d['islandActivity'].startswith('Asha Patil')" 4 && result island-call-ends PASS || result island-call-ends FAIL "$(q "['islandActivity']")"
+
+# ---- replying from a notification (the "inline-reply" action; Chronoa's phone texts) ---
+# the app keeps its connection and waits for NotificationReplied, as Chronoa does
+rm -f /tmp/replied
+python3 /work/dev/reply-client.py "Message from Asha" > /tmp/replied 2>&1 &
+waitfor "'Message from Asha' in d['notificationSummaries']" 4
+ipc notificationReply "Message from Asha" "On my way"
+for i in $(seq 1 16); do grep -q "On my way" /tmp/replied 2>/dev/null && break; sleep 0.25; done
+grep -q "On my way" /tmp/replied 2>/dev/null && result notification-inline-reply PASS || result notification-inline-reply FAIL "$(cat /tmp/replied 2>&1)"
 
 # ---- Settings > Printers: CUPS's printers, a per-person default, a job waiting ----------
 if [ -S /run/cups/cups.sock ]; then

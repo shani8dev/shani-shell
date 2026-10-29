@@ -26,18 +26,12 @@ centre, and against what a session needs before any app runs.
 
 ## Not built — yet
 
-- **Headphone virtual surround** (PipeWire's SOFA spatializer needs an HRTF
-  file shipped) and a **compressor** (needs an LV2/LADSPA plugin) — the rest of
-  JamesDSP is in Settings > Sound.
-- **Phone texts and calls as shell surfaces.** Chronoa's `map_notify` and
-  `incoming_call` show their own windows; the shell should draw them
-  (notification with reply, an Island call activity). Chronoa-side, beside
-  another person's uncommitted work there.
-- **Chronoa steps aside for the shell's Bluetooth file agent** only by losing
-  the race: whichever registers with obexd first keeps it.
+- **Headphone virtual surround**: PipeWire's SOFA spatializer needs an HRTF
+  file, and no Arch package ships one (libmysofa reads them; nothing provides
+  one). The compressor is in (night mode, swh-plugins' SC4).
 - **More setup-wizard languages** than English, मराठी, हिन्दी, Deutsch, Español,
-  Français (strings.js); the shell's own settings are English only.
-- **Translations**: 104 of ~575 strings reviewed in Marathi and Hindi (the bar,
+  Français (strings.js).
+- **Translations**: 104 of 684 strings reviewed in Marathi and Hindi (the bar,
   control centre tiles, Settings categories, launcher's main actions); German,
   Spanish and French have none yet. The rest show in English, or - opt-in - are
   translated by Chronoa's local model, which got about a third of short labels
@@ -46,8 +40,6 @@ centre, and against what a session needs before any app runs.
 - **One run on a real installed niri image**: everything here is proven in the
   nested container only. Needs the niri image built (shani-shell has no remote
   yet, and its PKGBUILD fetches from GitHub) and a shani-testbed UEFI boot.
-- **Cassini** has no account management and no lid/power settings (the shell
-  has both now).
 
 ## Built, but not provable in the dev container
 

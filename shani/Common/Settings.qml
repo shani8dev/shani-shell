@@ -206,6 +206,7 @@ Singleton {
             property string tabletOutput: ""              // the screen a drawing tablet maps to ("" all)
             property bool tabletLeftHanded: false
             property string touchOutput: ""               // the screen a touchscreen maps to
+            property string fxCompress: "off"             // "off" | "gentle" | "night" (SoundFx, swh-plugins SC4)
             property int breakEveryMinutes: 0             // a break reminder after this long at the screen (0 off)
             property int screenLimitMinutes: 0            // a daily screen-time reminder (0 off)
             property bool machineTranslate: false         // the shell's missing words by the local model (Common/Tr); opt-in

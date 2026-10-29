@@ -57,6 +57,18 @@ Singleton {
         return out;
     }
 
+    // compressor presets (SC4's own controls)
+    readonly property var compressors: ({
+        gentle: { threshold: -18, ratio: 2.5, attack: 15, release: 250, makeup: 4 },
+        night: { threshold: -30, ratio: 6, attack: 5, release: 300, makeup: 12 }
+    })
+    property bool canCompress: false
+    Process {
+        running: true
+        command: ["sh", "-c", 'IFS=:; for d in /usr/lib/ladspa /usr/local/lib/ladspa $LADSPA_PATH; do [ -f "$d/sc4_1882.so" ] && exit 0; done; exit 1']
+        onExited: code => root.canCompress = code === 0
+    }
+
     // ---- the graph -------------------------------------------------------------
     function num(x) { return (Math.round(x * 10000) / 10000).toString(); }
     readonly property string conf: {
@@ -109,16 +121,26 @@ Singleton {
             if (cf)
                 links.push(`{ output = "dl${o}:Out" input = "mix${c}:In 3" }`);
         }
+        let outs = ["mixL:Out", "mixR:Out"];
+        // a compressor (swh-plugins' SC4, stereo): quiet parts up, loud parts
+        // down - "night mode" for films at low volume. Only when the plugin is
+        // installed: a missing LADSPA plugin would stop the whole chain loading.
+        const comp = root.compressors[d.fxCompress];
+        if (comp && root.canCompress) {
+            nodes.push(`{ type = ladspa name = comp plugin = "sc4_1882" label = sc4 control = { "RMS/peak" = 0 "Attack time (ms)" = ${comp.attack} "Release time (ms)" = ${comp.release} "Threshold level (dB)" = ${comp.threshold} "Ratio (1:n)" = ${comp.ratio} "Knee radius (dB)" = 6 "Makeup gain (dB)" = ${comp.makeup} } }`);
+            links.push(`{ output = "${outs[0]}" input = "comp:Left input" }`);
+            links.push(`{ output = "${outs[1]}" input = "comp:Right input" }`);
+            outs = ["comp:Left output", "comp:Right output"];
+        }
         // loudness levelling last: an EBU R128 meter, its short-term loudness
         // turned into a gain that holds it near the target (PipeWire's ebur128 plugin)
-        let outs = ["mixL:Out", "mixR:Out"];
         if (d.fxLoudness) {
             nodes.push(`{ type = ebur128 name = meter label = ebur128 }`);
             nodes.push(`{ type = ebur128 name = level label = lufs2gain control = { "Target LUFS" = -16 } }`);
             nodes.push(`{ type = builtin name = lvL label = mixer }`);
             nodes.push(`{ type = builtin name = lvR label = mixer }`);
-            links.push(`{ output = "mixL:Out" input = "meter:In FL" }`);
-            links.push(`{ output = "mixR:Out" input = "meter:In FR" }`);
+            links.push(`{ output = "${outs[0]}" input = "meter:In FL" }`);
+            links.push(`{ output = "${outs[1]}" input = "meter:In FR" }`);
             links.push(`{ output = "meter:Out FL" input = "lvL:In 1" }`);
             links.push(`{ output = "meter:Out FR" input = "lvR:In 1" }`);
             links.push(`{ output = "meter:Shortterm LUFS" input = "level:LUFS" }`);

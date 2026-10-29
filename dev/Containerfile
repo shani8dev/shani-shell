@@ -50,3 +50,5 @@ RUN pacman -Sy --noconfirm --needed evolution-data-server plocate vnstat && pacm
 RUN pacman -Sy --noconfirm --needed strace && pacman -Scc --noconfirm
 # printing: Settings > Printers against a real cupsd (a file-backed printer)
 RUN pacman -Sy --noconfirm --needed cups && pacman -Scc --noconfirm && printf "FileDevice Yes\n" >> /etc/cups/cups-files.conf
+# the sound chain's compressor (swh-plugins SC4) - Settings > Sound
+RUN pacman -Sy --noconfirm --needed swh-plugins && pacman -Scc --noconfirm

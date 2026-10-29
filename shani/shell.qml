@@ -184,6 +184,13 @@ ShellRoot {
         function ringAt(x: int, y: int) { Ui.openRingAt(x, y); }
         function smartCopy(text: string) { Smart.suggestion = Smart.classify(text); }
         function smartRun() { if (Smart.suggestion) Smart.suggestion.run(); }
+        function answerCall() { Notifs.answerCall(); }
+        // the tests: type a reply into the notification with this summary
+        function notificationReply(summary: string, text: string) {
+            const n = Notifs.list.find(x => x.summary === summary);
+            if (n && n.hasInlineReply) n.sendInlineReply(text);
+        }
+        function declineCall() { Notifs.declineCall(); }
         // the tests: as if this long at the screen (seconds), and today's total so far
         function wellbeingNow(streak: int, today: int) {
             const d = Object.assign({}, ScreenTime.days);

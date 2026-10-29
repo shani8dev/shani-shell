@@ -40,6 +40,8 @@ PanelWindow {
         if (Modem.call)
             return { icon: "call-start", text: (Modem.call.state === "active" ? "On a call · " + Modem.callTime : "Calling " + Modem.call.number + "…") + " — tap to hang up",
                      color: Theme.red, run: () => Modem.hangup() };
+        if (Notifs.incomingCall)
+            return { icon: "call-start", text: Tr.t("%1 — tap to answer", Notifs.incomingCall.summary || Tr.t("A call")), color: Theme.accent, run: () => Notifs.answerCall() };
         if (Printing.jobs > 0)
             return { icon: "printer", text: "Printing " + Printing.jobs + (Printing.jobs === 1 ? " document" : " documents"), color: Theme.accent, run: () => Printing.openQueue() };
         if (CallRecorder.recording)

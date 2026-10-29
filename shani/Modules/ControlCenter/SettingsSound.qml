@@ -213,6 +213,22 @@ ColumnLayout {
         checked: page.d.fxLoudness
         onToggled: on => page.d.fxLoudness = on
     }
+    // compression: quiet parts up and loud parts down (night mode for films)
+    Text {
+        text: SoundFx.canCompress ? Tr.t("Quiet and loud parts") : Tr.t("Quiet and loud parts — needs swh-plugins")
+        color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale
+    }
+    Flow {
+        Layout.fillWidth: true
+        spacing: 6
+        enabled: SoundFx.canCompress
+        opacity: enabled ? 1 : 0.5
+        Repeater {
+            model: [{ id: "off", label: Tr.t("As recorded") }, { id: "gentle", label: Tr.t("Gentle") },
+                    { id: "night", label: Tr.t("Night mode — dialogue up, bangs down") }]
+            Choice { required property var modelData; text: modelData.label; selected: page.d.fxCompress === modelData.id; onClicked: page.d.fxCompress = modelData.id }
+        }
+    }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Microphone") }
     SwitchRow {

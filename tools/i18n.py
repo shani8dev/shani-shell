@@ -51,7 +51,10 @@ def wrap() -> int:
 def strings() -> list:
     out = set()
     for p in qml_files():
-        out.update(m.group(1).encode().decode("unicode_escape") for m in CALL.finditer(p.read_text()))
+        # the literal as QML reads it: its escapes (\" \n \\) undone, its
+        # Unicode left alone (unicode_escape would re-read UTF-8 as Latin-1:
+        # "·" became "Â·" and no such key ever matched)
+        out.update(json.loads('"' + m.group(1) + '"') for m in CALL.finditer(p.read_text()))
     return sorted(out)
 
 

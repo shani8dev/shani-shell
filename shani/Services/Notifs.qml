@@ -15,6 +15,18 @@ Singleton {
     readonly property var list: server.trackedNotifications.values.slice().reverse()
     readonly property int count: list.length
     property var popups: []          // newest last
+    // an incoming call from any app (Chronoa's phone over Bluetooth, a VoIP app):
+    // the freedesktop "call.incoming" category, newest first; the Island carries it
+    readonly property var incomingCall: list.find(n => n.hints && n.hints["category"] === "call.incoming") || null
+    function answerCall() { act(incomingCall, /answer|accept|pick/i); }
+    function declineCall() { if (!act(incomingCall, /decline|reject|hang/i) && incomingCall) incomingCall.dismiss(); }
+    // the notification's own action whose name or label matches (the app decides what it does)
+    function act(n, re) {
+        if (!n) return false;
+        const a = Array.from(n.actions || []).find(x => re.test(x.identifier) || re.test(x.text));
+        if (a) a.invoke();
+        return !!a;
+    }
     // a notification that was let through: flash alerts and speak notifications follow it
     signal alerted(var n)
     // a sound for each notification that comes through (the freedesktop theme;
@@ -98,6 +110,8 @@ Singleton {
         imageSupported: true
         actionsSupported: true
         actionIconsSupported: true
+        // the reply field ("inline-reply" action → NotificationReplied): Chronoa's phone texts, chat apps
+        inlineReplySupported: true
 
         onNotification: n => {
             n.tracked = true;
