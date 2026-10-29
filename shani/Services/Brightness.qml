@@ -51,8 +51,50 @@ Singleton {
     function set(v) {
         v = Math.max(0.01, Math.min(1, v));
         value = v;
-        Quickshell.execDetached(["brightnessctl", "-q", "-d", device, "set", Math.round(v * 100) + "%"]);
+        if (device !== "")
+            Quickshell.execDetached(["brightnessctl", "-q", "-d", device, "set", Math.round(v * 100) + "%"]);
+        else if (ddc.length)                 // a desktop: the monitor itself, over DDC/CI
+            setDdc(ddc[0].display, v);
         changedByUser();
+    }
+
+    // ---- monitors over DDC/CI (ddcutil; its udev rule lets the person reach
+    // /dev/i2c-*). Slow — about a tenth of a second a command — so each
+    // monitor's change waits for the slider to settle. ---------------------
+    property var ddc: []                  // [{ display, model, value }]
+    property var pending: ({})
+    function setDdc(display, v) {
+        pending[display] = Math.round(Math.max(0, Math.min(1, v)) * 100);
+        ddc = ddc.map(m => m.display === display ? Object.assign({}, m, { value: v }) : m);
+        ddcSettle.restart();
+    }
+    Timer {
+        id: ddcSettle
+        interval: 350
+        onTriggered: {
+            const args = Object.keys(root.pending).map(n => "ddcutil --noverify --display " + n + " setvcp 10 " + root.pending[n]).join("; ");
+            root.pending = {};
+            Quickshell.execDetached(["sh", "-c", args]);
+        }
+    }
+    // "Display 1 … Monitor: DEL:DELL U2720Q:…" then each one's brightness (VCP 10)
+    Process {
+        id: ddcProbe
+        running: true
+        command: ["sh", "-c", 'command -v ddcutil >/dev/null || exit 0; ddcutil detect --terse 2>/dev/null | awk "/^Display/{n=\$2} /Monitor:/{split(\$0,a,\":\"); print n\"\t\"a[3]}" |
+            while IFS="	" read -r n m; do v=$(ddcutil --display "$n" getvcp 10 --terse 2>/dev/null | awk "{print \$4\"/\"\$5}"); printf "%s\t%s\t%s\n" "$n" "$m" "$v"; done']
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.ddc = text.trim().split("\n").filter(l => l.split("\t").length === 3).map(l => {
+                    const f = l.split("\t"), v = f[2].split("/");
+                    return { display: f[0], model: f[1].trim() || "Monitor " + f[0], value: v.length === 2 && parseInt(v[1]) > 0 ? parseInt(v[0]) / parseInt(v[1]) : 0.5 };
+                });
+                if (root.device === "" && root.ddc.length) {
+                    root.value = root.ddc[0].value;
+                    root.available = true;
+                }
+            }
+        }
     }
     function step(delta) {
         if (available)

@@ -42,3 +42,7 @@ RUN pacman -Sy --noconfirm --needed sound-theme-freedesktop && pacman -Scc --noc
 RUN pacman -Sy --noconfirm --needed noise-suppression-for-voice && pacman -Scc --noconfirm
 # the default look shani-desktop-niri ships: adw-gtk3, Papirus, JetBrains Mono
 RUN pacman -Sy --noconfirm --needed adw-gtk-theme papirus-icon-theme ttf-jetbrains-mono && pacman -Scc --noconfirm
+# QR codes (Wi-Fi sharing, the clipboard) and the GPU name in About
+RUN pacman -Sy --noconfirm --needed qrencode mesa-utils && pacman -Scc --noconfirm
+# the agenda (Evolution Data Server), plocate's index, vnstat
+RUN pacman -Sy --noconfirm --needed evolution-data-server plocate vnstat && pacman -Scc --noconfirm

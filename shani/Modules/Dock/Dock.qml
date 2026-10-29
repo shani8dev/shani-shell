@@ -20,7 +20,7 @@ PanelWindow {
     // sized for the widest zoom once, so the surface is not resized on every pointer move
     implicitWidth: items.length * (base + 4) + (peak - base) * 3 + 80
     // room for a zoomed icon and its label (140 at 44 px), and the menu above it while open
-    implicitHeight: peak + 68 + (menuFor >= 0 ? 190 : 0)
+    implicitHeight: peak + 68 + (menuFor >= 0 ? 230 : 0)
     color: "transparent"
     exclusionMode: Settings.data.dockAutoHide ? ExclusionMode.Ignore : ExclusionMode.Normal
     exclusiveZone: Settings.data.dockAutoHide ? 0 : base + 32
@@ -264,6 +264,8 @@ PanelWindow {
                         Repeater {
                             model: [
                                 { label: "New window", show: !!cell.modelData.entry, run: () => { cell.modelData.entry.execute(); bounce.restart(); } },
+                                { label: "Open on " + (Gpu.other ? Gpu.other.name.split(" ").slice(0, 3).join(" ") : "the other GPU"), show: !!cell.modelData.entry && Gpu.hasChoice,
+                                  run: () => { Gpu.launchOnOther(cell.modelData.entry.id); bounce.restart(); } },
                                 { label: cell.modelData.pinned ? "Unpin from dock" : "Pin to dock", show: !!cell.modelData.entry, run: () => win.togglePin(cell.modelData) },
                                 { label: "Move left", show: cell.modelData.pinned && cell.index > 0, run: () => win.movePin(cell.modelData, -1) },
                                 { label: "Move right", show: cell.modelData.pinned && cell.index < Settings.data.dockPinned.length - 1, run: () => win.movePin(cell.modelData, 1) },

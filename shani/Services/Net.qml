@@ -74,6 +74,62 @@ Singleton {
         stderr: StdioCollector { id: hiddenErr }
         onExited: code => root.hiddenStatus = code === 0 ? "connected" : "failed: " + (hiddenErr.text.trim().split("\n").pop() || "could not connect")
     }
+    // mobile data: a cellular modem (ModemManager) as NetworkManager sees it
+    property bool hasModem: false
+    property bool wwanOn: false
+    property string modemState: ""
+    Process {
+        id: wwan
+        command: ["sh", "-c", 'nmcli -t -f TYPE,STATE device 2>/dev/null | grep "^gsm:" | head -1; echo "radio=$(nmcli radio wwan 2>/dev/null)"']
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const l = text.trim().split("\n");
+                const g = l.find(x => x.startsWith("gsm:"));
+                root.hasModem = !!g;
+                root.modemState = g ? g.slice(4) : "";
+                root.wwanOn = /radio=enabled/.test(text);
+            }
+        }
+    }
+    function setMobile(on) {
+        Quickshell.execDetached(["nmcli", "radio", "wwan", on ? "on" : "off"]);
+        wwanRecheck.restart();
+    }
+    Timer { id: wwanRecheck; interval: 1500; onTriggered: wwan.running = true }
+    Timer { interval: 20000; running: true; repeat: true; triggeredOnStart: true; onTriggered: wwan.running = true }
+
+    // Tailscale, beside NetworkManager's VPNs: its own daemon and CLI
+    property bool hasTailscale: false
+    property bool tailscaleUp: false
+    property string tailscaleNote: ""
+    Process {
+        id: tsStatus
+        command: ["sh", "-c", "command -v tailscale >/dev/null && tailscale status --json 2>/dev/null"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const st = JSON.parse(text);
+                    root.hasTailscale = true;
+                    root.tailscaleUp = st.BackendState === "Running";
+                } catch (e) { root.hasTailscale = false; }
+            }
+        }
+    }
+    Process {
+        id: tsSet
+        stderr: StdioCollector { id: tsErr }
+        onExited: code => {
+            root.tailscaleNote = code === 0 ? "" : /access denied|operator|permission/i.test(tsErr.text)
+                ? "Make this account Tailscale's operator once: sudo tailscale set --operator=$USER" : (tsErr.text.trim().split("\n").pop() || "");
+            tsStatus.running = true;
+        }
+    }
+    function setTailscale(on) {
+        tsSet.command = ["tailscale", on ? "up" : "down"];
+        tsSet.running = true;
+    }
+    Timer { interval: 15000; running: true; repeat: true; triggeredOnStart: true; onTriggered: tsStatus.running = true }
+
     function editConnections() {
         Quickshell.execDetached(["nm-connection-editor"]);
     }

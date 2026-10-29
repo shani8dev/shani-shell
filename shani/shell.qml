@@ -37,11 +37,15 @@ import qs.Modules.HotCorners
 import qs.Modules.Processes
 import qs.Modules.Captions
 import qs.Modules.Magnifier
+import qs.Modules.Annotate
 import qs.Modules.Touch
 import qs.Modules.Flash
 import qs.Modules.Pair
 import qs.Modules.DisplayConfirm
 import qs.Modules.Tour
+import qs.Modules.QrView
+import qs.Modules.Modem
+import qs.Modules.Share
 
 ShellRoot {
     Wallpaper {}
@@ -63,16 +67,20 @@ ShellRoot {
     Processes {}
     CaptionBar {}
     Magnifier {}
+    Annotate {}
     AssistiveTouch {}
     FlashAlert {}
     PairDialog {}
     DisplayConfirm {}
     Tour {}
+    QrView {}
+    ModemDialog {}
+    ShareSheet {}
     LockScreen {}
     ChronoaSurface { id: chronoa }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend]
+    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Modem, DynamicLock, Share, Automations]
 
     IpcHandler {
         target: "shani"
@@ -111,6 +119,8 @@ ShellRoot {
         function dnd() { Notifs.setDnd(!Notifs.dnd); }
         function caffeine() { Idle.setCaffeine(!Idle.caffeine); }
         function record() { Recorder.toggle(); }
+        function recordingToGif(path: string) { Recorder.toGif(path); }
+        function recordingShrink(path: string) { Recorder.shrink(path); }
         function ring() { Ui.toggleRing(); }
         function switcher() { Ui.switcherRequested(false); }
         function switcherBack() { Ui.switcherRequested(true); }
@@ -146,6 +156,11 @@ ShellRoot {
         function displayKeep() { Displays.keep(); }
         function photo() { Camera.photo(); }
         function tour() { Ui.closeAll(); Ui.tour = true; }
+        function agendaRefresh() { Agenda.refresh(); }
+        function dynamicLockAway() { DynamicLock.away(); }
+        function share(path: string) { Ui.closeAll(); Share.open(path); }
+        function textMessage(to: string) { Ui.closeAll(); Ui.smsTo = to; Ui.modemDialog = "sms"; }
+        function qr(title: string, text: string) { Ui.closeAll(); Qr.show(title, text); }
         // media keys: the player that is playing, else the first one
         function media(action: string) {
             const ps = Mpris.players.values;
@@ -162,6 +177,7 @@ ShellRoot {
         function speak(text: string) { Speak.speak(text); }
         function stopSpeaking() { Speak.stop(); }
         function magnifier() { Ui.closeAll(); Ui.magnifier = !Ui.magnifier; }
+        function annotate() { const was = Ui.annotate; Ui.closeAll(); Ui.annotate = !was; }
         function callRecord() { CallRecorder.toggle(); }
         function cast() { Ui.closeAll(); Cast.open(); }
         function smartTouch() { Settings.data.assistiveTouch = !Settings.data.assistiveTouch; }
@@ -226,6 +242,18 @@ ShellRoot {
                 trashEmptied: Housekeeping.emptied,
                 systemSoundsPlayed: SystemSounds.played,
                 bluetoothReceived: ObexReceive.received,
+                qrShown: Qr.shown, qrImage: Qr.image,
+                converted: Recorder.converted, converting: Recorder.converting,
+                cpuTemp: SysStats.temp,
+                gpus: Gpu.gpus.length,
+                agenda: Agenda.events.map(e => e.summary),
+                modem: Modem.modem ? Modem.modem.state + "/" + (Modem.modem.locked || "unlocked") + "/" + Modem.modem.operator : "",
+                modemCall: Modem.call ? Modem.call.state + ":" + Modem.call.number : "",
+                modemDialog: Ui.modemDialog,
+                dynamicLocks: DynamicLock.locks,
+                automationsFired: Automations.fired,
+                annotate: Ui.annotate, annotateStrokes: Ui.annotateStrokes,
+                shareTargets: Share.targets.map(t => t.label), shareDone: Share.done,
                 cameras: Camera.cameras.length, cameraPhase: Camera.phase, cameraLast: Camera.last,
                 inputMethod: Ime.current,
                 osk: Osk.shown,

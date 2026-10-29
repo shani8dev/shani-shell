@@ -17,6 +17,12 @@ centre, and against what a session needs before any app runs.
 - **ICC colour profiles.** niri has no colour management yet.
 - **Location services.** Nothing in the shell locates the computer; weather uses
   the city typed in Settings.
+- **What Windows and macOS have that niri cannot give.** Always-on-top (niri
+  has no such window state), minimise / "show desktop" (a scrolling layout
+  has no hidden windows — Overview is the stand-in), colour filters for colour
+  blindness and HDR (no colour management), "find my pointer" (no pointer
+  position for a layer-shell client to draw at). Out of scope for a shell:
+  desktop widgets, presence sensing, receiving AirPlay, a phone as webcam.
 
 ## Not built — yet
 
@@ -55,3 +61,15 @@ Each needs real hardware or shani-testbed:
 - Hostname from first-boot setup (Docker bind-mounts /etc/hostname).
 - The polkit tiers of `50-shani-admin.rules` through pkexec with a real agent.
 - The full first boot → factory reset → first boot cycle.
+- From the image's packages, each needing its device: fingerprint enrolment
+  (fprintd), external monitor brightness (ddcutil, DDC/CI), Thunderbolt
+  authorization (bolt), opening an app on the other GPU (switcheroo-control),
+  peripheral batteries (UPower), firmware updates (fwupd), print-queue state
+  in the Island (CUPS), Tailscale in the VPN list, sharing the Wi-Fi as a QR
+  code (NetworkManager's stored password); unlocking an encrypted USB drive;
+  naming the programs that keep a USB drive from ejecting (udisks + fuser);
+  restarting into UEFI setup; mobile data; Dynamic Lock with a real phone.
+- SIM modem calls and texts on a real modem (bridge/modem.py is tested against
+  a fake ModemManager). Call **audio** is the hardware's: most laptop WWAN cards
+  are data-only or route call sound where Linux does not, so a call can ring
+  and connect in silence; phones over Bluetooth (Chronoa) carry sound.

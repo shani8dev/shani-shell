@@ -28,6 +28,7 @@ ColumnLayout {
             echo "memory=$(awk "/MemTotal/{printf \\"%.1f GiB\\", \\$2/1048576}" /proc/meminfo)"
             echo "disk=$(df -h --output=avail,size / | tail -1 | awk "{print \\$1 \\" free of \\" \\$2}")"
             echo "uptime=$(uptime -p 2>/dev/null | sed "s/^up //")"
+            echo "gpu=$(glxinfo -B 2>/dev/null | sed -n "s/^ *OpenGL renderer string: //p" | sed "s/ (.*)$//" | head -1)"
             echo "session=niri $(niri --version 2>/dev/null | cut -d" " -f2) · Quickshell $(qs --version 2>/dev/null | head -1 | grep -o "[0-9][0-9.]*" | head -1)"
             command -v shani-cassini >/dev/null && echo "cassini=yes"']
         stdout: StdioCollector {
@@ -96,7 +97,7 @@ ColumnLayout {
         columnSpacing: 12
         rowSpacing: 6
         Repeater {
-            model: [["Processor", "cpu"], ["Memory", "memory"], ["Disk", "disk"], ["Kernel", "kernel"], ["Desktop", "session"], ["Up for", "uptime"]]
+            model: [["Processor", "cpu"], ["Graphics", "gpu"], ["Memory", "memory"], ["Disk", "disk"], ["Kernel", "kernel"], ["Desktop", "session"], ["Up for", "uptime"]]
             Text {
                 required property var modelData
                 required property int index
@@ -109,7 +110,7 @@ ColumnLayout {
             }
         }
         Repeater {
-            model: [["Processor", "cpu"], ["Memory", "memory"], ["Disk", "disk"], ["Kernel", "kernel"], ["Desktop", "session"], ["Up for", "uptime"]]
+            model: [["Processor", "cpu"], ["Graphics", "gpu"], ["Memory", "memory"], ["Disk", "disk"], ["Kernel", "kernel"], ["Desktop", "session"], ["Up for", "uptime"]]
             Text {
                 required property var modelData
                 required property int index
@@ -128,7 +129,7 @@ ColumnLayout {
         spacing: 8
         Button {
             text: "Copy details"
-            onClicked: Quickshell.clipboardText = [page.info.host, page.info.os, page.info.cpu, page.info.memory, page.info.disk, page.info.kernel, page.info.session].filter(x => x).join("\n")
+            onClicked: Quickshell.clipboardText = [page.info.host, page.info.os, page.info.cpu, page.info.gpu, page.info.memory, page.info.disk, page.info.kernel, page.info.session].filter(x => x).join("\n")
         }
         Button {
             visible: page.hasCassini

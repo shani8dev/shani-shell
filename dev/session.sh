@@ -19,6 +19,8 @@ export SHANI_CAM_TOOL=/work/dev/fake-cam.sh
 export SHANI_NIRI_CONFIG=/work/dev/niri/session.kdl
 # the first-login tour would sit over every other check; one test opens it by hand
 export SHANI_NO_TOUR=1
+export SHANI_DYNAMIC_LOCK_GRACE=1500     # ms: the dynamic-lock test waits 1.5 s, not 30
+export SHANI_AGENDA_TOOL=/work/bridge/agenda.py SHANI_MODEM_TOOL=/work/dev/fake-modem.py
 export XDG_CONFIG_HOME=/root/.config SHANI_SHELL_SETTINGS=/tmp/shani-settings.json
 # the lock screen's PAM file in its real place: its "include login" resolves
 # against the directory it sits in, so a copy elsewhere can never authenticate

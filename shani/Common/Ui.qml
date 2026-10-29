@@ -16,9 +16,13 @@ Singleton {
     property bool windowMenu: false
     property bool processes: false
     property bool magnifier: false
-    property string settingsCat: ""
-    property int faceRev: 0
+    property bool annotate: false                  // drawing on the screen
+    property int annotateStrokes: 0
+    property string settingsCat: ""                // the settings category open, "" = the grid
+    property int faceRev: 0                        // bumped when ~/.face changes
     property bool tour: false                      // the tour, opened again by hand
+    property string modemDialog: ""                // "pin" | "sms" (ModemDialog)
+    property string smsTo: ""                      // the number a reply goes to
     // the web search chosen in Settings > Search (the launcher, Lens)
     readonly property var webSearches: ({
         duckduckgo: ["DuckDuckGo", "https://duckduckgo.com/?q="], google: ["Google", "https://www.google.com/search?q="],
@@ -26,7 +30,7 @@ Singleton {
         ecosia: ["Ecosia", "https://www.ecosia.org/search?q="]
     })
     function webSearchName() { return (webSearches[Settings.data.webSearch] || webSearches.duckduckgo)[0]; }
-    function webSearchUrl(q) { return (webSearches[Settings.data.webSearch] || webSearches.duckduckgo)[1] + encodeURIComponent(q); }                        // bumped when ~/.face changes                // the settings category open, "" = the grid
+    function webSearchUrl(q) { return (webSearches[Settings.data.webSearch] || webSearches.duckduckgo)[1] + encodeURIComponent(q); }
     property int flashes: 0                        // flash alerts shown, for the tests
     property point ringAt: Qt.point(-1, -1)        // where the Ring opens; -1: at the pointer
     function openRingAt(x, y) {
@@ -52,6 +56,7 @@ Singleton {
         windowMenu = false;
         processes = false;
         magnifier = false;
+        annotate = false;
         controlCenter = false;
         expanded = "";
     }

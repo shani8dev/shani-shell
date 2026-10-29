@@ -21,7 +21,7 @@ Singleton {
         if (/^[\w.+-]+@[\w-]+\.[\w.-]+$/.test(t))
             return { icon: "mail-unread", text: "Email " + t, run: () => Qt.openUrlExternally("mailto:" + t) };
         if (/^\+?[\d][\d\s-]{7,15}\d$/.test(t))
-            return { icon: "call-start", text: "Call " + t, run: () => Chronoa.ask("Call " + t) };
+            return { icon: "call-start", text: "Call " + t, run: () => Modem.callNumber(t.replace(/[\s-]/g, "")) };
         if (/^#?[0-9a-f]{6}$/i.test(t))
             return { icon: "color-select", text: "Colour #" + t.replace("#", ""), color: "#" + t.replace("#", ""), run: () => {} };
         if (/(Traceback|Exception|Error:|error\[|FAILED|panicked at|Segmentation fault)/.test(t))

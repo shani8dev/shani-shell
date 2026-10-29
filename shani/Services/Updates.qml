@@ -14,9 +14,37 @@ Singleton {
     property bool available: false
     property bool rebootNeeded: false
     property string slot: ""
-    readonly property bool attention: available || rebootNeeded
+    readonly property bool attention: available || rebootNeeded || firmware.length > 0
+    // firmware (fwupd, LVFS): the devices with a newer release — told once,
+    // applied in GNOME Firmware
+    property var firmware: []             // ["Thunderbolt Controller 1.2 → 1.3", …]
+    property var firmwareTold: []
+    function openFirmware() { Quickshell.execDetached(["gnome-firmware"]); }
+    Process {
+        id: fw
+        command: ["sh", "-c", "command -v fwupdmgr >/dev/null && fwupdmgr get-updates --json --no-unreported-check 2>/dev/null"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let devs = [];
+                try { devs = JSON.parse(text).Devices || []; } catch (e) { return; }
+                root.firmware = devs.filter(d => (d.Releases || []).length).map(d => d.Name + " " + (d.Version || "") + " → " + d.Releases[0].Version);
+                const fresh = root.firmware.filter(f => root.firmwareTold.indexOf(f) < 0);
+                if (fresh.length)
+                    fwTell.running = true;
+                root.firmwareTold = root.firmware;
+            }
+        }
+    }
+    Process {
+        id: fwTell
+        command: ["notify-send", "-a", "Updates", "-i", "software-update-available", "-A", "open=Update firmware",
+                  "Firmware update" + (root.firmware.length > 1 ? "s" : ""), root.firmware.join("\n")]
+        stdout: StdioCollector { onStreamFinished: if (text.trim() === "open") root.openFirmware() }
+    }
+    Timer { interval: 6 * 3600 * 1000; running: true; repeat: true; triggeredOnStart: true; onTriggered: fw.running = true }
     readonly property string summary: !known ? "" : rebootNeeded ? "Restart to finish updating"
-        : available ? "An update is ready" : "Up to date" + (slot ? " · slot " + slot : "")
+        : available ? "An update is ready" : firmware.length ? "Firmware update ready"
+        : "Up to date" + (slot ? " · slot " + slot : "")
 
     function check() {
         if (!proc.running)

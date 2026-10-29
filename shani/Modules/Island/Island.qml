@@ -35,6 +35,13 @@ PanelWindow {
             return { icon: "camera-photo", text: "Photo in " + Camera.countdown + "…", color: Theme.accent, run: () => {} };
         if (Camera.phase === "recording")
             return { icon: "camera-video", text: "Recording video · " + Camera.elapsed, color: Theme.red, run: () => Camera.video() };
+        if (Modem.call && Modem.call.state === "ringing-in")
+            return { icon: "call-start", text: "Call from " + Modem.call.number + " — tap to answer", color: Theme.accent, run: () => Modem.answer() };
+        if (Modem.call)
+            return { icon: "call-start", text: (Modem.call.state === "active" ? "On a call · " + Modem.callTime : "Calling " + Modem.call.number + "…") + " — tap to hang up",
+                     color: Theme.red, run: () => Modem.hangup() };
+        if (Printing.jobs > 0)
+            return { icon: "printer", text: "Printing " + Printing.jobs + (Printing.jobs === 1 ? " document" : " documents"), color: Theme.accent, run: () => Printing.openQueue() };
         if (CallRecorder.recording)
             return { icon: "call-start", text: "Recording call · " + CallRecorder.elapsed, color: Theme.red, run: () => CallRecorder.stop() };
         if (Smart.suggestion)

@@ -116,6 +116,29 @@ PanelWindow {
                             font.family: Theme.font
                             font.pixelSize: 12 * Theme.fontScale
                         }
+                        // the batteries of the mouse, the headphones, the phone …
+                        Flow {
+                            visible: Power.peripherals.length > 0
+                            width: 300
+                            spacing: 10
+                            Repeater {
+                                model: Power.peripherals
+                                Row {
+                                    required property var modelData
+                                    readonly property real pct: modelData.percentage <= 1 ? modelData.percentage * 100 : modelData.percentage
+                                    spacing: 4
+                                    Accessible.role: Accessible.StaticText
+                                    Accessible.name: modelData.model + " battery " + Math.round(pct) + " percent"
+                                    Icon { name: parent.modelData.iconName || "battery-good"; size: 14; color: parent.pct < 15 ? Theme.red : Theme.dim; anchors.verticalCenter: parent.verticalCenter }
+                                    Text {
+                                        text: parent.modelData.model.split(" ").slice(0, 2).join(" ") + " " + Math.round(parent.pct) + "%"
+                                        color: parent.pct < 15 ? Theme.red : Theme.dim
+                                        font.family: Theme.font
+                                        font.pixelSize: 11 * Theme.fontScale
+                                    }
+                                }
+                            }
+                        }
                         Row {
                             visible: Weather.summary !== ""
                             spacing: 6
@@ -137,18 +160,22 @@ PanelWindow {
                     }
                 }
 
-                RowLayout {
+                // up to six (hibernate, UEFI setup where the machine can): three a row
+                GridLayout {
                     visible: Ui.expanded === "power"
                     Layout.fillWidth: true
-                    spacing: 6
+                    columns: 3
+                    columnSpacing: 6
+                    rowSpacing: 6
                     Repeater {
                         model: [
                             { id: "logout", label: "Log out", run: () => Power.logout() },
                             { id: "suspend", label: "Suspend", run: () => Power.suspend() },
                             { id: "hibernate", label: "Hibernate", run: () => Power.hibernate() },
                             { id: "reboot", label: "Reboot", run: () => Power.reboot() },
-                            { id: "poweroff", label: "Power off", run: () => Power.poweroff() }
-                        ].filter(x => x.id !== "hibernate" || Power.canHibernate)
+                            { id: "poweroff", label: "Power off", run: () => Power.poweroff() },
+                            { id: "firmware", label: "UEFI setup", run: () => Power.rebootToFirmware() }
+                        ].filter(x => (x.id !== "hibernate" || Power.canHibernate) && (x.id !== "firmware" || Power.canFirmwareSetup))
                         Button {
                             required property var modelData
                             Layout.fillWidth: true
@@ -176,7 +203,7 @@ PanelWindow {
                     title: Updates.summary
                     subtitle: "Open Cassini"
                     selected: true
-                    onClicked: { Ui.closeAll(); Updates.open(); }
+                    onClicked: { Ui.closeAll(); !Updates.available && !Updates.rebootNeeded && Updates.firmware.length ? Updates.openFirmware() : Updates.open(); }
                 }
 
                 // ---- sliders --------------------------------------------------
@@ -276,7 +303,7 @@ PanelWindow {
                     Layout.fillWidth: true
                     readonly property real gap: 8
                     readonly property real cell: (width - gap) / 2
-                    readonly property var known: ["wifi", "bluetooth", "airplane", "hotspot", "vpn", "dnd", "focus", "phone", "timer", "caffeine", "power", "nightlight", "dark", "mic", "camera", "photo", "record", "screenshot", "lens", "colorpicker", "rotate", "flashlight", "display", "osk", "keyboard", "clipboard", "backup", "access", "captions", "transcribe", "speak", "magnifier", "callrecord", "cast", "touch", "chronoa"]
+                    readonly property var known: ["wifi", "bluetooth", "airplane", "mobile", "hotspot", "vpn", "dnd", "focus", "phone", "timer", "caffeine", "power", "nightlight", "dark", "mic", "camera", "photo", "record", "screenshot", "lens", "colorpicker", "rotate", "flashlight", "display", "osk", "keyboard", "clipboard", "backup", "access", "captions", "transcribe", "speak", "magnifier", "callrecord", "cast", "touch", "chronoa"]
                     readonly property var order: {
                         const o = Settings.data.tileOrder.filter(t => known.indexOf(t) >= 0);
                         return o.concat(known.filter(t => o.indexOf(t) < 0));       // new tiles join at the end
@@ -331,6 +358,16 @@ PanelWindow {
                         onToggled: Net.setAirplane(!Net.airplane)
                     }
                     Tile {
+                        tid: "mobile"
+                        can: Net.hasModem
+                        icon: "network-cellular-signal-good"
+                        title: "Mobile data"
+                        subtitle: !Net.wwanOn ? "Off" : Modem.modem && Modem.modem.locked ? "SIM locked"
+                            : (Modem.modem && Modem.modem.operator ? Modem.modem.operator + " · " + Modem.modem.signal + "%" : Net.modemState === "connected" ? "Connected" : "On")
+                        on: Net.wwanOn
+                        onToggled: Modem.modem && Modem.modem.locked ? Ui.modemDialog = "pin" : Net.setMobile(!Net.wwanOn)
+                    }
+                    Tile {
                         tid: "hotspot"
                         can: Net.hasWifi
                         icon: "network-wireless-hotspot"
@@ -341,11 +378,11 @@ PanelWindow {
                     }
                     Tile {
                         tid: "vpn"
-                        can: Net.vpns.length > 0
+                        can: Net.vpns.length > 0 || Net.hasTailscale
                         icon: "network-vpn"
                         title: "VPN"
-                        subtitle: (Net.vpns.find(v => v.active) || { name: "Off" }).name
-                        on: Net.vpnActive
+                        subtitle: (Net.vpns.find(v => v.active) || { name: Net.tailscaleUp ? "Tailscale" : "Off" }).name
+                        on: Net.vpnActive || Net.tailscaleUp
                         hasDetail: true
                         expanded: Ui.expanded === "vpn"
                         onToggled: {
@@ -677,6 +714,7 @@ PanelWindow {
 
                     SectionTitle {
                         text: "Wi-Fi networks"
+                        IconButton { icon: "view-barcode-qr"; size: 24; visible: Net.activeWifi !== null; Accessible.name: "Share this Wi-Fi as a QR code"; onClicked: { Ui.closeAll(); Qr.shareWifi(); } }
                         IconButton { icon: "preferences-system"; size: 24; onClicked: { Ui.closeAll(); Net.editConnections(); } }
                     }
                     Repeater {
@@ -814,6 +852,15 @@ PanelWindow {
                     Layout.fillWidth: true
                     spacing: 2
                     SectionTitle { text: "VPN" }
+                    ListRow {
+                        Layout.fillWidth: true
+                        visible: Net.hasTailscale
+                        icon: "network-vpn"
+                        title: "Tailscale"
+                        subtitle: Net.tailscaleNote || (Net.tailscaleUp ? "Connected" : "")
+                        selected: Net.tailscaleUp
+                        onClicked: Net.setTailscale(!Net.tailscaleUp)
+                    }
                     Repeater {
                         model: Net.vpns
                         ListRow {
@@ -1140,9 +1187,11 @@ PanelWindow {
                                     anchors.fill: parent
                                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: e => e.button === Qt.RightButton
-                                        ? (Quickshell.clipboardText = shelfItem.modelData.path)
-                                        : Qt.openUrlExternally("file://" + shelfItem.modelData.path)
+                                    // right-click: share it (phone, Bluetooth, nearby, email, clipboard)
+                                    onClicked: e => {
+                                        if (e.button === Qt.RightButton) { Ui.closeAll(); Share.open(shelfItem.modelData.path); }
+                                        else Qt.openUrlExternally("file://" + shelfItem.modelData.path);
+                                    }
                                 }
                             }
                         }
@@ -1157,17 +1206,10 @@ PanelWindow {
                             title: modelData.name
                             onClicked: Qt.openUrlExternally("file://" + modelData.path)
                             IconButton {
-                                visible: Phone.reachable
-                                icon: "phone"
+                                icon: "emblem-shared"
                                 size: 24
-                                onClicked: Phone.send(shelfFile.modelData.path)
-                            }
-                            IconButton {
-                                visible: BtSend.devices.length > 0
-                                icon: "bluetooth-active"
-                                size: 24
-                                Accessible.name: "Send " + shelfFile.modelData.name + " over Bluetooth"
-                                onClicked: { BtSend.pick(shelfFile.modelData.path); Ui.expanded = "btsend"; }
+                                Accessible.name: "Share " + shelfFile.modelData.name
+                                onClicked: { Ui.closeAll(); Share.open(shelfFile.modelData.path); }
                             }
                         }
                     }
@@ -1175,23 +1217,40 @@ PanelWindow {
 
                 // ---- drives ------------------------------------------------------
                 ColumnLayout {
+                    id: drivesList
                     visible: Drives.drives.length > 0
                     Layout.fillWidth: true
                     spacing: 2
                     SectionTitle { text: "Drives" }
+                    property string asking: ""          // the locked drive whose passphrase is being typed
                     Repeater {
                         model: Drives.drives
-                        ListRow {
+                        ColumnLayout {
+                            id: driveRow
                             required property var modelData
                             Layout.fillWidth: true
-                            icon: "drive-removable-media"
-                            title: modelData.label
-                            subtitle: modelData.size + (modelData.mount ? " · " + modelData.mount : " · not mounted")
-                            onClicked: modelData.mount ? Drives.open(modelData) : Drives.mount(modelData)
-                            IconButton {
-                                icon: "media-eject"
-                                size: 26
-                                onClicked: Drives.eject(parent.parent.modelData)
+                            spacing: 2
+                            ListRow {
+                                Layout.fillWidth: true
+                                icon: driveRow.modelData.luks ? (driveRow.modelData.locked ? "changes-prevent" : "changes-allow") : "drive-removable-media"
+                                title: driveRow.modelData.label
+                                subtitle: driveRow.modelData.size + (driveRow.modelData.locked ? " · locked — click to unlock"
+                                    : driveRow.modelData.mount ? " · " + driveRow.modelData.mount : " · not mounted")
+                                onClicked: driveRow.modelData.locked ? drivesList.asking = driveRow.modelData.dev
+                                    : driveRow.modelData.mount ? Drives.open(driveRow.modelData) : Drives.mount(driveRow.modelData)
+                                IconButton {
+                                    icon: "media-eject"
+                                    size: 26
+                                    Accessible.name: "Eject " + driveRow.modelData.label
+                                    onClicked: Drives.eject(driveRow.modelData)
+                                }
+                            }
+                            TextField {
+                                Layout.fillWidth: true
+                                visible: driveRow.modelData.locked && drivesList.asking === driveRow.modelData.dev
+                                placeholder: Drives.unlockError || "Passphrase for " + driveRow.modelData.label
+                                secret: true
+                                onAccepted: { Drives.unlock(driveRow.modelData, text); text = ""; }
                             }
                         }
                     }
@@ -1201,6 +1260,24 @@ PanelWindow {
                 Calendar {
                     Layout.fillWidth: true
                     today: clock.date
+                }
+                // what is coming, from the person's calendars (Agenda: EDS)
+                ColumnLayout {
+                    Connections { target: Ui; function onControlCenterChanged() { if (Ui.controlCenter) Agenda.refresh(); } }
+                    visible: Agenda.upcoming.length > 0
+                    Layout.fillWidth: true
+                    spacing: 2
+                    Repeater {
+                        model: Agenda.upcoming
+                        ListRow {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            icon: "x-office-calendar"
+                            title: modelData.summary
+                            subtitle: Agenda.when(modelData) + (modelData.location ? " · " + modelData.location : "")
+                            onClicked: { Ui.closeAll(); Agenda.openCalendar(); }
+                        }
+                    }
                 }
 
                 // ---- now playing ------------------------------------------------

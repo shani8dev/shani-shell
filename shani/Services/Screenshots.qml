@@ -14,7 +14,7 @@ Singleton {
 
     function offer(path) {
         last = path;
-        const args = ["notify-send", "-a", "Screenshot", "-i", path, "-A", "ask=Ask Chronoa", "-A", "copy=Copy path"];
+        const args = ["notify-send", "-a", "Screenshot", "-i", path, "-A", "ask=Ask Chronoa", "-A", "share=Share…"];
         if (canAnnotate)
             args.push("-A", "annotate=Annotate");
         prompt.command = args.concat(["Screenshot saved", path.replace(Quickshell.env("HOME"), "~")]);
@@ -30,8 +30,8 @@ Singleton {
                     Quickshell.execDetached(["satty", "--filename", root.last, "--output-filename", root.last]);
                 else if (a === "ask")
                     Chronoa.ask("I just took a screenshot. Look at it with look_at_image: " + root.last + "\nWhat is on it, and is there anything I should do?");
-                else if (a === "copy")
-                    Quickshell.clipboardText = root.last;
+                else if (a === "share")
+                    Share.open(root.last);
             }
         }
     }

@@ -4,6 +4,7 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs.Common
 
 Singleton {
     id: root
@@ -17,6 +18,28 @@ Singleton {
     function copy(entry) {
         Quickshell.execDetached(["sh", "-c", 'cliphist decode "$1" | wl-copy', "sh", entry.id]);
     }
+    // pinned texts (Settings.clipPins): above the history, kept through clearing it
+    function pin(entry) {
+        pinDecode.command = ["cliphist", "decode", entry.id];
+        pinDecode.running = true;
+    }
+    function unpin(text) { Settings.data.clipPins = Array.from(Settings.data.clipPins).filter(t => t !== text); }
+    Process {
+        id: pinDecode
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const t = text;
+                if (t && Array.from(Settings.data.clipPins).indexOf(t) < 0)
+                    Settings.data.clipPins = [t].concat(Array.from(Settings.data.clipPins)).slice(0, 25);
+            }
+        }
+    }
+    // the clipboard without its formatting, pasted where the person was (the
+    // launcher closes first so the window behind it has the keyboard again)
+    function pastePlain() {
+        Quickshell.execDetached(["sh", "-c", 'sleep 0.35; t=$(wl-paste --no-newline --type text 2>/dev/null) || exit 0; printf "%s" "$t" | wl-copy; sleep 0.1; wtype -M ctrl -k v -m ctrl']);
+    }
+
     // one entry out of the history: cliphist deletes the line it is given
     function remove(entry) {
         Quickshell.execDetached(["sh", "-c", 'cliphist list | grep -m1 "^$1	" | cliphist delete', "sh", entry.id]);

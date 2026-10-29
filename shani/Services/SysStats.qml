@@ -1,6 +1,7 @@
 pragma Singleton
-// CPU, memory and network throughput for the bar, read straight from /proc
-// (no helper script), one sample every interval.
+// CPU, memory, network throughput and the CPU's temperature for the bar, read
+// straight from /proc and the kernel's hwmon sensors (no helper script), one
+// sample every interval.
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -12,6 +13,8 @@ Singleton {
     property var last: null
     property real rxRate: 0         // bytes/s, summed over real interfaces
     property real txRate: 0
+    property real temp: -1          // °C, the CPU package's; -1 without a sensor
+    property string tempPath: ""
     property var lastNet: null
     readonly property int interval: 3000
 
@@ -32,6 +35,8 @@ Singleton {
             stat.reload();
             meminfo.reload();
             netdev.reload();
+            if (root.tempPath)
+                tempFile.reload();
         }
     }
     FileView {
@@ -46,6 +51,18 @@ Singleton {
             }
             root.last = { idle: idle, total: total };
         }
+    }
+    // the CPU's sensor: coretemp (Intel), k10temp / zenpower (AMD), cpu_thermal (ARM)
+    Process {
+        running: true
+        command: ["sh", "-c", 'for h in /sys/class/hwmon/hwmon*; do case "$(cat "$h/name" 2>/dev/null)" in coretemp|k10temp|zenpower|cpu_thermal|soc_thermal) echo "$h/temp1_input"; exit 0;; esac; done']
+        stdout: StdioCollector { onStreamFinished: root.tempPath = text.trim() }
+    }
+    FileView {
+        id: tempFile
+        path: root.tempPath
+        printErrors: false
+        onLoaded: { const v = parseInt(text()); root.temp = isNaN(v) ? -1 : v / 1000; }
     }
     FileView {
         id: meminfo

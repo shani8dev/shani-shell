@@ -204,6 +204,23 @@ ColumnLayout {
             checked: page.sel ? page.sel.vrr : false
             onToggled: on => Displays.apply(page.selected, { vrr: on })
         }
+        // external monitors' own brightness, over DDC/CI (a laptop's screen is the sidebar's slider)
+        Repeater {
+            model: Brightness.device !== "" ? Brightness.ddc : []
+            ColumnLayout {
+                id: ddcRow
+                required property var modelData
+                Layout.fillWidth: true
+                spacing: 4
+                Text { text: "Brightness — " + ddcRow.modelData.model; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                SliderRow {
+                    Layout.fillWidth: true
+                    icon: "display-brightness"
+                    value: ddcRow.modelData.value
+                    onMoved: v => Brightness.setDdc(ddcRow.modelData.display, v)
+                }
+            }
+        }
         Button {
             visible: Displays.canMirror && Displays.outputs.length > 1
             text: Displays.mirroring ? "Stop mirroring" : "Mirror this screen on another"

@@ -17,6 +17,30 @@ Singleton {
     readonly property bool charging: hasBattery && (battery.state === UPowerDeviceState.Charging || battery.state === UPowerDeviceState.PendingCharge)
     readonly property bool full: hasBattery && battery.state === UPowerDeviceState.FullyCharged
     readonly property bool onBattery: UPower.onBattery
+    // the batteries of things around the computer — a mouse, a keyboard,
+    // headphones, a controller, a phone — that UPower reads (Bluetooth, HID++)
+    readonly property var peripherals: UPower.devices.values.filter(d => !d.isLaptopBattery && !d.powerSupply && d.isPresent !== false && d.percentage > 0
+        && d.model !== "")
+    // low: told once per device per discharge, below 15 %
+    property var peripheralsWarned: ({})
+    Timer {
+        interval: 60000
+        running: root.peripherals.length > 0
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: {
+            const w = Object.assign({}, root.peripheralsWarned);
+            for (const d of root.peripherals) {
+                const pct = d.percentage <= 1 ? d.percentage * 100 : d.percentage;
+                if (pct < 15 && !w[d.nativePath]) {
+                    w[d.nativePath] = true;
+                    Quickshell.execDetached(["notify-send", "-a", "Power", "-i", d.iconName || "battery-caution", d.model + " is low on battery", Math.round(pct) + "% left"]);
+                } else if (pct >= 25)
+                    delete w[d.nativePath];
+            }
+            root.peripheralsWarned = w;
+        }
+    }
     readonly property int profile: PowerProfiles.profile
     readonly property bool hasPerformance: PowerProfiles.hasPerformanceProfile
 
@@ -89,6 +113,14 @@ Singleton {
     // hibernate only where logind says it can (swap large enough, resume configured)
     property bool canHibernate: false
     function hibernate() { Quickshell.execDetached(["systemctl", "hibernate"]); }
+    // into the firmware's own setup (UEFI) — where logind says it can
+    property bool canFirmwareSetup: false
+    function rebootToFirmware() { Quickshell.execDetached(["systemctl", "reboot", "--firmware-setup"]); }
+    Process {
+        running: true
+        command: ["sh", "-c", 'busctl call org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager CanRebootToFirmwareSetup 2>/dev/null']
+        stdout: StdioCollector { onStreamFinished: root.canFirmwareSetup = text.trim() === 's "yes"' }
+    }
     Process {
         running: true
         command: ["sh", "-c", 'busctl call org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager CanHibernate 2>/dev/null']

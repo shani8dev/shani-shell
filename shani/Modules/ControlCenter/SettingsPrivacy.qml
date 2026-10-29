@@ -4,6 +4,7 @@
 // changed with `flatpak permission-*`, revocable one by one.
 import Quickshell
 import Quickshell.Io
+import Quickshell.Bluetooth
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
@@ -36,6 +37,31 @@ ColumnLayout {
 
     SectionTitle { Layout.fillWidth: true; text: "Lock screen" }
     SwitchRow { Layout.fillWidth: true; text: "Show notification titles"; hint: "off: only how many came in"; checked: page.d.lockPreviews; onToggled: on => page.d.lockPreviews = on }
+
+    SectionTitle { Layout.fillWidth: true; text: "Lock when my phone leaves" }
+    Text {
+        Layout.fillWidth: true
+        text: Bluetooth.devices.values.some(d => d.paired) ? "Pick a paired phone or watch: when it goes out of Bluetooth range for half a minute, the screen locks."
+            : "Pair your phone over Bluetooth first."
+        color: Theme.dim
+        wrapMode: Text.Wrap
+        font.family: Theme.font
+        font.pixelSize: 12 * Theme.fontScale
+    }
+    Flow {
+        Layout.fillWidth: true
+        spacing: 6
+        Choice { text: "Off"; selected: page.d.dynamicLockDevice === ""; onClicked: page.d.dynamicLockDevice = "" }
+        Repeater {
+            model: Bluetooth.devices.values.filter(d => d.paired)
+            Choice {
+                required property var modelData
+                text: modelData.name || modelData.address
+                selected: page.d.dynamicLockDevice === modelData.address
+                onClicked: page.d.dynamicLockDevice = modelData.address
+            }
+        }
+    }
 
     SectionTitle { Layout.fillWidth: true; text: "Recent files" }
     SwitchRow { Layout.fillWidth: true; text: "Remember recently used files"; hint: "for apps' Recent lists"; checked: page.d.rememberRecent; onToggled: on => page.d.rememberRecent = on }

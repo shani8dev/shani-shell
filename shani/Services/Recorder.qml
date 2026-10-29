@@ -56,6 +56,45 @@ Singleton {
         else
             proc.signal(2);
     }
+    // ---- after recording (ffmpeg): a GIF to share, or a smaller video --------
+    property string converted: ""         // the last file made, for the tests
+    property bool converting: convert.running
+    function toGif(path) {
+        const out = path.replace(/\.[^.\/]+$/, "") + ".gif";
+        convert.out = out;
+        convert.command = ["ffmpeg", "-y", "-loglevel", "error", "-i", path, "-vf",
+                           "fps=12,scale='min(720,iw)':-2:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4", out];
+        convert.running = true;
+    }
+    function shrink(path) {
+        const out = path.replace(/\.[^.\/]+$/, "") + " (smaller).mp4";
+        convert.out = out;
+        convert.command = ["ffmpeg", "-y", "-loglevel", "error", "-i", path, "-c:v", "libx264", "-crf", "28", "-preset", "veryfast",
+                           "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", out];
+        convert.running = true;
+    }
+    Process {
+        id: convert
+        property string out
+        onExited: code => {
+            root.converted = code === 0 ? out : "";
+            Quickshell.execDetached(["notify-send", "-a", "Screen recorder", "-i", "media-record",
+                code === 0 ? "Ready: " + out.split("/").pop() : "Could not convert the recording", code === 0 ? out : ""]);
+        }
+    }
+    Process {
+        id: saved
+        property string file
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const a = text.trim();
+                if (a === "open") Qt.openUrlExternally("file://" + saved.file);
+                else if (a === "gif") root.toGif(saved.file);
+                else if (a === "small") root.shrink(saved.file);
+            }
+        }
+    }
+
     function toggle() {
         recording ? stop() : start();
     }
@@ -77,8 +116,14 @@ Singleton {
             root.slurpPid = 0;
             if (code === 3)               // the region selection was cancelled: nothing to say
                 return;
-            Quickshell.execDetached(["notify-send", "-a", "Screen recorder", "-i", "media-record",
-                code === 0 ? "Recording saved" : "Recording failed", root.file]);
+            if (code !== 0) {
+                Quickshell.execDetached(["notify-send", "-a", "Screen recorder", "-i", "media-record", "Recording failed", root.file]);
+                return;
+            }
+            saved.command = ["notify-send", "-a", "Screen recorder", "-i", "media-record", "-A", "open=Open", "-A", "gif=Make a GIF",
+                             "-A", "small=Make it smaller", "Recording saved", root.file.split("/").pop()];
+            saved.file = root.file;
+            saved.running = true;
         }
     }
     Timer {

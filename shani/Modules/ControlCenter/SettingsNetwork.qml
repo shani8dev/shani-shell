@@ -76,6 +76,37 @@ ColumnLayout {
         setDns.running = true;
     }
 
+    // ---- data used (vnstat, which shani-tools-network runs) --------------------
+    property string usage: ""
+    function bytes(n) { return n >= 1e9 ? (n / 1e9).toFixed(1) + " GB" : n >= 1e6 ? Math.round(n / 1e6) + " MB" : Math.round(n / 1e3) + " kB"; }
+    Process {
+        running: page.active
+        // --oneline b: version;iface;day;rx;tx;total;rate;month;rx;tx;total;rate;… (bytes)
+        command: ["sh", "-c", 'command -v vnstat >/dev/null || exit 0; for i in $(vnstat --iflist 1 2>/dev/null); do vnstat --oneline b -i "$i" 2>/dev/null; done']
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let day = 0, month = 0;
+                for (const l of text.trim().split("\n")) {
+                    const f = l.split(";");
+                    if (f.length > 10 && !/^(lo|veth|docker|br-|virbr|tun|tap)/.test(f[1])) {
+                        day += parseFloat(f[5]) || 0;
+                        month += parseFloat(f[10]) || 0;
+                    }
+                }
+                page.usage = text.trim() ? "Today " + page.bytes(day) + " · this month " + page.bytes(month) : "";
+            }
+        }
+    }
+    SectionTitle { Layout.fillWidth: true; text: "Data used"; visible: page.usage !== "" }
+    Text {
+        Layout.fillWidth: true
+        visible: page.usage !== ""
+        text: page.usage
+        color: Theme.text
+        font.family: Theme.font
+        font.pixelSize: 13 * Theme.fontScale
+    }
+
     SectionTitle { Layout.fillWidth: true; text: "DNS" }
     Text {
         Layout.fillWidth: true

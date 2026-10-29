@@ -25,7 +25,39 @@ ColumnLayout {
     function refresh() {
         who.running = true;
         pics.running = true;
+        fingers.running = true;
     }
+
+    // ---- fingerprints (fprintd): what is enrolled, enrolling one, removing them ----
+    property bool hasReader: false
+    property var enrolled: []
+    property string enrollState: ""        // "", "touch", "again", "done", "failed: …"
+    property int stages: 0
+    Process {
+        id: fingers
+        command: ["sh", "-c", 'command -v fprintd-list >/dev/null && fprintd-list "$1" 2>&1', "sh", page.user]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                page.hasReader = text.indexOf("Device at") >= 0;
+                page.enrolled = (text.match(/#\d+:\s*(\S+)/g) || []).map(x => x.replace(/#\d+:\s*/, "").replace(/-/g, " "));
+            }
+        }
+    }
+    Process {
+        id: enroll
+        command: ["fprintd-enroll", "-f", "right-index-finger"]
+        stdout: SplitParser {
+            onRead: line => {
+                if (/enroll-stage-passed/.test(line)) { page.stages++; page.enrollState = "again"; }
+                else if (/enroll-retry|enroll-swipe-too-short|enroll-finger-not-centered|enroll-remove-and-retry/.test(line)) page.enrollState = "again";
+                else if (/enroll-completed/.test(line)) page.enrollState = "done";
+                else if (/enroll-(failed|data-full|disconnected|unknown-error)/.test(line)) page.enrollState = "failed: " + line.replace(/.*enroll-/, "");
+            }
+        }
+        onExited: fingers.running = true
+    }
+    function startEnroll() { stages = 0; enrollState = "touch"; enroll.running = true; }
+    Process { id: forget; command: ["fprintd-delete", page.user]; onExited: fingers.running = true }
     onActiveChanged: if (active) refresh()
 
     Process {
@@ -124,6 +156,27 @@ ColumnLayout {
             text = "";
         }
     }
+    SectionTitle { Layout.fillWidth: true; text: "Fingerprint"; visible: page.hasReader }
+    Text {
+        Layout.fillWidth: true
+        visible: page.hasReader
+        text: page.enrollState === "touch" ? "Touch the reader with your right index finger."
+            : page.enrollState === "again" ? "Lift it and touch again — " + page.stages + " done."
+            : page.enrollState === "done" ? "Your fingerprint is saved. It unlocks the lock screen and approves admin requests where they allow it."
+            : page.enrollState.startsWith("failed") ? "That did not work (" + page.enrollState.slice(8) + "). Try again."
+            : page.enrolled.length ? "Enrolled: " + page.enrolled.join(", ") : "No fingerprint saved."
+        color: page.enrollState.startsWith("failed") ? Theme.danger : Theme.dim
+        wrapMode: Text.Wrap
+        font.family: Theme.font
+        font.pixelSize: 12 * Theme.fontScale
+    }
+    RowLayout {
+        visible: page.hasReader
+        spacing: 6
+        Button { text: enroll.running ? "Enrolling…" : "Add a fingerprint"; enabled: !enroll.running; onClicked: page.startEnroll() }
+        Button { visible: page.enrolled.length > 0 && !enroll.running; kind: "danger"; text: "Remove fingerprints"; onClicked: forget.running = true }
+    }
+
     Button {
         text: "Change password…"
         onClicked: {

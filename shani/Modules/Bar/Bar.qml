@@ -187,8 +187,8 @@ Variants {
                     visible: Settings.data.showSysStats
                     mono: true
                     active: Ui.processes
-                    tint: SysStats.cpu > 0.85 || SysStats.mem > 0.9 ? Theme.amber : Theme.dim
-                    label: "cpu " + Math.round(SysStats.cpu * 100) + "%  mem " + Math.round(SysStats.mem * 100) + "%"
+                    tint: SysStats.cpu > 0.85 || SysStats.mem > 0.9 || SysStats.temp > 85 ? Theme.amber : Theme.dim
+                    label: "cpu " + Math.round(SysStats.cpu * 100) + "%" + (SysStats.temp > 0 ? " " + Math.round(SysStats.temp) + "°" : "") + "  mem " + Math.round(SysStats.mem * 100) + "%"
                     onClicked: { const was = Ui.processes; Ui.closeAll(); Ui.processes = !was; }
                 }
                 Chip {

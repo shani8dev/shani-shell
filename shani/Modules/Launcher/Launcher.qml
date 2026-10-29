@@ -105,6 +105,9 @@ PanelWindow {
         { title: "Date & language", words: "date time timezone time zone clock 24-hour ntp language locale region formats", icon: "preferences-system-time", run: () => win.openSettings("time") },
         { title: "Default apps", words: "default apps browser mail email files text pictures video music pdf open with terminal", icon: "preferences-desktop-default-applications", run: () => win.openSettings("apps") },
         { title: "Your account", words: "account user name password picture avatar photo face", icon: "system-users", run: () => win.openSettings("account") },
+        { title: "Clipboard as a QR code", words: "qr code clipboard link phone share scan", icon: "view-barcode-qr", run: () => Qr.show("From the clipboard", Quickshell.clipboardText) },
+        { title: "Share Wi-Fi", words: "wifi wi-fi share password qr code phone guest", icon: "network-wireless", run: () => Qr.shareWifi() },
+        { title: "Send a text message", words: "sms text message send phone mobile sim", icon: "mail-send", run: () => { Ui.smsTo = ""; Ui.modemDialog = "sms"; } },
         { title: "Tour", words: "tour welcome help introduction tips what is new how", icon: "help-about", run: () => Ui.tour = true },
         { title: "Take a photo", words: "camera photo picture selfie snap webcam", icon: "camera-photo", run: () => Camera.photo() },
         { title: "Record a video", words: "camera video record webcam clip", icon: "camera-video", run: () => Camera.video(), state: () => Camera.phase === "recording" },
@@ -125,6 +128,7 @@ PanelWindow {
         { title: "Magnifier", words: "magnifier zoom loupe enlarge", icon: "zoom-in", run: () => Ui.magnifier = true },
         { title: "Record a call", words: "call record recording meeting phone", icon: "call-start", run: () => CallRecorder.toggle(), state: () => CallRecorder.recording },
         { title: "Cast screen", words: "cast miracast tv display wireless project", icon: "video-display", run: () => Cast.open() },
+        { title: "Paste as plain text", words: "paste plain text formatting strip clean clipboard", icon: "edit-paste", run: () => Clipboard.pastePlain() },
         { title: "Clear clipboard history", words: "clipboard clear wipe history privacy", icon: "edit-clear-history", run: () => Clipboard.wipe() },
         { title: "Notifications", words: "notifications messages", icon: "preferences-system-notifications", run: () => Ui.toggleControlCenter("notifications") },
         { title: "Switch windows", words: "windows switch alt tab", icon: "focus-windows", run: () => Ui.switcherRequested(false) },
@@ -132,6 +136,7 @@ PanelWindow {
         { title: "Log out", words: "logout log out sign out", icon: "system-log-out", run: () => Power.logout() },
         // irreversible: these open the sidebar's confirm row instead of acting
         { title: "Restart…", words: "reboot restart", icon: "system-reboot", run: () => Ui.toggleControlCenter("power") },
+        { title: "Restart into firmware setup…", words: "uefi bios firmware setup boot menu restart", icon: "system-reboot", run: () => Ui.toggleControlCenter("power") },
         { title: "Power off…", words: "shutdown power off", icon: "system-shutdown", run: () => Ui.toggleControlCenter("power") }
     ]
 
@@ -186,7 +191,13 @@ PanelWindow {
         id: fileSearch
         property string query
         // in the folders chosen in Settings > Search (the home folder by default)
-        command: ["sh", "-c", 'q="$1"; shift; if command -v fd >/dev/null; then fd -i -d 5 --max-results 15 -- "$q" "$@"; else find "$@" -maxdepth 5 -not -path "*/.*" -iname "*$q*" 2>/dev/null | head -15; fi', "sh", query]
+        // plocate's index first (instant; updated daily by plocate-updatedb), kept to
+        // those folders and away from hidden ones; walking them with fd/find otherwise
+        command: ["sh", "-c", 'q="$1"; shift
+            if command -v plocate >/dev/null && [ -s /var/lib/plocate/plocate.db ]; then
+                for d in "$@"; do plocate -i -b -l 400 -- "$q" 2>/dev/null | grep -F "$d/" | grep -v "/\\." ; done | awk "!s[\\$0]++" | head -15
+            elif command -v fd >/dev/null; then fd -i -d 5 --max-results 15 -- "$q" "$@"
+            else find "$@" -maxdepth 5 -not -path "*/.*" -iname "*$q*" 2>/dev/null | head -15; fi', "sh", query]
             .concat(Array.from(Settings.data.searchFolders).map(f => f.replace(/^~/, Quickshell.env("HOME"))))
         stdout: StdioCollector { onStreamFinished: win.found = text.trim().split("\n").filter(x => x) }
     }
@@ -354,11 +365,15 @@ PanelWindow {
         }
         if (q === "c" || q.startsWith("c ")) {
             const f = q.slice(1).trim().toLowerCase();
+            const pins = Array.from(Settings.data.clipPins).filter(t => f === "" || t.toLowerCase().indexOf(f) >= 0)
+                .map(t => ({ kind: "clip", icon: "view-pin", title: t.replace(/\s+/g, " ").slice(0, 140), subtitle: "Pinned · Ctrl+P unpins",
+                             run: () => Quickshell.clipboardText = t, pin: () => Clipboard.unpin(t) }));
             const items = Clipboard.entries.filter(e => f === "" || e.text.toLowerCase().indexOf(f) >= 0).slice(0, 30)
                 .map(e => ({ kind: "clip", icon: e.image ? "image-x-generic" : "edit-paste", thumb: e.image ? e.preview : "",
-                             title: e.text.replace(/\s+/g, " ").slice(0, 140), subtitle: (e.image ? "Picture · Enter copies it" : "Clipboard") + " · Shift+Delete removes it",
-                             run: () => Clipboard.copy(e), remove: () => Clipboard.remove(e) }));
-            return [{ title: "Clipboard", items: items.length ? items : [{ kind: "none", icon: "edit-paste", title: Clipboard.available ? "Clipboard history is empty" : "cliphist is not installed", subtitle: "", run: () => {} }] }];
+                             title: e.text.replace(/\s+/g, " ").slice(0, 140), subtitle: (e.image ? "Picture · Enter copies it" : "Clipboard · Ctrl+P pins") + " · Shift+Delete removes it",
+                             run: () => Clipboard.copy(e), remove: () => Clipboard.remove(e), pin: e.image ? null : () => Clipboard.pin(e) }));
+            return (pins.length ? [{ title: "Pinned", items: pins }] : []).concat([{ title: "Clipboard", items: items.length ? items
+                : [{ kind: "none", icon: "edit-paste", title: Clipboard.available ? "Clipboard history is empty" : "cliphist is not installed", subtitle: "", run: () => {} }] }]);
         }
 
         const math = q.startsWith("=") ? q.slice(1) : q;
@@ -507,6 +522,12 @@ PanelWindow {
                     Keys.onTabPressed: win.sel = (win.sel + 1) % Math.max(1, win.flat.length)
                     Keys.onBacktabPressed: win.sel = (win.sel - 1 + win.flat.length) % Math.max(1, win.flat.length)
                     Keys.onPressed: e => {
+                        // Ctrl+P: pin or unpin a clipboard entry
+                        if (e.key === Qt.Key_P && (e.modifiers & Qt.ControlModifier) && win.flat[win.sel] && win.flat[win.sel].pin) {
+                            win.flat[win.sel].pin();
+                            e.accepted = true;
+                            return;
+                        }
                         // Shift+Delete: a result that can be removed (a clipboard entry) goes
                         if (e.key === Qt.Key_Delete && (e.modifiers & Qt.ShiftModifier) && win.flat[win.sel] && win.flat[win.sel].remove) {
                             win.flat[win.sel].remove();

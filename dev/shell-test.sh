@@ -231,6 +231,20 @@ w = next(x for x in wins if x['id'] == $1)
 print(next(s['idx'] for s in spaces if s['id'] == w['workspace_id']))"; }
 [ "$(widx "$wid")" = 3 ] && result window-menu-moves-window PASS || result window-menu-moves-window FAIL "window $wid on workspace $(widx "$wid")"
 niri msg action move-window-to-workspace --window-id "$wid" --focus false 1
+# snap layouts: "A third" sets the column to a third of the screen
+niri msg action focus-window --id "$wid"; sleep 0.3
+ipc windowMenu
+waitfor "d['windowMenu']" 3
+ipc windowMenuAction third
+sleep 0.8
+ratio=$(python3 -c "
+import json, subprocess
+w = next(x for x in json.loads(subprocess.run(['niri','msg','-j','windows'], capture_output=True, text=True).stdout) if x['id'] == $wid)
+o = list(json.loads(subprocess.run(['niri','msg','-j','outputs'], capture_output=True, text=True).stdout).values())[0]
+print(round(w['layout']['tile_size'][0] / o['logical']['width'], 2))")
+python3 -c "import sys; sys.exit(0 if 0.25 <= float('$ratio') <= 0.4 else 1)" 2>/dev/null \
+    && result window-menu-snap-third PASS "$ratio" || result window-menu-snap-third FAIL "width ratio $ratio"
+niri msg action set-column-width 50%
 
 # ---- voice typing: espeak-ng speaks, the mic hears it, whisper types it ---------
 # the "microphone" is the speakers' monitor, so what is played is what is heard
@@ -863,6 +877,72 @@ notify-send -a Test "Bottom right" "a pop-up"
 shot 92-popup-bottom 0.6
 settings '{}'
 
+# ---- QR codes: a link from the clipboard, decoded back from the picture ------------------
+printf 'https://shani.dev/qr-check' | wl-copy; sleep 0.5
+ipc launcher "clipboard qr"
+waitfor "d['topResult'] == 'Clipboard as a QR code'" 3
+wtype -k Return
+waitfor "d['qrShown']" 4 && [ "$(zbarimg -q --raw "$(q "['qrImage']")" 2>/dev/null)" = "https://shani.dev/qr-check" ] \
+    && result qr-code-decodes PASS || result qr-code-decodes FAIL "$(zbarimg -q --raw "$(q "['qrImage']")" 2>&1 | head -1)"
+shot 93-qr 0.4
+wtype -k Escape
+waitfor "not d['qrShown']" 3 && result qr-closes PASS || result qr-closes FAIL
+
+# ---- a recording made into a GIF and a smaller video (ffmpeg) ------------------------------
+ffmpeg -y -loglevel error -f lavfi -i testsrc=size=1280x720:rate=30 -f lavfi -i sine=frequency=440 -t 3 -c:v libx264 -pix_fmt yuv420p -c:a aac /tmp/rec-test.mp4
+ipc recordingToGif /tmp/rec-test.mp4
+waitfor "d['converted'] == '/tmp/rec-test.gif'" 30 && head -c 6 /tmp/rec-test.gif | grep -q GIF89a && result recording-to-gif PASS "$(stat -c %s /tmp/rec-test.gif) bytes" || result recording-to-gif FAIL "$(q "['converted']")"
+ipc recordingShrink /tmp/rec-test.mp4
+waitfor "d['converted'] == '/tmp/rec-test (smaller).mp4'" 30 && [ -s "/tmp/rec-test (smaller).mp4" ] && result recording-smaller PASS || result recording-smaller FAIL "$(q "['converted']")"
+
+# ---- the CPU's temperature, from the kernel's sensor (the host's, seen through /sys) -------
+if ls /sys/class/hwmon/*/name >/dev/null 2>&1 && grep -qxE 'coretemp|k10temp|zenpower|cpu_thermal|soc_thermal' /sys/class/hwmon/*/name; then
+    waitfor "d['cpuTemp'] > 10 and d['cpuTemp'] < 120" 8 && result cpu-temperature PASS "$(q "['cpuTemp']") °C" || result cpu-temperature FAIL "$(q "['cpuTemp']")"
+else
+    result cpu-temperature SKIP "no CPU sensor visible here"
+fi
+
+# ---- the agenda: events from Evolution Data Server's own "Personal" calendar ------------
+cal=/root/.local/share/evolution/calendar/system
+mkdir -p $cal
+t1=$(date -u -d '+3 hours' +%Y%m%dT%H%M00Z); t2=$(date -u -d '+4 hours' +%Y%m%dT%H%M00Z)
+w1=$(date -u -d '-7 days +5 hours' +%Y%m%dT%H%M00Z); w2=$(date -u -d '-7 days +6 hours' +%Y%m%dT%H%M00Z)
+printf 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//shani//test//EN\r\nBEGIN:VEVENT\r\nUID:one@test\r\nDTSTAMP:%s\r\nDTSTART:%s\r\nDTEND:%s\r\nSUMMARY:Design review\r\nLOCATION:Room 2\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:weekly@test\r\nDTSTAMP:%s\r\nDTSTART:%s\r\nDTEND:%s\r\nRRULE:FREQ=WEEKLY\r\nSUMMARY:Weekly sync\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n' "$t1" "$t1" "$t2" "$w1" "$w1" "$w2" > $cal/calendar.ics
+ipc agendaRefresh
+waitfor "'Design review' in d['agenda'] and 'Weekly sync' in d['agenda']" 30 && result agenda-from-eds PASS "$(q "['agenda']")" \
+    || result agenda-from-eds FAIL "$(q "['agenda']") $(python3 /work/bridge/agenda.py 2>&1 | tail -1)"
+ipc controlCenter ""
+shot 94-agenda 0.8
+ipc closeAll
+
+# ---- the launcher's file search from plocate's index --------------------------------------
+mkdir -p /root/Documents/projects && touch /root/Documents/projects/zebra-quarterly-plan.odt
+updatedb 2>/dev/null
+ipc launcher "zebra-quarterly"
+waitfor "d['topResult'] == 'zebra-quarterly-plan.odt'" 6 && result launcher-files-from-plocate PASS || result launcher-files-from-plocate FAIL "$(q "['topResult']")"
+ipc closeAll
+
+# ---- the SIM modem (a stand-in for bridge/modem.py; tests/test_modem.py runs the real one) --
+rm -f /tmp/modem-answers
+echo '{"modem": {"path": "/m/0", "state": "locked", "locked": "sim-pin", "operator": "", "signal": 0, "number": "", "voice": true, "messaging": true}}' > /tmp/modem-ask
+waitfor "d['modem'] == 'locked/sim-pin/' and 'The SIM card is locked' in d['notificationSummaries']" 5 && result sim-locked-asks PASS || result sim-locked-asks FAIL "$(q "['modem']")"
+echo '{"modem": {"path": "/m/0", "state": "registered", "locked": "", "operator": "Jio", "signal": 63, "number": "", "voice": true, "messaging": true}}' > /tmp/modem-ask
+waitfor "d['modem'] == 'registered/unlocked/Jio'" 4
+echo '{"sms": {"path": "/s/1", "from": "+919811111111", "text": "Your code is 482913", "time": ""}}' > /tmp/modem-ask
+waitfor "'+919811111111' in d['notificationSummaries']" 4 && result sms-notifies PASS || result sms-notifies FAIL
+shot 95-sms 0.4
+echo '{"call": {"path": "/c/1", "number": "+919844444444", "state": "ringing-in", "incoming": true}}' > /tmp/modem-ask
+waitfor "d['islandActivity'].startswith('Call from +919844444444')" 4 && result call-ringing-on-island PASS || result call-ringing-on-island FAIL "$(q "['islandActivity']")"
+shot 96-call-ringing 0.3
+echo '{"call": {"path": "/c/1", "number": "+919844444444", "state": "terminated", "incoming": true}}' > /tmp/modem-ask
+waitfor "d['modemCall'] == ''" 4
+ipc textMessage "+919822222222"
+waitfor "d['modemDialog'] == 'sms'" 3
+sleep 0.6
+wtype "On my way" -k Return
+sleep 1
+grep -q '"to":"+919822222222","text":"On my way"' /tmp/modem-answers 2>/dev/null && result sms-composer-sends PASS || result sms-composer-sends FAIL "$(cat /tmp/modem-answers 2>&1)"
+
 # ---- the first-login tour: five cards, Enter through them, remembered ------------------
 ipc tour
 waitfor "d['tour']" 3 && result tour-opens PASS || result tour-opens FAIL
@@ -907,15 +987,29 @@ wtype -M shift -k Delete -m shift; sleep 1
 cliphist list | grep -q remove-me-4711 && result clipboard-entry-removed FAIL || { cliphist list | grep -q keep-me-4712 && result clipboard-entry-removed PASS || result clipboard-entry-removed FAIL "took the others too"; }
 ipc closeAll
 
+# ---- a clipboard entry pinned (Ctrl+P): kept through clearing the history -------------
+printf 'pin-me-4713' | wl-copy; sleep 0.8
+ipc launcher "c pin-me"
+waitfor "d['topResult'].startswith('pin-me-4713')" 4
+wtype -M ctrl -k p -m ctrl; sleep 1
+grep -q pin-me-4713 "$SHANI_SHELL_SETTINGS" && result clipboard-pin PASS || result clipboard-pin FAIL "$(cat "$SHANI_SHELL_SETTINGS" | head -c 300)"
+ipc closeAll
+
 # ---- clipboard history can be cleared ------------------------------------------------
 printf 'secret-token-123' | wl-copy; sleep 0.8
 cliphist list | grep -q secret-token-123 || echo "  (cliphist did not store it)"
 ipc launcher "clear clipboard"
 waitfor "d['topResult'] == 'Clear clipboard history'" 3
+top=$(q "['topResult']")
 wtype -k Return
 # clearing waits for the clipboard to settle before it wipes the history
 for i in 1 2 3 4 5 6; do sleep 0.5; cliphist list | grep -q secret-token-123 || break; done
-cliphist list | grep -q secret-token-123 && result clipboard-history-cleared FAIL || result clipboard-history-cleared PASS
+cliphist list | grep -q secret-token-123 && result clipboard-history-cleared FAIL "Enter ran: $top; history: $(cliphist list | head -2 | tr '\n' ' ')" || result clipboard-history-cleared PASS
+ipc closeAll; sleep 0.3
+ipc launcher "c pin-me"
+waitfor "'Pinned' in d['launcherSections'] and d['topResult'].startswith('pin-me-4713')" 4 \
+    && result clipboard-pin-survives-clearing PASS || result clipboard-pin-survives-clearing FAIL "$(q "['launcherSections']")"
+ipc closeAll
 
 # ---- pop-up duration follows the setting --------------------------------------------
 settings '{"popupSeconds": 4}'
@@ -953,6 +1047,40 @@ wtype -k Escape
 waitfor "not d['ring']" 3
 ipc smartTouch
 
+# ---- share sheet: one Share… for a file ---------------------------------------------
+printf 'shared words' > /tmp/share-me.txt
+ipc share /tmp/share-me.txt
+waitfor "'Copy its path' in d['shareTargets'] and 'Nearby devices (LocalSend)' in d['shareTargets']" 4 \
+    && result share-sheet-targets PASS || result share-sheet-targets FAIL "$(q "['shareTargets']")"
+shot 70-share-sheet 0.4
+n=$(q "['shareTargets'].index('Copy its path')")
+for i in $(seq 1 "$n"); do wtype -k Down; sleep 0.1; done
+wtype -k Return
+waitfor "d['shareDone'] == 'Copy its path' and d['shareTargets'] == []" 3 && [ "$(wl-paste -n)" = /tmp/share-me.txt ] \
+    && result share-copies-path PASS || result share-copies-path FAIL "$(q "['shareDone']") / $(wl-paste -n)"
+
+# ---- drawing on the screen: opens, saves a screenshot with it, closes -------------------
+rm -rf /root/Pictures/Screenshots
+ipc annotate
+waitfor "d['annotate']" 3 && result annotate-opens PASS || result annotate-opens FAIL
+shot 71-annotate 0.4
+wtype s
+for i in $(seq 1 20); do ls /root/Pictures/Screenshots/Drawing*.png >/dev/null 2>&1 && break; sleep 0.25; done
+ls /root/Pictures/Screenshots/Drawing*.png >/dev/null 2>&1 && result annotate-saves PASS || result annotate-saves FAIL "$(tail -2 /work/logs/qs.log)"
+wtype -k Escape
+waitfor "not d['annotate']" 3 && result annotate-closes PASS || result annotate-closes FAIL
+
+# ---- automations: sound to HDMI turns Do not disturb on, once ---------------------------
+pactl set-default-sink speakers; sleep 0.5
+settings '{"automations": [{"when": "output", "is": "HDMI", "then": "dnd", "arg": "on", "on": true}]}'
+sleep 0.5
+[ "$(q "['dnd']")" = False ] && result automation-waits PASS || result automation-waits FAIL "fired before its moment"
+pactl set-default-sink hdmi
+waitfor "d['dnd'] and len(d['automationsFired']) == 1" 4 && result automation-fires PASS "$(q "['automationsFired']")" \
+    || result automation-fires FAIL "$(q "['automationsFired']") dnd=$(q "['dnd']")"
+pactl set-default-sink speakers; sleep 0.5
+settings '{}'
+
 # ---- lock screen: PAM, wrong then right ----------------------------------------
 cp /tmp/frame.png /root/.face          # the avatar the lock screen shows
 echo 'root:shani-test' | chpasswd
@@ -970,6 +1098,14 @@ ipc lock
 waitfor "d['locked']" 4 && result lock-relocks PASS || result lock-relocks FAIL
 wtype "shani-test" -k Return
 waitfor "not d['locked']" 6
+
+# ---- dynamic lock: the paired phone goes away → locked after the grace ---------------
+settings '{"dynamicLockDevice": "AA:BB:CC:DD:EE:FF"}'
+ipc dynamicLockAway
+waitfor "d['locked'] and d['dynamicLocks'] == 1" 6 && result dynamic-lock PASS || result dynamic-lock FAIL "$(q "['dynamicLocks']")"
+wtype "shani-test" -k Return
+waitfor "not d['locked']" 6
+settings '{}'
 
 # ---- idle: the lock stage fires on its own --------------------------------------
 waitfor "not d['locked']" 4 || { echo "still locked before the idle check"; exit 1; }

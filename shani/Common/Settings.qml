@@ -202,6 +202,9 @@ Singleton {
             property string screenshotDir: "~/Pictures/Screenshots"
             property bool rememberRecent: true
             property bool lockPreviews: false         // notification titles on the lock screen
+            property list<string> clipPins: []          // pinned clipboard texts
+            property var automations: []                // [{ when, is, then, arg, on }] (Services/Automations)
+            property string dynamicLockDevice: ""     // a paired device's address: lock when it goes (DynamicLock)
             property string proxyMode: "none"         // none | manual | auto
             property string proxyHttp: ""             // host:port
             property string proxyHttps: ""
