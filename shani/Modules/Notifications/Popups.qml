@@ -14,8 +14,10 @@ PanelWindow {
     screen: Quickshell.screens[0]
     visible: Notifs.popups.length > 0 && !Ui.controlCenter && !Ui.launcher && !Lock.locked
         && Lens.phase !== "selecting" && Lens.phase !== "reading"   // not what Lens is pointed at
-    anchors { top: true; right: true }
-    margins { top: Theme.barHeight + 18; right: 12 }
+    // where pop-ups appear (Settings > Notifications); the dock keeps the bottom clear
+    readonly property string pos: Settings.data.popupPosition
+    anchors { top: pos !== "bottom-right"; bottom: pos === "bottom-right"; right: pos !== "top-center" }
+    margins { top: Theme.barHeight + 18; right: 12; bottom: Settings.data.dock && !Settings.data.dockAutoHide ? Settings.data.dockIconSize + 44 : 16 }
     implicitWidth: 380
     implicitHeight: list.implicitHeight
     color: "transparent"

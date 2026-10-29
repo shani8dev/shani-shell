@@ -6,6 +6,7 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs.Common
 
 Singleton {
     id: root
@@ -21,8 +22,11 @@ Singleton {
         if (!proc.running)
             proc.running = true;
     }
+    // Cassini's Updates page where Cassini is installed; otherwise the deploy
+    // itself in a terminal (pkexec: ShaniOS's polkit asks for your own password)
     function open() {
-        Quickshell.execDetached(["shani-cassini"]);
+        Quickshell.execDetached(["sh", "-c", 'command -v shani-cassini >/dev/null && exec shani-cassini
+            exec "$1" -e sh -c "pkexec /usr/local/bin/shani-deploy; echo; read -p \"Press Enter to close.\" x"', "sh", Settings.data.terminal]);
     }
 
     Process {

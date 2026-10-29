@@ -105,6 +105,7 @@ PanelWindow {
         { title: "Date & language", words: "date time timezone time zone clock 24-hour ntp language locale region formats", icon: "preferences-system-time", run: () => win.openSettings("time") },
         { title: "Default apps", words: "default apps browser mail email files text pictures video music pdf open with terminal", icon: "preferences-desktop-default-applications", run: () => win.openSettings("apps") },
         { title: "Your account", words: "account user name password picture avatar photo face", icon: "system-users", run: () => win.openSettings("account") },
+        { title: "Tour", words: "tour welcome help introduction tips what is new how", icon: "help-about", run: () => Ui.tour = true },
         { title: "Take a photo", words: "camera photo picture selfie snap webcam", icon: "camera-photo", run: () => Camera.photo() },
         { title: "Record a video", words: "camera video record webcam clip", icon: "camera-video", run: () => Camera.video(), state: () => Camera.phase === "recording" },
         { title: "Camera", words: "camera viewfinder webcam preview mirror qcam", icon: "camera-web", run: () => Camera.open() },
@@ -184,7 +185,9 @@ PanelWindow {
     Process {
         id: fileSearch
         property string query
-        command: ["sh", "-c", 'q="$1"; if command -v fd >/dev/null; then fd -i -d 5 --max-results 15 -- "$q" "$HOME"; else find "$HOME" -maxdepth 5 -not -path "*/.*" -iname "*$q*" 2>/dev/null | head -15; fi', "sh", query]
+        // in the folders chosen in Settings > Search (the home folder by default)
+        command: ["sh", "-c", 'q="$1"; shift; if command -v fd >/dev/null; then fd -i -d 5 --max-results 15 -- "$q" "$@"; else find "$@" -maxdepth 5 -not -path "*/.*" -iname "*$q*" 2>/dev/null | head -15; fi', "sh", query]
+            .concat(Array.from(Settings.data.searchFolders).map(f => f.replace(/^~/, Quickshell.env("HOME"))))
         stdout: StdioCollector { onStreamFinished: win.found = text.trim().split("\n").filter(x => x) }
     }
     // inside files: the desktop's index (localsearch) when it runs; otherwise a
@@ -201,12 +204,22 @@ PanelWindow {
         onTriggered: {
             const t = win.q.trim();
             if (t.length >= 3 && !/^[=:c>?]/.test(t)) {
-                fileSearch.query = t;
-                fileSearch.running = true;
-                contentSearch.query = t;
-                contentSearch.running = true;
-                providerSearch.terms = t.split(/\s+/);
-                providerSearch.running = true;
+                // only what Settings > Search allows is looked at
+                win.found = [];
+                win.inside = [];
+                win.provided = [];
+                if (Settings.data.searchFiles) {
+                    fileSearch.query = t;
+                    fileSearch.running = true;
+                }
+                if (Settings.data.searchInside) {
+                    contentSearch.query = t;
+                    contentSearch.running = true;
+                }
+                if (Settings.data.searchProviders) {
+                    providerSearch.terms = t.split(/\s+/);
+                    providerSearch.running = true;
+                }
             } else {
                 win.found = [];
                 win.inside = [];
@@ -343,18 +356,19 @@ PanelWindow {
             const f = q.slice(1).trim().toLowerCase();
             const items = Clipboard.entries.filter(e => f === "" || e.text.toLowerCase().indexOf(f) >= 0).slice(0, 30)
                 .map(e => ({ kind: "clip", icon: e.image ? "image-x-generic" : "edit-paste", thumb: e.image ? e.preview : "",
-                             title: e.text.replace(/\s+/g, " ").slice(0, 140), subtitle: e.image ? "Picture · Enter copies it" : "Clipboard", run: () => Clipboard.copy(e) }));
+                             title: e.text.replace(/\s+/g, " ").slice(0, 140), subtitle: (e.image ? "Picture · Enter copies it" : "Clipboard") + " · Shift+Delete removes it",
+                             run: () => Clipboard.copy(e), remove: () => Clipboard.remove(e) }));
             return [{ title: "Clipboard", items: items.length ? items : [{ kind: "none", icon: "edit-paste", title: Clipboard.available ? "Clipboard history is empty" : "cliphist is not installed", subtitle: "", run: () => {} }] }];
         }
 
         const math = q.startsWith("=") ? q.slice(1) : q;
         const v = math !== "" ? win.calc(math) : null;
-        if (v !== null)
+        if (v !== null && Settings.data.searchCalc)
             out.push({ title: "Calculator", items: [{ kind: "calc", icon: "accessories-calculator", title: "= " + v, subtitle: "Enter copies the result", run: () => Quickshell.clipboardText = String(v) }] });
-        const conv = win.convert(q);
+        const conv = Settings.data.searchCalc ? win.convert(q) : null;
         if (conv)
             out.push({ title: "Convert", items: [{ kind: "calc", icon: "accessories-calculator", title: "= " + conv.text, subtitle: "Enter copies", run: () => Quickshell.clipboardText = String(Number(conv.value.toPrecision(8))) }] });
-        if (win.isCurrency(q))
+        if (Settings.data.searchCalc && win.isCurrency(q))
             out.push({ title: "Currency", items: [{ kind: "ask", icon: "chat-message-new", title: "Convert " + q + " with Chronoa", subtitle: "live rates", run: () => Chronoa.ask("Convert " + q) }] });
         if (q.startsWith("="))
             return out;
@@ -393,7 +407,7 @@ PanelWindow {
                 run: () => Quickshell.execDetached(["python3", win.providersTool, "activate", r.bus, r.path, r.id].concat(q.split(/\s+/))) })) });
         out.push({ title: "More", items: [
             { kind: "ask", icon: "chat-message-new", title: "Ask Chronoa: " + q, subtitle: "Ctrl+Enter from anywhere", run: () => Chronoa.ask(q) },
-            { kind: "web", icon: "web-browser", title: "Search the web for “" + q + "”", subtitle: "", run: () => Qt.openUrlExternally("https://duckduckgo.com/?q=" + encodeURIComponent(q)) }
+            { kind: "web", icon: "web-browser", title: "Search the web for “" + q + "”", subtitle: Ui.webSearchName(), run: () => Qt.openUrlExternally(Ui.webSearchUrl(q)) }
         ] });
         return out;
     }
@@ -493,6 +507,12 @@ PanelWindow {
                     Keys.onTabPressed: win.sel = (win.sel + 1) % Math.max(1, win.flat.length)
                     Keys.onBacktabPressed: win.sel = (win.sel - 1 + win.flat.length) % Math.max(1, win.flat.length)
                     Keys.onPressed: e => {
+                        // Shift+Delete: a result that can be removed (a clipboard entry) goes
+                        if (e.key === Qt.Key_Delete && (e.modifiers & Qt.ShiftModifier) && win.flat[win.sel] && win.flat[win.sel].remove) {
+                            win.flat[win.sel].remove();
+                            e.accepted = true;
+                            return;
+                        }
                         if (win.q === "" && (e.key === Qt.Key_Right || e.key === Qt.Key_Left)) {
                             win.sel = Math.max(0, Math.min(win.flat.length - 1, win.sel + (e.key === Qt.Key_Right ? 1 : -1)));
                             e.accepted = true;

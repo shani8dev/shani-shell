@@ -104,13 +104,15 @@ Singleton {
             property string nightLightTo: "07:00"
             property bool adaptiveBrightness: false
             property bool autoRotate: false
-            property string wallpaper: "/usr/share/backgrounds/shani/shani-shell.png"
+            // ShaniOS's pair (assets/make-wallpapers.py): one for each style
+            property string wallpaper: "/usr/share/backgrounds/shani/shani-dark.jpg"
             property string terminal: "foot"
             property bool dock: true
             property bool dockAutoHide: false
             property int dockIconSize: 44            // the zoom peaks at about 1.6×
             // desktop-entry ids, in order; ones not installed are skipped
-            property list<string> dockPinned: ["org.gnome.Nautilus", "firefox", "foot", "dev.shani.cassini", "shani-chronoa", "org.gnome.TextEditor"]
+            // what the image ships: Files, Vivaldi (Flatpak), the terminal, Cassini, Chronoa, Text Editor (Flatpak)
+            property list<string> dockPinned: ["org.gnome.Nautilus", "com.vivaldi.Vivaldi", "foot", "dev.shani.cassini", "shani-chronoa", "org.gnome.TextEditor"]
             property string recordingsDir: ""   // "" -> $XDG_VIDEOS_DIR or ~/Videos/Recordings
 
             // idle stages, seconds; 0 turns a stage off. *Battery applies on battery.
@@ -126,12 +128,15 @@ Singleton {
             property bool accentFromWallpaper: false
             // apps' look, through org.gnome.desktop.interface (Appearance); the
             // shell uses the fonts itself, and the icon theme from its next start
-            property string iconTheme: "Adwaita"
+            property string iconTheme: "Papirus"     // follows the style: Papirus-Dark / Papirus-Light
             property string cursorTheme: "Adwaita"
             property int cursorSize: 24
             property string uiFont: "Inter"
             property int uiFontSize: 11
-            property string monoFont: "DejaVu Sans Mono"
+            property string monoFont: "JetBrains Mono"
+            // GNOME's accent names (libadwaita apps follow it too): blue teal green
+            // yellow orange red pink purple slate
+            property string accentName: "teal"
             property int monoFontSize: 11
             // accessibility
             property bool screenReader: false
@@ -171,6 +176,15 @@ Singleton {
             property bool mouseNaturalScroll: false
             property real mouseSpeed: 0
             property bool leftHanded: false
+            property string tpAccel: "adaptive"       // adaptive | flat
+            property real tpScroll: 0.8               // niri scroll-factor
+            property string tpClick: "clickfinger"    // clickfinger | button-areas
+            property string tpScrollMethod: "two-finger"   // two-finger | edge
+            property bool tpOffWithMouse: false
+            property string mouseAccel: "adaptive"
+            property real mouseScroll: 1.0
+            property bool numlock: true
+            property bool middlePaste: true           // paste the selection with the middle button
             property int keyRepeatDelay: 400
             property int keyRepeatRate: 30
             // screens, by connector: { mode, scale, transform, x, y, vrr, off } (Displays)
@@ -194,15 +208,37 @@ Singleton {
             property string proxySocks: ""
             property string proxyPac: ""
             property int batteryLimit: 100            // stop charging here (shani-admin battery-limit)
-            property bool systemSounds: true          // volume click, screenshot shutter
+            property bool systemSounds: true
+            property bool barBatteryPercent: true
+            property string popupPosition: "top-right"  // top-right | top-center | bottom-right
+            property bool islandActivities: true       // timers, music, recordings in the Island
+            property string slideshowDir: ""           // "" = no slideshow
+            property int slideshowMinutes: 30
+            property bool overAmplify: false          // volume up to 150 %
+            // the launcher (Settings > Search)
+            property bool searchFiles: true           // file names
+            property bool searchInside: true          // inside documents
+            property bool searchProviders: true       // apps' own results
+            property bool searchCalc: true            // sums, units, currency
+            property list<string> searchFolders: ["~"]
+            property string webSearch: "duckduckgo"   // duckduckgo | google | startpage | bing | ecosia
+            property int volumeStep: 5                // per key press, in %
+            property bool barDate: true
+            property bool showScrollbars: false        // false: overlay scrollbars that appear on use
+            property string darkSchedule: "manual"     // manual | sunset | custom
+            property string darkFrom: "19:00"
+            property string darkTo: "07:00"
+            property bool tourSeen: false             // the first-login tour (Tour)
+            property string recordArea: "screen"     // screen | region
+            property string recordSound: "none"      // none | desktop | mic          // volume click, screenshot shutter
             property int trashDays: 0                 // empty trash older than this; 0 = never
             property list<string> kbLayouts: []      // xkb "layout" or "layout+variant"; [] = the system's (localectl)
             property string kbSwitch: "grp:win_space_toggle"
             property real touchX: 24
             property real touchY: 420
             // day/night wallpaper: used with the light / dark style when set
-            property string wallpaperLight: ""
-            property string wallpaperDark: ""
+            property string wallpaperLight: "/usr/share/backgrounds/shani/shani-light.jpg"
+            property string wallpaperDark: "/usr/share/backgrounds/shani/shani-dark.jpg"
             // hold notifications while the screen is shared, and while
             // something is fullscreen (a game also gets the performance profile)
             property bool quietWhileSharing: true

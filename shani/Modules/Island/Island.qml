@@ -29,7 +29,8 @@ PanelWindow {
     // Live Activities (after iOS): with Chronoa idle, the Island carries the
     // one thing in progress that matters most — and a click acts on it
     readonly property var player: Mpris.players.values.find(p => p.isPlaying) || null
-    readonly property var activity: {
+    readonly property var activity: !Settings.data.islandActivities ? null : liveActivity
+    readonly property var liveActivity: {
         if (Camera.phase === "counting")
             return { icon: "camera-photo", text: "Photo in " + Camera.countdown + "…", color: Theme.accent, run: () => {} };
         if (Camera.phase === "recording")
@@ -38,6 +39,8 @@ PanelWindow {
             return { icon: "call-start", text: "Recording call · " + CallRecorder.elapsed, color: Theme.red, run: () => CallRecorder.stop() };
         if (Smart.suggestion)
             return { icon: Smart.suggestion.icon, text: Smart.suggestion.text, color: Smart.suggestion.color || Theme.accent, run: () => { const s = Smart.suggestion; Smart.suggestion = null; s.run(); } };
+        if (Recorder.recording && Recorder.selecting)
+            return { icon: "media-record", text: "Choose an area to record — Esc cancels", color: Theme.accent, run: () => Recorder.stop() };
         if (Recorder.recording)
             return { icon: "media-record", text: "Recording · " + Recorder.elapsed, color: Theme.red, run: () => Recorder.stop() };
         if (Dictation.phase === "recording")

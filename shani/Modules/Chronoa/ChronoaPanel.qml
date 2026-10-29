@@ -295,7 +295,7 @@ PanelWindow {
                 Text {
                     text: "Chronoa"
                     color: panel.textColor
-                    font.family: "Noto Sans"
+                    font.family: Theme.font
                     font.pixelSize: 16 * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
@@ -303,7 +303,7 @@ PanelWindow {
                 Text {
                     text: panel.stateLabel()
                     color: panel.stateColor()
-                    font.family: "Noto Sans"
+                    font.family: Theme.font
                     font.pixelSize: 12 * Theme.fontScale
                 }
 
@@ -311,7 +311,7 @@ PanelWindow {
                     visible: panel.detail !== ""
                     text: "· " + panel.detail
                     color: panel.dimColor
-                    font.family: "Noto Sans"
+                    font.family: Theme.font
                     font.pixelSize: 11 * Theme.fontScale
                     elide: Text.ElideRight
                     Layout.maximumWidth: 280
@@ -332,7 +332,7 @@ PanelWindow {
                         anchors.centerIn: parent
                         text: panel.modelLabel
                         color: panel.dimColor
-                        font.family: "DejaVu Sans Mono"
+                        font.family: Theme.mono
                         font.pixelSize: 10 * Theme.fontScale
                     }
                 }
@@ -372,7 +372,7 @@ PanelWindow {
                 visible: panel.model.count === 0
                 text: "Ask for a job.\n\nChronoa runs it on this machine,\nand asks before anything changes."
                 color: Theme.alpha(Theme.dim, 0.55)
-                font.family: "Noto Sans"
+                font.family: Theme.font
                 font.pixelSize: 15 * Theme.fontScale
                 lineHeight: 1.5
                 horizontalAlignment: Text.AlignHCenter
@@ -448,7 +448,7 @@ PanelWindow {
                                     anchors.margins: 9
                                     text: row.text
                                     color: panel.textColor
-                                    font.family: "Noto Sans"
+                                    font.family: Theme.font
                                     font.pixelSize: 13 * Theme.fontScale
                                     wrapMode: Text.WordWrap
                                 }
@@ -463,7 +463,7 @@ PanelWindow {
                                 anchors.top: parent.top
                                 text: row.text
                                 color: panel.textColor
-                                font.family: "Noto Sans"
+                                font.family: Theme.font
                                 font.pixelSize: 13 * Theme.fontScale
                                 lineHeight: 1.35
                                 wrapMode: Text.WordWrap
@@ -496,7 +496,7 @@ PanelWindow {
                                     Text {
                                         text: row.text
                                         color: Theme.amber
-                                        font.family: "DejaVu Sans Mono"
+                                        font.family: Theme.mono
                                         font.pixelSize: 10 * Theme.fontScale
                                         anchors.verticalCenter: parent.verticalCenter
                                     }
@@ -537,7 +537,7 @@ PanelWindow {
                                     Text {
                                         text: row.title
                                         color: panel.textColor
-                                        font.family: "Noto Sans"
+                                        font.family: Theme.font
                                         font.pixelSize: 13 * Theme.fontScale
                                         font.weight: Font.DemiBold
                                     }
@@ -545,7 +545,7 @@ PanelWindow {
                                         width: parent.width
                                         text: row.detail
                                         color: panel.dimColor
-                                        font.family: "Noto Sans"
+                                        font.family: Theme.font
                                         font.pixelSize: 11 * Theme.fontScale
                                         wrapMode: Text.WordWrap
                                     }
@@ -579,7 +579,7 @@ PanelWindow {
                                                     text: modelData
                                                     elide: Text.ElideRight
                                                     color: panel.textColor
-                                                    font.family: "Noto Sans"
+                                                    font.family: Theme.font
                                                     font.pixelSize: 11 * Theme.fontScale
                                                 }
                                                 MouseArea {
@@ -598,7 +598,7 @@ PanelWindow {
                                         text: (row.decision.indexOf("no answer") === 0 ? "· " : "✓ ")
                                         + row.decision
                                         color: panel.accent
-                                        font.family: "Noto Sans"
+                                        font.family: Theme.font
                                         font.pixelSize: 11 * Theme.fontScale
                                     }
                                 }
@@ -612,7 +612,7 @@ PanelWindow {
                                 anchors.top: parent.top
                                 text: row.text
                                 color: panel.dimColor
-                                font.family: "DejaVu Sans Mono"
+                                font.family: Theme.mono
                                 font.pixelSize: 10 * Theme.fontScale
                                 wrapMode: Text.WordWrap
                             }
@@ -649,7 +649,7 @@ PanelWindow {
                             anchors.centerIn: parent
                             text: modelData.label
                             color: panel.dimColor
-                            font.family: "Noto Sans"
+                            font.family: Theme.font
                             font.pixelSize: 11 * Theme.fontScale
                         }
                         MouseArea {
@@ -689,7 +689,7 @@ PanelWindow {
                         id: input
                         Layout.fillWidth: true
                         color: panel.textColor
-                        font.family: "Noto Sans"
+                        font.family: Theme.font
                         font.pixelSize: 14 * Theme.fontScale
                         selectionColor: Theme.alpha(Theme.accent, 0.35)
                         clip: true
@@ -703,7 +703,7 @@ PanelWindow {
                         visible: input.text === ""
                         text: "Ask Chronoa, or describe a task…"
                         color: Theme.alpha(Theme.dim, 0.75)
-                        font.family: "Noto Sans"
+                        font.family: Theme.font
                         font.pixelSize: 14 * Theme.fontScale
                         Layout.fillWidth: true
                     }
@@ -719,7 +719,7 @@ PanelWindow {
                             anchors.centerIn: parent
                             text: "mic"
                             color: panel.dimColor
-                            font.family: "DejaVu Sans Mono"
+                            font.family: Theme.mono
                             font.pixelSize: 9 * Theme.fontScale
                         }
                         MouseArea {
@@ -778,7 +778,7 @@ PanelWindow {
                 Layout.fillWidth: true
                 text: "↵ send    esc close    ·    tools ask before they change anything"
                 color: Theme.alpha(Theme.dim, 0.65)
-                font.family: "Noto Sans"
+                font.family: Theme.font
                 font.pixelSize: 10 * Theme.fontScale
             }
         }

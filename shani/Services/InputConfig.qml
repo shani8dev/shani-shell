@@ -25,6 +25,7 @@ Singleton {
         d.kbLayouts.length ? "            variant \"" + Array.from(d.kbLayouts).map(l => l.split("+")[1] || "").join(",") + "\"" : "",
         root.xkbOptions ? "            options \"" + root.xkbOptions + "\"" : "",
         d.kbLayouts.length || root.xkbOptions ? "        }" : "",
+        d.numlock ? "        numlock" : "",
         "        repeat-delay " + d.keyRepeatDelay,
         "        repeat-rate " + d.keyRepeatRate,
         "    }",
@@ -34,11 +35,18 @@ Singleton {
         d.naturalScroll ? "        natural-scroll" : "",
         d.leftHanded ? "        left-handed" : "",
         "        accel-speed " + d.touchpadSpeed.toFixed(2),
+        "        accel-profile \"" + d.tpAccel + "\"",
+        "        scroll-factor " + d.tpScroll,
+        "        click-method \"" + d.tpClick + "\"",
+        "        scroll-method \"" + d.tpScrollMethod + "\"",
+        d.tpOffWithMouse ? "        disabled-on-external-mouse" : "",
         "    }",
         "    mouse {",
         d.mouseNaturalScroll ? "        natural-scroll" : "",
         d.leftHanded ? "        left-handed" : "",
         "        accel-speed " + d.mouseSpeed.toFixed(2),
+        "        accel-profile \"" + d.mouseAccel + "\"",
+        "        scroll-factor " + d.mouseScroll,
         "    }",
         d.winFocusFollowsMouse ? "    focus-follows-mouse max-scroll-amount=\"0%\"" : "",
         "}",
@@ -66,6 +74,12 @@ Singleton {
     ].filter(l => l !== "").join("\n") + "\n" : ""
 
     onKdlChanged: if (kdl) write.restart()
+    // middle-click paste is the toolkit's: GTK reads this one switch
+    Process {
+        running: Settings.loaded
+        command: ["gsettings", "set", "org.gnome.desktop.interface", "gtk-enable-primary-paste", String(root.d.middlePaste)]
+        onCommandChanged: if (Settings.loaded) running = true
+    }
     Timer {
         id: write
         interval: 300                     // a few switches flipped together: one write

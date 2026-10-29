@@ -211,9 +211,9 @@ context.modules = [
     args = {
       node.description = "ShaniOS noise-cancelled microphone"
       media.name = "ShaniOS noise-cancelled microphone"
-      filter.graph = { nodes = [ { type = ladspa name = rnnoise plugin = "librnnoise_ladspa" label = noise_suppressor_mono control = { "VAD Threshold (%)" = 50.0 } } ] }
-      audio.channels = 1
-      audio.position = [ MONO ]
+      filter.graph = { nodes = [ { type = ladspa name = rnnoise plugin = "librnnoise_ladspa" label = noise_suppressor_stereo control = { "VAD Threshold (%)" = 50.0 } } ] }
+      audio.channels = 2
+      audio.position = [ FL FR ]
       capture.props = { node.name = "effect_input.shani_mic" node.passive = true${micTarget ? ` target.object = "${micTarget}"` : ""} }
       playback.props = { node.name = "${micName}" media.class = Audio/Source }
     }
@@ -227,9 +227,9 @@ context.modules = [
             micRebuild.restart();
         } else {
             mic.running = false;
-            const real = Pipewire.nodes.values.find(n => n.name === root.micTarget);
-            if (real)
-                Pipewire.preferredDefaultAudioSource = real;
+            // by name: the previous default may be a monitor, which Quickshell will not take as a source
+            if (root.micTarget)
+                Quickshell.execDetached(["pactl", "set-default-source", root.micTarget]);
         }
     }
     onMicConfChanged: if (micOn) micRebuild.restart()

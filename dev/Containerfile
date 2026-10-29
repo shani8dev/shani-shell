@@ -40,3 +40,5 @@ RUN pacman -Sy --noconfirm --needed greetd && pacman -Scc --noconfirm
 RUN pacman -Sy --noconfirm --needed sound-theme-freedesktop && pacman -Scc --noconfirm
 # microphone noise suppression (RNNoise LADSPA), as shani-desktop-niri ships it
 RUN pacman -Sy --noconfirm --needed noise-suppression-for-voice && pacman -Scc --noconfirm
+# the default look shani-desktop-niri ships: adw-gtk3, Papirus, JetBrains Mono
+RUN pacman -Sy --noconfirm --needed adw-gtk-theme papirus-icon-theme ttf-jetbrains-mono && pacman -Scc --noconfirm

@@ -145,17 +145,18 @@ PanelWindow {
                         model: [
                             { id: "logout", label: "Log out", run: () => Power.logout() },
                             { id: "suspend", label: "Suspend", run: () => Power.suspend() },
+                            { id: "hibernate", label: "Hibernate", run: () => Power.hibernate() },
                             { id: "reboot", label: "Reboot", run: () => Power.reboot() },
                             { id: "poweroff", label: "Power off", run: () => Power.poweroff() }
-                        ]
+                        ].filter(x => x.id !== "hibernate" || Power.canHibernate)
                         Button {
                             required property var modelData
                             Layout.fillWidth: true
                             text: win.confirm === modelData.id ? "Sure?" : modelData.label
                             kind: win.confirm === modelData.id ? "danger" : "plain"
                             onClicked: {
-                                // suspend and log out are undoable; the others ask once more
-                                if (modelData.id === "suspend" || win.confirm === modelData.id) {
+                                // suspend and hibernate resume where they were; the others ask once more
+                                if (modelData.id === "suspend" || modelData.id === "hibernate" || win.confirm === modelData.id) {
                                     win.confirm = "";
                                     Ui.closeAll();
                                     modelData.run();
@@ -182,11 +183,11 @@ PanelWindow {
                 SliderRow {
                     Layout.fillWidth: true
                     icon: Audio.icon
-                    value: Audio.volume
+                    value: Audio.volume / Audio.maxVolume
                     muted: Audio.muted
                     hasDetail: true
                     expanded: Ui.expanded === "audio"
-                    onMoved: v => Audio.setVolume(v)
+                    onMoved: v => Audio.setVolume(v * Audio.maxVolume)
                     onIconClicked: Audio.toggleMute()
                     onDetail: Ui.expanded = Ui.expanded === "audio" ? "" : "audio"
                 }
@@ -467,8 +468,13 @@ PanelWindow {
                         can: Recorder.available
                         icon: "media-record"
                         title: "Screen record"
-                        subtitle: Recorder.recording ? Recorder.elapsed : "Focused screen"
+                        subtitle: Recorder.recording ? Recorder.elapsed
+                            : (Settings.data.recordArea === "region" ? "Part of the screen" : "Focused screen")
+                              + (Settings.data.recordSound === "desktop" ? " · sound" : Settings.data.recordSound === "mic" ? " · mic" : "")
                         on: Recorder.recording
+                        hasDetail: true
+                        expanded: Ui.expanded === "record"
+                        onDetail: Ui.expanded = Ui.expanded === "record" ? "" : "record"
                         onToggled: {
                             Ui.closeAll();
                             Recorder.toggle();
@@ -770,7 +776,6 @@ PanelWindow {
                     }
                     SectionTitle {
                         text: win.bt && win.bt.discovering ? "Bluetooth · searching" : "Bluetooth"
-                        IconButton { icon: "preferences-system"; size: 24; onClicked: { Ui.closeAll(); Quickshell.execDetached(["blueman-manager"]); } }
                     }
                     Repeater {
                         model: Bluetooth.devices.values.slice().sort((a, b) => (b.connected - a.connected) || (b.paired - a.paired))
@@ -864,6 +869,59 @@ PanelWindow {
                         title: "Display settings…"
                         subtitle: "resolution, refresh rate, rotation, arrangement"
                         onClicked: { Ui.expanded = "settings"; Ui.settingsCat = "displays"; }
+                    }
+                }
+
+                // sending a file over Bluetooth: to which paired device
+                ColumnLayout {
+                    visible: Ui.expanded === "btsend" && BtSend.file !== ""
+                    Layout.fillWidth: true
+                    spacing: 2
+                    SectionTitle { text: "Send " + BtSend.file.split("/").pop() + " to" }
+                    Repeater {
+                        model: BtSend.devices
+                        ListRow {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            icon: modelData.icon || "bluetooth-active"
+                            title: modelData.name || modelData.address
+                            subtitle: BtSend.busy && BtSend.target === (modelData.name || modelData.address) ? "Sending…" : (modelData.connected ? "Connected" : "Paired")
+                            onClicked: BtSend.sendTo(modelData)
+                        }
+                    }
+                }
+
+                // screen recording: what and with which sound
+                ColumnLayout {
+                    visible: Ui.expanded === "record"
+                    Layout.fillWidth: true
+                    spacing: 6
+                    SectionTitle { text: "Screen recording" }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Repeater {
+                            model: [{ label: "Focused screen", v: "screen" }, { label: "Part of the screen", v: "region" }]
+                            Choice {
+                                required property var modelData
+                                text: modelData.label
+                                selected: Settings.data.recordArea === modelData.v
+                                onClicked: Settings.data.recordArea = modelData.v
+                            }
+                        }
+                    }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Repeater {
+                            model: [{ label: "No sound", v: "none" }, { label: "Computer sound", v: "desktop" }, { label: "Microphone", v: "mic" }]
+                            Choice {
+                                required property var modelData
+                                text: modelData.label
+                                selected: Settings.data.recordSound === modelData.v
+                                onClicked: Settings.data.recordSound = modelData.v
+                            }
+                        }
                     }
                 }
 
@@ -1103,6 +1161,13 @@ PanelWindow {
                                 icon: "phone"
                                 size: 24
                                 onClicked: Phone.send(shelfFile.modelData.path)
+                            }
+                            IconButton {
+                                visible: BtSend.devices.length > 0
+                                icon: "bluetooth-active"
+                                size: 24
+                                Accessible.name: "Send " + shelfFile.modelData.name + " over Bluetooth"
+                                onClicked: { BtSend.pick(shelfFile.modelData.path); Ui.expanded = "btsend"; }
                             }
                         }
                     }

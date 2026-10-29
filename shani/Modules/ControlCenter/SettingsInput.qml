@@ -160,6 +160,31 @@ ColumnLayout {
         current: page.d.touchpadSpeed
         onPicked: v => page.d.touchpadSpeed = v
     }
+    Picks {
+        label: "Click with"
+        options: [{ label: "Whole pad (1, 2, 3 fingers)", value: "clickfinger" }, { label: "Bottom corners", value: "button-areas" }]
+        current: page.d.tpClick
+        onPicked: v => page.d.tpClick = v
+    }
+    Picks {
+        label: "Scroll with"
+        options: [{ label: "Two fingers", value: "two-finger" }, { label: "The edge", value: "edge" }]
+        current: page.d.tpScrollMethod
+        onPicked: v => page.d.tpScrollMethod = v
+    }
+    Picks {
+        label: "Scroll speed"
+        options: [{ label: "Slow", value: 0.5 }, { label: "Normal", value: 0.8 }, { label: "Fast", value: 1.2 }]
+        current: page.d.tpScroll
+        onPicked: v => page.d.tpScroll = v
+    }
+    Picks {
+        label: "Acceleration"
+        options: [{ label: "Adaptive", value: "adaptive" }, { label: "Flat (the same at any speed)", value: "flat" }]
+        current: page.d.tpAccel
+        onPicked: v => page.d.tpAccel = v
+    }
+    SwitchRow { Layout.fillWidth: true; text: "Off while a mouse is plugged in"; checked: page.d.tpOffWithMouse; onToggled: on => page.d.tpOffWithMouse = on }
     Text {
         Layout.fillWidth: true
         text: "Gestures: three fingers left or right move between columns, up or down between workspaces; four fingers up open the overview."
@@ -179,7 +204,22 @@ ColumnLayout {
         onPicked: v => page.d.mouseSpeed = v
     }
 
+    Picks {
+        label: "Mouse acceleration"
+        options: [{ label: "Adaptive", value: "adaptive" }, { label: "Flat (games, drawing)", value: "flat" }]
+        current: page.d.mouseAccel
+        onPicked: v => page.d.mouseAccel = v
+    }
+    Picks {
+        label: "Mouse scroll speed"
+        options: [{ label: "Slow", value: 0.6 }, { label: "Normal", value: 1.0 }, { label: "Fast", value: 1.6 }]
+        current: page.d.mouseScroll
+        onPicked: v => page.d.mouseScroll = v
+    }
+    SwitchRow { Layout.fillWidth: true; text: "Middle-click pastes"; hint: "the text last selected"; checked: page.d.middlePaste; onToggled: on => page.d.middlePaste = on }
+
     SectionTitle { Layout.fillWidth: true; text: "Keyboard" }
+    SwitchRow { Layout.fillWidth: true; text: "Num Lock on at sign-in"; checked: page.d.numlock; onToggled: on => page.d.numlock = on }
     Picks {
         label: "Repeat starts after"
         options: [{ label: "Short", value: 250 }, { label: "Normal", value: 400 }, { label: "Long", value: 600 }, { label: "Longest", value: 900 }]

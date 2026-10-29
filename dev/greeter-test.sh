@@ -41,7 +41,7 @@ sleep 0.5
 mkdir -p /root/.config/quickshell
 ln -sfn /work/greeter /root/.config/quickshell/shani-greeter
 
-SHANI_GREETER_WALLPAPER=/work/assets/wallpaper.png WAYLAND_DISPLAY=wayland-parent \
+SHANI_GREETER_WALLPAPER=/work/assets/shani-dark.jpg WAYLAND_DISPLAY=wayland-parent \
     nohup niri -c "$KDL" > /work/logs/greeter-niri.log 2>&1 &
 NIRI_PID=$!
 

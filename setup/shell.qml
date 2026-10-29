@@ -22,7 +22,7 @@ import "strings.js" as Strings
 ShellRoot {
     id: root
 
-    readonly property string wallpaper: Quickshell.env("SHANI_GREETER_WALLPAPER") || "/usr/share/backgrounds/shani/shani-shell.png"
+    readonly property string wallpaper: Quickshell.env("SHANI_GREETER_WALLPAPER") || "/usr/share/backgrounds/shani/shani-dark.jpg"
     readonly property var sessionCmd: (Quickshell.env("SHANI_GREETER_SESSION") || "niri-session").split(" ")
     // pkexec in the image; the dev test runs the helper directly, as root
     readonly property var applyCmd: (Quickshell.env("SHANI_SETUP_APPLY") || "pkexec /usr/lib/shani-shell/first-account.py").split(" ")

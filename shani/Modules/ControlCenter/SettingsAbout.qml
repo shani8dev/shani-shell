@@ -53,7 +53,7 @@ ColumnLayout {
         Layout.fillWidth: true
         spacing: 14
         Image {
-            source: "file:///usr/share/backgrounds/shani/shani-shell.png"
+            source: Theme.wallpaper ? "file://" + Theme.wallpaper : ""
             Layout.preferredWidth: 96
             Layout.preferredHeight: 60
             fillMode: Image.PreserveAspectCrop

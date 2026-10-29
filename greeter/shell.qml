@@ -30,7 +30,7 @@ ShellRoot {
     // (space-separated) so another session can be tried without a rebuild.
     readonly property var sessionCmd: (Quickshell.env("SHANI_GREETER_SESSION") || "niri-session").split(" ")
     readonly property string wallpaper: Quickshell.env("SHANI_GREETER_WALLPAPER")
-        || "/usr/share/backgrounds/shani/shani-shell.png"
+        || "/usr/share/backgrounds/shani/shani-dark.jpg"
 
     property string prompt: "Password"
     property bool echo: false
@@ -175,7 +175,7 @@ ShellRoot {
                     text: Qt.formatTime(clock.date, "HH:mm")
                     font.features: { "tnum": 1 }
                     color: root.textColor
-                    font.family: "Noto Sans"
+                    font.family: Theme.font
                     font.pixelSize: 84 * Theme.fontScale
                     font.weight: Font.Light
                 }
@@ -183,7 +183,7 @@ ShellRoot {
                     Layout.alignment: Qt.AlignHCenter
                     text: Qt.formatDate(clock.date, "dddd, d MMMM")
                     color: root.dimColor
-                    font.family: "Noto Sans"
+                    font.family: Theme.font
                     font.pixelSize: 18 * Theme.fontScale
                 }
             }
@@ -212,25 +212,52 @@ ShellRoot {
                         home: ""            // the greeter cannot read homes; AccountsService it can
                         visible: userField.text.trim() !== ""
                     }
-                    // one click picks who signs in
+                    // one click picks who signs in: their picture (AccountsService) and name
                     Flow {
                         Layout.fillWidth: true
                         visible: root.users.length > 1
-                        spacing: 6
+                        spacing: 8
                         Repeater {
                             model: root.users
-                            Choice {
+                            Rectangle {
+                                id: who
                                 required property var modelData
-                                text: modelData.fullname || modelData.name
-                                selected: userField.text.trim() === modelData.name
-                                onClicked: { userField.text = modelData.name; passField.input.forceActiveFocus(); }
+                                readonly property bool chosen: userField.text.trim() === modelData.name
+                                width: 76
+                                height: 84
+                                radius: 12
+                                color: chosen ? Theme.accentSoft : (pick.containsMouse ? Theme.hover : "transparent")
+                                border.color: chosen ? Theme.accent : "transparent"
+                                Accessible.role: Accessible.Button
+                                Accessible.name: "Sign in as " + (modelData.fullname || modelData.name)
+                                Column {
+                                    anchors.centerIn: parent
+                                    spacing: 4
+                                    Avatar { anchors.horizontalCenter: parent.horizontalCenter; size: 44; user: who.modelData.name; home: "" }
+                                    Text {
+                                        width: 70
+                                        horizontalAlignment: Text.AlignHCenter
+                                        text: (who.modelData.fullname || who.modelData.name).split(" ")[0]
+                                        color: Theme.text
+                                        elide: Text.ElideRight
+                                        font.family: Theme.font
+                                        font.pixelSize: 11 * Theme.fontScale
+                                    }
+                                }
+                                MouseArea {
+                                    id: pick
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: { userField.text = who.modelData.name; passField.input.forceActiveFocus(); }
+                                }
                             }
                         }
                     }
                     Text {
                         text: "SHANI"
                         color: root.accent
-                        font.family: "Noto Sans"
+                        font.family: Theme.font
                         font.pixelSize: 15 * Theme.fontScale
                         font.letterSpacing: 6
                         font.weight: Font.DemiBold
@@ -263,7 +290,7 @@ ShellRoot {
                         text: root.error !== "" ? root.error : root.info
                         color: root.error !== "" ? root.errColor : root.dimColor
                         wrapMode: Text.Wrap
-                        font.family: "Noto Sans"
+                        font.family: Theme.font
                         font.pixelSize: 13 * Theme.fontScale
                     }
                 }
@@ -335,7 +362,7 @@ ShellRoot {
             verticalAlignment: TextInput.AlignVCenter
             color: root.textColor
             selectionColor: root.accent
-            font.family: "Noto Sans"
+            font.family: Theme.font
             font.pixelSize: 15 * Theme.fontScale
             echoMode: field.secret ? TextInput.Password : TextInput.Normal
             enabled: field.enabled

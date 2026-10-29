@@ -53,7 +53,7 @@ export WAYLAND_DISPLAY=wayland-1
 # --- wallpaper + demo window ---------------------------------------------
 nohup awww-daemon > /work/logs/awww.log 2>&1 &
 sleep 1
-awww img /work/assets/wallpaper.png > /work/logs/awww-img.log 2>&1 || true
+awww img /work/assets/shani-dark.jpg > /work/logs/awww-img.log 2>&1 || true
 nohup foot -a shani-demo -f "monospace:size=13" \
     -e /work/dev/demo-term.sh > /work/logs/foot.log 2>&1 &
 sleep 1

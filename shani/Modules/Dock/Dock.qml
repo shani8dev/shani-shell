@@ -19,7 +19,8 @@ PanelWindow {
     anchors.bottom: true
     // sized for the widest zoom once, so the surface is not resized on every pointer move
     implicitWidth: items.length * (base + 4) + (peak - base) * 3 + 80
-    implicitHeight: peak + 68           // room for a zoomed icon and its label (140 at 44 px)
+    // room for a zoomed icon and its label (140 at 44 px), and the menu above it while open
+    implicitHeight: peak + 68 + (menuFor >= 0 ? 190 : 0)
     color: "transparent"
     exclusionMode: Settings.data.dockAutoHide ? ExclusionMode.Ignore : ExclusionMode.Normal
     exclusiveZone: Settings.data.dockAutoHide ? 0 : base + 32
@@ -29,9 +30,10 @@ PanelWindow {
     BackgroundEffect.blurRegion: Settings.data.blur && shown ? dockRegion : null
     Region { id: dockRegion; item: dock; radius: dock.radius }
 
-    readonly property bool shown: !Settings.data.dockAutoHide || hover.hovered
+    readonly property bool shown: !Settings.data.dockAutoHide || hover.hovered || menuFor >= 0
+    property int menuFor: -1            // the cell whose right-click menu is open
     // when hidden only a 4 px strip at the bottom edge takes input
-    mask: Region { item: win.shown ? zone : edge }
+    mask: Region { item: win.menuFor >= 0 ? whole : win.shown ? zone : edge }
 
     readonly property var entryOf: id => DesktopEntries.byId(id) || DesktopEntries.heuristicLookup(id)
     readonly property var running: {
@@ -87,6 +89,20 @@ PanelWindow {
         const cur = ids.indexOf(Niri.focusedWindowId);
         Niri.action("focus-window", "--id", ids[cur < 0 ? 0 : (cur + 1) % ids.length]);
     }
+    // move a pinned app one place along the pinned list
+    function movePin(it, by) {
+        const list = Array.from(Settings.data.dockPinned);
+        const i = list.indexOf(it.entry ? it.entry.id : it.id), j = i + by;
+        if (i < 0 || j < 0 || j >= list.length)
+            return;
+        list.splice(i, 1);
+        list.splice(j, 0, it.entry ? it.entry.id : it.id);
+        Settings.data.dockPinned = list;
+    }
+    function closeAll(it) {
+        for (const w of it.windows)
+            Niri.action("close-window", "--id", String(w.id));
+    }
     function togglePin(it) {
         const list = Array.from(Settings.data.dockPinned);
         const i = list.indexOf(it.entry ? it.entry.id : it.id);
@@ -98,6 +114,13 @@ PanelWindow {
     }
 
     HoverHandler { id: hover }
+    Item { id: whole; anchors.fill: parent }
+    // a click anywhere else closes the menu
+    MouseArea {
+        anchors.fill: parent
+        visible: win.menuFor >= 0
+        onClicked: win.menuFor = -1
+    }
 
     // input: the base plus the space a zoomed icon rises into
     Item {
@@ -214,7 +237,7 @@ PanelWindow {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: e => {
                         if (e.button === Qt.RightButton)
-                            win.togglePin(cell.modelData);
+                            win.menuFor = win.menuFor === cell.index ? -1 : cell.index;
                         else if (e.button === Qt.MiddleButton && cell.modelData.entry) {
                             cell.modelData.entry.execute();
                             bounce.restart();
@@ -222,8 +245,58 @@ PanelWindow {
                             win.activate(cell.modelData);
                     }
                 }
+                // the right-click menu: what can be done with this app
+                Glass {
+                    visible: win.menuFor === cell.index
+                    strong: true
+                    radius: 12
+                    width: 190
+                    height: menuCol.implicitHeight + 12
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.top
+                    anchors.bottomMargin: 16
+                    z: 10
+                    Column {
+                        id: menuCol
+                        x: 6
+                        y: 6
+                        width: parent.width - 12
+                        Repeater {
+                            model: [
+                                { label: "New window", show: !!cell.modelData.entry, run: () => { cell.modelData.entry.execute(); bounce.restart(); } },
+                                { label: cell.modelData.pinned ? "Unpin from dock" : "Pin to dock", show: !!cell.modelData.entry, run: () => win.togglePin(cell.modelData) },
+                                { label: "Move left", show: cell.modelData.pinned && cell.index > 0, run: () => win.movePin(cell.modelData, -1) },
+                                { label: "Move right", show: cell.modelData.pinned && cell.index < Settings.data.dockPinned.length - 1, run: () => win.movePin(cell.modelData, 1) },
+                                { label: cell.modelData.windows.length > 1 ? "Close " + cell.modelData.windows.length + " windows" : "Close window", show: cell.modelData.windows.length > 0, run: () => win.closeAll(cell.modelData) }
+                            ].filter(x => x.show)
+                            Rectangle {
+                                required property var modelData
+                                width: menuCol.width
+                                height: 30
+                                radius: 8
+                                color: item.containsMouse ? Theme.hover : "transparent"
+                                Accessible.role: Accessible.MenuItem
+                                Accessible.name: modelData.label
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    x: 10
+                                    text: parent.modelData.label
+                                    color: Theme.text
+                                    font.family: Theme.font
+                                    font.pixelSize: 12 * Theme.fontScale
+                                }
+                                MouseArea {
+                                    id: item
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: { parent.modelData.run(); win.menuFor = -1; }
+                                }
+                            }
+                        }
+                    }
+                }
                 ToolTipText {
-                    visible: area.containsMouse
+                    visible: area.containsMouse && win.menuFor < 0
                     text: cell.modelData.entry ? cell.modelData.entry.name : cell.modelData.id
                 }
             }

@@ -60,6 +60,13 @@ ColumnLayout {
     Process { id: setProfile; onExited: cardList.running = true }
 
     SectionTitle { Layout.fillWidth: true; text: "Sound" }
+    SwitchRow { Layout.fillWidth: true; text: "Allow volume above 100 %"; hint: "for quiet speakers — loud audio may distort"; checked: page.d.overAmplify; onToggled: on => page.d.overAmplify = on }
+    Picks {
+        label: "Volume keys change it by"
+        options: [{ label: "2 %", value: 2 }, { label: "5 %", value: 5 }, { label: "10 %", value: 10 }]
+        current: page.d.volumeStep
+        onPicked: v => page.d.volumeStep = v
+    }
     SwitchRow { Layout.fillWidth: true; text: "System sounds"; hint: "a click when the volume changes, a shutter for screenshots"; checked: page.d.systemSounds; onToggled: on => page.d.systemSounds = on }
     Repeater {
         model: page.cards

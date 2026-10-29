@@ -41,6 +41,7 @@ import qs.Modules.Touch
 import qs.Modules.Flash
 import qs.Modules.Pair
 import qs.Modules.DisplayConfirm
+import qs.Modules.Tour
 
 ShellRoot {
     Wallpaper {}
@@ -66,11 +67,12 @@ ShellRoot {
     FlashAlert {}
     PairDialog {}
     DisplayConfirm {}
+    Tour {}
     LockScreen {}
     ChronoaSurface { id: chronoa }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive]
+    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend]
 
     IpcHandler {
         target: "shani"
@@ -100,8 +102,8 @@ ShellRoot {
 
         // session
         function lock() { Lock.lock(); }
-        function volumeUp() { Audio.step(0.05); }
-        function volumeDown() { Audio.step(-0.05); }
+        function volumeUp() { Audio.stepKey(true); }
+        function volumeDown() { Audio.stepKey(false); }
         function volumeMute() { Audio.toggleMute(); }
         function micMute() { Audio.toggleMic(); }
         function brightnessUp() { Brightness.step(0.05); }
@@ -143,6 +145,7 @@ ShellRoot {
         }
         function displayKeep() { Displays.keep(); }
         function photo() { Camera.photo(); }
+        function tour() { Ui.closeAll(); Ui.tour = true; }
         // media keys: the player that is playing, else the first one
         function media(action: string) {
             const ps = Mpris.players.values;
@@ -266,6 +269,7 @@ ShellRoot {
                 transcript: Captions.transcript,
                 flashes: Ui.flashes,
                 settingsCat: Ui.settingsCat,
+                tour: Ui.tour || (Settings.loaded && !Settings.data.tourSeen && !Quickshell.env("SHANI_NO_TOUR")),
                 btAsk: BtAgent.ask ? BtAgent.ask.ask + ":" + BtAgent.ask.device : "",
                 btShow: BtAgent.show ? BtAgent.show.device : "",
                 speaking: Speak.speaking,

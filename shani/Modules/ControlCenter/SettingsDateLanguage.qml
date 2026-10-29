@@ -83,6 +83,23 @@ ColumnLayout {
         enabled: page.canNtp
         onToggled: on => page.timedatectl(["set-ntp", String(on)])
     }
+    // automatic time off: set it here (timedated; the polkit agent asks)
+    RowLayout {
+        visible: !page.ntp
+        Layout.fillWidth: true
+        spacing: 6
+        TextField { id: setDate; Layout.preferredWidth: 130; placeholder: Qt.formatDate(new Date(), "yyyy-MM-dd") }
+        TextField { id: setClock; Layout.preferredWidth: 90; placeholder: Qt.formatTime(new Date(), "HH:mm") }
+        Button {
+            text: "Set the time"
+            enabled: /^\d{4}-\d\d-\d\d$/.test(setDate.text.trim() || setDate.placeholder) && /^\d\d?:\d\d$/.test(setClock.text.trim() || setClock.placeholder)
+            onClicked: {
+                page.timedatectl(["set-time", (setDate.text.trim() || setDate.placeholder) + " " + (setClock.text.trim() || setClock.placeholder) + ":00"]);
+                setDate.text = "";
+                setClock.text = "";
+            }
+        }
+    }
     SwitchRow { Layout.fillWidth: true; text: "24-hour clock"; checked: page.d.use24h; onToggled: on => page.d.use24h = on }
     Text {
         text: "Time zone: " + (page.zone || "unknown")

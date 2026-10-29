@@ -21,27 +21,7 @@ ColumnLayout {
     property string note: ""
     onActiveChanged: if (active) readConn.running = true
 
-    // ---- proxy ------------------------------------------------------------------
-    readonly property var hostPort: s => { const m = /^\s*([^\s:]+):(\d+)\s*$/.exec(s || ""); return m ? [m[1], m[2]] : ["", "0"]; }
-    Process {
-        id: proxy
-        running: Settings.loaded
-        command: ["sh", "-c", 'p=org.gnome.system.proxy; mode="$1"
-            gsettings set $p mode "$mode"; gsettings set $p autoconfig-url "$2"
-            set -- "$@"; gsettings set $p.http host "$3"; gsettings set $p.http port "$4"
-            gsettings set $p.https host "$5"; gsettings set $p.https port "$6"
-            gsettings set $p.socks host "$7"; gsettings set $p.socks port "$8"
-            e="${XDG_CONFIG_HOME:-$HOME/.config}/environment.d/50-shani-proxy.conf"
-            if [ "$mode" = manual ] && [ -n "$3" ]; then mkdir -p "${e%/*}"
-                printf "http_proxy=http://%s:%s/\\nhttps_proxy=http://%s:%s/\\nHTTP_PROXY=http://%s:%s/\\nHTTPS_PROXY=http://%s:%s/\\nno_proxy=localhost,127.0.0.1,::1\\n" "$3" "$4" "${5:-$3}" "${6:-$4}" "$3" "$4" "${5:-$3}" "${6:-$4}" > "$e"
-            else rm -f "$e"; fi', "sh",
-            page.d.proxyMode, page.d.proxyPac,
-            page.hostPort(page.d.proxyHttp)[0], page.hostPort(page.d.proxyHttp)[1],
-            page.hostPort(page.d.proxyHttps)[0], page.hostPort(page.d.proxyHttps)[1],
-            page.hostPort(page.d.proxySocks)[0], page.hostPort(page.d.proxySocks)[1]]
-        onCommandChanged: if (Settings.loaded) running = true
-    }
-
+    // ---- proxy (applied by the Proxy service) ----------------------------------
     SectionTitle { Layout.fillWidth: true; text: "Proxy" }
     RowLayout {
         spacing: 6

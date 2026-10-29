@@ -17,6 +17,8 @@ export SHANI_BT_AGENT=/work/dev/fake-bt-agent.py SHANI_OBEX_AGENT=/work/dev/fake
 # no camera either: a stand-in for libcamera's cam (dev/fake-cam.sh)
 export SHANI_CAM_TOOL=/work/dev/fake-cam.sh
 export SHANI_NIRI_CONFIG=/work/dev/niri/session.kdl
+# the first-login tour would sit over every other check; one test opens it by hand
+export SHANI_NO_TOUR=1
 export XDG_CONFIG_HOME=/root/.config SHANI_SHELL_SETTINGS=/tmp/shani-settings.json
 # the lock screen's PAM file in its real place: its "include login" resolves
 # against the directory it sits in, so a copy elsewhere can never authenticate
@@ -66,5 +68,9 @@ export NIRI_SOCKET=$(ls "$XDG_RUNTIME_DIR"/niri.wayland-1.*.sock | head -1)
 # the accessibility bus, and Qt exposing its tree on it (what Orca reads)
 /usr/lib/at-spi-bus-launcher --launch-immediately >$L/atspi.log 2>&1 &
 sleep 0.5
+# the wallpapers where the package installs them
+mkdir -p /usr/share/backgrounds/shani && cp /work/assets/shani-dark.jpg /work/assets/shani-light.jpg /usr/share/backgrounds/shani/
+# idle off from the start (the tests drive the shell over IPC, which is not input)
+printf '{"dimAfter": 0, "lockAfter": 0, "screenOffAfter": 0, "lockAfterBattery": 0, "screenOffAfterBattery": 0}' > "$SHANI_SHELL_SETTINGS"
 QS_ICON_THEME=Adwaita QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1 qs -p /work/shani >$L/qs.log 2>&1 &
 sleep 4

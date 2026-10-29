@@ -17,7 +17,16 @@ Singleton {
     property bool processes: false
     property bool magnifier: false
     property string settingsCat: ""
-    property int faceRev: 0                        // bumped when ~/.face changes                // the settings category open, "" = the grid
+    property int faceRev: 0
+    property bool tour: false                      // the tour, opened again by hand
+    // the web search chosen in Settings > Search (the launcher, Lens)
+    readonly property var webSearches: ({
+        duckduckgo: ["DuckDuckGo", "https://duckduckgo.com/?q="], google: ["Google", "https://www.google.com/search?q="],
+        startpage: ["Startpage", "https://www.startpage.com/do/search?q="], bing: ["Bing", "https://www.bing.com/search?q="],
+        ecosia: ["Ecosia", "https://www.ecosia.org/search?q="]
+    })
+    function webSearchName() { return (webSearches[Settings.data.webSearch] || webSearches.duckduckgo)[0]; }
+    function webSearchUrl(q) { return (webSearches[Settings.data.webSearch] || webSearches.duckduckgo)[1] + encodeURIComponent(q); }                        // bumped when ~/.face changes                // the settings category open, "" = the grid
     property int flashes: 0                        // flash alerts shown, for the tests
     property point ringAt: Qt.point(-1, -1)        // where the Ring opens; -1: at the pointer
     function openRingAt(x, y) {

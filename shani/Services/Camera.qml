@@ -121,7 +121,11 @@ PY
     Timer { running: root.phase === "recording"; interval: 1000; repeat: true; onTriggered: root.seconds++ }
 
     // the live viewfinder
-    function open() { Quickshell.execDetached(["qcam"]); }
+    // the viewfinder: GNOME Snapshot (a Flatpak in the image; photos, video,
+    // QR codes), libcamera's qcam without it
+    function open() {
+        Quickshell.execDetached(["sh", "-c", "flatpak info org.gnome.Snapshot >/dev/null 2>&1 && exec flatpak run org.gnome.Snapshot; exec qcam"]);
+    }
 
     // "1: 'Integrated Camera' (\_SB_.PCI0...)"
     Process {

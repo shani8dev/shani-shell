@@ -19,6 +19,19 @@ ColumnLayout {
     property bool hasLid: false
     property string note: ""
     property int limit: -1                // the battery's charge limit; -1: it has none
+    property string health: ""            // "87 % of new · 312 charge cycles"
+    Process {
+        running: page.active
+        command: ["sh", "-c", 'b=$(upower -e 2>/dev/null | grep -m1 BAT) || exit 0; upower -i "$b" | sed -n "s/^ *capacity: *//p; s/^ *charge-cycles: *//p"']
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const l = text.trim().split("\n").filter(x => x);
+                const cap = l[0] ? Math.round(parseFloat(l[0])) + " % of its capacity when new" : "";
+                const cyc = l[1] && l[1] !== "N/A" && parseInt(l[1]) > 0 ? parseInt(l[1]) + " charge cycles" : "";
+                page.health = [cap, cyc].filter(x => x).join(" · ");
+            }
+        }
+    }
     onActiveChanged: if (active) read.running = true
 
     Process {
@@ -100,6 +113,14 @@ ColumnLayout {
         options: [{ label: "Power off", value: "poweroff" }, { label: "Sleep", value: "suspend" }, { label: "Lock", value: "lock" }, { label: "Nothing", value: "ignore" }]
         current: page.powerKey
         onPicked: v => page.save({ powerKey: v })
+    }
+    Text {
+        Layout.fillWidth: true
+        visible: page.health !== ""
+        text: "Battery health: " + page.health
+        color: Theme.dim
+        font.family: Theme.font
+        font.pixelSize: 12 * Theme.fontScale
     }
     Picks {
         visible: page.limit > 0

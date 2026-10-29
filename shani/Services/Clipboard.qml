@@ -17,8 +17,17 @@ Singleton {
     function copy(entry) {
         Quickshell.execDetached(["sh", "-c", 'cliphist decode "$1" | wl-copy', "sh", entry.id]);
     }
+    // one entry out of the history: cliphist deletes the line it is given
+    function remove(entry) {
+        Quickshell.execDetached(["sh", "-c", 'cliphist list | grep -m1 "^$1	" | cliphist delete', "sh", entry.id]);
+        entries = entries.filter(e => e.id !== entry.id);
+    }
+    // the history and what is on the clipboard now. Not --clear: wl-clip-persist
+    // restores the last contents when the clipboard empties, and the secret is
+    // back in the history at once. An empty text replaces it (cliphist stores
+    // nothing empty), then the history goes once that has settled.
     function wipe() {
-        Quickshell.execDetached(["cliphist", "wipe"]);
+        Quickshell.execDetached(["sh", "-c", "printf '' | wl-copy; printf '' | wl-copy --primary; sleep 0.5; cliphist wipe"]);
         entries = [];
     }
 

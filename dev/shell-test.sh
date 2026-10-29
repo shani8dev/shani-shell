@@ -16,7 +16,9 @@ st() { timeout 5 qs -p /work/shani ipc call shani state 2>/dev/null; }
 q() { st | python3 -c "import json,sys; d=json.load(sys.stdin); print(d$1)"; }
 ipc() { qs -p /work/shani ipc call shani "$@" >/dev/null 2>&1; }
 shot() { sleep "${2:-0.8}"; grim "$SHOTS/$1.png"; }
-settings() { printf '%s' "$1" > "$SHANI_SHELL_SETTINGS"; sleep 1.5; }
+# the suite runs longer than the default idle lock (5 min) between keyboard
+# inputs: no dimming, lock or screen-off unless a test sets them itself
+settings() { python3 -c 'import json,sys; d={"dimAfter":0,"lockAfter":0,"screenOffAfter":0,"lockAfterBattery":0,"screenOffAfterBattery":0}; d.update(json.loads(sys.argv[1])); print(json.dumps(d), end="")' "$1" > "$SHANI_SHELL_SETTINGS"; sleep 1.5; }
 waitfor() {   # waitfor <python expr over d> <seconds>
     i=0
     while [ $i -lt $(( $2 * 4 )) ]; do
@@ -323,7 +325,7 @@ ipc closeAll
 ipc setting darkMode true
 waitfor "d['bg'] == '#0b0d12'" 3
 magick -size 1920x1080 gradient:'#ff7a18'-'#ffb347' /tmp/orange.png
-settings '{"wallpaper": "/tmp/orange.png", "accentFromWallpaper": true}'
+settings '{"wallpaperLight": "", "wallpaperDark": "", "wallpaper": "/tmp/orange.png", "accentFromWallpaper": true}'
 # an orange wallpaper must give an orange accent: red well above blue
 waitfor "int(d['accent'][1:3],16) > int(d['accent'][5:7],16) + 60" 10 && result accent-from-wallpaper PASS "$(q "['accent']")" \
     || result accent-from-wallpaper FAIL "$(q "['accent']")"
@@ -463,7 +465,7 @@ fi
 # ---- Lens: select a region, read it, ask about it --------------------------------
 magick -size 1920x1080 xc:'#0b0d12' -fill '#e8eef5' -font DejaVu-Sans -pointsize 84 \
     -gravity center -annotate 0 'SHANI LENS READS THIS' /tmp/lens-bg.png
-settings '{"wallpaper": "/tmp/lens-bg.png"}'
+settings '{"wallpaperLight": "", "wallpaperDark": "", "wallpaper": "/tmp/lens-bg.png"}'
 waitfor "d['wallpaper'] == '/tmp/lens-bg.png'" 3 && result wallpaper-follows-setting PASS || result wallpaper-follows-setting FAIL
 niri msg action focus-workspace 3
 # an earlier step may have left a window here; it would cover the text
@@ -548,6 +550,7 @@ waitfor "d['btAsk'] == 'confirm:Pixel 8'" 4 && result bt-pair-asks PASS || resul
 shot 68-bt-pair 0.4
 ipc btAnswer true ""
 waitfor "d['btAsk'] == ''" 3
+for i in 1 2 3 4 5 6 7 8 9 10; do [ -s /tmp/bt-answers ] && break; sleep 0.2; done   # the stand-in polls every 0.3 s
 grep -q '"id": 7, "ok": true' /tmp/bt-answers 2>/dev/null || grep -q '"id":7,"ok":true' /tmp/bt-answers \
     && result bt-pair-answer-reaches-agent PASS || result bt-pair-answer-reaches-agent FAIL "$(cat /tmp/bt-answers 2>&1)"
 echo '{"ask": "pin", "id": 8, "device": "Old Keyboard"}' > /tmp/bt-ask
@@ -806,12 +809,112 @@ wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.30
 waitfor "d['systemSoundsPlayed'] > $v0" 3 && result volume-click PASS || result volume-click FAIL
 wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.35
 
+# ---- defaults: the dark wallpaper and the look apps are given ------------------------
+settings '{}'
+waitfor "d['wallpaperNow'] == '/usr/share/backgrounds/shani/shani-dark.jpg'" 4 && result default-wallpaper-dark PASS || result default-wallpaper-dark FAIL "$(q "['wallpaperNow']")"
+g() { gsettings get org.gnome.desktop.interface "$1"; }
+[ "$(g icon-theme)" = "'Papirus-Dark'" ] && [ "$(g accent-color)" = "'teal'" ] && [ "$(g monospace-font-name)" = "'JetBrains Mono 11'" ] \
+    && result default-look-for-apps PASS || result default-look-for-apps FAIL "$(g icon-theme) $(g accent-color) $(g monospace-font-name)"
+settings '{"accentName": "purple"}'
+waitfor "d['accent'] == '#dc8add'" 3 && [ "$(g accent-color)" = "'purple'" ] && result accent-choice PASS || result accent-choice FAIL "$(q "['accent']") $(g accent-color)"
+
+# ---- mouse and touchpad details, Num Lock, middle-click paste -------------------------
+settings '{"tpAccel": "flat", "tpClick": "button-areas", "tpScrollMethod": "edge", "tpOffWithMouse": true, "numlock": false, "mouseAccel": "flat", "middlePaste": false}'
+sleep 1.5
+f=/root/.config/niri/shani-input.kdl
+grep -q 'click-method "button-areas"' $f && grep -q 'scroll-method "edge"' $f && grep -q 'disabled-on-external-mouse' $f && ! grep -q '^ *numlock$' $f \
+    && [ "$(grep -c 'accel-profile "flat"' $f)" = 2 ] && niri validate -c /work/dev/niri/session.kdl >/dev/null 2>&1 && [ "$(g gtk-enable-primary-paste)" = false ] \
+    && result pointer-details-reach-niri PASS || result pointer-details-reach-niri FAIL "$(niri validate -c /work/dev/niri/session.kdl 2>&1 | tail -1)"
+
+# ---- automatic dark style, scrollbars, bar options -----------------------------------
+from=$(date -d '-1 min' +%H:%M); to=$(date -d '+60 min' +%H:%M)
+settings "{\"darkMode\": false, \"darkSchedule\": \"custom\", \"darkFrom\": \"$from\", \"darkTo\": \"$to\", \"showScrollbars\": true}"
+waitfor "d['dark']" 5 && result dark-style-on-schedule PASS || result dark-style-on-schedule FAIL
+[ "$(g overlay-scrolling)" = false ] && result scrollbars-always PASS || result scrollbars-always FAIL
+
+# ---- volume: the key step, and above 100 % only when allowed ---------------------------
+settings '{"volumeStep": 10}'
+wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.50; sleep 0.5
+ipc volumeUp; sleep 0.5
+v=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '{print $2}')
+[ "$v" = 0.60 ] && result volume-step PASS || result volume-step FAIL "$v"
+wpctl set-volume @DEFAULT_AUDIO_SINK@ 1.0; sleep 0.5; ipc volumeUp; sleep 0.5
+[ "$(wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '{print $2}')" = 1.00 ] && result volume-capped-at-100 PASS || result volume-capped-at-100 FAIL
+settings '{"overAmplify": true, "volumeStep": 10}'
+ipc volumeUp; sleep 0.5
+[ "$(wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '{print $2}')" = 1.10 ] && result volume-over-100-when-allowed PASS || result volume-over-100-when-allowed FAIL "$(wpctl get-volume @DEFAULT_AUDIO_SINK@)"
+wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.35
+
+# ---- search: what the launcher may look at; slideshow; the Island's activities ---------
+settings '{"searchCalc": false}'
+ipc launcher "12*12"
+sleep 1.5
+q "['topResult']" | grep -q '^= 144' && result search-calc-off FAIL || result search-calc-off PASS
+ipc closeAll
+settings '{"slideshowDir": "/usr/share/backgrounds/shani", "slideshowMinutes": 5}'
+waitfor "d['wallpaperNow'].startswith('/usr/share/backgrounds/shani/shani-') and d['wallpaperNow'] != ''" 4 && result wallpaper-slideshow PASS "$(q "['wallpaperNow']")" || result wallpaper-slideshow FAIL "$(q "['wallpaperNow']")"
+settings '{"islandActivities": false}'
+ipc timer 1
+sleep 1
+[ "$(q "['islandActivity']")" = "" ] && result island-activities-off PASS || result island-activities-off FAIL "$(q "['islandActivity']")"
+ipc timer 0
+settings '{"popupPosition": "bottom-right"}'
+notify-send -a Test "Bottom right" "a pop-up"
+shot 92-popup-bottom 0.6
+settings '{}'
+
+# ---- the first-login tour: five cards, Enter through them, remembered ------------------
+ipc tour
+waitfor "d['tour']" 3 && result tour-opens PASS || result tour-opens FAIL
+shot 91-tour 0.6
+for i in 1 2 3 4 5; do wtype -k Return; sleep 0.3; done
+waitfor "not d['tour']" 3; sleep 1   # the settings file is written a moment later
+grep -q '"tourSeen": *true' /tmp/shani-settings.json && result tour-finishes-and-remembers PASS || result tour-finishes-and-remembers FAIL "$(grep -o '"tourSeen"[^,]*' /tmp/shani-settings.json)"
+settings '{}'
+
+# ---- search inside Settings: "proxy" opens Network ----------------------------------
+ipc settings
+waitfor "d['expanded'] == 'settings' and d['settingsCat'] == ''" 3
+sleep 0.6
+wtype "proxy" -k Return
+waitfor "d['settingsCat'] == 'network'" 3 && result settings-search-finds-category PASS || result settings-search-finds-category FAIL "$(q "['settingsCat']")"
+ipc closeAll
+
+# ---- recording a part of the screen: Escape at the selection is not a failure ---------
+settings '{"recordArea": "region", "recordSound": "desktop"}'
+f0=$(q "['notificationSummaries'].count('Recording failed')")
+ipc record
+for i in 1 2 3 4 5 6 7 8 9 10; do pgrep -x slurp >/dev/null && break; sleep 0.3; done
+sleep 0.5
+wtype -k Escape
+sleep 1.5
+pgrep -x slurp >/dev/null && result record-region-selection-ends FAIL "slurp still running" || result record-region-selection-ends PASS
+[ "$(q "['notificationSummaries'].count('Recording failed')")" = "$f0" ] && result record-region-cancel-is-quiet PASS || result record-region-cancel-is-quiet FAIL
+[ "$(q "['recording']")" = False ] || ipc record
+ipc record
+for i in 1 2 3 4 5 6 7 8 9 10; do pgrep -x slurp >/dev/null && break; sleep 0.3; done
+ipc record
+sleep 1
+pgrep -x slurp >/dev/null && { result record-stop-ends-selection FAIL; pkill -x slurp; } || result record-stop-ends-selection PASS
+settings '{}'
+
+# ---- one clipboard entry removed (Shift+Delete in the launcher's clipboard mode) -------
+printf 'remove-me-4711' | wl-copy; sleep 0.8
+printf 'keep-me-4712' | wl-copy; sleep 0.8
+ipc launcher "c remove-me"
+waitfor "d['topResult'].startswith('remove-me-4711')" 4
+wtype -M shift -k Delete -m shift; sleep 1
+cliphist list | grep -q remove-me-4711 && result clipboard-entry-removed FAIL || { cliphist list | grep -q keep-me-4712 && result clipboard-entry-removed PASS || result clipboard-entry-removed FAIL "took the others too"; }
+ipc closeAll
+
 # ---- clipboard history can be cleared ------------------------------------------------
 printf 'secret-token-123' | wl-copy; sleep 0.8
 cliphist list | grep -q secret-token-123 || echo "  (cliphist did not store it)"
 ipc launcher "clear clipboard"
 waitfor "d['topResult'] == 'Clear clipboard history'" 3
-wtype -k Return; sleep 1
+wtype -k Return
+# clearing waits for the clipboard to settle before it wipes the history
+for i in 1 2 3 4 5 6; do sleep 0.5; cliphist list | grep -q secret-token-123 || break; done
 cliphist list | grep -q secret-token-123 && result clipboard-history-cleared FAIL || result clipboard-history-cleared PASS
 
 # ---- pop-up duration follows the setting --------------------------------------------

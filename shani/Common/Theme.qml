@@ -30,10 +30,18 @@ Singleton {
             if (s > score) { score = s; best = c; }
         }
         if (!best || best.hslSaturation < 0.15)
-            return dark ? brand : "#1f8f7c";
+            return root.chosen;
         return Qt.hsla(best.hslHue, Math.max(0.45, best.hslSaturation), dark ? 0.68 : 0.40, 1);
     }
-    readonly property color accent: Settings.data.accentFromWallpaper ? picked : (dark ? brand : "#1f8f7c")
+    // GNOME's nine accents, a light and a dark tone each (libadwaita's own values,
+    // teal brightened to ShaniOS's brand on dark)
+    readonly property var accents: ({
+        blue: ["#3584e4", "#78aeed"], teal: ["#1f8f7c", "#7fd1c1"], green: ["#3a944a", "#8ff0a4"],
+        yellow: ["#c88800", "#f8e45c"], orange: ["#e66100", "#ffa348"], red: ["#e01b24", "#f66151"],
+        pink: ["#d56199", "#f49ac1"], purple: ["#9141ac", "#dc8add"], slate: ["#6f8396", "#9aa8b8"]
+    })
+    readonly property color chosen: (accents[Settings.data.accentName] || accents.teal)[dark ? 1 : 0]
+    readonly property color accent: Settings.data.accentFromWallpaper ? picked : chosen
     readonly property color accentInk: accent.hslLightness > 0.55 ? "#08110f" : "#ffffff"
 
     // the wallpaper in use: the style's own when one is set, the one wallpaper otherwise
@@ -66,7 +74,7 @@ Singleton {
     // ---- type and shape --------------------------------------------------------
     // Inter where installed (shani-shell depends on it), the system sans otherwise
     readonly property string font: Settings.data.uiFont || "Inter"
-    readonly property string mono: Settings.data.monoFont || "DejaVu Sans Mono"
+    readonly property string mono: Settings.data.monoFont || "JetBrains Mono"
     // large text: every size in the shell is multiplied by this
     readonly property real fontScale: Settings.data.largeText ? 1.25 : 1.0
     readonly property int fontSmall: 11

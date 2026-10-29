@@ -317,7 +317,7 @@ Variants {
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     Text {
-                        visible: Power.hasBattery
+                        visible: Power.hasBattery && Settings.data.barBatteryPercent
                         text: Math.round(Power.percent * 100) + "%"
                         color: Theme.text
                         font.family: Theme.font
@@ -355,6 +355,7 @@ Variants {
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     Text {
+                        visible: Settings.data.barDate
                         text: Qt.formatDateTime(clock.date, "ddd d MMM")
                         font.features: { "tnum": 1 }
                         color: Theme.dim

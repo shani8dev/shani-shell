@@ -39,8 +39,10 @@ centre, and against what a session needs before any app runs.
 Each needs real hardware or shani-testbed:
 
 - Wi-Fi: wrong-password retry, forget, hidden network; Wi-Fi in first-boot setup.
-- Bluetooth: pairing and receiving files against a real BlueZ/obexd (both
-  agents are tested against fakes).
+- Bluetooth: pairing, receiving and sending files against a real
+  BlueZ/obexd (both agents are tested against fakes; sending is untested).
+- The dock's right-click menu (no pointer clicks are injected in the dev session).
+- Hibernate (shown only where logind says it can; the container cannot).
 - KDE Connect discovery and pairing.
 - Camera: real libcamera stills and PipeWire video (the still path is tested with a fake `cam`).
 - Night light on a real screen; screen recording; auto-rotate; adaptive brightness; flashlight.

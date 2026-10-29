@@ -3,6 +3,7 @@ pragma Singleton
 // power actions. logind authorises suspend/reboot/poweroff for the active
 // session, so these need no root and no prompt.
 import Quickshell
+import Quickshell.Io
 import Quickshell.Services.UPower
 import QtQuick
 import qs.Common
@@ -85,6 +86,14 @@ Singleton {
     }
 
     function suspend() { Quickshell.execDetached(["systemctl", "suspend"]); }
+    // hibernate only where logind says it can (swap large enough, resume configured)
+    property bool canHibernate: false
+    function hibernate() { Quickshell.execDetached(["systemctl", "hibernate"]); }
+    Process {
+        running: true
+        command: ["sh", "-c", 'busctl call org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager CanHibernate 2>/dev/null']
+        stdout: StdioCollector { onStreamFinished: root.canHibernate = text.trim() === 's "yes"' }
+    }
     function reboot() { Quickshell.execDetached(["systemctl", "reboot"]); }
     function poweroff() { Quickshell.execDetached(["systemctl", "poweroff"]); }
     function logout() { Niri.action("quit", "--skip-confirmation"); }

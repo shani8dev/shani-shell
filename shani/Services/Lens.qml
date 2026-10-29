@@ -7,6 +7,7 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs.Common
 
 Singleton {
     id: root
@@ -53,7 +54,7 @@ Singleton {
         Quickshell.clipboardText = text;
     }
     function search() {
-        Qt.openUrlExternally("https://www.google.com/search?q=" + encodeURIComponent(text.trim().slice(0, 500)));
+        Qt.openUrlExternally(Ui.webSearchUrl(text.trim().slice(0, 500)));
     }
     function translate() {
         Qt.openUrlExternally("https://translate.google.com/?sl=auto&tl=en&op=translate&text=" + encodeURIComponent(text.trim().slice(0, 2000)));

@@ -312,3 +312,31 @@ the fake greetd.
 | own shortcut press in a test | `wtype` keys never reach niri's binds (virtual keyboards go to the client) | the test checks the bind niri loads; the press is a real-keyboard check |
 | stale test containers | `timeout -s KILL docker run` kills the client, not the container: an old run kept writing into the same work directory | named containers, removed before and after |
 | loudness levelling ports | PipeWire's ebur128 plugin documents no port names | read from the plugin and proven by loading the graph: `Shortterm LUFS` → `lufs2gain:LUFS`, `Gain` → a mixer's `Gain 1` |
+
+### Half-done features, found by auditing what each one should let you do next
+
+| Bug | How it showed | Fix |
+|---|---|---|
+| recording sound unreachable | the recorder had `withAudio`, nothing set it; whole screen only | Screen record detail: focused screen or a part (slurp), no sound / computer / microphone |
+| a stopped region selection left slurp running | stopping during the selection killed the wrapper shell only; slurp kept the keyboard over the whole screen, and the next overlay's Escape went to it (the magnifier test failed). A trap did not help either: the script inherits SIGINT as ignored, and an ignored-on-entry signal cannot be trapped | the script reports slurp's pid and stop kills exactly it; the Island says "Choose an area" until recording really starts |
+| "clear clipboard history" left the secret in it | the text was still on the clipboard; wl-clip-persist offers it again and cliphist stores it straight back | clearing also empties the clipboard and the primary selection |
+| noise suppression off: default source not restored | "Cannot change default source to a node that is not a source" — the previous default can be a monitor | restored by name (`pactl set-default-source`) |
+| "channelVolumes and channelMap are not the same size" | the mono RNNoise node reports two volumes for one channel | run it stereo, as PipeWire's own example does; the mic slider acts on the real microphone |
+| Update button did nothing | it opened Cassini, which the niri desktop does not install | Cassini where present, else `pkexec shani-deploy` in a terminal |
+| initials instead of pictures on the login screen | the greeter reads AccountsService, which the desktop did not install | `accountsservice` in shani-desktop-niri |
+| fonts ignored | the Chronoa panel and the greeter hard-coded Noto Sans / DejaVu (23 places) | Theme.font / Theme.mono |
+| proxy applied by the Settings page | it worked only because the page happens to be built at startup | a Proxy service |
+| right-click on a dock icon toggled its pin, silently | no way to reorder, open a new window or close all | a menu: new window, pin/unpin, move left/right, close windows |
+| no single clipboard delete; no hibernate; wallpaper only from two folders; no sending files over Bluetooth | — | Shift+Delete in clipboard mode; Hibernate where logind can; any picture by path; Shelf → Bluetooth → a paired device |
+
+### Defaults and the last settings
+
+| Bug | How it showed | Fix |
+|---|---|---|
+| the default wallpaper aged | "niri 26.04 · quickshell 0.3.2 · chronoa" was printed on it | a generated pair (assets/make-wallpapers.py), no text; JPEG, 0.75 MB at 4K where PNG with its anti-banding noise is 9 MB |
+| a wallpaper picked for both styles did not show | the new per-style defaults won over it | picking one for both clears the per-style ones (Settings, slideshow, the tests too) |
+| first login in Adwaita and GNOME's defaults | the shell writes the look only once running, after it has started with the old icon theme | the same values as a GSettings override in shani-desktop-niri |
+| clearing clipboard history, again | `wl-copy --clear` leaves the clipboard empty, which wl-clip-persist answers by restoring the last contents | an empty text replaces it, then the history is wiped |
+| foot's colours rejected | foot 1.28 renamed `[colors]` to `[colors-dark]` | checked with `foot --check-config` |
+| idle lock during the test run | the suite outlasts the 5-minute default and IPC is not input: the screen locked and later keys went to it | the test session starts, and every `settings` write keeps, idle off |
+| volume keys ignored the shell | niri spawned `wpctl … -l 1.0` directly: no step choice, no over-amplification | the keys call the shell |

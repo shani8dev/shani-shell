@@ -33,7 +33,7 @@ mkdir -p /root/.config/quickshell
 ln -sfn /work/greeter /root/.config/quickshell/shani-greeter
 ln -sfn /work/setup /root/.config/quickshell/shani-setup
 export SHANI_SETUP_APPLY="python3 /work/bridge/first-account.py" SHANI_OSK_LAYOUT_TOOL=/work/bridge/osk-layout.py
-export SHANI_GREETER_WALLPAPER=/work/assets/wallpaper.png
+export SHANI_GREETER_WALLPAPER=/work/assets/shani-dark.jpg
 
 start_niri() {
     rm -f "$XDG_RUNTIME_DIR"/wayland-1 "$XDG_RUNTIME_DIR"/wayland-1.lock
