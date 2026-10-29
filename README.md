@@ -59,14 +59,37 @@ Settings: `~/.config/shani-shell/settings.json` — any subset of the keys in
 tools every tile uses). Development: link the checkout over the packaged config:
 `ln -s ~/Documents/shani/shani-shell/shani ~/.config/quickshell/shani`
 
+## Settings and Cassini: one place for each thing
+The shell's Settings has what a desktop's settings app has; Cassini (the system
+manager) has what goes beyond it, and neither repeats the other. The list is in
+shani-cassini's AGENTS.md ("Cassini and shani-shell"). The shell opens Cassini on
+a page with `shani-cassini --section=<id>` (update badge, firmware, a failing
+disk, Settings > About's "More in Cassini"); inside the shell Cassini's Chronoa,
+Printers and fingerprint enrolment point back here
+(`qs -c shani ipc call shani settingsCategory <id>`).
+
 ## Tests — everything is run, not read
 ```
 docker build -t shani-shell-dev -f dev/Containerfile dev
-docker run --rm -v "$PWD":/work shani-shell-dev sh /work/dev/shell-test.sh     # the shell
+docker run --rm --cap-add SYS_PTRACE -v "$PWD":/work -v ../shani-testbed:/testbed:ro \
+    shani-shell-dev sh /work/dev/shell-test.sh                                  # the shell
+#   SHELL_TEST_ONLY=idle (-e): just the idle cost   SHELL_TEST_ONLY=a11y: idle + accessibility
 docker run --rm -v "$PWD":/work shani-shell-dev sh /work/dev/greeter-test.sh   # greeter
 sh dev/polkit-run.sh                                                            # polkit (systemd + logind)
 python3 -m pytest tests -q                                                      # bridge: turn filter, logind
 ```
+Three checks guard the whole shell, not one feature:
+- **idle-cost** — 30 s with nothing happening: the programs the shell starts
+  (strace on its execve calls, hence SYS_PTRACE; budget 12/min, today 2–4), its
+  CPU (budget 15 ms/s) and memory. A new always-on poller fails here, by name.
+- **a11y-\*** — shani-testbed's AT-SPI client (mounted at /testbed) lints the
+  bar, control centre, launcher, every Settings category and Chronoa: every
+  control has a name a screen reader can say.
+- **i18n-\*** — the shell restarted in Marathi, its catalog loaded and the bar
+  read back in Marathi through AT-SPI. `tools/i18n.py check` lists each
+  catalog's gaps; strings a catalog lacks can be translated on the machine by
+  Chronoa's local model (opt-in: Settings > Date & language).
+
 `shell-test.sh` brings up a nested niri with a system bus and the real daemons
 (NetworkManager, UPower, power-profiles-daemon, BlueZ), PipeWire with null
 sinks, the bridge and mock Chronoa, then drives each feature for real (wpctl,

@@ -20,13 +20,15 @@ ColumnLayout {
     property string dns: ""               // its own DNS servers ("" = from the network)
     property string note: ""
     onActiveChanged: if (active) readConn.running = true
+    // made already active (a Settings category is a Loader): load now too
+    Component.onCompleted: if (active) readConn.running = true
 
     // ---- proxy (applied by the Proxy service) ----------------------------------
-    SectionTitle { Layout.fillWidth: true; text: "Proxy" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Proxy") }
     RowLayout {
         spacing: 6
         Repeater {
-            model: [{ label: "Off", value: "none" }, { label: "Manual", value: "manual" }, { label: "Automatic (PAC)", value: "auto" }]
+            model: [{ label: Tr.t("Off"), value: "none" }, { label: Tr.t("Manual"), value: "manual" }, { label: Tr.t("Automatic (PAC)"), value: "auto" }]
             Choice {
                 required property var modelData
                 text: modelData.label
@@ -36,7 +38,7 @@ ColumnLayout {
         }
     }
     Repeater {
-        model: page.d.proxyMode === "manual" ? [{ key: "proxyHttp", label: "HTTP proxy — host:port" }, { key: "proxyHttps", label: "HTTPS proxy — host:port (empty: the HTTP one)" }, { key: "proxySocks", label: "SOCKS proxy — host:port" }] : []
+        model: page.d.proxyMode === "manual" ? [{ key: "proxyHttp", label: Tr.t("HTTP proxy — host:port") }, { key: "proxyHttps", label: Tr.t("HTTPS proxy — host:port (empty: the HTTP one)") }, { key: "proxySocks", label: Tr.t("SOCKS proxy — host:port") }] : []
         TextField {
             required property var modelData
             Layout.fillWidth: true
@@ -97,7 +99,7 @@ ColumnLayout {
             }
         }
     }
-    SectionTitle { Layout.fillWidth: true; text: "Data used"; visible: page.usage !== "" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Data used"); visible: page.usage !== "" }
     Text {
         Layout.fillWidth: true
         visible: page.usage !== ""
@@ -107,7 +109,7 @@ ColumnLayout {
         font.pixelSize: 13 * Theme.fontScale
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "DNS" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("DNS") }
     Text {
         Layout.fillWidth: true
         text: page.conn ? "For " + page.connName + ": " + (page.dns || "from the network") : "Not connected."
@@ -120,7 +122,7 @@ ColumnLayout {
         visible: page.conn !== ""
         spacing: 6
         Repeater {
-            model: [{ label: "Automatic", value: "" }, { label: "Cloudflare", value: "1.1.1.1 1.0.0.1" }, { label: "Quad9", value: "9.9.9.9 149.112.112.112" }, { label: "Google", value: "8.8.8.8 8.8.4.4" }]
+            model: [{ label: Tr.t("Automatic"), value: "" }, { label: Tr.t("Cloudflare"), value: "1.1.1.1 1.0.0.1" }, { label: Tr.t("Quad9"), value: "9.9.9.9 149.112.112.112" }, { label: Tr.t("Google"), value: "8.8.8.8 8.8.4.4" }]
             Choice {
                 required property var modelData
                 text: modelData.label
@@ -132,7 +134,7 @@ ColumnLayout {
     TextField {
         Layout.fillWidth: true
         visible: page.conn !== ""
-        placeholder: "Your own DNS servers — 192.168.1.1 9.9.9.9"
+        placeholder: Tr.t("Your own DNS servers — 192.168.1.1 9.9.9.9")
         onAccepted: if (/^[\d.:a-fA-F\s]+$/.test(text.trim())) { page.useDns(text.trim()); text = ""; }
     }
     Text {
@@ -144,5 +146,5 @@ ColumnLayout {
         font.family: Theme.font
         font.pixelSize: 11 * Theme.fontScale
     }
-    Button { text: "Advanced connection settings…"; onClicked: { Ui.closeAll(); Net.editConnections(); } }
+    Button { text: Tr.t("Advanced connection settings…"); onClicked: { Ui.closeAll(); Net.editConnections(); } }
 }

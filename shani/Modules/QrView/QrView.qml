@@ -61,7 +61,7 @@ PanelWindow {
             Text {
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
-                text: "Point a phone's camera at it · Esc closes"
+                text: Tr.t("Point a phone's camera at it · Esc closes")
                 color: Theme.dim
                 font.family: Theme.font
                 font.pixelSize: 11 * Theme.fontScale

@@ -203,6 +203,12 @@ Singleton {
             property bool rememberRecent: true
             property bool lockPreviews: false         // notification titles on the lock screen
             property list<string> clipPins: []          // pinned clipboard texts
+            property string tabletOutput: ""              // the screen a drawing tablet maps to ("" all)
+            property bool tabletLeftHanded: false
+            property string touchOutput: ""               // the screen a touchscreen maps to
+            property int breakEveryMinutes: 0             // a break reminder after this long at the screen (0 off)
+            property int screenLimitMinutes: 0            // a daily screen-time reminder (0 off)
+            property bool machineTranslate: false         // the shell's missing words by the local model (Common/Tr); opt-in
             property var automations: []                // [{ when, is, then, arg, on }] (Services/Automations)
             property string dynamicLockDevice: ""     // a paired device's address: lock when it goes (DynamicLock)
             property string proxyMode: "none"         // none | manual | auto

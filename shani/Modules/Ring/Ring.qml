@@ -40,43 +40,43 @@ PanelWindow {
         const ws = Niri.workspacesOn(Niri.focusedOutput);
         const apps = Settings.data.dockPinned.map(id => DesktopEntries.byId(id)).filter(e => e);
         return [
-            { label: "Chronoa", icon: "face-smile-big", children: [
-                { label: "Ask", icon: "chat-message-new", act: () => Ui.askIsland() },
-                { label: "Conversation", icon: "face-smile-big", act: () => Chronoa.open = true },
-                { label: "Lens", icon: "system-search", act: () => Lens.capture() }
+            { label: Tr.t("Chronoa"), icon: "face-smile-big", children: [
+                { label: Tr.t("Ask"), icon: "chat-message-new", act: () => Ui.askIsland() },
+                { label: Tr.t("Conversation"), icon: "face-smile-big", act: () => Chronoa.open = true },
+                { label: Tr.t("Lens"), icon: "system-search", act: () => Lens.capture() }
             ] },
-            { label: "Lens", icon: "system-search", children: [
-                { label: "Lens", icon: "system-search", act: () => Lens.capture() },
-                { label: "Read aloud", icon: "audio-speakers", act: () => Speak.speakSelection() },
-                { label: "Magnifier", icon: "zoom-in", act: () => { Ui.closeAll(); Ui.magnifier = true; } },
-                { label: "Captions", icon: "media-view-subtitles", act: () => Captions.toggle() }
+            { label: Tr.t("Lens"), icon: "system-search", children: [
+                { label: Tr.t("Lens"), icon: "system-search", act: () => Lens.capture() },
+                { label: Tr.t("Read aloud"), icon: "audio-speakers", act: () => Speak.speakSelection() },
+                { label: Tr.t("Magnifier"), icon: "zoom-in", act: () => { Ui.closeAll(); Ui.magnifier = true; } },
+                { label: Tr.t("Captions"), icon: "media-view-subtitles", act: () => Captions.toggle() }
             ] },
-            { label: "Screenshot", icon: "applets-screenshooter", children: [
-                { label: "Screen", icon: "video-display", act: () => Niri.action("screenshot-screen") },
-                { label: "Window", icon: "focus-windows", act: () => Niri.action("screenshot-window") },
-                { label: "Region", icon: "selection-mode", act: () => Niri.action("screenshot") }
+            { label: Tr.t("Screenshot"), icon: "applets-screenshooter", children: [
+                { label: Tr.t("Screen"), icon: "video-display", act: () => Niri.action("screenshot-screen") },
+                { label: Tr.t("Window"), icon: "focus-windows", act: () => Niri.action("screenshot-window") },
+                { label: Tr.t("Region"), icon: "selection-mode", act: () => Niri.action("screenshot") }
             ] },
-            { label: "Media", icon: "media-playback-start", children: [
-                { label: "Play / Pause", icon: "media-playback-start", act: () => win.player && win.player.togglePlaying() },
-                { label: "Next", icon: "media-skip-forward", act: () => win.player && win.player.next() },
-                { label: "Previous", icon: "media-skip-backward", act: () => win.player && win.player.previous() },
+            { label: Tr.t("Media"), icon: "media-playback-start", children: [
+                { label: Tr.t("Play / Pause"), icon: "media-playback-start", act: () => win.player && win.player.togglePlaying() },
+                { label: Tr.t("Next"), icon: "media-skip-forward", act: () => win.player && win.player.next() },
+                { label: Tr.t("Previous"), icon: "media-skip-backward", act: () => win.player && win.player.previous() },
                 { label: Audio.muted ? "Unmute" : "Mute", icon: Audio.muted ? "audio-volume-high" : "audio-volume-muted", act: () => Audio.toggleMute() }
             ] },
-            { label: "Window", icon: "focus-windows", children: [
-                { label: "Close", icon: "window-close", act: () => Niri.action("close-window") },
-                { label: "Fullscreen", icon: "view-fullscreen", act: () => Niri.action("fullscreen-window") },
-                { label: "Float", icon: "window-restore", act: () => Niri.action("toggle-window-floating") },
-                { label: "Maximize", icon: "window-maximize", act: () => Niri.action("maximize-column") },
-                { label: "Center", icon: "zoom-fit-best", act: () => Niri.action("center-column") }
+            { label: Tr.t("Window"), icon: "focus-windows", children: [
+                { label: Tr.t("Close"), icon: "window-close", act: () => Niri.action("close-window") },
+                { label: Tr.t("Fullscreen"), icon: "view-fullscreen", act: () => Niri.action("fullscreen-window") },
+                { label: Tr.t("Float"), icon: "window-restore", act: () => Niri.action("toggle-window-floating") },
+                { label: Tr.t("Maximize"), icon: "window-maximize", act: () => Niri.action("maximize-column") },
+                { label: Tr.t("Center"), icon: "zoom-fit-best", act: () => Niri.action("center-column") }
             ] },
-            { label: "Workspaces", icon: "view-grid", children: ws.map(w => (
+            { label: Tr.t("Workspaces"), icon: "view-grid", children: ws.map(w => (
                 { label: w.name || ("Workspace " + w.idx), icon: w.is_active ? "object-select" : "view-grid", act: () => Niri.focusWorkspace(w) })) },
-            { label: "Apps", icon: "view-app-grid", children: apps.slice(0, 8).map(e => (
+            { label: Tr.t("Apps"), icon: "view-app-grid", children: apps.slice(0, 8).map(e => (
                 { label: e.name, app: e.icon, act: () => e.execute() })) },
-            { label: "Power", icon: "system-shutdown", children: [
-                { label: "Lock", icon: "system-lock-screen", act: () => Lock.lock() },
-                { label: "Suspend", icon: "weather-clear-night", act: () => Power.suspend() },
-                { label: "Log out", icon: "system-log-out", act: () => Power.logout() }
+            { label: Tr.t("Power"), icon: "system-shutdown", children: [
+                { label: Tr.t("Lock"), icon: "system-lock-screen", act: () => Lock.lock() },
+                { label: Tr.t("Suspend"), icon: "weather-clear-night", act: () => Power.suspend() },
+                { label: Tr.t("Log out"), icon: "system-log-out", act: () => Power.logout() }
             ] }
         ];
     }

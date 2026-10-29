@@ -33,6 +33,8 @@ ColumnLayout {
         }
     }
     onActiveChanged: if (active) read.running = true
+    // made already active (a Settings category is a Loader): load now too
+    Component.onCompleted: if (active) read.running = true
 
     Process {
         id: read
@@ -103,14 +105,14 @@ ColumnLayout {
             }
         }
     }
-    readonly property var lidOptions: [{ label: "Sleep", value: "suspend" }, { label: "Lock", value: "lock" }, { label: "Nothing", value: "ignore" }, { label: "Power off", value: "poweroff" }]
+    readonly property var lidOptions: [{ label: Tr.t("Sleep"), value: "suspend" }, { label: Tr.t("Lock"), value: "lock" }, { label: Tr.t("Nothing"), value: "ignore" }, { label: Tr.t("Power off"), value: "poweroff" }]
 
-    SectionTitle { Layout.fillWidth: true; text: "Lid, power button and battery" }
-    Picks { visible: page.hasLid; label: "Closing the lid"; options: page.lidOptions; current: page.lid; onPicked: v => page.save({ lid: v }) }
-    Picks { visible: page.hasLid; label: "Closing the lid while plugged in"; options: page.lidOptions; current: page.lidOnPower; onPicked: v => page.save({ lidOnPower: v }) }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Lid, power button and battery") }
+    Picks { visible: page.hasLid; label: Tr.t("Closing the lid"); options: page.lidOptions; current: page.lid; onPicked: v => page.save({ lid: v }) }
+    Picks { visible: page.hasLid; label: Tr.t("Closing the lid while plugged in"); options: page.lidOptions; current: page.lidOnPower; onPicked: v => page.save({ lidOnPower: v }) }
     Picks {
-        label: "Pressing the power button"
-        options: [{ label: "Power off", value: "poweroff" }, { label: "Sleep", value: "suspend" }, { label: "Lock", value: "lock" }, { label: "Nothing", value: "ignore" }]
+        label: Tr.t("Pressing the power button")
+        options: [{ label: Tr.t("Power off"), value: "poweroff" }, { label: Tr.t("Sleep"), value: "suspend" }, { label: Tr.t("Lock"), value: "lock" }, { label: Tr.t("Nothing"), value: "ignore" }]
         current: page.powerKey
         onPicked: v => page.save({ powerKey: v })
     }
@@ -124,8 +126,8 @@ ColumnLayout {
     }
     Picks {
         visible: page.limit > 0
-        label: "Stop charging at (keeps the battery healthy when mostly plugged in)"
-        options: [{ label: "60 %", value: "60" }, { label: "80 %", value: "80" }, { label: "90 %", value: "90" }, { label: "Full", value: "100" }]
+        label: Tr.t("Stop charging at (keeps the battery healthy when mostly plugged in)")
+        options: [{ label: "60 %", value: "60" }, { label: "80 %", value: "80" }, { label: "90 %", value: "90" }, { label: Tr.t("Full"), value: "100" }]
         current: String(page.limit)
         onPicked: v => page.saveLimit(parseInt(v))
     }

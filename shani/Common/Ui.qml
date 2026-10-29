@@ -18,6 +18,8 @@ Singleton {
     property bool magnifier: false
     property bool annotate: false                  // drawing on the screen
     property int annotateStrokes: 0
+    property var printersSeen: []                  // Settings > Printers, for the tests
+    property string backupSummary: ""              // Settings > Backup, for the tests
     property string settingsCat: ""                // the settings category open, "" = the grid
     property int faceRev: 0                        // bumped when ~/.face changes
     property bool tour: false                      // the tour, opened again by hand

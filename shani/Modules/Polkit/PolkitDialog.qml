@@ -38,7 +38,7 @@ PanelWindow {
                 spacing: 10
                 Icon { name: "dialog-password"; size: 26; color: Theme.accent }
                 Text {
-                    text: "Authentication required"
+                    text: Tr.t("Authentication required")
                     color: Theme.text
                     font.family: Theme.font
                     font.pixelSize: 16 * Theme.fontScale
@@ -93,9 +93,9 @@ PanelWindow {
             RowLayout {
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
-                Button { text: "Cancel"; onClicked: win.flow.cancelAuthenticationRequest() }
+                Button { text: Tr.t("Cancel"); onClicked: win.flow.cancelAuthenticationRequest() }
                 Button {
-                    text: "Authenticate"
+                    text: Tr.t("Authenticate")
                     kind: "primary"
                     onClicked: {
                         win.flow.submit(pass.text);

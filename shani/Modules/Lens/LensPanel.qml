@@ -94,6 +94,8 @@ PanelWindow {
                 clip: true
                 TextEdit {
                     id: found
+                    Accessible.role: Accessible.EditableText
+                    Accessible.name: Tr.t("Text found on the screen")
                     width: parent.width
                     readOnly: true
                     selectByMouse: true
@@ -110,11 +112,11 @@ PanelWindow {
             Flow {
                 Layout.fillWidth: true
                 spacing: 8
-                Button { text: "Copy text"; enabled: Lens.text !== ""; onClicked: { Lens.copyText(); Lens.close(); } }
-                Button { text: "Search"; enabled: Lens.text !== ""; onClicked: { Lens.search(); Lens.close(); } }
-                Button { text: "Translate"; enabled: Lens.text !== ""; onClicked: { Lens.translate(); Lens.close(); } }
-                Button { text: "Save image"; onClicked: { Lens.save(); Lens.close(); } }
-                Button { text: "Open image"; onClicked: { Lens.openImage(); Lens.close(); } }
+                Button { text: Tr.t("Copy text"); enabled: Lens.text !== ""; onClicked: { Lens.copyText(); Lens.close(); } }
+                Button { text: Tr.t("Search"); enabled: Lens.text !== ""; onClicked: { Lens.search(); Lens.close(); } }
+                Button { text: Tr.t("Translate"); enabled: Lens.text !== ""; onClicked: { Lens.translate(); Lens.close(); } }
+                Button { text: Tr.t("Save image"); onClicked: { Lens.save(); Lens.close(); } }
+                Button { text: Tr.t("Open image"); onClicked: { Lens.openImage(); Lens.close(); } }
             }
 
             RowLayout {
@@ -123,11 +125,11 @@ PanelWindow {
                 TextField {
                     id: question
                     Layout.fillWidth: true
-                    placeholder: "Ask Chronoa about this…"
+                    placeholder: Tr.t("Ask Chronoa about this…")
                     onAccepted: Lens.ask(text)
                     input.Keys.onEscapePressed: Lens.close()
                 }
-                Button { text: "Ask Chronoa"; kind: "primary"; enabled: Lens.phase === "ready"; onClicked: Lens.ask(question.text) }
+                Button { text: Tr.t("Ask Chronoa"); kind: "primary"; enabled: Lens.phase === "ready"; onClicked: Lens.ask(question.text) }
             }
         }
     }

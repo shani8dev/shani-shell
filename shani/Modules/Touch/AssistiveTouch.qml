@@ -30,7 +30,7 @@ PanelWindow {
         border.color: Theme.alpha(Theme.accent, 0.8)
         Rectangle { anchors.centerIn: parent; width: 26; height: 26; radius: 13; color: Theme.alpha(Theme.accent, 0.85) }
         Accessible.role: Accessible.Button
-        Accessible.name: "Smart touch: open the Ring"
+        Accessible.name: Tr.t("Smart touch: open the Ring")
     }
     MouseArea {
         anchors.fill: parent

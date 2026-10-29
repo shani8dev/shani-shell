@@ -40,6 +40,19 @@ RESERVED = {"root", "greeter", "nobody", "admin", "daemon", "bin", "sys", "sync"
 FIRST_UID, LAST_UID = 1000, 60000
 
 
+def extra_groups() -> list:
+    """The groups every person's account joins when they exist on this system."""
+    import grp
+    out = []
+    for g in ("sambashare",):
+        try:
+            grp.getgrnam(g)
+            out.append(g)
+        except KeyError:
+            pass
+    return out
+
+
 def regular_accounts() -> list[str]:
     """Accounts a person signs in to: UID 1000–59999 with a login shell."""
     return [p.pw_name for p in pwd.getpwall()
@@ -102,7 +115,9 @@ def apply(req: dict) -> dict:
     except KeyError:
         pass
 
-    err = run(["useradd", "-m", "-c", req.get("fullname", ""), "-G", "wheel", "-s", "/bin/bash", user])
+    # sambashare (shani-settings makes it): sharing a folder works from the start
+    groups = ",".join(["wheel"] + extra_groups())
+    err = run(["useradd", "-m", "-c", req.get("fullname", ""), "-G", groups, "-s", "/bin/bash", user])
     if err:
         return {"ok": False, "error": err}
     err = run(["chpasswd"], stdin=f"{user}:{req['password']}\n")

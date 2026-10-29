@@ -17,6 +17,8 @@ ColumnLayout {
     property string open: ""
     property var perms: ({})              // the open app's: { network, home, devices, host }
     onActiveChanged: if (active) list.running = true
+    // made already active (a Settings category is a Loader): load now too
+    Component.onCompleted: if (active) list.running = true
 
     Process {
         id: list
@@ -59,11 +61,11 @@ ColumnLayout {
         change.running = true;
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "App permissions" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("App permissions") }
     Text {
         Layout.fillWidth: true
         visible: page.apps.length === 0
-        text: "No Flatpak apps installed."
+        text: Tr.t("No Flatpak apps installed.")
         color: Theme.dim
         font.family: Theme.font
         font.pixelSize: 12 * Theme.fontScale
@@ -89,12 +91,12 @@ ColumnLayout {
                 Layout.leftMargin: 28
                 Layout.fillWidth: true
                 spacing: 2
-                SwitchRow { Layout.fillWidth: true; text: "Internet"; checked: !!page.perms.network; onToggled: on => page.set("network", on) }
-                SwitchRow { Layout.fillWidth: true; text: "Your home folder"; hint: "otherwise only what you open with it"; checked: !!page.perms.home; onToggled: on => page.set("home", on) }
-                SwitchRow { Layout.fillWidth: true; text: "All devices"; hint: "webcams, game controllers, USB"; checked: !!page.perms.devices; onToggled: on => page.set("devices", on) }
-                SwitchRow { Layout.fillWidth: true; text: "The whole system's files"; checked: !!page.perms.host; onToggled: on => page.set("host", on) }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("Internet"); checked: !!page.perms.network; onToggled: on => page.set("network", on) }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("Your home folder"); hint: Tr.t("otherwise only what you open with it"); checked: !!page.perms.home; onToggled: on => page.set("home", on) }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("All devices"); hint: Tr.t("webcams, game controllers, USB"); checked: !!page.perms.devices; onToggled: on => page.set("devices", on) }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("The whole system's files"); checked: !!page.perms.host; onToggled: on => page.set("host", on) }
                 Button {
-                    text: "Back to what the app asked for"
+                    text: Tr.t("Back to what the app asked for")
                     onClicked: { change.command = ["flatpak", "override", "--user", "--reset", page.open]; change.running = true; }
                 }
             }

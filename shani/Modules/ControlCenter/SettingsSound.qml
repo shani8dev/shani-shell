@@ -59,15 +59,15 @@ ColumnLayout {
     }
     Process { id: setProfile; onExited: cardList.running = true }
 
-    SectionTitle { Layout.fillWidth: true; text: "Sound" }
-    SwitchRow { Layout.fillWidth: true; text: "Allow volume above 100 %"; hint: "for quiet speakers — loud audio may distort"; checked: page.d.overAmplify; onToggled: on => page.d.overAmplify = on }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Sound") }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("Allow volume above 100 %"); hint: Tr.t("for quiet speakers — loud audio may distort"); checked: page.d.overAmplify; onToggled: on => page.d.overAmplify = on }
     Picks {
-        label: "Volume keys change it by"
+        label: Tr.t("Volume keys change it by")
         options: [{ label: "2 %", value: 2 }, { label: "5 %", value: 5 }, { label: "10 %", value: 10 }]
         current: page.d.volumeStep
         onPicked: v => page.d.volumeStep = v
     }
-    SwitchRow { Layout.fillWidth: true; text: "System sounds"; hint: "a click when the volume changes, a shutter for screenshots"; checked: page.d.systemSounds; onToggled: on => page.d.systemSounds = on }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("System sounds"); hint: Tr.t("a click when the volume changes, a shutter for screenshots"); checked: page.d.systemSounds; onToggled: on => page.d.systemSounds = on }
     Repeater {
         model: page.cards
         ColumnLayout {
@@ -95,10 +95,10 @@ ColumnLayout {
         }
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "Sound effects" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Sound effects") }
     SwitchRow {
         Layout.fillWidth: true
-        text: "Sound effects"
+        text: Tr.t("Sound effects")
         hint: SoundFx.error ? SoundFx.error : SoundFx.on ? (SoundFx.running ? "playing through them into " + (SoundFx.target || "the output") : "starting…") : "equaliser, bass, width, crossfeed, headphone correction"
         checked: page.d.fxEnabled
         onToggled: on => page.d.fxEnabled = on
@@ -187,43 +187,43 @@ ColumnLayout {
     }
 
     Picks {
-        label: "Bass boost"
-        options: [{ label: "Off", value: 0 }, { label: "+3 dB", value: 3 }, { label: "+6 dB", value: 6 }, { label: "+9 dB", value: 9 }, { label: "+12 dB", value: 12 }]
+        label: Tr.t("Bass boost")
+        options: [{ label: Tr.t("Off"), value: 0 }, { label: Tr.t("+3 dB"), value: 3 }, { label: Tr.t("+6 dB"), value: 6 }, { label: Tr.t("+9 dB"), value: 9 }, { label: Tr.t("+12 dB"), value: 12 }]
         current: page.d.fxBass
         onPicked: v => page.d.fxBass = v
     }
     Picks {
-        label: "Stereo width"
-        options: [{ label: "Mono", value: 0 }, { label: "Narrow", value: 0.6 }, { label: "As recorded", value: 1 }, { label: "Wide", value: 1.5 }, { label: "Wider", value: 2 }]
+        label: Tr.t("Stereo width")
+        options: [{ label: Tr.t("Mono"), value: 0 }, { label: Tr.t("Narrow"), value: 0.6 }, { label: Tr.t("As recorded"), value: 1 }, { label: Tr.t("Wide"), value: 1.5 }, { label: Tr.t("Wider"), value: 2 }]
         current: page.d.fxWidth
         onPicked: v => page.d.fxWidth = v
     }
     SwitchRow {
         Layout.fillWidth: true
-        text: "Headphone crossfeed"
-        hint: "a little of each side in the other, as speakers would — less tiring on headphones"
+        text: Tr.t("Headphone crossfeed")
+        hint: Tr.t("a little of each side in the other, as speakers would — less tiring on headphones")
         checked: page.d.fxCrossfeed
         onToggled: on => page.d.fxCrossfeed = on
     }
 
     SwitchRow {
         Layout.fillWidth: true
-        text: "Even out loudness"
-        hint: "quiet and loud videos at one level (EBU R128)"
+        text: Tr.t("Even out loudness")
+        hint: Tr.t("quiet and loud videos at one level (EBU R128)")
         checked: page.d.fxLoudness
         onToggled: on => page.d.fxLoudness = on
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "Microphone" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Microphone") }
     SwitchRow {
         Layout.fillWidth: true
-        text: "Noise suppression"
+        text: Tr.t("Noise suppression")
         hint: SoundFx.micError ? SoundFx.micError : "keyboard, fan and traffic out of calls and recordings (RNNoise)"
         checked: page.d.micNoise
         onToggled: on => page.d.micNoise = on
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "Headphone correction" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Headphone correction") }
     Text {
         Layout.fillWidth: true
         text: page.d.fxAutoEq ? SoundFx.parseAutoEq(page.d.fxAutoEq).length + " correction filters in use." : "AutoEq has a correction for most headphones: download its “ParametricEQ.txt” for yours and give its path here."
@@ -248,13 +248,13 @@ ColumnLayout {
         spacing: 6
         TextField {
             Layout.fillWidth: true
-            placeholder: "~/Downloads/… ParametricEQ.txt"
+            placeholder: Tr.t("~/Downloads/… ParametricEQ.txt")
             onAccepted: page.autoEqPath = text.trim().replace(/^~/, Quickshell.env("HOME"))
         }
-        Button { visible: page.d.fxAutoEq !== ""; text: "Remove"; onClicked: page.d.fxAutoEq = "" }
+        Button { visible: page.d.fxAutoEq !== ""; text: Tr.t("Remove"); onClicked: page.d.fxAutoEq = "" }
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "Impulse response" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Impulse response") }
     RowLayout {
         Layout.fillWidth: true
         spacing: 6
@@ -263,6 +263,6 @@ ColumnLayout {
             placeholder: page.d.fxIr || "A .wav impulse response — room, speaker or headphone (JamesDSP/ViPER IRs work)"
             onAccepted: page.d.fxIr = text.trim().replace(/^~/, Quickshell.env("HOME"))
         }
-        Button { visible: page.d.fxIr !== ""; text: "Remove"; onClicked: page.d.fxIr = "" }
+        Button { visible: page.d.fxIr !== ""; text: Tr.t("Remove"); onClicked: page.d.fxIr = "" }
     }
 }

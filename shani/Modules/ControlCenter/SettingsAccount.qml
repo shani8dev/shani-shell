@@ -39,13 +39,13 @@ ColumnLayout {
         stdout: StdioCollector {
             onStreamFinished: {
                 page.hasReader = text.indexOf("Device at") >= 0;
-                page.enrolled = (text.match(/#\d+:\s*(\S+)/g) || []).map(x => x.replace(/#\d+:\s*/, "").replace(/-/g, " "));
+                page.enrolled = (text.match(/#\d+:\s*(\S+)/g) || []).map(x => x.replace(/#\d+:\s*/, ""));
             }
         }
     }
     Process {
         id: enroll
-        command: ["fprintd-enroll", "-f", "right-index-finger"]
+        command: ["fprintd-enroll", "-f", page.finger]
         stdout: SplitParser {
             onRead: line => {
                 if (/enroll-stage-passed/.test(line)) { page.stages++; page.enrollState = "again"; }
@@ -57,8 +57,21 @@ ColumnLayout {
         onExited: fingers.running = true
     }
     function startEnroll() { stages = 0; enrollState = "touch"; enroll.running = true; }
-    Process { id: forget; command: ["fprintd-delete", page.user]; onExited: fingers.running = true }
+    // one finger (fprintd-delete -f), or all of them
+    function forgetFinger(f) { forget.command = f ? ["fprintd-delete", "-f", f, page.user] : ["fprintd-delete", page.user]; forget.running = true; }
+    Process { id: forget; onExited: fingers.running = true }
+    // fprintd's ten names (EnrollStart refuses anything else); the picker offers those not saved yet
+    readonly property var fingerNames: ["right-index-finger", "left-index-finger", "right-thumb", "left-thumb",
+        "right-middle-finger", "left-middle-finger", "right-ring-finger", "left-ring-finger", "right-little-finger", "left-little-finger"]
+    property string finger: "right-index-finger"
+    readonly property var unsaved: fingerNames.filter(f => enrolled.indexOf(f) < 0)
+    onUnsavedChanged: if (unsaved.indexOf(finger) < 0 && unsaved.length) finger = unsaved[0]
+    function fingerLabel(f) { return Tr.t(f.replace(/-finger$/, "").replace(/-/g, " ").replace(/^./, c => c.toUpperCase())); }
+    // fprintd's usual stage count; the bar is a guide, "done" comes from fprintd
+    readonly property int stagesNeeded: 5
     onActiveChanged: if (active) refresh()
+    // made already active (a Settings category is a Loader): load now too
+    Component.onCompleted: if (active) refresh()
 
     Process {
         id: who
@@ -104,7 +117,7 @@ ColumnLayout {
         }
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "Your account" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Your account") }
     RowLayout {
         Layout.fillWidth: true
         spacing: 14
@@ -117,7 +130,7 @@ ColumnLayout {
         }
     }
 
-    Text { text: "Picture"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+    Text { text: Tr.t("Picture"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
     Flow {
         Layout.fillWidth: true
         spacing: 8
@@ -140,7 +153,7 @@ ColumnLayout {
     Text {
         Layout.fillWidth: true
         visible: page.pictures.length === 0
-        text: "Put a picture in Pictures to choose it here."
+        text: Tr.t("Put a picture in Pictures to choose it here.")
         color: Theme.faint
         font.family: Theme.font
         font.pixelSize: 11 * Theme.fontScale
@@ -156,29 +169,58 @@ ColumnLayout {
             text = "";
         }
     }
-    SectionTitle { Layout.fillWidth: true; text: "Fingerprint"; visible: page.hasReader }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Fingerprint"); visible: page.hasReader }
     Text {
         Layout.fillWidth: true
         visible: page.hasReader
-        text: page.enrollState === "touch" ? "Touch the reader with your right index finger."
-            : page.enrollState === "again" ? "Lift it and touch again — " + page.stages + " done."
-            : page.enrollState === "done" ? "Your fingerprint is saved. It unlocks the lock screen and approves admin requests where they allow it."
-            : page.enrollState.startsWith("failed") ? "That did not work (" + page.enrollState.slice(8) + "). Try again."
-            : page.enrolled.length ? "Enrolled: " + page.enrolled.join(", ") : "No fingerprint saved."
+        text: page.enrollState === "touch" ? Tr.t("Touch the reader with your %1.", page.fingerLabel(page.finger).toLowerCase())
+            : page.enrollState === "again" ? Tr.t("Lift it and touch again — %1 done.", page.stages)
+            : page.enrollState === "done" ? Tr.t("Saved. It unlocks the lock screen and approves admin requests where they allow it.")
+            : page.enrollState.startsWith("failed") ? Tr.t("That did not work (%1). Try again.", page.enrollState.slice(8))
+            : page.enrolled.length ? "" : Tr.t("No fingerprint saved.")
         color: page.enrollState.startsWith("failed") ? Theme.danger : Theme.dim
         wrapMode: Text.Wrap
         font.family: Theme.font
         font.pixelSize: 12 * Theme.fontScale
     }
+    Rectangle {      // the scans so far
+        visible: enroll.running
+        Layout.fillWidth: true
+        implicitHeight: 6
+        radius: 3
+        color: Theme.hover
+        Rectangle { width: parent.width * Math.min(1, page.stages / page.stagesNeeded); height: parent.height; radius: 3; color: Theme.accent }
+    }
+    // saved fingers, each removable
+    Repeater {
+        model: page.hasReader ? page.enrolled : []
+        RowLayout {
+            required property string modelData
+            Layout.fillWidth: true
+            Icon { name: "auth-fingerprint"; size: 18; color: Theme.accent }
+            Text { Layout.fillWidth: true; text: page.fingerLabel(modelData); color: Theme.text; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale }
+            IconButton { icon: "edit-delete"; tip: Tr.t("Remove"); Accessible.name: Tr.t("Remove %1", page.fingerLabel(modelData)); onClicked: page.forgetFinger(modelData) }
+        }
+    }
+    Flow {
+        visible: page.hasReader && !enroll.running && page.unsaved.length > 0
+        Layout.fillWidth: true
+        spacing: 4
+        Repeater {
+            model: page.unsaved
+            Choice { required property string modelData; text: page.fingerLabel(modelData); selected: page.finger === modelData; onClicked: page.finger = modelData }
+        }
+    }
     RowLayout {
         visible: page.hasReader
         spacing: 6
-        Button { text: enroll.running ? "Enrolling…" : "Add a fingerprint"; enabled: !enroll.running; onClicked: page.startEnroll() }
-        Button { visible: page.enrolled.length > 0 && !enroll.running; kind: "danger"; text: "Remove fingerprints"; onClicked: forget.running = true }
+        Button { text: enroll.running ? Tr.t("Enrolling…") : Tr.t("Add %1", page.fingerLabel(page.finger).toLowerCase()); enabled: !enroll.running && page.unsaved.length > 0; onClicked: page.startEnroll() }
+        Button { visible: enroll.running; text: Tr.t("Cancel"); onClicked: enroll.running = false }
+        Button { visible: page.enrolled.length > 1 && !enroll.running; kind: "danger"; text: Tr.t("Remove all"); onClicked: page.forgetFinger("") }
     }
 
     Button {
-        text: "Change password…"
+        text: Tr.t("Change password…")
         onClicked: {
             Ui.closeAll();
             Quickshell.execDetached([Settings.data.terminal, "-e", "sh", "-c", 'passwd; echo; read -p "Press Enter to close." x']);

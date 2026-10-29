@@ -63,9 +63,10 @@ def test_first_account_is_an_administrator_and_settings_follow(monkeypatch):
     monkeypatch.setattr(fa, "run", lambda cmd, stdin=None: calls.append((cmd, stdin)) or "")
     monkeypatch.setattr(fa.pwd, "getpwall", lambda: [entry("root", 0)])
     monkeypatch.setattr(fa, "listed", lambda cmd: {"mr_IN.UTF-8", "Asia/Kolkata"})
+    monkeypatch.setattr(fa, "extra_groups", lambda: ["sambashare"])   # where it exists
     assert fa.apply(GOOD) == {"ok": True, "warnings": []}
     cmds = [c for c, _ in calls]
-    assert cmds[0] == ["useradd", "-m", "-c", "Asha Patil", "-G", "wheel", "-s", "/bin/bash", "asha"]
+    assert cmds[0] == ["useradd", "-m", "-c", "Asha Patil", "-G", "wheel,sambashare", "-s", "/bin/bash", "asha"]
     assert calls[1] == (["chpasswd"], "asha:s3cret pass\n")
     assert ["localectl", "set-locale", "LANG=mr_IN.UTF-8"] in cmds
     assert ["localectl", "set-x11-keymap", "us,in", "", ",marathi", "grp:win_space_toggle"] in cmds

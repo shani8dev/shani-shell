@@ -16,6 +16,8 @@ ColumnLayout {
     property string renameError: ""
     property bool hasCassini: false
     onActiveChanged: if (active) facts.running = true
+    // made already active (a Settings category is a Loader): load now too
+    Component.onCompleted: if (active) facts.running = true
 
     // one line each: key=value
     Process {
@@ -49,7 +51,7 @@ ColumnLayout {
         }
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "This computer" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("This computer") }
     RowLayout {
         Layout.fillWidth: true
         spacing: 14
@@ -70,7 +72,7 @@ ColumnLayout {
     }
     TextField {
         Layout.fillWidth: true
-        placeholder: "Rename this computer (as others see it on the network)"
+        placeholder: Tr.t("Rename this computer (as others see it on the network)")
         onAccepted: {
             const n = text.trim();
             if (!/^[A-Za-z0-9][A-Za-z0-9-]{0,62}$/.test(n)) {
@@ -128,22 +130,37 @@ ColumnLayout {
     RowLayout {
         spacing: 8
         Button {
-            text: "Copy details"
+            text: Tr.t("Copy details")
             onClicked: Quickshell.clipboardText = [page.info.host, page.info.os, page.info.cpu, page.info.gpu, page.info.memory, page.info.disk, page.info.kernel, page.info.session].filter(x => x).join("\n")
         }
         Button {
             visible: page.hasCassini
-            text: "Open Cassini"
+            text: Tr.t("Open Cassini")
             onClicked: { Ui.closeAll(); Quickshell.execDetached(["shani-cassini"]); }
         }
     }
-    Text {
+    // What these Settings leave to Cassini - each opens on its own page there,
+    // so nothing is in both places
+    SectionTitle { Layout.fillWidth: true; visible: page.hasCassini; text: Tr.t("More in Cassini") }
+    Flow {
         Layout.fillWidth: true
         visible: page.hasCassini
-        text: "Cassini manages the rest: storage, boot and security, updates, services, backup."
-        color: Theme.faint
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        spacing: 6
+        Repeater {
+            model: [
+                { label: Tr.t("Updates & going back"), id: "updates" },
+                { label: Tr.t("Firmware"), id: "firmware" },
+                { label: Tr.t("Disk space & clean-up"), id: "maintenance" },
+                { label: Tr.t("Disk health"), id: "smart" },
+                { label: Tr.t("Encryption"), id: "encryption" },
+                { label: Tr.t("Secure Boot"), id: "secureboot" },
+                { label: Tr.t("Firewall"), id: "firewall" },
+                { label: Tr.t("Services"), id: "services" }]
+            Choice {
+                required property var modelData
+                text: modelData.label
+                onClicked: { Ui.closeAll(); Quickshell.execDetached(["shani-cassini", "--section=" + modelData.id]); }
+            }
+        }
     }
 }

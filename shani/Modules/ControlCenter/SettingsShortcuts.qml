@@ -60,22 +60,22 @@ ColumnLayout {
         }
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "Special keys" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Special keys") }
     Picks {
-        label: "Compose key (types é as Compose e ', ₹ as Compose = R …)"
-        options: [{ label: "None", value: "" }, { label: "Right Alt", value: "ralt" }, { label: "Right Super", value: "rwin" }, { label: "Menu", value: "menu" }, { label: "Caps Lock", value: "caps" }]
+        label: Tr.t("Compose key (types é as Compose e ', ₹ as Compose = R …)")
+        options: [{ label: Tr.t("None"), value: "" }, { label: Tr.t("Right Alt"), value: "ralt" }, { label: Tr.t("Right Super"), value: "rwin" }, { label: Tr.t("Menu"), value: "menu" }, { label: Tr.t("Caps Lock"), value: "caps" }]
         current: page.d.kbCompose
         onPicked: v => page.d.kbCompose = v
     }
     Picks {
-        label: "Caps Lock"
-        options: [{ label: "Caps Lock", value: "" }, { label: "Ctrl", value: "ctrl:nocaps" }, { label: "Escape", value: "caps:escape" }, { label: "Backspace", value: "caps:backspace" }]
+        label: Tr.t("Caps Lock")
+        options: [{ label: Tr.t("Caps Lock"), value: "" }, { label: Tr.t("Ctrl"), value: "ctrl:nocaps" }, { label: Tr.t("Escape"), value: "caps:escape" }, { label: Tr.t("Backspace"), value: "caps:backspace" }]
         current: page.d.kbCaps
         onPicked: v => page.d.kbCaps = v
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "Keyboard shortcuts" }
-    TextField { id: find; Layout.fillWidth: true; placeholder: "Find a shortcut — screenshot, workspace, volume…" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Keyboard shortcuts") }
+    TextField { id: find; Layout.fillWidth: true; placeholder: Tr.t("Find a shortcut — screenshot, workspace, volume…") }
     Repeater {
         model: page.binds.concat(Array.from(page.d.customBinds || []).map(b => ({ key: b.key, what: (b.title || b.command) + "  (yours)" })))
             .filter(b => { const q = find.text.trim().toLowerCase(); return q === "" || (b.key + " " + b.what).toLowerCase().indexOf(q) >= 0; })
@@ -96,7 +96,7 @@ ColumnLayout {
         }
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "Your shortcuts" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Your shortcuts") }
     Repeater {
         model: page.d.customBinds
         ListRow {
@@ -118,10 +118,10 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         spacing: 6
-        TextField { id: newKey; Layout.preferredWidth: 130; placeholder: "Mod+Alt+T" }
-        TextField { id: newCmd; Layout.fillWidth: true; placeholder: "Command — e.g. firefox --private-window" }
+        TextField { id: newKey; Layout.preferredWidth: 130; placeholder: Tr.t("Mod+Alt+T") }
+        TextField { id: newCmd; Layout.fillWidth: true; placeholder: Tr.t("Command — e.g. firefox --private-window") }
         Button {
-            text: "Add"
+            text: Tr.t("Add")
             readonly property string key: newKey.text.trim()
             readonly property bool taken: page.binds.some(b => b.key.toLowerCase() === key.toLowerCase())
             enabled: /^[A-Za-z0-9+_]+$/.test(key) && newCmd.text.trim() !== "" && !taken

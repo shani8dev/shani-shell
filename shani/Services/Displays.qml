@@ -41,7 +41,7 @@ Singleton {
         Settings.data.displays = all;
         countdown = 15;
         probation.restart();
-        settle.restart();
+        settle.go();
     }
     function keep() {
         previous = null;
@@ -53,7 +53,7 @@ Singleton {
         Settings.data.displays = previous;
         previous = null;
         probation.stop();
-        settle.restart();
+        settle.go();
     }
     Timer {
         id: probation
@@ -103,7 +103,16 @@ Singleton {
 
     function refresh() { list.running = true; }
     Process { id: mirror }
-    Timer { id: settle; interval: 900; onTriggered: root.refresh() }
+    // after a change: the setting goes to InputConfig's file and niri reloads
+    // it on its own time, so outputs are read again a few times over ~4 s
+    // (there is no event for "niri applied the config") - then nothing polls
+    property int settleLeft: 0
+    Timer {
+        id: settle
+        interval: 900
+        onTriggered: { root.refresh(); if (--root.settleLeft > 0) restart(); }
+        function go() { root.settleLeft = 4; restart(); }
+    }
     // niri's transform names → the config's
     readonly property var transforms: ({ Normal: "normal", _90: "90", _180: "180", _270: "270", Flipped: "flipped",
                                          Flipped90: "flipped-90", Flipped180: "flipped-180", Flipped270: "flipped-270" })
@@ -139,7 +148,9 @@ Singleton {
         }
     }
     // niri reports outputs coming and going on its event stream; a plug-in shows up here
-    Timer { interval: 5000; running: true; repeat: true; onTriggered: root.refresh() }
+    // a monitor plugged in or out is a wl_output appearing or going, which
+    // Quickshell.screens follows - no need to ask niri every 5 s
+    Connections { target: Quickshell; function onScreensChanged() { settle.go(); } }
     Process {
         running: true
         command: ["sh", "-c", "command -v wl-mirror"]

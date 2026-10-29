@@ -37,6 +37,15 @@ centre, and against what a session needs before any app runs.
   the race: whichever registers with obexd first keeps it.
 - **More setup-wizard languages** than English, मराठी, हिन्दी, Deutsch, Español,
   Français (strings.js); the shell's own settings are English only.
+- **Translations**: 104 of ~575 strings reviewed in Marathi and Hindi (the bar,
+  control centre tiles, Settings categories, launcher's main actions); German,
+  Spanish and French have none yet. The rest show in English, or - opt-in - are
+  translated by Chronoa's local model, which got about a third of short labels
+  wrong when measured with Qwen3-8B. Strings built by concatenation are not yet
+  wrapped (`tools/i18n.py` says how).
+- **One run on a real installed niri image**: everything here is proven in the
+  nested container only. Needs the niri image built (shani-shell has no remote
+  yet, and its PKGBUILD fetches from GitHub) and a shani-testbed UEFI boot.
 - **Cassini** has no account management and no lid/power settings (the shell
   has both now).
 

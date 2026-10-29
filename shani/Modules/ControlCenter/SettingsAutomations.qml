@@ -12,18 +12,18 @@ ColumnLayout {
     property bool active: false
     readonly property var d: Settings.data
     readonly property var whens: [
-        { id: "wifi", label: "Joining Wi-Fi", hint: "network name", ask: true },
-        { id: "power", label: "Power", choices: ["plugged", "battery"] },
-        { id: "output", label: "Sound output", hint: "name contains, e.g. headphones", ask: true },
-        { id: "displays", label: "Screens", choices: ["1", "2", "3"] },
-        { id: "time", label: "Time", hint: "HH:MM", ask: true }]
+        { id: "wifi", label: Tr.t("Joining Wi-Fi"), hint: Tr.t("network name"), ask: true },
+        { id: "power", label: Tr.t("Power"), choices: ["plugged", "battery"] },
+        { id: "output", label: Tr.t("Sound output"), hint: Tr.t("name contains, e.g. headphones"), ask: true },
+        { id: "displays", label: Tr.t("Screens"), choices: ["1", "2", "3"] },
+        { id: "time", label: Tr.t("Time"), hint: Tr.t("HH:MM"), ask: true }]
     readonly property var thens: [
-        { id: "focus", label: "Focus mode", choices: () => page.d.focusModes.map(m => m.name).concat([""]) },
-        { id: "dnd", label: "Do not disturb", choices: () => ["on", "off"] },
-        { id: "volume", label: "Volume", hint: "percent", ask: true },
-        { id: "style", label: "Style", choices: () => ["dark", "light"] },
-        { id: "open", label: "Open app", hint: "desktop id, e.g. org.gnome.Calendar", ask: true },
-        { id: "run", label: "Run command", hint: "shell command", ask: true }]
+        { id: "focus", label: Tr.t("Focus mode"), choices: () => page.d.focusModes.map(m => m.name).concat([""]) },
+        { id: "dnd", label: Tr.t("Do not disturb"), choices: () => ["on", "off"] },
+        { id: "volume", label: Tr.t("Volume"), hint: Tr.t("percent"), ask: true },
+        { id: "style", label: Tr.t("Style"), choices: () => ["dark", "light"] },
+        { id: "open", label: Tr.t("Open app"), hint: Tr.t("desktop id, e.g. org.gnome.Calendar"), ask: true },
+        { id: "run", label: Tr.t("Run command"), hint: Tr.t("shell command"), ask: true }]
 
     function sentence(r) {
         const w = { wifi: "On joining " + r.is, power: r.is === "battery" ? "On battery" : "When plugged in",
@@ -37,12 +37,12 @@ ColumnLayout {
     function setRules(list) { d.automations = list; }
     function rulesCopy() { return JSON.parse(JSON.stringify(Array.from(d.automations))); }
 
-    SectionTitle { Layout.fillWidth: true; text: "When this happens, do that" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("When this happens, do that") }
     Text {
         visible: page.d.automations.length === 0
         Layout.fillWidth: true
         wrapMode: Text.WordWrap
-        text: "No automations yet. A rule acts once, when its moment comes — joining the office Wi-Fi can turn on Work focus; plugging in headphones can set the volume."
+        text: Tr.t("No automations yet. A rule acts once, when its moment comes — joining the office Wi-Fi can turn on Work focus; plugging in headphones can set the volume.")
         color: Theme.dim
         font.family: Theme.font
         font.pixelSize: 12 * Theme.fontScale
@@ -59,11 +59,11 @@ ColumnLayout {
                 checked: modelData.on !== false
                 onToggled: on => { const l = page.rulesCopy(); l[index].on = on; page.setRules(l); }
             }
-            IconButton { icon: "edit-delete"; tip: "Remove"; onClicked: { const l = page.rulesCopy(); l.splice(index, 1); page.setRules(l); } }
+            IconButton { icon: "edit-delete"; tip: Tr.t("Remove"); onClicked: { const l = page.rulesCopy(); l.splice(index, 1); page.setRules(l); } }
         }
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "Add an automation" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Add an automation") }
     property string when: "wifi"
     property string is: ""
     property string then: "focus"
@@ -96,7 +96,7 @@ ColumnLayout {
             Choice { required property string modelData; text: modelData; selected: page.is === modelData; onClicked: page.is = modelData }
         }
     }
-    Text { text: "then"; color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+    Text { text: Tr.t("then"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
     Flow {
         Layout.fillWidth: true
         spacing: 6
@@ -124,7 +124,7 @@ ColumnLayout {
         }
     }
     Button {
-        text: "Add"
+        text: Tr.t("Add")
         kind: "primary"
         enabled: page.is !== "" && (page.arg !== "" || page.then === "focus")
         onClicked: {

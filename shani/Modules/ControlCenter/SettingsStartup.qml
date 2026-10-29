@@ -18,6 +18,8 @@ ColumnLayout {
     readonly property string userDir: (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config") + "/autostart"
     property var entries: []              // [{ file, name, on, mine }]
     onActiveChanged: if (active) refresh()
+    // made already active (a Settings category is a Loader): load now too
+    Component.onCompleted: if (active) refresh()
     function refresh() { list.running = true; }
 
     // one line each: file<TAB>name<TAB>hidden(true|false)<TAB>user|system — the user's copy wins
@@ -53,7 +55,7 @@ ColumnLayout {
         find.text = "";
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "Startup apps" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Startup apps") }
     Repeater {
         model: page.entries
         RowLayout {
@@ -76,7 +78,7 @@ ColumnLayout {
             }
         }
     }
-    TextField { id: find; Layout.fillWidth: true; placeholder: "Add an app to start at login…" }
+    TextField { id: find; Layout.fillWidth: true; placeholder: Tr.t("Add an app to start at login…") }
     Repeater {
         model: find.text.trim().length < 2 ? [] : DesktopEntries.applications.values
             .filter(a => !a.noDisplay && a.name.toLowerCase().indexOf(find.text.trim().toLowerCase()) >= 0).slice(0, 6)
@@ -85,12 +87,12 @@ ColumnLayout {
             Layout.fillWidth: true
             icon: modelData.icon || "application-x-executable"
             title: modelData.name
-            subtitle: "start at login"
+            subtitle: Tr.t("start at login")
             onClicked: page.add(modelData)
         }
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "Screenshots" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Screenshots") }
     TextField {
         Layout.fillWidth: true
         placeholder: "Saved to " + page.d.screenshotDir + " — type another folder"

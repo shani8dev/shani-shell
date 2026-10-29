@@ -42,7 +42,7 @@ Variants {
                 RowLayout {
                     spacing: 10
                     Icon { name: "video-display"; size: 22; color: Theme.accent }
-                    Text { text: "Keep these display settings?"; color: Theme.text; font.family: Theme.font; font.pixelSize: 15 * Theme.fontScale; font.weight: Font.DemiBold }
+                    Text { text: Tr.t("Keep these display settings?"); color: Theme.text; font.family: Theme.font; font.pixelSize: 15 * Theme.fontScale; font.weight: Font.DemiBold }
                 }
                 Text {
                     Layout.fillWidth: true
@@ -54,8 +54,8 @@ Variants {
                 RowLayout {
                     Layout.alignment: Qt.AlignRight
                     spacing: 8
-                    Button { text: "Revert"; onClicked: Displays.revert() }
-                    Button { kind: "primary"; text: "Keep"; onClicked: Displays.keep() }
+                    Button { text: Tr.t("Revert"); onClicked: Displays.revert() }
+                    Button { kind: "primary"; text: Tr.t("Keep"); onClicked: Displays.keep() }
                 }
             }
         }

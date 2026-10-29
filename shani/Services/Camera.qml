@@ -136,5 +136,5 @@ PY
             onStreamFinished: root.cameras = text.split("\n").map(l => /^(\d+): '([^']*)'/.exec(l.trim())).filter(m => m).map(m => ({ index: parseInt(m[1]), name: m[2] }))
         }
     }
-    Timer { interval: 10000; running: true; repeat: true; onTriggered: root.refresh() }   // a camera plugged in
+    Connections { target: Privacy; function onCamerasChanged() { root.refresh(); } }   // a camera plugged in or out
 }

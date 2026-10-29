@@ -6,6 +6,7 @@ Rectangle {
     id: root
     property string icon
     property string label
+    property string name: ""            // what a screen reader says, when label/icon would not do
     property color tint: Theme.text
     property bool active: false
     property bool mono: false
@@ -17,7 +18,7 @@ Rectangle {
     signal scrolled(int dir)
 
     Accessible.role: Accessible.Button
-    Accessible.name: root.label !== "" ? root.label : root.icon.replace(/-/g, " ")
+    Accessible.name: root.name || (root.label !== "" ? root.label : root.icon.replace(/-/g, " "))
     Accessible.onPressAction: root.clicked()
 
     implicitWidth: row.implicitWidth + 16

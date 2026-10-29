@@ -46,6 +46,8 @@ PanelWindow {
         function onMagnifierChanged() { if (Ui.magnifier) win.grab(); }
     }
     onVisibleChanged: if (visible) keys.forceActiveFocus();
+    // made when opened (shell.qml's LazyLoader): the first frame is taken now
+    Component.onCompleted: if (Ui.magnifier) grab()
 
     // the frame, full size, not shown: the loupe draws a magnified part of it
     Image {

@@ -23,6 +23,8 @@ ColumnLayout {
     property string zoneError: ""
     property var locales: []
     property string lang: ""              // LANG in locale.conf ("" = the system's)
+    // the language this session started with: a different choice needs a new sign-in
+    readonly property string langAtLogin: Quickshell.env("LANG") || ""
     property string formats: ""           // LC_TIME and the other formats; "" = as the language
     property string preview: ""
     readonly property string localeConf: (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config") + "/locale.conf"
@@ -41,6 +43,8 @@ ColumnLayout {
         conf.reload();
     }
     onActiveChanged: if (active) refresh()
+    // made already active (a Settings category is a Loader): load now too
+    Component.onCompleted: if (active) refresh()
 
     // ---- time --------------------------------------------------------------
     Process {
@@ -74,10 +78,10 @@ ColumnLayout {
         setTime.running = true;
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "Date & time" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Date & time") }
     SwitchRow {
         Layout.fillWidth: true
-        text: "Set the time automatically"
+        text: Tr.t("Set the time automatically")
         hint: page.canNtp ? "from the network (systemd-timesyncd)" : "no network time service on this system"
         checked: page.ntp
         enabled: page.canNtp
@@ -91,7 +95,7 @@ ColumnLayout {
         TextField { id: setDate; Layout.preferredWidth: 130; placeholder: Qt.formatDate(new Date(), "yyyy-MM-dd") }
         TextField { id: setClock; Layout.preferredWidth: 90; placeholder: Qt.formatTime(new Date(), "HH:mm") }
         Button {
-            text: "Set the time"
+            text: Tr.t("Set the time")
             enabled: /^\d{4}-\d\d-\d\d$/.test(setDate.text.trim() || setDate.placeholder) && /^\d\d?:\d\d$/.test(setClock.text.trim() || setClock.placeholder)
             onClicked: {
                 page.timedatectl(["set-time", (setDate.text.trim() || setDate.placeholder) + " " + (setClock.text.trim() || setClock.placeholder) + ":00"]);
@@ -100,7 +104,15 @@ ColumnLayout {
             }
         }
     }
-    SwitchRow { Layout.fillWidth: true; text: "24-hour clock"; checked: page.d.use24h; onToggled: on => page.d.use24h = on }
+    SwitchRow {
+        Layout.fillWidth: true
+        visible: Tr.lang !== "en"
+        text: Tr.t("Translate the rest with Chronoa")
+        hint: Tr.t("Words the shell has no translation for are translated on this computer by Chronoa's model. Machine translations can be wrong.")
+        checked: page.d.machineTranslate
+        onToggled: on => page.d.machineTranslate = on
+    }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("24-hour clock"); checked: page.d.use24h; onToggled: on => page.d.use24h = on }
     Text {
         text: "Time zone: " + (page.zone || "unknown")
         color: Theme.text
@@ -110,7 +122,7 @@ ColumnLayout {
     TextField {
         id: zoneSearch
         Layout.fillWidth: true
-        placeholder: "Search a city or region — Kolkata, Berlin, New_York…"
+        placeholder: Tr.t("Search a city or region — Kolkata, Berlin, New_York…")
     }
     Repeater {
         model: zoneSearch.text.trim().length < 2 ? [] : page.zones.filter(z => z.toLowerCase().indexOf(zoneSearch.text.trim().toLowerCase().replace(/ /g, "_")) >= 0).slice(0, 8)
@@ -173,7 +185,7 @@ ColumnLayout {
         stdout: StdioCollector { onStreamFinished: page.preview = text.trim().split("\n").join("   ·   ") }
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "Language & region" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Language & region") }
     Text {
         Layout.fillWidth: true
         text: "Language: " + page.niceLocale(page.lang) + "\nFormats: " + (page.formats ? page.niceLocale(page.formats) : "as the language") + "\n" + page.preview
@@ -186,14 +198,14 @@ ColumnLayout {
     property string choosing: ""            // "lang" | "formats" | ""
     RowLayout {
         spacing: 6
-        Choice { text: "Change language"; selected: page.choosing === "lang"; onClicked: page.choosing = page.choosing === "lang" ? "" : "lang" }
-        Choice { text: "Change formats"; selected: page.choosing === "formats"; onClicked: page.choosing = page.choosing === "formats" ? "" : "formats" }
+        Choice { text: Tr.t("Change language"); selected: page.choosing === "lang"; onClicked: page.choosing = page.choosing === "lang" ? "" : "lang" }
+        Choice { text: Tr.t("Change formats"); selected: page.choosing === "formats"; onClicked: page.choosing = page.choosing === "formats" ? "" : "formats" }
     }
     TextField {
         id: localeSearch
         Layout.fillWidth: true
         visible: page.choosing !== ""
-        placeholder: "Search — मराठी, Deutsch, en_IN…"
+        placeholder: Tr.t("Search — मराठी, Deutsch, en_IN…")
     }
     Repeater {
         model: page.choosing === "" ? [] : page.locales.filter(l => {
@@ -225,7 +237,7 @@ ColumnLayout {
     }
     Button {
         visible: page.lang !== ""
-        text: "Use for everyone and the login screen"
+        text: Tr.t("Use for everyone and the login screen")
         onClicked: {
             const args = ["localectl", "set-locale", "LANG=" + page.lang];
             if (page.formats)
@@ -246,10 +258,15 @@ ColumnLayout {
     }
     Text {
         Layout.fillWidth: true
-        text: "Applies from the next sign-in. Only languages installed on this system are listed; an administrator adds more (locale-gen)."
+        text: Tr.t("The shell changes at once; apps use the new language from your next sign-in. Every language is installed (glibc-locales), so any can be chosen.")
         color: Theme.faint
         wrapMode: Text.Wrap
         font.family: Theme.font
         font.pixelSize: 11 * Theme.fontScale
+    }    Button {
+        visible: page.lang !== "" && page.lang !== page.langAtLogin
+        text: Tr.t("Log out now, to finish")
+        onClicked: Power.logout()
     }
+
 }

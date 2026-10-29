@@ -47,19 +47,19 @@ PanelWindow {
         if (Smart.suggestion)
             return { icon: Smart.suggestion.icon, text: Smart.suggestion.text, color: Smart.suggestion.color || Theme.accent, run: () => { const s = Smart.suggestion; Smart.suggestion = null; s.run(); } };
         if (Recorder.recording && Recorder.selecting)
-            return { icon: "media-record", text: "Choose an area to record — Esc cancels", color: Theme.accent, run: () => Recorder.stop() };
+            return { icon: "media-record", text: Tr.t("Choose an area to record — Esc cancels"), color: Theme.accent, run: () => Recorder.stop() };
         if (Recorder.recording)
             return { icon: "media-record", text: "Recording · " + Recorder.elapsed, color: Theme.red, run: () => Recorder.stop() };
         if (Dictation.phase === "recording")
-            return { icon: "audio-input-microphone", text: "Listening — tap to stop", color: Theme.red, run: () => Dictation.toggle() };
+            return { icon: "audio-input-microphone", text: Tr.t("Listening — tap to stop"), color: Theme.red, run: () => Dictation.toggle() };
         if (Dictation.phase === "transcribing")
-            return { icon: "audio-input-microphone", text: "Writing it down…", color: Theme.accent, run: () => {} };
+            return { icon: "audio-input-microphone", text: Tr.t("Writing it down…"), color: Theme.accent, run: () => {} };
         if (FocusTimer.running)
             return { icon: "alarm", text: "Focus · " + FocusTimer.label, color: Theme.accent, run: () => Ui.toggleControlCenter("timer") };
         if (Audio.screenShared)
-            return { icon: "screen-shared", text: "Sharing your screen", color: Theme.red, run: () => {} };
+            return { icon: "screen-shared", text: Tr.t("Sharing your screen"), color: Theme.red, run: () => {} };
         if (Backup.running)
-            return { icon: "drive-harddisk", text: "Backing up…", color: Theme.accent, run: () => {} };
+            return { icon: "drive-harddisk", text: Tr.t("Backing up…"), color: Theme.accent, run: () => {} };
         if (player)
             return { icon: "media-playback-pause", text: player.trackTitle + (player.trackArtist ? " · " + player.trackArtist : ""), color: Theme.text, run: () => player.togglePlaying() };
         return null;
@@ -77,7 +77,7 @@ PanelWindow {
             return Chronoa.title || (Chronoa.state === "speaking" ? "Speaking" : "Working on it");
         if (win.activity)
             return win.activity.text;
-        return Chronoa.title && Chronoa.title !== "Ready when you are" ? Chronoa.title : "Ask me anything";
+        return Chronoa.title && Chronoa.title !== "Ready when you are" ? Chronoa.title : Tr.t("Ask me anything");
     }
 
     visible: Chronoa.visible
@@ -261,6 +261,8 @@ PanelWindow {
 
             TextInput {
                 id: askInput
+                Accessible.role: Accessible.EditableText
+                Accessible.name: Tr.t("Ask Chronoa")
                 visible: win.mode === "ask"
                 Layout.fillWidth: true
                 color: Theme.text
@@ -281,7 +283,7 @@ PanelWindow {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: askInput.text === ""
-                    text: "Ask Chronoa…  (Enter to send, Esc to close)"
+                    text: Tr.t("Ask Chronoa…  (Enter to send, Esc to close)")
                     color: Theme.faint
                     font: askInput.font
                 }
@@ -339,7 +341,7 @@ PanelWindow {
                     }
                 }
                 Button {
-                    text: "Open conversation"
+                    text: Tr.t("Open conversation")
                     onClicked: Chronoa.open = true
                 }
             }

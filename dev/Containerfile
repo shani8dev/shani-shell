@@ -46,3 +46,7 @@ RUN pacman -Sy --noconfirm --needed adw-gtk-theme papirus-icon-theme ttf-jetbrai
 RUN pacman -Sy --noconfirm --needed qrencode mesa-utils && pacman -Scc --noconfirm
 # the agenda (Evolution Data Server), plocate's index, vnstat
 RUN pacman -Sy --noconfirm --needed evolution-data-server plocate vnstat && pacman -Scc --noconfirm
+# the idle-cost check names every process the shell starts (strace -e execve)
+RUN pacman -Sy --noconfirm --needed strace && pacman -Scc --noconfirm
+# printing: Settings > Printers against a real cupsd (a file-backed printer)
+RUN pacman -Sy --noconfirm --needed cups && pacman -Scc --noconfirm && printf "FileDevice Yes\n" >> /etc/cups/cups-files.conf

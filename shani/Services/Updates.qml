@@ -19,7 +19,8 @@ Singleton {
     // applied in GNOME Firmware
     property var firmware: []             // ["Thunderbolt Controller 1.2 → 1.3", …]
     property var firmwareTold: []
-    function openFirmware() { Quickshell.execDetached(["gnome-firmware"]); }
+    // Cassini's Firmware page owns this (fwupd's devices and what LVFS offers)
+    function openFirmware() { Quickshell.execDetached(["sh", "-c", "command -v shani-cassini >/dev/null && exec shani-cassini --section=firmware; exec gnome-firmware"]); }
     Process {
         id: fw
         command: ["sh", "-c", "command -v fwupdmgr >/dev/null && fwupdmgr get-updates --json --no-unreported-check 2>/dev/null"]
@@ -53,7 +54,7 @@ Singleton {
     // Cassini's Updates page where Cassini is installed; otherwise the deploy
     // itself in a terminal (pkexec: ShaniOS's polkit asks for your own password)
     function open() {
-        Quickshell.execDetached(["sh", "-c", 'command -v shani-cassini >/dev/null && exec shani-cassini
+        Quickshell.execDetached(["sh", "-c", 'command -v shani-cassini >/dev/null && exec shani-cassini --section=updates
             exec "$1" -e sh -c "pkexec /usr/local/bin/shani-deploy; echo; read -p \"Press Enter to close.\" x"', "sh", Settings.data.terminal]);
     }
 

@@ -57,7 +57,8 @@ Singleton {
         Qt.openUrlExternally(Ui.webSearchUrl(text.trim().slice(0, 500)));
     }
     function translate() {
-        Qt.openUrlExternally("https://translate.google.com/?sl=auto&tl=en&op=translate&text=" + encodeURIComponent(text.trim().slice(0, 2000)));
+        // on this computer (Smart.translate: Chronoa's local model), not Google
+        Smart.translate(text.trim().slice(0, 2000));
     }
     function openImage() {
         Qt.openUrlExternally("file://" + image);

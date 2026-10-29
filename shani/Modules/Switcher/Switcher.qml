@@ -94,7 +94,7 @@ PanelWindow {
         Text {
             visible: win.list.length === 0
             anchors.centerIn: parent
-            text: "No windows open"
+            text: Tr.t("No windows open")
             color: Theme.dim
             font.family: Theme.font
             font.pixelSize: 13 * Theme.fontScale

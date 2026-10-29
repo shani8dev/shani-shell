@@ -31,6 +31,9 @@ PanelWindow {
         else { strokes = []; current = null; canvas.requestPaint(); }
         Ui.annotateStrokes = 0;
     }
+    // made when opened (shell.qml's LazyLoader)
+    Component.onCompleted: if (visible) keys.forceActiveFocus()
+    Component.onDestruction: Ui.annotateStrokes = 0
     function commit() {
         if (current && current.pts.length >= 4) strokes = strokes.concat([current]);
         current = null;
@@ -115,7 +118,7 @@ PanelWindow {
                 }
             }
             Text {
-                text: "  Shift: straight line  ·  Z undo  ·  E erase  ·  S save  ·  Esc close"
+                text: Tr.t("  Shift: straight line  ·  Z undo  ·  E erase  ·  S save  ·  Esc close")
                 color: Theme.text
                 font.family: Theme.font
                 font.pixelSize: 12 * Theme.fontScale

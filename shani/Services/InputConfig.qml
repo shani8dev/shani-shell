@@ -48,6 +48,12 @@ Singleton {
         "        accel-profile \"" + d.mouseAccel + "\"",
         "        scroll-factor " + d.mouseScroll,
         "    }",
+        // a drawing tablet and a touchscreen: which screen each one draws on
+        d.tabletOutput || d.tabletLeftHanded ? "    tablet {" : "",
+        d.tabletOutput ? "        map-to-output " + JSON.stringify(d.tabletOutput) : "",
+        d.tabletLeftHanded ? "        left-handed" : "",
+        d.tabletOutput || d.tabletLeftHanded ? "    }" : "",
+        d.touchOutput ? "    touch {\n        map-to-output " + JSON.stringify(d.touchOutput) + "\n    }" : "",
         d.winFocusFollowsMouse ? "    focus-follows-mouse max-scroll-amount=\"0%\"" : "",
         "}",
         // windows

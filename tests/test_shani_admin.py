@@ -62,14 +62,16 @@ def test_the_last_administrator_stays(machine, monkeypatch):
     refused(sa.user_admin, {"username": "asha", "admin": False}, "only administrator")
 
 
-def test_add_a_standard_and_an_admin_user(machine):
+def test_add_a_standard_and_an_admin_user(machine, monkeypatch):
     calls, _ = machine
+    # every person joins sambashare where it exists (sharing a folder works at once)
+    monkeypatch.setattr(sa, "extra_groups", lambda: ["sambashare"])
     sa.user_add({"username": "meera", "fullname": "Meera K", "password": "pw"})
     sa.user_add({"username": "dev", "fullname": "", "password": "pw", "admin": True})
     cmds = [c for c, _ in calls]
-    assert cmds[0] == ["useradd", "-m", "-c", "Meera K", "-s", "/bin/bash", "meera"]
+    assert cmds[0] == ["useradd", "-m", "-c", "Meera K", "-s", "/bin/bash", "-G", "sambashare", "meera"]
     assert calls[1] == (["chpasswd"], "meera:pw\n")
-    assert cmds[2] == ["useradd", "-m", "-c", "", "-s", "/bin/bash", "-G", "wheel", "dev"]
+    assert cmds[2] == ["useradd", "-m", "-c", "", "-s", "/bin/bash", "-G", "wheel,sambashare", "dev"]
 
 
 @pytest.mark.parametrize("req, why", [

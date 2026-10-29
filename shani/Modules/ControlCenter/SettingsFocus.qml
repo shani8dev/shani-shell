@@ -23,7 +23,7 @@ ColumnLayout {
         update(i, { schedule: sc });
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "Focus modes" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Focus modes") }
     Repeater {
         model: page.d.focusModes
         ColumnLayout {
@@ -40,7 +40,7 @@ ColumnLayout {
             }
             SwitchRow {
                 Layout.fillWidth: true
-                text: "On a schedule"
+                text: Tr.t("On a schedule")
                 hint: mode.sc.on ? mode.sc.from + " to " + mode.sc.to : "only when chosen"
                 checked: mode.sc.on
                 onToggled: on => page.updateSchedule(mode.index, { on: on, from: mode.sc.from || "09:00", to: mode.sc.to || "17:00",
@@ -65,14 +65,14 @@ ColumnLayout {
             RowLayout {
                 visible: mode.sc.on
                 spacing: 8
-                Text { text: "From"; color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                Text { text: Tr.t("From"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
                 TextField {
                     Layout.preferredWidth: 90
                     text: mode.sc.from
                     placeholder: "09:00"
                     onAccepted: if (/^\d\d?:\d\d$/.test(text.trim())) page.updateSchedule(mode.index, { from: text.trim() })
                 }
-                Text { text: "to"; color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                Text { text: Tr.t("to"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
                 TextField {
                     Layout.preferredWidth: 90
                     text: mode.sc.to
@@ -82,7 +82,7 @@ ColumnLayout {
             }
             Text {
                 visible: page.d.notifApps.length > 0
-                text: "Notifications that still come through:"
+                text: Tr.t("Notifications that still come through:")
                 color: Theme.dim
                 font.family: Theme.font
                 font.pixelSize: 12 * Theme.fontScale
@@ -102,8 +102,8 @@ ColumnLayout {
                     }
                 }
             }
-            SwitchRow { Layout.fillWidth: true; text: "Night light while on"; checked: !!mode.modelData.nightLight; onToggled: on => page.update(mode.index, { nightLight: on }) }
-            SwitchRow { Layout.fillWidth: true; text: "Keep the screen awake"; checked: !!mode.modelData.caffeine; onToggled: on => page.update(mode.index, { caffeine: on }) }
+            SwitchRow { Layout.fillWidth: true; text: Tr.t("Night light while on"); checked: !!mode.modelData.nightLight; onToggled: on => page.update(mode.index, { nightLight: on }) }
+            SwitchRow { Layout.fillWidth: true; text: Tr.t("Keep the screen awake"); checked: !!mode.modelData.caffeine; onToggled: on => page.update(mode.index, { caffeine: on }) }
         }
     }
 }

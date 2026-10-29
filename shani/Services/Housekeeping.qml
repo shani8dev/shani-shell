@@ -27,6 +27,34 @@ Singleton {
 
     Process { id: sweep; stdout: StdioCollector { onStreamFinished: root.emptied = parseInt(text.trim()) || 0 } }
     Timer { interval: 6 * 3600 * 1000; running: root.d.trashDays > 0; repeat: true; triggeredOnStart: true; onTriggered: root.emptyOldTrash() }
+
+    // A disk that says it is failing (SMART, as UDisks reads it - no root
+    // needed): told once a day, with Cassini's Disk health page one click away.
+    // The details and the self-tests are Cassini's; this is only the warning.
+    property var failing: []              // drive models, for the tests
+    Process {
+        id: health
+        command: ["sh", "-c", 'gdbus call --system --dest org.freedesktop.UDisks2 --object-path /org/freedesktop/UDisks2 --method org.freedesktop.DBus.ObjectManager.GetManagedObjects 2>/dev/null']
+        stdout: StdioCollector {
+            onStreamFinished: {
+                // per drive object: its Model, and SmartFailing (ATA) or a non-zero
+                // SmartCriticalWarning list (NVMe)
+                const out = [];
+                for (const part of text.split(/objectpath '/).slice(1)) {
+                    const model = (/'Model': <'([^']*)'>/.exec(part) || [])[1];
+                    const ata = /'SmartFailing': <true>/.test(part);
+                    const nvme = /'SmartCriticalWarning': <\[('[^']+'[^\]]*)\]>/.test(part);
+                    if (model && (ata || nvme))
+                        out.push(model);
+                }
+                root.failing = out;
+                if (out.length)
+                    Quickshell.execDetached(["sh", "-c", 'a=$(notify-send -a Drives -u critical -i drive-harddisk -A open="$3" "$1" "$2"); [ "$a" = open ] && exec shani-cassini --section=smart',
+                        "sh", Tr.t("A disk may be failing"), Tr.t("%1 reports problems. Back up what matters now.", out.join(", ")), Tr.t("Disk health")]);
+            }
+        }
+    }
+    Timer { interval: 24 * 3600 * 1000; running: true; repeat: true; triggeredOnStart: true; onTriggered: health.running = true }
     // GTK reads this one switch for whether to keep a recent-files list at all
     Process {
         running: Settings.loaded

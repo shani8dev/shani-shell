@@ -12,6 +12,8 @@ ColumnLayout {
     spacing: 12
     property bool active: false
     onActiveChanged: if (active) Displays.refresh()
+    // made already active (a Settings category is a Loader): load now too
+    Component.onCompleted: if (active) Displays.refresh()
     property string selected: Displays.outputs.length ? Displays.outputs[0].name : ""
     readonly property var sel: Displays.outputs.find(o => o.name === selected) || null
 
@@ -39,7 +41,7 @@ ColumnLayout {
         }
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "Displays" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Displays") }
 
     // ---- the arrangement ---------------------------------------------------------------
     Rectangle {
@@ -131,7 +133,7 @@ ColumnLayout {
     }
     Text {
         visible: map.on.length > 1
-        text: "Drag a screen to where it stands on your desk."
+        text: Tr.t("Drag a screen to where it stands on your desk.")
         color: Theme.faint
         font.family: Theme.font
         font.pixelSize: 11 * Theme.fontScale
@@ -159,13 +161,13 @@ ColumnLayout {
         SwitchRow {
             Layout.fillWidth: true
             visible: Displays.outputs.length > 1
-            text: "On"
+            text: Tr.t("On")
             checked: page.sel ? page.sel.on : false
             onToggled: on => Displays.apply(page.selected, { off: !on })
         }
         // resolution, largest first; then the refresh rates that resolution has
         Picks {
-            label: "Resolution"
+            label: Tr.t("Resolution")
             readonly property var sizes: page.sel ? Array.from(new Set(page.sel.modes.map(m => m.w + "x" + m.h)))
                 .sort((a, b) => b.split("x")[0] * b.split("x")[1] - a.split("x")[0] * a.split("x")[1]) : []
             options: sizes.slice(0, 8).map(s => ({ label: s.replace("x", " × ") + (page.sel.modes.some(m => m.preferred && m.w + "x" + m.h === s) ? "  ★" : ""), value: s }))
@@ -178,29 +180,29 @@ ColumnLayout {
         Picks {
             readonly property string size: page.sel && page.sel.mode ? page.sel.mode.split("@")[0] : ""
             visible: options.length > 1
-            label: "Refresh rate"
+            label: Tr.t("Refresh rate")
             options: page.sel ? page.sel.modes.filter(m => m.w + "x" + m.h === size).sort((a, b) => b.r - a.r)
                 .map(m => ({ label: Math.round(m.r) + " Hz", value: size + "@" + m.r.toFixed(3) })) : []
             current: page.sel ? page.sel.mode : ""
             onPicked: v => Displays.apply(page.selected, { mode: v })
         }
         Picks {
-            label: "Scale"
+            label: Tr.t("Scale")
             options: [1, 1.25, 1.5, 1.75, 2].map(s => ({ label: Math.round(s * 100) + " %", value: s }))
             current: page.sel ? page.sel.scale : 1
             onPicked: v => Displays.apply(page.selected, { scale: v })
         }
         Picks {
-            label: "Rotation"
-            options: [{ label: "Normal", value: "normal" }, { label: "90°", value: "90" }, { label: "180°", value: "180" }, { label: "270°", value: "270" }]
+            label: Tr.t("Rotation")
+            options: [{ label: Tr.t("Normal"), value: "normal" }, { label: "90°", value: "90" }, { label: "180°", value: "180" }, { label: "270°", value: "270" }]
             current: page.sel ? page.sel.transform : "normal"
             onPicked: v => Displays.apply(page.selected, { transform: v })
         }
         SwitchRow {
             Layout.fillWidth: true
             visible: page.sel ? page.sel.vrrSupported : false
-            text: "Variable refresh rate"
-            hint: "smoother games and video; some screens flicker with it"
+            text: Tr.t("Variable refresh rate")
+            hint: Tr.t("smoother games and video; some screens flicker with it")
             checked: page.sel ? page.sel.vrr : false
             onToggled: on => Displays.apply(page.selected, { vrr: on })
         }

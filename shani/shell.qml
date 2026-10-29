@@ -64,18 +64,18 @@ ShellRoot {
     Keyboard {}
     WindowMenu {}
     HotCorners {}
-    Processes {}
+    LazyLoader { active: Ui.processes; Processes {} }
     CaptionBar {}
-    Magnifier {}
-    Annotate {}
+    LazyLoader { active: Ui.magnifier; Magnifier {} }
+    LazyLoader { active: Ui.annotate; Annotate {} }
     AssistiveTouch {}
     FlashAlert {}
     PairDialog {}
-    DisplayConfirm {}
+    LazyLoader { active: Displays.pending; DisplayConfirm {} }
     Tour {}
-    QrView {}
+    LazyLoader { active: Qr.shown; QrView {} }
     ModemDialog {}
-    ShareSheet {}
+    LazyLoader { active: Share.file !== ""; ShareSheet {} }
     LockScreen {}
     ChronoaSurface { id: chronoa }
 
@@ -183,6 +183,15 @@ ShellRoot {
         function smartTouch() { Settings.data.assistiveTouch = !Settings.data.assistiveTouch; }
         function ringAt(x: int, y: int) { Ui.openRingAt(x, y); }
         function smartCopy(text: string) { Smart.suggestion = Smart.classify(text); }
+        function smartRun() { if (Smart.suggestion) Smart.suggestion.run(); }
+        // the tests: as if this long at the screen (seconds), and today's total so far
+        function wellbeingNow(streak: int, today: int) {
+            const d = Object.assign({}, ScreenTime.days);
+            d[ScreenTime.today] = Object.assign({}, d[ScreenTime.today] || {}, { "test": today });
+            ScreenTime.days = d;
+            ScreenTime.streak = streak;
+            ScreenTime.wellbeing();
+        }
         function lens() { Ui.closeAll(); Lens.capture(); }
         function lensRegion(geometry: string) { Ui.closeAll(); Lens.capture(geometry); }
 
@@ -252,6 +261,8 @@ ShellRoot {
                 modemDialog: Ui.modemDialog,
                 dynamicLocks: DynamicLock.locks,
                 automationsFired: Automations.fired,
+                language: Tr.lang, sampleWord: Tr.t("Notifications"),
+                backupSummary: Ui.backupSummary, printersSeen: Ui.printersSeen,
                 annotate: Ui.annotate, annotateStrokes: Ui.annotateStrokes,
                 shareTargets: Share.targets.map(t => t.label), shareDone: Share.done,
                 cameras: Camera.cameras.length, cameraPhase: Camera.phase, cameraLast: Camera.last,
@@ -283,7 +294,7 @@ ShellRoot {
                 windows: Object.keys(Niri.windows).length,
                 focusedTitle: Niri.focusedWindow ? Niri.focusedWindow.title : null,
                 layout: Niri.layout,
-                chronoa: Chronoa.state,
+                chronoa: Chronoa.state, chronoaOpen: Chronoa.open,
                 bridge: Bridge.connected,
                 approval: Chronoa.approval ? Chronoa.approval.text : null,
                 art: Chronoa.art,

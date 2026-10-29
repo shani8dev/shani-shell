@@ -19,6 +19,9 @@ export SHANI_CAM_TOOL=/work/dev/fake-cam.sh
 export SHANI_NIRI_CONFIG=/work/dev/niri/session.kdl
 # the first-login tour would sit over every other check; one test opens it by hand
 export SHANI_NO_TOUR=1
+export SHANI_BACKUP_TOOL=/work/dev/fake-backup.sh
+export SHANI_DEVWATCH_TOOL=/work/bridge/devwatch.py
+export SHANI_TRANSLATE_TOOL=/work/dev/fake-translate.py
 export SHANI_DYNAMIC_LOCK_GRACE=1500     # ms: the dynamic-lock test waits 1.5 s, not 30
 export SHANI_AGENDA_TOOL=/work/bridge/agenda.py SHANI_MODEM_TOOL=/work/dev/fake-modem.py
 export XDG_CONFIG_HOME=/root/.config SHANI_SHELL_SETTINGS=/tmp/shani-settings.json
@@ -45,6 +48,9 @@ sleep 0.5
 /usr/lib/power-profiles-daemon >$L/ppd.log 2>&1 &
 NetworkManager --no-daemon >$L/nm.log 2>&1 &
 /usr/lib/bluetooth/bluetoothd -n >$L/bluetoothd.log 2>&1 &
+# printing (Settings > Printers): a real cupsd, with one file-backed printer
+command -v cupsd >/dev/null && { mkdir -p /run/cups; cupsd -f >$L/cupsd.log 2>&1 & for i in 1 2 3 4 5 6 7 8 9 10; do [ -S /run/cups/cups.sock ] && break; sleep 0.3; done
+    lpadmin -p Office_Laser -E -v file:///tmp/printed.out 2>>$L/cupsd.log; }
 sleep 1
 
 pipewire >$L/pipewire.log 2>&1 &

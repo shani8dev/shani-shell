@@ -17,6 +17,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Widgets
 import QtQuick
+import "Calc.js" as Calc
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
@@ -82,63 +83,8 @@ PanelWindow {
     }
 
     // ---- what the shell itself can do, by name -----------------------------
-    readonly property var actions: [
-        { title: "Lock screen", words: "lock away", icon: "system-lock-screen", run: () => Lock.lock() },
-        { title: "Do Not Disturb", words: "dnd quiet notifications silence", icon: "notifications-disabled", run: () => Notifs.setDnd(!Notifs.dnd), state: () => Notifs.dnd },
-        { title: "Dark style", words: "dark light theme mode", icon: "weather-clear-night", run: () => Appearance.toggle(), state: () => Appearance.dark },
-        { title: "Caffeine", words: "awake sleep idle stay", icon: "preferences-desktop-screensaver", run: () => Idle.setCaffeine(!Idle.caffeine), state: () => Idle.caffeine },
-        { title: "Night light", words: "night warm blue light", icon: "night-light", run: () => NightLight.toggle(), state: () => NightLight.active },
-        { title: "Wi-Fi", words: "wifi wireless network internet", icon: "network-wireless-signal-excellent", run: () => Net.setWifi(!Net.wifiEnabled), state: () => Net.wifiEnabled },
-        { title: "Airplane mode", words: "airplane flight radio", icon: "airplane-mode", run: () => Net.setAirplane(!Net.airplane), state: () => Net.airplane },
-        { title: "Screenshot", words: "screenshot capture print", icon: "applets-screenshooter", run: () => Niri.action("screenshot") },
-        { title: "Screen record", words: "record video capture", icon: "media-record", run: () => Recorder.toggle(), state: () => Recorder.recording },
-        { title: "Lens", words: "lens ocr read text scan qr", icon: "system-search", run: () => Lens.capture() },
-        { title: "Color picker", words: "color colour pick hex", icon: "color-select", run: () => Quickshell.execDetached(["sh", "-c", "c=$(niri msg pick-color | sed -n 's/^Hex: //p'); [ -n \"$c\" ] && printf %s \"$c\" | wl-copy"]) },
-        { title: "Screen keyboard", words: "keyboard osk touch", icon: "input-keyboard", run: () => Osk.toggle(), state: () => Osk.shown },
-        { title: "Clipboard history", words: "clipboard paste history", icon: "edit-paste", run: () => Ui.toggleLauncher("c ") },
-        { title: "Shell settings", words: "settings preferences control centre center", icon: "preferences-system", run: () => win.openSettings("") },
-        // each settings category, by what people call what is in it
-        { title: "Personalisation", words: "wallpaper background accent theme look blur dock bar tiles hot corners weather icons icon theme fonts font cursor pointer", icon: "preferences-desktop-wallpaper", run: () => win.openSettings("personal") },
-        { title: "Notification settings", words: "notifications apps pop-ups popups quiet silent do not disturb per app", icon: "preferences-system-notifications", run: () => win.openSettings("notifications") },
-        { title: "Accessibility settings", words: "accessibility screen reader orca large text contrast mono audio flash alerts captions read aloud speed", icon: "preferences-desktop-accessibility", run: () => win.openSettings("access") },
-        { title: "Keyboard & input", words: "keyboard layout language input touchpad mouse tap scroll natural pointer speed repeat left-handed osk", icon: "input-keyboard", run: () => win.openSettings("input") },
-        { title: "Date & language", words: "date time timezone time zone clock 24-hour ntp language locale region formats", icon: "preferences-system-time", run: () => win.openSettings("time") },
-        { title: "Default apps", words: "default apps browser mail email files text pictures video music pdf open with terminal", icon: "preferences-desktop-default-applications", run: () => win.openSettings("apps") },
-        { title: "Your account", words: "account user name password picture avatar photo face", icon: "system-users", run: () => win.openSettings("account") },
-        { title: "Clipboard as a QR code", words: "qr code clipboard link phone share scan", icon: "view-barcode-qr", run: () => Qr.show("From the clipboard", Quickshell.clipboardText) },
-        { title: "Share Wi-Fi", words: "wifi wi-fi share password qr code phone guest", icon: "network-wireless", run: () => Qr.shareWifi() },
-        { title: "Send a text message", words: "sms text message send phone mobile sim", icon: "mail-send", run: () => { Ui.smsTo = ""; Ui.modemDialog = "sms"; } },
-        { title: "Tour", words: "tour welcome help introduction tips what is new how", icon: "help-about", run: () => Ui.tour = true },
-        { title: "Take a photo", words: "camera photo picture selfie snap webcam", icon: "camera-photo", run: () => Camera.photo() },
-        { title: "Record a video", words: "camera video record webcam clip", icon: "camera-video", run: () => Camera.video(), state: () => Camera.phase === "recording" },
-        { title: "Camera", words: "camera viewfinder webcam preview mirror qcam", icon: "camera-web", run: () => Camera.open() },
-        { title: "Privacy", words: "privacy permissions camera microphone location recent files trash lock screen notifications previews", icon: "preferences-system-privacy", run: () => win.openSettings("privacy") },
-        { title: "Network settings", words: "network proxy dns vpn wired ethernet ip", icon: "network-workgroup", run: () => win.openSettings("network") },
-        { title: "Windows", words: "windows gaps focus ring column width animations focus follows mouse tiling", icon: "preferences-system-windows", run: () => win.openSettings("windows") },
-        { title: "Keyboard shortcuts", words: "keyboard shortcuts keys hotkeys binds compose caps lock", icon: "preferences-desktop-keyboard-shortcuts", run: () => win.openSettings("input") },
-        { title: "Startup apps", words: "startup apps autostart login start", icon: "system-run", run: () => win.openSettings("apps") },
-        { title: "Displays", words: "displays display screens monitor monitors resolution refresh rate hz scale rotation rotate arrange arrangement external projector vrr freesync", icon: "video-display", run: () => win.openSettings("displays") },
-        { title: "Sound effects", words: "sound effects equaliser equalizer eq bass boost crossfeed headphones autoeq impulse response convolver width jamesdsp viper", icon: "audio-speakers", run: () => win.openSettings("sound") },
-        { title: "Users", words: "users add user new user account accounts remove user administrator admin automatic login autologin family", icon: "system-users", run: () => win.openSettings("users") },
-        { title: "Power settings", words: "power battery saver idle lock suspend screen off sleep lid power button", icon: "preferences-system-power", run: () => win.openSettings("power") },
-        { title: "About this computer", words: "about system computer name hostname rename version kernel memory disk cpu", icon: "help-about", run: () => win.openSettings("about") },
-        { title: "Live captions", words: "captions subtitles live transcribe hearing", icon: "media-view-subtitles", run: () => Captions.toggle(), state: () => Captions.on && Captions.source === "speakers" },
-        { title: "Live transcribe", words: "transcribe transcript meeting lecture microphone dictate", icon: "audio-input-microphone", run: () => Captions.transcribe(), state: () => Captions.on && Captions.source === "mic" },
-        { title: "Read aloud", words: "read aloud speak tts selection voice", icon: "audio-speakers", run: () => Speak.speakSelection() },
-        { title: "Magnifier", words: "magnifier zoom loupe enlarge", icon: "zoom-in", run: () => Ui.magnifier = true },
-        { title: "Record a call", words: "call record recording meeting phone", icon: "call-start", run: () => CallRecorder.toggle(), state: () => CallRecorder.recording },
-        { title: "Cast screen", words: "cast miracast tv display wireless project", icon: "video-display", run: () => Cast.open() },
-        { title: "Paste as plain text", words: "paste plain text formatting strip clean clipboard", icon: "edit-paste", run: () => Clipboard.pastePlain() },
-        { title: "Clear clipboard history", words: "clipboard clear wipe history privacy", icon: "edit-clear-history", run: () => Clipboard.wipe() },
-        { title: "Notifications", words: "notifications messages", icon: "preferences-system-notifications", run: () => Ui.toggleControlCenter("notifications") },
-        { title: "Switch windows", words: "windows switch alt tab", icon: "focus-windows", run: () => Ui.switcherRequested(false) },
-        { title: "Suspend", words: "suspend sleep", icon: "weather-clear-night", run: () => Power.suspend() },
-        { title: "Log out", words: "logout log out sign out", icon: "system-log-out", run: () => Power.logout() },
-        // irreversible: these open the sidebar's confirm row instead of acting
-        { title: "Restart…", words: "reboot restart", icon: "system-reboot", run: () => Ui.toggleControlCenter("power") },
-        { title: "Restart into firmware setup…", words: "uefi bios firmware setup boot menu restart", icon: "system-reboot", run: () => Ui.toggleControlCenter("power") },
-        { title: "Power off…", words: "shutdown power off", icon: "system-shutdown", run: () => Ui.toggleControlCenter("power") }
-    ]
+    LauncherActions { id: builtIn; launcher: win }
+    readonly property var actions: builtIn.list
 
     // ---- sources --------------------------------------------------------------
     function launch(a) {
@@ -239,58 +185,6 @@ PanelWindow {
         }
     }
 
-    function calc(expr) {
-        const src = expr.replace(/\s+/g, "").replace(/\^/g, "**").replace(/×/g, "*").replace(/÷/g, "/");
-        if (!/^[0-9+\-*/%.()a-z,]+$/i.test(src) || !/[0-9]/.test(src) || /^[0-9.]+$/.test(src))
-            return null;
-        const names = src.match(/[a-z]+/gi) || [];
-        const allowed = ["sqrt", "sin", "cos", "tan", "asin", "acos", "atan", "log", "ln", "exp", "abs", "round", "floor", "ceil", "pow", "min", "max", "pi", "e"];
-        if (names.some(n => allowed.indexOf(n.toLowerCase()) < 0))
-            return null;
-        const js = src.replace(/\bln\(/gi, "log(").replace(/\bpi\b/gi, "PI").replace(/\be\b/g, "E")
-            .replace(/\b(sqrt|sin|cos|tan|asin|acos|atan|log|exp|abs|round|floor|ceil|pow|min|max|PI|E)\b/g, "Math.$1");
-        try {
-            const v = Function('"use strict"; return (' + js + ");")();
-            return typeof v === "number" && isFinite(v) ? Number(v.toPrecision(12)) : null;
-        } catch (e) {
-            return null;
-        }
-    }
-    // units: name -> [dimension, factor to the base unit]; temperatures are special
-    readonly property var units: ({
-        mm: ["len", 0.001], cm: ["len", 0.01], m: ["len", 1], km: ["len", 1000], in: ["len", 0.0254], inch: ["len", 0.0254],
-        ft: ["len", 0.3048], feet: ["len", 0.3048], foot: ["len", 0.3048], yd: ["len", 0.9144], mi: ["len", 1609.344], mile: ["len", 1609.344], miles: ["len", 1609.344],
-        mg: ["mass", 1e-6], g: ["mass", 0.001], kg: ["mass", 1], t: ["mass", 1000], oz: ["mass", 0.0283495], lb: ["mass", 0.453592], lbs: ["mass", 0.453592],
-        ml: ["vol", 0.001], l: ["vol", 1], litre: ["vol", 1], liter: ["vol", 1], gal: ["vol", 3.78541], cup: ["vol", 0.24], tsp: ["vol", 0.00492892], tbsp: ["vol", 0.0147868],
-        b: ["data", 1], kb: ["data", 1e3], mb: ["data", 1e6], gb: ["data", 1e9], tb: ["data", 1e12], kib: ["data", 1024], mib: ["data", 1048576], gib: ["data", 1073741824], tib: ["data", 1099511627776],
-        ms: ["time", 0.001], s: ["time", 1], sec: ["time", 1], min: ["time", 60], h: ["time", 3600], hr: ["time", 3600], day: ["time", 86400], days: ["time", 86400], week: ["time", 604800], weeks: ["time", 604800],
-        kmh: ["speed", 1 / 3.6], "km/h": ["speed", 1 / 3.6], mph: ["speed", 0.44704], "m/s": ["speed", 1], knot: ["speed", 0.514444], knots: ["speed", 0.514444],
-        m2: ["area", 1], km2: ["area", 1e6], ha: ["area", 1e4], acre: ["area", 4046.86], acres: ["area", 4046.86], sqft: ["area", 0.092903],
-        c: ["temp"], f: ["temp"], k: ["temp"]
-    })
-    function convert(q) {
-        const m = q.trim().toLowerCase().match(/^(-?[\d.]+)\s*([a-z\/0-9°]+)\s+(?:in|to|as)\s+([a-z\/0-9°]+)$/);
-        if (!m)
-            return null;
-        const v = parseFloat(m[1]), a = m[2].replace("°", ""), b = m[3].replace("°", "");
-        const ua = units[a], ub = units[b];
-        if (!ua || !ub || ua[0] !== ub[0] || isNaN(v))
-            return null;
-        let out;
-        if (ua[0] === "temp") {
-            const kel = a === "c" ? v + 273.15 : a === "f" ? (v - 32) * 5 / 9 + 273.15 : v;
-            out = b === "c" ? kel - 273.15 : b === "f" ? (kel - 273.15) * 9 / 5 + 32 : kel;
-        } else {
-            out = v * ua[1] / ub[1];
-        }
-        return { text: Number(out.toPrecision(8)) + " " + m[3], value: out };
-    }
-    // three-letter codes followed by "in/to": currency, which needs live rates —
-    // Chronoa's convert_currency skill has them; the shell sends no query anywhere
-    function isCurrency(q) {
-        return /^-?[\d.]+\s*[a-z]{3}\s+(in|to)\s+[a-z]{3}$/i.test(q.trim()) && convert(q) === null;
-    }
-
     function score(text, q) {
         const n = (text || "").toLowerCase();
         if (n.startsWith(q))
@@ -339,52 +233,52 @@ PanelWindow {
         if (q === "") {
             const frequent = win.apps.filter(a => used(a) > 0).sort((a, b) => used(b) - used(a)).slice(0, 8);
             if (frequent.length)
-                out.push({ title: "Frequent", grid: true, items: frequent.map(appItem) });
+                out.push({ title: Tr.t("Frequent"), grid: true, items: frequent.map(appItem) });
             if (win.recent.length)
-                out.push({ title: "Recent files", items: win.recent.slice(0, 6).map(r => fileItem(r.path)) });
+                out.push({ title: Tr.t("Recent files"), items: win.recent.slice(0, 6).map(r => fileItem(r.path)) });
             const all = win.apps.filter(a => win.category === "All" || [].concat(a.categories || []).indexOf(win.category) >= 0)
                 .sort((a, b) => a.name.localeCompare(b.name));
-            out.push({ title: "All apps", grid: true, chips: true, items: all.map(appItem) });
+            out.push({ title: Tr.t("All apps"), grid: true, chips: true, items: all.map(appItem) });
             return out;
         }
         if (q.startsWith("?")) {
             const t = q.slice(1).trim();
-            return [{ title: "Chronoa", items: [{ kind: "ask", icon: "chat-message-new", title: t ? "Ask Chronoa: " + t : "Ask Chronoa…", subtitle: "Enter", run: () => t && Chronoa.ask(t) }] }];
+            return [{ title: Tr.t("Chronoa"), items: [{ kind: "ask", icon: "chat-message-new", title: t ? "Ask Chronoa: " + t : "Ask Chronoa…", subtitle: Tr.t("Enter"), run: () => t && Chronoa.ask(t) }] }];
         }
         if (q.startsWith(">")) {
             const cmd = q.slice(1).trim();
-            return [{ title: "Run", items: [{ kind: "run", icon: "utilities-terminal", title: cmd ? "Run: " + cmd : "Run a command…", subtitle: "Shift+Enter: in " + Settings.data.terminal,
+            return [{ title: Tr.t("Run"), items: [{ kind: "run", icon: "utilities-terminal", title: cmd ? "Run: " + cmd : "Run a command…", subtitle: "Shift+Enter: in " + Settings.data.terminal,
                      run: shift => cmd && Quickshell.execDetached(shift ? [Settings.data.terminal, "-e", "sh", "-c", cmd + "; exec $SHELL"] : ["sh", "-c", cmd]) }] }];
         }
         if (q.startsWith(":")) {
             const f = q.slice(1).trim().toLowerCase();
             if (win.emojiPath === "")
                 Qt.callLater(() => win.emojiPath = "/usr/share/unicode/emoji/emoji-test.txt");
-            return [{ title: "Emoji", items: win.emoji.filter(x => f === "" || x.name.indexOf(f) >= 0).slice(0, 40)
-                .map(x => ({ kind: "emoji", icon: "face-smile-big", title: x.e + "  " + x.name, subtitle: "Enter copies", run: () => Quickshell.clipboardText = x.e })) }];
+            return [{ title: Tr.t("Emoji"), items: win.emoji.filter(x => f === "" || x.name.indexOf(f) >= 0).slice(0, 40)
+                .map(x => ({ kind: "emoji", icon: "face-smile-big", title: x.e + "  " + x.name, subtitle: Tr.t("Enter copies"), run: () => Quickshell.clipboardText = x.e })) }];
         }
         if (q === "c" || q.startsWith("c ")) {
             const f = q.slice(1).trim().toLowerCase();
             const pins = Array.from(Settings.data.clipPins).filter(t => f === "" || t.toLowerCase().indexOf(f) >= 0)
-                .map(t => ({ kind: "clip", icon: "view-pin", title: t.replace(/\s+/g, " ").slice(0, 140), subtitle: "Pinned · Ctrl+P unpins",
+                .map(t => ({ kind: "clip", icon: "view-pin", title: t.replace(/\s+/g, " ").slice(0, 140), subtitle: Tr.t("Pinned · Ctrl+P unpins"),
                              run: () => Quickshell.clipboardText = t, pin: () => Clipboard.unpin(t) }));
             const items = Clipboard.entries.filter(e => f === "" || e.text.toLowerCase().indexOf(f) >= 0).slice(0, 30)
                 .map(e => ({ kind: "clip", icon: e.image ? "image-x-generic" : "edit-paste", thumb: e.image ? e.preview : "",
                              title: e.text.replace(/\s+/g, " ").slice(0, 140), subtitle: (e.image ? "Picture · Enter copies it" : "Clipboard · Ctrl+P pins") + " · Shift+Delete removes it",
                              run: () => Clipboard.copy(e), remove: () => Clipboard.remove(e), pin: e.image ? null : () => Clipboard.pin(e) }));
-            return (pins.length ? [{ title: "Pinned", items: pins }] : []).concat([{ title: "Clipboard", items: items.length ? items
+            return (pins.length ? [{ title: Tr.t("Pinned"), items: pins }] : []).concat([{ title: Tr.t("Clipboard"), items: items.length ? items
                 : [{ kind: "none", icon: "edit-paste", title: Clipboard.available ? "Clipboard history is empty" : "cliphist is not installed", subtitle: "", run: () => {} }] }]);
         }
 
         const math = q.startsWith("=") ? q.slice(1) : q;
-        const v = math !== "" ? win.calc(math) : null;
+        const v = math !== "" ? Calc.calc(math) : null;
         if (v !== null && Settings.data.searchCalc)
-            out.push({ title: "Calculator", items: [{ kind: "calc", icon: "accessories-calculator", title: "= " + v, subtitle: "Enter copies the result", run: () => Quickshell.clipboardText = String(v) }] });
-        const conv = Settings.data.searchCalc ? win.convert(q) : null;
+            out.push({ title: Tr.t("Calculator"), items: [{ kind: "calc", icon: "accessories-calculator", title: "= " + v, subtitle: Tr.t("Enter copies the result"), run: () => Quickshell.clipboardText = String(v) }] });
+        const conv = Settings.data.searchCalc ? Calc.convert(q) : null;
         if (conv)
-            out.push({ title: "Convert", items: [{ kind: "calc", icon: "accessories-calculator", title: "= " + conv.text, subtitle: "Enter copies", run: () => Quickshell.clipboardText = String(Number(conv.value.toPrecision(8))) }] });
-        if (Settings.data.searchCalc && win.isCurrency(q))
-            out.push({ title: "Currency", items: [{ kind: "ask", icon: "chat-message-new", title: "Convert " + q + " with Chronoa", subtitle: "live rates", run: () => Chronoa.ask("Convert " + q) }] });
+            out.push({ title: Tr.t("Convert"), items: [{ kind: "calc", icon: "accessories-calculator", title: "= " + conv.text, subtitle: Tr.t("Enter copies"), run: () => Quickshell.clipboardText = String(Number(conv.value.toPrecision(8))) }] });
+        if (Settings.data.searchCalc && Calc.isCurrency(q))
+            out.push({ title: Tr.t("Currency"), items: [{ kind: "ask", icon: "chat-message-new", title: "Convert " + q + " with Chronoa", subtitle: Tr.t("live rates"), run: () => Chronoa.ask("Convert " + q) }] });
         if (q.startsWith("="))
             return out;
 
@@ -396,32 +290,32 @@ PanelWindow {
                 items.push(appItem(a));
                 if (i === 0)        // the top match also offers its desktop actions
                     for (const act of a.actions)
-                        items.push({ kind: "app", app: a.icon, title: a.name + " — " + act.name, subtitle: "action", run: () => act.execute() });
+                        items.push({ kind: "app", app: a.icon, title: a.name + " — " + act.name, subtitle: Tr.t("action"), run: () => act.execute() });
             });
-            out.push({ title: "Apps", items: items });
+            out.push({ title: Tr.t("Apps"), items: items });
         }
         const wins = Object.values(Niri.windows).filter(w => win.score(w.title, ql) > 0 || win.score(w.app_id, ql) > 0).slice(0, 6);
         if (wins.length)
-            out.push({ title: "Windows", items: wins.map(w => {
+            out.push({ title: Tr.t("Windows"), items: wins.map(w => {
                 const e = DesktopEntries.heuristicLookup(w.app_id || "");
                 return { kind: "window", app: e ? e.icon : w.app_id, title: w.title || w.app_id, subtitle: Niri.workspaceLabel(w.workspace_id), run: () => Niri.action("focus-window", "--id", w.id) };
             }) });
         const acts = win.actions.filter(a => win.score(a.title, ql) > 0 || win.allWords(a.title + " " + a.words, ql)).slice(0, 6);
         if (acts.length)
-            out.push({ title: "Actions", items: acts.map(a => ({ kind: "action", icon: a.icon, title: a.title,
+            out.push({ title: Tr.t("Actions"), items: acts.map(a => ({ kind: "action", icon: a.icon, title: a.title,
                 subtitle: a.state ? (a.state() ? "On — Enter turns off" : "Off — Enter turns on") : "", run: a.run })) });
         const files = win.recent.filter(r => r.name.toLowerCase().indexOf(ql) >= 0).map(r => r.path);
         const allFiles = files.concat(win.found.filter(p => files.indexOf(p) < 0)).slice(0, 10);
         const byContent = win.inside.filter(p => allFiles.indexOf(p) < 0).slice(0, 6);
         if (allFiles.length || byContent.length)
-            out.push({ title: "Files", items: allFiles.map(fileItem).concat(byContent.map(p => Object.assign(fileItem(p), { subtitle: "contains “" + q + "” · " + p.replace(Quickshell.env("HOME"), "~") }))) });
+            out.push({ title: Tr.t("Files"), items: allFiles.map(fileItem).concat(byContent.map(p => Object.assign(fileItem(p), { subtitle: "contains “" + q + "” · " + p.replace(Quickshell.env("HOME"), "~") }))) });
         // what the apps themselves found, one section per app
         for (const app of [...new Set(win.provided.map(r => r.app))].slice(0, 4))
             out.push({ title: "From " + app, items: win.provided.filter(r => r.app === app).slice(0, 4).map(r => ({
                 kind: "provided", app: r.icon, title: r.name, subtitle: r.description,
                 run: () => Quickshell.execDetached(["python3", win.providersTool, "activate", r.bus, r.path, r.id].concat(q.split(/\s+/))) })) });
-        out.push({ title: "More", items: [
-            { kind: "ask", icon: "chat-message-new", title: "Ask Chronoa: " + q, subtitle: "Ctrl+Enter from anywhere", run: () => Chronoa.ask(q) },
+        out.push({ title: Tr.t("More"), items: [
+            { kind: "ask", icon: "chat-message-new", title: "Ask Chronoa: " + q, subtitle: Tr.t("Ctrl+Enter from anywhere"), run: () => Chronoa.ask(q) },
             { kind: "web", icon: "web-browser", title: "Search the web for “" + q + "”", subtitle: Ui.webSearchName(), run: () => Qt.openUrlExternally(Ui.webSearchUrl(q)) }
         ] });
         return out;
@@ -510,6 +404,8 @@ PanelWindow {
                 Icon { name: "system-search"; size: 22; color: Theme.accent }
                 TextInput {
                     id: search
+                    Accessible.role: Accessible.EditableText
+                    Accessible.name: Tr.t("Search apps, files, settings and the web")
                     Layout.fillWidth: true
                     color: Theme.text
                     selectionColor: Theme.accent
@@ -544,14 +440,14 @@ PanelWindow {
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         visible: search.text === ""
-                        text: "Search apps, files, windows and actions — or ask Chronoa"
+                        text: Tr.t("Search apps, files, windows and actions — or ask Chronoa")
                         color: Theme.faint
                         font.family: Theme.font
                         font.pixelSize: 17 * Theme.fontScale
                     }
                 }
                 Text {
-                    text: "Ctrl+Enter  Chronoa"
+                    text: Tr.t("Ctrl+Enter  Chronoa")
                     color: Theme.faint
                     font.family: Theme.font
                     font.pixelSize: 11 * Theme.fontScale
@@ -751,7 +647,7 @@ PanelWindow {
                     RowLayout {
                         Icon { name: "face-smile-big"; size: 20; color: Chronoa.color }
                         Text {
-                            text: "Chronoa"
+                            text: Tr.t("Chronoa")
                             color: Theme.text
                             font.family: Theme.font
                             font.pixelSize: 15 * Theme.fontScale
@@ -817,7 +713,7 @@ PanelWindow {
                         font.pixelSize: 14 * Theme.fontScale
                     }
                     Button {
-                        text: "Ask Chronoa  (Ctrl+Enter)"
+                        text: Tr.t("Ask Chronoa  (Ctrl+Enter)")
                         kind: "primary"
                         onClicked: win.askChronoa()
                     }
@@ -825,7 +721,7 @@ PanelWindow {
                     Text {
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
-                        text: "=  calc    :  emoji    c  clipboard\n>  run     ?  ask"
+                        text: Tr.t("=  calc    :  emoji    c  clipboard\n>  run     ?  ask")
                         color: Theme.faint
                         font.family: Theme.mono
                         font.pixelSize: 10 * Theme.fontScale

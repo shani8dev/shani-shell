@@ -1,52 +1,92 @@
 pragma Singleton
-// ShaniOS backups (shani-backup, after Time Machine): its schedule and where it
-// writes, from its own GSettings, and "back up now" — a home backup to that
-// location, the result told as a notification.
+// Shani Backup, as the shell shows it: earlier versions of your home (the
+// daily snapshots on this disk) and your home on another drive - both read
+// from shani-backup's own answers (`home list --json`, `backups --json`), the
+// one place either is decided. "Back up now" runs its backup; the setting up,
+// the schedule and restoring are Shani Backup's own pages (`open`).
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs.Common
 
 Singleton {
     id: root
+    readonly property string tool: Quickshell.env("SHANI_BACKUP_TOOL") || "shani-backup"
     property bool available: false
-    property bool scheduled: false
-    property string time: ""
-    property string location: ""
     property bool running: job.running
-    readonly property string summary: !available ? "" : location === "" ? "Not set up"
-        : (scheduled ? "Daily at " + time : "Off") + " · " + location
+    property bool driveSetUp: false
+    property string versions: ""          // "2 snapshots on this disk · latest today"
+    property string drive: ""             // "Last today 21:15 · every day at 21:15"
+    readonly property string summary: drive
 
-    function refresh() { if (available) read.running = true; }
+    function refresh() { if (available) { homeList.running = true; backups.running = true; } }
+    function open(page) { Quickshell.execDetached([root.tool, "open", page || "home"]); }
     function backupNow() {
-        if (location === "") {
-            Quickshell.execDetached(["shani-cassini"]);
-            return;
-        }
-        job.command = ["shani-backup", "backup", Quickshell.env("HOME"), "--destination", location, "--json"];
+        if (!driveSetUp) { open("backups"); return; }
         job.running = true;
+    }
+
+    function day(stamp) {
+        const m = /(\d{4}-\d\d-\d\d)/.exec(stamp || "");
+        if (!m) return stamp || "";
+        const d = new Date(m[1] + "T00:00:00"), t = new Date(); t.setHours(0, 0, 0, 0);
+        const n = Math.round((t - d) / 86400000);
+        return n === 0 ? Tr.t("today") : n === 1 ? Tr.t("yesterday") : Qt.formatDate(d, "d MMM");
     }
 
     Process {
         running: true
-        command: ["sh", "-c", "command -v shani-backup"]
+        command: ["sh", "-c", 'command -v "$0"', root.tool]
         onExited: code => { root.available = code === 0; root.refresh(); }
     }
     Process {
-        id: read
-        command: ["sh", "-c", "gsettings get org.shani.backup enable-scheduler; gsettings get org.shani.backup schedule-time; gsettings get org.shani.backup backup-location"]
+        id: homeList
+        command: [root.tool, "home", "list", "--json"]
         stdout: StdioCollector {
             onStreamFinished: {
-                const l = text.trim().split("\n").map(x => x.replace(/^'|'$/g, ""));
-                root.scheduled = l[0] === "true";
-                root.time = l[1] || "";
-                root.location = l[2] || "";
+                try {
+                    const d = JSON.parse(text);
+                    const n = d.ok ? d.snapshots.length : -1;
+                    root.versions = n < 0 ? (d.error || Tr.t("Shani Backup did not answer"))
+                        : n === 0 ? Tr.t("None yet — your home is snapshotted once a day")
+                        : Tr.t("%1 on this disk · latest %2", n === 1 ? Tr.t("1 snapshot") : Tr.t("%1 snapshots", n), root.day(d.snapshots[0].name));
+                } catch (e) { root.versions = Tr.t("Shani Backup did not answer"); }
+            }
+        }
+    }
+    Process {
+        id: backups
+        command: [root.tool, "backups", "--json"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text);
+                    root.driveSetUp = !!(d.repository && d.set_up);
+                    root.drive = !d.repository ? Tr.t("Not set up — choose a drive")
+                        : !d.reachable ? Tr.t("The backup drive is not connected")
+                        : !d.set_up ? Tr.t("The chosen folder is not set up yet")
+                        : !d.ok ? (d.error || Tr.t("Shani Backup did not answer"))
+                        : Tr.t("Last %1", d.backups.length ? root.day(d.backups[0].time) + " " + d.backups[0].time.slice(11, 16) : Tr.t("never"))
+                          + " · " + (d.schedule.on ? Tr.t("every day at %1", d.schedule.time) : Tr.t("by hand"));
+                } catch (e) { root.drive = Tr.t("Shani Backup did not answer"); }
             }
         }
     }
     Process {
         id: job
-        onExited: code => Quickshell.execDetached(["notify-send", "-a", "Backup", "-i", "drive-harddisk",
-            code === 0 ? "Backup finished" : "Backup failed", code === 0 ? "Your home folder is in " + root.location : "See Cassini's Backup page"])
+        command: [root.tool, "backup", "--json"]
+        stdout: StdioCollector { id: jobOut }
+        onExited: code => {
+            let err = "";
+            try { err = JSON.parse(jobOut.text).error || ""; } catch (e) {}
+            Quickshell.execDetached(["notify-send", "-a", "Backup", "-i", "drive-harddisk",
+                code === 0 ? Tr.t("Backup finished") : Tr.t("Backup failed"),
+                code === 0 ? Tr.t("Your home folder is on the backup drive") : (err || Tr.t("Open Shani Backup to see why"))]);
+            root.refresh();
+        }
     }
-    Timer { interval: 300000; running: root.available; repeat: true; onTriggered: root.refresh() }
+    // asked when someone looks (the control centre, Settings > Backup), not on
+    // a timer: `backups --json` reads the backup drive, and a USB disk woken
+    // every few minutes is a disk that never sleeps
+    Connections { target: Ui; function onControlCenterChanged() { if (Ui.controlCenter) root.refresh(); } }
 }

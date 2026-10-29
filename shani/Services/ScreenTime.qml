@@ -46,6 +46,31 @@ Singleton {
                 delete d[k];
             root.days = d;
             file.setText(JSON.stringify(d));
+            root.streak += 15;
+            root.wellbeing();
+        }
+    }
+
+    // Wellbeing (Settings > Notifications): a daily limit, and a reminder to
+    // look away after a stretch at the screen. Both are told, never enforced.
+    property int streak: 0                // seconds at the screen without a break
+    property string limitToldFor: ""      // the day the limit was last told
+    property int breaksTold: 0            // for the tests
+    // a pause - idle (dimmed) or locked - is a break: the stretch starts again
+    Connections { target: Idle; function onDimmedChanged() { if (Idle.dimmed) root.streak = 0; } }
+    Connections { target: Lock; function onLockedChanged() { if (Lock.locked) root.streak = 0; } }
+    function wellbeing() {
+        const d = Settings.data;
+        if (d.breakEveryMinutes > 0 && root.streak >= d.breakEveryMinutes * 60) {
+            root.streak = 0;
+            root.breaksTold++;
+            Quickshell.execDetached(["notify-send", "-a", "Wellbeing", "-i", "preferences-desktop-screensaver",
+                Tr.t("Time for a break"), Tr.t("%1 at the screen. Look at something far away for a moment, and stretch.", root.label(d.breakEveryMinutes * 60))]);
+        }
+        if (d.screenLimitMinutes > 0 && root.todayTotal >= d.screenLimitMinutes * 60 && root.limitToldFor !== root.today) {
+            root.limitToldFor = root.today;
+            Quickshell.execDetached(["notify-send", "-a", "Wellbeing", "-u", "critical", "-i", "appointment-soon",
+                Tr.t("Today's screen time is up"), Tr.t("You set %1 a day. It is only a reminder — carry on if you need to.", root.label(d.screenLimitMinutes * 60))]);
         }
     }
     FileView {

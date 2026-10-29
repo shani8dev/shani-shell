@@ -19,14 +19,14 @@ ColumnLayout {
 
     // the first type is the one asked about; all are set together
     readonly property var kinds: [
-        { id: "browser", label: "Web browser", icon: "web-browser", types: ["x-scheme-handler/https", "x-scheme-handler/http", "text/html"] },
-        { id: "mail", label: "Mail", icon: "mail-unread", types: ["x-scheme-handler/mailto"] },
-        { id: "files", label: "Files", icon: "system-file-manager", types: ["inode/directory"] },
-        { id: "text", label: "Text", icon: "text-x-generic", types: ["text/plain"] },
-        { id: "images", label: "Pictures", icon: "image-x-generic", types: ["image/png", "image/jpeg", "image/webp", "image/gif"] },
-        { id: "video", label: "Video", icon: "video-x-generic", types: ["video/mp4", "video/x-matroska", "video/webm"] },
-        { id: "music", label: "Music", icon: "audio-x-generic", types: ["audio/mpeg", "audio/flac", "audio/ogg"] },
-        { id: "pdf", label: "PDF", icon: "application-pdf", types: ["application/pdf"] }
+        { id: "browser", label: Tr.t("Web browser"), icon: "web-browser", types: ["x-scheme-handler/https", "x-scheme-handler/http", "text/html"] },
+        { id: "mail", label: Tr.t("Mail"), icon: "mail-unread", types: ["x-scheme-handler/mailto"] },
+        { id: "files", label: Tr.t("Files"), icon: "system-file-manager", types: ["inode/directory"] },
+        { id: "text", label: Tr.t("Text"), icon: "text-x-generic", types: ["text/plain"] },
+        { id: "images", label: Tr.t("Pictures"), icon: "image-x-generic", types: ["image/png", "image/jpeg", "image/webp", "image/gif"] },
+        { id: "video", label: Tr.t("Video"), icon: "video-x-generic", types: ["video/mp4", "video/x-matroska", "video/webm"] },
+        { id: "music", label: Tr.t("Music"), icon: "audio-x-generic", types: ["audio/mpeg", "audio/flac", "audio/ogg"] },
+        { id: "pdf", label: Tr.t("PDF"), icon: "application-pdf", types: ["application/pdf"] }
     ]
     property var found: ({})              // id → { current, candidates: [] }
     property string open: ""              // the kind whose list is shown
@@ -47,6 +47,8 @@ ColumnLayout {
         query.running = true;
     }
     onActiveChanged: if (active) refresh()
+    // made already active (a Settings category is a Loader): load now too
+    Component.onCompleted: if (active) refresh()
 
     Process {
         id: query
@@ -69,7 +71,7 @@ ColumnLayout {
         open = "";
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "Default apps" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Default apps") }
     Repeater {
         model: page.kinds
         ColumnLayout {

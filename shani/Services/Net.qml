@@ -6,6 +6,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Networking
 import QtQuick
+import qs.Common
 
 Singleton {
     id: root
@@ -96,7 +97,11 @@ Singleton {
         wwanRecheck.restart();
     }
     Timer { id: wwanRecheck; interval: 1500; onTriggered: wwan.running = true }
-    Timer { interval: 20000; running: true; repeat: true; triggeredOnStart: true; onTriggered: wwan.running = true }
+    // asked at start, when ModemManager reports a modem coming or going, and
+    // every 20 s only while there is one (its state: searching, registered…)
+    Component.onCompleted: wwan.running = true
+    Connections { target: Modem; function onModemChanged() { wwanRecheck.restart(); } }
+    Timer { interval: 20000; running: root.hasModem; repeat: true; onTriggered: wwan.running = true }
 
     // Tailscale, beside NetworkManager's VPNs: its own daemon and CLI
     property bool hasTailscale: false
@@ -104,7 +109,7 @@ Singleton {
     property string tailscaleNote: ""
     Process {
         id: tsStatus
-        command: ["sh", "-c", "command -v tailscale >/dev/null && tailscale status --json 2>/dev/null"]
+        command: ["tailscale", "status", "--json"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -128,7 +133,14 @@ Singleton {
         tsSet.command = ["tailscale", on ? "up" : "down"];
         tsSet.running = true;
     }
-    Timer { interval: 15000; running: true; repeat: true; triggeredOnStart: true; onTriggered: tsStatus.running = true }
+    // only where Tailscale is installed; often while the control centre shows it
+    Process {
+        running: true
+        command: ["sh", "-c", "command -v tailscale"]
+        onExited: code => { root.hasTailscaleCli = code === 0; if (code === 0) tsStatus.running = true; }
+    }
+    property bool hasTailscaleCli: false
+    Timer { interval: Ui.controlCenter ? 5000 : 60000; running: root.hasTailscaleCli; repeat: true; onTriggered: tsStatus.running = true }
 
     function editConnections() {
         Quickshell.execDetached(["nm-connection-editor"]);

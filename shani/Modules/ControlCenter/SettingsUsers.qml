@@ -27,6 +27,8 @@ ColumnLayout {
 
     function refresh() { list.running = true; }
     onActiveChanged: if (active) refresh()
+    // made already active (a Settings category is a Loader): load now too
+    Component.onCompleted: if (active) refresh()
 
     Process {
         id: list
@@ -69,7 +71,7 @@ ColumnLayout {
         admin.running = true;
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "Users" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Users") }
     Repeater {
         model: page.users
         ColumnLayout {
@@ -93,16 +95,16 @@ ColumnLayout {
                 spacing: 6
                 SwitchRow {
                     Layout.fillWidth: true
-                    text: "Administrator"
-                    hint: "can install software, change the system and manage users"
+                    text: Tr.t("Administrator")
+                    hint: Tr.t("can install software, change the system and manage users")
                     checked: urow.modelData.admin
                     enabled: !page.busy && urow.modelData.name !== page.me
                     onToggled: on => page.act("user-admin", { username: urow.modelData.name, admin: on })
                 }
                 SwitchRow {
                     Layout.fillWidth: true
-                    text: "Sign in automatically"
-                    hint: "at start-up, without a password — only on a machine nobody else can reach"
+                    text: Tr.t("Sign in automatically")
+                    hint: Tr.t("at start-up, without a password — only on a machine nobody else can reach")
                     checked: page.autologin === urow.modelData.name
                     enabled: !page.busy
                     onToggled: on => page.act("autologin", { username: on ? urow.modelData.name : "" })
@@ -121,22 +123,22 @@ ColumnLayout {
                     Button {
                         visible: !parent.confirm
                         kind: "danger"
-                        text: "Remove…"
+                        text: Tr.t("Remove…")
                         onClicked: parent.confirm = true
                     }
                     Button {
                         visible: parent.confirm
                         kind: "danger"
-                        text: "Remove, keep their files"
+                        text: Tr.t("Remove, keep their files")
                         onClicked: { page.act("user-remove", { username: urow.modelData.name, deleteHome: false }); parent.confirm = false; page.open = ""; }
                     }
                     Button {
                         visible: parent.confirm
                         kind: "danger"
-                        text: "Remove with their files"
+                        text: Tr.t("Remove with their files")
                         onClicked: { page.act("user-remove", { username: urow.modelData.name, deleteHome: true }); parent.confirm = false; page.open = ""; }
                     }
-                    Button { visible: parent.confirm; text: "Cancel"; onClicked: parent.confirm = false }
+                    Button { visible: parent.confirm; text: Tr.t("Cancel"); onClicked: parent.confirm = false }
                 }
             }
         }
@@ -145,7 +147,7 @@ ColumnLayout {
     // ---- add someone ------------------------------------------------------------
     Button {
         visible: page.iAmAdmin && !page.adding
-        text: "Add a user…"
+        text: Tr.t("Add a user…")
         onClicked: page.adding = true
     }
     ColumnLayout {
@@ -159,21 +161,21 @@ ColumnLayout {
             const first = (name.trim().split(/\s+/)[0] || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9_-]/g, "");
             return /^[a-z_]/.test(first) ? first.slice(0, 32) : "";
         }
-        TextField { id: newName; Layout.fillWidth: true; placeholder: "Their full name"; onTextChanged: if (!addForm.userEdited) addForm.user = addForm.suggest(text) }
+        TextField { id: newName; Layout.fillWidth: true; placeholder: Tr.t("Their full name"); onTextChanged: if (!addForm.userEdited) addForm.user = addForm.suggest(text) }
         TextField {
             Layout.fillWidth: true
-            placeholder: "User name"
+            placeholder: Tr.t("User name")
             text: addForm.user
             onTextChanged: if (text !== addForm.user) { addForm.userEdited = true; addForm.user = text; }
         }
-        TextField { id: newPw; Layout.fillWidth: true; placeholder: "Password (they can change it)"; secret: true }
-        SwitchRow { id: newAdmin; Layout.fillWidth: true; text: "Administrator"; checked: false }
+        TextField { id: newPw; Layout.fillWidth: true; placeholder: Tr.t("Password (they can change it)"); secret: true }
+        SwitchRow { id: newAdmin; Layout.fillWidth: true; text: Tr.t("Administrator"); checked: false }
         RowLayout {
             spacing: 6
-            Button { text: "Cancel"; onClicked: page.adding = false }
+            Button { text: Tr.t("Cancel"); onClicked: page.adding = false }
             Button {
                 kind: "primary"
-                text: "Add"
+                text: Tr.t("Add")
                 enabled: !page.busy && /^[a-z_][a-z0-9_-]{0,31}$/.test(addForm.user) && newPw.text !== ""
                 onClicked: {
                     page.act("user-add", { username: addForm.user, fullname: newName.text.trim(), password: newPw.text, admin: newAdmin.checked });
@@ -186,7 +188,7 @@ ColumnLayout {
     Text {
         Layout.fillWidth: true
         visible: !page.iAmAdmin && page.users.length > 0
-        text: "Only an administrator can add or change users."
+        text: Tr.t("Only an administrator can add or change users.")
         color: Theme.faint
         wrapMode: Text.Wrap
         font.family: Theme.font

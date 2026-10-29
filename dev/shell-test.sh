@@ -1,6 +1,7 @@
 #!/bin/sh
 # usage: shell-test.sh   (inside shani-shell-dev, repo at /work)
-#   docker run --rm -v "$PWD":/work shani-shell-dev sh /work/dev/shell-test.sh
+#   docker run --rm --cap-add SYS_PTRACE -v "$PWD":/work shani-shell-dev sh /work/dev/shell-test.sh
+#   (SYS_PTRACE: the idle-cost check traces what the shell starts; SHELL_TEST_ONLY=idle runs just that)
 # Every check drives the real thing — wpctl, notify-send, niri actions, wtype
 # keystrokes, gdbus into the bridge, the settings file — then reads the shell's
 # own answer (`ipc call shani state`). Prints RESULT lines; shots in docs/shots.
@@ -38,6 +39,57 @@ if ! st >/dev/null 2>&1 || [ -z "$(st)" ]; then
     echo "the shell is not running — stopping here"; tail -20 /work/logs/qs.log; exit 1
 fi
 [ "$(q "['settingsLoaded']")" = True ] && result settings-loaded PASS || result settings-loaded FAIL
+
+# ---- what the shell costs while nothing happens ---------------------------------------
+# 30 s idle: the programs the shell starts (every poll that forks is a
+# wakeup on a laptop), the shell's own CPU time, and its memory. The budget is
+# the point: a new always-on poller shows up here as a FAIL, not as a battery
+# complaint months later.
+sleep 3
+qpid=$(pgrep -o -x qs)
+pid0=$(cut -d' ' -f5 /proc/loadavg); cpu0=$(awk '{print $14+$15}' /proc/$qpid/stat)
+sleep 30
+pid1=$(cut -d' ' -f5 /proc/loadavg); cpu1=$(awk '{print $14+$15}' /proc/$qpid/stat)
+session=$(( (pid1 - pid0) * 2 )); cpu=$(( (cpu1 - cpu0) * 10 / 30 )); rss=$(awk '/VmRSS/{print int($2/1024)}' /proc/$qpid/status)
+# then the shell's own: every program it starts in 30 s (strace on its execve
+# calls - after the CPU count, since tracing slows what it watches)
+timeout 30 strace -f -qq -e trace=execve -p "$qpid" 2>/tmp/idle-exec.txt
+execs=$(grep -c 'execve(' /tmp/idle-exec.txt); forks=$(( execs * 2 ))
+who=$(grep -o 'execve("[^"]*", \["[^"]*"\(, "[^"]*"\)\{0,2\}' /tmp/idle-exec.txt | sed 's/execve("[^"]*", \[//; s/"//g' \
+      | sort | uniq -c | sort -rn | head -8 | tr '\n' ';')
+idle="shell: $forks programs/min, CPU ${cpu} ms/s, ${rss} MB; whole session $session/min"
+if grep -q "attach:\|Operation not permitted" /tmp/idle-exec.txt || ! command -v strace >/dev/null; then
+    result idle-cost FAIL "could not trace the shell (run the container with --cap-add SYS_PTRACE): $(head -1 /tmp/idle-exec.txt)"
+else
+    [ "$forks" -le "${IDLE_FORK_BUDGET:-12}" ] && [ "$cpu" -le 15 ] && result idle-cost PASS "$idle" || result idle-cost FAIL "$idle"
+fi
+echo "  idle programs by command: $who"
+# SHELL_TEST_ONLY=idle: just this, for working on what the shell costs
+[ "${SHELL_TEST_ONLY:-}" = idle ] && exit $fail
+
+# ---- accessibility: every control on each surface has a name -----------------------------
+# shani-testbed's AT-SPI client (mounted at /testbed): what Orca would read. An
+# unnamed control is announced as just "button". Each surface is opened and
+# linted; the unnamed ones are listed.
+A11Y=/testbed/lib/a11y_client.py
+if [ -f "$A11Y" ] && python3 -c "import gi; gi.require_version('Atspi','2.0')" 2>/dev/null; then
+    lint() {   # lint <name> : the surface already open
+        sleep 1
+        out=$(timeout 20 python3 "$A11Y" lint 2>&1); rc=$?
+        n=$(printf '%s\n' "$out" | grep -c .)
+        [ $rc = 0 ] && result "a11y-$1" PASS || result "a11y-$1" FAIL "$n unnamed: $(printf '%s' "$out" | head -6 | tr '\n' ';' | cut -c1-400)"
+    }
+    timeout 20 python3 "$A11Y" tree --max-depth 3 >/dev/null 2>&1 || echo "  (the shell is not on the accessibility bus: $(timeout 20 python3 "$A11Y" tree --max-depth 2 2>&1 | head -2))"
+    lint bar
+    ipc toggleControlCenter; lint control-centre; ipc closeAll
+    ipc launcher ""; lint launcher; ipc closeAll
+    for c in personal notifications network displays windows sound access input time apps search printers sharing backup automations privacy chronoa account users power about ; do ipc settingsCategory $c; lint "settings-$c"; done; ipc closeAll
+    ipc toggleChronoa; lint chronoa; ipc toggleChronoa; ipc closeAll
+    waitfor "not d['chronoaOpen']" 3 || echo "  (Chronoa did not close)"
+else
+    result a11y-client SKIP "no /testbed/lib/a11y_client.py or Atspi typelib"
+fi
+[ "${SHELL_TEST_ONLY:-}" = a11y ] && exit $fail
 
 # ---- niri event stream ---------------------------------------------------------
 foot -a shani-demo -T "Terminal one" sleep 600 >/dev/null 2>&1 &
@@ -507,6 +559,15 @@ waitfor "d['smart'].startswith('Ask Chronoa')" 3 \
     && result smart-copied-error PASS || result smart-copied-error FAIL "clipboard change not seen: $(q "['smart']")"
 ipc smartCopy "शनि ओएस मराठी"
 waitfor "d['smart'].startswith('Translate')" 3 && result smart-translate-script PASS || result smart-translate-script FAIL "$(q "['smart']")"
+# translated here, by the local model (a stand-in), shown in a notification - never a web page
+rm -f /tmp/translate-down
+ipc smartRun
+waitfor "'Translation' in d['notificationSummaries']" 5 && grep -q "TRANSLATED(शनि ओएस मराठी)" "${XDG_RUNTIME_DIR:-/tmp}/shani-translation" \
+    && result smart-translate-local PASS || result smart-translate-local FAIL "$(q "['notificationSummaries']")"
+touch /tmp/translate-down
+ipc smartCopy "शनि ओएस मराठी"; ipc smartRun
+waitfor "'Could not translate' in d['notificationSummaries']" 5 && result smart-translate-no-model-says-so PASS || result smart-translate-no-model-says-so FAIL "$(q "['notificationSummaries']")"
+rm -f /tmp/translate-down
 ipc smartCopy "plain words"
 waitfor "d['smart'] == ''" 3 && result smart-quiet-on-plain-text PASS || result smart-quiet-on-plain-text FAIL "$(q "['smart']")"
 
@@ -840,6 +901,24 @@ grep -q 'click-method "button-areas"' $f && grep -q 'scroll-method "edge"' $f &&
     && [ "$(grep -c 'accel-profile "flat"' $f)" = 2 ] && niri validate -c /work/dev/niri/session.kdl >/dev/null 2>&1 && [ "$(g gtk-enable-primary-paste)" = false ] \
     && result pointer-details-reach-niri PASS || result pointer-details-reach-niri FAIL "$(niri validate -c /work/dev/niri/session.kdl 2>&1 | tail -1)"
 
+# ---- a drawing tablet and a touchscreen on one screen ------------------------------------
+settings '{"tabletOutput": "winit", "tabletLeftHanded": true, "touchOutput": "winit"}'
+sleep 1.5
+[ "$(grep -c 'map-to-output "winit"' $f)" = 2 ] && grep -q '^ *left-handed$' $f && niri validate -c /work/dev/niri/session.kdl >/dev/null 2>&1 \
+    && result tablet-touch-map-to-output PASS || result tablet-touch-map-to-output FAIL "$(grep -A3 'tablet\|touch' $f | head -6 | tr '\n' ' ') $(niri validate -c /work/dev/niri/session.kdl 2>&1 | tail -1)"
+settings '{}'
+
+# ---- wellbeing: a break reminder after the stretch, a daily reminder past the limit ------
+settings '{"screenTime": true, "breakEveryMinutes": 20, "screenLimitMinutes": 120}'
+ipc wellbeingNow 1300 7300
+waitfor "'Time for a break' in d['notificationSummaries'] and \"Today's screen time is up\" in d['notificationSummaries']" 4 \
+    && result wellbeing-reminders PASS || result wellbeing-reminders FAIL "$(q "['notificationSummaries'][-4:]")"
+n0=$(q "['notificationSummaries'].count(\"Today's screen time is up\")")
+ipc wellbeingNow 1300 7400
+sleep 1
+[ "$(q "['notificationSummaries'].count(\"Today's screen time is up\")")" = "$n0" ] && result wellbeing-limit-once-a-day PASS || result wellbeing-limit-once-a-day FAIL
+settings '{}'
+
 # ---- automatic dark style, scrollbars, bar options -----------------------------------
 from=$(date -d '-1 min' +%H:%M); to=$(date -d '+60 min' +%H:%M)
 settings "{\"darkMode\": false, \"darkSchedule\": \"custom\", \"darkFrom\": \"$from\", \"darkTo\": \"$to\", \"showScrollbars\": true}"
@@ -1070,6 +1149,42 @@ ls /root/Pictures/Screenshots/Drawing*.png >/dev/null 2>&1 && result annotate-sa
 wtype -k Escape
 waitfor "not d['annotate']" 3 && result annotate-closes PASS || result annotate-closes FAIL
 
+# ---- Settings > Printers: CUPS's printers, a per-person default, a job waiting ----------
+if [ -S /run/cups/cups.sock ]; then
+    ipc settingsCategory printers
+    sleep 1.5
+    waitfor "any(p.startswith('Office_Laser:') for p in d['printersSeen'])" 5 \
+        && result printers-listed PASS || result printers-listed FAIL "$(lpstat -p 2>&1 | head -2)"
+    # what its buttons run, as this person (no administrator): a default of
+    # their own (lpstat -d follows it), and a job handed to CUPS shows as waiting.
+    # Whether CUPS then prints it is CUPS's (a raw file queue here never runs).
+    lpoptions -d Office_Laser >/dev/null && lpstat -d | grep -q ": Office_Laser$" \
+        && result printers-default-per-person PASS || result printers-default-per-person FAIL "$(lpstat -d 2>&1)"
+    # held, so it stays in the queue (a raw file queue here may finish or drop it at once)
+    printf 'test page\n' > /tmp/tp.txt; lp -d Office_Laser -H hold /tmp/tp.txt >/dev/null
+    ipc closeAll; sleep 0.3; ipc settingsCategory printers; sleep 1.5
+    waitfor "'Office_Laser:default:1' in d['printersSeen']" 5 \
+        && result printers-job-waiting PASS || result printers-job-waiting FAIL "page: $(q "['printersSeen']"); lpstat -o: $(lpstat -o 2>&1 | head -2 | tr '\n' ' ')"
+    waitfor "any(':default:' in p for p in d['printersSeen'])" 3 \
+        && result printers-shows-default PASS || result printers-shows-default FAIL "$(q "['printersSeen']")"
+    cancel -a Office_Laser 2>/dev/null
+    ipc closeAll
+else
+    result printers-listed SKIP "no cupsd in this image"
+fi
+
+# ---- Settings > Backup: what Shani Backup says, and Open goes to its page ---------------
+rm -f /tmp/backup-opened
+ipc settingsCategory backup
+waitfor "'2 snapshots on this disk · latest today' in d['backupSummary'] and 'every day at 21:15' in d['backupSummary']" 5 \
+    && result settings-backup-summary PASS "$(q "['backupSummary']")" || result settings-backup-summary FAIL "$(q "['backupSummary']")"
+shot 72-settings-backup 0.4
+ipc closeAll
+ipc launcher "earlier versions"
+waitfor "d['topResult'] == 'Earlier versions of my files'" 4
+wtype -k Return; sleep 0.8
+grep -q "^open home$" /tmp/backup-opened 2>/dev/null && result launcher-opens-earlier-versions PASS || result launcher-opens-earlier-versions FAIL "$(q "['topResult']") / $(cat /tmp/backup-opened 2>&1)"
+
 # ---- automations: sound to HDMI turns Do not disturb on, once ---------------------------
 pactl set-default-sink speakers; sleep 0.5
 settings '{"automations": [{"when": "output", "is": "HDMI", "then": "dnd", "arg": "on", "on": true}]}'
@@ -1114,6 +1229,16 @@ waitfor "d['locked']" 10 && result idle-locks PASS || result idle-locks FAIL "$(
 wtype "shani-test" -k Return
 waitfor "not d['locked']" 6
 settings '{}'
+
+# ---- the shell in Marathi (shani/i18n/mr.json), read as a screen reader would -----------
+pkill -x qs; sleep 1
+SHANI_SHELL_LANG=mr QS_ICON_THEME=Adwaita QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1 qs -p /work/shani >>/work/logs/qs.log 2>&1 &
+waitfor "d['language'] == 'mr' and d['sampleWord'] == 'सूचना'" 15 && result i18n-marathi-catalog PASS || result i18n-marathi-catalog FAIL "$(q "['language']") / $(q "['sampleWord']")"
+if [ -f /testbed/lib/a11y_client.py ]; then
+    sleep 2
+    timeout 20 python3 /testbed/lib/a11y_client.py find "button:झटपट सेटिंग्ज" >/dev/null 2>&1 \
+        && result i18n-marathi-bar PASS || result i18n-marathi-bar FAIL "$(timeout 20 python3 /testbed/lib/a11y_client.py observe 2>&1 | head -8 | tr '\n' ';')"
+fi
 
 echo "--- qs warnings"; grep -E "WARN|ERROR" /work/logs/qs.log | grep -v -E "ZINK|libvulkan" | sort | uniq -c | sort -rn | head -15
 [ "$fail" = 0 ]

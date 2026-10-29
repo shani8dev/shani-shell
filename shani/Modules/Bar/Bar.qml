@@ -219,7 +219,7 @@ Variants {
                     visible: Audio.screenShared
                     icon: "screen-shared"
                     tint: Theme.red
-                    label: "Sharing"
+                    label: Tr.t("Sharing")
                 }
                 Chip {
                     visible: Privacy.cameraInUse
@@ -282,6 +282,8 @@ Variants {
 
                 // status cluster: one target, opens the control center
                 Chip {
+                    name: Tr.t("Quick settings") + (Audio.ready ? ", " + Tr.t("volume %1%", Math.round(Audio.volume * 100)) + (Audio.muted ? " " + Tr.t("muted") : "") : "")
+                          + (Power.hasBattery ? ", " + Tr.t("battery %1%", Math.round(Power.percent * 100)) : "")
                     active: Ui.controlCenter
                     onClicked: Ui.toggleControlCenter()
                     onScrolled: d => Audio.step(d * 0.05)
@@ -334,6 +336,8 @@ Variants {
                     onRightClicked: Notifs.setDnd(!Notifs.dnd)
                 }
                 Chip {
+                    name: Qt.formatDateTime(clock.date, Settings.data.use24h ? "HH:mm, dddd d MMMM" : "h:mm AP, dddd d MMMM")
+                          + (Updates.attention ? ", " + Tr.t("updates waiting") : "") + ", " + Tr.t("notifications and calendar")
                     active: Ui.controlCenter
                     onClicked: Ui.toggleControlCenter()
                     // an update waiting: a dot on the clock, the sidebar says what

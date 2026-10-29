@@ -66,9 +66,9 @@ ColumnLayout {
         }
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "Icons, fonts & cursor" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Icons, fonts & cursor") }
     Picks {
-        label: "Icons"
+        label: Tr.t("Icons")
         options: page.iconThemes
         current: page.d.iconTheme
         onPicked: v => page.d.iconTheme = v
@@ -78,30 +78,30 @@ ColumnLayout {
         spacing: 8
         Text {
             Layout.fillWidth: true
-            text: "Apps use it now; the shell's own icons after it restarts."
+            text: Tr.t("Apps use it now; the shell's own icons after it restarts.")
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
             font.pixelSize: 11 * Theme.fontScale
         }
-        Button { text: "Restart the shell"; onClicked: Appearance.restartShell() }
+        Button { text: Tr.t("Restart the shell"); onClicked: Appearance.restartShell() }
     }
     Picks {
-        label: "Pointer"
+        label: Tr.t("Pointer")
         options: page.cursorThemes
         current: page.d.cursorTheme
         onPicked: v => page.d.cursorTheme = v
     }
     Picks {
-        label: "Pointer size"
-        options: [{ label: "Normal", value: 24 }, { label: "Large", value: 32 }, { label: "Larger", value: 48 }, { label: "Largest", value: 64 }]
+        label: Tr.t("Pointer size")
+        options: [{ label: Tr.t("Normal"), value: 24 }, { label: Tr.t("Large"), value: 32 }, { label: Tr.t("Larger"), value: 48 }, { label: Tr.t("Largest"), value: 64 }]
         current: page.d.cursorSize
         onPicked: v => page.d.cursorSize = v
     }
 
     // fonts: the current one, a size, and a search of what is installed
     Repeater {
-        model: [{ id: "ui", label: "Interface font", key: "uiFont", size: "uiFontSize" }, { id: "mono", label: "Monospace font (terminals, code)", key: "monoFont", size: "monoFontSize" }]
+        model: [{ id: "ui", label: Tr.t("Interface font"), key: "uiFont", size: "uiFontSize" }, { id: "mono", label: Tr.t("Monospace font (terminals, code)"), key: "monoFont", size: "monoFontSize" }]
         ColumnLayout {
             id: fontRow
             required property var modelData
@@ -136,7 +136,7 @@ ColumnLayout {
                 id: fontSearch
                 Layout.fillWidth: true
                 visible: page.picking === fontRow.modelData.id
-                placeholder: "Search fonts"
+                placeholder: Tr.t("Search fonts")
             }
             Repeater {
                 model: page.picking !== fontRow.modelData.id ? [] : (fontRow.modelData.id === "mono" ? page.monoFonts : page.fonts)

@@ -20,6 +20,9 @@ PanelWindow {
     BackgroundEffect.blurRegion: visible && Settings.data.blur ? procRegion : null
     Region { id: procRegion; item: card; radius: Theme.radius }
     onVisibleChanged: TopProcesses.watching = visible
+    // made when opened and gone when closed (shell.qml's LazyLoader)
+    Component.onCompleted: TopProcesses.watching = visible
+    Component.onDestruction: TopProcesses.watching = false
 
     MouseArea { anchors.fill: parent; onClicked: Ui.processes = false }
     Glass {
@@ -50,7 +53,7 @@ PanelWindow {
                     subtitle: "pid " + modelData.pid
                     trailing: modelData.cpu.toFixed(0) + "% cpu · " + modelData.mem.toFixed(1) + "% mem"
                     Button {
-                        text: "End"
+                        text: Tr.t("End")
                         kind: "danger"
                         onClicked: TopProcesses.end(parent.parent.modelData.pid)
                     }

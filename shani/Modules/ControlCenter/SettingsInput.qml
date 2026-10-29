@@ -54,11 +54,11 @@ ColumnLayout {
         onExited: code => page.loginError = code === 0 ? "Set for the login screen and the console." : (loginErr.text.trim().split("\n").pop() || "not changed")
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "Keyboard layouts" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Keyboard layouts") }
     Text {
         Layout.fillWidth: true
         visible: page.d.kbLayouts.length === 0
-        text: "Using the system's keyboard. Add a layout to choose your own."
+        text: Tr.t("Using the system's keyboard. Add a layout to choose your own.")
         color: Theme.dim
         wrapMode: Text.Wrap
         font.family: Theme.font
@@ -97,7 +97,7 @@ ColumnLayout {
     TextField {
         id: kbSearch
         Layout.fillWidth: true
-        placeholder: "Add a layout — marathi, german, dvorak, russian…"
+        placeholder: Tr.t("Add a layout — marathi, german, dvorak, russian…")
     }
     Repeater {
         model: {
@@ -124,14 +124,14 @@ ColumnLayout {
     }
     Picks {
         visible: page.d.kbLayouts.length > 1
-        label: "Switch layouts with"
-        options: [{ label: "Super+Space", value: "grp:win_space_toggle" }, { label: "Alt+Shift", value: "grp:alt_shift_toggle" }, { label: "Caps Lock", value: "grp:caps_toggle" }, { label: "Both Shifts", value: "grp:shifts_toggle" }]
+        label: Tr.t("Switch layouts with")
+        options: [{ label: Tr.t("Super+Space"), value: "grp:win_space_toggle" }, { label: Tr.t("Alt+Shift"), value: "grp:alt_shift_toggle" }, { label: Tr.t("Caps Lock"), value: "grp:caps_toggle" }, { label: Tr.t("Both Shifts"), value: "grp:shifts_toggle" }]
         current: page.d.kbSwitch
         onPicked: v => page.d.kbSwitch = v
     }
     Button {
         visible: page.d.kbLayouts.length > 0
-        text: "Use for the login screen too"
+        text: Tr.t("Use for the login screen too")
         onClicked: {
             const l = Array.from(page.d.kbLayouts);
             // localed's X11 keymap: what niri uses when its config names no layout
@@ -150,90 +150,117 @@ ColumnLayout {
         font.pixelSize: 11 * Theme.fontScale
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "Touchpad" }
-    SwitchRow { Layout.fillWidth: true; text: "Tap to click"; checked: page.d.tapToClick; onToggled: on => page.d.tapToClick = on }
-    SwitchRow { Layout.fillWidth: true; text: "Natural scrolling"; hint: "content moves with your fingers"; checked: page.d.naturalScroll; onToggled: on => page.d.naturalScroll = on }
-    SwitchRow { Layout.fillWidth: true; text: "Off while typing"; hint: "no stray clicks from a palm"; checked: page.d.typingGuard; onToggled: on => page.d.typingGuard = on }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Touchpad") }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("Tap to click"); checked: page.d.tapToClick; onToggled: on => page.d.tapToClick = on }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("Natural scrolling"); hint: Tr.t("content moves with your fingers"); checked: page.d.naturalScroll; onToggled: on => page.d.naturalScroll = on }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("Off while typing"); hint: Tr.t("no stray clicks from a palm"); checked: page.d.typingGuard; onToggled: on => page.d.typingGuard = on }
     Picks {
-        label: "Pointer speed"
-        options: [{ label: "Slow", value: -0.4 }, { label: "Normal", value: 0 }, { label: "Fast", value: 0.4 }, { label: "Fastest", value: 0.8 }]
+        label: Tr.t("Pointer speed")
+        options: [{ label: Tr.t("Slow"), value: -0.4 }, { label: Tr.t("Normal"), value: 0 }, { label: Tr.t("Fast"), value: 0.4 }, { label: Tr.t("Fastest"), value: 0.8 }]
         current: page.d.touchpadSpeed
         onPicked: v => page.d.touchpadSpeed = v
     }
     Picks {
-        label: "Click with"
-        options: [{ label: "Whole pad (1, 2, 3 fingers)", value: "clickfinger" }, { label: "Bottom corners", value: "button-areas" }]
+        label: Tr.t("Click with")
+        options: [{ label: Tr.t("Whole pad (1, 2, 3 fingers)"), value: "clickfinger" }, { label: Tr.t("Bottom corners"), value: "button-areas" }]
         current: page.d.tpClick
         onPicked: v => page.d.tpClick = v
     }
     Picks {
-        label: "Scroll with"
-        options: [{ label: "Two fingers", value: "two-finger" }, { label: "The edge", value: "edge" }]
+        label: Tr.t("Scroll with")
+        options: [{ label: Tr.t("Two fingers"), value: "two-finger" }, { label: Tr.t("The edge"), value: "edge" }]
         current: page.d.tpScrollMethod
         onPicked: v => page.d.tpScrollMethod = v
     }
     Picks {
-        label: "Scroll speed"
-        options: [{ label: "Slow", value: 0.5 }, { label: "Normal", value: 0.8 }, { label: "Fast", value: 1.2 }]
+        label: Tr.t("Scroll speed")
+        options: [{ label: Tr.t("Slow"), value: 0.5 }, { label: Tr.t("Normal"), value: 0.8 }, { label: Tr.t("Fast"), value: 1.2 }]
         current: page.d.tpScroll
         onPicked: v => page.d.tpScroll = v
     }
     Picks {
-        label: "Acceleration"
-        options: [{ label: "Adaptive", value: "adaptive" }, { label: "Flat (the same at any speed)", value: "flat" }]
+        label: Tr.t("Acceleration")
+        options: [{ label: Tr.t("Adaptive"), value: "adaptive" }, { label: Tr.t("Flat (the same at any speed)"), value: "flat" }]
         current: page.d.tpAccel
         onPicked: v => page.d.tpAccel = v
     }
-    SwitchRow { Layout.fillWidth: true; text: "Off while a mouse is plugged in"; checked: page.d.tpOffWithMouse; onToggled: on => page.d.tpOffWithMouse = on }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("Off while a mouse is plugged in"); checked: page.d.tpOffWithMouse; onToggled: on => page.d.tpOffWithMouse = on }
     Text {
         Layout.fillWidth: true
-        text: "Gestures: three fingers left or right move between columns, up or down between workspaces; four fingers up open the overview."
+        text: Tr.t("Gestures: three fingers left or right move between columns, up or down between workspaces; four fingers up open the overview.")
         color: Theme.faint
         wrapMode: Text.Wrap
         font.family: Theme.font
         font.pixelSize: 11 * Theme.fontScale
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "Mouse" }
-    SwitchRow { Layout.fillWidth: true; text: "Natural scrolling"; checked: page.d.mouseNaturalScroll; onToggled: on => page.d.mouseNaturalScroll = on }
-    SwitchRow { Layout.fillWidth: true; text: "Left-handed"; hint: "swap the buttons (mouse and touchpad)"; checked: page.d.leftHanded; onToggled: on => page.d.leftHanded = on }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Mouse") }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("Natural scrolling"); checked: page.d.mouseNaturalScroll; onToggled: on => page.d.mouseNaturalScroll = on }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("Left-handed"); hint: Tr.t("swap the buttons (mouse and touchpad)"); checked: page.d.leftHanded; onToggled: on => page.d.leftHanded = on }
     Picks {
-        label: "Pointer speed"
-        options: [{ label: "Slow", value: -0.4 }, { label: "Normal", value: 0 }, { label: "Fast", value: 0.4 }, { label: "Fastest", value: 0.8 }]
+        label: Tr.t("Pointer speed")
+        options: [{ label: Tr.t("Slow"), value: -0.4 }, { label: Tr.t("Normal"), value: 0 }, { label: Tr.t("Fast"), value: 0.4 }, { label: Tr.t("Fastest"), value: 0.8 }]
         current: page.d.mouseSpeed
         onPicked: v => page.d.mouseSpeed = v
     }
 
     Picks {
-        label: "Mouse acceleration"
-        options: [{ label: "Adaptive", value: "adaptive" }, { label: "Flat (games, drawing)", value: "flat" }]
+        label: Tr.t("Mouse acceleration")
+        options: [{ label: Tr.t("Adaptive"), value: "adaptive" }, { label: Tr.t("Flat (games, drawing)"), value: "flat" }]
         current: page.d.mouseAccel
         onPicked: v => page.d.mouseAccel = v
     }
     Picks {
-        label: "Mouse scroll speed"
-        options: [{ label: "Slow", value: 0.6 }, { label: "Normal", value: 1.0 }, { label: "Fast", value: 1.6 }]
+        label: Tr.t("Mouse scroll speed")
+        options: [{ label: Tr.t("Slow"), value: 0.6 }, { label: Tr.t("Normal"), value: 1.0 }, { label: Tr.t("Fast"), value: 1.6 }]
         current: page.d.mouseScroll
         onPicked: v => page.d.mouseScroll = v
     }
-    SwitchRow { Layout.fillWidth: true; text: "Middle-click pastes"; hint: "the text last selected"; checked: page.d.middlePaste; onToggled: on => page.d.middlePaste = on }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("Middle-click pastes"); hint: Tr.t("the text last selected"); checked: page.d.middlePaste; onToggled: on => page.d.middlePaste = on }
 
-    SectionTitle { Layout.fillWidth: true; text: "Keyboard" }
-    SwitchRow { Layout.fillWidth: true; text: "Num Lock on at sign-in"; checked: page.d.numlock; onToggled: on => page.d.numlock = on }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Drawing tablet & touchscreen") }
+    Repeater {
+        model: [{ key: "tabletOutput", label: Tr.t("A drawing tablet draws on") }, { key: "touchOutput", label: Tr.t("The touchscreen is") }]
+        ColumnLayout {
+            id: mapRow
+            required property var modelData
+            Layout.fillWidth: true
+            spacing: 4
+            Text { text: modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+            Flow {
+                Layout.fillWidth: true
+                spacing: 6
+                Repeater {
+                    model: [""].concat(Displays.outputs.map(o => o.name))
+                    Choice {
+                        required property string modelData
+                        readonly property string key: mapRow.modelData.key
+                        text: modelData === "" ? Tr.t("Every screen") : modelData
+                        selected: (page.d[key] || "") === modelData
+                        onClicked: page.d[key] = modelData
+                    }
+                }
+            }
+        }
+    }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("Left-handed tablet"); hint: Tr.t("the tablet turned around, buttons on the right"); checked: page.d.tabletLeftHanded; onToggled: on => page.d.tabletLeftHanded = on }
+
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Keyboard") }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("Num Lock on at sign-in"); checked: page.d.numlock; onToggled: on => page.d.numlock = on }
     Picks {
-        label: "Repeat starts after"
-        options: [{ label: "Short", value: 250 }, { label: "Normal", value: 400 }, { label: "Long", value: 600 }, { label: "Longest", value: 900 }]
+        label: Tr.t("Repeat starts after")
+        options: [{ label: Tr.t("Short"), value: 250 }, { label: Tr.t("Normal"), value: 400 }, { label: Tr.t("Long"), value: 600 }, { label: Tr.t("Longest"), value: 900 }]
         current: page.d.keyRepeatDelay
         onPicked: v => page.d.keyRepeatDelay = v
     }
     Picks {
-        label: "Repeat speed"
-        options: [{ label: "Slow", value: 15 }, { label: "Normal", value: 30 }, { label: "Fast", value: 45 }]
+        label: Tr.t("Repeat speed")
+        options: [{ label: Tr.t("Slow"), value: 15 }, { label: Tr.t("Normal"), value: 30 }, { label: Tr.t("Fast"), value: 45 }]
         current: page.d.keyRepeatRate
         onPicked: v => page.d.keyRepeatRate = v
     }
     TextField {
         Layout.fillWidth: true
-        placeholder: "Try the repeat here"
+        placeholder: Tr.t("Try the repeat here")
     }
 }

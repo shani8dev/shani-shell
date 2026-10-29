@@ -75,7 +75,7 @@ PanelWindow {
                 id: code
                 Layout.fillWidth: true
                 visible: win.typed
-                placeholder: "Code"
+                placeholder: Tr.t("Code")
                 onVisibleChanged: if (visible) { text = ""; input.forceActiveFocus(); }
                 onAccepted: BtAgent.answer(true, text.trim())
             }

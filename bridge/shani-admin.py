@@ -52,6 +52,19 @@ LID_ACTIONS = {"suspend", "hibernate", "hybrid-sleep", "suspend-then-hibernate",
 KEY_ACTIONS = {"poweroff", "suspend", "hibernate", "ignore", "lock", "reboot"}
 
 
+def extra_groups() -> list:
+    """The groups every person's account joins when they exist on this system."""
+    import grp
+    out = []
+    for g in ("sambashare",):
+        try:
+            grp.getgrnam(g)
+            out.append(g)
+        except KeyError:
+            pass
+    return out
+
+
 class Refused(Exception):
     pass
 
@@ -110,8 +123,10 @@ def user_add(req: dict) -> dict:
         raise Refused("the name cannot contain ':' ',' or line breaks")
     pw = password_ok(req.get("password"))
     cmd = ["useradd", "-m", "-c", full, "-s", "/bin/bash"]
-    if req.get("admin"):
-        cmd += ["-G", ADMIN_GROUP]
+    # sambashare (shani-settings makes it): sharing a folder works from the start
+    groups = ([ADMIN_GROUP] if req.get("admin") else []) + extra_groups()
+    if groups:
+        cmd += ["-G", ",".join(groups)]
     run(cmd + [name])
     try:
         run(["chpasswd"], stdin=f"{name}:{pw}\n")

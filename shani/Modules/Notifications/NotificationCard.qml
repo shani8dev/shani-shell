@@ -161,7 +161,7 @@ Glass {
                         icon: "window-close"
                         size: 20
                         opacity: hover.hovered || root.critical ? 1 : 0.35
-                        Accessible.name: "Dismiss"
+                        Accessible.name: Tr.t("Dismiss")
                         onClicked: {
                             root.notification.dismiss();
                             root.done();
@@ -222,8 +222,8 @@ Glass {
                 spacing: 2
                 Repeater {
                     model: root.actions.map(a => ({ text: a.text, run: () => a.invoke() }))
-                        .concat(root.critical ? [] : [{ text: "Snooze", run: () => Notifs.snooze(root.notification, 60) }])
-                        .concat([{ text: "Ask Chronoa", run: () => {
+                        .concat(root.critical ? [] : [{ text: Tr.t("Snooze"), run: () => Notifs.snooze(root.notification, 60) }])
+                        .concat([{ text: Tr.t("Ask Chronoa"), run: () => {
                             const n = root.notification;
                             Chronoa.ask("About this notification from " + (n.appName || "an app") + ": “" + n.summary
                                 + (n.body ? " — " + n.body.replace(/<[^>]*>/g, "") : "") + "”. What should I do?");

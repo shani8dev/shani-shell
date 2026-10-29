@@ -51,7 +51,7 @@ PanelWindow {
                 id: pin
                 Layout.fillWidth: true
                 visible: win.mode === "pin"
-                placeholder: "PIN"
+                placeholder: Tr.t("PIN")
                 secret: true
                 onVisibleChanged: if (visible) { text = ""; input.forceActiveFocus(); }
                 onAccepted: { Modem.unlock(text); text = ""; }
@@ -60,7 +60,7 @@ PanelWindow {
                 id: to
                 Layout.fillWidth: true
                 visible: win.mode === "sms"
-                placeholder: "To — +91 98…"
+                placeholder: Tr.t("To — +91 98…")
                 onVisibleChanged: if (visible) { text = Ui.smsTo; (text ? body : to).input.forceActiveFocus(); }
                 onAccepted: body.input.forceActiveFocus()
             }
@@ -68,7 +68,7 @@ PanelWindow {
                 id: body
                 Layout.fillWidth: true
                 visible: win.mode === "sms"
-                placeholder: "Message"
+                placeholder: Tr.t("Message")
                 onVisibleChanged: if (visible) text = ""
                 onAccepted: send.clicked()
             }
@@ -84,7 +84,7 @@ PanelWindow {
             RowLayout {
                 Layout.alignment: Qt.AlignRight
                 spacing: 8
-                Button { text: "Cancel"; onClicked: win.close() }
+                Button { text: Tr.t("Cancel"); onClicked: win.close() }
                 Button {
                     id: send
                     kind: "primary"

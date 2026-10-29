@@ -35,30 +35,30 @@ ColumnLayout {
         }
     }
 
-    SectionTitle { Layout.fillWidth: true; text: "Windows" }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Windows") }
     Picks {
-        label: "Gaps between windows"
-        options: [{ label: "None", value: 0 }, { label: "Small", value: 6 }, { label: "Medium", value: 12 }, { label: "Large", value: 20 }]
+        label: Tr.t("Gaps between windows")
+        options: [{ label: Tr.t("None"), value: 0 }, { label: Tr.t("Small"), value: 6 }, { label: Tr.t("Medium"), value: 12 }, { label: Tr.t("Large"), value: 20 }]
         current: page.d.winGaps
         onPicked: v => page.d.winGaps = v
     }
     Picks {
-        label: "A new window opens"
-        options: [{ label: "A third", value: 0.33333 }, { label: "Half", value: 0.5 }, { label: "Two thirds", value: 0.66667 }, { label: "Full width", value: 1 }]
+        label: Tr.t("A new window opens")
+        options: [{ label: Tr.t("A third"), value: 0.33333 }, { label: Tr.t("Half"), value: 0.5 }, { label: Tr.t("Two thirds"), value: 0.66667 }, { label: Tr.t("Full width"), value: 1 }]
         current: page.d.winDefaultWidth
         onPicked: v => page.d.winDefaultWidth = v
     }
     Picks {
-        label: "Focus ring"
-        options: [{ label: "Off", value: 0 }, { label: "Thin", value: 2 }, { label: "Thick", value: 4 }]
+        label: Tr.t("Focus ring")
+        options: [{ label: Tr.t("Off"), value: 0 }, { label: Tr.t("Thin"), value: 2 }, { label: Tr.t("Thick"), value: 4 }]
         current: page.d.winFocusRing
         onPicked: v => page.d.winFocusRing = v
     }
-    SwitchRow { Layout.fillWidth: true; text: "Focus follows the pointer"; hint: "the window under the pointer takes the keyboard"; checked: page.d.winFocusFollowsMouse; onToggled: on => page.d.winFocusFollowsMouse = on }
-    SwitchRow { Layout.fillWidth: true; text: "Window animations"; hint: "opening, closing and scrolling (Reduce motion turns the shell's own off)"; checked: page.d.winAnimations; onToggled: on => page.d.winAnimations = on }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("Focus follows the pointer"); hint: Tr.t("the window under the pointer takes the keyboard"); checked: page.d.winFocusFollowsMouse; onToggled: on => page.d.winFocusFollowsMouse = on }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("Window animations"); hint: Tr.t("opening, closing and scrolling (Reduce motion turns the shell's own off)"); checked: page.d.winAnimations; onToggled: on => page.d.winAnimations = on }
     Text {
         Layout.fillWidth: true
-        text: "Windows sit side by side in columns that scroll; Mod+R cycles a column's width, Mod+F makes it full, Mod+O shows every workspace."
+        text: Tr.t("Windows sit side by side in columns that scroll; Mod+R cycles a column's width, Mod+F makes it full, Mod+O shows every workspace.")
         color: Theme.faint
         wrapMode: Text.Wrap
         font.family: Theme.font

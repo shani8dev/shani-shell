@@ -20,11 +20,11 @@ Singleton {
     readonly property var targets: file === "" ? [] : [
         ...(Phone.reachable ? [{ icon: "phone", label: "Send to " + Phone.name, run: () => Phone.send(root.file) }] : []),
         ...BtSend.devices.map(d => ({ icon: d.icon || "bluetooth-active", label: "Bluetooth: " + (d.name || d.address), run: () => { BtSend.pick(root.file); BtSend.sendTo(d); } })),
-        { icon: "network-wireless", label: "Nearby devices (LocalSend)", run: () => Quickshell.execDetached(["flatpak", "run", "org.localsend.localsend_app", root.file]) },
-        { icon: "mail-send", label: "Email", run: () => Quickshell.execDetached(["xdg-email", "--attach", root.file]) },
-        { icon: "edit-copy", label: "Copy the file", run: () => { copyFile.command = ["sh", "-c", 'printf "file://%s\\r\\n" "$1" | wl-copy --type text/uri-list', "sh", root.file]; copyFile.running = true; } },
-        { icon: "edit-copy", label: "Copy its path", run: () => Quickshell.clipboardText = root.file },
-        { icon: "document-open", label: "Open with…", run: () => Quickshell.execDetached(["gio", "open", root.file]) }
+        { icon: "network-wireless", label: Tr.t("Nearby devices (LocalSend)"), run: () => Quickshell.execDetached(["flatpak", "run", "org.localsend.localsend_app", root.file]) },
+        { icon: "mail-send", label: Tr.t("Email"), run: () => Quickshell.execDetached(["xdg-email", "--attach", root.file]) },
+        { icon: "edit-copy", label: Tr.t("Copy the file"), run: () => { copyFile.command = ["sh", "-c", 'printf "file://%s\\r\\n" "$1" | wl-copy --type text/uri-list', "sh", root.file]; copyFile.running = true; } },
+        { icon: "edit-copy", label: Tr.t("Copy its path"), run: () => Quickshell.clipboardText = root.file },
+        { icon: "document-open", label: Tr.t("Open with…"), run: () => Quickshell.execDetached(["gio", "open", root.file]) }
     ]
     function choose(i) {
         const t = targets[i];

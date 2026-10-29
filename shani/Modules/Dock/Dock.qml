@@ -263,12 +263,12 @@ PanelWindow {
                         width: parent.width - 12
                         Repeater {
                             model: [
-                                { label: "New window", show: !!cell.modelData.entry, run: () => { cell.modelData.entry.execute(); bounce.restart(); } },
+                                { label: Tr.t("New window"), show: !!cell.modelData.entry, run: () => { cell.modelData.entry.execute(); bounce.restart(); } },
                                 { label: "Open on " + (Gpu.other ? Gpu.other.name.split(" ").slice(0, 3).join(" ") : "the other GPU"), show: !!cell.modelData.entry && Gpu.hasChoice,
                                   run: () => { Gpu.launchOnOther(cell.modelData.entry.id); bounce.restart(); } },
                                 { label: cell.modelData.pinned ? "Unpin from dock" : "Pin to dock", show: !!cell.modelData.entry, run: () => win.togglePin(cell.modelData) },
-                                { label: "Move left", show: cell.modelData.pinned && cell.index > 0, run: () => win.movePin(cell.modelData, -1) },
-                                { label: "Move right", show: cell.modelData.pinned && cell.index < Settings.data.dockPinned.length - 1, run: () => win.movePin(cell.modelData, 1) },
+                                { label: Tr.t("Move left"), show: cell.modelData.pinned && cell.index > 0, run: () => win.movePin(cell.modelData, -1) },
+                                { label: Tr.t("Move right"), show: cell.modelData.pinned && cell.index < Settings.data.dockPinned.length - 1, run: () => win.movePin(cell.modelData, 1) },
                                 { label: cell.modelData.windows.length > 1 ? "Close " + cell.modelData.windows.length + " windows" : "Close window", show: cell.modelData.windows.length > 0, run: () => win.closeAll(cell.modelData) }
                             ].filter(x => x.show)
                             Rectangle {

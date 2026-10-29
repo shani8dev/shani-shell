@@ -293,7 +293,7 @@ PanelWindow {
                 }
 
                 Text {
-                    text: "Chronoa"
+                    text: Tr.t("Chronoa")
                     color: panel.textColor
                     font.family: Theme.font
                     font.pixelSize: 16 * Theme.fontScale
@@ -370,7 +370,7 @@ PanelWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 visible: panel.model.count === 0
-                text: "Ask for a job.\n\nChronoa runs it on this machine,\nand asks before anything changes."
+                text: Tr.t("Ask for a job.\n\nChronoa runs it on this machine,\nand asks before anything changes.")
                 color: Theme.alpha(Theme.dim, 0.55)
                 font.family: Theme.font
                 font.pixelSize: 15 * Theme.fontScale
@@ -629,10 +629,10 @@ PanelWindow {
 
                 Repeater {
                     model: [
-                        { label: "Battery", prompt: "What's eating my battery?" },
-                        { label: "Summarise screen", prompt: "Summarise what's on my screen." },
-                        { label: "Tidy desktop", prompt: "Tidy my desktop." },
-                        { label: "Dictate", prompt: "", action: "dictate" }
+                        { label: Tr.t("Battery"), prompt: "What's eating my battery?" },
+                        { label: Tr.t("Summarise screen"), prompt: "Summarise what's on my screen." },
+                        { label: Tr.t("Tidy desktop"), prompt: "Tidy my desktop." },
+                        { label: Tr.t("Dictate"), prompt: "", action: "dictate" }
                     ]
 
                     Rectangle {
@@ -687,6 +687,8 @@ PanelWindow {
 
                     TextInput {
                         id: input
+                        Accessible.role: Accessible.EditableText
+                        Accessible.name: Tr.t("Ask Chronoa")
                         Layout.fillWidth: true
                         color: panel.textColor
                         font.family: Theme.font
@@ -701,7 +703,7 @@ PanelWindow {
 
                     Text {
                         visible: input.text === ""
-                        text: "Ask Chronoa, or describe a task…"
+                        text: Tr.t("Ask Chronoa, or describe a task…")
                         color: Theme.alpha(Theme.dim, 0.75)
                         font.family: Theme.font
                         font.pixelSize: 14 * Theme.fontScale
@@ -717,7 +719,7 @@ PanelWindow {
 
                         Text {
                             anchors.centerIn: parent
-                            text: "mic"
+                            text: Tr.t("mic")
                             color: panel.dimColor
                             font.family: Theme.mono
                             font.pixelSize: 9 * Theme.fontScale
@@ -776,7 +778,7 @@ PanelWindow {
 
             Text {
                 Layout.fillWidth: true
-                text: "↵ send    esc close    ·    tools ask before they change anything"
+                text: Tr.t("↵ send    esc close    ·    tools ask before they change anything")
                 color: Theme.alpha(Theme.dim, 0.65)
                 font.family: Theme.font
                 font.pixelSize: 10 * Theme.fontScale
