@@ -3,6 +3,7 @@ pragma Singleton
 // mute, output switching, and the privacy signal "something is recording".
 import Quickshell
 import Quickshell.Services.Pipewire
+import Quickshell.Io
 import QtQuick
 import qs.Common
 
@@ -80,6 +81,60 @@ Singleton {
     function useSource(node) {
         Pipewire.preferredDefaultAudioSource = node;
     }
+
+    // ---- where an app plays: a moved stream keeps its own target, not the
+    // default's — the graph is the truth (an Active link from the stream)
+    // (Quickshell's nodes carry no links: the graph's are Pipewire.linkGroups,
+    // one per pair of linked nodes)
+    function streamSink(n) {
+        if (!n)
+            return null;
+        const g = Pipewire.linkGroups.values.find(x => x.source === n && x.target && x.target !== n);
+        return g ? g.target : null;
+    }
+    // hand an app to another device: PipeWire's own way - the stream's
+    // target.object in the default metadata, which WirePlumber follows (and
+    // keeps for that app); by node id, so nothing has to map it to PulseAudio's
+    // sink-input numbers (Quickshell's Pipewire is read-only here)
+    function moveStream(n, sinkNode) {
+        if (!n || !sinkNode)
+            return;
+        Quickshell.execDetached(["pw-metadata", "-n", "default", String(n.id), "target.object", String(sinkNode.name)]);
+    }
+
+    // ---- left/right balance on whatever the default device is. The channel
+    // volumes carry it, and the loudness never jumps: the louder side stays at
+    // the volume it had, the quieter one loses a share. Centred again, both go
+    // back to that volume (once - a device that was never off-centre is left
+    // alone); re-applied when the default device changes.
+    readonly property int balance: Settings.data.audioBalance
+    property int balanceApplied: 0
+    Timer {
+        id: balanceApply
+        interval: 120
+        onTriggered: {
+            const b = root.balance || 0;
+            if (!root.sink || !root.ready || b < -100 || b > 100 || (b === 0 && root.balanceApplied === 0))
+                return;
+            // the louder channel is the volume (an average would sink a little each time)
+            const vols = Array.from(root.sink.audio.volumes || []);
+            const v = Math.round((vols.length ? Math.max(...vols) : root.volume) * 100);
+            const other = Math.round(v * (100 - Math.abs(b)) / 100) + "%";
+            pactl.command = ["pactl", "set-sink-volume", "@DEFAULT_SINK@",
+                             b > 0 ? other : v + "%",
+                             b > 0 ? v + "%" : other];
+            pactl.running = true;
+            root.balanceApplied = b;
+        }
+    }
+    Process { id: pactl }
+    function setBalance(b) {
+        const t = Math.max(-100, Math.min(100, Math.round(b)));
+        if (t !== Settings.data.audioBalance)
+            Settings.data.audioBalance = t;
+    }
+    onBalanceChanged: balanceApply.restart()
+    onSinkChanged: balanceApply.restart()
     function nodeName(n) {
         return n ? (n.description || n.nickname || n.name) : "";
     }

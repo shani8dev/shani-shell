@@ -1,10 +1,10 @@
-// On-screen display for volume, mic, brightness, adaptive brightness, keyboard
-// layout, power profile, night light, DND, caffeine, focus mode, display scale,
-// torch/flashlight, network, bluetooth: a pill above the dock on the focused
-// screen, for 1.6 s after the change. It reacts to the change itself (a key,
-// a slider, `wpctl` in a terminal), not to the keybind, so nothing has to
-// remember to show it. Startup values are not changes, so nothing shows while
-// services are still settling.
+// On-screen display for volume, mic volume and mute, brightness, adaptive
+// brightness, caps/num lock, keyboard layout, power profile, night light, DND,
+// caffeine, focus mode, display scale, flashlight and network: a pill above
+// the dock on the focused screen, for 1.6 s after the change. It reacts
+// to the change itself (a key, a slider, `wpctl` in a terminal), not to the
+// keybind, so nothing has to remember to show it. Startup values are not
+// changes, so nothing shows while services are still settling.
 import Quickshell
 import Quickshell.Wayland
 import QtQuick
@@ -59,12 +59,13 @@ Scope {
     Connections {
         target: AmbientLight
         function onAvailableChanged() {
-            root.show(AmbientLight.available ? "display-brightness" : "display-brightness",
-                      -1, AmbientLight.available ? "Ambient light sensor on" : "Adaptive brightness off", "toggle");
+            root.show("display-brightness-auto", -1,
+                      AmbientLight.available ? "Ambient light sensor found" : "No ambient light sensor", "label");
         }
         function onEnabledChanged() {
-            root.show(AmbientLight.available ? "display-brightness" : "display-brightness",
-                      -1, AmbientLight.available ? "Ambient light sensor on" : "Ambient light sensor off", "toggle");
+            const what = AmbientLight.available ? "Ambient brightness" : "Adaptive brightness";
+            root.show("display-brightness-auto", -1,
+                      AmbientLight.enabled ? what + " on" : what + " off", "toggle");
         }
         function onTargetBrightnessChanged() {
             if (AmbientLight.available && AmbientLight.enabled) {
@@ -72,6 +73,13 @@ Scope {
                           Math.round(AmbientLight.targetBrightness * 100) + "%", "slider");
             }
         }
+    }
+
+    // ---- Caps Lock / Num Lock (the keyboard may have no light for them) ----
+    Connections {
+        target: LockKeys
+        function onCapsChanged() { if (LockKeys.known) root.show("input-keyboard", -1, LockKeys.caps ? "Caps Lock on" : "Caps Lock off", "toggle"); }
+        function onNumChanged() { if (LockKeys.known) root.show("input-keyboard", -1, LockKeys.num ? "Num Lock on" : "Num Lock off", "toggle"); }
     }
 
     // ---- Keyboard layout ----
@@ -92,7 +100,7 @@ Scope {
     Connections {
         target: NightLight
         function onActiveChanged() {
-            root.show(NightLight.active ? "night-light" : "night-light-off", -1,
+            root.show("night-light", -1,
                       NightLight.active ? "Night light on" : "Night light off", "toggle");
         }
     }
@@ -101,7 +109,7 @@ Scope {
     Connections {
         target: Notifs
         function onDndChanged() {
-            root.show(Notifs.dnd ? "notifications-disabled" : "notifications", -1,
+            root.show("notifications-disabled", -1,
                       Notifs.dnd ? "Do not disturb on" : "Do not disturb off", "toggle");
         }
     }
@@ -110,7 +118,7 @@ Scope {
     Connections {
         target: Idle
         function onCaffeineChanged() {
-            root.show(Idle.caffeine ? "caffeine-on" : "caffeine-off", -1,
+            root.show("preferences-desktop-screensaver", -1,
                       Idle.caffeine ? "Caffeine on" : "Caffeine off", "toggle");
         }
     }
@@ -119,20 +127,26 @@ Scope {
     Connections {
         target: Focus
         function onActiveChanged() {
-            root.show(Focus.on ? "focus-mode" : "focus-mode-off", -1,
+            root.show("focus-windows", -1,
                       Focus.on ? "Focus: " + Focus.active : "Focus off", "label");
         }
     }
 
     // ---- Display scale ----
+    // A new monitor or an output refresh is not a scale change; remember the
+    // focused output's last scale and show only when it moved.
+    property real lastScale: -1
     Connections {
         target: Displays
         function onOutputsChanged() {
-            // Only show if a scale change was detected (not on initial load)
-            if (root.armed) {
-                const o = Displays.outputs.find(x => x.name === Niri.focusedOutput);
-                if (o) root.show("display-scale", -1, "Scale: " + o.scale + "x", "label");
+            const o = Displays.outputs.find(x => x.name === Niri.focusedOutput);
+            if (!o) {
+                root.lastScale = -1;
+                return;
             }
+            if (root.lastScale >= 0 && Math.abs(o.scale - root.lastScale) > 0.01)
+                root.show("zoom-in", -1, "Scale: " + o.scale + "x", "label");
+            root.lastScale = o.scale;
         }
     }
 
@@ -140,7 +154,7 @@ Scope {
     Connections {
         target: Brightness
         function onTorchOnChanged() {
-            root.show(Brightness.torchOn ? "flashlight-on" : "flashlight-off", -1,
+            root.show("weather-clear", -1,
                       Brightness.torchOn ? "Flashlight on" : "Flashlight off", "toggle");
         }
     }
@@ -214,7 +228,7 @@ Scope {
                 // Percentage text (for sliders)
                 Text {
                     visible: root.kind === "slider"
-                    text: Math.round(root.value * 100)
+                    text: Math.round(root.value * 100) + "%"
                     color: Theme.dim
                     font.family: Theme.font
                     font.pixelSize: 12 * Theme.fontScale

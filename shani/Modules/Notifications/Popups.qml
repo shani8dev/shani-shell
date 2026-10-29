@@ -11,7 +11,7 @@ import qs.Services
 
 PanelWindow {
     id: win
-    screen: Quickshell.screens[0]
+    screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     visible: Notifs.popups.length > 0 && !Ui.controlCenter && !Ui.launcher && !Lock.locked
         && Lens.phase !== "selecting" && Lens.phase !== "reading"   // not what Lens is pointed at
     // where pop-ups appear (Settings > Notifications); the dock keeps the bottom clear
@@ -26,7 +26,8 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     BackgroundEffect.blurRegion: Settings.data.blur ? popRegion : null
-    Region { id: popRegion; item: list }
+    // rounded like the cards: a plain rectangle blurred a square box behind them
+    Region { id: popRegion; item: list; radius: Theme.radiusLarge }
 
     ColumnLayout {
         id: list

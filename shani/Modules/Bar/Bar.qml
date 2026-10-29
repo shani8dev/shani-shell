@@ -91,6 +91,7 @@ Variants {
                         model: Niri.workspacesOn(bar.output)
                         Rectangle {
                             required property var modelData
+                            required property int index
                             readonly property bool occupied: modelData.active_window_id !== null
                             implicitWidth: modelData.is_active ? 30 : 22
                             implicitHeight: 22
@@ -102,8 +103,9 @@ Variants {
 
                             Text {
                                 anchors.centerIn: parent
-                                text: modelData.name || modelData.idx
-                                color: modelData.is_active ? Theme.accent : (parent.occupied ? Theme.text : Theme.faint)
+                                // its place among the visible ones (the minimised one is hidden)
+                                text: modelData.name || (parent.index + 1)
+                                color: modelData.is_active ? Theme.accent : (parent.occupied ? Theme.text : Theme.dim)
                                 font.family: Theme.font
                                 font.pixelSize: 12 * Theme.fontScale
                                 font.weight: modelData.is_active ? Font.DemiBold : Font.Normal

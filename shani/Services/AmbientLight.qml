@@ -1,7 +1,8 @@
 pragma Singleton
-// Ambient light sensor brightness: read from the Linux ALS sysfs interface and
-// adjust screen brightness automatically. Falls back to time-based adaptive
-// brightness if no sensor is found. Manual overrides are respected.
+// Ambient light sensor brightness: read the IIO illuminance sensor the kernel
+// exposes in sysfs and follow it. No sensor (most desktops, many laptops) or
+// "adaptive" off: nothing runs — the person's brightness is theirs. A manual
+// change while adaptive is on overrides for 30 s, then the sensor resumes.
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -11,65 +12,57 @@ Singleton {
     id: root
     property bool available: false
     property bool enabled: Settings.data.adaptiveBrightness
-    property real lux: 0          // measured in lux
-    property real targetBrightness: 0  // 0..1
-    property real manualOverride: -1   // -1 = no override
+    property real lux: 0                // as read: noisy
+    property real smoothLux: -1         // exponential average of readings
+    property real targetBrightness: 0   // 0..1, from the smoothed lux
+    property real manualOverride: -1    // >= 0: the person was last; a timer ends it
     property string sensorPath: ""
-    signal changedByUser()
 
-    // Read lux from ALS sysfs (common paths)
+    // IIO illuminance only: an LED class file's "brightness" is what a light is
+    // emitting, not what the room looks like — listing /sys/class/leds here
+    // once drove a torch LED down as if it were a sensor reading.
+    // SHANI_LUX_FILE gives the suite a sensor to drive.
+    property string luxFile: Quickshell.env("SHANI_LUX_FILE")
     Process {
         id: probe
         running: true
-        // IIO illuminance sensors (an LED's brightness is not a light reading)
-        command: ["sh", "-c", "for path in /sys/bus/iio/devices/iio:device*/in_illuminance_input /sys/bus/iio/devices/iio:device*/in_illuminance_raw /sys/class/ambient_light/*; do [ -f \"$path\" ] && [ -r \"$path\" ] && echo \"$path\"; done"]
+        command: ["sh", "-c", luxFile ? "echo \"$0\"" : "for path in /sys/bus/iio/devices/iio:device*/in_illuminance_input /sys/bus/iio/devices/iio:device*/in_illuminance_raw /sys/class/ambient_light/*; do [ -f \"$path\" ] && [ -r \"$path\" ] && echo \"$path\"; done", luxFile]
         stdout: StdioCollector {
             onStreamFinished: {
                 const paths = text.trim().split("\n").filter(p => p);
-                if (paths.length > 0) {
-                    root.sensorPath = paths[0];
-                    root.available = true;
+                root.sensorPath = paths[0] || "";
+                root.available = root.sensorPath !== "";
+                if (root.available && root.enabled)
                     root.readLux();
-                    // Start continuous reading
-                    readInterval.restart();
-                } else {
-                    root.available = false;
-                    // Fall back to time-based if no sensor
-                    root.readTimeBased();
-                }
             }
         }
     }
 
-    Timer {
-        id: readInterval
-        interval: 5000
-        running: root.available
-        repeat: true
-        onTriggered: root.readLux()
-    }
-
-    Timer {
-        id: timeInterval
-        interval: 60000
-        running: !root.available
-        repeat: true
-        onTriggered: root.readTimeBased()
-    }
-
-    // Read current lux from sensor
     Process {
         id: luxReader
         command: ["cat", root.sensorPath]
         stdout: StdioCollector {
             onStreamFinished: {
                 const val = parseFloat(text.trim());
-                if (!isNaN(val)) {
-                    root.lux = val;
-                    root.calculateBrightness();
-                }
+                if (isNaN(val))
+                    return;
+                root.lux = val;
+                // Exponential smoothing (alpha 0.2): raw readings jitter by a
+                // few percent between reads, and an unsmoothed stream hunting
+                // around a threshold steps the backlight every read.
+                root.smoothLux = root.smoothLux < 0 ? val : root.smoothLux * 0.8 + val * 0.2;
+                root.apply();
             }
         }
+    }
+    Timer {
+        interval: 5000
+        running: root.available && root.enabled && root.manualOverride < 0
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: root.readLux()
+        // reading stops while the override is up: a stale sensor must not
+        // fight the person's slider
     }
     function readLux() {
         if (!root.sensorPath || !root.available)
@@ -77,70 +70,42 @@ Singleton {
         luxReader.running = true;
     }
 
-    // Calculate target brightness from lux (typical curve: 50-500 lux = 0.5-1.0, 0-50 lux = 0.2-0.5)
-    function calculateBrightness() {
-        if (!root.available || root.manualOverride >= 0)
-            return;
-
-        // Clamp lux to reasonable range (0-1000 lux for calculation)
-        const clampedLux = Math.max(0, Math.min(1000, root.lux));
-        
-        // Simple linear mapping with clamping
-        let target = (clampedLux - 20) / 400;  // 20 lux = 0, 420 lux = 1
-        target = Math.max(0.2, Math.min(1.0, target));
-        
-        root.targetBrightness = target;
-        
-        // Apply if enabled and not locked
-        if (root.enabled && Brightness.available && Math.abs(Brightness.value - target) > 0.02) {
-            Brightness.applyAuto(target);
-        }
+    // lux -> backlight. ~20 lx is a dim room, ~100 desk lamp, ~300 office,
+    // 500+ near a window. Floor at 0.12: the panel must stay readable.
+    function luxToLevel(v) {
+        return Math.max(0.12, Math.min(1, (v - 15) / 385));
     }
 
-    // Time-based adaptive brightness (fallback when no sensor)
-    function readTimeBased() {
-        if (root.available || !root.enabled || root.manualOverride >= 0)
+    function apply() {
+        if (root.manualOverride >= 0 || !root.enabled)
             return;
-        
+        const target = root.available ? luxToLevel(root.smoothLux) : timeLevel();
+        if (Math.abs(Brightness.value - target) <= 0.05)
+            return;     // already close: no step, no repost (same value does not re-emit)
+        root.targetBrightness = target;
+        if (Brightness.available)
+            Brightness.applyAuto(target);
+    }
+
+    function timeLevel() {
         const h = new Date().getHours();
-        // Daytime (6am-8pm): brighter, Nighttime (8pm-6am): dimmer
-        let target = 0.5;
-        if (h >= 6 && h < 9) target = 0.6;
-        else if (h >= 9 && h < 17) target = 0.8;
-        else if (h >= 17 && h < 20) target = 0.65;
-        else if (h >= 20 && h < 22) target = 0.5;
-        else target = 0.35;
-        
-        root.targetBrightness = target;
-        
-        if (root.enabled && Brightness.available && Math.abs(Brightness.value - target) > 0.02) {
-            Brightness.applyAuto(target);
-        }
+        if (h >= 9 && h < 17) return 0.8;      // working hours
+        if (h >= 6 && h < 9) return 0.7;       // morning
+        if (h >= 17 && h < 20) return 0.62;    // evening, dusk, indoors
+        if (h >= 20 && h < 22) return 0.5;
+        return 0.32;                           // night
     }
 
-    // Manually set brightness override
-    function setManualOverride(v) {
-        root.manualOverride = v;
-        if (v < 0) {
-            root.manualOverride = -1;
-            // Re-enable automatic after a delay if user hasn't manually adjusted
-            manualTimeout.restart();
-        }
-    }
-
+    // A person's change holds the sensor off for a while — one drag of the
+    // quick settings' slider is consent to be left alone, not a master toggle.
     Timer {
         id: manualTimeout
-        interval: 30000  // 30 seconds after manual change, re-enable auto
+        interval: 30000
         onTriggered: {
-            if (root.manualOverride >= 0) {
-                root.manualOverride = -1;
-                // Re-read sensor or time-based
-                if (root.available) {
-                    root.readLux();
-                } else {
-                    root.readTimeBased();
-                }
-            }
+            if (root.manualOverride < 0)
+                return;
+            root.manualOverride = -1;
+            if (root.available) root.readLux(); else root.apply();
         }
     }
 
@@ -149,25 +114,29 @@ Singleton {
         target: Settings.data
         function onAdaptiveBrightnessChanged() {
             root.enabled = Settings.data.adaptiveBrightness;
-            if (root.enabled)
-                root.available ? root.readLux() : root.readTimeBased();
+            if (root.enabled && !root.available) {
+                root.smoothLux = -1;   // time path needs no history
+                root.apply();
+            } else if (root.enabled)
+                root.readLux();
         }
     }
-
-    // Sync with Brightness changes
+    Connections {
+        target: Settings
+        function onLoadedChanged() {
+            root.enabled = Settings.data.adaptiveBrightness;
+            if (root.enabled && !root.available) root.apply();
+            else if (root.enabled) root.readLux();
+        }
+    }
+    // a change the sensor did not make was the person: hold the sensor off
     Connections {
         target: Brightness
         function onValueChanged() {
             if (Brightness.automatic)
-                return;          // our own adjustment, not the person's
+                return;
             root.manualOverride = Brightness.value;
             manualTimeout.restart();
-            root.changedByUser();
         }
-    }
-
-    // Initialize
-    Component.onCompleted: {
-        root.enabled = Settings.data.adaptiveBrightness;
     }
 }

@@ -10,7 +10,7 @@ import qs.Services
 PanelWindow {
     id: win
     visible: Settings.data.assistiveTouch && !Lock.locked && !Ui.ring
-    screen: Quickshell.screens[0]
+    screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     anchors { top: true; left: true }
     margins.left: Settings.data.touchX
     margins.top: Settings.data.touchY
@@ -19,10 +19,14 @@ PanelWindow {
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "shani-touch"
+    // blur behind the card, as on every shell surface (ext-background-effect)
+    BackgroundEffect.blurRegion: Settings.data.blur && visible ? blurArea : null
+    Region { id: blurArea; item: blurCard; radius: blurCard.radius }
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
     Rectangle {
+        id: blurCard
         anchors.fill: parent
         radius: width / 2
         color: Theme.alpha(Theme.bg, 0.55)

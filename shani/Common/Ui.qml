@@ -20,7 +20,14 @@ Singleton {
     property int annotateStrokes: 0
     property var printersSeen: []                  // Settings > Printers, for the tests
     property string backupSummary: ""              // Settings > Backup, for the tests
-    property string settingsCat: ""                // the settings category open, "" = the grid
+    property string settingsCat: ""                // the settings category open
+    property bool settingsOpen: false              // the Settings window (Modules/Settings)
+    property string dockMenu: ""                   // an app whose dock menu the tests opened
+    function openSettings(cat) {
+        closeAll();
+        settingsCat = cat || settingsCat || "personal";
+        settingsOpen = true;
+    }
     property int faceRev: 0                        // bumped when ~/.face changes
     property bool tour: false                      // the tour, opened again by hand
     property string modemDialog: ""                // "pin" | "sms" (ModemDialog)
@@ -51,7 +58,16 @@ Singleton {
     property var launcherSections: []
     property var tilesShown: []       // the launcher's first answer (shown in `state`)
 
+    // files dropped on an app (the dock): its desktop file opens them, as a file
+    // manager's "Open with" does - gio launch fills its %f/%u from the arguments
+    function openFilesWith(appId, files) {
+        if (!appId || !files.length)
+            return;
+        Quickshell.execDetached(["sh", "-c", 'id=$1; shift; IFS=:; for d in "${XDG_DATA_HOME:-$HOME/.local/share}" ${XDG_DATA_DIRS:-/usr/local/share:/usr/share}; do '
+            + 'f="$d/applications/$id.desktop"; [ -f "$f" ] && exec gio launch "$f" "$@"; done; exit 1', "sh", appId].concat(files));
+    }
     function closeAll() {
+        dockMenu = "";
         launcher = false;
         ring = false;
         switcher = false;

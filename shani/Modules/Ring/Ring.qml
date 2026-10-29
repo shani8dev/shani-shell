@@ -19,6 +19,9 @@ PanelWindow {
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "shani-ring"
+    // blur behind the card, as on every shell surface (ext-background-effect)
+    BackgroundEffect.blurRegion: Settings.data.blur && visible ? blurArea : null
+    Region { id: blurArea; item: disc; radius: disc.radius }
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: Ui.ring ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 

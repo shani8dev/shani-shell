@@ -14,37 +14,25 @@ Singleton {
     property string device: ""
     property string torch: ""       // LED class device named *flash* / *torch*
     property bool torchOn: false
-    property bool adaptive: AmbientLight.available && AmbientLight.enabled
     signal changedByUser()
 
-    // Use ambient light sensor if available, otherwise use time-based
+    // Adaptive servo: when the sensor says a brightness, follow it; when it is
+    // off again, the person's last value stands (no snap-back).
+    property bool adaptive: false
     Connections {
         target: AmbientLight
-        function onAvailableChanged() {
-            root.adaptive = AmbientLight.available && AmbientLight.enabled;
-        }
-        function onEnabledChanged() {
-            root.adaptive = AmbientLight.available && AmbientLight.enabled;
-        }
+        function onAvailableChanged() { root.adaptive = AmbientLight.available && AmbientLight.enabled; }
+        function onEnabledChanged() { root.adaptive = AmbientLight.available && AmbientLight.enabled; }
     }
-
-    // When AmbientLight is disabled, restore manual brightness
-    Connections {
-        target: AmbientLight
-        function onEnabledChanged() {
-            if (!AmbientLight.enabled && AmbientLight.available) {
-                // Restore manual brightness value
-                root.value = Math.max(0.2, Math.min(1.0, root.value));
-            }
-        }
-    }
-
     // a change made by adaptive brightness, not by a person: no OSD, no override
     property bool automatic: false
     function applyAuto(v) {
         automatic = true;
         value = Math.max(0.01, Math.min(1, v));
-        Quickshell.execDetached(["brightnessctl", "-q", "-d", device, "set", Math.round(value * 100) + "%"]);
+        if (device !== "")
+            Quickshell.execDetached(["brightnessctl", "-q", "-d", device, "set", Math.round(value * 100) + "%"]);
+        else if (ddc.length)
+            setDdc(ddc[0].display, v);
         automatic = false;
     }
 

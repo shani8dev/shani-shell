@@ -55,6 +55,20 @@ ColumnLayout {
         find.text = "";
     }
 
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Apps open when you signed out") }
+    Flow {
+        Layout.fillWidth: true
+        spacing: 6
+        Repeater {
+            model: [{ id: "ask", label: Tr.t("Offer to reopen them") }, { id: "always", label: Tr.t("Reopen them") }, { id: "never", label: Tr.t("Start fresh") }]
+            Choice {
+                required property var modelData
+                text: modelData.label
+                selected: page.d.reopenApps === modelData.id
+                onClicked: page.d.reopenApps = modelData.id
+            }
+        }
+    }
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Startup apps") }
     Repeater {
         model: page.entries

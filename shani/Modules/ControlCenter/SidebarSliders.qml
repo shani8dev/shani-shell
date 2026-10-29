@@ -16,8 +16,6 @@ import qs.Modules.Notifications
 ColumnLayout {
     required property var sidebar
     spacing: 14
-    // a section whose parts are all hidden takes no room (no double gap)
-    visible: Array.from(children).some(c => c.visible)
 
     SliderRow {
         Layout.fillWidth: true

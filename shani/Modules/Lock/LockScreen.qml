@@ -21,6 +21,22 @@ Scope {
     property bool busy: false
     property string pending: ""
     property string queued: ""      // typed while PAM was still answering the last try
+    // the camera from the lock screen (Android's, iOS's): a photo can be taken
+    // without unlocking, and only the ones taken while locked are shown here
+    property var lockPhotos: []
+    property bool lockShotPending: false
+    function lockPhoto() { lockShotPending = true; Camera.photo(); }
+    Connections {
+        target: Camera
+        function onPhaseChanged() {
+            if (Camera.phase === "idle" && root.lockShotPending) {
+                root.lockShotPending = false;
+                if (Lock.locked && Camera.last.endsWith(".png"))
+                    root.lockPhotos = root.lockPhotos.concat([Camera.last]);
+            }
+        }
+    }
+    Connections { target: Lock; function onLockedChanged() { if (!Lock.locked) root.lockPhotos = []; } }
 
     function submit(text) {
         if (text === "")
@@ -148,6 +164,63 @@ Scope {
                     font.family: Theme.font
                     font.pixelSize: 18 * Theme.fontScale
                 }
+                // at a glance (a phone's lock screen): the weather, and the next event
+                // only when previews are allowed on the lock screen (Privacy)
+                Text {
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.topMargin: 6
+                    readonly property var next: Settings.data.lockPreviews && Agenda.upcoming.length ? Agenda.upcoming[0] : null
+                    text: [Weather.summary, next ? Agenda.when(next) + " · " + next.summary : ""].filter(x => x).join("    ")
+                    visible: text !== ""
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 14 * Theme.fontScale
+                }
+            }
+
+            // the camera, bottom right (only with a camera and the camera switch on)
+            Column {
+                visible: Camera.available && Privacy.cameraEnabled
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.margins: 32
+                spacing: 10
+                Image {
+                    visible: root.lockPhotos.length > 0
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: 96
+                    height: 72
+                    fillMode: Image.PreserveAspectCrop
+                    sourceSize: Qt.size(192, 144)
+                    source: root.lockPhotos.length ? "file://" + root.lockPhotos[root.lockPhotos.length - 1] : ""
+                    Accessible.role: Accessible.Graphic
+                    Accessible.name: Tr.t("The photo just taken")
+                }
+                Glass {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    strong: true
+                    width: 56
+                    height: 56
+                    radius: 28
+                    Text {
+                        visible: Camera.phase === "counting"
+                        anchors.centerIn: parent
+                        text: Camera.countdown
+                        color: Theme.text
+                        font.family: Theme.font
+                        font.pixelSize: 22 * Theme.fontScale
+                        font.weight: Font.DemiBold
+                    }
+                    IconButton {
+                        visible: Camera.phase !== "counting"
+                        anchors.centerIn: parent
+                        icon: "camera-photo"
+                        size: 40
+                        tip: Tr.t("Take a photo")
+                        enabled: Camera.phase === "idle"
+                        onClicked: root.lockPhoto()
+                    }
+                }
             }
 
             // what is playing, and the controls (they work while locked, as on a phone)
@@ -226,16 +299,37 @@ Scope {
                         font.pixelSize: 15 * Theme.fontScale
                         font.weight: Font.DemiBold
                     }
-                    TextField {
-                        id: pass
+                    RowLayout {
                         Layout.fillWidth: true
-                        placeholder: root.busy ? "Checking…" : "Password"
-                        secret: true
-                        onAccepted: {
-                            root.submit(text);
-                            text = "";
+                        spacing: 8
+                        TextField {
+                            id: pass
+                            Layout.fillWidth: true
+                            placeholder: root.busy ? "Checking…" : "Password"
+                            secret: true
+                            onAccepted: {
+                                root.submit(text);
+                                text = "";
+                            }
+                            Component.onCompleted: pass.input.forceActiveFocus()
                         }
-                        Component.onCompleted: pass.input.forceActiveFocus()
+                        // the arrow, for a mouse or a touch screen
+                        IconButton {
+                            icon: "go-next"
+                            size: 34
+                            on: pass.text !== ""
+                            tip: Tr.t("Unlock")
+                            onClicked: { root.submit(pass.text); pass.text = ""; }
+                        }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: LockKeys.caps
+                        text: Tr.t("Caps Lock is on")
+                        color: Theme.amber
+                        horizontalAlignment: Text.AlignHCenter
+                        font.family: Theme.font
+                        font.pixelSize: 12 * Theme.fontScale
                     }
                     Text {
                         Layout.fillWidth: true
@@ -259,24 +353,34 @@ Scope {
                             font.pixelSize: 12 * Theme.fontScale
                         }
                     }
-                    Text {
-                        Layout.fillWidth: true
-                        visible: Notifs.count > 0
-                        // how many, not what (unless previews are on): the content stays behind the lock
-                        text: Notifs.count + (Notifs.count === 1 ? " notification" : " notifications")
-                        color: Theme.dim
-                        font.family: Theme.font
-                        font.pixelSize: 11 * Theme.fontScale
-                    }
-                    RowLayout {
-                        Layout.fillWidth: true
-                        visible: Power.hasBattery
-                        Icon { name: Power.batteryIcon; size: 14; color: Theme.dim }
-                        Text {
-                            text: Math.round(Power.percent * 100) + "%"
-                            color: Theme.dim
-                            font.family: Theme.font
-                            font.pixelSize: 11 * Theme.fontScale
+                    // what is waiting, at a glance: how many, not what (the content
+                    // stays behind the lock, unless previews are on), and the battery
+                    Row {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.topMargin: 2
+                        spacing: 16
+                        Row {
+                            visible: Notifs.count > 0
+                            spacing: 5
+                            Icon { name: "preferences-system-notifications"; size: 14; color: Theme.dim; anchors.verticalCenter: parent.verticalCenter }
+                            Text {
+                                text: Notifs.count
+                                color: Theme.dim
+                                font.family: Theme.font
+                                font.pixelSize: 12 * Theme.fontScale
+                                Accessible.name: Notifs.count + (Notifs.count === 1 ? " notification" : " notifications")
+                            }
+                        }
+                        Row {
+                            visible: Power.hasBattery
+                            spacing: 5
+                            Icon { name: Power.batteryIcon; size: 14; color: Theme.dim; anchors.verticalCenter: parent.verticalCenter }
+                            Text {
+                                text: Math.round(Power.percent * 100) + "%"
+                                color: Theme.dim
+                                font.family: Theme.font
+                                font.pixelSize: 12 * Theme.fontScale
+                            }
                         }
                     }
                 }

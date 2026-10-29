@@ -42,7 +42,7 @@ PanelWindow {
         const w = list[sel];
         Ui.switcher = false;
         if (w)
-            Niri.action("focus-window", "--id", w.id);
+            Niri.focusWin(w);
     }
 
     Connections {
@@ -125,13 +125,12 @@ PanelWindow {
                     anchors.fill: parent
                     anchors.margins: 10
                     spacing: 6
-                    IconImage {
+                    AppIcon {
+                        readonly property var entry: DesktopEntries.heuristicLookup(cell.modelData.app_id || "")
                         Layout.alignment: Qt.AlignHCenter
                         implicitSize: 56
-                        source: {
-                            const e = DesktopEntries.heuristicLookup(cell.modelData.app_id || "");
-                            return Quickshell.iconPath(e ? e.icon : (cell.modelData.app_id || ""), "application-x-executable");
-                        }
+                        icon: entry ? entry.icon : (cell.modelData.app_id || "")
+                        name: entry ? entry.name : (cell.modelData.title || cell.modelData.app_id || "")
                     }
                     Text {
                         Layout.fillWidth: true

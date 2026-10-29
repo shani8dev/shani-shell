@@ -17,8 +17,6 @@ ColumnLayout {
     required property var sidebar
     required property var sidebarClock
     spacing: 14
-    // a section whose parts are all hidden takes no room (no double gap)
-    visible: Array.from(children).some(c => c.visible)
 
     RowLayout {
         Layout.fillWidth: true
@@ -75,7 +73,7 @@ ColumnLayout {
                 }
             }
         }
-        IconButton { icon: "preferences-system"; onClicked: Ui.expanded = "settings" }
+        IconButton { icon: "emblem-system"; tip: Tr.t("Settings"); Accessible.name: Tr.t("Settings"); onClicked: Ui.openSettings("") }
         IconButton { icon: "system-lock-screen"; onClicked: { Ui.closeAll(); Lock.lock(); } }
         IconButton {
             icon: "system-shutdown"
@@ -115,6 +113,29 @@ ColumnLayout {
                         sidebar.confirm = modelData.id;
                     }
                 }
+            }
+        }
+    }
+
+    // on battery: what is using the most power now (Pantheon's power indicator),
+    // by processor use; a click opens the process list, where one can be ended
+    Binding { target: TopProcesses; property: "watching"; value: true; when: Ui.expanded === "power" && Power.onBattery }
+    ColumnLayout {
+        readonly property var heavy: TopProcesses.list.filter(p => p.cpu >= 5).slice(0, 3)
+        visible: Ui.expanded === "power" && Power.onBattery && heavy.length > 0
+        Layout.fillWidth: true
+        spacing: 2
+        SectionTitle { Layout.fillWidth: true; text: Tr.t("Using the most power") }
+        Repeater {
+            model: parent.heavy
+            ListRow {
+                required property var modelData
+                readonly property var app: DesktopEntries.heuristicLookup(modelData.name)
+                Layout.fillWidth: true
+                icon: app ? app.icon : "application-x-executable"
+                title: app ? app.name : modelData.name
+                subtitle: Tr.t("%1% of the processor", Math.round(modelData.cpu))
+                onClicked: { Ui.closeAll(); Ui.processes = true; }
             }
         }
     }

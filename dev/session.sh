@@ -25,6 +25,13 @@ export SHANI_TRANSLATE_TOOL=/work/dev/fake-translate.py
 export SHANI_DYNAMIC_LOCK_GRACE=1500     # ms: the dynamic-lock test waits 1.5 s, not 30
 export SHANI_AGENDA_TOOL=/work/bridge/agenda.py SHANI_MODEM_TOOL=/work/dev/fake-modem.py
 export XDG_CONFIG_HOME=/root/.config SHANI_SHELL_SETTINGS=/tmp/shani-settings.json
+export SHANI_SCRCPY=/work/dev/fake-scrcpy.sh SHANI_ADB=/work/dev/fake-adb.sh SHANI_LAUNCHER_ENTRY_TOOL=/work/bridge/launcher-entry.py SHANI_APPFILTER_TOOL=/work/dev/fake-appfilter.sh
+# a keyboard's Caps Lock and Num Lock lights, where the kernel keeps them
+export SHANI_LEDS_DIR=/tmp/fake-leds
+for k in capslock numlock; do mkdir -p "/tmp/fake-leds/input3::$k"; echo 0 > "/tmp/fake-leds/input3::$k/brightness"; done
+# an ambient light sensor the suite can drive (the container's hardware has none)
+export SHANI_LUX_FILE=/tmp/fake-lux
+echo 300 > "$SHANI_LUX_FILE"
 # the lock screen's PAM file in its real place: its "include login" resolves
 # against the directory it sits in, so a copy elsewhere can never authenticate
 install -Dm644 /work/data/pam.d/shani-lock /etc/pam.d/shani-lock
@@ -80,5 +87,7 @@ sleep 0.5
 mkdir -p /usr/share/backgrounds/shani && cp /work/assets/shani-dark.jpg /work/assets/shani-light.jpg /usr/share/backgrounds/shani/
 # idle off from the start (the tests drive the shell over IPC, which is not input)
 printf '{"dimAfter": 0, "lockAfter": 0, "screenOffAfter": 0, "lockAfterBattery": 0, "screenOffAfterBattery": 0}' > "$SHANI_SHELL_SETTINGS"
-QS_ICON_THEME=Adwaita QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1 qs -p /work/shani >$L/qs.log 2>&1 &
+# the tests keep Adwaita (fixed icons to compare); the showcase passes the image's own
+export QS_ICON_THEME=${QS_ICON_THEME:-Adwaita} QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1
+qs -p /work/shani >$L/qs.log 2>&1 &
 sleep 4

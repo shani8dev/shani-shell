@@ -13,7 +13,7 @@ Rectangle {
 
     implicitHeight: 38
     radius: 10
-    color: Theme.hover
+    color: Theme.surface1
     border.width: 1
     border.color: input.activeFocus ? Theme.accent : Theme.stroke
 

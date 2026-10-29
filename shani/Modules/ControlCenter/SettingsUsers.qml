@@ -120,6 +120,12 @@ ColumnLayout {
                     visible: urow.modelData.name !== page.me
                     spacing: 6
                     property bool confirm: false
+                    // what a standard account may run (GNOME's Parental Controls, malcontent)
+                    Button {
+                        visible: !parent.confirm && !urow.modelData.admin && page.iAmAdmin && AppFilter.canControl
+                        text: Tr.t("Parental controls")
+                        onClicked: AppFilter.openControls(urow.modelData.name)
+                    }
                     Button {
                         visible: !parent.confirm
                         kind: "danger"

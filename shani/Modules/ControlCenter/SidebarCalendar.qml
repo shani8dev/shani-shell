@@ -16,12 +16,23 @@ import qs.Modules.Notifications
 ColumnLayout {
     required property var sidebarClock
     spacing: 14
-    // a section whose parts are all hidden takes no room (no double gap)
-    visible: Array.from(children).some(c => c.visible)
 
     Calendar {
         Layout.fillWidth: true
         today: sidebarClock.date
+    }
+    // other cities, if any are picked (Settings > Date & language): where the
+    // kernel keeps them, DST-proof
+    Repeater {
+        model: WorldClock.clocks
+        ListRow {
+            required property var modelData
+            Layout.fillWidth: true
+            icon: "preferences-system-time"
+            title: modelData.city
+            subtitle: modelData.time
+            onClicked: Ui.closeAll()
+        }
     }
     // what is coming, from the person's calendars (Agenda: EDS)
     ColumnLayout {

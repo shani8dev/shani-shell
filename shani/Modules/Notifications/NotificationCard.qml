@@ -17,6 +17,7 @@ Glass {
     property bool popup: false
     property bool showApp: true          // false inside a group: the header already names the app
     property real life: 1                // a popup's time left, 1 → 0 (Popups drives it)
+    property bool more: false            // Snooze and Ask Chronoa shown ("⋯" pressed)
     readonly property bool critical: notification && notification.urgency === NotificationUrgency.Critical
     readonly property string appName: notification ? (notification.appName || "Notification") : ""
     readonly property string appIcon: {
@@ -28,6 +29,9 @@ Glass {
         const e = n.desktopEntry ? DesktopEntries.byId(n.desktopEntry) : null;
         return e && e.icon ? Quickshell.iconPath(e.icon, true) : "";
     }
+    // a theme with only the symbolic one (Adwaita's battery-level-10): drawn tinted
+    readonly property string appSymbolic: notification && notification.appIcon && appIcon === ""
+        && Quickshell.iconPath(notification.appIcon + "-symbolic", true) !== "" ? notification.appIcon : ""
     readonly property string picture: notification && notification.image ? notification.image : ""
     readonly property var actions: notification ? notification.actions.filter(a => a.identifier !== "default") : []
     signal done()
@@ -53,8 +57,9 @@ Glass {
     Component.onCompleted: if (popup) slideIn.start()
     ParallelAnimation {
         id: slideIn
-        NumberAnimation { target: slide; property: "x"; from: 60; to: 0; duration: Theme.anim * 1.6; easing.type: Easing.OutCubic }
-        NumberAnimation { target: root; property: "opacity"; from: 0; to: 1; duration: Theme.anim * 1.6 }
+        // in from the screen edge, settling on the emphasized curve
+        NumberAnimation { target: slide; property: "x"; from: 90; to: 0; duration: Theme.animEnter; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.emphasized }
+        NumberAnimation { target: root; property: "opacity"; from: 0; to: 1; duration: Theme.animEnter * 0.5 }
     }
 
     HoverHandler { id: hover }
@@ -117,9 +122,16 @@ Glass {
                         implicitSize: 26
                         source: root.picture ? "" : root.appIcon
                     }
+                    Icon {
+                        anchors.centerIn: parent
+                        visible: !root.picture && root.appSymbolic !== ""
+                        name: root.appSymbolic
+                        size: 22
+                        color: Theme.text
+                    }
                     Text {
                         anchors.centerIn: parent
-                        visible: !root.picture && root.appIcon === ""
+                        visible: !root.picture && root.appIcon === "" && root.appSymbolic === ""
                         text: root.appName.charAt(0).toUpperCase()
                         color: Theme.accent
                         font.family: Theme.font
@@ -156,11 +168,20 @@ Glass {
                         font.family: Theme.font
                         font.pixelSize: 11 * Theme.fontScale
                     }
-                    // close: always there to a screen reader and a keyboard, shown to the eye on hover
+                    // more: Snooze and Ask Chronoa (in the header, not a row of their own)
+                    IconButton {
+                        icon: "view-more"
+                        size: 22
+                        on: root.more
+                        opacity: hover.hovered || root.more ? 1 : 0.55
+                        Accessible.name: Tr.t("More actions")
+                        onClicked: root.more = !root.more
+                    }
+                    // close: always there to a screen reader and a keyboard, clearer on hover
                     IconButton {
                         icon: "window-close"
-                        size: 20
-                        opacity: hover.hovered || root.critical ? 1 : 0.35
+                        size: 22
+                        opacity: hover.hovered || root.critical ? 1 : 0.55
                         Accessible.name: Tr.t("Dismiss")
                         onClicked: {
                             root.notification.dismiss();
@@ -211,9 +232,12 @@ Glass {
             }
         }
 
-        // the actions, one joined row: the app's own first, then Snooze and Ask
+        // the actions, one joined row: the app's own, and - after "⋯" in the
+        // header (a tap, not a hover: touch has none) - Snooze and Ask Chronoa;
+        // no row at all for a notification with nothing to do
         ClippingRectangle {
             Layout.fillWidth: true
+            visible: root.actions.length > 0 || root.more
             implicitHeight: 34
             radius: 12
             color: "transparent"
@@ -222,16 +246,18 @@ Glass {
                 spacing: 2
                 Repeater {
                     model: root.actions.map(a => ({ text: a.text, run: () => a.invoke() }))
-                        .concat(root.critical ? [] : [{ text: Tr.t("Snooze"), run: () => Notifs.snooze(root.notification, 60) }])
+                        .concat(!root.more ? []
+                        : (root.critical ? [] : [{ text: Tr.t("Snooze"), run: () => Notifs.snooze(root.notification, 60) }])
                         .concat([{ text: Tr.t("Ask Chronoa"), run: () => {
                             const n = root.notification;
                             Chronoa.ask("About this notification from " + (n.appName || "an app") + ": “" + n.summary
                                 + (n.body ? " — " + n.body.replace(/<[^>]*>/g, "") : "") + "”. What should I do?");
-                        } }])
+                        } }]))
                     Rectangle {
                         required property var modelData
                         required property int index
-                        Layout.fillWidth: true
+                        Layout.fillWidth: !modelData.narrow
+                        Layout.preferredWidth: modelData.narrow ? 44 : -1
                         Layout.fillHeight: true
                         color: pill.pressed ? Theme.pressed : pill.containsMouse ? Theme.alpha(Theme.accent, 0.22) : (index === 0 && root.actions.length > 0 ? Theme.accentSoft : Theme.hover)
                         Text {
@@ -246,7 +272,8 @@ Glass {
                             font.weight: Font.Medium
                         }
                         Accessible.role: Accessible.Button
-                        Accessible.name: modelData.text
+                        Accessible.name: modelData.name || modelData.text
+                        Accessible.onPressAction: { modelData.run(); if (!modelData.keep) root.done(); }
                         MouseArea {
                             id: pill
                             anchors.fill: parent
@@ -254,7 +281,8 @@ Glass {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 parent.modelData.run();
-                                root.done();
+                                if (!parent.modelData.keep)
+                                    root.done();
                             }
                         }
                     }

@@ -17,16 +17,19 @@ PanelWindow {
     color: Theme.alpha("#000000", 0.45)
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "shani-tour"
+    // blur behind the card, as on every shell surface (ext-background-effect)
+    BackgroundEffect.blurRegion: Settings.data.blur && visible ? blurArea : null
+    Region { id: blurArea; item: blurCard; radius: blurCard.radius }
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     property int step: 0
     readonly property var cards: [
-        { icon: "face-smile-big", title: Tr.t("Meet Chronoa, in the Island"), body: "The pill in the middle of the bar is your assistant. Click it or press Super+A, and ask in your own words — it can act on your computer, and asks before anything that matters. While it is idle, the Island shows what is going on: a timer, music, a recording.", keys: "Super + A" },
         { icon: "system-search", title: Tr.t("One place to start anything"), body: "Super+Space opens the launcher: apps, files, settings, sums (12*12), emoji, clipboard history (c …). Start with ? to ask Chronoa instead.", keys: "Super + Space" },
-        { icon: "preferences-system", title: Tr.t("The sidebar"), body: "Super+, opens quick tiles — Wi-Fi, Bluetooth, sound, night light, captions, recording and more — your notifications, and Settings.", keys: "Super + ," },
-        { icon: "zoom-in", title: Tr.t("Lens and the Ring"), body: "Super+S: select any part of the screen to read its text, scan a code, or ask Chronoa about it. Super+X: the Ring, a pie of the things you do most, right under the pointer.", keys: "Super + S   ·   Super + X" },
-        { icon: "preferences-system-windows", title: Tr.t("Windows sit side by side"), body: "New windows open beside the others and the row scrolls: Super+← → to move along, Super+O for every workspace at once. On a touchpad: three fingers to move, four fingers up for the overview. Super+Shift+/ lists every shortcut.", keys: "Super + O   ·   Super + Shift + /" }
+        { icon: "face-smile-big", title: Tr.t("Meet Chronoa, in the Island"), body: "The pill in the middle of the bar is your assistant. Click it or press Super+A, and ask in your own words — it can act on your computer, and asks before anything that matters. While it is idle, the Island shows what is going on: a timer, music, a recording.", keys: "Super + A" },
+        { icon: "preferences-system", title: Tr.t("Quick settings"), body: "Click the clock or press Super+, for Wi-Fi, Bluetooth, sound, Do Not Disturb and night light, your notifications, and Settings. All tiles shows the rest.", keys: "Super + ," },
+        { icon: "preferences-system-windows", title: Tr.t("Windows sit side by side"), body: "New windows open beside the others and the row scrolls: Super+← → to move along, Super+O for every workspace at once. On a touchpad: three fingers to move, four fingers up for the overview. Super+M minimises a window to the dock and Super+D shows the desktop, as on Windows. Super+Shift+/ lists every shortcut.", keys: "Super + M   ·   Super + D   ·   Super + O" },
+        { icon: "zoom-in", title: Tr.t("Lens and the Ring"), body: "Super+S: select any part of the screen to read its text, scan a code, or ask Chronoa about it. Super+X: the Ring, a pie of the things you do most, right under the pointer.", keys: "Super + S   ·   Super + X" }
     ]
     function finish() {
         Settings.data.tourSeen = true;
@@ -44,6 +47,7 @@ PanelWindow {
         Keys.onLeftPressed: if (win.step > 0) win.step--
     }
     Glass {
+        id: blurCard
         anchors.centerIn: parent
         width: Math.min(520, parent.width - 48)
         implicitHeight: col.implicitHeight + 48

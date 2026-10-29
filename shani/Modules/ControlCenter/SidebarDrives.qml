@@ -15,8 +15,6 @@ import qs.Modules.Notifications
 
 ColumnLayout {
     spacing: 14
-    // a section whose parts are all hidden takes no room (no double gap)
-    visible: Array.from(children).some(c => c.visible)
 
     ColumnLayout {
         id: drivesList
@@ -53,6 +51,34 @@ ColumnLayout {
                     placeholder: Drives.unlockError || "Passphrase for " + driveRow.modelData.label
                     secret: true
                     onAccepted: { Drives.unlock(driveRow.modelData, text); text = ""; }
+                }
+            }
+        }
+    }
+
+    ColumnLayout {
+        Layout.fillWidth: true
+        spacing: 2
+        SectionTitle { text: Tr.t("Storage") }
+        ListRow {
+            Layout.fillWidth: true
+            icon: "drive-harddisk"
+            title: Drives.scanning ? Tr.t("Scanning…") : Tr.t("Disk usage")
+            subtitle: Tr.t("Largest folders in home")
+            onClicked: { if (!Drives.scanning) { Drives.scanStorage(); } }
+        }
+        Repeater {
+            model: Drives.storage || []
+            ListRow {
+                required property var modelData
+                Layout.fillWidth: true
+                icon: "folder"
+                title: modelData.path || ""
+                subtitle: {
+                    const kb = modelData.size || 0;
+                    if (kb > 1024 * 1024) return Math.round(kb / 1024 / 1024 * 10) / 10 + " GB";
+                    if (kb > 1024) return Math.round(kb / 1024 * 10) / 10 + " MB";
+                    return kb + " KB";
                 }
             }
         }

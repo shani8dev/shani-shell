@@ -58,6 +58,38 @@ Singleton {
 
     function refresh() { list.running = true; }
 
+    // ---- storage on this computer: which folders under home take the room
+    // (baobab's first page). One snapshot on the person's click, not a poll.
+    property var storage: []            // [{ path, size(bytes as kB) }] biggest first
+    property bool scanning: false
+    function scanStorage() {
+        if (scanning)
+            return;
+        scanning = true;
+        scanner.running = true;
+    }
+    Process {
+        id: scanner
+        command: ["python3", "-c", 'import os, subprocess\n'
+            + 'home = os.path.expanduser("~")\n'
+            + 'out = subprocess.run(["du", "-x", "-d", "2", "-P", "-k", home], capture_output=True, text=True).stdout\n'
+            + 'rows = sorted((l.split("\\t", 1) for l in out.strip().split("\\n") if l), key=lambda r: int(r[0]), reverse=True)\n'
+            + 'print("\\n".join(r[0] + "\\t" + r[1] for r in rows[:9]))']
+        stdout: StdioCollector { id: scanOut }
+        onExited: {
+            root.scanning = false;
+            try {
+                const home = Quickshell.env("HOME");
+                root.storage = scanOut.text.trim().split("\n").filter(x => x).map(l => {
+                    const i = l.indexOf("\t");
+                    const p = l.slice(i + 1);
+                    return { path: home && p.indexOf(home) === 0 ? "~" + p.slice(home.length) : p,
+                             size: parseInt(l.slice(0, i)) || 0 };
+                });
+            } catch (e) { root.storage = []; }
+        }
+    }
+
     Process {
         id: list
         running: true

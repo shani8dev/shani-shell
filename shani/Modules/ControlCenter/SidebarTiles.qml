@@ -16,8 +16,6 @@ import qs.Modules.Notifications
 ColumnLayout {
     required property var sidebar
     spacing: 14
-    // a section whose parts are all hidden takes no room (no double gap)
-    visible: Array.from(children).some(c => c.visible)
 
     // tiles in the person's order (Settings: tileOrder, hiddenTiles); a tile
     // that cannot work here (no Wi-Fi, no camera …) leaves no gap
@@ -32,7 +30,36 @@ ColumnLayout {
             return o.concat(known.filter(t => o.indexOf(t) < 0));       // new tiles join at the end
         }
         property var can: ({})
-        readonly property var shown: order.filter(t => can[t] !== false && Settings.data.hiddenTiles.indexOf(t) < 0)
+        // "All tiles": the hidden ones too, for now (Settings keeps the choice)
+        property bool showAll: false
+        // arranging in place (Android's edit mode): every tile shows, a tap hides
+        // or shows one, a drag moves it; Settings > Personalisation has the same as a list
+        property bool editing: false
+        readonly property var shown: order.filter(t => can[t] !== false && (showAll || editing || Settings.data.hiddenTiles.indexOf(t) < 0))
+        function toggleHidden(t) {
+            const h = Array.from(Settings.data.hiddenTiles);
+            const i = h.indexOf(t);
+            if (i >= 0) h.splice(i, 1); else h.push(t);
+            Settings.data.hiddenTiles = h;
+        }
+        // a dragged tile dropped at (x, y): it takes the place of the tile there
+        function dropTile(tile) {
+            const col = Math.max(0, Math.min(1, Math.round(tile.x / (cell + gap))));
+            const row = Math.max(0, Math.round(tile.y / (58 + gap)));
+            const at = Math.min(shown.length - 1, row * 2 + col);
+            moveTile(tile.tid, shown[at]);
+            place(tile);
+        }
+        function moveTile(t, before) {
+            if (t === before)
+                return;
+            const o = order.filter(x => x !== t);
+            const from = order.indexOf(t), to = order.indexOf(before);
+            // moving down puts it after the tile it lands on, moving up before it
+            o.splice(o.indexOf(before) + (from < to ? 1 : 0), 0, t);
+            Settings.data.tileOrder = o;
+        }
+        readonly property int hiddenCount: order.filter(t => can[t] !== false && Settings.data.hiddenTiles.indexOf(t) >= 0).length
         onShownChanged: Ui.tilesShown = shown
         implicitHeight: Math.ceil(shown.length / 2) * (58 + gap)
         function place(tile) {
@@ -40,7 +67,8 @@ ColumnLayout {
             tile.visible = i >= 0;
             tile.x = (i % 2) * (cell + gap);
             tile.y = Math.floor(i / 2) * (58 + gap);
-            tile.width = cell;
+            // an odd count: the last one takes the whole row, not half of it and a hole
+            tile.width = i === shown.length - 1 && i % 2 === 0 && !editing ? width : cell;
         }
 
         Tile {
@@ -124,7 +152,7 @@ ColumnLayout {
         }
         Tile {
             tid: "focus"
-            icon: Focus.mode ? Focus.mode.icon : "weather-clear-night"
+            icon: Focus.mode ? Focus.mode.icon : "find-location"
             title: Tr.t("Focus")
             subtitle: Focus.on ? Focus.active + (Settings.data.focusMode === "" ? " · scheduled" : "") : "Off"
             on: Focus.on
@@ -174,7 +202,7 @@ ColumnLayout {
         Tile {
             tid: "nightlight"
             can: NightLight.available
-            icon: "night-light"
+            icon: "daytime-sunset"
             title: Tr.t("Night light")
             subtitle: NightLight.active ? Settings.data.nightLightTemp + " K" : "Off"
             on: NightLight.active
@@ -182,7 +210,7 @@ ColumnLayout {
         }
         Tile {
             tid: "dark"
-            icon: "weather-clear-night"
+            icon: "preferences-desktop-appearance"
             title: Tr.t("Dark style")
             subtitle: Appearance.dark ? "On" : "Off"
             on: Appearance.dark
@@ -423,4 +451,22 @@ ColumnLayout {
             }
         }
     }
+    // the rest of the tiles, in place: nothing is further than one tap; and
+    // arranging them, there and then - two small buttons under the grid
+    RowLayout {
+        Layout.alignment: Qt.AlignHCenter
+        spacing: 8
+        Button {
+            visible: tileGrid.hiddenCount > 0 && !tileGrid.editing
+            text: tileGrid.showAll ? Tr.t("Fewer tiles") : Tr.t("All tiles (%1 more)", tileGrid.hiddenCount)
+            onClicked: tileGrid.showAll = !tileGrid.showAll
+        }
+        Button {
+            text: tileGrid.editing ? Tr.t("Done") : Tr.t("Edit tiles")
+            kind: tileGrid.editing ? "primary" : "plain"
+            onClicked: tileGrid.editing = !tileGrid.editing
+        }
+    }
+    // leaving the control centre ends editing
+    Connections { target: Ui; function onControlCenterChanged() { if (!Ui.controlCenter) tileGrid.editing = false; } }
 }

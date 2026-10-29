@@ -14,6 +14,23 @@ Singleton {
 
     readonly property var list: server.trackedNotifications.values.slice().reverse()
     readonly property int count: list.length
+    // unread per app, for the dock's badges (Android's notification dots): what is
+    // still in the list, keyed by the desktop entry the app named and by its name
+    readonly property var perApp: {
+        const out = {};
+        for (const n of list) {
+            const keys = new Set([(n.desktopEntry || "").toLowerCase(), (n.appName || "").toLowerCase()]);
+            for (const k of keys)
+                if (k) out[k] = (out[k] || 0) + 1;
+        }
+        return out;
+    }
+    function countFor(entry, id) {
+        const keys = [id, entry && entry.id, entry && entry.name, entry && entry.startupClass].filter(Boolean).map(k => k.toLowerCase());
+        for (const k of keys)
+            if (perApp[k]) return perApp[k];
+        return 0;
+    }
     property var popups: []          // newest last
     // an incoming call from any app (Chronoa's phone over Bluetooth, a VoIP app):
     // the freedesktop "call.incoming" category, newest first; the Island carries it
@@ -44,6 +61,27 @@ Singleton {
     // when each arrived, by id, for "5 min" on the cards
     property var arrived: ({})
     readonly property bool dnd: Settings.data.doNotDisturb
+    property var lastDndWanted: null
+    function minutes(s) { const m = /^(\d\d?):(\d\d)$/.exec(s || ""); return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : -1; }
+    function wantDnd() {
+        const from = minutes(Settings.data.dndFrom), to = minutes(Settings.data.dndTo);
+        if (from < 0 || to < 0) return false;
+        const now = new Date(), t = now.getHours() * 60 + now.getMinutes();
+        return from < to ? t >= from && t < to : t >= from || t < to;
+    }
+    Timer {
+        interval: 60000
+        repeat: true
+        triggeredOnStart: true
+        running: Settings.loaded && Settings.data.dndSchedule !== "manual"
+        onTriggered: {
+            const want = root.wantDnd();
+            if (want !== root.lastDndWanted)
+                Settings.data.doNotDisturb = want;
+            root.lastDndWanted = want;
+        }
+        onRunningChanged: root.lastDndWanted = null
+    }
     // automatic quiet: presenting (the screen is shared) or something fullscreen
     readonly property bool presenting: Settings.data.quietWhileSharing && Audio.screenShared
     readonly property bool quiet: presenting || GameMode.fullscreen

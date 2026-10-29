@@ -21,7 +21,7 @@ import qs.Services
 
 PanelWindow {
     id: win
-    screen: Quickshell.screens[0]
+    screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
 
     property bool asking: false
     readonly property bool hasApproval: Chronoa.approval !== null
@@ -245,7 +245,8 @@ PanelWindow {
                 text: win.line
                 color: win.working ? Theme.text : Theme.dim
                 elide: Text.ElideRight
-                font.family: Chronoa.step !== "" || Chronoa.cueText !== "" ? Theme.mono : Theme.font
+                // a running step reads as words, like everything else on the Island
+                font.family: Theme.font
                 font.pixelSize: 12 * Theme.fontScale
                 MouseArea {
                     anchors.fill: parent
@@ -292,7 +293,8 @@ PanelWindow {
             }
 
             Text {
-                visible: win.mode === "working" && Chronoa.state !== "offline"
+                // only while it is doing something: "ready" after a finished step says nothing
+                visible: win.mode === "working" && Chronoa.state !== "offline" && Chronoa.label !== "ready"
                 text: Chronoa.label
                 color: Chronoa.color
                 font.family: Theme.font
@@ -326,8 +328,8 @@ PanelWindow {
                 wrapMode: Text.Wrap
                 maximumLineCount: 4
                 elide: Text.ElideRight
-                font.family: Theme.mono
-                font.pixelSize: 11 * Theme.fontScale
+                font.family: Theme.font
+                font.pixelSize: 12 * Theme.fontScale
             }
             Flow {
                 Layout.fillWidth: true
@@ -338,7 +340,8 @@ PanelWindow {
                         required property string modelData
                         required property int index
                         text: modelData
-                        kind: /deny|no|cancel|reject/i.test(modelData) ? "danger" : index === 0 ? "primary" : "plain"
+                        // denying is the safe answer: a plain button, not a red one
+                        kind: index === 0 ? "primary" : "plain"
                         onClicked: Chronoa.approve(Chronoa.approval.id, modelData)
                     }
                 }

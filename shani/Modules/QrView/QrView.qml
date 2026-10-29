@@ -14,12 +14,16 @@ PanelWindow {
     color: Theme.scrim
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "shani-qr"
+    // blur behind the card, as on every shell surface (ext-background-effect)
+    BackgroundEffect.blurRegion: Settings.data.blur && visible ? blurArea : null
+    Region { id: blurArea; item: blurCard; radius: blurCard.radius }
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     MouseArea { anchors.fill: parent; onClicked: Qr.close() }
     Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: Qr.close() }
     Glass {
+        id: blurCard
         anchors.centerIn: parent
         width: 360
         implicitHeight: col.implicitHeight + 40

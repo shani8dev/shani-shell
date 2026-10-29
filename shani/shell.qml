@@ -38,6 +38,7 @@ import qs.Modules.Processes
 import qs.Modules.Captions
 import qs.Modules.Magnifier
 import qs.Modules.Annotate
+import qs.Modules.Settings
 import qs.Modules.Touch
 import qs.Modules.Flash
 import qs.Modules.Pair
@@ -46,12 +47,14 @@ import qs.Modules.Tour
 import qs.Modules.QrView
 import qs.Modules.Modem
 import qs.Modules.Share
+import qs.Modules.Overview
 
 ShellRoot {
     Wallpaper {}
     Bar {}
     Island {}
-    Dock {}
+    Variants { model: Quickshell.screens; Dock {} }
+    OverviewSearch {}
     Sidebar {}
     Launcher {}
     Popups {}
@@ -68,6 +71,7 @@ ShellRoot {
     CaptionBar {}
     LazyLoader { active: Ui.magnifier; Magnifier {} }
     LazyLoader { active: Ui.annotate; Annotate {} }
+    LazyLoader { active: Ui.settingsOpen; SettingsWindow {} }
     AssistiveTouch {}
     FlashAlert {}
     PairDialog {}
@@ -76,11 +80,13 @@ ShellRoot {
     LazyLoader { active: Qr.shown; QrView {} }
     ModemDialog {}
     LazyLoader { active: Share.file !== ""; ShareSheet {} }
-    LockScreen {}
+    LockScreen { id: lockScreen }
     ChronoaSurface { id: chronoa }
+    // the screen being worked on: the control centre opens there
+    Binding { target: Ui; property: "screen"; value: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0] }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Modem, DynamicLock, Share, Automations]
+    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, AmbientLight, WindowRules, WorldClock, Location]
 
     IpcHandler {
         target: "shani"
@@ -93,7 +99,7 @@ ShellRoot {
         function toggleControlCenter() { Ui.toggleControlCenter(); }
         function controlCenter(section: string) { Ui.closeAll(); Ui.toggleControlCenter(section); }
         function toggleNotifications() { Ui.toggleControlCenter("notifications"); }
-        function closeAll() { Ui.closeAll(); }
+        function closeAll() { Ui.closeAll(); Ui.settingsOpen = false; }
 
         // Chronoa
         function openChronoa() { Chronoa.open = true; }
@@ -140,8 +146,8 @@ ShellRoot {
         // the same path a tap takes (tests drive the keyboard with it)
         function oskPress(key: string) { Osk.press(key); }
         function oskLanguage() { Osk.nextLanguage(); }
-        function settings() { Ui.closeAll(); Ui.controlCenter = true; Ui.expanded = "settings"; }
-        function settingsCategory(cat: string) { settings(); Ui.settingsCat = cat; }
+        function settings() { Ui.openSettings(""); }
+        function settingsCategory(cat: string) { Ui.openSettings(cat); }
         function askIsland() { Ui.askIsland(); }
         function captions() { Captions.toggle(); }
         function transcribe() { Captions.transcribe(); }
@@ -185,7 +191,39 @@ ShellRoot {
         function smartCopy(text: string) { Smart.suggestion = Smart.classify(text); }
         function smartRun() { if (Smart.suggestion) Smart.suggestion.run(); }
         function answerCall() { Notifs.answerCall(); }
+        function minimise() { if (Niri.focusedWindow) Niri.minimise(Niri.focusedWindow.id); }
+        function minimiseWindow(id: int) { Niri.minimise(id); }
+        function restoreWindow(id: int) { Niri.restore(id); }
+        function showDesktop() { Niri.showDesktop(); }
+        function openFilesWith(app: string, file: string) { Ui.openFilesWith(app, [file]); }
+        function pinWindow(id: int) { Niri.togglePinned(id); }
+        // the tests: what the next sign-in would offer, offered now
+        function reopenOffer() { Reopen.offer(Reopen.saved); }
+        function mirrorPhone(serial: string) { Mirror.mirror(serial, false); }
+        function appFilterRefresh() { AppFilter.refresh(); }
+        // windows by a loose name (title or app id), for scripts and a phone over SSH:
+        //   qs -c shani ipc call shani windowClose steam
+        function windowList(): string {
+            return JSON.stringify(Niri.mru().map(w => ({ id: w.id, title: w.title, app: w.app_id, workspace: Niri.workspaceLabel(w.workspace_id),
+                                                         focused: w.id === Niri.focusedWindowId, minimised: Niri.isMinimised(w) })));
+        }
+        function windowFocus(match: string): string { const w = Niri.findWindows(match)[0]; if (!w) return "no window matches " + match; Niri.focusWin(w); return "focused " + w.title; }
+        function windowClose(match: string): string { const w = Niri.findWindows(match)[0]; if (!w) return "no window matches " + match; Niri.action("close-window", "--id", w.id); return "closed " + w.title; }
+        function windowFullscreen(match: string): string { const w = Niri.findWindows(match)[0]; if (!w) return "no window matches " + match; Niri.action("focus-window", "--id", w.id); Niri.action("fullscreen-window", "--id", w.id); return "fullscreen " + w.title; }
+        function windowMove(match: string, to: string): string { const w = Niri.findWindows(match)[0]; if (!w) return "no window matches " + match; Niri.moveWindowTo(w, to); return "moved " + w.title + " to " + to; }
+        function swapMonitors(): string {
+            const px = {};
+            for (const o of Displays.outputs) px[o.name] = o.width;
+            return Niri.swapMonitors(px) ? "swapped" : "needs two monitors";
+        }
+        function dockMenu(app: string) { Ui.dockMenu = ""; Ui.dockMenu = app; }
         // the tests: type a reply into the notification with this summary
+        // the tests: press a notification's action (its identifier) as a click would
+        function notificationAct(summary: string, action: string) {
+            const n = Notifs.list.find(x => x.summary === summary);
+            const a = n ? Array.from(n.actions).find(x => x.identifier === action) : null;
+            if (a) a.invoke();
+        }
         function notificationReply(summary: string, text: string) {
             const n = Notifs.list.find(x => x.summary === summary);
             if (n && n.hasInlineReply) n.sendInlineReply(text);
@@ -199,6 +237,17 @@ ShellRoot {
             ScreenTime.streak = streak;
             ScreenTime.wellbeing();
         }
+        function playerSink(id: int, sinkName: string) {
+            const node = Array.from(Audio.players || []).find(p => p.id == id);
+            const sink = Array.from(Audio.sinks || []).find(s => s.name === sinkName || s.id == sinkName);
+            if (node && sink && Audio.moveStream) Audio.moveStream(node, sink);
+        }
+        function storageScan() { if (Drives.scanStorage) Drives.scanStorage(); }
+        function locationRefresh() { if (Location.refresh) Location.refresh(); }
+        function closeWindow(q: string) { if (Niri.closeWindow) Niri.closeWindow(q); }
+        function fullscreenWindow(q: string) { if (Niri.fullscreenWindow) Niri.fullscreenWindow(q); }
+        function minimiseWindowByTitle(q: string) { if (Niri.minimiseWindowByTitle) Niri.minimiseWindowByTitle(q); }
+        function focusWindowByTitle(q: string) { if (Niri.focusWindowByTitle) Niri.focusWindowByTitle(q); }
         function lens() { Ui.closeAll(); Lens.capture(); }
         function lensRegion(geometry: string) { Ui.closeAll(); Lens.capture(geometry); }
 
@@ -222,10 +271,21 @@ ShellRoot {
                 clipImages: Clipboard.entries.filter(e => e.image).length,
                 lastScreenshot: Screenshots.last,
                 snoozed: Notifs.snoozed.length,
-                tilesShown: Ui.tilesShown,
+                tilesShown: Ui.tilesShown, hiddenTiles: Settings.data.hiddenTiles,
                 islandActivity: Ui.islandActivity,
                 launcherSections: Ui.launcherSections,
                 micVolume: Math.round(Audio.micVolume * 100),
+                ambientSensor: AmbientLight.available,
+                ambientEnabled: AmbientLight.enabled,
+                ambientLux: Math.round(AmbientLight.lux),
+                ambientTarget: Math.round(AmbientLight.targetBrightness * 100),
+                appRules: Array.from(Settings.data.windowRules || []).map(r => r.app),
+                worldClocks: WorldClock.clocks,
+                locationAvailable: Location.available,
+                locationLat: Location.lat,
+                locationLon: Location.lon,
+                locationAccuracy: Location.accuracy,
+                locationError: Location.error,
                 fontScale: Theme.fontScale,
                 contrast: Theme.contrast,
                 sinkName: Audio.sink ? Audio.sink.name : "",
@@ -266,9 +326,10 @@ ShellRoot {
                 modem: Modem.modem ? Modem.modem.state + "/" + (Modem.modem.locked || "unlocked") + "/" + Modem.modem.operator : "",
                 modemCall: Modem.call ? Modem.call.state + ":" + Modem.call.number : "",
                 modemDialog: Ui.modemDialog,
-                dynamicLocks: DynamicLock.locks,
+                dynamicLocks: DynamicLock.locks, dynamicLockDevice: DynamicLock.address,
                 automationsFired: Automations.fired,
                 language: Tr.lang, sampleWord: Tr.t("Notifications"),
+                minimised: Niri.minimised.map(w => w.id), visibleWorkspaces: Niri.workspacesOn(Niri.focusedOutput).length,
                 backupSummary: Ui.backupSummary, printersSeen: Ui.printersSeen,
                 annotate: Ui.annotate, annotateStrokes: Ui.annotateStrokes,
                 shareTargets: Share.targets.map(t => t.label), shareDone: Share.done,
@@ -314,7 +375,15 @@ ShellRoot {
                 captionSource: Captions.source,
                 transcript: Captions.transcript,
                 flashes: Ui.flashes,
-                settingsCat: Ui.settingsCat,
+                settingsCat: Ui.settingsCat, settingsOpen: Ui.settingsOpen,
+                pinned: Niri.pinned, badges: Notifs.perApp,
+                capsLock: LockKeys.caps, numLock: LockKeys.num,
+                overviewSearch: Niri.overviewOpen && !Ui.launcher, launcherQuery: Ui.launcherQuery,
+                lockPhotos: lockScreen.lockPhotos.length,
+                appsBlocked: AppFilter.blocked, appCount: AppFilter.blocked.length >= 0 ? DesktopEntries.applications.values.filter(a => !a.noDisplay && AppFilter.allowed(a.id)).length : 0,
+                launcherEntries: LauncherEntries.entries, launcherEntryReady: LauncherEntries.ready,
+                mirrorDevices: Mirror.devices.map(d => d.name), mirrored: Mirror.last,
+                reopenSaved: Reopen.saved, reopenOffered: Reopen.offered, reopenSession: Reopen.session,
                 tour: Ui.tour || (Settings.loaded && !Settings.data.tourSeen && !Quickshell.env("SHANI_NO_TOUR")),
                 btAsk: BtAgent.ask ? BtAgent.ask.ask + ":" + BtAgent.ask.device : "",
                 btShow: BtAgent.show ? BtAgent.show.device : "",
@@ -330,7 +399,12 @@ ShellRoot {
                 lensCodes: Lens.codes,
                 settingsLoaded: Settings.loaded,
                 cpu: Math.round(SysStats.cpu * 100),
-                rx: Math.round(SysStats.rxRate)
+                rx: Math.round(SysStats.rxRate),
+                balance: Audio.balance,
+                reduceTransparency: Settings.data.reduceTransparency,
+                sinks: Array.from(Audio.sinks || []).map(s => s.name),
+                streams: Array.from(Audio.players || []).map(p => ({ name: p.name || p.properties?.["application.name"] || "", node: p.id, sink: Audio.streamSink ? (Audio.streamSink(p) ? Audio.streamSink(p).name : "") : "" })),
+                storageSizes: Drives.storage || []
             });
         }
     }

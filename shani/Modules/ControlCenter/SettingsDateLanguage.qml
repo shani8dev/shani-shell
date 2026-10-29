@@ -148,6 +148,46 @@ ColumnLayout {
         font.pixelSize: 11 * Theme.fontScale
     }
 
+    // ---- world clocks: more cities on the control centre's calendar ---------
+    // picked zones, remove one at a time
+    Repeater {
+        model: Array.from(page.d.worldClocks || [])
+        ListRow {
+            required property string modelData
+            required property int index
+            Layout.fillWidth: true
+            icon: "preferences-system-time"
+            title: modelData.split("/").pop().replace(/_/g, " ")
+            subtitle: (WorldClock.clocks.find(c => c.zone === modelData) || {}).time || ""
+            onClicked: {
+                const z = Array.from(page.d.worldClocks || []);
+                z.splice(index, 1);
+                page.d.worldClocks = z;
+            }
+        }
+    }
+    TextField {
+        id: worldSearch
+        Layout.fillWidth: true
+        placeholder: Tr.t("Add a world clock — Tokyo, Berlin, New_York…")
+    }
+    Repeater {
+        model: worldSearch.text.trim().length < 2 ? [] : page.zones.filter(z => z.toLowerCase().indexOf(worldSearch.text.trim().toLowerCase().replace(/ /g, "_")) >= 0).slice(0, 6)
+        ListRow {
+            required property string modelData
+            Layout.fillWidth: true
+            icon: "list-add"
+            title: modelData.replace(/_/g, " ")
+            selected: Array.from(page.d.worldClocks || []).indexOf(modelData) >= 0
+            onClicked: {
+                if (Array.from(page.d.worldClocks || []).indexOf(modelData) >= 0)
+                    return;
+                page.d.worldClocks = Array.from(page.d.worldClocks || []).concat([modelData]);
+                worldSearch.text = "";
+            }
+        }
+    }
+
     // ---- language and formats ----------------------------------------------
     Process {
         id: localeList

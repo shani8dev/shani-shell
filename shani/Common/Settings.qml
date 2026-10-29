@@ -90,12 +90,16 @@ Singleton {
             id: adapter
 
             property bool doNotDisturb: false
+            property string dndSchedule: "manual"   // manual | custom (quiet hours)
+            property string dndFrom: "22:00"
+            property string dndTo: "07:00"
             property bool caffeine: false
             property bool use24h: true
+            property list<string> worldClocks: []   // other cities on the calendar: zoneinfo zones, as chosen
             property bool blur: true
             property bool showSeconds: false
-            property bool showSysStats: true
-            property bool showNetSpeed: true
+            property bool showSysStats: false             // a system monitor in the bar: one switch away, not the first thing seen
+            property bool showNetSpeed: false
             property bool darkMode: true
             property bool nightLight: false
             property int nightLightTemp: 4000
@@ -112,6 +116,7 @@ Singleton {
             property int dockIconSize: 44            // the zoom peaks at about 1.6×
             // desktop-entry ids, in order; ones not installed are skipped
             // what the image ships: Files, Vivaldi (Flatpak), the terminal, Cassini, Chronoa, Text Editor (Flatpak)
+            property string reopenApps: "ask"           // at sign-in, the apps open at the last one: ask | always | never
             property list<string> dockPinned: ["org.gnome.Nautilus", "com.vivaldi.Vivaldi", "foot", "dev.shani.cassini", "shani-chronoa", "org.gnome.TextEditor"]
             property string recordingsDir: ""   // "" -> $XDG_VIDEOS_DIR or ~/Videos/Recordings
 
@@ -125,7 +130,7 @@ Singleton {
             property int suspendAfterBattery: 600
             property bool lockBeforeSuspend: true
             property bool reduceMotion: false
-            property bool accentFromWallpaper: false
+            property bool accentFromWallpaper: true       // the desktop takes its colour from the wallpaper (Theme tints everything by it)
             // apps' look, through org.gnome.desktop.interface (Appearance); the
             // shell uses the fonts itself, and the icon theme from its next start
             property string iconTheme: "Papirus"     // follows the style: Papirus-Dark / Papirus-Light
@@ -146,6 +151,7 @@ Singleton {
             // sound effects (SoundFx): a 10-band EQ in dB, bass boost, AutoEq text,
             // an impulse response, stereo width (1 = as recorded) and crossfeed
             property bool fxEnabled: false
+            property bool fxSpatial: false        // matrix spatialiser (stereo widening) for headphones
             property var fxEq: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             property string fxPreset: "Flat"
             property real fxBass: 0
@@ -199,6 +205,7 @@ Singleton {
             property real winDefaultWidth: 0.5
             property bool winFocusFollowsMouse: true
             property bool winAnimations: true
+            property var windowRules: []           // [{ app, float, workspace, width }] — per-app, niri window-rules
             property string screenshotDir: "~/Pictures/Screenshots"
             property bool rememberRecent: true
             property bool lockPreviews: false         // notification titles on the lock screen
@@ -225,6 +232,8 @@ Singleton {
             property string slideshowDir: ""           // "" = no slideshow
             property int slideshowMinutes: 30
             property bool overAmplify: false          // volume up to 150 %
+            property int audioBalance: 0               // left/right, −100 … 100 (Audio)
+            property bool reduceTransparency: false    // the chrome opaque (Accessibility)
             // the launcher (Settings > Search)
             property bool searchFiles: true           // file names
             property bool searchInside: true          // inside documents
@@ -254,17 +263,20 @@ Singleton {
             property bool quietWhileSharing: true
             // the sidebar's tiles: their order, and the ones put away
             property list<string> tileOrder: []
-            property list<string> hiddenTiles: []
+            // a calm default: the everyday tiles; "All tiles" in the control centre shows the rest
+            property list<string> hiddenTiles: ["vpn", "hotspot", "phone", "timer", "mic", "camera", "photo", "lens", "colorpicker", "rotate", "flashlight", "display", "osk", "keyboard", "clipboard", "backup", "access", "captions", "transcribe", "speak", "magnifier", "callrecord", "cast", "touch", "chronoa"]
             property bool quietWhileFullscreen: true
             // weather: off unless a city is set — it asks open-meteo.com, which sees the location
             property string weatherCity: ""
             property real weatherLat: 0
             property real weatherLon: 0
+            property bool useLocation: false   // ask GeoClue2 where the computer is
             // hot corners: overview | launcher | sidebar | chronoa | lock | none
             property string hotCornerTopLeft: "overview"
             property string hotCornerTopRight: "none"
             property string hotCornerBottomLeft: "none"
             property string hotCornerBottomRight: "none"
+            property bool hotCornersInFullscreen: false  // corners also over a fullscreen window
             // focus modes: notifications held back except from `allow` (app
             // names), optional caffeine / night light, optional schedule
             // (days: 0 = Sunday … 6; from/to "HH:MM", to may pass midnight)

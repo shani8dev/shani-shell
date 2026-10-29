@@ -68,6 +68,12 @@ Singleton {
         command: ["sh", "-c", 'IFS=:; for d in /usr/lib/ladspa /usr/local/lib/ladspa $LADSPA_PATH; do [ -f "$d/sc4_1882.so" ] && exit 0; done; exit 1']
         onExited: code => root.canCompress = code === 0
     }
+    property bool canSpatial: false
+    Process {
+        running: true
+        command: ["sh", "-c", 'IFS=:; for d in /usr/lib/ladspa /usr/local/lib/ladspa $LADSPA_PATH; do [ -f "$d/matrix_spatialiser_1422.so" ] && exit 0; done; exit 1']
+        onExited: code => root.canSpatial = code === 0
+    }
 
     // ---- the graph -------------------------------------------------------------
     function num(x) { return (Math.round(x * 10000) / 10000).toString(); }
@@ -147,6 +153,14 @@ Singleton {
             links.push(`{ output = "level:Gain" input = "lvL:Gain 1" }`);
             links.push(`{ output = "level:Gain" input = "lvR:Gain 1" }`);
             outs = ["lvL:Out", "lvR:Out"];
+        }
+        // stereo widening (LADSPA matrix_spatialiser): a wider image for
+        // headphones. Only when the plugin is installed.
+        if (d.fxSpatial && root.canSpatial) {
+            nodes.push(`{ type = ladspa name = spatial plugin = "matrix_spatialiser_1422" label = matrixSpatialiser control = { "Width" = 80 } }`);
+            links.push(`{ output = "${outs[0]}" input = "spatial:Input L" }`);
+            links.push(`{ output = "${outs[1]}" input = "spatial:Input R" }`);
+            outs = ["spatial:Output L", "spatial:Output R"];
         }
         const first = c => filters.length ? "f" + c + "0" : d.fxIr ? "ir" + c : "in" + c;
         return `# written by shani-shell (Settings > Sound effects); rewritten on every change

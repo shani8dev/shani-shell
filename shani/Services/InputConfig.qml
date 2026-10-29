@@ -64,7 +64,7 @@ Singleton {
         d.winFocusRing > 0 ? "        width " + d.winFocusRing : "        off",
         "    }",
         "}",
-        d.winAnimations ? "" : "animations {\n    off\n}",
+        d.winAnimations && !d.reduceMotion ? "" : "animations {\n    off\n}",
         "screenshot-path \"" + (d.screenshotDir || "~/Pictures/Screenshots").replace(/"/g, "") + "/Screenshot from %Y-%m-%d %H-%M-%S.png\"",
         // your own shortcuts: a command each
         Array.from(d.customBinds || []).length ? "binds {\n" + Array.from(d.customBinds).filter(b => /^[A-Za-z0-9+_]+$/.test(b.key) && b.command)

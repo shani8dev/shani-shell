@@ -1,4 +1,4 @@
-// The shell's own settings, in the sidebar. Everything here is a key in
+// The shell's own settings (shown in Modules/Settings/SettingsWindow). Everything here is a key in
 // ~/.config/shani-shell/settings.json — this page and the file are the same
 // thing, and either can change it.
 import Quickshell
@@ -55,8 +55,9 @@ ColumnLayout {
 
     // Deepin's control centre in a sidebar: a grid of categories, then one at a time
     readonly property string cat: Ui.settingsCat
-    readonly property var cats: [{ id: "personal", words: "wallpaper accent theme dark icons fonts cursor pointer blur dock bar tiles hot corners weather night light look", label: Tr.t("Personalisation"), icon: "preferences-desktop-wallpaper" }, { id: "notifications", words: "notifications pop-ups sound apps do not disturb focus modes schedule quiet", label: Tr.t("Notifications"), icon: "preferences-system-notifications" }, { id: "network", words: "network proxy dns wifi vpn wired internet", label: Tr.t("Network"), icon: "network-workgroup" }, { id: "displays", words: "displays screens monitor resolution refresh rate scale rotation arrange mirror vrr", label: Tr.t("Displays"), icon: "video-display" }, { id: "windows", words: "windows gaps focus ring column width animations tiling", label: Tr.t("Windows"), icon: "preferences-system-windows" }, { id: "sound", words: "sound equaliser equalizer eq bass loudness crossfeed headphones autoeq impulse microphone noise profiles system sounds", label: Tr.t("Sound"), icon: "audio-speakers" }, { id: "access", words: "accessibility screen reader large text contrast mono flash speak captions magnifier smart touch", label: Tr.t("Accessibility"), icon: "preferences-desktop-accessibility" }, { id: "input", words: "keyboard layouts language input touchpad mouse tap scroll speed repeat shortcuts compose caps osk", label: Tr.t("Keyboard & input"), icon: "input-keyboard" }, { id: "time", words: "date time timezone clock 24-hour language locale region formats", label: Tr.t("Date & language"), icon: "preferences-system-time" }, { id: "apps", words: "default apps browser mail startup autostart flatpak permissions screenshots terminal recordings", label: Tr.t("Default apps"), icon: "preferences-desktop-default-applications" }, { id: "search", words: "search launcher files folders documents web engine google duckduckgo calculator", label: Tr.t("Search"), icon: "system-search" }, { id: "printers", words: "printers printer print cups default test page queue scanner add", label: Tr.t("Printers"), icon: "printer" }, { id: "sharing", words: "sharing share folder network samba smb files public windows", label: Tr.t("Sharing"), icon: "folder-remote" }, { id: "backup", words: "backup backups restore earlier versions snapshots time machine history deleted files drive restic", label: Tr.t("Backup"), icon: "drive-harddisk" }, { id: "automations", words: "automations rules when then routines triggers wifi plugged headphones schedule shortcuts", label: Tr.t("Automations"), icon: "system-run" }, { id: "privacy", words: "privacy permissions camera microphone recent files trash lock screen clipboard", label: Tr.t("Privacy"), icon: "preferences-system-privacy" }, { id: "chronoa", words: "chronoa assistant ai island model voice wake word", label: Tr.t("Chronoa"), icon: "face-smile-big" }, { id: "account", words: "account name password picture avatar", label: Tr.t("Your account"), icon: "avatar-default" }, { id: "users", words: "users add user remove administrator automatic login", label: Tr.t("Users"), icon: "system-users" }, { id: "power", words: "power battery saver idle lock suspend lid power button charge limit", label: Tr.t("Power"), icon: "preferences-system-power" }, { id: "about", words: "about computer name hostname system version hardware", label: Tr.t("About"), icon: "help-about" }]
-    readonly property string catTitle: (cats.find(c => c.id === cat) || { label: Tr.t("Shell settings") }).label
+    property bool inWindow: false        // in the Settings window: its own list replaces the grid
+    readonly property var cats: [{ id: "personal", words: "wallpaper accent theme dark icons fonts cursor pointer blur dock bar tiles hot corners weather night light look", label: Tr.t("Personalisation"), icon: "preferences-desktop-wallpaper" }, { id: "notifications", words: "notifications pop-ups sound apps do not disturb focus modes schedule quiet", label: Tr.t("Notifications"), icon: "preferences-system-notifications" }, { id: "network", words: "network proxy dns wifi vpn wired internet", label: Tr.t("Network"), icon: "network-workgroup" }, { id: "displays", words: "displays screens monitor resolution refresh rate scale rotation arrange mirror vrr", label: Tr.t("Displays"), icon: "video-display" }, { id: "windows", words: "windows gaps focus ring column width animations tiling", label: Tr.t("Windows"), icon: "preferences-system-windows" }, { id: "sound", words: "sound equaliser equalizer eq bass loudness crossfeed headphones autoeq impulse microphone noise profiles system sounds", label: Tr.t("Sound"), icon: "audio-speakers" }, { id: "access", words: "accessibility screen reader large text contrast mono flash speak captions magnifier smart touch", label: Tr.t("Accessibility"), icon: "preferences-desktop-accessibility" }, { id: "input", words: "keyboard layouts language input touchpad mouse tap scroll speed repeat shortcuts compose caps osk", label: Tr.t("Keyboard & input"), icon: "input-keyboard" }, { id: "time", words: "date time timezone clock 24-hour language locale region formats", label: Tr.t("Date & language"), icon: "preferences-system-time" }, { id: "apps", words: "default apps browser mail startup autostart flatpak permissions screenshots terminal recordings", label: Tr.t("Default apps"), icon: "view-app-grid" }, { id: "search", words: "search launcher files folders documents web engine google duckduckgo calculator", label: Tr.t("Search"), icon: "system-search" }, { id: "printers", words: "printers printer print cups default test page queue scanner add", label: Tr.t("Printers"), icon: "printer" }, { id: "sharing", words: "sharing share folder network samba smb files public windows", label: Tr.t("Sharing"), icon: "folder-remote" }, { id: "backup", words: "backup backups restore earlier versions snapshots time machine history deleted files drive restic", label: Tr.t("Backup"), icon: "drive-harddisk" }, { id: "automations", words: "automations rules when then routines triggers wifi plugged headphones schedule shortcuts", label: Tr.t("Automations"), icon: "system-run" }, { id: "privacy", words: "privacy permissions camera microphone recent files trash lock screen clipboard", label: Tr.t("Privacy"), icon: "preferences-system-privacy" }, { id: "chronoa", words: "chronoa assistant ai island model voice wake word", label: Tr.t("Chronoa"), icon: "face-smile-big" }, { id: "account", words: "account name password picture avatar", label: Tr.t("Your account"), icon: "avatar-default" }, { id: "users", words: "users add user remove administrator automatic login", label: Tr.t("Users"), icon: "system-users" }, { id: "power", words: "power battery saver idle lock suspend lid power button charge limit", label: Tr.t("Power"), icon: "preferences-system-power" }, { id: "about", words: "about computer name hostname system version hardware", label: Tr.t("About"), icon: "help-about" }]
+    readonly property string catTitle: (cats.find(c => c.id === cat) || { label: Tr.t("Settings") }).label
     // find a setting by what is in it: "proxy" → Network, "lid" → Power
     property string query: ""
     readonly property var shownCats: query.trim() === "" ? cats : cats.filter(c => {
@@ -66,7 +67,7 @@ ColumnLayout {
     TextField {
         id: settingsSearch
         Layout.fillWidth: true
-        visible: page.cat === ""
+        visible: page.cat === "" && !page.inWindow
         // typed into as soon as Settings opens
         onVisibleChanged: if (visible) { text = ""; input.forceActiveFocus(); }
         placeholder: Tr.t("Search settings — proxy, lid, fonts, password…")
@@ -75,7 +76,7 @@ ColumnLayout {
     }
     GridLayout {
         Layout.fillWidth: true
-        visible: page.cat === ""
+        visible: page.cat === "" && !page.inWindow
         columns: 2
         columnSpacing: 8
         rowSpacing: 8
@@ -87,7 +88,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 implicitHeight: 64
                 radius: Theme.radius
-                color: catArea.containsMouse ? Theme.pressed : Theme.hover
+                color: catArea.containsMouse ? Theme.surface3 : Theme.surface2
                 Accessible.role: Accessible.Button
                 Accessible.name: modelData.label
                 RowLayout {
@@ -279,7 +280,7 @@ ColumnLayout {
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Always show scrollbars"); hint: Tr.t("off: they appear while scrolling"); checked: page.d.showScrollbars; onToggled: on => page.d.showScrollbars = on }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Blur"); checked: page.d.blur; onToggled: on => page.d.blur = on }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Reduce motion"); hint: Tr.t("no slides, fades or zoom"); checked: page.d.reduceMotion; onToggled: on => page.d.reduceMotion = on }
-                SwitchRow { Layout.fillWidth: true; text: Tr.t("Adaptive brightness"); hint: Tr.t("adjust by time of day"); checked: page.d.adaptiveBrightness; onToggled: on => page.d.adaptiveBrightness = on; visible: Brightness.available }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("Adaptive brightness"); hint: Tr.t("ambient sensor if present, else time of day"); checked: page.d.adaptiveBrightness; onToggled: on => page.d.adaptiveBrightness = on; visible: Brightness.available }
                 RowLayout {
                     Layout.fillWidth: true
                     visible: NightLight.available
@@ -411,7 +412,15 @@ ColumnLayout {
                     }
                 }
 
+                SwitchRow {
+                    Layout.fillWidth: true
+                    text: Tr.t("Also over fullscreen apps")
+                    checked: page.d.hotCornersInFullscreen
+                    onToggled: on => page.d.hotCornersInFullscreen = on
+                }
+
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("Weather") }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("Use my location"); hint: Tr.t("GeoClue2 — fills the coordinates below; off: type a city"); checked: page.d.useLocation; onToggled: on => { page.d.useLocation = on; if (on && Location.refresh) Location.refresh(); } }
                 TextField {
                     Layout.fillWidth: true
                     placeholder: Tr.t("City for the weather — off when empty (asks open-meteo.com)")
@@ -447,6 +456,16 @@ ColumnLayout {
                     }
                 }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Sound"); hint: Tr.t("a chime for each notification that pops up"); checked: page.d.notifSound; onToggled: on => page.d.notifSound = on }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("Quiet hours"); hint: Tr.t("Do Not Disturb on a schedule"); checked: page.d.dndSchedule !== "manual"; onToggled: on => page.d.dndSchedule = on ? "custom" : "manual" }
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: page.d.dndSchedule !== "manual"
+                    spacing: 8
+                    Text { text: Tr.t("From"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                    TextField { id: dndFrom; Layout.preferredWidth: 70; text: page.d.dndFrom; onAccepted: page.d.dndFrom = text }
+                    Text { text: Tr.t("to"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                    TextField { id: dndTo; Layout.preferredWidth: 70; text: page.d.dndTo; onAccepted: page.d.dndTo = text }
+                }
                 Text {
                     Layout.fillWidth: true
                     text: page.d.notifApps.length ? "Each app that has sent a notification:" : "Apps appear here once they send a notification."
@@ -517,6 +536,8 @@ ColumnLayout {
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Screen reader"); hint: Tr.t("Orca; the shell's own controls are labelled for it"); checked: page.d.screenReader; onToggled: on => page.d.screenReader = on }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Large text"); hint: Tr.t("the shell and apps, 125 %"); checked: page.d.largeText; onToggled: on => page.d.largeText = on }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("High contrast"); checked: page.d.highContrast; onToggled: on => page.d.highContrast = on }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("Reduce motion"); hint: Tr.t("no opening, closing or scrolling animations"); checked: page.d.reduceMotion; onToggled: on => page.d.reduceMotion = on }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("Reduce transparency"); hint: Tr.t("make cards opaque for readability"); checked: page.d.reduceTransparency; onToggled: on => page.d.reduceTransparency = on }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Mono audio"); checked: page.d.monoAudio; onToggled: on => page.d.monoAudio = on }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Flash for alerts"); hint: Tr.t("the screen edge flashes when a notification arrives"); checked: page.d.flashAlerts; onToggled: on => page.d.flashAlerts = on }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Speak notifications"); hint: Tr.t("the app and title, read aloud"); checked: page.d.speakNotifications; onToggled: on => page.d.speakNotifications = on }
@@ -754,7 +775,11 @@ ColumnLayout {
         active: page.cat === "sharing"
         visible: active
         sourceComponent: Component {
-            SettingsSharing { active: true }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 12
+                SettingsSharing { Layout.fillWidth: true; active: page.cat === "sharing" }
+            }
         }
     }
     // made when the category is opened, gone when another is (most never are)
@@ -898,13 +923,5 @@ ColumnLayout {
                 SettingsAbout { Layout.fillWidth: true; active: page.cat === "about" }
             }
         }
-    }
-    Text {
-        Layout.fillWidth: true
-        text: "Saved to " + Settings.path
-        color: Theme.faint
-        elide: Text.ElideMiddle
-        font.family: Theme.mono
-        font.pixelSize: 10 * Theme.fontScale
     }
 }

@@ -14,6 +14,9 @@ PanelWindow {
     color: Theme.scrim
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "shani-share"
+    // blur behind the card, as on every shell surface (ext-background-effect)
+    BackgroundEffect.blurRegion: Settings.data.blur && visible ? blurArea : null
+    Region { id: blurArea; item: blurCard; radius: blurCard.radius }
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
@@ -29,6 +32,7 @@ PanelWindow {
         Keys.onReturnPressed: Share.choose(win.sel)
     }
     Glass {
+        id: blurCard
         anchors.centerIn: parent
         width: 380
         implicitHeight: col.implicitHeight + 32

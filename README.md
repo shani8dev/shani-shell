@@ -68,6 +68,20 @@ disk, Settings > About's "More in Cassini"); inside the shell Cassini's Chronoa,
 Printers and fingerprint enrolment point back here
 (`qs -c shani ipc call shani settingsCategory <id>`).
 
+## From a script, or a phone over SSH
+The shell answers `qs -c shani ipc call shani <fn>`; it holds niri's socket
+itself, so this works from an SSH session too (no `NIRI_SOCKET` to find).
+Windows are named loosely — a piece of the title or the app id, the one in front
+first (after niri-remote and the niri-ipc agent skill):
+```
+qs -c shani ipc call shani windowList                 # JSON: id, title, app, workspace
+qs -c shani ipc call shani windowFocus firefox
+qs -c shani ipc call shani windowMove "Terminal" 2    # a workspace number or name, or a monitor
+qs -c shani ipc call shani windowClose steam
+qs -c shani ipc call shani swapMonitors               # the two screens trade workspaces, widths kept
+qs -c shani ipc call shani showDesktop                # also: lock, launcher "…", state
+```
+
 ## Tests — everything is run, not read
 ```
 docker build -t shani-shell-dev -f dev/Containerfile dev

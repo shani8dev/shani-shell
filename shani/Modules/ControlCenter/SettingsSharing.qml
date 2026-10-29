@@ -19,6 +19,13 @@ ColumnLayout {
     readonly property string user: Quickshell.env("USER") || ""
     property bool smbOn: false
     property bool sshOn: false
+    // remote desktop: niri cannot be reached over VNC or RDP; Sunshine captures
+    // the screen through KMS (it needs cap_sys_admin) and Moonlight shows it on
+    // another computer, a phone or a TV (niri discussion #680). Its user service
+    // is the switch; pairing is a PIN on its own page.
+    property string sunUnit: ""           // Sunshine's user unit, when installed
+    property bool sunOn: false
+    property bool sunCap: false
     property bool inGroup: false
     property bool groupNext: false        // added, takes effect at the next sign-in
     property var shares: []               // [{ name, path, write }]
@@ -33,11 +40,17 @@ ColumnLayout {
         id: state
         command: ["sh", "-c", 'systemctl is-active -q smb && echo smb=on; systemctl is-active -q sshd && echo ssh=on; id -nG | tr " " "\\n" | grep -qx sambashare && echo group=yes
             getent group sambashare | grep -qw "$(id -un)" && echo groupnext=yes; echo "host=$(hostnamectl hostname 2>/dev/null || uname -n)"
+            for u in app-dev.lizardbyte.app.Sunshine.service sunshine.service; do systemctl --user cat "$u" >/dev/null 2>&1 || continue
+                echo "sun=$u"; systemctl --user is-active -q "$u" && echo sunon=yes
+                getcap "$(command -v sunshine)" 2>/dev/null | grep -q cap_sys_admin && echo suncap=yes; break; done
             command -v net >/dev/null && net usershare info 2>/dev/null']
         stdout: StdioCollector {
             onStreamFinished: {
                 page.smbOn = /^smb=on$/m.test(text);
                 page.sshOn = /^ssh=on$/m.test(text);
+                page.sunUnit = (/^sun=(.*)$/m.exec(text) || [])[1] || "";
+                page.sunOn = /^sunon=yes$/m.test(text);
+                page.sunCap = /^suncap=yes$/m.test(text);
                 page.inGroup = /^group=yes$/m.test(text);
                 page.groupNext = /^groupnext=yes$/m.test(text);
                 page.host = (/^host=(.*)$/m.exec(text) || [])[1] || "";
@@ -108,6 +121,21 @@ ColumnLayout {
         hint: page.sshOn ? "ssh " + page.user + "@" + page.host + ".local" : Tr.t("Off — sign-in rules are on Cassini's Remote access page")
         checked: page.sshOn
         onToggled: on => page.run(["pkexec", "systemctl", on ? "enable" : "disable", "--now", "sshd"], on ? Tr.t("Remote login is on") : Tr.t("Remote login is off"))
+    }
+
+    SwitchRow {
+        Layout.fillWidth: true
+        visible: page.sunUnit !== ""
+        text: Tr.t("Remote desktop (Sunshine)")
+        hint: !page.sunCap ? Tr.t("Sunshine cannot capture the screen: it needs cap_sys_admin (sudo setcap cap_sys_admin+p $(command -v sunshine))")
+            : page.sunOn ? Tr.t("Open Moonlight on the other device and pick %1", page.host) : Tr.t("Off — this screen can be shown on another computer, phone or TV with Moonlight")
+        checked: page.sunOn
+        onToggled: on => page.run(["systemctl", "--user", on ? "enable" : "disable", "--now", page.sunUnit], on ? Tr.t("Remote desktop is on") : Tr.t("Remote desktop is off"))
+    }
+    Button {
+        visible: page.sunUnit !== "" && page.sunOn
+        text: Tr.t("Pair a device…")
+        onClicked: Quickshell.execDetached(["xdg-open", "https://localhost:47990/pin"])
     }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Shared folders") }

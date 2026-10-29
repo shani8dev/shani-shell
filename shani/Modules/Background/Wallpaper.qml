@@ -1,16 +1,44 @@
 // The wallpaper, drawn by the shell on the background layer of every screen —
 // so the settings page can change it live (with a cross-fade), and the lock
 // screen and greeter show the same picture.
+//
+// The overview's backdrop (behind the zoomed-out workspaces) gets its own copy,
+// made only while the overview is open: niri's layer rule places the
+// "shani-backdrop" surface there. The wallpaper itself is not moved there - a
+// surface in the backdrop is hidden behind the workspaces the rest of the
+// time, and niri then asks it for a frame every second, which redrew the whole
+// picture once a second, idle.
 import Quickshell
 import Quickshell.Wayland
 import QtQuick
 import qs.Common
+import qs.Services
 
 Variants {
     model: Quickshell.screens
+    Scope {
+    id: scr
+    required property var modelData
+    LazyLoader {
+        active: Niri.overviewOpen
+        PanelWindow {
+            screen: scr.modelData
+            anchors { top: true; bottom: true; left: true; right: true }
+            exclusionMode: ExclusionMode.Ignore
+            color: Theme.bg
+            WlrLayershell.namespace: "shani-backdrop"
+            WlrLayershell.layer: WlrLayer.Background
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+            Image {
+                anchors.fill: parent
+                fillMode: Image.PreserveAspectCrop
+                sourceSize: Qt.size(parent.width, parent.height)
+                source: Theme.wallpaper ? "file://" + Theme.wallpaper : ""
+            }
+        }
+    }
     PanelWindow {
-        required property var modelData
-        screen: modelData
+        screen: scr.modelData
         anchors { top: true; bottom: true; left: true; right: true }
         exclusionMode: ExclusionMode.Ignore
         color: Theme.bg
@@ -49,4 +77,5 @@ Variants {
             Behavior on opacity { NumberAnimation { duration: Theme.anim * 4 } }
         }
     }
+}
 }

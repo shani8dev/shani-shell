@@ -15,8 +15,6 @@ import qs.Modules.Notifications
 
 ColumnLayout {
     spacing: 14
-    // a section whose parts are all hidden takes no room (no double gap)
-    visible: Array.from(children).some(c => c.visible)
 
     ColumnLayout {
         visible: Shelf.items.length > 0

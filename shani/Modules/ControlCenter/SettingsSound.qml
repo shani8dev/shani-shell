@@ -68,6 +68,17 @@ ColumnLayout {
         onPicked: v => page.d.volumeStep = v
     }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("System sounds"); hint: Tr.t("a click when the volume changes, a shutter for screenshots"); checked: page.d.systemSounds; onToggled: on => page.d.systemSounds = on }
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: 8
+        Text { text: Tr.t("Balance"); color: Theme.text; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale }
+        Text { Layout.fillWidth: true; text: Tr.t("L"); color: Theme.dim; horizontalAlignment: Text.AlignRight }
+        Text { text: (Audio.balance || 0) === 0 ? Tr.t("Centre") : ((Audio.balance || 0) > 0 ? ("R+" + (Audio.balance||0)) : ("L+" + Math.abs(Audio.balance||0))); color: Theme.accent; font.family: Theme.font }
+        Text { text: Tr.t("R"); color: Theme.dim }
+        IconButton { icon: "go-previous"; onClicked: if (Audio.setBalance) Audio.setBalance((Audio.balance||0)-10); }
+        IconButton { icon: "go-next"; onClicked: if (Audio.setBalance) Audio.setBalance((Audio.balance||0)+10); }
+        IconButton { icon: "dialog-cancel"; tip: Tr.t("Centre"); onClicked: if (Audio.setBalance) Audio.setBalance(0); }
+    }
     Repeater {
         model: page.cards
         ColumnLayout {
@@ -208,6 +219,15 @@ ColumnLayout {
 
     SwitchRow {
         Layout.fillWidth: true
+        text: Tr.t("Stereo widening")
+        hint: Tr.t("a wider image on headphones (matrix spatialiser)")
+        visible: SoundFx.canSpatial
+        checked: page.d.fxSpatial
+        onToggled: on => page.d.fxSpatial = on
+    }
+
+    SwitchRow {
+        Layout.fillWidth: true
         text: Tr.t("Even out loudness")
         hint: Tr.t("quiet and loud videos at one level (EBU R128)")
         checked: page.d.fxLoudness
@@ -239,15 +259,6 @@ ColumnLayout {
         onToggled: on => page.d.micNoise = on
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Headphone correction") }
-    Text {
-        Layout.fillWidth: true
-        text: page.d.fxAutoEq ? SoundFx.parseAutoEq(page.d.fxAutoEq).length + " correction filters in use." : "AutoEq has a correction for most headphones: download its “ParametricEQ.txt” for yours and give its path here."
-        color: Theme.dim
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
-    }
     property string autoEqPath: ""
     FileView {
         id: autoEqFile
@@ -259,26 +270,39 @@ ColumnLayout {
                 page.d.fxAutoEq = t;
         }
     }
-    RowLayout {
+    Advanced {
         Layout.fillWidth: true
-        spacing: 6
-        TextField {
+        hint: Tr.t("Headphone correction (AutoEq), impulse response")
+        SectionTitle { Layout.fillWidth: true; text: Tr.t("Headphone correction") }
+        Text {
             Layout.fillWidth: true
-            placeholder: Tr.t("~/Downloads/… ParametricEQ.txt")
-            onAccepted: page.autoEqPath = text.trim().replace(/^~/, Quickshell.env("HOME"))
+            text: page.d.fxAutoEq ? SoundFx.parseAutoEq(page.d.fxAutoEq).length + " correction filters in use." : "AutoEq has a correction for most headphones: download its “ParametricEQ.txt” for yours and give its path here."
+            color: Theme.dim
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: 12 * Theme.fontScale
         }
-        Button { visible: page.d.fxAutoEq !== ""; text: Tr.t("Remove"); onClicked: page.d.fxAutoEq = "" }
-    }
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 6
+            TextField {
+                Layout.fillWidth: true
+                placeholder: Tr.t("~/Downloads/… ParametricEQ.txt")
+                onAccepted: page.autoEqPath = text.trim().replace(/^~/, Quickshell.env("HOME"))
+            }
+            Button { visible: page.d.fxAutoEq !== ""; text: Tr.t("Remove"); onClicked: page.d.fxAutoEq = "" }
+        }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Impulse response") }
-    RowLayout {
-        Layout.fillWidth: true
-        spacing: 6
-        TextField {
+        SectionTitle { Layout.fillWidth: true; text: Tr.t("Impulse response") }
+        RowLayout {
             Layout.fillWidth: true
-            placeholder: page.d.fxIr || "A .wav impulse response — room, speaker or headphone (JamesDSP/ViPER IRs work)"
-            onAccepted: page.d.fxIr = text.trim().replace(/^~/, Quickshell.env("HOME"))
+            spacing: 6
+            TextField {
+                Layout.fillWidth: true
+                placeholder: page.d.fxIr || "A .wav impulse response — room, speaker or headphone (JamesDSP/ViPER IRs work)"
+                onAccepted: page.d.fxIr = text.trim().replace(/^~/, Quickshell.env("HOME"))
+            }
+            Button { visible: page.d.fxIr !== ""; text: Tr.t("Remove"); onClicked: page.d.fxIr = "" }
         }
-        Button { visible: page.d.fxIr !== ""; text: Tr.t("Remove"); onClicked: page.d.fxIr = "" }
     }
 }

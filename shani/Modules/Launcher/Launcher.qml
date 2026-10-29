@@ -76,11 +76,7 @@ PanelWindow {
             pdfThumb.running = true;
     }
 
-    function openSettings(cat) {
-        Ui.controlCenter = true;
-        Ui.expanded = "settings";
-        Ui.settingsCat = cat;
-    }
+    function openSettings(cat) { Ui.openSettings(cat); }
 
     // ---- what the shell itself can do, by name -----------------------------
     LauncherActions { id: builtIn; launcher: win }
@@ -217,7 +213,8 @@ PanelWindow {
         return path.indexOf(".") < 0 ? "folder" : "text-x-generic";
     }
 
-    readonly property var apps: DesktopEntries.applications.values.filter(a => !a.noDisplay)
+    // parental controls' blocked apps are left out (AppFilter)
+    readonly property var apps: DesktopEntries.applications.values.filter(a => !a.noDisplay && AppFilter.allowed(a.id))
     readonly property var categories: ["All", "Internet", "Office", "Graphics", "AudioVideo", "Development", "Utility", "System", "Game"]
     readonly property var categoryNames: ({ AudioVideo: "Media" })
 
@@ -298,7 +295,7 @@ PanelWindow {
         if (wins.length)
             out.push({ title: Tr.t("Windows"), items: wins.map(w => {
                 const e = DesktopEntries.heuristicLookup(w.app_id || "");
-                return { kind: "window", app: e ? e.icon : w.app_id, title: w.title || w.app_id, subtitle: Niri.workspaceLabel(w.workspace_id), run: () => Niri.action("focus-window", "--id", w.id) };
+                return { kind: "window", app: e ? e.icon : w.app_id, title: w.title || w.app_id, subtitle: Niri.workspaceLabel(w.workspace_id), run: () => Niri.focusWin(w) };
             }) });
         const acts = win.actions.filter(a => win.score(a.title, ql) > 0 || win.allWords(a.title + " " + a.words, ql)).slice(0, 6);
         if (acts.length)
@@ -315,7 +312,7 @@ PanelWindow {
                 kind: "provided", app: r.icon, title: r.name, subtitle: r.description,
                 run: () => Quickshell.execDetached(["python3", win.providersTool, "activate", r.bus, r.path, r.id].concat(q.split(/\s+/))) })) });
         out.push({ title: Tr.t("More"), items: [
-            { kind: "ask", icon: "chat-message-new", title: "Ask Chronoa: " + q, subtitle: Tr.t("Ctrl+Enter from anywhere"), run: () => Chronoa.ask(q) },
+            { kind: "ask", icon: "chat-message-new", title: "Ask Chronoa: " + q, subtitle: "", run: () => Chronoa.ask(q) },
             { kind: "web", icon: "web-browser", title: "Search the web for “" + q + "”", subtitle: Ui.webSearchName(), run: () => Qt.openUrlExternally(Ui.webSearchUrl(q)) }
         ] });
         return out;
@@ -372,8 +369,8 @@ PanelWindow {
     // opens with a short fade and rise (instant with reduce motion)
     ParallelAnimation {
         id: appear
-        NumberAnimation { target: body; property: "opacity"; from: 0; to: 1; duration: Theme.anim * 1.5; easing.type: Easing.OutCubic }
-        NumberAnimation { target: rise; property: "y"; from: 18; to: 0; duration: Theme.anim * 1.5; easing.type: Easing.OutCubic }
+        NumberAnimation { target: body; property: "opacity"; from: 0; to: 1; duration: Theme.animEnter * 0.6; easing.type: Easing.OutCubic }
+        NumberAnimation { target: rise; property: "y"; from: 28; to: 0; duration: Theme.animEnter; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.emphasized }
     }
 
     ColumnLayout {
@@ -633,14 +630,17 @@ PanelWindow {
             }
 
             // Chronoa, one keystroke away, with a preview of what is selected
+            // as tall as what it holds, not the whole column
             Glass {
                 visible: win.q !== "" || (win.current && win.current.kind === "file")
                 Layout.preferredWidth: 340
-                Layout.fillHeight: true
+                Layout.alignment: Qt.AlignTop
+                Layout.preferredHeight: chronoaCol.implicitHeight + 36
                 strong: true
                 radius: Theme.radiusLarge
                 MouseArea { anchors.fill: parent }
                 ColumnLayout {
+                    id: chronoaCol
                     anchors.fill: parent
                     anchors.margins: 18
                     spacing: 12
@@ -713,18 +713,18 @@ PanelWindow {
                         font.pixelSize: 14 * Theme.fontScale
                     }
                     Button {
-                        text: Tr.t("Ask Chronoa  (Ctrl+Enter)")
+                        text: Tr.t("Ask Chronoa")
                         kind: "primary"
                         onClicked: win.askChronoa()
                     }
-                    Item { Layout.fillHeight: true }
                     Text {
                         Layout.fillWidth: true
+                        Layout.topMargin: 4
                         wrapMode: Text.Wrap
-                        text: Tr.t("=  calc    :  emoji    c  clipboard\n>  run     ?  ask")
-                        color: Theme.faint
-                        font.family: Theme.mono
-                        font.pixelSize: 10 * Theme.fontScale
+                        text: Tr.t("Start with  =  to calculate,  :  for emoji,  c  for the clipboard,  >  to run a command")
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: 11 * Theme.fontScale
                     }
                 }
             }

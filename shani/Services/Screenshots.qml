@@ -14,7 +14,8 @@ Singleton {
 
     function offer(path) {
         last = path;
-        const args = ["notify-send", "-a", "Screenshot", "-i", path, "-A", "ask=Ask Chronoa", "-A", "share=Share…"];
+        // "default": a click on the notification itself opens the picture (Pantheon, GNOME)
+        const args = ["notify-send", "-a", "Screenshot", "-i", path, "-A", "default=Open", "-A", "ask=Ask Chronoa", "-A", "share=Share…", "-A", "ocr=Copy text"];
         if (canAnnotate)
             args.push("-A", "annotate=Annotate");
         prompt.command = args.concat(["Screenshot saved", path.replace(Quickshell.env("HOME"), "~")]);
@@ -26,15 +27,22 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: {
                 const a = text.trim();
-                if (a === "annotate")
+                if (a === "default")
+                    Quickshell.execDetached(["xdg-open", root.last]);
+                else if (a === "annotate")
                     Quickshell.execDetached(["satty", "--filename", root.last, "--output-filename", root.last]);
                 else if (a === "ask")
                     Chronoa.ask("I just took a screenshot. Look at it with look_at_image: " + root.last + "\nWhat is on it, and is there anything I should do?");
                 else if (a === "share")
                     Share.open(root.last);
+                else if (a === "ocr") {
+                    ocr.command = ["sh", "-c", 'tesseract "$1" stdout 2>/dev/null | wl-copy', "sh", root.last];
+                    ocr.running = true;
+                }
             }
         }
     }
+    Process { id: ocr }
     Process {
         running: true
         command: ["sh", "-c", "command -v satty"]

@@ -17,7 +17,16 @@ Item {
     IconImage {
         id: img
         anchors.fill: parent
-        source: root.name === "" ? "" : Quickshell.iconPath(root.name.endsWith("-symbolic") ? root.name : root.name + "-symbolic", true)
+        // the symbolic form, else the name as given, else a neutral one: a name
+        // the theme lacks (Papirus has more than Adwaita) must never paint as an
+        // empty white square
+        source: {
+            if (root.name === "")
+                return "";
+            const sym = root.name.endsWith("-symbolic") ? root.name : root.name + "-symbolic";
+            return Quickshell.iconPath(sym, true) || Quickshell.iconPath(root.name.replace(/-symbolic$/, ""), true)
+                || Quickshell.iconPath("preferences-system-symbolic", true);
+        }
         visible: false
     }
 

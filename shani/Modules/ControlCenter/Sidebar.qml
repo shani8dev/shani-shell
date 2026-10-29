@@ -49,41 +49,22 @@ PanelWindow {
         height: parent.height - y - 10
         x: Ui.controlCenter ? parent.width - width - 10 : parent.width + 10
         radius: Theme.radiusLarge
-        Behavior on x { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
+        Behavior on x {
+            NumberAnimation {
+                duration: Ui.controlCenter ? Theme.animEnter : Theme.animExit
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Ui.controlCenter ? Theme.emphasized : Theme.emphasizedExit
+            }
+        }
+        opacity: Ui.controlCenter ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: Ui.controlCenter ? Theme.animEnter / 2 : Theme.animExit } }
         focus: Ui.controlCenter
         Keys.onEscapePressed: Ui.closeAll()
 
         MouseArea { anchors.fill: parent }   // swallow clicks so they don't close
 
         Flickable {
-            anchors.fill: parent
-            anchors.margins: 16
-            visible: Ui.expanded === "settings"
-            contentHeight: settingsCol.implicitHeight
-            clip: true
-            boundsBehavior: Flickable.StopAtBounds
-            ColumnLayout {
-                id: settingsCol
-                width: parent.width
-                spacing: 12
-                RowLayout {
-                    Layout.fillWidth: true
-                    // back: out of a category, then out of settings
-                    IconButton { icon: "go-previous"; Accessible.name: Tr.t("Back"); onClicked: Ui.settingsCat !== "" ? Ui.settingsCat = "" : Ui.expanded = "" }
-                    Text { text: settingsPage.catTitle; color: Theme.text; font.family: Theme.font; font.pixelSize: 16 * Theme.fontScale; font.weight: Font.DemiBold; Layout.fillWidth: true }
-                }
-                SettingsPage {
-                    id: settingsPage
-                    Layout.fillWidth: true
-                    visible: Ui.expanded === "settings"
-                    onVisibleChanged: if (!visible) Ui.settingsCat = ""
-                }
-            }
-        }
-
-        Flickable {
             id: flick
-            visible: Ui.expanded !== "settings"
             anchors.fill: parent
             anchors.margins: 16
             contentHeight: col.implicitHeight
@@ -105,25 +86,28 @@ PanelWindow {
                 SidebarTiles { Layout.fillWidth: true; sidebar: win }
 
                 // ---- detail lists -------------------------------------------
-                SidebarDetails { Layout.fillWidth: true; sidebar: win }
+                SidebarDetails { Layout.fillWidth: true; sidebar: win; visible: Ui.expanded !== "" }
 
                 // ---- quick notes ---------------------------------------------------
                 SidebarNotes { Layout.fillWidth: true }
 
+                // a section with nothing to show takes no room (its own content's
+                // condition, lifted here: QML's visible is the effective one, so a
+                // section cannot ask its hidden children)
                 // ---- screen time -------------------------------------------------
-                SidebarScreenTime { Layout.fillWidth: true }
+                SidebarScreenTime { Layout.fillWidth: true; visible: Settings.data.screenTime && ScreenTime.todayTotal >= 60 }
 
                 // ---- shelf: the newest screenshots, recordings, downloads -------
-                SidebarShelf { Layout.fillWidth: true }
+                SidebarShelf { Layout.fillWidth: true; visible: Shelf.items.length > 0 }
 
                 // ---- drives ------------------------------------------------------
-                SidebarDrives { Layout.fillWidth: true }
+                SidebarDrives { Layout.fillWidth: true; visible: Drives.drives.length > 0 }
 
                 // ---- calendar --------------------------------------------------
                 SidebarCalendar { Layout.fillWidth: true; sidebarClock: clock }
 
                 // ---- now playing ------------------------------------------------
-                SidebarNowPlaying { Layout.fillWidth: true; sidebar: win }
+                SidebarNowPlaying { Layout.fillWidth: true; sidebar: win; visible: win.player !== null }
 
                 // ---- notifications ------------------------------------------
                 SidebarNotifications { Layout.fillWidth: true }

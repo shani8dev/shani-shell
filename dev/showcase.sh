@@ -3,11 +3,31 @@
 # Stages the desktop for docs/showcase-*.png with real pieces only: Chronoa's
 # own mascot art pushed through the Island's Art() call, a real approval from
 # (mock) Chronoa, real notifications, a real MPRIS player, real apps.
+# the desktop as installed, not as tested: shani-desktop-niri's gsettings
+# defaults (mounted at /desktop: Papirus-Dark, Inter, dark, adw-gtk3), the icon
+# theme shani-shell.service reads from them, and the shell's own defaults (no
+# settings written). Apps the dev image lacks but the dock pins by default
+# (Vivaldi, Cassini, Chronoa) get stand-in launchers with their real icons
+# (/shani: the sibling repos).
+if [ -d /desktop/usr/share/glib-2.0/schemas ]; then
+    cp /desktop/usr/share/glib-2.0/schemas/*.gschema.override /usr/share/glib-2.0/schemas/ && glib-compile-schemas /usr/share/glib-2.0/schemas
+fi
+export QS_ICON_THEME=$(gsettings get org.gnome.desktop.interface icon-theme 2>/dev/null | tr -d "'")
+A=/root/.local/share/applications; I=/root/.local/share/icons/hicolor/scalable/apps; mkdir -p $A $I
+[ -f /shani/shani-cassini/data/dev.shani.cassini.svg ] && cp /shani/shani-cassini/data/dev.shani.cassini.svg $I/
+[ -f /shani/shani-chronoa/usr/share/icons/hicolor/scalable/apps/shani-chronoa.svg ] && cp /shani/shani-chronoa/usr/share/icons/hicolor/scalable/apps/shani-chronoa.svg $I/
+for e in "com.vivaldi.Vivaldi:Vivaldi:vivaldi" "dev.shani.cassini:Cassini:dev.shani.cassini" "shani-chronoa:Chronoa:shani-chronoa"; do
+    IFS=: read id name icon <<EOF
+$e
+EOF
+    printf '[Desktop Entry]\nType=Application\nName=%s\nExec=true\nIcon=%s\n' "$name" "$icon" > "$A/$id.desktop"
+done
 . /work/dev/session.sh
 ipc() { qs -p /work/shani ipc call shani "$@" >/dev/null 2>&1; }
 M="--session --dest org.shani.Chronoa.Mascot --object-path /org/shani/Chronoa/Mascot"
 
-printf '%s' '{"dockPinned": ["org.gnome.Nautilus", "org.gnome.TextEditor", "foot", "org.gnome.Calculator", "org.gnome.Settings"], "showSysStats": true, "wallpaper": "/work/assets/wallpaper.png"}' > "$SHANI_SHELL_SETTINGS"
+# the shell's defaults, as on a first login (only the idle lock kept away while staging)
+printf '{"dimAfter": 0, "lockAfter": 0, "screenOffAfter": 0}' > "$SHANI_SHELL_SETTINGS"
 
 # Chronoa's mascot, drawn by Chronoa's own art module (exported by the caller)
 magick -background none /work/showcase/mascot-thinking.svg -resize 64x64 /tmp/mascot.png
@@ -46,6 +66,10 @@ ipc closeAll
 ipc ring
 sleep 0.8
 grim /work/docs/showcase-ring.png
+# the overview: every workspace with its windows, live (Super+O, the dock's grid button)
+ipc closeAll; niri msg action toggle-overview; sleep 1.2
+grim /work/docs/showcase-overview.png
+niri msg action toggle-overview; sleep 0.6
 ipc closeAll
 
 # 4: the screen keyboard over the text editor (fcitx5 steps aside for it)

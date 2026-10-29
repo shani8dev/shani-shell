@@ -16,8 +16,6 @@ import qs.Modules.Notifications
 ColumnLayout {
     required property var sidebar
     spacing: 14
-    // a section whose parts are all hidden takes no room (no double gap)
-    visible: Array.from(children).some(c => c.visible)
 
     ColumnLayout {
         id: wifiList
@@ -232,7 +230,7 @@ ColumnLayout {
             icon: "preferences-desktop-display"
             title: Tr.t("Display settings…")
             subtitle: Tr.t("resolution, refresh rate, rotation, arrangement")
-            onClicked: { Ui.expanded = "settings"; Ui.settingsCat = "displays"; }
+            onClicked: Ui.openSettings("displays")
         }
     }
 
@@ -363,6 +361,47 @@ ColumnLayout {
             visible: Phone.devices.length === 0
             Layout.fillWidth: true
             text: Tr.t("No phone found. Open KDE Connect on the phone, on the same Wi-Fi, then search again.")
+            color: Theme.dim
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: 12 * Theme.fontScale
+        }
+    }
+
+    // the phone's screen in a window (scrcpy), for Android phones adb can see
+    ColumnLayout {
+        visible: Ui.expanded === "phone" && Mirror.available
+        Layout.fillWidth: true
+        spacing: 4
+        onVisibleChanged: if (visible) Mirror.refresh()
+        SectionTitle {
+            text: Tr.t("Phone screen")
+            IconButton { icon: "view-refresh"; size: 24; Accessible.name: Tr.t("Look for phones again"); onClicked: Mirror.refresh() }
+        }
+        Repeater {
+            model: Mirror.devices
+            RowLayout {
+                id: mRow
+                required property var modelData
+                Layout.fillWidth: true
+                spacing: 6
+                Icon { name: "phone"; size: 18; color: Theme.dim }
+                Text {
+                    Layout.fillWidth: true
+                    text: mRow.modelData.name
+                    color: Theme.text
+                    elide: Text.ElideRight
+                    font.family: Theme.font
+                    font.pixelSize: 13 * Theme.fontScale
+                }
+                Button { text: Tr.t("Mirror"); onClicked: Mirror.mirror(mRow.modelData.serial, false) }
+                Button { visible: !mRow.modelData.wifi; text: Tr.t("Over Wi-Fi"); onClicked: Mirror.mirror(mRow.modelData.serial, true) }
+            }
+        }
+        Text {
+            visible: Mirror.devices.length === 0
+            Layout.fillWidth: true
+            text: Tr.t("Connect an Android phone by USB, with USB debugging on (Developer options), and allow this computer on the phone.")
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font

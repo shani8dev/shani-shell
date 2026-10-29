@@ -15,15 +15,13 @@ import qs.Modules.Notifications
 
 ColumnLayout {
     spacing: 14
-    // a section whose parts are all hidden takes no room (no double gap)
-    visible: Array.from(children).some(c => c.visible)
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Notes") }
     Rectangle {
         Layout.fillWidth: true
         implicitHeight: Math.max(64, notes.contentHeight + 20)
         radius: Theme.radiusSmall
-        color: Theme.hover
+        color: Theme.surface1
         border.width: notes.activeFocus ? 1 : 0
         border.color: Theme.accentLine
         TextEdit {

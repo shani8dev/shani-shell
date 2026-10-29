@@ -212,7 +212,7 @@ PanelWindow {
     }
 
     visible: open
-    screen: Quickshell.screens[0]
+    screen: Ui.screen
 
     anchors {
         top: true

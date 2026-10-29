@@ -7,6 +7,7 @@
 # own answer (`ipc call shani state`). Prints RESULT lines; shots in docs/shots.
 . /work/dev/session.sh
 SHOTS=/work/docs/shots
+mkdir -p "$SHOTS"     # not in git (a run's output): made here
 fail=0
 result() {
     echo "RESULT $1 $2${3:+ ($3)}"
@@ -67,6 +68,13 @@ echo "  idle programs by command: $who"
 # SHELL_TEST_ONLY=idle: just this, for working on what the shell costs
 [ "${SHELL_TEST_ONLY:-}" = idle ] && exit $fail
 
+# the overview's backdrop wallpaper exists only while the overview is open (a
+# backdrop surface the rest of the time is redrawn once a second, idle)
+layers() { niri msg -j layers | python3 -c "import json,sys; print(sum(1 for l in json.load(sys.stdin) if l['namespace'] == 'shani-backdrop'))"; }
+niri msg action open-overview; sleep 1; on=$(layers)
+niri msg action close-overview; sleep 1.2; off=$(layers)
+[ "$on" -ge 1 ] && [ "$off" = 0 ] && result overview-backdrop-only-while-open PASS || result overview-backdrop-only-while-open FAIL "open: $on, closed: $off"
+
 # ---- accessibility: every control on each surface has a name -----------------------------
 # shani-testbed's AT-SPI client (mounted at /testbed): what Orca would read. An
 # unnamed control is announced as just "button". Each surface is opened and
@@ -81,9 +89,18 @@ if [ -f "$A11Y" ] && python3 -c "import gi; gi.require_version('Atspi','2.0')" 2
     }
     timeout 20 python3 "$A11Y" tree --max-depth 3 >/dev/null 2>&1 || echo "  (the shell is not on the accessibility bus: $(timeout 20 python3 "$A11Y" tree --max-depth 2 2>&1 | head -2))"
     lint bar
-    ipc toggleControlCenter; lint control-centre; ipc closeAll
+    ipc toggleControlCenter; lint control-centre
+    # and it is drawn at all: the lint passes on an empty panel (the bar's
+    # controls are named), so its tiles must be there - a section that hid
+    # itself (QML's visible is the effective one) left the panel blank once
+    shot 25b-control-centre 0.6
+    t=$(timeout 20 python3 "$A11Y" find "Night light" 2>/dev/null | head -1); d=$(timeout 20 python3 "$A11Y" find "Do Not Disturb" 2>/dev/null | head -1)
+    [ -n "$t" ] && [ -n "$d" ] && result control-centre-drawn PASS || result control-centre-drawn FAIL "Night light: ${t:-none}; Do Not Disturb: ${d:-none}"
+    ipc closeAll
     ipc launcher ""; lint launcher; ipc closeAll
-    for c in personal notifications network displays windows sound access input time apps search printers sharing backup automations privacy chronoa account users power about ; do ipc settingsCategory $c; lint "settings-$c"; done; ipc closeAll
+    for c in personal notifications network displays windows sound access input time apps search printers sharing backup automations privacy chronoa account users power about ; do ipc settingsCategory $c; lint "settings-$c"; [ "${SHELL_TEST_ONLY:-}" = a11y ] && shot "settings-$c" 0.2; done
+    niri msg -j windows > /work/logs/windows-with-settings.json 2>/dev/null
+    ipc closeAll
     ipc toggleChronoa; lint chronoa; ipc toggleChronoa; ipc closeAll
     waitfor "not d['chronoaOpen']" 3 || echo "  (Chronoa did not close)"
 else
@@ -298,6 +315,183 @@ python3 -c "import sys; sys.exit(0 if 0.25 <= float('$ratio') <= 0.4 else 1)" 2>
     && result window-menu-snap-third PASS "$ratio" || result window-menu-snap-third FAIL "width ratio $ratio"
 niri msg action set-column-width 50%
 
+# ---- minimise and show desktop (familiar from Windows and macOS) ---------------------------
+niri msg action focus-window --id "$wid"; sleep 0.3
+vis0=$(q "['visibleWorkspaces']"); here=$(widx "$wid")
+ipc minimiseWindow "$wid"
+waitfor "$wid in d['minimised'] and d['visibleWorkspaces'] == $vis0" 4 \
+    && result window-minimise PASS || result window-minimise FAIL "$(q "['minimised'], d['visibleWorkspaces']") (was $vis0)"
+ipc restoreWindow "$wid"
+waitfor "$wid not in d['minimised']" 4 && [ "$(widx "$wid")" = "$here" ] \
+    && result window-restore PASS || result window-restore FAIL "$(q "['minimised']") on $(widx "$wid"), wanted $here"
+n=$(niri msg -j windows | python3 -c "import json,sys; ws=[w for w in json.load(sys.stdin)]; print(len(ws))")
+ipc showDesktop
+waitfor "len(d['minimised']) >= 1 and $wid in d['minimised']" 4 && result show-desktop PASS "$(q "['minimised']")" || result show-desktop FAIL "$(q "['minimised']")"
+ipc showDesktop
+waitfor "d['minimised'] == []" 4 && result show-desktop-again-restores PASS || result show-desktop-again-restores FAIL "$(q "['minimised']")"
+
+# ---- on every workspace: a pinned window follows to each workspace shown --------------
+niri msg action focus-workspace "$here"; sleep 0.3
+ipc pinWindow "$wid"
+waitfor "$wid in d['pinned']" 3 || true
+# (not 3: by now that is the hidden "minimised" workspace, which pinned windows rightly skip)
+# by workspace, not number: the one it leaves may be emptied, and niri renumbers
+focusedws() { niri msg -j workspaces | python3 -c "import json,sys; print(next(w['id'] for w in json.load(sys.stdin) if w['is_focused']))"; }
+wsof() { niri msg -j windows | python3 -c "import json,sys; print(next(w['workspace_id'] for w in json.load(sys.stdin) if w['id'] == $1))"; }
+niri msg action focus-workspace 2; sleep 1
+[ "$(wsof "$wid")" = "$(focusedws)" ] && result pinned-window-follows PASS || result pinned-window-follows FAIL "window $wid on workspace id $(wsof "$wid"), focused $(focusedws)"
+ipc pinWindow "$wid"
+waitfor "$wid not in d['pinned']" 3 || true
+was=$(wsof "$wid"); niri msg action focus-workspace 99; sleep 1     # the empty one at the end
+[ "$(wsof "$wid")" = "$was" ] && [ "$(focusedws)" != "$was" ] && result unpinned-window-stays PASS || result unpinned-window-stays FAIL "window $wid on workspace id $(wsof "$wid"), was $was"
+niri msg action move-window-to-tiling --id "$wid" 2>/dev/null
+niri msg action move-window-to-workspace --window-id "$wid" --focus false "$here"; niri msg action focus-workspace "$here"
+
+# ---- workspaces on the dock (Pantheon's): a tile each, "+" starts a new one -------------
+if [ -f "$A11Y" ]; then
+    t=$(timeout 20 python3 "$A11Y" find "button:^Workspace 1, " 2>/dev/null | head -1)
+    [ -n "$t" ] && result dock-workspace-tiles PASS "$t" || result dock-workspace-tiles FAIL "$(timeout 20 python3 "$A11Y" find "button:Workspace" 2>&1 | head -3 | tr '\n' ';')"
+    ws0=$(q "['focusedWorkspace']")
+    timeout 20 python3 "$A11Y" press "button:^New workspace$" >/dev/null 2>&1
+    waitfor "d['focusedWorkspace'] > $ws0 and d['focusedTitle'] is None" 4 && result dock-new-workspace PASS "$(q "['focusedWorkspace']")" || result dock-new-workspace FAIL "$(q "['focusedWorkspace']") (was $ws0)"
+    shot 26e-dock-workspaces 0.3
+    niri msg action focus-workspace "$here"
+fi
+
+# ---- badges: an app's unread notifications on its dock icon ---------------------------
+notify-send -a "Text Editor" -h string:desktop-entry:org.gnome.TextEditor "Draft saved" "notes.txt"
+waitfor "d['badges'].get('org.gnome.texteditor', 0) >= 1" 3 && result dock-badge-count PASS || result dock-badge-count FAIL "$(q "['badges']")"
+if [ -f "$A11Y" ]; then
+    a=$(timeout 20 python3 "$A11Y" find "button:^Text Editor, 1 notification$" 2>/dev/null | head -1)
+    [ -n "$a" ] && result dock-badge-announced PASS || result dock-badge-announced FAIL "$(timeout 20 python3 "$A11Y" find "button:Text Editor" 2>&1 | head -3 | tr '\n' ';')"
+fi
+shot 26a-dock-badge 0.2
+# an app's own count and progress (LauncherEntry, a session-bus signal) win over its notifications
+waitfor "d['launcherEntryReady']" 5 || true
+le() { gdbus emit --session --object-path /com/canonical/unity/launcherentry/1 --signal com.canonical.Unity.LauncherEntry.Update "'application://org.gnome.TextEditor.desktop'" "$1" >/dev/null; }
+le "{'count': <int64 7>, 'count-visible': <true>, 'progress': <0.5>, 'progress-visible': <true>}"
+waitfor "d['launcherEntries'].get('org.gnome.texteditor', {}).get('count') == 7" 3 && result launcher-entry-heard PASS || result launcher-entry-heard FAIL "$(q "['launcherEntries']")"
+if [ -f "$A11Y" ]; then
+    a=$(timeout 20 python3 "$A11Y" find "button:^Text Editor, 7 notifications, 50% done$" 2>/dev/null | head -1)
+    [ -n "$a" ] && result dock-shows-app-count-and-progress PASS || result dock-shows-app-count-and-progress FAIL "$(timeout 20 python3 "$A11Y" find "button:Text Editor" 2>&1 | head -3 | tr '\n' ';')"
+fi
+shot 26c-dock-progress 0.2
+le "{'count-visible': <false>, 'progress-visible': <false>}"
+
+# ---- files dropped on a dock icon open in that app (gio launch, its desktop file) ----
+mkdir -p /root/.local/share/applications
+printf '#!/bin/sh\nfor f; do echo "$f"; done > /tmp/dropped\n' > /tmp/drop-test.sh; chmod +x /tmp/drop-test.sh
+printf '[Desktop Entry]\nType=Application\nName=Drop test\nExec=/tmp/drop-test.sh %%F\n' > /root/.local/share/applications/shani-drop-test.desktop
+printf 'hello' > "/tmp/a dropped file.txt"; rm -f /tmp/dropped
+ipc openFilesWith shani-drop-test "/tmp/a dropped file.txt"
+i=0; while [ ! -s /tmp/dropped ] && [ $i -lt 12 ]; do sleep 0.25; i=$((i+1)); done
+grep -qx "/tmp/a dropped file.txt" /tmp/dropped 2>/dev/null && result dock-drop-opens-file PASS || result dock-drop-opens-file FAIL "$(cat /tmp/dropped 2>&1 | head -2 | tr '\n' ';')"
+
+# ---- reopening apps: the apps open now are kept for the next sign-in ----------------------
+foot -a foot -T "Reopen me" sleep 600 >/dev/null 2>&1 &
+waitfor "'foot' in d['reopenSaved']" 10 && result reopen-apps-kept PASS || result reopen-apps-kept FAIL "$(q "['reopenSaved']")"
+nf() { niri msg -j windows | python3 -c "import json,sys; print(sum(1 for w in json.load(sys.stdin) if w['app_id'] == 'foot'))"; }
+f0=$(nf); ipc setting reopenApps always; ipc reopenOffer
+i=0; while [ "$(nf)" -le "$f0" ] && [ $i -lt 20 ]; do sleep 0.25; i=$((i+1)); done
+[ "$(nf)" -gt "$f0" ] && result reopen-apps-reopens PASS "$(q "['reopenOffered']")" || result reopen-apps-reopens FAIL "foot windows $(nf), offered $(q "['reopenOffered']")"
+ipc setting reopenApps ask
+for id in $(niri msg -j windows | python3 -c "import json,sys; print(' '.join(str(w['id']) for w in json.load(sys.stdin) if w['app_id'] == 'foot'))"); do niri msg action close-window --id "$id"; done
+
+# ---- Caps Lock / Num Lock: the LED, shown when it changes ----------------------------------
+echo 1 > "/tmp/fake-leds/input3::capslock/brightness"
+waitfor "d['capsLock']" 3 && result caps-lock-seen PASS || result caps-lock-seen FAIL "$(q "['capsLock']")"
+shot 26b-caps-lock-osd 0.1
+echo 0 > "/tmp/fake-leds/input3::capslock/brightness"
+waitfor "not d['capsLock']" 3 && result caps-lock-off-seen PASS || result caps-lock-off-seen FAIL
+
+# ---- ambient-sensor brightness: follow the sensor, floor, stop when the person says so ----
+# the container has no backlight, so the service computes and reports the level
+# (SHANI_LUX_FILE=300 at 300 lx → (300-15)/385 → 74 %) without stepping hardware
+settings '{"adaptiveBrightness":true}'
+waitfor "d['ambientSensor'] and d['ambientEnabled'] and d['ambientTarget'] == 74" 6 \
+    && result ambient-follows-sensor PASS || result ambient-follows-sensor FAIL "$(q "['ambientSensor','ambientEnabled','ambientTarget','ambientLux']")"
+shot 26c-ambient-osd 0.1
+echo 60 > "$SHANI_LUX_FILE"     # dim room: the floor is 0.12, so the level must sink to ~12
+waitfor "d['ambientTarget'] <= 17" 90 \
+    && result ambient-dims-to-floor PASS || result ambient-dims-to-floor FAIL "$(q "['ambientTarget','ambientLux']")"
+echo 300 > "$SHANI_LUX_FILE"
+settings '{"adaptiveBrightness":false}'
+waitfor "not d['ambientEnabled'] and d['ambientTarget'] <= 17" 4 \
+    && result ambient-off-stops PASS || result ambient-off-stops FAIL "$(q "['ambientEnabled','ambientTarget']")"
+# a person's own change holds the sensor off 30 s — real hardware only, testbed
+
+# ---- saved networks: metered ("limit background data") and auto-connect, through nmcli ----
+if [ -f "$A11Y" ]; then
+    ln -sf /work/dev/fake-nmcli.sh /usr/local/bin/nmcli; rm -f /tmp/nm-log /tmp/nm-metered /tmp/nm-auto
+    ipc settingsCategory network; sleep 1.2
+    timeout 20 python3 "$A11Y" press "check box:^Limit background data$" >/dev/null 2>&1; sleep 0.8
+    [ "$(cat /tmp/nm-metered 2>/dev/null)" = yes ] && result network-metered-set PASS || result network-metered-set FAIL "$(tail -3 /tmp/nm-log 2>&1 | tr '\n' ';')"
+    timeout 20 python3 "$A11Y" press "check box:^Connect automatically$" >/dev/null 2>&1; sleep 0.8
+    [ "$(cat /tmp/nm-auto 2>/dev/null)" = no ] && result network-autoconnect-off PASS || result network-autoconnect-off FAIL "$(tail -3 /tmp/nm-log 2>&1 | tr '\n' ';')"
+    shot 26d-saved-networks 0.3
+    ipc closeAll; rm -f /usr/local/bin/nmcli
+fi
+
+# ---- parental controls: an app the app filter blocks is not offered ---------------------
+ipc launcher "Files"; waitfor "d['topResult'] == 'Files'" 4 || true
+echo org.gnome.Nautilus > /tmp/appfilter-blocked; ipc closeAll; ipc appFilterRefresh
+waitfor "'org.gnome.Nautilus' in d['appsBlocked']" 4 || true
+ipc launcher "Files"; sleep 1
+[ "$(q "['topResult']")" != Files ] && result app-filter-hides-from-launcher PASS || result app-filter-hides-from-launcher FAIL "$(q "['topResult']")"
+ipc closeAll
+if [ -f "$A11Y" ]; then
+    a=$(timeout 20 python3 "$A11Y" find "button:^Files" 2>/dev/null | head -1)
+    [ -z "$a" ] && result app-filter-hides-from-dock PASS || result app-filter-hides-from-dock FAIL "$a"
+fi
+rm -f /tmp/appfilter-blocked; ipc appFilterRefresh
+waitfor "d['appsBlocked'] == []" 4 || true
+
+# ---- remote desktop (Sunshine, niri discussion #680): its user service is the switch ----
+if [ -f "$A11Y" ]; then
+    ln -sf /work/dev/fake-systemctl-user.sh /usr/local/bin/systemctl; printf '#!/bin/sh\n' > /usr/local/bin/sunshine; chmod +x /usr/local/bin/sunshine
+    rm -f /tmp/sun-on /tmp/systemctl-user.log
+    ipc settingsCategory sharing; sleep 1.5
+    pr=$(timeout 40 python3 "$A11Y" press "check box:^Remote desktop \(Sunshine\)$" 2>&1); sleep 1
+    [ -f /tmp/sun-on ] && grep -q "enable --now app-dev.lizardbyte.app.Sunshine.service" /tmp/systemctl-user.log \
+        && result remote-desktop-switch PASS || result remote-desktop-switch FAIL "press: $pr; $(tr '\n' ';' < /tmp/systemctl-user.log 2>&1)"
+    d=$(timeout 40 python3 "$A11Y" find "check box:^Remote desktop" 2>/dev/null | head -1)
+    shot 26f-remote-desktop 0.3
+    ipc closeAll; rm -f /usr/local/bin/systemctl /usr/local/bin/sunshine /tmp/sun-on
+fi
+
+# ---- the phone's screen (scrcpy): the phones adb sees, mirrored by serial ----------------
+waitfor "d['mirrorDevices'] == ['Pixel 7']" 4 && result mirror-lists-phone PASS || result mirror-lists-phone FAIL "$(q "['mirrorDevices']")"
+rm -f /tmp/scrcpy-args; ipc mirrorPhone 0A1B2C3D; sleep 0.8
+grep -qx 0A1B2C3D /tmp/scrcpy-args 2>/dev/null && grep -qx "Pixel 7" /tmp/scrcpy-args && result mirror-starts-scrcpy PASS || result mirror-starts-scrcpy FAIL "$(tr '\n' ' ' < /tmp/scrcpy-args 2>&1)"
+
+# ---- windows by a loose name over IPC (scripts, a phone over SSH) ----------------------
+r() { qs -p /work/shani ipc call shani "$@" 2>/dev/null; }
+r windowList | python3 -c "import json,sys; l=json.load(sys.stdin); sys.exit(0 if any(w['title'] == 'Terminal two' for w in l) else 1)" \
+    && result window-list-ipc PASS || result window-list-ipc FAIL "$(r windowList | head -c 300)"
+out=$(r windowFocus "terminal TWO")
+waitfor "d['focusedTitle'] == 'Terminal two'" 3 && result window-focus-by-name PASS "$out" || result window-focus-by-name FAIL "$out / $(q "['focusedTitle']")"
+r windowFocus "no-such-window" | grep -q "no window matches" && result window-focus-no-match PASS || result window-focus-no-match FAIL
+tw=$(niri msg -j windows | python3 -c "import json,sys; print(next(w['id'] for w in json.load(sys.stdin) if w['title'] == 'Terminal two'))")
+# to Terminal one's workspace (by number; numbers past it may be the hidden "minimised" one)
+one=$(niri msg -j windows | python3 -c "import json,sys; print(next(w['id'] for w in json.load(sys.stdin) if w['title'] == 'Terminal one'))")
+r windowMove "terminal two" "$(widx "$one")" >/dev/null; sleep 1
+[ "$(wsof "$tw")" = "$(wsof "$one")" ] && result window-move-by-name PASS || result window-move-by-name FAIL "on $(wsof "$tw"), wanted $(wsof "$one")"
+r swapMonitors | grep -q "needs two monitors" && result swap-monitors-needs-two PASS || result swap-monitors-needs-two FAIL
+
+# ---- the dock's menu: an app's open windows by title, and its own actions (jump list) ----
+if [ -f "$A11Y" ]; then
+    ipc dockMenu shani-demo; sleep 0.8
+    a=$(timeout 20 python3 "$A11Y" find "menu item:^Terminal one$" 2>/dev/null | head -1); b=$(timeout 20 python3 "$A11Y" find "menu item:^Terminal two$" 2>/dev/null | head -1)
+    [ -n "$a" ] && [ -n "$b" ] && result dock-menu-windows PASS || result dock-menu-windows FAIL "$(timeout 20 python3 "$A11Y" find "menu item:" 2>&1 | head -8 | tr '\n' ';')"
+    shot 26-dock-menu 0.2
+    ipc dockMenu org.gnome.Nautilus; sleep 0.8
+    a=$(timeout 20 python3 "$A11Y" find "menu item:^New Window$" 2>/dev/null | head -1)
+    [ -n "$a" ] && result dock-menu-jump-list PASS || result dock-menu-jump-list FAIL "$(timeout 20 python3 "$A11Y" find "menu item:" 2>&1 | head -8 | tr '\n' ';')"
+    ipc closeAll
+    waitfor "True" 1; a=$(timeout 20 python3 "$A11Y" find "menu item:^New Window$" 2>/dev/null | head -1)
+    [ -z "$a" ] && result dock-menu-closes PASS || result dock-menu-closes FAIL "still shown"
+fi
+
 # ---- voice typing: espeak-ng speaks, the mic hears it, whisper types it ---------
 # the "microphone" is the speakers' monitor, so what is played is what is heard
 pactl set-default-source speakers.monitor
@@ -383,13 +577,13 @@ ipc closeAll
 
 # ---- the light theme, and the accent from the wallpaper ------------------------
 ipc setting darkMode false
-waitfor "d['bg'] == '#eef1f4'" 3 && result theme-follows-dark-style PASS || result theme-follows-dark-style FAIL "$(q "['bg']")"
+waitfor "sum(int(d['bg'][i:i+2],16) for i in (1,3,5)) > 3*215" 3 && result theme-follows-dark-style PASS || result theme-follows-dark-style FAIL "$(q "['bg']")"
 shot 47-light-desktop 0.6
 ipc controlCenter ""
 shot 48-light-sidebar 0.8
 ipc closeAll
 ipc setting darkMode true
-waitfor "d['bg'] == '#0b0d12'" 3
+waitfor "sum(int(d['bg'][i:i+2],16) for i in (1,3,5)) < 3*30" 3
 magick -size 1920x1080 gradient:'#ff7a18'-'#ffb347' /tmp/orange.png
 settings '{"wallpaperLight": "", "wallpaperDark": "", "wallpaper": "/tmp/orange.png", "accentFromWallpaper": true}'
 # an orange wallpaper must give an orange accent: red well above blue
@@ -407,12 +601,18 @@ settings '{}'
 
 # ---- fullscreen holds notifications ---------------------------------------------
 niri msg action focus-workspace 1; sleep 0.4
+corners() { niri msg -j layers | python3 -c "import json,sys; print(sum(1 for l in json.load(sys.stdin) if l['namespace'] == 'shani-hot-corner'))"; }
+cn=$(corners)
 niri msg action fullscreen-window
 waitfor "d['fullscreen'] and d['quiet']" 4 && result fullscreen-is-quiet PASS || result fullscreen-is-quiet FAIL "$(st)"
 p0=$(q "['popups']")
 notify-send -a Mail "During the film" "should wait"
 sleep 1
 [ "$(q "['popups']")" -le "$p0" ] && result fullscreen-holds-notifications PASS || result fullscreen-holds-notifications FAIL
+# hot corners step aside over a fullscreen window, unless chosen (Pantheon's option)
+c0=$(corners); ipc setting hotCornersInFullscreen true; sleep 0.6; c1=$(corners); ipc setting hotCornersInFullscreen false
+[ "$cn" -ge 1 ] && result hot-corners-exist PASS "$cn" || result hot-corners-exist FAIL "no hot-corner surfaces"
+[ "$cn" -ge 1 ] && [ "$c0" = 0 ] && [ "$c1" -ge 1 ] && result hot-corners-off-in-fullscreen PASS || result hot-corners-off-in-fullscreen FAIL "normal: $cn, fullscreen: $c0, with the option: $c1"
 niri msg action fullscreen-window
 waitfor "not d['fullscreen']" 4
 
@@ -422,6 +622,12 @@ niri msg action screenshot-screen
 waitfor "d['lastScreenshot'] != ''" 6 && result screenshot-reaches-shell PASS "$(q "['lastScreenshot']")" || result screenshot-reaches-shell FAIL
 waitfor "d['notifications'] > $n0" 4 && result screenshot-offers-actions PASS || result screenshot-offers-actions FAIL
 shot 51-screenshot-offer 0.6
+# a click on it opens the picture (xdg-open, here a stand-in that writes down what it got)
+printf '#!/bin/sh\nprintf "%%s\\n" "$@" > /tmp/opened\n' > /usr/local/bin/xdg-open; chmod +x /usr/local/bin/xdg-open; rm -f /tmp/opened
+ipc notificationAct "Screenshot saved" default
+i=0; while [ ! -s /tmp/opened ] && [ $i -lt 12 ]; do sleep 0.25; i=$((i+1)); done
+[ "$(cat /tmp/opened 2>/dev/null)" = "$(q "['lastScreenshot']")" ] && result screenshot-click-opens PASS || result screenshot-click-opens FAIL "opened: $(cat /tmp/opened 2>&1)"
+rm -f /usr/local/bin/xdg-open
 
 # ---- copied pictures in the clipboard history --------------------------------------
 wl-copy --type image/png < /tmp/orange.png
@@ -454,6 +660,16 @@ settings '{"hiddenTiles": ["lens"], "tileOrder": ["chronoa", "dnd"]}'
 ipc controlCenter ""
 waitfor "d['tilesShown'][:2] == ['chronoa', 'dnd'] and 'lens' not in d['tilesShown']" 4 && result tiles-reordered-and-hidden PASS || result tiles-reordered-and-hidden FAIL "$(q "['tilesShown']")"
 shot 55-sidebar-tiles-mic 0.6
+# arranging in place: "Edit tiles" shows the hidden one too; pressing it shows it for good
+if [ -f "$A11Y" ]; then
+    pr=$(timeout 40 python3 "$A11Y" press "button:^Edit tiles$" 2>&1)
+    waitfor "'lens' in d['tilesShown']" 3 && result tiles-edit-shows-hidden PASS || result tiles-edit-shows-hidden FAIL "press: $pr"
+    shot 55b-tiles-editing 0.4
+    pr=$(timeout 40 python3 "$A11Y" press "check box:^Lens, hidden$" 2>&1)
+    waitfor "'lens' not in d['hiddenTiles']" 3 && result tiles-edit-unhides PASS || result tiles-edit-unhides FAIL "press: $pr; hidden $(q "['hiddenTiles']")"
+    timeout 40 python3 "$A11Y" press "button:^Done$" >/dev/null 2>&1
+    waitfor "'lens' in d['tilesShown']" 3 && result tiles-edit-done-keeps PASS || result tiles-edit-done-keeps FAIL "$(q "['tilesShown']")"
+fi
 ipc closeAll
 settings '{}'
 
@@ -494,6 +710,35 @@ if curl -sf --max-time 5 -o /dev/null https://api.open-meteo.com; then
 else
     echo "RESULT weather-from-open-meteo SKIP (no network in this container)"
 fi
+
+# ---- blur: what is behind a shell surface is blurred, not just shown through -----------
+# a sharp checkerboard wallpaper, the windows put away, the Ring (centred: no
+# pointer here) over it; a patch of the bare disc (between the hub and the
+# slices, no icons) varies far less with blur on than off - squares averaged away
+magick -size 1920x1080 pattern:checkerboard -colorspace gray -level 45%,55% /tmp/checker.png     # 15 px squares, black and white
+ipc showDesktop; sleep 0.5
+spread() { magick "$1" -crop 16x16+984+453 +repage -colorspace gray -format "%[fx:standard_deviation*1000]" info: | cut -d. -f1; }
+settings '{"wallpaperLight": "", "wallpaperDark": "", "wallpaper": "/tmp/checker.png", "blur": true}'; sleep 1.5
+ipc ring; sleep 0.8; grim /tmp/blur-on.png; ipc closeAll
+settings '{"wallpaperLight": "", "wallpaperDark": "", "wallpaper": "/tmp/checker.png", "blur": false}'; sleep 1.5
+ipc ring; sleep 0.8; grim /tmp/blur-off.png; ipc closeAll
+on=$(spread /tmp/blur-on.png); off=$(spread /tmp/blur-off.png)
+[ "${on:-999}" -lt $(( ${off:-0} * 6 / 10 )) ] && result ring-blurs-behind PASS "spread $on with blur, $off without" || result ring-blurs-behind FAIL "spread $on with blur, $off without"
+cp /tmp/blur-on.png "$SHOTS/30b-ring-blur.png" 2>/dev/null
+settings '{}'
+ipc showDesktop; sleep 0.5
+
+# ---- the overview (GNOME's Activities): niri's live view, the shell's search on top ----
+niri msg action open-overview
+waitfor "d['overview'] and d['overviewSearch']" 3 && result overview-search-shown PASS || result overview-search-shown FAIL "$(q "['overview'], d['overviewSearch']")"
+shot 30c-overview 0.4
+wtype "calc"
+waitfor "d['launcher'] and d['launcherQuery'] == 'calc' and not d['overview']" 4 \
+    && result overview-typing-searches PASS || result overview-typing-searches FAIL "$(q "['launcher'], d['launcherQuery'], d['overview']")"
+ipc closeAll
+niri msg action open-overview; sleep 0.5; wtype -k Escape
+waitfor "not d['overview']" 3 && result overview-escape-closes PASS || result overview-escape-closes FAIL
+niri msg action close-overview 2>/dev/null
 
 # ---- the Ring (pie menu): by keyboard, since nothing here can move a pointer ----
 ipc ring
@@ -654,7 +899,7 @@ shot 70-notification-cards 1.0
 
 # ---- settings categories: input, default apps, language, about -----------------------
 ipc settings
-waitfor "d['settingsCat'] == '' and d['expanded'] == 'settings'" 3
+waitfor "d['settingsOpen']" 3
 shot 71-settings-categories 0.6
 # input: the shell writes niri's include, niri reloads it
 ipc settingsCategory input
@@ -679,6 +924,65 @@ shot 76-settings-layouts 0.4
 settings '{}'
 for i in 1 2 3 4 5 6; do niri msg -j keyboard-layouts 2>/dev/null | grep -q Marathi || break; sleep 0.5; done
 niri msg -j keyboard-layouts 2>/dev/null | grep -q Marathi && result keyboard-layouts-removed FAIL || result keyboard-layouts-removed PASS
+
+# ---- per-app window rules: the shell writes the include, niri floats foot -----
+settings '{"windowRules": [{"app": "foot", "float": true}]}'
+sleep 1
+f=/root/.config/niri/shani-windows.kdl
+grep -Fq 'match app-id="^foot$"' $f && grep -q 'open-floating true' $f \
+    && result window-rules-written PASS || result window-rules-written FAIL "$(cat $f 2>&1)"
+niri validate -c /work/dev/niri/session.kdl >/dev/null 2>&1 && result window-include-valid PASS || result window-include-valid FAIL "$(niri validate -c /work/dev/niri/session.kdl 2>&1 | tail -3)"
+foot >/dev/null 2>&1 &
+i=0; float=""
+while [ $i -lt 12 ]; do
+    sleep 0.5
+    float=$(niri msg -j windows 2>/dev/null | python3 -c 'import json,sys; w=json.load(sys.stdin); print(any(x["app_id"]=="foot" and x["is_floating"] for x in w))' 2>/dev/null)
+    [ "$float" = "True" ] && break
+    i=$((i+1))
+done
+[ "$float" = "True" ] && result window-rule-foot-floats PASS || result window-rule-foot-floats FAIL "$(niri msg -j windows 2>&1 | head -c 200)"
+settings '{}'
+
+# ---- world clocks on the calendar ---------------------------------------------
+settings '{"worldClocks": ["Asia/Tokyo"]}'
+ipc toggleControlCenter
+waitfor "len(d['worldClocks']) and d['worldClocks'][0]['city'] == 'Tokyo' and d['worldClocks'][0]['time']" 8 \
+    && result world-clocks-shown PASS "$(q "['worldClocks']")" || result world-clocks-shown FAIL "$(q "['worldClocks']")"
+ipc controlCenter ""
+settings '{}'
+
+# ---- per-app audio routing, balance, reduce transparency, storage, switch user ----
+hp=$(pactl load-module module-null-sink sink_name=headphones sink_properties=device.description=headphones 2>/dev/null)
+python3 -c "
+import wave, struct, math
+w=wave.open('/tmp/sine.wav','w')
+w.setnchannels(1); w.setsampwidth(2); w.setframerate(44100)
+for i in range(44100 * 8):
+    w.writeframes(struct.pack('<h', int(3000*math.sin(2*math.pi*440*i/44100))))
+w.close()
+" 2>/dev/null
+pw-play /tmp/sine.wav >/dev/null 2>&1 & play=$!
+# an app handed to another device: the shell moves its stream (pactl), the graph shows it there
+waitfor "len(d['streams']) >= 1" 6 || true
+node=$(st | python3 -c "import json,sys; s=json.load(sys.stdin)['streams']; m=[x for x in s if 'play' in x['name'].lower()] or s; print(m[0]['node'] if m else '')" 2>/dev/null)
+[ -n "$node" ] && ipc playerSink "$node" headphones
+waitfor "any(s.get('sink') == 'headphones' for s in d['streams'])" 6 && result player-route-headphones PASS || result player-route-headphones FAIL "node $node: $(q "['streams']") / $(pactl list sink-inputs short 2>&1 | tr '\t\n' ' ;')"
+kill $play 2>/dev/null
+# balance: the quieter side loses a share, the louder keeps the volume; centred, both are even again
+vols() { pactl get-sink-volume @DEFAULT_SINK@ | grep -o '[0-9]*%' | tr -d % | head -2 | tr '\n' ' '; }
+wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.50; sleep 0.5
+settings '{"audioBalance": -40}'
+set -- $(vols); [ "${1:-0}" = 50 ] && [ "${2:-0}" = 30 ] && result balance-applied PASS "L $1 R $2" || result balance-applied FAIL "L ${1:-?} R ${2:-?}"
+settings '{}'
+set -- $(vols); [ "${1:-0}" = 50 ] && [ "${2:-0}" = 50 ] && result balance-centred-again PASS || result balance-centred-again FAIL "L ${1:-?} R ${2:-?}"
+settings '{"reduceTransparency": true}'
+waitfor "d['reduceTransparency']" 3 && result reduce-transparency-on PASS || result reduce-transparency-on FAIL "$(q "['reduceTransparency']")"
+settings '{"reduceTransparency": false}'
+ipc storageScan
+sleep 4
+waitfor "len(d.get('storageSizes',[])) > 0" 8 && result storage-scanned PASS || result storage-scanned FAIL "$(q "['storageSizes']")"
+[ -n "$hp" ] && pactl unload-module "$hp"     # this one only: the others are the session's speakers
+
 ipc settingsCategory account
 sleep 1.2
 shot 77-settings-account 0.3
@@ -706,8 +1010,9 @@ for pair in "timezone:Date & language" "time zone:Date & language" "add user:Use
     waitfor "d['topResult'] == '${pair#*:}'" 4 && result "launcher-finds-$(echo ${pair%%:*} | tr ' ' -)" PASS || result "launcher-finds-$(echo ${pair%%:*} | tr ' ' -)" FAIL "$(q "['topResult']")"
 done
 ipc launcher "timezone"; waitfor "d['topResult'] == 'Date & language'" 3
+sleep 0.4      # the field set over IPC, not typed: give the layer the keyboard first
 wtype -k Return
-waitfor "d['expanded'] == 'settings' and d['settingsCat'] == 'time'" 3 && result launcher-opens-settings-category PASS || result launcher-opens-settings-category FAIL "$(st)"
+waitfor "d['settingsOpen'] and d['settingsCat'] == 'time'" 3 && result launcher-opens-settings-category PASS || result launcher-opens-settings-category FAIL "$(st)"
 ipc closeAll
 
 # ---- per-app notifications: no pop-ups for one app, one app through DND -------------
@@ -900,8 +1205,10 @@ waitfor "d['wallpaperNow'] == '/usr/share/backgrounds/shani/shani-dark.jpg'" 4 &
 g() { gsettings get org.gnome.desktop.interface "$1"; }
 [ "$(g icon-theme)" = "'Papirus-Dark'" ] && [ "$(g accent-color)" = "'teal'" ] && [ "$(g monospace-font-name)" = "'JetBrains Mono 11'" ] \
     && result default-look-for-apps PASS || result default-look-for-apps FAIL "$(g icon-theme) $(g accent-color) $(g monospace-font-name)"
-settings '{"accentName": "purple"}'
+settings '{"accentName": "purple", "accentFromWallpaper": false}'
 waitfor "d['accent'] == '#dc8add'" 3 && [ "$(g accent-color)" = "'purple'" ] && result accent-choice PASS || result accent-choice FAIL "$(q "['accent']") $(g accent-color)"
+# one material: the background leans to the accent's hue (purple: blue above green)
+waitfor "int(d['bg'][5:7],16) > int(d['bg'][3:5],16)" 3 && result palette-follows-accent PASS "$(q "['bg']")" || result palette-follows-accent FAIL "$(q "['bg'], d['accent']")"
 
 # ---- mouse and touchpad details, Num Lock, middle-click paste -------------------------
 settings '{"tpAccel": "flat", "tpClick": "button-areas", "tpScrollMethod": "edge", "tpOffWithMouse": true, "numlock": false, "mouseAccel": "flat", "middlePaste": false}'
@@ -1043,7 +1350,7 @@ settings '{}'
 
 # ---- search inside Settings: "proxy" opens Network ----------------------------------
 ipc settings
-waitfor "d['expanded'] == 'settings' and d['settingsCat'] == ''" 3
+waitfor "d['settingsOpen']" 3
 sleep 0.6
 wtype "proxy" -k Return
 waitfor "d['settingsCat'] == 'network'" 3 && result settings-search-finds-category PASS || result settings-search-finds-category FAIL "$(q "['settingsCat']")"
@@ -1239,11 +1546,19 @@ waitfor "not d['locked']" 6 && result lock-unlocks-with-password PASS || result 
 [ "$(q "['locked']")" = False ] || { echo "still locked: the checks below would pass for the wrong reason"; exit 1; }
 ipc lock
 waitfor "d['locked']" 4 && result lock-relocks PASS || result lock-relocks FAIL
+# a photo from the lock screen, without unlocking; only it is shown there
+if [ -f "$A11Y" ]; then
+    sleep 1; timeout 20 python3 "$A11Y" press "button:^Take a photo$" >/dev/null 2>&1
+    waitfor "d['lockPhotos'] == 1 and d['locked']" 12 && result lock-screen-camera PASS "$(q "['cameraLast']")" || result lock-screen-camera FAIL "$(q "['lockPhotos'], d['cameraPhase']")"
+    shot 27b-lock-camera 0.4
+fi
 wtype "shani-test" -k Return
 waitfor "not d['locked']" 6
+[ "$(q "['lockPhotos']")" = 0 ] && result lock-photos-forgotten-on-unlock PASS || result lock-photos-forgotten-on-unlock FAIL
 
 # ---- dynamic lock: the paired phone goes away → locked after the grace ---------------
 settings '{"dynamicLockDevice": "AA:BB:CC:DD:EE:FF"}'
+waitfor "d['dynamicLockDevice'] == 'AA:BB:CC:DD:EE:FF' and not d['locked']" 6 || true
 ipc dynamicLockAway
 waitfor "d['locked'] and d['dynamicLocks'] == 1" 6 && result dynamic-lock PASS || result dynamic-lock FAIL "$(q "['dynamicLocks']")"
 wtype "shani-test" -k Return

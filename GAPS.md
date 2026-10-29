@@ -11,24 +11,35 @@ centre, and against what a session needs before any app runs.
   Chronoa's approvals and questions, and the dock owns the bottom edge.
 - **Session chooser on the login screen.** The niri image has one session;
   Plasma and GNOME images have their own greeters.
-- **Switch user from the lock screen.** greetd has no session switching.
+- **Switch user from the lock screen.** greetd runs one session; there is no greeter to switch back to (loginctl has no such command).
 - **Online accounts.** GNOME Online Accounts needs GNOME's own settings app.
-- **Remote desktop.** gnome-remote-desktop does not support niri.
+- **Remote desktop through the portal.** niri 26.04 has screencasting
+  (org.gnome.Mutter.ScreenCast) but no org.gnome.Mutter.RemoteDesktop, so
+  GNOME Remote Desktop, RustDesk and FreeRDP's shadow server cannot capture or
+  control it (niri issue #390; PR #1966 is open, not merged). What works is
+  Sunshine + Moonlight (KMS capture, discussion #680): Settings > Sharing
+  switches Sunshine's user service when it is installed (it needs
+  `cap_sys_admin`; LizardByte's repo / AUR, not in the image).
 - **ICC colour profiles.** niri has no colour management yet.
-- **Location services.** Nothing in the shell locates the computer; weather uses
-  the city typed in Settings.
-- **What Windows and macOS have that niri cannot give.** Always-on-top (niri
-  has no such window state), minimise / "show desktop" (a scrolling layout
-  has no hidden windows — Overview is the stand-in), colour filters for colour
-  blindness and HDR (no colour management), "find my pointer" (no pointer
-  position for a layer-shell client to draw at). Out of scope for a shell:
-  desktop widgets, presence sensing, receiving AirPlay, a phone as webcam.
+- **Location services.** Implemented via GeoClue2 (shani-peripherals ships it): `Services/Location.qml` queries `/usr/lib/geoclue-2.0/demos/where-am-i` (or a D-Bus client fallback) and fills `weatherLat`/`weatherLon` so Weather + NightLight stop needing a typed city. Off by default (`Settings.data.useLocation`); the person opts in. Real-hardware only — geoclue is not in the dev container, so it degrades to "location unavailable" there.
+- **What Windows, macOS and Pantheon have that niri cannot give.** Always on
+  top (niri has no such window state: "Show on all workspaces" floats a window
+  and carries it along instead, and Picture-in-Picture windows get it as they
+  open; minimise and show desktop are done the same way, with a hidden
+  workspace), colour filters for colour blindness and HDR (no colour
+  management), "find my pointer" (no pointer position for a layer-shell
+  client to draw at), Sticky / Slow / Bounce Keys (keyboard input is the
+  compositor's), a gamma control (night light owns the gamma ramp, and only
+  one client may hold it), Picture-in-Picture of part of a window (Gala's). Out of scope
+  for a shell: desktop widgets, presence sensing, receiving AirPlay, a phone
+  as webcam, "Find my device" (needs a server).
+- **A live camera viewfinder on the lock screen.** The lock screen takes a
+  photo (libcamera stills, after a countdown) and shows it; qcam, the live
+  view, is a window, and nothing shows above the lock.
 
 ## Not built — yet
 
-- **Headphone virtual surround**: PipeWire's SOFA spatializer needs an HRTF
-  file, and no Arch package ships one (libmysofa reads them; nothing provides
-  one). The compressor is in (night mode, swh-plugins' SC4).
+- **Headphone virtual surround.** Implemented via the matrix_spatialiser LADSPA plugin (shipped in ladspa) as a "Stereo widening" toggle in Settings › Sound effects, behind `SoundFx.canSpatial`. The convolver-based virtual surround (KEMAR/Hesuvi HRIR) still needs HRIR wav files that no package ships; stereo widening is what is available.
 - **More setup-wizard languages** than English, मराठी, हिन्दी, Deutsch, Español,
   Français (strings.js).
 - **Translations**: 104 of 684 strings reviewed in Marathi and Hindi (the bar,
@@ -48,7 +59,14 @@ Each needs real hardware or shani-testbed:
 - Wi-Fi: wrong-password retry, forget, hidden network; Wi-Fi in first-boot setup.
 - Bluetooth: pairing, receiving and sending files against a real
   BlueZ/obexd (both agents are tested against fakes; sending is untested).
-- The dock's right-click menu (no pointer clicks are injected in the dev session).
+- Pointer-only dock gestures: dragging files onto an icon (the launch it makes
+  is tested), holding a drag over an icon to cycle its windows, pressure
+  reveal of a hidden dock, long-press, scrolling over an icon.
+- Two or more screens: the dock on each, the Island, notifications, the
+  control centre and Chronoa's panel on the screen in use, and "Swap monitors"
+  (nested niri has one output; the one-screen refusal is tested).
+- "Using the most power" in the power section (UPower never reports a battery
+  in a container).
 - Hibernate (shown only where logind says it can; the container cannot).
 - KDE Connect discovery and pairing.
 - Camera: real libcamera stills and PipeWire video (the still path is tested with a fake `cam`).
