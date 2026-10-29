@@ -1,3 +1,10 @@
 __pycache__/
 .pytest_cache/
 logs/
+
+# made by the test suite (dev/shell-test.sh) and dev/showcase.sh on every run;
+# the README shows the two showcase images that stay tracked
+docs/shots/
+docs/showcase-launcher.png
+docs/showcase-osk.png
+docs/showcase-ring.png

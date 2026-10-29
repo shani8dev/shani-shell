@@ -48,7 +48,7 @@ bridge/             shani-chronoa-bridge: D-Bus <-> the shell's socket
                     (Chronoa's Agent/Mascot/Windows, logind lock + sleep)
 data/               systemd user units, pam.d/shani-lock
 dev/                test harness (below), mock Chronoa, fake greetd/MPRIS
-docs/shots/         every test's screenshots
+docs/shots/         every test's screenshots (written by a test run; not in git)
 ```
 Settings: `~/.config/shani-shell/settings.json` — any subset of the keys in
 `shani/Common/Settings.qml`; edits apply live, toggles write back.
