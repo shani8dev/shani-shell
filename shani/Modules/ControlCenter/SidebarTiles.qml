@@ -24,7 +24,7 @@ ColumnLayout {
         Layout.fillWidth: true
         readonly property real gap: 8
         readonly property real cell: (width - gap) / 2
-        readonly property var known: ["wifi", "bluetooth", "airplane", "mobile", "hotspot", "vpn", "dnd", "focus", "phone", "timer", "caffeine", "power", "nightlight", "dark", "mic", "camera", "photo", "record", "screenshot", "lens", "colorpicker", "rotate", "flashlight", "display", "osk", "keyboard", "clipboard", "backup", "access", "captions", "transcribe", "speak", "magnifier", "callrecord", "cast", "touch", "chronoa"]
+        readonly property var known: ["wifi", "bluetooth", "airplane", "mobile", "hotspot", "vpn", "dnd", "focus", "phone", "timer", "caffeine", "power", "nightlight", "dark", "mic", "camera", "photo", "record", "screenshot", "lens", "ruler", "colorpicker", "snippets", "compress", "qrgen", "rotate", "flashlight", "display", "osk", "keyboard", "clipboard", "backup", "access", "captions", "transcribe", "speak", "magnifier", "callrecord", "cast", "touch", "chronoa"]
         readonly property var order: {
             const o = Settings.data.tileOrder.filter(t => known.indexOf(t) >= 0);
             return o.concat(known.filter(t => o.indexOf(t) < 0));       // new tiles join at the end
@@ -290,6 +290,16 @@ ColumnLayout {
             }
         }
         Tile {
+            tid: "ruler"
+            icon: "measure-symbolic"
+            title: Tr.t("Ruler")
+            subtitle: Tr.t("Measure on screen")
+            onToggled: {
+                Ui.closeAll();
+                Ruler.capture();
+            }
+        }
+        Tile {
             tid: "captions"
             icon: "media-view-subtitles"
             title: Tr.t("Live captions")
@@ -354,10 +364,70 @@ ColumnLayout {
             tid: "colorpicker"
             icon: "color-select"
             title: Tr.t("Color picker")
-            subtitle: Tr.t("Copies hex")
+            // shows the last picked colour, or the prompt until the first pick
+            subtitle: Color.lastPicked ? Color.lastPicked.hex : Tr.t("Pick a screen colour")
             onToggled: {
                 Ui.closeAll();
-                Quickshell.execDetached(["sh", "-c", "c=$(niri msg pick-color | sed -n 's/^Hex: //p'); [ -n \"$c\" ] && printf %s \"$c\" | wl-copy && notify-send -a 'Color picker' \"$c\" 'Copied to clipboard'"]);
+                Color.pick();
+            }
+            Connections {
+                target: Color
+                function onPicked(color) {
+                    if (!color)
+                        return;
+                    Quickshell.clipboardText = color.hex;
+                    Quickshell.execDetached(["notify-send", "-a", "Color picker",
+                        color.hex,
+                        color.wcagLight + " vs white · " + color.wcagDark +
+                        " vs black · " + color.rgb + " · " + color.hsl]);
+                }
+            }
+        }
+        // ---- voltkit-aligned tiles -------------------------------------------
+        // Text expansion: quick snippet entry, copied to the clipboard.
+        Tile {
+            tid: "snippets"
+            icon: "accessories-text-editor"
+            title: Tr.t("Snippets")
+            subtitle: Tr.t("Quick text inserts")
+            onToggled: {
+                Ui.closeAll();
+                Quickshell.execDetached(["sh", "-c",
+                    "text=$(zenity --entry --title='Snippet' --text='Enter text to copy:' 2>/dev/null); " +
+                    "[ -n \"$text\" ] && printf %s \"$text\" | wl-copy && " +
+                    "notify-send -a 'Snippets' 'Copied to clipboard'"])
+            }
+        }
+        // Asset compressor: pick a file, shrink it with ffmpeg next to the original.
+        Tile {
+            tid: "compress"
+            icon: "package-compress"
+            title: Tr.t("Compress")
+            subtitle: Tr.t("Shrink image or video")
+            onToggled: {
+                Ui.closeAll();
+                Quickshell.execDetached(["sh", "-c",
+                    "file=$(zenity --file-selection --title='Select file to compress' 2>/dev/null); " +
+                    "[ -n \"$file\" ] && ffmpeg -hide-banner -loglevel error -i \"$file\" " +
+                    "-vf 'scale=iw*3/4:ih*3/4' -c:v libx264 -crf 28 -c:a copy " +
+                    "\"${file%.*}.min.${file##*.}\" -y 2>/dev/null && " +
+                    "notify-send -a 'Compress' 'Compressed: ${file##*/}'"])
+            }
+        }
+        // QR code generator: makes a QR from clipboard text. Needs qrencode.
+        Tile {
+            tid: "qrgen"
+            icon: "accessories-character-map"
+            title: Tr.t("QR code")
+            subtitle: Tr.t("Make QR from clipboard")
+            onToggled: {
+                Ui.closeAll();
+                Quickshell.execDetached(["sh", "-c",
+                    "text=$(wl-paste 2>/dev/null); " +
+                    "command -v qrencode >/dev/null 2>&1 && [ -n \"$text\" ] && " +
+                    "qrencode -o /tmp/shani-qr.png - <<< \"$text\" && " +
+                    "notify-send -a 'QR code' 'Saved to /tmp/shani-qr.png' || " +
+                    "notify-send -a 'QR code' 'qrencode not installed or clipboard empty'"])
             }
         }
         Tile {

@@ -28,6 +28,7 @@ import qs.Modules.Chronoa
 import qs.Modules.Dock
 import qs.Modules.Idle
 import qs.Modules.Lens
+import qs.Modules.Ruler
 import qs.Modules.Ring
 import qs.Modules.Switcher
 import qs.Modules.Background
@@ -62,7 +63,7 @@ ShellRoot {
     Dim {}
     PolkitDialog {}
     LensPanel {}
-    Ring {}
+    LazyLoader { active: Ruler.phase !== "idle"; RulerPanel {} }    Ring {}
     Switcher {}
     Keyboard {}
     WindowMenu {}
@@ -250,6 +251,7 @@ ShellRoot {
         function focusWindowByTitle(q: string) { if (Niri.focusWindowByTitle) Niri.focusWindowByTitle(q); }
         function lens() { Ui.closeAll(); Lens.capture(); }
         function lensRegion(geometry: string) { Ui.closeAll(); Lens.capture(geometry); }
+        function ruler() { Ui.closeAll(); Ruler.capture(); }
 
         function state(): string {
             return JSON.stringify({

@@ -96,6 +96,7 @@ Singleton {
             property bool caffeine: false
             property bool use24h: true
             property list<string> worldClocks: []   // other cities on the calendar: zoneinfo zones, as chosen
+            property list<string> recentColors: []  // colours picked with the Color picker, newest first
             property bool blur: true
             property bool showSeconds: false
             property bool showSysStats: false             // a system monitor in the bar: one switch away, not the first thing seen

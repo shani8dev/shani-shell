@@ -27,7 +27,8 @@ ColumnLayout {
     readonly property var tileNames: ({ wifi: "Wi-Fi", bluetooth: "Bluetooth", airplane: "Airplane mode", mobile: "Mobile data", hotspot: "Hotspot", vpn: "VPN",
         dnd: "Do Not Disturb", focus: "Focus", phone: "Phone", timer: "Focus timer", caffeine: "Caffeine", power: "Power mode",
         nightlight: "Night light", dark: "Dark style", mic: "Microphone", camera: "Camera", record: "Screen record",
-        screenshot: "Screenshot", lens: "Lens", colorpicker: "Color picker", rotate: "Auto-rotate", flashlight: "Flashlight",
+        screenshot: "Screenshot", lens: "Lens", ruler: "Ruler", colorpicker: "Color picker", snippets: "Snippets", compress: "Compress", qrgen: "QR code",
+        rotate: "Auto-rotate", flashlight: "Flashlight",
         display: "Display", osk: "Screen keyboard", keyboard: "Keyboard", clipboard: "Clipboard", backup: "Backup", access: "Accessibility",
         captions: "Live captions", transcribe: "Live transcribe", speak: "Read aloud", magnifier: "Magnifier", callrecord: "Call record",
         cast: "Cast", touch: "Smart touch", photo: "Photo", chronoa: "Chronoa" })
