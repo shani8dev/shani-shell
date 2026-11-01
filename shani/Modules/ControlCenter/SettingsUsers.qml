@@ -23,7 +23,7 @@ ColumnLayout {
     property bool adding: false
     property string note: ""
     property bool busy: false
-    readonly property bool iAmAdmin: (users.find(u => u.name === me) || {}).admin === true
+    readonly property bool iAmAdmin: me === "root" || (users.find(u => u.name === me) || {}).admin === true
 
     function refresh() { list.running = true; }
     onActiveChanged: if (active) refresh()
@@ -150,6 +150,15 @@ ColumnLayout {
         }
     }
 
+    Text {
+        Layout.fillWidth: true
+        visible: page.users.length === 0
+        text: Tr.t("No users yet.")
+        color: Theme.faint
+        wrapMode: Text.Wrap
+        font.family: Theme.font
+        font.pixelSize: 11 * Theme.fontScale
+    }
     // ---- add someone ------------------------------------------------------------
     Button {
         visible: page.iAmAdmin && !page.adding
