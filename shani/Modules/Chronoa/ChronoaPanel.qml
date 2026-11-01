@@ -36,7 +36,23 @@ PanelWindow {
             return Theme.blue;
         if (state === "waiting")
             return Theme.red;
+        if (state === "thinking")
+            return Theme.amber;
         return amber;
+    }
+
+    function stateIcon() {
+        if (state === "listening")
+            return "audio-input-microphone";
+        if (state === "speaking")
+            return "audio-speakers";
+        if (state === "thinking")
+            return "system-search";
+        if (state === "waiting")
+            return "dialog-warning";
+        if (state === "offline")
+            return "network-offline";
+        return "face-smile-big";
     }
 
     function stateLabel() {
@@ -277,22 +293,28 @@ PanelWindow {
                 spacing: 10
 
                 Item {
-                    width: 12
-                    height: 12
+                    width: 20
+                    height: 20
 
                     Rectangle {
                         anchors.centerIn: parent
-                        width: 9
-                        height: 9
-                        radius: 5
+                        width: 16
+                        height: 16
+                        radius: 8
+                        color: Theme.alpha(panel.stateColor(), 0.15)
+                    }
+                    Icon {
+                        anchors.centerIn: parent
+                        name: panel.stateIcon()
+                        size: 12
                         color: panel.stateColor()
                     }
                     Rectangle {
                         id: halo
                         anchors.centerIn: parent
-                        width: 12
-                        height: 12
-                        radius: 6
+                        width: 20
+                        height: 20
+                        radius: 10
                         color: "transparent"
                         border.width: 1.5
                         border.color: panel.stateColor()
