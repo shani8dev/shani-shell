@@ -71,14 +71,15 @@ Variants {
                         const i = ws.findIndex(w => w.is_active);
                         return i >= 0 ? wsRepeater.itemAt(i) : null;
                     }
-                    Rectangle {
+                    Glass {
                         visible: parent.activeItem !== null
+                        elevation: "none"
+                        edge: "subtle"
                         x: parent.activeItem ? parent.activeItem.x : 0
                         width: parent.activeItem ? parent.activeItem.width : 0
                         height: 22
-                        radius: 8
-                        color: Theme.accentSoft
-                        border.width: 1
+                        radius: 11
+                        color: Theme.card
                         border.color: Theme.accentLine
                         Behavior on x { NumberAnimation { duration: Theme.anim * 1.4; easing.type: Easing.OutCubic } }
                         Behavior on width { NumberAnimation { duration: Theme.anim * 1.4; easing.type: Easing.OutCubic } }
@@ -93,10 +94,10 @@ Variants {
                             required property var modelData
                             required property int index
                             readonly property bool occupied: modelData.active_window_id !== null
-                            implicitWidth: modelData.is_active ? 30 : 22
-                            implicitHeight: 22
-                            radius: 8
-                            color: modelData.is_active ? "transparent" : (wsArea.containsMouse ? Theme.hover : "transparent")
+                            implicitWidth: modelData.is_active ? 28 : 20
+                            implicitHeight: 20
+                            radius: 10
+                            color: modelData.is_active ? Theme.accent : (wsArea.containsMouse ? Theme.hover : "transparent")
                             border.width: modelData.is_urgent ? 1 : 0
                             border.color: Theme.red
                             Behavior on implicitWidth { NumberAnimation { duration: Theme.anim } }
@@ -105,10 +106,10 @@ Variants {
                                 anchors.centerIn: parent
                                 // its place among the visible ones (the minimised one is hidden)
                                 text: modelData.name || (parent.index + 1)
-                                color: modelData.is_active ? Theme.accent : (parent.occupied ? Theme.text : Theme.dim)
+                                color: modelData.is_active ? Theme.accentInk : (parent.occupied ? Theme.text : Theme.dim)
                                 font.family: Theme.font
-                                font.pixelSize: 12 * Theme.fontScale
-                                font.weight: modelData.is_active ? Font.DemiBold : Font.Normal
+                                font.pixelSize: 11 * Theme.fontScale
+                                font.weight: Font.DemiBold
                             }
                             MouseArea {
                                 id: wsArea
@@ -124,36 +125,49 @@ Variants {
 
                 Rectangle { width: 1; height: 16; color: Theme.stroke; Layout.leftMargin: 6; Layout.rightMargin: 6 }
 
-                // focused window: app icon + title; click for the window menu
-                Row {
-                    id: titleRow
-                    spacing: 7
+                // focused window: app icon + title in a chip; click for the window menu
+                Glass {
+                    id: titleChip
+                    elevation: "none"
+                    edge: "subtle"
                     visible: Niri.focusedWindow !== null
-                    Layout.maximumWidth: Math.max(120, bar.width * 0.22)
-                    IconImage {
-                        implicitSize: 16
+                    Layout.maximumWidth: Math.max(140, bar.width * 0.25)
+                    radius: 10
+                    color: Theme.card
+                    border.color: Theme.stroke
+                    Row {
+                        id: titleRow
+                        spacing: 8
+                        anchors.fill: parent
+                        anchors.leftMargin: 10
+                        anchors.rightMargin: 10
                         anchors.verticalCenter: parent.verticalCenter
-                        source: {
-                            const w = Niri.focusedWindow;
-                            const e = w ? DesktopEntries.heuristicLookup(w.app_id) : null;
-                            return Quickshell.iconPath(e ? e.icon : (w ? w.app_id : ""), true);
+                        IconImage {
+                            implicitSize: 16
+                            anchors.verticalCenter: parent.verticalCenter
+                            source: {
+                                const w = Niri.focusedWindow;
+                                const e = w ? DesktopEntries.heuristicLookup(w.app_id) : null;
+                                return Quickshell.iconPath(e ? e.icon : (w ? w.app_id : ""), true);
+                            }
                         }
-                    }
-                    Text {
-                        width: Math.min(implicitWidth, parent.Layout.maximumWidth - 24)
-                        text: Niri.focusedWindow ? (Niri.focusedWindow.title || Niri.focusedWindow.app_id) : ""
-                        color: Theme.dim
-                        elide: Text.ElideRight
-                        font.family: Theme.font
-                        font.pixelSize: 12 * Theme.fontScale
-                        anchors.verticalCenter: parent.verticalCenter
+                        Text {
+                            width: Math.min(implicitWidth, titleChip.Layout.maximumWidth - 40)
+                            text: Niri.focusedWindow ? (Niri.focusedWindow.title || Niri.focusedWindow.app_id) : ""
+                            color: Theme.text
+                            elide: Text.ElideRight
+                            font.family: Theme.font
+                            font.pixelSize: 12 * Theme.fontScale
+                            font.weight: Font.Medium
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
                     }
                     // a handler, not a MouseArea child: a child sized to the Row
                     // feeds the Row's own width back into itself (it hung the shell)
                     TapHandler {
                         onTapped: {
                             Ui.closeAll();
-                            Ui.windowMenuX = titleRow.mapToItem(null, 0, 0).x + 10;
+                            Ui.windowMenuX = titleChip.mapToItem(null, 0, 0).x + 10;
                             Ui.windowMenu = true;
                         }
                     }
@@ -337,37 +351,61 @@ Variants {
                     onClicked: Ui.toggleControlCenter("notifications")
                     onRightClicked: Notifs.setDnd(!Notifs.dnd)
                 }
-                Chip {
-                    name: Qt.formatDateTime(clock.date, Settings.data.use24h ? "HH:mm, dddd d MMMM" : "h:mm AP, dddd d MMMM")
-                          + (Updates.attention ? ", " + Tr.t("updates waiting") : "") + ", " + Tr.t("notifications and calendar")
-                    active: Ui.controlCenter
-                    onClicked: Ui.toggleControlCenter()
-                    // an update waiting: a dot on the clock, the sidebar says what
-                    Rectangle {
-                        visible: Updates.attention
-                        width: 7
-                        height: 7
-                        radius: 4
-                        color: Theme.amber
+                // clock: a chip so it reads as one touchable thing, not loose text
+                Glass {
+                    elevation: "none"
+                    edge: "subtle"
+                    radius: 10
+                    color: Theme.card
+                    border.color: Theme.stroke
+                    Row {
+                        spacing: 6
+                        anchors.fill: parent
+                        anchors.leftMargin: 10
+                        anchors.rightMargin: 10
                         anchors.verticalCenter: parent.verticalCenter
+
+                        Text {
+                            text: Qt.formatDateTime(clock.date, Settings.data.use24h ? "HH:mm, dddd d MMMM" : "h:mm AP, dddd d MMMM")
+                                  + (Updates.attention ? ", " + Tr.t("updates waiting") : "") + ", " + Tr.t("notifications and calendar")
+                            color: Theme.dim
+                            font.family: Theme.font
+                            font.pixelSize: 11 * Theme.fontScale
+                            elide: Text.ElideRight
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        // an update waiting: a dot on the clock
+                        Rectangle {
+                            visible: Updates.attention
+                            width: 6; height: 6
+                            radius: 3
+                            color: Theme.amber
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        Text {
+                            text: Qt.formatDateTime(clock.date, Settings.data.use24h ? (Settings.data.showSeconds ? "HH:mm:ss" : "HH:mm") : (Settings.data.showSeconds ? "h:mm:ss AP" : "h:mm AP"))
+                            font.features: { "tnum": 1 }
+                            color: Theme.text
+                            font.family: Theme.font
+                            font.pixelSize: 13 * Theme.fontScale
+                            font.weight: Font.DemiBold
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        Text {
+                            visible: Settings.data.barDate
+                            text: Qt.formatDateTime(clock.date, "ddd d MMM")
+                            font.features: { "tnum": 1 }
+                            color: Theme.dim
+                            font.family: Theme.font
+                            font.pixelSize: 11 * Theme.fontScale
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
                     }
-                    Text {
-                        text: Qt.formatDateTime(clock.date, Settings.data.use24h ? (Settings.data.showSeconds ? "HH:mm:ss" : "HH:mm") : (Settings.data.showSeconds ? "h:mm:ss AP" : "h:mm AP"))
-                        font.features: { "tnum": 1 }
-                        color: Theme.text
-                        font.family: Theme.font
-                        font.pixelSize: 13 * Theme.fontScale
-                        font.weight: Font.DemiBold
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                    Text {
-                        visible: Settings.data.barDate
-                        text: Qt.formatDateTime(clock.date, "ddd d MMM")
-                        font.features: { "tnum": 1 }
-                        color: Theme.dim
-                        font.family: Theme.font
-                        font.pixelSize: 12 * Theme.fontScale
-                        anchors.verticalCenter: parent.verticalCenter
+                    MouseArea {
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Ui.toggleControlCenter()
                     }
                 }
 

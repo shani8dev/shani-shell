@@ -77,8 +77,19 @@ Singleton {
     readonly property color pressed: dark ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(0, 0, 0, 0.09)
     readonly property color accentSoft: alpha(accent, dark ? 0.18 : 0.16)
     readonly property color accentLine: alpha(accent, 0.55)
+    // accent on interactive state: a little stronger on hover, full on press
+    readonly property color accentHover: alpha(accent, dark ? 0.30 : 0.22)
+    readonly property color accentPressed: alpha(accent, dark ? 0.45 : 0.35)
     readonly property color scrim: dark ? Qt.rgba(0, 0, 0, 0.35) : Qt.rgba(0.05, 0.08, 0.12, 0.22)
-    readonly property color shadow: dark ? Qt.rgba(0, 0, 0, 0.55) : Qt.rgba(0.05, 0.1, 0.18, 0.22)
+    // elevation shadows: soft, card, raised — depth without drawing borders on everything
+    readonly property color shadowSoft: dark ? Qt.rgba(0, 0, 0, 0.45) : Qt.rgba(0, 0, 0, 0.12)
+    readonly property color shadowCard: dark ? Qt.rgba(0, 0, 0, 0.55) : Qt.rgba(0, 0, 0, 0.18)
+    readonly property color shadowRaised: dark ? Qt.rgba(0, 0, 0, 0.70) : Qt.rgba(0, 0, 0, 0.28)
+    readonly property color shadow: shadowCard   // default, backward-compatible
+
+    // card: a solid surface that floats on glass — for tiles, chips, buttons
+    readonly property color card: contrast ? bg : (dark ? tone(0.24, 0.10, 0.62) : tone(0.30, 0.99, 0.82))
+    readonly property color cardBorder: contrast ? alpha(text, 0.5) : (dark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.06))
 
     // ---- type and shape --------------------------------------------------------
     // Inter where installed (shani-shell depends on it), the system sans otherwise

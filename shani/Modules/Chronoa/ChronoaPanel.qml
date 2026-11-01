@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Effects
 import qs.Common
 
 PanelWindow {
@@ -258,6 +259,13 @@ PanelWindow {
         // hard-edged blob at 0.07 alpha, and a real radial gradient would need
         // Qt5Compat. The border and the wallpaper's own colour are enough.
 
+        // slide up + fade in when the panel opens
+        Behavior on opacity { NumberAnimation { duration: Theme.animEnter; easing.type: Easing.OutCubic } }
+        transform: Translate {
+            y: open ? 0 : 24
+            Behavior on y { NumberAnimation { duration: Theme.animEnter; easing.type: Easing.OutCubic } }
+        }
+
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: 20
@@ -365,18 +373,56 @@ PanelWindow {
                 color: Theme.alpha(Theme.text, 0.07)
             }
 
-            // ---- transcript ---------------------------------------------
-            Text {
+            // ---- empty state ----------------------------------------------
+            Column {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 visible: panel.model.count === 0
-                text: Tr.t("Ask for a job.\n\nChronoa runs it on this machine,\nand asks before anything changes.")
-                color: Theme.alpha(Theme.dim, 0.55)
-                font.family: Theme.font
-                font.pixelSize: 15 * Theme.fontScale
-                lineHeight: 1.5
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
+                spacing: 16
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.verticalCenter
+
+                // a soft orb like the Island's companion, so the empty state
+                // feels like the same companion waiting, not an empty box
+                Rectangle {
+                    width: 64; height: 64
+                    radius: 32
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: Theme.alpha(Theme.accent, 0.18) }
+                        GradientStop { position: 1.0; color: Theme.alpha(Theme.accent, 0.05) }
+                    }
+                    layer.enabled: true
+                    layer.effect: MultiEffect {
+                        shadowEnabled: true
+                        shadowColor: Theme.alpha(Theme.accent, 0.30)
+                        shadowBlur: 16
+                        shadowVerticalOffset: 0
+                        shadowHorizontalOffset: 0
+                        autoPaddingEnabled: true
+                    }
+                    SequentialAnimation {
+                        loops: Animation.Infinite
+                        NumberAnimation { target: parent; property: "opacity"; from: 0.55; to: 0.95; duration: 2200; easing.type: Easing.InOutSine }
+                        NumberAnimation { target: parent; property: "opacity"; from: 0.95; to: 0.55; duration: 2200; easing.type: Easing.InOutSine }
+                    }
+                }
+
+                Text {
+                    text: Tr.t("Ask for a job.")
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: 17 * Theme.fontScale
+                    font.weight: Font.DemiBold
+                    horizontalAlignment: Text.AlignHCenter
+                }
+                Text {
+                    text: Tr.t("Chronoa runs it on this machine,\nand asks before anything changes.")
+                    color: Theme.alpha(Theme.dim, 0.7)
+                    font.family: Theme.font
+                    font.pixelSize: 13 * Theme.fontScale
+                    lineHeight: 1.5
+                    horizontalAlignment: Text.AlignHCenter
+                }
             }
 
             // A plain Column, not a ListView: the conversation is short and
@@ -429,7 +475,7 @@ PanelWindow {
                                 return 22;
                             }
 
-                            // user: right-aligned bubble
+                            // user: right-aligned bubble with accent tint
                             Rectangle {
                                 id: userBubble
                                 visible: row.kind === "user"
@@ -441,6 +487,15 @@ PanelWindow {
                                 color: Theme.alpha(Theme.accent, 0.16)
                                 border.width: 1
                                 border.color: Theme.alpha(Theme.accent, 0.28)
+                                layer.enabled: true
+                                layer.effect: MultiEffect {
+                                    shadowEnabled: true
+                                    shadowColor: Theme.shadowSoft
+                                    shadowBlur: 4
+                                    shadowVerticalOffset: 2
+                                    shadowHorizontalOffset: 0
+                                    autoPaddingEnabled: true
+                                }
 
                                 Text {
                                     id: userText
@@ -454,19 +509,36 @@ PanelWindow {
                                 }
                             }
 
-                            // assistant: full-width prose
-                            Text {
-                                id: asstText
+                            // assistant: full-width prose with a subtle accent leader
+                            Rectangle {
                                 visible: row.kind === "assistant"
                                 anchors.left: parent.left
                                 anchors.right: parent.right
                                 anchors.top: parent.top
-                                text: row.text
-                                color: panel.textColor
-                                font.family: Theme.font
-                                font.pixelSize: 13 * Theme.fontScale
-                                lineHeight: 1.35
-                                wrapMode: Text.WordWrap
+                                color: "transparent"
+                                Rectangle {
+                                    width: 3
+                                    radius: 2
+                                    color: panel.accent
+                                    anchors.left: parent.left
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    anchors.leftMargin: -3
+                                    height: Math.min(24, asstText.implicitHeight)
+                                    Behavior on height { NumberAnimation { duration: Theme.anim } }
+                                }
+                                Text {
+                                    id: asstText
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.top: parent.top
+                                    anchors.leftMargin: 8
+                                    text: row.text
+                                    color: panel.textColor
+                                    font.family: Theme.font
+                                    font.pixelSize: 13 * Theme.fontScale
+                                    lineHeight: 1.35
+                                    wrapMode: Text.WordWrap
+                                }
                             }
 
                             // tool activity: a pill, not a message
@@ -504,25 +576,39 @@ PanelWindow {
                             }
 
                             // approval: inline, not a notification you might miss
-                            Rectangle {
+                            Glass {
                                 id: approvalCard
                                 visible: row.kind === "approval"
+                                strong: true
+                                elevation: "card"
                                 anchors.left: parent.left
                                 anchors.right: parent.right
+                                anchors.top: parent.top
+                                width: parent.width
                                 height: approvalCol.implicitHeight + 24
                                 radius: 12
-                                color: Theme.alpha(Theme.amber, 0.08)
+                                color: Theme.alpha(Theme.amber, 0.06)
                                 border.width: 1
-                                border.color: Theme.alpha(Theme.amber, 0.35)
+                                border.color: Theme.alpha(Theme.amber, 0.25)
+                                layer.enabled: true
+                                layer.effect: MultiEffect {
+                                    shadowEnabled: true
+                                    shadowColor: Theme.shadowCard
+                                    shadowBlur: 8
+                                    shadowVerticalOffset: 2
+                                    shadowHorizontalOffset: 0
+                                    autoPaddingEnabled: true
+                                }
 
                                 Rectangle {
                                     width: 3
-                                    height: parent.height - 16
-                                    anchors.left: parent.left
-                                    anchors.leftMargin: 8
-                                    anchors.verticalCenter: parent.verticalCenter
                                     radius: 2
                                     color: panel.amber
+                                    anchors.left: parent.left
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    anchors.leftMargin: -3
+                                    height: Math.min(32, approvalCol.implicitHeight)
+                                    Behavior on height { NumberAnimation { duration: Theme.anim } }
                                 }
 
                                 Column {

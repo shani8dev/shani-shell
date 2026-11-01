@@ -16,6 +16,7 @@ import Quickshell.Services.Pipewire
 import Quickshell.Services.Mpris
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Effects
 import qs.Common
 import qs.Services
 
@@ -26,6 +27,15 @@ PanelWindow {
     property bool asking: false
     readonly property bool hasApproval: Chronoa.approval !== null
     readonly property bool working: Chronoa.busy || Chronoa.cueText !== "" || Chronoa.step !== ""
+    // agent-status expressions for the mascot: pops out when working,
+    // blinks faster when thinking, looks up when pondering, waves on connect,
+    // and does a happy jump when a task finishes.
+    property real mascotScale: 1
+    property int blinkInterval: 3800
+    property real eyeLookY: 0
+    property bool happyJump: false
+    property bool wave: false
+    property bool _wasBusy: false
     // Live Activities (after iOS): with Chronoa idle, the Island carries the
     // one thing in progress that matters most — and a click acts on it
     readonly property var player: Mpris.players.values.find(p => p.isPlaying) || null
@@ -128,8 +138,42 @@ PanelWindow {
         clip: true
         Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
         Behavior on height { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+        // fade + scale so mode changes feel like a shape, not a jump
+        Behavior on opacity { NumberAnimation { duration: Theme.anim; easing.type: Easing.OutCubic } }
+        transform: Scale {
+            origin.x: width / 2
+            origin.y: height / 2
+            xScale: 1
+            yScale: 1
+            Behavior on xScale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+            Behavior on yScale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+        }
         onWidthChanged: reportTimer.restart()
         onHeightChanged: reportTimer.restart()
+
+        // gentle glow when Chronoa is working — a breath behind the card
+        Rectangle {
+            visible: win.working && Chronoa.state !== "offline"
+            anchors.fill: parent
+            anchors.margins: -8
+            radius: card.radius + 8
+            color: Theme.alpha(Chronoa.color, 0.12)
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                shadowEnabled: true
+                shadowColor: Theme.alpha(Chronoa.color, 0.35)
+                shadowBlur: 14
+                shadowVerticalOffset: 0
+                shadowHorizontalOffset: 0
+                autoPaddingEnabled: true
+            }
+            SequentialAnimation {
+                running: win.working && Chronoa.state !== "offline"
+                loops: Animation.Infinite
+                NumberAnimation { target: parent; property: "opacity"; from: 0.35; to: 0.85; duration: 1100; easing.type: Easing.InOutSine }
+                NumberAnimation { target: parent; property: "opacity"; from: 0.85; to: 0.35; duration: 1100; easing.type: Easing.InOutSine }
+            }
+        }
 
         RowLayout {
             id: row
@@ -143,6 +187,25 @@ PanelWindow {
                 id: mascot
                 implicitWidth: 30
                 implicitHeight: 30
+                scale: win.mascotScale
+                Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+
+                // happy jump: the mascot leaps when a task finishes
+                transform: Translate {
+                    id: jump
+                    y: 0
+                }
+
+                // swallow files dropped onto the notch — they become context
+                DropArea {
+                    anchors.fill: parent
+                    onEntered: d => d.accept(d.hasUrls ? Qt.CopyAction : Qt.IgnoreAction)
+                    onDropped: d => {
+                        const files = d.urls.map(u => decodeURIComponent(String(u).replace(/^file:\/\//, "")))
+                        if (files.length)
+                            Chronoa.ask("Here are some files for context: " + files.join(", "))
+                    }
+                }
 
                 // halo: state colour, breathing while busy
                 Rectangle {
@@ -192,6 +255,23 @@ PanelWindow {
                         GradientStop { position: 0.0; color: Theme.alpha(Chronoa.color, 0.95) }
                         GradientStop { position: 1.0; color: Theme.alpha(Chronoa.color, 0.45) }
                     }
+                    // subtle inner glow so the orb reads as lit, not flat
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: 14; height: 14
+                        radius: 7
+                        color: "white"
+                        opacity: 0.25
+                        layer.enabled: true
+                        layer.effect: MultiEffect {
+                            shadowEnabled: true
+                            shadowColor: "white"
+                            shadowBlur: 4
+                            shadowVerticalOffset: 0
+                            shadowHorizontalOffset: 0
+                            autoPaddingEnabled: true
+                        }
+                    }
                     property real lookX: 0
                     property bool blink: false
                     Repeater {
@@ -199,15 +279,17 @@ PanelWindow {
                         Rectangle {
                             required property int index
                             x: 6 + index * 8 + orb.lookX * 2
-                            y: Chronoa.state === "offline" ? 11 : 9
+                            y: Chronoa.state === "offline" ? 11 + win.eyeLookY : 9 + win.eyeLookY
                             width: 4
                             height: orb.blink || Chronoa.state === "offline" ? 1 : 6
                             radius: 2
                             color: Theme.accentInk
+                            Behavior on height { NumberAnimation { duration: 120 } }
+                            Behavior on x { NumberAnimation { duration: 120 } }
                         }
                     }
                     Timer {
-                        interval: 3800
+                        interval: win.blinkInterval
                         running: orb.visible
                         repeat: true
                         onTriggered: {
@@ -374,4 +456,58 @@ PanelWindow {
         }
     }
     Component.onCompleted: reportTimer.restart()
+
+    // agent-status expressions: react to Chronoa's state
+    Connections {
+        target: Chronoa
+        function onStateChanged() {
+            // pop out when working, settle back at rest
+            win.mascotScale = win.working ? 1.18 : 1
+            // blink rate by state
+            if (Chronoa.state === "thinking") win.blinkInterval = 1400
+            else if (Chronoa.state === "speaking") win.blinkInterval = 5500
+            else if (Chronoa.state === "listening") win.blinkInterval = 3000
+            else if (Chronoa.state === "waiting") win.blinkInterval = 2400
+            else if (Chronoa.state === "offline") win.blinkInterval = 6000
+            else win.blinkInterval = 3800
+            // eye expression by state
+            if (Chronoa.state === "thinking") win.eyeLookY = -3
+            else if (Chronoa.state === "waiting") win.eyeLookY = 1
+            else win.eyeLookY = 0
+            // wave when Chronoa first becomes available
+            if (Chronoa.state === "idle" && !win._wasBusy) win.wave = true
+        }
+        function onBusyChanged() {
+            // happy jump when a task finishes
+            if (win._wasBusy && !Chronoa.busy) {
+                win.happyJump = true
+                jumpTimer.restart()
+            }
+            win._wasBusy = Chronoa.busy
+        }
+    }
+
+    // happy-jump animation: mascot bounces when a task finishes
+    Timer {
+        id: jumpTimer
+        interval: 300
+        onTriggered: win.happyJump = false
+    }
+    SequentialAnimation {
+        running: win.happyJump
+        NumberAnimation { target: mascot.jump; property: "y"; to: -14; duration: 120 }
+        NumberAnimation { target: mascot.jump; property: "y"; to: 8; duration: 120 }
+        NumberAnimation { target: mascot.jump; property: "y"; to: 0; duration: 180; easing.type: Easing.OutBounce }
+        onRunningChanged: if (!running) win.happyJump = false
+    }
+
+    // wave animation: mascot bobs side to side when Chronoa greets
+    SequentialAnimation {
+        running: win.wave
+        NumberAnimation { target: mascot; property: "x"; to: 5; duration: 110 }
+        NumberAnimation { target: mascot; property: "x"; to: -5; duration: 110 }
+        NumberAnimation { target: mascot; property: "x"; to: 5; duration: 110 }
+        NumberAnimation { target: mascot; property: "x"; to: 0; duration: 110 }
+        onRunningChanged: if (!running) win.wave = false
+    }
 }
