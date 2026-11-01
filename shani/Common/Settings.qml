@@ -80,8 +80,8 @@ Singleton {
         path: root.path
         watchChanges: true
         printErrors: false
-        onFileChanged: probe.reload()
         onSaved: root.lastWritten = text()
+        onFileChanged: Qt.callLater(function() { probe.reload(); })
         onLoaded: root.loaded = true
         onLoadFailed: root.loaded = true    // no file yet: defaults apply
         onAdapterUpdated: root.save()

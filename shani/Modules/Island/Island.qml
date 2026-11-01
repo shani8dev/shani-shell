@@ -138,16 +138,8 @@ PanelWindow {
         clip: true
         Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
         Behavior on height { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-        // fade + scale so mode changes feel like a shape, not a jump
+        // fade so mode changes feel like a shape, not a jump
         Behavior on opacity { NumberAnimation { duration: Theme.anim; easing.type: Easing.OutCubic } }
-        transform: Scale {
-            origin.x: width / 2
-            origin.y: height / 2
-            xScale: 1
-            yScale: 1
-            Behavior on xScale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-            Behavior on yScale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-        }
         onWidthChanged: reportTimer.restart()
         onHeightChanged: reportTimer.restart()
 
@@ -457,7 +449,7 @@ PanelWindow {
     }
     Component.onCompleted: reportTimer.restart()
 
-    // agent-status expressions: react to Chronoa's state
+    // agent-status expressions: react to Chronoa's state, step, and busy changes
     Connections {
         target: Chronoa
         function onStateChanged() {
@@ -477,6 +469,10 @@ PanelWindow {
             // wave when Chronoa first becomes available
             if (Chronoa.state === "idle" && !win._wasBusy) win.wave = true
         }
+        function onStepChanged() {
+            // react to tool step changes (reading files, editing code, running tests)
+            win.mascotScale = win.working ? 1.18 : 1
+        }
         function onBusyChanged() {
             // happy jump when a task finishes
             if (win._wasBusy && !Chronoa.busy) {
@@ -484,6 +480,7 @@ PanelWindow {
                 jumpTimer.restart()
             }
             win._wasBusy = Chronoa.busy
+            win.mascotScale = win.working ? 1.18 : 1
         }
     }
 
