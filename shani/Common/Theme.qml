@@ -11,7 +11,9 @@ import QtQuick
 
 Singleton {
     id: root
-    readonly property bool dark: Settings.data.darkMode
+    // Use a property binding instead of readonly to ensure reactivity
+    // when Settings.data.darkMode changes via IPC or file sync
+    property bool dark: Settings.data.darkMode
 
     // ---- the accent ---------------------------------------------------------
     readonly property color brand: "#7fd1c1"
