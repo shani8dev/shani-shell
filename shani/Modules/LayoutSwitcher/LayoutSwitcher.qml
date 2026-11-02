@@ -39,6 +39,8 @@ PanelWindow {
         { name: Tr.t("Tiling"), desc: Tr.t("Window tiling, no dock"), preset: "tiling" }
     ]
 
+    property bool gridView: true
+
     onVisibleChanged: {
         if (visible && Settings.loaded) {
             previousPreset = Settings.data.layoutPreset || "default";
@@ -154,7 +156,7 @@ PanelWindow {
             RowLayout {
                 Layout.alignment: Qt.AlignHCenter
                 spacing: 8
-                Button { text: Tr.t("Layout"); onClicked: {} }
+                Button { text: Tr.t("Layout"); onClicked: { root.gridView = !root.gridView; } }
                 Button { text: Tr.t("Settings"); onClicked: { Ui.layoutSwitcher = false; Ui.openSettings("look"); } }
             }
 
@@ -162,7 +164,7 @@ PanelWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.preferredHeight: 300
-                columns: 3
+                columns: root.gridView ? 3 : 1
                 rowSpacing: 12
                 columnSpacing: 12
                 Repeater {
