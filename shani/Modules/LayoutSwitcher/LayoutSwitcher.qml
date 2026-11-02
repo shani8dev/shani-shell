@@ -39,13 +39,6 @@ PanelWindow {
         { name: Tr.t("Tiling"), desc: Tr.t("Window tiling, no dock"), preset: "tiling" }
     ]
 
-    Keys.onPressed: event => {
-        if (event.key === Qt.Key_Escape) {
-            Ui.layoutSwitcher = false;
-            event.accepted = true;
-        }
-    }
-
     onVisibleChanged: {
         if (visible && Settings.loaded) {
             previousPreset = Settings.data.layoutPreset || "default";
@@ -116,6 +109,12 @@ PanelWindow {
             anchors.fill: parent
             onClicked: Ui.layoutSwitcher = false
             enabled: root.visible
+        }
+        Keys.onPressed: event => {
+            if (event.key === Qt.Key_Escape) {
+                Ui.layoutSwitcher = false;
+                event.accepted = true;
+            }
         }
     }
 
