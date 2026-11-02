@@ -18,9 +18,18 @@ ColumnLayout {
     spacing: 14
 
     Glass {
+        id: np
         visible: sidebar.player !== null
         Layout.fillWidth: true
-        implicitHeight: 92
+        implicitHeight: 118
+        // the track's position, sampled while it plays (the thin bar moves)
+        property real shown: sidebar.player ? sidebar.player.position : 0
+        Timer {
+            interval: 900
+            running: sidebar.visible && sidebar.player && sidebar.player.isPlaying
+            repeat: true
+            onTriggered: parent.shown = sidebar.player.position
+        }
         RowLayout {
             anchors.fill: parent
             anchors.margins: 12
@@ -57,37 +66,78 @@ ColumnLayout {
                     font.family: Theme.font
                     font.pixelSize: 11 * Theme.fontScale
                 }
-                // the output level over the last second and a half
-                Row {
-                    id: meter
-                    spacing: 2
-                    height: 14
-                    property var history: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                    PwNodePeakMonitor {
-                        id: outLevel
-                        node: Audio.sink
-                        enabled: sidebar.visible && sidebar.player !== null && sidebar.player.isPlaying
+                // seek: click along the track (only when the player allows it)
+                Rectangle {
+                    id: seek
+                    visible: sidebar.player && sidebar.player.canSeek && sidebar.player.length > 0
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 13
+                    color: "transparent"
+                    readonly property real len: sidebar.player ? sidebar.player.length : 0
+                    Text {
+                        anchors { left: parent.left; bottom: parent.bottom }
+                        text: Math.floor(np.shown / 60) + ":" + String(Math.floor(np.shown % 60)).padStart(2, "0")
+                        color: Theme.faint
+                        font.family: Theme.mono
+                        font.pixelSize: 9 * Theme.fontScale
                     }
-                    Timer {
-                        interval: 80
-                        running: outLevel.enabled
-                        repeat: true
-                        onTriggered: meter.history = meter.history.slice(1).concat([Math.min(1, outLevel.peak * 1.5)])
+                    Text {
+                        anchors { right: parent.right; bottom: parent.bottom }
+                        text: Math.floor(parent.len / 60) + ":" + String(Math.floor(parent.len % 60)).padStart(2, "0")
+                        color: Theme.faint
+                        font.family: Theme.mono
+                        font.pixelSize: 9 * Theme.fontScale
                     }
-                    Repeater {
-                        model: meter.history
-                        Rectangle {
-                            required property real modelData
-                            width: 4
-                            height: Math.max(2, modelData * meter.height)
-                            anchors.bottom: parent ? parent.bottom : undefined
-                            radius: 2
-                            color: Theme.alpha(Theme.accent, 0.4 + modelData * 0.6)
-                        }
+                    Rectangle {
+                        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
+                        height: 3
+                        radius: 1.5
+                        color: Theme.hover
+                    }
+                    Rectangle {
+                        width: Math.max(3, parent.width * Math.min(1, parent.len > 0 ? np.shown / parent.len : 0))
+                        anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                        height: 3
+                        radius: 1.5
+                        color: Theme.accent
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: me => sidebar.player.position = sidebar.player.length * (me.x / parent.width)
                     }
                 }
                 Row {
                     spacing: 4
+                    // the output level over the last second and a half
+                    Row {
+                        id: meter
+                        spacing: 2
+                        height: 14
+                        property var history: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                        PwNodePeakMonitor {
+                            id: outLevel
+                            node: Audio.sink
+                            enabled: sidebar.visible && sidebar.player !== null && sidebar.player.isPlaying
+                        }
+                        Timer {
+                            interval: 80
+                            running: outLevel.enabled
+                            repeat: true
+                            onTriggered: meter.history = meter.history.slice(1).concat([Math.min(1, outLevel.peak * 1.5)])
+                        }
+                        Repeater {
+                            model: meter.history
+                            Rectangle {
+                                required property real modelData
+                                width: 4
+                                height: Math.max(2, modelData * meter.height)
+                                anchors.bottom: parent ? parent.bottom : undefined
+                                radius: 2
+                                color: Theme.alpha(Theme.accent, 0.4 + modelData * 0.6)
+                            }
+                        }
+                    }
                     IconButton { icon: "media-skip-backward"; size: 28; onClicked: sidebar.player.previous() }
                     IconButton { icon: sidebar.player && sidebar.player.isPlaying ? "media-playback-pause" : "media-playback-start"; size: 28; on: true; onClicked: sidebar.player.togglePlaying() }
                     IconButton { icon: "media-skip-forward"; size: 28; onClicked: sidebar.player.next() }
