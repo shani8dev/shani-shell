@@ -37,7 +37,7 @@ Singleton {
                     Bridge.send({ op: "release-sleep" });
             }
             else if (m.type === "logind" && m.op === "unlock")
-                root.locked = false;
+                root.unlocked();
         }
     }
 }

@@ -1,6 +1,7 @@
 // Layout Switcher (inspired by Manjaro reference): choose desktop layout styles
 // each with a preview card; Apply reloads the desktop configuration.
 import Quickshell
+import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
@@ -42,7 +43,7 @@ PanelWindow {
             RowLayout {
                 Layout.alignment: Qt.AlignHCenter
                 spacing: 8
-                Button { text: Tr.t("Layout"); active: true; onClicked: {} }
+                Button { text: Tr.t("Layout"); onClicked: {} }
                 Button { text: Tr.t("Settings"); onClicked: { Ui.layoutSwitcher = false; Ui.openSettings("look"); } }
             }
 

@@ -82,7 +82,7 @@ Glass {
         x: 0
         y: 14
         width: 3
-        height: parent.height - 28
+        height: Math.max(0, parent.height - 28)
         radius: 2
         color: Theme.red
     }

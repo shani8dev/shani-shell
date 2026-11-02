@@ -78,7 +78,10 @@ PanelWindow {
             if (move) {
                 Niri.action(move);
             } else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter || e.key === Qt.Key_Escape) {
-                Niri.action("close-overview");
+                if (e.key === Qt.Key_Escape)
+                    Niri.action("close-overview");
+                else
+                    win.search(win.typed);
             } else if (e.text && (e.text.trim() !== "" || win.typed !== "") && !(e.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))) {
                 win.typed += e.text;
                 handOver.restart();
@@ -89,4 +92,5 @@ PanelWindow {
         }
     }
     Connections { target: win; function onVisibleChanged() { if (win.visible) keys.forceActiveFocus(); } }
+    Connections { target: Ui; function onLauncherChanged() { if (Ui.launcher && Niri.overviewOpen) Niri.action("close-overview"); } }
 }
