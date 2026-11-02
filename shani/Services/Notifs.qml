@@ -14,17 +14,21 @@ Singleton {
 
     readonly property var list: server.trackedNotifications.values.slice().reverse()
     readonly property int count: list.length
+    property var _perApp: ({})
     // unread per app, for the dock's badges (Android's notification dots): what is
     // still in the list, keyed by the desktop entry the app named and by its name
-    readonly property var perApp: {
+    readonly property var perApp: _perApp
+    function _rebuildPerApp() {
         const out = {};
         for (const n of list) {
             const keys = new Set([(n.desktopEntry || "").toLowerCase(), (n.appName || "").toLowerCase()]);
             for (const k of keys)
                 if (k) out[k] = (out[k] || 0) + 1;
         }
-        return out;
+        _perApp = out;
     }
+    onListChanged: _rebuildPerApp()
+    Component.onCompleted: _rebuildPerApp()
     function countFor(entry, id) {
         const keys = [id, entry && entry.id, entry && entry.name, entry && entry.startupClass].filter(Boolean).map(k => k.toLowerCase());
         for (const k of keys)
