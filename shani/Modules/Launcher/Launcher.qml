@@ -247,7 +247,7 @@ PanelWindow {
         }
         if (q.startsWith("?")) {
             const t = q.slice(1).trim();
-            return [{ title: Tr.t("Chronoa"), items: [{ kind: "ask", icon: "chat-message-new", title: t ? "Ask Chronoa: " + t : "Ask Chronoa…", subtitle: Tr.t("Enter"), run: () => t && Chronoa.ask(t) }] }];
+            return [{ title: Tr.t("Chronoa"), items: [{ kind: "ask", icon: "chat-message-new", title: t ? "Ask Chronoa: " + t : "Ask Chronoa…", subtitle: Settings.data.launcherHideNavLabels ? "" : Tr.t("Enter"), run: () => t && Chronoa.ask(t) }] }];
         }
         if (q.startsWith(">")) {
             const cmd = q.slice(1).trim();
@@ -370,7 +370,7 @@ PanelWindow {
         anchors.fill: parent
         // dense enough to read without blur (blur off, or a compositor without it)
         color: Theme.alpha(Theme.bg, Settings.data.blur ? 0.78 : 0.94)
-        MouseArea { anchors.fill: parent; onClicked: Ui.closeAll(); onPositionChanged: win.hoverArmed = true }
+        MouseArea { anchors.fill: parent; onClicked: Ui.closeAll(); hoverEnabled: !Settings.data.launcherIgnoreMouse; onPositionChanged: if (!Settings.data.launcherIgnoreMouse) win.hoverArmed = true }
     }
 
     // opens with a short fade and rise (instant with reduce motion)

@@ -245,6 +245,9 @@ Singleton {
             property bool searchProviders: true       // apps' own results
             property bool searchCalc: true            // sums, units, currency
             property list<string> searchFolders: ["~"]
+            // launcher interaction and display options (borrow from Noctalia)
+            property bool launcherIgnoreMouse: false     // ignore pointer hover/input in launcher
+            property bool launcherHideNavLabels: false   // hide navigation label hints
             property string webSearch: "duckduckgo"   // duckduckgo | google | startpage | bing | ecosia
             property int volumeStep: 5                // per key press, in %
             property bool barDate: true
