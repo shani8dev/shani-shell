@@ -69,7 +69,8 @@ Glass {
         onClicked: {
             const def = root.notification.actions.find(a => a.identifier === "default");
             if (def)
-                def.invoke();
+                def.invoke({ notificationId: root.notification ? root.notification.id : null,
+                             appName: root.notification ? (root.notification.appName || "") : "" });
             if (root.popup)
                 root.done();
         }
@@ -245,7 +246,7 @@ Glass {
                 anchors.fill: parent
                 spacing: 2
                 Repeater {
-                    model: root.actions.map(a => ({ text: a.text, run: () => a.invoke() }))
+                    model: root.actions.map(a => ({ text: a.text, run: () => a.invoke({ notificationId: root.notification ? root.notification.id : null, appName: root.notification ? (root.notification.appName || "") : "" }) }))
                         .concat(!root.more ? []
                         : (root.critical ? [] : [{ text: Tr.t("Snooze"), run: () => Notifs.snooze(root.notification, 60) }])
                         .concat([{ text: Tr.t("Ask Chronoa"), run: () => {

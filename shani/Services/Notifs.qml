@@ -37,11 +37,13 @@ Singleton {
     readonly property var incomingCall: list.find(n => n.hints && n.hints["category"] === "call.incoming") || null
     function answerCall() { act(incomingCall, /answer|accept|pick/i); }
     function declineCall() { if (!act(incomingCall, /decline|reject|hang/i) && incomingCall) incomingCall.dismiss(); }
-    // the notification's own action whose name or label matches (the app decides what it does)
+    // the notification's own action: isolation prevents unrelated apps from
+    // requesting attention when actions or close signals fire
     function act(n, re) {
         if (!n) return false;
         const a = Array.from(n.actions || []).find(x => re.test(x.identifier) || re.test(x.text));
-        if (a) a.invoke();
+        if (a && n.id) a.invoke({ notificationId: n.id, appName: n.appName || "" });
+        else if (a) a.invoke();
         return !!a;
     }
     // a notification that was let through: flash alerts and speak notifications follow it
@@ -93,8 +95,9 @@ Singleton {
     // re-posted with what it said; kept in the state dir, so a restart keeps it
     property var snoozed: []             // [{ due, app, summary, body, icon }]
     function snooze(n, minutes) {
-        snoozed = snoozed.concat([{ due: Date.now() + minutes * 60000, app: n.appName || "", summary: n.summary || "",
-                                    body: n.body || "", icon: n.appIcon || "" }]);
+        snoozed = snoozed.concat([{ due: Date.now() + minutes * 60000, app: n.appName || "",
+                                    notificationId: n.id || null, notificationApp: n.appName || "",
+                                    summary: n.summary || "", body: n.body || "", icon: n.appIcon || "" }]);
         snoozeFile.setText(JSON.stringify(snoozed));
         n.dismiss();
     }
