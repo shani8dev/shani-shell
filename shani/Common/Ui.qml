@@ -92,10 +92,14 @@ Singleton {
         askRequested();
     }
     function toggleRing() {
-    function toggleLayoutSwitcher() { Ui.layoutSwitcher = !Ui.layoutSwitcher; }
         const was = ring;
         closeAll();
         ring = !was;
+    }
+    function toggleLayoutSwitcher() {
+        const was = layoutSwitcher;
+        closeAll();
+        layoutSwitcher = !was;
     }
     function toggleControlCenter(section) {
         const was = controlCenter && (section === undefined || expanded === section);

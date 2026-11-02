@@ -15,7 +15,56 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "shani-layout-switcher"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+
+    property string currentPreset: Settings.data.layoutPreset || "manjaro"
+
+    Keys.onPressed: event => {
+        if (event.key === Qt.Key_Escape) {
+            Ui.layoutSwitcher = false;
+            event.accepted = true;
+        }
+    }
+
+    function applyPreset(preset) {
+        const p = preset || currentPreset || "manjaro";
+        currentPreset = p;
+        Settings.data.layoutPreset = p;
+        // Desktop widgets per preset
+        if (p === "manjaro") {
+            Settings.data.desktopWidgets = ["clock", "media", "weather", "stats"];
+        } else if (p === "traditional") {
+            Settings.data.desktopWidgets = ["clock", "media"];
+        } else if (p === "unity") {
+            Settings.data.desktopWidgets = ["clock"];
+        } else if (p === "modern") {
+            Settings.data.desktopWidgets = ["clock", "weather"];
+        } else if (p === "gnome") {
+            Settings.data.desktopWidgets = ["clock"];
+        } else if (p === "tiling") {
+            Settings.data.desktopWidgets = [];
+        } else {
+            Settings.data.desktopWidgets = ["clock"];
+        }
+        // Dock/panel per preset
+        Settings.data.dock = p !== "tiling";
+        Settings.data.dockAutoHide = p === "tiling" || p === "unity";
+    }
+
+    Rectangle {
+        id: overlay
+        anchors.fill: parent
+        color: "black"
+        opacity: root.visible ? 0.4 : 0
+
+        Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: Ui.layoutSwitcher = false
+            enabled: root.visible
+        }
+    }
 
     Glass {
         id: card
@@ -24,6 +73,17 @@ PanelWindow {
         height: Math.min(parent.height - 80, 520)
         radius: Theme.radiusLarge
         strong: true
+        opacity: root.visible ? 1 : 0
+        scale: root.visible ? 1 : 0.95
+
+        Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+        Behavior on scale { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: {} // prevent closing when clicking card
+            propagateComposedEvents: false
+        }
 
         ColumnLayout {
             anchors.fill: parent
@@ -31,7 +91,7 @@ PanelWindow {
             spacing: 12
 
             Text {
-                text: "Layout Switcher"
+                text: Tr.t("Layout Switcher")
                 font.family: Theme.font
                 font.pixelSize: 18 * Theme.fontScale
                 font.weight: Font.Bold
@@ -42,32 +102,39 @@ PanelWindow {
             RowLayout {
                 Layout.alignment: Qt.AlignHCenter
                 spacing: 8
-                Button { text: "Layout"; onClicked: {} }
-                Button { text: "Settings"; onClicked: { Ui.layoutSwitcher = false; Ui.openSettings("look"); } }
+                Button { text: Tr.t("Layout"); onClicked: {} }
+                Button { text: Tr.t("Settings"); onClicked: { Ui.layoutSwitcher = false; Ui.openSettings("look"); } }
             }
 
             GridLayout {
                 Layout.fillWidth: true
+                Layout.fillHeight: true
                 Layout.preferredHeight: 300
                 columns: 3
                 rowSpacing: 12
                 columnSpacing: 12
                 Repeater {
                     model: [
-                        { name: "Manjaro", desc: "Default desktop widgets and layout", preset: "manjaro" },
-                        { name: "Traditional", desc: "Classic workspace and dock layout", preset: "traditional" },
-                        { name: "Unity", desc: "Compact sidebar and launcher", preset: "unity" },
-                        { name: "Modern", desc: "Clean and minimal desktop", preset: "modern" },
-                        { name: "Gnome", desc: "Standard Gnome-style desktop", preset: "gnome" },
-                        { name: "Tiling", desc: "Window-tiled workspace", preset: "tiling" }
+                        { name: "Classic", desc: "Balanced layout with widgets and dock", preset: "manjaro" },
+                        { name: "Traditional", desc: "Workspace-focused with standard dock", preset: "traditional" },
+                        { name: "Compact", desc: "Minimal sidebar and launcher style", preset: "unity" },
+                        { name: "Modern", desc: "Clean, minimal desktop aesthetic", preset: "modern" },
+                        { name: "Flow", desc: "Streamlined workflow layout", preset: "gnome" },
+                        { name: "Tiling", desc: "Window-centric tiled workspace", preset: "tiling" }
                     ]
                     delegate: Rectangle {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 100
+                        Layout.fillHeight: true
                         radius: Theme.radius
-                        color: Theme.bg
-                        border.color: Theme.stroke
-                        border.width: 1
+                        color: root.currentPreset === modelData.preset ? Theme.accent : Theme.bg
+                        opacity: root.currentPreset === modelData.preset ? 0.15 : 1.0
+                        border.color: root.currentPreset === modelData.preset ? Theme.accent : Theme.stroke
+                        border.width: root.currentPreset === modelData.preset ? 2 : 1
+
+                        Behavior on color { ColorAnimation { duration: 150 } }
+                        Behavior on border.color { ColorAnimation { duration: 150 } }
+                        Behavior on border.width { NumberAnimation { duration: 150 } }
+
                         ColumnLayout {
                             anchors.fill: parent
                             anchors.margins: 10
@@ -85,18 +152,14 @@ PanelWindow {
                                 font.pixelSize: 9 * Theme.fontScale
                                 color: Theme.dim
                                 wrapMode: Text.Wrap
+                                Layout.fillWidth: true
                             }
                         }
                         MouseArea {
                             anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                Settings.data.desktopWidgets = modelData.preset === "manjaro"
-                                    ? ["clock", "media", "weather", "stats"]
-                                    : ["clock"];
-                                // Dock/panel changes per preset
-                                Settings.data.dock = modelData.preset !== "tiling";
-                                Settings.data.dockAutoHide = modelData.preset === "tiling" || modelData.preset === "unity";
-                                Ui.layoutSwitcher = false;
+                                root.applyPreset(modelData.preset);
                             }
                         }
                     }
@@ -107,11 +170,15 @@ PanelWindow {
                 Layout.alignment: Qt.AlignHCenter
                 spacing: 12
                 Button {
-                    text: "Reload Desktop"
+                    text: Tr.t("Reload Desktop")
+                    onClicked: { root.applyPreset(root.currentPreset); Ui.layoutSwitcher = false; }
+                }
+                Button {
+                    text: Tr.t("Apply")
                     onClicked: Ui.layoutSwitcher = false
                 }
                 Button {
-                    text: "Apply"
+                    text: Tr.t("Cancel")
                     onClicked: Ui.layoutSwitcher = false
                 }
             }
