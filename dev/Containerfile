@@ -52,3 +52,9 @@ RUN pacman -Sy --noconfirm --needed strace && pacman -Scc --noconfirm
 RUN pacman -Sy --noconfirm --needed cups && pacman -Scc --noconfirm && printf "FileDevice Yes\n" >> /etc/cups/cups-files.conf
 # the sound chain's compressor (swh-plugins SC4) - Settings > Sound
 RUN pacman -Sy --noconfirm --needed swh-plugins && pacman -Scc --noconfirm
+# input emulation (drive the shell with real clicks/keys): ydotool injects
+# through uinput, which the container only gets with --device /dev/uinput —
+# session.sh then starts ydotoold (client+daemon both default to /tmp/.ydotool_socket).
+# wlrctl does similar jobs but is AUR-only: it has zero entries in the official
+# Arch repos, so wtype (Wayland virtual keyboard) stays the text-injection path.
+RUN pacman -Sy --noconfirm --needed ydotool && pacman -Scc --noconfirm

@@ -40,7 +40,9 @@ install -Dm644 /work/data/pam.d/shani-lock /etc/pam.d/shani-lock
 mkdir -p "$XDG_RUNTIME_DIR" /work/logs /root/Videos && chmod 700 "$XDG_RUNTIME_DIR"
 L=/work/logs
 
-weston --backend=headless-backend.so --shell=kiosk-shell.so --width=1920 --height=1080 \
+# a taller headless screen for one run: SHANI_SCREEN=1400 makes the render 1920x1400
+# (verification of surfaces that sit lower in the sidebar than one screen otherwise shows)
+weston --backend=headless-backend.so --shell=kiosk-shell.so --width=1920 --height="${SHANI_SCREEN:-1080}" \
     --socket=wayland-parent --idle-time=0 --no-config >$L/weston.log 2>&1 &
 sleep 1.5
 DBUS_SESSION_BUS_ADDRESS=$(dbus-daemon --session --fork --print-address=1 | head -1)
@@ -59,6 +61,15 @@ NetworkManager --no-daemon >$L/nm.log 2>&1 &
 command -v cupsd >/dev/null && { mkdir -p /run/cups; cupsd -f >$L/cupsd.log 2>&1 & for i in 1 2 3 4 5 6 7 8 9 10; do [ -S /run/cups/cups.sock ] && break; sleep 0.3; done
     lpadmin -p Office_Laser -E -v file:///tmp/printed.out 2>>$L/cupsd.log; }
 sleep 1
+
+# input emulation for interactive verification (real clicks and keys):
+# ydotoold opens /dev/uinput, which the container only gets when run with
+# --device /dev/uinput — without it the daemon just fails to start. Client and
+# daemon agree on the socket's default: /tmp/.ydotool_socket.
+if [ -c /dev/uinput ] && command -v ydotoold >/dev/null 2>&1; then
+    ydotoold >$L/ydotoold.log 2>&1 &
+    sleep 0.3
+fi
 
 pipewire >$L/pipewire.log 2>&1 &
 sleep 0.5
@@ -88,7 +99,7 @@ mkdir -p /usr/share/backgrounds/shani && cp /work/assets/shani-dark.jpg /work/as
 # idle off from the start (the tests drive the shell over IPC, which is not input).
 # More for this run: SHANI_SETTINGS_EXTRA, JSON merged over it (python3, when here).
 printf '{"dimAfter": 0, "lockAfter": 0, "screenOffAfter": 0, "lockAfterBattery": 0, "screenOffAfterBattery": 0}' > "$SHANI_SHELL_SETTINGS"
-if [ -n "$SHANI_SETTINGS_EXTRA" ] && command -v python3 >/dev/null 2>&1; then
+if [ -n "${SHANI_SETTINGS_EXTRA:-}" ] && command -v python3 >/dev/null 2>&1; then
     python3 -c 'import json, sys; d = json.loads(sys.argv[1]); d.update(json.loads(sys.argv[2])); print(json.dumps(d))' \
         "$(cat "$SHANI_SHELL_SETTINGS")" "$SHANI_SETTINGS_EXTRA" > "$SHANI_SHELL_SETTINGS"
 fi

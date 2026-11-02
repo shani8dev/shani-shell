@@ -4,6 +4,9 @@
 #   name:     output filename prefix
 #   ipc-cmd:  IPC call to activate the surface (optional, e.g. "settingsCategory users")
 #   delay:    seconds to wait after IPC before capture (default 1.5)
+# env PRERUN: command run after the session is up and before the surface is
+#   activated, for state that must exist first (e.g. a fake Mpris player:
+#   'python3 /work/dev/fake-mpris.py "Title" "Artist" /tmp/cover.png &')
 set -eu
 
 OUTDIR="${1:-/renders}"
@@ -20,6 +23,12 @@ st() { timeout 5 qs -p /work/shani ipc call shani state 2>/dev/null; }
 i=0
 until st >/dev/null 2>&1; do sleep 0.5; i=$((i+1)); [ $i -ge 60 ] && { echo "shell never loaded"; exit 1; }; done
 echo "shell loaded"
+
+# state that must be present before the surface is activated (PRERUN)
+if [ -n "${PRERUN:-}" ]; then
+    eval "$PRERUN"
+    sleep 1.5
+fi
 
 # close everything first
 eval "qs -p /work/shani ipc call shani closeAll" >/dev/null 2>&1
