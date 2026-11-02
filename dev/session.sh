@@ -29,6 +29,25 @@ export SHANI_SCRCPY=/work/dev/fake-scrcpy.sh SHANI_ADB=/work/dev/fake-adb.sh SHA
 # a keyboard's Caps Lock and Num Lock lights, where the kernel keeps them
 export SHANI_LEDS_DIR=/tmp/fake-leds
 for k in capslock numlock; do mkdir -p "/tmp/fake-leds/input3::$k"; echo 0 > "/tmp/fake-leds/input3::$k/brightness"; done
+# a writable backlight device for the container (its real intel_backlight is
+# read-only in this environment); the QML uses brightnessctl -m -l output
+mkdir -p /tmp/fake-backlight/sys/class/backlight/shani-fake /tmp/fake-backlight/bin
+echo 100 > /tmp/fake-backlight/sys/class/backlight/shani-fake/max_brightness
+echo 50 > /tmp/fake-backlight/sys/class/backlight/shani-fake/brightness
+chmod -R a+w /tmp/fake-backlight/sys/class/backlight
+cat > /tmp/fake-backlight/bin/brightnessctl << 'SHIM'
+#!/bin/sh
+if [ "$1" = "-m" ] && [ "$2" = "-l" ]; then
+    echo "shani-fake,backlight,$(cat /tmp/fake-backlight/sys/class/backlight/shani-fake/brightness 2>/dev/null || echo 50),$(cat /tmp/fake-backlight/sys/class/backlight/shani-fake/brightness 2>/dev/null || echo 50)%,100"
+    exit 0
+fi
+DEVICE=""; SET_CMD=""; VAL=""
+while [ $# -gt 0 ]; do case "$1" in -q) shift;; -d) DEVICE="$2"; shift 2;; set) SET_CMD="$1"; shift;; *) if echo "$1" | grep -qE '^[0-9]+%$'; then VAL="$1"; fi; shift;; esac; done
+if [ -n "$DEVICE" ] && [ -n "$SET_CMD" ] && [ -n "$VAL" ]; then PCT=$(echo "$VAL" | tr -d '%'); echo "$PCT" > /tmp/fake-backlight/sys/class/backlight/$DEVICE/brightness 2>/dev/null || echo "$PCT" > /tmp/fake-backlight/sys/class/backlight/shani-fake/brightness; fi
+exit 0
+SHIM
+chmod +x /tmp/fake-backlight/bin/brightnessctl
+export PATH=/tmp/fake-backlight/bin:$PATH
 # an ambient light sensor the suite can drive (the container's hardware has none)
 export SHANI_LUX_FILE=/tmp/fake-lux
 echo 300 > "$SHANI_LUX_FILE"
