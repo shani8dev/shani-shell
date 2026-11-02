@@ -17,7 +17,7 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
-    property string currentPreset: Settings.data.layoutPreset || "manjaro"
+    property string currentPreset: Settings.data.layoutPreset || "windows"
 
     Keys.onPressed: event => {
         if (event.key === Qt.Key_Escape) {
@@ -27,28 +27,53 @@ PanelWindow {
     }
 
     function applyPreset(preset) {
-        const p = preset || currentPreset || "manjaro";
+        const p = preset || currentPreset || "windows";
         currentPreset = p;
         Settings.data.layoutPreset = p;
-        // Desktop widgets per preset
-        if (p === "manjaro") {
+        // Desktop widgets per preset (generic, like Deepin)
+        if (p === "windows" || p === "windows11" || p === "classic") {
             Settings.data.desktopWidgets = ["clock", "media", "weather", "stats"];
-        } else if (p === "traditional") {
+        } else if (p === "macos" || p === "macos-like") {
             Settings.data.desktopWidgets = ["clock", "media"];
-        } else if (p === "unity") {
+        } else if (p === "unity" || p === "ubuntu") {
             Settings.data.desktopWidgets = ["clock"];
-        } else if (p === "modern") {
-            Settings.data.desktopWidgets = ["clock", "weather"];
         } else if (p === "gnome") {
             Settings.data.desktopWidgets = ["clock"];
-        } else if (p === "tiling") {
+        } else if (p === "elementary" || p === "pantheon") {
+            Settings.data.desktopWidgets = ["clock", "media"];
+        } else if (p === "chromeos" || p === "chromebook") {
+            Settings.data.desktopWidgets = ["clock"];
+        } else if (p === "tiling" || p === "i3" || p === "dwm") {
             Settings.data.desktopWidgets = [];
         } else {
             Settings.data.desktopWidgets = ["clock"];
         }
-        // Dock/panel per preset
-        Settings.data.dock = p !== "tiling";
-        Settings.data.dockAutoHide = p === "tiling" || p === "unity";
+        // Dock/panel per preset (Deepin-style)
+        if (p === "tiling" || p === "i3" || p === "dwm") {
+            Settings.data.dock = false;
+            Settings.data.dockAutoHide = true;
+        } else if (p === "unity" || p === "ubuntu") {
+            Settings.data.dock = true;
+            Settings.data.dockAutoHide = true;
+        } else if (p === "chromeos" || p === "chromebook") {
+            Settings.data.dock = true;
+            Settings.data.dockAutoHide = false;
+        } else if (p === "macos" || p === "macos-like") {
+            Settings.data.dock = true;
+            Settings.data.dockAutoHide = false;
+        } else if (p === "gnome") {
+            Settings.data.dock = true;
+            Settings.data.dockAutoHide = true;
+        } else if (p === "elementary" || p === "pantheon") {
+            Settings.data.dock = true;
+            Settings.data.dockAutoHide = false;
+        } else if (p === "windows" || p === "windows11" || p === "classic") {
+            Settings.data.dock = true;
+            Settings.data.dockAutoHide = false;
+        } else {
+            Settings.data.dock = true;
+            Settings.data.dockAutoHide = false;
+        }
     }
 
     Rectangle {
@@ -115,12 +140,15 @@ PanelWindow {
                 columnSpacing: 12
                 Repeater {
                     model: [
-                        { name: "Classic", desc: "Balanced layout with widgets and dock", preset: "manjaro" },
-                        { name: "Traditional", desc: "Workspace-focused with standard dock", preset: "traditional" },
-                        { name: "Compact", desc: "Minimal sidebar and launcher style", preset: "unity" },
-                        { name: "Modern", desc: "Clean, minimal desktop aesthetic", preset: "modern" },
-                        { name: "Flow", desc: "Streamlined workflow layout", preset: "gnome" },
-                        { name: "Tiling", desc: "Window-centric tiled workspace", preset: "tiling" }
+                        { name: "Windows 11", desc: "Taskbar with Start menu style", preset: "windows" },
+                        { name: "macOS", desc: "Dock at bottom, clean layout", preset: "macos" },
+                        { name: "Ubuntu", desc: "Dock on left with launcher", preset: "ubuntu" },
+                        { name: "Unity", desc: "Unity-style launcher and dock", preset: "unity" },
+                        { name: "GNOME", desc: "Top bar focused, minimal dock", preset: "gnome" },
+                        { name: "Elementary", desc: "Simple and elegant layout", preset: "elementary" },
+                        { name: "ChromeOS", desc: "Shelf at bottom, app launcher", preset: "chromeos" },
+                        { name: "Tiling", desc: "Window tiling, no dock", preset: "tiling" },
+                        { name: "Classic", desc: "Balanced traditional layout", preset: "classic" }
                     ]
                     delegate: Rectangle {
                         Layout.fillWidth: true
