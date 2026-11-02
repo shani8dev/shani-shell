@@ -17,7 +17,7 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
-    property string currentPreset: Settings.data.layoutPreset || "windows"
+    property string currentPreset: Settings.data.layoutPreset || "default"
 
     Keys.onPressed: event => {
         if (event.key === Qt.Key_Escape) {
@@ -27,9 +27,16 @@ PanelWindow {
     }
 
     function applyPreset(preset) {
-        const p = preset || currentPreset || "windows";
+        const p = preset || currentPreset || "default";
         currentPreset = p;
         Settings.data.layoutPreset = p;
+        if (p === "default") {
+            // Restore default mixed layout (bar + dock, like current)
+            Settings.data.desktopWidgets = ["clock"];
+            Settings.data.dock = true;
+            Settings.data.dockAutoHide = false;
+            return;
+        }
         // Desktop widgets per preset (generic, like Deepin)
         if (p === "windows" || p === "windows11" || p === "classic") {
             Settings.data.desktopWidgets = ["clock", "media", "weather", "stats"];
@@ -140,15 +147,15 @@ PanelWindow {
                 columnSpacing: 12
                 Repeater {
                     model: [
+                        { name: "Default", desc: "Current mixed layout (bar + dock)", preset: "default" },
                         { name: "Windows 11", desc: "Taskbar with Start menu style", preset: "windows" },
                         { name: "macOS", desc: "Dock at bottom, clean layout", preset: "macos" },
-                        { name: "Ubuntu", desc: "Dock on left with launcher", preset: "ubuntu" },
-                        { name: "Unity", desc: "Unity-style launcher and dock", preset: "unity" },
-                        { name: "GNOME", desc: "Top bar focused, minimal dock", preset: "gnome" },
-                        { name: "Elementary", desc: "Simple and elegant layout", preset: "elementary" },
-                        { name: "ChromeOS", desc: "Shelf at bottom, app launcher", preset: "chromeos" },
-                        { name: "Tiling", desc: "Window tiling, no dock", preset: "tiling" },
-                        { name: "Classic", desc: "Balanced traditional layout", preset: "classic" }
+                        { name: "Ubuntu", desc: "Ubuntu-style with dock", preset: "ubuntu" },
+                        { name: "Unity", desc: "Unity launcher and dock", preset: "unity" },
+                        { name: "GNOME", desc: "Minimal dock, top bar focused", preset: "gnome" },
+                        { name: "Elementary", desc: "Clean elegant layout", preset: "elementary" },
+                        { name: "ChromeOS", desc: "Shelf at bottom", preset: "chromeos" },
+                        { name: "Tiling", desc: "Window tiling, no dock", preset: "tiling" }
                     ]
                     delegate: Rectangle {
                         Layout.fillWidth: true
