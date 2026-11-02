@@ -36,6 +36,10 @@ PanelWindow {
     Region { id: fullRegion; item: backdrop }
 
     property int sel: 0
+    // hover only steers the selection once the pointer really moves: on open,
+    // a resting cursor would otherwise steal it from the top result, so Enter
+    // launched whatever happened to be under the pointer
+    property bool hoverArmed: false
     property string category: "All"
     readonly property string q: search.text
     property var usage: ({})              // desktop id -> launches
@@ -363,7 +367,7 @@ PanelWindow {
         anchors.fill: parent
         // dense enough to read without blur (blur off, or a compositor without it)
         color: Theme.alpha(Theme.bg, Settings.data.blur ? 0.78 : 0.94)
-        MouseArea { anchors.fill: parent; onClicked: Ui.closeAll() }
+        MouseArea { anchors.fill: parent; onClicked: Ui.closeAll(); onPositionChanged: win.hoverArmed = true }
     }
 
     // opens with a short fade and rise (instant with reduce motion)
@@ -522,7 +526,7 @@ PanelWindow {
                                         Layout.fillWidth: true
                                         implicitHeight: 112
                                         radius: 18
-                                        color: isSel ? Theme.accentSoft : (tileArea.containsMouse ? Theme.hover : "transparent")
+                                        color: isSel ? Theme.accentSoft : (win.hoverArmed && tileArea.containsMouse ? Theme.hover : "transparent")
                                         border.width: isSel ? 1 : 0
                                         border.color: Theme.accentLine
                                         ColumnLayout {
@@ -548,7 +552,7 @@ PanelWindow {
                                             id: tileArea
                                             anchors.fill: parent
                                             hoverEnabled: true
-                                            onEntered: win.sel = section.base + tile.index
+                                            onEntered: if (win.hoverArmed) win.sel = section.base + tile.index
                                             onClicked: win.activate(section.base + tile.index, false)
                                         }
                                     }
@@ -566,7 +570,7 @@ PanelWindow {
                                     Layout.fillWidth: true
                                     implicitHeight: 48
                                     radius: 14
-                                    color: isSel ? Theme.accentSoft : (rowArea.containsMouse ? Theme.hover : "transparent")
+                                    color: isSel ? Theme.accentSoft : (win.hoverArmed && rowArea.containsMouse ? Theme.hover : "transparent")
                                     RowLayout {
                                         anchors.fill: parent
                                         anchors.leftMargin: 14
@@ -619,7 +623,7 @@ PanelWindow {
                                         id: rowArea
                                         anchors.fill: parent
                                         hoverEnabled: true
-                                        onEntered: win.sel = section.base + row.index
+                                        onEntered: if (win.hoverArmed) win.sel = section.base + row.index
                                         onClicked: win.activate(section.base + row.index, false)
                                     }
                                 }
