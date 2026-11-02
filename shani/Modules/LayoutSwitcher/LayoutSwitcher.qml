@@ -25,7 +25,19 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
-    property string currentPreset: Settings.data.layoutPreset || "default"
+    property string currentPreset: (Settings.loaded && Settings.data.layoutPreset) ? Settings.data.layoutPreset : "default"
+    property string previousPreset: (Settings.loaded && Settings.data.layoutPreset) ? Settings.data.layoutPreset : "default"
+    readonly property var presets: [
+        { name: Tr.t("Default"), desc: Tr.t("Current mixed layout (bar + dock)"), preset: "default" },
+        { name: Tr.t("Windows 11"), desc: Tr.t("Taskbar with Start menu style"), preset: "windows" },
+        { name: Tr.t("macOS"), desc: Tr.t("Dock at bottom, clean layout"), preset: "macos" },
+        { name: Tr.t("Ubuntu"), desc: Tr.t("Ubuntu-style with dock"), preset: "ubuntu" },
+        { name: Tr.t("Unity"), desc: Tr.t("Unity launcher and dock"), preset: "unity" },
+        { name: Tr.t("GNOME"), desc: Tr.t("Minimal dock, top bar focused"), preset: "gnome" },
+        { name: Tr.t("Elementary"), desc: Tr.t("Clean elegant layout"), preset: "elementary" },
+        { name: Tr.t("ChromeOS"), desc: Tr.t("Shelf at bottom"), preset: "chromeos" },
+        { name: Tr.t("Tiling"), desc: Tr.t("Window tiling, no dock"), preset: "tiling" }
+    ]
 
     Keys.onPressed: event => {
         if (event.key === Qt.Key_Escape) {
@@ -34,61 +46,62 @@ PanelWindow {
         }
     }
 
+    onVisibleChanged: {
+        if (visible && Settings.loaded) {
+            previousPreset = Settings.data.layoutPreset || "default";
+            currentPreset = previousPreset;
+        }
+    }
+
     function applyPreset(preset) {
         const p = preset || currentPreset || "default";
         currentPreset = p;
         Settings.data.layoutPreset = p;
         if (p === "default") {
-            // Restore default mixed layout (bar + dock, like current)
             Settings.data.desktopWidgets = ["clock"];
             Settings.data.dock = true;
             Settings.data.dockAutoHide = false;
             return;
         }
-        // Desktop widgets per preset (generic, like Deepin)
-        if (p === "windows" || p === "windows11" || p === "classic") {
-            Settings.data.desktopWidgets = ["clock", "media", "weather", "stats"];
-        } else if (p === "macos" || p === "macos-like") {
-            Settings.data.desktopWidgets = ["clock", "media"];
-        } else if (p === "unity" || p === "ubuntu") {
-            Settings.data.desktopWidgets = ["clock"];
-        } else if (p === "gnome") {
-            Settings.data.desktopWidgets = ["clock"];
-        } else if (p === "elementary" || p === "pantheon") {
-            Settings.data.desktopWidgets = ["clock", "media"];
-        } else if (p === "chromeos" || p === "chromebook") {
-            Settings.data.desktopWidgets = ["clock"];
-        } else if (p === "tiling" || p === "i3" || p === "dwm") {
-            Settings.data.desktopWidgets = [];
-        } else {
-            Settings.data.desktopWidgets = ["clock"];
-        }
-        // Dock/panel per preset (Deepin-style)
-        if (p === "tiling" || p === "i3" || p === "dwm") {
-            Settings.data.dock = false;
-            Settings.data.dockAutoHide = true;
-        } else if (p === "unity" || p === "ubuntu") {
-            Settings.data.dock = true;
-            Settings.data.dockAutoHide = true;
-        } else if (p === "chromeos" || p === "chromebook") {
-            Settings.data.dock = true;
-            Settings.data.dockAutoHide = false;
-        } else if (p === "macos" || p === "macos-like") {
-            Settings.data.dock = true;
-            Settings.data.dockAutoHide = false;
-        } else if (p === "gnome") {
-            Settings.data.dock = true;
-            Settings.data.dockAutoHide = true;
-        } else if (p === "elementary" || p === "pantheon") {
-            Settings.data.dock = true;
-            Settings.data.dockAutoHide = false;
-        } else if (p === "windows" || p === "windows11" || p === "classic") {
-            Settings.data.dock = true;
-            Settings.data.dockAutoHide = false;
-        } else {
-            Settings.data.dock = true;
-            Settings.data.dockAutoHide = false;
-        }
+        const widgets = {
+            "windows": ["clock", "media", "weather", "stats"],
+            "windows11": ["clock", "media", "weather", "stats"],
+            "classic": ["clock", "media", "weather", "stats"],
+            "macos": ["clock", "media"],
+            "macos-like": ["clock", "media"],
+            "ubuntu": ["clock"],
+            "unity": ["clock"],
+            "gnome": ["clock"],
+            "elementary": ["clock", "media"],
+            "pantheon": ["clock", "media"],
+            "chromeos": ["clock"],
+            "chromebook": ["clock"],
+            "tiling": [],
+            "i3": [],
+            "dwm": []
+        };
+        Settings.data.desktopWidgets = widgets[p] !== undefined ? widgets[p] : ["clock"];
+
+        const dockConfig = {
+            "tiling": {dock: false, autoHide: true},
+            "i3": {dock: false, autoHide: true},
+            "dwm": {dock: false, autoHide: true},
+            "unity": {dock: true, autoHide: true},
+            "ubuntu": {dock: true, autoHide: true},
+            "gnome": {dock: true, autoHide: true},
+            "chromeos": {dock: true, autoHide: false},
+            "chromebook": {dock: true, autoHide: false},
+            "macos": {dock: true, autoHide: false},
+            "macos-like": {dock: true, autoHide: false},
+            "elementary": {dock: true, autoHide: false},
+            "pantheon": {dock: true, autoHide: false},
+            "windows": {dock: true, autoHide: false},
+            "windows11": {dock: true, autoHide: false},
+            "classic": {dock: true, autoHide: false}
+        };
+        const cfg = dockConfig[p] || {dock: true, autoHide: false};
+        Settings.data.dock = cfg.dock;
+        Settings.data.dockAutoHide = cfg.autoHide;
     }
 
     Rectangle {
@@ -154,17 +167,7 @@ PanelWindow {
                 rowSpacing: 12
                 columnSpacing: 12
                 Repeater {
-                    model: [
-                        { name: "Default", desc: "Current mixed layout (bar + dock)", preset: "default" },
-                        { name: "Windows 11", desc: "Taskbar with Start menu style", preset: "windows" },
-                        { name: "macOS", desc: "Dock at bottom, clean layout", preset: "macos" },
-                        { name: "Ubuntu", desc: "Ubuntu-style with dock", preset: "ubuntu" },
-                        { name: "Unity", desc: "Unity launcher and dock", preset: "unity" },
-                        { name: "GNOME", desc: "Minimal dock, top bar focused", preset: "gnome" },
-                        { name: "Elementary", desc: "Clean elegant layout", preset: "elementary" },
-                        { name: "ChromeOS", desc: "Shelf at bottom", preset: "chromeos" },
-                        { name: "Tiling", desc: "Window tiling, no dock", preset: "tiling" }
-                    ]
+                    model: root.presets
                     delegate: Rectangle {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
@@ -222,7 +225,10 @@ PanelWindow {
                 }
                 Button {
                     text: Tr.t("Cancel")
-                    onClicked: Ui.layoutSwitcher = false
+                    onClicked: {
+                        root.applyPreset(root.previousPreset);
+                        Ui.layoutSwitcher = false;
+                    }
                 }
             }
         }
