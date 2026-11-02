@@ -43,6 +43,7 @@ import qs.Modules.Settings
 import qs.Modules.Touch
 import qs.Modules.Flash
 import qs.Modules.Pair
+import qs.Modules.LayoutSwitcher
 import qs.Modules.DisplayConfirm
 import qs.Modules.Tour
 import qs.Modules.QrView
@@ -66,6 +67,7 @@ ShellRoot {
     LensPanel {}
     LazyLoader { active: Ruler.phase !== "idle"; RulerPanel {} }    Ring {}
     Switcher {}
+    LayoutSwitcher {}
     Keyboard {}
     WindowMenu {}
     HotCorners {}

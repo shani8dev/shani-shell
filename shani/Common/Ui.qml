@@ -10,6 +10,7 @@ Singleton {
     property string launcherQuery: ""
     property bool controlCenter: false
     property bool ring: false
+    property bool layoutSwitcher: false
     property int ringDepth: 0           // how many rings deep (for `state`)
     signal askRequested()               // the Island opens its question field
     property bool switcher: false
@@ -91,6 +92,7 @@ Singleton {
         askRequested();
     }
     function toggleRing() {
+    function toggleLayoutSwitcher() { Ui.layoutSwitcher = !Ui.layoutSwitcher; }
         const was = ring;
         closeAll();
         ring = !was;
