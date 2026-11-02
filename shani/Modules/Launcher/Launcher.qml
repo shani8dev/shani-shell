@@ -259,7 +259,7 @@ PanelWindow {
             if (win.emojiPath === "")
                 Qt.callLater(() => win.emojiPath = "/usr/share/unicode/emoji/emoji-test.txt");
             return [{ title: Tr.t("Emoji"), items: win.emoji.filter(x => f === "" || x.name.indexOf(f) >= 0).slice(0, 40)
-                .map(x => ({ kind: "emoji", icon: "face-smile-big", title: x.e + "  " + x.name, subtitle: Tr.t("Enter copies"), run: () => Quickshell.clipboardText = x.e })) }];
+                .map(x => ({ kind: "emoji", glyph: x.e, icon: "face-smile-big", title: x.name, subtitle: Tr.t("Enter copies"), run: () => Quickshell.clipboardText = x.e })) }];
         }
         if (q === "c" || q.startsWith("c ")) {
             const f = q.slice(1).trim().toLowerCase();
@@ -599,8 +599,17 @@ PanelWindow {
                                                 cache: false
                                             }
                                         }
+                                        Text {
+                                            visible: row.modelData.kind === "emoji"
+                                            Layout.preferredWidth: 28
+                                            horizontalAlignment: Text.AlignHCenter
+                                            text: row.modelData.glyph || ""
+                                            color: Theme.text
+                                            font.family: Theme.font
+                                            font.pixelSize: 26 * Theme.fontScale
+                                        }
                                         Icon {
-                                            visible: !row.modelData.app && !row.modelData.thumb
+                                            visible: !row.modelData.app && !row.modelData.thumb && row.modelData.kind !== "emoji"
                                             name: row.modelData.icon || ""
                                             size: 20
                                             color: row.modelData.kind === "ask" ? Theme.accent : Theme.text
