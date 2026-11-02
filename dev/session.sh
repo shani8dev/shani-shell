@@ -85,8 +85,13 @@ export NIRI_SOCKET=$(ls "$XDG_RUNTIME_DIR"/niri.wayland-1.*.sock | head -1)
 sleep 0.5
 # the wallpapers where the package installs them
 mkdir -p /usr/share/backgrounds/shani && cp /work/assets/shani-dark.jpg /work/assets/shani-light.jpg /usr/share/backgrounds/shani/
-# idle off from the start (the tests drive the shell over IPC, which is not input)
+# idle off from the start (the tests drive the shell over IPC, which is not input).
+# More for this run: SHANI_SETTINGS_EXTRA, JSON merged over it (python3, when here).
 printf '{"dimAfter": 0, "lockAfter": 0, "screenOffAfter": 0, "lockAfterBattery": 0, "screenOffAfterBattery": 0}' > "$SHANI_SHELL_SETTINGS"
+if [ -n "$SHANI_SETTINGS_EXTRA" ] && command -v python3 >/dev/null 2>&1; then
+    python3 -c 'import json, sys; d = json.loads(sys.argv[1]); d.update(json.loads(sys.argv[2])); print(json.dumps(d))' \
+        "$(cat "$SHANI_SHELL_SETTINGS")" "$SHANI_SETTINGS_EXTRA" > "$SHANI_SHELL_SETTINGS"
+fi
 # the tests keep Adwaita (fixed icons to compare); the showcase passes the image's own
 export QS_ICON_THEME=${QS_ICON_THEME:-Adwaita} QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1
 qs -p /work/shani >$L/qs.log 2>&1 &

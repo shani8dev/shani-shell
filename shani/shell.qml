@@ -52,6 +52,7 @@ import qs.Modules.Overview
 
 ShellRoot {
     Wallpaper {}
+    DesktopWidgets {}
     Bar {}
     Island {}
     Variants { model: Quickshell.screens; Dock {} }

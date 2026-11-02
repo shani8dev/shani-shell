@@ -227,6 +227,22 @@ ColumnLayout {
                     }
                 }
 
+                SectionTitle { Layout.fillWidth: true; text: Tr.t("On the desktop") }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("Clock"); hint: Tr.t("time, date and the next event"); checked: Array.from(page.d.desktopWidgets).indexOf("clock") >= 0
+                    onToggled: on => { const rest = Array.from(page.d.desktopWidgets).filter(w => w !== "clock"); page.d.desktopWidgets = on ? rest.concat(["clock"]) : rest }
+                }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("Now playing"); hint: Tr.t("art, title and a seek bar while something plays"); checked: Array.from(page.d.desktopWidgets).indexOf("media") >= 0
+                    onToggled: on => { const rest = Array.from(page.d.desktopWidgets).filter(w => w !== "media"); page.d.desktopWidgets = on ? rest.concat(["media"]) : rest }
+                }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("Weather"); hint: Tr.t("needs a city set just below"); checked: Array.from(page.d.desktopWidgets).indexOf("weather") >= 0
+                    onToggled: on => { const rest = Array.from(page.d.desktopWidgets).filter(w => w !== "weather"); page.d.desktopWidgets = on ? rest.concat(["weather"]) : rest }
+                }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("System monitor"); hint: Tr.t("cpu and memory levels, the network's throughput"); checked: Array.from(page.d.desktopWidgets).indexOf("stats") >= 0
+                    onToggled: on => { const rest = Array.from(page.d.desktopWidgets).filter(w => w !== "stats"); page.d.desktopWidgets = on ? rest.concat(["stats"]) : rest }
+                }
+                Text { text: Tr.t("Drag a card to move it; it is remembered. Click it to open the thing it talks about."); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                Button { text: Tr.t("Reset widget positions"); onClicked: page.d.deskPos = {} }
+
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("Look & feel") }
                 // the accent: one of GNOME's nine (apps follow it too), or the wallpaper's
                 Text { text: Tr.t("Accent colour"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }

@@ -232,6 +232,10 @@ Singleton {
             property bool islandActivities: true       // timers, music, recordings in the Island
             property string slideshowDir: ""           // "" = no slideshow
             property int slideshowMinutes: 30
+            // desktop widgets (Background/DesktopWidgets): which cards float on the
+            // wallpaper — clock, media, weather, stats — and where each was dragged
+            property list<string> desktopWidgets: ["clock"]
+            property var deskPos: ({})
             property bool overAmplify: false          // volume up to 150 %
             property int audioBalance: 0               // left/right, −100 … 100 (Audio)
             property bool reduceTransparency: false    // the chrome opaque (Accessibility)
