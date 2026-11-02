@@ -45,6 +45,13 @@ Variants {
         Glass {
             id: glass
             anchors.fill: parent
+            // click-through unused bar space (borrow from Noctalia)
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: false
+                enabled: Settings.data.barClickThrough
+                // no onClicked: events propagate through when enabled
+            }
 
             // ---- left -----------------------------------------------------
             RowLayout {
@@ -298,8 +305,8 @@ Variants {
 
                 // status cluster: one target, opens the control center
                 Chip {
-                    name: Tr.t("Quick settings") + (Audio.ready ? ", " + Tr.t("volume %1%", Math.round(Audio.volume * 100)) + (Audio.muted ? " " + Tr.t("muted") : "") : "")
-                          + (Power.hasBattery ? ", " + Tr.t("battery %1%", Math.round(Power.percent * 100)) : "")
+                    name: Tr.t("Quick settings") + (!Settings.data.hideVolumeGlyph ? (Audio.ready ? ", " + Tr.t("volume %1%", Math.round(Audio.volume * 100)) + (Audio.muted ? " " + Tr.t("muted") : "") : "") : "")
+                          + (!Settings.data.hideBrightnessGlyph ? (Power.hasBattery ? ", " + Tr.t("battery %1%", Math.round(Power.percent * 100)) : "") : "")
                     active: Ui.controlCenter
                     onClicked: Ui.toggleControlCenter()
                     onScrolled: d => Audio.step(d * 0.05)
@@ -314,7 +321,7 @@ Variants {
                         font.pixelSize: 11 * Theme.fontScale
                         anchors.verticalCenter: parent.verticalCenter
                     }
-                    Icon { visible: Focus.on; name: Focus.mode ? Focus.mode.icon : ""; size: 15; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
+                    Icon { visible: Focus.on && !(Settings.data.hideVolumeGlyph || Settings.data.hideBrightnessGlyph); name: Focus.mode ? Focus.mode.icon : ""; size: 15; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
                     Icon { visible: Idle.caffeine; name: "preferences-desktop-screensaver"; size: 15; color: Theme.amber; anchors.verticalCenter: parent.verticalCenter }
                     Icon { visible: Net.vpnActive; name: "network-vpn"; size: 15; color: Theme.text; anchors.verticalCenter: parent.verticalCenter }
                     Icon { name: Net.icon; size: 15; color: Theme.text; anchors.verticalCenter: parent.verticalCenter }

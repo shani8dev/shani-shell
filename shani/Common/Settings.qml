@@ -248,6 +248,9 @@ Singleton {
             // launcher interaction and display options (borrow from Noctalia)
             property bool launcherIgnoreMouse: false     // ignore pointer hover/input in launcher
             property bool launcherHideNavLabels: false   // hide navigation label hints
+            property bool hideVolumeGlyph: false       // hide volume widget glyph
+            property bool hideBrightnessGlyph: false  // hide brightness widget glyph
+            property bool barClickThrough: true      // click through unused bar space
             property string webSearch: "duckduckgo"   // duckduckgo | google | startpage | bing | ecosia
             property int volumeStep: 5                // per key press, in %
             property bool barDate: true
