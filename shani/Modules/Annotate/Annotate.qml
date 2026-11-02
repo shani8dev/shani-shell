@@ -46,7 +46,7 @@ PanelWindow {
         // the hint hides first, so the picture is the screen and the drawing only
         hintShown = false;
         Qt.callLater(() => Quickshell.execDetached(["sh", "-c",
-            'sleep 0.15; d="${2:-${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots}"; case "$d" in "~"*) d="$HOME${d#"~"}";; esac; mkdir -p "$d"; f="$d/Drawing $(date "+%F %H-%M-%S").png"; grim -o "$1" "$f" && wl-copy < "$f" && notify-send -a Screenshot -i "$f" "Drawing saved" "Copied too — ${f##*/}"',
+            'sleep 0.15; d="${2:-${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots}"; case "$d" in "~"*) d="$HOME${d#"~"}";; esac; mkdir -p "$d"; f="$d/Drawing $(date "+%F %H-%M-%S")." + (Settings.data.screenshotFormat || "png")"; grim -o "$1" "$f" && wl-copy < "$f" && notify-send -a Screenshot -i "$f" "Drawing saved" "Copied too — ${f##*/}"',
             "sh", win.screen ? win.screen.name : "", Settings.data.screenshotDir || ""]));
     }
 

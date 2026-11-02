@@ -37,7 +37,7 @@ ColumnLayout {
     // what is coming, from the person's calendars (Agenda: EDS)
     ColumnLayout {
         Connections { target: Ui; function onControlCenterChanged() { if (Ui.controlCenter) Agenda.refresh(); } }
-        visible: Agenda.upcoming.length > 0
+        visible: Settings.data.showCalendarEvents && Agenda.upcoming.length > 0
         Layout.fillWidth: true
         spacing: 2
         Repeater {

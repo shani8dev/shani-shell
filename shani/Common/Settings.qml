@@ -175,6 +175,10 @@ Singleton {
             property list<string> silentApps: []
             property list<string> dndAllowedApps: []
             property bool assistiveTouch: false
+            // missing Noctalia adapter entries with existing QML bindings (subagent finding #1)
+            property bool showCalendarEvents: true     // SidebarCalendar.qml line 40
+            property bool bluetoothAutoConnect: true  // SidebarTiles.qml / BtAgent.qml
+            property string screenshotAnnotationTool: ""  // Screenshots.qml line 18-20 (satty check)
             // Keyboard & input: written to ~/.config/niri/shani-input.kdl (InputConfig)
             property bool tapToClick: true
             property bool typingGuard: true          // touchpad off while typing (dwt)
@@ -208,6 +212,10 @@ Singleton {
             property bool winAnimations: true
             property var windowRules: []           // [{ app, float, workspace, width }] — per-app, niri window-rules
             property string screenshotDir: "~/Pictures/Screenshots"
+            // screenshot output format/quality (subagent finding #2 — missing adapter entries)
+            property string screenshotFormat: "png"        // png | jpeg | webp | jpeg-xl
+            property int screenshotQuality: 95             // 1-100 percent (jpeg/webp only)
+            property string clipboardOutputFormat: "png"  // clipboard-output format
             property bool rememberRecent: true
             property bool lockPreviews: false         // notification titles on the lock screen
             property list<string> clipPins: []          // pinned clipboard texts

@@ -65,7 +65,7 @@ Singleton {
         "    }",
         "}",
         d.winAnimations && !d.reduceMotion ? "" : "animations {\n    off\n}",
-        "screenshot-path \"" + (d.screenshotDir || "~/Pictures/Screenshots").replace(/"/g, "") + "/Screenshot from %Y-%m-%d %H-%M-%S.png\"",
+        "screenshot-path \"" + (d.screenshotDir || "~/Pictures/Screenshots").replace(/"/g, "") + "/Screenshot from %Y-%m-%d %H-%M-%S." + (d.screenshotFormat || "png") + "\"",
         // your own shortcuts: a command each
         Array.from(d.customBinds || []).length ? "binds {\n" + Array.from(d.customBinds).filter(b => /^[A-Za-z0-9+_]+$/.test(b.key) && b.command)
             .map(b => "    " + b.key + " hotkey-overlay-title=" + JSON.stringify(b.title || b.command) + " { spawn \"sh\" \"-c\" " + JSON.stringify(b.command) + "; }").join("\n") + "\n}" : "",
