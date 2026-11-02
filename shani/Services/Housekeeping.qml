@@ -16,8 +16,8 @@ Singleton {
     function emptyOldTrash() {
         if (d.trashDays <= 0)
             return;
-        sweep.command = ["sh", "-c", 't="$1"; n=0; for i in $(find "$t/info" -name "*.trashinfo" -mtime +"$2" 2>/dev/null); do
-                b=${i##*/}; b=${b%.trashinfo}; rm -rf "$t/files/$b" && rm -f "$i" && n=$((n + 1)); done; echo $n', "sh", trash, String(d.trashDays - 1)];
+        sweep.command = ["sh", "-c", 't="$1"; d="$2"; n=0; find "$t/info" -name "*.trashinfo" -mtime +"$d" -print0 2>/dev/null | while IFS= read -r -d \'\' i; do
+                b=${i##*/}; b=${b%.trashinfo}; rm -rf "$t/files/$b" 2>/dev/null && rm -f "$i" 2>/dev/null && n=$((n+1)); done; echo $n', "sh", trash, String(d.trashDays - 1)];
         sweep.running = true;
     }
     function emptyTrash() { Quickshell.execDetached(["gio", "trash", "--empty"]); }

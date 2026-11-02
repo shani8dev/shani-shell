@@ -19,7 +19,7 @@ Singleton {
     readonly property color brand: "#7fd1c1"
     ColorQuantizer {
         id: quant
-        source: Settings.data.accentFromWallpaper && root.wallpaper ? "file://" + root.wallpaper : ""
+        source: Settings.data.accentFromWallpaper && root.wallpaper ? ("file://" + String(root.wallpaper).replace(/ /g, "%20")) : ""
         depth: 3                        // 8 candidates
         rescaleSize: 96
     }

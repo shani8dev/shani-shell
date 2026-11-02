@@ -77,6 +77,7 @@ Singleton {
         magnifier = false;
         annotate = false;
         controlCenter = false;
+        layoutSwitcher = false;
         expanded = "";
     }
     function toggleLauncher(query) {

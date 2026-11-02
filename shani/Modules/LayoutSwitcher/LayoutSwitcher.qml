@@ -9,7 +9,15 @@ PanelWindow {
     id: root
     property bool active: Ui.layoutSwitcher
     visible: active
-    screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
+    screen: {
+        try {
+            if (typeof Niri !== "undefined" && Niri.focusedOutput) {
+                const s = Quickshell.screens.find(x => x.name === Niri.focusedOutput);
+                if (s) return s;
+            }
+        } catch(e) {}
+        return Quickshell.screens[0];
+    }
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore

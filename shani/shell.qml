@@ -132,6 +132,7 @@ ShellRoot {
         function recordingToGif(path: string) { Recorder.toGif(path); }
         function recordingShrink(path: string) { Recorder.shrink(path); }
         function ring() { Ui.toggleRing(); }
+        function layoutSwitcher() { Ui.toggleLayoutSwitcher(); }
         function switcher() { Ui.switcherRequested(false); }
         function switcherBack() { Ui.switcherRequested(true); }
         function inputMethod() { Ime.toggle(); }

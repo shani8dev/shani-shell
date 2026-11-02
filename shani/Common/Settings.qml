@@ -114,6 +114,7 @@ Singleton {
             property string terminal: "foot"
             property bool dock: true
             property bool dockAutoHide: false
+            property string layoutPreset: "default"
             property int dockIconSize: 44            // the zoom peaks at about 1.6×
             // desktop-entry ids, in order; ones not installed are skipped
             // what the image ships: Files, Vivaldi (Flatpak), the terminal, Cassini, Chronoa, Text Editor (Flatpak)
