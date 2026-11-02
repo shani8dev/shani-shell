@@ -40,6 +40,9 @@ PanelWindow {
     // a resting cursor would otherwise steal it from the top result, so Enter
     // launched whatever happened to be under the pointer
     property bool hoverArmed: false
+    // the app grids' column count, the same expression the grid itself uses,
+    // so Up/Down move by one real row whatever the window width is
+    readonly property int gridCols: Math.max(4, Math.floor(list.width / 132))
     property string category: "All"
     readonly property string q: search.text
     property var usage: ({})              // desktop id -> launches
@@ -414,8 +417,8 @@ PanelWindow {
                     font.pixelSize: 20 * Theme.fontScale
                     clip: true
                     Keys.onEscapePressed: Ui.closeAll()
-                    Keys.onDownPressed: win.sel = Math.min(win.sel + (win.q === "" ? 6 : 1), win.flat.length - 1)
-                    Keys.onUpPressed: win.sel = Math.max(win.sel - (win.q === "" ? 6 : 1), 0)
+                    Keys.onDownPressed: win.sel = Math.min(win.sel + (win.q === "" ? win.gridCols : 1), win.flat.length - 1)
+                    Keys.onUpPressed: win.sel = Math.max(win.sel - (win.q === "" ? win.gridCols : 1), 0)
                     Keys.onTabPressed: win.sel = (win.sel + 1) % Math.max(1, win.flat.length)
                     Keys.onBacktabPressed: win.sel = (win.sel - 1 + win.flat.length) % Math.max(1, win.flat.length)
                     Keys.onPressed: e => {
@@ -513,7 +516,7 @@ PanelWindow {
                             GridLayout {
                                 visible: !!section.modelData.grid
                                 Layout.fillWidth: true
-                                columns: Math.max(4, Math.floor(list.width / 132))
+                                columns: win.gridCols
                                 columnSpacing: 8
                                 rowSpacing: 8
                                 Repeater {
