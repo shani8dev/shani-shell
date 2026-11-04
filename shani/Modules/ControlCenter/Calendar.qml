@@ -8,9 +8,11 @@ ColumnLayout {
     property date today: new Date()
     property int offset: 0
     readonly property date month: new Date(today.getFullYear(), today.getMonth() + offset, 1)
-    // Monday-first grid: blanks before the 1st, then the days
-    readonly property int lead: (month.getDay() + 6) % 7
+    readonly property bool sundayFirst: Settings.data.weekStartsOn === "sunday"
+    // blanks before the 1st, then the days; Monday-first or Sunday-first
+    readonly property int lead: sundayFirst ? month.getDay() : (month.getDay() + 6) % 7
     readonly property int days: new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()
+    readonly property var weekNames: sundayFirst ? ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] : ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
     spacing: 6
 
     RowLayout {
@@ -34,7 +36,7 @@ ColumnLayout {
         rowSpacing: 2
         columnSpacing: 2
         Repeater {
-            model: ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+            model: root.weekNames
             Text {
                 required property string modelData
                 Layout.fillWidth: true

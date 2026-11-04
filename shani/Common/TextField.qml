@@ -33,8 +33,9 @@ Rectangle {
         Accessible.name: root.label || root.placeholder
         // Qt gives a password field no accessible name at all (measured, Qt 6.12:
         // whatever is set, AT-SPI reads ''), so a password field is labelled by
-        // a named, unseen label instead - Orca reads that relation
-        Accessible.labelledBy: root.secret ? a11yLabel : null
+        // a named, unseen label instead - Orca reads that relation. Kept for
+        // every field: an always-present labelledBy avoids the null warning.
+        Accessible.labelledBy: a11yLabel
         clip: true
         onAccepted: root.accepted()
         Text {

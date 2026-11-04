@@ -21,6 +21,10 @@ Singleton {
     // headphones, a controller, a phone — that UPower reads (Bluetooth, HID++)
     readonly property var peripherals: UPower.devices.values.filter(d => !d.isLaptopBattery && !d.powerSupply && d.isPresent !== false && d.percentage > 0
         && d.model !== "")
+    // Glass cannot import Services (Common → Services would be a cycle), so the
+    // battery state for it is mirrored into Common/PowerState
+    onOnBatteryChanged: PowerState.onBattery = onBattery
+    Component.onCompleted: PowerState.onBattery = onBattery
     // low: told once per device per discharge, below 15 %
     property var peripheralsWarned: ({})
     Timer {
@@ -78,16 +82,18 @@ Singleton {
         if (p <= 7 && warned > 7) {
             warned = 7;
             Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "Power", "-i", "battery-level-0", "Battery critically low", p + "% left — plug in now"]);
+            if (Settings.data.autoLockOnLowBattery && !Lock.locked)
+                Lock.lock();
         } else if (p <= 15 && warned > 15) {
             warned = 15;
             Quickshell.execDetached(["notify-send", "-a", "Power", "-i", "battery-level-10", "Battery low", p + "% left" + (timeLeft ? " · " + timeLeft : "")]);
         }
     }
 
-    // battery saver (after Android): power saver at 20 % on battery, the
+    // battery saver (after Android): power saver at the set % on battery, the
     // previous profile back once charging — unless the person changed it since
     property int savedProfile: -1
-    readonly property bool lowAndDischarging: hasBattery && !charging && Math.round(percent * 100) <= 20
+    readonly property bool lowAndDischarging: hasBattery && !charging && Math.round(percent * 100) <= Settings.data.powerSaverAt
     onLowAndDischargingChanged: {
         if (!Settings.data.autoPowerSaver)
             return;

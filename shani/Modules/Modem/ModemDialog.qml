@@ -19,7 +19,7 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "shani-modem"
     // blur behind the card, as on every shell surface (ext-background-effect)
-    BackgroundEffect.blurRegion: Settings.data.blur && visible ? blurArea : null
+    BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurArea : null
     Region { id: blurArea; item: card; radius: card.radius }
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None

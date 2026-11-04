@@ -6,6 +6,7 @@ import Quickshell
 import Quickshell.Bluetooth
 import Quickshell.Io
 import QtQuick
+import qs.Common
 
 Singleton {
     id: root
@@ -44,4 +45,24 @@ Singleton {
     }
     // a code to type on a keyboard goes once the keyboard has paired
     Timer { running: root.show !== null; interval: 60000; onTriggered: root.show = null }
+
+    // Auto-connect (Settings > Network > Bluetooth): paired audio and input
+    // devices reconnect on their own when the adapter comes up or they come back
+    // in range — phones are left alone (Phone.qml and DynamicLock handle those).
+    readonly property bool autoConnect: Settings.loaded && Settings.data.bluetoothAutoConnect && Bluetooth.defaultAdapter !== null
+    onAutoConnectChanged: if (autoConnect) reconnectTimer.restart()
+    Timer {
+        id: reconnectTimer
+        interval: 30000
+        onTriggered: root.reconnect()
+        repeat: Bluetooth.defaultAdapter !== null && root.autoConnect
+    }
+    function reconnect() {
+        if (!root.autoConnect)
+            return;
+        for (const d of Bluetooth.devices.values) {
+            if (d.paired && !d.connected && !d.pairing && /^(audio|input)/.test(d.icon || "") && d.reachable !== false)
+                d.connect();
+        }
+    }
 }

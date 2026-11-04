@@ -20,7 +20,7 @@ PanelWindow {
     WlrLayershell.namespace: "shani-window-menu"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-    BackgroundEffect.blurRegion: visible && Settings.data.blur ? menuRegion : null
+    BackgroundEffect.blurRegion: visible && Settings.blurWanted ? menuRegion : null
     Region { id: menuRegion; item: card; radius: Theme.radius }
 
     property var target: null            // the window, captured when the menu opens
@@ -54,6 +54,7 @@ PanelWindow {
     }
 
     onVisibleChanged: if (visible) { sel = 0; keys.forceActiveFocus(); }
+    Component.onCompleted: if (visible) { sel = 0; keys.forceActiveFocus(); }   // made on first use, already visible
     Connections {
         target: Ui
         function onWindowMenuChanged() {

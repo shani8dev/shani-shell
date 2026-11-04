@@ -46,12 +46,13 @@ ColumnLayout {
                         anchors.fill: parent
                         acceptedButtons: Qt.LeftButton | Qt.RightButton
                         cursorShape: Qt.PointingHandCursor
-                        // right-click: share it (phone, Bluetooth, nearby, email, clipboard)
+                        // right-click: what to do with it (convert, shrink, read, share, ask Chronoa)
                         onClicked: e => {
-                            if (e.button === Qt.RightButton) { Ui.closeAll(); Share.open(shelfItem.modelData.path); }
+                            if (e.button === Qt.RightButton) { Ui.closeAll(); FileActions.offer([shelfItem.modelData.path]); }
                             else Qt.openUrlExternally("file://" + shelfItem.modelData.path);
                         }
                     }
+                    Hint { text: Tr.t("Click to open - right-click to convert, shrink or share") }
                 }
             }
         }
@@ -64,6 +65,12 @@ ColumnLayout {
                 icon: /\.(mp4|mkv|webm)$/i.test(modelData.name) ? "video-x-generic" : "text-x-generic"
                 title: modelData.name
                 onClicked: Qt.openUrlExternally("file://" + modelData.path)
+                IconButton {
+                    icon: "document-edit"
+                    size: 24
+                    tip: Tr.t("Convert, shrink, zip…")
+                    onClicked: { Ui.closeAll(); FileActions.offer([shelfFile.modelData.path]); }
+                }
                 IconButton {
                     icon: "emblem-shared"
                     size: 24

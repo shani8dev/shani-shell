@@ -23,7 +23,28 @@ Singleton {
     property string backupSummary: ""              // Settings > Backup, for the tests
     property string settingsCat: ""                // the settings category open
     property bool settingsOpen: false              // the Settings window (Modules/Settings)
+    // flash the control for a just-searched setting: the longest significant
+    // word of its label is matched against every control's accessible name;
+    // the page the search led to pulses its rings for a moment
+    property string settingsHighlight: ""
+    property string settingsFlash: ""
+    Timer {
+        id: settingsFlashClear
+        interval: 3200
+        onTriggered: { root.settingsHighlight = ""; root.settingsFlash = ""; }
+    }
+    function flashSetting(label) {
+        const skip = new Set(["the", "and", "with", "from", "after", "until", "your", "every", "when", "mode", "that", "this", "will"]);
+        let best = "";
+        for (const w of String(label || "").toLowerCase().split(/[^a-z]+/))
+            if (w.length >= 4 && !skip.has(w) && w.length > best.length)
+                best = w;
+        root.settingsHighlight = label || "";
+        root.settingsFlash = best;
+        settingsFlashClear.restart();
+    }
     property string dockMenu: ""                   // an app whose dock menu the tests opened
+    property bool chargingPreview: false           // the charging animation, once (the tests, the showcase)
     function openSettings(cat) {
         closeAll();
         settingsCat = cat || settingsCat || "personal";
@@ -56,6 +77,7 @@ Singleton {
     property string topResult: ""
     // read-outs for `state` (tests and scripts)
     property string islandActivity: ""
+    property bool islandBusy: false               // the Island is asking, working or waiting on an approval (brings a hidden bar back)
     property var launcherSections: []
     property var tilesShown: []       // the launcher's first answer (shown in `state`)
 
@@ -87,6 +109,8 @@ Singleton {
         // after, every launch showed the previous query's answers
         launcherQuery = query || "";
         launcher = !was;
+        if (launcher && Settings.data.launcherOpens < 5)
+            Settings.data.launcherOpens++;
     }
     function askIsland() {
         closeAll();

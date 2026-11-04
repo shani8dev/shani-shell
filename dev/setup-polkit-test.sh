@@ -5,12 +5,9 @@
 # through pkexec without a password while no account exists — and nothing
 # else, nobody else, and not a second time.
 set -e
-REPO=$(cd "$(dirname "$0")/.." && pwd)
+. "$(dirname "$0")/systemd-box.sh"
 DESK=$(cd "${1:?shani-desktop-niri dir}" && pwd)
-cid=$(docker run -d --privileged --cgroupns=host -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
-      --tmpfs /run --tmpfs /run/lock -v "$REPO":/work:ro -v "$DESK":/desk:ro shani-shell-dev /usr/lib/systemd/systemd)
-trap 'docker rm -f "$cid" >/dev/null' EXIT
-i=0; until docker exec "$cid" systemctl is-system-running 2>/dev/null | grep -qE "running|degraded" || [ $i -ge 60 ]; do sleep 1; i=$((i+1)); done
+box_up -v "$REPO":/work:ro -v "$DESK":/desk:ro
 docker exec -i "$cid" sh -s <<'IN'
 fail=0
 result() { echo "RESULT $1 $2 ${3:+($3)}"; [ "$2" = FAIL ] && fail=1; true; }

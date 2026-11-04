@@ -13,7 +13,7 @@ Singleton {
     id: root
 
     readonly property bool battery: Power.onBattery
-    readonly property int dimAfter: Settings.data.dimAfter
+    readonly property int dimAfter: battery ? Settings.data.dimAfterBattery : Settings.data.dimAfter
     readonly property int lockAfter: battery ? Settings.data.lockAfterBattery : Settings.data.lockAfter
     readonly property int offAfter: battery ? Settings.data.screenOffAfterBattery : Settings.data.screenOffAfter
     readonly property int suspendAfter: battery ? Settings.data.suspendAfterBattery : Settings.data.suspendAfter

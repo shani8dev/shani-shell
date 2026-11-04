@@ -3,8 +3,9 @@
 // smooth curve and grow upward — a bounce when an app is launched, and glowing
 // indicators counting its windows (niri's event stream). Click focuses the
 // app (again: the next window) or launches it; middle-click opens a new one;
-// right-click pins or unpins. With auto-hide it waits below the edge and rises
-// when the pointer touches the bottom.
+// right-click pins or unpins. It stays (always), steps out of a window's way
+// (smart: Services/Hiding) or waits below the edge (hide); hidden, it rises when
+// the pointer rests against the bottom.
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Widgets
@@ -19,19 +20,37 @@ PanelWindow {
     visible: Settings.data.dock && !Lock.locked
     anchors.bottom: true
     // sized for the widest zoom once, so the surface is not resized on every pointer move
-    implicitWidth: (items.length + spaces.length + 2) * (base + 4) + (peak - base) * 3 + 80
+    implicitWidth: (items.length + spaces.length + 2) * (base + Math.round(base * 0.18)) + (peak - base) * 3 + 120
     // room for a zoomed icon and its label (140 at 44 px), and the menu above it while open
     implicitHeight: peak + 68 + (menuFor >= 0 ? Math.max(230, menuHeight + 40) : 0)
     color: "transparent"
-    exclusionMode: Settings.data.dockAutoHide ? ExclusionMode.Ignore : ExclusionMode.Normal
-    exclusiveZone: Settings.data.dockAutoHide ? 0 : base + 32
+    readonly property string mode: Settings.data.dockVisibility
+    // always and smart keep their space (windows never tile under the dock); hide gives the windows the whole height
+    exclusionMode: mode === "hide" ? ExclusionMode.Ignore : ExclusionMode.Normal
+    exclusiveZone: mode === "hide" ? 0 : base + 32
     WlrLayershell.namespace: "shani-dock"
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-    BackgroundEffect.blurRegion: Settings.data.blur && shown ? dockRegion : null
+    BackgroundEffect.blurRegion: Settings.blurWanted && shown ? dockRegion : null
     Region { id: dockRegion; item: dock; radius: dock.radius }
 
-    readonly property bool shown: !Settings.data.dockAutoHide || (revealed && hover.hovered) || menuFor >= 0
+    readonly property bool covered: mode === "smart" && Hiding.covered(output, "bottom", base + 32 + 2, screen ? screen.height : 1080,
+        ((screen ? screen.width : 1920) - dock.width) / 2, ((screen ? screen.width : 1920) + dock.width) / 2)
+    readonly property bool shown: mode === "always" || (revealed && hover.hovered) || menuFor >= 0 || dragging
+        || Niri.overviewOpen || (mode === "smart" && (!covered || Hiding.urgent))
+    Component.onCompleted: Hiding.setDockShown(output, shown)
+    property bool dragging: false        // a file carried to the bottom edge brings the dock up to drop on
+    // the first time a smart dock steps aside, say where it went - once
+    onShownChanged: {
+        Hiding.setDockShown(output, shown);
+        if (!shown && mode === "smart" && Settings.loaded && !Settings.data.dockHintSeen && modelData === Quickshell.screens[0])
+            showHint();
+    }
+    function showHint() {
+        Settings.data.dockHintSeen = true;     // (a floating window over it: the first time it steps aside)
+        hintTimer.restart();
+    }
+    Timer { id: hintTimer; interval: 8000 }
     // pressure reveal (Pantheon, macOS): a hidden dock comes up after the pointer
     // rests against the bottom edge a moment, not as it passes on its way to a
     // window's bottom edge or a scrollbar
@@ -106,7 +125,7 @@ PanelWindow {
     function activate(it) {
         if (it.windows.length === 0) {
             if (it.entry) {
-                it.entry.execute();
+                Launch.app(it.entry.id);
                 launched(it.id);
             }
             return;
@@ -168,15 +187,20 @@ PanelWindow {
         width: parent.width
         height: 4
         HoverHandler { id: edgeHover }
+        // a drag gives no hover: carrying a file to the edge raises the dock too
+        DropArea { anchors.fill: parent; onEntered: { win.dragging = true; dragOff.restart(); } }
     }
+    property int dropsIn: 0              // cells a drag is over now
+    Timer { id: dragOff; interval: 2500; onTriggered: if (win.dropsIn <= 0) win.dragging = false; else restart() }
 
     // the slim base the icons stand on; it never zooms, the icons rise above it
     Glass {
         id: dock
         strong: true
-        width: row.width + 24
-        height: win.base + 18
-        radius: 18
+        // even breathing room around the icons, at any size
+        width: row.width + win.base * 0.5
+        height: win.base * 1.42
+        radius: height * 0.32
         anchors.horizontalCenter: parent.horizontalCenter
         y: win.shown ? parent.height - height - 10 : parent.height + 4
         Behavior on y { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
@@ -196,8 +220,8 @@ PanelWindow {
         id: row
         anchors.horizontalCenter: dock.horizontalCenter
         anchors.bottom: dock.bottom
-        anchors.bottomMargin: 9
-        spacing: 4
+        anchors.bottomMargin: (dock.height - win.base) / 2
+        spacing: Math.round(win.base * 0.18)
 
         // ---- the dock after Pantheon's (elementary OS 8): every item is an
         // app-sized square, so the row keeps one rhythm. First Multitasking View
@@ -265,6 +289,8 @@ PanelWindow {
                 }
             }
         }
+        // the two system buttons, then the apps: a hairline between, so each group reads as one
+        DockSeparator {}
 
         Repeater {
             model: win.items
@@ -384,7 +410,8 @@ PanelWindow {
                 DropArea {
                     id: drop
                     anchors.fill: parent
-                    onEntered: d => d.accept(d.hasUrls && cell.modelData.entry ? Qt.CopyAction : Qt.IgnoreAction)
+                    onEntered: d => { win.dropsIn++; d.accept(d.hasUrls && cell.modelData.entry ? Qt.CopyAction : Qt.IgnoreAction); }
+                    onExited: { win.dropsIn = Math.max(0, win.dropsIn - 1); dragOff.restart(); }
                     // held there: its windows come forward one by one, to drop into one of them
                     Timer {
                         interval: 700
@@ -393,6 +420,7 @@ PanelWindow {
                         onTriggered: win.activate(cell.modelData)
                     }
                     onDropped: d => {
+                        win.dropsIn = 0; win.dragging = false;
                         if (!cell.modelData.entry)
                             return;
                         const files = d.urls.map(u => decodeURIComponent(String(u).replace(/^file:\/\//, "")));
@@ -427,7 +455,7 @@ PanelWindow {
                         if (e.button === Qt.RightButton)
                             win.menuFor = win.menuFor === cell.index ? -1 : cell.index;
                         else if (e.button === Qt.MiddleButton && cell.modelData.entry) {
-                            cell.modelData.entry.execute();
+                            Launch.app(cell.modelData.entry.id);
                             bounce.restart();
                         } else
                             win.activate(cell.modelData);
@@ -458,8 +486,8 @@ PanelWindow {
                                 ...cell.modelData.windows.slice(0, 8).map(w => ({ label: (Niri.isMinimised(w) ? "▾ " : "") + (w.title || cell.modelData.id), show: true, sep: false,
                                     run: () => Niri.focusWin(w) })),
                                 ...(cell.modelData.entry ? Array.from(cell.modelData.entry.actions).slice(0, 6).map((act, i) => ({ label: act.name, show: true, sep: i === 0 && cell.modelData.windows.length > 0,
-                                    run: () => { act.execute(); bounce.restart(); } })) : []),
-                                { label: Tr.t("New window"), sep: true, show: !!cell.modelData.entry, run: () => { cell.modelData.entry.execute(); bounce.restart(); } },
+                                    run: () => { Launch.app(cell.modelData.entry.id, { action: act.id }); bounce.restart(); } })) : []),
+                                { label: Tr.t("New window"), sep: true, show: !!cell.modelData.entry, run: () => { Launch.app(cell.modelData.entry.id); bounce.restart(); } },
                                 { label: "Open on " + (Gpu.other ? Gpu.other.name.split(" ").slice(0, 3).join(" ") : "the other GPU"), show: !!cell.modelData.entry && Gpu.hasChoice,
                                   run: () => { Gpu.launchOnOther(cell.modelData.entry.id); bounce.restart(); } },
                                 { label: cell.modelData.pinned ? "Unpin from dock" : "Pin to dock", show: !!cell.modelData.entry, run: () => win.togglePin(cell.modelData) },
@@ -649,6 +677,26 @@ PanelWindow {
             color: Theme.text
             font.family: Theme.font
             font.pixelSize: 11 * Theme.fontScale
+        }
+    }
+
+    Rectangle {
+        visible: hintTimer.running && !win.shown
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 12
+        width: hintRow.implicitWidth + 28
+        height: hintRow.implicitHeight + 16
+        radius: height / 2
+        color: Theme.alpha(Theme.bg, 0.92)
+        border.width: 1
+        border.color: Theme.accentLine
+        Row {
+            id: hintRow
+            anchors.centerIn: parent
+            spacing: 8
+            Icon { name: "go-down"; size: 16; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
+            Text { text: Tr.t("The dock steps aside for your windows — rest the pointer on the bottom edge to bring it back"); color: Theme.text; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
         }
     }
 }

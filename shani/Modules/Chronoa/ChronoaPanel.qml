@@ -22,7 +22,7 @@ PanelWindow {
     property color dimColor: Theme.dim
     property int streamIndex: -1
 
-    readonly property bool blurEnabled: Settings.data.blur && Quickshell.env("SHANI_BLUR") !== "0"
+    readonly property bool blurEnabled: Settings.blurWanted && Quickshell.env("SHANI_BLUR") !== "0"
 
     signal ask(string text)
     signal action(string name)
@@ -396,17 +396,18 @@ PanelWindow {
             }
 
             // ---- empty state ----------------------------------------------
-            Column {
+            ColumnLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 visible: panel.model.count === 0
                 spacing: 16
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.verticalCenter: parent.verticalCenter
+
+                Item { Layout.fillHeight: true }   // vertical centre, the layout way
 
                 // a soft orb like the Island's companion, so the empty state
                 // feels like the same companion waiting, not an empty box
                 Rectangle {
+                    id: idleOrb
                     width: 64; height: 64
                     radius: 32
                     gradient: Gradient {
@@ -424,9 +425,10 @@ PanelWindow {
                     }
                     SequentialAnimation {
                         loops: Animation.Infinite
-                        NumberAnimation { target: parent; property: "opacity"; from: 0.55; to: 0.95; duration: 2200; easing.type: Easing.InOutSine }
-                        NumberAnimation { target: parent; property: "opacity"; from: 0.95; to: 0.55; duration: 2200; easing.type: Easing.InOutSine }
+                        NumberAnimation { target: idleOrb; property: "opacity"; from: 0.55; to: 0.95; duration: 2200; easing.type: Easing.InOutSine }
+                        NumberAnimation { target: idleOrb; property: "opacity"; from: 0.95; to: 0.55; duration: 2200; easing.type: Easing.InOutSine }
                     }
+                    Layout.alignment: Qt.AlignHCenter
                 }
 
                 Text {
@@ -435,6 +437,7 @@ PanelWindow {
                     font.family: Theme.font
                     font.pixelSize: 17 * Theme.fontScale
                     font.weight: Font.DemiBold
+                    Layout.alignment: Qt.AlignHCenter
                     horizontalAlignment: Text.AlignHCenter
                 }
                 Text {
@@ -443,8 +446,10 @@ PanelWindow {
                     font.family: Theme.font
                     font.pixelSize: 13 * Theme.fontScale
                     lineHeight: 1.5
+                    Layout.alignment: Qt.AlignHCenter
                     horizontalAlignment: Text.AlignHCenter
                 }
+                Item { Layout.fillHeight: true }
             }
 
             // A plain Column, not a ListView: the conversation is short and

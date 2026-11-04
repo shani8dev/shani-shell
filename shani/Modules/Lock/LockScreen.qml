@@ -133,7 +133,8 @@ Scope {
             MultiEffect {
                 anchors.fill: lockWall
                 source: lockWall
-                blurEnabled: true
+                visible: Settings.data.lockScreenBlur
+                blurEnabled: Settings.data.lockScreenBlur
                 blur: 1.0
                 blurMax: 64
                 saturation: 0.15
@@ -147,6 +148,7 @@ Scope {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: parent.top
                 anchors.topMargin: parent.height * 0.16
+                visible: Settings.data.lockScreenClock
                 spacing: 2
                 Text {
                     Layout.alignment: Qt.AlignHCenter
@@ -160,9 +162,19 @@ Scope {
                 Text {
                     Layout.alignment: Qt.AlignHCenter
                     text: Qt.formatDate(clock.date, "dddd, d MMMM")
+                    visible: Settings.data.lockScreenDate
                     color: Theme.dim
                     font.family: Theme.font
                     font.pixelSize: 18 * Theme.fontScale
+                }
+                // battery, when there is one
+                Text {
+                    Layout.alignment: Qt.AlignHCenter
+                    visible: Settings.data.lockScreenBattery && Power.hasBattery
+                    text: Math.round(Power.percent * 100) + "%"
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 14 * Theme.fontScale
                 }
                 // at a glance (a phone's lock screen): the weather, and the next event
                 // only when previews are allowed on the lock screen (Privacy)
@@ -175,6 +187,15 @@ Scope {
                     color: Theme.dim
                     font.family: Theme.font
                     font.pixelSize: 14 * Theme.fontScale
+                }
+                // unread notifications count, when previews are on
+                Text {
+                    Layout.alignment: Qt.AlignHCenter
+                    visible: Settings.data.lockPreviews && Notifs.count > 0
+                    text: Notifs.count === 1 ? "1 notification" : Notifs.count + " notifications"
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 13 * Theme.fontScale
                 }
             }
 
@@ -227,7 +248,7 @@ Scope {
             Glass {
                 id: nowPlaying
                 readonly property var player: Mpris.players.values.find(p => p.isPlaying) || Mpris.players.values[0] || null
-                visible: player !== null && player.trackTitle !== ""
+                visible: Settings.data.lockScreenMedia && player !== null && player.trackTitle !== ""
                 strong: true
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom

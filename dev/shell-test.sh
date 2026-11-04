@@ -1,12 +1,12 @@
 #!/bin/sh
 # usage: shell-test.sh   (inside shani-shell-dev, repo at /work)
-#   docker run --rm --cap-add SYS_PTRACE -v "$PWD":/work shani-shell-dev sh /work/dev/shell-test.sh
+#   run it with `sh dev/check.sh shell` (or idle / a11y) from the host
 #   (SYS_PTRACE: the idle-cost check traces what the shell starts; SHELL_TEST_ONLY=idle runs just that)
 # Every check drives the real thing — wpctl, notify-send, niri actions, wtype
 # keystrokes, gdbus into the bridge, the settings file — then reads the shell's
-# own answer (`ipc call shani state`). Prints RESULT lines; shots in docs/shots.
+# own answer (`ipc call shani state`). Prints RESULT lines; shots in out/shots.
 . /work/dev/session.sh
-SHOTS=/work/docs/shots
+SHOTS=/work/out/shots
 mkdir -p "$SHOTS"     # not in git (a run's output): made here
 fail=0
 result() {
@@ -20,7 +20,7 @@ ipc() { qs -p /work/shani ipc call shani "$@" >/dev/null 2>&1; }
 shot() { sleep "${2:-0.8}"; grim "$SHOTS/$1.png"; }
 # the suite runs longer than the default idle lock (5 min) between keyboard
 # inputs: no dimming, lock or screen-off unless a test sets them itself
-settings() { python3 -c 'import json,sys; d={"dimAfter":0,"lockAfter":0,"screenOffAfter":0,"lockAfterBattery":0,"screenOffAfterBattery":0}; d.update(json.loads(sys.argv[1])); print(json.dumps(d), end="")' "$1" > "$SHANI_SHELL_SETTINGS"; sleep 1.5; }
+settings() { python3 -c 'import json,sys; d={"dimAfter":0,"lockAfter":0,"screenOffAfter":0,"lockAfterBattery":0,"screenOffAfterBattery":0,"startHintsDone":True}; d.update(json.loads(sys.argv[1])); print(json.dumps(d), end="")' "$1" > "$SHANI_SHELL_SETTINGS"; sleep 1.5; }
 waitfor() {   # waitfor <python expr over d> <seconds>
     i=0
     while [ $i -lt $(( $2 * 4 )) ]; do
@@ -32,12 +32,12 @@ waitfor() {   # waitfor <python expr over d> <seconds>
 
 # ---- loads clean -------------------------------------------------------------
 # (no system bus logind/polkit session in a container: those two warnings are expected)
-bad=$(grep -E "TypeError|ReferenceError|Unable to assign|is not a function|is not defined|caused by|ERROR" /work/logs/qs.log \
+bad=$(grep -E "TypeError|ReferenceError|Unable to assign|is not a function|is not defined|caused by|ERROR" /work/out/logs/qs.log \
       | grep -v -E "ZINK|libvulkan|polkit" | head -5)
 [ -z "$bad" ] && result shell-loads-clean PASS || { result shell-loads-clean FAIL; echo "$bad"; }
 # nothing below means anything if the shell is not running
 if ! st >/dev/null 2>&1 || [ -z "$(st)" ]; then
-    echo "the shell is not running — stopping here"; tail -20 /work/logs/qs.log; exit 1
+    echo "the shell is not running — stopping here"; tail -20 /work/out/logs/qs.log; exit 1
 fi
 [ "$(q "['settingsLoaded']")" = True ] && result settings-loaded PASS || result settings-loaded FAIL
 
@@ -45,8 +45,9 @@ fi
 # 30 s idle: the programs the shell starts (every poll that forks is a
 # wakeup on a laptop), the shell's own CPU time, and its memory. The budget is
 # the point: a new always-on poller shows up here as a FAIL, not as a battery
-# complaint months later.
-sleep 3
+# complaint months later. Measured once nobody has touched it for 20 s+ (the
+# Island stops blinking then): the first seconds are loading, not idling.
+sleep 25
 qpid=$(pgrep -o -x qs)
 pid0=$(cut -d' ' -f5 /proc/loadavg); cpu0=$(awk '{print $14+$15}' /proc/$qpid/stat)
 sleep 30
@@ -65,8 +66,54 @@ else
     [ "$forks" -le "${IDLE_FORK_BUDGET:-12}" ] && [ "$cpu" -le 15 ] && result idle-cost PASS "$idle" || result idle-cost FAIL "$idle"
 fi
 echo "  idle programs by command: $who"
-# SHELL_TEST_ONLY=idle: just this, for working on what the shell costs
-[ "${SHELL_TEST_ONLY:-}" = idle ] && exit $fail
+# and the whole session's (one sampler, so it adds no programs of its own): a
+# daemon stuck restarting shows here by name, and wakes the shell as it goes
+python3 - <<'PY'
+import os, time, collections
+seen = set(os.listdir("/proc")); new = collections.Counter(); end = time.time() + 10
+while time.time() < end:
+    now = set(p for p in os.listdir("/proc") if p.isdigit())
+    for p in now - seen:
+        try: new[open(f"/proc/{p}/cmdline", "rb").read().replace(b"\0", b" ").decode()[:70] or open(f"/proc/{p}/comm").read().strip()] += 1
+        except OSError: pass
+    seen |= now; time.sleep(0.05)
+print("  session programs in 10 s:", "; ".join(f"{n} {c}" for c, n in new.most_common(6)) or "none")
+PY
+# ---- perf: what the shell costs in time, memory and frames, each with a budget ----------
+# The guard against slow decay: each number here was measured, and a change that
+# pushes one past its budget fails by name. Budgets are for this container's
+# software rendering (every buffer in the shell's own memory); a GPU costs less.
+# frames: with nothing happening, nothing should redraw (a minute tick of the clock at most)
+n0=$(wc -l < /work/out/logs/qs.log); sleep 15
+frames=$(tail -n +"$n0" /work/out/logs/qs.log | grep -c "frame rendered")
+wins=$(tail -n +"$n0" /work/out/logs/qs.log | grep "frame rendered" | grep -o "window 0x[0-9a-f]*" | sort -u | wc -l)
+[ "$frames" -le "${IDLE_FRAME_BUDGET:-6}" ] && result perf-idle-frames PASS "$frames frames in 15 s, $wins windows" || result perf-idle-frames FAIL "$frames frames in 15 s from $wins windows (budget ${IDLE_FRAME_BUDGET:-6}): a surface redraws while nothing changes"
+# memory at rest
+rss0=$(awk '/VmRSS/{print int($2/1024)}' /proc/$qpid/status)
+[ "$rss0" -le "${IDLE_RSS_BUDGET:-520}" ] && result perf-idle-memory PASS "$rss0 MB" || result perf-idle-memory FAIL "$rss0 MB (budget ${IDLE_RSS_BUDGET:-520} MB)"
+# open speed: the surfaces people open most, from the command to the shell saying it is up
+opened() { t0=$(date +%s%N); ipc "$@"; i=0; until [ "$(q "$WATCH")" = True ] || [ $i -ge 40 ]; do sleep 0.025; i=$((i+1)); done; echo $(( ($(date +%s%N) - t0) / 1000000 )); }
+WATCH="['launcher']"; tl=$(opened launcher ""); ipc closeAll; sleep 0.5
+WATCH="['controlCenter']"; ts=$(opened toggleControlCenter); ipc closeAll; sleep 0.5
+worst=$(printf "%s\n%s\n" "$tl" "$ts" | sort -n | tail -1)
+[ "$worst" -le "${OPEN_MS_BUDGET:-600}" ] && result perf-open-speed PASS "launcher ${tl} ms, sidebar ${ts} ms" || result perf-open-speed FAIL "launcher ${tl} ms, sidebar ${ts} ms (budget ${OPEN_MS_BUDGET:-600} ms)"
+# leaks: open and close the big surfaces again and again; after the first round
+# (caches filling) memory must settle, not climb
+cycle() { ipc launcher ""; sleep 0.6; ipc closeAll; ipc toggleControlCenter; sleep 0.6; ipc closeAll; ipc layoutSwitcher; sleep 0.6; ipc closeAll; niri msg action toggle-overview; sleep 0.6; niri msg action toggle-overview; sleep 0.4; }
+cycle; sleep 1; rss1=$(awk '/VmRSS/{print int($2/1024)}' /proc/$qpid/status)
+for i in 1 2 3 4 5; do cycle; done; sleep 2; rss2=$(awk '/VmRSS/{print int($2/1024)}' /proc/$qpid/status)
+grow=$((rss2 - rss1))
+[ "$grow" -le "${LEAK_MB_BUDGET:-24}" ] && result perf-no-leak PASS "${grow} MB over 5 more rounds (${rss1} -> ${rss2} MB)" || result perf-no-leak FAIL "+$grow MB over 5 rounds of launcher/sidebar/layouts/overview (${rss1} -> ${rss2} MB, budget ${LEAK_MB_BUDGET:-24})"
+# startup: a fresh shell, from launch to its first answer (and its frames' render cost)
+kill "$qpid"; while kill -0 "$qpid" 2>/dev/null; do sleep 0.1; done
+t0=$(date +%s%N)
+QS_ICON_THEME=Adwaita QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1 QT_LOGGING_RULES="qt.scenegraph.time.renderloop=true" qs -p /work/shani >>/work/out/logs/qs.log 2>&1 &
+i=0; until st >/dev/null 2>&1 || [ $i -ge 300 ]; do sleep 0.05; i=$((i+1)); done
+boot=$(( ($(date +%s%N) - t0) / 1000000 )); qpid=$(pgrep -o -x qs); sleep 2
+[ "$boot" -le "${STARTUP_MS_BUDGET:-3500}" ] && result perf-startup PASS "$boot ms" || result perf-startup FAIL "$boot ms (budget ${STARTUP_MS_BUDGET:-3500} ms)"
+echo "  render cost per frame (ms, last 60): $(grep -o 'render=[0-9]*' /work/out/logs/qs.log | tail -60 | sort | uniq -c | sort -rn | head -4 | tr '\n' ' ')"
+# SHELL_TEST_ONLY=idle (or perf): just these, for working on what the shell costs
+[ "${SHELL_TEST_ONLY:-}" = idle ] || [ "${SHELL_TEST_ONLY:-}" = perf ] && exit $fail
 
 # the overview's backdrop wallpaper exists only while the overview is open (a
 # backdrop surface the rest of the time is redrawn once a second, idle)
@@ -99,7 +146,7 @@ if [ -f "$A11Y" ] && python3 -c "import gi; gi.require_version('Atspi','2.0')" 2
     ipc closeAll
     ipc launcher ""; lint launcher; ipc closeAll
     for c in personal notifications network displays windows sound access input time apps search printers sharing backup automations privacy chronoa account users power about ; do ipc settingsCategory $c; lint "settings-$c"; [ "${SHELL_TEST_ONLY:-}" = a11y ] && shot "settings-$c" 0.2; done
-    niri msg -j windows > /work/logs/windows-with-settings.json 2>/dev/null
+    niri msg -j windows > /work/out/logs/windows-with-settings.json 2>/dev/null
     ipc closeAll
     ipc toggleChronoa; lint chronoa; ipc toggleChronoa; ipc closeAll
     waitfor "not d['chronoaOpen']" 3 || echo "  (Chronoa did not close)"
@@ -174,8 +221,8 @@ waitfor "d['topResult'] == 'quarterly-report.txt'" 5 && result launcher-finds-fi
 shot 43-launcher-file 0.6      # Quick Look: the text preview in the side pane
 wtype -M ctrl -k Return -m ctrl
 sleep 1
-grep -q "The file: /root/Documents/quarterly-report.txt" /work/logs/mock.log \
-    && result launcher-ctrl-enter-asks-about-file PASS || result launcher-ctrl-enter-asks-about-file FAIL "$(tail -2 /work/logs/mock.log)"
+grep -q "The file: /root/Documents/quarterly-report.txt" /work/out/logs/mock.log \
+    && result launcher-ctrl-enter-asks-about-file PASS || result launcher-ctrl-enter-asks-about-file FAIL "$(tail -2 /work/out/logs/mock.log)"
 ipc launcher "Q3 numbers"      # only inside the file, not in its name
 waitfor "d['topResult'] == 'quarterly-report.txt'" 6 && result launcher-searches-inside-files PASS || result launcher-searches-inside-files FAIL "$(q "['topResult']")"
 ipc launcher "5 km in miles"
@@ -193,7 +240,7 @@ waitfor "d['bridge'] and d['chronoa'] != 'offline'" 5 && result island-bridge-on
 M="--session --dest org.shani.Chronoa.Mascot --object-path /org/shani/Chronoa/Mascot"
 gdbus call $M --method org.shani.Chronoa.Mascot.Host 2>&1 | grep -q "island" \
     && result island-host-answers PASS || result island-host-answers FAIL
-magick -size 64x64 xc:none -fill '#7fd1c1' -draw 'circle 32,32 32,4' -fill '#08110f' \
+magick -size 64x64 xc:none -fill '#ff7f50' -draw 'circle 32,32 32,4' -fill '#08110f' \
     -draw 'rectangle 22,24 27,36' -draw 'rectangle 37,24 42,36' /tmp/frame.png
 gdbus call $M --method org.shani.Chronoa.Mascot.Art /tmp/frame.png 2>&1 | grep -q true \
     && waitfor "d['art'] == '/tmp/frame.png'" 3 \
@@ -330,6 +377,149 @@ waitfor "len(d['minimised']) >= 1 and $wid in d['minimised']" 4 && result show-d
 ipc showDesktop
 waitfor "d['minimised'] == []" 4 && result show-desktop-again-restores PASS || result show-desktop-again-restores FAIL "$(q "['minimised']")"
 
+# ---- start hints: an empty workspace shows the keys that reach everything ----------------
+hints() { niri msg -j layers | python3 -c "import json,sys; print(sum(1 for l in json.load(sys.stdin) if l['namespace'] == 'shani-start-hints'))"; }
+niri msg action focus-workspace 99; sleep 0.5          # the empty one at the end
+settings '{"startHintsDone": false}'
+h1=$(hints); shot 26i-start-hints 0.3
+settings '{"startHintsDone": false, "launcherOpens": 5}'
+h2=$(hints)
+[ "$h1" -ge 1 ] && [ "$h2" = 0 ] && result start-hints-shown-then-retired PASS || result start-hints-shown-then-retired FAIL "fresh $h1, after 5 launches $h2"
+settings '{}'; niri msg action focus-workspace 1
+
+# ---- the wallpaper and GNOME's setting for it (the Wallpaper portal writes that key) ----
+magick -size 64x64 xc:'#336699' /tmp/portal-wall.png 2>/dev/null
+gsettings set org.gnome.desktop.background picture-uri "file:///tmp/portal-wall.png"
+gsettings set org.gnome.desktop.background picture-uri-dark "file:///tmp/portal-wall.png"
+waitfor "d['wallpaperNow'] == '/tmp/portal-wall.png'" 4 && result wallpaper-follows-portal PASS || result wallpaper-follows-portal FAIL "$(q "['wallpaperNow']")"
+ipc setting wallpaperDark /usr/share/backgrounds/shani/shani-dark.jpg; ipc setting wallpaperLight /usr/share/backgrounds/shani/shani-light.jpg; sleep 1
+case "$(gsettings get org.gnome.desktop.background picture-uri-dark)" in *shani-dark.jpg*) result wallpaper-written-for-apps PASS ;; *) result wallpaper-written-for-apps FAIL "$(gsettings get org.gnome.desktop.background picture-uri-dark)" ;; esac
+
+# ---- what to do with a file (after Tangerine): the card offers what fits, the result lands beside it ----
+mkdir -p /tmp/fa; magick -size 80x60 xc:'#cc6633' /tmp/fa/photo.png
+ipc fileActions /tmp/fa/photo.png
+waitfor "'webp' in d['fileActions'] and 'png' in d['fileActions'] and 'ask' in d['fileActions']" 3 && result file-actions-for-image PASS || result file-actions-for-image FAIL "$(q "['fileActions']")"
+shot 26j-file-actions 0.3
+ipc fileAction webp
+waitfor "d['fileActionLast'] == '/tmp/fa/photo.webp'" 8 && [ -s /tmp/fa/photo.webp ] && result file-action-converts PASS || result file-action-converts FAIL "$(q "['fileActionLast']") $(ls /tmp/fa)"
+ffmpeg -y -loglevel error -f lavfi -i testsrc=size=160x120:rate=10 -t 2 /tmp/fa/clip.mp4 2>/dev/null
+ipc fileActions /tmp/fa/clip.mp4; sleep 0.3; ipc fileAction gif
+waitfor "d['fileActionLast'] == '/tmp/fa/clip.gif'" 15 && [ -s /tmp/fa/clip.gif ] && result file-action-video-gif PASS || result file-action-video-gif FAIL "$(q "['fileActionLast']") $(ls /tmp/fa)"
+
+# ---- fit a size limit (a form's photo: 20-50 KB, 200x230 px): within it, exactly that size ----
+magick -size 2400x1800 plasma:fractal /tmp/fa/big.jpg
+ipc fileActions /tmp/fa/big.jpg; sleep 0.3; ipc fileFit 50 20 200 230
+waitfor "d['fileActionLast'].endswith('.jpg') and '20 KB-50 KB' in d['fileActionLast']" 15
+f=$(q "['fileActionLast']"); sz=$(stat -c%s "$f" 2>/dev/null || echo 0); dim=$(magick identify -format "%wx%h" "$f" 2>/dev/null)
+[ "$sz" -ge 20480 ] && [ "$sz" -le 51200 ] && [ "$dim" = 200x230 ] && result file-fit-size-limit PASS "$((sz/1024)) KB $dim" || result file-fit-size-limit FAIL "'$f' $sz bytes $dim"
+
+# ---- desktop layouts: a click tries one on for real, Esc puts it back, Enter keeps it --------
+lsw() { niri msg -j layers | python3 -c "import json,sys; print(sum(1 for l in json.load(sys.stdin) if l['namespace'] == 'shani-layout-switcher'))"; }
+kdl="${XDG_CONFIG_HOME:-$HOME/.config}/niri/shani-input.kdl"
+before=$(q "['winWidth'], d['widgets'], d['dockHides']")
+ipc layoutSwitcher
+waitfor "d['layoutSwitcher']" 3 && [ "$(lsw)" -ge 1 ] && result layout-switcher-opens PASS || result layout-switcher-opens FAIL "$(q "['layoutSwitcher']") layers $(lsw)"
+shot 26k-layout-switcher 0.4
+wtype -k Right   # Shani -> Classic: windows open full width, widgets down the left
+waitfor "d['winWidth'] == 1 and 'agenda' in d['widgets']" 3 && sleep 1.2 && grep -q "proportion 1.00" "$kdl" && niri validate -c "${NIRI_CONFIG:-/work/dev/niri/session.kdl}" >/dev/null 2>&1 && niri msg -j windows >/dev/null && result layout-tries-on PASS || result layout-tries-on FAIL "$(q "['winWidth'], d['widgets']") $(grep -o 'proportion [0-9.]*' "$kdl")"
+shot 26l-layout-classic 0.3
+wtype -k Escape
+waitfor "not d['layoutSwitcher']" 3 && [ "$(q "['winWidth'], d['widgets'], d['dockHides']")" = "$before" ] && result layout-cancel-restores PASS || result layout-cancel-restores FAIL "$(q "['winWidth'], d['widgets'], d['dockHides']") vs $before"
+ipc layoutSwitcher; waitfor "d['layoutSwitcher']" 3
+wtype -k Right; wtype -k Right; sleep 0.3; wtype -k Return    # Focus, kept
+waitfor "not d['layoutSwitcher'] and d['layoutPreset'] == 'focus' and d['dockHides'] and d['widgets'] == []" 3 && result layout-keeps PASS || result layout-keeps FAIL "$(q "['layoutPreset'], d['dockHides'], d['widgets']")"
+settings '{}'
+
+# ---- desktop icons: the Desktop folder's files down the left, or stacks by kind ----------
+layer() { niri msg -j layers | python3 -c "import json,sys; print(sum(1 for l in json.load(sys.stdin) if l['namespace'] == '$1'))"; }
+ipc setting desktopIcons true; sleep 0.5      # off by default (only Classic and Dashboard turn them on)
+[ -d /root/Desktop ] && result desktop-folder-made PASS || result desktop-folder-made FAIL "no /root/Desktop: the icons would list / instead"
+[ "$(layer shani-desktop-icons)" = 0 ] && result desktop-empty-shows-nothing PASS || result desktop-empty-shows-nothing FAIL "$(layer shani-desktop-icons) layers on an empty desktop"
+printf 'q3\n' > /root/Desktop/report.txt; printf 'notes\n' > /root/Desktop/notes.md; magick -size 32x32 xc:teal /root/Desktop/photo.png; mkdir -p /root/Desktop/Projects
+i=0; until [ "$(layer shani-desktop-icons)" -ge 1 ] || [ $i -ge 12 ]; do sleep 0.25; i=$((i+1)); done
+if [ -f "$A11Y" ]; then
+    t=$(timeout 20 python3 "$A11Y" find "button:^report.txt$" 2>/dev/null | head -1)
+    [ -n "$t" ] && result desktop-icons-show-files PASS || result desktop-icons-show-files FAIL "layers $(layer shani-desktop-icons)"
+    shot 26m-desktop-icons 0.3
+    ipc setting deskStacks true; sleep 1
+    t=$(timeout 20 python3 "$A11Y" find "button:^Documents \(2\)$" 2>/dev/null | head -1)
+    [ -n "$t" ] && result desktop-stacks-by-kind PASS || result desktop-stacks-by-kind FAIL "$(timeout 20 python3 "$A11Y" find "button:\(" 2>&1 | head -3 | tr '\n' ';')"
+    ipc setting deskStacks false
+else
+    [ "$(layer shani-desktop-icons)" -ge 1 ] && result desktop-icons-show-files PASS || result desktop-icons-show-files FAIL
+fi
+ipc setting desktopIcons false; sleep 1
+[ "$(layer shani-desktop-icons)" = 0 ] && result desktop-icons-switch-off PASS || result desktop-icons-switch-off FAIL "$(layer shani-desktop-icons) layers"
+ipc setting desktopIcons true
+rm -rf /root/Desktop/report.txt /root/Desktop/notes.md /root/Desktop/photo.png /root/Desktop/Projects
+
+# ---- desktop widgets: each one on its own layer, there while switched on, gone when off ----
+settings '{"desktopWidgets": ["clock", "agenda", "note", "clocks"]}'
+ok=1; for w in agenda note clocks; do [ "$(layer shani-desk-$w)" -ge 1 ] || ok=0; done
+[ $ok = 1 ] && result desktop-widgets-show PASS || result desktop-widgets-show FAIL "agenda $(layer shani-desk-agenda) note $(layer shani-desk-note) clocks $(layer shani-desk-clocks)"
+shot 26n-desktop-widgets 0.3
+settings '{"desktopWidgets": ["clock"]}'
+[ "$(layer shani-desk-agenda)$(layer shani-desk-note)$(layer shani-desk-clocks)" = 000 ] && result desktop-widgets-hide PASS || result desktop-widgets-hide FAIL
+settings '{}'
+
+# ---- the dock and bar step aside (Plank's intelligent hide, the default) ---------------
+# smart: in view while windows sit beside it, away while one is moved over it, back after
+settings '{}'
+foot --app-id=hide-test sh -c 'sleep 120' >/dev/null 2>&1 &
+HPID=$!
+i=0; until niri msg -j windows | grep -q '"hide-test"' || [ $i -ge 20 ]; do sleep 0.25; i=$((i+1)); done
+hid=$(niri msg -j windows | python3 -c "import json,sys; print(next(w['id'] for w in json.load(sys.stdin) if w['app_id'] == 'hide-test'))")
+waitfor "d['dockMode'] == 'smart' and d['dockShown'] and d['barShown']" 3 && result dock-smart-stays-for-tiled PASS || result dock-smart-stays-for-tiled FAIL "$(q "['dockMode'], d['dockShown']")"
+niri msg action toggle-window-floating --id "$hid"; sleep 0.3
+niri msg action move-floating-window --id "$hid" -y +3000
+waitfor "not d['dockShown']" 3 && result dock-smart-steps-aside PASS || result dock-smart-steps-aside FAIL "$(niri msg -j windows | python3 -c "import json,sys; print([w['layout'] for w in json.load(sys.stdin) if w['app_id'] == 'hide-test'])")"
+waitfor "d['dockHintSeen']" 2 && result dock-says-where-it-went PASS || result dock-says-where-it-went FAIL
+shot 26o-dock-stepped-aside 0.3
+niri msg action move-floating-window --id "$hid" -y -3000
+waitfor "d['dockShown']" 3 && result dock-smart-comes-back PASS || result dock-smart-comes-back FAIL "$(niri msg -j windows | python3 -c "import json,sys; print([w['layout'] for w in json.load(sys.stdin) if w['app_id'] == 'hide-test'])")"
+# the bar, smart: away while that window is over the top; the Island asking brings it back
+ipc setting barVisibility smart; sleep 0.5
+waitfor "not d['barShown']" 3 && result bar-smart-steps-aside PASS || result bar-smart-steps-aside FAIL "$(q "['barMode'], d['barShown']")"
+ipc askIsland
+waitfor "d['barShown']" 3 && result bar-back-for-the-island PASS || result bar-back-for-the-island FAIL
+wtype -k Escape; sleep 0.3; ipc closeAll       # the ask field holds the keyboard until Esc
+# hide: the windows get the whole height, the dock waits at the edge
+ipc setting dockVisibility hide; niri msg action toggle-window-floating --id "$hid"; sleep 0.5
+waitfor "not d['dockShown']" 3 && result dock-hide-waits-at-edge PASS || result dock-hide-waits-at-edge FAIL
+kill $HPID 2>/dev/null; settings '{}'
+
+# ---- screen saver: the clock cover, here by its preview; a key ends it ---------------------
+cov() { niri msg -j layers | python3 -c "import json,sys; print(sum(1 for l in json.load(sys.stdin) if l['namespace'] == 'shani-screensaver'))"; }
+ipc screenSaverPreview
+waitfor "d['screenSaver']" 3 && [ "$(cov)" -ge 1 ] && result screensaver-shows PASS || result screensaver-shows FAIL "$(q "['screenSaver']") layers $(cov)"
+shot 26g-screensaver 0.4
+wtype -k space
+waitfor "not d['screenSaver']" 3 && result screensaver-key-ends PASS || result screensaver-key-ends FAIL
+
+# ---- the charger going in: the ring card, then gone by itself ------------------------------
+chg() { niri msg -j layers | python3 -c "import json,sys; print(sum(1 for l in json.load(sys.stdin) if l['namespace'] == 'shani-charging'))"; }
+ipc chargingPreview; sleep 0.8; c1=$(chg)
+shot 26h-charging 0.2
+sleep 3.2; c2=$(chg)
+[ "$c1" -ge 1 ] && [ "$c2" = 0 ] && result charging-animation PASS || result charging-animation FAIL "during $c1, after $c2"
+
+# ---- a notification's own sound (the spec's sound-name hint) wins over ours -------------------
+notify-send -a Timer -h string:sound-name:complete "Done" "the bread is ready"
+waitfor "d['notifLastSound'].endswith('/complete.oga')" 3 && result notification-sound-name PASS || result notification-sound-name FAIL "$(q "['notifLastSound']")"
+
+# ---- scratchpads: the drop-down terminal starts, goes away, comes back (Mod+`) ---------
+padw() { niri msg -j windows | python3 -c "import json,sys; w=[x for x in json.load(sys.stdin) if x['app_id']=='shani-pad-terminal']; print(w[0]['id'] if w else '')"; }
+ipc scratchpad terminal
+i=0; while [ -z "$(padw)" ] && [ $i -lt 20 ]; do sleep 0.25; i=$((i+1)); done; pid_=$(padw)
+fl=$(niri msg -j windows | python3 -c "import json,sys; print(next((x['is_floating'] for x in json.load(sys.stdin) if x['app_id']=='shani-pad-terminal'), None))")
+[ -n "$pid_" ] && [ "$fl" = True ] && result scratchpad-starts-floating PASS || result scratchpad-starts-floating FAIL "window '$pid_' floating $fl"
+niri msg action focus-window --id "$pid_" 2>/dev/null; sleep 0.4
+ipc scratchpad terminal
+waitfor "$pid_ in d['minimised'] and d['scratchpad'] == 'hidden'" 4 && result scratchpad-hides PASS || result scratchpad-hides FAIL "$(q "['scratchpad'], d['minimised']")"
+ipc scratchpad terminal
+waitfor "$pid_ not in d['minimised'] and d['scratchpad'] == 'shown' and d['focusedTitle'] is not None" 4 && result scratchpad-comes-back PASS || result scratchpad-comes-back FAIL "$(q "['scratchpad'], d['minimised']")"
+niri msg action close-window --id "$pid_" 2>/dev/null
+
 # ---- on every workspace: a pinned window follows to each workspace shown --------------
 niri msg action focus-workspace "$here"; sleep 0.3
 ipc pinWindow "$wid"
@@ -347,10 +537,14 @@ was=$(wsof "$wid"); niri msg action focus-workspace 99; sleep 1     # the empty 
 niri msg action move-window-to-tiling --id "$wid" 2>/dev/null
 niri msg action move-window-to-workspace --window-id "$wid" --focus false "$here"; niri msg action focus-workspace "$here"
 
+# the dock's own buttons, below: the window pinned above floats over the dock, and the
+# default intelligent hide rightly steps aside for it - these are about the buttons
+# (the hiding has its own checks), so the dock stays up while they run
+ipc setting dockVisibility always; sleep 0.5
 # ---- workspaces on the dock (Pantheon's): a tile each, "+" starts a new one -------------
 if [ -f "$A11Y" ]; then
     t=$(timeout 20 python3 "$A11Y" find "button:^Workspace 1, " 2>/dev/null | head -1)
-    [ -n "$t" ] && result dock-workspace-tiles PASS "$t" || result dock-workspace-tiles FAIL "$(timeout 20 python3 "$A11Y" find "button:Workspace" 2>&1 | head -3 | tr '\n' ';')"
+    [ -n "$t" ] && result dock-workspace-tiles PASS "$t" || result dock-workspace-tiles FAIL "dock shown $(q "['dockShown']"): $(timeout 20 python3 "$A11Y" find "button:Workspace" 2>&1 | head -3 | tr '\n' ';')"
     ws0=$(q "['focusedWorkspace']")
     timeout 20 python3 "$A11Y" press "button:^New workspace$" >/dev/null 2>&1
     waitfor "d['focusedWorkspace'] > $ws0 and d['focusedTitle'] is None" 4 && result dock-new-workspace PASS "$(q "['focusedWorkspace']")" || result dock-new-workspace FAIL "$(q "['focusedWorkspace']") (was $ws0)"
@@ -386,6 +580,7 @@ printf 'hello' > "/tmp/a dropped file.txt"; rm -f /tmp/dropped
 ipc openFilesWith shani-drop-test "/tmp/a dropped file.txt"
 i=0; while [ ! -s /tmp/dropped ] && [ $i -lt 12 ]; do sleep 0.25; i=$((i+1)); done
 grep -qx "/tmp/a dropped file.txt" /tmp/dropped 2>/dev/null && result dock-drop-opens-file PASS || result dock-drop-opens-file FAIL "$(cat /tmp/dropped 2>&1 | head -2 | tr '\n' ';')"
+ipc setting dockVisibility smart
 
 # ---- reopening apps: the apps open now are kept for the next sign-in ----------------------
 foot -a foot -T "Reopen me" sleep 600 >/dev/null 2>&1 &
@@ -506,7 +701,7 @@ paplay /tmp/said.wav
 sleep 0.8
 ipc dictate
 waitfor "d['dictation'] == 'idle' and d['dictated'] != ''" 40 && result dictation-transcribes PASS "heard: $(q "['dictated']")" \
-    || result dictation-transcribes FAIL "$(tail -3 /work/logs/qs.log)"
+    || result dictation-transcribes FAIL "$(tail -3 /work/out/logs/qs.log)"
 waitfor "d['topResult'].endswith(d['dictated'])" 4 && result dictation-types-into-field PASS || result dictation-types-into-field FAIL "$(q "['topResult']")"
 ipc osk
 ipc closeAll
@@ -514,9 +709,9 @@ pactl set-default-source mic 2>/dev/null
 
 # ---- launcher: emoji, and what you use ranks first ------------------------------
 ipc launcher ":grinning face"
-waitfor "d['topResult'].startswith('😀')" 4 && result launcher-emoji PASS || result launcher-emoji FAIL "$(q "['topResult']")"
+waitfor "d['topResult'] == 'grinning face'" 4 && result launcher-emoji PASS || result launcher-emoji FAIL "$(q "['topResult']")"
 ipc launcher "text edit"
-waitfor "d['topResult'] == 'Text Editor'" 3
+waitfor "d['topResult'] == 'Text Editor'" 3; sleep 0.4
 wtype -k Return
 sleep 1.5
 ipc launcher ""
@@ -590,6 +785,13 @@ settings '{"wallpaperLight": "", "wallpaperDark": "", "wallpaper": "/tmp/orange.
 waitfor "int(d['accent'][1:3],16) > int(d['accent'][5:7],16) + 60" 10 && result accent-from-wallpaper PASS "$(q "['accent']")" \
     || result accent-from-wallpaper FAIL "$(q "['accent']")"
 shot 49-accent-orange 0.6
+# a cold wallpaper must be taken just as faithfully: blue well above red
+# (wallpaperDark/Light must be cleared too: their defaults are the bundled pair,
+# which override the single wallpaper while the style is dark)
+magick -size 1920x1080 gradient:'#0a2a6b'-'#4e87ee' /tmp/blue.png
+settings '{"wallpaperLight": "", "wallpaperDark": "", "wallpaper": "/tmp/blue.png", "accentFromWallpaper": true}'
+waitfor "int(d['accent'][5:7],16) > int(d['accent'][1:3],16) + 40" 10 && result accent-follows-cold-wall PASS "$(q "['accent']")" \
+    || result accent-follows-cold-wall FAIL "$(q "['accent']")"
 settings '{}'
 
 # ---- day/night wallpaper -----------------------------------------------------------
@@ -655,7 +857,7 @@ waitfor "d['snoozed'] == 1 and d['notifications'] == $n1 - 1" 3 && result notifi
 waitfor "d['snoozed'] == 0 and 'Snooze me' in d['notificationSummaries']" 30 && result notification-snooze-returns PASS || result notification-snooze-returns FAIL "$(st)"
 ipc summarize
 sleep 1.5
-grep -q "Summarise these notifications" /work/logs/mock.log && result notifications-summary-asks-chronoa PASS || result notifications-summary-asks-chronoa FAIL
+grep -q "Summarise these notifications" /work/out/logs/mock.log && result notifications-summary-asks-chronoa PASS || result notifications-summary-asks-chronoa FAIL
 settings '{"hiddenTiles": ["lens"], "tileOrder": ["chronoa", "dnd"]}'
 ipc controlCenter ""
 waitfor "d['tilesShown'][:2] == ['chronoa', 'dnd'] and 'lens' not in d['tilesShown']" 4 && result tiles-reordered-and-hidden PASS || result tiles-reordered-and-hidden FAIL "$(q "['tilesShown']")"
@@ -789,9 +991,9 @@ waitfor "d['lens'] == 'ready'" 15 && st | python3 -c "import json,sys; t=json.lo
     && result lens-reads-text PASS || result lens-reads-text FAIL "$(q "['lensText']")"
 shot 28-lens 0.4
 wtype "what does this say?" -k Return
-waitfor "d['lens'] == 'idle'" 4 && grep -q "look_at_image: /run/user/0/shani-lens-" /work/logs/mock.log \
-    && grep -q "SHANI LENS READS THIS" /work/logs/mock.log \
-    && result lens-asks-chronoa-with-image PASS || result lens-asks-chronoa-with-image FAIL "$(tail -3 /work/logs/mock.log)"
+waitfor "d['lens'] == 'idle'" 4 && grep -q "look_at_image: /run/user/0/shani-lens-" /work/out/logs/mock.log \
+    && grep -q "SHANI LENS READS THIS" /work/out/logs/mock.log \
+    && result lens-asks-chronoa-with-image PASS || result lens-asks-chronoa-with-image FAIL "$(tail -3 /work/out/logs/mock.log)"
 niri msg action focus-workspace 1
 
 # ---- smart copy: the Island offers one next step --------------------------------
@@ -1203,7 +1405,7 @@ wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.35
 settings '{}'
 waitfor "d['wallpaperNow'] == '/usr/share/backgrounds/shani/shani-dark.jpg'" 4 && result default-wallpaper-dark PASS || result default-wallpaper-dark FAIL "$(q "['wallpaperNow']")"
 g() { gsettings get org.gnome.desktop.interface "$1"; }
-[ "$(g icon-theme)" = "'Papirus-Dark'" ] && [ "$(g accent-color)" = "'teal'" ] && [ "$(g monospace-font-name)" = "'JetBrains Mono 11'" ] \
+[ "$(g icon-theme)" = "'Papirus-Dark'" ] && [ "$(g accent-color)" = "'orange'" ] && [ "$(g monospace-font-name)" = "'JetBrains Mono 11'" ] \
     && result default-look-for-apps PASS || result default-look-for-apps FAIL "$(g icon-theme) $(g accent-color) $(g monospace-font-name)"
 settings '{"accentName": "purple", "accentFromWallpaper": false}'
 waitfor "d['accent'] == '#dc8add'" 3 && [ "$(g accent-color)" = "'purple'" ] && result accent-choice PASS || result accent-choice FAIL "$(q "['accent']") $(g accent-color)"
@@ -1293,10 +1495,12 @@ waitfor "d['converted'] == '/tmp/rec-test (smaller).mp4'" 30 && [ -s "/tmp/rec-t
 
 # ---- the CPU's temperature, from the kernel's sensor (the host's, seen through /sys) -------
 if ls /sys/class/hwmon/*/name >/dev/null 2>&1 && grep -qxE 'coretemp|k10temp|zenpower|cpu_thermal|soc_thermal' /sys/class/hwmon/*/name; then
+    ipc setting showSysStats true      # sampled only while shown: the bar's chip shows it
     waitfor "d['cpuTemp'] > 10 and d['cpuTemp'] < 120" 8 && result cpu-temperature PASS "$(q "['cpuTemp']") °C" || result cpu-temperature FAIL "$(q "['cpuTemp']")"
 else
     result cpu-temperature SKIP "no CPU sensor visible here"
 fi
+ipc setting showSysStats false
 
 # ---- the agenda: events from Evolution Data Server's own "Personal" calendar ------------
 cal=/root/.local/share/evolution/calendar/system
@@ -1339,11 +1543,20 @@ wtype "On my way" -k Return
 sleep 1
 grep -q '"to":"+919822222222","text":"On my way"' /tmp/modem-answers 2>/dev/null && result sms-composer-sends PASS || result sms-composer-sends FAIL "$(cat /tmp/modem-answers 2>&1)"
 
-# ---- the first-login tour: five cards, Enter through them, remembered ------------------
+# ---- the first-login tour: five cards and "Make it yours", Enter through them, remembered --
 ipc tour
 waitfor "d['tour']" 3 && result tour-opens PASS || result tour-opens FAIL
 shot 91-tour 0.6
 for i in 1 2 3 4 5; do wtype -k Return; sleep 0.3; done
+shot 91b-tour-make-it-yours 0.3
+# its last card opens the layout picker itself (and the tour counts as seen)
+if [ -f "$A11Y" ]; then
+    timeout 20 python3 "$A11Y" press "button:^Desktop layout" >/dev/null 2>&1
+    waitfor "d['layoutSwitcher'] and not d['tour']" 3 && result tour-opens-layouts PASS || result tour-opens-layouts FAIL "$(q "['layoutSwitcher'], d['tour']")"
+    wtype -k Escape; waitfor "not d['layoutSwitcher']" 3
+else
+    wtype -k Return
+fi
 waitfor "not d['tour']" 3; sleep 1   # the settings file is written a moment later
 grep -q '"tourSeen": *true' /tmp/shani-settings.json && result tour-finishes-and-remembers PASS || result tour-finishes-and-remembers FAIL "$(grep -o '"tourSeen"[^,]*' /tmp/shani-settings.json)"
 settings '{}'
@@ -1418,7 +1631,7 @@ settings '{}'
 # ---- call recording: both sides into one file -----------------------------------
 rm -rf /root/Recordings/Calls
 ipc callRecord
-waitfor "d['callRecording']" 4 && result call-record-starts PASS || result call-record-starts FAIL "$(tail -3 /work/logs/qs.log)"
+waitfor "d['callRecording']" 4 && result call-record-starts PASS || result call-record-starts FAIL "$(tail -3 /work/out/logs/qs.log)"
 shot 62-call-record 0.3
 paplay /tmp/cap.wav
 ipc callRecord
@@ -1462,7 +1675,7 @@ waitfor "d['annotate']" 3 && result annotate-opens PASS || result annotate-opens
 shot 71-annotate 0.4
 wtype s
 for i in $(seq 1 20); do ls /root/Pictures/Screenshots/Drawing*.png >/dev/null 2>&1 && break; sleep 0.25; done
-ls /root/Pictures/Screenshots/Drawing*.png >/dev/null 2>&1 && result annotate-saves PASS || result annotate-saves FAIL "$(tail -2 /work/logs/qs.log)"
+ls /root/Pictures/Screenshots/Drawing*.png >/dev/null 2>&1 && result annotate-saves PASS || result annotate-saves FAIL "$(tail -2 /work/out/logs/qs.log)"
 wtype -k Escape
 waitfor "not d['annotate']" 3 && result annotate-closes PASS || result annotate-closes FAIL
 
@@ -1575,7 +1788,7 @@ settings '{}'
 
 # ---- the shell in Marathi (shani/i18n/mr.json), read as a screen reader would -----------
 pkill -x qs; sleep 1
-SHANI_SHELL_LANG=mr QS_ICON_THEME=Adwaita QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1 qs -p /work/shani >>/work/logs/qs.log 2>&1 &
+SHANI_SHELL_LANG=mr QS_ICON_THEME=Adwaita QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1 qs -p /work/shani >>/work/out/logs/qs.log 2>&1 &
 waitfor "d['language'] == 'mr' and d['sampleWord'] == 'सूचना'" 15 && result i18n-marathi-catalog PASS || result i18n-marathi-catalog FAIL "$(q "['language']") / $(q "['sampleWord']")"
 if [ -f /testbed/lib/a11y_client.py ]; then
     sleep 2
@@ -1583,5 +1796,5 @@ if [ -f /testbed/lib/a11y_client.py ]; then
         && result i18n-marathi-bar PASS || result i18n-marathi-bar FAIL "$(timeout 20 python3 /testbed/lib/a11y_client.py observe 2>&1 | head -8 | tr '\n' ';')"
 fi
 
-echo "--- qs warnings"; grep -E "WARN|ERROR" /work/logs/qs.log | grep -v -E "ZINK|libvulkan" | sort | uniq -c | sort -rn | head -15
+echo "--- qs warnings"; grep -E "WARN|ERROR" /work/out/logs/qs.log | grep -v -E "ZINK|libvulkan" | sort | uniq -c | sort -rn | head -15
 [ "$fail" = 0 ]

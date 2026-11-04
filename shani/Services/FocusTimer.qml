@@ -37,7 +37,7 @@ Singleton {
             root.left -= 1;
             if (root.left <= 0) {
                 root.stop();
-                Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "Focus timer", "-i", "alarm-symbolic",
+                Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "Focus timer", "-i", "alarm-symbolic", "-h", "string:sound-name:alarm-clock-elapsed",
                     "Time for a break", Math.round(root.total / 60) + " minutes of focus done"]);
             }
         }

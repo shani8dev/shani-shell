@@ -9,7 +9,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
-import qs.Modules.ControlCenter
+import "SettingsIndex.js" as SettingsIndex
 
 FloatingWindow {
     id: win
@@ -18,8 +18,8 @@ FloatingWindow {
     implicitWidth: 1040
     implicitHeight: 760
     // glass, as the rest of the shell: translucent over a blur of what is behind
-    color: Settings.data.blur ? Theme.alpha(Theme.bg, 0.82) : Theme.bg
-    BackgroundEffect.blurRegion: Settings.data.blur ? whole : null
+    color: Settings.blurWanted ? Theme.alpha(Theme.bg, 0.82) : Theme.bg
+    BackgroundEffect.blurRegion: Settings.blurWanted ? whole : null
     Region { id: whole; item: winRoot }
     // closed by the compositor (Super+Q, its close button): Settings knows
     onVisibleChanged: if (!visible) Ui.settingsOpen = false
@@ -35,7 +35,7 @@ FloatingWindow {
             id: side
             width: 260
             anchors { top: parent.top; bottom: parent.bottom; left: parent.left }
-            color: Settings.data.blur ? Theme.alpha(Theme.surface1, 0.55) : Theme.surface1
+            color: Settings.blurWanted ? Theme.alpha(Theme.surface1, 0.55) : Theme.surface1
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: 14
@@ -53,10 +53,20 @@ FloatingWindow {
                     id: search
                     Layout.fillWidth: true
                     placeholder: Tr.t("Search settings")
-                    onAccepted: if (list.count) Ui.settingsCat = page.shownCats[0].id
+                    onAccepted: {
+                        if (page.settingsMatches.length) { page.openSetting(page.settingsMatches[0]); return; }
+                        if (list.count) { Ui.settingsCat = page.shownCats[0].id; search.text = ""; page.settingsMatches = []; page.query = ""; }
+                    }
                     // typing starts a search, as in GNOME's and Windows' Settings
                     Component.onCompleted: search.input.forceActiveFocus()
-                    Connections { target: search.input; function onTextChanged() { page.query = search.text; } }
+                    Connections { target: search.input; function onTextChanged() { page.query = search.text; page.settingsMatches = search.text.trim() === "" ? [] : SettingsIndex.matches(search.text); } }
+                }
+                SettingsMatchList {
+                    Layout.fillWidth: true
+                    visible: page.settingsMatches.length > 0
+                    matches: page.settingsMatches
+                    icons: page.catIcons
+                    onActivated: e => page.openSetting(e)
                 }
                 ListView {
                     id: list
@@ -93,6 +103,14 @@ FloatingWindow {
                                 font.pixelSize: 13 * Theme.fontScale
                                 font.weight: row.current ? Font.DemiBold : Font.Normal
                             }
+                            Rectangle {
+                                visible: (page.modified[row.modelData.id] || 0) > 0
+                                implicitWidth: 7
+                                implicitHeight: 7
+                                radius: 3.5
+                                color: Theme.accent
+                                Layout.alignment: Qt.AlignVCenter
+                            }
                         }
                         MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Ui.settingsCat = row.modelData.id }
                     }
@@ -128,5 +146,16 @@ FloatingWindow {
             // a new category starts at its top
             Connections { target: Ui; function onSettingsCatChanged() { content.contentY = 0; } }
         }
+    }
+    // a setting changed: a toast with Undo, over the bottom of the window
+    Toast {
+        anchors.bottom: parent.bottom
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottomMargin: 24
+        z: 20
+        message: page.toastMsg
+        showUndo: page.toastUndo !== undefined
+        visible: page.toastMsg !== ""
+        onUndo: page.undoToast()
     }
 }

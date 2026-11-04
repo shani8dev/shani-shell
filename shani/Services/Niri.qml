@@ -268,6 +268,19 @@ Singleton {
             windows = m;
             if (w.is_focused)
                 focusedWindowId = w.id;
+        } else if (ev.WindowLayoutsChanged) {
+            // a floating window moved or resized (what the bar and dock step aside
+            // for); tiled ones are left alone, so scrolling the row costs nothing
+            let m = null;
+            for (const [id, layout] of ev.WindowLayoutsChanged.changes) {
+                const w = windows[id];
+                if (!w || !w.is_floating)
+                    continue;
+                m = m || Object.assign({}, windows);
+                m[id] = Object.assign({}, w, { layout: layout });
+            }
+            if (m)
+                windows = m;
         } else if (ev.WindowClosed) {
             const m = Object.assign({}, windows);
             delete m[ev.WindowClosed.id];

@@ -105,6 +105,15 @@ Scope {
         }
     }
 
+    // ---- the charger pulled (going in is Modules/Charging's animation) ----
+    Connections {
+        target: Power
+        function onOnBatteryChanged() {
+            if (Power.hasBattery && Power.onBattery)
+                root.show(Power.batteryIcon, -1, "On battery · " + Math.round(Power.percent * 100) + "%", "label");
+        }
+    }
+
     // ---- Do not disturb ----
     Connections {
         target: Notifs
@@ -190,7 +199,7 @@ Scope {
         WlrLayershell.namespace: "shani-osd"
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-        BackgroundEffect.blurRegion: Settings.data.blur ? osdRegion : null
+        BackgroundEffect.blurRegion: Settings.blurWanted ? osdRegion : null
         Region { id: osdRegion; item: pill; radius: pill.radius }
 
         Glass {

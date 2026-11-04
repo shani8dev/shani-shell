@@ -1,0 +1,150 @@
+// Settings > Personalisation > Icons, fonts & cursor: what is installed —
+// icon themes (an index.theme with Directories=), cursor themes (a cursors/
+// folder), fonts (fontconfig's families) — chosen here, applied by Appearance
+// (apps) and InputConfig (niri's pointer).
+import Quickshell
+import Quickshell.Io
+import QtQuick
+import QtQuick.Layouts
+import qs.Common
+import qs.Services
+
+ColumnLayout {
+    id: page
+    spacing: 12
+    property bool active: false
+    readonly property var d: Settings.data
+    property var iconThemes: []
+    property var cursorThemes: []
+    property var fonts: []
+    property var monoFonts: []
+    property string picking: ""           // "ui" | "mono" | ""
+
+    Process {
+        running: page.active && page.iconThemes.length === 0
+        command: ["sh", "-c", 'for d in /usr/share/icons/* "${XDG_DATA_HOME:-$HOME/.local/share}"/icons/* "$HOME"/.icons/*; do
+                [ -f "$d/index.theme" ] || continue; n=${d##*/}
+                [ "$n" = hicolor ] || [ "$n" = default ] && continue
+                grep -q "^Directories=" "$d/index.theme" && echo "icon $n"
+                [ -d "$d/cursors" ] && echo "cursor $n"
+            done | sort -u
+            fc-list : family spacing | sed "s/,.*:/:/" | sort -u | sed "s/^/font /"']
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const l = text.trim().split("\n");
+                page.iconThemes = l.filter(x => x.startsWith("icon ")).map(x => x.slice(5));
+                page.cursorThemes = l.filter(x => x.startsWith("cursor ")).map(x => x.slice(7));
+                // "font Inter:" or "font DejaVu Sans Mono:spacing=100" (100 = monospace)
+                const fams = l.filter(x => x.startsWith("font ")).map(x => x.slice(5));
+                page.fonts = Array.from(new Set(fams.map(f => f.split(":")[0]))).filter(f => f && !f.startsWith(".")).sort();
+                page.monoFonts = Array.from(new Set(fams.filter(f => /spacing=(100|110)/.test(f)).map(f => f.split(":")[0]))).sort();
+            }
+        }
+    }
+
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Icons, fonts & cursor") }
+    Picks {
+        label: Tr.t("Icons")
+        options: page.iconThemes
+        current: page.d.iconTheme
+        onPicked: v => page.d.iconTheme = v
+    }
+    RowLayout {
+        visible: Appearance.iconsNeedRestart
+        spacing: 8
+        Text {
+            Layout.fillWidth: true
+            text: Tr.t("Apps use it now; the shell's own icons after it restarts.")
+            color: Theme.dim
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: 11 * Theme.fontScale
+        }
+        Button { text: Tr.t("Restart the shell"); onClicked: Appearance.restartShell() }
+    }
+    Picks {
+        label: Tr.t("Pointer")
+        options: page.cursorThemes
+        current: page.d.cursorTheme
+        onPicked: v => page.d.cursorTheme = v
+    }
+    Picks {
+        label: Tr.t("Pointer size")
+        options: [{ label: Tr.t("Normal"), value: 24 }, { label: Tr.t("Large"), value: 32 }, { label: Tr.t("Larger"), value: 48 }, { label: Tr.t("Largest"), value: 64 }]
+        current: page.d.cursorSize
+        onPicked: v => page.d.cursorSize = v
+    }
+
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Corner radius") }
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: 8
+        Text { text: Tr.t("Roundness"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; Layout.preferredWidth: 80 }
+        Repeater {
+            model: [8, 10, 12, 16, 20, 24, 28]
+            Choice {
+                required property int modelData
+                text: String(modelData)
+                selected: (page.d.cornerRadius || 16) === modelData
+                onClicked: { page.d.cornerRadius = modelData; page.d.cornerRadiusSmall = Math.max(6, modelData - 6) }
+            }
+        }
+    }
+
+    // fonts: the current one, a size, and a search of what is installed
+    Repeater {
+        model: [{ id: "ui", label: Tr.t("Interface font"), key: "uiFont", size: "uiFontSize" }, { id: "mono", label: Tr.t("Monospace font (terminals, code)"), key: "monoFont", size: "monoFontSize" }]
+        ColumnLayout {
+            id: fontRow
+            required property var modelData
+            Layout.fillWidth: true
+            spacing: 6
+            Text { text: fontRow.modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 6
+                Choice {
+                    text: page.d[fontRow.modelData.key] + "  ›"
+                    selected: page.picking === fontRow.modelData.id
+                    onClicked: page.picking = page.picking === fontRow.modelData.id ? "" : fontRow.modelData.id
+                }
+                Repeater {
+                    model: [10, 11, 12, 13, 14]
+                    Choice {
+                        required property int modelData
+                        text: String(modelData)
+                        selected: page.d[fontRow.modelData.size] === modelData
+                        onClicked: page.d[fontRow.modelData.size] = modelData
+                    }
+                }
+            }
+            Text {
+                text: fontRow.modelData.id === "mono" ? "fn main() { println!(\"0O 1lI\"); }" : "The quick brown fox — शनि ओएस"
+                color: Theme.text
+                font.family: page.d[fontRow.modelData.key]
+                font.pointSize: page.d[fontRow.modelData.size]
+            }
+            TextField {
+                id: fontSearch
+                Layout.fillWidth: true
+                visible: page.picking === fontRow.modelData.id
+                placeholder: Tr.t("Search fonts")
+            }
+            Repeater {
+                model: page.picking !== fontRow.modelData.id ? [] : (fontRow.modelData.id === "mono" ? page.monoFonts : page.fonts)
+                    .filter(f => fontSearch.text.trim() === "" || f.toLowerCase().indexOf(fontSearch.text.trim().toLowerCase()) >= 0).slice(0, 12)
+                ListRow {
+                    required property string modelData
+                    Layout.fillWidth: true
+                    icon: "preferences-desktop-font"
+                    title: modelData
+                    selected: modelData === page.d[fontRow.modelData.key]
+                    onClicked: {
+                        page.d[fontRow.modelData.key] = modelData;
+                        page.picking = "";
+                    }
+                }
+            }
+        }
+    }
+}

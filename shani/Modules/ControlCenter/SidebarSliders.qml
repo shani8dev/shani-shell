@@ -91,7 +91,8 @@ ColumnLayout {
                 }
             }
         }
-        SectionTitle { text: Tr.t("Input") }
+        // a heading only over a list: with no microphone to pick it read as broken
+        SectionTitle { visible: Audio.sources.length > 0; text: Tr.t("Input") }
         Repeater {
             model: Audio.sources
             ListRow {

@@ -48,12 +48,28 @@ Variants {
 
         // two images, so a change fades from the old picture to the new one
         property string shown: ""
-        readonly property string wanted: Theme.wallpaper
+        readonly property string wanted: {
+            if (Settings.data.wallpaperPerMonitor) {
+                const perMon = Settings.data.wallpapersByMonitor || {};
+                const monWall = perMon[scr.modelData.name];
+                if (monWall) return monWall;
+            }
+            return Theme.wallpaper;
+        }
         onWantedChanged: swap()
         Component.onCompleted: swap()
         function swap() {
             const next = a.opacity > 0.5 ? b : a;
-            next.source = wanted ? "file://" + wanted : "";
+            const src = wanted ? "file://" + wanted : "";
+            if (next.source == src) {
+                // the hidden image already holds that exact file: assigning the
+                // same source is a no-op and Ready never fires again — clear it
+                // first so the toggle always completes (and fades)
+                next.source = "";
+                Qt.callLater(() => next.source = src);
+            } else {
+                next.source = src;
+            }
         }
 
         Image {

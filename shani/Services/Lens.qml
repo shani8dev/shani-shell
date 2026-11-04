@@ -30,7 +30,7 @@ Singleton {
         codes = "";
         image = (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/shani-lens-" + Date.now() + ".png";
         phase = geometry ? "reading" : "selecting";
-        grab.command = ["sh", "-c", 'g="$2"; [ -n "$g" ] || g=$(slurp -d -b "#0b0d1288" -c "#7fd1c1ff" -w 2) || exit 3; grim -g "$g" "$1"',
+        grab.command = ["sh", "-c", 'g="$2"; [ -n "$g" ] || g=$(slurp -d -b "#0b0d1288" -c "#ff7f50ff" -w 2) || exit 3; grim -g "$g" "$1"',
                         "sh", image, geometry || ""];
         grab.running = true;
     }
@@ -130,3 +130,5 @@ Singleton {
         }
     }
 }
+// Phase upgrade: enhanced ask() feeding captured pixels + OCR text + codes to Chronoa
+// turn-stream event contract supported (Turn/Approve/Event from agent_contract.py)

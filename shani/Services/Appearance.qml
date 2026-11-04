@@ -72,6 +72,7 @@ Singleton {
         onRunningChanged: root.lastWanted = null
     }
     // ---- wallpaper slideshow: the pictures in a folder, one after another ----
+    // shuffle (wayle-inspired): random order instead of alphabetical
     property int slide: 0
     Timer {
         interval: Math.max(1, root.d.slideshowMinutes) * 60000
@@ -89,6 +90,13 @@ Singleton {
                 const pics = text.trim().split("\n").filter(x => x);
                 if (!pics.length)
                     return;
+                if (root.d.slideshowShuffle) {
+                    // Fisher-Yates shuffle
+                    for (let i = pics.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [pics[i], pics[j]] = [pics[j], pics[i]];
+                    }
+                }
                 root.slide = (root.slide + 1) % pics.length;
                 Settings.data.wallpaper = pics[root.slide];
                 Settings.data.wallpaperLight = "";
@@ -121,7 +129,7 @@ Singleton {
             gsettings set $k accent-color "$7" 2>/dev/null
             gsettings set $k font-hinting slight; gsettings set $k font-antialiasing grayscale; true', "sh",
             root.iconThemeNow, d.cursorTheme, String(d.cursorSize), d.uiFont + " " + d.uiFontSize, d.monoFont + " " + d.monoFontSize,
-            d.darkMode ? "adw-gtk3-dark" : "adw-gtk3", d.accentName || "teal"]
+            d.darkMode ? "adw-gtk3-dark" : "adw-gtk3", d.accentName || "orange"]
         onCommandChanged: if (Settings.loaded) running = true
     }
 }

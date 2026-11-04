@@ -41,14 +41,22 @@ shani/              Quickshell config (`qs -c shani`)
   Common/           Theme tokens, Settings (live JSON), Ui state, small widgets
   Services/         one singleton per system: Niri (event stream), Audio, Net,
                     Power, Notifs, Lock, Idle, Polkit, Lens, Recorder, Chronoa, …
-  Modules/          Bar, Island, Sidebar (ControlCenter), Dock, Launcher, Lens,
+  Modules/          Bar, Island, Sidebar (ControlCenter), Settings (window + pages), Dock, Launcher, Lens,
                     Ring, Notifications, Osd, Lock, Polkit, Chronoa, Idle
 greeter/            greetd greeter (`qs -c shani-greeter`); Common -> ../shani/Common
-bridge/             shani-chronoa-bridge: D-Bus <-> the shell's socket
-                    (Chronoa's Agent/Mascot/Windows, logind lock + sleep)
+setup/              first-boot wizard (`qs -c shani-setup`); Common -> ../shani/Common
+bridge/             helpers the shell runs: shani-chronoa-bridge (D-Bus <-> the
+                    shell's socket), launch-app, appfilter, agenda, location, …
+bin/                shani-doctor (installed as /usr/bin/shani-doctor)
 data/               systemd user units, pam.d/shani-lock
-dev/                test harness (below), mock Chronoa, fake greetd/MPRIS
-docs/shots/         every test's screenshots (written by a test run; not in git)
+assets/             wallpapers and their masters (assets/make-wallpapers.py)
+tools/              i18n catalogs, the world map's land outlines
+tests/              pytest: bridges, launch-app, QML patterns
+dev/                the test harness: dev/check.sh runs every suite (below);
+                    the dev session, mock Chronoa, fakes for greetd/MPRIS/…
+docs/               FINDINGS (measurements, bugs the tests caught), GAPS,
+                    CROSS-REF, the two README showcase images
+out/                what test runs write: logs, screenshots, renders (not in git)
 ```
 Settings: `~/.config/shani-shell/settings.json` — any subset of the keys in
 `shani/Common/Settings.qml`; edits apply live, toggles write back.
@@ -83,15 +91,18 @@ qs -c shani ipc call shani showDesktop                # also: lock, launcher "�
 ```
 
 ## Tests — everything is run, not read
+One runner for every suite, on the host (it builds `shani-shell-dev` when missing):
 ```
-docker build -t shani-shell-dev -f dev/Containerfile dev
-docker run --rm --cap-add SYS_PTRACE -v "$PWD":/work -v ../shani-testbed:/testbed:ro \
-    shani-shell-dev sh /work/dev/shell-test.sh                                  # the shell
-#   SHELL_TEST_ONLY=idle (-e): just the idle cost   SHELL_TEST_ONLY=a11y: idle + accessibility
-docker run --rm -v "$PWD":/work shani-shell-dev sh /work/dev/greeter-test.sh   # greeter
-sh dev/polkit-run.sh                                                            # polkit (systemd + logind)
-python3 -m pytest tests -q                                                      # bridge: turn filter, logind
+sh dev/check.sh                    # everything: unit shell greeter setup polkit admin setup-polkit
+sh dev/check.sh unit shell         # just these
+sh dev/check.sh idle               # the idle cost alone; a11y: idle + accessibility lint
+sh dev/check.sh render=all         # every surface to PNG (shell|greeter|setup|all) in out/renders
+sh dev/check.sh --build shell      # rebuild the image first
 ```
+Everything a run writes goes to `out/` (git-ignored): logs in `out/logs`
+(`check-summary.txt` lists pass/fail counts and every failing check),
+screenshots in `out/shots`, renders in `out/renders`. `admin` and `setup-polkit` need
+`../shani-pkgbuilds/shani-desktop-niri` (or `$SHANI_DESKTOP_NIRI`).
 Three checks guard the whole shell, not one feature:
 - **idle-cost** — 30 s with nothing happening: the programs the shell starts
   (strace on its execve calls, hence SYS_PTRACE; budget 12/min, today 2–4), its
@@ -115,4 +126,4 @@ real outputs in shani-testbed: a real screen recording (wf-recorder gets a 0×0
 frame nested; the test checks the failure is reported), night light (needs
 wlr-gamma-control), auto-rotate (needs an accelerometer).
 
-See `FINDINGS.md` for the measurements and the bugs these tests caught.
+See `docs/FINDINGS.md` for the measurements and the bugs these tests caught.

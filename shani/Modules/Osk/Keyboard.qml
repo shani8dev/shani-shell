@@ -19,7 +19,7 @@ PanelWindow {
     WlrLayershell.namespace: "shani-osk"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-    BackgroundEffect.blurRegion: Settings.data.blur ? kbRegion : null
+    BackgroundEffect.blurRegion: Settings.blurWanted ? kbRegion : null
     Region { id: kbRegion; item: board; radius: Theme.radiusLarge }
 
     readonly property var layouts: ({

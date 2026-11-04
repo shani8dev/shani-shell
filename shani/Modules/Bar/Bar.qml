@@ -25,14 +25,33 @@ Variants {
         readonly property var player: Mpris.players.values.find(p => p.isPlaying) || Mpris.players.values[0] || null
 
         anchors { top: true; left: true; right: true }
-        margins { top: 8; left: 10; right: 10 }
-        implicitHeight: Theme.barHeight
-        exclusiveZone: Theme.barHeight + 8
+        // the surface starts at the screen's top edge, so a hidden bar can be
+        // called back by resting the pointer there; the bar itself sits 8 px down
+        margins { top: 0; left: 10; right: 10 }
+        implicitHeight: Theme.barHeight + 8
+        // always | smart (in view, keeps its space, steps aside for a window over
+        // it) | hide (until the pointer asks): Services/Hiding
+        readonly property string mode: Settings.data.barVisibility
+        exclusionMode: mode === "hide" ? ExclusionMode.Ignore : ExclusionMode.Normal
+        exclusiveZone: mode === "hide" ? 0 : Theme.barHeight + 16     // as before: 8 above, the bar, 8 below
+        readonly property bool covered: mode === "smart" && Hiding.covered(output, "top", Theme.barHeight + 16 + 2, modelData.height)
+        // the Island rides on the bar: when it has something to ask or show, the bar comes back with it
+        readonly property bool shown: mode === "always" || (revealed && barHover.hovered) || Niri.overviewOpen
+            || Ui.controlCenter || (Ui.islandBusy && output === Niri.focusedOutput) || (mode === "smart" && !covered)
+        property bool revealed: false
+        Connections { target: barHover; function onHoveredChanged() { if (!barHover.hovered) bar.revealed = false; } }
+        Timer { interval: 250; running: topEdge.hovered && !bar.revealed; onTriggered: bar.revealed = true }
+        onShownChanged: Hiding.setBarShown(output, shown)
+        Component.onCompleted: Hiding.setBarShown(output, shown)
+        HoverHandler { id: barHover }
+        Item { id: edgeStrip; width: parent.width; height: 4; HoverHandler { id: topEdge } }
+        mask: Region { item: bar.shown ? whole : edgeStrip }
+        Item { id: whole; anchors.fill: parent }
         color: "transparent"
         WlrLayershell.namespace: "shani-panel"
         WlrLayershell.layer: WlrLayer.Top
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-        BackgroundEffect.blurRegion: Settings.data.blur ? barRegion : null
+        BackgroundEffect.blurRegion: Settings.blurWanted && bar.shown ? barRegion : null
         Region { id: barRegion; item: glass; radius: Theme.radius }
 
         // Caffeine: an idle inhibitor needs a visible surface to hang on, and
@@ -45,6 +64,10 @@ Variants {
         Glass {
             id: glass
             anchors.fill: parent
+            anchors.topMargin: 8
+            opacity: bar.shown ? 1 : 0
+            transform: Translate { y: bar.shown ? 0 : -(Theme.barHeight + 12); Behavior on y { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } } }
+            Behavior on opacity { NumberAnimation { duration: 160 } }
             // click-through unused bar space (borrow from Noctalia)
             MouseArea {
                 anchors.fill: parent
@@ -64,6 +87,8 @@ Variants {
                     icon: "view-app-grid"
                     tint: Theme.accent
                     active: Ui.launcher
+                    hint: Tr.t("Apps, files and settings - right-click for the calculator")
+                    hintKeys: "Super + Space"
                     onClicked: Ui.toggleLauncher()
                     onRightClicked: Ui.toggleLauncher("=")
                 }
@@ -125,6 +150,7 @@ Variants {
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: Niri.focusWorkspace(parent.modelData)
                             }
+                            Hint { text: Tr.t("Workspace %1", parent.index + 1) + " - " + Tr.t("Super + O shows them all"); keys: "Super + " + (parent.index + 1) }
                         }
                     }
                 }
@@ -132,13 +158,18 @@ Variants {
 
                 Rectangle { width: 1; height: 16; color: Theme.stroke; Layout.leftMargin: 6; Layout.rightMargin: 6 }
 
-                // focused window: app icon + title in a chip; click for the window menu
+                // focused window: app icon + title in a chip; click for the window menu.
+                // Its minimise, maximise and close sit right after the title, for every
+                // window - including those that draw no titlebar of their own (Unity's idea)
                 Glass {
                     id: titleChip
                     elevation: "none"
                     edge: "subtle"
                     visible: Niri.focusedWindow !== null
-                    Layout.maximumWidth: Math.max(140, bar.width * 0.25)
+                    Layout.maximumWidth: Math.max(140, bar.width * 0.25) + 84
+                    // sized by what it holds (it had no width of its own and drew no chip)
+                    implicitWidth: titleRow.implicitWidth + 20
+                    implicitHeight: 28
                     radius: 10
                     color: Theme.card
                     border.color: Theme.stroke
@@ -159,7 +190,7 @@ Variants {
                             }
                         }
                         Text {
-                            width: Math.min(implicitWidth, titleChip.Layout.maximumWidth - 40)
+                            width: Math.min(implicitWidth, titleChip.Layout.maximumWidth - 124)
                             text: Niri.focusedWindow ? (Niri.focusedWindow.title || Niri.focusedWindow.app_id) : ""
                             color: Theme.text
                             elide: Text.ElideRight
@@ -167,6 +198,16 @@ Variants {
                             font.pixelSize: 12 * Theme.fontScale
                             font.weight: Font.Medium
                             anchors.verticalCenter: parent.verticalCenter
+                        }
+                        // minimise, maximise, close: dim at rest, plain on hover
+                        Row {
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 2
+                            opacity: titleHover.hovered ? 1 : 0.55
+                            Behavior on opacity { NumberAnimation { duration: Theme.anim } }
+                            IconButton { size: 22; icon: "window-minimize-symbolic"; tip: Tr.t("Minimise (Super+M)"); onClicked: Niri.minimise(Niri.focusedWindow.id) }
+                            IconButton { size: 22; icon: "window-maximize-symbolic"; tip: Tr.t("Maximise"); onClicked: Niri.action("maximize-column") }
+                            IconButton { size: 22; icon: "window-close-symbolic"; tip: Tr.t("Close (Super+Q)"); onClicked: Niri.action("close-window", "--id", Niri.focusedWindow.id) }
                         }
                     }
                     // a handler, not a MouseArea child: a child sized to the Row
@@ -178,7 +219,8 @@ Variants {
                             Ui.windowMenu = true;
                         }
                     }
-                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    HoverHandler { id: titleHover; cursorShape: Qt.PointingHandCursor }
+                    Hint { text: Tr.t("This window - click for snapping, moving and more"); keys: Tr.t("click") }
                 }
             }
 
@@ -308,6 +350,9 @@ Variants {
                     name: Tr.t("Quick settings") + (!Settings.data.hideVolumeGlyph ? (Audio.ready ? ", " + Tr.t("volume %1%", Math.round(Audio.volume * 100)) + (Audio.muted ? " " + Tr.t("muted") : "") : "") : "")
                           + (!Settings.data.hideBrightnessGlyph ? (Power.hasBattery ? ", " + Tr.t("battery %1%", Math.round(Power.percent * 100)) : "") : "")
                     active: Ui.controlCenter
+                    pill: true
+                    hint: Tr.t("Quick settings: Wi-Fi, sound, battery and more - scroll here for the volume")
+                    hintKeys: "Super + ,"
                     onClicked: Ui.toggleControlCenter()
                     onScrolled: d => Audio.step(d * 0.05)
                     onMiddleClicked: Audio.toggleMute()
@@ -355,64 +400,45 @@ Variants {
                     icon: Notifs.dnd ? "notifications-disabled" : "preferences-system-notifications"
                     tint: Notifs.dnd ? Theme.dim : (Notifs.count > 0 ? Theme.accent : Theme.text)
                     label: Notifs.count > 0 ? String(Notifs.count) : ""
+                    hint: Notifs.dnd ? Tr.t("Do Not Disturb is on - right-click to turn it off") : Tr.t("Notifications - right-click for Do Not Disturb")
+                    hintKeys: "Super + N"
                     onClicked: Ui.toggleControlCenter("notifications")
                     onRightClicked: Notifs.setDnd(!Notifs.dnd)
                 }
-                // clock: a chip so it reads as one touchable thing, not loose text
-                Glass {
-                    elevation: "none"
-                    edge: "subtle"
-                    radius: 10
-                    color: Theme.card
-                    border.color: Theme.stroke
-                    Row {
-                        spacing: 6
-                        anchors.fill: parent
-                        anchors.leftMargin: 10
-                        anchors.rightMargin: 10
+                // the clock: a chip like the others (it had no width of its own and drew nothing)
+                Chip {
+                    pill: true
+                    name: Qt.formatDateTime(clock.date, Settings.data.use24h ? "HH:mm, dddd d MMMM" : "h:mm AP, dddd d MMMM")
+                          + (Updates.attention ? ", " + Tr.t("updates waiting") : "") + ", " + Tr.t("calendar and notes")
+                    active: Ui.controlCenter && Ui.expanded === ""
+                    hint: Tr.t("Calendar, notes and notifications")
+                    hintKeys: "Super + ,"
+                    onClicked: Ui.toggleControlCenter()
+                    Text {
+                        text: Qt.formatDateTime(clock.date, Settings.data.use24h ? (Settings.data.showSeconds ? "HH:mm:ss" : "HH:mm") : (Settings.data.showSeconds ? "h:mm:ss AP" : "h:mm AP"))
+                        font.features: { "tnum": 1 }
+                        color: Theme.text
+                        font.family: Theme.font
+                        font.pixelSize: 13 * Theme.fontScale
+                        font.weight: Font.DemiBold
                         anchors.verticalCenter: parent.verticalCenter
-
-                        Text {
-                            text: Qt.formatDateTime(clock.date, Settings.data.use24h ? "HH:mm, dddd d MMMM" : "h:mm AP, dddd d MMMM")
-                                  + (Updates.attention ? ", " + Tr.t("updates waiting") : "") + ", " + Tr.t("notifications and calendar")
-                            color: Theme.dim
-                            font.family: Theme.font
-                            font.pixelSize: 11 * Theme.fontScale
-                            elide: Text.ElideRight
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                        // an update waiting: a dot on the clock
-                        Rectangle {
-                            visible: Updates.attention
-                            width: 6; height: 6
-                            radius: 3
-                            color: Theme.amber
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                        Text {
-                            text: Qt.formatDateTime(clock.date, Settings.data.use24h ? (Settings.data.showSeconds ? "HH:mm:ss" : "HH:mm") : (Settings.data.showSeconds ? "h:mm:ss AP" : "h:mm AP"))
-                            font.features: { "tnum": 1 }
-                            color: Theme.text
-                            font.family: Theme.font
-                            font.pixelSize: 13 * Theme.fontScale
-                            font.weight: Font.DemiBold
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                        Text {
-                            visible: Settings.data.barDate
-                            text: Qt.formatDateTime(clock.date, "ddd d MMM")
-                            font.features: { "tnum": 1 }
-                            color: Theme.dim
-                            font.family: Theme.font
-                            font.pixelSize: 11 * Theme.fontScale
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
                     }
-                    MouseArea {
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: Ui.toggleControlCenter()
+                    Text {
+                        visible: Settings.data.barDate
+                        text: Qt.formatDateTime(clock.date, "ddd d MMM")
+                        font.features: { "tnum": 1 }
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: 11 * Theme.fontScale
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    // an update waiting: a dot on the clock
+                    Rectangle {
+                        visible: Updates.attention
+                        width: 6; height: 6
+                        radius: 3
+                        color: Theme.amber
+                        anchors.verticalCenter: parent.verticalCenter
                     }
                 }
 

@@ -20,7 +20,7 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "shani-ring"
     // blur behind the card, as on every shell surface (ext-background-effect)
-    BackgroundEffect.blurRegion: Settings.data.blur && visible ? blurArea : null
+    BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurArea : null
     Region { id: blurArea; item: disc; radius: disc.radius }
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: Ui.ring ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
@@ -75,7 +75,7 @@ PanelWindow {
             { label: Tr.t("Workspaces"), icon: "view-grid", children: ws.map(w => (
                 { label: w.name || ("Workspace " + w.idx), icon: w.is_active ? "object-select" : "view-grid", act: () => Niri.focusWorkspace(w) })) },
             { label: Tr.t("Apps"), icon: "view-app-grid", children: apps.slice(0, 8).map(e => (
-                { label: e.name, app: e.icon, act: () => e.execute() })) },
+                { label: e.name, app: e.icon, act: () => Launch.app(e.id) })) },
             { label: Tr.t("Power"), icon: "system-shutdown", children: [
                 { label: Tr.t("Lock"), icon: "system-lock-screen", act: () => Lock.lock() },
                 { label: Tr.t("Suspend"), icon: "weather-clear-night", act: () => Power.suspend() },
@@ -219,11 +219,12 @@ PanelWindow {
                 width: parent.width - 16
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
-                text: win.hot >= 0 && win.items[win.hot] ? win.items[win.hot].label : (win.stack.length > 0 ? "back" : "")
+                // nothing pointed at yet: say how it works, not an empty hole
+                text: win.hot >= 0 && win.items[win.hot] ? win.items[win.hot].label : (win.stack.length > 0 ? Tr.t("Back") : Tr.t("Point at one to see what it does · Esc closes"))
                 color: win.hot >= 0 ? Theme.text : Theme.faint
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
-                font.weight: Font.DemiBold
+                font.pixelSize: (win.hot >= 0 || win.stack.length > 0 ? 12 : 10) * Theme.fontScale
+                font.weight: win.hot >= 0 ? Font.DemiBold : Font.Normal
             }
         }
     }

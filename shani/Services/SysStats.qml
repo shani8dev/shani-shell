@@ -5,11 +5,13 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs.Common
 
 Singleton {
     id: root
     property real cpu: 0            // 0..1 since the last sample
     property real mem: 0            // 0..1 used
+    property real memTotalGb: 0
     property var last: null
     property real rxRate: 0         // bytes/s, summed over real interfaces
     property real txRate: 0
@@ -26,9 +28,15 @@ Singleton {
         return (bps / 1048576).toFixed(1) + " MB/s";
     }
 
+    // sampled only while something shows it (the bar's chips, the stats widget,
+    // the process list, the overview): every sample wakes the shell and redrew
+    // six surfaces, 30 ms/s of an idle desktop for numbers nobody was looking at
+    readonly property bool wanted: Settings.data.showSysStats || Settings.data.showNetSpeed || Ui.processes || Niri.overviewOpen
+        || Array.from(Settings.data.desktopWidgets).indexOf("stats") >= 0
+    onWantedChanged: if (!wanted) { root.last = null; root.lastNet = null; }
     Timer {
         interval: root.interval
-        running: true
+        running: root.wanted
         repeat: true
         triggeredOnStart: true
         onTriggered: {
@@ -72,6 +80,7 @@ Singleton {
             const total = Number((t.match(/MemTotal:\s+(\d+)/) || [0, 0])[1]);
             const avail = Number((t.match(/MemAvailable:\s+(\d+)/) || [0, 0])[1]);
             root.mem = total > 0 ? (total - avail) / total : 0;
+            root.memTotalGb = total / 1048576;
         }
     }
     FileView {

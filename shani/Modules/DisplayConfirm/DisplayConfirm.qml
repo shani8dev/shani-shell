@@ -22,7 +22,7 @@ Variants {
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.namespace: "shani-display-confirm"
         // blur behind the card, as on every shell surface (ext-background-effect)
-        BackgroundEffect.blurRegion: Settings.data.blur && visible ? blurArea : null
+        BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurArea : null
         Region { id: blurArea; item: card; radius: card.radius }
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: modelData === Quickshell.screens[0] ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None

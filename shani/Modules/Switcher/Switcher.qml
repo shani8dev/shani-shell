@@ -22,7 +22,7 @@ PanelWindow {
     WlrLayershell.namespace: "shani-switcher"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: Ui.switcher ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-    BackgroundEffect.blurRegion: Ui.switcher && Settings.data.blur ? swRegion : null
+    BackgroundEffect.blurRegion: Ui.switcher && Settings.blurWanted ? swRegion : null
     Region { id: swRegion; item: card; radius: Theme.radiusLarge }
 
     property var list: []

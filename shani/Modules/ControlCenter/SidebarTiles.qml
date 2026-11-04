@@ -11,6 +11,9 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+// `Color` unqualified binds to QtQuick 6.12's Color value-type namespace,
+// not this singleton — qualify it (see voltkit-alignment.md / Quickshell docs)
+import qs.Services as Services
 import qs.Modules.Notifications
 
 ColumnLayout {
@@ -24,7 +27,9 @@ ColumnLayout {
         Layout.fillWidth: true
         readonly property real gap: 8
         readonly property real cell: (width - gap) / 2
-        readonly property var known: ["wifi", "bluetooth", "airplane", "mobile", "hotspot", "vpn", "dnd", "focus", "phone", "timer", "caffeine", "power", "nightlight", "dark", "mic", "camera", "photo", "record", "screenshot", "lens", "ruler", "colorpicker", "snippets", "compress", "qrgen", "rotate", "flashlight", "display", "osk", "keyboard", "clipboard", "backup", "access", "captions", "transcribe", "speak", "magnifier", "callrecord", "cast", "touch", "chronoa"]
+        // the default order: what people reach for most first (GNOME's and Android's
+        // quick settings lead the same way), the rest after
+        readonly property var known: ["wifi", "bluetooth", "dnd", "nightlight", "dark", "power", "mic", "screenshot", "record", "focus", "caffeine", "airplane", "mobile", "hotspot", "vpn", "phone", "timer", "camera", "photo", "lens", "ruler", "colorpicker", "snippets", "compress", "qrgen", "rotate", "flashlight", "display", "osk", "keyboard", "clipboard", "backup", "access", "captions", "transcribe", "speak", "magnifier", "callrecord", "cast", "touch", "chronoa"]
         readonly property var order: {
             const o = Settings.data.tileOrder.filter(t => known.indexOf(t) >= 0);
             return o.concat(known.filter(t => o.indexOf(t) < 0));       // new tiles join at the end
@@ -365,13 +370,13 @@ ColumnLayout {
             icon: "color-select"
             title: Tr.t("Color picker")
             // shows the last picked colour, or the prompt until the first pick
-            subtitle: Color.lastPicked ? Color.lastPicked.hex : Tr.t("Pick a screen colour")
+            subtitle: Services.Color.lastPicked ? Services.Color.lastPicked.hex : Tr.t("Pick a screen colour")
             onToggled: {
                 Ui.closeAll();
-                Color.pick();
+                Services.Color.pick();
             }
             Connections {
-                target: Color
+                target: Services.Color
                 function onPicked(color) {
                     if (!color)
                         return;
@@ -401,7 +406,7 @@ ColumnLayout {
         // Asset compressor: pick a file, shrink it with ffmpeg next to the original.
         Tile {
             tid: "compress"
-            icon: "package-compress"
+            icon: "package-x-generic"
             title: Tr.t("Compress")
             subtitle: Tr.t("Shrink image or video")
             onToggled: {
@@ -447,6 +452,15 @@ ColumnLayout {
             subtitle: Brightness.torchOn ? "On" : "Off"
             on: Brightness.torchOn
             onToggled: Brightness.toggleTorch()
+        }
+        Tile {
+            tid: "kbdbacklight"
+            can: KbdBacklight.available
+            icon: "input-keyboard"
+            title: Tr.t("Keyboard backlight")
+            subtitle: KbdBacklight.value > 0 ? "On" : "Off"
+            on: KbdBacklight.value > 0
+            onToggled: KbdBacklight.toggle()
         }
         Tile {
             tid: "display"

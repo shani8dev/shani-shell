@@ -31,16 +31,18 @@ Singleton {
         // the region is asked for first (slurp; Escape cancels), the sound
         // source is the output's monitor for the computer's own sound
         // stopping while the region is being chosen ends slurp too, not only this shell
-        proc.command = ["sh", "-c", 'd="$1" out="$2" area="$3" sound="$4" f="$5"; mkdir -p "$d" || exit 1
+        proc.command = ["sh", "-c", 'd="$1" out="$2" area="$3" sound="$4" f="$5" fps="$6" codec="$7"; mkdir -p "$d" || exit 1
             set -- wf-recorder -f "$f"
+            if [ "$fps" -gt 0 ]; then set -- "$@" -r "$fps"; fi
+            if [ -n "$codec" ]; then set -- "$@" -c "$codec"; fi
             if [ "$area" = region ]; then
                 # slurp in the background, waited on: a stop while choosing ends it, not only this shell
-                r="${XDG_RUNTIME_DIR:-/tmp}/shani-record-region"; slurp -d -b "#0b0d1288" -c "#7fd1c1ff" -w 2 > "$r" & sp=$!
+                r="${XDG_RUNTIME_DIR:-/tmp}/shani-record-region"; slurp -d -b "#0b0d1288" -c "#ff7f50ff" -w 2 > "$r" & sp=$!
                 echo "slurp $sp"; wait $sp || exit 3
                 g=$(cat "$r"); rm -f "$r"; [ -n "$g" ] || exit 3; set -- "$@" -g "$g"
             elif [ -n "$out" ]; then set -- "$@" -o "$out"; fi
             case "$sound" in desktop) set -- "$@" --audio="$(pactl get-default-sink).monitor" ;; mic) set -- "$@" --audio="$(pactl get-default-source)" ;; esac
-            echo recording; exec "$@"', "sh", dir(), Niri.focusedOutput, area, sound, file];
+            echo recording; exec "$@"', "sh", dir(), Niri.focusedOutput, area, sound, file, String(Math.max(0, Settings.data.recordFps)), Settings.data.recordCodec || ""];
         selecting = area === "region";
         proc.running = true;
     }

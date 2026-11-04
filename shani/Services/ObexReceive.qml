@@ -6,11 +6,13 @@ import Quickshell
 import Quickshell.Bluetooth
 import Quickshell.Io
 import QtQuick
+import qs.Common
 
 Singleton {
     id: root
     readonly property string defaultTool: "/usr/lib/shani-shell/obex-agent.py"
     readonly property string tool: Quickshell.env("SHANI_OBEX_AGENT") || defaultTool
+    readonly property string dir: (Quickshell.env("SHANI_OBEX_DIR") || Settings.data.obexDir || "").replace(/^~/, Quickshell.env("HOME"))
     property int received: 0
     property string last: ""
 
@@ -19,7 +21,7 @@ Singleton {
     Process {
         id: agent
         running: Bluetooth.defaultAdapter !== null || root.tool !== root.defaultTool
-        command: ["python3", root.tool]
+        command: ["python3", root.tool].concat(root.dir ? [root.dir] : [])
         stdinEnabled: true
         stdout: SplitParser {
             onRead: line => {
@@ -36,6 +38,13 @@ Singleton {
             }
         }
     }
+    // a new folder applies at once: the agent relaunches with the new dir
+    onDirChanged: {
+        if (agent.running)
+            agent.running = false
+        relaunchTimer.start()
+    }
+    Timer { id: relaunchTimer; interval: 300; onTriggered: agent.running = true }
     function answer(id, ok) { agent.write(JSON.stringify({ id: id, ok: ok }) + "\n"); }
 
     // one notification per push, its button the answer; dismissed = declined

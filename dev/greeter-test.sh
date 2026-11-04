@@ -8,7 +8,7 @@
 KDL="${1:-/etc/greetd/shani-niri-greeter.kdl}"
 
 export XDG_RUNTIME_DIR=/run/user/0
-mkdir -p "$XDG_RUNTIME_DIR" /work/logs
+mkdir -p "$XDG_RUNTIME_DIR" /work/out/logs
 chmod 700 "$XDG_RUNTIME_DIR"
 fail=0
 result() {
@@ -25,7 +25,7 @@ rm -f "$XDG_RUNTIME_DIR"/wayland-1 "$XDG_RUNTIME_DIR"/wayland-1.lock
 if ! pgrep -f 'weston --backend=headless' >/dev/null; then
     nohup weston --backend=headless-backend.so --shell=kiosk-shell.so \
         --width=1920 --height=1080 --socket=wayland-parent --idle-time=0 \
-        --no-config --log=/work/logs/weston.log >/work/logs/weston.out 2>&1 &
+        --no-config --log=/work/out/logs/weston.log >/work/out/logs/weston.out 2>&1 &
     sleep 2
 fi
 
@@ -34,7 +34,7 @@ fi
 getent passwd shani >/dev/null || useradd -m shani
 
 export GREETD_SOCK="$XDG_RUNTIME_DIR/greetd.sock"
-nohup python3 /work/dev/fake-greetd.py > /work/logs/greetd.log 2>&1 &
+nohup python3 /work/dev/fake-greetd.py > /work/out/logs/greetd.log 2>&1 &
 sleep 0.5
 
 # the checkout, not a packaged copy, is what is under test
@@ -42,7 +42,7 @@ mkdir -p /root/.config/quickshell
 ln -sfn /work/greeter /root/.config/quickshell/shani-greeter
 
 SHANI_GREETER_WALLPAPER=/work/assets/shani-dark.jpg WAYLAND_DISPLAY=wayland-parent \
-    nohup niri -c "$KDL" > /work/logs/greeter-niri.log 2>&1 &
+    nohup niri -c "$KDL" > /work/out/logs/greeter-niri.log 2>&1 &
 NIRI_PID=$!
 
 i=0
@@ -51,18 +51,18 @@ until pgrep -f 'qs -c shani-greeter' >/dev/null && [ -S "$XDG_RUNTIME_DIR/waylan
 done
 sleep 2.5    # first frame + focus
 export WAYLAND_DISPLAY=wayland-1
-grim /work/docs/shots/18-greeter.png 2>/dev/null || true
+grim /work/out/shots/18-greeter.png 2>/dev/null || true
 
 # wrong password first: greetd must see the failure, the greeter must recover
 wtype shani -k Return; sleep 0.3
 wtype nope -k Return; sleep 1.2
-grim /work/docs/shots/19-greeter-failed.png 2>/dev/null || true
+grim /work/out/shots/19-greeter-failed.png 2>/dev/null || true
 # the user field keeps "shani"; only the password is typed again
 wtype shani -k Return
 i=0
 while kill -0 "$NIRI_PID" 2>/dev/null && [ "$i" -lt 40 ]; do sleep 0.25; i=$((i + 1)); done
 
-LOG=/work/logs/greetd.log
+LOG=/work/out/logs/greetd.log
 types=$(python3 -c '
 import json, sys
 print(" ".join(json.loads(l)["type"] for l in open(sys.argv[1]) if l.strip())[len("fake-greetd-up "):])

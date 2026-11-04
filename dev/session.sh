@@ -3,7 +3,7 @@
 # Brings up what a niri login has, minus the hardware: headless weston as the
 # parent output, a session bus, PipeWire + WirePlumber with a null sink, the
 # bridge, mock Chronoa, niri (the dev keybind config) and the shell from the
-# checkout. Logs go to /work/logs. Sourced by the tests in dev/.
+# checkout. Logs go to /work/out/logs. Sourced by the tests in dev/.
 export XDG_RUNTIME_DIR=/run/user/0 HOME=/root USER=root XDG_SESSION_TYPE=wayland
 # a login has a UTF-8 locale; C would make every non-ASCII comparison fail
 export LANG=C.UTF-8 PYTHONUTF8=1
@@ -25,7 +25,7 @@ export SHANI_TRANSLATE_TOOL=/work/dev/fake-translate.py
 export SHANI_DYNAMIC_LOCK_GRACE=1500     # ms: the dynamic-lock test waits 1.5 s, not 30
 export SHANI_AGENDA_TOOL=/work/bridge/agenda.py SHANI_MODEM_TOOL=/work/dev/fake-modem.py
 export XDG_CONFIG_HOME=/root/.config SHANI_SHELL_SETTINGS=/tmp/shani-settings.json
-export SHANI_SCRCPY=/work/dev/fake-scrcpy.sh SHANI_ADB=/work/dev/fake-adb.sh SHANI_LAUNCHER_ENTRY_TOOL=/work/bridge/launcher-entry.py SHANI_APPFILTER_TOOL=/work/dev/fake-appfilter.sh
+export SHANI_SCRCPY=/work/dev/fake-scrcpy.sh SHANI_ADB=/work/dev/fake-adb.sh SHANI_LAUNCHER_ENTRY_TOOL=/work/bridge/launcher-entry.py SHANI_APPFILTER_TOOL=/work/dev/fake-appfilter.sh SHANI_LAUNCH_TOOL=/work/bridge/launch-app.py
 # a keyboard's Caps Lock and Num Lock lights, where the kernel keeps them
 export SHANI_LEDS_DIR=/tmp/fake-leds
 for k in capslock numlock; do mkdir -p "/tmp/fake-leds/input3::$k"; echo 0 > "/tmp/fake-leds/input3::$k/brightness"; done
@@ -56,8 +56,8 @@ echo 300 > "$SHANI_LUX_FILE"
 install -Dm644 /work/data/pam.d/shani-lock /etc/pam.d/shani-lock
 # the desktop package's input-method default (English + Hindi phonetic)
 [ -f /work/dev/fcitx5-profile ] && install -Dm644 /work/dev/fcitx5-profile /etc/xdg/fcitx5/profile
-mkdir -p "$XDG_RUNTIME_DIR" /work/logs /root/Videos && chmod 700 "$XDG_RUNTIME_DIR"
-L=/work/logs
+mkdir -p "$XDG_RUNTIME_DIR" /work/out/logs /root/Videos && chmod 700 "$XDG_RUNTIME_DIR"
+L=/work/out/logs
 
 # a taller headless screen for one run: SHANI_SCREEN=1400 makes the render 1920x1400
 # (verification of surfaces that sit lower in the sidebar than one screen otherwise shows)
@@ -114,15 +114,18 @@ export NIRI_SOCKET=$(ls "$XDG_RUNTIME_DIR"/niri.wayland-1.*.sock | head -1)
 /usr/lib/at-spi-bus-launcher --launch-immediately >$L/atspi.log 2>&1 &
 sleep 0.5
 # the wallpapers where the package installs them
-mkdir -p /usr/share/backgrounds/shani && cp /work/assets/shani-dark.jpg /work/assets/shani-light.jpg /usr/share/backgrounds/shani/
+mkdir -p /usr/share/backgrounds/shani && cp /work/assets/shani-dark.jpg /work/assets/shani-night.jpg /work/assets/shani-light.jpg /usr/share/backgrounds/shani/
 # idle off from the start (the tests drive the shell over IPC, which is not input).
 # More for this run: SHANI_SETTINGS_EXTRA, JSON merged over it (python3, when here).
-printf '{"dimAfter": 0, "lockAfter": 0, "screenOffAfter": 0, "lockAfterBattery": 0, "screenOffAfterBattery": 0}' > "$SHANI_SHELL_SETTINGS"
+printf '{"dimAfter": 0, "lockAfter": 0, "screenOffAfter": 0, "lockAfterBattery": 0, "screenOffAfterBattery": 0, "startHintsDone": true}' > "$SHANI_SHELL_SETTINGS"
 if [ -n "${SHANI_SETTINGS_EXTRA:-}" ] && command -v python3 >/dev/null 2>&1; then
     python3 -c 'import json, sys; d = json.loads(sys.argv[1]); d.update(json.loads(sys.argv[2])); print(json.dumps(d))' \
         "$(cat "$SHANI_SHELL_SETTINGS")" "$SHANI_SETTINGS_EXTRA" > "$SHANI_SHELL_SETTINGS"
 fi
 # the tests keep Adwaita (fixed icons to compare); the showcase passes the image's own
 export QS_ICON_THEME=${QS_ICON_THEME:-Adwaita} QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1
-qs -p /work/shani >$L/qs.log 2>&1 &
+# every frame the shell renders, per window, into qs.log: what shell-test's
+# perf-* checks count (a surface redrawing while nothing changes is GPU and battery)
+date +%s%N > /tmp/qs-started
+QT_LOGGING_RULES="qt.scenegraph.time.renderloop=true" qs -p /work/shani >$L/qs.log 2>&1 &
 sleep 4

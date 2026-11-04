@@ -92,7 +92,10 @@ PanelWindow {
         return Chronoa.title && Chronoa.title !== "Ready when you are" ? Chronoa.title : Tr.t("Ask me anything");
     }
 
-    visible: Chronoa.visible
+    // it rides on the bar: hidden with it, unless it has something to say (and then the bar comes back too)
+    readonly property bool busy: hasApproval || asking || working
+    onBusyChanged: Ui.islandBusy = busy
+    visible: Chronoa.visible && (busy || Hiding.barShown[Niri.focusedOutput] !== false)   // its screen is the focused one; reading screen here looped
     anchors.top: true
     margins.top: 8
     implicitWidth: card.width
@@ -102,7 +105,7 @@ PanelWindow {
     WlrLayershell.namespace: "shani-island"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: asking ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-    BackgroundEffect.blurRegion: Settings.data.blur ? islandRegion : null
+    BackgroundEffect.blurRegion: Settings.blurWanted ? islandRegion : null
     Region { id: islandRegion; item: card; radius: card.radius }
 
     // the voice, live: Chronoa's own (the speakers) while it speaks, yours
@@ -145,6 +148,7 @@ PanelWindow {
 
         // gentle glow when Chronoa is working — a breath behind the card
         Rectangle {
+            id: breathGlow
             visible: win.working && Chronoa.state !== "offline"
             anchors.fill: parent
             anchors.margins: -8
@@ -162,8 +166,8 @@ PanelWindow {
             SequentialAnimation {
                 running: win.working && Chronoa.state !== "offline"
                 loops: Animation.Infinite
-                NumberAnimation { target: parent; property: "opacity"; from: 0.35; to: 0.85; duration: 1100; easing.type: Easing.InOutSine }
-                NumberAnimation { target: parent; property: "opacity"; from: 0.85; to: 0.35; duration: 1100; easing.type: Easing.InOutSine }
+                NumberAnimation { target: breathGlow; property: "opacity"; from: 0.35; to: 0.85; duration: 1100; easing.type: Easing.InOutSine }
+                NumberAnimation { target: breathGlow; property: "opacity"; from: 0.85; to: 0.35; duration: 1100; easing.type: Easing.InOutSine }
             }
         }
 
@@ -188,14 +192,15 @@ PanelWindow {
                     y: 0
                 }
 
-                // swallow files dropped onto the notch — they become context
+                // files dropped on the notch: what should happen to them (convert,
+                // shrink, read, zip, share - or ask Chronoa, one of the choices)
                 DropArea {
                     anchors.fill: parent
                     onEntered: d => d.accept(d.hasUrls ? Qt.CopyAction : Qt.IgnoreAction)
                     onDropped: d => {
                         const files = d.urls.map(u => decodeURIComponent(String(u).replace(/^file:\/\//, "")))
                         if (files.length)
-                            Chronoa.ask("Here are some files for context: " + files.join(", "))
+                            FileActions.offer(files);
                     }
                 }
 
@@ -247,21 +252,18 @@ PanelWindow {
                         GradientStop { position: 0.0; color: Theme.alpha(Chronoa.color, 0.95) }
                         GradientStop { position: 1.0; color: Theme.alpha(Chronoa.color, 0.45) }
                     }
-                    // subtle inner glow so the orb reads as lit, not flat
+                    // subtle inner glow so the orb reads as lit, not flat - a soft
+                    // gradient, not a live blur: the eyes blink over it every few
+                    // seconds, and a blur effect redrawn for each blink kept the
+                    // GPU busy at idle (70 ms/s against 4 without it, measured)
                     Rectangle {
                         anchors.centerIn: parent
-                        width: 14; height: 14
-                        radius: 7
-                        color: "white"
-                        opacity: 0.25
-                        layer.enabled: true
-                        layer.effect: MultiEffect {
-                            shadowEnabled: true
-                            shadowColor: "white"
-                            shadowBlur: 4
-                            shadowVerticalOffset: 0
-                            shadowHorizontalOffset: 0
-                            autoPaddingEnabled: true
+                        width: 18; height: 18
+                        radius: 9
+                        gradient: Gradient {
+                            orientation: Gradient.Vertical
+                            GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.32) }
+                            GradientStop { position: 1.0; color: Qt.rgba(1, 1, 1, 0.06) }
                         }
                     }
                     property real lookX: 0
@@ -280,9 +282,13 @@ PanelWindow {
                             Behavior on x { NumberAnimation { duration: 120 } }
                         }
                     }
+                    // blinks while someone is there - 20 s without a key or the
+                    // mouse and it stops: each blink redraws the Island, and
+                    // blinking at an empty room cost 80 ms/s of CPU (1 without)
+                    IdleMonitor { id: nobodyThere; timeout: 20; respectInhibitors: false }
                     Timer {
                         interval: win.blinkInterval
-                        running: orb.visible
+                        running: orb.visible && !nobodyThere.isIdle
                         repeat: true
                         onTriggered: {
                             orb.blink = true;
@@ -492,9 +498,9 @@ PanelWindow {
     }
     SequentialAnimation {
         running: win.happyJump
-        NumberAnimation { target: mascot.jump; property: "y"; to: -14; duration: 120 }
-        NumberAnimation { target: mascot.jump; property: "y"; to: 8; duration: 120 }
-        NumberAnimation { target: mascot.jump; property: "y"; to: 0; duration: 180; easing.type: Easing.OutBounce }
+        NumberAnimation { target: jump; property: "y"; to: -14; duration: 120 }
+        NumberAnimation { target: jump; property: "y"; to: 8; duration: 120 }
+        NumberAnimation { target: jump; property: "y"; to: 0; duration: 180; easing.type: Easing.OutBounce }
         onRunningChanged: if (!running) win.happyJump = false
     }
 

@@ -5,6 +5,10 @@
 //
 // `elevation` picks the shadow: "none" / "soft" / "card" / "raised".
 // `edge` picks the edge style: "subtle" / "strong" / "none".
+
+// "Reduce transparency" (Accessibility) makes the cards opaque; on battery,
+// blurs cost watts — the "Opaque panels on battery" switch does the same then
+// (services/Power mirrors the state into Common/PowerState).
 import QtQuick
 import QtQuick.Effects
 import qs.Common
@@ -15,7 +19,7 @@ Rectangle {
     property string elevation: "card"     // none | soft | card | raised
     property string edge: "subtle"        // subtle | strong | none
     // the person's view needs the cards readable: opaque, not translucent
-    readonly property bool opaque: Settings.data.reduceTransparency
+    readonly property bool opaque: Settings.data.reduceTransparency || (Settings.data.reduceTransparencyOnBattery && PowerState.onBattery)
     radius: Theme.radius
     color: strong ? (opaque ? Theme.bg : Theme.glassStrong) : (opaque ? Theme.bg : Theme.glass)
     border.width: edge === "strong" ? 1 : (edge === "subtle" ? 0.5 : 0)

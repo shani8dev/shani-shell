@@ -13,8 +13,12 @@ import qs.Services
 
 Glass {
     id: root
+    // Enhanced card effects (noctalia-inspired): subtle glow on critical notifications and popups
+    // Note: MultiEffect is available through QtQuick.Effects when enabled
     property var notification
     property bool popup: false
+    // privacy mode (Settings > Notifications): the app is named, the message is not
+    readonly property bool hideContent: Settings.data.notifHideContent && !critical
     property bool showApp: true          // false inside a group: the header already names the app
     property real life: 1                // a popup's time left, 1 → 0 (Popups drives it)
     property bool more: false            // Snooze and Ask Chronoa shown ("⋯" pressed)
@@ -32,7 +36,7 @@ Glass {
     // a theme with only the symbolic one (Adwaita's battery-level-10): drawn tinted
     readonly property string appSymbolic: notification && notification.appIcon && appIcon === ""
         && Quickshell.iconPath(notification.appIcon + "-symbolic", true) !== "" ? notification.appIcon : ""
-    readonly property string picture: notification && notification.image ? notification.image : ""
+    readonly property string picture: notification && notification.image && !hideContent ? notification.image : ""
     readonly property var actions: notification ? notification.actions.filter(a => a.identifier !== "default") : []
     signal done()
 
@@ -192,18 +196,19 @@ Glass {
                 }
                 Text {
                     Layout.fillWidth: true
-                    text: root.notification ? root.notification.summary : ""
-                    color: Theme.text
+                    text: root.hideContent ? Tr.t("Notification") : (root.notification ? root.notification.summary : "")
+                    color: root.hideContent ? Theme.dim : Theme.text
                     wrapMode: Text.Wrap
                     maximumLineCount: 2
                     elide: Text.ElideRight
                     font.family: Theme.font
                     font.pixelSize: 14 * Theme.fontScale
                     font.weight: Font.DemiBold
+                    font.italic: root.hideContent
                 }
                 Text {
                     Layout.fillWidth: true
-                    visible: text !== ""
+                    visible: !root.hideContent && text !== ""
                     text: root.notification ? root.notification.body : ""
                     textFormat: Text.StyledText
                     color: Theme.dim
@@ -222,7 +227,7 @@ Glass {
         // inline reply, for apps that offer it (messaging)
         TextField {
             Layout.fillWidth: true
-            visible: root.notification && root.notification.hasInlineReply
+            visible: !root.hideContent && root.notification && root.notification.hasInlineReply
             placeholder: root.notification && root.notification.inlineReplyPlaceholder ? root.notification.inlineReplyPlaceholder : "Reply…"
             onAccepted: {
                 if (text.trim() === "")
@@ -238,7 +243,7 @@ Glass {
         // no row at all for a notification with nothing to do
         ClippingRectangle {
             Layout.fillWidth: true
-            visible: root.actions.length > 0 || root.more
+            visible: !root.hideContent && (root.actions.length > 0 || root.more)
             implicitHeight: 34
             radius: 12
             color: "transparent"
@@ -248,7 +253,7 @@ Glass {
                 Repeater {
                     model: root.actions.map(a => ({ text: a.text, run: () => a.invoke({ notificationId: root.notification ? root.notification.id : null, appName: root.notification ? (root.notification.appName || "") : "" }) }))
                         .concat(!root.more ? []
-                        : (root.critical ? [] : [{ text: Tr.t("Snooze"), run: () => Notifs.snooze(root.notification, 60) }])
+                        : (root.critical ? [] : [{ text: Tr.t("Snooze"), run: () => Notifs.snooze(root.notification, Settings.data.snoozeMinutes || 60) }])
                         .concat([{ text: Tr.t("Ask Chronoa"), run: () => {
                             const n = root.notification;
                             Chronoa.ask("About this notification from " + (n.appName || "an app") + ": “" + n.summary

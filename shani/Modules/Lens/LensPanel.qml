@@ -18,7 +18,7 @@ PanelWindow {
     WlrLayershell.namespace: "shani-lens"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-    BackgroundEffect.blurRegion: visible && Settings.data.blur ? lensRegion : null
+    BackgroundEffect.blurRegion: visible && Settings.blurWanted ? lensRegion : null
     Region { id: lensRegion; item: card; radius: Theme.radiusLarge }
 
     onVisibleChanged: if (visible) question.input.forceActiveFocus()

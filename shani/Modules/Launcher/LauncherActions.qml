@@ -48,7 +48,10 @@ QtObject {
         { title: Tr.t("Privacy"), words: "privacy permissions camera microphone location recent files trash lock screen notifications previews", icon: "preferences-system-privacy", run: () => launcher.openSettings("privacy") },
         { title: Tr.t("Network settings"), words: "network proxy dns vpn wired ethernet ip", icon: "network-workgroup", run: () => launcher.openSettings("network") },
         { title: Tr.t("Windows"), words: "windows gaps focus ring column width animations focus follows mouse tiling", icon: "preferences-system-windows", run: () => launcher.openSettings("windows") },
-        { title: Tr.t("Keyboard shortcuts"), words: "keyboard shortcuts keys hotkeys binds compose caps lock", icon: "preferences-desktop-keyboard-shortcuts", run: () => launcher.openSettings("input") },
+        // every key at a glance (niri's own list, from the config's titles) - and where to change them
+        { title: Tr.t("Desktop layout"), words: "desktop layout style preset classic focus tiling dashboard touch tablet dock widgets look switcher", icon: "preferences-desktop", run: () => { Ui.closeAll(); Ui.layoutSwitcher = true; } },
+        { title: Tr.t("Show all keyboard shortcuts"), words: "keyboard shortcuts keys hotkeys cheat sheet help what keys super", icon: "preferences-desktop-keyboard-shortcuts", run: () => { Ui.closeAll(); Niri.action("show-hotkey-overlay"); } },
+        { title: Tr.t("Change keyboard shortcuts"), words: "keyboard shortcuts keys hotkeys binds compose caps lock settings", icon: "preferences-desktop-keyboard-shortcuts", run: () => launcher.openSettings("input") },
         { title: Tr.t("Startup apps"), words: "startup apps autostart login start", icon: "system-run", run: () => launcher.openSettings("apps") },
         { title: Tr.t("Displays"), words: "displays display screens monitor monitors resolution refresh rate hz scale rotation rotate arrange arrangement external projector vrr freesync", icon: "video-display", run: () => launcher.openSettings("displays") },
         { title: Tr.t("Sound effects"), words: "sound effects equaliser equalizer eq bass boost crossfeed headphones autoeq impulse response convolver width jamesdsp viper", icon: "audio-speakers", run: () => launcher.openSettings("sound") },

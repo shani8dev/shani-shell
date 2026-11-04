@@ -5,6 +5,7 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import Quickshell.Networking
+import Quickshell.Bluetooth
 import QtQuick
 import qs.Common
 
@@ -53,12 +54,27 @@ Singleton {
     function setAirplane(on) {
         Quickshell.execDetached(["rfkill", on ? "block" : "unblock", "all"]);
     }
+    // the chosen name (hotspotName empty: <hostname>-hotspot) and band
     function setHotspot(on) {
-        if (on)
-            Quickshell.execDetached(["nmcli", "device", "wifi", "hotspot", "ssid", (Quickshell.env("HOSTNAME") || "shani") + "-hotspot"]);
-        else
+        if (on) {
+            const name = Settings.data.hotspotName.trim() || (Quickshell.env("HOSTNAME") || "shani") + "-hotspot";
+            const band = Settings.data.hotspotBand === "bg" ? ["band", "bg"] : Settings.data.hotspotBand === "a" ? ["band", "a"] : [];
+            Quickshell.execDetached(["nmcli", "device", "wifi", "hotspot", "ssid", name].concat(band));
+        } else
             Quickshell.execDetached(["nmcli", "connection", "down", "Hotspot"]);
     }
+    // random MAC for every saved Wi-Fi network (NM: 802-11-wireless.cloned-mac-address)
+    function setMacRandom(on) {
+        macCmd.command = ["sh", "-c", 'for u in $(nmcli -t -f UUID,TYPE connection show 2>/dev/null | grep ":802-11-wireless[$]" | cut -d: -f1); do nmcli connection modify "$u" 802-11-wireless.cloned-mac-address ' + (on ? "random" : "preserve") + '; done'];
+        macCmd.running = true;
+    }
+    Process { id: macCmd }
+    // Wake on LAN for every saved wired network (NM: 802-3-ethernet.wake-on-lan)
+    function setWakeOnLan(on) {
+        wolCmd.command = ["sh", "-c", 'for u in $(nmcli -t -f UUID,TYPE connection show 2>/dev/null | grep ":802-3-ethernet[$]" | cut -d: -f1); do nmcli connection modify "$u" 802-3-ethernet.wake-on-lan ' + (on ? "magic" : "default") + '; done'];
+        wolCmd.running = true;
+    }
+    Process { id: wolCmd }
     function setVpn(name, on) {
         Quickshell.execDetached(["nmcli", "connection", on ? "up" : "down", name]);
     }
@@ -100,6 +116,15 @@ Singleton {
     // asked at start, when ModemManager reports a modem coming or going, and
     // every 20 s only while there is one (its state: searching, registered…)
     Component.onCompleted: wwan.running = true
+    // Bluetooth at sign-in, where the person asked for it
+    Timer {
+        interval: 1500
+        onTriggered: {
+            const b = Bluetooth.defaultAdapter;
+            if (Settings.data.bluetoothOnBoot && b && !b.enabled)
+                b.enabled = true;
+        }
+    }
     Connections { target: Modem; function onModemChanged() { wwanRecheck.restart(); } }
     Timer { interval: 20000; running: root.hasModem; repeat: true; onTriggered: wwan.running = true }
 

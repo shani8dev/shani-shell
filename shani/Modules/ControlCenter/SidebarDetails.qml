@@ -90,7 +90,7 @@ ColumnLayout {
         }
         ListRow {
             Layout.fillWidth: true
-            icon: "network-wireless-hidden"
+            icon: "view-conceal"
             title: Tr.t("Hidden network…")
             subtitle: Net.hiddenStatus === "connecting" ? "Connecting…" : Net.hiddenStatus.startsWith("failed") ? Net.hiddenStatus.slice(8) : ""
             onClicked: wifiList.hiddenOpen = !wifiList.hiddenOpen

@@ -40,6 +40,9 @@ Singleton {
         "        click-method \"" + d.tpClick + "\"",
         "        scroll-method \"" + d.tpScrollMethod + "\"",
         d.tpOffWithMouse ? "        disabled-on-external-mouse" : "",
+        d.tpMiddleEmulation ? "        middle-emulation" : "",
+        d.tpDragLock ? "        drag-lock" : "",
+        "        tap-button-map \"" + d.tpTapButtonMap + "\"",
         "    }",
         "    mouse {",
         d.mouseNaturalScroll ? "        natural-scroll" : "",
@@ -59,13 +62,16 @@ Singleton {
         // windows
         "layout {",
         "    gaps " + d.winGaps,
-        "    default-column-width { proportion " + d.winDefaultWidth + "; }",
+        "    default-column-width { proportion " + Number(d.winDefaultWidth).toFixed(2) + "; }",
         "    focus-ring {",
         d.winFocusRing > 0 ? "        width " + d.winFocusRing : "        off",
+        // the shell's accent (wallpaper-derived too), not the config's fixed colour
+        d.winFocusRing > 0 ? "        active-color \"" + String(Theme.accent).slice(0, 7) + "\"" : "",
         "    }",
         "}",
         d.winAnimations && !d.reduceMotion ? "" : "animations {\n    off\n}",
-        "screenshot-path \"" + (d.screenshotDir || "~/Pictures/Screenshots").replace(/"/g, "") + "/Screenshot from %Y-%m-%d %H-%M-%S." + (d.screenshotFormat || "png") + "\"",
+        // niri encodes PNG or JPEG by the file extension; other formats (WebP, JPEG-XL) fall back to PNG.
+        "screenshot-path \"" + (d.screenshotDir || "~/Pictures/Screenshots").replace(/"/g, "") + "/Screenshot from %Y-%m-%d %H-%M-%S." + (d.screenshotFormat === "jpeg" ? "jpg" : "png") + "\"",
         // your own shortcuts: a command each
         Array.from(d.customBinds || []).length ? "binds {\n" + Array.from(d.customBinds).filter(b => /^[A-Za-z0-9+_]+$/.test(b.key) && b.command)
             .map(b => "    " + b.key + " hotkey-overlay-title=" + JSON.stringify(b.title || b.command) + " { spawn \"sh\" \"-c\" " + JSON.stringify(b.command) + "; }").join("\n") + "\n}" : "",
@@ -75,6 +81,16 @@ Singleton {
         "cursor {",
         "    xcursor-theme \"" + d.cursorTheme + "\"",
         "    xcursor-size " + d.cursorSize,
+        "}",
+        // edge-drag gestures: dragging a window to a screen edge scrolls the
+        // view or switches workspaces; niri's hot corners stay off (the shell
+        // has its own), so the shell is the only thing that opens them
+        "gestures {",
+        "    hot-corners {",
+        "        off",
+        "    }",
+        d.dndEdgeViewScroll ? "    dnd-edge-view-scroll" : "",
+        d.dndEdgeWorkspaceSwitch ? "    dnd-edge-workspace-switch" : "",
         "}",
         ""
     ].filter(l => l !== "").join("\n") + "\n" : ""

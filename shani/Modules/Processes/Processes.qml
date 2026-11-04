@@ -17,7 +17,7 @@ PanelWindow {
     WlrLayershell.namespace: "shani-processes"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
-    BackgroundEffect.blurRegion: visible && Settings.data.blur ? procRegion : null
+    BackgroundEffect.blurRegion: visible && Settings.blurWanted ? procRegion : null
     Region { id: procRegion; item: card; radius: Theme.radius }
     onVisibleChanged: TopProcesses.watching = visible
     // made when opened and gone when closed (shell.qml's LazyLoader)

@@ -10,7 +10,22 @@ Singleton {
     id: root
     property var gpus: []                 // [{ name, isDefault, env: ["DRI_PRIME=…", …] }]
     readonly property var other: gpus.find(g => !g.isDefault) || null
-    readonly property bool hasChoice: gpus.length > 1 && other !== null
+    // two cards to choose from: switcheroo-control's list, or (without it) the
+    // NVIDIA driver loaded, or a second render node - what launch-app.py uses
+    property int renderNodes: 1
+    property bool nvidia: false
+    readonly property bool hasChoice: (gpus.length > 1 && other !== null) || nvidia || renderNodes > 1
+    Process {
+        running: true
+        command: ["sh", "-c", 'ls /dev/dri/renderD* 2>/dev/null | wc -l; [ -e /proc/driver/nvidia/version ] && echo nvidia']
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const l = text.trim().split("\n");
+                root.renderNodes = parseInt(l[0]) || 1;
+                root.nvidia = l.indexOf("nvidia") >= 0;
+            }
+        }
+    }
 
     // "Device: 1 / Name: NVIDIA … / Default: no / Environment: DRI_PRIME=pci-0000_01_00_0 …"
     Process {
@@ -34,8 +49,6 @@ Singleton {
     }
     // an installed app (its desktop id) on the other card
     function launchOnOther(desktopId) {
-        if (!other)
-            return;
-        Quickshell.execDetached(["env"].concat(other.env, ["gtk-launch", desktopId]));
+        Launch.app(desktopId, { gpu: "discrete" });
     }
 }

@@ -7,7 +7,7 @@
 # Prints RESULT lines.
 export XDG_SESSION_TYPE=wayland SHANI_SHELL_SETTINGS=/tmp/shani-settings-$USER.json
 export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
-L=/work/logs
+L=/work/out/logs
 fail=0
 result() { echo "RESULT $1 $2${3:+ ($3)}"; [ "$2" = PASS ] || fail=1; }
 st() { qs -p /work/shani ipc call shani state 2>/dev/null; }
@@ -35,14 +35,16 @@ waitfor "d['polkitRegistered']" 10 && result polkit-agent-registers PASS || resu
 pkexec --disable-internal-agent true >$L/pkexec-1.log 2>&1 &
 PK=$!
 waitfor "d['polkit']" 8 && result polkit-dialog-appears PASS || result polkit-dialog-appears FAIL
-sleep 0.8; grim /work/docs/shots/29-polkit.png
+sleep 0.8; grim /work/out/shots/29-polkit.png
 wtype "not-the-password" -k Return
 sleep 3
 kill -0 $PK 2>/dev/null && waitfor "d['polkit']" 3 && result polkit-refuses-wrong-password PASS || result polkit-refuses-wrong-password FAIL
-grim /work/docs/shots/30-polkit-wrong.png
+grim /work/out/shots/30-polkit-wrong.png
 wtype "polkit-test" -k Return
 i=0; while kill -0 $PK 2>/dev/null && [ $i -lt 40 ]; do sleep 0.25; i=$((i+1)); done
-wait $PK; rc=$?
+# bounded: a password that never reached the dialog left pkexec waiting and this
+# script with it, forever (the tour held the keyboard)
+if kill -0 $PK 2>/dev/null; then kill $PK; rc=124; else wait $PK; rc=$?; fi
 [ $rc = 0 ] && result polkit-authorises-pkexec PASS || result polkit-authorises-pkexec FAIL "pkexec exit $rc: $(cat $L/pkexec-1.log)"
 waitfor "not d['polkit']" 4 && result polkit-dialog-closes PASS || result polkit-dialog-closes FAIL
 [ "$fail" = 0 ]

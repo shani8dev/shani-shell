@@ -9,7 +9,9 @@
 KDL="${1:-/etc/greetd/shani-niri-greeter.kdl}"
 
 export XDG_RUNTIME_DIR=/run/user/0
-mkdir -p "$XDG_RUNTIME_DIR" /work/logs /work/docs/shots
+mkdir -p "$XDG_RUNTIME_DIR" /work/out/logs /work/out/shots
+# /etc/skel as shani-desktop-niri lays it out (mounted at /desk by dev/check.sh)
+[ -d /desk/etc/skel ] && cp -a /desk/etc/skel/. /etc/skel/
 chmod 700 "$XDG_RUNTIME_DIR"
 fail=0
 result() {
@@ -23,10 +25,10 @@ fi
 
 nohup weston --backend=headless-backend.so --shell=kiosk-shell.so \
     --width=1920 --height=1080 --socket=wayland-parent --idle-time=0 \
-    --no-config --log=/work/logs/weston.log >/work/logs/weston.out 2>&1 &
+    --no-config --log=/work/out/logs/weston.log >/work/out/logs/weston.out 2>&1 &
 sleep 2
 export GREETD_SOCK="$XDG_RUNTIME_DIR/greetd.sock"
-nohup python3 /work/dev/fake-greetd.py > /work/logs/greetd.log 2>&1 &
+nohup python3 /work/dev/fake-greetd.py > /work/out/logs/greetd.log 2>&1 &
 sleep 0.5
 
 mkdir -p /root/.config/quickshell
@@ -37,7 +39,7 @@ export SHANI_GREETER_WALLPAPER=/work/assets/shani-dark.jpg
 
 start_niri() {
     rm -f "$XDG_RUNTIME_DIR"/wayland-1 "$XDG_RUNTIME_DIR"/wayland-1.lock
-    WAYLAND_DISPLAY=wayland-parent nohup niri -c "$KDL" > /work/logs/setup-niri.log 2>&1 &
+    WAYLAND_DISPLAY=wayland-parent nohup niri -c "$KDL" > /work/out/logs/setup-niri.log 2>&1 &
     NIRI_PID=$!
 }
 start_niri
@@ -53,7 +55,7 @@ waitfor() {
         sleep 0.25; i=$((i + 1))
     done; return 1
 }
-shot() { sleep "${2:-0.8}"; grim "/work/docs/shots/$1.png" 2>/dev/null || true; }
+shot() { sleep "${2:-0.8}"; grim "/work/out/shots/$1.png" 2>/dev/null || true; }
 
 waitfor "d['locales'] > 0 and d['zones'] > 0 and d['locale'] != ''" 10 && result setup-reads-system PASS || result setup-reads-system FAIL "$(st)"
 shot 80-setup-welcome 1.5
@@ -94,7 +96,10 @@ getent passwd shani | grep -q ':Shani Tester:/home/shani:/bin/bash$' && result s
 id -nG shani | grep -qw wheel && result setup-account-is-admin PASS || result setup-account-is-admin FAIL "$(id -nG shani)"
 grep -q '^shani:\$' /etc/shadow && result setup-sets-password PASS || result setup-sets-password FAIL
 [ -d /home/shani ] && result setup-creates-home PASS || result setup-creates-home FAIL
-LOG=/work/logs/greetd.log
+# what /etc/skel gives every new account (shani-desktop-niri's): the default apps
+[ -f "/home/shani/.config/mimeapps.list" ] && grep -q "image/jpeg=org.gnome.Loupe" "/home/shani/.config/mimeapps.list" \
+    && result setup-home-has-default-apps PASS || result setup-home-has-default-apps FAIL "$(ls -a /home/shani/.config 2>&1 | tr '\n' ' ')"
+LOG=/work/out/logs/greetd.log
 python3 - "$LOG" <<'PY' && result setup-signs-in PASS || result setup-signs-in FAIL "$(cat $LOG)"
 import json, sys
 msgs = [json.loads(l) for l in open(sys.argv[1]) if l.strip()][1:]
@@ -106,7 +111,7 @@ PY
 
 # a second boot of the same machine: the login screen, and no second account
 pkill -f fake-greetd.py; sleep 0.3
-nohup python3 /work/dev/fake-greetd.py >> /work/logs/greetd2.log 2>&1 &
+nohup python3 /work/dev/fake-greetd.py >> /work/out/logs/greetd2.log 2>&1 &
 sleep 0.5
 start_niri
 i=0

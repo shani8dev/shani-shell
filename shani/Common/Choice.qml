@@ -7,6 +7,8 @@ Rectangle {
     property string text
     property bool selected: false
     signal clicked()
+    // flashed after a search lands here (see Ui.flashSetting)
+    readonly property bool highlighted: Ui.settingsFlash.length > 0 && String(root.text).toLowerCase().indexOf(Ui.settingsFlash) >= 0
 
     Accessible.role: Accessible.RadioButton
     Accessible.name: root.text
@@ -29,6 +31,37 @@ Rectangle {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
+        focus: true
         onClicked: root.clicked()
+    }
+    Rectangle {
+        id: choiceFocus
+        anchors.fill: parent
+        anchors.margins: -2
+        radius: root.radius + 2
+        color: "transparent"
+        border.color: Theme.accent
+        border.width: 2
+        visible: root.activeFocus
+        z: 10
+    }
+
+    // a search landed here: a pulsing accent edge until the flash clears
+    Rectangle {
+        id: flashRing
+        anchors.fill: parent
+        anchors.margins: -3
+        radius: root.radius + 3
+        color: Theme.alpha(Theme.accent, 0.16)
+        border.width: 1.5
+        border.color: Theme.alpha(Theme.accent, 0.8)
+        visible: root.highlighted
+        z: 10
+        SequentialAnimation on opacity {
+            running: root.highlighted
+            loops: Animation.Infinite
+            NumberAnimation { from: 0.35; to: 1; duration: 420; easing.type: Easing.InOutSine }
+            NumberAnimation { from: 1; to: 0.35; duration: 420; easing.type: Easing.InOutSine }
+        }
     }
 }

@@ -11,6 +11,8 @@ Rectangle {
     property string trailing: ""
     default property alias extra: tail.data
     signal clicked()
+    // flashed after a search lands here (see Ui.flashSetting)
+    readonly property bool highlighted: Ui.settingsFlash.length > 0 && String(root.title).toLowerCase().indexOf(Ui.settingsFlash) >= 0
 
     Accessible.role: Accessible.ListItem
     Accessible.name: root.title
@@ -60,7 +62,19 @@ Rectangle {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
+        focus: true
         onClicked: root.clicked()
+    }
+    Rectangle {
+        id: focusRing
+        anchors.fill: parent
+        anchors.margins: -2
+        radius: parent.radius + 2
+        color: "transparent"
+        border.color: Theme.accent
+        border.width: 2
+        visible: root.activeFocus
+        z: 10
     }
     Row {
         id: tail
@@ -75,6 +89,25 @@ Rectangle {
             font.family: Theme.font
             font.pixelSize: 10 * Theme.fontScale
             anchors.verticalCenter: parent.verticalCenter
+        }
+    }
+
+    // a search landed here: a pulsing accent edge until the flash clears
+    Rectangle {
+        id: flashRing
+        anchors.fill: parent
+        anchors.margins: -3
+        radius: root.radius + 3
+        color: Theme.alpha(Theme.accent, 0.18)
+        border.width: 1.5
+        border.color: Theme.alpha(Theme.accent, 0.8)
+        visible: root.highlighted
+        z: 10
+        SequentialAnimation on opacity {
+            running: root.highlighted
+            loops: Animation.Infinite
+            NumberAnimation { from: 0.35; to: 1; duration: 420; easing.type: Easing.InOutSine }
+            NumberAnimation { from: 1; to: 0.35; duration: 420; easing.type: Easing.InOutSine }
         }
     }
 }

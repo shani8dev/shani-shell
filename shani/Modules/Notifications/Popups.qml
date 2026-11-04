@@ -17,7 +17,7 @@ PanelWindow {
     // where pop-ups appear (Settings > Notifications); the dock keeps the bottom clear
     readonly property string pos: Settings.data.popupPosition
     anchors { top: pos !== "bottom-right"; bottom: pos === "bottom-right"; right: pos !== "top-center" }
-    margins { top: Theme.barHeight + 18; right: 12; bottom: Settings.data.dock && !Settings.data.dockAutoHide ? Settings.data.dockIconSize + 44 : 16 }
+    margins { top: Theme.barHeight + 18; right: 12; bottom: Settings.data.dock && Settings.data.dockVisibility !== "hide" ? Settings.data.dockIconSize + 44 : 16 }
     implicitWidth: 380
     implicitHeight: list.implicitHeight
     color: "transparent"
@@ -25,7 +25,7 @@ PanelWindow {
     WlrLayershell.namespace: "shani-notifications"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-    BackgroundEffect.blurRegion: Settings.data.blur ? popRegion : null
+    BackgroundEffect.blurRegion: Settings.blurWanted ? popRegion : null
     // rounded like the cards: a plain rectangle blurred a square box behind them
     Region { id: popRegion; item: list; radius: Theme.radiusLarge }
 

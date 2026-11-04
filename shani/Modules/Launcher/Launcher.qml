@@ -32,7 +32,7 @@ PanelWindow {
     WlrLayershell.namespace: "shani-launcher"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: Ui.launcher ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-    BackgroundEffect.blurRegion: Ui.launcher && Settings.data.blur ? fullRegion : null
+    BackgroundEffect.blurRegion: Ui.launcher && Settings.blurWanted ? fullRegion : null
     Region { id: fullRegion; item: backdrop }
 
     property int sel: 0
@@ -90,12 +90,13 @@ PanelWindow {
     readonly property var actions: builtIn.list
 
     // ---- sources --------------------------------------------------------------
-    function launch(a) {
+    // an app started through one of its actions ("New Window") is still that app used
+    function launch(a, action) {
         const u = Object.assign({}, usage);
         u[a.id] = (u[a.id] || 0) + 1;
         usage = u;
         usageFile.setText(JSON.stringify(u));
-        a.execute();
+        Launch.app(a.id, action ? { action: action } : undefined);
     }
     FileView {
         id: usageFile
@@ -270,8 +271,11 @@ PanelWindow {
                 .map(e => ({ kind: "clip", icon: e.image ? "image-x-generic" : "edit-paste", thumb: e.image ? e.preview : "",
                              title: e.text.replace(/\s+/g, " ").slice(0, 140), subtitle: (e.image ? "Picture · Enter copies it" : "Clipboard · Ctrl+P pins") + " · Shift+Delete removes it",
                              run: () => Clipboard.copy(e), remove: () => Clipboard.remove(e), pin: e.image ? null : () => Clipboard.pin(e) }));
-            return (pins.length ? [{ title: Tr.t("Pinned"), items: pins }] : []).concat([{ title: Tr.t("Clipboard"), items: items.length ? items
-                : [{ kind: "none", icon: "edit-paste", title: Clipboard.available ? "Clipboard history is empty" : "cliphist is not installed", subtitle: "", run: () => {} }] }]);
+            const clipItems = items.length ? items
+                : [{ kind: "none", icon: "edit-paste", title: Clipboard.available ? "Clipboard history is empty" : "cliphist is not installed", subtitle: "", run: () => {} }];
+            if (items.length && Clipboard.available)
+                clipItems.push({ kind: "clipclear", icon: "edit-clear", title: Tr.t("Clear clipboard history"), subtitle: Tr.t("Shift+Delete clears all"), run: () => Clipboard.wipe() });
+            return (pins.length ? [{ title: Tr.t("Pinned"), items: pins }] : []).concat([{ title: Tr.t("Clipboard"), items: clipItems }]);
         }
 
         const math = q.startsWith("=") ? q.slice(1) : q;
@@ -294,7 +298,7 @@ PanelWindow {
                 items.push(appItem(a));
                 if (i === 0)        // the top match also offers its desktop actions
                     for (const act of a.actions)
-                        items.push({ kind: "app", app: a.icon, title: a.name + " — " + act.name, subtitle: Tr.t("action"), run: () => act.execute() });
+                        items.push({ kind: "app", app: a.icon, title: a.name + " — " + act.name, subtitle: Tr.t("action"), run: () => win.launch(a, act.id) });
             });
             out.push({ title: Tr.t("Apps"), items: items });
         }
@@ -369,7 +373,7 @@ PanelWindow {
         id: backdrop
         anchors.fill: parent
         // dense enough to read without blur (blur off, or a compositor without it)
-        color: Theme.alpha(Theme.bg, Settings.data.blur ? 0.78 : 0.94)
+        color: Theme.alpha(Theme.bg, Settings.blurWanted ? 0.78 : 0.94)
         MouseArea { anchors.fill: parent; onClicked: Ui.closeAll(); hoverEnabled: !Settings.data.launcherIgnoreMouse; onPositionChanged: if (!Settings.data.launcherIgnoreMouse) win.hoverArmed = true }
     }
 
@@ -428,11 +432,18 @@ PanelWindow {
                             e.accepted = true;
                             return;
                         }
-                        // Shift+Delete: a result that can be removed (a clipboard entry) goes
-                        if (e.key === Qt.Key_Delete && (e.modifiers & Qt.ShiftModifier) && win.flat[win.sel] && win.flat[win.sel].remove) {
-                            win.flat[win.sel].remove();
-                            e.accepted = true;
-                            return;
+                        // Shift+Delete: remove clipboard entry or clear all in clipboard view
+                        if (e.key === Qt.Key_Delete && (e.modifiers & Qt.ShiftModifier)) {
+                            if (win.flat[win.sel] && win.flat[win.sel].remove) {
+                                win.flat[win.sel].remove();
+                                e.accepted = true;
+                                return;
+                            }
+                            if ((win.q === "c" || win.q.startsWith("c ")) && Clipboard.available) {
+                                Clipboard.wipe();
+                                e.accepted = true;
+                                return;
+                            }
                         }
                         if (win.q === "" && (e.key === Qt.Key_Right || e.key === Qt.Key_Left)) {
                             win.sel = Math.max(0, Math.min(win.flat.length - 1, win.sel + (e.key === Qt.Key_Right ? 1 : -1)));

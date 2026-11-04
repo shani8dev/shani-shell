@@ -9,10 +9,20 @@ import qs.Common
 
 Singleton {
     id: root
-    readonly property bool enabled: Settings.data.weatherCity !== ""
+    readonly property bool enabled: Settings.data.weatherCity !== "" || (Settings.data.useLocation && (Settings.data.weatherLat !== 0 || Settings.data.weatherLon !== 0))
+    // the time zone's city (Asia/Kolkata -> Kolkata): offered in the sidebar, so
+    // weather is one click away without typing anything or sharing a location
+    property string zoneCity: ""
+    Process {
+        running: true
+        command: ["sh", "-c", "timedatectl show -p Timezone --value 2>/dev/null || readlink /etc/localtime | sed 's|.*zoneinfo/||'"]
+        stdout: StdioCollector { onStreamFinished: { const z = text.trim(); root.zoneCity = z.indexOf("/") > 0 ? z.split("/").pop().replace(/_/g, " ") : ""; } }
+    }
     property real temp: NaN
     property int code: -1
-    readonly property string summary: isNaN(temp) ? "" : Math.round(temp) + "°  " + describe(code)
+    readonly property bool fahrenheit: Settings.data.weatherUnits === "fahrenheit"
+    readonly property string degree: fahrenheit ? "°F" : "°C"
+    readonly property string summary: isNaN(temp) ? "" : Math.round(temp) + degree + "  " + describe(code)
     // WMO weather codes, as Open-Meteo reports them
     function describe(c) {
         return c === 0 ? "Clear" : c <= 2 ? "Partly cloudy" : c === 3 ? "Overcast" : c <= 48 ? "Fog"
@@ -31,13 +41,15 @@ Singleton {
     function fetch() {
         if (!enabled || (Settings.data.weatherLat === 0 && Settings.data.weatherLon === 0))
             return;
-        now.command = ["curl", "-sf", "--max-time", "8", "https://api.open-meteo.com/v1/forecast?current=temperature_2m,weather_code&latitude="
+        now.command = ["curl", "-sf", "--max-time", "8", "https://api.open-meteo.com/v1/forecast?current=temperature_2m,weather_code&temperature_unit="
+            + (fahrenheit ? "fahrenheit" : "celsius") + "&latitude="
             + Settings.data.weatherLat + "&longitude=" + Settings.data.weatherLon];
         now.running = true;
     }
     Connections {
         target: Settings.data
         function onWeatherCityChanged() { root.lookUp(); }
+        function onWeatherUnitsChanged() { root.fetch(); }
     }
     Process {
         id: geo

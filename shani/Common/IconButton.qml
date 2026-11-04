@@ -43,7 +43,9 @@ Rectangle {
         Behavior on width { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
         Behavior on height { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
         Behavior on opacity { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
-        anchors.centerIn: area.pressed ? Qt.point(area.mouseX, area.mouseY) : Qt.point(parent.width / 2, parent.height / 2)
+        // centre on the press point (or the button when idle); grows outward
+        x: (area.pressed ? area.mouseX : parent.width / 2) - width / 2
+        y: (area.pressed ? area.mouseY : parent.height / 2) - height / 2
     }
 
     // ---- subtle scale-down on press ---------------------------------------
@@ -70,6 +72,10 @@ Rectangle {
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         cursorShape: Qt.PointingHandCursor
         enabled: root.enabled
+        onPressed: { ripple.width = root.width * 2.4; ripple.height = ripple.width }
+        onReleased: { ripple.width = 0; ripple.height = 0 }
         onClicked: e => e.button === Qt.RightButton ? root.rightClicked() : root.clicked()
     }
+    // what it is, on hover: the tip, else the name a screen reader says
+    Hint { text: root.tip !== "" ? root.tip : root.Accessible.name }
 }

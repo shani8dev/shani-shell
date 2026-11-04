@@ -61,22 +61,37 @@ ColumnLayout {
                     }
                 }
             }
+            // no weather yet: offered in one click, not hidden in Settings - from this
+            // computer's location (GeoClue, or a GPS through gpsd) or the time zone's city
+            Row {
+                visible: Weather.summary === "" && Settings.data.weatherCity === "" && !Settings.data.useLocation
+                spacing: 8
+                Icon { name: "weather-few-clouds"; size: 14; color: Theme.dim; anchors.verticalCenter: parent.verticalCenter }
+                Text { text: Tr.t("Weather for"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; anchors.verticalCenter: parent.verticalCenter }
+                Choice { text: Tr.t("where I am"); onClicked: { Settings.data.useLocation = true; Location.refresh(); }
+                    Hint { text: Tr.t("Uses this computer's location (Wi-Fi, GPS) - you can turn it off in Settings > Privacy") } }
+                Choice { visible: Weather.zoneCity !== ""; text: Weather.zoneCity; onClicked: Settings.data.weatherCity = Weather.zoneCity
+                    Hint { text: Tr.t("The city of your time zone - no location shared") } }
+            }
             Row {
                 visible: Weather.summary !== ""
                 spacing: 6
                 Icon { name: Weather.icon; size: 14; color: Theme.dim; anchors.verticalCenter: parent.verticalCenter }
                 Text {
-                    text: Weather.summary + "  ·  " + Settings.data.weatherCity
+                    text: Weather.summary + "  ·  " + (Settings.data.weatherCity || Tr.t("here"))
                     color: Theme.dim
                     font.family: Theme.font
                     font.pixelSize: 12 * Theme.fontScale
                 }
             }
         }
+        // help: the tour again, and every shortcut from its last page
+        IconButton { icon: "help-about"; tip: Tr.t("Help: a short tour, and every keyboard shortcut"); onClicked: { Ui.closeAll(); Ui.tour = true; } }
         IconButton { icon: "emblem-system"; tip: Tr.t("Settings"); Accessible.name: Tr.t("Settings"); onClicked: Ui.openSettings("") }
-        IconButton { icon: "system-lock-screen"; onClicked: { Ui.closeAll(); Lock.lock(); } }
+        IconButton { icon: "system-lock-screen"; tip: Tr.t("Lock the screen (Super + L)"); onClicked: { Ui.closeAll(); Lock.lock(); } }
         IconButton {
             icon: "system-shutdown"
+            tip: Tr.t("Log out, restart or shut down")
             on: Ui.expanded === "power"
             onClicked: Ui.expanded = Ui.expanded === "power" ? "" : "power"
         }

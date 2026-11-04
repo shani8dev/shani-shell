@@ -14,6 +14,9 @@ Rectangle {
     default property alias extra: row.data
     signal clicked()
     signal rightClicked()
+    property string hint: ""          // what it is and does, on hover
+    property string hintKeys: ""      // its keyboard shortcut, shown beside it
+    property bool pill: false         // a soft filled pill even at rest: says "this is a button" (quick settings, the clock)
     signal middleClicked()
     signal scrolled(int dir)
 
@@ -24,7 +27,9 @@ Rectangle {
     implicitWidth: row.implicitWidth + 16
     implicitHeight: 28
     radius: 9
-    color: active ? Theme.accentSoft : (area.containsMouse ? Theme.hover : "transparent")
+    color: active ? Theme.accentSoft : (area.containsMouse ? Theme.hover : pill ? Theme.alpha(Theme.text, 0.07) : "transparent")
+    border.width: pill && !active ? 1 : 0
+    border.color: Theme.alpha(Theme.text, 0.08)
     Behavior on color { ColorAnimation { duration: Theme.anim } }
 
     Row {
@@ -59,4 +64,5 @@ Rectangle {
         onClicked: e => e.button === Qt.RightButton ? root.rightClicked() : e.button === Qt.MiddleButton ? root.middleClicked() : root.clicked()
         onWheel: w => root.scrolled(w.angleDelta.y > 0 ? 1 : -1)
     }
+    Hint { text: root.hint; keys: root.hintKeys }
 }

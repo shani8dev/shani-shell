@@ -43,8 +43,15 @@ def emit(msg: dict) -> None:
 
 
 def downloads() -> Path:
-    d = os.environ.get("XDG_DOWNLOAD_DIR") or str(Path.home() / "Downloads")
-    return Path(d)
+    d = None
+    if len(sys.argv) > 1 and sys.argv[1]:
+        d = Path(sys.argv[1])               # the dir the person chose in Settings
+        d = d.expanduser()
+    else:
+        d = Path(os.environ.get("SHANI_OBEX_DIR") or os.environ.get("XDG_DOWNLOAD_DIR")
+                 or str(Path.home() / "Downloads"))
+    d.mkdir(parents=True, exist_ok=True)
+    return d
 
 
 def free_name(folder: Path, name: str) -> Path:

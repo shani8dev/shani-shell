@@ -16,7 +16,7 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "shani-captions"
     // blur behind the card, as on every shell surface (ext-background-effect)
-    BackgroundEffect.blurRegion: Settings.data.blur && visible ? blurArea : null
+    BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurArea : null
     Region { id: blurArea; item: blurCard; radius: blurCard.radius }
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None

@@ -15,6 +15,12 @@ Singleton {
     readonly property var list: server.trackedNotifications.values.slice().reverse()
     readonly property int count: list.length
     property var _perApp: ({})
+    // Notification filtering rules (noctalia-inspired): applied before showing popups
+    readonly property var rules: NotifsRules ? NotifsRules.rules : []
+
+    function _filterNotification(appName, summary, body) {
+        return NotifsRules ? NotifsRules.evaluate(appName, summary, body) : "";
+    }
     // unread per app, for the dock's badges (Android's notification dots): what is
     // still in the list, keyed by the desktop entry the app named and by its name
     readonly property var perApp: _perApp
@@ -55,14 +61,24 @@ Singleton {
     // a sound for each notification that comes through (the freedesktop theme;
     // critical ones get the alarm); silenced apps and DND never alert, so never sound
     property int sounds: 0
+    property string lastSound: ""      // the file the last alert played (the tests)
     onAlerted: n => {
         if (!Settings.data.notifSound)
             return;
+        if (Settings.data.soundNotification === false)
+            return;
+        // the app's own say first (the spec's hints): no sound at all, a sound
+        // file, or a theme sound by name; else ours by urgency
+        const h = n.hints || {};
+        if (h["suppress-sound"])
+            return;
         const crit = n.urgency === NotificationUrgency.Critical;
+        const dir = "/usr/share/sounds/freedesktop/stereo/";
+        const own = h["sound-file"] ? String(h["sound-file"]) : h["sound-name"] ? dir + h["sound-name"] + ".oga" : "";
         sounds++;
+        lastSound = own || dir + (crit ? "dialog-warning.oga" : "message.oga");
         Quickshell.execDetached(["sh", "-c", 'for f in "$@"; do [ -f "$f" ] && exec pw-play "$f"; done',
-            "sh", "/usr/share/sounds/freedesktop/stereo/" + (crit ? "dialog-warning.oga" : "message.oga"),
-            "/usr/share/sounds/freedesktop/stereo/message.oga"]);
+            "sh", lastSound, dir + "message.oga"]);
     }
     // when each arrived, by id, for "5 min" on the cards
     property var arrived: ({})
@@ -166,11 +182,13 @@ Singleton {
                 Settings.data.notifApps = Array.from(Settings.data.notifApps).concat([app]).slice(-40);
             // an app with pop-ups off: the sidebar only. DND holds everything
             // back but the apps allowed through it; a focus mode, all but the apps
-            // it allows; critical urgency always comes through
+            // it allows; the lock screen holds them too when dndWhileLocked is on;
+            // critical urgency always comes through
             const silent = Array.from(Settings.data.silentApps).indexOf(app) >= 0;
             const throughDnd = Array.from(Settings.data.dndAllowedApps).indexOf(app) >= 0;
+            const lockedOut = Settings.data.dndWhileLocked && Lock.locked && !throughDnd;
             if (n.urgency === NotificationUrgency.Critical
-                || (!silent && !root.quiet && (root.dnd ? throughDnd : Focus.allows(app))))
+                || (!silent && !root.quiet && !lockedOut && (root.dnd ? throughDnd : Focus.allows(app))))
             {
                 root.popups = root.popups.concat([n]).slice(-4);
                 root.alerted(n);

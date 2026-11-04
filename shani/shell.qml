@@ -50,14 +50,27 @@ import qs.Modules.QrView
 import qs.Modules.Modem
 import qs.Modules.Share
 import qs.Modules.Overview
+import qs.Modules.ScreenSaver
+import qs.Modules.Charging
+import qs.Modules.Hints
+import qs.Modules.FileActions
 
 ShellRoot {
     Wallpaper {}
     DesktopWidgets {}
+    MoreWidgets {}
+    DesktopIcons {}
     Bar {}
     Island {}
     Variants { model: Quickshell.screens; Dock {} }
     OverviewSearch {}
+    // surfaces most sessions rarely open are made on first use and dropped after:
+    // 56 MB of an idle desktop (tests: perf-*)
+    LazyLoader { active: Niri.overviewOpen; OverviewStats {} }
+    LazyLoader { active: ScreenSaver.active; Cover {} }
+    ChargeFx {}
+    StartHints {}
+    FileActionsCard {}
     Sidebar {}
     Launcher {}
     Popups {}
@@ -66,21 +79,21 @@ ShellRoot {
     PolkitDialog {}
     LensPanel {}
     LazyLoader { active: Ruler.phase !== "idle"; RulerPanel {} }    Ring {}
-    Switcher {}
-    LayoutSwitcher {}
+    Switcher {}                     // always made: it opens itself on Ui.switcherRequested
+    LazyLoader { active: Ui.layoutSwitcher; LayoutSwitcher {} }
     Keyboard {}
-    WindowMenu {}
+    LazyLoader { active: Ui.windowMenu; WindowMenu {} }
     HotCorners {}
     LazyLoader { active: Ui.processes; Processes {} }
-    CaptionBar {}
+    LazyLoader { active: Captions.on; CaptionBar {} }
     LazyLoader { active: Ui.magnifier; Magnifier {} }
     LazyLoader { active: Ui.annotate; Annotate {} }
     LazyLoader { active: Ui.settingsOpen; SettingsWindow {} }
-    AssistiveTouch {}
+    LazyLoader { active: Settings.data.assistiveTouch; AssistiveTouch {} }
     FlashAlert {}
     PairDialog {}
     LazyLoader { active: Displays.pending; DisplayConfirm {} }
-    Tour {}
+    LazyLoader { active: Ui.tour || (Settings.loaded && !Settings.data.tourSeen && !Quickshell.env("SHANI_NO_TOUR")); Tour {} }
     LazyLoader { active: Qr.shown; QrView {} }
     ModemDialog {}
     LazyLoader { active: Share.file !== ""; ShareSheet {} }
@@ -90,7 +103,7 @@ ShellRoot {
     Binding { target: Ui; property: "screen"; value: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0] }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, AmbientLight, WindowRules, WorldClock, Location]
+    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WorldClock, Location, WebApps, ScreenSaver, KbdBacklight, Hooks]
 
     IpcHandler {
         target: "shani"
@@ -104,6 +117,24 @@ ShellRoot {
         function controlCenter(section: string) { Ui.closeAll(); Ui.toggleControlCenter(section); }
         function toggleNotifications() { Ui.toggleControlCenter("notifications"); }
         function closeAll() { Ui.closeAll(); Ui.settingsOpen = false; }
+        // back to a resting desktop: closeAll() closes the panels Ui owns; the
+        // overlays below live in their services, and a script photographing one
+        // surface after another must not stack them (a render of Settings once
+        // carried the ruler banner, the Lens, live captions and old notification
+        // cards, all of them opened sections earlier)
+        function dismissAll() {
+            Ui.closeAll();
+            Ui.settingsOpen = false;
+            Ui.tour = false;
+            Ui.modemDialog = "";
+            Lens.close();
+            Ruler.close();
+            Qr.close();
+            Share.close();
+            Chronoa.open = false;
+            if (Captions.on) Captions.start(Captions.source);   // toggles it off
+            Notifs.clearAll();
+        }
 
         // Chronoa
         function openChronoa() { Chronoa.open = true; }
@@ -120,6 +151,7 @@ ShellRoot {
 
         // session
         function lock() { Lock.lock(); }
+        function themeReload() { Matugen.reload(); }
         function volumeUp() { Audio.stepKey(true); }
         function volumeDown() { Audio.stepKey(false); }
         function volumeMute() { Audio.toggleMute(); }
@@ -221,6 +253,14 @@ ShellRoot {
             for (const o of Displays.outputs) px[o.name] = o.width;
             return Niri.swapMonitors(px) ? "swapped" : "needs two monitors";
         }
+        // a drop-down app (Mod+` for the terminal): shown, put away, or started
+        function scratchpad(name: string) { Scratchpads.toggle(name); }
+        function screenSaverPreview() { ScreenSaver.preview = true; }
+        function chargingPreview() { Ui.chargingPreview = true; }
+        // the tests (and scripts): the card for a file, and one of its actions
+        function fileActions(path: string) { FileActions.offer([path]); }
+        function fileAction(id: string) { FileActions.run(id); }
+        function fileFit(maxKb: int, minKb: int, w: int, h: int) { FileActions.fit({ max: maxKb, min: minKb, w: w, h: h }); }
         function dockMenu(app: string) { Ui.dockMenu = ""; Ui.dockMenu = app; }
         // the tests: type a reply into the notification with this summary
         // the tests: press a notification's action (its identifier) as a click would
@@ -384,6 +424,12 @@ ShellRoot {
                 settingsCat: Ui.settingsCat, settingsOpen: Ui.settingsOpen,
                 pinned: Niri.pinned, badges: Notifs.perApp,
                 capsLock: LockKeys.caps, numLock: LockKeys.num,
+                screenSaver: ScreenSaver.active,
+                desktopIconsShown: Settings.data.desktopIcons,
+                layoutSwitcher: Ui.layoutSwitcher, layoutPreset: Settings.data.layoutPreset, dockOn: Settings.data.dock, dockHides: Settings.data.dockVisibility === "hide", dockMode: Settings.data.dockVisibility, barMode: Settings.data.barVisibility, dockShown: Hiding.dockShown[Niri.focusedOutput] !== false, barShown: Hiding.barShown[Niri.focusedOutput] !== false, dockHintSeen: Settings.data.dockHintSeen, desktopIconsOn: Settings.data.desktopIcons, winWidth: Settings.data.winDefaultWidth, widgets: Array.from(Settings.data.desktopWidgets),
+                fileActions: FileActions.actions.map(x => x.id), fileActionLast: FileActions.last,
+                notifLastSound: Notifs.lastSound,
+                scratchpad: Scratchpads.last,
                 overviewSearch: Niri.overviewOpen && !Ui.launcher, launcherQuery: Ui.launcherQuery,
                 lockPhotos: lockScreen.lockPhotos.length,
                 appsBlocked: AppFilter.blocked, appCount: AppFilter.blocked.length >= 0 ? DesktopEntries.applications.values.filter(a => !a.noDisplay && AppFilter.allowed(a.id)).length : 0,
@@ -413,5 +459,7 @@ ShellRoot {
                 storageSizes: Drives.storage || []
             });
         }
+        function webappAdd(name: string, url: string, icon: string) { WebApps.addApp(name || url, url, icon || ""); }
+        function webappRemove(name: string) { WebApps.removeApp(name); }
     }
 }

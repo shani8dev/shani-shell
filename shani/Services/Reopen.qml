@@ -33,7 +33,7 @@ Singleton {
     function reopen(ids) {
         for (const id of ids) {
             const e = DesktopEntries.byId(id);
-            if (e) e.execute();
+            if (e) Launch.app(e.id);
         }
     }
     function offer(ids) {

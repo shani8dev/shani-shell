@@ -53,6 +53,14 @@ Singleton {
     }
     // Cassini's Updates page where Cassini is installed; otherwise the deploy
     // itself in a terminal (pkexec: ShaniOS's polkit asks for your own password)
+    function reviewWithChronoa() {
+        if (!root.available && root.firmware.length === 0) return;
+        const msg = root.firmware.length > 0
+            ? ("Review firmware updates: " + root.firmware.join(", "))
+            : "Review pending system updates for safety and impact before installing.";
+        Chronoa.ask(msg);
+    }
+
     function open() {
         Quickshell.execDetached(["sh", "-c", 'command -v shani-cassini >/dev/null && exec shani-cassini --section=updates
             exec "$1" -e sh -c "pkexec /usr/local/bin/shani-deploy; echo; read -p \"Press Enter to close.\" x"', "sh", Settings.data.terminal]);
