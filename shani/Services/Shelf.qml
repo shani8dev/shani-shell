@@ -29,6 +29,7 @@ Singleton {
     FileView {
         id: store
         path: Quickshell.statePath("shelf-parked.json")
+        printErrors: false               // none yet: nothing parked
         onLoaded: { try { root.parked = JSON.parse(text()); } catch (e) {} }
     }
 

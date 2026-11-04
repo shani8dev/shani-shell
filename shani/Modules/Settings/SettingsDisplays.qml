@@ -206,6 +206,16 @@ ColumnLayout {
         }
     }
 
+    // ---- battery: the built-in panel at 60 Hz until the charger is back ------------
+    SwitchRow {
+        Layout.fillWidth: true
+        visible: Power.hasBattery
+        text: Tr.t("60 Hz on battery")
+        hint: Tr.t("the laptop's own screen steps down from a faster refresh while unplugged, and back up on the charger")
+        checked: Settings.data.batteryRefresh60
+        onToggled: on => Settings.data.batteryRefresh60 = on
+    }
+
     // ---- auto-rotate: tablets and convertibles with an accelerometer --------------
     SectionTitle { Layout.fillWidth: true; visible: AutoRotate.available; text: Tr.t("Rotation") }
     SwitchRow {

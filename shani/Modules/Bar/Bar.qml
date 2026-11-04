@@ -22,7 +22,7 @@ Variants {
         required property var modelData
         screen: modelData
         readonly property string output: modelData.name
-        readonly property var player: Mpris.players.values.find(p => p.isPlaying) || Mpris.players.values[0] || null
+        readonly property var player: Media.current
 
         anchors { top: true; left: true; right: true }
         // the surface starts at the screen's top edge, so a hidden bar can be
@@ -50,7 +50,8 @@ Variants {
         color: "transparent"
         WlrLayershell.namespace: "shani-panel"
         WlrLayershell.layer: WlrLayer.Top
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+        WlrLayershell.keyboardFocus: renamingWs >= 0 ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+        property int renamingWs: -1          // the workspace (id) being named: the bar takes the keyboard
         BackgroundEffect.blurRegion: Settings.blurWanted && bar.shown ? barRegion : null
         Region { id: barRegion; item: glass; radius: Theme.radius }
 
@@ -126,7 +127,8 @@ Variants {
                             required property var modelData
                             required property int index
                             readonly property bool occupied: modelData.active_window_id !== null
-                            implicitWidth: modelData.is_active ? 28 : 20
+                            readonly property bool renaming: bar.renamingWs === modelData.id
+                            implicitWidth: renaming ? 110 : modelData.is_active ? Math.max(28, wsLabel.implicitWidth + 14) : Math.max(20, wsLabel.implicitWidth + 10)
                             implicitHeight: 20
                             radius: 10
                             color: modelData.is_active ? Theme.accent : (wsArea.containsMouse ? Theme.hover : "transparent")
@@ -134,7 +136,24 @@ Variants {
                             border.color: Theme.red
                             Behavior on implicitWidth { NumberAnimation { duration: Theme.anim } }
 
+                            TextInput {
+                                visible: parent.renaming
+                                anchors.fill: parent
+                                anchors.leftMargin: 8; anchors.rightMargin: 8
+                                verticalAlignment: TextInput.AlignVCenter
+                                text: parent.modelData.name || ""
+                                color: parent.modelData.is_active ? Theme.accentInk : Theme.text
+                                font.family: Theme.font
+                                font.pixelSize: 11 * Theme.fontScale
+                                maximumLength: 24
+                                onVisibleChanged: if (visible) { forceActiveFocus(); selectAll(); }
+                                onAccepted: { Niri.renameWorkspace(parent.modelData, text); bar.renamingWs = -1; }
+                                Keys.onEscapePressed: bar.renamingWs = -1
+                                onActiveFocusChanged: if (!activeFocus && visible) bar.renamingWs = -1
+                            }
                             Text {
+                                id: wsLabel
+                                visible: !parent.renaming
                                 anchors.centerIn: parent
                                 // its place among the visible ones (the minimised one is hidden)
                                 text: modelData.name || (parent.index + 1)
@@ -148,9 +167,16 @@ Variants {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: Niri.focusWorkspace(parent.modelData)
+                                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                enabled: !parent.renaming
+                                onClicked: e => {
+                                    if (e.button === Qt.RightButton)
+                                        bar.renamingWs = parent.modelData.id;
+                                    else
+                                        Niri.focusWorkspace(parent.modelData);
+                                }
                             }
-                            Hint { text: Tr.t("Workspace %1", parent.index + 1) + " - " + Tr.t("Super + O shows them all"); keys: "Super + " + (parent.index + 1) }
+                            Hint { text: Tr.t("Workspace %1", parent.index + 1) + " - " + Tr.t("right-click to name it, Super + O shows them all"); keys: "Super + " + (parent.index + 1) }
                         }
                     }
                 }

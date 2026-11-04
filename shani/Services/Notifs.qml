@@ -33,7 +33,7 @@ Singleton {
         }
         _perApp = out;
     }
-    onListChanged: _rebuildPerApp()
+    onListChanged: { _rebuildPerApp(); if (historyRead) saveHistory.restart(); }
     Component.onCompleted: _rebuildPerApp()
     function countFor(entry, id) {
         const keys = [id, entry && entry.id, entry && entry.name, entry && entry.startupClass].filter(Boolean).map(k => k.toLowerCase());
@@ -135,6 +135,11 @@ Singleton {
     // snooze (after Android): the notification goes now and comes back later,
     // re-posted with what it said; kept in the state dir, so a restart keeps it
     property var snoozed: []             // [{ due, app, summary, body, icon }]
+    function isSilenced(app) { return !!app && Array.from(Settings.data.silentApps).indexOf(app) >= 0; }
+    function setSilenced(app, on) {
+        const rest = Array.from(Settings.data.silentApps).filter(a => a !== app);
+        Settings.data.silentApps = on ? rest.concat([app]) : rest;
+    }
     function snooze(n, minutes) {
         snoozed = snoozed.concat([{ due: Date.now() + minutes * 60000, app: n.appName || "",
                                     notificationId: n.id || null, notificationApp: n.appName || "",
@@ -175,6 +180,39 @@ Singleton {
         for (const n of server.trackedNotifications.values.slice())
             n.dismiss();
         popups = [];
+        earlier = [];
+    }
+
+    // ---- kept across a restart: what was unread is written down (a summary, not the
+    // live notification - its actions died with the app's request) and shown again,
+    // under Earlier, until cleared. Dismissed ones leave the file with the list.
+    property var earlier: []             // [{ app, summary, body, time }]
+    property bool historyRead: false     // nothing is written before the old file is read
+    function keyOf(app, summary) { return (app || "") + "\n" + (summary || ""); }
+    function snapshot() {
+        const live = list.map(n => ({ app: n.appName || "", summary: n.summary || "",
+                                      body: (n.body || "").replace(/<[^>]*>/g, "").slice(0, 300),
+                                      time: arrived[n.id] || Date.now() }))
+            .filter(e => e.summary !== "");
+        return live.concat(earlier).slice(0, 50);
+    }
+    function forgetEarlier(entry) { earlier = entry ? earlier.filter(e => e !== entry) : []; }
+    onEarlierChanged: if (historyRead) saveHistory.restart()
+    Timer { id: saveHistory; interval: 1500; onTriggered: history.setText(JSON.stringify(root.snapshot())) }
+    FileView {
+        id: history
+        path: Quickshell.statePath("notifications.json")
+        printErrors: false
+        atomicWrites: true
+        onLoaded: {
+            try {
+                // still live (a reload keeps them): not shown twice
+                const live = new Set(root.list.map(n => root.keyOf(n.appName, n.summary)));
+                root.earlier = JSON.parse(text()).filter(e => e && e.summary && !live.has(root.keyOf(e.app, e.summary))).slice(0, 50);
+            } catch (e) {}
+            root.historyRead = true;
+        }
+        onLoadFailed: root.historyRead = true
     }
     function dropPopup(n) {
         popups = popups.filter(p => p !== n);

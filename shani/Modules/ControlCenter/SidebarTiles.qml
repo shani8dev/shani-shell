@@ -281,10 +281,13 @@ ColumnLayout {
             icon: "applets-screenshooter"
             title: Tr.t("Screenshot")
             subtitle: Tr.t("Select or window")
+            hasDetail: true
+            expanded: Ui.expanded === "screenshot"
             onToggled: {
                 Ui.closeAll();
                 Niri.action("screenshot");
             }
+            onDetail: Ui.expanded = Ui.expanded === "screenshot" ? "" : "screenshot"
         }
         Tile {
             tid: "lens"

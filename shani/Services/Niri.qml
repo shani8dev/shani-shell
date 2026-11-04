@@ -208,6 +208,19 @@ Singleton {
         return w || null;
     }
 
+    // named on its own monitor (it is focused first: an index means the focused
+    // monitor's); "" takes the name off
+    function renameWorkspace(ws, name) {
+        const n = String(name || "").trim();
+        Quickshell.execDetached(["sh", "-c", 'niri msg action focus-monitor "$1"; niri msg action focus-workspace "$2" && '
+            + (n ? 'niri msg action set-workspace-name "$3"' : 'niri msg action unset-workspace-name'),
+            "sh", ws.output || "", String(ws.idx), n]);
+    }
+    function renameWorkspaceAt(idx, name) {
+        const ws = workspaces.find(w => w.output === focusedOutput && w.idx === idx);
+        if (ws)
+            renameWorkspace(ws, name);
+    }
     function focusWorkspace(ws) {
         if (ws.output !== focusedOutput)
             action("focus-monitor", ws.output);

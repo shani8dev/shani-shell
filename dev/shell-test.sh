@@ -1449,6 +1449,17 @@ ipc media play-pause
 waitfor "not d['mediaPlaying']" 3 && result media-key-pauses PASS || result media-key-pauses FAIL
 ipc media play-pause
 waitfor "d['mediaPlaying']" 3 && result media-key-plays PASS || result media-key-plays FAIL
+# two players: the card's switch picks the one followed, and the media keys go to it
+FAKE_MPRIS_NAME="Second Player" FAKE_MPRIS_BUS=second python3 /work/dev/fake-mpris.py "Other Song" "Other" >/dev/null 2>&1 &
+MPRIS2=$!
+waitfor "True" 1; sleep 1.5
+before=$(q "['mediaPlayer']")
+ipc nextPlayer
+waitfor "d['mediaPlayer'] not in ('', '$before')" 3 && grep -q '"preferredPlayer"' "$SHANI_SHELL_SETTINGS" \
+    && result media-player-switch PASS "$before -> $(q "['mediaPlayer']")" || result media-player-switch FAIL "$before -> $(q "['mediaPlayer']")"
+kill $MPRIS2 2>/dev/null
+waitfor "d['mediaPlayer'] == 'Shani Player'" 4 && result media-player-gone-falls-back PASS || result media-player-gone-falls-back FAIL "$(q "['mediaPlayer']")"
+settings '{}'
 kill $MPRIS 2>/dev/null
 s0=$(q "['notifSounds']")
 notify-send -a Chime "Ding" "a sound"
@@ -1893,6 +1904,51 @@ waitfor "d['locked']" 4; sleep 6
 wtype "shani-test" -k Return
 waitfor "not d['locked']" 6 && result lock-password-beside-face PASS || result lock-password-beside-face FAIL "$(st)"
 rm -f /tmp/bio-available
+
+# ---- an app's pop-ups off from its own notification; the lock screen's power keys
+if [ -f "$A11Y" ]; then
+    ipc closeAll
+    notify-send -a Chatty "Chatty says hi" "again and again"; sleep 1
+    timeout 20 python3 "$A11Y" press "^More actions$" >/dev/null 2>&1; sleep 0.5
+    timeout 20 python3 "$A11Y" press "^No pop-ups from Chatty$" >/dev/null 2>&1; sleep 1
+    grep -q '"Chatty"' "$SHANI_SHELL_SETTINGS" && result notification-silence-app PASS || result notification-silence-app FAIL
+    settings '{}'
+    ipc lock; waitfor "d['locked']" 4; sleep 1
+    timeout 20 python3 "$A11Y" find "button:^Shut down$" >/dev/null 2>&1 && result lock-power-keys PASS || result lock-power-keys FAIL
+    wtype "shani-test" -k Return; waitfor "not d['locked']" 6
+fi
+
+# ---- a screenshot on a timer: counted down, then the whole screen ----------------------
+rm -f /root/Pictures/Screenshots/* 2>/dev/null
+if [ -f "$A11Y" ]; then
+    ipc controlCenter screenshot; sleep 0.8
+    timeout 20 python3 "$A11Y" press "^Whole screen in 3 seconds$" >/dev/null 2>&1; sleep 1.2
+    c=$(q "['shotCountdown']")
+    waitfor "d['shotCountdown'] == 0" 6
+    sleep 1.5; n=$(ls /root/Pictures/Screenshots 2>/dev/null | wc -l)
+    [ "$c" -gt 0 ] 2>/dev/null && [ "$n" -ge 1 ] && result screenshot-on-a-timer PASS "counting $c, then $n file" || result screenshot-on-a-timer FAIL "countdown=$c files=$n"
+fi
+
+# ---- notifications unread at a restart are written down, to be shown again ---------
+notify-send -a Keeper "Kept across restarts" "read me later"; sleep 2.5
+grep -rqs "Kept across restarts" /root/.local/state/quickshell && result notification-history-kept PASS || result notification-history-kept FAIL
+
+# ---- the dock's trash: full or empty at a glance -------------------------------------
+settings '{"dockVisibility": "always"}'
+printf 'bin me' > /tmp/bin-me.txt; gio trash /tmp/bin-me.txt 2>/dev/null
+waitfor "d['trashCount'] >= 1" 4 && result dock-trash-sees-it PASS "$(q "['trashCount']")" || result dock-trash-sees-it FAIL "$(q "['trashCount']")"
+if [ -f "$A11Y" ]; then
+    timeout 20 python3 "$A11Y" find "button:^Trash$" >/dev/null 2>&1 && result dock-trash-tile PASS || result dock-trash-tile FAIL
+fi
+gio trash --empty 2>/dev/null
+waitfor "d['trashCount'] == 0" 4 && result dock-trash-empties PASS || result dock-trash-empties FAIL "$(q "['trashCount']")"
+settings '{}'
+
+# ---- a workspace named, and the name taken off again ------------------------------------
+ipc renameWorkspace 1 "Mail"; sleep 1
+niri msg -j workspaces | grep -q '"Mail"' && result workspace-named PASS || result workspace-named FAIL
+ipc renameWorkspace 1 ""; sleep 1
+niri msg -j workspaces | grep -q '"Mail"' && result workspace-name-cleared FAIL || result workspace-name-cleared PASS
 
 # ---- dynamic lock: the paired phone goes away → locked after the grace ---------------
 settings '{"dynamicLockDevice": "AA:BB:CC:DD:EE:FF"}'

@@ -20,6 +20,21 @@ ColumnLayout {
     Glass {
         id: np
         visible: sidebar.player !== null
+        // a wash of the cover's own colour (dux's): the most vivid of a few candidates
+        ColorQuantizer {
+            id: art
+            source: sidebar.visible && sidebar.player && sidebar.player.trackArtUrl ? sidebar.player.trackArtUrl : ""
+            depth: 2
+            rescaleSize: 48
+        }
+        readonly property var artTint: {
+            let best = null;
+            for (const c of art.colors || [])
+                if (c.hslSaturation > 0.25 && c.hslLightness > 0.15 && c.hslLightness < 0.85 && (!best || c.hslSaturation > best.hslSaturation))
+                    best = c;
+            return best;
+        }
+        color: artTint ? Qt.tint(opaque ? Theme.bg : Theme.glass, Theme.alpha(artTint, 0.20)) : (opaque ? Theme.bg : Theme.glass)
         Layout.fillWidth: true
         implicitHeight: 118
         // the track's position, sampled while it plays (the thin bar moves)
@@ -57,6 +72,20 @@ ColumnLayout {
                     font.family: Theme.font
                     font.pixelSize: 13 * Theme.fontScale
                     font.weight: Font.DemiBold
+                }
+                Text {
+                    visible: Media.players.length > 1
+                    Layout.fillWidth: true
+                    text: (sidebar.player ? sidebar.player.identity : "") + "  ⇄"
+                    color: Theme.accent
+                    elide: Text.ElideRight
+                    font.family: Theme.font
+                    font.pixelSize: 10 * Theme.fontScale
+                    Accessible.role: Accessible.Button
+                    Accessible.name: Tr.t("Switch player (now %1)").arg(sidebar.player ? sidebar.player.identity : "")
+                    Accessible.onPressAction: Media.cycle()
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Media.cycle() }
+                    Hint { text: Tr.t("Follow the next player") }
                 }
                 Text {
                     Layout.fillWidth: true

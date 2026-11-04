@@ -6,6 +6,7 @@ media chip and the sidebar's media card (showcase and tests). Plays nothing.
 """
 from __future__ import annotations
 
+import os
 import sys
 
 import gi
@@ -44,7 +45,7 @@ state = {"status": "Playing"}
 
 def prop(_c, _s, _p, iface, name):
     if name == "Identity":
-        return GLib.Variant("s", "Shani Player")
+        return GLib.Variant("s", os.environ.get("FAKE_MPRIS_NAME", "Shani Player"))
     if name == "PlaybackStatus":
         return GLib.Variant("s", state["status"])
     if name == "Position":
@@ -72,5 +73,5 @@ conn = Gio.bus_get_sync(Gio.BusType.SESSION, None)
 node = Gio.DBusNodeInfo.new_for_xml(XML)
 for i in node.interfaces:
     conn.register_object("/org/mpris/MediaPlayer2", i, call, prop, None)
-Gio.bus_own_name_on_connection(conn, "org.mpris.MediaPlayer2.shani", Gio.BusNameOwnerFlags.NONE, None, None)
+Gio.bus_own_name_on_connection(conn, "org.mpris.MediaPlayer2." + os.environ.get("FAKE_MPRIS_BUS", "shani"), Gio.BusNameOwnerFlags.NONE, None, None)
 GLib.MainLoop().run()

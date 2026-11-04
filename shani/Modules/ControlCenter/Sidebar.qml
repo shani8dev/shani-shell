@@ -31,7 +31,7 @@ PanelWindow {
     BackgroundEffect.blurRegion: Settings.blurWanted && Ui.controlCenter ? sideRegion : null
     Region { id: sideRegion; item: slide; radius: Theme.radiusLarge }
 
-    readonly property var player: Mpris.players.values.find(p => p.isPlaying) || Mpris.players.values[0] || null
+    readonly property var player: Media.current
     readonly property var bt: Bluetooth.defaultAdapter
     property string confirm: ""        // the power action waiting for a second click
 

@@ -80,6 +80,23 @@ Glass {
             root.done();
     }
     HoverHandler { id: hover }
+    DragHandler {
+        id: swipe
+        target: null
+        xAxis.enabled: true
+        yAxis.enabled: false
+        onTranslationChanged: slide.x = translation.x
+        onActiveChanged: {
+            if (active)
+                return;
+            if (Math.abs(slide.x) > root.width / 3) {
+                root.notification.dismiss();
+                root.done();
+            } else {
+                slide.x = 0;
+            }
+        }
+    }
     MouseArea {
         anchors.fill: parent
         cursorShape: root.notification && root.notification.actions.some(a => a.identifier === "default") ? Qt.PointingHandCursor : Qt.ArrowCursor
@@ -264,6 +281,10 @@ Glass {
                     model: root.actions.map(a => ({ text: a.text, run: () => a.invoke({ notificationId: root.notification ? root.notification.id : null, appName: root.notification ? (root.notification.appName || "") : "" }) }))
                         .concat(!root.more ? []
                         : (root.critical ? [] : [{ text: Tr.t("Snooze"), run: () => Notifs.snooze(root.notification, Settings.data.snoozeMinutes || 60) }])
+                        .concat(root.critical || !root.notification || !root.notification.appName ? []
+                            : [{ text: Notifs.isSilenced(root.notification.appName) ? Tr.t("Pop up again") : Tr.t("No pop-ups"),
+                                 name: (Notifs.isSilenced(root.notification.appName) ? Tr.t("Let %1 pop up again") : Tr.t("No pop-ups from %1")).arg(root.notification.appName),
+                                 run: () => Notifs.setSilenced(root.notification.appName, !Notifs.isSilenced(root.notification.appName)) }])
                         .concat([{ text: Tr.t("Ask Chronoa"), run: () => {
                             const n = root.notification;
                             Chronoa.ask("About this notification from " + (n.appName || "an app") + ": “" + n.summary

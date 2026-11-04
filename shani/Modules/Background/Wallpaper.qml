@@ -58,6 +58,53 @@ Variants {
         }
         onWantedChanged: swap()
         Component.onCompleted: swap()
+
+        // right-click on the empty desktop: what people look for there (dux's menu)
+        MouseArea {
+            anchors.fill: parent
+            z: 10
+            acceptedButtons: Qt.RightButton | Qt.LeftButton
+            onClicked: e => {
+                if (e.button !== Qt.RightButton) {
+                    deskMenu.visible = false;
+                    return;
+                }
+                deskMenu.x = Math.min(e.x, width - deskMenu.width - 8);
+                deskMenu.y = Math.min(e.y, height - deskMenu.height - 8);
+                deskMenu.visible = true;
+            }
+        }
+        Glass {
+            id: deskMenu
+            visible: false
+            strong: true
+            radius: 12
+            z: 11
+            width: 240
+            height: deskCol.implicitHeight + 12
+            Column {
+                id: deskCol
+                x: 6; y: 6
+                width: parent.width - 12
+                Repeater {
+                    model: [{ icon: "preferences-desktop-wallpaper", label: Tr.t("Change wallpaper"), run: () => Ui.openSettings("personal") },
+                            { icon: "view-grid", label: Tr.t("Desktop widgets"), run: () => Ui.openSettings("personal") },
+                            { icon: Settings.data.desktopIcons ? "view-hidden" : "user-desktop",
+                              label: Settings.data.desktopIcons ? Tr.t("Hide desktop icons") : Tr.t("Show desktop icons"),
+                              run: () => Settings.data.desktopIcons = !Settings.data.desktopIcons },
+                            { icon: "video-display", label: Tr.t("Displays"), run: () => Ui.openSettings("displays") },
+                            { icon: "utilities-terminal", label: Tr.t("Open a terminal"), run: () => Quickshell.execDetached(["sh", "-c", 'cd ~ && exec "$1"', "sh", Launch.terminal || "foot"]) },
+                            { icon: "preferences-system", label: Tr.t("Settings"), run: () => Ui.openSettings("") }]
+                    ListRow {
+                        required property var modelData
+                        width: deskCol.width
+                        icon: modelData.icon
+                        title: modelData.label
+                        onClicked: { deskMenu.visible = false; modelData.run(); }
+                    }
+                }
+            }
+        }
         function swap() {
             const next = a.opacity > 0.5 ? b : a;
             const src = wanted ? "file://" + wanted : "";

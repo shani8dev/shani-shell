@@ -26,10 +26,10 @@ ColumnLayout {
             onClicked: Notifs.setDnd(!Notifs.dnd)
         }
         IconButton { visible: Notifs.count > 1; icon: "chat-message-new"; size: 26; onClicked: { Ui.closeAll(); Notifs.summarize(); } }
-        IconButton { visible: Notifs.count > 0; icon: "edit-clear-all"; size: 26; onClicked: Notifs.clearAll() }
+        IconButton { visible: Notifs.count > 0 || Notifs.earlier.length > 0; icon: "edit-clear-all"; size: 26; onClicked: Notifs.clearAll() }
     }
     Text {
-        visible: Notifs.count === 0
+        visible: Notifs.count === 0 && Notifs.earlier.length === 0
         Layout.fillWidth: true
         Layout.topMargin: 6
         horizontalAlignment: Text.AlignHCenter
@@ -81,6 +81,35 @@ ColumnLayout {
                     showApp: group.modelData.items.length === 1
                 }
             }
+        }
+    }
+
+    // from before the restart: read here, cleared one by one or all at once
+    RowLayout {
+        visible: Notifs.earlier.length > 0
+        Layout.fillWidth: true
+        Layout.topMargin: 6
+        Text {
+            Layout.fillWidth: true
+            text: Tr.t("Earlier") + " · " + Notifs.earlier.length
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: 11 * Theme.fontScale
+            font.weight: Font.DemiBold
+        }
+        Button { text: Tr.t("Clear"); onClicked: Notifs.forgetEarlier() }
+    }
+    Repeater {
+        model: Notifs.earlier
+        ListRow {
+            required property var modelData
+            Layout.fillWidth: true
+            icon: "preferences-system-notifications"
+            title: modelData.summary
+            subtitle: modelData.app + " · " + Qt.formatDateTime(new Date(modelData.time), Settings.data.use24h ? "ddd HH:mm" : "ddd h:mm AP")
+                + (modelData.body ? " - " + modelData.body : "")
+            onClicked: Notifs.forgetEarlier(modelData)
+            Hint { text: Tr.t("From before the restart - click to clear it") }
         }
     }
 }

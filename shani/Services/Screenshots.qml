@@ -11,6 +11,25 @@ import qs.Common
 Singleton {
     id: root
     property string last: ""
+    // the whole screen after a countdown (the OSD counts; it is gone before the shot)
+    property int countdown: 0
+    function later(seconds) {
+        countdown = seconds;
+        tick.restart();
+    }
+    Timer {
+        id: tick
+        interval: 1000
+        repeat: true
+        onTriggered: {
+            root.countdown--;
+            if (root.countdown <= 0) {
+                stop();
+                shoot.restart();
+            }
+        }
+    }
+    Timer { id: shoot; interval: 300; onTriggered: Quickshell.execDetached(["niri", "msg", "action", "screenshot-screen"]) }
     property string annTool: (Settings.loaded && Settings.data.screenshotAnnotationTool) || "satty"
     property bool canAnnotate: false
     property bool canSatty: false

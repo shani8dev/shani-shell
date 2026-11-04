@@ -253,6 +253,54 @@ Scope {
                 }
             }
 
+            // restart and shut down, bottom left: a locked machine can still be turned
+            // off without signing in (logind asks for a password if others are signed in)
+            Row {
+                anchors.left: parent.left
+                anchors.bottom: parent.bottom
+                anchors.margins: 32
+                spacing: 10
+                Repeater {
+                    model: [{ icon: "system-reboot", name: Tr.t("Restart"), run: () => Power.reboot() },
+                            { icon: "system-shutdown", name: Tr.t("Shut down"), run: () => Power.poweroff() }]
+                    Glass {
+                        id: powerKey
+                        required property var modelData
+                        property bool armed: false
+                        function press() { if (armed) modelData.run(); else armed = true; }
+                        strong: true
+                        width: armed ? sure.implicitWidth + 64 : 48
+                        height: 48
+                        radius: 24
+                        Behavior on width { NumberAnimation { duration: Theme.anim } }
+                        Timer { running: powerKey.armed; interval: 4000; onTriggered: powerKey.armed = false }
+                        Row {
+                            anchors.centerIn: parent
+                            spacing: 6
+                            Icon { anchors.verticalCenter: parent.verticalCenter; name: powerKey.modelData.icon; size: 22; color: powerKey.armed ? Theme.danger : Theme.text }
+                            Text {
+                                id: sure
+                                visible: powerKey.armed
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: powerKey.modelData.name + "?"
+                                color: Theme.danger
+                                font.family: Theme.font
+                                font.pixelSize: 13 * Theme.fontScale
+                            }
+                        }
+                        Accessible.role: Accessible.Button
+                        Accessible.name: powerKey.modelData.name
+                        Accessible.onPressAction: powerKey.press()
+                        MouseArea {
+                            id: tap
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: powerKey.press()
+                        }
+                    }
+                }
+            }
+
             // the camera, bottom right (only with a camera and the camera switch on)
             Column {
                 visible: Camera.available && Privacy.cameraEnabled
@@ -301,7 +349,7 @@ Scope {
             // what is playing, and the controls (they work while locked, as on a phone)
             Glass {
                 id: nowPlaying
-                readonly property var player: Mpris.players.values.find(p => p.isPlaying) || Mpris.players.values[0] || null
+                readonly property var player: Media.current
                 visible: Settings.data.lockScreenMedia && player !== null && player.trackTitle !== ""
                 strong: true
                 anchors.horizontalCenter: parent.horizontalCenter

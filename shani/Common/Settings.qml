@@ -132,6 +132,11 @@ Singleton {
             property string nightLightTo: "07:00"
             property string weatherUnits: "celsius"       // celsius | fahrenheit (Open-Meteo)
             property string weekStartsOn: "monday"        // monday | sunday (the calendar)
+            property bool weekNumbers: false
+            property bool screenCorners: true             // rounded screen corners (not over fullscreen windows)
+            property bool batteryRefresh60: true          // the laptop's panel at 60 Hz on battery
+            property bool dockTrash: true                 // the trash at the dock's end
+            property string preferredPlayer: ""           // the media player followed, by its name; "" = the one playing              // ISO week numbers down the calendar's side
             property bool bluetoothOnBoot: true          // power the adapter at sign-in
             property string hotspotName: ""              // "" = <hostname>-hotspot
             property string hotspotBand: "auto"          // auto | bg | a (nmcli device wifi hotspot)

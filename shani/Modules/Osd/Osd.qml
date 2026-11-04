@@ -37,6 +37,15 @@ Scope {
 
     // ---- Audio / volume ----
     Connections {
+        target: Screenshots
+        function onCountdownChanged() {
+            if (Screenshots.countdown > 0)
+                root.show("applets-screenshooter", -1, Tr.t("Screenshot in %1").arg(Screenshots.countdown), "label");
+            else
+                root.shown = false;          // gone before the picture is taken
+        }
+    }
+    Connections {
         target: Audio
         function onVolumeChanged() { root.show(Audio.icon, Audio.volume, "", "slider"); }
         function onMutedChanged() { root.show(Audio.icon, Audio.muted ? 0 : Audio.volume, Audio.muted ? "Muted" : "", "slider"); }

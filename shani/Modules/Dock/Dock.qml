@@ -7,9 +7,11 @@
 // (smart: Services/Hiding) or waits below the edge (hide); hidden, it rises when
 // the pointer rests against the bottom.
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Widgets
 import QtQuick
+import Qt.labs.folderlistmodel
 import qs.Common
 import qs.Services
 
@@ -613,6 +615,57 @@ PanelWindow {
                             name: entry ? entry.name : (modelData.app_id || "")
                         }
                     }
+                }
+            }
+        }
+        // the trash, last (dux's): drop files to throw them away; a click opens it in
+        // Files; right-click twice empties it. Watched by inotify, never polled.
+        DockSeparator { visible: Settings.data.dockTrash }
+        DockTile {
+            id: trashTile
+            visible: Settings.data.dockTrash
+            property bool arming: false
+            readonly property int count: trashFiles.count
+            onCountChanged: Ui.trashCount = count
+            tip: arming ? Tr.t("Right-click again to empty the trash")
+                : count > 0 ? Tr.t("Trash: %1 - drop files here, right-click to empty").arg(count === 1 ? Tr.t("1 item") : Tr.t("%1 items").arg(count))
+                : Tr.t("Trash is empty - drop files here")
+            Accessible.name: Tr.t("Trash")
+            on: trashDrop.containsDrag || arming
+            onActivated: Qt.openUrlExternally("trash:///")
+            readonly property string trashDir: (Quickshell.env("XDG_DATA_HOME") || Quickshell.env("HOME") + "/.local/share") + "/Trash/files"
+            // made first: a FolderListModel on a folder that is not there lists / instead
+            Process { running: true; command: ["mkdir", "-p", trashTile.trashDir]; onExited: trashFiles.folder = "file://" + trashTile.trashDir }
+            FolderListModel {
+                id: trashFiles
+                showHidden: true
+                showDirs: true
+            }
+            Icon { anchors.centerIn: parent; name: trashTile.count > 0 ? "user-trash-full" : "user-trash"; size: parent.width * 0.5; color: trashTile.arming ? Theme.danger : Theme.text }
+            Timer { running: trashTile.arming; interval: 4000; onTriggered: trashTile.arming = false }
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.RightButton
+                onClicked: {
+                    if (trashTile.count === 0)
+                        return;
+                    if (trashTile.arming) {
+                        trashTile.arming = false;
+                        Quickshell.execDetached(["gio", "trash", "--empty"]);
+                    } else {
+                        trashTile.arming = true;
+                    }
+                }
+            }
+            DropArea {
+                id: trashDrop
+                anchors.fill: parent
+                onEntered: d => { win.dropsIn++; d.accept(d.hasUrls ? Qt.MoveAction : Qt.IgnoreAction); }
+                onExited: { win.dropsIn = Math.max(0, win.dropsIn - 1); dragOff.restart(); }
+                onDropped: d => {
+                    win.dropsIn = 0; win.dragging = false;
+                    Quickshell.execDetached(["gio", "trash"].concat(d.urls.map(u => String(u))));
+                    d.acceptProposedAction();
                 }
             }
         }

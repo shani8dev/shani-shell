@@ -132,6 +132,8 @@ Singleton {
     property bool hasTailscale: false
     property bool tailscaleUp: false
     property string tailscaleNote: ""
+    // the peers offering to be an exit node: all traffic leaves through the one picked
+    property var exitNodes: []           // [{ name, ip, on, online }]
     Process {
         id: tsStatus
         command: ["tailscale", "status", "--json"]
@@ -141,6 +143,10 @@ Singleton {
                     const st = JSON.parse(text);
                     root.hasTailscale = true;
                     root.tailscaleUp = st.BackendState === "Running";
+                    root.exitNodes = Object.values(st.Peer || {}).filter(p => p.ExitNodeOption)
+                        .map(p => ({ name: (p.HostName || p.DNSName || "").split(".")[0], ip: (p.TailscaleIPs || [""])[0],
+                                     on: !!p.ExitNode, online: !!p.Online }))
+                        .sort((a, b) => a.name.localeCompare(b.name));
                 } catch (e) { root.hasTailscale = false; }
             }
         }
@@ -153,6 +159,11 @@ Singleton {
                 ? "Make this account Tailscale's operator once: sudo tailscale set --operator=$USER" : (tsErr.text.trim().split("\n").pop() || "");
             tsStatus.running = true;
         }
+    }
+    // "" = none: traffic goes out directly again
+    function setExitNode(ip) {
+        tsSet.command = ["tailscale", "set", "--exit-node=" + ip];
+        tsSet.running = true;
     }
     function setTailscale(on) {
         tsSet.command = ["tailscale", on ? "up" : "down"];

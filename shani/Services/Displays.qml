@@ -13,6 +13,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "DisplayModes.js" as DisplayModes
 
 Singleton {
     id: root
@@ -68,15 +69,23 @@ Singleton {
     function setScale(name, scale) { apply(name, { scale: scale }); }
 
     // the output blocks InputConfig writes
+    // on battery the built-in panel steps down to 60 Hz (Settings > Displays)
+    readonly property bool slowOnBattery: Settings.data.batteryRefresh60 && PowerState.onBattery
     readonly property string kdl: {
         const all = Settings.data.displays || {};
-        return Object.keys(all).sort().map(name => {
-            const c = all[name], l = ["output \"" + name.replace(/"/g, "") + "\" {"];
+        const names = Object.keys(all);
+        if (slowOnBattery)
+            for (const o of outputs)
+                if (DisplayModes.internal(o.name) && names.indexOf(o.name) < 0)
+                    names.push(o.name);
+        return names.sort().map(name => {
+            const c = all[name] || {}, l = ["output \"" + name.replace(/"/g, "") + "\" {"];
+            const slow = slowOnBattery ? DisplayModes.batteryMode(outputs.find(o => o.name === name), c.mode) : "";
             if (c.off)
                 l.push("    off");
             else {
-                if (c.mode)
-                    l.push("    mode \"" + c.mode + "\"");
+                if (slow || c.mode)
+                    l.push("    mode \"" + (slow || c.mode) + "\"");
                 if (c.scale)
                     l.push("    scale " + c.scale);
                 if (c.transform && c.transform !== "normal")

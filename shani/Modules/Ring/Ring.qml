@@ -33,7 +33,7 @@ PanelWindow {
     property var items: root()
     onStackChanged: Ui.ringDepth = stack.length
     property int hot: -1
-    readonly property var player: Mpris.players.values.find(p => p.isPlaying) || Mpris.players.values[0] || null
+    readonly property var player: Media.current
 
     function run(f) {
         Ui.ring = false;

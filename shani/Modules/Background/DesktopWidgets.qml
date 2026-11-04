@@ -136,7 +136,7 @@ Variants {
             winNs: "shani-desk-media"
             show: Array.from(Settings.data.desktopWidgets).indexOf("media") >= 0
                 && player !== null
-            readonly property var player: Mpris.players.values.find(p => p.isPlaying) || Mpris.players.values[0] || null
+            readonly property var player: Media.current
             // the track's position, sampled while it plays (the thin bar moves)
             property real shown: player ? player.position : 0
             onPlayerChanged: shown = player ? player.position : 0

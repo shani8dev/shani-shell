@@ -51,7 +51,8 @@ Singleton {
         settingsOpen = true;
     }
     property int faceRev: 0                        // bumped when ~/.face changes
-    property bool tour: false                      // the tour, opened again by hand
+    property bool tour: false
+    property int trashCount: 0                     // the dock's trash tile reports it (for the tests)                      // the tour, opened again by hand
     property string modemDialog: ""                // "pin" | "sms" (ModemDialog)
     property string smsTo: ""                      // the number a reply goes to
     // the web search chosen in Settings > Search (the launcher, Lens)

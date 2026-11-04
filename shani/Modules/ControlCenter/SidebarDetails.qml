@@ -176,6 +176,37 @@ ColumnLayout {
             selected: Net.tailscaleUp
             onClicked: Net.setTailscale(!Net.tailscaleUp)
         }
+        // where everything leaves from: one of the tailnet's exit nodes, or none
+        Text {
+            visible: Net.tailscaleUp && Net.exitNodes.length > 0
+            Layout.fillWidth: true
+            Layout.topMargin: 4
+            text: Tr.t("Exit node")
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: 11 * Theme.fontScale
+        }
+        ListRow {
+            visible: Net.tailscaleUp && Net.exitNodes.length > 0
+            Layout.fillWidth: true
+            icon: "network-wired"
+            title: Tr.t("None - straight out")
+            selected: !Net.exitNodes.some(n => n.on)
+            onClicked: Net.setExitNode("")
+        }
+        Repeater {
+            model: Net.tailscaleUp ? Net.exitNodes : []
+            ListRow {
+                required property var modelData
+                Layout.fillWidth: true
+                icon: "network-vpn"
+                title: modelData.name
+                subtitle: modelData.online ? modelData.ip : Tr.t("Offline")
+                enabled: modelData.online
+                selected: modelData.on
+                onClicked: Net.setExitNode(modelData.ip)
+            }
+        }
         Repeater {
             model: Net.vpns
             ListRow {
@@ -309,6 +340,24 @@ ColumnLayout {
             onClicked: Notifs.setDnd(true) }
         ListRow { visible: Notifs.dnd; Layout.fillWidth: true; icon: "window-close"; title: Tr.t("Turn it off now")
             onClicked: Notifs.setDnd(false) }
+    }
+
+    // a screenshot on a timer: time to open the menu or tooltip it is for
+    ColumnLayout {
+        visible: Ui.expanded === "screenshot"
+        Layout.fillWidth: true
+        spacing: 2
+        SectionTitle { text: Tr.t("Screenshot") }
+        Repeater {
+            model: [3, 10]
+            ListRow {
+                required property int modelData
+                Layout.fillWidth: true
+                icon: "chronometer"
+                title: Tr.t("Whole screen in %1 seconds").arg(modelData)
+                onClicked: { Ui.closeAll(); Screenshots.later(modelData); }
+            }
+        }
     }
 
     ColumnLayout {

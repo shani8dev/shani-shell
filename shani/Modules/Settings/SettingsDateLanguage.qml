@@ -346,6 +346,13 @@ ColumnLayout {
     }
     SwitchRow {
         Layout.fillWidth: true
+        text: Tr.t("Week numbers")
+        hint: Tr.t("down the side of the calendar (ISO weeks)")
+        checked: page.d.weekNumbers
+        onToggled: on => page.d.weekNumbers = on
+    }
+    SwitchRow {
+        Layout.fillWidth: true
         text: Tr.t("Show events in the sidebar calendar")
         hint: Tr.t("from the calendars Evolution Data Server knows about")
         checked: page.d.showCalendarEvents
