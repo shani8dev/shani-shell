@@ -8,6 +8,10 @@ so a test can assert the exact conversation. It authenticates one account:
   user "shani", password "shani"   -> success, start_session accepted
   user "otp"                       -> password, then a second visible prompt
                                       ("Code:"), answer "123456"
+  user "shani", $FAKE_FACE=match     -> success straight away (linux-hello saw them)
+  user "shani" + $SHANI_GREETER_RUN/fingerprint -> the flag is taken (as the
+                                      pam_exec line does) and a finger "touches":
+                                      an info message, then success
   anything else                    -> auth_error
 
 Nothing is started: start_session is only recorded.
@@ -45,11 +49,23 @@ def serve(conn: socket.socket) -> None:
         kind = req.get("type")
         if kind == "create_session":
             user = req.get("username")
+            flag = os.path.join(os.environ.get("SHANI_GREETER_RUN", "/run/shani-greeter"), "fingerprint")
+            if user == "shani" and os.path.exists(flag):
+                os.unlink(flag)
+                prompts = [("info", "Place your finger on the fingerprint reader", "")]
+                send(conn, {"type": "auth_message", "auth_message_type": "info",
+                            "auth_message": prompts[0][1]})
+                continue
+            if user == "shani" and os.environ.get("FAKE_FACE") == "match":
+                send(conn, {"type": "success"})   # the face module said yes: no prompt at all
+                continue
             prompts = [("secret", "Password:", user if user == "shani" else "otp")]
             if user == "otp":
                 prompts.append(("visible", "Code:", "123456"))
             send(conn, {"type": "auth_message", "auth_message_type": prompts[0][0],
                         "auth_message": prompts[0][1]})
+        elif kind == "post_auth_message_response" and prompts and prompts[0][0] == "info":
+            send(conn, {"type": "success"})     # the finger matched
         elif kind == "post_auth_message_response":
             if user not in ("shani", "otp") or req.get("response") != prompts[0][2]:
                 user, prompts = None, []

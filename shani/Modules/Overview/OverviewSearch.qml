@@ -78,7 +78,8 @@ PanelWindow {
             if (move) {
                 Niri.action(move);
             } else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter || e.key === Qt.Key_Escape) {
-                if (e.key === Qt.Key_Escape)
+                // Escape, or Enter with nothing typed: back to the window picked with the arrows
+                if (e.key === Qt.Key_Escape || win.typed === "")
                     Niri.action("close-overview");
                 else
                     win.search(win.typed);

@@ -1,9 +1,11 @@
 // The lock screen: ext-session-lock covers every output (if the shell dies,
 // niri keeps the session locked rather than revealing it). One PAM
-// conversation; the password field lives on each output's surface.
+// conversation for the password, a second for face and fingerprint
+// (/etc/pam.d/shani-lock-biometric); the password field lives on each output's surface.
 // PAM stack: /etc/pam.d/shani-lock (shipped with the package);
 // SHANI_PAM_DIR overrides the directory for tests.
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Services.Pam
 import Quickshell.Services.Mpris
@@ -56,6 +58,58 @@ Scope {
             error = true;
             message = "Could not start authentication";
         }
+    }
+
+    // Face (linux-hello) and fingerprint (fprintd): their own conversation beside
+    // the password's, started with each lock, so a look or a touch unlocks while
+    // the field still takes a password. Only when one is set up: an IR camera
+    // whose daemon is up, or a finger enrolled for this user.
+    property bool biometric: false
+    property string bioMessage: ""
+    property int bioTries: 0
+    Process {
+        id: bioProbe
+        command: ["sh", "-c", Quickshell.env("SHANI_BIOMETRIC_PROBE")
+            || '{ test -S /run/linux-hello.sock && test -e /usr/lib/security/pam_linux_hello.so; } || { test -e /usr/lib/security/pam_fprintd.so && fprintd-list "$USER" 2>/dev/null | grep -q "#[0-9]"; }']
+        onExited: code => { root.biometric = code === 0; root.startBio(); }
+    }
+    Connections {
+        target: Lock
+        function onLockedChanged() {
+            root.bioTries = 0;
+            root.bioMessage = "";
+            if (Lock.locked)
+                bioProbe.running = true;
+            else if (bio.active)
+                bio.abort();
+        }
+    }
+    function startBio() {
+        if (biometric && Lock.locked && !bio.active && bioTries < 3) {
+            bioTries++;
+            bio.start();
+        }
+    }
+    Timer { id: bioAgain; interval: 1500; onTriggered: root.startBio() }
+    PamContext {
+        id: bio
+        config: "shani-lock-biometric"
+        configDirectory: pam.configDirectory
+        user: pam.user
+        onPamMessage: {
+            if (responseRequired)
+                respond("");             // never a password here: that is the other conversation's
+            else
+                root.bioMessage = message;
+        }
+        onCompleted: result => {
+            root.bioMessage = "";
+            if (result === PamResult.Success)
+                Lock.unlocked();
+            else
+                bioAgain.restart();      // a miss: looked for again, three times a lock
+        }
+        onError: e => root.bioMessage = ""
     }
 
     PamContext {
@@ -349,6 +403,16 @@ Scope {
                         text: Tr.t("Caps Lock is on")
                         color: Theme.amber
                         horizontalAlignment: Text.AlignHCenter
+                        font.family: Theme.font
+                        font.pixelSize: 12 * Theme.fontScale
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: root.biometric && root.message === "" && Lock.locked
+                        text: root.bioMessage !== "" ? root.bioMessage : Tr.t("Look at the camera or touch the fingerprint reader - or type your password")
+                        color: Theme.dim
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
                         font.family: Theme.font
                         font.pixelSize: 12 * Theme.fontScale
                     }

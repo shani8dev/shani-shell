@@ -81,6 +81,15 @@ Singleton {
         action("focus-window", "--id", id);
     }
     // every activation of a window goes through here: a minimised one comes back
+    // the window of the app a notification came from (its desktop entry, or its
+    // name), the most recently used first
+    function windowOfApp(entry, name) {
+        const keys = [entry, name].map(k => String(k || "").toLowerCase().replace(/\.desktop$/, "")).filter(k => k !== "");
+        return mru().find(w => {
+            const id = String(w.app_id || "").toLowerCase();
+            return keys.some(k => id === k || id.endsWith("." + k) || k.endsWith("." + id));
+        }) || null;
+    }
     function focusWin(w) {
         if (isMinimised(w)) restore(w.id);
         else action("focus-window", "--id", w.id);
@@ -289,6 +298,14 @@ Singleton {
                 pinned = pinned.filter(x => x !== ev.WindowClosed.id);
             if (focusedWindowId === ev.WindowClosed.id)
                 focusedWindowId = null;
+        } else if (ev.WindowUrgencyChanged) {
+            // a window asking for attention: its dock tile and workspace dot say so
+            const e = ev.WindowUrgencyChanged;
+            if (windows[e.id]) {
+                const m = Object.assign({}, windows);
+                m[e.id] = Object.assign({}, windows[e.id], { is_urgent: e.urgent });
+                windows = m;
+            }
         } else if (ev.WindowFocusChanged) {
             focusedWindowId = ev.WindowFocusChanged.id;
         } else if (ev.KeyboardLayoutsChanged) {

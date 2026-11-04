@@ -151,9 +151,12 @@ ColumnLayout {
             tid: "dnd"
             icon: Notifs.dnd ? "notifications-disabled" : "preferences-system-notifications"
             title: Tr.t("Do Not Disturb")
-            subtitle: Notifs.dnd ? "Only critical" : "Off"
+            subtitle: Notifs.dnd ? (Notifs.dndUntilText !== "" ? Tr.t("Only critical, ") + Notifs.dndUntilText : Tr.t("Only critical")) : Tr.t("Off")
             on: Notifs.dnd
+            hasDetail: true
+            expanded: Ui.expanded === "dnd"
             onToggled: Notifs.setDnd(!Notifs.dnd)
+            onDetail: Ui.expanded = Ui.expanded === "dnd" ? "" : "dnd"
         }
         Tile {
             tid: "focus"

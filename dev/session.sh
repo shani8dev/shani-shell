@@ -54,6 +54,11 @@ echo 300 > "$SHANI_LUX_FILE"
 # the lock screen's PAM file in its real place: its "include login" resolves
 # against the directory it sits in, so a copy elsewhere can never authenticate
 install -Dm644 /work/data/pam.d/shani-lock /etc/pam.d/shani-lock
+# face/fingerprint on the lock screen: "set up" while /tmp/bio-available exists, and a
+# face "seen" while /tmp/face-match does (the biometric conversation's pam_exec)
+export SHANI_BIOMETRIC_PROBE="test -e /tmp/bio-available"
+printf '#!/bin/sh\ntest -e /tmp/face-match\n' > /usr/local/bin/fake-face && chmod +x /usr/local/bin/fake-face
+printf 'auth sufficient pam_exec.so quiet /usr/local/bin/fake-face\nauth requisite pam_deny.so\n' > /etc/pam.d/shani-lock-biometric
 # the desktop package's input-method default (English + Hindi phonetic)
 [ -f /work/dev/fcitx5-profile ] && install -Dm644 /work/dev/fcitx5-profile /etc/xdg/fcitx5/profile
 mkdir -p "$XDG_RUNTIME_DIR" /work/out/logs /root/Videos && chmod 700 "$XDG_RUNTIME_DIR"

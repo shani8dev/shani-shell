@@ -5,6 +5,7 @@ pragma Singleton
 // to settings — never re-armed while idle, which resets isIdle without a wake
 // event (a bug other shells hit).
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
 import qs.Common
@@ -23,6 +24,20 @@ Singleton {
 
     function setCaffeine(on) {
         Settings.data.caffeine = on;
+        Settings.data.caffeineBoot = on ? bootId.text().trim() : "";
+    }
+    // left on when the machine went down: off after the restart, as the
+    // tile is everywhere else (a shell restart within the same boot keeps it)
+    FileView {
+        id: bootId
+        path: "/proc/sys/kernel/random/boot_id"
+        onLoaded: root.forgetOldCaffeine()
+    }
+    Connections { target: Settings; function onLoadedChanged() { root.forgetOldCaffeine(); } }
+    function forgetOldCaffeine() {
+        const boot = bootId.text().trim();
+        if (Settings.loaded && boot !== "" && Settings.data.caffeine && Settings.data.caffeineBoot !== boot)
+            setCaffeine(false);
     }
 
     // One stage of idle. IdleMonitor ignores a change to `timeout` once made

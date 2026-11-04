@@ -1,0 +1,8 @@
+#%PAM-1.0
+# shani-shell lock screen, the second conversation: face (linux-hello, an IR
+# camera) then fingerprint (fprintd), beside the password one - a look or a
+# touch unlocks while the password field still works. A module that is not
+# installed is skipped; with neither, this always fails and the password stays.
+-auth      sufficient   pam_linux_hello.so timeout=4000 quiet
+-auth      sufficient   pam_fprintd.so max-tries=3 timeout=30
+auth       requisite    pam_deny.so

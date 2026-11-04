@@ -86,10 +86,24 @@ Singleton {
         id: view
         path: root.path
         watchChanges: true
+        atomicWrites: true                  // a crash mid-write leaves the old file, never half of one
         printErrors: false
         onSaved: root.lastWritten = text()
         onFileChanged: Qt.callLater(function() { probe.reload(); })
-        onLoaded: root.loaded = true
+        // A file that does not parse (hand-edited, a disk that filled) would be
+        // overwritten by the defaults at the next save, and every setting lost:
+        // it is kept beside it first, and the person told where.
+        onLoaded: {
+            const t = text();
+            try {
+                if (t.trim() !== "")
+                    JSON.parse(t);
+            } catch (e) {
+                const kept = root.path + ".unreadable-" + Qt.formatDateTime(new Date(), "yyyyMMdd-HHmmss");
+                Quickshell.execDetached(["sh", "-c", 'cp -- "$1" "$2" && notify-send -a Settings -i dialog-warning "Settings could not be read" "The defaults are in use. Your file was kept as $2"', "sh", root.path, kept]);
+            }
+            root.loaded = true;
+        }
         onLoadFailed: root.loaded = true    // no file yet: defaults apply
         onAdapterUpdated: root.save()
 
@@ -97,10 +111,12 @@ Singleton {
             id: adapter
 
             property bool doNotDisturb: false
+            property real dndUntil: 0         // ms since the epoch it turns itself off; 0 = until turned off
             property string dndSchedule: "manual"   // manual | custom (quiet hours)
             property string dndFrom: "22:00"
             property string dndTo: "07:00"
             property bool caffeine: false
+            property string caffeineBoot: ""   // the boot it was turned on in: it doesn't outlive a restart
             property bool use24h: true
             property list<string> worldClocks: []   // other cities on the calendar: zoneinfo zones, as chosen
             property list<string> recentColors: []  // colours picked with the Color picker, newest first

@@ -260,17 +260,17 @@ PanelWindow {
             if (win.emojiPath === "")
                 Qt.callLater(() => win.emojiPath = "/usr/share/unicode/emoji/emoji-test.txt");
             return [{ title: Tr.t("Emoji"), items: win.emoji.filter(x => f === "" || x.name.indexOf(f) >= 0).slice(0, 40)
-                .map(x => ({ kind: "emoji", glyph: x.e, icon: "face-smile-big", title: x.name, subtitle: Tr.t("Enter copies"), run: () => Quickshell.clipboardText = x.e })) }];
+                .map(x => ({ kind: "emoji", glyph: x.e, icon: "face-smile-big", title: x.name, subtitle: Tr.t("Enter types it · Shift+Enter copies"), run: shift => shift ? Quickshell.clipboardText = x.e : Clipboard.typeText(x.e) })) }];
         }
         if (q === "c" || q.startsWith("c ")) {
             const f = q.slice(1).trim().toLowerCase();
             const pins = Array.from(Settings.data.clipPins).filter(t => f === "" || t.toLowerCase().indexOf(f) >= 0)
-                .map(t => ({ kind: "clip", icon: "view-pin", title: t.replace(/\s+/g, " ").slice(0, 140), subtitle: Tr.t("Pinned · Ctrl+P unpins"),
-                             run: () => Quickshell.clipboardText = t, pin: () => Clipboard.unpin(t) }));
+                .map(t => ({ kind: "clip", icon: "view-pin", title: t.replace(/\s+/g, " ").slice(0, 140), subtitle: Tr.t("Pinned · Enter pastes · Shift+Enter copies · Ctrl+P unpins"),
+                             run: shift => shift ? Quickshell.clipboardText = t : Clipboard.setAndPaste(t), pin: () => Clipboard.unpin(t) }));
             const items = Clipboard.entries.filter(e => f === "" || e.text.toLowerCase().indexOf(f) >= 0).slice(0, 30)
                 .map(e => ({ kind: "clip", icon: e.image ? "image-x-generic" : "edit-paste", thumb: e.image ? e.preview : "",
-                             title: e.text.replace(/\s+/g, " ").slice(0, 140), subtitle: (e.image ? "Picture · Enter copies it" : "Clipboard · Ctrl+P pins") + " · Shift+Delete removes it",
-                             run: () => Clipboard.copy(e), remove: () => Clipboard.remove(e), pin: e.image ? null : () => Clipboard.pin(e) }));
+                             title: e.text.replace(/\s+/g, " ").slice(0, 140), subtitle: (e.image ? Tr.t("Picture · Enter pastes it · Shift+Enter copies") : Tr.t("Enter pastes it · Shift+Enter copies · Ctrl+P pins")) + " · " + Tr.t("Shift+Delete removes it"),
+                             run: shift => shift ? Clipboard.copy(e) : Clipboard.copyAndPaste(e), remove: () => Clipboard.remove(e), pin: e.image ? null : () => Clipboard.pin(e) }));
             const clipItems = items.length ? items
                 : [{ kind: "none", icon: "edit-paste", title: Clipboard.available ? "Clipboard history is empty" : "cliphist is not installed", subtitle: "", run: () => {} }];
             if (items.length && Clipboard.available)

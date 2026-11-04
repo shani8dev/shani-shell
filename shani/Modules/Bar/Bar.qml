@@ -345,6 +345,18 @@ Variants {
                     }
                 }
 
+                // a Bluetooth device running low (headphones, mouse, watch): in the bar until
+                // it is charged, not only the one notification that may have gone by
+                Chip {
+                    readonly property var low: Power.peripherals.filter(d => (d.percentage <= 1 ? d.percentage * 100 : d.percentage) < 20)
+                    readonly property var first: low.length ? low[0] : null
+                    visible: first !== null
+                    icon: first ? (first.iconName || "battery-caution") : ""
+                    tint: Theme.amber
+                    label: first ? first.model.split(" ").slice(0, 2).join(" ") + " " + Math.round(first.percentage <= 1 ? first.percentage * 100 : first.percentage) + "%" : ""
+                    hint: low.length > 1 ? Tr.t("%1 devices running low - charge them soon", low.length) : Tr.t("Running low - charge it soon")
+                    onClicked: Ui.toggleControlCenter("bluetooth")
+                }
                 // status cluster: one target, opens the control center
                 Chip {
                     name: Tr.t("Quick settings") + (!Settings.data.hideVolumeGlyph ? (Audio.ready ? ", " + Tr.t("volume %1%", Math.round(Audio.volume * 100)) + (Audio.muted ? " " + Tr.t("muted") : "") : "") : "")

@@ -90,6 +90,19 @@ def main(argv: list[str]) -> int:
         print(__doc__, file=sys.stderr)
         return 64
     app_id, rest = argv[1], argv[2:]
+    # in a scope of its own (app-<id>-<n>.scope, as GNOME does): an app launched from
+    # the shell lives in the shell's service otherwise, and dies when the shell restarts
+    rt = os.environ.get("XDG_RUNTIME_DIR", "")
+    if (not os.environ.get("SHANI_LAUNCH_SCOPED") and shutil.which("systemd-run")
+            and rt and os.path.exists(os.path.join(rt, "systemd", "private"))):
+        unit = "app-shani-%s-%d" % ("".join(c if c.isalnum() else "_" for c in app_id.removesuffix(".desktop"))[:60], os.getpid())
+        os.environ["SHANI_LAUNCH_SCOPED"] = "1"
+        try:
+            os.execvp("systemd-run", ["systemd-run", "--user", "--scope", "--collect", "--quiet",
+                                      "--unit=" + unit,
+                                      sys.executable, os.path.abspath(__file__)] + argv[1:])
+        except OSError:
+            pass
     action, gpu, extra_env, extra_args, files = "", "auto", {}, [], []
     i = 0
     while i < len(rest):
@@ -113,7 +126,10 @@ def main(argv: list[str]) -> int:
     gi.require_version("Gio", "2.0")
     from gi.repository import Gio, GLib
 
-    info = Gio.DesktopAppInfo.new(app_id if app_id.endswith(".desktop") else app_id + ".desktop")
+    try:
+        info = Gio.DesktopAppInfo.new(app_id if app_id.endswith(".desktop") else app_id + ".desktop")
+    except TypeError:                    # newer PyGObject raises for an unknown id
+        info = None
     if info is None:
         print(json.dumps({"ok": False, "error": f"no app {app_id}"}))
         return 1

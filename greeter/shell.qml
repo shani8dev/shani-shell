@@ -41,19 +41,86 @@ ShellRoot {
     property string pending: ""
     readonly property bool busy: Greetd.state !== GreetdState.Inactive
 
+    // Fingerprint (fprintd): greetd runs one PAM conversation at a time, and
+    // fprintd blocks it until a finger or its timeout, so it can't wait beside
+    // the password field the way GDM's second conversation does. It is asked for
+    // instead - Enter on an empty password, or "Use fingerprint" - by leaving a
+    // flag that /etc/pam.d/shani-greetd's first line looks for (pam_exec): the
+    // greeter can only choose the fingerprint path, never skip the check.
+    property bool fingerprint: Quickshell.env("SHANI_GREETER_FINGERPRINT") === "1"
+    readonly property string runDir: Quickshell.env("SHANI_GREETER_RUN") || "/run/shani-greeter"
+    Process {
+        running: Quickshell.env("SHANI_GREETER_FINGERPRINT") === ""
+        command: ["sh", "-c", "test -e /usr/lib/security/pam_fprintd.so && command -v fprintd-verify >/dev/null"]
+        onExited: code => root.fingerprint = code === 0
+    }
+    // Face (linux-hello, Windows Hello's way, IR camera): quick enough - a few
+    // seconds, then the password - to go first in the one conversation, so the
+    // session starts as soon as the user is known and a look is all it takes.
+    // Its PAM module skips straight to the password when its daemon is not up.
+    property bool face: Quickshell.env("SHANI_GREETER_FACE") === "1"
+    Process {
+        running: Quickshell.env("SHANI_GREETER_FACE") === ""
+        command: ["sh", "-c", "test -e /usr/lib/security/pam_linux_hello.so && test -S /run/linux-hello.sock"]
+        onExited: code => { root.face = code === 0; root.lookForFace(); }
+    }
+    property string knownUser: Quickshell.env("SHANI_GREETER_USER") || lastUser.text().trim()
+    Component.onCompleted: if (face) Qt.callLater(lookForFace)   // forced on (tests): no probe to wait for
+    property bool faceTried: false         // once per user picked: not again after it fell to the password
+    function lookForFace() {
+        if (face && !faceTried && !busy && knownUser.trim() !== "") {
+            faceTried = true;
+            info = "Looking for your face…";
+            Greetd.createSession(knownUser.trim());
+        }
+    }
+    // a prompt is waiting for an answer: before one is, what is typed is kept
+    property bool asked: false
+    property string fingerUser: ""
+    Process {
+        id: askFinger
+        command: ["sh", "-c", 'touch "$1/fingerprint"', "sh", root.runDir]
+        onExited: code => {
+            if (code !== 0) {
+                root.reset("Fingerprint sign-in is not available here");
+                return;
+            }
+            root.info = "Touch the fingerprint reader";
+            Greetd.createSession(root.fingerUser);
+        }
+    }
+    function useFingerprint(user) {
+        if (!fingerprint || busy || user.trim() === "")
+            return;
+        error = "";
+        pending = "";
+        fingerUser = user.trim();
+        askFinger.running = true;
+    }
+
     function submit(user, answer) {
         error = "";
         if (Greetd.state === GreetdState.Inactive) {
             if (user.trim() === "")
                 return;
+            if (answer === "" && fingerprint) {
+                useFingerprint(user);
+                return;
+            }
             pending = answer;
             Greetd.createSession(user.trim());
         } else if (Greetd.state === GreetdState.Authenticating) {
-            Greetd.respond(answer);
+            if (asked) {
+                asked = false;
+                Greetd.respond(answer);
+            } else {
+                pending = answer;          // still looking for a face: the password waits its turn
+            }
         }
     }
 
     function reset(message) {
+        asked = false;
         error = message;
         info = "";
         prompt = "Password";
@@ -72,6 +139,7 @@ ShellRoot {
                     root.info = message;
                 return;
             }
+            root.info = "";
             if (root.pending !== "" && !echoResponse) {
                 const answer = root.pending;
                 root.pending = "";
@@ -80,6 +148,7 @@ ShellRoot {
             }
             root.prompt = message.replace(/:\s*$/, "");
             root.echo = echoResponse;
+            root.asked = true;
         }
 
         function onAuthFailure(message) {
@@ -269,7 +338,8 @@ ShellRoot {
                         placeholder: "User"
                         enabled: !root.busy
                         text: Quickshell.env("SHANI_GREETER_USER") || lastUser.text().trim()
-                        onAccepted: passField.input.forceActiveFocus()
+                        onTextChanged: if (win.primary) root.knownUser = text
+                        onAccepted: { passField.input.forceActiveFocus(); root.faceTried = false; root.lookForFace(); }
                     }
 
                     Field {
@@ -282,6 +352,13 @@ ShellRoot {
                             root.submit(userField.text, text);
                             text = "";
                         }
+                    }
+
+                    Button {
+                        Layout.alignment: Qt.AlignHCenter
+                        visible: root.fingerprint && !root.busy
+                        text: "Use fingerprint"
+                        onClicked: root.useFingerprint(userField.text)
                     }
 
                     Text {

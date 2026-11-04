@@ -547,6 +547,43 @@ fi
 ipc shelfUnpark "/tmp/kept for later.txt"
 waitfor "d['shelfParked'] == []" 3 && [ -f "/tmp/kept for later.txt" ] && result shelf-puts-away-keeps-the-file PASS || result shelf-puts-away-keeps-the-file FAIL "$(q "['shelfParked']")"
 
+# ---- picked in the launcher, typed where you were (Win+. and Win+V's way) ------------------
+# a terminal reading its keyboard into a file: what arrives is what the person would see
+typein() { rm -f "$2"; foot --app-id="$1" sh -c "stty raw -echo; head -c $3 > $2" >/dev/null 2>&1 &
+    i=0; until [ -n "$(winid "$1")" ] || [ $i -ge 20 ]; do sleep 0.25; i=$((i+1)); done
+    niri msg action focus-window --id "$(winid "$1")"; sleep 0.5; }
+typein emoji-in /tmp/emoji-typed 4
+ipc launcher ":grinning face"; waitfor "d['topResult'] == 'grinning face'" 4; sleep 0.3
+wtype -k Return
+i=0; until [ -s /tmp/emoji-typed ] || [ $i -ge 16 ]; do sleep 0.25; i=$((i+1)); done
+[ "$(cat /tmp/emoji-typed 2>/dev/null)" = "😀" ] && result launcher-emoji-typed-in PASS || result launcher-emoji-typed-in FAIL "got '$(cat /tmp/emoji-typed 2>/dev/null)'"
+niri msg action close-window --id "$(winid emoji-in)" 2>/dev/null
+printf 'paste-me-4791' | wl-copy; sleep 0.6; printf 'something-else' | wl-copy; sleep 0.6
+typein paste-in-term /tmp/pasted 13
+ipc launcher "c paste-me"; waitfor "d['topResult'].startswith('paste-me')" 4; sleep 0.3
+wtype -k Return
+i=0; until [ -s /tmp/pasted ] || [ $i -ge 16 ]; do sleep 0.25; i=$((i+1)); done
+[ "$(cat /tmp/pasted 2>/dev/null)" = "paste-me-4791" ] && result launcher-clipboard-pasted-in-terminal PASS || result launcher-clipboard-pasted-in-terminal FAIL "got '$(cat /tmp/pasted 2>/dev/null)'"
+niri msg action close-window --id "$(winid paste-in-term)" 2>/dev/null
+
+# ---- Do Not Disturb, for how long: it ends by itself ------------------------------------
+if [ -f "$A11Y" ]; then
+    settings '{}'; ipc controlCenter dnd; sleep 0.8
+    timeout 20 python3 "$A11Y" press "^For 1 hour$" >/dev/null 2>&1; sleep 0.6
+    waitfor "d['dnd'] and d['dndUntil'] > 0" 3 && result dnd-for-an-hour PASS || result dnd-for-an-hour FAIL "$(q "['dnd'], d['dndUntil']")"
+    ipc closeAll
+fi
+# ends by itself: a time already past turns it off
+settings '{"doNotDisturb": true, "dndUntil": 1000}'
+waitfor "not d['dnd'] and d['dndUntil'] == 0" 20 && result dnd-ends-by-itself PASS || result dnd-ends-by-itself FAIL "$(q "['dnd'], d['dndUntil']")"
+settings '{}'
+
+# ---- the overview: Enter with nothing typed goes to the window picked, not the launcher
+ipc closeAll; niri msg action open-overview; sleep 1
+wtype -k Return; sleep 0.8
+waitfor "not d['overview'] and not d['launcher']" 3 && result overview-enter-picks-window PASS || result overview-enter-picks-window FAIL "$(q "['overview'], d['launcher']")"
+ipc closeAll
+
 # ---- screen saver: the clock cover, here by its preview; a key ends it ---------------------
 cov() { niri msg -j layers | python3 -c "import json,sys; print(sum(1 for l in json.load(sys.stdin) if l['namespace'] == 'shani-screensaver'))"; }
 ipc screenSaverPreview
@@ -1830,6 +1867,32 @@ fi
 wtype "shani-test" -k Return
 waitfor "not d['locked']" 6
 [ "$(q "['lockPhotos']")" = 0 ] && result lock-photos-forgotten-on-unlock PASS || result lock-photos-forgotten-on-unlock FAIL
+
+# ---- a click on a notification brings its app forward -----------------------------
+foot --app-id=raise-me sh -c "sleep 60" >/dev/null 2>&1 &
+foot --app-id=on-top sh -c "sleep 60" >/dev/null 2>&1 &
+i=0; until [ -n "$(winid raise-me)" ] && [ -n "$(winid on-top)" ] || [ $i -ge 20 ]; do sleep 0.25; i=$((i+1)); done
+niri msg action focus-window --id "$(winid on-top)"; sleep 0.4
+notify-send -a raise-me "Raise me" "click this"; sleep 1
+if [ -f "$A11Y" ]; then
+    timeout 20 python3 "$A11Y" press "^Raise me" >/dev/null 2>&1; sleep 0.8
+    [ "$(niri msg -j focused-window | python3 -c 'import json,sys; print(json.load(sys.stdin)["app_id"])')" = raise-me ] \
+        && result notification-click-raises-app PASS || result notification-click-raises-app FAIL
+fi
+niri msg action close-window --id "$(winid raise-me)" 2>/dev/null; niri msg action close-window --id "$(winid on-top)" 2>/dev/null
+
+# ---- face / fingerprint: a second conversation beside the password -------------------
+touch /tmp/bio-available /tmp/face-match
+ipc lock
+waitfor "d['locked']" 4
+waitfor "not d['locked']" 8 && result lock-unlocks-with-face PASS || result lock-unlocks-with-face FAIL "$(st)"
+rm -f /tmp/face-match
+ipc lock
+waitfor "d['locked']" 4; sleep 6
+[ "$(q "['locked']")" = True ] && result lock-face-miss-stays-locked PASS || result lock-face-miss-stays-locked FAIL
+wtype "shani-test" -k Return
+waitfor "not d['locked']" 6 && result lock-password-beside-face PASS || result lock-password-beside-face FAIL "$(st)"
+rm -f /tmp/bio-available
 
 # ---- dynamic lock: the paired phone goes away → locked after the grace ---------------
 settings '{"dynamicLockDevice": "AA:BB:CC:DD:EE:FF"}'

@@ -66,18 +66,28 @@ Glass {
         NumberAnimation { target: root; property: "opacity"; from: 0; to: 1; duration: Theme.animEnter * 0.5 }
     }
 
+    function activate() {
+        const def = root.notification.actions.find(a => a.identifier === "default");
+        if (def)
+            def.invoke({ notificationId: root.notification ? root.notification.id : null,
+                         appName: root.notification ? (root.notification.appName || "") : "" });
+        // and the app it came from comes forward (an app that raises itself
+        // on the default action loses nothing; one that doesn't is shown)
+        const w = Niri.windowOfApp(root.notification.desktopEntry, root.notification.appName);
+        if (w)
+            Niri.focusWin(w);
+        if (root.popup)
+            root.done();
+    }
     HoverHandler { id: hover }
     MouseArea {
         anchors.fill: parent
         cursorShape: root.notification && root.notification.actions.some(a => a.identifier === "default") ? Qt.PointingHandCursor : Qt.ArrowCursor
-        onClicked: {
-            const def = root.notification.actions.find(a => a.identifier === "default");
-            if (def)
-                def.invoke({ notificationId: root.notification ? root.notification.id : null,
-                             appName: root.notification ? (root.notification.appName || "") : "" });
-            if (root.popup)
-                root.done();
-        }
+        onClicked: root.activate()
+        // the card itself is a button to a screen reader: open it, as a click does
+        Accessible.role: Accessible.Button
+        Accessible.name: root.notification ? root.notification.summary : ""
+        Accessible.onPressAction: root.activate()
     }
 
     // critical: a red edge down the left

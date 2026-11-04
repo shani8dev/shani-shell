@@ -287,6 +287,30 @@ ColumnLayout {
         }
     }
 
+    // Do Not Disturb, for how long (after macOS and Android): it ends by itself
+    ColumnLayout {
+        visible: Ui.expanded === "dnd"
+        Layout.fillWidth: true
+        spacing: 2
+        SectionTitle { text: Tr.t("Do Not Disturb") }
+        ListRow { Layout.fillWidth: true; icon: "alarm"; title: Tr.t("For 1 hour")
+            onClicked: Notifs.setDndUntil(Date.now() + 3600000) }
+        ListRow {
+            visible: Notifs.meetingNow !== null
+            Layout.fillWidth: true; icon: "x-office-calendar"
+            title: Tr.t("Until this meeting ends")
+            subtitle: Notifs.meetingNow ? Notifs.meetingNow.summary + " · " + Qt.formatDateTime(new Date(Notifs.meetingNow.end * 1000), Settings.data.use24h ? "HH:mm" : "h:mm AP") : ""
+            onClicked: Notifs.setDndUntil(Notifs.meetingNow.end * 1000)
+        }
+        ListRow { Layout.fillWidth: true; icon: "weather-clear-night"; title: Tr.t("Until tomorrow morning"); subtitle: Tr.t("8:00")
+            onClicked: Notifs.setDndUntil(Notifs.tomorrowMorning()) }
+        ListRow { Layout.fillWidth: true; icon: "notifications-disabled"; title: Tr.t("Until I turn it off")
+            selected: Notifs.dnd && Settings.data.dndUntil === 0
+            onClicked: Notifs.setDnd(true) }
+        ListRow { visible: Notifs.dnd; Layout.fillWidth: true; icon: "window-close"; title: Tr.t("Turn it off now")
+            onClicked: Notifs.setDnd(false) }
+    }
+
     ColumnLayout {
         visible: Ui.expanded === "focus"
         Layout.fillWidth: true

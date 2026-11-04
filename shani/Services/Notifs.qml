@@ -110,6 +110,27 @@ Singleton {
 
     function setDnd(on) {
         Settings.data.doNotDisturb = on;
+        Settings.data.dndUntil = 0;
+    }
+    // on, and off again by itself at `ms` (an hour from now, the meeting's end, tomorrow 8:00)
+    function setDndUntil(ms) {
+        Settings.data.doNotDisturb = true;
+        Settings.data.dndUntil = ms;
+    }
+    // the agenda's event happening now, if any: "until this meeting ends"
+    readonly property var meetingNow: Agenda.events.find(e => !e.allDay && e.start * 1000 <= Date.now() && e.end * 1000 > Date.now()) || null
+    function tomorrowMorning() {
+        const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0);
+        return d.getTime();
+    }
+    readonly property string dndUntilText: Settings.data.doNotDisturb && Settings.data.dndUntil > 0
+        ? Tr.t("until %1", Qt.formatDateTime(new Date(Settings.data.dndUntil), Settings.data.use24h ? "HH:mm" : "h:mm AP")) : ""
+    Timer {
+        interval: 15000
+        repeat: true
+        running: Settings.loaded && Settings.data.doNotDisturb && Settings.data.dndUntil > 0
+        triggeredOnStart: true
+        onTriggered: if (Date.now() >= Settings.data.dndUntil) root.setDnd(false)
     }
     // snooze (after Android): the notification goes now and comes back later,
     // re-posted with what it said; kept in the state dir, so a restart keeps it
