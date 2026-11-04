@@ -488,6 +488,65 @@ ipc setting dockVisibility hide; niri msg action toggle-window-floating --id "$h
 waitfor "not d['dockShown']" 3 && result dock-hide-waits-at-edge PASS || result dock-hide-waits-at-edge FAIL
 kill $HPID 2>/dev/null; settings '{}'
 
+# ---- the bar's window controls: minimise, maximise, close, for any window --------------
+winid() { niri msg -j windows | python3 -c "import json,sys; print(next((w['id'] for w in json.load(sys.stdin) if w['app_id'] == '$1'), ''))"; }
+width() { niri msg -j windows | python3 -c "import json,sys; print(next((int(w['layout']['tile_size'][0]) for w in json.load(sys.stdin) if w['id'] == $1), 0))"; }
+if [ -f "$A11Y" ]; then
+    foot --app-id=ctl-test sh -c 'sleep 120' >/dev/null 2>&1 &
+    i=0; until [ -n "$(winid ctl-test)" ] || [ $i -ge 20 ]; do sleep 0.25; i=$((i+1)); done
+    cid=$(winid ctl-test); niri msg action focus-window --id "$cid"; sleep 0.5
+    w0=$(width "$cid")
+    timeout 20 python3 "$A11Y" press "button:^Maximise$" >/dev/null 2>&1; sleep 0.8
+    w1=$(width "$cid")
+    [ "$w1" -gt "$w0" ] && result bar-window-maximise PASS "$w0 -> $w1 px" || result bar-window-maximise FAIL "$w0 -> $w1 px"
+    timeout 20 python3 "$A11Y" press "button:^Minimise" >/dev/null 2>&1
+    waitfor "$cid in d['minimised']" 3 && result bar-window-minimise PASS || result bar-window-minimise FAIL "$(q "['minimised']")"
+    niri msg action close-window --id "$cid"
+    foot --app-id=ctl-test2 sh -c 'sleep 120' >/dev/null 2>&1 &
+    i=0; until [ -n "$(winid ctl-test2)" ] || [ $i -ge 20 ]; do sleep 0.25; i=$((i+1)); done
+    niri msg action focus-window --id "$(winid ctl-test2)"; sleep 0.5
+    timeout 20 python3 "$A11Y" press "button:^Close" >/dev/null 2>&1
+    i=0; while [ -n "$(winid ctl-test2)" ] && [ $i -lt 12 ]; do sleep 0.25; i=$((i+1)); done
+    [ -z "$(winid ctl-test2)" ] && result bar-window-close PASS || result bar-window-close FAIL "still open"
+
+    # ---- the overview's card: CPU and memory, and Close all asks first ---------------------
+    n0=$(q "['windows']")
+    niri msg action open-overview; sleep 1
+    [ "$(layer shani-overview-stats)" -ge 1 ] && timeout 20 python3 "$A11Y" find "button:^Close all windows$" >/dev/null 2>&1 \
+        && result overview-card-shows PASS || result overview-card-shows FAIL "layers $(layer shani-overview-stats)"
+    shot 26p-overview-card 0.3
+    timeout 20 python3 "$A11Y" press "button:^Close all windows$" >/dev/null 2>&1; sleep 0.4
+    timeout 20 python3 "$A11Y" find "button:^Close [0-9]+ windows" >/dev/null 2>&1 && [ "$(q "['windows']")" = "$n0" ] \
+        && result overview-close-all-asks-first PASS || result overview-close-all-asks-first FAIL "windows $(q "['windows']") (was $n0)"
+    niri msg action close-overview; sleep 0.5
+
+    # ---- the weather, offered in one click when nothing is set ---------------------------
+    settings '{}'
+    ipc toggleControlCenter; sleep 0.8
+    timeout 20 python3 "$A11Y" press "radio button:^where I am$" >/dev/null 2>&1; sleep 1
+    grep -q '"useLocation": *true' "$SHANI_SHELL_SETTINGS" && result weather-offered-in-one-click PASS || result weather-offered-in-one-click FAIL "useLocation not set"
+    ipc closeAll; settings '{}'
+fi
+
+# ---- the Island rides on the bar: a hidden bar takes it along -------------------------------
+ipc setting barVisibility hide; sleep 1
+[ "$(layer shani-island)" = 0 ] && result island-hides-with-the-bar PASS || result island-hides-with-the-bar FAIL "$(layer shani-island) island layers with the bar hidden"
+ipc setting barVisibility always; sleep 0.5
+[ "$(layer shani-island)" -ge 1 ] && result island-back-with-the-bar PASS || result island-back-with-the-bar FAIL
+settings '{}'
+
+# ---- the drop shelf (Yoink's, in the dock): kept by reference, first in the Shelf, put away
+printf 'kept' > "/tmp/kept for later.txt"
+ipc shelfPark "/tmp/kept for later.txt"
+waitfor "'/tmp/kept for later.txt' in d['shelfParked'] and d['shelfItems'][0] == 'kept for later.txt'" 3 \
+    && result shelf-keeps-a-dropped-file PASS || result shelf-keeps-a-dropped-file FAIL "$(q "['shelfParked'], d['shelfItems'][:3]")"
+sleep 1; grep -rqs "kept for later" /root/.local/state/quickshell 2>/dev/null && result shelf-survives-a-restart PASS || result shelf-survives-a-restart FAIL "not written under ~/.local/state/quickshell"
+if [ -f "$A11Y" ]; then
+    timeout 20 python3 "$A11Y" find "button:^Shelf$" >/dev/null 2>&1 && result shelf-tile-in-dock PASS || result shelf-tile-in-dock FAIL
+fi
+ipc shelfUnpark "/tmp/kept for later.txt"
+waitfor "d['shelfParked'] == []" 3 && [ -f "/tmp/kept for later.txt" ] && result shelf-puts-away-keeps-the-file PASS || result shelf-puts-away-keeps-the-file FAIL "$(q "['shelfParked']")"
+
 # ---- screen saver: the clock cover, here by its preview; a key ends it ---------------------
 cov() { niri msg -j layers | python3 -c "import json,sys; print(sum(1 for l in json.load(sys.stdin) if l['namespace'] == 'shani-screensaver'))"; }
 ipc screenSaverPreview
@@ -1509,6 +1568,9 @@ t1=$(date -u -d '+3 hours' +%Y%m%dT%H%M00Z); t2=$(date -u -d '+4 hours' +%Y%m%dT
 w1=$(date -u -d '-7 days +5 hours' +%Y%m%dT%H%M00Z); w2=$(date -u -d '-7 days +6 hours' +%Y%m%dT%H%M00Z)
 printf 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//shani//test//EN\r\nBEGIN:VEVENT\r\nUID:one@test\r\nDTSTAMP:%s\r\nDTSTART:%s\r\nDTEND:%s\r\nSUMMARY:Design review\r\nLOCATION:Room 2\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:weekly@test\r\nDTSTAMP:%s\r\nDTSTART:%s\r\nDTEND:%s\r\nRRULE:FREQ=WEEKLY\r\nSUMMARY:Weekly sync\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n' "$t1" "$t1" "$t2" "$w1" "$w1" "$w2" > $cal/calendar.ics
 ipc agendaRefresh
+# EDS can still be starting when the first refresh asks (it answers [] then, and the
+# next poll is 30 s away): ask again once rather than wait out the poll
+waitfor "'Design review' in d['agenda']" 12 || ipc agendaRefresh
 waitfor "'Design review' in d['agenda'] and 'Weekly sync' in d['agenda']" 30 && result agenda-from-eds PASS "$(q "['agenda']")" \
     || result agenda-from-eds FAIL "$(q "['agenda']") $(python3 /work/bridge/agenda.py 2>&1 | tail -1)"
 ipc controlCenter ""

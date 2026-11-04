@@ -596,6 +596,9 @@ ColumnLayout {
                             Accessible.role: Accessible.RadioButton
                             Accessible.name: modelData + " accent"
                             Accessible.checked: chosen
+                            function choose() { page.d.accentName = modelData; page.d.accentFromWallpaper = false; }
+                            Accessible.onPressAction: choose()
+                            Accessible.onToggleAction: choose()
                             MouseArea {
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor

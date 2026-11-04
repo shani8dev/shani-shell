@@ -228,6 +228,7 @@ PanelWindow {
                             Accessible.name: modelData.name
                             Accessible.checked: chosen
                             Accessible.onPressAction: root.tryOn(index)
+                            Accessible.onToggleAction: root.tryOn(index)
                             ColumnLayout {
                                 id: tcol
                                 x: 8; y: 8

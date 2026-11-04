@@ -44,3 +44,23 @@ def test_windows_are_made_by_variants_not_repeaters():
         for m in re.finditer(r"Repeater \{[^{}]*?(delegate: )?(PanelWindow|FloatingWindow|PopupWindow) \{", t):
             bad.append(f"{f.relative_to(SHANI)}:{t[:m.start()].count(chr(10)) + 1}")
     assert not bad, "a Repeater making windows (only Variants makes them outside a visual parent): " + ", ".join(bad)
+
+
+def test_toggle_roles_answer_the_toggle_action():
+    """A radio button, check box or switch is activated by AT-SPI's *Toggle*
+    action (action 0 for those roles), not Press: a control with that role and
+    only `onPressAction` can't be chosen by a screen reader at all. Measured
+    2026-11-04: every Choice chip, the layout tiles and the accent swatches.
+    A display-only indicator (no action handler of any kind) is fine."""
+    import re
+    bad = []
+    for path in sorted(SHANI.rglob("*.qml")):
+        lines = path.read_text(encoding="utf-8").split("\n")
+        for i, line in enumerate(lines):
+            if not re.search(r"Accessible\.role:\s*Accessible\.(RadioButton|CheckBox|Switch)\b", line):
+                continue
+            # the object's own Accessible block: this line and the next few
+            block = "\n".join(lines[i:i + 8])
+            if "onPressAction" in block and "onToggleAction" not in block:
+                bad.append(f"{path.relative_to(SHANI)}:{i + 1}")
+    assert not bad, "toggle-role controls that only answer Press (a screen reader can't choose them): " + ", ".join(bad)

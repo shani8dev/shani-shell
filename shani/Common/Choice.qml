@@ -14,6 +14,7 @@ Rectangle {
     Accessible.name: root.text
     Accessible.checked: root.selected
     Accessible.onPressAction: root.clicked()
+    Accessible.onToggleAction: root.clicked()      // a radio button's action is Toggle
     implicitWidth: label.implicitWidth + 20
     implicitHeight: 28
     radius: 9

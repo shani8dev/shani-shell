@@ -254,6 +254,8 @@ ShellRoot {
             return Niri.swapMonitors(px) ? "swapped" : "needs two monitors";
         }
         // a drop-down app (Mod+` for the terminal): shown, put away, or started
+        function shelfPark(path: string) { Shelf.park([path]); }
+        function shelfUnpark(path: string) { Shelf.unpark(path); }
         function scratchpad(name: string) { Scratchpads.toggle(name); }
         function screenSaverPreview() { ScreenSaver.preview = true; }
         function chargingPreview() { Ui.chargingPreview = true; }
@@ -426,6 +428,7 @@ ShellRoot {
                 capsLock: LockKeys.caps, numLock: LockKeys.num,
                 screenSaver: ScreenSaver.active,
                 desktopIconsShown: Settings.data.desktopIcons,
+                shelfParked: Shelf.parked, shelfItems: Shelf.items.map(x => x.name),
                 layoutSwitcher: Ui.layoutSwitcher, layoutPreset: Settings.data.layoutPreset, dockOn: Settings.data.dock, dockHides: Settings.data.dockVisibility === "hide", dockMode: Settings.data.dockVisibility, barMode: Settings.data.barVisibility, dockShown: Hiding.dockShown[Niri.focusedOutput] !== false, barShown: Hiding.barShown[Niri.focusedOutput] !== false, dockHintSeen: Settings.data.dockHintSeen, desktopIconsOn: Settings.data.desktopIcons, winWidth: Settings.data.winDefaultWidth, widgets: Array.from(Settings.data.desktopWidgets),
                 fileActions: FileActions.actions.map(x => x.id), fileActionLast: FileActions.last,
                 notifLastSound: Notifs.lastSound,

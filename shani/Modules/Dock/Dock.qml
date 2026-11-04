@@ -538,6 +538,31 @@ PanelWindow {
         }
 
 
+        // the shelf (Yoink's, in the dock): drop files here to keep them for later;
+        // they wait at the top of the sidebar's Shelf, and drag out from there
+        DockTile {
+            id: shelfTile
+            tip: Shelf.parked.length ? Tr.t("Shelf: %1 kept for later - drop more here", Shelf.parked.length)
+                                     : Tr.t("Shelf: drop files here to keep them for later")
+            Accessible.name: Tr.t("Shelf")
+            on: shelfDrop.containsDrag
+            onActivated: Ui.toggleControlCenter()
+            Icon { anchors.centerIn: parent; name: "user-bookmarks"; size: parent.width * 0.46; color: shelfTile.on ? Theme.accent : Theme.text }
+            Rectangle {
+                visible: Shelf.parked.length > 0
+                anchors.right: parent.right; anchors.top: parent.top
+                width: Math.max(16, countText.implicitWidth + 8); height: 16; radius: 8
+                color: Theme.accent
+                Text { id: countText; anchors.centerIn: parent; text: Shelf.parked.length; color: Theme.accentInk; font.family: Theme.font; font.pixelSize: 10 * Theme.fontScale; font.weight: Font.DemiBold }
+            }
+            DropArea {
+                id: shelfDrop
+                anchors.fill: parent
+                onEntered: d => { win.dropsIn++; d.accept(d.hasUrls ? Qt.CopyAction : Qt.IgnoreAction); }
+                onExited: { win.dropsIn = Math.max(0, win.dropsIn - 1); dragOff.restart(); }
+                onDropped: d => { win.dropsIn = 0; win.dragging = false; Shelf.park(d.urls); d.acceptProposedAction(); }
+            }
+        }
         DockSeparator {}
         Repeater {
             model: win.spaces.concat([null])
