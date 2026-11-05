@@ -450,7 +450,7 @@ Variants {
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     Icon { visible: Focus.on && !(Settings.data.hideVolumeGlyph || Settings.data.hideBrightnessGlyph); name: Focus.mode ? Focus.mode.icon : ""; size: 15; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
-                    Icon { visible: Idle.caffeine; name: "preferences-desktop-screensaver"; size: 15; color: Theme.amber; anchors.verticalCenter: parent.verticalCenter }
+                    Icon { visible: Idle.caffeine || Idle.keptAwake; name: "preferences-desktop-screensaver"; size: 15; color: Theme.amber; anchors.verticalCenter: parent.verticalCenter }
                     Icon { visible: Net.vpnActive; name: "network-vpn"; size: 15; color: Theme.text; anchors.verticalCenter: parent.verticalCenter }
                     Icon { name: Net.icon; size: 15; color: Theme.text; anchors.verticalCenter: parent.verticalCenter }
                     Icon {

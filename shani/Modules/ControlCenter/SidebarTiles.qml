@@ -195,7 +195,7 @@ ColumnLayout {
             tid: "caffeine"
             icon: "preferences-desktop-screensaver"
             title: Tr.t("Caffeine")
-            subtitle: Idle.caffeine ? "Staying awake" : "Off"
+            subtitle: Idle.caffeine ? Tr.t("Staying awake") : Idle.keptAwake ? Tr.t("Kept awake by %1").replace("%1", Idle.keptAwakeBy) : Tr.t("Off")
             on: Idle.caffeine
             onToggled: Idle.setCaffeine(!Idle.caffeine)
         }

@@ -19,14 +19,14 @@ Singleton {
 
     Loader {
         id: mon
-        function rearm() { active = false; active = root.enabled && root.minutes > 0 && !Idle.caffeine; }
+        function rearm() { active = false; active = root.enabled && root.minutes > 0 && !Idle.awake; }
         Component.onCompleted: rearm()
         Connections {
             target: root
             function onEnabledChanged() { mon.rearm(); }
             function onMinutesChanged() { mon.rearm(); }
         }
-        Connections { target: Idle; function onCaffeineChanged() { mon.rearm(); } }
+        Connections { target: Idle; function onAwakeChanged() { mon.rearm(); } function onActivity() { mon.rearm(); } }
         sourceComponent: IdleMonitor {
             timeout: root.minutes * 60
             respectInhibitors: true

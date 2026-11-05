@@ -20,6 +20,37 @@ Singleton {
     readonly property int suspendAfter: battery ? Settings.data.suspendAfterBattery : Settings.data.suspendAfter
     readonly property bool dimmed: dimMon.isIdle && !Lock.locked
     readonly property bool caffeine: Settings.data.caffeine || Focus.caffeine
+    // apps keeping the screen awake over org.freedesktop.ScreenSaver (a video
+    // playing in Firefox, mpv): bridge/screensaver.py holds them, releases one
+    // when its app leaves the bus, and sends the list on every change
+    property var appInhibitors: []        // [{ app, reason }]
+    readonly property bool keptAwake: appInhibitors.length > 0
+    // "Firefox", "Firefox and mpv": the apps' own names where their desktop entry says
+    readonly property string keptAwakeBy: {
+        const names = [...new Set(appInhibitors.map(i => {
+            const e = DesktopEntries.heuristicLookup(String(i.app || ""));
+            return e ? e.name : String(i.app || "");
+        }).filter(n => n))];
+        return names.length < 2 ? (names[0] || "") : names.slice(0, -1).join(", ") + " " + Tr.t("and") + " " + names[names.length - 1];
+    }
+    // dim, lock, screen off and sleep wait while either holds
+    readonly property bool awake: caffeine || keptAwake
+    signal activity()
+    Connections {
+        target: Bridge
+        function onMessage(m) {
+            if (m.type !== "screensaver")
+                return;
+            if (m.inhibitors)
+                root.appInhibitors = m.inhibitors;
+            else if (m.op === "activity")
+                root.activity();          // SimulateUserActivity: idle starts over
+            else if (m.op === "lock")
+                Lock.lock();
+        }
+        // the bridge restarted: what it held went with it (it sends the list again on connecting)
+        function onConnectedChanged() { if (!Bridge.connected) root.appInhibitors = []; }
+    }
     readonly property bool lockIdle: lockMon.isIdle
 
     function setCaffeine(on) {
@@ -59,6 +90,9 @@ Singleton {
         onSecondsChanged: rearm()
         onOnChanged: rearm()
         Component.onCompleted: rearm()
+        // an app said the person is there (SimulateUserActivity): a fresh count -
+        // never while locked, which only the person ends
+        Connections { target: root; function onActivity() { if (!Lock.locked) stage.rearm(); } }
 
         sourceComponent: IdleMonitor {
             timeout: stage.seconds
@@ -70,23 +104,23 @@ Singleton {
     Stage {
         id: dimMon
         seconds: root.dimAfter
-        on: !root.caffeine
+        on: !root.awake
     }
     Stage {
         id: lockMon
         seconds: root.lockAfter
-        on: !root.caffeine
+        on: !root.awake
         onIdle: Lock.lock()
     }
     Stage {
         seconds: root.offAfter
-        on: !root.caffeine
+        on: !root.awake
         // niri powers outputs back on by itself at the next input
         onIdle: Niri.action("power-off-monitors")
     }
     Stage {
         seconds: root.suspendAfter
-        on: !root.caffeine
+        on: !root.awake
         onIdle: Power.suspend()
     }
 }

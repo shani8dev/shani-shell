@@ -39,6 +39,7 @@ from agent_contract import BUS_NAME as AGENT_NAME  # noqa: E402
 from agent_contract import IFACE as AGENT_IFACE  # noqa: E402
 from agent_contract import PATH as AGENT_PATH  # noqa: E402
 from logind import Logind  # noqa: E402
+from screensaver import ScreenSaver  # noqa: E402
 from turn_filter import TurnFilter  # noqa: E402
 
 SOCK = os.environ.get("SHANI_CHRONOA_SOCK") or os.path.join(
@@ -114,6 +115,8 @@ state_holder: dict = {}
 geometry: dict = {"mascot": (0, 0, 0, 0), "island": (0, 0, 0, 0), "panel": 48}
 turn_filter = TurnFilter()
 logind = Logind(lambda obj: broadcast(obj))
+# apps asking to keep the screen awake (org.freedesktop.ScreenSaver)
+screensaver = ScreenSaver(lambda obj: broadcast(obj))
 
 
 def broadcast(obj: dict) -> None:
@@ -140,6 +143,7 @@ class Handler(socketserver.StreamRequestHandler):
                    "visible": state_holder.get("visible", True),
                    "art": state_holder.get("art", ""),
                    "scale": state_holder.get("scale", 1)})
+        screensaver.announce()      # what keeps the screen awake, for a shell (re)connecting
         try:
             for raw in self.rfile:
                 raw = raw.strip()
@@ -203,6 +207,7 @@ def handle_request(msg: dict) -> None:
             geometry["panel"] = int(msg["panel"])
     elif op == "locked":
         logind.locked(bool(msg.get("locked")))
+        screensaver.locked(bool(msg.get("locked")))
     elif op == "release-sleep":
         # "lock before suspend" is off: let sleep go without a lock
         logind.release_sleep()
@@ -395,6 +400,7 @@ def main() -> int:
     Gio.bus_own_name_on_connection(connection, WINDOWS_NAME, Gio.BusNameOwnerFlags.NONE,
                                    None, None)
     logind.start()
+    screensaver.start(connection)
     print(f"bridge up: {SOCK}", flush=True)
     main_loop.run()
     return 0
