@@ -331,6 +331,7 @@ ShellRoot {
                 notes: QuickNotes.loaded,
                 accent: String(Theme.accent),
                 bg: String(Theme.bg),
+                darkFade: Theme.darkT,
                 wallpaperNow: Theme.wallpaper,
                 quiet: Notifs.quiet,
                 fullscreen: GameMode.fullscreen,

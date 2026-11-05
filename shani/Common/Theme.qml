@@ -9,12 +9,27 @@ pragma Singleton
 // black or white by its lightness.
 import Quickshell
 import QtQuick
+import "ThemeFade.js" as Fade
 
 Singleton {
     id: root
     // Use a property binding instead of readonly to ensure reactivity
     // when Settings.data.darkMode changes via IPC or file sync
     property bool dark: Settings.data.darkMode
+
+    // ---- the light/dark fade ------------------------------------------------
+    // `dark` is the target; every token below blends between its light and
+    // dark value by `darkT`, which walks 0 -> 1 (or back) over ~300 ms when
+    // the style flips — a gentle cross-fade instead of a snap. It is 0 ms
+    // with reduce motion, so that setting still means no movement. The
+    // animation runs only while it moves (event-driven): at rest nothing
+    // redraws, so the idle-frames budget is untouched.
+    property real darkT: Settings.data.darkMode ? 1 : 0
+    Behavior on darkT { NumberAnimation { duration: Fade.fadeMs(Settings.data.reduceMotion); easing.type: Easing.InOutQuad } }
+    function mix(light, dark) {
+        const c = Fade.blendC([light.r, light.g, light.b, light.a], [dark.r, dark.g, dark.b, dark.a], darkT);
+        return Qt.rgba(c[0], c[1], c[2], c[3]);
+    }
 
     // ---- the accent ---------------------------------------------------------
     readonly property color brand: "#ff7f50"
@@ -41,7 +56,7 @@ Singleton {
         }
         if (!best)
             return root.chosen;
-        return Qt.hsla(best.hslHue, Math.max(0.55, best.hslSaturation), dark ? 0.62 : 0.38, 1);
+        return mix(Qt.hsla(best.hslHue, Math.max(0.55, best.hslSaturation), 0.38, 1), Qt.hsla(best.hslHue, Math.max(0.55, best.hslSaturation), 0.62, 1));
     }
     // GNOME's nine accents, a light and a dark tone each (libadwaita's values);
     // orange tuned to ShaniOS's brand on dark (the Saturn metadata accent)
@@ -52,9 +67,9 @@ Singleton {
         red: ["#e01b24", "#f66151"],
         pink: ["#d56199", "#f49ac1"], purple: ["#9141ac", "#dc8add"], slate: ["#6f8396", "#9aa8b8"]
     })
-    readonly property color chosen: (accents[Settings.data.accentName] || accents.orange)[dark ? 1 : 0]
+    readonly property color chosen: mix((accents[Settings.data.accentName] || accents.orange)[0], (accents[Settings.data.accentName] || accents.orange)[1])
     readonly property color accent: Settings.data.accentFromWallpaper ? picked : chosen
-    readonly property color accentInk: accent.hslLightness > 0.55 ? "#08110f" : "#ffffff"
+    readonly property color accentInk: mix("#ffffff", "#08110f")
 
     // the wallpaper in use: the style's own when one is set, the one wallpaper otherwise
     readonly property string wallpaper: (dark ? Settings.data.wallpaperDark : Settings.data.wallpaperLight) || Settings.data.wallpaper
@@ -76,10 +91,10 @@ Singleton {
         return Settings.data.adaptivePalette && Matugen.ready && Matugen.palette[role]
             ? Matugen.palette[role] : fallback;
     }
-    readonly property color bg: contrast ? (dark ? "#000000" : "#ffffff") : (dark ? _mat("surface", tone(0.22, 0.065)) : _mat("surface", tone(0.28, 0.945)))
-    readonly property color text: contrast ? (dark ? "#ffffff" : "#000000") : (dark ? _mat("on_surface", tone(0.20, 0.93)) : _mat("on_surface", tone(0.35, 0.11)))
-    readonly property color dim: contrast ? (dark ? "#e0e6ee" : "#1a1a1a") : (dark ? _mat("on_surface_variant", tone(0.14, 0.66)) : _mat("on_surface_variant", tone(0.14, 0.37)))
-    readonly property color faint: contrast ? (dark ? "#b8c2cf" : "#333333") : (dark ? _mat("outline", tone(0.10, 0.44)) : _mat("outline", tone(0.10, 0.58)))
+    readonly property color bg: contrast ? mix("#ffffff", "#000000") : mix(_mat("surface", tone(0.28, 0.945)), _mat("surface", tone(0.22, 0.065)))
+    readonly property color text: contrast ? mix("#000000", "#ffffff") : mix(_mat("on_surface", tone(0.35, 0.11)), _mat("on_surface", tone(0.20, 0.93)))
+    readonly property color dim: contrast ? mix("#1a1a1a", "#e0e6ee") : mix(_mat("on_surface_variant", tone(0.14, 0.37)), _mat("on_surface_variant", tone(0.14, 0.66)))
+    readonly property color faint: contrast ? mix("#333333", "#b8c2cf") : mix(_mat("outline", tone(0.10, 0.58)), _mat("outline", tone(0.10, 0.44)))
     readonly property color border: contrast ? stroke : _mat("outline_variant", stroke)   // adaptive variant where a mid outline is wanted
     // adaptive base: the colour every translucent layer is cut from. Without
     // the adaptive palette this is the tonal material above, and the ladder
@@ -92,37 +107,36 @@ Singleton {
                        Math.min(1, Math.max(0, col.hslSaturation + ds)),
                        Math.min(1, Math.max(0, col.hslLightness + dl)), a);
     }
-    readonly property color _base: _mat("surface",
-        dark ? tone(0.22, 0.065) : tone(0.28, 0.945))
-    readonly property color amber: dark ? "#e0af68" : "#b7791f"
-    readonly property color blue: dark ? "#7aa2f7" : "#3461c1"
-    readonly property color red: dark ? "#f7768e" : "#c8364f"
-    readonly property color danger: dark ? "#f28b82" : "#c0392b"
+    readonly property color _base: _mat("surface", mix(tone(0.28, 0.945), tone(0.22, 0.065)))
+    readonly property color amber: mix("#b7791f", "#e0af68")
+    readonly property color blue: mix("#3461c1", "#7aa2f7")
+    readonly property color red: mix("#c8364f", "#f7768e")
+    readonly property color danger: mix("#c0392b", "#f28b82")
 
     // glass: the translucent card every surface is drawn on
     // with blur the glass is thinner - what is behind shows, softened; without
     // it, denser, so text stays readable over whatever is there
     readonly property bool blurred: Settings.blurWanted && !Settings.data.reduceTransparency
-    readonly property color glass: contrast ? bg : (dark ? _shade(_base, 0.04, 0.010, blurred ? 0.58 : 0.66) : _shade(_base, 0.07, 0.030, blurred ? 0.68 : 0.72))
-    readonly property color glassStrong: contrast ? bg : (dark ? _shade(_base, 0.04, 0.010, blurred ? 0.74 : 0.88) : _shade(_base, 0.07, 0.030, blurred ? 0.82 : 0.93))
-    readonly property color stroke: contrast ? alpha(text, 0.85) : (dark ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(0, 0, 0, 0.09))
-    readonly property color hover: dark ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(0, 0, 0, 0.05)
-    readonly property color pressed: dark ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(0, 0, 0, 0.09)
-    readonly property color accentSoft: alpha(accent, dark ? 0.18 : 0.16)
+    readonly property color glass: contrast ? bg : mix(_shade(_base, 0.07, 0.030, blurred ? 0.68 : 0.72), _shade(_base, 0.04, 0.010, blurred ? 0.58 : 0.66))
+    readonly property color glassStrong: contrast ? bg : mix(_shade(_base, 0.07, 0.030, blurred ? 0.82 : 0.93), _shade(_base, 0.04, 0.010, blurred ? 0.74 : 0.88))
+    readonly property color stroke: contrast ? alpha(text, 0.85) : mix(Qt.rgba(0, 0, 0, 0.09), Qt.rgba(1, 1, 1, 0.10))
+    readonly property color hover: mix(Qt.rgba(0, 0, 0, 0.05), Qt.rgba(1, 1, 1, 0.06))
+    readonly property color pressed: mix(Qt.rgba(0, 0, 0, 0.09), Qt.rgba(1, 1, 1, 0.10))
+    readonly property color accentSoft: mix(alpha(accent, 0.16), alpha(accent, 0.18))
     readonly property color accentLine: alpha(accent, 0.55)
     // accent on interactive state: a little stronger on hover, full on press
-    readonly property color accentHover: alpha(accent, dark ? 0.30 : 0.22)
-    readonly property color accentPressed: alpha(accent, dark ? 0.45 : 0.35)
-    readonly property color scrim: dark ? Qt.rgba(0, 0, 0, 0.35) : Qt.rgba(0.05, 0.08, 0.12, 0.22)
+    readonly property color accentHover: mix(alpha(accent, 0.22), alpha(accent, 0.30))
+    readonly property color accentPressed: mix(alpha(accent, 0.35), alpha(accent, 0.45))
+    readonly property color scrim: mix(Qt.rgba(0.05, 0.08, 0.12, 0.22), Qt.rgba(0, 0, 0, 0.35))
     // elevation shadows: soft, card, raised — depth without drawing borders on everything
-    readonly property color shadowSoft: dark ? Qt.rgba(0, 0, 0, 0.45) : Qt.rgba(0, 0, 0, 0.12)
-    readonly property color shadowCard: dark ? Qt.rgba(0, 0, 0, 0.55) : Qt.rgba(0, 0, 0, 0.18)
-    readonly property color shadowRaised: dark ? Qt.rgba(0, 0, 0, 0.70) : Qt.rgba(0, 0, 0, 0.28)
+    readonly property color shadowSoft: mix(Qt.rgba(0, 0, 0, 0.12), Qt.rgba(0, 0, 0, 0.45))
+    readonly property color shadowCard: mix(Qt.rgba(0, 0, 0, 0.18), Qt.rgba(0, 0, 0, 0.55))
+    readonly property color shadowRaised: mix(Qt.rgba(0, 0, 0, 0.28), Qt.rgba(0, 0, 0, 0.70))
     readonly property color shadow: shadowCard   // default, backward-compatible
 
     // card: a solid surface that floats on glass — for tiles, chips, buttons
-    readonly property color card: contrast ? bg : (dark ? _shade(_base, 0.02, 0.035, 0.62) : _shade(_base, 0.02, 0.045, 0.82))
-    readonly property color cardBorder: contrast ? alpha(text, 0.5) : (dark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.06))
+    readonly property color card: contrast ? bg : mix(_shade(_base, 0.02, 0.045, 0.82), _shade(_base, 0.02, 0.035, 0.62))
+    readonly property color cardBorder: contrast ? alpha(text, 0.5) : mix(Qt.rgba(0, 0, 0, 0.06), Qt.rgba(1, 1, 1, 0.08))
 
     // ---- type and shape --------------------------------------------------------
     // Inter where installed (shani-shell depends on it), the system sans otherwise
@@ -152,9 +166,9 @@ Singleton {
     // Surface ladder: raised tones of the same hue for what sits on a panel
     // (tiles, cards, fields), each step a little nearer the light - depth
     // without borders or shadows on everything.
-    readonly property color surface1: contrast ? bg : (dark ? _shade(_base, 0.02, 0.055, 0.70) : _shade(_base, 0.02, 0.045, 0.75))
-    readonly property color surface2: contrast ? bg : (dark ? _shade(_base, 0.02, 0.090, 0.78) : _shade(_base, 0.02, 0.020, 0.85))
-    readonly property color surface3: contrast ? bg : (dark ? _shade(_base, 0.02, 0.125, 0.86) : _shade(_base, 0.02, -0.010, 0.92))
+    readonly property color surface1: contrast ? bg : mix(_shade(_base, 0.02, 0.045, 0.75), _shade(_base, 0.02, 0.055, 0.70))
+    readonly property color surface2: contrast ? bg : mix(_shade(_base, 0.02, 0.020, 0.85), _shade(_base, 0.02, 0.090, 0.78))
+    readonly property color surface3: contrast ? bg : mix(_shade(_base, 0.02, -0.010, 0.92), _shade(_base, 0.02, 0.125, 0.86))
 
     function alpha(c, a) {
         return Qt.rgba(c.r, c.g, c.b, a);
