@@ -36,18 +36,21 @@ ColumnLayout {
         }
         color: artTint ? Qt.tint(opaque ? Theme.bg : Theme.glass, Theme.alpha(artTint, 0.20)) : (opaque ? Theme.bg : Theme.glass)
         Layout.fillWidth: true
-        implicitHeight: 118
+        implicitHeight: 118 + (lyricLine.visible ? 24 : 0)
+        // the card asks for lyrics only while it is on screen
+        Binding { target: Lyrics; property: "wanted"; value: sidebar.visible && np.visible }
         // the track's position, sampled while it plays (the thin bar moves)
         property real shown: sidebar.player ? sidebar.player.position : 0
         Timer {
-            interval: 900
             running: sidebar.visible && sidebar.player && sidebar.player.isPlaying
             repeat: true
+            interval: Lyrics.lines.length ? 400 : 900
             onTriggered: parent.shown = sidebar.player.position
         }
         RowLayout {
             anchors.fill: parent
             anchors.margins: 12
+            anchors.bottomMargin: 12 + (lyricLine.visible ? 24 : 0)
             spacing: 12
             ClippingRectangle {
                 implicitWidth: 66
@@ -172,6 +175,20 @@ ColumnLayout {
                     IconButton { icon: "media-skip-forward"; size: 28; onClicked: sidebar.player.next() }
                 }
             }
+        }
+        // the line being sung, under the controls
+        Text {
+            id: lyricLine
+            readonly property string line: Lyrics.lineAt(np.shown)
+            visible: Lyrics.lines.length > 0
+            anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 10 }
+            horizontalAlignment: Text.AlignHCenter
+            text: line || "♪"
+            color: Theme.text
+            elide: Text.ElideRight
+            font.family: Theme.font
+            font.pixelSize: 12 * Theme.fontScale
+            font.italic: true
         }
     }
 }

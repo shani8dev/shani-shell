@@ -100,10 +100,16 @@ worst=$(printf "%s\n%s\n" "$tl" "$ts" | sort -n | tail -1)
 # leaks: open and close the big surfaces again and again; after the first round
 # (caches filling) memory must settle, not climb
 cycle() { ipc launcher ""; sleep 0.6; ipc closeAll; ipc toggleControlCenter; sleep 0.6; ipc closeAll; ipc layoutSwitcher; sleep 0.6; ipc closeAll; niri msg action toggle-overview; sleep 0.6; niri msg action toggle-overview; sleep 0.4; }
-cycle; sleep 1; rss1=$(awk '/VmRSS/{print int($2/1024)}' /proc/$qpid/status)
-for i in 1 2 3 4 5; do cycle; done; sleep 2; rss2=$(awk '/VmRSS/{print int($2/1024)}' /proc/$qpid/status)
+# One reading swings by ±30 MB here (software rendering's buffers come and go -
+# measured: 600, 659, 624 MB in successive rounds, the same before and after a
+# change), so the lowest of three is compared, early against late: a spike is
+# not a leak, and a leak raises the floor.
+rssnow() { awk '/VmRSS/{print int($2/1024)}' /proc/$qpid/status; }
+floor3() { m=999999; for k in 1 2 3; do cycle; sleep 0.5; v=$(rssnow); [ "$v" -lt "$m" ] && m=$v; done; echo $m; }
+cycle; rss1=$(floor3)
+for i in 1 2 3 4; do cycle; done; rss2=$(floor3)
 grow=$((rss2 - rss1))
-[ "$grow" -le "${LEAK_MB_BUDGET:-24}" ] && result perf-no-leak PASS "${grow} MB over 5 more rounds (${rss1} -> ${rss2} MB)" || result perf-no-leak FAIL "+$grow MB over 5 rounds of launcher/sidebar/layouts/overview (${rss1} -> ${rss2} MB, budget ${LEAK_MB_BUDGET:-24})"
+[ "$grow" -le "${LEAK_MB_BUDGET:-24}" ] && result perf-no-leak PASS "${grow} MB, lowest of 3 early vs late over 11 rounds (${rss1} -> ${rss2} MB)" || result perf-no-leak FAIL "+$grow MB lowest-of-3 floor over 11 rounds of launcher/sidebar/layouts/overview (${rss1} -> ${rss2} MB, budget ${LEAK_MB_BUDGET:-24})"
 # startup: a fresh shell, from launch to its first answer (and its frames' render cost)
 kill "$qpid"; while kill -0 "$qpid" 2>/dev/null; do sleep 0.1; done
 t0=$(date +%s%N)
@@ -426,7 +432,10 @@ shot 26l-layout-classic 0.3
 wtype -k Escape
 waitfor "not d['layoutSwitcher']" 3 && [ "$(q "['winWidth'], d['widgets'], d['dockHides']")" = "$before" ] && result layout-cancel-restores PASS || result layout-cancel-restores FAIL "$(q "['winWidth'], d['widgets'], d['dockHides']") vs $before"
 ipc layoutSwitcher; waitfor "d['layoutSwitcher']" 3
-wtype -k Right; wtype -k Right; sleep 0.3; wtype -k Return    # Focus, kept
+# each key tries a layout on for real (niri reloads): the next one waits for it
+wtype -k Right; waitfor "'agenda' in d['widgets']" 3
+wtype -k Right; waitfor "d['widgets'] == [] and d['dockHides']" 3; sleep 0.3
+wtype -k Return    # Focus, kept
 waitfor "not d['layoutSwitcher'] and d['layoutPreset'] == 'focus' and d['dockHides'] and d['widgets'] == []" 3 && result layout-keeps PASS || result layout-keeps FAIL "$(q "['layoutPreset'], d['dockHides'], d['widgets']")"
 settings '{}'
 
@@ -573,7 +582,9 @@ if [ -f "$A11Y" ]; then
     waitfor "d['dnd'] and d['dndUntil'] > 0" 3 && result dnd-for-an-hour PASS || result dnd-for-an-hour FAIL "$(q "['dnd'], d['dndUntil']")"
     ipc closeAll
 fi
-# ends by itself: a time already past turns it off
+# ends by itself: a time already past turns it off (after the shell's own save of the
+# hour above has landed, so it does not write over this)
+sleep 1
 settings '{"doNotDisturb": true, "dndUntil": 1000}'
 waitfor "not d['dnd'] and d['dndUntil'] == 0" 20 && result dnd-ends-by-itself PASS || result dnd-ends-by-itself FAIL "$(q "['dnd'], d['dndUntil']")"
 settings '{}'
@@ -1460,6 +1471,19 @@ waitfor "d['mediaPlayer'] not in ('', '$before')" 3 && grep -q '"preferredPlayer
 kill $MPRIS2 2>/dev/null
 waitfor "d['mediaPlayer'] == 'Shani Player'" 4 && result media-player-gone-falls-back PASS || result media-player-gone-falls-back FAIL "$(q "['mediaPlayer']")"
 settings '{}'
+# lyrics (switched on): looked up while the card shows, the line at the position
+mkdir -p /tmp/lrc/api; printf '[{"trackName":"Test Song","syncedLyrics":"[00:00.00] first line\\n[00:01.50] second line"}]' > /tmp/lrc/api/search
+(cd /tmp/lrc && python3 -c "
+import http.server, socketserver
+class H(http.server.SimpleHTTPRequestHandler):
+    def translate_path(self, p): return super().translate_path(p.split('?')[0])
+    def log_message(self, *a): pass
+socketserver.TCPServer(('127.0.0.1', 8799), H).serve_forever()" >/dev/null 2>&1 &)
+settings '{"lyrics": true}'
+ipc toggleControlCenter
+waitfor "d['lyricsLines'] == 2" 8 && result lyrics-fetched PASS || result lyrics-fetched FAIL "$(q "['lyricsLines']")"
+ipc closeAll
+settings '{}'
 kill $MPRIS 2>/dev/null
 s0=$(q "['notifSounds']")
 notify-send -a Chime "Ding" "a sound"
@@ -1930,7 +1954,8 @@ if [ -f "$A11Y" ]; then
 fi
 
 # ---- notifications unread at a restart are written down, to be shown again ---------
-notify-send -a Keeper "Kept across restarts" "read me later"; sleep 2.5
+notify-send -a Keeper "Kept across restarts" "read me later"
+i=0; until grep -rqs "Kept across restarts" /root/.local/state/quickshell || [ $i -ge 20 ]; do sleep 0.25; i=$((i+1)); done
 grep -rqs "Kept across restarts" /root/.local/state/quickshell && result notification-history-kept PASS || result notification-history-kept FAIL
 
 # ---- the dock's trash: full or empty at a glance -------------------------------------
@@ -1949,6 +1974,30 @@ ipc renameWorkspace 1 "Mail"; sleep 1
 niri msg -j workspaces | grep -q '"Mail"' && result workspace-named PASS || result workspace-named FAIL
 ipc renameWorkspace 1 ""; sleep 1
 niri msg -j workspaces | grep -q '"Mail"' && result workspace-name-cleared FAIL || result workspace-name-cleared PASS
+
+# ---- a bar button of your own: a command's output, refreshed --------------------------
+settings '{"barCommands": [{"command": "echo hello-from-bar", "every": 0, "click": "touch /tmp/bar-clicked"}]}'
+if [ -f "$A11Y" ]; then
+    sleep 1.5
+    timeout 20 python3 "$A11Y" press "^hello-from-bar$" >/dev/null 2>&1 && sleep 0.8
+    [ -e /tmp/bar-clicked ] && result bar-own-button PASS || result bar-own-button FAIL
+fi
+settings '{}'
+
+# ---- wallpapers found online (a local stand-in for Wallhaven): searched, saved ------
+mkdir -p /tmp/lrc/api/v1; cp /work/assets/shani-dark.jpg /tmp/lrc/wall-a1b2c3.jpg 2>/dev/null || convert -size 64x64 xc:navy /tmp/lrc/wall-a1b2c3.jpg
+printf '{"data":[{"id":"a1b2c3","path":"http://127.0.0.1:8799/wall-a1b2c3.jpg","resolution":"1920x1080","thumbs":{"small":"http://127.0.0.1:8799/wall-a1b2c3.jpg"}}]}' > /tmp/lrc/api/v1/search
+pgrep -f "serve_forever" >/dev/null || (cd /tmp/lrc && python3 -c "
+import http.server, socketserver
+class H(http.server.SimpleHTTPRequestHandler):
+    def translate_path(self, p): return super().translate_path(p.split('?')[0])
+    def log_message(self, *a): pass
+socketserver.TCPServer(('127.0.0.1', 8799), H).serve_forever()" >/dev/null 2>&1 &); sleep 0.5
+ipc wallpaperSearch "night"
+waitfor "d['onlineWalls'] == 1" 6 && result wallpaper-online-search PASS || result wallpaper-online-search FAIL "$(q "['onlineWalls']")"
+ipc wallpaperFetch 0
+waitfor "d['onlineWallSaved'].endswith('wallhaven-a1b2c3.jpg')" 8 && [ -s /root/Pictures/Wallpapers/wallhaven-a1b2c3.jpg ] \
+    && result wallpaper-online-saved PASS || result wallpaper-online-saved FAIL "$(q "['onlineWallSaved']")"
 
 # ---- dynamic lock: the paired phone goes away → locked after the grace ---------------
 settings '{"dynamicLockDevice": "AA:BB:CC:DD:EE:FF"}'

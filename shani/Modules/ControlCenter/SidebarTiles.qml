@@ -266,7 +266,7 @@ ColumnLayout {
             title: Tr.t("Screen record")
             subtitle: Recorder.recording ? Recorder.elapsed
                 : (Settings.data.recordArea === "region" ? "Part of the screen" : "Focused screen")
-                  + (Settings.data.recordSound === "desktop" ? " · sound" : Settings.data.recordSound === "mic" ? " · mic" : "")
+                  + (Settings.data.recordSound === "desktop" ? " · sound" : Settings.data.recordSound === "mic" ? " · mic" : Settings.data.recordSound === "both" ? " · sound + mic" : "")
             on: Recorder.recording
             hasDetail: true
             expanded: Ui.expanded === "record"

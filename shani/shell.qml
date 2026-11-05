@@ -215,6 +215,8 @@ ShellRoot {
             else if (action === "stop") p.stop();
         }
         function nextPlayer() { Media.cycle(); }
+        function wallpaperSearch(q: string) { OnlineWalls.search(q); }
+        function wallpaperFetch(i: int) { OnlineWalls.fetch(OnlineWalls.results[i]); }
         function renameWorkspace(idx: int, name: string) { Niri.renameWorkspaceAt(idx, name); }
         function video() { Camera.video(); }
         function displayRevert() { Displays.revert(); }
@@ -430,7 +432,7 @@ ShellRoot {
                 capsLock: LockKeys.caps, numLock: LockKeys.num,
                 screenSaver: ScreenSaver.active,
                 desktopIconsShown: Settings.data.desktopIcons,
-                mediaPlayer: Media.current ? Media.current.identity : '', notifEarlier: Notifs.earlier.length, dndUntil: Settings.data.dndUntil, trashCount: Ui.trashCount, shotCountdown: Screenshots.countdown, shelfParked: Shelf.parked, shelfItems: Shelf.items.map(x => x.name),
+                mediaPlayer: Media.current ? Media.current.identity : '', notifEarlier: Notifs.earlier.length, dndUntil: Settings.data.dndUntil, onlineWalls: OnlineWalls.results.length, onlineWallSaved: OnlineWalls.lastSaved, lyricsLines: Lyrics.lines.length, trashCount: Ui.trashCount, shotCountdown: Screenshots.countdown, shelfParked: Shelf.parked, shelfItems: Shelf.items.map(x => x.name),
                 layoutSwitcher: Ui.layoutSwitcher, layoutPreset: Settings.data.layoutPreset, dockOn: Settings.data.dock, dockHides: Settings.data.dockVisibility === "hide", dockMode: Settings.data.dockVisibility, barMode: Settings.data.barVisibility, dockShown: Hiding.dockShown[Niri.focusedOutput] !== false, barShown: Hiding.barShown[Niri.focusedOutput] !== false, dockHintSeen: Settings.data.dockHintSeen, desktopIconsOn: Settings.data.desktopIcons, winWidth: Settings.data.winDefaultWidth, widgets: Array.from(Settings.data.desktopWidgets),
                 fileActions: FileActions.actions.map(x => x.id), fileActionLast: FileActions.last,
                 notifLastSound: Notifs.lastSound,

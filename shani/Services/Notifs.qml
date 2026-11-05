@@ -33,7 +33,7 @@ Singleton {
         }
         _perApp = out;
     }
-    onListChanged: { _rebuildPerApp(); if (historyRead) saveHistory.restart(); }
+    onListChanged: { _rebuildPerApp(); root.saveSoon(); }
     Component.onCompleted: _rebuildPerApp()
     function countFor(entry, id) {
         const keys = [id, entry && entry.id, entry && entry.name, entry && entry.startupClass].filter(Boolean).map(k => k.toLowerCase());
@@ -197,7 +197,10 @@ Singleton {
         return live.concat(earlier).slice(0, 50);
     }
     function forgetEarlier(entry) { earlier = entry ? earlier.filter(e => e !== entry) : []; }
-    onEarlierChanged: if (historyRead) saveHistory.restart()
+    onEarlierChanged: root.saveSoon()
+    // within 1.5 s of the first change, not pushed back by every one after it:
+    // a busy stream of notifications would otherwise keep it from ever writing
+    function saveSoon() { if (historyRead && !saveHistory.running) saveHistory.start(); }
     Timer { id: saveHistory; interval: 1500; onTriggered: history.setText(JSON.stringify(root.snapshot())) }
     FileView {
         id: history

@@ -133,6 +133,10 @@ Singleton {
             property string weatherUnits: "celsius"       // celsius | fahrenheit (Open-Meteo)
             property string weekStartsOn: "monday"        // monday | sunday (the calendar)
             property bool weekNumbers: false
+            property bool lyrics: false                   // synced lyrics on the media card, from LRCLIB (online)
+            // buttons of your own in the bar: what a command prints (its last line),
+            // run again every `every` seconds (0 = once); a click runs `click`
+            property var barCommands: []                  // [{ command, every, click }]
             property bool screenCorners: true             // rounded screen corners (not over fullscreen windows)
             property bool batteryRefresh60: true          // the laptop's panel at 60 Hz on battery
             property bool dockTrash: true                 // the trash at the dock's end

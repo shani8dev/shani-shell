@@ -4,6 +4,7 @@
 // status cluster (opens the sidebar), the notification bell and the clock.
 // Scroll on the status cluster to change volume.
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Widgets
 import Quickshell.Services.Mpris
@@ -267,6 +268,34 @@ Variants {
                     onRightClicked: bar.player.next()
                     onMiddleClicked: bar.player.previous()
                     onScrolled: d => d > 0 ? bar.player.previous() : bar.player.next()
+                }
+                // your own (Settings > Bar & dock): nothing runs unless you added one
+                Repeater {
+                    model: Settings.data.barCommands || []
+                    Chip {
+                        id: own
+                        required property var modelData
+                        property string out: ""
+                        tint: Theme.dim
+                        label: out !== "" ? out : "…"
+                        maxLabelWidth: 180
+                        hint: modelData.click ? Tr.t("Click: %1").arg(modelData.click) : modelData.command
+                        onClicked: if (modelData.click) Quickshell.execDetached(["sh", "-c", modelData.click])
+                        Process {
+                            id: ownRun
+                            running: true
+                            command: ["sh", "-c", own.modelData.command || "true"]
+                            stdout: StdioCollector {
+                                onStreamFinished: own.out = text.trim().split("\n").pop().slice(0, 80)
+                            }
+                        }
+                        Timer {
+                            interval: Math.max(2, Number(own.modelData.every) || 0) * 1000
+                            running: Number(own.modelData.every) > 0
+                            repeat: true
+                            onTriggered: ownRun.running = true
+                        }
+                    }
                 }
                 Chip {
                     visible: Settings.data.showNetSpeed

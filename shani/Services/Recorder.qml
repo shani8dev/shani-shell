@@ -15,7 +15,7 @@ Singleton {
     // what to record: the focused screen or a part chosen with slurp; sound
     // from the computer (the output's monitor), the microphone, or none
     readonly property string area: Settings.data.recordArea         // screen | region
-    readonly property string sound: Settings.data.recordSound       // none | desktop | mic
+    readonly property string sound: Settings.data.recordSound       // none | desktop | mic | both
     readonly property string elapsed: Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0")
     property bool available: false
 
@@ -41,8 +41,24 @@ Singleton {
                 echo "slurp $sp"; wait $sp || exit 3
                 g=$(cat "$r"); rm -f "$r"; [ -n "$g" ] || exit 3; set -- "$@" -g "$g"
             elif [ -n "$out" ]; then set -- "$@" -o "$out"; fi
-            case "$sound" in desktop) set -- "$@" --audio="$(pactl get-default-sink).monitor" ;; mic) set -- "$@" --audio="$(pactl get-default-source)" ;; esac
-            echo recording; exec "$@"', "sh", dir(), Niri.focusedOutput, area, sound, file, String(Math.max(0, Settings.data.recordFps)), Settings.data.recordCodec || ""];
+            case "$sound" in desktop|both) set -- "$@" --audio="$(pactl get-default-sink).monitor" ;; mic) set -- "$@" --audio="$(pactl get-default-source)" ;; esac
+            echo recording
+            [ "$sound" = both ] || exec "$@"
+            # both: the mic beside it, its own track after. Jobs started by a script
+            # ignore SIGINT, so the stop (INT, to this shell) is passed on as TERM,
+            # which wf-recorder and parecord both finish their files on
+            m="$f.mic.wav"
+            parecord --device="$(pactl get-default-source)" --file-format=wav "$m" & mp=$!
+            "$@" & wp=$!
+            trap "kill -TERM $wp $mp 2>/dev/null" INT TERM
+            wait $wp; wait $wp 2>/dev/null
+            kill -TERM $mp 2>/dev/null; wait $mp 2>/dev/null
+            if [ -s "$f" ] && [ -s "$m" ] && ffmpeg -y -loglevel error -i "$f" -i "$m" -map 0 -map 1:a -c:v copy -c:a aac \
+                    -metadata:s:a:0 title="Computer sound" -metadata:s:a:1 title=Microphone "$f.both.mp4"; then
+                mv "$f.both.mp4" "$f"
+            fi
+            rm -f "$m" "$f.both.mp4"
+            [ -s "$f" ]', "sh", dir(), Niri.focusedOutput, area, sound, file, String(Math.max(0, Settings.data.recordFps)), Settings.data.recordCodec || ""];
         selecting = area === "region";
         proc.running = true;
     }

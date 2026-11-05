@@ -307,7 +307,7 @@ ColumnLayout {
             Layout.fillWidth: true
             spacing: 6
             Repeater {
-                model: [{ label: Tr.t("No sound"), v: "none" }, { label: Tr.t("Computer sound"), v: "desktop" }, { label: Tr.t("Microphone"), v: "mic" }]
+                model: [{ label: Tr.t("No sound"), v: "none" }, { label: Tr.t("Computer sound"), v: "desktop" }, { label: Tr.t("Microphone"), v: "mic" }, { label: Tr.t("Both"), v: "both" }]
                 Choice {
                     required property var modelData
                     text: modelData.label

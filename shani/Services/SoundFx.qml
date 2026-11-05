@@ -262,10 +262,13 @@ context.modules = [
                 micTarget = defaultSource.name;
             micRebuild.restart();
         } else {
+            // the real microphone back as Quickshell's preference at once (it still
+            // prefers the cleaned-up one, which is about to go: no default at all for
+            // a moment, measured), then by name once the filter has gone
+            const t = Pipewire.nodes.values.find(n => n.name === root.micTarget);
+            if (t)
+                Pipewire.preferredDefaultAudioSource = t;
             mic.running = false;
-            // by name: the previous default may be a monitor, which Quickshell will not take as a source
-            if (root.micTarget)
-                Quickshell.execDetached(["pactl", "set-default-source", root.micTarget]);
         }
     }
     onMicConfChanged: if (micOn) micRebuild.restart()
@@ -283,7 +286,13 @@ context.modules = [
         id: mic
         command: ["pipewire", "-c", root.micPath]
         stderr: StdioCollector { id: micErr }
-        onExited: code => { if (root.micOn && code !== 0) root.micError = micErr.text.trim().split("\n").pop() || "noise suppression stopped"; }
+        onExited: code => {
+            if (root.micOn && code !== 0)
+                root.micError = micErr.text.trim().split("\n").pop() || "noise suppression stopped";
+            // by name: the previous default may be a monitor, which Quickshell will not take as a source
+            if (!root.micOn && root.micTarget)
+                Quickshell.execDetached(["pactl", "set-default-source", root.micTarget]);
+        }
     }
     property string micError: ""
     readonly property bool micRunning: mic.running

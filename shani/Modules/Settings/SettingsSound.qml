@@ -246,6 +246,14 @@ ColumnLayout {
         }
     }
 
+    SwitchRow {
+        Layout.fillWidth: true
+        text: Tr.t("Lyrics on the media card")
+        hint: Tr.t("the line being sung, looked up on lrclib.net while the sidebar is open - the song's title and artist are sent")
+        checked: page.d.lyrics
+        onToggled: on => page.d.lyrics = on
+    }
+
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Microphone") }
     SwitchRow {
         Layout.fillWidth: true

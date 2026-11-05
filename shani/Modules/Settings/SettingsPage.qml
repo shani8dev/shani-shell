@@ -503,6 +503,60 @@ ColumnLayout {
                     }
                     Button { text: Tr.t("Choose a picture…"); onClicked: wallDialog.open() }
                 }
+                // more, found online (Wallhaven): nothing is asked until a search
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    TextField {
+                        id: wallSearch
+                        Layout.fillWidth: true
+                        placeholder: Tr.t("Find more online - mountains, city at night… (Wallhaven)")
+                        label: Tr.t("Find wallpapers online")
+                        onAccepted: OnlineWalls.search(text.trim())
+                    }
+                    Button { text: OnlineWalls.searching ? Tr.t("Looking…") : Tr.t("Find"); onClicked: OnlineWalls.search(wallSearch.text.trim()) }
+                }
+                Text {
+                    visible: OnlineWalls.error !== ""
+                    text: OnlineWalls.error
+                    color: Theme.danger
+                    font.family: Theme.font
+                    font.pixelSize: 12 * Theme.fontScale
+                }
+                GridLayout {
+                    visible: OnlineWalls.results.length > 0
+                    Layout.fillWidth: true
+                    columns: 3
+                    columnSpacing: 6
+                    rowSpacing: 6
+                    Repeater {
+                        model: OnlineWalls.results
+                        Rectangle {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            implicitHeight: 62
+                            radius: 10
+                            color: Theme.hover
+                            clip: true
+                            Image {
+                                anchors.fill: parent
+                                anchors.margins: 2
+                                source: parent.modelData.thumb
+                                fillMode: Image.PreserveAspectCrop
+                                asynchronous: true
+                            }
+                            Accessible.role: Accessible.Button
+                            Accessible.name: Tr.t("Use wallpaper %1 (%2)").arg(modelData.id).arg(modelData.size)
+                            Accessible.onPressAction: OnlineWalls.fetch(modelData)
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: OnlineWalls.fetch(parent.modelData) }
+                            Hint { text: parent.modelData.size + " - " + Tr.t("click to download and use it") }
+                        }
+                    }
+                }
+                Connections {
+                    target: OnlineWalls
+                    function onSaved(path) { page.useWallpaper(path); page.wallpapers = [path].concat(page.wallpapers); }
+                }
                 Button {
                     visible: page.d.wallpaperPerMonitor
                     text: Tr.t("Same picture on every screen")
@@ -836,6 +890,45 @@ ColumnLayout {
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Date beside the clock"); checked: page.d.barDate; onToggled: on => page.d.barDate = on }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Battery percentage"); checked: page.d.barBatteryPercent; onToggled: on => page.d.barBatteryPercent = on }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Dock"); checked: page.d.dock; onToggled: on => page.d.dock = on }
+                SwitchRow { Layout.fillWidth: true; visible: page.d.dock; text: Tr.t("Trash at the dock's end"); checked: page.d.dockTrash; onToggled: on => page.d.dockTrash = on }
+                // buttons of your own: a command's output in the bar, a click that runs another
+                Text {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 6
+                    text: Tr.t("Your own bar buttons - a command's last line of output, shown in the bar")
+                    color: Theme.dim
+                    wrapMode: Text.Wrap
+                    font.family: Theme.font
+                    font.pixelSize: 12 * Theme.fontScale
+                }
+                Repeater {
+                    model: page.d.barCommands || []
+                    ListRow {
+                        required property var modelData
+                        required property int index
+                        Layout.fillWidth: true
+                        icon: "utilities-terminal"
+                        title: modelData.command
+                        subtitle: (Number(modelData.every) > 0 ? Tr.t("every %1 s").arg(modelData.every) : Tr.t("once")) + (modelData.click ? " · " + Tr.t("click: %1").arg(modelData.click) : "")
+                        onClicked: page.d.barCommands = Array.from(page.d.barCommands).filter((_, i) => i !== index)
+                        Hint { text: Tr.t("Click to remove it") }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    TextField { id: ownCmd; Layout.fillWidth: true; placeholder: Tr.t("Command, e.g. date +%H:%M"); label: Tr.t("Bar button command") }
+                    TextField { id: ownEvery; Layout.preferredWidth: 70; placeholder: Tr.t("secs"); label: Tr.t("Run it again every, seconds") }
+                    TextField { id: ownClick; Layout.fillWidth: true; placeholder: Tr.t("On click (optional)"); label: Tr.t("Bar button click command") }
+                    Button {
+                        text: Tr.t("Add")
+                        enabled: ownCmd.text.trim() !== ""
+                        onClicked: {
+                            page.d.barCommands = Array.from(page.d.barCommands || []).concat([{ command: ownCmd.text.trim(), every: Math.max(0, parseInt(ownEvery.text) || 0), click: ownClick.text.trim() }]);
+                            ownCmd.text = ""; ownEvery.text = ""; ownClick.text = "";
+                        }
+                    }
+                }
                 // when the bar and dock show (Services/Hiding), each choice said in full
                 Picks {
                     visible: page.d.dock
@@ -1371,7 +1464,7 @@ ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 6
                     Repeater {
-                        model: [{ id: "none", label: Tr.t("No sound") }, { id: "desktop", label: Tr.t("The computer's sound") }, { id: "mic", label: Tr.t("My microphone") }]
+                        model: [{ id: "none", label: Tr.t("No sound") }, { id: "desktop", label: Tr.t("The computer's sound") }, { id: "mic", label: Tr.t("My microphone") }, { id: "both", label: Tr.t("Both, on two tracks") }]
                         Choice {
                             required property var modelData
                             text: modelData.label

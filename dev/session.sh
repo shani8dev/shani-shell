@@ -57,6 +57,9 @@ install -Dm644 /work/data/pam.d/shani-lock /etc/pam.d/shani-lock
 # face/fingerprint on the lock screen: "set up" while /tmp/bio-available exists, and a
 # face "seen" while /tmp/face-match does (the biometric conversation's pam_exec)
 export SHANI_BIOMETRIC_PROBE="test -e /tmp/bio-available"
+# lyrics from a local stand-in for lrclib.net (dev/shell-test.sh serves it)
+export SHANI_LYRICS_URL=http://127.0.0.1:8799/api/search
+export SHANI_WALLHAVEN_URL=http://127.0.0.1:8799/api/v1/search
 printf '#!/bin/sh\ntest -e /tmp/face-match\n' > /usr/local/bin/fake-face && chmod +x /usr/local/bin/fake-face
 printf 'auth sufficient pam_exec.so quiet /usr/local/bin/fake-face\nauth requisite pam_deny.so\n' > /etc/pam.d/shani-lock-biometric
 # the desktop package's input-method default (English + Hindi phonetic)
