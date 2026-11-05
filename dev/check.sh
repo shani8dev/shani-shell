@@ -12,9 +12,10 @@
 #   polkit        the polkit agent, in a systemd-booted container (real logind)
 #   admin         shani-admin.py as pkexec runs it            (needs shani-desktop-niri)
 #   setup-polkit  first-boot's pkexec rule                    (needs shani-desktop-niri)
+#   pam           the lock screen's and greeter's PAM stacks through real libpam (needs shani-desktop-niri)
 #   render[=mode] every surface to PNG in out/renders; mode shell|greeter|setup|all
 #   showcase      restage the README's two pictures in docs/ (the rest: out/showcase)
-#   all           unit shell greeter setup polkit admin setup-polkit
+#   all           unit shell greeter setup polkit admin setup-polkit pam
 #
 # --build rebuilds shani-shell-dev first (it is built anyway when missing).
 # shani-desktop-niri is looked for beside this repo in shani-pkgbuilds, or at
@@ -34,7 +35,7 @@ build() { docker build -t $IMG -f "$REPO/dev/Containerfile" "$REPO/dev" || exit 
 docker image inspect $IMG >/dev/null 2>&1 || build
 own
 [ $# -eq 0 ] && set -- all
-[ "$*" = all ] && set -- unit shell greeter setup polkit admin setup-polkit
+[ "$*" = all ] && set -- unit shell greeter setup polkit admin setup-polkit pam
 
 # a dev/ script in a plain container, the repo at /work
 box() {
@@ -50,6 +51,7 @@ run() {
         # the greeter's niri config is shani-desktop-niri's, as greetd runs it
         greeter) box -v "$DESK":/desk:ro $IMG sh /work/dev/greeter-test.sh /desk/etc/greetd/shani-niri-greeter.kdl ;;
         setup) box -v "$DESK":/desk:ro $IMG sh /work/dev/setup-test.sh /desk/etc/greetd/shani-niri-greeter.kdl ;;
+        pam) box -v "$DESK":/desk:ro $IMG sh /work/dev/pam-test.sh /desk/etc/pam.d/shani-greetd ;;
         polkit) sh "$REPO/dev/polkit-run.sh" ;;
         admin) sh "$REPO/dev/admin-test.sh" "$DESK" ;;
         setup-polkit) sh "$REPO/dev/setup-polkit-test.sh" "$DESK" ;;
