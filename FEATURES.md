@@ -18,6 +18,8 @@ covered by an automated test that drives the real shell.
 - **Face sign-in** — look at an infrared camera, like Windows Hello. Works on the
   sign-in screen and the lock screen. Set up in five guided looks.
 - **Fingerprint** — touch the reader to unlock; enrol fingers in Settings.
+- **Security keys** (YubiKey and other FIDO keys) — register one, touch it to unlock
+  or sign in.
 - **Your password always works too**, and is still asked for changes to the system.
 - **Pick who's signing in** — your picture and name are already chosen; no user
   name to type. "Someone else" is one click away.
@@ -115,6 +117,12 @@ covered by an automated test that drives the real shell.
 - **Larger text, high contrast, reduce motion, mono audio, magnifier.**
 - **Live captions** and **read aloud** for any text.
 - **A floating assist button** (AssistiveTouch) for touch and pointer users.
+- **The whole desktop by keyboard or game controller** — every button, tile, list
+  and menu is reachable, with a clear focus ring. A controller drives the desktop
+  (A selects, B goes back, Start opens Quick Settings) and steps aside for games.
+- **Never locked out without a keyboard** — the lock screen, sign-in, setup and
+  admin prompts each have an on-screen keyboard, which opens by itself when no
+  keyboard is connected. Hide it to see the whole screen; a small button brings it back.
 - **Every keyboard and laptop key works** — screen and keyboard brightness,
   touchpad on/off, airplane mode, display, calculator, search, mail, browser,
   files, settings, lock.
@@ -157,8 +165,20 @@ covered by an automated test that drives the real shell.
 - **Send and receive files over Bluetooth**, each asked first.
 - **Share your Wi-Fi** as a QR code a phone's camera joins from.
 - **Run an app on the faster graphics card** on laptops with two.
-- **Gaming mice, game controllers, drawing tablets, touchscreens** and **sensors**
-  (light, rotation, compass, GPS) are recognised.
+- **Plug something in and it says hello** — a monitor asks extend, mirror, only this
+  screen or **presenting** (Do Not Disturb and no sleep until it's unplugged); a camera
+  offers to import photos; a phone opens its files; a drawing tablet asks which screen;
+  a controller shows its battery; a security key offers sign-in; a scanner offers to
+  scan; MIDI, capture cards, serial boards, card readers, braille displays and eGPUs
+  are named, each with one next step.
+- **Gaming mice** — DPI, polling rate and buttons, picked from the mouse's own options.
+- **Game controllers** — battery and a live button test.
+- **Drawing tablets** — draw on one screen, the screen you're working on, or left-handed.
+- **Sound follows you** — plug in headphones and an on-screen notice says where the
+  sound went.
+- **A convertible folded into tablet mode** brings up the screen keyboard.
+- **A slow charger is called out** when the battery keeps draining while plugged in.
+- **Sensors** (light, rotation, compass, GPS) are recognised.
 
 ## Power that thinks ahead
 
@@ -217,16 +237,3 @@ covered by an automated test that drives the real shell.
 - **A task manager** a click from the bar's CPU chip, refreshing only while it's open.
 - Every release is checked for **idle cost, memory, open speed, leaks and startup
   time** by the test suite.
-
----
-
-## Coming next
-
-Being built now, not yet shipping:
-
-- A **greeting when you plug something in** — a monitor asks "extend, mirror or
-  present?", a camera offers to import photos, a tablet asks which screen.
-- **Security key (YubiKey) sign-in.**
-- **Gaming mouse settings** (DPI, buttons) and a **game controllers** page.
-- **The whole desktop by keyboard or game controller** — every control reachable.
-- **Unlock with only a mouse** when a keyboard breaks.
