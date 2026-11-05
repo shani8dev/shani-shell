@@ -426,7 +426,7 @@ ShellRoot {
                 workspaces: Niri.workspaces.length,
                 focusedWorkspace: (Niri.workspaces.find(w => w.is_focused) || {}).idx,
                 windows: Object.keys(Niri.windows).length,
-                focusedTitle: Niri.focusedWindow ? Niri.focusedWindow.title : null,
+                focusedTitle: Niri.focusedWindow ? Niri.focusedTitle : null,
                 layout: Niri.layout,
                 chronoa: Chronoa.state, chronoaOpen: Chronoa.open,
                 bridge: Bridge.connected,

@@ -14,6 +14,11 @@ Singleton {
     property var windows: ({})           // id -> window
     property var focusedWindowId: null
     readonly property var focusedWindow: focusedWindowId === null ? null : (windows[focusedWindowId] || null)
+    // the focused window's title, kept current also through title-only changes
+    // (which leave `windows` itself alone - see handle())
+    property string focusedTitle: ""
+    onFocusedWindowChanged: focusedTitle = focusedWindow ? (focusedWindow.title || "") : ""
+    signal windowTitleChanged(var id, string title)
     readonly property string focusedOutput: {
         const ws = workspaces.find(w => w.is_focused);
         return ws ? ws.output : "";
@@ -249,6 +254,9 @@ Singleton {
         return !!w;
     }
 
+    function sameButTitle(a, b) {
+        return JSON.stringify(Object.assign({}, a, { title: "" })) === JSON.stringify(Object.assign({}, b, { title: "" }));
+    }
     function handle(ev) {
         if (ev.WorkspacesChanged) {
             workspaces = ev.WorkspacesChanged.workspaces.slice().sort((a, b) => a.output === b.output ? a.idx - b.idx : (a.output < b.output ? -1 : 1));
@@ -283,6 +291,20 @@ Singleton {
             focusedWindowId = focused;
         } else if (ev.WindowOpenedOrChanged) {
             const w = ev.WindowOpenedOrChanged.window;
+            // only the title changed (a terminal's clock, a download's percent):
+            // niri sends the whole window again, and a new map wakes every binding
+            // on `windows` - measured 290 ms of CPU a second for a title ticking
+            // 10 times a second behind other windows. The window is swapped in
+            // place instead; what shows a title reads focusedTitle, or looks the
+            // window up when it is drawn (Launcher, the dock's menu)
+            const old = windows[w.id];
+            if (old && old.title !== w.title && sameButTitle(old, w)) {
+                windows[w.id] = w;
+                if (w.id === focusedWindowId)
+                    focusedTitle = w.title || "";
+                windowTitleChanged(w.id, w.title || "");
+                return;
+            }
             if (!windows[w.id] && pipTitle.test(w.title || "") && !isPinned(w.id))
                 togglePinned(w.id);
             const m = Object.assign({}, windows);

@@ -94,7 +94,7 @@ PanelWindow {
             Text {
                 Layout.fillWidth: true
                 Layout.margins: 6
-                text: win.target ? (win.target.title || win.target.app_id) : ""
+                text: win.target ? ((Niri.windows[win.target.id] || win.target).title || win.target.app_id) : ""
                 color: Theme.dim
                 elide: Text.ElideRight
                 font.family: Theme.font

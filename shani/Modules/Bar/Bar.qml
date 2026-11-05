@@ -228,7 +228,7 @@ Variants {
                         }
                         Text {
                             width: Math.min(implicitWidth, titleChip.Layout.maximumWidth - 124)
-                            text: Niri.focusedWindow ? (Niri.focusedWindow.title || Niri.focusedWindow.app_id) : ""
+                            text: Niri.focusedWindow ? (Niri.focusedTitle || Niri.focusedWindow.app_id) : ""
                             color: Theme.text
                             elide: Text.ElideRight
                             font.family: Theme.font

@@ -502,7 +502,7 @@ PanelWindow {
                             model: [
                                 // its windows by title (the taskbar's window list), then the
                                 // app's own actions (Plank's and Windows' jump list)
-                                ...cell.modelData.windows.slice(0, 8).map(w => ({ label: (Niri.isMinimised(w) ? "▾ " : "") + (w.title || cell.modelData.id), show: true, sep: false,
+                                ...cell.modelData.windows.slice(0, 8).map(w => ({ label: (Niri.isMinimised(w) ? "▾ " : "") + ((Niri.windows[w.id] || w).title || cell.modelData.id), show: true, sep: false,
                                     run: () => Niri.focusWin(w) })),
                                 ...(cell.modelData.entry ? Array.from(cell.modelData.entry.actions).slice(0, 6).map((act, i) => ({ label: act.name, show: true, sep: i === 0 && cell.modelData.windows.length > 0,
                                     run: () => { Launch.app(cell.modelData.entry.id, { action: act.id }); bounce.restart(); } })) : []),
