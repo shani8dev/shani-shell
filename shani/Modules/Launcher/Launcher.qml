@@ -18,6 +18,7 @@ import Quickshell.Wayland
 import Quickshell.Widgets
 import QtQuick
 import "Calc.js" as Calc
+import "Fuzzy.js" as Fuzzy
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
@@ -88,6 +89,8 @@ PanelWindow {
     // ---- what the shell itself can do, by name -----------------------------
     LauncherActions { id: builtIn; launcher: win }
     readonly property var actions: builtIn.list
+    // the words typos are forgiven against (Fuzzy.js), made once per list, not per key
+    readonly property var actionWords: actions.map(a => Fuzzy.words(a.title))
 
     // ---- sources --------------------------------------------------------------
     // an app started through one of its actions ("New Window") is still that app used
@@ -223,6 +226,7 @@ PanelWindow {
 
     // parental controls' blocked apps are left out (AppFilter)
     readonly property var apps: DesktopEntries.applications.values.filter(a => !a.noDisplay && AppFilter.allowed(a.id))
+    readonly property var appWords: { const m = {}; for (const a of apps) m[a.id] = Fuzzy.words(a.name + " " + (a.genericName || "")); return m; }
     readonly property var categories: ["All", "Internet", "Office", "Graphics", "AudioVideo", "Development", "Utility", "System", "Game"]
     readonly property var categoryNames: ({ AudioVideo: "Media" })
 
@@ -290,7 +294,8 @@ PanelWindow {
         if (q.startsWith("="))
             return out;
 
-        const ranked = win.apps.map(a => ({ a: a, s: win.appScore(a, ql) })).filter(x => x.s > 0)
+        // a typo forgiven ("fierfox"), ranked below every exact, prefix and inside match
+        const ranked = win.apps.map(a => { const s = win.appScore(a, ql); return { a: a, s: s > 0 ? s : Fuzzy.score(win.appWords[a.id], ql) }; }).filter(x => x.s > 0)
             .map(x => ({ a: x.a, s: x.s + Math.min(15, used(x.a)) })).sort((x, y) => y.s - x.s).map(x => x.a);
         if (ranked.length) {
             const items = [];
@@ -308,7 +313,11 @@ PanelWindow {
                 const e = DesktopEntries.heuristicLookup(w.app_id || "");
                 return { kind: "window", app: e ? e.icon : w.app_id, title: w.title || w.app_id, subtitle: Niri.workspaceLabel(w.workspace_id), run: () => Niri.focusWin(w) };
             }) });
-        const acts = win.actions.filter(a => win.score(a.title, ql) > 0 || win.allWords(a.title + " " + a.words, ql)).slice(0, 6);
+        let acts = win.actions.filter(a => win.score(a.title, ql) > 0 || win.allWords(a.title + " " + a.words, ql));
+        if (acts.length < 6)
+            acts = acts.concat(win.actions.map((a, i) => ({ a: a, s: acts.indexOf(a) < 0 ? Fuzzy.score(win.actionWords[i], ql) : 0 }))
+                .filter(x => x.s > 0).sort((x, y) => y.s - x.s).map(x => x.a));
+        acts = acts.slice(0, 6);
         if (acts.length)
             out.push({ title: Tr.t("Actions"), items: acts.map(a => ({ kind: "action", icon: a.icon, title: a.title,
                 subtitle: a.state ? (a.state() ? "On — Enter turns off" : "Off — Enter turns on") : "", run: a.run })) });
