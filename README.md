@@ -7,6 +7,8 @@ selection of the screen (Lens), or the pie menu.
 
 ![desktop](docs/showcase-desktop.png)
 
+**[All features, in plain words → FEATURES.md](FEATURES.md)**
+
 | Surface | What it does |
 |---|---|
 | **Island** | Chronoa's mascot (its own art, over `org.shani.Chronoa.Mascot`) in the bar; grows to show the tool step in progress; opens into an **Approve / Deny card** when Chronoa asks; click the line to ask a question; right-click for Lens |
