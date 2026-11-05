@@ -168,10 +168,19 @@ def run(stream, out=sys.stdout):
             print(json.dumps({"event": "remove", "kind": kind, "key": key}), file=out, flush=True)
 
 
+def die_with_parent():
+    import ctypes
+    import signal
+    ctypes.CDLL(None).prctl(1, signal.SIGTERM)          # PR_SET_PDEATHSIG
+
+
 def main() -> int:
     cmd = shlex.split(os.environ["SHANI_UDEVADM"]) if os.environ.get("SHANI_UDEVADM") else MONITOR
     try:
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True, errors="replace")
+        # the monitor goes with this bridge, however it ends: a shell restarted (or
+        # killed) once left its udevadm running, an orphan holding a netlink socket -
+        # and in the tests a second reader on the events FIFO, eating events
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True, errors="replace", preexec_fn=die_with_parent)
     except OSError as e:
         print(f"plugwatch: {e}", file=sys.stderr)
         return 1

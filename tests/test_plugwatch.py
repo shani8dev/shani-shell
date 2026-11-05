@@ -77,3 +77,28 @@ def test_more_kinds_each_by_its_udev_properties():
         ("cardreader", "Alcor Micro Corp. AU9540 Smartcard Reader"),
         ("braille", "HumanWare Brailliant BI 40X"),
         ("egpu", "Navi 23 [Radeon RX 6600]")]
+
+
+def test_the_monitor_dies_with_the_bridge(tmp_path):
+    # a shell restarted once left its udevadm behind, reading the events too
+    pidfile = tmp_path / "pid"
+    p = subprocess.Popen([sys.executable, str(BRIDGE)], stdout=subprocess.PIPE, text=True,
+                         env=dict(os.environ, SHANI_UDEVADM=f"sh -c 'echo $$ > {pidfile}; exec sleep 60'"))
+    assert p.stdout.readline().strip() == '{"event": "ready"}'
+    import time
+    for _ in range(50):
+        if pidfile.exists() and pidfile.read_text().strip():
+            break
+        time.sleep(0.05)
+    child = int(pidfile.read_text())
+    p.kill()                                   # not a clean exit: SIGKILL
+    p.wait()
+    for _ in range(50):
+        try:
+            os.kill(child, 0)
+        except ProcessLookupError:
+            break
+        time.sleep(0.05)
+    else:
+        os.kill(child, 9)
+        raise AssertionError("udevadm outlived the bridge")
