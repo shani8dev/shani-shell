@@ -2055,12 +2055,11 @@ notify-send -a News "Your quiet-digest" "5 stories"; sleep 1
 rm -f /root/.config/shani-shell/notif-rules.json
 
 # ---- the shortcuts page: niri's real binds (it once listed keys bound to nothing) ---------
-if [ -f "$A11Y" ]; then
-    ipc settingsCategory input; sleep 2
-    timeout 20 python3 "$A11Y" find "^Clipboard history$" >/dev/null 2>&1 && timeout 20 python3 "$A11Y" find "^Minimise$" >/dev/null 2>&1 \
-        && result shortcuts-page-reads-niri PASS || result shortcuts-page-reads-niri FAIL
-    ipc closeAll
-fi
+# (the rows sit far down a scrolled page, out of AT-SPI's reach: the page says how many it read;
+# tests/test_niri_binds.py checks which)
+ipc settingsCategory input
+waitfor "d['shortcutsListed'] >= 20" 8 && result shortcuts-page-reads-niri PASS "$(q "['shortcutsListed']") binds" || result shortcuts-page-reads-niri FAIL "$(q "['shortcutsListed']")"
+ipc closeAll
 settings '{"customBinds": [{"key": "Mod+Alt+J", "title": "Open my files", "command": "xdg-open \"$HOME\""}]}'
 sleep 1.5
 grep -q 'Mod+Alt+J hotkey-overlay-title="Open my files"' "${XDG_CONFIG_HOME:-$HOME/.config}/niri/shani-input.kdl" && niri validate -c "${NIRI_CONFIG:-/work/dev/niri/session.kdl}" >/dev/null 2>&1 \
@@ -2085,7 +2084,7 @@ def block(word, x=10, y=10, h=60, w=36, gap=18):
     return out
 print(json.dumps([block('HELL'), block('TELL', y=10)]))" > /tmp/hw.json
 typein written-in-term /tmp/written 9
-ipc oskWrite "$(cat /tmp/hw.json)"
+ipc oskWrite /tmp/hw.json
 i=0; until [ -s /tmp/written ] || [ $i -ge 40 ]; do sleep 0.25; i=$((i+1)); done
 [ "$(tr '\r' '\n' < /tmp/written | tr -d ' ' | tr 'a-z' 'A-Z')" = "$(printf 'HELL\nTELL')" ] \
     && result handwriting-typed PASS "$(q "['oskWritten']" | tr '\n' '/')" || result handwriting-typed FAIL "got '$(cat /tmp/written)', read '$(q "['oskWritten']")'"

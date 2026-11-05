@@ -221,7 +221,9 @@ ShellRoot {
         }
         function nextPlayer() { Media.cycle(); }
         // the handwriting pad's reader, fed strokes directly (the tests have no pen)
-        function oskWrite(rowsJson: string) { Osk.recognize(JSON.parse(rowsJson)); }
+        // a file, not the strokes: `qs ipc call` splits its arguments at commas,
+        // so a JSON argument arrived as a dozen pieces and was refused
+        function oskWrite(path: string) { Osk.recognizeFile(path); }
         function wallpaperSearch(q: string) { OnlineWalls.search(q); }
         function wallpaperFetch(i: int) { OnlineWalls.fetch(OnlineWalls.results[i]); }
         function renameWorkspace(idx: int, name: string) { Niri.renameWorkspaceAt(idx, name); }
@@ -439,7 +441,7 @@ ShellRoot {
                 capsLock: LockKeys.caps, numLock: LockKeys.num,
                 screenSaver: ScreenSaver.active,
                 desktopIconsShown: Settings.data.desktopIcons,
-                mediaPlayer: Media.current ? Media.current.identity : '', notifEarlier: Notifs.earlier.length, dndUntil: Settings.data.dndUntil, oskWritten: Osk.lastWritten, sleepVerb: Power.sleepVerb, compassHeading: Compass.heading, onlineWalls: OnlineWalls.results.length, onlineWallSaved: OnlineWalls.lastSaved, lyricsLines: Lyrics.lines.length, trashCount: Ui.trashCount, shotCountdown: Screenshots.countdown, shelfParked: Shelf.parked, shelfItems: Shelf.items.map(x => x.name),
+                mediaPlayer: Media.current ? Media.current.identity : '', notifEarlier: Notifs.earlier.length, dndUntil: Settings.data.dndUntil, oskWritten: Osk.lastWritten, shortcutsListed: Ui.shortcutsListed, sleepVerb: Power.sleepVerb, compassHeading: Compass.heading, onlineWalls: OnlineWalls.results.length, onlineWallSaved: OnlineWalls.lastSaved, lyricsLines: Lyrics.lines.length, trashCount: Ui.trashCount, shotCountdown: Screenshots.countdown, shelfParked: Shelf.parked, shelfItems: Shelf.items.map(x => x.name),
                 layoutSwitcher: Ui.layoutSwitcher, layoutPreset: Settings.data.layoutPreset, dockOn: Settings.data.dock, dockHides: Settings.data.dockVisibility === "hide", dockMode: Settings.data.dockVisibility, barMode: Settings.data.barVisibility, dockShown: Hiding.dockShown[Niri.focusedOutput] !== false, barShown: Hiding.barShown[Niri.focusedOutput] !== false, dockHintSeen: Settings.data.dockHintSeen, desktopIconsOn: Settings.data.desktopIcons, winWidth: Settings.data.winDefaultWidth, widgets: Array.from(Settings.data.desktopWidgets),
                 fileActions: FileActions.actions.map(x => x.id), fileActionLast: FileActions.last,
                 notifLastSound: Notifs.lastSound,

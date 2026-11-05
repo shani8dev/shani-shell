@@ -42,6 +42,11 @@ Singleton {
         reader.command = ["sh", "-c", 'printf "%s" "$1" | python3 "$2" "$3"', "sh", JSON.stringify(rows), writeTool, writeLang];
         reader.running = true;
     }
+    // strokes already in a file (the IPC's way in: JSON cannot pass through its arguments)
+    function recognizeFile(path) {
+        reader.command = ["sh", "-c", 'python3 "$1" "$2" < "$3"', "sh", writeTool, writeLang, path];
+        reader.running = true;
+    }
     Process {
         id: reader
         stdout: StdioCollector {
@@ -49,15 +54,17 @@ Singleton {
                 let rows = [];
                 try { rows = JSON.parse(text).rows.filter(r => r !== ""); } catch (e) {}
                 root.lastWritten = rows.join("\n");
-                rows.forEach((r, i) => {
-                    if (i > 0)
-                        root.press("Return");
-                    // one letter with Ctrl or Alt armed is a shortcut (Ctrl + a written c copies)
-                    if ((root.ctrl || root.alt) && r.length === 1)
-                        root.press(r.toLowerCase());
-                    else
-                        root.press(r);
-                });
+                // one letter with Ctrl or Alt armed is a shortcut (Ctrl + a written c copies)
+                if (rows.length === 1 && (root.ctrl || root.alt) && rows[0].length === 1) {
+                    root.press(rows[0].toLowerCase());
+                    return;
+                }
+                // the rows and the Returns between them one after another: a wtype per
+                // row started side by side and interleaved them (HELL + TELL typed HTEELLLL)
+                if (!rows.length)
+                    return;
+                Quickshell.execDetached(["sh", "-c", 'n=; for r; do [ -z "$n" ] || wtype -k Return; n=1; wtype -- "$r"; done', "sh"].concat(rows));
+                root.typed = rows[rows.length - 1].slice(-16);
             }
         }
     }

@@ -51,6 +51,7 @@ Singleton {
         settingsOpen = true;
     }
     property int faceRev: 0                        // bumped when ~/.face changes
+    property int shortcutsListed: 0                // binds Settings > Keyboard shortcuts read from niri
     property bool tour: false
     property int trashCount: 0                     // the dock's trash tile reports it (for the tests)                      // the tour, opened again by hand
     property string modemDialog: ""                // "pin" | "sms" (ModemDialog)
