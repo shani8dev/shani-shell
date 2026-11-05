@@ -145,6 +145,9 @@ export NIRI_SOCKET=$(ls "$XDG_RUNTIME_DIR"/niri.wayland-1.*.sock | head -1)
 sleep 0.5
 # the wallpapers where the package installs them
 mkdir -p /usr/share/backgrounds/shani && cp /work/assets/shani-dark.jpg /work/assets/shani-night.jpg /work/assets/shani-light.jpg /usr/share/backgrounds/shani/
+# "What's new" after an update: the shipped summary where the package puts
+# it, and a version file the whats-new shell part can bump
+mkdir -p /usr/share/shani && cp /work/data/whats-new.md /usr/share/shani/ && printf '0.0.0-test\n' > /etc/shani-version
 # idle off from the start (the tests drive the shell over IPC, which is not input).
 # More for this run: SHANI_SETTINGS_EXTRA, JSON merged over it (python3, when here).
 printf '{"dimAfter": 0, "lockAfter": 0, "screenOffAfter": 0, "lockAfterBattery": 0, "screenOffAfterBattery": 0, "startHintsDone": true}' > "$SHANI_SHELL_SETTINGS"

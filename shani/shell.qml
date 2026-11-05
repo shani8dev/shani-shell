@@ -105,7 +105,7 @@ ShellRoot {
     Binding { target: Ui; property: "screen"; value: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0] }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WorldClock, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode]
+    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WorldClock, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew]
 
     IpcHandler {
         target: "shani"
@@ -190,6 +190,7 @@ ShellRoot {
         // the same path a tap takes (tests drive the keyboard with it)
         function oskPress(key: string) { Osk.press(key); }
         function oskLanguage() { Osk.nextLanguage(); }
+        function whatsNewCheck() { WhatsNew.check(); }
         function settings() { Ui.openSettings(""); }
         function settingsCategory(cat: string) { Ui.openSettings(cat); }
         // the keyboard into the dock or the bar (a key binds these; Escape gives it back)
@@ -376,6 +377,7 @@ ShellRoot {
                 players: Audio.players.length,
                 screenShared: Audio.screenShared,
                 updates: Updates.summary,
+                whatsNewVersion: WhatsNew.currentVersion, whatsNewShown: WhatsNew.shownVersion,
                 drives: Drives.drives.length,
                 outputs: Displays.outputs.length,
                 displays: Displays.outputs.map(o => o.name + ":" + o.scale + "@" + o.x + "," + o.y).join(" "),
