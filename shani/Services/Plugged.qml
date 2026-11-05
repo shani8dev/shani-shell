@@ -3,9 +3,13 @@ pragma Singleton
 // is, with the one obvious next step as its button(s).
 //   a monitor           Extend / Mirror / Only this screen (Displays, on probation)
 //   a drawing tablet    Use it on this screen (tabletOutput)
-//   a game controller   its name and battery (UPower)
+//   a game controller   its name and battery (UPower); a racing wheel or
+//                       flight stick is shown as one, with a force-feedback
+//                       check where the kernel offers it
 //   a security key      Use it to sign in (Settings > Your account)
 //   a scanner           Scan a document (Simple Scan)
+//   + clicker, capture card, MIDI, card reader, serial board, braille
+//     display, eGPU and cameras/phones below, one sentence each
 // Event-driven: bridge/plugwatch.py is one `udevadm monitor` (udev's own events,
 // so what was there at login is never news), and monitors come from Displays,
 // which follows wl_outputs and drm hotplugs. Each device is greeted once a session.
@@ -85,6 +89,12 @@ Singleton {
             body = b >= 0 ? Tr.t("Connected. Battery %1 %", b) : Tr.t("Connected.");
             icon = "input-gaming";
             actions = [["test", Tr.t("Test the buttons")]];
+            // a racing wheel or flight stick is still shown as a controller —
+            // and it gets a force-feedback check, where the kernel offers one
+            if (/wheel|racing|thrustmaster|fanatec|flight|hotas|driving|\byoke\b|pedal/i.test(name)) {
+                body = Tr.t("A racing wheel or flight stick. Connected.");
+                actions.push(["ff", Tr.t("Test force feedback")]);
+            }
         } else if (kind === "security-key") {
             title = Tr.t("%1 plugged in", name);
             body = Tr.t("A security key. Touch it to sign in instead of typing your password.");
@@ -122,7 +132,7 @@ Singleton {
             body: () => Settings.data.iphoneNoteDone ? Tr.t("An iPhone. Trust this computer on it to see its files.")
                 : Tr.t("An iPhone. Trust this computer on it to see its files. Calls and texts are not available for iPhone."),
             arrived: () => Settings.data.iphoneNoteDone = true },
-        "clicker": { icon: "x-office-presentation", body: Tr.t("Your clicker moves slides.") },
+        "clicker": { icon: "x-office-presentation", body: Tr.t("Page Up/Down move your slides.") },
         "capture": { icon: "camera-video", body: Tr.t("A capture card: what it receives can be shown and recorded."), action: ["camera", Tr.t("Open in Camera")] },
         "midi": { icon: "audio-midi", body: Tr.t("A MIDI device. Apps can use it now.") },
         "serial": { icon: "utilities-terminal", body: name => Tr.t("Arduino or serial device connected - %1", name.split(" - ").pop()), action: ["copy", Tr.t("Copy the port name")] },
@@ -176,6 +186,10 @@ Singleton {
             Settings.data.tabletOutput = Niri.focusedOutput || (Displays.outputs[0] || {}).name || "";
         else if (kind === "controller" && action === "test")
             Ui.openSettings("input");
+        else if (kind === "controller" && action === "ff")
+            // force feedback where the kernel offers it: an evdev node whose
+            // capabilities/ff bitmask is non-zero (sysfs, no extra tooling)
+            Quickshell.execDetached(["sh", "-c", 'for f in /sys/class/input/event*/device/capabilities/ff; do [ -e "$f" ] && [ -n "$(tr -d "0" < "$f" 2>/dev/null)" ] && { notify-send -a Devices -i input-gaming "Force feedback works" "This wheel can push back in games."; exit 0; }; done; notify-send -a Devices -i input-gaming "No force feedback" "This device does not offer force feedback to the kernel."']);
         else if (kind === "security-key" && action === "signin")
             Ui.openSettings("account");
         else if (kind === "scanner" && action === "scan")

@@ -28,6 +28,17 @@ def test_a_controller_without_its_motion_sensors():
     assert [(x["kind"], x["name"]) for x in e] == [("controller", "DualSense Wireless Controller")]
 
 
+def test_a_racing_wheel_is_shown_as_a_controller_once():
+    e = events("wheel")
+    assert [(x["kind"], x["name"]) for x in e] == [("controller", "Thrustmaster T300RS Wheel")]
+
+
+def test_wheels_get_a_force_feedback_check_and_clickers_their_words():
+    plugged = (ROOT / "shani" / "Services" / "Plugged.qml").read_text()
+    assert "Test force feedback" in plugged and "capabilities/ff" in plugged
+    assert "Page Up/Down move your slides" in plugged
+
+
 def test_a_security_key_and_a_scanner_by_udev_properties():
     assert [(x["kind"], x["name"]) for x in events("security-key", "scanner")] == [
         ("security-key", "YubiKey OTP+FIDO+CCID"), ("scanner", "Seiko Epson Corp. GT-F730 [GT-S630/Perfection V33/V330 Photo]")]

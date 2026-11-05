@@ -1,0 +1,24 @@
+UDEV  [9800.100200] add      /devices/pci0000:00/0000:00:14.0/usb1/1-11/1-11:1.0/0003:044F:B65E.0001/input/input40 (input)
+ACTION=add
+DEVPATH=/devices/pci0000:00/0000:00:14.0/usb1/1-11/1-11:1.0/0003:044F:B65E.0001/input/input40
+SUBSYSTEM=input
+PRODUCT=3/44f/b65e/111
+NAME="Thrustmaster T300RS Wheel"
+PHYS="usb-0000:00:14.0-11/input0"
+UNIQ=""
+SEQNUM=7010
+ID_INPUT=1
+ID_INPUT_JOYSTICK=1
+ID_BUS=usb
+
+UDEV  [9800.100900] add      /devices/pci0000:00/0000:00:14.0/usb1/1-11/1-11:1.0/0003:044F:B65E.0001/input/input41 (input)
+ACTION=add
+DEVPATH=/devices/pci0000:00/0000:00:14.0/usb1/1-11/1-11:1.0/0003:044F:B65E.0001/input/input41
+SUBSYSTEM=input
+PRODUCT=3/44f/b65e/111
+NAME="Thrustmaster T300RS Wheel Pedals"
+UNIQ=""
+SEQNUM=7012
+ID_INPUT=1
+ID_INPUT_JOYSTICK=1
+ID_BUS=usb
