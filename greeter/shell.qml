@@ -374,6 +374,7 @@ ShellRoot {
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: { root.otherUser = false; userField.text = who.modelData.name; passField.input.forceActiveFocus(); root.faceTried = false; root.lookForFace(); }
                                 }
+                                KeyFocus { onActivated: { root.otherUser = false; userField.text = who.modelData.name; passField.input.forceActiveFocus(); root.faceTried = false; root.lookForFace(); } }
                             }
                         }
                     }

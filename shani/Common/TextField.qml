@@ -38,6 +38,9 @@ Rectangle {
         Accessible.labelledBy: a11yLabel
         clip: true
         onAccepted: root.accepted()
+        // a field is one line: Down / Up go on to the next / previous control, as in a list
+        Keys.onDownPressed: { const n = input.nextItemInFocusChain(true); if (n) n.forceActiveFocus(Qt.TabFocusReason); }
+        Keys.onUpPressed: { const n = input.nextItemInFocusChain(false); if (n) n.forceActiveFocus(Qt.BacktabFocusReason); }
         Text {
             anchors.verticalCenter: parent.verticalCenter
             visible: input.text === ""

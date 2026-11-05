@@ -62,20 +62,9 @@ Rectangle {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        focus: true
         onClicked: root.clicked()
     }
-    Rectangle {
-        id: focusRing
-        anchors.fill: parent
-        anchors.margins: -2
-        radius: parent.radius + 2
-        color: "transparent"
-        border.color: Theme.accent
-        border.width: 2
-        visible: root.activeFocus
-        z: 10
-    }
+    KeyFocus { onActivated: root.clicked() }
     Row {
         id: tail
         anchors.right: parent.right

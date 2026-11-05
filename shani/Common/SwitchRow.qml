@@ -72,6 +72,7 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: root.toggled(!root.checked)
             }
+            KeyFocus { name: root.text; onActivated: root.toggled(!root.checked) }
         }
 
         IconButton {

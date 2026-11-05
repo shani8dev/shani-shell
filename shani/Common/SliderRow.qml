@@ -72,6 +72,15 @@ RowLayout {
             onPositionChanged: m => pressed && at(m.x)
             onWheel: w => root.moved(Math.max(0, Math.min(1, root.value + (w.angleDelta.y > 0 ? 0.05 : -0.05))))
         }
+        // keyboard and controller: Left / Right move it by 5 %
+        KeyFocus {
+            // what it sets, said plainly: the icon names it
+            name: root.Accessible.name || (/volume|audio|speaker/.test(root.icon) ? Tr.t("Volume") : /mic/.test(root.icon) ? Tr.t("Microphone")
+                : /bright|display/.test(root.icon) ? Tr.t("Brightness") : root.icon)
+            slider: true
+            onStep: dir => root.moved(Math.max(0, Math.min(1, root.value + dir * 0.05)))
+            onActivated: root.iconClicked()
+        }
     }
 
     Text {

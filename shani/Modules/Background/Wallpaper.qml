@@ -44,7 +44,20 @@ Variants {
         color: Theme.bg
         WlrLayershell.namespace: "shani-wallpaper"
         WlrLayershell.layer: WlrLayer.Background
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+        // the desktop menu takes the keyboard while it is open (arrows, Enter, Escape)
+        WlrLayershell.keyboardFocus: deskMenu.visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+        // from the keyboard (IPC desktopMenu): in the middle of the screen being worked on
+        Connections {
+            target: Ui
+            function onDesktopMenuChanged() {
+                if (!Ui.desktopMenu || scr.modelData.name !== (Niri.focusedOutput || Quickshell.screens[0].name))
+                    return;
+                Ui.desktopMenu = false;
+                deskMenu.x = (deskMenu.parent.width - deskMenu.width) / 2;
+                deskMenu.y = (deskMenu.parent.height - deskMenu.height) / 3;
+                deskMenu.visible = true;
+            }
+        }
 
         // two images, so a change fades from the old picture to the new one
         property string shown: ""
@@ -77,6 +90,9 @@ Variants {
         Glass {
             id: deskMenu
             visible: false
+            focus: visible
+            onVisibleChanged: if (visible) Ui.focusFirst(deskMenu)
+            Keys.onEscapePressed: deskMenu.visible = false
             strong: true
             radius: 12
             z: 11

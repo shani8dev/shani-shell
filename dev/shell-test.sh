@@ -2184,6 +2184,79 @@ fi
 rm -f /tmp/fido-key
 ipc closeAll
 
+echo "root:shani-test" | chpasswd   # (set earlier in the suite; again for running this part alone)
+# ---- keyboard: every surface answers arrows, Enter and Escape (Common/KeyFocus) ----------
+# the sidebar: opened, focus on its first control; Tab to the tiles, arrows across, Enter toggles
+ipc closeAll; sleep 0.5
+ipc toggleControlCenter
+waitfor "d['controlCenter'] and d['navFocus'] != ''" 4 && result keys-sidebar-first-focus PASS "$(q "['navFocus']")" || result keys-sidebar-first-focus FAIL "$(q "['navFocus']")"
+wtype -k Tab; sleep 0.3; wtype -k Tab; sleep 0.3
+first=$(q "['navFocus']")
+wtype -k Right; sleep 0.3; second=$(q "['navFocus']")
+dnd0=$(q "['dnd']")
+# back to Do Not Disturb (the first tile here)
+i=0; while [ "$(q "['navFocus']")" != "Do Not Disturb" ] && [ $i -lt 12 ]; do wtype -k Left; sleep 0.2; i=$((i+1)); done
+wtype -k Return; sleep 0.6
+[ "$first" != "$second" ] && [ "$(q "['dnd']")" != "$dnd0" ] && result keys-sidebar-tiles PASS "$first -> $second, Enter toggled Do Not Disturb" || result keys-sidebar-tiles FAIL "$first -> $second, dnd $dnd0 -> $(q "['dnd']")"
+wtype -k Return; sleep 0.4
+wtype -k Escape
+waitfor "not d['controlCenter']" 3 && result keys-sidebar-escape-closes PASS || result keys-sidebar-escape-closes FAIL
+# the dock: Mod+T's IPC, arrows along it, Escape gives the keyboard back
+ipc focusDock
+waitfor "d['dockFocus'] and d['navFocus'] == 'Multitasking view'" 4
+wtype -k Right; sleep 0.3
+[ "$(q "['navFocus']")" = "Show the desktop" ] && result keys-dock PASS || result keys-dock FAIL "$(q "['navFocus']")"
+wtype -k Escape
+waitfor "not d['dockFocus']" 3 && result keys-dock-escape PASS || result keys-dock-escape FAIL
+# a notification's action from the keyboard, in the sidebar's list
+rm -f /tmp/kb-acted; (notify-send -A "go=Open the report" "Keyboard reaches me" "an action" > /tmp/kb-acted) &
+waitfor "'Keyboard reaches me' in d['notificationSummaries']" 4
+ipc toggleControlCenter; sleep 1
+i=0; while [ "$(q "['navFocus']")" != "Open the report" ] && [ $i -lt 60 ]; do wtype -k Down; sleep 0.1; i=$((i+1)); done
+wtype -k Return; sleep 1
+[ "$(cat /tmp/kb-acted)" = go ] && result keys-notification-action PASS "$i arrows" || result keys-notification-action FAIL "$(q "['navFocus']")"
+ipc closeAll
+# Settings: the category list by arrows, Enter opens one, Escape closes
+ipc settingsCategory personal; sleep 1.5
+wtype -k Down; sleep 0.3; wtype -k Down; sleep 0.3; wtype -k Return
+waitfor "d['settingsCat'] == 'notifications'" 3 && result keys-settings-category PASS || result keys-settings-category FAIL "$(q "['navFocus'], d['settingsCat']")"
+wtype -k Escape
+waitfor "not d['settingsOpen']" 3 && result keys-settings-escape PASS || result keys-settings-escape FAIL
+# the bar: Mod+B's IPC, the workspaces and chips in a row
+ipc focusBar
+waitfor "d['barFocus'] and d['navFocus'] != ''" 4; b1=$(q "['navFocus']")
+wtype -k Right; sleep 0.3; b2=$(q "['navFocus']")
+[ -n "$b1" ] && [ "$b1" != "$b2" ] && result keys-bar PASS "$b1 -> $b2" || result keys-bar FAIL "$b1 -> $b2"
+wtype -k Escape; waitfor "not d['barFocus']" 3
+# the lock screen: Tab from the password field reaches its buttons (the power keys)
+ipc lock; waitfor "d['locked']" 6; sleep 1
+i=0; while [ -z "$(q "['navFocus']" | grep -E 'Restart|Power off|Suspend|Sleep')" ] && [ $i -lt 30 ]; do wtype -k Tab; sleep 0.15; i=$((i+1)); done
+q "['navFocus']" | grep -qE 'Restart|Power off|Suspend|Sleep' && result keys-lock-buttons PASS "$(q "['navFocus']")" || result keys-lock-buttons FAIL "$(q "['navFocus']")"
+# typing while a button has the focus still goes into the password
+i=0; until [ "$(q "['locked']")" = False ] || [ $i -ge 3 ]; do wtype "shani-test" -k Return; sleep 1.5; i=$((i+1)); done
+
+# ---- a game controller drives the desktop (bridge/gamepad.py nav, a FIFO for the pad) ----
+cp /work/dev/input-devices.txt /tmp/input-devices
+rm -f /tmp/fake-input/event21 /tmp/fake-input/event23; mkfifo /tmp/fake-input/event21 /tmp/fake-input/event23
+exec 7<>/tmp/fake-input/event21 8<>/tmp/fake-input/event23      # held open: the pads stay plugged in
+sed 's/054C:0CE6/054C:0DF2/; s|5/54c/ce6|5/54c/df2|' /work/dev/udev/controller.txt > /tmp/udev-events
+waitfor "d['gamepadNavRunning']" 6 && result pad-nav-starts-with-a-controller PASS || result pad-nav-starts-with-a-controller FAIL
+press() { python3 -c "import struct,sys; sys.stdout.buffer.write(struct.pack('llHHi',0,0,1,int(sys.argv[1],16),1)+struct.pack('llHHi',0,0,1,int(sys.argv[1],16),0))" "$1" >&7; }
+press 0x13b                                                       # Start: the sidebar
+waitfor "d['controlCenter'] and d['navFocus'] != ''" 4 && f1=$(q "['navFocus']")
+press 0x221; sleep 0.5; f2=$(q "['navFocus']")                    # d-pad down
+[ -n "$f1" ] && [ "$f1" != "$f2" ] && result pad-nav-start-and-dpad PASS "$f1 -> $f2" || result pad-nav-start-and-dpad FAIL "$(q "['controlCenter'], d['gamepadLast']") $f1 -> $f2"
+press 0x131                                                       # B: back out
+waitfor "not d['controlCenter']" 3 && result pad-nav-b-goes-back PASS || result pad-nav-b-goes-back FAIL
+grep -q "Your controller moves around the desktop" /work/out/logs/qs.log 2>/dev/null || true
+waitfor "'Your controller moves around the desktop' in d['notificationSummaries']" 3 && result pad-nav-hint-once PASS || result pad-nav-hint-once FAIL
+# off in Settings: the reader stops
+settings '{"gamepadNav": false, "gamepadHintDone": true}'
+waitfor "not d['gamepadNavRunning']" 4 && result pad-nav-setting-off-stops-it PASS || result pad-nav-setting-off-stops-it FAIL
+settings '{}'
+exec 7>&- 8>&-
+: > /tmp/input-devices
+
 # ---- dynamic lock: the paired phone goes away → locked after the grace ---------------
 settings '{"dynamicLockDevice": "AA:BB:CC:DD:EE:FF"}'
 waitfor "d['dynamicLockDevice'] == 'AA:BB:CC:DD:EE:FF' and not d['locked']" 6 || true

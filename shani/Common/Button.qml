@@ -64,19 +64,8 @@ Rectangle {
         font.pixelSize: 12 * Theme.fontScale
         font.weight: Font.DemiBold
     }
-    // ---- visible focus ring for keyboard navigation --------------------
-    Rectangle {
-        id: focusRing
-        anchors.fill: parent
-        anchors.margins: -2
-        radius: parent.radius + 2
-        color: "transparent"
-        border.color: Theme.accent
-        border.width: 2
-        opacity: area.containsMouse ? 0 : (parent.activeFocus ? 1 : 0)
-        visible: parent.activeFocus
-        z: 20
-    }
+    // keyboard and controller: Enter / Space press it
+    KeyFocus { enabled: root.enabled && root.visible; onActivated: root.clicked() }
 
     MouseArea {
         id: area
@@ -87,6 +76,5 @@ Rectangle {
         onPressed: { ripple.width = root.width * 2.4; ripple.height = ripple.width }
         onReleased: { ripple.width = 0; ripple.height = 0 }
         onClicked: root.clicked()
-        focus: true
     }
 }

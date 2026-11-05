@@ -31,6 +31,7 @@ ColumnLayout {
             Text { Layout.fillWidth: true; text: root.hint; elide: Text.ElideRight; color: Theme.faint; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
         }
         MouseArea { id: head; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.open = !root.open }
+        KeyFocus { onActivated: root.open = !root.open }
     }
     ColumnLayout {
         id: inner

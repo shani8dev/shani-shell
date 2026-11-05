@@ -52,6 +52,7 @@ ColumnLayout {
             font.pixelSize: 13 * Theme.fontScale
             font.weight: Font.DemiBold
             MouseArea { anchors.fill: parent; onClicked: root.offset = 0 }
+            KeyFocus { onActivated: root.offset = 0 }
         }
         IconButton { icon: "go-previous"; size: 26; onClicked: root.offset-- }
         IconButton { icon: "go-next"; size: 26; onClicked: root.offset++ }

@@ -31,6 +31,7 @@ selection of the screen (Lens), or the pie menu.
 | **Settings** | a page in the sidebar: wallpaper picker, bar and dock items, blur, reduce motion, night-light temperature, idle timings |
 | **Lock / idle** | ext-session-lock + PAM (`/etc/pam.d/shani-lock`); dim → lock → screen off → suspend; `loginctl lock-session`; locks **before** sleep (logind delay inhibitor) |
 | **Plugged in** | a device that arrives during the session is greeted once with its next step: a monitor (extend / mirror / only this screen, on probation), a drawing tablet (use it on this screen), a game controller (name, battery, test the buttons), a security key (sign in with it - pam-u2f on the lock and sign-in screens), a scanner (Simple Scan) — one `udevadm monitor`, no polling; Settings also has a gaming mouse's DPI, polling rate and buttons (libratbag) and the game controllers |
+| **Keyboard and controller** | every surface answers the keys: arrows in reading order (the tiles in 2-D), Enter / Space press, the Menu key right-clicks, Tab jumps between regions, Escape goes back, an accent ring shows where you are (Common/KeyFocus); Super+T the dock, Super+B the bar, Super+F10 the desktop menu. A game controller drives the same (d-pad/stick arrows, A Enter, B back, X menu, Y launcher, Start Quick Settings, Select overview, LB/RB workspaces) while no game is fullscreen; read, never grabbed |
 | **Polkit agent**, **OSD**, **notifications** (DND lets critical through), **greeter** (greetd, same theme, remembers the user) | |
 
 ![sidebar](docs/showcase-sidebar.png)

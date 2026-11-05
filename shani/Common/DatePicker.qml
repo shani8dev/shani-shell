@@ -41,6 +41,7 @@ ColumnLayout {
             font.pixelSize: 13 * Theme.fontScale
             font.weight: Font.DemiBold
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.current = new Date() }
+            KeyFocus { onActivated: root.current = new Date() }
         }
         IconButton { icon: "go-next"; size: 26; onClicked: current = new Date(current.getFullYear(), current.getMonth() + 1, 1) }
     }
@@ -96,6 +97,7 @@ ColumnLayout {
                         root.picked(d);
                     }
                 }
+                KeyFocus { onActivated: { const d = root.format(parent.day); root.value = d; root.picked(d); } }
             }
         }
     }

@@ -33,6 +33,7 @@ FloatingWindow {
         // ---- the categories -------------------------------------------------------
         Rectangle {
             id: side
+            objectName: "region:categories"
             width: 260
             anchors { top: parent.top; bottom: parent.bottom; left: parent.left }
             color: Settings.blurWanted ? Theme.alpha(Theme.surface1, 0.55) : Theme.surface1
@@ -113,6 +114,7 @@ FloatingWindow {
                             }
                         }
                         MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Ui.settingsCat = row.modelData.id }
+                        KeyFocus { name: row.modelData.label; onActivated: Ui.settingsCat = row.modelData.id }
                     }
                 }
             }
@@ -121,6 +123,7 @@ FloatingWindow {
         // ---- the chosen one ---------------------------------------------------------
         Flickable {
             id: content
+            objectName: "region:page"
             anchors { top: parent.top; bottom: parent.bottom; left: side.right; right: parent.right }
             anchors.margins: 28
             contentHeight: body.implicitHeight + 40

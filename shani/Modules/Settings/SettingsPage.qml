@@ -335,6 +335,7 @@ ColumnLayout {
                     }
                 }
                 MouseArea { id: catArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Ui.settingsCat = catTile.modelData.id }
+                KeyFocus { onActivated: Ui.settingsCat = catTile.modelData.id }
             }
         }
     }
@@ -490,6 +491,7 @@ ColumnLayout {
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: page.useWallpaper(parent.modelData)
                             }
+                            KeyFocus { onActivated: page.useWallpaper(parent.modelData) }
                         }
                     }
                 }
@@ -550,6 +552,7 @@ ColumnLayout {
                             Accessible.name: Tr.t("Use wallpaper %1 (%2)").arg(modelData.id).arg(modelData.size)
                             Accessible.onPressAction: OnlineWalls.fetch(modelData)
                             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: OnlineWalls.fetch(parent.modelData) }
+                            KeyFocus { onActivated: OnlineWalls.fetch(parent.modelData) }
                             Hint { text: parent.modelData.size + " - " + Tr.t("click to download and use it") }
                         }
                     }
@@ -659,6 +662,7 @@ ColumnLayout {
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: { page.d.accentName = parent.modelData; page.d.accentFromWallpaper = false; }
                             }
+                            KeyFocus { onActivated: { page.d.accentName = parent.modelData; page.d.accentFromWallpaper = false; } }
                         }
                     }
                     // the live accent, when the wallpaper is the source: the

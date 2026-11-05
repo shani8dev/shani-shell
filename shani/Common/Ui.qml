@@ -53,6 +53,10 @@ Singleton {
     property int faceRev: 0                        // bumped when ~/.face changes
     property int shortcutsListed: 0                // binds Settings > Keyboard shortcuts read from niri
     property int controllersListed: 0              // game controllers Settings lists
+    property bool dockFocus: false                 // the dock has the keyboard (IPC focusDock, a controller)
+    property bool desktopMenu: false               // open the desktop menu from the keyboard (IPC desktopMenu)
+    property bool barFocus: false                  // the bar has the keyboard (IPC focusBar)
+    property string navFocus: ""                   // the name of what keyboard/controller focus is on (Common/KeyFocus)
     property bool padTestRunning: false            // a controller's "Test the buttons" reader is running
     property string padTestLast: ""                // the last button it saw pressed
     property int u2fRegistered: 0                  // security keys registered (Settings > Your account)
@@ -108,6 +112,8 @@ Singleton {
         controlCenter = false;
         layoutSwitcher = false;
         expanded = "";
+        dockFocus = false;
+        barFocus = false;
     }
     function toggleLauncher(query) {
         const was = launcher;
@@ -139,5 +145,14 @@ Singleton {
         controlCenter = !was;
         if (controlCenter && section)
             expanded = section;
+    }
+    // keyboard and controller: focus the first thing a surface offers, once it is shown
+    // (Common/KeyFocus items are the surface's tab chain, in reading order)
+    function focusFirst(root) {
+        Qt.callLater(() => {
+            const it = root ? root.nextItemInFocusChain(true) : null;
+            if (it)
+                it.forceActiveFocus(Qt.TabFocusReason);
+        });
     }
 }

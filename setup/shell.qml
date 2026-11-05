@@ -492,6 +492,7 @@ ShellRoot {
                                         enabled: reachable && index !== root.page && root.status !== "working" && root.status !== "signing-in"
                                         onClicked: root.goTo(index)
                                     }
+                                    KeyFocus { enabled: railHover.enabled; onActivated: root.goTo(index) }
                                 }
                             }
 

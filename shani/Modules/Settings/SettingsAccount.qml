@@ -230,6 +230,7 @@ ColumnLayout {
                 Accessible.role: Accessible.Button
                 Accessible.name: "Use " + modelData.split("/").pop()
                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.setPicture(parent.modelData) }
+                KeyFocus { onActivated: page.setPicture(parent.modelData) }
             }
         }
     }

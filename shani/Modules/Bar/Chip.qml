@@ -64,5 +64,7 @@ Rectangle {
         onClicked: e => e.button === Qt.RightButton ? root.rightClicked() : e.button === Qt.MiddleButton ? root.middleClicked() : root.clicked()
         onWheel: w => root.scrolled(w.angleDelta.y > 0 ? 1 : -1)
     }
+    // keyboard: Enter clicks, Menu right-clicks, Left / Right scroll (a volume chip's way)
+    KeyFocus { name: root.Accessible.name || root.hint || root.label; onActivated: root.clicked(); onMenu: root.rightClicked() }
     Hint { text: root.hint; keys: root.hintKeys }
 }

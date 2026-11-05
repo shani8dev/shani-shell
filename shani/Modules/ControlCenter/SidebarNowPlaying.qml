@@ -88,6 +88,7 @@ ColumnLayout {
                     Accessible.name: Tr.t("Switch player (now %1)").arg(sidebar.player ? sidebar.player.identity : "")
                     Accessible.onPressAction: Media.cycle()
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Media.cycle() }
+                    KeyFocus { onActivated: Media.cycle() }
                     Hint { text: Tr.t("Follow the next player") }
                 }
                 Text {
@@ -137,6 +138,12 @@ ColumnLayout {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         onClicked: me => sidebar.player.position = sidebar.player.length * (me.x / parent.width)
+                    }
+                    // keyboard and controller: Left / Right seek 10 s
+                    KeyFocus {
+                        name: Tr.t("Position")
+                        slider: true
+                        onStep: dir => sidebar.player.position = Math.max(0, Math.min(sidebar.player.length, sidebar.player.position + dir * 10))
                     }
                 }
                 Row {

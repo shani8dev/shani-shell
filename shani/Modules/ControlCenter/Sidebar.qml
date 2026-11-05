@@ -62,6 +62,8 @@ PanelWindow {
         Behavior on opacity { NumberAnimation { duration: Ui.controlCenter ? Theme.animEnter / 2 : Theme.animExit } }
         focus: Ui.controlCenter
         Keys.onEscapePressed: Ui.closeAll()
+        // opened: the keyboard (or a controller) starts on the first control
+        Connections { target: Ui; function onControlCenterChanged() { if (Ui.controlCenter) Ui.focusFirst(slide); } }
 
         MouseArea { anchors.fill: parent }   // swallow clicks so they don't close
 
@@ -79,16 +81,16 @@ PanelWindow {
                 spacing: 14
 
                 // ---- header ---------------------------------------------------
-                SidebarHeader { Layout.fillWidth: true; sidebar: win; sidebarClock: clock }
+                SidebarHeader { objectName: "region:header"; Layout.fillWidth: true; sidebar: win; sidebarClock: clock }
 
                 // ---- sliders --------------------------------------------------
-                SidebarSliders { Layout.fillWidth: true; sidebar: win }
+                SidebarSliders { objectName: "region:sliders"; Layout.fillWidth: true; sidebar: win }
 
                 // ---- tiles ----------------------------------------------------
-                SidebarTiles { Layout.fillWidth: true; sidebar: win }
+                SidebarTiles { objectName: "region:tiles"; Layout.fillWidth: true; sidebar: win }
 
                 // ---- detail lists -------------------------------------------
-                SidebarDetails { Layout.fillWidth: true; sidebar: win; visible: Ui.expanded !== "" }
+                SidebarDetails { objectName: "region:details"; Layout.fillWidth: true; sidebar: win; visible: Ui.expanded !== "" }
 
                 // ---- quick notes ---------------------------------------------------
                 SidebarNotes { Layout.fillWidth: true }
@@ -112,7 +114,7 @@ PanelWindow {
                 SidebarNowPlaying { Layout.fillWidth: true; sidebar: win; visible: win.player !== null }
 
                 // ---- notifications ------------------------------------------
-                SidebarNotifications { Layout.fillWidth: true }
+                SidebarNotifications { objectName: "region:notifications"; Layout.fillWidth: true }
 
                 Item { implicitHeight: 4 }
             }

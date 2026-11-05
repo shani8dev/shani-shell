@@ -32,13 +32,15 @@ PanelWindow {
     exclusiveZone: mode === "hide" ? 0 : base + 32
     WlrLayershell.namespace: "shani-dock"
     WlrLayershell.layer: WlrLayer.Top
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    // the keyboard reaches the dock on request (Ui.dockFocus: IPC focusDock, a controller):
+    // it takes the keyboard until Escape, never otherwise
+    WlrLayershell.keyboardFocus: Ui.dockFocus ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     BackgroundEffect.blurRegion: Settings.blurWanted && shown ? dockRegion : null
     Region { id: dockRegion; item: dock; radius: dock.radius }
 
     readonly property bool covered: mode === "smart" && Hiding.covered(output, "bottom", base + 32 + 2, screen ? screen.height : 1080,
         ((screen ? screen.width : 1920) - dock.width) / 2, ((screen ? screen.width : 1920) + dock.width) / 2)
-    readonly property bool shown: mode === "always" || (revealed && hover.hovered) || menuFor >= 0 || dragging
+    readonly property bool shown: mode === "always" || (revealed && hover.hovered) || menuFor >= 0 || dragging || Ui.dockFocus
         || Niri.overviewOpen || (mode === "smart" && (!covered || Hiding.urgent))
     Component.onCompleted: Hiding.setDockShown(output, shown)
     property bool dragging: false        // a file carried to the bottom edge brings the dock up to drop on
@@ -218,8 +220,15 @@ PanelWindow {
         onExited: win.pointerX = -1000
     }
 
+    Connections {
+        target: Ui
+        function onDockFocusChanged() { if (Ui.dockFocus) Ui.focusFirst(row); else win.menuFor = -1; }
+    }
     Row {
         id: row
+        focus: Ui.dockFocus
+        // Escape: a menu first, then the dock gives the keyboard back
+        Keys.onEscapePressed: { if (win.menuFor >= 0) win.menuFor = -1; else Ui.dockFocus = false; }
         anchors.horizontalCenter: dock.horizontalCenter
         anchors.bottom: dock.bottom
         anchors.bottomMargin: (dock.height - win.base) / 2
@@ -463,8 +472,16 @@ PanelWindow {
                             win.activate(cell.modelData);
                     }
                 }
+                // keyboard and controller: Enter opens or focuses it, Menu (X) its menu
+                KeyFocus {
+                    name: cell.Accessible.name
+                    radius: 12
+                    onActivated: { win.activate(cell.modelData); Ui.dockFocus = false; }
+                    onMenu: { win.menuFor = cell.index; Ui.focusFirst(menuBox); }
+                }
                 // the right-click menu: what can be done with this app
                 Glass {
+                    id: menuBox
                     visible: win.menuFor === cell.index
                     onHeightChanged: if (visible) win.menuHeight = height
                     onVisibleChanged: if (visible) win.menuHeight = height
@@ -528,6 +545,7 @@ PanelWindow {
                                     hoverEnabled: true
                                     onClicked: { parent.modelData.run(); win.menuFor = -1; }
                                 }
+                                KeyFocus { radius: 8; onActivated: { parent.modelData.run(); win.menuFor = -1; } }
                             }
                         }
                     }
@@ -643,7 +661,10 @@ PanelWindow {
             }
             Icon { anchors.centerIn: parent; name: trashTile.count > 0 ? "user-trash-full" : "user-trash"; size: parent.width * 0.5; color: trashTile.arming ? Theme.danger : Theme.text }
             Timer { running: trashTile.arming; interval: 4000; onTriggered: trashTile.arming = false }
+            // the Menu key (a controller's X) is the right-click: arm, then empty
+            onMenuRequested: trashMenu.clicked(null)
             MouseArea {
+                id: trashMenu
                 anchors.fill: parent
                 acceptedButtons: Qt.RightButton
                 onClicked: {
@@ -682,6 +703,7 @@ PanelWindow {
         property string icon: ""
         readonly property string themed: icon ? Quickshell.iconPath(icon, true) : ""
         signal activated()
+        signal menuRequested()
         default property alias content: face.data
         width: win.base
         height: win.base
@@ -726,6 +748,7 @@ PanelWindow {
             cursorShape: Qt.PointingHandCursor
             onClicked: tile.activated()
         }
+        KeyFocus { name: tile.Accessible.name; radius: width * 0.24; onActivated: tile.activated(); onMenu: tile.menuRequested() }
         ToolTipText { visible: tileArea.containsMouse; text: tile.tip }
     }
 

@@ -100,6 +100,7 @@ ColumnLayout {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: root.activated(matchRow.modelData)
             }
+            KeyFocus { onActivated: root.activated(matchRow.modelData) }
         }
     }
     function modifiedKey(key) {

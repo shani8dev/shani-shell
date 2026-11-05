@@ -159,4 +159,17 @@ Rectangle {
             onClicked: root.detail()
         }
     }
+    // keyboard and controller: arrows move across the grid as it is laid out, Enter
+    // toggles, the Menu key (or a controller's X) opens the tile's detail
+    KeyFocus {
+        id: focusItem
+        name: root.title
+        enabled: root.visible
+        columns: 2
+        ordered: () => root.parent ? Array.from(root.parent.children).filter(t => t.tid !== undefined && t.visible && t.focusItem)
+            .sort((a, b) => a.y - b.y || a.x - b.x).map(t => t.focusItem) : [root.focusItem]
+        onActivated: root.activate()
+        onMenu: if (root.hasDetail) root.detail()
+    }
+    readonly property var focusItem: focusItem
 }

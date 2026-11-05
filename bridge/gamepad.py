@@ -4,6 +4,16 @@
   gamepad.py list           JSON: [{"name", "event", "uniq"}] - every joystick the
                             kernel has (/proc/bus/input/devices, "jsN" among its
                             handlers): USB and Bluetooth alike, unlike /dev/input/by-id
+  gamepad.py nav            a controller moves around the desktop while it runs:
+                            d-pad and left stick -> arrow keys (repeating while held),
+                            A Return, B Escape (keys sent with wtype, as the screen
+                            keyboard does); and one line per shell action on stdout:
+                            menu (X), launcher (Y, Guide), sidebar (Start),
+                            overview (Select), workspace-prev / workspace-next (LB / RB),
+                            "used" once when a controller first drives the desktop.
+                            The devices are read, never grabbed: a game still gets
+                            every press. Services/GamepadNav runs it only while a
+                            controller is connected and no game is fullscreen.
   gamepad.py watch event5   one line per change while it runs:
                               press A / release A
                               axis left-x 0.42      (-1 … 1; triggers 0 … 1)
@@ -19,8 +29,12 @@ python-evdev in the image. SHANI_INPUT_DEVICES and SHANI_INPUT_DIR replace
 import fcntl
 import json
 import os
+import select
+import shlex
 import struct
+import subprocess
 import sys
+import time
 
 EVENT = struct.Struct("llHHi")              # struct input_event: timeval, type, code, value
 EV_KEY, EV_ABS = 1, 3
@@ -101,6 +115,125 @@ def watch(node):
                     print(f"axis {AXES[code]} {x}", flush=True)
 
 
+# nav: what each button does on the desktop
+NAV_KEYS = {0x130: "Return", 0x131: "Escape"}
+NAV_ACTIONS = {0x134: "menu", 0x133: "launcher", 0x13c: "launcher", 0x13b: "sidebar", 0x13a: "overview",
+               0x136: "workspace-prev", 0x137: "workspace-next"}
+DPAD = {0x220: "Up", 0x221: "Down", 0x222: "Left", 0x223: "Right"}
+REPEAT_DELAY, REPEAT_EVERY = 0.4, 0.12
+STICK_ON, STICK_OFF = 0.55, 0.35          # hysteresis: a stick near the edge does not flicker
+
+
+class Nav:
+    """Controller events -> keys and shell actions; held directions repeat."""
+
+    def __init__(self, key, say, now=time.monotonic):
+        self.key, self.say, self.now = key, say, now
+        self.held = {}                    # direction -> time of the next repeat
+        self.sources = {}                 # (source) -> direction it holds
+        self.used = False
+        self.ranges = {}
+
+    def _use(self):
+        if not self.used:
+            self.used = True
+            self.say("used")
+
+    def _hold(self, source, direction):
+        old = self.sources.get(source)
+        if old == direction:
+            return
+        if old:
+            self.sources.pop(source)
+            if old not in self.sources.values():
+                self.held.pop(old, None)
+        if direction:
+            self.sources[source] = direction
+            if direction not in self.held:
+                self._use()
+                self.key(direction)
+                self.held[direction] = self.now() + REPEAT_DELAY
+
+    def event(self, typ, code, value, rng=None):
+        if typ == EV_KEY and value in (0, 1):
+            if code in DPAD:
+                self._hold(("btn", code), DPAD[code] if value else None)
+            elif value == 1 and code in NAV_KEYS:
+                self._use()
+                self.key(NAV_KEYS[code])
+            elif value == 1 and code in NAV_ACTIONS:
+                self._use()
+                self.say(NAV_ACTIONS[code])
+        elif typ == EV_ABS and code in (0x10, 0x11):          # the hat: -1, 0, 1
+            pair = ("Left", "Right") if code == 0x10 else ("Up", "Down")
+            self._hold(("hat", code), pair[0] if value < 0 else pair[1] if value > 0 else None)
+        elif typ == EV_ABS and code in (0x00, 0x01):          # the left stick
+            lo, hi = rng or (-32768, 32767)
+            x = (value - lo) / (hi - lo) * 2 - 1 if hi > lo else 0
+            pair = ("Left", "Right") if code == 0x00 else ("Up", "Down")
+            cur = self.sources.get(("stick", code))
+            if abs(x) >= STICK_ON:
+                self._hold(("stick", code), pair[0] if x < 0 else pair[1])
+            elif abs(x) < STICK_OFF and cur:
+                self._hold(("stick", code), None)
+
+    def tick(self):
+        """Repeats due now; returns seconds until the next one (None: nothing held)."""
+        t = self.now()
+        for d, due in list(self.held.items()):
+            if t >= due:
+                self.key(d)
+                self.held[d] = t + REPEAT_EVERY
+        return max(0.0, min(self.held.values()) - t) if self.held else None
+
+
+def nav():
+    wtype = shlex.split(os.environ.get("SHANI_WTYPE", "wtype"))
+
+    def key(k):
+        subprocess.run(wtype + ["-k", k], stdin=subprocess.DEVNULL)
+
+    def say(s):
+        print(s, flush=True)
+
+    path = os.environ.get("SHANI_INPUT_DEVICES", "/proc/bus/input/devices")
+    try:
+        pads = devices(open(path).read())
+    except OSError:
+        pads = []
+    root = os.environ.get("SHANI_INPUT_DIR", "/dev/input")
+    fds = {}
+    for p in pads:
+        try:
+            fds[os.open(os.path.join(root, p["event"]), os.O_RDONLY | os.O_NONBLOCK)] = {}
+        except OSError:
+            pass
+    if not fds:
+        return 1
+    n = Nav(key, say)
+    say("ready")
+    while fds:
+        wait = n.tick()
+        ready, _, _ = select.select(list(fds), [], [], wait)
+        for fd in ready:
+            try:
+                data = os.read(fd, EVENT.size * 64)
+            except BlockingIOError:
+                continue
+            except OSError:
+                data = b""
+            if not data:                          # unplugged (or the stream ended)
+                os.close(fd)
+                fds.pop(fd)
+                continue
+            for i in range(0, len(data) - EVENT.size + 1, EVENT.size):
+                _s, _us, typ, code, value = EVENT.unpack_from(data, i)
+                if typ == EV_ABS and code in (0, 1) and code not in fds[fd]:
+                    fds[fd][code] = absinfo(fd, code)
+                n.event(typ, code, value, fds[fd].get(code) if typ == EV_ABS else None)
+    return 0
+
+
 def main(argv):
     if len(argv) >= 2 and argv[1] == "list":
         path = os.environ.get("SHANI_INPUT_DEVICES", "/proc/bus/input/devices")
@@ -110,6 +243,8 @@ def main(argv):
             text = ""
         print(json.dumps(devices(text)))
         return 0
+    if len(argv) == 2 and argv[1] == "nav":
+        return nav()
     if len(argv) == 3 and argv[1] == "watch" and argv[2].startswith("event") and "/" not in argv[2]:
         return watch(os.path.join(os.environ.get("SHANI_INPUT_DIR", "/dev/input"), argv[2]))
     print(__doc__.split("\n\n")[1], file=sys.stderr)

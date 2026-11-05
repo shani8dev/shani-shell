@@ -56,6 +56,7 @@ Rectangle {
         Accessible.name: key.label
         Accessible.onPressAction: key.tapped()
         MouseArea { id: tap; anchors.fill: parent; onClicked: key.tapped() }
+        KeyFocus { onActivated: key.tapped() }
     }
 
     ColumnLayout {

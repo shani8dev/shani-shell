@@ -97,6 +97,7 @@ ColumnLayout {
             font.pixelSize: 13 * Theme.fontScale
         }
         MouseArea { anchors.fill: parent; onClicked: { page.capturing = true; page.combo = ""; parent.forceActiveFocus(); } }
+        KeyFocus { onActivated: { page.capturing = true; page.combo = ""; parent.forceActiveFocus(); } }
         Keys.onPressed: e => {
             if (!page.capturing)
                 return;

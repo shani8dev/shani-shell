@@ -80,6 +80,8 @@ Rectangle {
         onReleased: { ripple.width = 0; ripple.height = 0 }
         onClicked: e => e.button === Qt.RightButton ? root.rightClicked() : root.clicked()
     }
+    // keyboard and controller: Enter / Space click, the Menu key right-clicks
+    KeyFocus { enabled: root.enabled && root.visible; onActivated: root.clicked(); onMenu: root.rightClicked() }
     // what it is, on hover: the tip, else the name a screen reader says
     Hint { text: root.tip !== "" ? root.tip : root.Accessible.name }
 }

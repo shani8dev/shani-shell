@@ -173,6 +173,22 @@ Scope {
         WlSessionLockSurface {
             id: surface
             color: Theme.bg
+            // everything on the lock screen is in here: a key typed while a button has the
+            // focus (the arrows took it there) still goes into the password, and Escape
+            // brings the focus back to it - the password is never more than a keystroke away
+            Item {
+                id: lockKeys
+                anchors.fill: parent
+                Keys.onPressed: e => {
+                    if (e.key === Qt.Key_Escape) {
+                        pass.input.forceActiveFocus();
+                        e.accepted = true;
+                    } else if (e.text && e.text.charCodeAt(0) >= 32 && !(e.modifiers & (Qt.ControlModifier | Qt.AltModifier))) {
+                        pass.input.forceActiveFocus();
+                        pass.input.insert(pass.input.cursorPosition, e.text);
+                        e.accepted = true;
+                    }
+                }
 
             // the wallpaper, blurred and dimmed: the desktop is there, out of reach
             Image {
@@ -289,6 +305,7 @@ Scope {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: powerKey.press()
                         }
+                        KeyFocus { onActivated: powerKey.press() }
                     }
                 }
             }
@@ -509,6 +526,7 @@ Scope {
                         }
                     }
                 }
+            }
             }
         }
     }

@@ -32,20 +32,9 @@ Rectangle {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        focus: true
         onClicked: root.clicked()
     }
-    Rectangle {
-        id: choiceFocus
-        anchors.fill: parent
-        anchors.margins: -2
-        radius: root.radius + 2
-        color: "transparent"
-        border.color: Theme.accent
-        border.width: 2
-        visible: root.activeFocus
-        z: 10
-    }
+    KeyFocus { enabled: root.enabled; onActivated: root.clicked() }
 
     // a search landed here: a pulsing accent edge until the flash clears
     Rectangle {

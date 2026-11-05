@@ -37,7 +37,10 @@ Variants {
         exclusiveZone: mode === "hide" ? 0 : Theme.barHeight + 16     // as before: 8 above, the bar, 8 below
         readonly property bool covered: mode === "smart" && Hiding.covered(output, "top", Theme.barHeight + 16 + 2, modelData.height)
         // the Island rides on the bar: when it has something to ask or show, the bar comes back with it
-        readonly property bool shown: mode === "always" || (revealed && barHover.hovered) || Niri.overviewOpen
+        // the keyboard in the bar (IPC focusBar): this screen's bar, the one being worked on
+        readonly property bool keyed: Ui.barFocus && output === Niri.focusedOutput
+        onKeyedChanged: if (keyed) Ui.focusFirst(glass)
+        readonly property bool shown: mode === "always" || (revealed && barHover.hovered) || Niri.overviewOpen || keyed
             || Ui.controlCenter || (Ui.islandBusy && output === Niri.focusedOutput) || (mode === "smart" && !covered)
         property bool revealed: false
         Connections { target: barHover; function onHoveredChanged() { if (!barHover.hovered) bar.revealed = false; } }
@@ -51,7 +54,7 @@ Variants {
         color: "transparent"
         WlrLayershell.namespace: "shani-panel"
         WlrLayershell.layer: WlrLayer.Top
-        WlrLayershell.keyboardFocus: renamingWs >= 0 ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+        WlrLayershell.keyboardFocus: keyed ? WlrKeyboardFocus.Exclusive : renamingWs >= 0 ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
         property int renamingWs: -1          // the workspace (id) being named: the bar takes the keyboard
         BackgroundEffect.blurRegion: Settings.blurWanted && bar.shown ? barRegion : null
         Region { id: barRegion; item: glass; radius: Theme.radius }
@@ -65,6 +68,8 @@ Variants {
 
         Glass {
             id: glass
+            focus: bar.keyed
+            Keys.onEscapePressed: Ui.barFocus = false
             anchors.fill: parent
             anchors.topMargin: 8
             opacity: bar.shown ? 1 : 0
@@ -177,6 +182,11 @@ Variants {
                                         Niri.focusWorkspace(parent.modelData);
                                 }
                             }
+                            KeyFocus {
+                                name: Tr.t("Workspace %1", parent.index + 1)
+                                onActivated: { Niri.focusWorkspace(parent.modelData); Ui.barFocus = false; }
+                                onMenu: bar.renamingWs = parent.modelData.id
+                            }
                             Hint { text: Tr.t("Workspace %1", parent.index + 1) + " - " + Tr.t("right-click to name it, Super + O shows them all"); keys: "Super + " + (parent.index + 1) }
                         }
                     }
@@ -247,6 +257,10 @@ Variants {
                         }
                     }
                     HoverHandler { id: titleHover; cursorShape: Qt.PointingHandCursor }
+                    KeyFocus {
+                        name: Tr.t("This window")
+                        onActivated: { Ui.closeAll(); Ui.windowMenuX = titleChip.mapToItem(null, 0, 0).x + 10; Ui.windowMenu = true; }
+                    }
                     Hint { text: Tr.t("This window - click for snapping, moving and more"); keys: Tr.t("click") }
                 }
             }
@@ -385,17 +399,19 @@ Variants {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-                                onClicked: e => {
-                                    const it = trayItem.modelData;
-                                    if (e.button === Qt.MiddleButton)
-                                        it.secondaryActivate();
-                                    else if (e.button === Qt.RightButton || it.onlyMenu)
-                                        it.hasMenu && trayMenu.open();
-                                    else
-                                        it.activate();
-                                }
+                                onClicked: e => trayItem.press(e.button)
                                 onWheel: w => trayItem.modelData.scroll(w.angleDelta.y, false)
                             }
+                            function press(button) {
+                                const it = trayItem.modelData;
+                                if (button === Qt.MiddleButton)
+                                    it.secondaryActivate();
+                                else if (button === Qt.RightButton || it.onlyMenu)
+                                    it.hasMenu && trayMenu.open();
+                                else
+                                    it.activate();
+                            }
+                            KeyFocus { name: trayItem.modelData.tooltipTitle || trayItem.modelData.title || trayItem.modelData.id; onActivated: trayItem.press(Qt.LeftButton); onMenu: trayItem.press(Qt.RightButton) }
                         }
                     }
                 }

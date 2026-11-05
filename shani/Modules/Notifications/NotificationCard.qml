@@ -106,6 +106,13 @@ Glass {
         Accessible.name: root.notification ? root.notification.summary : ""
         Accessible.onPressAction: root.activate()
     }
+    // keyboard and controller: Enter opens it (its default action), Delete dismisses it
+    KeyFocus {
+        name: root.notification ? root.notification.summary : ""
+        radius: Theme.radiusLarge
+        onActivated: root.activate()
+        Keys.onDeletePressed: root.done()
+    }
 
     // critical: a red edge down the left
     Rectangle {
@@ -321,6 +328,12 @@ Glass {
                                 if (!parent.modelData.keep)
                                     root.done();
                             }
+                        }
+                        KeyFocus {
+                            name: parent.modelData.name || parent.modelData.text
+                            radius: 0
+                            // the action can end the notification (and this card) as it runs: what is needed is taken first
+                            onActivated: { const card = root, m = parent.modelData; m.run(); if (!m.keep && card) card.done(); }
                         }
                     }
                 }

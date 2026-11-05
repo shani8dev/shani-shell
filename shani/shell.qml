@@ -104,7 +104,7 @@ ShellRoot {
     Binding { target: Ui; property: "screen"; value: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0] }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WorldClock, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged]
+    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WorldClock, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav]
 
     IpcHandler {
         target: "shani"
@@ -191,6 +191,10 @@ ShellRoot {
         function oskLanguage() { Osk.nextLanguage(); }
         function settings() { Ui.openSettings(""); }
         function settingsCategory(cat: string) { Ui.openSettings(cat); }
+        // the keyboard into the dock or the bar (a key binds these; Escape gives it back)
+        function focusDock() { Ui.closeAll(); Ui.dockFocus = true; }
+        function focusBar() { Ui.closeAll(); Ui.barFocus = true; }
+        function desktopMenu() { Ui.closeAll(); Ui.desktopMenu = true; }
         function askIsland() { Ui.askIsland(); }
         function captions() { Captions.toggle(); }
         function transcribe() { Captions.transcribe(); }
@@ -441,7 +445,7 @@ ShellRoot {
                 capsLock: LockKeys.caps, numLock: LockKeys.num,
                 screenSaver: ScreenSaver.active,
                 desktopIconsShown: Settings.data.desktopIcons,
-                mediaPlayer: Media.current ? Media.current.identity : '', notifEarlier: Notifs.earlier.length, dndUntil: Settings.data.dndUntil, oskWritten: Osk.lastWritten, shortcutsListed: Ui.shortcutsListed, plugGreeted: Plugged.greeted, controllersListed: Ui.controllersListed, padTestRunning: Ui.padTestRunning, padTestLast: Ui.padTestLast, u2fRegistered: Ui.u2fRegistered, plugLast: Plugged.last, tabletOutput: Settings.data.tabletOutput, sleepVerb: Power.sleepVerb, compassHeading: Compass.heading, onlineWalls: OnlineWalls.results.length, onlineWallSaved: OnlineWalls.lastSaved, lyricsLines: Lyrics.lines.length, trashCount: Ui.trashCount, shotCountdown: Screenshots.countdown, shelfParked: Shelf.parked, shelfItems: Shelf.items.map(x => x.name),
+                mediaPlayer: Media.current ? Media.current.identity : '', notifEarlier: Notifs.earlier.length, dndUntil: Settings.data.dndUntil, oskWritten: Osk.lastWritten, shortcutsListed: Ui.shortcutsListed, plugGreeted: Plugged.greeted, navFocus: Ui.navFocus, gamepadNavRunning: GamepadNav.running, gamepadLast: GamepadNav.lastAction, dockFocus: Ui.dockFocus, barFocus: Ui.barFocus, controllersListed: Ui.controllersListed, padTestRunning: Ui.padTestRunning, padTestLast: Ui.padTestLast, u2fRegistered: Ui.u2fRegistered, plugLast: Plugged.last, tabletOutput: Settings.data.tabletOutput, sleepVerb: Power.sleepVerb, compassHeading: Compass.heading, onlineWalls: OnlineWalls.results.length, onlineWallSaved: OnlineWalls.lastSaved, lyricsLines: Lyrics.lines.length, trashCount: Ui.trashCount, shotCountdown: Screenshots.countdown, shelfParked: Shelf.parked, shelfItems: Shelf.items.map(x => x.name),
                 layoutSwitcher: Ui.layoutSwitcher, layoutPreset: Settings.data.layoutPreset, dockOn: Settings.data.dock, dockHides: Settings.data.dockVisibility === "hide", dockMode: Settings.data.dockVisibility, barMode: Settings.data.barVisibility, dockShown: Hiding.dockShown[Niri.focusedOutput] !== false, barShown: Hiding.barShown[Niri.focusedOutput] !== false, dockHintSeen: Settings.data.dockHintSeen, desktopIconsOn: Settings.data.desktopIcons, winWidth: Settings.data.winDefaultWidth, widgets: Array.from(Settings.data.desktopWidgets),
                 fileActions: FileActions.actions.map(x => x.id), fileActionLast: FileActions.last,
                 notifLastSound: Notifs.lastSound,

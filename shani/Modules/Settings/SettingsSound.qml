@@ -181,6 +181,18 @@ ColumnLayout {
                         onPressed: m => set(m.y)
                         onPositionChanged: m => { if (pressed) set(m.y); }
                     }
+                    // keyboard and controller: Up / Down move to the next band, Left / Right are -/+1 dB
+                    KeyFocus {
+                        name: (band.modelData >= 1000 ? band.modelData / 1000 + " kHz" : band.modelData + " Hz") + ", " + band.gain + " dB"
+                        slider: true
+                        onStep: dir => {
+                            const eq = Array.from(page.d.fxEq || []);
+                            while (eq.length < 10) eq.push(0);
+                            eq[band.index] = Math.max(-12, Math.min(12, eq[band.index] + dir));
+                            page.d.fxEq = eq;
+                            page.d.fxPreset = "";
+                        }
+                    }
                 }
                 Text {
                     Layout.alignment: Qt.AlignHCenter
