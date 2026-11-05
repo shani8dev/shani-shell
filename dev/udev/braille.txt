@@ -1,0 +1,10 @@
+UDEV  [9700.800001] add      /devices/pci0000:00/0000:00:14.0/usb1/1-14 (usb)
+ACTION=add
+SUBSYSTEM=usb
+DEVTYPE=usb_device
+DEVPATH=/devices/pci0000:00/0000:00:14.0/usb1/1-14
+ID_VENDOR_FROM_DATABASE=HumanWare
+ID_MODEL_FROM_DATABASE=Brailliant BI 40X
+ID_SERIAL=HumanWare_Brailliant_BI_40X_4321
+BRLTTY_BRAILLE_DRIVER=hw
+

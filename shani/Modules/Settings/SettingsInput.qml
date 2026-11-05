@@ -217,6 +217,8 @@ ColumnLayout {
     Connections { target: page.d; function onDoubleClickSpeedChanged() { dblClick.running = true; } }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Drawing tablet & touchscreen") }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("Keyboard button when hidden"); hint: Tr.t("on a touchscreen, or with no keyboard: a small button brings the screen keyboard back"); checked: page.d.oskButton; onToggled: on => page.d.oskButton = on }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("Screen keyboard in tablet mode"); hint: Tr.t("folded into a tablet it comes up, unfolded it goes"); checked: page.d.oskWithTabletMode; onToggled: on => page.d.oskWithTabletMode = on }
     Repeater {
         model: [{ key: "tabletOutput", label: Tr.t("A drawing tablet draws on") }, { key: "touchOutput", label: Tr.t("The touchscreen is") }]
         ColumnLayout {

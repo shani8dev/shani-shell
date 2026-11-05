@@ -232,7 +232,8 @@ PanelWindow {
                 }
                 Key { Layout.fillWidth: true; Layout.fillHeight: true; label: win.layoutName; dim: true; onTapped: Osk.press("space") }
                 Key { Layout.preferredWidth: 130; Layout.fillHeight: true; label: "⏎"; accent: true; onTapped: Osk.press("Return") }
-                Key { Layout.preferredWidth: 90; Layout.fillHeight: true; label: "✕"; onTapped: Osk.toggle() }
+                // hide it to see the whole screen; the floating button (OskButton) or the bar brings it back
+                Key { Layout.preferredWidth: 90; Layout.fillHeight: true; label: "⌄"; Accessible.name: Tr.t("Hide keyboard"); onTapped: Osk.toggle() }
             }
         }
     }

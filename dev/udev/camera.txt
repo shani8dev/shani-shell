@@ -1,0 +1,14 @@
+UDEV  [9700.000001] add      /devices/pci0000:00/0000:00:14.0/usb1/1-6 (usb)
+ACTION=add
+SUBSYSTEM=usb
+DEVTYPE=usb_device
+DEVPATH=/devices/pci0000:00/0000:00:14.0/usb1/1-6
+DEVNAME=/dev/bus/usb/001/009
+ID_VENDOR=Canon_Inc.
+ID_VENDOR_FROM_DATABASE=Canon, Inc.
+ID_MODEL=Canon_Digital_Camera
+ID_MODEL_FROM_DATABASE=EOS 250D
+ID_SERIAL=Canon_Inc._Canon_Digital_Camera_8B2E
+ID_GPHOTO2=1
+ID_MEDIA_PLAYER=0
+

@@ -301,8 +301,11 @@ Singleton {
             property list<string> clipPins: []          // pinned clipboard texts
             property string tabletOutput: ""              // the screen a drawing tablet maps to ("" all, "@focused" the one in use)
             property bool plugGreetings: true             // a card for a device plugged in: what it is, one next step (Plugged)
+            property bool oskButton: true                 // the floating keyboard button while the screen keyboard is hidden (touch / no keyboard)
+            property bool oskWithTabletMode: true         // a convertible folded into a tablet shows the screen keyboard, unfolded hides it
             property bool gamepadNav: true                // a game controller moves around the desktop (GamepadNav)
-            property bool gamepadHintDone: false          // its one-time "A selects, B goes back" hint was shown
+            property bool gamepadHintDone: false
+            property bool iphoneNoteDone: false           // "calls and texts are not available for iPhone" was said once          // its one-time "A selects, B goes back" hint was shown
             property bool tabletLeftHanded: false
             property string touchOutput: ""               // the screen a touchscreen maps to
             property string fxCompress: "off"             // "off" | "gentle" | "night" (SoundFx, swh-plugins SC4)

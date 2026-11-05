@@ -1,0 +1,13 @@
+UDEV  [9700.100001] add      /devices/pci0000:00/0000:00:14.0/usb1/1-7 (usb)
+ACTION=add
+SUBSYSTEM=usb
+DEVTYPE=usb_device
+DEVPATH=/devices/pci0000:00/0000:00:14.0/usb1/1-7
+ID_VENDOR=Google
+ID_VENDOR_FROM_DATABASE=Google Inc.
+ID_MODEL=Pixel_8
+ID_MODEL_FROM_DATABASE=Nexus/Pixel Device (MTP)
+ID_SERIAL=Google_Pixel_8_3A1B
+ID_MTP_DEVICE=1
+ID_MEDIA_PLAYER=1
+

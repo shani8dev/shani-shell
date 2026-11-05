@@ -58,9 +58,13 @@ ShellRoot {
     // the screen keyboard: open by itself with a touchscreen (a tablet's first boot)
     property bool kb: Quickshell.env("SHANI_SETUP_KEYBOARD") === "1"
     Process {
+        // a touchscreen, or no keyboard at all (or only buttons and virtual ones):
+        // bridge/input-kinds.py, from udev's database
         running: Quickshell.env("SHANI_SETUP_KEYBOARD") === ""
-        command: ["sh", "-c", "udevadm info --export-db 2>/dev/null | grep -q ID_INPUT_TOUCHSCREEN=1"]
-        onExited: code => { if (code === 0) root.kb = true; }
+        command: ["python3", Quickshell.env("SHANI_INPUT_KINDS_TOOL") || "/usr/lib/shani-shell/input-kinds.py"]
+        stdout: StdioCollector {
+            onStreamFinished: { try { const k = JSON.parse(text); if (!k.keyboard || k.touchscreen) root.kb = true; } catch (e) {} }
+        }
     }
     property bool hostnameEdited: false
 
@@ -396,6 +400,7 @@ ShellRoot {
                 width: Math.min(900, parent.width - 40)
                 target: win.activeFocusItem && win.activeFocusItem.insert ? win.activeFocusItem : null
                 onEntered: if (win.activeFocusItem && win.activeFocusItem.accepted) win.activeFocusItem.accepted()
+                onHideRequested: root.kb = false
             }
 
             Glass {

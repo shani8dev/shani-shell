@@ -28,13 +28,16 @@ sleep 1.5
 WAYLAND_DISPLAY=wayland-parent niri -c /work/dev/niri/session.kdl >$L/polkit-niri.log 2>&1 &
 i=0; until [ -S "$XDG_RUNTIME_DIR/wayland-1" ] || [ $i -ge 40 ]; do sleep 0.25; i=$((i+1)); done
 export WAYLAND_DISPLAY=wayland-1
-qs -p /work/shani >$L/polkit-qs.log 2>&1 &
+# a computer with no keyboard (only a touchscreen): every password prompt opens its
+# screen keyboard by itself - typing still works for the rest of this test
+SHANI_INPUT_KINDS_TOOL=/work/bridge/input-kinds.py SHANI_UDEV_DB=/work/dev/udev-db/tablet-no-keyboard.txt qs -p /work/shani >$L/polkit-qs.log 2>&1 &
 
 waitfor "d['polkitRegistered']" 10 && result polkit-agent-registers PASS || result polkit-agent-registers FAIL "$(grep -i polkit $L/polkit-qs.log | tail -2)"
 
 pkexec --disable-internal-agent true >$L/pkexec-1.log 2>&1 &
 PK=$!
 waitfor "d['polkit']" 8 && result polkit-dialog-appears PASS || result polkit-dialog-appears FAIL
+waitfor "d['promptKeyboard']" 3 && result polkit-keyboard-without-one PASS || result polkit-keyboard-without-one FAIL
 sleep 0.8; grim /work/out/shots/29-polkit.png
 wtype "not-the-password" -k Return
 sleep 3

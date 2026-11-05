@@ -19,9 +19,11 @@ Scope {
     property string label: ""
     property bool shown: false
     property bool armed: false
+    property real saidUntil: 0       // a label that volume changes must not cover yet
     property string kind: "slider"   // "slider" | "toggle" | "label" | "icon"
 
     function show(icon, value, label, kind) {
+        Ui.osdLabel = label;
         if (!armed)
             return;
         root.icon = icon;
@@ -55,12 +57,14 @@ Scope {
     }
     Connections {
         target: Audio
-        function onVolumeChanged() { root.show(Audio.icon, Audio.volume, "", "slider"); }
+        // the new device's own volume arrives with the switch: the switch is what to say
+        function onVolumeChanged() { if (Date.now() > root.saidUntil) root.show(Audio.icon, Audio.volume, "", "slider"); }
         function onMutedChanged() { root.show(Audio.icon, Audio.muted ? 0 : Audio.volume, Audio.muted ? "Muted" : "", "slider"); }
         function onMicMutedChanged() {
             root.show(Audio.micMuted ? "microphone-sensitivity-muted" : "audio-input-microphone", -1,
                       Audio.micMuted ? "Microphone off" : "Microphone on", "toggle");
         }
+        function onSwitchedToNew(name) { root.show("audio-headphones", -1, Tr.t("Sound: %1", name), "label"); root.saidUntil = Date.now() + 1500; }
         function onMicVolumeChanged() {
             root.show("audio-input-microphone", Audio.micVolume, "", "slider");
         }

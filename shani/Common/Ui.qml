@@ -56,6 +56,8 @@ Singleton {
     property bool dockFocus: false                 // the dock has the keyboard (IPC focusDock, a controller)
     property bool desktopMenu: false               // open the desktop menu from the keyboard (IPC desktopMenu)
     property bool barFocus: false                  // the bar has the keyboard (IPC focusBar)
+    property string osdLabel: ""                   // the OSD's last words (the tests)
+    property bool promptKeyboard: false            // a password prompt's screen keyboard is up (lock, polkit)
     property string navFocus: ""                   // the name of what keyboard/controller focus is on (Common/KeyFocus)
     property bool padTestRunning: false            // a controller's "Test the buttons" reader is running
     property string padTestLast: ""                // the last button it saw pressed

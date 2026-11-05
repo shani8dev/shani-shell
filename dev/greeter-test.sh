@@ -8,6 +8,8 @@
 KDL="${1:-/etc/greetd/shani-niri-greeter.kdl}"
 
 export XDG_RUNTIME_DIR=/run/user/0
+# a laptop keyboard, as udev would list it: the screen keyboard waits to be asked for
+export SHANI_INPUT_KINDS_TOOL=/work/bridge/input-kinds.py SHANI_UDEV_DB=/work/dev/udev-db/laptop.txt
 mkdir -p "$XDG_RUNTIME_DIR" /work/out/logs
 chmod 700 "$XDG_RUNTIME_DIR"
 fail=0

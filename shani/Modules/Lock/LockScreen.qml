@@ -26,6 +26,13 @@ Scope {
     // the camera from the lock screen (Android's, iOS's): a photo can be taken
     // without unlocking, and only the ones taken while locked are shown here
     property var lockPhotos: []
+    // the screen keyboard, in the lock surface itself (no other surface shows over a
+    // session lock): open by itself where there is no working keyboard to type on
+    // (InputKinds: none, or a touchscreen), a tap on its button everywhere else -
+    // a keyboard can be plugged in and still be broken
+    property bool kb: false
+    Binding { target: Ui; property: "promptKeyboard"; value: root.kb; when: Lock.locked }
+    Connections { target: Lock; function onLockedChanged() { if (Lock.locked) root.kb = InputKinds.typesOnScreen; } }
     property bool lockShotPending: false
     function lockPhoto() { lockShotPending = true; Camera.photo(); }
     Connections {
@@ -412,7 +419,8 @@ Scope {
             Glass {
                 strong: true
                 anchors.centerIn: parent
-                anchors.verticalCenterOffset: parent.height * 0.1
+                // above the screen keyboard while it is up
+                anchors.verticalCenterOffset: root.kb ? -parent.height * 0.18 : parent.height * 0.1
                 width: 380
                 height: form.implicitHeight + 40
                 radius: Theme.radiusLarge
@@ -444,6 +452,13 @@ Scope {
                                 text = "";
                             }
                             Component.onCompleted: pass.input.forceActiveFocus()
+                        }
+                        IconButton {
+                            icon: "input-keyboard"
+                            size: 34
+                            on: root.kb
+                            tip: root.kb ? Tr.t("Hide keyboard") : Tr.t("Screen keyboard")
+                            onClicked: root.kb = !root.kb
                         }
                         // the arrow, for a mouse or a touch screen
                         IconButton {
@@ -527,6 +542,16 @@ Scope {
                     }
                 }
             }
+                ScreenKeyboard {
+                    visible: root.kb
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 18
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: Math.min(900, parent.width - 36)
+                    target: pass.input
+                    onEntered: { root.submit(pass.text); pass.text = ""; }
+                    onHideRequested: root.kb = false
+                }
             }
         }
     }

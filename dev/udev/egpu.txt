@@ -1,0 +1,8 @@
+UDEV  [9700.900001] add      /devices/pci0000:00/0000:00:07.0/0000:20:00.0/0000:21:01.0/0000:22:00.0/drm/card1 (drm)
+ACTION=add
+SUBSYSTEM=drm
+DEVNAME=/dev/dri/card1
+DEVTYPE=drm_minor
+DEVPATH=/devices/pci0000:00/0000:00:07.0/0000:20:00.0/0000:21:01.0/0000:22:00.0/drm/card1
+ID_MODEL_FROM_DATABASE=Navi 23 [Radeon RX 6600]
+

@@ -28,6 +28,12 @@ export SHANI_DEVWATCH_TOOL=/work/bridge/devwatch.py
 export SHANI_PLUGWATCH_TOOL=/work/bridge/plugwatch.py SHANI_UDEVADM=/work/dev/fake-udevadm.sh
 export SHANI_RATBAG_TOOL=/work/bridge/ratbag.py SHANI_RATBAGCTL=/work/dev/fake-ratbagctl.py
 export SHANI_U2F_TOOL=/work/bridge/u2f.py SHANI_FIDO2_TOKEN=/work/dev/fake-fido2-token.sh SHANI_PAMU2FCFG=/work/dev/fake-pamu2fcfg.sh
+# what there is to type on: a laptop's keyboard (dev/udev-db/), unless a test swaps
+# the file for one without (and then says so with a udev event); tablet mode from
+# a FIFO standing in for the switch's node
+cp /work/dev/udev-db/laptop.txt /tmp/udev-db
+export SHANI_INPUT_KINDS_TOOL=/work/bridge/input-kinds.py SHANI_UDEV_DB=/tmp/udev-db SHANI_TABLET_MODE_TOOL=/work/bridge/tablet-mode.py
+export SHANI_MOUNTS_TOOL=/work/bridge/mounts.py SHANI_GIO=/work/dev/fake-gio.sh
 export SHANI_GAMEPAD_TOOL=/work/bridge/gamepad.py SHANI_INPUT_DEVICES=/tmp/input-devices SHANI_INPUT_DIR=/tmp/fake-input
 mkdir -p /tmp/fake-input /tmp/fake-bin && : > /tmp/input-devices
 REAL_NIRI=$(command -v niri) && export REAL_NIRI && ln -sf /work/dev/fake-niri-outputs.sh /tmp/fake-bin/niri

@@ -22,12 +22,14 @@ import qs.Common
 Singleton {
     id: root
     readonly property string tool: Quickshell.env("SHANI_PLUGWATCH_TOOL") || "/usr/lib/shani-shell/plugwatch.py"
+    readonly property string mountsTool: Quickshell.env("SHANI_MOUNTS_TOOL") || "/usr/lib/shani-shell/mounts.py"
     property var seen: ({})               // kind + key: greeted this session
     property int greeted: 0               // for the tests
     property string last: ""              // the last greeting's title
     // bumped when a controller or a security key comes or goes: pages re-read
     property int controllerRev: 0
     property int keyRev: 0
+    property int inputRev: 0              // a keyboard, touchscreen or switch came or went
     signal controllerArrived()
 
     // UPower's battery for a controller: by its name, or the only one there is
@@ -49,6 +51,11 @@ Singleton {
         }
         if (e.kind === "security-key")
             keyRev++;
+        if (e.kind === "input" || e.kind === "clicker") {
+            inputRev++;
+            if (e.kind === "input")
+                return;
+        }
         if (e.event === "add")
             greet(e.kind, e.name, e.key);
     }
@@ -65,7 +72,8 @@ Singleton {
             title = Tr.t("%1 plugged in", name);
             body = Tr.t("Extend, mirror, or only this screen?");
             icon = "video-display";
-            actions = [["extend", Tr.t("Extend")], ["mirror", Tr.t("Mirror")], ["only", Tr.t("Only this screen")]];
+            // a projector or a TV is just a new external screen: Presenting is offered for any
+            actions = [["extend", Tr.t("Extend")], ["mirror", Tr.t("Mirror")], ["only", Tr.t("Only this screen")], ["present", Tr.t("Presenting")]];
         } else if (kind === "tablet") {
             title = Tr.t("%1 plugged in", name);
             body = Tr.t("A drawing tablet. It draws on every screen until you choose one.");
@@ -87,6 +95,14 @@ Singleton {
             body = Tr.t("A scanner, ready.");
             icon = "scanner";
             actions = [["scan", Tr.t("Scan a document")]];
+        } else if (more[kind]) {
+            const m = more[kind];
+            title = Tr.t("%1 plugged in", name);
+            body = typeof m.body === "function" ? m.body(name) : m.body;
+            icon = m.icon;
+            actions = m.action ? [m.action] : [];
+            if (m.arrived)
+                m.arrived(name);
         } else
             return;
         greeted++;
@@ -94,10 +110,55 @@ Singleton {
         const argv = ["notify-send", "-a", Tr.t("Devices"), "-i", icon];
         for (const a of actions)
             argv.push("-A", a[0] + "=" + a[1]);
-        asker.createObject(root, { command: argv.concat([title, body]), kind: kind, key: key, running: true });
+        asker.createObject(root, { command: argv.concat([title, body]), kind: kind, key: key, name: name, running: true });
     }
 
-    function act(kind, key, action) {
+    // the rest: one sentence and (at most) one action each
+    readonly property var more: ({
+        "camera": { icon: "camera-photo", body: Tr.t("A camera. Its photos are in Files."), action: ["files", Tr.t("Import photos")] },
+        "phone": { icon: "phone", body: Tr.t("A phone, as storage. Unlock it and allow file transfer if it asks."), action: ["files", Tr.t("Open the phone's files")] },
+        "iphone": { icon: "phone-apple-iphone", action: ["files", Tr.t("Open its files")],
+            // said once, ever: what an iPhone cannot do here
+            body: () => Settings.data.iphoneNoteDone ? Tr.t("An iPhone. Trust this computer on it to see its files.")
+                : Tr.t("An iPhone. Trust this computer on it to see its files. Calls and texts are not available for iPhone."),
+            arrived: () => Settings.data.iphoneNoteDone = true },
+        "clicker": { icon: "x-office-presentation", body: Tr.t("Your clicker moves slides.") },
+        "capture": { icon: "camera-video", body: Tr.t("A capture card: what it receives can be shown and recorded."), action: ["camera", Tr.t("Open in Camera")] },
+        "midi": { icon: "audio-midi", body: Tr.t("A MIDI device. Apps can use it now.") },
+        "serial": { icon: "utilities-terminal", body: name => Tr.t("Arduino or serial device connected - %1", name.split(" - ").pop()), action: ["copy", Tr.t("Copy the port name")] },
+        "cardreader": { icon: "auth-smartcard", body: Tr.t("Card reader ready.") },
+        // a braille display is a person who reads by touch: the screen reader comes on at once
+        "braille": { icon: "preferences-desktop-accessibility", action: ["undo", Tr.t("Undo")],
+            body: () => Settings.data.screenReader ? Tr.t("A braille display. The screen reader is on.") : Tr.t("A braille display. The screen reader is now on."),
+            arrived: () => { root.readerWas = Settings.data.screenReader; Settings.data.screenReader = true; } },
+        "egpu": { icon: "video-display", body: Tr.t("An external graphics card. Apps can run on it - right-click an app, Run on the faster GPU.") }
+    })
+    property bool readerWas: false
+
+    // Presenting: a screen mirrored, Do Not Disturb and caffeine on - and all of it
+    // put back the moment that screen is unplugged
+    property var presenting: null         // { output, dnd, caffeine }
+    function present(output) {
+        const others = Displays.outputs.filter(o => o.name !== output && o.on);
+        presenting = { output: output, dnd: Notifs.dnd, caffeine: Settings.data.caffeine };
+        if (others.length)
+            Displays.mirrorOnto(output, (others.find(o => o.name === Niri.focusedOutput) || others[0]).name);
+        Notifs.setDnd(true);
+        Settings.data.caffeine = true;
+    }
+    Connections {
+        target: Displays
+        function onDeparted(name) {
+            if (!root.presenting || root.presenting.output !== name)
+                return;
+            Displays.stopMirror();
+            Notifs.setDnd(root.presenting.dnd);
+            Settings.data.caffeine = root.presenting.caffeine;
+            root.presenting = null;
+        }
+    }
+
+    function act(kind, key, action, label) {
         const name = key;                // a monitor's key is its connector
         if (kind === "monitor") {
             const others = Displays.outputs.filter(o => o.name !== name && o.on);
@@ -109,6 +170,8 @@ Singleton {
                 Displays.apply_all([{ name: name, patch: { off: false } }].concat(others.map(o => ({ name: o.name, patch: { off: true } }))));
             else if (action === "mirror" && others.length)
                 Displays.mirrorOnto(name, (others.find(o => o.name === Niri.focusedOutput) || others[0]).name);
+            else if (action === "present")
+                present(name);
         } else if (kind === "tablet" && action === "here")
             Settings.data.tabletOutput = Niri.focusedOutput || (Displays.outputs[0] || {}).name || "";
         else if (kind === "controller" && action === "test")
@@ -117,6 +180,14 @@ Singleton {
             Ui.openSettings("account");
         else if (kind === "scanner" && action === "scan")
             Launch.app("org.gnome.SimpleScan");
+        else if (action === "files")
+            Quickshell.execDetached(["python3", root.mountsTool, "open", kind === "camera" ? "gphoto2" : kind === "iphone" ? "afc" : "mtp"]);
+        else if (kind === "capture" && action === "camera")
+            Launch.app("org.gnome.Snapshot");
+        else if (kind === "serial" && action === "copy")
+            Quickshell.execDetached(["wl-copy", String(label).split(" - ").pop()]);
+        else if (kind === "braille" && action === "undo")
+            Settings.data.screenReader = root.readerWas;
     }
 
     Component {
@@ -125,11 +196,12 @@ Singleton {
             id: proc
             property string kind
             property string key
+            property string name
             stdout: StdioCollector {
                 onStreamFinished: {
                     const a = text.trim();
                     if (a)
-                        root.act(proc.kind, proc.key, a);
+                        root.act(proc.kind, proc.key, a, proc.name);
                 }
             }
             onExited: destroy()

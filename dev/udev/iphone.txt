@@ -1,0 +1,12 @@
+UDEV  [9700.200001] add      /devices/pci0000:00/0000:00:14.0/usb1/1-8 (usb)
+ACTION=add
+SUBSYSTEM=usb
+DEVTYPE=usb_device
+DEVPATH=/devices/pci0000:00/0000:00:14.0/usb1/1-8
+ID_VENDOR=Apple_Inc.
+ID_VENDOR_ID=05ac
+ID_MODEL=iPhone
+ID_MODEL_ID=12a8
+ID_SERIAL=Apple_Inc._iPhone_00008110
+ID_USB_INTERFACES=:060101:ff0000:ff2a01:
+

@@ -1,0 +1,10 @@
+UDEV  [9700.700001] add      /devices/pci0000:00/0000:00:14.0/usb1/1-13 (usb)
+ACTION=add
+SUBSYSTEM=usb
+DEVTYPE=usb_device
+DEVPATH=/devices/pci0000:00/0000:00:14.0/usb1/1-13
+ID_VENDOR_FROM_DATABASE=Alcor Micro Corp.
+ID_MODEL_FROM_DATABASE=AU9540 Smartcard Reader
+ID_USB_INTERFACES=:0b0000:
+ID_SERIAL=Alcor_Micro_USB_Smart_Card_Reader
+

@@ -41,6 +41,13 @@ def test_an_ordinary_mouse_is_not_news():
     assert events("mouse") == []
 
 
+def test_a_keyboard_is_followed_as_input():
+    rec = (UDEV / "mouse.txt").read_text().replace("ID_INPUT_MOUSE=1", "ID_INPUT_KEYBOARD=1").replace("Gaming Mouse", "Keyboard")
+    out = io.StringIO()
+    plugwatch.run(io.StringIO(rec), out)
+    assert [json.loads(x)["kind"] for x in out.getvalue().splitlines()] == ["input"]
+
+
 def test_once_per_device_and_its_removal_followed():
     e = events("controller", "controller-remove", "controller")
     assert [x["event"] for x in e] == ["add", "remove"]
@@ -53,3 +60,20 @@ def test_the_bridge_runs_the_monitor_and_says_ready(tmp_path):
                        capture_output=True, text=True, timeout=10)
     lines = [json.loads(x) for x in p.stdout.splitlines()]
     assert lines[0] == {"event": "ready"} and lines[1]["kind"] == "scanner"
+
+
+def test_more_kinds_each_by_its_udev_properties():
+    got = [(x["kind"], x["name"]) for x in events("camera", "phone", "iphone", "clicker", "capture", "midi",
+                                                  "serial", "cardreader", "braille", "egpu")]
+    assert got == [
+        ("camera", "Canon, Inc. EOS 250D"),
+        ("phone", "Google Inc. Nexus/Pixel Device (MTP)"),
+        ("iphone", "iPhone"),
+        ("clicker", "USB Receiver"),                 # by its keys: page up / down, B, F5, Escape only
+        ("clicker", "Wireless Presenter"),           # by its name
+        ("capture", "Cam Link 4K: Cam Link 4K"),     # the webcam after it is not a capture card
+        ("midi", "Launchkey Mini MK3"),
+        ("serial", "Arduino SA Uno (CDC ACM) - /dev/ttyACM0"),
+        ("cardreader", "Alcor Micro Corp. AU9540 Smartcard Reader"),
+        ("braille", "HumanWare Brailliant BI 40X"),
+        ("egpu", "Navi 23 [Radeon RX 6600]")]

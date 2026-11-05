@@ -10,6 +10,7 @@ Rectangle {
     id: root
     property Item target: null            // a TextInput (a Field's .input)
     signal entered()
+    signal hideRequested()                // the ⌄ key: the screen this sits on hides it
     property bool shift: false
     property bool symbols: false
 
@@ -89,6 +90,7 @@ Rectangle {
             Key { label: root.symbols ? "abc" : "?123"; Layout.maximumWidth: 110; onTapped: root.symbols = !root.symbols }
             Key { label: "space"; onTapped: root.type(" ") }
             Key { label: "⏎"; accent: true; Layout.maximumWidth: 110; onTapped: root.entered() }
+            Key { label: "⌄"; Accessible.name: Tr.t("Hide keyboard"); Layout.maximumWidth: 70; onTapped: root.hideRequested() }
         }
     }
 }

@@ -1,0 +1,42 @@
+P: /devices/LNXSYSTM:00/LNXPWRBN:00/input/input2
+U: input
+E: SUBSYSTEM=input
+E: NAME="Power Button"
+E: ID_INPUT=1
+E: ID_INPUT_KEYBOARD=1
+
+P: /devices/LNXSYSTM:00/LNXSYBUS:00/PNP0C0D:00/input/input1
+U: input
+E: SUBSYSTEM=input
+E: NAME="Lid Switch"
+E: ID_INPUT=1
+E: ID_INPUT_SWITCH=1
+
+P: /devices/LNXSYSTM:00/LNXSYBUS:00/PNP0A08:00/LNXVIDEO:00/input/input4
+U: input
+E: SUBSYSTEM=input
+E: NAME="Video Bus"
+E: ID_INPUT=1
+E: ID_INPUT_KEYBOARD=1
+
+P: /devices/virtual/input/input30
+U: input
+E: SUBSYSTEM=input
+E: NAME="ydotoold virtual device"
+E: ID_INPUT=1
+E: ID_INPUT_KEYBOARD=1
+
+P: /devices/pci0000:00/0000:00:15.1/i2c_designware.1/i2c-2/i2c-ELAN9008:00/0018:04F3:2A1C.0001/input/input12
+U: input
+E: SUBSYSTEM=input
+E: NAME="ELAN9008:00 04F3:2A1C"
+E: ID_INPUT=1
+E: ID_INPUT_TOUCHSCREEN=1
+
+P: /devices/platform/INT33D6:00/intel-vbtn/input/input13
+U: input
+E: SUBSYSTEM=input
+E: NAME="Intel Virtual Switches"
+E: ID_INPUT=1
+E: ID_INPUT_SWITCH=1
+

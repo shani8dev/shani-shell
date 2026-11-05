@@ -122,8 +122,10 @@ Singleton {
     // a monitor that arrives while the session runs (Plugged greets it); the
     // first listing is what was there at login, never news
     signal arrived(var output)
+    signal departed(string name)            // a monitor unplugged (Plugged ends Presenting with it)
     property var known: null
     function rescan() { settle.go(); }
+    function stopMirror() { mirror.running = false; }
     // after a change: the setting goes to InputConfig's file and niri reloads
     // it on its own time, so outputs are read again a few times over ~4 s
     // (there is no event for "niri applied the config") - then nothing polls
@@ -165,6 +167,11 @@ Singleton {
                         };
                     });
                     const names = root.outputs.map(x => x.name);
+                    if (root.known !== null)
+                        for (const gone of root.known.filter(n => names.indexOf(n) < 0)) {
+                            root.known = root.known.filter(n => n !== gone);
+                            root.departed(gone);
+                        }
                     if (root.known === null)
                         root.known = names;
                     else

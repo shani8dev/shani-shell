@@ -1,0 +1,8 @@
+UDEV  [9700.500001] add      /devices/pci0000:00/0000:00:14.0/usb1/1-11/1-11:1.0/sound/card2/midiC2D0 (sound)
+ACTION=add
+SUBSYSTEM=sound
+DEVNAME=/dev/snd/midiC2D0
+DEVPATH=/devices/pci0000:00/0000:00:14.0/usb1/1-11/1-11:1.0/sound/card2/midiC2D0
+ID_MODEL=Launchkey_Mini_MK3
+ID_SERIAL=Focusrite_Launchkey_Mini_MK3
+

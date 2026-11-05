@@ -1,0 +1,10 @@
+UDEV  [9700.600001] add      /devices/pci0000:00/0000:00:14.0/usb1/1-12/1-12:1.0/tty/ttyACM0 (tty)
+ACTION=add
+SUBSYSTEM=tty
+DEVNAME=/dev/ttyACM0
+DEVPATH=/devices/pci0000:00/0000:00:14.0/usb1/1-12/1-12:1.0/tty/ttyACM0
+ID_VENDOR=Arduino__www.arduino.cc_
+ID_VENDOR_FROM_DATABASE=Arduino SA
+ID_MODEL_FROM_DATABASE=Uno (CDC ACM)
+ID_SERIAL=Arduino__www.arduino.cc__0043_75833
+

@@ -22,12 +22,16 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    onVisibleChanged: if (visible) pass.input.forceActiveFocus()
+    // the screen keyboard: by itself without a working keyboard (InputKinds), a tap away always
+    property bool kb: false
+    Binding { target: Ui; property: "promptKeyboard"; value: win.kb && win.visible; when: win.visible }
+    onVisibleChanged: if (visible) { pass.input.forceActiveFocus(); kb = InputKinds.typesOnScreen; }
 
     Glass {
         id: blurCard
         strong: true
         anchors.centerIn: parent
+        anchors.verticalCenterOffset: win.kb ? -parent.height * 0.18 : 0
         width: 440
         height: form.implicitHeight + 44
         radius: Theme.radiusLarge
@@ -65,6 +69,10 @@ PanelWindow {
                 font.family: Theme.font
                 font.pixelSize: 12 * Theme.fontScale
             }
+            RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+            visible: pass.visible
             TextField {
                 id: pass
                 Layout.fillWidth: true
@@ -75,6 +83,8 @@ PanelWindow {
                     win.flow.submit(text);
                     text = "";
                 }
+            }
+            IconButton { icon: "input-keyboard"; size: 32; on: win.kb; tip: win.kb ? Tr.t("Hide keyboard") : Tr.t("Screen keyboard"); onClicked: win.kb = !win.kb }
             }
             Text {
                 Layout.fillWidth: true
@@ -108,5 +118,15 @@ PanelWindow {
                 }
             }
         }
+    }
+    ScreenKeyboard {
+        visible: win.kb && pass.visible
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 18
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: Math.min(900, parent.width - 36)
+        target: pass.input
+        onEntered: { win.flow.submit(pass.text); pass.text = ""; }
+        onHideRequested: win.kb = false
     }
 }

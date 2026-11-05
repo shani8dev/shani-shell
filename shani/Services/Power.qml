@@ -7,6 +7,7 @@ import Quickshell.Io
 import Quickshell.Services.UPower
 import QtQuick
 import qs.Common
+import "Charger.js" as Charger
 
 Singleton {
     id: root
@@ -23,8 +24,31 @@ Singleton {
         && d.model !== "")
     // Glass cannot import Services (Common → Services would be a cycle), so the
     // battery state for it is mirrored into Common/PowerState
-    onOnBatteryChanged: PowerState.onBattery = onBattery
+    onOnBatteryChanged: { PowerState.onBattery = onBattery; if (onBattery) slowToldThisPlug = false; }
     Component.onCompleted: PowerState.onBattery = onBattery
+    // a charger too slow for this computer (Charger.js): told once each time it is
+    // plugged in. Event-driven: UPower's state changes start a one-shot check, no polling.
+    readonly property bool drainingPluggedIn: hasBattery && !onBattery && battery.state === UPowerDeviceState.Discharging
+    property real drainSince: 0
+    property bool slowToldThisPlug: false
+    onDrainingPluggedInChanged: {
+        drainSince = drainingPluggedIn ? Date.now() : 0;
+        if (drainingPluggedIn) {
+            slowCheck.restart();
+            checkSlow();                  // a real draw reading says it at once
+        } else
+            slowCheck.stop();
+    }
+    function checkSlow() {
+        if (slowToldThisPlug || !drainingPluggedIn)
+            return;
+        if (Charger.tooSlow(onBattery, true, (Date.now() - drainSince) / 1000, Math.abs(battery.changeRate || 0))) {
+            slowToldThisPlug = true;
+            Quickshell.execDetached(["notify-send", "-a", Tr.t("Power"), "-i", "battery-caution",
+                Tr.t("This charger is too slow"), Tr.t("The battery is still running down. A stronger charger (the one that came with this computer) will charge it.")]);
+        }
+    }
+    Timer { id: slowCheck; interval: Charger.SUSTAINED_S * 1000 + 500; onTriggered: root.checkSlow() }
     // low: told once per device per discharge, below 15 %
     property var peripheralsWarned: ({})
     Timer {

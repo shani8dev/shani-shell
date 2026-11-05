@@ -134,7 +134,31 @@ Singleton {
             Settings.data.audioBalance = t;
     }
     onBalanceChanged: balanceApply.restart()
-    onSinkChanged: balanceApply.restart()
+    // the sound moving to a device that just arrived (headphones plugged in, a
+    // Bluetooth headset connected): WirePlumber switches by itself, and the OSD
+    // says where it went. A switch made by hand to a device already there is not news.
+    signal switchedToNew(string name)
+    property var sinkIds: null            // the sinks there were, by id (null until first seen)
+    property var arrivedAt: ({})          // sink id -> when it appeared (ms)
+    // what PipeWire lists in the shell's first seconds was there before it: not arrivals
+    readonly property real startedAt: Date.now()
+    Component.onCompleted: sinkIds = sinks.map(n => n.id)
+    onSinksChanged: {
+        const ids = sinks.map(n => n.id);
+        if (sinkIds !== null && Date.now() - startedAt > 5000) {
+            const a = Object.assign({}, arrivedAt);
+            for (const id of ids)
+                if (sinkIds.indexOf(id) < 0)
+                    a[id] = Date.now();
+            arrivedAt = a;
+        }
+        sinkIds = ids;
+    }
+    onSinkChanged: {
+        balanceApply.restart();
+        if (sink && arrivedAt[sink.id] && Date.now() - arrivedAt[sink.id] < 5000)
+            switchedToNew(nodeName(sink));
+    }
     function nodeName(n) {
         return n ? (n.description || n.nickname || n.name) : "";
     }

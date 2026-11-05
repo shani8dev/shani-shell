@@ -2257,6 +2257,98 @@ settings '{}'
 exec 7>&- 8>&-
 : > /tmp/input-devices
 
+# ---- the screen keyboard: hidden to see the whole screen, and back with one tap ----------
+echo "root:shani-test" | chpasswd   # (set earlier in the suite; again for running this part alone)
+oskb() { niri msg -j layers | python3 -c "import json,sys; print(sum(1 for l in json.load(sys.stdin) if l['namespace'] == 'shani-osk-button'))"; }
+ipc closeAll; ipc osk
+waitfor "d['osk']" 4
+if [ -f "$A11Y" ]; then
+    timeout 20 python3 "$A11Y" press "^Hide keyboard$" >/dev/null 2>&1
+    waitfor "not d['osk']" 4 && result osk-hide-key PASS || result osk-hide-key FAIL
+fi
+[ "$(oskb)" = 0 ] && result osk-button-not-with-a-keyboard PASS || result osk-button-not-with-a-keyboard FAIL "$(oskb)"
+# a computer with only a touchscreen (and no keyboard): the floating button, and it brings the keyboard back
+cp /work/dev/udev-db/tablet-no-keyboard.txt /tmp/udev-db
+sed 's/ID_INPUT_MOUSE=1/ID_INPUT_TOUCHSCREEN=1/; s/Gaming Mouse/Touch/; s|3/46d/c08b|3/4f3/2a1c|' /work/dev/udev/mouse.txt > /tmp/udev-events
+waitfor "not d['hasKeyboard']" 6
+i=0; until [ "$(oskb)" = 1 ] || [ $i -ge 16 ]; do sleep 0.25; i=$((i+1)); done
+[ "$(oskb)" = 1 ] && result osk-button-on-a-touchscreen PASS || result osk-button-on-a-touchscreen FAIL "$(q "['hasKeyboard']") $(oskb)"
+if [ -f "$A11Y" ]; then
+    timeout 20 python3 "$A11Y" press "^Show keyboard$" >/dev/null 2>&1
+    waitfor "d['osk']" 4 && result osk-button-brings-it-back PASS || result osk-button-brings-it-back FAIL
+fi
+ipc osk; waitfor "not d['osk']" 3
+# no keyboard: the lock screen's keyboard is up by itself
+ipc lock; waitfor "d['locked']" 6; sleep 1
+if [ -f "$A11Y" ]; then
+    timeout 20 python3 "$A11Y" find "^Hide keyboard$" >/dev/null 2>&1 && result lock-keyboard-by-itself-without-one PASS || result lock-keyboard-by-itself-without-one FAIL
+    # the password typed on it, key by key, and ⏎
+    for k in s h a n i ?123 - abc t e s t; do timeout 20 python3 "$A11Y" press "^$(printf '%s' "$k" | sed 's/[?]/[?]/g')\$" >/dev/null 2>&1; done
+    timeout 20 python3 "$A11Y" press "^⏎$" >/dev/null 2>&1
+    waitfor "not d['locked']" 8 && result lock-unlocks-from-its-screen-keyboard PASS || result lock-unlocks-from-its-screen-keyboard FAIL
+fi
+[ "$(q "['locked']")" = True ] && { wtype "shani-test" -k Return; waitfor "not d['locked']" 6; }
+# a keyboard again: the lock screen's keyboard waits for its button
+cp /work/dev/udev-db/laptop.txt /tmp/udev-db
+sed 's/ID_INPUT_MOUSE=1/ID_INPUT_KEYBOARD=1/; s/Gaming Mouse/Keyboard/; s|3/46d/c08b|3/46d/c31c|' /work/dev/udev/mouse.txt > /tmp/udev-events
+waitfor "d['hasKeyboard']" 6
+ipc lock; waitfor "d['locked']" 6; sleep 1
+if [ -f "$A11Y" ]; then
+    ! timeout 20 python3 "$A11Y" find "^Hide keyboard$" >/dev/null 2>&1 && timeout 20 python3 "$A11Y" press "^Screen keyboard$" >/dev/null 2>&1 \
+        && sleep 0.5 && timeout 20 python3 "$A11Y" find "^Hide keyboard$" >/dev/null 2>&1 \
+        && result lock-keyboard-button PASS || result lock-keyboard-button FAIL
+fi
+wtype "shani-test" -k Return; waitfor "not d['locked']" 6
+# tablet mode: folded, the keyboard comes; unfolded, it goes
+printf 'I: Bus=0019\nN: Name="Intel Virtual Switches"\nH: Handlers=event13\nB: EV=21\nB: SW=2\n\n' >> /tmp/input-devices
+rm -f /tmp/fake-input/event13; mkfifo /tmp/fake-input/event13
+cp /work/dev/udev-db/tablet-no-keyboard.txt /tmp/udev-db; cat /work/dev/udev-db/laptop.txt >> /tmp/udev-db   # a convertible: keyboard, touch, the switch
+sed 's/ID_INPUT_MOUSE=1/ID_INPUT_SWITCH=1/; s/Gaming Mouse/Switches/; s|3/46d/c08b|19/0/0/0|' /work/dev/udev/mouse.txt > /tmp/udev-events
+exec 9<>/tmp/fake-input/event13
+sw() { python3 -c "import struct,sys; sys.stdout.buffer.write(struct.pack('llHHi',0,0,5,1,int(sys.argv[1])))" "$1" >&9; }
+sw 1; waitfor "d['tabletMode'] and d['osk']" 6 && result tablet-mode-shows-keyboard PASS || result tablet-mode-shows-keyboard FAIL "$(q "['tabletMode'], d['osk']")"
+sw 0; waitfor "not d['tabletMode'] and not d['osk']" 6 && result tablet-mode-off-hides-it PASS || result tablet-mode-off-hides-it FAIL "$(q "['tabletMode'], d['osk']")"
+exec 9>&-
+cp /work/dev/udev-db/laptop.txt /tmp/udev-db; : > /tmp/input-devices
+
+# ---- more devices greeted, each with one sentence and (at most) one action ----------------
+udev() { cat "/work/dev/udev/$1.txt" > /tmp/udev-events; }
+greeted() { waitfor "any(s.startswith('$1') for s in d['notificationSummaries'])" 6; }
+rm -f /tmp/gio-log /tmp/gio-mounted
+udev camera; greeted "Canon, Inc. EOS 250D plugged in" && ipc notificationAct "Canon, Inc. EOS 250D plugged in" files
+i=0; until grep -q "^open gphoto2://" /tmp/gio-log 2>/dev/null || [ $i -ge 20 ]; do sleep 0.25; i=$((i+1)); done
+grep -q "^open gphoto2://Canon" /tmp/gio-log && result plug-camera-opens-its-photos PASS || result plug-camera-opens-its-photos FAIL "$(cat /tmp/gio-log 2>&1 | tr '\n' ';')"
+udev phone; greeted "Google Inc." && ipc notificationAct "Google Inc. Nexus/Pixel Device (MTP) plugged in" files
+i=0; until grep -q "^open mtp://" /tmp/gio-log 2>/dev/null || [ $i -ge 20 ]; do sleep 0.25; i=$((i+1)); done
+grep -q "^open mtp://" /tmp/gio-log && result plug-phone-opens-its-files PASS || result plug-phone-opens-its-files FAIL
+udev iphone; greeted "iPhone plugged in"
+waitfor "d['iphoneNoteDone']" 3 && result plug-iphone-says-once PASS || result plug-iphone-says-once FAIL
+for k in clicker capture midi cardreader egpu; do udev $k; done
+for t in "USB Receiver" "Wireless Presenter" "Cam Link 4K" "Launchkey Mini MK3" "Alcor Micro" "Navi 23"; do
+    greeted "$t" || { result plug-more-kinds FAIL "$t"; t=bad; break; }
+done
+[ "$t" != bad ] && result plug-more-kinds PASS
+udev serial; greeted "Arduino SA" && ipc notificationAct "Arduino SA Uno (CDC ACM) - /dev/ttyACM0 plugged in" copy; sleep 0.8
+[ "$(wl-paste 2>/dev/null)" = /dev/ttyACM0 ] && result plug-serial-copies-the-port PASS || result plug-serial-copies-the-port FAIL "$(wl-paste 2>&1)"
+# a braille display: the screen reader on at once, Undo puts it back
+udev braille
+waitfor "d['screenReader']" 6 && ipc notificationAct "HumanWare Brailliant BI 40X plugged in" undo
+waitfor "not d['screenReader']" 4 && result plug-braille-screen-reader-and-undo PASS || result plug-braille-screen-reader-and-undo FAIL "$(q "['screenReader']")"
+# a projector: Presenting mirrors, quiets and keeps awake - all put back when it goes
+echo DP-3 > /tmp/fake-monitor
+dnd0=$(q "['dnd']")
+udev monitor
+greeted "Seiko Epson Corporation EPSON PJ plugged in" && ipc notificationAct "Seiko Epson Corporation EPSON PJ plugged in" present
+waitfor "d['presenting'] == 'DP-3' and d['dnd'] and d['caffeine']" 4 && result presenting-on PASS || result presenting-on FAIL "$(q "['presenting'], d['dnd'], d['caffeine']")"
+rm -f /tmp/fake-monitor; udev monitor
+waitfor "d['presenting'] == '' and str(d['dnd']) == '$dnd0' and not d['caffeine']" 6 && result presenting-undone-when-unplugged PASS || result presenting-undone-when-unplugged FAIL "$(q "['presenting'], d['dnd'], d['caffeine']")"
+# headphones arriving take the sound: the OSD says where it went
+pactl load-module module-null-sink sink_name=usbheadset sink_properties=device.description=USB-Headset >/dev/null 2>&1; sleep 0.8
+pactl set-default-sink usbheadset
+waitfor "d['osdLabel'] == 'Sound: USB-Headset'" 4 && result sound-switched-to-new-device-osd PASS || result sound-switched-to-new-device-osd FAIL "$(q "['osdLabel']")"
+pactl set-default-sink speakers; sleep 0.5
+pactl unload-module "$(pactl list short modules | awk '/sink_name=usbheadset/ {print $1}')" 2>/dev/null
+
 # ---- dynamic lock: the paired phone goes away → locked after the grace ---------------
 settings '{"dynamicLockDevice": "AA:BB:CC:DD:EE:FF"}'
 waitfor "d['dynamicLockDevice'] == 'AA:BB:CC:DD:EE:FF' and not d['locked']" 6 || true

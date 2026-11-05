@@ -1,0 +1,33 @@
+P: /devices/LNXSYSTM:00/LNXPWRBN:00/input/input2
+M: input2
+U: input
+E: DEVPATH=/devices/LNXSYSTM:00/LNXPWRBN:00/input/input2
+E: SUBSYSTEM=input
+E: PRODUCT=19/0/1/0
+E: NAME="Power Button"
+E: ID_INPUT=1
+E: ID_INPUT_KEY=1
+E: ID_INPUT_KEYBOARD=1
+
+P: /devices/platform/i8042/serio0/input/input0
+M: input0
+U: input
+E: DEVPATH=/devices/platform/i8042/serio0/input/input0
+E: SUBSYSTEM=input
+E: PRODUCT=11/1/1/ab41
+E: NAME="AT Translated Set 2 keyboard"
+E: ID_INPUT=1
+E: ID_INPUT_KEY=1
+E: ID_INPUT_KEYBOARD=1
+
+P: /devices/platform/i8042/serio0/input/input0/event0
+M: event0
+U: input
+D: c 13:64
+N: input/event0
+E: DEVPATH=/devices/platform/i8042/serio0/input/input0/event0
+E: SUBSYSTEM=input
+E: DEVNAME=/dev/input/event0
+E: ID_INPUT=1
+E: ID_INPUT_KEYBOARD=1
+

@@ -1,0 +1,18 @@
+UDEV  [9700.400001] add      /devices/pci0000:00/0000:00:14.0/usb2/2-1/2-1:1.0/video4linux/video4 (video4linux)
+ACTION=add
+SUBSYSTEM=video4linux
+DEVNAME=/dev/video4
+DEVPATH=/devices/pci0000:00/0000:00:14.0/usb2/2-1/2-1:1.0/video4linux/video4
+ID_V4L_VERSION=2
+ID_V4L_PRODUCT=Cam Link 4K: Cam Link 4K
+ID_V4L_CAPABILITIES=:capture:
+ID_SERIAL=Elgato_Cam_Link_4K_0004
+
+UDEV  [9700.400501] add      /devices/pci0000:00/0000:00:14.0/usb2/2-2/2-2:1.0/video4linux/video6 (video4linux)
+ACTION=add
+SUBSYSTEM=video4linux
+DEVNAME=/dev/video6
+ID_V4L_PRODUCT=Integrated Camera: Integrated C
+ID_V4L_CAPABILITIES=:capture:
+ID_SERIAL=Chicony_Integrated_Camera
+
