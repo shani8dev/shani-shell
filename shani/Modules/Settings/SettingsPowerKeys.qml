@@ -90,14 +90,38 @@ ColumnLayout {
         write.running = true;
     }
 
-    readonly property var lidOptions: [{ label: Tr.t("Sleep"), value: "suspend" }, { label: Tr.t("Lock"), value: "lock" }, { label: Tr.t("Nothing"), value: "ignore" }, { label: Tr.t("Power off"), value: "poweroff" }]
+    // "Sleep" sleeps the way chosen below (it may be sleep-then-hibernate); hibernate where it works
+    readonly property bool sleepish: ["suspend", "suspend-then-hibernate", "hybrid-sleep"].indexOf(lid) >= 0
+    readonly property var lidOptions: [{ label: Tr.t("Sleep"), value: Power.sleepVerb }]
+        .concat(Power.canHibernate ? [{ label: Tr.t("Hibernate"), value: "hibernate" }] : [])
+        .concat([{ label: Tr.t("Lock"), value: "lock" }, { label: Tr.t("Nothing"), value: "ignore" }, { label: Tr.t("Power off"), value: "poweroff" }])
+    function shown(v) { return ["suspend", "suspend-then-hibernate", "hybrid-sleep"].indexOf(v) >= 0 ? Power.sleepVerb : v; }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Lid, power button and battery") }
-    Picks { visible: page.hasLid; label: Tr.t("Closing the lid"); options: page.lidOptions; current: page.lid; onPicked: v => page.save({ lid: v }) }
-    Picks { visible: page.hasLid; label: Tr.t("Closing the lid while plugged in"); options: page.lidOptions; current: page.lidOnPower; onPicked: v => page.save({ lidOnPower: v }) }
+    // how it sleeps: offered only where this machine can hibernate
+    Picks {
+        visible: Power.canSuspendThenHibernate || Power.canHybridSleep
+        label: Tr.t("When it sleeps")
+        options: [{ label: Tr.t("Just sleep"), value: "suspend" }]
+            .concat(Power.canSuspendThenHibernate ? [{ label: Tr.t("Sleep, then hibernate after a while - saves the battery"), value: "suspend-then-hibernate" }] : [])
+            .concat(Power.canHybridSleep ? [{ label: Tr.t("Sleep, with a copy on disk - safe from a power cut"), value: "hybrid-sleep" }] : [])
+        current: Power.sleepVerb
+        onPicked: v => {
+            Settings.data.sleepStyle = v;
+            // the lid's "Sleep" follows the choice (logind runs it, not the shell)
+            const p = {};
+            if (["suspend", "suspend-then-hibernate", "hybrid-sleep"].indexOf(page.lid) >= 0) p.lid = v;
+            if (["suspend", "suspend-then-hibernate", "hybrid-sleep"].indexOf(page.lidOnPower) >= 0) p.lidOnPower = v;
+            if (Object.keys(p).length) page.save(p);
+        }
+    }
+    Picks { visible: page.hasLid; label: Tr.t("Closing the lid"); options: page.lidOptions; current: page.shown(page.lid); onPicked: v => page.save({ lid: v }) }
+    Picks { visible: page.hasLid; label: Tr.t("Closing the lid while plugged in"); options: page.lidOptions; current: page.shown(page.lidOnPower); onPicked: v => page.save({ lidOnPower: v }) }
     Picks {
         label: Tr.t("Pressing the power button")
-        options: [{ label: Tr.t("Power off"), value: "poweroff" }, { label: Tr.t("Sleep"), value: "suspend" }, { label: Tr.t("Lock"), value: "lock" }, { label: Tr.t("Nothing"), value: "ignore" }]
+        options: [{ label: Tr.t("Power off"), value: "poweroff" }, { label: Tr.t("Sleep"), value: "suspend" }]
+            .concat(Power.canHibernate ? [{ label: Tr.t("Hibernate"), value: "hibernate" }] : [])
+            .concat([{ label: Tr.t("Lock"), value: "lock" }, { label: Tr.t("Nothing"), value: "ignore" }])
         current: page.powerKey
         onPicked: v => page.save({ powerKey: v })
     }

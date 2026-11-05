@@ -21,6 +21,7 @@ Singleton {
         watchChanges: true
         atomicWrites: true
         printErrors: false
+        onFileChanged: reload()             // watching only says it changed
         onLoaded: {
             try {
                 const parsed = JSON.parse(rulesFile.text() || "{}");
@@ -36,8 +37,13 @@ Singleton {
     }
     function add(pattern, action) { root.rules = root.rules.concat([{ pattern: pattern, action: action }]); save(); }
     function remove(i) { root.rules = root.rules.filter((_, j) => j !== i); save(); }
-    // the folder first: a FileView does not make one
-    Process { running: true; command: ["mkdir", "-p", Quickshell.env("HOME") + "/.config/shani-shell"] }
+    // the folder and an empty file first: a FileView makes neither, and a file that
+    // is not there cannot be watched - rules written later would never be read
+    Process {
+        running: true
+        command: ["sh", "-c", 'mkdir -p "${1%/*}" && { [ -f "$1" ] || printf "{\"rules\": []}" > "$1"; }', "sh", root.configPath]
+        onExited: rulesFile.reload()
+    }
 
     // Evaluate a notification against rules; return action string or empty
     function evaluate(appName, summary, body) {

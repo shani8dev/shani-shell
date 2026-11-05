@@ -80,6 +80,10 @@ PanelWindow {
         return m && m.rows.length > 1 ? m.rows[1].slice(0, 3).map(k => k.n).join("") : next;
     }
 
+    // the language list, over the keys: each language, and adding one in Settings
+    property bool langMenu: false
+    function langName(id) { return (layouts[id] && layouts[id].name) || (Osk.xkb[id] && Osk.xkb[id].name) || id; }
+
     function tap(k) {
         if (k === "⌫")
             Osk.press("BackSpace");
@@ -101,13 +105,76 @@ PanelWindow {
         anchors.bottomMargin: 6
         radius: Theme.radiusLarge
 
+        Glass {
+            visible: win.langMenu
+            z: 5
+            strong: true
+            radius: 14
+            x: 12
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 70
+            width: 300
+            height: langCol.implicitHeight + 16
+            Column {
+                id: langCol
+                x: 8; y: 8
+                width: parent.width - 16
+                Repeater {
+                    model: Osk.languages
+                    ListRow {
+                        required property string modelData
+                        required property int index
+                        width: langCol.width
+                        icon: "preferences-desktop-locale"
+                        title: win.langName(modelData)
+                        selected: index === Osk.langIndex % Osk.languages.length
+                        onClicked: { Osk.langIndex = index; win.langMenu = false; }
+                    }
+                }
+                ListRow {
+                    width: langCol.width
+                    icon: "list-add"
+                    title: Tr.t("Add a language…")
+                    onClicked: { win.langMenu = false; Osk.toggle(); Ui.openSettings("input"); }
+                }
+            }
+        }
+
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: 10
             spacing: 6
 
+            // the handwriting pad, in place of the letters; editing keys beside it
+            RowLayout {
+                visible: Osk.page === "write"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.preferredHeight: 3
+                spacing: 6
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    radius: 10
+                    color: Theme.alpha(Theme.text, 0.04)
+                    border.color: Theme.stroke
+                    WritePad { anchors.fill: parent; visible: Osk.page === "write" }
+                }
+                GridLayout {
+                    Layout.fillHeight: true
+                    Layout.preferredWidth: 200
+                    columns: 2
+                    rowSpacing: 6
+                    columnSpacing: 6
+                    Repeater {
+                        model: [{ l: "⌫", k: "BackSpace" }, { l: "⌦", k: "Delete" }, { l: "⇥", k: "Tab" }, { l: "Esc", k: "Escape" },
+                                { l: "←", k: "Left" }, { l: "→", k: "Right" }, { l: "↑", k: "Up" }, { l: "↓", k: "Down" }]
+                        Key { required property var modelData; Layout.fillWidth: true; Layout.fillHeight: true; label: modelData.l; onTapped: Osk.press(modelData.k) }
+                    }
+                }
+            }
             Repeater {
-                model: win.rows
+                model: Osk.page === "write" ? [] : win.rows
                 RowLayout {
                     id: keyRow
                     required property var modelData
@@ -135,9 +202,24 @@ PanelWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 spacing: 6
-                Key { Layout.preferredWidth: 130; Layout.fillHeight: true; label: Osk.page === "symbols" ? "abc" : (Osk.lang === "mr" ? "?१२३" : "?123"); onTapped: Osk.page = Osk.page === "symbols" ? "letters" : "symbols" }
+                Key { Layout.preferredWidth: 130; Layout.fillHeight: true; label: Osk.page !== "letters" ? "abc" : (Osk.lang === "mr" ? "?१२३" : "?123"); onTapped: Osk.page = Osk.page !== "letters" ? "letters" : "symbols" }
+                // write by hand; Ctrl and Alt, sticky (one tap: the next key; two: held)
+                Key { Layout.preferredWidth: 80; Layout.fillHeight: true; label: "✍"; accent: Osk.page === "write"; onTapped: Osk.page = Osk.page === "write" ? "letters" : "write"; Accessible.name: Tr.t("Write by hand") }
+                Key { Layout.preferredWidth: 80; Layout.fillHeight: true; label: Osk.ctrl === 2 ? "Ctrl ●" : "Ctrl"; accent: Osk.ctrl > 0; onTapped: Osk.tapMod("ctrl") }
+                Key { Layout.preferredWidth: 80; Layout.fillHeight: true; label: Osk.alt === 2 ? "Alt ●" : "Alt"; accent: Osk.alt > 0; onTapped: Osk.tapMod("alt") }
                 Key { Layout.preferredWidth: 90; Layout.fillHeight: true; label: "⇧"; visible: Osk.isXkb; accent: Osk.shift; onTapped: Osk.shift = !Osk.shift }
-                Key { Layout.preferredWidth: 130; Layout.fillHeight: true; label: "⇄ " + win.nextSample; visible: Osk.languages.length > 1; onTapped: Osk.nextLanguage() }
+                // the globe (Gboard's): a tap - the next language, or the list when there is
+                // only one (so adding one is never hidden); held - the list
+                Key {
+                    id: globe
+                    Layout.preferredWidth: 110
+                    Layout.fillHeight: true
+                    label: Osk.languages.length > 1 ? "🌐 " + win.nextSample : "🌐"
+                    Accessible.name: Tr.t("Keyboard language")
+                    holdable: true
+                    onTapped: Osk.languages.length > 1 ? Osk.nextLanguage() : (win.langMenu = !win.langMenu)
+                    onHeld: win.langMenu = true
+                }
                 // voice typing: tap, speak, tap again — the words land where the keys would
                 Key {
                     Layout.preferredWidth: 90
@@ -163,6 +245,8 @@ PanelWindow {
         property string icon: ""
         property bool dim: false
         signal tapped()
+        signal held()
+        property bool holdable: false      // has something to show when held: waits for the release
 
         Accessible.role: Accessible.Button
         Accessible.name: key.icon !== "" ? "microphone" : key.label
@@ -186,7 +270,11 @@ PanelWindow {
         MouseArea {
             id: area
             anchors.fill: parent
-            onPressed: key.tapped()
+            // a key types on press (fast typing); one that can be held waits for the release
+            onPressed: if (!key.holdable) key.tapped()
+            onClicked: if (key.holdable) key.tapped()
+            pressAndHoldInterval: 450
+            onPressAndHold: if (key.holdable) key.held()
         }
     }
 }

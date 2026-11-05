@@ -2067,6 +2067,39 @@ grep -q 'Mod+Alt+J hotkey-overlay-title="Open my files"' "${XDG_CONFIG_HOME:-$HO
     && result custom-shortcut-written PASS || result custom-shortcut-written FAIL "$(grep -c 'Mod+Alt+J' "${XDG_CONFIG_HOME:-$HOME/.config}/niri/shani-input.kdl" 2>/dev/null)"
 settings '{}'
 
+# ---- sleep: "just sleep" where this machine cannot hibernate, whatever is asked ----------
+settings '{"sleepStyle": "suspend-then-hibernate"}'
+[ "$(q "['sleepVerb']")" = suspend ] && result sleep-falls-back-without-hibernate PASS || result sleep-falls-back-without-hibernate FAIL "$(q "['sleepVerb']")"
+settings '{}'
+
+# ---- handwriting: strokes read on this machine, typed where the person was --------------
+# block capitals, as a pen would leave them: HELL on the first row, TELL on the second
+python3 -c "
+import json
+def block(word, x=10, y=10, h=60, w=36, gap=18):
+    out = []
+    for ch in word:
+        L = {'H': [[(0,0),(0,h)],[(w,0),(w,h)],[(0,h/2),(w,h/2)]], 'E': [[(w,0),(0,0),(0,h),(w,h)],[(0,h/2),(w*0.8,h/2)]],
+             'L': [[(0,0),(0,h),(w,h)]], 'T': [[(0,0),(w,0)],[(w/2,0),(w/2,h)]]}[ch]
+        out += [[[x+px, y+py] for px, py in s] for s in L]; x += w + gap
+    return out
+print(json.dumps([block('HELL'), block('TELL', y=10)]))" > /tmp/hw.json
+typein written-in-term /tmp/written 9
+ipc oskWrite "$(cat /tmp/hw.json)"
+i=0; until [ -s /tmp/written ] || [ $i -ge 40 ]; do sleep 0.25; i=$((i+1)); done
+[ "$(tr '\r' '\n' < /tmp/written | tr -d ' ' | tr 'a-z' 'A-Z')" = "$(printf 'HELL\nTELL')" ] \
+    && result handwriting-typed PASS "$(q "['oskWritten']" | tr '\n' '/')" || result handwriting-typed FAIL "got '$(cat /tmp/written)', read '$(q "['oskWritten']")'"
+niri msg action close-window --id "$(winid written-in-term)" 2>/dev/null
+
+# ---- the keyboard's language: a globe always there; with one language, its list ---------
+if [ -f "$A11Y" ]; then
+    settings '{"oskLanguages": ["en"]}'
+    ipc osk; sleep 1
+    timeout 20 python3 "$A11Y" press "^Keyboard language$" >/dev/null 2>&1; sleep 0.6
+    timeout 20 python3 "$A11Y" find "^Add a language…$" >/dev/null 2>&1 && result osk-globe-offers-languages PASS || result osk-globe-offers-languages FAIL
+    ipc osk; settings '{}'
+fi
+
 # ---- dynamic lock: the paired phone goes away → locked after the grace ---------------
 settings '{"dynamicLockDevice": "AA:BB:CC:DD:EE:FF"}'
 waitfor "d['dynamicLockDevice'] == 'AA:BB:CC:DD:EE:FF' and not d['locked']" 6 || true

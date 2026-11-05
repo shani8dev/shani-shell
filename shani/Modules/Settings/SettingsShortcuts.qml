@@ -63,7 +63,8 @@ ColumnLayout {
             Layout.fillWidth: true
             spacing: 12
             Text { text: page.pretty(modelData.key); color: Theme.text; font.family: Theme.mono; font.pixelSize: 11 * Theme.fontScale; Layout.preferredWidth: 190 }
-            Text { text: modelData.title; color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; Layout.fillWidth: true; elide: Text.ElideRight }
+            Text { text: modelData.title; color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; Layout.fillWidth: true; elide: Text.ElideRight
+                   Accessible.role: Accessible.StaticText; Accessible.name: modelData.title }
         }
     }
 

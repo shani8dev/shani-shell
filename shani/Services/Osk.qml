@@ -21,7 +21,46 @@ Singleton {
     property int langIndex: 0
     readonly property string lang: languages[langIndex % languages.length] || "en"
     property bool shift: false
-    property string page: "letters"         // letters | symbols
+    property string page: "letters"         // letters | symbols | write
+    // Ctrl and Alt, sticky (a phone's way, for a keyboard without keys held down):
+    // one tap - the next key only; a second tap - held until tapped again
+    property int ctrl: 0                    // 0 off, 1 the next key, 2 held
+    property int alt: 0
+    function tapMod(name) { root[name] = (root[name] + 1) % 3; }
+    function modArgs(down) {
+        const m = (root.ctrl ? ["ctrl"] : []).concat(root.alt ? ["alt"] : []);
+        return [].concat(...m.map(x => [down ? "-M" : "-m", x]));
+    }
+    function used() { if (ctrl === 1) ctrl = 0; if (alt === 1) alt = 0; }
+
+    // handwriting: rows of strokes read on this machine (Tesseract), typed in order
+    readonly property string writeTool: Quickshell.env("SHANI_HANDWRITING_TOOL") || "/usr/lib/shani-shell/handwriting.py"
+    readonly property string writeLang: ({ en: "eng", mr: "mar", hi: "hin", ta: "tam", de: "deu", fr: "fra", es: "spa" })[lang] || "eng"
+    property bool reading: reader.running
+    property string lastWritten: ""        // for the tests
+    function recognize(rows) {
+        reader.command = ["sh", "-c", 'printf "%s" "$1" | python3 "$2" "$3"', "sh", JSON.stringify(rows), writeTool, writeLang];
+        reader.running = true;
+    }
+    Process {
+        id: reader
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let rows = [];
+                try { rows = JSON.parse(text).rows.filter(r => r !== ""); } catch (e) {}
+                root.lastWritten = rows.join("\n");
+                rows.forEach((r, i) => {
+                    if (i > 0)
+                        root.press("Return");
+                    // one letter with Ctrl or Alt armed is a shortcut (Ctrl + a written c copies)
+                    if ((root.ctrl || root.alt) && r.length === 1)
+                        root.press(r.toLowerCase());
+                    else
+                        root.press(r);
+                });
+            }
+        }
+    }
     property string typed: ""               // the last few characters sent (for tests and smart matras)
 
     // Layouts: "en" and "mr" are drawn by hand (mr with smart matras); any
@@ -88,7 +127,14 @@ Singleton {
 
     // one tap: text, or a named key (BackSpace, Return, Tab, space)
     function press(key) {
-        if (key === "BackSpace" || key === "Return" || key === "Tab" || key === "Left" || key === "Right") {
+        const named = ["BackSpace", "Return", "Tab", "Left", "Right", "Up", "Down", "Delete", "Escape", "Home", "End"];
+        // Ctrl / Alt armed: the key with them held (a letter, a digit, or a named key)
+        if ((ctrl || alt) && (named.indexOf(key) >= 0 || /^[a-z0-9]$/i.test(key))) {
+            Quickshell.execDetached(["wtype"].concat(modArgs(true), ["-k", key.length === 1 ? key.toLowerCase() : key], modArgs(false)));
+            used();
+            return;
+        }
+        if (named.indexOf(key) >= 0) {
             Quickshell.execDetached(["wtype", "-k", key]);
             typed = key === "BackSpace" ? typed.slice(0, -1) : "";
             return;

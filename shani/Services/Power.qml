@@ -115,7 +115,31 @@ Singleton {
         PowerProfiles.profile = order[(order.indexOf(profile) + 1) % order.length];
     }
 
-    function suspend() { Quickshell.execDetached(["systemctl", "suspend"]); }
+    // what logind can do here: suspend-then-hibernate (sleep, then hibernate after a
+    // while or when the battery runs low - nothing lost to a flat battery) and
+    // hybrid sleep (sleep with a copy on disk - safe from a power cut) both need
+    // hibernation to work: swap large enough, resume configured
+    property bool canSuspendThenHibernate: false
+    property bool canHybridSleep: false
+    readonly property string sleepVerb: {
+        const s = Settings.loaded ? Settings.data.sleepStyle : "auto";
+        if (s === "suspend-then-hibernate" && canSuspendThenHibernate) return s;
+        if (s === "hybrid-sleep" && canHybridSleep) return s;
+        if (s === "auto" && hasBattery && canSuspendThenHibernate) return "suspend-then-hibernate";
+        return "suspend";
+    }
+    function suspend() { Quickshell.execDetached(["systemctl", root.sleepVerb]); }
+    Process {
+        running: true
+        command: ["sh", "-c", 'for m in CanSuspendThenHibernate CanHybridSleep; do busctl call org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager $m 2>/dev/null || echo no; done']
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const l = text.trim().split("\n");
+                root.canSuspendThenHibernate = (l[0] || "").trim() === 's "yes"';
+                root.canHybridSleep = (l[1] || "").trim() === 's "yes"';
+            }
+        }
+    }
     // hibernate only where logind says it can (swap large enough, resume configured)
     property bool canHibernate: false
     function hibernate() { Quickshell.execDetached(["systemctl", "hibernate"]); }
