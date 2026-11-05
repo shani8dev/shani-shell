@@ -40,6 +40,12 @@ if ! st >/dev/null 2>&1 || [ -z "$(st)" ]; then
     echo "the shell is not running — stopping here"; tail -20 /work/out/logs/qs.log; exit 1
 fi
 [ "$(q "['settingsLoaded']")" = True ] && result settings-loaded PASS || result settings-loaded FAIL
+# SHELL_TEST_ONLY=part:<name> (`sh dev/check.sh shell=<name>`): just dev/shell-parts/<name>.sh,
+# on a fresh session - for working on one feature without the half hour. The whole
+# suite runs every part too, at the end.
+case "${SHELL_TEST_ONLY:-}" in part:*)
+    . "/work/dev/shell-parts/${SHELL_TEST_ONLY#part:}.sh"; exit $fail ;;
+esac
 
 # ---- what the shell costs while nothing happens ---------------------------------------
 # 30 s idle: the programs the shell starts (every poll that forks is a
@@ -2365,6 +2371,11 @@ waitfor "d['locked']" 10 && result idle-locks PASS || result idle-locks FAIL "$(
 wtype "shani-test" -k Return
 waitfor "not d['locked']" 6
 settings '{}'
+
+# ---- the parts in dev/shell-parts/, each a feature's checks (also runnable alone) --------
+for part in /work/dev/shell-parts/*.sh; do
+    [ -f "$part" ] && . "$part"
+done
 
 # ---- the shell in Marathi (shani/i18n/mr.json), read as a screen reader would -----------
 pkill -x qs; sleep 1

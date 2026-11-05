@@ -4,6 +4,7 @@
 #
 #   unit          pytest: bridges, launch-app, QML patterns   (host python)
 #   shell         the whole shell in a nested niri, driven for real
+#   shell=<part>  just dev/shell-parts/<part>.sh (one feature), on a fresh session
 #   idle          just the shell's idle cost (programs, CPU, memory)
 #   perf          idle + the budgets: idle frames, memory, open speed, leaks, startup
 #   a11y          idle + every surface through AT-SPI, with screenshots
@@ -47,6 +48,8 @@ run() {
     case "$1" in
         unit) cd "$REPO" && python3 -m pytest tests -q ;;
         shell) box $IMG sh /work/dev/shell-test.sh ;;
+        # one part of it on a fresh session: dev/shell-parts/<name>.sh
+        shell=*) box -e SHELL_TEST_ONLY="part:${1#shell=}" $IMG sh /work/dev/shell-test.sh ;;
         idle|a11y|perf) box -e SHELL_TEST_ONLY="$1" $IMG sh /work/dev/shell-test.sh ;;
         # the greeter's niri config is shani-desktop-niri's, as greetd runs it
         greeter) box -v "$DESK":/desk:ro $IMG sh /work/dev/greeter-test.sh /desk/etc/greetd/shani-niri-greeter.kdl ;;
@@ -65,7 +68,8 @@ summary="$REPO/out/logs/check-summary.txt"; : > "$summary"
 bad=0
 for s in "$@"; do
     [ "$s" = render ] && s=render=shell
-    log="$REPO/out/logs/check-${s%%=*}.log"
+    name=${s%%=*}; case "$s" in shell=*) name="shell-${s#shell=}" ;; esac
+    log="$REPO/out/logs/check-$name.log"
     echo "== $s"
     { run "$s"; echo $? > "$log.rc"; } 2>&1 | tee "$log"
     own; rc=$(cat "$log.rc"); rm -f "$log.rc"
