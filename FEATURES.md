@@ -40,6 +40,11 @@ covered by an automated test that drives the real shell.
   into any app.
 - **Trash on the dock** — drop to bin, empty with two clicks.
 - **A desktop right-click menu** — wallpaper, widgets, icons, displays, terminal.
+- **Per-app window rules** — choose how each app opens: floating or tiled, which
+  workspace, how wide.
+- **A drop-down terminal** (or any app) one key away, over whatever is open.
+- **Your apps reopen** at your next sign-in, the way you left them.
+- **Desktop widgets** — clock, calendar, weather, now playing — placed where you like.
 
 ## Find anything
 
@@ -52,6 +57,9 @@ covered by an automated test that drives the real shell.
   results.
 - **Lens** — select part of the screen to read its text, scan a QR code, copy,
   search, translate, or ask the assistant about it.
+- **Smart suggestions when you copy** — a link to open, an address to email, a
+  number to call, a foreign script **translated on your computer**, an error
+  explained.
 
 ## Quick Settings and notifications
 
@@ -66,6 +74,27 @@ covered by an automated test that drives the real shell.
 - **Swipe a notification away**, **snooze it**, reply inline; **clicking it brings
   its app forward**. Unread notifications **survive a restart**.
 - **A sound for each notification**, **flash alerts** for the hard of hearing.
+- **Quiet by itself while you present or play** — fullscreen holds notifications
+  back, and a game also gets the performance power profile.
+
+## Your day, organised
+
+- **Your calendar in the sidebar** with a **heads-up ten minutes before** each
+  meeting — from the calendars you already use.
+- **Focus modes** (Work, Sleep, Personal) that hold back everything but the apps you
+  allow — by hand or on a schedule.
+- **A focus timer** (25 minutes on, then a nudge to rest).
+- **Screen time** — how long each app had your attention, today and this week, with
+  an optional daily reminder.
+- **Quick notes** in the sidebar, saved as you type to a plain Markdown file.
+- **Weather and world clocks** at a glance.
+
+## Automate the routine
+
+- **"When this, do that" automations** — on a Wi-Fi network, when headphones plug in,
+  at a time of day: turn on Do Not Disturb, change the volume, run a command.
+- **Hooks** — run your own command when the wallpaper or dark style changes, the
+  screen locks or unlocks, or the desktop starts.
 
 ## Type however suits you
 
@@ -85,6 +114,7 @@ covered by an automated test that drives the real shell.
   real accessibility tools.
 - **Larger text, high contrast, reduce motion, mono audio, magnifier.**
 - **Live captions** and **read aloud** for any text.
+- **A floating assist button** (AssistiveTouch) for touch and pointer users.
 - **Every keyboard and laptop key works** — screen and keyboard brightness,
   touchpad on/off, airplane mode, display, calculator, search, mail, browser,
   files, settings, lock.
@@ -101,6 +131,15 @@ covered by an automated test that drives the real shell.
   camera, microphone or screen.
 - **Screen ruler, colour picker, QR codes** from the clipboard, **file actions**
   (convert a picture, shrink a file to a form's size limit, read the text in it).
+- **Share sheet** for any file — to your phone, a Bluetooth device, nearby devices
+  with LocalSend, email, or the clipboard.
+- **Cast your screen** to a TV or Chromecast.
+- **Call recording** for any call app, mixing your microphone and the other side —
+  with a reminder to tell them.
+- **Sound effects** — an equaliser with presets, bass boost, **headphone correction**
+  (AutoEq), and per-app volume. Small system sounds for volume, screenshots, the
+  charger and drives.
+- **A clock screensaver** and a **charging screen** you can glance at across the room.
 
 ## Devices and your phone
 
@@ -113,6 +152,11 @@ covered by an automated test that drives the real shell.
   contacts as you type; phone links anywhere open the dial pad; use the phone's
   internet over Bluetooth. Watches and fitness bands too.
 - **Calls ring once**, on the Island, wherever they come from.
+- **Your phone's screen in a window** (Android), driven with your mouse and keyboard.
+- **Dynamic lock** — the screen locks itself when your phone walks out of range.
+- **Send and receive files over Bluetooth**, each asked first.
+- **Share your Wi-Fi** as a QR code a phone's camera joins from.
+- **Run an app on the faster graphics card** on laptops with two.
 - **Gaming mice, game controllers, drawing tablets, touchscreens** and **sensors**
   (light, rotation, compass, GPS) are recognised.
 
@@ -140,11 +184,26 @@ covered by an automated test that drives the real shell.
   accessibility options from the first screen.
 - **A friendly tour** of the essentials on first login.
 
+## Safe, private and family-friendly
+
+- **Earlier versions of your files** from daily snapshots, and **backups to another
+  drive** — restored from the sidebar or Settings.
+- **ShaniOS updates** shown in Quick Settings, with a reboot nudge when one is ready.
+- **Parental controls** — apps a child shouldn't use stay out of their launcher and
+  dock.
+- **Privacy tidying** — empty old trash automatically, clear or switch off recent
+  files.
+- **A proxy for every app**, set once.
+- **Share folders** on your network and turn remote login on or off — with plain
+  explanations.
+- **Several people, one computer** — add accounts, set who's an administrator.
+
 ## An assistant that's part of the desktop
 
 - **Chronoa** lives in the middle of the bar: ask from the Island, the launcher, a
   notification, a screen selection or the pie menu.
 - **Approve or deny in place** when it wants to act.
+- **Live captions and voice typing** use its speech engine — on your computer.
 - **Ask about a file, a window, an error or a notification** in one click.
 
 ## Fast and light
@@ -155,6 +214,7 @@ covered by an automated test that drives the real shell.
 - **No polling where the system can tell us** — devices, cameras, displays and
   notifications arrive as events.
 - **Apps run in their own scope**, so restarting the desktop never closes them.
+- **A task manager** a click from the bar's CPU chip, refreshing only while it's open.
 - Every release is checked for **idle cost, memory, open speed, leaks and startup
   time** by the test suite.
 
