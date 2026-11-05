@@ -11,6 +11,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "WriteLang.js" as WriteLang
 
 Singleton {
     id: root
@@ -35,7 +36,9 @@ Singleton {
 
     // handwriting: rows of strokes read on this machine (Tesseract), typed in order
     readonly property string writeTool: Quickshell.env("SHANI_HANDWRITING_TOOL") || "/usr/lib/shani-shell/handwriting.py"
-    readonly property string writeLang: ({ en: "eng", mr: "mar", hi: "hin", ta: "tam", de: "deu", fr: "fra", es: "spa" })[lang] || "eng"
+    // the Tesseract language handwriting is read in (WriteLang.js: the hand-made ones,
+    // and the xkb layouts of the Indian languages the image ships data for)
+    readonly property string writeLang: WriteLang.tesseractLang(lang)
     property bool reading: reader.running
     property string lastWritten: ""        // for the tests
     function recognize(rows) {
