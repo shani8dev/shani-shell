@@ -299,7 +299,10 @@ Singleton {
             property bool lockScreenMedia: true       // the now-playing controls on the lock screen
             property bool lockScreenBattery: true     // battery percentage on the lock screen
             property list<string> clipPins: []          // pinned clipboard texts
-            property string tabletOutput: ""              // the screen a drawing tablet maps to ("" all)
+            property string tabletOutput: ""              // the screen a drawing tablet maps to ("" all, "@focused" the one in use)
+            property bool plugGreetings: true             // a card for a device plugged in: what it is, one next step (Plugged)
+            property bool gamepadNav: true                // a game controller moves around the desktop (GamepadNav)
+            property bool gamepadHintDone: false          // its one-time "A selects, B goes back" hint was shown
             property bool tabletLeftHanded: false
             property string touchOutput: ""               // the screen a touchscreen maps to
             property string fxCompress: "off"             // "off" | "gentle" | "night" (SoundFx, swh-plugins SC4)

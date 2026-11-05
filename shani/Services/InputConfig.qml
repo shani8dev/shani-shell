@@ -54,7 +54,8 @@ Singleton {
         "    }",
         // a drawing tablet and a touchscreen: which screen each one draws on
         d.tabletOutput || d.tabletLeftHanded ? "    tablet {" : "",
-        d.tabletOutput ? "        map-to-output " + JSON.stringify(d.tabletOutput) : "",
+        // "@focused": niri 26.04's map-to-focused-output, the screen being worked on
+        d.tabletOutput === "@focused" ? "        map-to-focused-output" : d.tabletOutput ? "        map-to-output " + JSON.stringify(d.tabletOutput) : "",
         d.tabletLeftHanded ? "        left-handed" : "",
         d.tabletOutput || d.tabletLeftHanded ? "    }" : "",
         d.touchOutput ? "    touch {\n        map-to-output " + JSON.stringify(d.touchOutput) + "\n    }" : "",

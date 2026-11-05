@@ -1,0 +1,13 @@
+UDEV  [9050.000100] remove     /devices/virtual/misc/uhid/0005:054C:0CE6.0009/input/input31 (input)
+ACTION=remove
+DEVPATH=/devices/virtual/misc/uhid/0005:054C:0CE6.0009/input/input31
+SUBSYSTEM=input
+PRODUCT=5/54c/ce6/8100
+NAME="DualSense Wireless Controller"
+PHYS="a0:b1:c2:d3:e4:f5"
+UNIQ="7c:66:ef:12:34:56"
+SEQNUM=6010
+ID_INPUT=1
+ID_INPUT_JOYSTICK=1
+ID_BUS=bluetooth
+

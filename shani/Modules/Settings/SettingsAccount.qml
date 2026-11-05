@@ -26,7 +26,28 @@ ColumnLayout {
         who.running = true;
         pics.running = true;
         fingers.running = true;
+        u2fProbe.running = true;
     }
+
+    // ---- a security key (pam-u2f): registered in ~/.config/Yubico/u2f_keys, as the person ----
+    // Shown when a key is plugged in or one is already registered (bridge/u2f.py).
+    readonly property string u2fTool: Quickshell.env("SHANI_U2F_TOOL") || "/usr/lib/shani-shell/u2f.py"
+    property var u2f: ({ key: false, keys: [], registered: 0 })
+    readonly property bool u2fShown: u2f.key || u2f.registered > 0
+    property string u2fState: ""            // "", "touch", "done", "failed: …"
+    Process {
+        id: u2fProbe
+        command: ["python3", page.u2fTool, "probe"]
+        stdout: StdioCollector { onStreamFinished: { try { page.u2f = JSON.parse(text); Ui.u2fRegistered = page.u2f.registered; } catch (e) {} } }
+    }
+    Process {
+        id: u2fRun
+        stdout: SplitParser { onRead: line => page.u2fState = line }
+        onExited: u2fProbe.running = true
+    }
+    function u2fDo(cmd) { u2fState = ""; u2fRun.command = ["python3", page.u2fTool, cmd]; u2fRun.running = true; }
+    // a key plugged in or out while the page is open
+    Connections { target: Plugged; function onKeyRevChanged() { if (page.active) u2fProbe.running = true; } }
 
     // ---- fingerprints (fprintd): what is enrolled, enrolling one, removing them ----
     property bool hasReader: false
@@ -232,10 +253,10 @@ ColumnLayout {
         }
     }
     // ---- sign in faster: a finger or a look instead of the password -------------------
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Sign in faster"); visible: page.hasReader || page.face.camera }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Sign in faster"); visible: page.hasReader || page.face.camera || page.u2fShown }
     Text {
         Layout.fillWidth: true
-        visible: page.hasReader || page.face.camera
+        visible: page.hasReader || page.face.camera || page.u2fShown
         text: Tr.t("Unlock with your fingerprint or your face instead of typing your password - on the lock screen and the sign-in screen. Your password always works too, and is still asked for changes to the system.")
         color: Theme.dim
         wrapMode: Text.Wrap
@@ -363,6 +384,40 @@ ColumnLayout {
         Button { text: enroll.running ? Tr.t("Enrolling…") : Tr.t("Add %1", page.fingerLabel(page.finger).toLowerCase()); enabled: !enroll.running && page.unsaved.length > 0; onClicked: page.startEnroll() }
         Button { visible: enroll.running; text: Tr.t("Cancel"); onClicked: enroll.running = false }
         Button { visible: page.enrolled.length > 1 && !enroll.running; kind: "danger"; text: Tr.t("Remove all"); onClicked: page.forgetFinger("") }
+    }
+
+    // security key
+    RowLayout {
+        visible: page.u2fShown
+        Layout.fillWidth: true
+        Layout.topMargin: 6
+        spacing: 10
+        Icon { name: "auth-smartcard"; size: 22; color: page.u2f.registered > 0 ? Theme.accent : Theme.dim }
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 1
+            Text { text: Tr.t("Security key"); color: Theme.text; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale; font.weight: Font.Medium }
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                text: page.u2fState === "touch" ? Tr.t("Touch your key now - its light is blinking.")
+                    : page.u2fState === "done" ? Tr.t("Saved. Touch the key on the lock screen or the sign-in screen.")
+                    : page.u2fState.indexOf("failed") === 0 ? Tr.t("That did not work (%1). Try again.", page.u2fState.slice(8))
+                    : page.u2f.registered > 1 ? Tr.t("%1 keys can sign you in. Plug one in and touch it on the lock screen.", page.u2f.registered)
+                    : page.u2f.registered === 1 ? Tr.t("Your key can sign you in. Plug it in and touch it on the lock screen.")
+                    : Tr.t("%1 is plugged in. Register it, then touch it to sign in.", page.u2f.keys[0] || Tr.t("A key"))
+                color: page.u2fState.indexOf("failed") === 0 ? Theme.danger : page.u2fState === "touch" ? Theme.accent : Theme.dim
+                font.family: Theme.font
+                font.pixelSize: 12 * Theme.fontScale
+            }
+        }
+    }
+    Flow {
+        visible: page.u2fShown && !u2fRun.running
+        Layout.fillWidth: true
+        spacing: 6
+        Button { visible: page.u2f.key; kind: "primary"; text: page.u2f.registered > 0 ? Tr.t("Register another key") : Tr.t("Register this key"); onClicked: page.u2fDo("register") }
+        Button { visible: page.u2f.registered > 0; kind: "danger"; text: Tr.t("Remove my keys"); onClicked: page.u2fDo("remove") }
     }
 
     Button {

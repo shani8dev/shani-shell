@@ -1,0 +1,10 @@
+UDEV  [9600.300001] add      /devices/pci0000:00/0000:00:14.0/usb1/1-5/1-5:1.0/0003:046D:C08B.000C/input/input40 (input)
+ACTION=add
+DEVPATH=/devices/pci0000:00/0000:00:14.0/usb1/1-5/1-5:1.0/0003:046D:C08B.000C/input/input40
+SUBSYSTEM=input
+PRODUCT=3/46d/c08b/111
+NAME="Logitech G502 HERO Gaming Mouse"
+SEQNUM=6500
+ID_INPUT=1
+ID_INPUT_MOUSE=1
+

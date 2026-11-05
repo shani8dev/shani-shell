@@ -1,0 +1,10 @@
+UDEV  [9500.120001] change   /devices/pci0000:00/0000:00:02.0/drm/card1 (drm)
+ACTION=change
+DEVPATH=/devices/pci0000:00/0000:00:02.0/drm/card1
+SUBSYSTEM=drm
+HOTPLUG=1
+CONNECTOR=107
+DEVNAME=/dev/dri/card1
+DEVTYPE=drm_minor
+SEQNUM=6400
+

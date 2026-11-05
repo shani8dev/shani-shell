@@ -1,0 +1,32 @@
+I: Bus=0011 Vendor=0001 Product=0001 Version=ab41
+N: Name="AT Translated Set 2 keyboard"
+P: Phys=isa0060/serio0/input0
+S: Sysfs=/devices/platform/i8042/serio0/input/input0
+U: Uniq=
+H: Handlers=sysrq kbd leds event0
+B: EV=120013
+
+I: Bus=0005 Vendor=054c Product=0ce6 Version=8100
+N: Name="DualSense Wireless Controller"
+P: Phys=a0:b1:c2:d3:e4:f5
+S: Sysfs=/devices/virtual/misc/uhid/0005:054C:0CE6.0009/input/input31
+U: Uniq=7c:66:ef:12:34:56
+H: Handlers=event21 js0
+B: EV=20000b
+
+I: Bus=0005 Vendor=054c Product=0ce6 Version=8100
+N: Name="DualSense Wireless Controller Motion Sensors"
+P: Phys=a0:b1:c2:d3:e4:f5
+S: Sysfs=/devices/virtual/misc/uhid/0005:054C:0CE6.0009/input/input32
+U: Uniq=7c:66:ef:12:34:56
+H: Handlers=event22
+B: EV=19
+
+I: Bus=0003 Vendor=045e Product=028e Version=0114
+N: Name="Microsoft X-Box 360 pad"
+P: Phys=usb-0000:00:14.0-1/input0
+S: Sysfs=/devices/pci0000:00/0000:00:14.0/usb1/1-1/1-1:1.0/input/input33
+U: Uniq=
+H: Handlers=event23 js1
+B: EV=20000b
+

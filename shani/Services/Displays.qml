@@ -112,6 +112,18 @@ Singleton {
 
     function refresh() { list.running = true; }
     Process { id: mirror }
+    // mirror `source` onto `target` (a monitor just plugged in): wl-mirror's
+    // fullscreen window lands on the focused output, so that one is focused first
+    function mirrorOnto(target, source) {
+        mirror.running = false;
+        mirror.command = ["sh", "-c", 'niri msg action focus-monitor "$1"; exec wl-mirror --fullscreen "$2"', "sh", target, source];
+        mirror.running = true;
+    }
+    // a monitor that arrives while the session runs (Plugged greets it); the
+    // first listing is what was there at login, never news
+    signal arrived(var output)
+    property var known: null
+    function rescan() { settle.go(); }
     // after a change: the setting goes to InputConfig's file and niri reloads
     // it on its own time, so outputs are read again a few times over ~4 s
     // (there is no event for "niri applied the config") - then nothing polls
@@ -152,6 +164,14 @@ Singleton {
                             vrr: !!v.vrr_enabled
                         };
                     });
+                    const names = root.outputs.map(x => x.name);
+                    if (root.known === null)
+                        root.known = names;
+                    else
+                        for (const out of root.outputs.filter(x => root.known.indexOf(x.name) < 0)) {
+                            root.known = root.known.concat([out.name]);
+                            root.arrived(out);
+                        }
                 } catch (e) {}
             }
         }

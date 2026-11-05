@@ -229,11 +229,12 @@ ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 6
                 Repeater {
-                    model: [""].concat(Displays.outputs.map(o => o.name))
+                    // a tablet can also follow the screen being worked on (niri's map-to-focused-output)
+                    model: [""].concat(Displays.outputs.map(o => o.name), mapRow.modelData.key === "tabletOutput" ? ["@focused"] : [])
                     Choice {
                         required property string modelData
                         readonly property string key: mapRow.modelData.key
-                        text: modelData === "" ? Tr.t("Every screen") : modelData
+                        text: modelData === "" ? Tr.t("Every screen") : modelData === "@focused" ? Tr.t("The screen I'm working on") : modelData
                         selected: (page.d[key] || "") === modelData
                         onClicked: page.d[key] = modelData
                     }
@@ -242,6 +243,16 @@ ColumnLayout {
         }
     }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Left-handed tablet"); hint: Tr.t("the tablet turned around, buttons on the right"); checked: page.d.tabletLeftHanded; onToggled: on => page.d.tabletLeftHanded = on }
+    // niri 26.04 passes the pen's buttons to the app untouched (its tablet settings
+    // are the screen, left-handed and a calibration matrix): no remapping to offer here
+    Text {
+        Layout.fillWidth: true
+        text: Tr.t("The pen's own buttons do what the drawing app makes them do - set them up there.")
+        color: Theme.faint
+        wrapMode: Text.Wrap
+        font.family: Theme.font
+        font.pixelSize: 11 * Theme.fontScale
+    }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Keyboard") }
     Text { text: Tr.t("Keyboard backlight"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }

@@ -1,0 +1,15 @@
+UDEV  [9400.004411] add      /devices/pci0000:00/0000:00:14.0/usb1/1-4 (usb)
+ACTION=add
+DEVPATH=/devices/pci0000:00/0000:00:14.0/usb1/1-4
+SUBSYSTEM=usb
+DEVNAME=/dev/bus/usb/001/007
+DEVTYPE=usb_device
+PRODUCT=4b8/142/100
+SEQNUM=6300
+ID_VENDOR=EPSON
+ID_VENDOR_FROM_DATABASE=Seiko Epson Corp.
+ID_MODEL=EPSON_Scanner
+ID_MODEL_FROM_DATABASE=GT-F730 [GT-S630/Perfection V33/V330 Photo]
+ID_SERIAL=EPSON_EPSON_Scanner
+libsane_matched=yes
+

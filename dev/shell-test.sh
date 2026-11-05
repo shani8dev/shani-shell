@@ -2099,6 +2099,91 @@ if [ -f "$A11Y" ]; then
     ipc osk; settings '{}'
 fi
 
+# ---- devices plugged in: greeted once, each with its next step (Plugged) -----------------
+# the real bridge/plugwatch.py, fed udev events recorded in dev/udev/ through the
+# fake monitor's FIFO; a greeting is a notification whose actions are pressed here
+udev() { cat "/work/dev/udev/$1.txt" > /tmp/udev-events; }
+n0=$(q "['plugGreeted']")
+udev tablet
+waitfor "'Wacom Intuos S plugged in' in d['notificationSummaries']" 6 && result plug-tablet-greeted PASS || result plug-tablet-greeted FAIL "$(q "['plugLast']")"
+ipc notificationAct "Wacom Intuos S plugged in" here
+waitfor "d['tabletOutput'] not in ('', '@focused')" 4 && sleep 0.6 && grep -q "map-to-output \"$(q "['tabletOutput']")\"" /root/.config/niri/shani-input.kdl \
+    && result plug-tablet-uses-this-screen PASS "$(q "['tabletOutput']")" || result plug-tablet-uses-this-screen FAIL "$(q "['tabletOutput']")"
+udev tablet; sleep 1.5          # the same tablet again (a loose cable): not news
+[ "$(q "['plugGreeted']")" = $((n0 + 1)) ] && result plug-once-per-device PASS || result plug-once-per-device FAIL "$(q "['plugGreeted']") after $n0"
+# a drawing tablet on the screen in use: niri's map-to-focused-output, and niri takes it
+settings '{"tabletOutput": "@focused"}'; sleep 0.6
+grep -q "map-to-focused-output" /root/.config/niri/shani-input.kdl && niri validate -c /work/dev/niri/session.kdl >/dev/null 2>&1 \
+    && result tablet-follows-focused-screen PASS || result tablet-follows-focused-screen FAIL "$(grep -A3 'tablet {' /root/.config/niri/shani-input.kdl | tr '\n' ' ')"
+settings '{}'
+# a security key: "Use it to sign in" opens Your account
+udev security-key
+waitfor "'YubiKey OTP+FIDO+CCID plugged in' in d['notificationSummaries']" 6 && ipc notificationAct "YubiKey OTP+FIDO+CCID plugged in" signin
+waitfor "d['settingsOpen'] and d['settingsCat'] == 'account'" 4 && result plug-security-key-opens-account PASS || result plug-security-key-opens-account FAIL "$(q "['settingsCat']")"
+ipc closeAll
+# a scanner: greeted with "Scan a document"
+udev scanner
+waitfor "any(s.startswith('Seiko Epson') for s in d['notificationSummaries'])" 6 && result plug-scanner-greeted PASS || result plug-scanner-greeted FAIL "$(q "['plugLast']")"
+# a controller: its name; "Test the buttons" opens Keyboard & input, where it is listed
+cp /work/dev/input-devices.txt /tmp/input-devices
+udev controller
+waitfor "'DualSense Wireless Controller' in d['notificationSummaries']" 6 && ipc notificationAct "DualSense Wireless Controller" test
+waitfor "d['settingsCat'] == 'input' and d['controllersListed'] == 2" 6 && result plug-controller-listed PASS || result plug-controller-listed FAIL "$(q "['settingsCat'], d['controllersListed']")"
+# its buttons, live while the view is open - and the reader gone once it closes
+rm -f /tmp/fake-input/event21; mkfifo /tmp/fake-input/event21
+if [ -f "$A11Y" ]; then
+    timeout 20 python3 "$A11Y" press "^Test the buttons of DualSense Wireless Controller$" >/dev/null 2>&1
+    waitfor "d['padTestRunning']" 4
+    python3 -c "import struct; open('/tmp/fake-input/event21','wb').write(struct.pack('llHHi',0,0,1,0x130,1))" &
+    waitfor "d['padTestLast'] == 'A'" 4 && result controller-test-shows-presses PASS || result controller-test-shows-presses FAIL "$(q "['padTestRunning'], d['padTestLast']")"
+    ipc closeAll
+    waitfor "not d['padTestRunning']" 4 && ! pgrep -f "gamepad.py watch" >/dev/null && result controller-test-stops-on-close PASS || result controller-test-stops-on-close FAIL "$(pgrep -af gamepad.py)"
+fi
+: > /tmp/input-devices
+# a monitor: "Extend" puts it to the right, on probation (Keep these display settings?)
+touch /tmp/fake-monitor
+udev monitor
+waitfor "'Dell Inc. DELL U2723QE plugged in' in d['notificationSummaries']" 8 && ipc notificationAct "Dell Inc. DELL U2723QE plugged in" extend
+waitfor "d['displayPending']" 4 && sleep 0.8 && python3 -c "import json; d=json.load(open('$SHANI_SHELL_SETTINGS'))['displays']['HDMI-A-1']; assert d['x'] > 0 and d['off'] is False" \
+    && result plug-monitor-extend PASS || result plug-monitor-extend FAIL "$(q "['displayPending']")"
+ipc displayRevert; rm -f /tmp/fake-monitor
+# greetings off: a new device is not greeted
+settings '{"plugGreetings": false}'
+n1=$(q "['plugGreeted']")
+sed 's/054C:0CE6/054C:09CC/; s|5/54c/ce6|5/54c/9cc|' /work/dev/udev/controller.txt > /tmp/udev-events; sleep 1.5
+[ "$(q "['plugGreeted']")" = "$n1" ] && result plug-greetings-off PASS || result plug-greetings-off FAIL
+settings '{}'
+
+# ---- Settings > Keyboard & input > Gaming mouse (a fake ratbagctl): DPI, rate, a button ----
+rm -f /tmp/ratbag-log /tmp/ratbag-state.json
+ipc settingsCategory input
+if [ -f "$A11Y" ]; then
+    sleep 2
+    timeout 20 python3 "$A11Y" press "^3200$" >/dev/null 2>&1; sleep 1.2
+    timeout 20 python3 "$A11Y" press "^500 Hz$" >/dev/null 2>&1; sleep 1.2
+    timeout 20 python3 "$A11Y" press "^Forward side button$" >/dev/null 2>&1; sleep 0.5
+    timeout 20 python3 "$A11Y" press "^Middle click$" >/dev/null 2>&1; sleep 1.2
+    grep -q "singing-gundi dpi set 3200" /tmp/ratbag-log && grep -q "singing-gundi rate set 500" /tmp/ratbag-log && grep -q "singing-gundi button 4 action set button 3" /tmp/ratbag-log \
+        && result gaming-mouse-settings PASS || result gaming-mouse-settings FAIL "$(grep set /tmp/ratbag-log | tr '\n' ';')"
+fi
+ipc closeAll
+
+# ---- Settings > Your account: a security key registered, a second appended, removed ----
+rm -rf /root/.config/Yubico; touch /tmp/fido-key
+ipc settingsCategory account
+if [ -f "$A11Y" ]; then
+    sleep 2
+    timeout 20 python3 "$A11Y" press "^Register this key$" >/dev/null 2>&1
+    waitfor "d['u2fRegistered'] == 1" 6
+    timeout 20 python3 "$A11Y" press "^Register another key$" >/dev/null 2>&1
+    waitfor "d['u2fRegistered'] == 2" 6 && [ "$(grep -c '^root:' /root/.config/Yubico/u2f_keys)" = 1 ] \
+        && result security-key-registered PASS || result security-key-registered FAIL "$(q "['u2fRegistered']") $(cat /root/.config/Yubico/u2f_keys 2>&1)"
+    timeout 20 python3 "$A11Y" press "^Remove my keys$" >/dev/null 2>&1
+    waitfor "d['u2fRegistered'] == 0" 6 && [ ! -e /root/.config/Yubico/u2f_keys ] && result security-key-removed PASS || result security-key-removed FAIL
+fi
+rm -f /tmp/fido-key
+ipc closeAll
+
 # ---- dynamic lock: the paired phone goes away → locked after the grace ---------------
 settings '{"dynamicLockDevice": "AA:BB:CC:DD:EE:FF"}'
 waitfor "d['dynamicLockDevice'] == 'AA:BB:CC:DD:EE:FF' and not d['locked']" 6 || true

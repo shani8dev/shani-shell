@@ -21,6 +21,16 @@ export SHANI_NIRI_CONFIG=/work/dev/niri/session.kdl
 export SHANI_NO_TOUR=1
 export SHANI_BACKUP_TOOL=/work/dev/fake-backup.sh
 export SHANI_DEVWATCH_TOOL=/work/bridge/devwatch.py
+# devices plugged in: the real watcher over recorded udev events (dev/udev/, written
+# into the FIFO /tmp/udev-events by the suite), a second monitor through a niri
+# shim, a gaming mouse (fake ratbagctl), a security key (fake fido2-token and
+# pamu2fcfg) and controllers from /tmp/input-devices (a /proc/bus/input/devices)
+export SHANI_PLUGWATCH_TOOL=/work/bridge/plugwatch.py SHANI_UDEVADM=/work/dev/fake-udevadm.sh
+export SHANI_RATBAG_TOOL=/work/bridge/ratbag.py SHANI_RATBAGCTL=/work/dev/fake-ratbagctl.py
+export SHANI_U2F_TOOL=/work/bridge/u2f.py SHANI_FIDO2_TOKEN=/work/dev/fake-fido2-token.sh SHANI_PAMU2FCFG=/work/dev/fake-pamu2fcfg.sh
+export SHANI_GAMEPAD_TOOL=/work/bridge/gamepad.py SHANI_INPUT_DEVICES=/tmp/input-devices SHANI_INPUT_DIR=/tmp/fake-input
+mkdir -p /tmp/fake-input /tmp/fake-bin && : > /tmp/input-devices
+REAL_NIRI=$(command -v niri) && export REAL_NIRI && ln -sf /work/dev/fake-niri-outputs.sh /tmp/fake-bin/niri
 export SHANI_TRANSLATE_TOOL=/work/dev/fake-translate.py
 export SHANI_DYNAMIC_LOCK_GRACE=1500     # ms: the dynamic-lock test waits 1.5 s, not 30
 export SHANI_AGENDA_TOOL=/work/bridge/agenda.py SHANI_MODEM_TOOL=/work/dev/fake-modem.py
@@ -47,7 +57,7 @@ if [ -n "$DEVICE" ] && [ -n "$SET_CMD" ] && [ -n "$VAL" ]; then PCT=$(echo "$VAL
 exit 0
 SHIM
 chmod +x /tmp/fake-backlight/bin/brightnessctl
-export PATH=/tmp/fake-backlight/bin:$PATH
+export PATH=/tmp/fake-backlight/bin:/tmp/fake-bin:$PATH
 # an ambient light sensor the suite can drive (the container's hardware has none)
 export SHANI_LUX_FILE=/tmp/fake-lux
 echo 300 > "$SHANI_LUX_FILE"

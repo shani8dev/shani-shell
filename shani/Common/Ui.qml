@@ -52,6 +52,10 @@ Singleton {
     }
     property int faceRev: 0                        // bumped when ~/.face changes
     property int shortcutsListed: 0                // binds Settings > Keyboard shortcuts read from niri
+    property int controllersListed: 0              // game controllers Settings lists
+    property bool padTestRunning: false            // a controller's "Test the buttons" reader is running
+    property string padTestLast: ""                // the last button it saw pressed
+    property int u2fRegistered: 0                  // security keys registered (Settings > Your account)
     property bool tour: false
     property int trashCount: 0                     // the dock's trash tile reports it (for the tests)                      // the tour, opened again by hand
     property string modemDialog: ""                // "pin" | "sms" (ModemDialog)
