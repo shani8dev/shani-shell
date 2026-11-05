@@ -28,6 +28,7 @@ Singleton {
     readonly property string layout: layouts[layoutIndex] || ""
     property bool overviewOpen: false
     signal screenshotSaved(string path)
+    signal configLoaded(bool failed)
     property var focusOrder: []          // window ids, most recently focused first
 
     function mru() {
@@ -351,6 +352,10 @@ Singleton {
         } else if (ev.ScreenshotCaptured) {
             if (ev.ScreenshotCaptured.path)
                 screenshotSaved(ev.ScreenshotCaptured.path);
+        } else if (ev.ConfigLoaded) {
+            // niri read its config again (an include changed): NiriConfig undoes
+            // the shell's own write when it failed
+            configLoaded(!!ev.ConfigLoaded.failed);
         } else if (ev.OverviewOpenedOrClosed) {
             overviewOpen = ev.OverviewOpenedOrClosed.is_open;
         }

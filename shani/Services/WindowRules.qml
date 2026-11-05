@@ -44,9 +44,8 @@ Singleton {
         id: write
         interval: 300                     // a few rules edited together: one write
         onTriggered: {
-            save.command = ["sh", "-c", 'mkdir -p "${1%/*}" && printf "%s" "$2" > "$1.tmp" && mv "$1.tmp" "$1"', "sh", root.path, root.kdl];
-            save.running = true;
+            // NiriConfig keeps the file as it was, and puts it back if niri cannot read this
+            NiriConfig.write(root.path, root.kdl, Tr.t("window rules"));
         }
     }
-    Process { id: save }
 }

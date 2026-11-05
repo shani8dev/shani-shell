@@ -416,6 +416,7 @@ ShellRoot {
                 popupSummaries: Notifs.popups.map(n => n.summary),
                 popups: Notifs.popups.length,
                 caffeine: Idle.caffeine,
+                niriConfigUndone: NiriConfig.undone, niriConfigPending: Object.keys(NiriConfig.pending).length,
                 dimmed: Idle.dimmed,
                 idleLock: Idle.lockIdle,
                 lockAfter: Idle.lockAfter,
