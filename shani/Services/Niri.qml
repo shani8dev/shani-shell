@@ -1,7 +1,16 @@
 pragma Singleton
 // niri's own event stream ($NIRI_SOCKET, "EventStream"): workspaces, windows,
 // focus, keyboard layouts and overview, pushed as they change — no polling.
-// Actions go through `niri msg action`, the same path a keybind uses.
+// This one long-lived connection is the only socket the shell holds; every
+// query (windowList, workspaces, focused window) is answered from it.
+//
+// Actions go through `niri msg action`, the same path a keybind uses — one
+// short-lived process per action, only when the person (or a script) asks
+// for one. Measured (idle-cost trace, dev/shell-test.sh): at rest the shell
+// spawns zero niri processes, and an action is a few ms of fork+exec of a
+// small binary. niri's socket takes one request per connection, so a shared
+// connection would need a serialising queue plus reconnect handling for no
+// idle benefit — measured and left as is (2026-11).
 import Quickshell
 import Quickshell.Io
 import QtQuick
