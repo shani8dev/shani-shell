@@ -47,11 +47,24 @@ Singleton {
     }
     onModesChanged: evaluate()
 
+    // schedules are minute-granular (from/to are "HH:MM"), so evaluate at
+    // each minute boundary instead of every 30 s: the wake is the clock
+    // itself, re-armed for the next boundary. A changed schedule is
+    // evaluated at once (onModesChanged above).
+    function msToNextMinute() {
+        const n = new Date();
+        return Math.max(1000, 60000 - (n.getSeconds() * 1000 + n.getMilliseconds()) + 250);
+    }
     Timer {
-        interval: 30000
+        id: clock
+        interval: 1000
         running: true
-        repeat: true
+        repeat: false
         triggeredOnStart: true
-        onTriggered: root.evaluate()
+        onTriggered: {
+            root.evaluate();
+            clock.interval = root.msToNextMinute();
+            clock.restart();
+        }
     }
 }

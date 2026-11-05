@@ -83,11 +83,25 @@ Singleton {
         running: Settings.loaded && !root.primed
         onTriggered: root.prime()
     }
+    // time rules are minute-granular ("HH:MM"), so the clock wakes once per
+    // minute, aligned to the minute boundary — not every 15 s. Each wake
+    // sets timeNow (flipping rules at their minute) and re-arms itself for
+    // the next boundary. The other triggers already became events above
+    // (wifi / power / output / displays change signals).
+    function msToNextMinute() {
+        const n = new Date();
+        return Math.max(1000, 60000 - (n.getSeconds() * 1000 + n.getMilliseconds()) + 250);
+    }
     Timer {
-        interval: 15000
+        id: clock
+        interval: 1000
         running: true
-        repeat: true
+        repeat: false
         triggeredOnStart: true
-        onTriggered: root.timeNow = Qt.formatTime(new Date(), "HH:mm")
+        onTriggered: {
+            root.timeNow = Qt.formatTime(new Date(), "HH:mm");
+            clock.interval = root.msToNextMinute();
+            clock.restart();
+        }
     }
 }

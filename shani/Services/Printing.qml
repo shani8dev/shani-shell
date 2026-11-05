@@ -15,7 +15,12 @@ Singleton {
         stdout: StdioCollector { onStreamFinished: root.jobs = parseInt(text.trim()) || 0 }
     }
     // every 3 s while a job is queued (the Island follows it), every 30 s
-    // otherwise: CUPS only announces jobs to a D-Bus subscriber. Not at all on a
+    // otherwise. This poll is the one that stays by design (measured: one
+    // lpstat fork per 30 s, nothing while idle on a printer-less machine):
+    // CUPS does offer IPP job notifications, but only to a subscription a
+    // notifier daemon (cups-filters) holds — the shell would need that extra
+    // daemon, and watching the spool directory instead would still miss
+    // printer state changes (offline, out of paper). Not at all on a
     // computer with no printer - most of them - which is asked again every 10 min.
     property bool hasPrinters: false
     Process {

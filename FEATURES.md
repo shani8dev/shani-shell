@@ -186,6 +186,9 @@ covered by an automated test that drives the real shell.
   **hybrid sleep** for a copy on disk. Offered only where your computer can.
 - **60 Hz on battery** for fast laptop screens, back up on the charger.
 - **Battery saver** at 20 %, a **charge limit** to keep the battery healthy.
+- **Power mode follows the charger** (Settings > Power, off by default): one
+  mode on battery, another plugged in — battery saver and a game in
+  fullscreen still come first, and your own pick holds until the next plug.
 - **Caffeine** to stay awake (it doesn't survive a reboot by accident).
 - **Displays** — arrange, scale, rotate, mirror, set the refresh rate; every change
   is **confirmed or undone in 15 seconds**.
