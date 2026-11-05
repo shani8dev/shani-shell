@@ -122,14 +122,54 @@ Singleton {
         if (!Settings.data.autoPowerSaver)
             return;
         if (lowAndDischarging && profile !== PowerProfile.PowerSaver) {
-            savedProfile = profile;
+            savedProfile = GameMode.savedProfile >= 0 ? GameMode.savedProfile : profile;
+            GameMode.savedProfile = -1;          // the game's profile ends here: the saver outranks it
             PowerProfiles.profile = PowerProfile.PowerSaver;
             Quickshell.execDetached(["notify-send", "-a", "Power", "-i", "power-profile-power-saver", "Battery saver on", "Power saver until you plug in"]);
         } else if (!lowAndDischarging && savedProfile >= 0) {
+            // back: what the charger rule wants now, or else what was there before
             if (profile === PowerProfile.PowerSaver)
-                PowerProfiles.profile = savedProfile;
+                PowerProfiles.profile = chargerWanted >= 0 ? chargerWanted : savedProfile;
             savedProfile = -1;
         }
+    }
+
+    // ---- the profile follows the charger (Settings > Power, off by default) --
+    // Who decides, first to last:
+    //   1. battery saver (at the set %, on battery): power saver until plugged in
+    //   2. a game in fullscreen (GameMode): performance while it plays
+    //   3. this rule: the chosen profile at each plug in and unplug
+    //   4. the person's own pick (the tile, the bar): it holds until the next
+    //      plug in or unplug - the rule acts at those moments only, never in between
+    // So the saver is never undone by a plug event while it holds, a game keeps
+    // performance, and each of them hands back to this rule (not to a stale
+    // profile) when it ends.
+    readonly property int chargerWanted: {
+        const w = Charger.wantedProfile(Settings.data.profileFollowsCharger, hasBattery, onBattery,
+                                        Settings.data.profileOnBattery, Settings.data.profilePluggedIn, hasPerformance);
+        return w === "power-saver" ? PowerProfile.PowerSaver
+             : w === "performance" ? PowerProfile.Performance
+             : w === "balanced" ? PowerProfile.Balanced : -1;
+    }
+    property int chargerApplied: 0           // times the rule set the profile (for tests)
+    function applyChargerRule() {
+        if (chargerWanted < 0 || savedProfile >= 0 || GameMode.savedProfile >= 0)
+            return;                          // off, or the saver or a game holds it
+        if (profile !== chargerWanted) {
+            PowerProfiles.profile = chargerWanted;
+            chargerApplied++;
+        }
+    }
+    // the moments it acts: plugged in or out, and the switch turned on or a choice made
+    Connections {
+        target: UPower
+        function onOnBatteryChanged() { Qt.callLater(root.applyChargerRule); }
+    }
+    Connections {
+        target: Settings.data
+        function onProfileFollowsChargerChanged() { root.applyChargerRule(); }
+        function onProfileOnBatteryChanged() { root.applyChargerRule(); }
+        function onProfilePluggedInChanged() { root.applyChargerRule(); }
     }
 
     function cycleProfile() {

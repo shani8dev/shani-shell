@@ -14,3 +14,20 @@ function tooSlow(onBattery, discharging, since, rate) {
         return false;
     return since >= SUSTAINED_S || rate >= 2;
 }
+
+// The power profile follows the charger (Settings > Power, off by default):
+// the profile the rule wants right now, as "power-saver" | "balanced" |
+// "performance", or null when the rule is off / does not apply. Plain JS so
+// tests/test_charger.py runs it; Power.qml maps it onto PowerProfile enums.
+//   follows: the switch; hasBattery: a laptop battery is present (desktops
+//   have no battery to follow); onBattery: UPower.onBattery right now;
+//   onBatteryChoice: "power-saver" | "balanced"; pluggedChoice: "balanced" |
+//   "performance"; hasPerformance: the machine has a performance profile
+//   (without one, "performance" falls back to "balanced", never an error).
+function wantedProfile(follows, hasBattery, onBattery, onBatteryChoice, pluggedChoice, hasPerformance) {
+    if (!follows || !hasBattery)
+        return null;
+    if (onBattery)
+        return onBatteryChoice === "balanced" ? "balanced" : "power-saver";
+    return pluggedChoice === "performance" && hasPerformance ? "performance" : "balanced";
+}

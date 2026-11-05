@@ -416,6 +416,11 @@ Singleton {
             property string focusMode: ""       // chosen by hand; "" = schedules decide
             property bool autoPowerSaver: true  // power saver at (powerSaverAt) % on battery
             property int powerSaverAt: 20       // battery saver kicks in at this charge level
+            // the power profile follows the charger (off by default): one on battery, one plugged in.
+            // Power.qml has the order when several want a say
+            property bool profileFollowsCharger: false
+            property string profileOnBattery: "power-saver"     // or "balanced"
+            property string profilePluggedIn: "balanced"        // or "performance"
             property bool autoLockOnLowBattery: true  // lock the screen when the battery is critically low
             property bool screenTime: true
             // screen keyboard languages, in the order the globe key cycles them

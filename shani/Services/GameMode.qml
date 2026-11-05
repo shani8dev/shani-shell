@@ -19,13 +19,17 @@ Singleton {
         const e = DesktopEntries.heuristicLookup(top.appId || "");
         return e !== null && [].concat(e.categories || []).indexOf("Game") >= 0;
     }
+    // battery saver outranks a game (Power.qml has the whole order): while it
+    // holds, a game starting leaves power saver alone
     property int savedProfile: -1
     onGameChanged: {
-        if (game && PowerProfiles.hasPerformanceProfile) {
+        if (game && PowerProfiles.hasPerformanceProfile && Power.savedProfile < 0) {
             savedProfile = PowerProfiles.profile;
             PowerProfiles.profile = PowerProfile.Performance;
         } else if (!game && savedProfile >= 0) {
-            PowerProfiles.profile = savedProfile;
+            // back: what the charger rule wants now (it may have been plugged in or
+            // out meanwhile), or else what was there before
+            PowerProfiles.profile = Power.chargerWanted >= 0 ? Power.chargerWanted : savedProfile;
             savedProfile = -1;
         }
     }

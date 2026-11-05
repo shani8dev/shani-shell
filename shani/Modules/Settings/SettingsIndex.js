@@ -228,6 +228,7 @@ var entries = [
 
     // ---- Power
     { key: "autoLockOnLowBattery", label: "Lock when critically low", cat: "power", hint: "lock the screen at 7 % battery", words: "lock battery low critical auto" },
+    { key: "profileFollowsCharger", label: "Power mode follows the charger", cat: "power", hint: "one power mode on battery, another plugged in", words: "power mode profile charger battery plugged performance balanced saver" },
     { key: "powerSaverAt", label: "Battery saver turns on at", cat: "power", hint: "10, 15, 20 or 30 percent", words: "battery saver percentage threshold power" },
     { key: "screenTime", label: "Screen time", cat: "power", hint: "per-app time, kept on this machine", words: "screen time wellbeing usage break" },
     { key: "breakEveryMinutes", label: "Break reminder", cat: "power", hint: "a nudge to look away", words: "break reminder every minutes wellbeing" },
@@ -268,7 +269,7 @@ var groups = {
     chronoa: ["islandActivities"],
     account: [],
     users: [],
-    power: ["dimAfter", "dimAfterBattery", "lockAfter", "screenOffAfter", "suspendAfter", "lockAfterBattery", "screenOffAfterBattery", "suspendAfterBattery", "lockBeforeSuspend", "autoPowerSaver", "powerSaverAt", "autoLockOnLowBattery", "breakEveryMinutes", "screenLimitMinutes", "screenTime", "batteryLimit"],
+    power: ["dimAfter", "dimAfterBattery", "lockAfter", "screenOffAfter", "suspendAfter", "lockAfterBattery", "screenOffAfterBattery", "suspendAfterBattery", "lockBeforeSuspend", "autoPowerSaver", "powerSaverAt", "profileFollowsCharger", "profileOnBattery", "profilePluggedIn", "autoLockOnLowBattery", "breakEveryMinutes", "screenLimitMinutes", "screenTime", "batteryLimit"],
     about: []
 };
 

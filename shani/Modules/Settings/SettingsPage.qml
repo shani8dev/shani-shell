@@ -1819,6 +1819,28 @@ ColumnLayout {
                         Choice { required property int modelData; text: modelData + " %"; selected: page.d.powerSaverAt === modelData; onClicked: page.d.powerSaverAt = modelData }
                     }
                 }
+                // the profile follows the charger: picked from choices; Power.qml has the order
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("Power mode follows the charger"); hint: Tr.t("set when you plug in or unplug; battery saver and games still come first"); checked: page.d.profileFollowsCharger; onToggled: on => page.d.profileFollowsCharger = on }
+                Text { visible: page.d.profileFollowsCharger; text: Tr.t("On battery use"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                Flow {
+                    visible: page.d.profileFollowsCharger
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Repeater {
+                        model: [["power-saver", Tr.t("Power saver")], ["balanced", Tr.t("Balanced")]]
+                        Choice { required property var modelData; text: modelData[1]; selected: page.d.profileOnBattery === modelData[0]; onClicked: page.d.profileOnBattery = modelData[0] }
+                    }
+                }
+                Text { visible: page.d.profileFollowsCharger; text: Tr.t("Plugged in use"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                Flow {
+                    visible: page.d.profileFollowsCharger
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Repeater {
+                        model: [["balanced", Tr.t("Balanced")], ["performance", Tr.t("Performance")]]
+                        Choice { required property var modelData; text: modelData[1]; selected: page.d.profilePluggedIn === modelData[0]; onClicked: page.d.profilePluggedIn = modelData[0] }
+                    }
+                }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Lock when critically low"); hint: Tr.t("lock the screen at 7 % battery — plug in to unlock"); checked: page.d.autoLockOnLowBattery; onToggled: on => page.d.autoLockOnLowBattery = on }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Screen time"); hint: Tr.t("per-app focus time, kept on this machine"); checked: page.d.screenTime; onToggled: on => page.d.screenTime = on }
                 // wellbeing: reminders on top of screen time, never a lock-out
