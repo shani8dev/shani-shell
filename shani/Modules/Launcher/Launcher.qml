@@ -318,7 +318,9 @@ PanelWindow {
         if (allFiles.length || byContent.length)
             out.push({ title: Tr.t("Files"), items: allFiles.map(fileItem).concat(byContent.map(p => Object.assign(fileItem(p), { subtitle: "contains “" + q + "” · " + p.replace(Quickshell.env("HOME"), "~") }))) });
         // what the apps themselves found, one section per app
-        for (const app of [...new Set(win.provided.map(r => r.app))].slice(0, 4))
+        // a sum the launcher already answered is not answered again by Calculator's own provider
+        const answered = out.some(s => s.items.some(i => i.kind === "calc"));
+        for (const app of [...new Set(win.provided.filter(r => !(answered && /calculator/i.test(String(r.bus) + " " + r.app))).map(r => r.app))].slice(0, 4))
             out.push({ title: "From " + app, items: win.provided.filter(r => r.app === app).slice(0, 4).map(r => ({
                 kind: "provided", app: r.icon, title: r.name, subtitle: r.description,
                 run: () => Quickshell.execDetached(["python3", win.providersTool, "activate", r.bus, r.path, r.id].concat(q.split(/\s+/))) })) });

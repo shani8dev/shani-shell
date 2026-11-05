@@ -55,9 +55,14 @@ ColumnLayout {
         stderr: StdioCollector { id: dnsErr }
         onExited: code => { page.note = code === 0 ? "" : (dnsErr.text.trim().split("\n").pop() || "not changed"); readConn.running = true; }
     }
+    // servers: IPv4 and IPv6 addresses, space between ("" = the network's own). Both
+    // families are set, so a network with IPv6 does not ask its own DNS around it.
     function useDns(servers) {
-        setDns.command = ["sh", "-c", 'u="$1"; s="$2"; if [ -n "$s" ]; then nmcli connection modify "$u" ipv4.dns "$s" ipv4.ignore-auto-dns yes
-            else nmcli connection modify "$u" ipv4.dns "" ipv4.ignore-auto-dns no; fi && nmcli connection up "$u" >/dev/null', "sh", conn, servers];
+        const all = String(servers || "").trim().split(/\s+/).filter(x => x);
+        const v4 = all.filter(x => x.indexOf(":") < 0).join(" "), v6 = all.filter(x => x.indexOf(":") >= 0).join(" ");
+        setDns.command = ["sh", "-c", 'u="$1"; a="$2"; b="$3"
+            if [ -n "$a$b" ]; then nmcli connection modify "$u" ipv4.dns "$a" ipv4.ignore-auto-dns yes ipv6.dns "$b" ipv6.ignore-auto-dns yes
+            else nmcli connection modify "$u" ipv4.dns "" ipv4.ignore-auto-dns no ipv6.dns "" ipv6.ignore-auto-dns no; fi && nmcli connection up "$u" >/dev/null', "sh", conn, v4, v6];
         setDns.running = true;
     }
     property string usage: ""
@@ -469,24 +474,30 @@ ColumnLayout {
             font.family: Theme.font
             font.pixelSize: 12 * Theme.fontScale
         }
-        Flow {
-            Layout.fillWidth: true
-            visible: page.conn !== ""
-            spacing: 6
-            Repeater {
-                model: [{ label: Tr.t("Automatic"), value: "" }, { label: Tr.t("Cloudflare"), value: "1.1.1.1 1.0.0.1" }, { label: Tr.t("Quad9"), value: "9.9.9.9 149.112.112.112" }, { label: Tr.t("Google"), value: "8.8.8.8 8.8.4.4" }]
-                Choice {
-                    required property var modelData
-                    text: modelData.label
-                    selected: page.dns === modelData.value
-                    onClicked: page.useDns(modelData.value)
-                }
+        // what each does, in a line: picked with a tap, the servers behind it shown small
+        Repeater {
+            model: page.conn === "" ? [] : [
+                { label: Tr.t("Automatic"), hint: Tr.t("From your network - the router or your provider"), value: "" },
+                { label: Tr.t("Fast"), hint: Tr.t("Cloudflare - quick, and does not keep a record of where you go"), value: "1.1.1.1 1.0.0.1 2606:4700:4700::1111 2606:4700:4700::1001" },
+                { label: Tr.t("Blocks harmful sites"), hint: Tr.t("Quad9 - known malware and phishing sites do not open"), value: "9.9.9.9 149.112.112.112 2620:fe::fe 2620:fe::9" },
+                { label: Tr.t("Blocks ads"), hint: Tr.t("AdGuard - ads and trackers stopped for every app, not only the browser"), value: "94.140.14.14 94.140.15.15 2a10:50c0::ad1:ff 2a10:50c0::ad2:ff" },
+                { label: Tr.t("Safe for family"), hint: Tr.t("Cloudflare for Families - adult sites and malware blocked"), value: "1.1.1.3 1.0.0.3 2606:4700:4700::1113 2606:4700:4700::1003" },
+                { label: Tr.t("Google"), hint: Tr.t("Google Public DNS"), value: "8.8.8.8 8.8.4.4 2001:4860:4860::8888 2001:4860:4860::8844" }]
+            ListRow {
+                required property var modelData
+                Layout.fillWidth: true
+                icon: modelData.value === "" ? "network-workgroup" : "network-server"
+                title: modelData.label
+                subtitle: modelData.hint
+                // the IPv4 part is what nmcli reports back for the connection
+                selected: page.dns === modelData.value.split(" ").filter(x => x.indexOf(":") < 0).join(" ")
+                onClicked: page.useDns(modelData.value)
             }
         }
         TextField {
             Layout.fillWidth: true
             visible: page.conn !== ""
-            placeholder: Tr.t("Your own DNS servers — 192.168.1.1 9.9.9.9")
+            placeholder: Tr.t("Or your own servers - e.g. 192.168.1.1 (Enter to use)")
             onAccepted: if (/^[\d.:a-fA-F\s]+$/.test(text.trim())) { page.useDns(text.trim()); text = ""; }
         }
         Text {

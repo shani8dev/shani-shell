@@ -19,6 +19,7 @@ Singleton {
         id: rulesFile
         path: root.configPath
         watchChanges: true
+        atomicWrites: true
         printErrors: false
         onLoaded: {
             try {
@@ -30,11 +31,13 @@ Singleton {
     }
 
     function save() {
-        Quickshell.execDetached(["mkdir", "-p", Quickshell.env("HOME") + "/.config/shani-shell"]);
         root.rules = root.rules.filter(r => (r.pattern || "").trim() !== "");
-        const text = JSON.stringify({ rules: root.rules });
-        Quickshell.execDetached(["sh", "-c", "cat > '" + root.configPath + "' << 'EOF'\n" + text + "\nEOF"]);
+        rulesFile.setText(JSON.stringify({ rules: root.rules }));
     }
+    function add(pattern, action) { root.rules = root.rules.concat([{ pattern: pattern, action: action }]); save(); }
+    function remove(i) { root.rules = root.rules.filter((_, j) => j !== i); save(); }
+    // the folder first: a FileView does not make one
+    Process { running: true; command: ["mkdir", "-p", Quickshell.env("HOME") + "/.config/shani-shell"] }
 
     // Evaluate a notification against rules; return action string or empty
     function evaluate(appName, summary, body) {

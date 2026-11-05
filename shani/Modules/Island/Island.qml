@@ -45,11 +45,10 @@ PanelWindow {
             return { icon: "camera-photo", text: "Photo in " + Camera.countdown + "…", color: Theme.accent, run: () => {} };
         if (Camera.phase === "recording")
             return { icon: "camera-video", text: "Recording video · " + Camera.elapsed, color: Theme.red, run: () => Camera.video() };
-        if (Modem.call && Modem.call.state === "ringing-in")
-            return { icon: "call-start", text: "Call from " + Modem.call.number + " — tap to answer", color: Theme.accent, run: () => Modem.answer() };
-        if (Modem.call)
-            return { icon: "call-start", text: (Modem.call.state === "active" ? "On a call · " + Modem.callTime : "Calling " + Modem.call.number + "…") + " — tap to hang up",
-                     color: Theme.red, run: () => Modem.hangup() };
+        if (Modem.call && Modem.call.state !== "ringing-in")
+            return { icon: "call-start", text: (Modem.call.state === "active" ? "On a call · " + Modem.callTime : "Calling " + Modem.call.number + "…") + " — tap for the call",
+                     color: Theme.red, run: () => Quickshell.execDetached(["shani-link-app", "--page", "phone"]) };
+        // ringing, on any line: shani-link's notification (category call.incoming)
         if (Notifs.incomingCall)
             return { icon: "call-start", text: Tr.t("%1 — tap to answer", Notifs.incomingCall.summary || Tr.t("A call")), color: Theme.accent, run: () => Notifs.answerCall() };
         if (Printing.jobs > 0)

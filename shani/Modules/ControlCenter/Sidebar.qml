@@ -32,6 +32,8 @@ PanelWindow {
     Region { id: sideRegion; item: slide; radius: Theme.radiusLarge }
 
     readonly property var player: Media.current
+    // the compass reads only while this is open
+    Binding { target: Compass; property: "wanted"; value: Ui.controlCenter }
     readonly property var bt: Bluetooth.defaultAdapter
     property string confirm: ""        // the power action waiting for a second click
 

@@ -29,7 +29,7 @@ ColumnLayout {
         readonly property real cell: (width - gap) / 2
         // the default order: what people reach for most first (GNOME's and Android's
         // quick settings lead the same way), the rest after
-        readonly property var known: ["wifi", "bluetooth", "dnd", "nightlight", "dark", "power", "mic", "screenshot", "record", "focus", "caffeine", "airplane", "mobile", "hotspot", "vpn", "phone", "timer", "camera", "photo", "lens", "ruler", "colorpicker", "snippets", "compress", "qrgen", "rotate", "flashlight", "display", "osk", "keyboard", "clipboard", "backup", "access", "captions", "transcribe", "speak", "magnifier", "callrecord", "cast", "touch", "chronoa"]
+        readonly property var known: ["wifi", "bluetooth", "dnd", "nightlight", "dark", "power", "mic", "screenshot", "record", "focus", "caffeine", "airplane", "mobile", "hotspot", "vpn", "phone", "timer", "camera", "photo", "lens", "ruler", "colorpicker", "snippets", "compress", "qrgen", "rotate", "compass", "flashlight", "kbdbacklight", "display", "osk", "keyboard", "clipboard", "backup", "access", "captions", "transcribe", "speak", "magnifier", "callrecord", "cast", "touch", "chronoa"]
         readonly property var order: {
             const o = Settings.data.tileOrder.filter(t => known.indexOf(t) >= 0);
             return o.concat(known.filter(t => o.indexOf(t) < 0));       // new tiles join at the end
@@ -302,7 +302,7 @@ ColumnLayout {
         }
         Tile {
             tid: "ruler"
-            icon: "measure-symbolic"
+            icon: "tool-measure"
             title: Tr.t("Ruler")
             subtitle: Tr.t("Measure on screen")
             onToggled: {
@@ -449,6 +449,28 @@ ColumnLayout {
             subtitle: AutoRotate.active ? "On" : "Locked"
             on: AutoRotate.active
             onToggled: AutoRotate.toggle()
+        }
+        // the compass (only where there is a magnetometer): the heading, read while open
+        Tile {
+            tid: "compass"
+            can: Compass.available
+            icon: "find-location-symbolic"
+            title: Tr.t("Compass")
+            subtitle: Compass.text
+            on: false
+            onToggled: {}
+            // an arrow to north, turned against the heading; "N" on it
+            Item {
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.rightMargin: 10
+                width: 26; height: 26
+                visible: Compass.heading >= 0
+                rotation: -Compass.heading
+                Behavior on rotation { RotationAnimation { duration: Theme.anim; direction: RotationAnimation.Shortest } }
+                Icon { anchors.centerIn: parent; name: "go-up-symbolic"; size: 20; color: Theme.red }
+                Text { anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.top; text: "N"; color: Theme.red; font.family: Theme.font; font.pixelSize: 9 * Theme.fontScale; font.weight: Font.Bold }
+            }
         }
         Tile {
             tid: "flashlight"

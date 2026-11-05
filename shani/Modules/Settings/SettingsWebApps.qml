@@ -44,6 +44,23 @@ ColumnLayout {
             anchors.fill: parent
             spacing: 8
 
+            Flow {
+                Layout.fillWidth: true
+                spacing: 6
+                Repeater {
+                    model: [{ n: "WhatsApp", u: "https://web.whatsapp.com" }, { n: "Gmail", u: "https://mail.google.com" },
+                            { n: "YouTube", u: "https://www.youtube.com" }, { n: "YouTube Music", u: "https://music.youtube.com" },
+                            { n: "Google Docs", u: "https://docs.google.com" }, { n: "Outlook", u: "https://outlook.live.com" },
+                            { n: "Microsoft Teams", u: "https://teams.microsoft.com" }, { n: "Netflix", u: "https://www.netflix.com" },
+                            { n: "Claude", u: "https://claude.ai" }]
+                    Choice {
+                        required property var modelData
+                        text: modelData.n
+                        selected: urlInput.text === modelData.u
+                        onClicked: { nameInput.text = modelData.n; urlInput.text = modelData.u; }
+                    }
+                }
+            }
             TextField {
                 id: nameInput
                 Layout.fillWidth: true

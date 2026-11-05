@@ -257,6 +257,7 @@ Singleton {
             property string tpClick: "clickfinger"    // clickfinger | button-areas
             property string tpScrollMethod: "two-finger"   // two-finger | edge
             property bool tpOffWithMouse: false
+            property bool touchpadOff: false              // the touchpad key (or Settings) turned it off
             property bool tpMiddleEmulation: false   // both buttons together → middle click
             property bool tpDragLock: false          // keep dragging after the finger lifts
             property string tpTapButtonMap: "left-right-middle"    // left-right-middle | left-middle-right

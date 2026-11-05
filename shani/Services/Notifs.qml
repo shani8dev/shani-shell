@@ -237,16 +237,23 @@ Singleton {
         inlineReplySupported: true
 
         onNotification: n => {
+            const app = n.appName || "";
+            // the person's rules (Settings > Notifications): "block" drops it, "hide" keeps
+            // it in the sidebar without a pop-up - critical ones always come through
+            const verdict = n.urgency === NotificationUrgency.Critical ? "" : root._filterNotification(app, n.summary, n.body);
+            if (verdict === "block") {
+                n.dismiss();
+                return;
+            }
             n.tracked = true;
             root.arrived[n.id] = Date.now();
-            const app = n.appName || "";
             if (app && Array.from(Settings.data.notifApps).indexOf(app) < 0)
                 Settings.data.notifApps = Array.from(Settings.data.notifApps).concat([app]).slice(-40);
             // an app with pop-ups off: the sidebar only. DND holds everything
             // back but the apps allowed through it; a focus mode, all but the apps
             // it allows; the lock screen holds them too when dndWhileLocked is on;
             // critical urgency always comes through
-            const silent = Array.from(Settings.data.silentApps).indexOf(app) >= 0;
+            const silent = Array.from(Settings.data.silentApps).indexOf(app) >= 0 || verdict === "hide";
             const throughDnd = Array.from(Settings.data.dndAllowedApps).indexOf(app) >= 0;
             const lockedOut = Settings.data.dndWhileLocked && Lock.locked && !throughDnd;
             if (n.urgency === NotificationUrgency.Critical

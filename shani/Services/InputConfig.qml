@@ -30,6 +30,7 @@ Singleton {
         "        repeat-rate " + d.keyRepeatRate,
         "    }",
         "    touchpad {",
+        d.touchpadOff ? "        off" : "",
         d.tapToClick ? "        tap" : "",
         d.typingGuard ? "        dwt" : "",
         d.naturalScroll ? "        natural-scroll" : "",

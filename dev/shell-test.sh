@@ -874,7 +874,7 @@ waitfor "d['screenTimeTotal'] >= 15" 3 && result screen-time-counts PASS || resu
 mkdir -p /root/Pictures/Screenshots && cp /tmp/frame.png /root/Pictures/Screenshots/Screenshot-test.png
 ipc controlCenter ""
 waitfor "d['shelf'] >= 1" 4 && result shelf-shows-new-screenshot PASS || result shelf-shows-new-screenshot FAIL
-shot 45-sidebar-shelf 0.6
+shot 45-sidebar-shelf 2.5
 ipc closeAll
 
 # ---- the light theme, and the accent from the wallpaper ------------------------
@@ -882,7 +882,7 @@ ipc setting darkMode false
 waitfor "sum(int(d['bg'][i:i+2],16) for i in (1,3,5)) > 3*215" 3 && result theme-follows-dark-style PASS || result theme-follows-dark-style FAIL "$(q "['bg']")"
 shot 47-light-desktop 0.6
 ipc controlCenter ""
-shot 48-light-sidebar 0.8
+shot 48-light-sidebar 2.5
 ipc closeAll
 ipc setting darkMode true
 waitfor "sum(int(d['bg'][i:i+2],16) for i in (1,3,5)) < 3*30" 3
@@ -952,8 +952,14 @@ ipc timer 1
 waitfor "d['islandActivity'].startswith('Focus · ')" 3 && result island-live-activity PASS "$(q "['islandActivity']")" || result island-live-activity FAIL "$(q "['islandActivity']")"
 shot 53-island-activity 0.4
 ipc timer 0
-ipc launcher "12*12"
+# an app's own answers (GNOME Calculator's provider): a factorial (3+ characters, as providers are asked), which the
+# launcher's calculator leaves to it ...
+ipc launcher "10!"
 waitfor "'From Calculator' in d['launcherSections']" 12 && result launcher-search-providers PASS || result launcher-search-providers FAIL "$(q "['launcherSections']")"
+# ... and a sum the launcher answered itself is not answered twice
+ipc launcher "12*12"
+sleep 4
+[ "$(q "['launcherSections']")" = "['Calculator', 'More']" ] && result launcher-calc-not-twice PASS || result launcher-calc-not-twice FAIL "$(q "['launcherSections']")"
 shot 54-launcher-providers 0.4
 ipc closeAll
 notify-send -a Mail "Snooze me" "back soon"
@@ -968,7 +974,7 @@ grep -q "Summarise these notifications" /work/out/logs/mock.log && result notifi
 settings '{"hiddenTiles": ["lens"], "tileOrder": ["chronoa", "dnd"]}'
 ipc controlCenter ""
 waitfor "d['tilesShown'][:2] == ['chronoa', 'dnd'] and 'lens' not in d['tilesShown']" 4 && result tiles-reordered-and-hidden PASS || result tiles-reordered-and-hidden FAIL "$(q "['tilesShown']")"
-shot 55-sidebar-tiles-mic 0.6
+shot 55-sidebar-tiles-mic 2.5
 # arranging in place: "Edit tiles" shows the hidden one too; pressing it shows it for good
 if [ -f "$A11Y" ]; then
     pr=$(timeout 40 python3 "$A11Y" press "button:^Edit tiles$" 2>&1)
@@ -1165,10 +1171,12 @@ waitfor "d['flashes'] > $f0" 3 && result flash-alert PASS || result flash-alert 
 shot 67-flash 0.05
 waitfor "d['spoken'] == 'Calendar: Standup in five'" 3 && result speak-notification PASS || result speak-notification FAIL "$(q "['spoken']")"
 ipc dnd
+waitfor "d['dnd']" 3; sleep 1       # on, and the alert before it done flashing
 f1=$(q "['flashes']")
 notify-send -a Calendar "Held back" "dnd"
 sleep 1
-[ "$(q "['flashes']")" = "$f1" ] && result flash-respects-dnd PASS || result flash-respects-dnd FAIL
+# held back: it did not flash (a critical one from elsewhere in the run may, as it should)
+[ "$(q "['lastFlash']")" != "Held back" ] && result flash-respects-dnd PASS || result flash-respects-dnd FAIL "$(q "['flashes']") vs $f1, last: $(q "['lastFlash']")"
 ipc dnd
 settings '{}'
 
@@ -1665,7 +1673,12 @@ waitfor "d['modem'] == 'registered/unlocked/Jio'" 4
 echo '{"sms": {"path": "/s/1", "from": "+919811111111", "text": "Your code is 482913", "time": ""}}' > /tmp/modem-ask
 waitfor "'+919811111111' in d['notificationSummaries']" 4 && result sms-notifies PASS || result sms-notifies FAIL
 shot 95-sms 0.4
+# a modem call rings once - shani-link's notification - not a second one from the shell
+n0=$(q "['notificationSummaries'].count('Call from +919844444444')")
 echo '{"call": {"path": "/c/1", "number": "+919844444444", "state": "ringing-in", "incoming": true}}' > /tmp/modem-ask
+sleep 1.5
+[ "$(q "['notificationSummaries'].count('Call from +919844444444')")" = "$n0" ] && result call-rings-once PASS || result call-rings-once FAIL "the shell rang too"
+notify-send -a "Shani Link" -h string:category:call.incoming -u critical -A answer=Answer -A decline=Decline "Call from +919844444444" "on your mobile" &
 waitfor "d['islandActivity'].startswith('Call from +919844444444')" 4 && result call-ringing-on-island PASS || result call-ringing-on-island FAIL "$(q "['islandActivity']")"
 shot 96-call-ringing 0.3
 echo '{"call": {"path": "/c/1", "number": "+919844444444", "state": "terminated", "incoming": true}}' > /tmp/modem-ask
@@ -1998,6 +2011,61 @@ waitfor "d['onlineWalls'] == 1" 6 && result wallpaper-online-search PASS || resu
 ipc wallpaperFetch 0
 waitfor "d['onlineWallSaved'].endswith('wallhaven-a1b2c3.jpg')" 8 && [ -s /root/Pictures/Wallpapers/wallhaven-a1b2c3.jpg ] \
     && result wallpaper-online-saved PASS || result wallpaper-online-saved FAIL "$(q "['onlineWallSaved']")"
+
+# ---- the compass: read while the sidebar is open, and only then ----------------------
+ipc closeAll; sleep 0.5
+ipc toggleControlCenter
+waitfor "d['compassHeading'] == 90 and 'compass' in d['tilesShown']" 4 && result compass-reads-heading PASS || result compass-reads-heading FAIL "$(q "['compassHeading']")"
+ipc closeAll
+waitfor "d['compassHeading'] == -1" 3 && ! pgrep -fx "sleep 6011" >/dev/null && result compass-stops-when-closed PASS || result compass-stops-when-closed FAIL "$(q "['compassHeading']")"
+
+# ---- face sign-in from Settings: on, then five looks reach the daemon -------------------
+rm -f /tmp/lh.sock /tmp/lh-asked; python3 -c "
+import json, os, socket
+s = socket.socket(socket.AF_UNIX); s.bind('/tmp/lh.sock'); s.listen(4); n = 0
+while True:
+    c, _ = s.accept(); req = json.loads(c.makefile().readline())
+    if req['action'] == 'enroll':
+        n += 1; open('/tmp/lh-asked', 'a').write(req['label'] + '\\n')
+        c.sendall((json.dumps({'type': 'enroll', 'success': True, 'score': 0.9, 'total_enrolled': n, 'message': 'ok'}) + '\\n').encode())
+    else:
+        c.sendall((json.dumps({'type': 'status', 'ready': True, 'camera_found': True, 'camera_path': '/dev/video2', 'enrolled_users': []}) + '\\n').encode())
+    c.close()" >/dev/null 2>&1 &
+LH=$!
+sleep 0.5
+if [ -f "$A11Y" ]; then
+    ipc settingsCategory account; sleep 2
+    timeout 20 python3 "$A11Y" press "^Set up my face$" >/dev/null 2>&1
+    i=0; until [ "$(wc -l < /tmp/lh-asked 2>/dev/null)" = 5 ] || [ $i -ge 60 ]; do sleep 0.5; i=$((i+1)); done
+    [ "$(tr '\n' ' ' < /tmp/lh-asked 2>/dev/null)" = "center look_left look_right look_up look_down " ] \
+        && result settings-face-setup PASS || result settings-face-setup FAIL "asked: $(tr '\n' ' ' < /tmp/lh-asked 2>/dev/null)"
+    ipc closeAll
+fi
+kill $LH 2>/dev/null
+
+# ---- notification rules apply: one dropped, one kept without a pop-up ----------------------
+mkdir -p /root/.config/shani-shell
+printf '{"rules": [{"pattern": "spammy-offer", "action": "block"}, {"pattern": "quiet-digest", "action": "hide"}]}' > /root/.config/shani-shell/notif-rules.json
+sleep 1.5
+n0=$(q "['notifications']"); p0=$(q "['popups']")
+notify-send -a Shop "A spammy-offer for you" "50% off"; sleep 1
+[ "$(q "['notifications']")" = "$n0" ] && result notification-rule-drops PASS || result notification-rule-drops FAIL "$(q "['notifications']") vs $n0"
+notify-send -a News "Your quiet-digest" "5 stories"; sleep 1
+[ "$(q "['notifications']")" -gt "$n0" ] && [ "$(q "['popups']")" = "$p0" ] && result notification-rule-hides PASS || result notification-rule-hides FAIL "$(q "['notifications']"), popups $(q "['popups']") vs $p0"
+rm -f /root/.config/shani-shell/notif-rules.json
+
+# ---- the shortcuts page: niri's real binds (it once listed keys bound to nothing) ---------
+if [ -f "$A11Y" ]; then
+    ipc settingsCategory input; sleep 2
+    timeout 20 python3 "$A11Y" find "^Clipboard history$" >/dev/null 2>&1 && timeout 20 python3 "$A11Y" find "^Minimise$" >/dev/null 2>&1 \
+        && result shortcuts-page-reads-niri PASS || result shortcuts-page-reads-niri FAIL
+    ipc closeAll
+fi
+settings '{"customBinds": [{"key": "Mod+Alt+J", "title": "Open my files", "command": "xdg-open \"$HOME\""}]}'
+sleep 1.5
+grep -q 'Mod+Alt+J hotkey-overlay-title="Open my files"' "${XDG_CONFIG_HOME:-$HOME/.config}/niri/shani-input.kdl" && niri validate -c "${NIRI_CONFIG:-/work/dev/niri/session.kdl}" >/dev/null 2>&1 \
+    && result custom-shortcut-written PASS || result custom-shortcut-written FAIL "$(grep -c 'Mod+Alt+J' "${XDG_CONFIG_HOME:-$HOME/.config}/niri/shani-input.kdl" 2>/dev/null)"
+settings '{}'
 
 # ---- dynamic lock: the paired phone goes away → locked after the grace ---------------
 settings '{"dynamicLockDevice": "AA:BB:CC:DD:EE:FF"}'

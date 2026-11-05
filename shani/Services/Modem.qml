@@ -28,7 +28,9 @@ Singleton {
     function answer() { if (call) send({ answer: call.path }); }
     function hangup() { if (call) send({ hangup: call.path }); }
     // a number to call: the modem when it can, otherwise Chronoa (a phone over Bluetooth)
-    function callNumber(number) { canCall ? dial(number) : Chronoa.ask("Call " + number); }
+    // a number to call: shani-link's dial pad, filled in (it picks the line - landline,
+    // phone or this modem - and nothing is dialled until Call is pressed)
+    function callNumber(number) { Qt.openUrlExternally("tel:" + number); }
     // "Your code is 482913" → 482913
     function codeIn(t) { const m = /(?:^|\D)(\d{4,8})(?:\D|$)/.exec(t || ""); return m ? m[1] : ""; }
 
@@ -56,8 +58,8 @@ Singleton {
                     }
                     const fresh = !root.call || root.call.path !== m.call.path;
                     root.call = m.call;
-                    if (fresh && m.call.state === "ringing-in")
-                        ringComp.createObject(root, { number: m.call.number });
+                    // ringing is shani-link's notification (it owns calls on every line):
+                    // ringing here as well put two on screen for one call
                     if (fresh)
                         root.callSeconds = 0;
                 } else if (m.error)

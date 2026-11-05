@@ -64,6 +64,7 @@ Singleton {
     function webSearchName() { return (webSearches[Settings.data.webSearch] || webSearches.duckduckgo)[0]; }
     function webSearchUrl(q) { return (webSearches[Settings.data.webSearch] || webSearches.duckduckgo)[1] + encodeURIComponent(q); }
     property int flashes: 0                        // flash alerts shown, for the tests
+    property string lastFlash: ""                  // the notification that flashed last (its summary)
     property point ringAt: Qt.point(-1, -1)        // where the Ring opens; -1: at the pointer
     function openRingAt(x, y) {
         closeAll();

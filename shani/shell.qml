@@ -158,6 +158,11 @@ ShellRoot {
         function volumeMute() { Audio.toggleMute(); }
         function micMute() { Audio.toggleMic(); }
         function brightnessUp() { Brightness.step(0.05); }
+        function kbdBacklightUp() { KbdBacklight.step(1); }
+        function kbdBacklightDown() { KbdBacklight.step(-1); }
+        function kbdBacklightToggle() { KbdBacklight.toggle(); }
+        function touchpad() { Settings.data.touchpadOff = !Settings.data.touchpadOff; }
+        function airplane() { Net.setAirplane(!Net.airplane); }
         function brightnessDown() { Brightness.step(-0.05); }
         function dnd() { Notifs.setDnd(!Notifs.dnd); }
         function caffeine() { Idle.setCaffeine(!Idle.caffeine); }
@@ -426,13 +431,13 @@ ShellRoot {
                 captionText: Captions.text,
                 captionSource: Captions.source,
                 transcript: Captions.transcript,
-                flashes: Ui.flashes,
+                flashes: Ui.flashes, lastFlash: Ui.lastFlash,
                 settingsCat: Ui.settingsCat, settingsOpen: Ui.settingsOpen,
                 pinned: Niri.pinned, badges: Notifs.perApp,
                 capsLock: LockKeys.caps, numLock: LockKeys.num,
                 screenSaver: ScreenSaver.active,
                 desktopIconsShown: Settings.data.desktopIcons,
-                mediaPlayer: Media.current ? Media.current.identity : '', notifEarlier: Notifs.earlier.length, dndUntil: Settings.data.dndUntil, onlineWalls: OnlineWalls.results.length, onlineWallSaved: OnlineWalls.lastSaved, lyricsLines: Lyrics.lines.length, trashCount: Ui.trashCount, shotCountdown: Screenshots.countdown, shelfParked: Shelf.parked, shelfItems: Shelf.items.map(x => x.name),
+                mediaPlayer: Media.current ? Media.current.identity : '', notifEarlier: Notifs.earlier.length, dndUntil: Settings.data.dndUntil, compassHeading: Compass.heading, onlineWalls: OnlineWalls.results.length, onlineWallSaved: OnlineWalls.lastSaved, lyricsLines: Lyrics.lines.length, trashCount: Ui.trashCount, shotCountdown: Screenshots.countdown, shelfParked: Shelf.parked, shelfItems: Shelf.items.map(x => x.name),
                 layoutSwitcher: Ui.layoutSwitcher, layoutPreset: Settings.data.layoutPreset, dockOn: Settings.data.dock, dockHides: Settings.data.dockVisibility === "hide", dockMode: Settings.data.dockVisibility, barMode: Settings.data.barVisibility, dockShown: Hiding.dockShown[Niri.focusedOutput] !== false, barShown: Hiding.barShown[Niri.focusedOutput] !== false, dockHintSeen: Settings.data.dockHintSeen, desktopIconsOn: Settings.data.desktopIcons, winWidth: Settings.data.winDefaultWidth, widgets: Array.from(Settings.data.desktopWidgets),
                 fileActions: FileActions.actions.map(x => x.id), fileActionLast: FileActions.last,
                 notifLastSound: Notifs.lastSound,

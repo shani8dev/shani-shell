@@ -53,8 +53,8 @@ sleep 2.5    # first frame + focus
 export WAYLAND_DISPLAY=wayland-1
 grim /work/out/shots/18-greeter.png 2>/dev/null || true
 
-# wrong password first: greetd must see the failure, the greeter must recover
-wtype shani -k Return; sleep 0.3
+# the one account is already picked (nothing to type but the password); a wrong
+# password first: greetd must see the failure, the greeter must recover
 wtype nope -k Return; sleep 1.2
 grim /work/out/shots/19-greeter-failed.png 2>/dev/null || true
 # the user field keeps "shani"; only the password is typed again
@@ -91,7 +91,7 @@ greet() {
     rm -f "$XDG_RUNTIME_DIR"/wayland-1 "$XDG_RUNTIME_DIR"/wayland-1.lock
     nohup python3 /work/dev/fake-greetd.py > "/work/out/logs/greetd-$1.log" 2>&1 &
     sleep 0.5
-    WAYLAND_DISPLAY=wayland-parent nohup niri -c "$KDL" > "/work/out/logs/greeter-niri-$1.log" 2>&1 &
+    SHANI_GREETER_WALLPAPER=/work/assets/shani-dark.jpg WAYLAND_DISPLAY=wayland-parent nohup niri -c "$KDL" > "/work/out/logs/greeter-niri-$1.log" 2>&1 &
     NIRI_PID=$!
     i=0
     until pgrep -f 'qs -c shani-greeter' >/dev/null && [ -S "$XDG_RUNTIME_DIR/wayland-1" ] || [ "$i" -ge 40 ]; do
@@ -121,7 +121,7 @@ export SHANI_GREETER_FACE=0
 # ---- fingerprint: Enter on an empty password asks for it (the flag pam_exec takes)
 FRUN=/tmp/greeter-run; rm -rf "$FRUN"; mkdir -p "$FRUN"
 export SHANI_GREETER_RUN="$FRUN" SHANI_GREETER_FINGERPRINT=1
-got=$(greet finger "" enter)
+got=$(SHANI_GREETER_KEYBOARD=1 greet finger "" enter)     # the screen keyboard shown too (19-greeter-finger.png)
 [ "$got" = "create_session post_auth_message_response start_session" ] && [ ! -e "$FRUN/fingerprint" ] \
     && result greeter-fingerprint PASS || result greeter-fingerprint FAIL "got: $got"
 

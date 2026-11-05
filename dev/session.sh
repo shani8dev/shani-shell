@@ -60,6 +60,11 @@ export SHANI_BIOMETRIC_PROBE="test -e /tmp/bio-available"
 # lyrics from a local stand-in for lrclib.net (dev/shell-test.sh serves it)
 export SHANI_LYRICS_URL=http://127.0.0.1:8799/api/search
 export SHANI_WALLHAVEN_URL=http://127.0.0.1:8799/api/v1/search
+# face sign-in: the real helper, against a stand-in daemon the suite starts (and an
+# infrared camera, as `linux-hello cameras` would say)
+export SHANI_FACE_TOOL=/work/bridge/face.py SHANI_FACE_SOCK=/tmp/lh.sock SHANI_FACE_CAMERAS=" [IR CAMERA]"
+# a magnetometer for the compass tile (monitor-sensor's own words, then waiting)
+export SHANI_COMPASS_CMD='echo "Compass heading changed: 90.0"; exec sleep 6011'
 printf '#!/bin/sh\ntest -e /tmp/face-match\n' > /usr/local/bin/fake-face && chmod +x /usr/local/bin/fake-face
 printf 'auth sufficient pam_exec.so quiet /usr/local/bin/fake-face\nauth requisite pam_deny.so\n' > /etc/pam.d/shani-lock-biometric
 # the desktop package's input-method default (English + Hindi phonetic)

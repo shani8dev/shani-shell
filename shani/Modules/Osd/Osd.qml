@@ -37,6 +37,14 @@ Scope {
 
     // ---- Audio / volume ----
     Connections {
+        target: Settings.data
+        function onTouchpadOffChanged() { root.show("input-touchpad", -1, Settings.data.touchpadOff ? Tr.t("Touchpad off") : Tr.t("Touchpad on"), "toggle"); }
+    }
+    Connections {
+        target: KbdBacklight
+        function onStepped() { root.show("input-keyboard", KbdBacklight.max > 0 ? KbdBacklight.value / KbdBacklight.max : 0, KbdBacklight.value > 0 ? "" : Tr.t("Keyboard light off"), "slider"); }
+    }
+    Connections {
         target: Screenshots
         function onCountdownChanged() {
             if (Screenshots.countdown > 0)

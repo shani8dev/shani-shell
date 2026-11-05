@@ -55,6 +55,13 @@ ShellRoot {
     property string password2: ""
     property bool showPassword: false
     property string hostname: ""
+    // the screen keyboard: open by itself with a touchscreen (a tablet's first boot)
+    property bool kb: Quickshell.env("SHANI_SETUP_KEYBOARD") === "1"
+    Process {
+        running: Quickshell.env("SHANI_SETUP_KEYBOARD") === ""
+        command: ["sh", "-c", "udevadm info --export-db 2>/dev/null | grep -q ID_INPUT_TOUCHSCREEN=1"]
+        onExited: code => { if (code === 0) root.kb = true; }
+    }
     property bool hostnameEdited: false
 
     property string status: ""            // "", "working", "error: …", "signing-in"
@@ -375,14 +382,28 @@ ShellRoot {
                     Choice { text: root.t("larger"); selected: Settings.data.largeText; onClicked: Settings.data.largeText = !Settings.data.largeText }
                     Choice { text: root.t("contrast"); selected: Settings.data.highContrast; onClicked: Settings.data.highContrast = !Settings.data.highContrast }
                     Choice { text: root.t("reader"); selected: root.screenReader; onClicked: root.screenReader = !root.screenReader }
+                    IconButton { icon: "input-keyboard"; size: 28; on: root.kb; Accessible.name: "Screen keyboard"; onClicked: root.kb = !root.kb }
                 }
+            }
+
+            // the screen keyboard, into whichever field has focus; the card moves up for it
+            ScreenKeyboard {
+                visible: root.kb && win.primary
+                z: 10
+                anchors.bottom: parent.bottom
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottomMargin: 16
+                width: Math.min(900, parent.width - 40)
+                target: win.activeFocusItem && win.activeFocusItem.insert ? win.activeFocusItem : null
+                onEntered: if (win.activeFocusItem && win.activeFocusItem.accepted) win.activeFocusItem.accepted()
             }
 
             Glass {
                 visible: win.primary
                 anchors.centerIn: parent
+                anchors.verticalCenterOffset: root.kb ? -150 : 0
                 width: Math.min(win.wide ? 940 : 620, parent.width - 48)
-                height: Math.min(700, parent.height - 48)
+                height: Math.min(700, parent.height - 48 - (root.kb ? 300 : 0))
                 strong: true
                 radius: Theme.radiusLarge
 
@@ -597,7 +618,6 @@ ShellRoot {
                                         width: ListView.view.width
                                         icon: "preferences-desktop-locale"
                                         title: root.niceLocale(modelData)
-                                        subtitle: modelData
                                         selected: modelData === root.locale
                                         onClicked: root.locale = modelData
                                     }
@@ -918,7 +938,9 @@ ShellRoot {
                                     Item { Layout.fillWidth: true }
                                 }
 
+                                FieldLabel { text: root.t("fullName") }
                                 TextField { id: nameField; Layout.fillWidth: true; placeholder: root.t("fullName"); onTextChanged: root.fullname = text; border.color: root.accountProblem === root.t("needName") ? Theme.danger : Theme.stroke }
+                                FieldLabel { text: root.t("userName") }
                                 TextField {
                                     Layout.fillWidth: true
                                     placeholder: root.t("userName")
@@ -926,6 +948,7 @@ ShellRoot {
                                     border.color: root.accountProblem === root.t("badUser") ? Theme.danger : Theme.stroke
                                     onTextChanged: if (text !== root.username) { root.usernameEdited = true; root.username = text; }
                                 }
+                                FieldLabel { text: root.t("password") }
                                 RowLayout {
                                     Layout.fillWidth: true
                                     spacing: 6
@@ -962,7 +985,9 @@ ShellRoot {
                                     font.family: Theme.font
                                     font.pixelSize: 11 * Theme.fontScale
                                 }
+                                FieldLabel { text: root.t("passwordAgain") }
                                 TextField { Layout.fillWidth: true; placeholder: root.t("passwordAgain"); secret: !root.showPassword; onTextChanged: root.password2 = text; onAccepted: root.next() }
+                                FieldLabel { text: root.t("computerName") }
                                 RowLayout {
                                     Layout.fillWidth: true
                                     spacing: 6
@@ -1048,6 +1073,13 @@ ShellRoot {
                                     font.pixelSize: 20 * Theme.fontScale
                                     font.weight: Font.DemiBold
                                 }
+                                Text {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    text: root.t("fasterTip")
+                                    color: Theme.dim
+                                    font.family: Theme.font
+                                    font.pixelSize: 12 * Theme.fontScale
+                                }
                                 Repeater {
                                     model: root.warnings
                                     Text { required property string modelData; text: root.t("note") + modelData; color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
@@ -1086,5 +1118,15 @@ ShellRoot {
                 }
             }
         }
+    }
+
+    // what a field is, above it: the placeholder goes once something is typed
+    component FieldLabel: Text {
+        Layout.fillWidth: true
+        Layout.topMargin: 4
+        color: Theme.dim
+        font.family: Theme.font
+        font.pixelSize: 11 * Theme.fontScale
+        font.weight: Font.Medium
     }
 }

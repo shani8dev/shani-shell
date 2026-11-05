@@ -34,7 +34,7 @@ sleep 0.5
 mkdir -p /root/.config/quickshell
 ln -sfn /work/greeter /root/.config/quickshell/shani-greeter
 ln -sfn /work/setup /root/.config/quickshell/shani-setup
-export SHANI_SETUP_APPLY="python3 /work/bridge/first-account.py" SHANI_OSK_LAYOUT_TOOL=/work/bridge/osk-layout.py
+export SHANI_SETUP_APPLY="python3 /work/bridge/first-account.py" SHANI_OSK_LAYOUT_TOOL=/work/bridge/osk-layout.py SHANI_SETUP_KEYBOARD=1   # the screen keyboard in the pictures, and in the way of nothing
 export SHANI_GREETER_WALLPAPER=/work/assets/shani-dark.jpg
 
 start_niri() {

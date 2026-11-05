@@ -15,6 +15,7 @@ ColumnLayout {
     spacing: 12
     readonly property var d: Settings.data
     property var wallpapers: []
+    property string myZone: ""          // this computer's time zone (its city: a weather pick)
 
     function minutes(s) { return s <= 0 ? "Never" : Math.round(s / 60) + " min"; }
 
@@ -890,6 +891,7 @@ ColumnLayout {
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Date beside the clock"); checked: page.d.barDate; onToggled: on => page.d.barDate = on }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Battery percentage"); checked: page.d.barBatteryPercent; onToggled: on => page.d.barBatteryPercent = on }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Dock"); checked: page.d.dock; onToggled: on => page.d.dock = on }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("Rounded screen corners"); hint: Tr.t("not over fullscreen video"); checked: page.d.screenCorners; onToggled: on => page.d.screenCorners = on }
                 SwitchRow { Layout.fillWidth: true; visible: page.d.dock; text: Tr.t("Trash at the dock's end"); checked: page.d.dockTrash; onToggled: on => page.d.dockTrash = on }
                 // buttons of your own: a command's output in the bar, a click that runs another
                 Text {
@@ -914,18 +916,41 @@ ColumnLayout {
                         Hint { text: Tr.t("Click to remove it") }
                     }
                 }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Repeater {
+                        model: [{ label: Tr.t("Free disk space"), command: "df -h --output=avail / | tail -1 | tr -d ' '", every: 300 },
+                                { label: Tr.t("Up for"), command: "uptime -p | sed 's/up //'", every: 60 },
+                                { label: Tr.t("Load"), command: "cut -d' ' -f1 /proc/loadavg", every: 10 },
+                                { label: Tr.t("Public IP"), command: "curl -fsS --max-time 5 https://ifconfig.me", every: 600 },
+                                { label: Tr.t("CPU temperature"), command: "sensors 2>/dev/null | awk '/^(Package|Tctl|CPU)/{print $NF; exit}' | tr -d '+'", every: 10 }]
+                        Choice {
+                            required property var modelData
+                            text: "+ " + modelData.label
+                            onClicked: page.d.barCommands = Array.from(page.d.barCommands || []).concat([{ command: modelData.command, every: modelData.every, click: "" }])
+                        }
+                    }
+                }
+                Text { text: Tr.t("Or your own command:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 6
                     TextField { id: ownCmd; Layout.fillWidth: true; placeholder: Tr.t("Command, e.g. date +%H:%M"); label: Tr.t("Bar button command") }
-                    TextField { id: ownEvery; Layout.preferredWidth: 70; placeholder: Tr.t("secs"); label: Tr.t("Run it again every, seconds") }
+                    Picks {
+                        id: ownEveryPick
+                        label: Tr.t("Again every")
+                        options: [{ label: Tr.t("Once"), value: 0 }, { label: "10 s", value: 10 }, { label: Tr.t("1 min"), value: 60 }, { label: Tr.t("5 min"), value: 300 }]
+                        current: 60
+                        onPicked: v => current = v
+                    }
                     TextField { id: ownClick; Layout.fillWidth: true; placeholder: Tr.t("On click (optional)"); label: Tr.t("Bar button click command") }
                     Button {
                         text: Tr.t("Add")
                         enabled: ownCmd.text.trim() !== ""
                         onClicked: {
-                            page.d.barCommands = Array.from(page.d.barCommands || []).concat([{ command: ownCmd.text.trim(), every: Math.max(0, parseInt(ownEvery.text) || 0), click: ownClick.text.trim() }]);
-                            ownCmd.text = ""; ownEvery.text = ""; ownClick.text = "";
+                            page.d.barCommands = Array.from(page.d.barCommands || []).concat([{ command: ownCmd.text.trim(), every: ownEveryPick.current, click: ownClick.text.trim() }]);
+                            ownCmd.text = ""; ownClick.text = "";
                         }
                     }
                 }
@@ -1025,9 +1050,31 @@ ColumnLayout {
 
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("Weather") }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Use my location"); hint: Tr.t("GeoClue2 — fills the coordinates below; off: type a city"); checked: page.d.useLocation; onToggled: on => { page.d.useLocation = on; if (on && Location.refresh) Location.refresh(); } }
+                Process {
+                    running: page.visible
+                    command: ["sh", "-c", "readlink /etc/localtime | sed 's,.*/zoneinfo/,,'"]
+                    stdout: StdioCollector { onStreamFinished: page.myZone = text.trim() }
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    visible: !page.d.useLocation
+                    spacing: 6
+                    Repeater {
+                        // the time zone's city first, then the world clocks' - each a tap
+                        model: [...new Set([page.myZone].concat(Array.from(page.d.worldClocks || []))
+                            .map(z => String(z || "").split("/").pop().replace(/_/g, " ")).filter(c => c && c !== "UTC"))].slice(0, 6)
+                        Choice {
+                            required property string modelData
+                            text: modelData
+                            selected: page.d.weatherCity === modelData
+                            onClicked: { page.d.weatherLat = 0; page.d.weatherLon = 0; page.d.weatherCity = modelData; }
+                        }
+                    }
+                }
                 TextField {
                     Layout.fillWidth: true
-                    placeholder: Tr.t("City for the weather — off when empty (asks open-meteo.com)")
+                    visible: !page.d.useLocation
+                    placeholder: Tr.t("Another city - type it and press Enter")
                     text: page.d.weatherCity
                     onAccepted: { page.d.weatherLat = 0; page.d.weatherLon = 0; page.d.weatherCity = text.trim(); }
                 }
@@ -1073,6 +1120,55 @@ ColumnLayout {
                     }
                 }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Sound"); hint: Tr.t("a chime for each notification that pops up"); checked: page.d.notifSound; onToggled: on => page.d.notifSound = on }
+                Picks {
+                    label: Tr.t("Snooze holds it back for")
+                    options: [{ label: Tr.t("15 minutes"), value: 15 }, { label: Tr.t("1 hour"), value: 60 }, { label: Tr.t("3 hours"), value: 180 }]
+                    current: page.d.snoozeMinutes
+                    onPicked: v => page.d.snoozeMinutes = v
+                }
+                // rules: what to keep from popping up, or drop altogether
+                Text { Layout.fillWidth: true; Layout.topMargin: 6; text: Tr.t("Rules"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; font.weight: Font.DemiBold }
+                Repeater {
+                    model: NotifsRules.rules
+                    ListRow {
+                        required property var modelData
+                        required property int index
+                        Layout.fillWidth: true
+                        icon: modelData.action === "block" ? "action-unavailable" : "notifications-disabled"
+                        title: "“" + modelData.pattern + "”"
+                        subtitle: modelData.action === "block" ? Tr.t("dropped") : Tr.t("kept in the sidebar, no pop-up")
+                        onClicked: NotifsRules.remove(index)
+                        Hint { text: Tr.t("Click to remove this rule") }
+                    }
+                }
+                Picks {
+                    id: ruleAction
+                    label: Tr.t("A notification mentioning…")
+                    options: [{ label: Tr.t("No pop-up"), value: "hide" }, { label: Tr.t("Drop it"), value: "block" }]
+                    current: "hide"
+                    onPicked: v => current = v
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Repeater {
+                        // the apps that have sent something: a tap makes the rule
+                        model: Array.from(page.d.notifApps || []).slice(-8).reverse()
+                        Choice { required property string modelData; text: "+ " + modelData; onClicked: NotifsRules.add(modelData, ruleAction.current) }
+                    }
+                }
+                TextField {
+                    Layout.fillWidth: true
+                    placeholder: Tr.t("Or words to match - Enter adds the rule")
+                    onAccepted: { if (text.trim() !== "") { NotifsRules.add(text.trim(), ruleAction.current); text = ""; } }
+                }
+                // quiet hours: the times below were there, with nothing to turn them on
+                Picks {
+                    label: Tr.t("Do Not Disturb by itself")
+                    options: [{ label: Tr.t("Only when I turn it on"), value: "manual" }, { label: Tr.t("Every night, at these times"), value: "custom" }]
+                    current: page.d.dndSchedule
+                    onPicked: v => page.d.dndSchedule = v
+                }
                 ColumnLayout {
                     Layout.fillWidth: true
                     visible: page.d.dndSchedule !== "manual"

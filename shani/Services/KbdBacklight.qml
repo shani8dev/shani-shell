@@ -53,6 +53,19 @@ Singleton {
         setProc.running = true;
         root.value = level;
     }
+    // the keyboard's own light keys: a step up or down, kept as the level (and out
+    // of "follow the room", which would undo it at the next look at the room)
+    signal stepped()
+    function step(dir) {
+        if (!root.available || root.max <= 0)
+            return;
+        const next = Math.max(0, Math.min(root.max, root.value + dir));
+        Settings.data.kbdBacklight = next > 0 ? "on" : "off";
+        if (next > 0)
+            Settings.data.kbdBacklightLevel = next;
+        root.setLevel(next);
+        root.stepped();
+    }
     function toggle() {
         if (root.on) {
             Settings.data.kbdBacklight = "off";
@@ -62,6 +75,7 @@ Singleton {
             const lvl = Settings.data.kbdBacklightLevel > 0 ? Settings.data.kbdBacklightLevel : (root.max > 0 ? root.max : 1);
             root.setLevel(lvl);
         }
+        root.stepped();
     }
 
     // what "auto" means: dark room or night time → on; bright room or day → off

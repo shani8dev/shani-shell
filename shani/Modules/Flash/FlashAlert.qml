@@ -25,6 +25,7 @@ PanelWindow {
             if (!Settings.data.flashAlerts || Lock.locked)
                 return;
             Ui.flashes++;
+            Ui.lastFlash = n ? (n.summary || "") : "";
             pulse.restart();
         }
     }

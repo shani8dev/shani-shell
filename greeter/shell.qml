@@ -41,6 +41,24 @@ ShellRoot {
     property string pending: ""
     readonly property bool busy: Greetd.state !== GreetdState.Inactive
 
+    // ---- typing without a keyboard, and typing the right thing ----------------------
+    // the screen keyboard: open by itself on a computer with a touchscreen (a tablet
+    // at the sign-in screen has no other way in), a tap away everywhere else
+    property bool kb: Quickshell.env("SHANI_GREETER_KEYBOARD") === "1"
+    Process {
+        running: Quickshell.env("SHANI_GREETER_KEYBOARD") === ""
+        command: ["sh", "-c", "udevadm info --export-db 2>/dev/null | grep -q ID_INPUT_TOUCHSCREEN=1"]
+        onExited: code => { if (code === 0) root.kb = true; }
+    }
+    property bool showPass: false
+    // Caps Lock on while a password is typed: said, since nothing else shows it here
+    property bool caps: false
+    Process {
+        id: capsProbe
+        command: ["sh", "-c", "cat /sys/class/leds/*::capslock/brightness 2>/dev/null | grep -qv '^0$'"]
+        onExited: code => root.caps = code === 0
+    }
+
     // Fingerprint (fprintd): greetd runs one PAM conversation at a time, and
     // fprintd blocks it until a finger or its timeout, so it can't wait beside
     // the password field the way GDM's second conversation does. It is asked for
@@ -202,6 +220,18 @@ ShellRoot {
                 color: Theme.alpha(Theme.bg, 0.45)
             }
 
+            // the screen keyboard: into whichever field has focus
+            ScreenKeyboard {
+                visible: root.kb && win.primary
+                z: 10
+                anchors.bottom: parent.bottom
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottomMargin: 72
+                width: Math.min(900, parent.width - 40)
+                target: userField.input.activeFocus ? userField.input : passField.input
+                onEntered: (userField.input.activeFocus ? userField : passField).accepted()
+            }
+
             // accessibility, before anything is typed
             Row {
                 visible: win.primary
@@ -227,9 +257,33 @@ ShellRoot {
                     Accessible.name: "Keyboard layout " + root.layout + ", click for the next"
                     onClicked: { Quickshell.execDetached(["niri", "msg", "action", "switch-layout", "next"]); layoutDelay.restart(); }
                 }
+                IconButton { icon: "input-keyboard"; on: root.kb; Accessible.name: root.kb ? "Hide the screen keyboard" : "Screen keyboard"; onClicked: root.kb = !root.kb }
                 IconButton { icon: "weather-clear-night"; Accessible.name: "Sleep"; onClicked: Quickshell.execDetached(["systemctl", "suspend"]) }
-                IconButton { icon: "system-reboot"; Accessible.name: "Restart"; onClicked: Quickshell.execDetached(["systemctl", "reboot"]) }
-                IconButton { icon: "system-shutdown"; Accessible.name: "Power off"; onClicked: Quickshell.execDetached(["systemctl", "poweroff"]) }
+                // restart and power off: a second tap, so a brushed button turns nothing off
+                Repeater {
+                    model: [{ icon: "system-reboot", name: "Restart", cmd: "reboot" }, { icon: "system-shutdown", name: "Power off", cmd: "poweroff" }]
+                    Row {
+                        id: powerKey
+                        required property var modelData
+                        property bool armed: false
+                        spacing: 4
+                        Timer { running: powerKey.armed; interval: 4000; onTriggered: powerKey.armed = false }
+                        Text {
+                            visible: powerKey.armed
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: powerKey.modelData.name + "?"
+                            color: Theme.danger
+                            font.family: Theme.font
+                            font.pixelSize: 13 * Theme.fontScale
+                        }
+                        IconButton {
+                            icon: powerKey.modelData.icon
+                            on: powerKey.armed
+                            Accessible.name: powerKey.armed ? powerKey.modelData.name + ", press again to confirm" : powerKey.modelData.name
+                            onClicked: powerKey.armed ? Quickshell.execDetached(["systemctl", powerKey.modelData.cmd]) : (powerKey.armed = true)
+                        }
+                    }
+                }
             }
             Timer { id: layoutDelay; interval: 300; onTriggered: root.readLayout() }
 
@@ -318,26 +372,31 @@ ShellRoot {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: { userField.text = who.modelData.name; passField.input.forceActiveFocus(); }
+                                    onClicked: { root.otherUser = false; userField.text = who.modelData.name; passField.input.forceActiveFocus(); root.faceTried = false; root.lookForFace(); }
                                 }
                             }
                         }
                     }
+                    // who is signing in, by name - the field only for someone not listed
+                    readonly property bool picked: !root.otherUser && root.users.some(u => u.name === userField.text.trim())
+                    onPickedChanged: if (picked && win.primary) passField.input.forceActiveFocus()
                     Text {
-                        text: "SHANI"
-                        color: root.accent
+                        Layout.alignment: Qt.AlignHCenter
+                        visible: form.picked
+                        text: root.fullnameOf(userField.text.trim())
+                        color: root.textColor
                         font.family: Theme.font
-                        font.pixelSize: 15 * Theme.fontScale
-                        font.letterSpacing: 6
+                        font.pixelSize: 18 * Theme.fontScale
                         font.weight: Font.DemiBold
                     }
 
                     Field {
                         id: userField
                         Layout.fillWidth: true
-                        placeholder: "User"
+                        visible: !form.picked
+                        placeholder: "User name"
                         enabled: !root.busy
-                        text: Quickshell.env("SHANI_GREETER_USER") || lastUser.text().trim()
+                        text: Quickshell.env("SHANI_GREETER_USER") || lastUser.text().trim() || (root.users.length === 1 ? root.users[0].name : "")
                         onTextChanged: if (win.primary) root.knownUser = text
                         onAccepted: { passField.input.forceActiveFocus(); root.faceTried = false; root.lookForFace(); }
                     }
@@ -346,11 +405,37 @@ ShellRoot {
                         id: passField
                         Layout.fillWidth: true
                         placeholder: root.prompt
-                        secret: !root.echo
+                        secret: !root.echo && !root.showPass
+                        input.onTextChanged: capsProbe.running = true
                         enabled: Greetd.state !== GreetdState.ReadyToLaunch
                         onAccepted: {
                             root.submit(userField.text, text);
                             text = "";
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Text {
+                            Layout.fillWidth: true
+                            visible: root.caps
+                            text: "Caps Lock is on"
+                            color: Theme.amber
+                            font.family: Theme.font
+                            font.pixelSize: 12 * Theme.fontScale
+                        }
+                        Item { Layout.fillWidth: true; visible: !root.caps }
+                        Choice {
+                            visible: form.picked && !root.busy
+                            text: "Someone else"
+                            onClicked: { root.otherUser = true; userField.text = ""; userField.input.forceActiveFocus(); }
+                        }
+                        Choice {
+                            visible: !root.echo
+                            text: root.showPass ? "Hide password" : "Show password"
+                            selected: root.showPass
+                            onClicked: root.showPass = !root.showPass
                         }
                     }
 
@@ -379,6 +464,10 @@ ShellRoot {
 
     // everyone who can sign in here (UID 1000–59999 with a login shell), with a picture
     property var users: []                // [{ name, fullname }]
+    // the person picked, not typed: one account is chosen already; several are a
+    // click each; "Someone else" opens the name field for an account not listed
+    property bool otherUser: false
+    function fullnameOf(n) { const u = users.find(x => x.name === n); return u ? (u.fullname || u.name) : n; }
     Process {
         running: true
         command: ["sh", "-c", 'getent passwd | awk -F: "\\$3 >= 1000 && \\$3 < 60000 && \\$7 !~ /(nologin|false)\\$/ {print \\$1 \\":\\" \\$5}"']

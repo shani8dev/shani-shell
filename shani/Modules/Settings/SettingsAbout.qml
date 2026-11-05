@@ -70,9 +70,23 @@ ColumnLayout {
             Text { text: page.info.os || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
         }
     }
+    Flow {
+        Layout.fillWidth: true
+        spacing: 6
+        Repeater {
+            // from who uses it and what it is: "asha-laptop", "asha-pc"
+            readonly property string who: (Quickshell.env("USER") || "my").toLowerCase().replace(/[^a-z0-9-]/g, "")
+            model: [who + (Power.hasBattery ? "-laptop" : "-pc"), who + "-shani", "shani-" + (Power.hasBattery ? "laptop" : "desktop")]
+            Choice {
+                required property string modelData
+                text: modelData
+                onClicked: { rename.command = ["hostnamectl", "hostname", modelData]; rename.running = true; }
+            }
+        }
+    }
     TextField {
         Layout.fillWidth: true
-        placeholder: Tr.t("Rename this computer (as others see it on the network)")
+        placeholder: Tr.t("Or another name - letters, digits and '-'")
         onAccepted: {
             const n = text.trim();
             if (!/^[A-Za-z0-9][A-Za-z0-9-]{0,62}$/.test(n)) {

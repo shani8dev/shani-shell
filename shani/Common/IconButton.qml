@@ -14,7 +14,11 @@ Rectangle {
 
     // for screen readers: a button named after what it does
     Accessible.role: Accessible.Button
-    Accessible.name: root.tip !== "" ? root.tip : root.icon.replace(/-symbolic$/, "").replace(/-/g, " ")
+    readonly property var plainNames: ({ "go-previous": "Previous", "go-next": "Next", "go-up": "Move up", "go-down": "Move down",
+        "media-skip-backward": "Previous track", "media-skip-forward": "Next track", "media-playback-start": "Play", "media-playback-pause": "Pause",
+        "window-close": "Close", "view-refresh": "Refresh", "list-remove": "Remove", "list-add": "Add", "edit-clear-all": "Clear all",
+        "edit-delete": "Delete", "view-more": "More", "notifications-disabled": "Do Not Disturb", "preferences-system-notifications": "Do Not Disturb" })
+    Accessible.name: root.tip !== "" ? root.tip : (plainNames[root.icon.replace(/-symbolic$/, "")] || root.icon.replace(/-symbolic$/, "").replace(/-/g, " "))
     Accessible.checkable: root.on
     Accessible.checked: root.on
     Accessible.onPressAction: root.clicked()

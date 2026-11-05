@@ -221,15 +221,7 @@ Scope {
                     font.family: Theme.font
                     font.pixelSize: 18 * Theme.fontScale
                 }
-                // battery, when there is one
-                Text {
-                    Layout.alignment: Qt.AlignHCenter
-                    visible: Settings.data.lockScreenBattery && Power.hasBattery
-                    text: Math.round(Power.percent * 100) + "%"
-                    color: Theme.dim
-                    font.family: Theme.font
-                    font.pixelSize: 14 * Theme.fontScale
-                }
+                // (the battery is shown once, with its icon, under the password field)
                 // at a glance (a phone's lock screen): the weather, and the next event
                 // only when previews are allowed on the lock screen (Privacy)
                 Text {
@@ -505,7 +497,7 @@ Scope {
                             }
                         }
                         Row {
-                            visible: Power.hasBattery
+                            visible: Power.hasBattery && Settings.data.lockScreenBattery
                             spacing: 5
                             Icon { name: Power.batteryIcon; size: 14; color: Theme.dim; anchors.verticalCenter: parent.verticalCenter }
                             Text {

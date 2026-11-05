@@ -92,7 +92,22 @@ ColumnLayout {
             }
         }
     }
-    TextField { id: find; Layout.fillWidth: true; placeholder: Tr.t("Add an app to start at login…") }
+    // the usual ones, where installed: a tap each
+    Flow {
+        Layout.fillWidth: true
+        spacing: 6
+        Repeater {
+            model: ["org.gnome.Nautilus", "com.vivaldi.Vivaldi", "org.mozilla.firefox", "org.telegram.desktop", "org.signal.Signal",
+                    "com.slack.Slack", "org.mozilla.Thunderbird", "com.spotify.Client", "org.localsend.localsend_app", "dev.shani.chronoa"]
+                .map(id => DesktopEntries.byId(id)).filter(a => a && !a.noDisplay).slice(0, 8)
+            Choice {
+                required property var modelData
+                text: "+ " + modelData.name
+                onClicked: page.add(modelData)
+            }
+        }
+    }
+    TextField { id: find; Layout.fillWidth: true; placeholder: Tr.t("Or find another app…") }
     Repeater {
         model: find.text.trim().length < 2 ? [] : DesktopEntries.applications.values
             .filter(a => !a.noDisplay && a.name.toLowerCase().indexOf(find.text.trim().toLowerCase()) >= 0).slice(0, 6)
