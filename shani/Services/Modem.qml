@@ -97,22 +97,7 @@ Singleton {
             }
         }
     }
-    // a call coming in: Answer / Decline
-    Component {
-        id: ringComp
-        Process {
-            id: r
-            property string number
-            running: true
-            command: ["notify-send", "-a", "Phone", "-i", "call-start", "-u", "critical", "-A", "answer=Answer", "-A", "decline=Decline", "Call from " + number, "on your SIM"]
-            stdout: StdioCollector {
-                onStreamFinished: {
-                    const a = text.trim();
-                    if (a === "answer") root.answer();
-                    else if (a === "decline") root.hangup();
-                    r.destroy();
-                }
-            }
-        }
-    }
+    // incoming-call Answer/Decline UI is shani-link's notification path
+    // (shani_link/missed_call.py + incoming_call.py); this shell never
+    // duplicated it. See shani-link/AGENTS.md "desktop-neutral plumbing".
 }

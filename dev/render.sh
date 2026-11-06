@@ -483,8 +483,14 @@ render_shell() {
     waitfor "'+919811111111' in d['notificationSummaries']" 10
     sleep 0.5; capture_current notification-sms 0.5   # with Reply / Copy actions
     echo '{"call": {"path": "/c/1", "number": "+919844444444", "state": "ringing-in", "incoming": true}}' > /tmp/modem-ask
+    # ringing is shani-link's notification (hints category call.incoming); the
+    # shell never rings itself, so without it the Island's call activity below
+    # can never appear (the same notification shell-test.sh sends here)
+    notify-send -a "Shani Link" -h string:category:call.incoming -u critical -A answer=Answer -A decline=Decline "Call from +919844444444" "on your mobile" &
+    call_pid=$!
     waitfor "d['islandActivity'].startswith('Call from +919844444444')" 10
     sleep 0.5; capture_current modem-call 0.5         # island activity + call notification
+    kill "$call_pid" 2>/dev/null || true
     echo '{"call": {"path": "/c/1", "number": "+919844444444", "state": "terminated", "incoming": true}}' > /tmp/modem-ask
     sleep 1
     ipc textMessage +919822222222; sleep 1.2
