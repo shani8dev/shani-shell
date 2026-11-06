@@ -184,25 +184,11 @@ PanelWindow {
         // Exact label match first (e.g. "Allow for this session" == "Allow for this session")
         if (options.indexOf(decision) >= 0)
             return decision;
-        // Pattern-based fallback for "deny" decision code
-        if (decision === "deny") {
-            for (let i = 0; i < options.length; i++) {
-                if (/deny|no\b|cancel|stop/i.test(options[i]))
-                    return options[i];
-            }
-            // No pattern match: return the last option as default
-            return options[options.length - 1];
-        }
-        // Pattern-based fallback for "always" decision code
-        if (decision === "always") {
-            for (let i = 0; i < options.length; i++) {
-                if (/session|always/i.test(options[i]))
-                    return options[i];
-            }
-            // No pattern match: return the first option as default
-            return options[0];
-        }
-        // No pattern matched: return the first option as default
+        // No exact label match: forward the first offered option rather
+        // than guessing from a regex. A regex that maps "deny" onto a label
+        // containing "allow" is how a denial becomes an allowance, and direct
+        // clicks already pass the exact label, so this path is only the
+        // scriptable approveLast() one.
         return options[0];
     }
 
