@@ -906,7 +906,11 @@ ShellRoot {
                             ColumnLayout {
                                 anchors.fill: parent
                                 visible: root.pageId === "account"
-                                spacing: 8
+                                // tighter than the other pages: with the strength
+                                // bar, its line and the admin note all shown, this
+                                // page is the tallest in the wizard — at 8 the
+                                // summary ran onto the error line below it
+                                spacing: 6
 
                                 RowLayout {
                                     Layout.fillWidth: true
