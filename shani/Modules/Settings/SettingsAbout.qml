@@ -169,7 +169,8 @@ ColumnLayout {
                 { label: Tr.t("Encryption"), id: "encryption" },
                 { label: Tr.t("Secure Boot"), id: "secureboot" },
                 { label: Tr.t("Firewall"), id: "firewall" },
-                { label: Tr.t("Services"), id: "services" }]
+                { label: Tr.t("Services"), id: "services" },
+                { label: Tr.t("Boot & recovery"), id: "boot" }]
             Choice {
                 required property var modelData
                 text: modelData.label
