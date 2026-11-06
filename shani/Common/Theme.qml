@@ -27,7 +27,11 @@ Singleton {
     property real darkT: Settings.data.darkMode ? 1 : 0
     Behavior on darkT { NumberAnimation { duration: Fade.fadeMs(Settings.data.reduceMotion); easing.type: Easing.InOutQuad } }
     function mix(light, dark) {
-        const c = Fade.blendC([light.r, light.g, light.b, light.a], [dark.r, dark.g, dark.b, dark.a], darkT);
+        // Qt.color() first: several tokens pass "#rrggbb" strings, and a
+        // string has no .r/.g/.b — blendC would get undefined and the token
+        // would come out transparent (accentInk's text on accent invisible)
+        const l = Qt.color(light), d = Qt.color(dark);
+        const c = Fade.blendC([l.r, l.g, l.b, l.a], [d.r, d.g, d.b, d.a], darkT);
         return Qt.rgba(c[0], c[1], c[2], c[3]);
     }
 
@@ -171,6 +175,7 @@ Singleton {
     readonly property color surface3: contrast ? bg : mix(_shade(_base, 0.02, -0.010, 0.92), _shade(_base, 0.02, 0.125, 0.86))
 
     function alpha(c, a) {
-        return Qt.rgba(c.r, c.g, c.b, a);
+        const col = Qt.color(c);
+        return Qt.rgba(col.r, col.g, col.b, a);
     }
 }

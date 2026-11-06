@@ -23,9 +23,12 @@ Item {
         source: {
             if (root.name === "")
                 return "";
+            // no fallback (false): with true, iconPath always answers with the
+            // theme's missing-icon placeholder, the || chain never runs, and a
+            // name the theme lacks paints as an empty white square
             const sym = root.name.endsWith("-symbolic") ? root.name : root.name + "-symbolic";
-            return Quickshell.iconPath(sym, true) || Quickshell.iconPath(root.name.replace(/-symbolic$/, ""), true)
-                || Quickshell.iconPath("preferences-system-symbolic", true);
+            return Quickshell.iconPath(sym, false) || Quickshell.iconPath(root.name.replace(/-symbolic$/, ""), false)
+                || Quickshell.iconPath("preferences-system-symbolic", false);
         }
         visible: false
     }
