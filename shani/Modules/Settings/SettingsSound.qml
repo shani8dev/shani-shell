@@ -73,7 +73,7 @@ ColumnLayout {
         Text { text: Tr.t("R"); color: Theme.dim }
         IconButton { icon: "go-previous"; onClicked: if (Audio.setBalance) Audio.setBalance((Audio.balance||0)-10); }
         IconButton { icon: "go-next"; onClicked: if (Audio.setBalance) Audio.setBalance((Audio.balance||0)+10); }
-        IconButton { icon: "dialog-cancel"; tip: Tr.t("Centre"); onClicked: if (Audio.setBalance) Audio.setBalance(0); }
+        IconButton { icon: "window-close"; tip: Tr.t("Centre"); onClicked: if (Audio.setBalance) Audio.setBalance(0); }
     }
     Repeater {
         model: page.cards
