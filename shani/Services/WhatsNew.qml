@@ -43,7 +43,7 @@ Singleton {
         command: ["sh", "-c", "cat /etc/shani-version 2>/dev/null"]
         stdout: StdioCollector {
             onStreamFinished: {
-                const cur = WhatsNewLogic.parseVersion(text());
+                const cur = WhatsNewLogic.parseVersion(text);
                 root.currentVersion = cur;
                 const decision = WhatsNewLogic.shouldShow(cur, root.lastSeen);
                 if (decision === "show") {

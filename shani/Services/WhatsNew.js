@@ -10,7 +10,7 @@ function parseVersion(text) {
     const t = String(text || "").trim();
     if (!t)
         return "";
-    const m = t.match(/\d+\.\d+(?:\.\d+)?/);
+    const m = t.match(/\d+\.\d+(?:\.\d+)?(?:-[\w.]+)?/);
     if (m)
         return m[0];
     return t.split(/\s+/)[0];
