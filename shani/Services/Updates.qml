@@ -15,10 +15,18 @@ Singleton {
     property bool rebootNeeded: false
     property string slot: ""
     readonly property bool attention: available || rebootNeeded || firmware.length > 0
-    // firmware (fwupd, LVFS): the devices with a newer release — told once,
-    // applied in GNOME Firmware
+    // firmware (fwupd, LVFS): the devices with a newer release — told once per
+    // release, persisted across restarts; opens Cassini's Firmware page
     property var firmware: []             // ["Thunderbolt Controller 1.2 → 1.3", …]
     property var firmwareTold: []
+    FileView {
+        id: firmwareToldFile
+        path: Quickshell.statePath("firmware-told.json")
+        printErrors: false
+        atomicWrites: true
+        onLoaded: { try { root.firmwareTold = JSON.parse(text()); } catch (e) { root.firmwareTold = []; } }
+        onLoadFailed: root.firmwareTold = []
+    }
     // Cassini's Firmware page owns this (fwupd's devices and what LVFS offers)
     function openFirmware() { Quickshell.execDetached(["sh", "-c", "command -v shani-cassini >/dev/null && exec shani-cassini --section=firmware; exec gnome-firmware"]); }
     Process {
@@ -33,6 +41,7 @@ Singleton {
                 if (fresh.length)
                     fwTell.running = true;
                 root.firmwareTold = root.firmware;
+                firmwareToldFile.setText(JSON.stringify(root.firmwareTold));
             }
         }
     }
