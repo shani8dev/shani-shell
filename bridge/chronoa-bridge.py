@@ -14,9 +14,9 @@ and accepts text through:
 Quickshell cannot export D-Bus objects, so this process owns those names and
 bridges them to the shell over a unix socket (one JSON object per line).
 
-The shell -> bridge side also carries the one interface Chronoa does not have
-yet: a turn stream. `dev.shani.chronoa.Agent` is the proposed contract
-(Turn(text) -> id, Approve(id, decision), Event(json) signal). When the name is
+The shell -> bridge side also carries the turn stream Chronoa now implements
+(`dev.shani.chronoa.Agent`, owned by `shani-chronoa.agent_service`):
+Turn(text) -> id, Approve(id, decision), Event(json) signal. When the name is
 absent the bridge falls back to Gateways.Submit and says so.
 """
 
@@ -221,7 +221,7 @@ def ask(text: str) -> None:
     if has_owner(AGENT_NAME):
         try:
             r = call(AGENT_NAME, AGENT_PATH, AGENT_IFACE, "Turn",
-                     GLib.Variant("(s)", (text,)), timeout=4000)
+                     GLib.Variant("(s)", (text,)), timeout=30000)
             turn_id = r.unpack()[0]
             broadcast({"type": "turn", "id": turn_id})
             # Events that raced ahead of the Turn reply are ours too.
@@ -289,9 +289,15 @@ def on_mascot_call(connection, sender, path, iface, method, params, invocation):
         title, detail = params.unpack()
         state = "idle"
         low = (title or "").lower()
-        for probe in ("listening", "thinking", "speaking", "working"):
-            if probe in low:
-                state = probe
+        # Chronoa's notch titles are "Working on it" / "One moment" rather
+        # than the word "thinking", so map them explicitly before substring
+        # matching - otherwise the shell never shows the thinking state.
+        if "working on it" in low or "one moment" in low:
+            state = "thinking"
+        else:
+            for probe in ("listening", "thinking", "speaking", "working"):
+                if probe in low:
+                    state = probe
         state_holder.update(state=state, title=title, detail=detail)
         broadcast({"type": "state", "state": state, "title": title, "detail": detail})
         invocation.return_value(None)

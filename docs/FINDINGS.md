@@ -54,11 +54,9 @@ added empty-state copy for `model.count === 0`.
 
 ## Findings / gaps to report to the user
 
-1. **The big one:** Chronoa has no turn-stream API yet. The only inbound surface is
-   `Gateways.Submit`, which is fire-and-forget — replies land in Chronoa's own GTK
-   window. The proposed `dev.shani.chronoa.Agent` (`Turn`, `Approve`, `Event`) is the
-   right harness-side contract; recommend shipping it (turn lifecycle ids, approval
-   callbacks, event signal) rather than growing more ad-hoc signals.
+1. **Turn-stream API:** Chronoa now implements `dev.shani.chronoa.Agent`
+   (`Turn`, `Approve`, `Event`) in `shani_chronoa.agent_service`; the shell
+   bridge calls it and falls back to `Gateways.Submit` when it is absent.
 2. Real `dev.shani.chronoa` **app** (for `toggle-listening`/`quick-ask`/`dictate`/
    `stop-speaking`/`show-page` actions) is not running in the container, so the mock
    owned only Agent/Gateways. The bridge's `action` path currently calls
@@ -322,7 +320,7 @@ the fake greetd.
 | "clear clipboard history" left the secret in it | the text was still on the clipboard; wl-clip-persist offers it again and cliphist stores it straight back | clearing also empties the clipboard and the primary selection |
 | noise suppression off: default source not restored | "Cannot change default source to a node that is not a source" — the previous default can be a monitor | restored by name (`pactl set-default-source`) |
 | "channelVolumes and channelMap are not the same size" | the mono RNNoise node reports two volumes for one channel | run it stereo, as PipeWire's own example does; the mic slider acts on the real microphone |
-| Update button did nothing | it opened Cassini, which the niri desktop does not install | Cassini where present, else `pkexec shani-deploy` in a terminal |
+| Update button did nothing | it opened Cassini, which the niri desktop may not install (Cassini is shipped on the niri image today; the fallback covers hosts without it) | Cassini where present, else `pkexec shani-deploy` in a terminal |
 | initials instead of pictures on the login screen | the greeter reads AccountsService, which the desktop did not install | `accountsservice` in shani-desktop-niri |
 | fonts ignored | the Chronoa panel and the greeter hard-coded Noto Sans / DejaVu (23 places) | Theme.font / Theme.mono |
 | proxy applied by the Settings page | it worked only because the page happens to be built at startup | a Proxy service |

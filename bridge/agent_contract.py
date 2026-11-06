@@ -1,8 +1,7 @@
-"""Proposed Agent contract: turn stream with approval.
+"""Agent contract: turn stream with approval.
 
-This is a proposal, not a replacement. It is the contract Chronoa's own
-shell-side bridge (`chronoa-bridge.py`) expects, and which the gateway's
-fire-and-forget `Submit` does not provide.
+Implemented by `shani_chronoa.agent_service.AgentService`; this file is the
+shell's copy for discovery, so the names cannot drift from the bridge's.
 
 Methods:
   Turn(text) -> turn_id        # starts a turn; reply lands via Event

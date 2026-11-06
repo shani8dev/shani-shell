@@ -5,7 +5,8 @@ It owns the two names a real Chronoa owns on the session bus:
 
   dev.shani.chronoa.Gateways   Submit(gateway, text) -> reply   (exists today)
   dev.shani.chronoa.Agent      Turn(text) -> id, Approve(id, decision),
-                               Event(json) signal                 (proposed)
+                               Event(json) signal                 (implemented by
+                               shani-chronoa.agent_service)
 
 and it calls back into the shell exactly as the real app does:
 
