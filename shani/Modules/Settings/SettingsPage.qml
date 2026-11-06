@@ -439,7 +439,7 @@ ColumnLayout {
                 // the whole desktop at once: dock, widgets, icons, window spacing (LayoutSwitcher)
                 ListRow {
                     Layout.fillWidth: true
-                    icon: "preferences-desktop"
+                    icon: "view-grid"
                     title: Tr.t("Desktop layout")
                     subtitle: Tr.t("Shani, Classic, Focus, Tiling, Dashboard or Touch — see each one and try it on")
                     trailing: "›"
