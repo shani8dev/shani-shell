@@ -11,6 +11,10 @@ Singleton {
     property bool controlCenter: false
     property bool ring: false
     property bool layoutSwitcher: false
+    // which layout the switcher is showing on screen right now (its id), so a
+    // check can ask what is displayed instead of counting keystrokes that a
+    // niri config reload can swallow - see Modules/LayoutSwitcher
+    property string layoutTrying: ""
     property int ringDepth: 0           // how many rings deep (for `state`)
     signal askRequested()               // the Island opens its question field
     property bool switcher: false

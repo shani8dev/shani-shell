@@ -59,7 +59,29 @@ PanelWindow {
     function same(set, cur) { for (const k in set) { if (JSON.stringify(set[k]) !== JSON.stringify(cur[k])) return false; } return true; }
     // which layout the desktop is in now, or -1 when it has been changed by hand
     function matching() { const cur = snapshot(); return presets.findIndex(x => same(x.set, cur)); }
-    function tryOn(i) { sel = i; put(presets[i].set); tried = true; }
+    function tryOn(i) { sel = i; Ui.layoutTrying = presets[i].id; put(presets[i].set); tried = true; }
+    // **A layout rewrites niri's config, and niri reloads it - which takes the
+    // keyboard focus off this surface.** Measured 2026-11-07: 2 of 12 runs lost
+    // the Return key that followed, leaving the panel open with the layout on
+    // screen but no key reaching it. Toggling the request makes niri grant it
+    // again; `Niri.configLoaded` is the only signal that says the reload landed.
+    Connections {
+        target: Niri
+        function onConfigLoaded(failed) {
+            if (!root.visible)
+                return;
+            WlrLayershell.keyboardFocus = WlrKeyboardFocus.None;
+            retake.restart();
+        }
+    }
+    Timer {
+        id: retake
+        interval: 50
+        onTriggered: {
+            WlrLayershell.keyboardFocus = WlrKeyboardFocus.Exclusive;
+            keysItem.forceActiveFocus();
+        }
+    }
     function keep() { Settings.data.layoutPreset = presets[sel].id; tried = false; Ui.layoutSwitcher = false; }
     function cancel() { if (tried) put(before); tried = false; Ui.layoutSwitcher = false; }
     // what this layout changes, against what you had, in words
@@ -87,7 +109,7 @@ PanelWindow {
 
     // made on first use (shell.qml), so already visible when created: open the same way
     Component.onCompleted: if (visible) opened()
-    onVisibleChanged: if (visible) opened()
+    onVisibleChanged: { if (visible) opened(); else Ui.layoutTrying = ""; }
     function opened() {
         if (!Settings.loaded)
             return;
@@ -95,6 +117,7 @@ PanelWindow {
         tried = false;
         const m = matching();
         sel = m >= 0 ? m : Math.max(0, presets.findIndex(x => x.id === Settings.data.layoutPreset));
+        Ui.layoutTrying = presets[sel].id;
         keysItem.forceActiveFocus();
     }
     readonly property int now: visible ? matching() : -1
