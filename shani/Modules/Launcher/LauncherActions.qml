@@ -70,6 +70,9 @@ QtObject {
         { title: Tr.t("Clear clipboard history"), words: "clipboard clear wipe history privacy", icon: "edit-clear-history", run: () => Clipboard.wipe() },
         { title: Tr.t("Notifications"), words: "notifications messages", icon: "preferences-system-notifications", run: () => Ui.toggleControlCenter("notifications") },
         { title: Tr.t("Switch windows"), words: "windows switch alt tab", icon: "focus-windows", run: () => Ui.switcherRequested(false) },
+        // Chronoa's diff surface (wiring only: Chronoa.ask fallback, see
+        // Services/Chronoa.openDiff — no direct surface-open exists).
+        { title: Tr.t("Show diff"), words: "diff changes changed git what changed", icon: "document-open-recent", run: () => Chronoa.openDiff() },
         { title: Tr.t("Suspend"), words: "suspend sleep", icon: "weather-clear-night", run: () => Power.suspend() },
         { title: Tr.t("Log out"), words: "logout log out sign out", icon: "system-log-out", run: () => Power.logout() },
         // irreversible: these open the sidebar's confirm row instead of acting
