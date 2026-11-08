@@ -2,8 +2,11 @@
 // Modules/ControlCenter/Calendar.qml, promoted to a full panel — arrows
 // page through months, a day can be selected, and below the grid are the
 // events Agenda (Services/Agenda.qml, Agenda.events) reports for that day.
-// Read-only: refresh re-reads the calendars, "Open calendar" opens GNOME
-// Calendar (the same calendars Agenda reads).
+// Events can be created, edited and deleted here (summary/title, start, end,
+// all-day, location) — writes go over EDS via bridge/agenda.py, falling back
+// to a Chronoa calendar_edit ask when EDS is unavailable (see Agenda.qml).
+// A search box filters the day's events by title. This surface IS "the
+// calendar": Agenda.openCalendar() points here, never at GNOME Calendar.
 import Quickshell
 import Quickshell.Wayland
 import QtQuick
@@ -28,7 +31,7 @@ PanelWindow {
     onVisibleChanged: if (visible) Agenda.refresh()
 
     MouseArea { anchors.fill: parent; onClicked: Ui.calendar = false }
-    Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: Ui.calendar = false }
+    Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: { if (win.editor) win.closeEditor(); else Ui.calendar = false; } }
 
     property date today: new Date()
     property int offset: 0
@@ -75,7 +78,9 @@ PanelWindow {
             return s.getFullYear() === month.getFullYear() && s.getMonth() === month.getMonth() && s.getDate() === day;
         });
     }
-    readonly property var selectedEvents: Agenda.events.filter(e => isSameDay(new Date(e.start * 1000), selectedDate))
+    // title search lives on Agenda (so IPC `calendarSearch` uses the same box)
+    readonly property var dayEvents: Agenda.events.filter(e => isSameDay(new Date(e.start * 1000), selectedDate))
+    readonly property var shownEvents: dayEvents.filter(e => Agenda.search === "" || String(e.summary || "").toLowerCase().indexOf(Agenda.search.toLowerCase()) >= 0)
     readonly property var monthEvents: Agenda.events.filter(e => {
         const s = new Date(e.start * 1000);
         return s.getFullYear() === month.getFullYear() && s.getMonth() === month.getMonth();
@@ -93,6 +98,98 @@ PanelWindow {
     }
     function selectDay(day) {
         selectedDate = new Date(month.getFullYear(), month.getMonth(), day);
+    }
+
+    // ---- event editor ------------------------------------------------------
+    property bool editor: false
+    property var editingEvent: null     // the event being edited, null = new
+    property bool fAllDay: false
+    property string formError: ""
+
+    function _fmtDate(d) { return Qt.formatDate(d, "yyyy-MM-dd"); }
+    function _fmtTime(d) { return Qt.formatTime(d, "HH:mm"); }
+    function openEditor(e) {
+        editingEvent = e || null;
+        formError = "";
+        if (e) {
+            const s = new Date(e.start * 1000), en = new Date(e.end * 1000);
+            fTitle.text = e.summary || "";
+            fLocation.text = e.location || "";
+            fDateA.text = _fmtDate(s);
+            fTimeA.text = _fmtTime(s);
+            fDateB.text = _fmtDate(en);
+            fTimeB.text = _fmtTime(en);
+            fAllDay = !!e.allDay;
+        } else {
+            const s = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 9, 0);
+            const en = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 10, 0);
+            fTitle.text = "";
+            fLocation.text = "";
+            fDateA.text = _fmtDate(s);
+            fTimeA.text = _fmtTime(s);
+            fDateB.text = _fmtDate(en);
+            fTimeB.text = _fmtTime(en);
+            fAllDay = false;
+        }
+        editor = true;
+    }
+    function closeEditor() { editor = false; formError = ""; }
+    // "yyyy-MM-dd" + "HH:mm" -> seconds, or NaN
+    function _parseDateTime(dateText, timeText) {
+        const d = String(dateText || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!d)
+            return NaN;
+        let h = 0, mi = 0;
+        if (!fAllDay) {
+            const t = String(timeText || "").match(/^(\d{2}):(\d{2})$/);
+            if (!t)
+                return NaN;
+            h = Number(t[1]);
+            mi = Number(t[2]);
+            if (h > 23 || mi > 59)
+                return NaN;
+        }
+        const dt = new Date(Number(d[1]), Number(d[2]) - 1, Number(d[3]), h, mi);
+        if (dt.getFullYear() !== Number(d[1]) || dt.getMonth() !== Number(d[2]) - 1 || dt.getDate() !== Number(d[3]))
+            return NaN;
+        return Math.floor(dt.getTime() / 1000);
+    }
+    function saveEditor() {
+        const title = fTitle.text.trim();
+        if (title === "") {
+            formError = Tr.t("An event needs a title");
+            return;
+        }
+        const start = _parseDateTime(fDateA.text, fTimeA.text);
+        const end = _parseDateTime(fDateB.text, fTimeB.text);
+        if (isNaN(start) || isNaN(end) || end <= start) {
+            formError = Tr.t("Check the dates and times (end after start)");
+            return;
+        }
+        const payload = {
+            summary: title,
+            start: start,
+            end: end,
+            location: fLocation.text.trim(),
+            allDay: fAllDay,
+            calendar: editingEvent && editingEvent.calendar ? editingEvent.calendar : "",
+            uid: editingEvent && editingEvent.uid ? editingEvent.uid : ""
+        };
+        if (editingEvent)
+            Agenda.editEvent(payload);
+        else
+            Agenda.addEvent(payload);
+        closeEditor();
+        Agenda.refresh();
+    }
+    function deleteEditor() {
+        if (!editingEvent)
+            return;
+        Agenda.deleteEvent({ summary: editingEvent.summary, start: editingEvent.start, end: editingEvent.end,
+            location: editingEvent.location, allDay: editingEvent.allDay,
+            calendar: editingEvent.calendar, uid: editingEvent.uid });
+        closeEditor();
+        Agenda.refresh();
     }
 
     Glass {
@@ -241,7 +338,19 @@ PanelWindow {
                 }
             }
 
+            TextField {
+                id: searchField
+                visible: !win.editor
+                Layout.fillWidth: true
+                placeholder: Tr.t("Search events by title")
+                label: Tr.t("Search events by title")
+                onTextChanged: { if (text !== Agenda.search) Agenda.search = text; }
+            }
+            Connections { target: Agenda; function onSearchChanged() { if (Agenda.search !== searchField.text) searchField.text = Agenda.search; } }
+
+            // ---- the day's events (or the editor) --------------------------
             Flickable {
+                visible: !win.editor
                 Layout.fillWidth: true
                 Layout.preferredHeight: Math.min(190, dayList.implicitHeight + 4)
                 Layout.minimumHeight: 24
@@ -253,38 +362,95 @@ PanelWindow {
                     width: parent.width
                     spacing: 2
                     Repeater {
-                        model: win.selectedEvents
+                        model: win.shownEvents
                         ListRow {
                             required property var modelData
                             Layout.fillWidth: true
                             icon: "x-office-calendar"
                             title: modelData.summary
                             subtitle: Agenda.when(modelData) + (modelData.location ? " · " + modelData.location : "") + (modelData.calendar ? " · " + modelData.calendar : "")
-                            onClicked: { Ui.calendar = false; Agenda.openCalendar(); }
+                            onClicked: win.openEditor(modelData)
                         }
                     }
                     EmptyState {
-                        visible: win.selectedEvents.length === 0
+                        visible: win.shownEvents.length === 0
                         icon: "x-office-calendar"
-                        title: Tr.t("Nothing that day")
-                        subtitle: Agenda.available ? Tr.t("No events for this day") : Tr.t("Add a calendar in Settings > Your account")
+                        title: Agenda.search !== "" ? Tr.t("No matches") : Tr.t("Nothing that day")
+                        subtitle: Agenda.search !== "" ? Tr.t("Try another search") : Agenda.available ? Tr.t("No events for this day") : Tr.t("Add a calendar in Settings > Your account")
                         actionText: Agenda.available ? Tr.t("Refresh") : ""
                         onAction: Agenda.refresh()
                     }
                 }
             }
 
-            Button {
+            // ---- create / edit / delete form -------------------------------
+            ColumnLayout {
+                visible: win.editor
                 Layout.fillWidth: true
-                text: Tr.t("Open calendar")
+                spacing: 8
+                Text {
+                    Layout.fillWidth: true
+                    text: win.editingEvent ? Tr.t("Edit event") : Tr.t("New event")
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: 13 * Theme.fontScale
+                    font.weight: Font.DemiBold
+                }
+                TextField {
+                    id: fTitle
+                    Layout.fillWidth: true
+                    placeholder: Tr.t("Title")
+                    label: Tr.t("Title")
+                    onAccepted: win.saveEditor()
+                }
+                TextField {
+                    id: fLocation
+                    Layout.fillWidth: true
+                    placeholder: Tr.t("Location")
+                    label: Tr.t("Location")
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    TextField { id: fDateA; Layout.preferredWidth: 110; placeholder: "2026-11-08"; label: Tr.t("Start date (yyyy-MM-dd)") }
+                    TextField { id: fTimeA; Layout.preferredWidth: 70; placeholder: "09:00"; label: Tr.t("Start time (HH:mm)"); enabled: !win.fAllDay }
+                    Button { text: win.fAllDay ? Tr.t("All-day: on") : Tr.t("All-day: off"); kind: "outline"; onClicked: win.fAllDay = !win.fAllDay }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    TextField { id: fDateB; Layout.preferredWidth: 110; placeholder: "2026-11-08"; label: Tr.t("End date (yyyy-MM-dd)") }
+                    TextField { id: fTimeB; Layout.preferredWidth: 70; placeholder: "10:00"; label: Tr.t("End time (HH:mm)"); enabled: !win.fAllDay }
+                }
+                Text {
+                    visible: win.formError !== ""
+                    Layout.fillWidth: true
+                    text: win.formError
+                    color: Theme.danger
+                    font.family: Theme.font
+                    font.pixelSize: 11 * Theme.fontScale
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Button { Layout.fillWidth: true; text: Tr.t("Save"); kind: "primary"; onClicked: win.saveEditor() }
+                    Button { Layout.fillWidth: true; text: Tr.t("Cancel"); onClicked: win.closeEditor() }
+                    Button { visible: win.editingEvent !== null; text: Tr.t("Delete"); kind: "danger"; onClicked: win.deleteEditor() }
+                }
+            }
+
+            Button {
+                visible: !win.editor
+                Layout.fillWidth: true
+                text: Tr.t("New event")
                 kind: "primary"
-                onClicked: { Ui.calendar = false; Agenda.openCalendar(); }
+                onClicked: win.openEditor(null)
             }
 
             Text {
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
-                text: Tr.t("Esc closes · title returns to today")
+                text: win.editor ? Tr.t("Esc closes the form") : Tr.t("Esc closes · title returns to today · click an event to edit it")
                 color: Theme.dim
                 font.family: Theme.font
                 font.pixelSize: 11 * Theme.fontScale
@@ -292,6 +458,6 @@ PanelWindow {
         }
     }
 
-    Shortcut { sequence: "Escape"; onActivated: Ui.calendar = false }
+    Shortcut { sequence: "Escape"; onActivated: { if (win.editor) win.closeEditor(); else Ui.calendar = false; } }
     Shortcut { sequence: "Ctrl+R"; onActivated: Agenda.refresh() }
 }

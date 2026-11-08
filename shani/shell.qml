@@ -240,8 +240,17 @@ ShellRoot {
         function calculatorEquals() { Calculator.evaluate(); }
         function calculatorClear() { Calculator.clear(); }
         function calculatorCopy() { Calculator.copyResult(); }
+        function calculatorConvert(value: string, from: string, to: string): string { const r = Calculator.convertUnit(value, from, to); return r ? r.text : ""; }
+        function calculatorRecall(idx: int) { Calculator.recallHistory(idx); }
+        function calculatorMemory(op: string) { if (op === "mc") Calculator.memoryClear(); else if (op === "mr") Calculator.memoryRecall(); else if (op === "mplus") Calculator.memoryAdd(); else Calculator.memorySubtract(); }
+        function calculatorHistoryClear() { Calculator.clearHistory(); }
         function calendar() { const was = Ui.calendar; Ui.closeAll(); Ui.calendar = !was; }
+        function calendarOpen() { Ui.closeAll(); Ui.calendar = true; }
         function calendarRefresh() { Agenda.refresh(); }
+        function calendarSearch(query: string) { Ui.closeAll(); Ui.calendar = true; Agenda.search = query; }
+        function calendarAdd(summary: string, startSec: int, endSec: int, location: string, allDay: string) { Agenda.addEvent({ summary: summary, start: startSec, end: endSec, location: location, allDay: (allDay === "true" || allDay === "1") }); }
+        function calendarEdit(uid: string, summary: string, startSec: int, endSec: int, location: string, allDay: string) { Agenda.editEvent({ uid: uid, summary: summary, start: startSec, end: endSec, location: location, allDay: (allDay === "true" || allDay === "1") }); }
+        function calendarDelete(uid: string) { Agenda.deleteEvent({ uid: uid }); }
         // media keys: the player that is playing, else the first one
         function media(action: string) {
             const p = Media.current;
@@ -415,7 +424,8 @@ ShellRoot {
                 bluetoothReceived: ObexReceive.received,
                 qrShown: Qr.shown, qrImage: Qr.image,
                 calculatorShown: Calculator.shown, calculatorDisplay: Calculator.display, calculatorResult: Calculator.result, calculatorPreview: Calculator.preview,
-                calendarShown: Ui.calendar,
+                calculatorHistory: Calculator.history.map(h => h.expr + "=" + h.value), calculatorMemory: Calculator.memory,
+                calendarShown: Ui.calendar, calendarEvents: Agenda.events.length, calendarSearch: Agenda.search,
                 converted: Recorder.converted, converting: Recorder.converting,
                 cpuTemp: SysStats.temp,
                 gpus: Gpu.gpus.length,
