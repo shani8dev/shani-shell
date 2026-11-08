@@ -219,6 +219,15 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("install", ["PATH"], "install a font file into ~/.local/share/fonts and refresh fontconfig"),
         ("copy", ["FAMILY"], "copy a font family name"),
     ],
+    "voice": [
+        ("open", [], "open the Voice Recorder panel"),
+        ("close", [], "close the Voice Recorder panel"),
+        ("toggle", [], "open or close the Voice Recorder panel"),
+        ("record", [], "start a voice recording"),
+        ("pause", [], "pause or resume the recording"),
+        ("stop", [], "stop the recording and keep the file"),
+        ("play", ["PATH"], "play a recording in the current player"),
+    ],
 }
 
 
@@ -509,6 +518,13 @@ def _register() -> None:
         ("fonts", "open"): "toggleFonts",
         ("fonts", "install"): "fontInstall",
         ("fonts", "copy"): "fontCopy",
+        ("voice", "open"): "voiceRecorderOpen",
+        ("voice", "close"): "voiceRecorderClose",
+        ("voice", "toggle"): "voiceRecorderToggle",
+        ("voice", "record"): "voiceRecorderRecord",
+        ("voice", "pause"): "voiceRecorderPause",
+        ("voice", "stop"): "voiceRecorderStop",
+        ("voice", "play"): "voiceRecorderPlay",
     }
     IPC_NAMES.update(table)
 
