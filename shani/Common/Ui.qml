@@ -24,10 +24,12 @@ Singleton {
     property bool player: false  // the Player surface (Modules/Player): queue, seek, volume, lyrics
     property bool fonts: false  // the Fonts surface (Modules/Fonts): preview, size, install
     property bool characters: false        // the Characters panel (Modules/Characters)
+    property bool voiceRecorder: false     // the Voice Recorder panel (Modules/VoiceRecorder)
     property bool magnifier: false
     property bool viewer: false
     property bool pdfReader: false
     property bool calendar: false            // the Calendar surface (Modules/Calendar)
+    property bool contacts: false            // the Contacts surface (Modules/Contacts)
     property bool annotate: false                  // drawing on the screen
     property int annotateStrokes: 0
     property var printersSeen: []                  // Settings > Printers, for the tests
@@ -77,6 +79,11 @@ Singleton {
     property int trashCount: 0                     // the dock's trash tile reports it (for the tests)                      // the tour, opened again by hand
     property string modemDialog: ""                // "pin" | "sms" (ModemDialog)
     property string smsTo: ""                      // the number a reply goes to
+    // Shani Link Phone / Messages (opened via Services/Phone; the external
+    // shani-link-app window, not a shell panel): which page the shell last
+    // opened and the number its dialer/messages composer was prefilled with.
+    property string phonePage: ""     // "" | "phone" | "messages" | "recent" (for `state`, the tests)
+    property string phoneNumber: ""   // the number the dial pad / Messages composer opened with
     // the web search chosen in Settings > Search (the launcher, Lens)
     readonly property var webSearches: ({
         duckduckgo: ["DuckDuckGo", "https://duckduckgo.com/?q="], google: ["Google", "https://www.google.com/search?q="],
@@ -124,6 +131,7 @@ Singleton {
         player = false;
         fonts = false;
         characters = false;
+        voiceRecorder = false;
         magnifier = false;
         annotate = false;
         controlCenter = false;

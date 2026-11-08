@@ -30,7 +30,16 @@ Singleton {
     // a number to call: the modem when it can, otherwise Chronoa (a phone over Bluetooth)
     // a number to call: shani-link's dial pad, filled in (it picks the line - landline,
     // phone or this modem - and nothing is dialled until Call is pressed)
-    function callNumber(number) { Qt.openUrlExternally("tel:" + number); }
+    // Contacts / "Call" landing: the dial pad is the first action when a phone
+    // link is available (Services/Phone tries shani-link-app directly); else
+    // the tel: handler (dev.shani.Link.Dial.desktop, also shani-link --dial).
+    function callNumber(number) {
+        const n = (number || "").replace(/[\s-]/g, "");
+        if (Phone.available || Phone.reachable)
+            Phone.openDial(n);
+        else
+            Qt.openUrlExternally("tel:" + n);
+    }
     // "Your code is 482913" → 482913
     function codeIn(t) { const m = /(?:^|\D)(\d{4,8})(?:\D|$)/.exec(t || ""); return m ? m[1] : ""; }
 

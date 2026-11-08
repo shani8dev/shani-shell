@@ -63,6 +63,7 @@ import qs.Modules.FileActions
 import qs.Modules.Calculator as CalcMod
 import qs.Modules.Calendar as CalMod
 import qs.Modules.Logs
+import qs.Modules.VoiceRecorder
 
 ShellRoot {
     Wallpaper {}
@@ -114,6 +115,7 @@ ShellRoot {
     LazyLoader { active: Camera.open; CameraPanel {} }
     LazyLoader { active: Ui.player; Player {} }
     LazyLoader { active: Ui.fonts; FontsPanel {} }
+    LazyLoader { active: Ui.voiceRecorder; VoiceRecorderPanel {} }
     LazyLoader { active: Ui.characters; CharactersPanel {} }
     ModemDialog {}
     LazyLoader { active: Share.file !== ""; ShareSheet {} }
@@ -123,7 +125,7 @@ ShellRoot {
     Binding { target: Ui; property: "screen"; value: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0] }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew]
+    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder]
 
     IpcHandler {
         target: "shani"
@@ -207,6 +209,13 @@ ShellRoot {
         function togglePlayer() { const was = Ui.player; Ui.closeAll(); Ui.player = !was; }
         function toggleFonts() { const was = Ui.fonts; Ui.closeAll(); Ui.fonts = !was; }
         function toggleCharacters() { const was = Ui.characters; Ui.closeAll(); Ui.characters = !was; }
+        function voiceRecorderOpen() { Ui.closeAll(); Ui.voiceRecorder = true; VoiceRecorder.refresh(); }
+        function voiceRecorderClose() { Ui.voiceRecorder = false; }
+        function voiceRecorderToggle() { const was = Ui.voiceRecorder; Ui.closeAll(); Ui.voiceRecorder = !was; if (Ui.voiceRecorder) VoiceRecorder.refresh(); }
+        function voiceRecorderRecord() { VoiceRecorder.start(); }
+        function voiceRecorderPause() { VoiceRecorder.togglePause(); }
+        function voiceRecorderStop() { VoiceRecorder.stop(); }
+        function voiceRecorderPlay(path: string) { VoiceRecorder.play(path); }
         function playerSeek(sec: string) { const p = Media.current; const v = parseFloat(sec); if (p && p.canSeek && isFinite(v)) p.position = Math.max(0, v); }
         function playerVolume(level: string) { const p = Media.current; const v = parseFloat(level); if (p && p.volumeSupported && p.canControl && isFinite(v)) p.volume = Math.max(0, Math.min(1, v)); }
         function playerShuffle() { const p = Media.current; if (p && p.shuffleSupported && p.canControl) p.shuffle = !p.shuffle; }
@@ -271,6 +280,28 @@ ShellRoot {
         function dynamicLockAway() { DynamicLock.away(); }
         function share(path: string) { Ui.closeAll(); Share.open(path); }
         function textMessage(to: string) { Ui.closeAll(); Ui.smsTo = to; Ui.modemDialog = "sms"; }
+        // Shani Link Phone / Messages (Services/Phone, the external app).
+        // `phoneOpen` / `messagesOpen` take an optional number - called with
+        // none, the pad/composer opens empty; called with one, it is prefilled
+        // and nothing is dialled or sent until the person presses Call / Send.
+        function phoneOpen(number: string) {
+            Ui.closeAll();
+            Ui.phonePage = "phone";
+            Ui.phoneNumber = (number || "").trim();
+            Phone.openDial(Ui.phoneNumber);
+        }
+        function messagesOpen(number: string) {
+            Ui.closeAll();
+            Ui.phonePage = "messages";
+            Ui.phoneNumber = (number || "").trim();
+            Phone.openMessages(Ui.phoneNumber);
+        }
+        function recentCalls() {
+            Ui.closeAll();
+            Ui.phonePage = "recent";
+            Ui.phoneNumber = "";
+            Phone.openRecentCalls();
+        }
         function qr(title: string, text: string) { Ui.closeAll(); Qr.show(title, text); }
         function calculator() { Ui.closeAll(); Calculator.toggle(); }
         function calculatorOpen(expr: string) { Ui.closeAll(); if (expr) { Calculator.clear(); Calculator.display = expr; } Calculator.open(); }
@@ -518,7 +549,7 @@ ShellRoot {
                 agenda: Agenda.events.map(e => e.summary),
                 modem: Modem.modem ? Modem.modem.state + "/" + (Modem.modem.locked || "unlocked") + "/" + Modem.modem.operator : "",
                 modemCall: Modem.call ? Modem.call.state + ":" + Modem.call.number : "",
-                modemDialog: Ui.modemDialog,
+                modemDialog: Ui.modemDialog, phonePage: Ui.phonePage, phoneNumber: Ui.phoneNumber,
                 dynamicLocks: DynamicLock.locks, dynamicLockDevice: DynamicLock.address,
                 automationsFired: Automations.fired,
                 language: Tr.lang, sampleWord: Tr.t("Notifications"),
@@ -594,6 +625,7 @@ ShellRoot {
                 magnifier: Ui.magnifier,
                 player: Ui.player,
                 fonts: Ui.fonts,
+                contacts: Ui.contacts,
                 playerVolume: Media.current && Media.current.volumeSupported ? Math.round(Media.current.volume * 100) : -1,
                 playerShuffle: Media.current ? Media.current.shuffle : false,
                 playerLoop: Media.current ? Media.current.loopState : -1,
@@ -602,6 +634,7 @@ ShellRoot {
                 playerSeekable: Media.current ? Media.current.canSeek : false,
                 callRecording: CallRecorder.recording,
                 callFile: CallRecorder.file,
+                voiceRecorder: Ui.voiceRecorder, voiceRecording: VoiceRecorder.recording, voicePaused: VoiceRecorder.paused, voiceElapsed: VoiceRecorder.elapsed, voiceFiles: VoiceRecorder.recordings.length, voiceFile: VoiceRecorder.file, voiceLast: VoiceRecorder.last, voiceLevel: Math.round(VoiceRecorder.level * 100),
                 smart: Smart.suggestion ? Smart.suggestion.text : "",
                 assistiveTouch: Settings.data.assistiveTouch,
                 castAvailable: Cast.available,

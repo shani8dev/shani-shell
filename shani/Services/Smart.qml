@@ -21,6 +21,8 @@ Singleton {
             return { icon: "web-browser", text: "Open " + t.replace(/^https?:\/\//, "").slice(0, 40), run: () => Qt.openUrlExternally(t) };
         if (/^[\w.+-]+@[\w-]+\.[\w.-]+$/.test(t))
             return { icon: "mail-unread", text: "Email " + t, run: () => Qt.openUrlExternally("mailto:" + t) };
+        // a number: Call lands on the Shani Link dial pad (Modem.callNumber
+        // opens Phone first when a phone link is available, else tel:).
         if (/^\+?[\d][\d\s-]{7,15}\d$/.test(t))
             return { icon: "call-start", text: "Call " + t, run: () => Modem.callNumber(t.replace(/[\s-]/g, "")) };
         if (/^#?[0-9a-f]{6}$/i.test(t))

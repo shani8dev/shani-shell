@@ -31,6 +31,29 @@ Singleton {
     function search() { if (root.available) run(["--refresh"]); }
     function refresh() { if (root.available) list.running = true; }
 
+    // Shani Link pages (shani-link-app, dev.shani.Link.App): the Phone page
+    // holds the dial pad, Messages, Contacts, Music, Files and Remote. The
+    // dial pad also dials the landline and the SIM modem, so these work even
+    // when no KDE Connect phone is paired - Phone.available only gates the
+    // phone's own ring/ping/share above. --dial prefills the pad and never
+    // dials until Call is pressed; --message opens Messages addressed to the
+    // number; opening the page alone lands on the Calls tab (recents first).
+    function openDial(number) {
+        const n = (number || "").trim();
+        if (!n)
+            Quickshell.execDetached(["shani-link-app", "--page", "phone"]);
+        else
+            Quickshell.execDetached(["shani-link-app", "--page", "phone", "--dial=" + n]);
+    }
+    function openMessages(number) {
+        const n = (number || "").trim();
+        Quickshell.execDetached(["shani-link-app", "--page", "phone", "--message=" + n]);
+    }
+    function openRecentCalls() {
+        Quickshell.execDetached(["shani-link-app", "--page", "phone"]);
+    }
+    function openPhone() { openDial(""); }
+
     Process {
         running: true
         command: ["sh", "-c", "command -v kdeconnect-cli"]
