@@ -21,6 +21,7 @@ Singleton {
     property bool windowMenu: false
     property bool processes: false
     property bool magnifier: false
+    property bool calendar: false            // the Calendar surface (Modules/Calendar)
     property bool annotate: false                  // drawing on the screen
     property int annotateStrokes: 0
     property var printersSeen: []                  // Settings > Printers, for the tests
@@ -116,6 +117,7 @@ Singleton {
         magnifier = false;
         annotate = false;
         controlCenter = false;
+        calendar = false;
         layoutSwitcher = false;
         expanded = "";
         dockFocus = false;
