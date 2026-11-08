@@ -1,0 +1,345 @@
+#!/usr/bin/env python3
+"""shani — the command center for the desktop, agent-first.
+
+Omarchy's bet is that the OS should be drivable by an agent: every menu
+function behind one CLI, with --json for machines and --help for people.
+This is the same bet, on the IPC the shell already exposes
+(`qs -c shani ipc call shani <fn>`):
+
+    shani ask "summarise my calendar today"
+    shani media play-pause
+    shani windows list --json
+    shani volume up
+    shani doctor
+    shani state --json
+
+Groups mirror the shell's surfaces; every command either drives the shell,
+reads live state as JSON, or hands off to shani-doctor. Exit 0 on success,
+1 when the shell is not running or said it could not.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import subprocess
+import sys
+
+PROG = "shani"
+
+#: group -> [(command, [ipc args], help)].
+#: Each entry is the exact IPC call, nothing more: what the CLI does is the
+#: same thing the keybind does, through the same function.
+GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
+    "launcher": [
+        ("open", [], "open the launcher"),
+        ("toggle", [], "open or close the launcher"),
+        ("close", [], "close the launcher"),
+        ("search", ["QUERY"], "open the launcher pre-filled with a query"),
+    ],
+    "control": [
+        ("open", ["SETTINGS_CAT"], "open the Control Center (or a section)"),
+        ("close", [], "close the Control Center"),
+        ("close-all", [], "close every shell surface"),
+        ("notifications", [], "open the notifications section"),
+        ("dnd", [], "toggle Do Not Disturb"),
+        ("caffeine", [], "toggle the idle inhibitor"),
+        ("airplane", [], "toggle airplane mode"),
+        ("dnd-snooze", ["MINUTES"], "snooze the latest notification"),
+    ],
+    "chronoa": [
+        ("open", [], "open Chronoa"),
+        ("close", [], "close Chronoa"),
+        ("toggle", [], "open or close Chronoa"),
+        ("ask", ["TEXT"], "ask Chronoa something (opens the panel)"),
+        ("action", ["NAME"], "run a Chronoa action by name"),
+    ],
+    "audio": [
+        ("up", [], "volume up"),
+        ("down", [], "volume down"),
+        ("mute", [], "toggle mute"),
+        ("mic", [], "toggle microphone mute"),
+        ("sink", ["STREAM_ID", "SINK"], "move a stream to a sink"),
+    ],
+    "media": [
+        ("toggle", [], "play or pause the current player"),
+        ("next", [], "next track"),
+        ("previous", [], "previous track"),
+        ("stop", [], "stop playback"),
+        ("next-player", [], "follow the next player"),
+    ],
+    "windows": [
+        ("list", [], "list windows as JSON"),
+        ("focus", ["MATCH"], "focus a window by title or app id"),
+        ("close", ["MATCH"], "close a window by title or app id"),
+        ("fullscreen", ["MATCH"], "fullscreen a window"),
+        ("move", ["MATCH", "WORKSPACE"], "move a window to a workspace"),
+        ("minimise", [], "minimise the focused window"),
+        ("minimise-id", ["ID"], "minimise a window by id"),
+        ("restore", ["ID"], "restore a minimised window"),
+        ("pin", ["ID"], "pin a window"),
+        ("show-desktop", [], "minimise everything"),
+        ("menu", [], "open the window menu"),
+        ("menu-action", ["ID"], "run a window-menu action"),
+    ],
+    "capture": [
+        ("lens", [], "select a region and read it"),
+        ("lens-region", ["GEOMETRY"], "read a given region (x,y wxh)"),
+        ("ruler", [], "measure on screen"),
+        ("record", [], "toggle screen recording"),
+        ("record-gif", ["PATH"], "convert a recording to a GIF"),
+        ("record-shrink", ["PATH"], "shrink a recording"),
+        ("call-record", [], "toggle call recording"),
+        ("annotate", [], "draw on the screen"),
+        ("magnifier", [], "toggle the magnifier"),
+    ],
+    "input": [
+        ("method", [], "toggle the input method"),
+        ("osk", [], "toggle the on-screen keyboard"),
+        ("osk-language", [], "next on-screen-keyboard language"),
+        ("dictate", [], "toggle dictation"),
+    ],
+    "system": [
+        ("lock", [], "lock the screen"),
+        ("theme-reload", [], "regenerate the theme colours"),
+        ("display", ["NAME", "KEY", "VALUE"], "set a display setting (mode|scale|transform|x|y|vrr|off)"),
+        ("display-keep", [], "keep the pending display change"),
+        ("weather", ["CITY"], "set the weather city"),
+        ("photo", [], "take a photo"),
+        ("video", [], "toggle video recording"),
+        ("timer", ["MINUTES"], "start (or stop, with 0) a focus timer"),
+        ("captions", [], "toggle captions"),
+        ("transcribe", [], "transcribe the current audio"),
+        ("share", ["PATH"], "share a file"),
+        ("file", ["PATH"], "show a file's action card"),
+        ("scan-storage", [], "rescan storage"),
+        ("cast", [], "open screen casting"),
+        ("qr", ["TITLE", "TEXT"], "show a QR code"),
+        ("read-aloud", [], "speak the selection"),
+        ("speak", ["TEXT"], "speak some text"),
+        ("stop-speaking", [], "stop speaking"),
+        ("say", [], "say a test line"),
+        ("tour", [], "start the tour"),
+        ("focus", ["NAME"], "set the focus mode"),
+        ("setting", ["KEY", "VALUE"], "set a shell setting"),
+        ("whatsnew", [], "check what's new"),
+    ],
+}
+
+
+def _ipc(*args: str) -> str:
+    """Call the shell's IPC. Returns stdout; raises on failure."""
+    cmd = ["qs", "-c", "shani", "ipc", "call", "shani", *args]
+    try:
+        done = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise RuntimeError(f"could not reach the shell ({exc})") from exc
+    if done.returncode != 0:
+        why = (done.stderr or "").strip() or f"exit {done.returncode}"
+        raise RuntimeError(f"qs said: {why}")
+    return done.stdout.strip()
+
+
+def _state_json() -> dict:
+    return json.loads(_ipc("state"))
+
+
+def _cmd_state(_args) -> int:
+    print(json.dumps(_state_json(), indent=2))
+    return 0
+
+
+def _cmd_doctor(_args) -> int:
+    import shutil
+    exe = shutil.which("shani-doctor")
+    if exe is None:
+        import os
+        here = os.path.join(os.path.dirname(__file__), "shani-doctor.py")
+        if os.path.isfile(here):
+            exe = here
+        else:
+            print("shani-doctor is not on PATH here", file=sys.stderr)
+            return 1
+    return subprocess.run([exe]).returncode
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog=PROG,
+        description="ShaniOS command center: drive the desktop and Chronoa "
+                    "from the terminal, the way an agent would.",
+    )
+    sub = parser.add_subparsers(dest="command", metavar="GROUP_OR_COMMAND")
+    sub.required = True
+
+    # live state
+    p = sub.add_parser("state", help="print live shell state as JSON")
+    p.set_defaults(func=_cmd_state)
+    # the doctor, forwarded
+    p = sub.add_parser("doctor", help="check the tools the shell needs")
+    p.set_defaults(func=_cmd_doctor)
+    # a raw call, for anything not in the groups
+    p = sub.add_parser("call", help="call any shell IPC function directly")
+    p.add_argument("fn")
+    p.add_argument("fn_args", nargs="*")
+    p.set_defaults(func=lambda a: _run_call(a.fn, a.fn_args))
+
+    for group, commands in GROUPS.items():
+        gp = sub.add_parser(group, help=f"{group} commands")
+        gsub = gp.add_subparsers(dest="subcommand")
+        for name, ipc_args, help_text in commands:
+            cp = gsub.add_parser(name, help=help_text)
+            cp.add_argument("args", nargs="*")
+            cp.set_defaults(group=group, ipc_args=ipc_args)
+            cp.set_defaults(func=lambda a, _n=name, _i=ipc_args: _run_group(a))
+    return parser
+
+
+def _run_group(args) -> int:
+    needed = sum(1 for a in args.ipc_args if a.isupper() and "_" not in a or a.endswith("_NAME"))
+    # simpler: count the placeholders in the template
+    template = [a for a in args.ipc_args if a.isupper()]
+    if len(args.args) < len(template):
+        print(f"missing argument(s): {' '.join(template[len(args.args):])}",
+              file=sys.stderr)
+        return 2
+    call = []
+    extras = list(args.args)
+    for part in args.ipc_args:
+        if part.isupper():
+            call.append(extras.pop(0))
+        else:
+            call.append(part)
+    try:
+        out = _ipc(args._fn_name, *call)
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    if out:
+        print(out)
+    return 0
+
+
+def _run_call(fn: str, fn_args: list) -> int:
+    try:
+        out = _ipc(fn, *fn_args)
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    if out:
+        print(out)
+    return 0
+
+
+def main() -> int:
+    parser = build_parser()
+    args = parser.parse_args()
+    if args.command == "call":
+        return _run_call(args.fn, args.fn_args)
+    func = getattr(args, "func", None)
+    if func is None:
+        parser.print_help()
+        return 2
+    if hasattr(args, "group"):
+        args._fn_name = _fn_name(args.group, args.subcommand)
+    return func(args)
+
+
+#: group command -> the IPC function it calls. Built from GROUPS so the
+#: mapping cannot drift from the help above.
+def _fn_name(group: str, subcommand: str) -> str:
+    for name, ipc_args, _ in GROUPS[group]:
+        if name == subcommand:
+            # the IPC function is camelCase of the command; verify via GROUPS
+            return IPC_NAMES.get((group, subcommand), subcommand)
+    return subcommand
+
+
+IPC_NAMES: dict[tuple[str, str], str] = {}
+
+
+def _register() -> None:
+    table = {
+        ("launcher", "open"): "openLauncher",
+        ("launcher", "toggle"): "toggleLauncher",
+        ("launcher", "close"): "closeLauncher",
+        ("launcher", "search"): "launcher",
+        ("control", "open"): "controlCenter",
+        ("control", "close"): "closeAll",
+        ("control", "close-all"): "closeAll",
+        ("control", "notifications"): "toggleNotifications",
+        ("control", "dnd"): "dnd",
+        ("control", "caffeine"): "caffeine",
+        ("control", "airplane"): "airplane",
+        ("control", "dnd-snooze"): "snoozeLatest",
+        ("chronoa", "open"): "openChronoa",
+        ("chronoa", "close"): "closeChronoa",
+        ("chronoa", "toggle"): "toggleChronoa",
+        ("chronoa", "ask"): "ask",
+        ("chronoa", "action"): "action",
+        ("audio", "up"): "volumeUp",
+        ("audio", "down"): "volumeDown",
+        ("audio", "mute"): "volumeMute",
+        ("audio", "mic"): "micMute",
+        ("audio", "sink"): "playerSink",
+        ("media", "toggle"): "media",
+        ("media", "next"): "media",
+        ("media", "previous"): "media",
+        ("media", "stop"): "media",
+        ("media", "next-player"): "nextPlayer",
+        ("windows", "list"): "windowList",
+        ("windows", "focus"): "windowFocus",
+        ("windows", "close"): "windowClose",
+        ("windows", "fullscreen"): "windowFullscreen",
+        ("windows", "move"): "windowMove",
+        ("windows", "minimise"): "minimise",
+        ("windows", "minimise-id"): "minimiseWindow",
+        ("windows", "restore"): "restoreWindow",
+        ("windows", "pin"): "pinWindow",
+        ("windows", "show-desktop"): "showDesktop",
+        ("windows", "menu"): "windowMenu",
+        ("windows", "menu-action"): "windowMenuAction",
+        ("capture", "lens"): "lens",
+        ("capture", "lens-region"): "lensRegion",
+        ("capture", "ruler"): "ruler",
+        ("capture", "record"): "record",
+        ("capture", "record-gif"): "recordingToGif",
+        ("capture", "record-shrink"): "recordingShrink",
+        ("capture", "call-record"): "callRecord",
+        ("capture", "annotate"): "annotate",
+        ("capture", "magnifier"): "magnifier",
+        ("capture", "photo"): "photo",
+        ("capture", "video"): "video",
+        ("input", "method"): "inputMethod",
+        ("input", "osk"): "osk",
+        ("input", "osk-language"): "oskLanguage",
+        ("input", "dictate"): "dictate",
+        ("system", "lock"): "lock",
+        ("system", "theme-reload"): "themeReload",
+        ("system", "display"): "display",
+        ("system", "display-keep"): "displayKeep",
+        ("system", "weather"): "weather",
+        ("system", "timer"): "timer",
+        ("system", "captions"): "captions",
+        ("system", "transcribe"): "transcribe",
+        ("system", "share"): "share",
+        ("system", "file"): "fileActions",
+        ("system", "scan-storage"): "storageScan",
+        ("system", "cast"): "cast",
+        ("system", "qr"): "qr",
+        ("system", "read-aloud"): "readAloud",
+        ("system", "speak"): "speak",
+        ("system", "stop-speaking"): "stopSpeaking",
+        ("system", "tour"): "tour",
+        ("system", "focus"): "focus",
+        ("system", "setting"): "setting",
+        ("system", "whatsnew"): "whatsNewCheck",
+    }
+    IPC_NAMES.update(table)
+
+
+_register()
+
+
+if __name__ == "__main__":
+    sys.exit(main())
