@@ -2,18 +2,56 @@
 // functions of the query, nothing of the window.
 .pragma library
 
+// 5! and (…)! as factorial calls, including nested parentheses.
+function rewriteFact(s) {
+    const out = [];
+    let i = 0;
+    while (i < s.length) {
+        const ch = s.charAt(i);
+        if (ch === "(") {
+            let depth = 0, j = i;
+            for (; j < s.length; j++) {
+                if (s.charAt(j) === "(") depth++;
+                else if (s.charAt(j) === ")") { depth--; if (depth === 0) break; }
+            }
+            if (j < s.length && depth === 0 && s.charAt(j + 1) === "!") {
+                out.push("fact(" + s.slice(i + 1, j) + ")");
+                i = j + 2;
+                continue;
+            }
+        }
+        const m = s.slice(i).match(/^(\d+(?:\.\d*)?)!/);
+        if (m) { out.push("fact(" + m[1] + ")"); i += m[0].length; continue; }
+        out.push(ch);
+        i++;
+    }
+    return out.join("");
+}
 function calc(expr) {
-    const src = expr.replace(/\s+/g, "").replace(/\^/g, "**").replace(/×/g, "*").replace(/÷/g, "/");
+    let src = expr.replace(/\s+/g, "").replace(/\^/g, "**").replace(/×/g, "*").replace(/÷/g, "/")
+        .replace(/−/g, "-").replace(/√/g, "sqrt").replace(/π/g, "pi");
+    src = src.replace(/\|([^|]+)\|/g, "abs($1)");            // |x| → abs(x)
+    src = rewriteFact(src);                                 // 5! / (3+2)! → fact(…)
     if (!/^[0-9+\-*/%.()a-z,]+$/i.test(src) || !/[0-9]/.test(src) || /^[0-9.]+$/.test(src))
         return null;
     const names = src.match(/[a-z]+/gi) || [];
-    const allowed = ["sqrt", "sin", "cos", "tan", "asin", "acos", "atan", "log", "ln", "exp", "abs", "round", "floor", "ceil", "pow", "min", "max", "pi", "e"];
+    const allowed = ["sqrt", "sin", "cos", "tan", "asin", "acos", "atan", "log", "ln", "exp", "abs", "round", "floor", "ceil", "pow", "min", "max", "fact", "npr", "ncr", "pi", "e"];
     if (names.some(n => allowed.indexOf(n.toLowerCase()) < 0))
         return null;
+    // names are case-insensitive, JS is not (nPr → npr, PI → Math.PI)
     const js = src.replace(/\bln\(/gi, "log(").replace(/\bpi\b/gi, "PI").replace(/\be\b/g, "E")
-        .replace(/\b(sqrt|sin|cos|tan|asin|acos|atan|log|exp|abs|round|floor|ceil|pow|min|max|PI|E)\b/g, "Math.$1");
+        .replace(/\b(sqrt|sin|cos|tan|asin|acos|atan|log|exp|abs|round|floor|ceil|pow|min|max)\b/gi, m => "Math." + m.toLowerCase())
+        .replace(/\bPI\b/g, "Math.PI").replace(/\bE\b/g, "Math.E")
+        .replace(/\bnpr\b/gi, "npr").replace(/\bncr\b/gi, "ncr").replace(/\bfact\b/gi, "fact");
     try {
-        const v = Function('"use strict"; return (' + js + ");")();
+        const fact = function (n) {
+            n = Math.floor(n);
+            if (n < 0 || n > 170) throw new Error("fact");
+            let r = 1; for (let i = 2; i <= n; i++) r *= i; return r;
+        };
+        const npr = function (n, k) { return fact(n) / fact(n - k); };
+        const ncr = function (n, k) { return fact(n) / (fact(k) * fact(n - k)); };
+        const v = Function("fact", "npr", "ncr", '"use strict"; return (' + js + ");")(fact, npr, ncr);
         return typeof v === "number" && isFinite(v) ? Number(v.toPrecision(12)) : null;
     } catch (e) {
         return null;

@@ -128,6 +128,27 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("fonts", [], "open or close the font browser"),
         ("whatsnew", [], "check what's new"),
     ],
+    "calculator": [
+        ("open", [], "open the calculator (standard/scientific/converter)"),
+        ("close", [], "close the calculator"),
+        ("press", ["KEY"], "press a calculator key (digit, operator, function)"),
+        ("equals", [], "evaluate the calculator expression"),
+        ("clear", [], "clear the calculator display"),
+        ("copy", [], "copy the result"),
+        ("recall", ["INDEX"], "recall a history entry (0 = newest)"),
+        ("history-clear", [], "clear the calculation history"),
+        ("memory", ["OP"], "memory op: mc | mr | mplus | mminus"),
+        ("convert", ["VALUE", "FROM", "TO"], "convert units, e.g. `convert 100 mm km`"),
+    ],
+    "calendar": [
+        ("open", [], "open the shell calendar surface"),
+        ("toggle", [], "open or close the calendar surface"),
+        ("refresh", [], "re-read the calendars"),
+        ("search", ["QUERY"], "filter events by title (opens the calendar)"),
+        ("add", ["SUMMARY", "START_SEC", "END_SEC", "LOCATION", "ALLDAY"], "add an event (epoch seconds)"),
+        ("edit", ["UID", "SUMMARY", "START_SEC", "END_SEC", "LOCATION", "ALLDAY"], "edit an event by uid (epoch seconds)"),
+        ("delete", ["UID"], "delete an event by uid"),
+    ],
 }
 
 
@@ -342,6 +363,23 @@ def _register() -> None:
         ("system", "setting"): "setting",
         ("system", "fonts"): "toggleFonts",
         ("system", "whatsnew"): "whatsNewCheck",
+        ("calculator", "open"): "calculator",
+        ("calculator", "close"): "closeAll",
+        ("calculator", "press"): "calculatorPress",
+        ("calculator", "equals"): "calculatorEquals",
+        ("calculator", "clear"): "calculatorClear",
+        ("calculator", "copy"): "calculatorCopy",
+        ("calculator", "recall"): "calculatorRecall",
+        ("calculator", "history-clear"): "calculatorHistoryClear",
+        ("calculator", "memory"): "calculatorMemory",
+        ("calculator", "convert"): "calculatorConvert",
+        ("calendar", "open"): "calendarOpen",
+        ("calendar", "toggle"): "calendar",
+        ("calendar", "refresh"): "calendarRefresh",
+        ("calendar", "search"): "calendarSearch",
+        ("calendar", "add"): "calendarAdd",
+        ("calendar", "edit"): "calendarEdit",
+        ("calendar", "delete"): "calendarDelete",
     }
     IPC_NAMES.update(table)
 
