@@ -28,7 +28,8 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    onVisibleChanged: if (visible) Agenda.refresh()
+    onVisibleChanged: if (visible) { Agenda.refresh(); win.view = Ui.calendarView || "month"; }
+    Connections { target: Ui; function onCalendarViewChanged() { win.view = Ui.calendarView || "month"; } }
 
     MouseArea { anchors.fill: parent; onClicked: Ui.calendar = false }
     Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: { if (win.editor) win.closeEditor(); else Ui.calendar = false; } }
@@ -36,7 +37,11 @@ PanelWindow {
     property date today: new Date()
     property int offset: 0
     property date selectedDate: new Date()
+    // month view or week view: synced to Ui.calendarView so the CLI/shell
+    // and the surface agree
+    property string view: Ui.calendarView || "month"
     readonly property date month: new Date(today.getFullYear(), today.getMonth() + offset, 1)
+    readonly property date weekAnchor: new Date(today.getFullYear(), today.getMonth(), today.getDate() + (offset * 7))
     readonly property bool sundayFirst: Settings.data.weekStartsOn === "sunday"
     // blanks before the 1st, then the days; Monday-first or Sunday-first
     readonly property int lead: sundayFirst ? month.getDay() : (month.getDay() + 6) % 7
@@ -98,6 +103,26 @@ PanelWindow {
     }
     function selectDay(day) {
         selectedDate = new Date(month.getFullYear(), month.getMonth(), day);
+    }
+    function stepView(delta) {
+        if (view === "week")
+            offset += delta;
+        else
+            offset += delta;
+    }
+    readonly property string weekLabel: {
+        const a = new Date(weekAnchor.getFullYear(), weekAnchor.getMonth(), weekAnchor.getDate() - weekAnchor.getDay());
+        const b = new Date(a.getFullYear(), a.getMonth(), a.getDate() + 6);
+        return Qt.formatDate(a, "d MMM") + " – " + Qt.formatDate(b, "d MMM yyyy");
+    }
+    readonly property var weekEvents: {
+        const a = new Date(weekAnchor.getFullYear(), weekAnchor.getMonth(), weekAnchor.getDate() - weekAnchor.getDay());
+        const b = new Date(a.getFullYear(), a.getMonth(), a.getDate() + 7);
+        return Agenda.events.filter(e => { const s = new Date(e.start * 1000); return s >= a && s < b; });
+    }
+    function weekEventsForHour(col, hour) {
+        const a = new Date(weekAnchor.getFullYear(), weekAnchor.getMonth(), weekAnchor.getDate() - weekAnchor.getDay() + col);
+        return weekEvents.filter(e => new Date(e.start * 1000).getHours() === hour);
     }
 
     // ---- event editor ------------------------------------------------------
