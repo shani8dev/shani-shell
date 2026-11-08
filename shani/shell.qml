@@ -54,6 +54,8 @@ import qs.Modules.ScreenSaver
 import qs.Modules.Charging
 import qs.Modules.Hints
 import qs.Modules.FileActions
+import qs.Modules.Calculator as CalcMod
+import qs.Modules.Calendar as CalMod
 
 ShellRoot {
     Wallpaper {}
@@ -97,6 +99,8 @@ ShellRoot {
     LazyLoader { active: Displays.pending; DisplayConfirm {} }
     LazyLoader { active: Ui.tour || (Settings.loaded && !Settings.data.tourSeen && !Quickshell.env("SHANI_NO_TOUR")); Tour {} }
     LazyLoader { active: Qr.shown; QrView {} }
+    LazyLoader { active: Calculator.shown; CalcMod.Calculator {} }
+    LazyLoader { active: Ui.calendar; CalMod.CalendarPanel {} }
     ModemDialog {}
     LazyLoader { active: Share.file !== ""; ShareSheet {} }
     LockScreen { id: lockScreen }
@@ -105,7 +109,7 @@ ShellRoot {
     Binding { target: Ui; property: "screen"; value: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0] }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WorldClock, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew]
+    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WorldClock, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew]
 
     IpcHandler {
         target: "shani"
@@ -132,6 +136,7 @@ ShellRoot {
             Lens.close();
             Ruler.close();
             Qr.close();
+            Calculator.close();
             Share.close();
             Chronoa.open = false;
             if (Captions.on) Captions.start(Captions.source);   // toggles it off
@@ -216,6 +221,14 @@ ShellRoot {
         function share(path: string) { Ui.closeAll(); Share.open(path); }
         function textMessage(to: string) { Ui.closeAll(); Ui.smsTo = to; Ui.modemDialog = "sms"; }
         function qr(title: string, text: string) { Ui.closeAll(); Qr.show(title, text); }
+        function calculator() { Ui.closeAll(); Calculator.toggle(); }
+        function calculatorOpen(expr: string) { Ui.closeAll(); if (expr) { Calculator.clear(); Calculator.display = expr; } Calculator.open(); }
+        function calculatorPress(key: string) { Calculator.press(key); }
+        function calculatorEquals() { Calculator.evaluate(); }
+        function calculatorClear() { Calculator.clear(); }
+        function calculatorCopy() { Calculator.copyResult(); }
+        function calendar() { const was = Ui.calendar; Ui.closeAll(); Ui.calendar = !was; }
+        function calendarRefresh() { Agenda.refresh(); }
         // media keys: the player that is playing, else the first one
         function media(action: string) {
             const p = Media.current;
@@ -388,6 +401,8 @@ ShellRoot {
                 systemSoundsPlayed: SystemSounds.played,
                 bluetoothReceived: ObexReceive.received,
                 qrShown: Qr.shown, qrImage: Qr.image,
+                calculatorShown: Calculator.shown, calculatorDisplay: Calculator.display, calculatorResult: Calculator.result, calculatorPreview: Calculator.preview,
+                calendarShown: Ui.calendar,
                 converted: Recorder.converted, converting: Recorder.converting,
                 cpuTemp: SysStats.temp,
                 gpus: Gpu.gpus.length,
