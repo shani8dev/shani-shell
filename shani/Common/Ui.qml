@@ -20,6 +20,7 @@ Singleton {
     property bool switcher: false
     property bool windowMenu: false
     property bool processes: false
+    property bool logs: false                  // the Logs surface (Modules/Logs)
     property bool player: false
     property bool fonts: false
     property bool characters: false        // the Characters panel (Modules/Characters)
@@ -117,6 +118,7 @@ Singleton {
         switcher = false;
         windowMenu = false;
         processes = false;
+        logs = false;
         player = false;
         fonts = false;
         characters = false;

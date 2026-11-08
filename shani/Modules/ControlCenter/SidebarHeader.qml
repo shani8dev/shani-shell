@@ -84,6 +84,98 @@ ColumnLayout {
                     font.pixelSize: 12 * Theme.fontScale
                 }
             }
+            // 7-day strip (Weather.forecast): today + the next six days
+            ColumnLayout {
+                visible: Weather.summary !== "" && Weather.forecast.length > 0
+                Layout.fillWidth: true
+                spacing: 4
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+                    Repeater {
+                        model: Weather.forecast
+                        ColumnLayout {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            spacing: 2
+                            Text {
+                                Layout.fillWidth: true
+                                horizontalAlignment: Text.AlignHCenter
+                                text: modelData.day
+                                color: Theme.dim
+                                font.family: Theme.font
+                                font.pixelSize: 10 * Theme.fontScale
+                                font.weight: Font.DemiBold
+                            }
+                            Icon {
+                                Layout.alignment: Qt.AlignHCenter
+                                name: Weather.iconFor(modelData.code)
+                                size: 16
+                                color: Theme.text
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                horizontalAlignment: Text.AlignHCenter
+                                text: Math.round(modelData.hi) + "°/" + Math.round(modelData.lo) + "°"
+                                color: Theme.text
+                                font.family: Theme.font
+                                font.pixelSize: 10 * Theme.fontScale
+                                font.features: { "tnum": 1 }
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                horizontalAlignment: Text.AlignHCenter
+                                visible: Weather.describe(modelData.code) !== ""
+                                text: Weather.describe(modelData.code).split(" ")[0]
+                                color: Theme.faint
+                                font.family: Theme.font
+                                font.pixelSize: 9 * Theme.fontScale
+                            }
+                        }
+                    }
+                }
+                // next 24 hours (Weather.hourly), a compact strip
+                Flickable {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 34
+                    Layout.minimumHeight: 34
+                    contentWidth: hourRow.implicitWidth
+                    contentHeight: 34
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    Row {
+                        id: hourRow
+                        height: 34
+                        spacing: 8
+                        Repeater {
+                            model: Weather.hourly
+                            Column {
+                                required property var modelData
+                                width: 36
+                                spacing: 0
+                                Text {
+                                    width: 36
+                                    horizontalAlignment: Text.AlignHCenter
+                                    text: modelData.hour
+                                    color: Theme.dim
+                                    font.family: Theme.font
+                                    font.pixelSize: 9 * Theme.fontScale
+                                    font.features: { "tnum": 1 }
+                                }
+                                Text {
+                                    width: 36
+                                    horizontalAlignment: Text.AlignHCenter
+                                    text: Math.round(modelData.temp) + "°"
+                                    color: Theme.text
+                                    font.family: Theme.font
+                                    font.pixelSize: 11 * Theme.fontScale
+                                    font.features: { "tnum": 1 }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
         // help: the tour again, and every shortcut from its last page
         IconButton { icon: "help-about"; tip: Tr.t("Help: a short tour, and every keyboard shortcut"); onClicked: { Ui.closeAll(); Ui.tour = true; } }

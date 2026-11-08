@@ -61,6 +61,7 @@ import qs.Modules.Hints
 import qs.Modules.FileActions
 import qs.Modules.Calculator as CalcMod
 import qs.Modules.Calendar as CalMod
+import qs.Modules.Logs
 
 ShellRoot {
     Wallpaper {}
@@ -94,6 +95,7 @@ ShellRoot {
     LazyLoader { active: Ui.windowMenu; WindowMenu {} }
     HotCorners {}
     LazyLoader { active: Ui.processes; Processes {} }
+    LazyLoader { active: Ui.logs; LogsPanel {} }
     LazyLoader { active: Captions.on; CaptionBar {} }
     LazyLoader { active: Ui.magnifier; Magnifier {} }
     LazyLoader { active: Ui.annotate; Annotate {} }
@@ -197,10 +199,12 @@ ShellRoot {
         function dictate() { Dictation.toggle(); }
         function timer(minutes: int) { minutes > 0 ? FocusTimer.start(minutes) : FocusTimer.stop(); }
         function processes() { const was = Ui.processes; Ui.closeAll(); Ui.processes = !was; }
+        function toggleLogs() { const was = Ui.logs; Ui.closeAll(); Ui.logs = !was; }
         function togglePlayer() { const was = Ui.player; Ui.closeAll(); Ui.player = !was; }
         function toggleFonts() { const was = Ui.fonts; Ui.closeAll(); Ui.fonts = !was; }
         function toggleCharacters() { const was = Ui.characters; Ui.closeAll(); Ui.characters = !was; }
         function weather(city: string) { Settings.data.weatherLat = 0; Settings.data.weatherLon = 0; Settings.data.weatherCity = city; }
+        function weatherForecast(): string { return JSON.stringify({ city: Settings.data.weatherCity, forecast: Weather.forecast, hourly: Weather.hourly, summary: Weather.summary }); }
         function setting(key: string, value: string) { Settings.data[key] = value === "true" ? true : value === "false" ? false : value; }
         function snoozeLatest(minutes: int) { if (Notifs.list.length) Notifs.snooze(Notifs.list[0], minutes); }
         function summarize() { Notifs.summarize(); }
@@ -365,11 +369,13 @@ ShellRoot {
                 switcher: Ui.switcher,
                 windowMenu: Ui.windowMenu,
                 processes: TopProcesses.list.length,
+                logs: Ui.logs,
                 timerLeft: FocusTimer.left,
                 weather: Weather.summary,
                 notes: QuickNotes.loaded, notesCount: QuickNotes.notes.length, notesCurrent: QuickNotes.current, notesLinks: QuickNotes.links(),
                 alarms: WorldClock.alarms.length, stopwatch: WorldClock.swDisplay,
                 characters: Ui.characters, characterLast: Characters.last,
+                forecast: Weather.forecast, hourly: Weather.hourly,
                 accent: String(Theme.accent),
                 bg: String(Theme.bg),
                 darkFade: Theme.darkT,
