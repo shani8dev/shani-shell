@@ -8,7 +8,17 @@ import QtQuick
 Singleton {
     id: root
     property int jobs: 0
+    property string lastPrint: ""          // last file sent via printFile, for the tests
     function openQueue() { Quickshell.execDetached(["sh", "-c", "command -v system-config-printer >/dev/null && exec system-config-printer; exec xdg-open http://localhost:631/jobs/"]); }
+    // print one file (the PDF reader's print button): CUPS `lp` is the whole
+    // backend — no print_file daemon to build — and lpstat above reports it.
+    function printFile(path) {
+        if (!path)
+            return false;
+        lastPrint = path;
+        Quickshell.execDetached(["lp", "--", path]);
+        return true;
+    }
     Process {
         id: q
         command: ["sh", "-c", '[ -S /run/cups/cups.sock ] || exit 0; lpstat -o 2>/dev/null | grep -c .']

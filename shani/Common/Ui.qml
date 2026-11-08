@@ -25,6 +25,8 @@ Singleton {
     property bool fonts: false
     property bool characters: false        // the Characters panel (Modules/Characters)
     property bool magnifier: false
+    property bool viewer: false
+    property bool pdfReader: false
     property bool calendar: false            // the Calendar surface (Modules/Calendar)
     property bool annotate: false                  // drawing on the screen
     property int annotateStrokes: 0

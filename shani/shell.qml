@@ -121,7 +121,7 @@ ShellRoot {
     Binding { target: Ui; property: "screen"; value: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0] }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WorldClock, Characters, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew]
+    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew]
 
     IpcHandler {
         target: "shani"
@@ -149,6 +149,8 @@ ShellRoot {
             Ruler.close();
             Qr.close();
             Calculator.close();
+            Viewer.close();
+            PdfViewer.close();
             Share.close();
             Chronoa.open = false;
             if (Captions.on) Captions.start(Captions.source);   // toggles it off
@@ -258,6 +260,44 @@ ShellRoot {
         function calendarAdd(summary: string, startSec: int, endSec: int, location: string, allDay: string) { Agenda.addEvent({ summary: summary, start: startSec, end: endSec, location: location, allDay: (allDay === "true" || allDay === "1") }); }
         function calendarEdit(uid: string, summary: string, startSec: int, endSec: int, location: string, allDay: string) { Agenda.editEvent({ uid: uid, summary: summary, start: startSec, end: endSec, location: location, allDay: (allDay === "true" || allDay === "1") }); }
         function calendarDelete(uid: string) { Agenda.deleteEvent({ uid: uid }); }
+        // image viewer (Loupe parity) + PDF reader (Papers/Evince parity)
+        function openViewer(path: string) { Ui.closeAll(); Viewer.open(path); }
+        function closeViewer() { Viewer.close(); }
+        function viewerNext() { Viewer.next(); }
+        function viewerPrev() { Viewer.prev(); }
+        function viewerGoTo(index: int) { Viewer.goToIndex(index); }
+        function viewerZoomIn() { Viewer.zoomIn(); }
+        function viewerZoomOut() { Viewer.zoomOut(); }
+        function viewerZoomReset() { Viewer.zoomReset(); }
+        function viewerZoomFit() { Viewer.zoomFit(); }
+        function viewerZoomActual() { Viewer.zoomActual(); }
+        function viewerZoom200() { Viewer.zoom200(); }
+        function viewerRotate() { Viewer.rotate(); }
+        function viewerRotateCCW() { Viewer.rotateCCW(); }
+        function viewerFlipH() { Viewer.toggleFlipH(); }
+        function viewerFlipV() { Viewer.toggleFlipV(); }
+        function viewerSlideshow() { Viewer.toggleSlideshow(); }
+        function viewerGrid() { Viewer.toggleGrid(); }
+        function viewerThumbs() { Viewer.toggleThumbs(); }
+        function viewerCopy() { Viewer.copyPath(); }
+        function viewerOpenWith(app: string) { Viewer.openWith(app); }
+        function viewerTrash() { Viewer.trash(); }
+        function openPdf(path: string) { Ui.closeAll(); PdfViewer.open(path); }
+        function closePdf() { PdfViewer.close(); }
+        function pdfNext() { PdfViewer.nextPage(); }
+        function pdfPrev() { PdfViewer.prevPage(); }
+        function pdfGoTo(page: int) { PdfViewer.jumpTo(page); }
+        function pdfSearch(text: string) { PdfViewer.search(text); }
+        function pdfFindNext() { PdfViewer.findNext(); }
+        function pdfFindPrev() { PdfViewer.findPrev(); }
+        function pdfClearSearch() { PdfViewer.clearSearch(); }
+        function pdfRotate() { PdfViewer.rotate(); }
+        function pdfRotateCCW() { PdfViewer.rotateCCW(); }
+        function pdfFit(mode: string) { PdfViewer.setFit(mode); }
+        function pdfContinuous() { PdfViewer.toggleContinuous(); }
+        function pdfSidebar() { PdfViewer.toggleSidebar(); }
+        function pdfPrint() { PdfViewer.printFile(); }
+        function pdfOutlineGoTo(index: int) { PdfViewer.goToOutline(index); }
         // media keys: the player that is playing, else the first one
         function media(action: string) {
             const p = Media.current;
@@ -437,6 +477,12 @@ ShellRoot {
                 calculatorShown: Calculator.shown, calculatorDisplay: Calculator.display, calculatorResult: Calculator.result, calculatorPreview: Calculator.preview,
                 calculatorHistory: Calculator.history.map(h => h.expr + "=" + h.value), calculatorMemory: Calculator.memory,
                 calendarShown: Ui.calendar, calendarEvents: Agenda.events.length, calendarSearch: Agenda.search,
+                viewerShown: Viewer.shown, viewer: Ui.viewer, viewerFile: Viewer.file, viewerZoom: Viewer.zoom, viewerRotation: Viewer.rotation,
+                viewerSlideshow: Viewer.slideshow, viewerGrid: Viewer.gridMode, viewerThumbs: Viewer.showThumbs, viewerCopied: Viewer.lastCopied,
+                viewerAction: Viewer.lastAction, viewerTrash: Viewer.trashLast, exifOrientation: Viewer.exifOrientation,
+                pdfShown: PdfViewer.shown, pdfReader: Ui.pdfReader, pdfFile: PdfViewer.file, pdfPage: PdfViewer.page, pdfPages: PdfViewer.pageCount,
+                pdfFit: PdfViewer.fitMode, pdfContinuous: PdfViewer.continuous, pdfSidebar: PdfViewer.showSidebar, pdfSearch: PdfViewer.searchText,
+                pdfSearchMatches: PdfViewer.searchMatches.length, pdfOutline: PdfViewer.outline.length, pdfPrint: PdfViewer.printState,
                 converted: Recorder.converted, converting: Recorder.converting,
                 cpuTemp: SysStats.temp,
                 gpus: Gpu.gpus.length,
