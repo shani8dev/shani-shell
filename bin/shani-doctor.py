@@ -25,8 +25,6 @@ FEATURES = [
      "gtk3 xdg-utils glib2", "gtk3 xdg-utils libglib2.0-bin"),
     ("Systemd unit management", ["kill", "systemctl"],
      "systemd", "systemd"),
-    ("GNOME network displays", ["gnome-network-displays"],
-     "gnome-network-displays", "gnome-network-displays"),
     ("Printing GUI", ["system-config-printer"],
      "system-config-printer", "system-config-printer"),
     ("Audio & microphone", ["wpctl", "pactl", "pw-record", "pw-metadata", "pipewire"],
@@ -83,8 +81,12 @@ FEATURES = [
      "cliphist satty vnstat", "cliphist satty vnstat"),
     ("Calendar", ["gnome-calendar", "localsearch"],
      "gnome-calendar localsearch", "gnome-calendar localsearch"),
-    ("Screen casting", ["gnome-network-displays", "shani-deploy"],
-     "gnome-network-displays shani-deploy", "gnome-network-displays shani-deploy"),
+    # Casting is the Flatpak (org.gnome.NetworkDisplays, in flatpak-packages.txt);
+    # Cast.qml falls back to it when the binary is absent, so the binary is
+    # not a requirement - requiring it made doctor exit 1 on a healthy niri
+    # install that has the Flatpak.
+    ("Screen casting", ["shani-deploy"],
+     "shani-deploy", "shani-deploy"),
     ("Privilege escalation", ["pkexec", "systemctl"],
      "polkit systemd", "policykit-1 systemd"),
 ]
