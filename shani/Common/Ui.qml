@@ -30,6 +30,7 @@ Singleton {
     property bool pdfReader: false
     property bool calendar: false            // the Calendar surface (Modules/Calendar)
     property bool maps: false                // the Maps surface (Modules/Maps)
+    property bool aether: false              // the Aether theme extractor (Modules/Aether)
     property bool contacts: false            // the Contacts surface (Modules/Contacts)
     property bool annotate: false                  // drawing on the screen
     property int annotateStrokes: 0
@@ -138,6 +139,7 @@ Singleton {
         controlCenter = false;
         calendar = false;
         maps = false;
+        aether = false;
         layoutSwitcher = false;
         expanded = "";
         dockFocus = false;

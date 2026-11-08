@@ -65,6 +65,7 @@ import qs.Modules.Calculator as CalcMod
 import qs.Modules.Calendar as CalMod
 import qs.Modules.Logs
 import qs.Modules.VoiceRecorder
+import qs.Modules.Aether
 
 ShellRoot {
     Wallpaper {}
@@ -118,6 +119,7 @@ ShellRoot {
     LazyLoader { active: Ui.player; Player {} }
     LazyLoader { active: Ui.fonts; FontsPanel {} }
     LazyLoader { active: Ui.voiceRecorder; VoiceRecorderPanel {} }
+    LazyLoader { active: Ui.aether; AetherPanel {} }
     LazyLoader { active: Ui.characters; CharactersPanel {} }
     ModemDialog {}
     LazyLoader { active: Share.file !== ""; ShareSheet {} }
@@ -127,7 +129,7 @@ ShellRoot {
     Binding { target: Ui; property: "screen"; value: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0] }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder]
+    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, Aether]
 
     IpcHandler {
         target: "shani"
@@ -158,6 +160,7 @@ ShellRoot {
             Viewer.close();
             PdfViewer.close();
             Share.close();
+            Aether.close();
             Chronoa.open = false;
             if (Captions.on) Captions.start(Captions.source);   // toggles it off
             Notifs.clearAll();
@@ -182,6 +185,13 @@ ShellRoot {
         // session
         function lock() { Lock.lock(); }
         function themeReload() { Matugen.reload(); }
+        // Aether (Modules/Aether): theme extraction + application over Matugen
+        function themeFromImage(path: string) { Ui.closeAll(); Aether.open(path || ""); }
+        function aetherOpen(path: string) { Ui.closeAll(); Aether.open(path || ""); }
+        function aetherClose() { Aether.close(); }
+        function aetherExtract() { Aether.extract(); }
+        function aetherApply() { Aether.apply(); }
+        function aetherSaveTheme(name: string) { Aether.saveTheme(name); }
         function volumeUp() { Audio.stepKey(true); }
         function volumeDown() { Audio.stepKey(false); }
         function volumeMute() { Audio.toggleMute(); }
@@ -563,6 +573,9 @@ ShellRoot {
                 shareTargets: Share.targets.map(t => t.label), shareDone: Share.done,
                 cameras: Camera.cameras.length, cameraPhase: Camera.phase, cameraLast: Camera.last,
                 mapsShown: Ui.maps, mapsLat: Location.lat, mapsLon: Location.lon,
+                aetherShown: Ui.aether, aetherImage: Aether.image, aetherNote: Aether.note,
+                aetherPalette: Object.keys(Matugen.previewPalette || {}).length,
+                aetherThemes: (Settings.data.aetherThemes || []).length, aetherSaved: Aether.lastSaved,
                 inputMethod: Ime.current,
                 osk: Osk.shown,
                 dictation: Dictation.phase,

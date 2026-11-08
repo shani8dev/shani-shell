@@ -239,6 +239,14 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("open", [], "open Messages"),
         ("compose", ["NUMBER"], "open Messages addressed to a number"),
     ],
+    "aether": [
+        ("theme-from-image", ["PATH"], "open Aether with a picture and extract its colours"),
+        ("open", [], "open Aether (last wallpaper)"),
+        ("extract", [], "extract the palette preview from the current picture"),
+        ("apply", [], "apply as wallpaper + colours"),
+        ("save", ["NAME"], "save the palette as a named theme"),
+        ("close", [], "close Aether"),
+    ],
 }
 
 
@@ -543,6 +551,12 @@ def _register() -> None:
         ("phone", "recent"): "recentCalls",
         ("messages", "open"): "messagesOpen",
         ("messages", "compose"): "messagesOpen",
+        ("aether", "open"): "themeFromImage",
+        ("aether", "theme-from-image"): "themeFromImage",
+        ("aether", "close"): "aetherClose",
+        ("aether", "extract"): "aetherExtract",
+        ("aether", "apply"): "aetherApply",
+        ("aether", "save"): "aetherSaveTheme",
     }
     IPC_NAMES.update(table)
 
