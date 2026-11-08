@@ -119,6 +119,7 @@ Singleton {
             property string caffeineBoot: ""   // the boot it was turned on in: it doesn't outlive a restart
             property bool use24h: true
             property list<string> worldClocks: []   // other cities on the calendar: zoneinfo zones, as chosen
+            property var alarms: []                // world-clock alarms: [{ time "HH:MM", label }] (Services/WorldClock)
             property list<string> recentColors: []  // colours picked with the Color picker, newest first
             property bool blur: true
             property bool showSeconds: false

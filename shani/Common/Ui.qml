@@ -22,6 +22,7 @@ Singleton {
     property bool processes: false
     property bool player: false
     property bool fonts: false
+    property bool characters: false        // the Characters panel (Modules/Characters)
     property bool magnifier: false
     property bool calendar: false            // the Calendar surface (Modules/Calendar)
     property bool annotate: false                  // drawing on the screen
@@ -118,6 +119,7 @@ Singleton {
         processes = false;
         player = false;
         fonts = false;
+        characters = false;
         magnifier = false;
         annotate = false;
         controlCenter = false;

@@ -263,8 +263,21 @@ PanelWindow {
             const f = q.slice(1).trim().toLowerCase();
             if (win.emojiPath === "")
                 Qt.callLater(() => win.emojiPath = "/usr/share/unicode/emoji/emoji-test.txt");
-            return [{ title: Tr.t("Emoji"), items: win.emoji.filter(x => f === "" || x.name.indexOf(f) >= 0).slice(0, 40)
-                .map(x => ({ kind: "emoji", glyph: x.e, icon: "face-smile-big", title: x.name, subtitle: Tr.t("Enter types it · Shift+Enter copies"), run: shift => shift ? Quickshell.clipboardText = x.e : Clipboard.typeText(x.e) })) }];
+            // full Unicode as well as emoji (Characters service, by
+            // bridge/characters.py): symbols, math, arrows, Indic scripts
+            if (Characters.query !== q.slice(1).trim())
+                Characters.search(q.slice(1).trim());
+            const seen = {};
+            const emojiItems = win.emoji.filter(x => f === "" || x.name.toLowerCase().indexOf(f) >= 0).map(x => ({ kind: "emoji", glyph: x.e, icon: "face-smile-big", title: x.name,
+                subtitle: Tr.t("Enter types it · Shift+Enter copies"), run: shift => shift ? Quickshell.clipboardText = x.e : Clipboard.typeText(x.e) }));
+            for (const it of emojiItems) seen[it.glyph] = true;
+            const charItems = (Characters.results || []).filter(x => f === "" || (x.name || "").toLowerCase().indexOf(f) >= 0).map(x => {
+                if (seen[x.ch]) return null;
+                seen[x.ch] = true;
+                return { kind: "emoji", glyph: x.ch, icon: "face-smile-big", title: x.name, subtitle: ("U+" + x.cp.toString(16).toUpperCase().padStart(4, "0")) + " · " + Tr.t("Enter types it · Shift+Enter copies"), run: shift => shift ? Quickshell.clipboardText = x.ch : Clipboard.typeText(x.ch) };
+            }).filter(Boolean);
+            const all = emojiItems.concat(charItems).slice(0, 40);
+            return [{ title: Tr.t("Emoji & characters"), items: all }];
         }
         if (q === "c" || q.startsWith("c ")) {
             const f = q.slice(1).trim().toLowerCase();

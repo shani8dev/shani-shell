@@ -29,7 +29,7 @@ ColumnLayout {
         readonly property real cell: (width - gap) / 2
         // the default order: what people reach for most first (GNOME's and Android's
         // quick settings lead the same way), the rest after
-        readonly property var known: ["wifi", "bluetooth", "dnd", "nightlight", "dark", "power", "mic", "screenshot", "record", "focus", "caffeine", "airplane", "mobile", "hotspot", "vpn", "phone", "timer", "camera", "photo", "lens", "ruler", "colorpicker", "snippets", "compress", "qrgen", "rotate", "compass", "flashlight", "kbdbacklight", "display", "osk", "keyboard", "clipboard", "backup", "access", "captions", "transcribe", "speak", "magnifier", "callrecord", "cast", "touch", "chronoa"]
+        readonly property var known: ["wifi", "bluetooth", "dnd", "nightlight", "dark", "power", "mic", "screenshot", "record", "focus", "caffeine", "airplane", "mobile", "hotspot", "vpn", "phone", "timer", "camera", "photo", "lens", "ruler", "colorpicker", "snippets", "compress", "qrgen", "rotate", "compass", "flashlight", "kbdbacklight", "display", "osk", "keyboard", "clipboard", "backup", "access", "captions", "transcribe", "speak", "magnifier", "callrecord", "cast", "touch", "chronoa", "characters"]
         readonly property var order: {
             const o = Settings.data.tileOrder.filter(t => known.indexOf(t) >= 0);
             return o.concat(known.filter(t => o.indexOf(t) < 0));       // new tiles join at the end
@@ -560,6 +560,16 @@ ColumnLayout {
             onToggled: {
                 Ui.closeAll();
                 Chronoa.open = !Chronoa.open;
+            }
+        }
+        Tile {
+            tid: "characters"
+            icon: "preferences-desktop-font"
+            title: Tr.t("Characters")
+            subtitle: Tr.t("Symbols, arrows, math, scripts")
+            onToggled: {
+                Ui.closeAll();
+                Ui.characters = true;
             }
         }
     }

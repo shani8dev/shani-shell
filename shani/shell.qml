@@ -51,6 +51,7 @@ import qs.Modules.Viewer as ViewerMod
 import qs.Modules.PdfReader
 import qs.Modules.Player
 import qs.Modules.Fonts
+import qs.Modules.Characters
 import qs.Modules.Modem
 import qs.Modules.Share
 import qs.Modules.Overview
@@ -109,6 +110,7 @@ ShellRoot {
     LazyLoader { active: PdfViewer.shown; PdfReader {} }
     LazyLoader { active: Ui.player; Player {} }
     LazyLoader { active: Ui.fonts; FontsPanel {} }
+    LazyLoader { active: Ui.characters; CharactersPanel {} }
     ModemDialog {}
     LazyLoader { active: Share.file !== ""; ShareSheet {} }
     LockScreen { id: lockScreen }
@@ -117,7 +119,7 @@ ShellRoot {
     Binding { target: Ui; property: "screen"; value: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0] }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WorldClock, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew]
+    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WorldClock, Characters, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew]
 
     IpcHandler {
         target: "shani"
@@ -197,6 +199,7 @@ ShellRoot {
         function processes() { const was = Ui.processes; Ui.closeAll(); Ui.processes = !was; }
         function togglePlayer() { const was = Ui.player; Ui.closeAll(); Ui.player = !was; }
         function toggleFonts() { const was = Ui.fonts; Ui.closeAll(); Ui.fonts = !was; }
+        function toggleCharacters() { const was = Ui.characters; Ui.closeAll(); Ui.characters = !was; }
         function weather(city: string) { Settings.data.weatherLat = 0; Settings.data.weatherLon = 0; Settings.data.weatherCity = city; }
         function setting(key: string, value: string) { Settings.data[key] = value === "true" ? true : value === "false" ? false : value; }
         function snoozeLatest(minutes: int) { if (Notifs.list.length) Notifs.snooze(Notifs.list[0], minutes); }
@@ -364,7 +367,9 @@ ShellRoot {
                 processes: TopProcesses.list.length,
                 timerLeft: FocusTimer.left,
                 weather: Weather.summary,
-                notes: QuickNotes.loaded,
+                notes: QuickNotes.loaded, notesCount: QuickNotes.notes.length, notesCurrent: QuickNotes.current, notesLinks: QuickNotes.links(),
+                alarms: WorldClock.alarms.length, stopwatch: WorldClock.swDisplay,
+                characters: Ui.characters, characterLast: Characters.last,
                 accent: String(Theme.accent),
                 bg: String(Theme.bg),
                 darkFade: Theme.darkT,
