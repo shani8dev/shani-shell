@@ -16,7 +16,17 @@ import qs.Modules.Notifications
 ColumnLayout {
     spacing: 14
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Notes") }
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: 8
+        SectionTitle { Layout.fillWidth: true; text: Tr.t("Notes") }
+        IconButton {
+            icon: "accessories-text-editor"
+            size: 28
+            tip: Tr.t("New note in the editor")
+            onClicked: { Ui.closeAll(); Chronoa.openEditor(QuickNotes.path); }
+        }
+    }
     Rectangle {
         Layout.fillWidth: true
         implicitHeight: Math.max(64, notes.contentHeight + 20)

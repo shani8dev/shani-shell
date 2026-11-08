@@ -47,6 +47,8 @@ import qs.Modules.LayoutSwitcher
 import qs.Modules.DisplayConfirm
 import qs.Modules.Tour
 import qs.Modules.QrView
+import qs.Modules.Player
+import qs.Modules.Fonts
 import qs.Modules.Modem
 import qs.Modules.Share
 import qs.Modules.Overview
@@ -97,6 +99,8 @@ ShellRoot {
     LazyLoader { active: Displays.pending; DisplayConfirm {} }
     LazyLoader { active: Ui.tour || (Settings.loaded && !Settings.data.tourSeen && !Quickshell.env("SHANI_NO_TOUR")); Tour {} }
     LazyLoader { active: Qr.shown; QrView {} }
+    LazyLoader { active: Ui.player; Player {} }
+    LazyLoader { active: Ui.fonts; FontsPanel {} }
     ModemDialog {}
     LazyLoader { active: Share.file !== ""; ShareSheet {} }
     LockScreen { id: lockScreen }
@@ -143,6 +147,9 @@ ShellRoot {
         function closeChronoa() { Chronoa.open = false; }
         function toggleChronoa() { Chronoa.open = !Chronoa.open; }
         function ask(text: string) { Chronoa.ask(text); }
+        // Chronoa surfaces (wiring only, ask-fallback): see Services/Chronoa.openEditor/openDiff
+        function openEditor(path: string) { Chronoa.openEditor(path); }
+        function openDiff() { Chronoa.openDiff(); }
         function approve(decision: string) {
             if (Chronoa.approval)
                 Chronoa.approve(Chronoa.approval.id, decision);
@@ -179,6 +186,8 @@ ShellRoot {
         function dictate() { Dictation.toggle(); }
         function timer(minutes: int) { minutes > 0 ? FocusTimer.start(minutes) : FocusTimer.stop(); }
         function processes() { const was = Ui.processes; Ui.closeAll(); Ui.processes = !was; }
+        function togglePlayer() { const was = Ui.player; Ui.closeAll(); Ui.player = !was; }
+        function toggleFonts() { const was = Ui.fonts; Ui.closeAll(); Ui.fonts = !was; }
         function weather(city: string) { Settings.data.weatherLat = 0; Settings.data.weatherLon = 0; Settings.data.weatherCity = city; }
         function setting(key: string, value: string) { Settings.data[key] = value === "true" ? true : value === "false" ? false : value; }
         function snoozeLatest(minutes: int) { if (Notifs.list.length) Notifs.snooze(Notifs.list[0], minutes); }
@@ -468,6 +477,8 @@ ShellRoot {
                 speaking: Speak.speaking,
                 spoken: Speak.last,
                 magnifier: Ui.magnifier,
+                player: Ui.player,
+                fonts: Ui.fonts,
                 callRecording: CallRecorder.recording,
                 callFile: CallRecorder.file,
                 smart: Smart.suggestion ? Smart.suggestion.text : "",

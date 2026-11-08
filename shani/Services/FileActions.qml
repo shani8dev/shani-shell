@@ -63,6 +63,9 @@ Singleton {
             add("text", Tr.t("Its text"), "text-x-generic", "pdftotext");
         }
         add("zip", files.length > 1 ? Tr.t("Zip them together") : Tr.t("Zip it"), "package-x-generic", "bsdtar");
+        // Edits in Chronoa's editor surface (wiring only: Chronoa.ask fallback,
+        // see Services/Chronoa.openEditor — there is no direct surface-open).
+        add("edit", Tr.t("Edit…"), "accessories-text-editor", "");
         add("share", Tr.t("Share…"), "emblem-shared", "");
         add("ask", Tr.t("Ask Chronoa about it"), "face-smile-big", "");
         return a;
@@ -145,6 +148,7 @@ Singleton {
         if (!fs.length) return;
         if (id === "fit") { files = fs; fitting = true; return; }
         if (id === "share") { Share.open(fs[0]); return; }
+        if (id === "edit") { Chronoa.openEditor(fs[0]); return; }
         if (id === "ask") { Chronoa.ask("Here are some files for context: " + fs.join(", ")); return; }
         const sc = id === "smaller" ? smallerScript() : scripts[id];
         if (!sc) return;

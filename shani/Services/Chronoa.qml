@@ -47,6 +47,18 @@ Singleton {
     function action(name) {
         Bridge.send({ op: "action", name: name });
     }
+    // No direct surface-open exists in Modules/Chronoa (the panel is a
+    // conversation only; the bridge only forwards "page:" actions via D-Bus),
+    // so the editor and diff surfaces are opened by asking Chronoa in words.
+    // When Chronoa grows a real open-editor/open-diff surface, point these
+    // there instead of the ask fallback.
+    function openEditor(path) {
+        const p = path ? " " + path : "";
+        ask("Open file" + p + " in the editor");
+    }
+    function openDiff() {
+        ask("Open the diff surface and show what changed");
+    }
     function approve(id, decision) {
         Bridge.send({ op: "approve", id: id, decision: decision });
         if (approval && approval.id === id)

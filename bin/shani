@@ -53,6 +53,8 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("toggle", [], "open or close Chronoa"),
         ("ask", ["TEXT"], "ask Chronoa something (opens the panel)"),
         ("action", ["NAME"], "run a Chronoa action by name"),
+        ("editor", ["PATH"], "ask Chronoa to open a file in the editor"),
+        ("diff", [], "ask Chronoa to show the diff surface"),
     ],
     "audio": [
         ("up", [], "volume up"),
@@ -67,6 +69,7 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("previous", [], "previous track"),
         ("stop", [], "stop playback"),
         ("next-player", [], "follow the next player"),
+        ("panel", [], "open or close the player surface"),
     ],
     "windows": [
         ("list", [], "list windows as JSON"),
@@ -122,6 +125,7 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("tour", [], "start the tour"),
         ("focus", ["NAME"], "set the focus mode"),
         ("setting", ["KEY", "VALUE"], "set a shell setting"),
+        ("fonts", [], "open or close the font browser"),
         ("whatsnew", [], "check what's new"),
     ],
 }
@@ -277,6 +281,8 @@ def _register() -> None:
         ("chronoa", "toggle"): "toggleChronoa",
         ("chronoa", "ask"): "ask",
         ("chronoa", "action"): "action",
+        ("chronoa", "editor"): "openEditor",
+        ("chronoa", "diff"): "openDiff",
         ("audio", "up"): "volumeUp",
         ("audio", "down"): "volumeDown",
         ("audio", "mute"): "volumeMute",
@@ -287,6 +293,7 @@ def _register() -> None:
         ("media", "previous"): "media",
         ("media", "stop"): "media",
         ("media", "next-player"): "nextPlayer",
+        ("media", "panel"): "togglePlayer",
         ("windows", "list"): "windowList",
         ("windows", "focus"): "windowFocus",
         ("windows", "close"): "windowClose",
@@ -333,6 +340,7 @@ def _register() -> None:
         ("system", "tour"): "tour",
         ("system", "focus"): "focus",
         ("system", "setting"): "setting",
+        ("system", "fonts"): "toggleFonts",
         ("system", "whatsnew"): "whatsNewCheck",
     }
     IPC_NAMES.update(table)
