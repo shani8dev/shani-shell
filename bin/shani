@@ -128,6 +128,20 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("fonts", [], "open or close the font browser"),
         ("whatsnew", [], "check what's new"),
     ],
+    "weather": [
+        ("set", ["CITY"], "set the weather city"),
+        ("forecast", [], "print the 7-day forecast as JSON"),
+    ],
+    "logs": [
+        ("open", [], "open the Logs surface"),
+        ("toggle", [], "open or close the Logs surface"),
+        ("close", [], "close the Logs surface"),
+    ],
+    "processes": [
+        ("open", [], "open the Mission Center"),
+        ("toggle", [], "open or close the Mission Center"),
+        ("close", [], "close the Mission Center"),
+    ],
 }
 
 
@@ -342,6 +356,14 @@ def _register() -> None:
         ("system", "setting"): "setting",
         ("system", "fonts"): "toggleFonts",
         ("system", "whatsnew"): "whatsNewCheck",
+        ("weather", "set"): "weather",
+        ("weather", "forecast"): "weatherForecast",
+        ("logs", "open"): "toggleLogs",
+        ("logs", "toggle"): "toggleLogs",
+        ("logs", "close"): "closeAll",
+        ("processes", "open"): "processes",
+        ("processes", "toggle"): "processes",
+        ("processes", "close"): "closeAll",
     }
     IPC_NAMES.update(table)
 

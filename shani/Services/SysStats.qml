@@ -1,7 +1,8 @@
 pragma Singleton
 // CPU, memory, network throughput and the CPU's temperature for the bar, read
 // straight from /proc and the kernel's hwmon sensors (no helper script), one
-// sample every interval.
+// sample every interval. Also the Mission Center numbers: per-core use,
+// per-interface network rates, uptime, threads, clock speed and handles.
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -19,6 +20,20 @@ Singleton {
     property string tempPath: ""
     property var lastNet: null
     readonly property int interval: 3000
+    // --- Mission Center ----------------------------------------------------
+    property var perCore: []            // [0..1] per core, since the last sample
+    property var lastCores: null
+    property var nets: []               // [{ name, rx, tx }] bytes/s per interface
+    property var lastNetDev: null
+    property real uptimeSec: 0
+    property int threads: 0             // total threads (/proc/loadavg)
+    property int fileHandles: 0         // allocated handles (/proc/sys/fs/file-nr)
+    property string clockSpeed: ""      // from /proc/cpuinfo "cpu MHz" (lscpu's number)
+    readonly property string uptimeStr: {
+        const s = Math.floor(root.uptimeSec);
+        const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+        return (d ? d + "d " : "") + h + "h " + m + "m";
+    }
 
     function rate(bps) {
         if (bps < 1024)
@@ -33,7 +48,7 @@ Singleton {
     // six surfaces, 30 ms/s of an idle desktop for numbers nobody was looking at
     readonly property bool wanted: Settings.data.showSysStats || Settings.data.showNetSpeed || Ui.processes || Niri.overviewOpen
         || Array.from(Settings.data.desktopWidgets).indexOf("stats") >= 0
-    onWantedChanged: if (!wanted) { root.last = null; root.lastNet = null; }
+    onWantedChanged: if (!wanted) { root.last = null; root.lastNet = null; root.lastCores = null; root.lastNetDev = null; }
     Timer {
         interval: root.interval
         running: root.wanted
@@ -43,6 +58,10 @@ Singleton {
             stat.reload();
             meminfo.reload();
             netdev.reload();
+            uptimeView.reload();
+            loadavg.reload();
+            fileNr.reload();
+            cpuinfo.reload();
             if (root.tempPath)
                 tempFile.reload();
         }
@@ -51,13 +70,30 @@ Singleton {
         id: stat
         path: "/proc/stat"
         onLoaded: {
-            const f = text().split("\n")[0].trim().split(/\s+/).slice(1).map(Number);
+            const lines = text().split("\n");
+            const f = lines[0].trim().split(/\s+/).slice(1).map(Number);
             const idle = f[3] + (f[4] || 0), total = f.reduce((a, b) => a + b, 0);
             if (root.last) {
                 const dt = total - root.last.total;
                 root.cpu = dt > 0 ? 1 - (idle - root.last.idle) / dt : 0;
             }
             root.last = { idle: idle, total: total };
+            // per-core bars: cpuN lines
+            const cores = [];
+            for (const line of lines) {
+                const m = line.match(/^cpu\d+\s+(.*)$/);
+                if (!m) continue;
+                const n = m[1].trim().split(/\s+/).map(Number);
+                const ci = n[3] + (n[4] || 0), ct = n.reduce((a, b) => a + b, 0);
+                cores.push({ idle: ci, total: ct });
+            }
+            if (root.lastCores && root.lastCores.length === cores.length) {
+                root.perCore = cores.map((c, i) => {
+                    const dt = c.total - root.lastCores[i].total;
+                    return dt > 0 ? 1 - (c.idle - root.lastCores[i].idle) / dt : 0;
+                });
+            }
+            root.lastCores = cores;
         }
     }
     // the CPU's sensor: coretemp (Intel), k10temp / zenpower (AMD), cpu_thermal (ARM)
@@ -88,6 +124,7 @@ Singleton {
         path: "/proc/net/dev"
         onLoaded: {
             let rx = 0, tx = 0;
+            const cur = {};
             for (const line of text().split("\n").slice(2)) {
                 const m = line.trim().match(/^([^:]+):\s*(.*)$/);
                 if (!m)
@@ -98,6 +135,7 @@ Singleton {
                 const f = m[2].split(/\s+/).map(Number);
                 rx += f[0];
                 tx += f[8];
+                cur[m[1]] = { rx: f[0], tx: f[8] };
             }
             const now = Date.now();
             if (root.lastNet) {
@@ -108,6 +146,61 @@ Singleton {
                 }
             }
             root.lastNet = { rx: rx, tx: tx, t: now };
+            // per-interface rates
+            const prev = root.lastNetDev || {};
+            const dt2 = root.lastNetDev ? (now - root.lastNetDev.t) / 1000 : 0;
+            const list = [];
+            for (const name of Object.keys(cur)) {
+                const p = prev[name];
+                list.push({
+                    name: name,
+                    rx: p && dt2 > 0 ? Math.max(0, (cur[name].rx - p.rx) / dt2) : 0,
+                    tx: p && dt2 > 0 ? Math.max(0, (cur[name].tx - p.tx) / dt2) : 0
+                });
+            }
+            list.sort((a, b) => b.rx + b.tx - a.rx - a.tx);
+            root.nets = list;
+            root.lastNetDev = { t: now };
+            for (const name of Object.keys(cur)) root.lastNetDev[name] = cur[name];
+        }
+    }
+    FileView {
+        id: uptimeView
+        path: "/proc/uptime"
+        onLoaded: { const v = parseFloat(String(text()).trim().split(/\s+/)[0]); root.uptimeSec = isNaN(v) ? 0 : v; }
+    }
+    FileView {
+        id: loadavg
+        path: "/proc/loadavg"
+        onLoaded: {
+            // "load1 load5 load15 running/total last_pid" — total is the thread count
+            const parts = String(text()).trim().split(/\s+/);
+            const total = parts[3] ? Number(String(parts[3]).split("/")[1]) : NaN;
+            root.threads = isNaN(total) ? 0 : total;
+        }
+    }
+    FileView {
+        id: fileNr
+        path: "/proc/sys/fs/file-nr"
+        onLoaded: {
+            // "allocated_handles free_handles max_handles"
+            const v = parseInt(String(text()).trim().split(/\s+/)[0]);
+            root.fileHandles = isNaN(v) ? 0 : v;
+        }
+    }
+    FileView {
+        id: cpuinfo
+        path: "/proc/cpuinfo"
+        onLoaded: {
+            // the clock from /proc/cpuinfo "cpu MHz" (what lscpu reads); GHz text
+            const m = String(text()).match(/cpu MHz\s*:\s*([\d.]+)/);
+            if (m) {
+                const ghz = parseFloat(m[1]) / 1000;
+                root.clockSpeed = ghz >= 1 ? ghz.toFixed(2) + " GHz" : Math.round(parseFloat(m[1])) + " MHz";
+            } else {
+                const b = String(text()).match(/model name\s*:\s*(.*)/);
+                if (b) root.clockSpeed = b[1].trim();
+            }
         }
     }
 }
