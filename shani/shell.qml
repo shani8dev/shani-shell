@@ -47,6 +47,8 @@ import qs.Modules.LayoutSwitcher
 import qs.Modules.DisplayConfirm
 import qs.Modules.Tour
 import qs.Modules.QrView
+import qs.Modules.Viewer as ViewerMod
+import qs.Modules.PdfReader
 import qs.Modules.Modem
 import qs.Modules.Share
 import qs.Modules.Overview
@@ -101,6 +103,8 @@ ShellRoot {
     LazyLoader { active: Qr.shown; QrView {} }
     LazyLoader { active: Calculator.shown; CalcMod.Calculator {} }
     LazyLoader { active: Ui.calendar; CalMod.CalendarPanel {} }
+    LazyLoader { active: Viewer.shown; ViewerMod.Viewer {} }
+    LazyLoader { active: PdfViewer.shown; PdfReader {} }
     ModemDialog {}
     LazyLoader { active: Share.file !== ""; ShareSheet {} }
     LockScreen { id: lockScreen }
