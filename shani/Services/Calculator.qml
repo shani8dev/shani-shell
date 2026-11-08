@@ -12,6 +12,14 @@ pragma Singleton
 // percentage, ± toggle, 1/x, x², √x, π, e. Unit conversion (convertUnit)
 // mirrors the Calc.js convert() table (mm→km, °C/°F/K, data, speed, area,
 // time) for the panel's Converter tab and the `calculatorConvert` IPC call.
+// Financial (GNOME Calculator parity): fv/pv (future/present value),
+// rate (periodic interest rate), sl (straight-line depreciation) and
+// ddb (double-declining-basis depreciation) — all through the same
+// whitelist in calc(), so an expression like fv(1000,0.05,3) evaluates
+// exactly like sin(0) does. Programming: band/bor/bxor/bnot/lsh/rsh
+// (bitwise AND/OR/XOR/NOT/shifts) through the same whitelist, base
+// switching (bin/oct/dec/hex), two's complement at 8/16/32/64 bits and
+// char <-> code conversion (charCode/codeToChar).
 import Quickshell
 import QtQuick
 
@@ -27,6 +35,18 @@ Singleton {
     property real memory: 0             // the memory register (MC/MR/M+/M-)
     property bool hasMemory: false
     property var history: []            // [{expr, value}] newest first, capped at 20
+
+    // programming mode state (GNOME Calculator parity)
+    property string base: "dec"      // bin | oct | dec | hex (the selected output base)
+    property int width: 32           // two's complement width: 8 | 16 | 32 | 64
+    property string finResult: "—"   // last financial result text for the panel and `state`
+    property string progResult: "—"  // last programming result text (decimal by default)
+    property string progBin: ""      // baseOutputs(): the value in binary / octal / decimal / hex
+    property string progOct: ""
+    property string progDec: ""
+    property string progHex: ""
+    property string twosResult: "—"  // two's complement display for `width`
+    property string charResult: "—"  // char <-> code conversion result
 
     function open() { shown = true; }
     function close() { shown = false; }
@@ -58,9 +78,10 @@ Singleton {
         return out.join("");
     }
 
-    // the evaluator. Helpers fact/npr/ncr are computed with the local
-    // functions below and passed into the strict Function() wrapper; only a
-    // finite result survives (the same rule as the launcher's calc()).
+    // the evaluator. Helpers fact/npr/ncr and the financial/programming
+    // helpers below are computed with the local functions and passed into
+    // the strict Function() wrapper; only a finite result survives (the
+    // same rule as the launcher's calc()).
     function calc(expr) {
         let src = String(expr || "").replace(/\s+/g, "").replace(/\^/g, "**")
             .replace(/×/g, "*").replace(/÷/g, "/").replace(/−/g, "-")
@@ -70,14 +91,15 @@ Singleton {
         if (!/^[0-9+\-*/%.()a-z,]+$/i.test(src) || !/[0-9]/.test(src) || /^[0-9.]+$/.test(src))
             return null;
         const names = src.match(/[a-z]+/gi) || [];
-        const allowed = ["sqrt", "sin", "cos", "tan", "asin", "acos", "atan", "log", "ln", "exp", "abs", "round", "floor", "ceil", "pow", "min", "max", "fact", "npr", "ncr", "pi", "e"];
+        const allowed = ["sqrt", "sin", "cos", "tan", "asin", "acos", "atan", "log", "ln", "exp", "abs", "round", "floor", "ceil", "pow", "min", "max", "fact", "npr", "ncr", "pi", "e", "fv", "pv", "rate", "sl", "ddb", "band", "bor", "bxor", "bnot", "lsh", "rsh"];
         if (names.some(n => allowed.indexOf(n.toLowerCase()) < 0))
             return null;
         // names are case-insensitive, JS is not (nPr → npr, PI → Math.PI)
         const js = src.replace(/\bln\(/gi, "log(").replace(/\bpi\b/gi, "PI").replace(/\be\b/g, "E")
             .replace(/\b(sqrt|sin|cos|tan|asin|acos|atan|log|exp|abs|round|floor|ceil|pow|min|max)\b/gi, m => "Math." + m.toLowerCase())
             .replace(/\bPI\b/g, "Math.PI").replace(/\bE\b/g, "Math.E")
-            .replace(/\bnpr\b/gi, "npr").replace(/\bncr\b/gi, "ncr").replace(/\bfact\b/gi, "fact");
+            .replace(/\bnpr\b/gi, "npr").replace(/\bncr\b/gi, "ncr").replace(/\bfact\b/gi, "fact")
+            .replace(/\b(fv|pv|rate|sl|ddb|band|bor|bxor|bnot|lsh|rsh)\b/gi, m => m.toLowerCase());
         try {
             const fact = function (n) {
                 n = Math.floor(n);
@@ -90,11 +112,264 @@ Singleton {
             };
             const npr = function (n, k) { return fact(n) / fact(n - k); };              // nPr: n!/(n-k)!
             const ncr = function (n, k) { return fact(n) / (fact(k) * fact(n - k)); };  // nCr: n!/(k!(n-k)!)
-            const v = Function("fact", "npr", "ncr", '"use strict"; return (' + js + ");")(fact, npr, ncr);
+            // financial (GNOME Calculator parity): through the same whitelist
+            const fv = function (principal, rate, periods) { return principal * Math.pow(1 + rate, periods); }; // FV: P*(1+r)^n
+            const pv = function (futureValue, rate, periods) { return futureValue / Math.pow(1 + rate, periods); }; // PV: FV/(1+r)^n
+            const sl = function (cost, salvage, life) { // straight-line depreciation per period
+                if (!isFinite(cost) || !isFinite(salvage) || !isFinite(life) || life <= 0)
+                    throw new Error("sl");
+                return (cost - salvage) / life;
+            };
+            const ddb = function (cost, salvage, life, period) { // double-declining-balance depreciation in `period`
+                if (!isFinite(cost) || !isFinite(salvage) || !isFinite(life) || life <= 0 || !isFinite(period))
+                    throw new Error("ddb");
+                const n = Math.max(1, Math.floor(period));
+                const baseAmt = cost - salvage;
+                const d = 2 / life;
+                return baseAmt * d * Math.pow(1 - d, n - 1);
+            };
+            const rate = function (principal, payment, periods) { // periodic interest rate: payment = P*r/(1-(1+r)^-n)
+                if (!isFinite(principal) || !isFinite(payment) || !isFinite(periods) || principal <= 0 || payment <= 0 || periods <= 0)
+                    throw new Error("rate");
+                const n = periods;
+                const pmtFor = function (r) {
+                    if (Math.abs(r) < 1e-12)
+                        return principal / n;
+                    return principal * r / (1 - Math.pow(1 + r, -n));
+                };
+                // pmtFor is increasing on (-1, +inf): bracket and bisect
+                let lo = -0.99, hi = 1;
+                let fhi = pmtFor(hi) - payment;
+                let guard = 0;
+                while (fhi < 0 && guard++ < 60) {
+                    hi = hi * 2 + 1;
+                    fhi = pmtFor(hi) - payment;
+                }
+                for (let i = 0; i < 200; i++) {
+                    const mid = (lo + hi) / 2;
+                    const f = pmtFor(mid) - payment;
+                    if (Math.abs(f) < 1e-12)
+                        return mid;
+                    if (f > 0)
+                        hi = mid;
+                    else
+                        lo = mid;
+                }
+                return (lo + hi) / 2;
+            };
+            // programming (bitwise): 32-bit signed, like JS & | ^ ~ << >>
+            const band = function (a, b) { return (Math.floor(a) | 0) & (Math.floor(b) | 0); };
+            const bor = function (a, b) { return (Math.floor(a) | 0) | (Math.floor(b) | 0); };
+            const bxor = function (a, b) { return (Math.floor(a) | 0) ^ (Math.floor(b) | 0); };
+            const bnot = function (a) { return ~(Math.floor(a) | 0); };
+            const lsh = function (a, n) { return (Math.floor(a) | 0) << (Math.floor(n) & 31); };
+            const rsh = function (a, n) { return (Math.floor(a) | 0) >> (Math.floor(n) & 31); };
+            const v = Function("fact", "npr", "ncr", "fv", "pv", "rate", "sl", "ddb", "band", "bor", "bxor", "bnot", "lsh", "rsh", '"use strict"; return (' + js + ");")(fact, npr, ncr, fv, pv, rate, sl, ddb, band, bor, bxor, bnot, lsh, rsh);
             return typeof v === "number" && isFinite(v) ? Number(v.toPrecision(12)) : null;
         } catch (e) {
             return null;
         }
+    }
+
+    // ---- financial ----------------------------------------------------------
+    // Each op builds the same expression calc() would evaluate, so the
+    // panel and the `calculatorFinancial` IPC call go through the exact
+    // same whitelist (no new evaluator). `rate` is bisection-solved
+    // inside calc()'s helper above, so its result is a periodic rate
+    // (per-period, not annualised).
+    function financial(op, a, b, c, d) {
+        const o = String(op || "").toLowerCase();
+        const p = function (x) { return parseFloat(String(x === undefined || x === null ? "" : x).replace(/\s+/g, "")); };
+        let expr = "";
+        if (o === "fv" || o === "futurevalue" || o === "future")
+            expr = "fv(" + p(a) + "," + p(b) + "," + p(c) + ")";
+        else if (o === "pv" || o === "presentvalue" || o === "present")
+            expr = "pv(" + p(a) + "," + p(b) + "," + p(c) + ")";
+        else if (o === "rate" || o === "periodic" || o === "periodicinterestrate" || o === "periodicinterest")
+            expr = "rate(" + p(a) + "," + p(b) + "," + p(c) + ")";
+        else if (o === "sl" || o === "straightline" || o === "straight" || o === "straightlinedepreciation")
+            expr = "sl(" + p(a) + "," + p(b) + "," + p(c) + ")";
+        else if (o === "ddb" || o === "doubledeclining" || o === "doubledecliningbalance" || o === "doubledecliningdepreciation")
+            expr = "ddb(" + p(a) + "," + p(b) + "," + p(c) + "," + p(d) + ")";
+        else
+            return null;
+        const v = calc(expr);
+        finResult = v === null ? "—" : String(Number(v.toPrecision(12)));
+        return v;
+    }
+    function finFutureValue(principal, rate, periods) { return financial("fv", principal, rate, periods, ""); }
+    function finPresentValue(futureValue, rate, periods) { return financial("pv", futureValue, rate, periods, ""); }
+    function finPeriodicRate(principal, payment, periods) { return financial("rate", principal, payment, periods, ""); }
+    function finStraightLine(cost, salvage, life) { return financial("sl", cost, salvage, life, ""); }
+    function finDoubleDeclining(cost, salvage, life, period) { return financial("ddb", cost, salvage, life, period); }
+
+    // ---- programming: bases, two's complement, char codes -------------------
+    function setBase(b) {
+        const s = String(b || "").toLowerCase();
+        if (["bin", "oct", "dec", "hex"].indexOf(s) >= 0)
+            base = s;
+    }
+    function setWidth(w) {
+        const n = Number(w);
+        if ([8, 16, 32, 64].indexOf(n) >= 0)
+            width = n;
+    }
+    // the value in base b (bin/oct/dec/hex); negatives render as 32-bit
+    // unsigned for bin/oct/hex, signed for dec — the panel shows all four
+    function toBase(value, b) {
+        const v = parseFloat(value);
+        if (!isFinite(v))
+            return "";
+        const n = Math.floor(v);
+        const bb = String(b || "").toLowerCase();
+        if (bb === "bin" || bb === "2")
+            return (n >>> 0).toString(2);
+        if (bb === "oct" || bb === "8")
+            return (n >>> 0).toString(8);
+        if (bb === "hex" || bb === "16" || bb === "x")
+            return (n >>> 0).toString(16).toUpperCase();
+        return String(n); // dec
+    }
+    function fromBase(text, b) {
+        const s = String(text || "").trim();
+        if (s === "")
+            return null;
+        const bb = String(b || "").toLowerCase();
+        let radix = 10;
+        if (bb === "bin" || bb === "2")
+            radix = 2;
+        else if (bb === "oct" || bb === "8")
+            radix = 8;
+        else if (bb === "hex" || bb === "16" || bb === "x")
+            radix = 16;
+        const t = s.replace(/^(0[xX]|0[bB]|0[oO])/, "");
+        if (t === "" || !new RegExp("^(-)?[0-9a-z]+$", "i").test(t))
+            return null;
+        const v = parseInt(t, radix);
+        return isFinite(v) && !isNaN(v) ? v : null;
+    }
+    function baseOutputs(value) {
+        const v = parseFloat(value);
+        if (!isFinite(v))
+            return null;
+        const n = Math.floor(v);
+        const out = { bin: toBase(n, "bin"), oct: toBase(n, "oct"), dec: toBase(n, "dec"), hex: toBase(n, "hex") };
+        progBin = out.bin; progOct = out.oct; progDec = out.dec; progHex = out.hex;
+        progResult = out.dec;
+        return out;
+    }
+    // two's complement: the unsigned value of `value` in `bits` (e.g. -1
+    // in 8 bits is 255). Works for 8/16/32; 64 is a double approximation
+    // beyond Number.MAX_SAFE_INTEGER, documented on the panel.
+    function twosComplement(value, bits) {
+        const w = [8, 16, 32, 64].indexOf(Number(bits)) >= 0 ? Number(bits) : 32;
+        const v = parseFloat(value);
+        if (!isFinite(v))
+            return null;
+        const n = Math.floor(v);
+        if (w === 64) {
+            const m = Math.pow(2, 64);
+            return ((n % m) + m) % m;
+        }
+        const m = Math.pow(2, w);
+        return ((n % m) + m) % m;
+    }
+    function twosComplementString(value, bits) {
+        const w = [8, 16, 32, 64].indexOf(Number(bits)) >= 0 ? Number(bits) : 32;
+        const u = twosComplement(value, w);
+        if (u === null)
+            return "";
+        let s = u.toString(2);
+        while (s.length < w)
+            s = "0" + s;
+        twosResult = s + " (" + String(u) + ")";
+        return s;
+    }
+    // generic programming op for the panel and `calculatorProgramming`.
+    // Bitwise ops go through calc()'s whitelist (band/bor/...); bases,
+    // two's complement and char codes are direct (they need strings).
+    function programming(op, a, b) {
+        const o = String(op || "").toLowerCase();
+        const p = function (x) { return parseFloat(String(x === undefined || x === null ? "" : x).replace(/\s+/g, "")); };
+        if (o === "and" || o === "band")
+            return _progCalc("band(" + p(a) + "," + p(b) + ")");
+        if (o === "or" || o === "bor")
+            return _progCalc("bor(" + p(a) + "," + p(b) + ")");
+        if (o === "xor" || o === "bxor")
+            return _progCalc("bxor(" + p(a) + "," + p(b) + ")");
+        if (o === "not" || o === "bnot")
+            return _progCalc("bnot(" + p(a) + ")");
+        if (o === "shl" || o === "lsh" || o === "shiftleft" || o === "shift-left")
+            return _progCalc("lsh(" + p(a) + "," + p(b) + ")");
+        if (o === "shr" || o === "rsh" || o === "shiftright" || o === "shift-right")
+            return _progCalc("rsh(" + p(a) + "," + p(b) + ")");
+        if (o === "tobase") {
+            const s = toBase(a, b || base);
+            progResult = s === "" ? "—" : s;
+            return s === "" ? null : fromBase(s, b || base);
+        }
+        if (o === "frombase") {
+            const v = fromBase(a, b || base);
+            progResult = v === null ? "—" : String(v);
+            baseOutputs(v === null ? "" : v);
+            return v;
+        }
+        if (o === "twos" || o === "twoscomplement" || o === "twos-complement") {
+            const w = [8, 16, 32, 64].indexOf(Number(b)) >= 0 ? Number(b) : width;
+            const s = twosComplementString(a, w);
+            if (s !== "")
+                progResult = twosResult;
+            return twosComplement(a, w);
+        }
+        if (o === "charcode" || o === "char" || o === "charcodeof") {
+            const v = charCode(a);
+            charResult = v === null ? "—" : String(v);
+            progResult = charResult;
+            return v;
+        }
+        if (o === "fromchar" || o === "charfromcode" || o === "codechar") {
+            const s = codeToChar(a);
+            charResult = s === "" ? "—" : s;
+            progResult = charResult;
+            return s === "" ? null : charCode(s);
+        }
+        if (o === "bases" || o === "outputs") {
+            const out = baseOutputs(a);
+            return out ? parseFloat(out.dec) : null;
+        }
+        return null;
+    }
+    function _progCalc(expr) {
+        const v = calc(expr);
+        progResult = v === null ? "—" : String(v);
+        return v;
+    }
+    function progBand(a, b) { return programming("and", a, b); }
+    function progOr(a, b) { return programming("or", a, b); }
+    function progXor(a, b) { return programming("xor", a, b); }
+    function progNot(a) { return programming("not", a, ""); }
+    function progShl(a, n) { return programming("shl", a, n); }
+    function progShr(a, n) { return programming("shr", a, n); }
+    // character <-> character-code conversion (GNOME Programming parity)
+    function charCode(text) {
+        const s = String(text === undefined || text === null ? "" : text);
+        return s.length ? s.charCodeAt(0) : null;
+    }
+    function codeToChar(code) {
+        const n = Math.floor(Number(code));
+        if (!isFinite(n) || n < 0 || n > 0x10FFFF)
+            return "";
+        try {
+            return String.fromCodePoint(n);
+        } catch (e) {
+            return n < 65536 ? String.fromCharCode(n) : "";
+        }
+    }
+    function charConvert(text) {
+        const v = charCode(text);
+        charResult = v === null ? "—" : String(v);
+        progResult = charResult;
+        return v;
     }
 
     // unit conversion: the table and temperature specials from
@@ -244,7 +519,7 @@ Singleton {
             return square();
         if (k === "sqrt" || k === "√" || k === "sqrt(")
             return _appendFn("sqrt");
-        if (["sin", "cos", "tan", "asin", "acos", "atan", "ln", "log", "exp", "abs", "floor", "ceil", "npr", "ncr", "fact", "pow"].indexOf(k.toLowerCase()) >= 0)
+        if (["sin", "cos", "tan", "asin", "acos", "atan", "ln", "log", "exp", "abs", "floor", "ceil", "npr", "ncr", "fact", "pow", "fv", "pv", "rate", "sl", "ddb", "band", "bor", "bxor", "bnot", "lsh", "rsh"].indexOf(k.toLowerCase()) >= 0)
             return _appendFn(k.toLowerCase());
         if (k === "^" || k === "x^y")
             return _appendChar("^");
@@ -256,6 +531,9 @@ Singleton {
             return _appendChar("pi");
         if (k === "e")
             return _appendChar("e");
+        // a bare hex digit (programming mode): A-F type onto the display
+        if (/^[A-Fa-f]$/.test(k))
+            return _appendChar(k.toUpperCase());
         // digits and basic operators
         let t = k;
         if (t === "÷") t = "/";

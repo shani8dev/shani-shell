@@ -1,7 +1,9 @@
 // The control centre's notes — a folder of Markdown notes
-// (QuickNotes: ~/Documents/Notes/, one .md per note), after the single
-// quick.md. Make a note, search them, rename or delete one, and follow
-// [[wiki links]] from one to another; everything autosaves.
+// (QuickNotes: ~/Documents/Notes/, one .md per note, grouped into
+// notebooks as subfolders). Make a note, search them, rename or delete
+// one, and follow [[wiki links]] from one to another; everything
+// autosaves. Export the current note as HTML and print it via lp.
+// Sync is a TODO (marked in the UI, never faked).
 // Readable by Chronoa too: each note is a plain .md file.
 import Quickshell
 import Quickshell.Wayland
@@ -24,9 +26,14 @@ ColumnLayout {
     property string newName: ""
     property string renameName: ""
     property bool renaming: false
+    property bool nbNewVisible: false
+    property bool nbRenaming: false
     readonly property var shown: {
-        const names = new Set(QuickNotes.search(query).map(n => n.name).concat(QuickNotes.contentHits));
-        return QuickNotes.notes.filter(n => names.has(n.name));
+        const ids = new Set(QuickNotes.search(query).map(n => n.id || n.name).concat(QuickNotes.contentHits));
+        let all = QuickNotes.notes.filter(n => ids.has(n.id || n.name) || ids.has(n.name));
+        if (Ui.notesNotebook !== "")
+            all = all.filter(n => (n.notebook || "") === Ui.notesNotebook);
+        return all;
     }
     readonly property var links: {
         const out = [];
@@ -69,9 +76,64 @@ ColumnLayout {
             Layout.fillWidth: true
             placeholder: Tr.t("Note name — Enter makes it")
             label: Tr.t("New note name")
-            onAccepted: { QuickNotes.create(text); text = ""; newRow.visible = false; }
+            onAccepted: { QuickNotes.create(text, Ui.notesNotebook || QuickNotes.currentNotebook); text = ""; newRow.visible = false; }
         }
         IconButton { icon: "window-close"; size: 28; tip: Tr.t("Cancel"); onClicked: newRow.visible = false }
+    }
+
+    // ---- notebooks (subfolders of Documents/Notes) ------------------------
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: 6
+        Text { text: Tr.t("Notebook"); color: Theme.faint; font.family: Theme.font; font.pixelSize: 10 * Theme.fontScale }
+        Choice { text: Tr.t("All"); selected: Ui.notesNotebook === ""; onClicked: Ui.notesNotebook = "" }
+        Repeater {
+            model: QuickNotes.notebooks
+            Choice {
+                required property string modelData
+                text: modelData
+                selected: Ui.notesNotebook === modelData
+                onClicked: Ui.notesNotebook = modelData
+            }
+        }
+        IconButton {
+            icon: "folder-open"
+            size: 26
+            tip: Tr.t("New notebook")
+            onClicked: { nbNewField.text = ""; root.nbNewVisible = !root.nbNewVisible; Qt.callLater(function() { nbNewField.forceActiveFocus(Qt.MouseFocusReason); }); }
+        }
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: 6
+        visible: root.nbNewVisible
+        TextField {
+            id: nbNewField
+            Layout.fillWidth: true
+            placeholder: Tr.t("Notebook name — Enter makes it")
+            label: Tr.t("New notebook name")
+            onAccepted: { QuickNotes.createNotebook(text); text = ""; root.nbNewVisible = false; }
+        }
+        IconButton { icon: "window-close"; size: 26; tip: Tr.t("Cancel"); onClicked: root.nbNewVisible = false }
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: 6
+        visible: (Ui.notesNotebook !== "" || QuickNotes.currentNotebook !== "") && !root.nbRenaming
+        Button { text: Tr.t("Rename notebook"); kind: "plain"; onClicked: { nbRenameField.text = Ui.notesNotebook || QuickNotes.currentNotebook; root.nbRenaming = true; Qt.callLater(function() { nbRenameField.forceActiveFocus(Qt.MouseFocusReason); }); } }
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: 6
+        visible: root.nbRenaming
+        TextField {
+            id: nbRenameField
+            Layout.fillWidth: true
+            placeholder: Tr.t("Rename notebook to…")
+            label: Tr.t("Rename notebook to")
+            onAccepted: { QuickNotes.renameNotebook(Ui.notesNotebook || QuickNotes.currentNotebook, text); if (text.trim() !== "") Ui.notesNotebook = QuickNotes.validNotebook(text); root.nbRenaming = false; }
+        }
+        IconButton { icon: "window-close"; size: 26; tip: Tr.t("Cancel"); onClicked: root.nbRenaming = false }
     }
 
     TextField {
@@ -93,9 +155,9 @@ ColumnLayout {
                 Layout.fillWidth: true
                 icon: "accessories-text-editor"
                 title: modelData.name
-                subtitle: QuickNotes.preview(modelData.name)
-                selected: modelData.name === QuickNotes.current
-                onClicked: QuickNotes.open(modelData.name)
+                subtitle: ((modelData.notebook || "") !== "" ? (modelData.notebook + " · ") : "") + QuickNotes.preview(modelData.name, modelData.notebook)
+                selected: modelData.name === QuickNotes.current && (modelData.notebook || "") === QuickNotes.currentNotebook
+                onClicked: QuickNotes.open(modelData.name, modelData.notebook)
             }
         }
     }
@@ -115,7 +177,7 @@ ColumnLayout {
             spacing: 8
             Text {
                 Layout.fillWidth: true
-                text: QuickNotes.current || Tr.t("Choose a note")
+                text: (QuickNotes.currentNotebook !== "" ? (QuickNotes.currentNotebook + "/") : "") + (QuickNotes.current || Tr.t("Choose a note"))
                 color: Theme.text
                 elide: Text.ElideRight
                 font.family: Theme.font
@@ -132,8 +194,55 @@ ColumnLayout {
                 icon: "edit-delete"
                 size: 26
                 tip: Tr.t("Delete this note")
-                onClicked: QuickNotes.remove(QuickNotes.current)
+                onClicked: QuickNotes.remove(QuickNotes.current, QuickNotes.currentNotebook)
             }
+            IconButton {
+                icon: "document-save"
+                size: 26
+                tip: Tr.t("Export this note as HTML")
+                onClicked: QuickNotes.exportHtml()
+            }
+            IconButton {
+                icon: "printer"
+                size: 26
+                tip: Tr.t("Print this note (lp)")
+                onClicked: QuickNotes.printNote()
+            }
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 6
+            visible: QuickNotes.lastExported !== ""
+            Text {
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignRight
+                text: QuickNotes.lastExported
+                color: Theme.faint
+                font.family: Theme.mono
+                font.pixelSize: 10 * Theme.fontScale
+                elide: Text.ElideLeft
+            }
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 6
+            visible: QuickNotes.lastPrinted !== ""
+            Text {
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignRight
+                text: Tr.t("Printed:") + " " + QuickNotes.lastPrinted
+                color: Theme.faint
+                font.family: Theme.font
+                font.pixelSize: 10 * Theme.fontScale
+                elide: Text.ElideLeft
+            }
+        }
+        Text {
+            Layout.fillWidth: true
+            text: QuickNotes.syncState + " — " + Tr.t("sync coming later")
+            color: Theme.faint
+            font.family: Theme.font
+            font.pixelSize: 10 * Theme.fontScale
         }
         RowLayout {
             id: renameRow
@@ -145,7 +254,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 placeholder: Tr.t("Rename to…")
                 label: Tr.t("Rename note to")
-                onAccepted: { QuickNotes.rename(QuickNotes.current, text); root.renaming = false; }
+                onAccepted: { QuickNotes.rename(QuickNotes.current, text, QuickNotes.currentNotebook); root.renaming = false; }
             }
             IconButton { icon: "window-close"; size: 26; tip: Tr.t("Cancel"); onClicked: { root.renaming = false; } }
         }

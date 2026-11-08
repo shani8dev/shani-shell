@@ -112,6 +112,20 @@ PanelWindow {
         else
             Quickshell.execDetached(["xdg-open", path]);
     }
+    function trimPath() {
+        const i = win.currentQueueIndex;
+        if (i >= 0 && win.queue[i] && win.queue[i].path)
+            return win.queue[i].path;
+        const url = (win.player && win.player.metadata && win.player.metadata["xesam:url"]) || "";
+        return url ? url.replace(/^file:\/\//, "") : "";
+    }
+    function openTrim() {
+        const p = win.trimPath();
+        if (p) {
+            Ui.closeAll();
+            Trim.open(p);
+        }
+    }
     function repeatLabel() {
         if (!win.player || !win.player.loopSupported)
             return Tr.t("Repeat not supported");
@@ -394,6 +408,11 @@ PanelWindow {
                     tip: Tr.t("Shuffle")
                     enabled: win.player ? (win.player.shuffleSupported && win.player.canControl) : false
                     onClicked: win.toggleShuffle()
+                }
+                Button {
+                    text: Tr.t("Trim")
+                    visible: win.trimPath() !== ""
+                    onClicked: win.openTrim()
                 }
             }
             Text {

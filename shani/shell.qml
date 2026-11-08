@@ -67,6 +67,8 @@ import qs.Modules.Logs
 import qs.Modules.VoiceRecorder
 import qs.Modules.Signed
 import qs.Modules.Disktree
+import qs.Modules.Aether
+import qs.Modules.Trim
 
 ShellRoot {
     Wallpaper {}
@@ -122,6 +124,8 @@ ShellRoot {
     LazyLoader { active: Ui.voiceRecorder; VoiceRecorderPanel {} }
     LazyLoader { active: Ui.signed; SignedPanel {} }
     LazyLoader { active: Ui.disktree; DisktreePanel {} }
+    LazyLoader { active: Ui.aether; AetherPanel {} }
+    LazyLoader { active: Ui.trim; TrimPanel {} }
     LazyLoader { active: Ui.characters; CharactersPanel {} }
     ModemDialog {}
     LazyLoader { active: Share.file !== ""; ShareSheet {} }
@@ -131,7 +135,7 @@ ShellRoot {
     Binding { target: Ui; property: "screen"; value: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0] }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, Signer, Disktree]
+    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, Signer, Disktree, Aether, Trim]
 
     IpcHandler {
         target: "shani"
@@ -163,7 +167,9 @@ ShellRoot {
             PdfViewer.close();
             Signer.close();
             Disktree.close();
+            Trim.close();
             Share.close();
+            Aether.close();
             Chronoa.open = false;
             if (Captions.on) Captions.start(Captions.source);   // toggles it off
             Notifs.clearAll();
@@ -188,6 +194,13 @@ ShellRoot {
         // session
         function lock() { Lock.lock(); }
         function themeReload() { Matugen.reload(); }
+        // Aether (Modules/Aether): theme extraction + application over Matugen
+        function themeFromImage(path: string) { Ui.closeAll(); Aether.open(path || ""); }
+        function aetherOpen(path: string) { Ui.closeAll(); Aether.open(path || ""); }
+        function aetherClose() { Aether.close(); }
+        function aetherExtract() { Aether.extract(); }
+        function aetherApply() { Aether.apply(); }
+        function aetherSaveTheme(name: string) { Aether.saveTheme(name); }
         function volumeUp() { Audio.stepKey(true); }
         function volumeDown() { Audio.stepKey(false); }
         function volumeMute() { Audio.toggleMute(); }
@@ -244,6 +257,22 @@ ShellRoot {
         function disktreeMark(path: string) { Disktree.toggleMark(path); }
         function disktreeClearMarks() { Disktree.clearMarks(); }
         function disktreeTrashMarked() { Disktree.trashMarked(); }
+        function voiceRecorderTrim(path: string, start: string, end: string) {
+            const s = parseFloat(start), e = parseFloat(end);
+            if (!path || !isFinite(s) || !isFinite(e))
+                return;
+            VoiceRecorder.openTrim(path);
+            VoiceRecorder.setTrimStart(s);
+            VoiceRecorder.setTrimEnd(e);
+            Trim.trimAudio(path, s, e);
+        }
+        // Omacut video trimmer: a file, or a folder's last video
+        function trimOpen(path: string) { Ui.closeAll(); Trim.open(path); }
+        function TrimOpen(path: string) { trimOpen(path); }
+        function trimClose() { Trim.close(); }
+        function trimToggle() { const was = Ui.trim; Ui.closeAll(); Ui.trim = !was; if (Ui.trim) Trim.open(""); }
+        function trimCut() { Trim.cut(); }
+        function TrimCut() { Trim.cut(); }
         function playerSeek(sec: string) { const p = Media.current; const v = parseFloat(sec); if (p && p.canSeek && isFinite(v)) p.position = Math.max(0, v); }
         function playerVolume(level: string) { const p = Media.current; const v = parseFloat(level); if (p && p.volumeSupported && p.canControl && isFinite(v)) p.volume = Math.max(0, Math.min(1, v)); }
         function playerShuffle() { const p = Media.current; if (p && p.shuffleSupported && p.canControl) p.shuffle = !p.shuffle; }
@@ -340,9 +369,17 @@ ShellRoot {
         function calculatorClear() { Calculator.clear(); }
         function calculatorCopy() { Calculator.copyResult(); }
         function calculatorConvert(value: string, from: string, to: string): string { const r = Calculator.convertUnit(value, from, to); return r ? r.text : ""; }
+        function calculatorFinancial(op: string, a: string, b: string, c: string, d: string): string { const v = Calculator.financial(op, a, b, c, d); return v === null || v === undefined ? "" : String(v); }
+        function calculatorProgramming(op: string, a: string, b: string): string { const o = String(op || "").toLowerCase(); if (o === "fromchar" || o === "charfromcode" || o === "codechar") return Calculator.codeToChar(a); if (o === "tobase") return Calculator.toBase(a, b); if (o === "frombase") { const v = Calculator.fromBase(a, b); return v === null ? "" : String(v); } if (o === "twos" || o === "twoscomplement" || o === "twos-complement") { const v = Calculator.twosComplement(a, b); return v === null ? "" : String(v); } if (o === "charcode" || o === "char" || o === "charcodeof") { const v = Calculator.charCode(a); return v === null ? "" : String(v); } const v = Calculator.programming(op, a, b); return v === null || v === undefined ? "" : String(v); }
         function calculatorRecall(idx: int) { Calculator.recallHistory(idx); }
         function calculatorMemory(op: string) { if (op === "mc") Calculator.memoryClear(); else if (op === "mr") Calculator.memoryRecall(); else if (op === "mplus") Calculator.memoryAdd(); else Calculator.memorySubtract(); }
         function calculatorHistoryClear() { Calculator.clearHistory(); }
+        function notesCreateNotebook(name: string) { QuickNotes.createNotebook(name); }
+        function notesRenameNotebook(oldName: string, newName: string) { QuickNotes.renameNotebook(oldName, newName); }
+        function notesCreate(name: string, notebook: string) { QuickNotes.create(name, notebook); }
+        function notesOpen(name: string, notebook: string) { QuickNotes.open(name, notebook); }
+        function notesExportHtml(): string { return QuickNotes.exportHtml(); }
+        function notesPrint(): string { return QuickNotes.printNote(); }
         function calendar() { const was = Ui.calendar; Ui.closeAll(); Ui.calendar = !was; }
         function calendarOpen() { Ui.closeAll(); Ui.calendar = true; }
         function calendarRefresh() { Agenda.refresh(); }
@@ -502,7 +539,7 @@ ShellRoot {
                 logs: Ui.logs,
                 timerLeft: FocusTimer.left,
                 weather: Weather.summary,
-                notes: QuickNotes.loaded, notesCount: QuickNotes.notes.length, notesCurrent: QuickNotes.current, notesLinks: QuickNotes.links(),
+                notes: QuickNotes.loaded, notesCount: QuickNotes.notes.length, notesCurrent: QuickNotes.current, notesLinks: QuickNotes.links(), notesNotebooks: QuickNotes.notebooks.join(" "), notesNotebook: QuickNotes.currentNotebook, notesExported: QuickNotes.lastExported, notesPrinted: QuickNotes.lastPrinted, notesSync: QuickNotes.syncState,
                 alarms: WorldClock.alarms.length, stopwatch: WorldClock.swDisplay,
                 characters: Ui.characters, characterLast: Characters.last,
                 forecast: Weather.forecast, hourly: Weather.hourly,
@@ -566,6 +603,7 @@ ShellRoot {
                 qrShown: Qr.shown, qrImage: Qr.image,
                 calculatorShown: Calculator.shown, calculatorDisplay: Calculator.display, calculatorResult: Calculator.result, calculatorPreview: Calculator.preview,
                 calculatorHistory: Calculator.history.map(h => h.expr + "=" + h.value), calculatorMemory: Calculator.memory,
+                calculatorBase: Calculator.base, calculatorWidth: Calculator.width, calculatorFin: Calculator.finResult, calculatorProg: Calculator.progResult, calculatorBin: Calculator.progBin, calculatorOct: Calculator.progOct, calculatorDec: Calculator.progDec, calculatorHex: Calculator.progHex, calculatorTwos: Calculator.twosResult, calculatorChar: Calculator.charResult,
                 calendarShown: Ui.calendar, calendarEvents: Agenda.events.length, calendarSearch: Agenda.search,
                 viewerShown: Viewer.shown, viewer: Ui.viewer, viewerFile: Viewer.file, viewerZoom: Viewer.zoom, viewerRotation: Viewer.rotation,
                 viewerSlideshow: Viewer.slideshow, viewerGrid: Viewer.gridMode, viewerThumbs: Viewer.showThumbs, viewerCopied: Viewer.lastCopied,
@@ -589,6 +627,9 @@ ShellRoot {
                 shareTargets: Share.targets.map(t => t.label), shareDone: Share.done,
                 cameras: Camera.cameras.length, cameraPhase: Camera.phase, cameraLast: Camera.last,
                 mapsShown: Ui.maps, mapsLat: Location.lat, mapsLon: Location.lon,
+                aetherShown: Ui.aether, aetherImage: Aether.image, aetherNote: Aether.note,
+                aetherPalette: Object.keys(Matugen.previewPalette || {}).length,
+                aetherThemes: (Settings.data.aetherThemes || []).length, aetherSaved: Aether.lastSaved,
                 inputMethod: Ime.current,
                 osk: Osk.shown,
                 dictation: Dictation.phase,
@@ -668,6 +709,8 @@ ShellRoot {
                 voiceRecorder: Ui.voiceRecorder, voiceRecording: VoiceRecorder.recording, voicePaused: VoiceRecorder.paused, voiceElapsed: VoiceRecorder.elapsed, voiceFiles: VoiceRecorder.recordings.length, voiceFile: VoiceRecorder.file, voiceLast: VoiceRecorder.last, voiceLevel: Math.round(VoiceRecorder.level * 100),
                 signed: Ui.signed, signedFile: Signer.file, signedName: Signer.name, signedSignature: Signer.signature, signedX: Signer.x, signedY: Signer.y, signedScale: Signer.scale, signedText: Signer.fillText, signedTextX: Signer.textX, signedTextY: Signer.textY, signedSaved: Signer.signedFile, signedLastSaved: Signer.lastSaved, signedSaving: Signer.saving,
                 disktree: Ui.disktree, disktreeRoot: Disktree.root, disktreeCurrent: Disktree.current, disktreeEntries: Disktree.entries.length, disktreeMarked: Disktree.markedCount, disktreeTotal: Disktree.totalSize, disktreeScanning: Disktree.scanning, disktreeLast: Disktree.last,
+                voiceRecorder: Ui.voiceRecorder, voiceRecording: VoiceRecorder.recording, voicePaused: VoiceRecorder.paused, voiceElapsed: VoiceRecorder.elapsed, voiceFiles: VoiceRecorder.recordings.length, voiceFile: VoiceRecorder.file, voiceLast: VoiceRecorder.last, voiceLevel: Math.round(VoiceRecorder.level * 100), voiceTrimFile: VoiceRecorder.trimFile, voiceTrimStart: VoiceRecorder.trimStart, voiceTrimEnd: VoiceRecorder.trimEnd, voiceTrimmed: VoiceRecorder.trimmedLast,
+                trim: Ui.trim, trimInput: Trim.input, trimStart: Trim.start, trimEnd: Trim.end, trimDuration: Trim.inputDuration, trimResult: Trim.result, trimCutting: Trim.cutting, trimError: Trim.error, trimAvailable: Trim.available, trimResultDuration: Trim.resultDuration,
                 smart: Smart.suggestion ? Smart.suggestion.text : "",
                 assistiveTouch: Settings.data.assistiveTouch,
                 castAvailable: Cast.available,

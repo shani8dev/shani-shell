@@ -190,6 +190,9 @@ Singleton {
             property int matugenSourceColor: 0                // 0-3
             // which apps receive the palette (only GTK is shipped in ShaniOS niri)
             property var matugenApps: []
+            // named themes saved from Aether (Modules/Aether): [{ name, image,
+            // palette, savedAt }] — palette is a snapshot of the matugen roles
+            property var aetherThemes: []
             // hooks: user scripts on shell events (noctalia-inspired)
             property var hooks: ({ enabled: false, wallpaperChange: "", darkModeChange: "", screenLock: "", screenUnlock: "", startup: "", colorGeneration: "", notificationRules: [] })
             // notification rules: filter/mute/block notifications (noctalia-inspired)

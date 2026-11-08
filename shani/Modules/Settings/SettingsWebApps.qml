@@ -52,7 +52,15 @@ ColumnLayout {
                             { n: "YouTube", u: "https://www.youtube.com" }, { n: "YouTube Music", u: "https://music.youtube.com" },
                             { n: "Google Docs", u: "https://docs.google.com" }, { n: "Outlook", u: "https://outlook.live.com" },
                             { n: "Microsoft Teams", u: "https://teams.microsoft.com" }, { n: "Netflix", u: "https://www.netflix.com" },
-                            { n: "Claude", u: "https://claude.ai" }]
+                            { n: "Claude", u: "https://claude.ai" }, { n: "ChatGPT", u: "https://chatgpt.com" },
+                            { n: "X (Twitter)", u: "https://x.com" }, { n: "Instagram", u: "https://www.instagram.com" },
+                            { n: "Facebook", u: "https://www.facebook.com" }, { n: "Reddit", u: "https://www.reddit.com" },
+                            { n: "Google Maps", u: "https://www.google.com/maps" },
+                            { n: "Amazon", u: "https://www.amazon.in" }, { n: "GitHub", u: "https://github.com" },
+                            { n: "Wikipedia", u: "https://en.wikipedia.org" },
+                            { n: "Perplexity", u: "https://www.perplexity.ai" },
+                            { n: "Google Drive", u: "https://drive.google.com" },
+                            { n: "Telegram", u: "https://web.telegram.org" }]
                     Choice {
                         required property var modelData
                         text: modelData.n

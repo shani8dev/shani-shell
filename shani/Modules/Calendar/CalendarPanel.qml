@@ -28,7 +28,8 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    onVisibleChanged: if (visible) Agenda.refresh()
+    onVisibleChanged: if (visible) { Agenda.refresh(); win.view = Ui.calendarView || "month"; }
+    Connections { target: Ui; function onCalendarViewChanged() { win.view = Ui.calendarView || "month"; } }
 
     MouseArea { anchors.fill: parent; onClicked: Ui.calendar = false }
     Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: { if (win.editor) win.closeEditor(); else Ui.calendar = false; } }
@@ -36,7 +37,11 @@ PanelWindow {
     property date today: new Date()
     property int offset: 0
     property date selectedDate: new Date()
+    // month view or week view: synced to Ui.calendarView so the CLI/shell
+    // and the surface agree
+    property string view: Ui.calendarView || "month"
     readonly property date month: new Date(today.getFullYear(), today.getMonth() + offset, 1)
+    readonly property date weekAnchor: new Date(today.getFullYear(), today.getMonth(), today.getDate() + (offset * 7))
     readonly property bool sundayFirst: Settings.data.weekStartsOn === "sunday"
     // blanks before the 1st, then the days; Monday-first or Sunday-first
     readonly property int lead: sundayFirst ? month.getDay() : (month.getDay() + 6) % 7
@@ -98,6 +103,26 @@ PanelWindow {
     }
     function selectDay(day) {
         selectedDate = new Date(month.getFullYear(), month.getMonth(), day);
+    }
+    function stepView(delta) {
+        if (view === "week")
+            offset += delta;
+        else
+            offset += delta;
+    }
+    readonly property string weekLabel: {
+        const a = new Date(weekAnchor.getFullYear(), weekAnchor.getMonth(), weekAnchor.getDate() - weekAnchor.getDay());
+        const b = new Date(a.getFullYear(), a.getMonth(), a.getDate() + 6);
+        return Qt.formatDate(a, "d MMM") + " – " + Qt.formatDate(b, "d MMM yyyy");
+    }
+    readonly property var weekEvents: {
+        const a = new Date(weekAnchor.getFullYear(), weekAnchor.getMonth(), weekAnchor.getDate() - weekAnchor.getDay());
+        const b = new Date(a.getFullYear(), a.getMonth(), a.getDate() + 7);
+        return Agenda.events.filter(e => { const s = new Date(e.start * 1000); return s >= a && s < b; });
+    }
+    function weekEventsForHour(col, hour) {
+        const a = new Date(weekAnchor.getFullYear(), weekAnchor.getMonth(), weekAnchor.getDate() - weekAnchor.getDay() + col);
+        return weekEvents.filter(e => new Date(e.start * 1000).getHours() === hour);
     }
 
     // ---- event editor ------------------------------------------------------
@@ -195,7 +220,7 @@ PanelWindow {
     Glass {
         id: card
         anchors.centerIn: parent
-        width: 440
+        width: win.view === "week" ? Math.min(760, parent.width - 80) : 440
         implicitHeight: Math.min(parent.height - 80, col.implicitHeight + 40)
         strong: true
         radius: Theme.radiusLarge
@@ -216,18 +241,27 @@ PanelWindow {
                     font.pixelSize: 15 * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
-                IconButton { icon: "view-refresh"; size: 28; tip: Tr.t("Refresh"); onClicked: Agenda.refresh() }
+                IconButton { icon: "view-refresh"; size: 28; tip: Tr.t("Refresh"); onClicked: { Agenda.refresh(); Agenda.refreshCalendars(); Agenda.refreshAccounts(); } }
                 IconButton { icon: "window-close"; size: 28; onClicked: Ui.calendar = false }
             }
 
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 6
-                IconButton { icon: "go-previous"; size: 28; tip: Tr.t("Previous month"); onClicked: win.stepMonth(-1) }
+                Choice { text: Tr.t("Month"); selected: win.view === "month"; onClicked: { Ui.calendarView = "month"; Agenda.refresh(); } }
+                Choice { text: Tr.t("Week"); selected: win.view === "week"; onClicked: { Ui.calendarView = "week"; Agenda.refresh(); } }
+                Item { Layout.fillWidth: true }
+                Choice { text: Tr.t("Today"); onClicked: win.goToday() }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 6
+                IconButton { icon: "go-previous"; size: 28; tip: win.view === "week" ? Tr.t("Previous week") : Tr.t("Previous month"); onClicked: win.stepView(-1) }
                 Text {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
-                    text: Qt.formatDate(win.month, "MMMM yyyy")
+                    text: win.view === "week" ? win.weekLabel : Qt.formatDate(win.month, "MMMM yyyy")
                     color: Theme.text
                     font.family: Theme.font
                     font.pixelSize: 14 * Theme.fontScale
@@ -237,10 +271,11 @@ PanelWindow {
                     MouseArea { anchors.fill: parent; onClicked: win.goToday() }
                     KeyFocus { onActivated: win.goToday() }
                 }
-                IconButton { icon: "go-next"; size: 28; tip: Tr.t("Next month"); onClicked: win.stepMonth(1) }
+                IconButton { icon: "go-next"; size: 28; tip: win.view === "week" ? Tr.t("Next week") : Tr.t("Next month"); onClicked: win.stepView(1) }
             }
 
             GridLayout {
+                visible: win.view === "month"
                 Layout.fillWidth: true
                 columns: win.weekNumbers ? 8 : 7
                 rowSpacing: 2
@@ -313,6 +348,195 @@ PanelWindow {
                 }
             }
 
+            // ---- week timetable: 7-day grid with hour rows -------------------
+            ColumnLayout {
+                visible: win.view === "week"
+                Layout.fillWidth: true
+                spacing: 4
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: 8
+                    rowSpacing: 2
+                    columnSpacing: 2
+                    Text {
+                        text: ""
+                        Layout.fillWidth: false
+                        Layout.preferredWidth: 44
+                        color: Theme.faint
+                        horizontalAlignment: Text.AlignHCenter
+                        font.family: Theme.font
+                        font.pixelSize: 10 * Theme.fontScale
+                    }
+                    Repeater {
+                        model: win.weekDays
+                        Rectangle {
+                            required property var modelData
+                            required property int index
+                            readonly property date dayDate: win.weekDays[index]
+                            readonly property bool isToday: win.isSameDay(dayDate, win.today)
+                            readonly property bool isSelected: win.isSameDay(dayDate, win.selectedDate)
+                            Layout.fillWidth: true
+                            implicitHeight: 34
+                            radius: 8
+                            color: isSelected ? Theme.accent : isToday ? Theme.accentSoft : "transparent"
+                            Accessible.role: Accessible.Button
+                            Accessible.name: Qt.formatDate(dayDate, "dddd d MMMM yyyy") + (isToday ? " (" + Tr.t("today") + ")" : "")
+                            Text {
+                                anchors.centerIn: parent
+                                text: Qt.formatDate(dayDate, "ddd d")
+                                color: isSelected ? Theme.accentInk : isToday ? Theme.accent : Theme.text
+                                font.family: Theme.font
+                                font.pixelSize: 11 * Theme.fontScale
+                                font.weight: isSelected || isToday ? Font.DemiBold : Font.Normal
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: win.selectWeekDay(parent.index)
+                            }
+                            KeyFocus { onActivated: win.selectWeekDay(parent.index) }
+                        }
+                    }
+                }
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: 8
+                    rowSpacing: 2
+                    columnSpacing: 2
+                    Text {
+                        text: Tr.t("All-day")
+                        Layout.preferredWidth: 44
+                        color: Theme.faint
+                        horizontalAlignment: Text.AlignHCenter
+                        font.family: Theme.font
+                        font.pixelSize: 10 * Theme.fontScale
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    Repeater {
+                        model: 7
+                        Rectangle {
+                            required property int index
+                            readonly property var _evs: win.allDayForDay(index)
+                            Layout.fillWidth: true
+                            implicitHeight: Math.max(22, _evs.length * 18 + 4)
+                            radius: 6
+                            color: "transparent"
+                            ColumnLayout {
+                                anchors.fill: parent
+                                spacing: 2
+                                Repeater {
+                                    model: parent._evs
+                                    Rectangle {
+                                        required property var modelData
+                                        Layout.fillWidth: true
+                                        implicitHeight: 16
+                                        radius: 4
+                                        color: Theme.accentSoft
+                                        Accessible.role: Accessible.Button
+                                        Accessible.name: modelData.summary
+                                        Text {
+                                            anchors.fill: parent
+                                            anchors.leftMargin: 4; anchors.rightMargin: 4
+                                            text: modelData.summary
+                                            color: Theme.text
+                                            elide: Text.ElideRight
+                                            verticalAlignment: Text.AlignVCenter
+                                            font.family: Theme.font
+                                            font.pixelSize: 9 * Theme.fontScale
+                                        }
+                                        MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.openEditor(modelData) }
+                                        KeyFocus { onActivated: win.openEditor(modelData) }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Flickable {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 200
+                    contentHeight: hourCol.implicitHeight
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    ColumnLayout {
+                        id: hourCol
+                        width: parent.width
+                        spacing: 0
+                        Repeater {
+                            model: 24
+                            RowLayout {
+                                required property int index
+                                readonly property int hour: index
+                                Layout.fillWidth: true
+                                spacing: 2
+                                Text {
+                                    Layout.preferredWidth: 44
+                                    Layout.fillWidth: false
+                                    text: (hour < 10 ? "0" : "") + hour + ":00"
+                                    color: Theme.faint
+                                    horizontalAlignment: Text.AlignHCenter
+                                    font.family: Theme.font
+                                    font.pixelSize: 10 * Theme.fontScale
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                                Repeater {
+                                    model: 7
+                                    Rectangle {
+                                        required property int index
+                                        readonly property var _evs: win.weekEventsForHour(index, parent.hour)
+                                        Layout.fillWidth: true
+                                        implicitHeight: Math.max(20, _evs.length * 16 + 2)
+                                        radius: 4
+                                        color: "transparent"
+                                        border.width: 1
+                                        border.color: Theme.stroke
+                                        ColumnLayout {
+                                            anchors.fill: parent
+                                            anchors.margins: 1
+                                            spacing: 1
+                                            Repeater {
+                                                model: parent._evs.slice(0, 2)
+                                                Rectangle {
+                                                    required property var modelData
+                                                    Layout.fillWidth: true
+                                                    implicitHeight: 14
+                                                    radius: 3
+                                                    color: Theme.accentSoft
+                                                    Accessible.role: Accessible.Button
+                                                    Accessible.name: modelData.summary + " " + Qt.formatTime(new Date(modelData.start * 1000), "HH:mm")
+                                                    Text {
+                                                        anchors.fill: parent
+                                                        anchors.leftMargin: 3; anchors.rightMargin: 3
+                                                        text: modelData.summary
+                                                        color: Theme.text
+                                                        elide: Text.ElideRight
+                                                        verticalAlignment: Text.AlignVCenter
+                                                        font.family: Theme.font
+                                                        font.pixelSize: 9 * Theme.fontScale
+                                                    }
+                                                    MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.openEditor(modelData) }
+                                                    KeyFocus { onActivated: win.openEditor(modelData) }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    horizontalAlignment: Text.AlignHCenter
+                    visible: win.weekEvents.length > 0
+                    text: Tr.t("%1 in this week").arg(win.weekEvents.length)
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 11 * Theme.fontScale
+                }
+            }
+
             Rectangle {
                 Layout.fillWidth: true
                 implicitHeight: 1
@@ -330,8 +554,15 @@ PanelWindow {
                     font.weight: Font.DemiBold
                 }
                 Text {
-                    visible: win.monthEvents.length > 0
+                    visible: win.view === "month" && win.monthEvents.length > 0
                     text: Tr.t("%1 in this month").arg(win.monthEvents.length)
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 11 * Theme.fontScale
+                }
+                Text {
+                    visible: win.view === "week" && win.weekEvents.length > 0
+                    text: Tr.t("%1 in this week").arg(win.weekEvents.length)
                     color: Theme.dim
                     font.family: Theme.font
                     font.pixelSize: 11 * Theme.fontScale
@@ -383,6 +614,147 @@ PanelWindow {
                 }
             }
 
+            // ---- calendars: enable/disable each EDS source -----------------
+            ColumnLayout {
+                visible: !win.editor
+                Layout.fillWidth: true
+                spacing: 6
+                RowLayout {
+                    Layout.fillWidth: true
+                    Text {
+                        Layout.fillWidth: true
+                        text: Tr.t("Calendars")
+                        color: Theme.text
+                        font.family: Theme.font
+                        font.pixelSize: 12 * Theme.fontScale
+                        font.weight: Font.DemiBold
+                    }
+                    Text {
+                        visible: Agenda.lastEnabled !== ""
+                        text: Agenda.lastEnabled
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: 10 * Theme.fontScale
+                    }
+                    IconButton { icon: "view-refresh"; size: 24; tip: Tr.t("Refresh calendars"); onClicked: { Agenda.refreshCalendars(); Agenda.refreshAccounts(); } }
+                }
+                ColumnLayout {
+                    visible: Agenda.calendars.length > 0
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Math.min(140, calList.implicitHeight + 4)
+                    spacing: 2
+                    clip: true
+                    ColumnLayout {
+                        id: calList
+                        Layout.fillWidth: true
+                        spacing: 2
+                        Repeater {
+                            model: Agenda.calendars
+                            SwitchRow {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                text: modelData.name + (modelData.account ? " · " + modelData.account : "")
+                                hint: modelData.enabled ? (modelData.writable ? Tr.t("shown in the grid and this list") : Tr.t("read-only")) : Tr.t("hidden from the grid")
+                                checked: !!modelData.enabled
+                                onToggled: on => Agenda.setCalendarEnabled(modelData.name, on)
+                            }
+                        }
+                    }
+                }
+                Text {
+                    visible: Agenda.calendarsAvailable && Agenda.calendars.length === 0
+                    Layout.fillWidth: true
+                    text: Tr.t("No calendars found — add one in Settings > Your account")
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 11 * Theme.fontScale
+                }
+                Text {
+                    visible: !Agenda.calendarsAvailable
+                    Layout.fillWidth: true
+                    text: Tr.t("Calendar service unavailable")
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 11 * Theme.fontScale
+                }
+                Text {
+                    visible: Agenda.calendarsAvailable && Agenda.calendars.length > 0
+                    Layout.fillWidth: true
+                    text: Tr.t("New events go to:")
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 11 * Theme.fontScale
+                }
+                Flow {
+                    visible: Agenda.calendarsAvailable && Agenda.calendars.length > 0
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Choice { text: Tr.t("First enabled"); selected: Ui.calendarSelected === ""; onClicked: { Ui.calendarSelected = ""; Agenda.selectedCalendar = ""; } }
+                    Repeater {
+                        model: win.enabledCalendars
+                        Choice {
+                            required property var modelData
+                            text: modelData.name
+                            selected: Ui.calendarSelected === modelData.name
+                            onClicked: { Ui.calendarSelected = modelData.name; Agenda.selectedCalendar = modelData.name; }
+                        }
+                    }
+                }
+            }
+
+            // ---- online accounts: presentation only -------------------------
+            ColumnLayout {
+                visible: !win.editor
+                Layout.fillWidth: true
+                spacing: 6
+                Text {
+                    Layout.fillWidth: true
+                    text: Tr.t("Online calendars")
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: 12 * Theme.fontScale
+                    font.weight: Font.DemiBold
+                }
+                ColumnLayout {
+                    visible: Agenda.accounts.length > 0
+                    Layout.fillWidth: true
+                    spacing: 2
+                    Repeater {
+                        model: Agenda.accounts
+                        ListRow {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            icon: "x-office-calendar"
+                            title: modelData.name
+                            subtitle: (modelData.calendars || []).join(", ")
+                            trailing: modelData.enabled ? Tr.t("enabled") : Tr.t("off")
+                        }
+                    }
+                }
+                Text {
+                    visible: Agenda.accounts.length === 0 && Agenda.calendarsAvailable
+                    Layout.fillWidth: true
+                    text: Tr.t("No online accounts — local calendars only")
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 11 * Theme.fontScale
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: Tr.t("Online calendars sync through GNOME Settings accounts. Adding one opens GNOME Settings accounts; CalDAV sync is not implemented in this shell.")
+                    color: Theme.dim
+                    wrapMode: Text.WordWrap
+                    font.family: Theme.font
+                    font.pixelSize: 11 * Theme.fontScale
+                }
+                Button {
+                    Layout.fillWidth: true
+                    text: Tr.t("Open account settings")
+                    kind: "outline"
+                    onClicked: Agenda.openAccountSettings()
+                }
+            }
+
             // ---- create / edit / delete form -------------------------------
             ColumnLayout {
                 visible: win.editor
@@ -408,6 +780,31 @@ PanelWindow {
                     Layout.fillWidth: true
                     placeholder: Tr.t("Location")
                     label: Tr.t("Location")
+                }
+                // the calendar this event belongs to: fixed when editing,
+                // chosen (Ui.calendarSelected) when new
+                Flow {
+                    visible: !win.editingEvent
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Choice { text: Tr.t("First enabled"); selected: Ui.calendarSelected === ""; onClicked: { Ui.calendarSelected = ""; Agenda.selectedCalendar = ""; } }
+                    Repeater {
+                        model: win.enabledCalendars
+                        Choice {
+                            required property var modelData
+                            text: modelData.name
+                            selected: Ui.calendarSelected === modelData.name
+                            onClicked: { Ui.calendarSelected = modelData.name; Agenda.selectedCalendar = modelData.name; }
+                        }
+                    }
+                }
+                Text {
+                    visible: win.editingEvent !== null && win.editingEvent.calendar !== undefined
+                    Layout.fillWidth: true
+                    text: Tr.t("Calendar: %1").arg(win.editingEvent ? win.editingEvent.calendar : "")
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 11 * Theme.fontScale
                 }
                 RowLayout {
                     Layout.fillWidth: true
