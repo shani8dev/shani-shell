@@ -32,9 +32,19 @@ Singleton {
     property bool viewer: false
     property bool pdfReader: false
     property bool calendar: false            // the Calendar surface (Modules/Calendar)
+    property var calendarSelected: null      // selected day (Calendar surface)
     property bool maps: false                // the Maps surface (Modules/Maps)
+    property var calendarView: ""           // calendar view mode (month/week)
+    property real mapsZoom: 14              // maps zoom level
+    property real mapsLat: 0                // maps centre (persisted place)
+    property real mapsLon: 0
+    property string mapsPlace: ""           // maps search result label
+    property string mapsQuery: ""           // maps search box
     property bool aether: false              // the Aether theme extractor (Modules/Aether)
     property bool contacts: false            // the Contacts surface (Modules/Contacts)
+    property string notesNotebook: ""        // notebook filter (SidebarNotes)
+    property string calculatorTab: "standard" // the Calculator tab (Modules/Calculator): standard | scientific | financial | programming | converter
+    property string notesNotebook: ""         // the notes notebook filter (SidebarNotes): "" = all notebooks, else a notebook name
     property bool annotate: false                  // drawing on the screen
     property int annotateStrokes: 0
     property var printersSeen: []                  // Settings > Printers, for the tests
