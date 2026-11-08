@@ -41,6 +41,13 @@ Singleton {
     property string mapsPlace: ""           // maps search result label
     property string mapsQuery: ""           // maps search box
     property bool aether: false              // the Aether theme extractor (Modules/Aether)
+    property bool textEditor: false         // the TextEditor surface (Modules/TextEditor)
+    property bool localSend: false          // the LocalSend surface (Modules/LocalSend): nearby-device file transfer
+    property bool scanner: false           // the Scanner surface (Modules/Scanner)
+    property bool secrets: false           // the Secrets surface (Modules/Secrets)
+    property bool kundali: false          // the Kundali/Panchang surface (Modules/Kundali)
+    property bool videoPlayer: false      // the VideoPlayer surface (Modules/VideoPlayer)
+    property bool notes: false               // the Notes surface (Modules/Notes): notebooks + wiki links
     property bool contacts: false            // the Contacts surface (Modules/Contacts)
     property string notesNotebook: ""        // notebook filter (SidebarNotes)
     property string calculatorTab: "standard" // the Calculator tab (Modules/Calculator): standard | scientific | financial | programming | converter
@@ -156,6 +163,13 @@ Singleton {
         calendar = false;
         maps = false;
         aether = false;
+        textEditor = false;
+        localSend = false;
+        scanner = false;
+        secrets = false;
+        kundali = false;
+        videoPlayer = false;
+        notes = false;
         layoutSwitcher = false;
         expanded = "";
         dockFocus = false;

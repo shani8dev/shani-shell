@@ -65,6 +65,13 @@ import qs.Modules.Calculator as CalcMod
 import qs.Modules.Calendar as CalMod
 import qs.Modules.Logs
 import qs.Modules.VoiceRecorder
+import qs.Modules.Notes
+import qs.Modules.TextEditor
+import qs.Modules.VideoPlayer
+import qs.Modules.Scanner
+import qs.Modules.Secrets
+import qs.Modules.Kundali
+import qs.Modules.LocalSend
 import qs.Modules.Signed
 import qs.Modules.Disktree
 import qs.Modules.Aether
@@ -122,6 +129,13 @@ ShellRoot {
     LazyLoader { active: Ui.player; Player {} }
     LazyLoader { active: Ui.fonts; FontsPanel {} }
     LazyLoader { active: Ui.voiceRecorder; VoiceRecorderPanel {} }
+    LazyLoader { active: Ui.notes; NotesPanel {} }
+    LazyLoader { active: Ui.textEditor; TextEditorPanel {} }
+    LazyLoader { active: Ui.videoPlayer; VideoPlayerPanel {} }
+    LazyLoader { active: Ui.scanner; ScannerPanel {} }
+    LazyLoader { active: Ui.secrets; SecretsPanel {} }
+    LazyLoader { active: Ui.kundali; KundaliPanel {} }
+    LazyLoader { active: Ui.localSend; LocalSendPanel {} }
     LazyLoader { active: Ui.signed; SignedPanel {} }
     LazyLoader { active: Ui.disktree; DisktreePanel {} }
     LazyLoader { active: Ui.aether; AetherPanel {} }
@@ -233,6 +247,28 @@ ShellRoot {
         function voiceRecorderOpen() { Ui.closeAll(); Ui.voiceRecorder = true; VoiceRecorder.refresh(); }
         function voiceRecorderClose() { Ui.voiceRecorder = false; }
         function voiceRecorderToggle() { const was = Ui.voiceRecorder; Ui.closeAll(); Ui.voiceRecorder = !was; if (Ui.voiceRecorder) VoiceRecorder.refresh(); }
+        function notesOpen() { Ui.closeAll(); Ui.notes = true; QuickNotes.refresh(); if (QuickNotes.current === "") { if (QuickNotes.notes.length > 0) QuickNotes.open(QuickNotes.notes[0].name, QuickNotes.notes[0].notebook); else QuickNotes.create("Untitled", ""); } }
+        function notesClose() { Ui.notes = false; }
+        function notesRefresh() { QuickNotes.refresh(); }
+        function notesToggle() { const was = Ui.notes; Ui.closeAll(); Ui.notes = !was; if (Ui.notes) { QuickNotes.refresh(); if (QuickNotes.current === "") { if (QuickNotes.notes.length > 0) QuickNotes.open(QuickNotes.notes[0].name, QuickNotes.notes[0].notebook); else QuickNotes.create("Untitled", ""); } } }
+        function textEditorOpen(path: string) { Ui.closeAll(); Ui.textEditor = true; }
+        function textEditorClose() { Ui.textEditor = false; }
+        function textEditorToggle() { const was = Ui.textEditor; Ui.closeAll(); Ui.textEditor = !was; }
+        function videoPlayerOpen(path: string) { Ui.closeAll(); Ui.videoPlayer = true; }
+        function videoPlayerClose() { Ui.videoPlayer = false; }
+        function videoPlayerToggle() { const was = Ui.videoPlayer; Ui.closeAll(); Ui.videoPlayer = !was; }
+        function scannerOpen() { Ui.closeAll(); Ui.scanner = true; }
+        function scannerClose() { Ui.scanner = false; }
+        function scannerToggle() { const was = Ui.scanner; Ui.closeAll(); Ui.scanner = !was; }
+        function secretsOpen() { Ui.closeAll(); Ui.secrets = true; }
+        function secretsClose() { Ui.secrets = false; }
+        function secretsToggle() { const was = Ui.secrets; Ui.closeAll(); Ui.secrets = !was; }
+        function kundaliOpen() { Ui.closeAll(); Ui.kundali = true; }
+        function kundaliClose() { Ui.kundali = false; }
+        function localSendOpen() { Ui.closeAll(); Ui.localSend = true; }
+        function localSendClose() { Ui.localSend = false; }
+        function localSendToggle() { const was = Ui.localSend; Ui.closeAll(); Ui.localSend = !was; }
+        function kundaliToggle() { const was = Ui.kundali; Ui.closeAll(); Ui.kundali = !was; }
         function voiceRecorderRecord() { VoiceRecorder.start(); }
         function voiceRecorderPause() { VoiceRecorder.togglePause(); }
         function voiceRecorderStop() { VoiceRecorder.stop(); }
@@ -707,6 +743,7 @@ ShellRoot {
                 callRecording: CallRecorder.recording,
                 callFile: CallRecorder.file,
                 voiceRecorder: Ui.voiceRecorder, voiceRecording: VoiceRecorder.recording, voicePaused: VoiceRecorder.paused, voiceElapsed: VoiceRecorder.elapsed, voiceFiles: VoiceRecorder.recordings.length, voiceFile: VoiceRecorder.file, voiceLast: VoiceRecorder.last, voiceLevel: Math.round(VoiceRecorder.level * 100),
+                notes: Ui.notes, textEditor: Ui.textEditor, videoPlayer: Ui.videoPlayer, scanner: Ui.scanner, secrets: Ui.secrets, kundali: Ui.kundali,
                 signed: Ui.signed, signedFile: Signer.file, signedName: Signer.name, signedSignature: Signer.signature, signedX: Signer.x, signedY: Signer.y, signedScale: Signer.scale, signedText: Signer.fillText, signedTextX: Signer.textX, signedTextY: Signer.textY, signedSaved: Signer.signedFile, signedLastSaved: Signer.lastSaved, signedSaving: Signer.saving,
                 disktree: Ui.disktree, disktreeRoot: Disktree.root, disktreeCurrent: Disktree.current, disktreeEntries: Disktree.entries.length, disktreeMarked: Disktree.markedCount, disktreeTotal: Disktree.totalSize, disktreeScanning: Disktree.scanning, disktreeLast: Disktree.last,
                 voiceRecorder: Ui.voiceRecorder, voiceRecording: VoiceRecorder.recording, voicePaused: VoiceRecorder.paused, voiceElapsed: VoiceRecorder.elapsed, voiceFiles: VoiceRecorder.recordings.length, voiceFile: VoiceRecorder.file, voiceLast: VoiceRecorder.last, voiceLevel: Math.round(VoiceRecorder.level * 100), voiceTrimFile: VoiceRecorder.trimFile, voiceTrimStart: VoiceRecorder.trimStart, voiceTrimEnd: VoiceRecorder.trimEnd, voiceTrimmed: VoiceRecorder.trimmedLast,
