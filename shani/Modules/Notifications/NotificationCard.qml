@@ -37,6 +37,15 @@ Glass {
     readonly property string appSymbolic: notification && notification.appIcon && appIcon === ""
         && Quickshell.iconPath(notification.appIcon + "-symbolic", true) !== "" ? notification.appIcon : ""
     readonly property string picture: notification && notification.image && !hideContent ? notification.image : ""
+    // Shani Link's call/text notifications arrive here with their buttons
+    // already on them - missed_call.py posts "Call back" / "Message",
+    // incoming_call.py posts Answer / Decline, map_notify.py offers the
+    // inline Reply field - and NotificationCard renders every action
+    // generically below, so the panel needs nothing of its own.
+    // TODO (verified trivial path): no panel buttons to add - the buttons
+    // come from Shani Link's notify path (dev.shani.Link) and flow through
+    // the NotificationServer above; only the SIM modem's texts are posted
+    // by this shell (Services/Modem.qml, Reply / Copy-code via notify-send).
     readonly property var actions: notification ? notification.actions.filter(a => a.identifier !== "default") : []
     signal done()
 

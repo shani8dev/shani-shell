@@ -219,6 +219,15 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("install", ["PATH"], "install a font file into ~/.local/share/fonts and refresh fontconfig"),
         ("copy", ["FAMILY"], "copy a font family name"),
     ],
+    "phone": [
+        ("open", [], "open Phone (dial pad)"),
+        ("dial", ["NUMBER"], "open the dial pad with a number (nothing is dialled until Call is pressed)"),
+        ("recent", [], "open recent calls"),
+    ],
+    "messages": [
+        ("open", [], "open Messages"),
+        ("compose", ["NUMBER"], "open Messages addressed to a number"),
+    ],
 }
 
 
@@ -509,6 +518,11 @@ def _register() -> None:
         ("fonts", "open"): "toggleFonts",
         ("fonts", "install"): "fontInstall",
         ("fonts", "copy"): "fontCopy",
+        ("phone", "open"): "phoneOpen",
+        ("phone", "dial"): "phoneOpen",
+        ("phone", "recent"): "recentCalls",
+        ("messages", "open"): "messagesOpen",
+        ("messages", "compose"): "messagesOpen",
     }
     IPC_NAMES.update(table)
 

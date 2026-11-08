@@ -271,6 +271,28 @@ ShellRoot {
         function dynamicLockAway() { DynamicLock.away(); }
         function share(path: string) { Ui.closeAll(); Share.open(path); }
         function textMessage(to: string) { Ui.closeAll(); Ui.smsTo = to; Ui.modemDialog = "sms"; }
+        // Shani Link Phone / Messages (Services/Phone, the external app).
+        // `phoneOpen` / `messagesOpen` take an optional number - called with
+        // none, the pad/composer opens empty; called with one, it is prefilled
+        // and nothing is dialled or sent until the person presses Call / Send.
+        function phoneOpen(number: string) {
+            Ui.closeAll();
+            Ui.phonePage = "phone";
+            Ui.phoneNumber = (number || "").trim();
+            Phone.openDial(Ui.phoneNumber);
+        }
+        function messagesOpen(number: string) {
+            Ui.closeAll();
+            Ui.phonePage = "messages";
+            Ui.phoneNumber = (number || "").trim();
+            Phone.openMessages(Ui.phoneNumber);
+        }
+        function recentCalls() {
+            Ui.closeAll();
+            Ui.phonePage = "recent";
+            Ui.phoneNumber = "";
+            Phone.openRecentCalls();
+        }
         function qr(title: string, text: string) { Ui.closeAll(); Qr.show(title, text); }
         function calculator() { Ui.closeAll(); Calculator.toggle(); }
         function calculatorOpen(expr: string) { Ui.closeAll(); if (expr) { Calculator.clear(); Calculator.display = expr; } Calculator.open(); }
@@ -518,7 +540,7 @@ ShellRoot {
                 agenda: Agenda.events.map(e => e.summary),
                 modem: Modem.modem ? Modem.modem.state + "/" + (Modem.modem.locked || "unlocked") + "/" + Modem.modem.operator : "",
                 modemCall: Modem.call ? Modem.call.state + ":" + Modem.call.number : "",
-                modemDialog: Ui.modemDialog,
+                modemDialog: Ui.modemDialog, phonePage: Ui.phonePage, phoneNumber: Ui.phoneNumber,
                 dynamicLocks: DynamicLock.locks, dynamicLockDevice: DynamicLock.address,
                 automationsFired: Automations.fired,
                 language: Tr.lang, sampleWord: Tr.t("Notifications"),
