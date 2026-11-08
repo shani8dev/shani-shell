@@ -21,8 +21,8 @@ Singleton {
     property bool windowMenu: false
     property bool processes: false
     property bool logs: false                  // the Logs surface (Modules/Logs)
-    property bool player: false
-    property bool fonts: false
+    property bool player: false  // the Player surface (Modules/Player): queue, seek, volume, lyrics
+    property bool fonts: false  // the Fonts surface (Modules/Fonts): preview, size, install
     property bool characters: false        // the Characters panel (Modules/Characters)
     property bool magnifier: false
     property bool viewer: false

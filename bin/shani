@@ -70,6 +70,11 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("stop", [], "stop playback"),
         ("next-player", [], "follow the next player"),
         ("panel", [], "open or close the player surface"),
+        ("seek", ["SECONDS"], "seek to SECONDS in the current track"),
+        ("volume", ["LEVEL"], "set the current player's volume (0..1)"),
+        ("shuffle", [], "toggle shuffle on the current player"),
+        ("repeat", [], "cycle repeat off → playlist → track"),
+        ("open", ["PATH"], "open a file in the current player"),
     ],
     "windows": [
         ("list", [], "list windows as JSON"),
@@ -204,6 +209,11 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("sidebar", [], "toggle thumbnails sidebar"),
         ("print", [], "print the PDF via lp"),
         ("outline-go-to", ["INDEX"], "go to an outline bookmark"),
+    ],
+    "fonts": [
+        ("open", [], "open or close the font browser"),
+        ("install", ["PATH"], "install a font file into ~/.local/share/fonts and refresh fontconfig"),
+        ("copy", ["FAMILY"], "copy a font family name"),
     ],
 }
 
@@ -371,6 +381,8 @@ def _register() -> None:
         ("media", "stop"): "media",
         ("media", "next-player"): "nextPlayer",
         ("media", "panel"): "togglePlayer",
+
+        ("media", "seek"): "playerSeek",
         ("media", "volume"): "playerVolume",
         ("media", "shuffle"): "playerShuffle",
         ("media", "repeat"): "playerRepeat",
@@ -486,6 +498,9 @@ def _register() -> None:
         ("pdf", "sidebar"): "pdfSidebar",
         ("pdf", "print"): "pdfPrint",
         ("pdf", "outline-go-to"): "pdfOutlineGoTo",
+        ("fonts", "open"): "toggleFonts",
+        ("fonts", "install"): "fontInstall",
+        ("fonts", "copy"): "fontCopy",
     }
     IPC_NAMES.update(table)
 

@@ -205,6 +205,28 @@ ShellRoot {
         function togglePlayer() { const was = Ui.player; Ui.closeAll(); Ui.player = !was; }
         function toggleFonts() { const was = Ui.fonts; Ui.closeAll(); Ui.fonts = !was; }
         function toggleCharacters() { const was = Ui.characters; Ui.closeAll(); Ui.characters = !was; }
+        function playerSeek(sec: string) { const p = Media.current; const v = parseFloat(sec); if (p && p.canSeek && isFinite(v)) p.position = Math.max(0, v); }
+        function playerVolume(level: string) { const p = Media.current; const v = parseFloat(level); if (p && p.volumeSupported && p.canControl && isFinite(v)) p.volume = Math.max(0, Math.min(1, v)); }
+        function playerShuffle() { const p = Media.current; if (p && p.shuffleSupported && p.canControl) p.shuffle = !p.shuffle; }
+        function playerRepeat() {
+            const p = Media.current;
+            if (!p || !p.loopSupported || !p.canControl) return;
+            if (p.loopState === MprisLoopState.None) p.loopState = MprisLoopState.Playlist;
+            else if (p.loopState === MprisLoopState.Playlist) p.loopState = MprisLoopState.Track;
+            else p.loopState = MprisLoopState.None;
+        }
+        function playerOpen(path: string) {
+            const p = Media.current;
+            if (!path) return;
+            const uri = path.startsWith("file://") ? path : "file://" + encodeURI(path);
+            if (p && p.openUri) p.openUri(uri);
+            else Quickshell.execDetached(["xdg-open", path]);
+        }
+        function fontInstall(path: string) {
+            if (!path) return;
+            Quickshell.execDetached(["sh", "-c", 'dest="${XDG_DATA_HOME:-$HOME/.local/share}/fonts"; mkdir -p "$dest" && cp -- "$1" "$dest/" && fc-cache -f >/dev/null 2>&1', "sh", path]);
+        }
+        function fontCopy(family: string) { if (family) Quickshell.clipboardText = family; }
         function weather(city: string) { Settings.data.weatherLat = 0; Settings.data.weatherLon = 0; Settings.data.weatherCity = city; }
         function weatherForecast(): string { return JSON.stringify({ city: Settings.data.weatherCity, forecast: Weather.forecast, hourly: Weather.hourly, summary: Weather.summary }); }
         function setting(key: string, value: string) { Settings.data[key] = value === "true" ? true : value === "false" ? false : value; }
@@ -565,6 +587,12 @@ ShellRoot {
                 magnifier: Ui.magnifier,
                 player: Ui.player,
                 fonts: Ui.fonts,
+                playerVolume: Media.current && Media.current.volumeSupported ? Math.round(Media.current.volume * 100) : -1,
+                playerShuffle: Media.current ? Media.current.shuffle : false,
+                playerLoop: Media.current ? Media.current.loopState : -1,
+                playerPosition: Media.current ? Math.round(Media.current.position) : -1,
+                playerLength: Media.current ? Math.round(Media.current.length) : -1,
+                playerSeekable: Media.current ? Media.current.canSeek : false,
                 callRecording: CallRecorder.recording,
                 callFile: CallRecorder.file,
                 smart: Smart.suggestion ? Smart.suggestion.text : "",
