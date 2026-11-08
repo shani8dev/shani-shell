@@ -22,6 +22,37 @@ Singleton {
     readonly property string elapsed: Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0")
     readonly property string photosDir: (Quickshell.env("XDG_PICTURES_DIR") || Quickshell.env("HOME") + "/Pictures") + "/Camera"
     readonly property string videosDir: (Quickshell.env("XDG_VIDEOS_DIR") || Quickshell.env("HOME") + "/Videos") + "/Camera"
+    property bool open: false               // the Camera surface (Modules/Camera)
+    property int selected: -1               // camera index; -1 = first
+    property string mode: "photo"           // photo | video
+    property var gallery: []                // [{ path, name, when }] newest-first
+
+    function shutter() {
+        if (mode === "photo") photo();
+        else video();
+    }
+    function openViewfinder() {
+        if (Quickshell.env("SHANI_NO_VIEWFINDER")) return;
+        Quickshell.execDetached(["sh", "-c", 'command -v qcam >/dev/null && exec qcam ${1:+-c $1}; exec flatpak run org.gnome.Snapshot', "sh", selected >= 0 ? String(selected) : ""]);
+    }
+    function openCamera() { refresh(); open = true; }
+    function closeCamera() { open = false; }
+    function scanGallery() { scanProc.running = true; }
+    Process {
+        id: scanProc
+        command: ["sh", "-c", 'for d in "$1" "$2"; do [ -d "$d" ] && ls -t "$d" 2>/dev/null | sed "s|^|$d/|"; done | head -40', "sh", root.photosDir, root.videosDir]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const out = [];
+                text.split("\n").forEach(p => { if (p.trim()) out.push({ path: p, name: p.split("/").pop(), when: isoOf(p) }); });
+                root.gallery = out;
+            }
+        }
+    }
+    function isoOf(path) {
+        try { return Qt.formatDateTime(new Date(path.split("/").pop().replace(/.png$|.webm$/,"")), "yyyy-MM-dd hh:mm:ss"); }
+        catch (e) { return ""; }
+    }
 
     function refresh() { list.running = true; }
     function stamp() { return Qt.formatDateTime(new Date(), "yyyy-MM-dd hh-mm-ss"); }
@@ -120,10 +151,9 @@ PY
     }
     Timer { running: root.phase === "recording"; interval: 1000; repeat: true; onTriggered: root.seconds++ }
 
-    // the live viewfinder
-    // the viewfinder: GNOME Snapshot (a Flatpak in the image; photos, video,
-    // QR codes), libcamera's qcam without it
-    function open() {
+    // the legacy Snapshot Flatpak launcher (kept for the handoff; the shell
+    // camera surface is Modules/Camera, and its live preview is qcam)
+    function openApp() {
         Quickshell.execDetached(["sh", "-c", "flatpak info org.gnome.Snapshot >/dev/null 2>&1 && exec flatpak run org.gnome.Snapshot; exec qcam"]);
     }
 

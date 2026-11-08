@@ -49,6 +49,7 @@ import qs.Modules.Tour
 import qs.Modules.QrView
 import qs.Modules.Viewer as ViewerMod
 import qs.Modules.PdfReader
+import qs.Modules.Camera
 import qs.Modules.Player
 import qs.Modules.Fonts
 import qs.Modules.Characters
@@ -110,6 +111,7 @@ ShellRoot {
     LazyLoader { active: Ui.calendar; CalMod.CalendarPanel {} }
     LazyLoader { active: Viewer.shown; ViewerMod.Viewer {} }
     LazyLoader { active: PdfViewer.shown; PdfReader {} }
+    LazyLoader { active: Camera.open; CameraPanel {} }
     LazyLoader { active: Ui.player; Player {} }
     LazyLoader { active: Ui.fonts; FontsPanel {} }
     LazyLoader { active: Ui.characters; CharactersPanel {} }
@@ -259,6 +261,11 @@ ShellRoot {
         }
         function displayKeep() { Displays.keep(); }
         function photo() { Camera.photo(); }
+        function cameraOpen() { Ui.closeAll(); Camera.openCamera(); }
+        function cameraClose() { Camera.closeCamera(); }
+        function cameraShutter() { Camera.shutter(); }
+        function cameraViewfinder() { Camera.openViewfinder(); }
+        function cameraRefresh() { Camera.refresh(); }
         function tour() { Ui.closeAll(); Ui.tour = true; }
         function agendaRefresh() { Agenda.refresh(); }
         function dynamicLockAway() { DynamicLock.away(); }
