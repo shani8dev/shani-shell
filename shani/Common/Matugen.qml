@@ -66,6 +66,68 @@ Singleton {
         ship.running = true;
     }
     function reload() { _ensure(); }   // `qs -c shani ipc call shani themeReload`
+    // themeReload regenerates from the current wallpaper file only (root.wallpaper
+    // above): matugen has no "any image" entry point here. Aether's Extract runs
+    // the *same* `matugen wall <image> --config … --mode … --type … --contrast …
+    // --source-color-index …` invocation as `run`, for an explicit picture and
+    // with an isolated config/output, so the live palette (colors.json) is not
+    // clobbered until Apply. No new extractor: same binary, same template
+    // (tplColors below), same scheme/contrast/source-color from Settings.
+    property var previewPalette: ({})
+    property string previewSource: ""
+    property bool previewRunning: false
+    property string previewError: ""
+    readonly property string previewFile: dir + "/aether-preview.json"
+    readonly property string previewConfig: dir + "/aether-preview.toml"
+
+    function previewFor(path) {
+        const src = path || root.wallpaper;
+        if (!root.available) {
+            root.previewRunning = false;
+            root.previewPalette = {};
+            root.previewError = "matugen is not installed — Aether needs it to extract colours";
+            return;
+        }
+        if (!src) {
+            root.previewRunning = false;
+            root.previewError = "No wallpaper is set — pick a picture first";
+            return;
+        }
+        root.previewSource = src;
+        root.previewRunning = true;
+        root.previewError = "";
+        // ship the template, then a minimal colors-only config pointing at the
+        // preview file (no GTK writes: previewing must not repaint anything)
+        let s = "mkdir -p '" + root.tplDir + "'; "
+            + "w(){ d=$(dirname \"$1\"); mkdir -p \"$d\"; "
+            + "printf %s \"$2\" | base64 -d > \"$1.w\"; "
+            + "if [ -f \"$1\" ] && cmp -s \"$1.w\" \"$1\"; then rm \"$1.w\"; else mv \"$1.w\" \"$1\"; fi; }; ";
+        s += "w '" + root.tplDir + "/colors.json.tpl' " + Qt.btoa(root.tplColors) + "; ";
+        s += "w '" + root.previewConfig + "' " + Qt.btoa("[config]\n\n[templates.colors]\ninput_path = '" + root.tplDir + "/colors.json.tpl'\noutput_path = '" + root.previewFile + "'\n") + "; ";
+        s += "rm -f '" + root.previewFile + "'; ";
+        // $1 is the picture (command arg), so its path never fights shell quoting
+        s += "matugen wall \"$1\" --config '" + root.previewConfig + "' --mode '" + root.mode
+            + "' --type '" + Settings.data.matugenScheme + "' --contrast '" + String(Settings.data.matugenContrast)
+            + "' --source-color-index '" + String(Settings.data.matugenSourceColor) + "'";
+        preview.command = ["sh", "-c", s, "sh", src];
+        preview.running = true;
+    }
+
+    Process {
+        id: preview
+        running: false
+        onExited: code => {
+            root.previewRunning = false;
+            if (code === 0) {
+                root.previewError = "";
+                previewReader.reload();
+                root._previewAbsorb();
+            } else {
+                root.previewPalette = {};
+                root.previewError = "matugen could not read this picture (" + root.previewSource + ")";
+            }
+        }
+    }
     // reactivity: the toggle, wallpaper choice, style flip, app membership and scheme options
     readonly property var _watch: [
         Settings.data.adaptivePalette, Settings.data.darkMode,
@@ -226,6 +288,30 @@ Singleton {
         onFileChanged: root._absorb()
         onLoaded: root._absorb()
     }
+    // the preview's result file: same flat JSON as colors.json, absorbed into
+    // previewPalette instead of the live palette (Aether exhibits it)
+    FileView {
+        id: previewReader
+        path: root.previewFile
+        printErrors: false
+        blockLoading: false
+        watchChanges: true
+        onFileChanged: root._previewAbsorb()
+        onLoaded: root._previewAbsorb()
+    }
+    function _previewAbsorb() {
+        const text = previewReader.text();
+        if (!text)
+            return;   // no run yet (or a failed one): keep the previous preview
+        try {
+            const o = JSON.parse(text);
+            const split = o[root.mode];
+            root.previewPalette = (split && typeof split === "object") ? split : o;
+        } catch (e) {
+            // half-written or broken: the Process exit code already reported it
+        }
+    }
+
     // flat JSON (as shipped); a {dark:{},light:{}} shape is tolerated
     function _absorb() {
         const text = reader.text();

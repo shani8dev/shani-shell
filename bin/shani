@@ -261,6 +261,14 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("clear", [], "clear all marks"),
         ("trash", [], "move the marked paths to the trash (gio trash)"),
     ],
+    "aether": [
+        ("theme-from-image", ["PATH"], "open Aether with a picture and extract its colours"),
+        ("open", [], "open Aether (last wallpaper)"),
+        ("extract", [], "extract the palette preview from the current picture"),
+        ("apply", [], "apply as wallpaper + colours"),
+        ("save", ["NAME"], "save the palette as a named theme"),
+        ("close", [], "close Aether"),
+    ],
 }
 
 
@@ -583,6 +591,12 @@ def _register() -> None:
         ("disktree", "mark"): "disktreeMark",
         ("disktree", "clear"): "disktreeClearMarks",
         ("disktree", "trash"): "disktreeTrashMarked",
+        ("aether", "open"): "themeFromImage",
+        ("aether", "theme-from-image"): "themeFromImage",
+        ("aether", "close"): "aetherClose",
+        ("aether", "extract"): "aetherExtract",
+        ("aether", "apply"): "aetherApply",
+        ("aether", "save"): "aetherSaveTheme",
     }
     IPC_NAMES.update(table)
 
