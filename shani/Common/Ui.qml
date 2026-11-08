@@ -20,8 +20,8 @@ Singleton {
     property bool switcher: false
     property bool windowMenu: false
     property bool processes: false
-    property bool player: false
-    property bool fonts: false
+    property bool player: false  // the Player surface (Modules/Player): queue, seek, volume, lyrics
+    property bool fonts: false  // the Fonts surface (Modules/Fonts): preview, size, install
     property bool magnifier: false
     property bool calendar: false            // the Calendar surface (Modules/Calendar)
     property bool annotate: false                  // drawing on the screen
