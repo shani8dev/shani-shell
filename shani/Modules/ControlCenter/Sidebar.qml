@@ -110,6 +110,9 @@ PanelWindow {
                 // ---- calendar --------------------------------------------------
                 SidebarCalendar { Layout.fillWidth: true; sidebarClock: clock }
 
+                // ---- alarms & stopwatch ---------------------------------------
+                SidebarClock { Layout.fillWidth: true }
+
                 // ---- now playing ------------------------------------------------
                 SidebarNowPlaying { Layout.fillWidth: true; sidebar: win; visible: win.player !== null }
 
