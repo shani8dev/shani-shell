@@ -242,6 +242,12 @@ PanelWindow {
                             }
                         }
                         IconButton {
+                            icon: "edit-cut"
+                            size: 30
+                            tip: Tr.t("Trim take")
+                            onClicked: VoiceRecorder.openTrim(row.modelData.path)
+                        }
+                        IconButton {
                             icon: "edit-delete"
                             size: 30
                             tip: Tr.t("Move to trash")
@@ -254,6 +260,77 @@ PanelWindow {
                         z: -1
                         onClicked: VoiceRecorder.play(row.modelData.path)
                     }
+                }
+            }
+
+            // Monologue-style take trim: two sliders on the take, then a
+            // trimmed copy (*.trimmed.opus) via the Trim service's audio
+            // branch (ffmpeg re-encodes libopus).
+            ColumnLayout {
+                Layout.fillWidth: true
+                visible: VoiceRecorder.trimFile !== ""
+                spacing: 6
+                SectionTitle { Layout.fillWidth: true; text: Tr.t("Trim take") }
+                Text {
+                    Layout.fillWidth: true
+                    text: VoiceRecorder.trimFile.split("/").pop()
+                    color: Theme.dim
+                    elide: Text.ElideMiddle
+                    font.family: Theme.mono
+                    font.pixelSize: 10 * Theme.fontScale
+                }
+                SliderRow {
+                    Layout.fillWidth: true
+                    icon: "go-previous"
+                    value: VoiceRecorder.trimDuration > 0 ? VoiceRecorder.trimStart / VoiceRecorder.trimDuration : 0
+                    onMoved: v => VoiceRecorder.setTrimStart(v * (VoiceRecorder.trimDuration > 0 ? VoiceRecorder.trimDuration : 60))
+                }
+                SliderRow {
+                    Layout.fillWidth: true
+                    icon: "go-next"
+                    value: VoiceRecorder.trimDuration > 0 ? (VoiceRecorder.trimEnd > 0 ? VoiceRecorder.trimEnd : VoiceRecorder.trimDuration) / VoiceRecorder.trimDuration : 0
+                    onMoved: v => VoiceRecorder.setTrimEnd(v * (VoiceRecorder.trimDuration > 0 ? VoiceRecorder.trimDuration : 60))
+                }
+                Text {
+                    Layout.fillWidth: true
+                    horizontalAlignment: Text.AlignHCenter
+                    text: VoiceRecorder.trimDuration > 0
+                        ? Tr.t("Selection %1 – %2").arg(Trim.fmt(VoiceRecorder.trimStart)).arg(Trim.fmt(VoiceRecorder.trimEnd > 0 ? VoiceRecorder.trimEnd : VoiceRecorder.trimDuration))
+                        : Tr.t("Duration unknown — drag the sliders")
+                    color: Theme.faint
+                    font.family: Theme.mono
+                    font.pixelSize: 10 * Theme.fontScale
+                }
+                RowLayout {
+                    Layout.alignment: Qt.AlignHCenter
+                    spacing: 8
+                    Button { text: "-1s"; onClicked: VoiceRecorder.setTrimStart(VoiceRecorder.trimStart - 1) }
+                    Button { text: "+1s"; onClicked: VoiceRecorder.setTrimStart(VoiceRecorder.trimStart + 1) }
+                }
+                Button {
+                    Layout.alignment: Qt.AlignHCenter
+                    text: Tr.t("Save trimmed copy")
+                    kind: "primary"
+                    enabled: VoiceRecorder.trimFile !== "" && !Trim.cutting
+                    onClicked: VoiceRecorder.saveTrimmedCopy()
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: VoiceRecorder.trimError !== ""
+                    text: VoiceRecorder.trimError
+                    color: Theme.red
+                    horizontalAlignment: Text.AlignHCenter
+                    font.family: Theme.font
+                    font.pixelSize: 11 * Theme.fontScale
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: VoiceRecorder.trimmedLast !== ""
+                    text: VoiceRecorder.trimmedLast
+                    color: Theme.text
+                    elide: Text.ElideMiddle
+                    font.family: Theme.mono
+                    font.pixelSize: 10 * Theme.fontScale
                 }
             }
 

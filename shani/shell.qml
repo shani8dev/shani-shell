@@ -65,6 +65,7 @@ import qs.Modules.Calculator as CalcMod
 import qs.Modules.Calendar as CalMod
 import qs.Modules.Logs
 import qs.Modules.VoiceRecorder
+import qs.Modules.Trim
 
 ShellRoot {
     Wallpaper {}
@@ -118,6 +119,7 @@ ShellRoot {
     LazyLoader { active: Ui.player; Player {} }
     LazyLoader { active: Ui.fonts; FontsPanel {} }
     LazyLoader { active: Ui.voiceRecorder; VoiceRecorderPanel {} }
+    LazyLoader { active: Ui.trim; TrimPanel {} }
     LazyLoader { active: Ui.characters; CharactersPanel {} }
     ModemDialog {}
     LazyLoader { active: Share.file !== ""; ShareSheet {} }
@@ -127,7 +129,7 @@ ShellRoot {
     Binding { target: Ui; property: "screen"; value: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0] }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder]
+    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, Trim]
 
     IpcHandler {
         target: "shani"
@@ -157,6 +159,7 @@ ShellRoot {
             Calculator.close();
             Viewer.close();
             PdfViewer.close();
+            Trim.close();
             Share.close();
             Chronoa.open = false;
             if (Captions.on) Captions.start(Captions.source);   // toggles it off
@@ -218,6 +221,22 @@ ShellRoot {
         function voiceRecorderPause() { VoiceRecorder.togglePause(); }
         function voiceRecorderStop() { VoiceRecorder.stop(); }
         function voiceRecorderPlay(path: string) { VoiceRecorder.play(path); }
+        function voiceRecorderTrim(path: string, start: string, end: string) {
+            const s = parseFloat(start), e = parseFloat(end);
+            if (!path || !isFinite(s) || !isFinite(e))
+                return;
+            VoiceRecorder.openTrim(path);
+            VoiceRecorder.setTrimStart(s);
+            VoiceRecorder.setTrimEnd(e);
+            Trim.trimAudio(path, s, e);
+        }
+        // Omacut video trimmer: a file, or a folder's last video
+        function trimOpen(path: string) { Ui.closeAll(); Trim.open(path); }
+        function TrimOpen(path: string) { trimOpen(path); }
+        function trimClose() { Trim.close(); }
+        function trimToggle() { const was = Ui.trim; Ui.closeAll(); Ui.trim = !was; if (Ui.trim) Trim.open(""); }
+        function trimCut() { Trim.cut(); }
+        function TrimCut() { Trim.cut(); }
         function playerSeek(sec: string) { const p = Media.current; const v = parseFloat(sec); if (p && p.canSeek && isFinite(v)) p.position = Math.max(0, v); }
         function playerVolume(level: string) { const p = Media.current; const v = parseFloat(level); if (p && p.volumeSupported && p.canControl && isFinite(v)) p.volume = Math.max(0, Math.min(1, v)); }
         function playerShuffle() { const p = Media.current; if (p && p.shuffleSupported && p.canControl) p.shuffle = !p.shuffle; }
@@ -639,7 +658,8 @@ ShellRoot {
                 playerSeekable: Media.current ? Media.current.canSeek : false,
                 callRecording: CallRecorder.recording,
                 callFile: CallRecorder.file,
-                voiceRecorder: Ui.voiceRecorder, voiceRecording: VoiceRecorder.recording, voicePaused: VoiceRecorder.paused, voiceElapsed: VoiceRecorder.elapsed, voiceFiles: VoiceRecorder.recordings.length, voiceFile: VoiceRecorder.file, voiceLast: VoiceRecorder.last, voiceLevel: Math.round(VoiceRecorder.level * 100),
+                voiceRecorder: Ui.voiceRecorder, voiceRecording: VoiceRecorder.recording, voicePaused: VoiceRecorder.paused, voiceElapsed: VoiceRecorder.elapsed, voiceFiles: VoiceRecorder.recordings.length, voiceFile: VoiceRecorder.file, voiceLast: VoiceRecorder.last, voiceLevel: Math.round(VoiceRecorder.level * 100), voiceTrimFile: VoiceRecorder.trimFile, voiceTrimStart: VoiceRecorder.trimStart, voiceTrimEnd: VoiceRecorder.trimEnd, voiceTrimmed: VoiceRecorder.trimmedLast,
+                trim: Ui.trim, trimInput: Trim.input, trimStart: Trim.start, trimEnd: Trim.end, trimDuration: Trim.inputDuration, trimResult: Trim.result, trimCutting: Trim.cutting, trimError: Trim.error, trimAvailable: Trim.available, trimResultDuration: Trim.resultDuration,
                 smart: Smart.suggestion ? Smart.suggestion.text : "",
                 assistiveTouch: Settings.data.assistiveTouch,
                 castAvailable: Cast.available,

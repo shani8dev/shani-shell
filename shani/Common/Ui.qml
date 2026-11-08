@@ -25,6 +25,7 @@ Singleton {
     property bool fonts: false  // the Fonts surface (Modules/Fonts): preview, size, install
     property bool characters: false        // the Characters panel (Modules/Characters)
     property bool voiceRecorder: false     // the Voice Recorder panel (Modules/VoiceRecorder)
+    property bool trim: false              // the Omacut trimmer (Modules/Trim)
     property bool magnifier: false
     property bool viewer: false
     property bool pdfReader: false
@@ -133,6 +134,7 @@ Singleton {
         fonts = false;
         characters = false;
         voiceRecorder = false;
+        trim = false;
         magnifier = false;
         annotate = false;
         controlCenter = false;
