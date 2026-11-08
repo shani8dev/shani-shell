@@ -27,6 +27,7 @@ Singleton {
     property bool voiceRecorder: false     // the Voice Recorder panel (Modules/VoiceRecorder)
     property bool signed: false            // the Signed panel (Modules/Signed): sign / fill a PDF
     property bool disktree: false          // the Disktree panel (Modules/Disktree): disk treemap
+    property bool trim: false              // the Omacut trimmer (Modules/Trim)
     property bool magnifier: false
     property bool viewer: false
     property bool pdfReader: false
@@ -138,6 +139,7 @@ Singleton {
         voiceRecorder = false;
         signed = false;
         disktree = false;
+        trim = false;
         magnifier = false;
         annotate = false;
         controlCenter = false;

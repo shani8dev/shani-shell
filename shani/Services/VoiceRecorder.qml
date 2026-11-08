@@ -210,6 +210,82 @@ while True:
             Quickshell.execDetached(["xdg-open", path]);
     }
 
+    // ---- Monologue-style take trim ---------------------------------------
+    // Two offsets on the take itself, cut through the Trim service's audio
+    // branch (ffmpeg re-encodes libopus, no -c copy) as *.trimmed.opus
+    // beside the original.
+    property string trimFile: ""            // the take being trimmed, "" when none
+    property real trimStart: 0
+    property real trimEnd: 0
+    property real trimDuration: 0           // ffprobe seconds for the take
+    property string trimmedLast: ""         // the *.trimmed.opus written
+    property string trimError: ""
+    function trimmedPathFor(p) {
+        return (p || "").replace(/\.opus$/i, "") + ".trimmed.opus";   // *.trimmed.opus beside the original
+    }
+    function openTrim(path) {
+        trimFile = path || "";
+        trimStart = 0;
+        trimEnd = 0;
+        trimDuration = 0;
+        trimmedLast = "";
+        trimError = "";
+        if (trimFile)
+            Trim.setInput(trimFile);
+    }
+    function setTrimStart(v) {
+        v = parseFloat(v);
+        if (!isFinite(v))
+            return;
+        trimStart = Math.max(0, v);
+        if (trimDuration > 0)
+            trimStart = Math.min(trimStart, trimDuration);
+        if (trimEnd > 0 && trimStart >= trimEnd)
+            trimStart = Math.max(0, trimEnd - 0.1);
+    }
+    function setTrimEnd(v) {
+        v = parseFloat(v);
+        if (!isFinite(v))
+            return;
+        v = Math.max(trimStart + 0.1, v);
+        if (trimDuration > 0)
+            v = Math.min(v, trimDuration);
+        trimEnd = v;
+    }
+    function saveTrimmedCopy() {
+        if (!trimFile || Trim.cutting)
+            return;
+        const out = trimmedPathFor(trimFile);
+        const s = trimStart, e = trimDuration > 0 && trimEnd <= 0 ? trimDuration : trimEnd;
+        if (e <= s) {
+            trimError = Tr.t("End must be after start");
+            return;
+        }
+        trimError = "";
+        trimmedLast = "";
+        Trim.trimAudio(trimFile, s, e);
+        // trimmedLast is set on Trim's completion (Connections below);
+        // the output name is deterministic, so the check there suffices.
+    }
+    Connections {
+        target: Trim
+        function onResultChanged() {
+            if (Trim.result && Trim.result === root.trimmedPathFor(root.trimFile))
+                root.trimmedLast = Trim.result;
+        }
+        function onInputDurationChanged() {
+            if (Trim.input === root.trimFile) {
+                root.trimDuration = Trim.inputDuration;
+                if (root.trimEnd <= 0 && Trim.inputDuration > 0)
+                    root.trimEnd = Trim.inputDuration;
+            }
+        }
+        function onErrorChanged() {
+            if (Trim.error)
+                root.trimError = Trim.error;
+        }
+    }
+
     Process {
         running: true
         command: ["sh", "-c", "command -v pw-record"]

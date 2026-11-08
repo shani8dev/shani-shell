@@ -133,6 +133,7 @@ PanelWindow {
                         spacing: 6
                         Choice { text: "Open folder"; onClicked: Qt.openUrlExternally("file://" + (Camera.last ? Camera.last.substring(0, Camera.last.lastIndexOf("/")) : Camera.photosDir)); }
                         Choice { text: "Copy path"; onClicked: Quickshell.clipboardText = Camera.last; }
+                        Choice { text: "Trim video"; visible: Camera.last.endsWith(".webm"); onClicked: { const p = Camera.last; Camera.closeCamera(); Trim.open(p); } }
                     }
                 }
             }
