@@ -65,6 +65,8 @@ import qs.Modules.Calculator as CalcMod
 import qs.Modules.Calendar as CalMod
 import qs.Modules.Logs
 import qs.Modules.VoiceRecorder
+import qs.Modules.Signed
+import qs.Modules.Disktree
 
 ShellRoot {
     Wallpaper {}
@@ -118,6 +120,8 @@ ShellRoot {
     LazyLoader { active: Ui.player; Player {} }
     LazyLoader { active: Ui.fonts; FontsPanel {} }
     LazyLoader { active: Ui.voiceRecorder; VoiceRecorderPanel {} }
+    LazyLoader { active: Ui.signed; SignedPanel {} }
+    LazyLoader { active: Ui.disktree; DisktreePanel {} }
     LazyLoader { active: Ui.characters; CharactersPanel {} }
     ModemDialog {}
     LazyLoader { active: Share.file !== ""; ShareSheet {} }
@@ -127,7 +131,7 @@ ShellRoot {
     Binding { target: Ui; property: "screen"; value: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0] }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder]
+    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, Signer, Disktree]
 
     IpcHandler {
         target: "shani"
@@ -157,6 +161,8 @@ ShellRoot {
             Calculator.close();
             Viewer.close();
             PdfViewer.close();
+            Signer.close();
+            Disktree.close();
             Share.close();
             Chronoa.open = false;
             if (Captions.on) Captions.start(Captions.source);   // toggles it off
@@ -218,6 +224,26 @@ ShellRoot {
         function voiceRecorderPause() { VoiceRecorder.togglePause(); }
         function voiceRecorderStop() { VoiceRecorder.stop(); }
         function voiceRecorderPlay(path: string) { VoiceRecorder.play(path); }
+        // Signed: sign / fill a PDF (arg or a folder's last PDF)
+        function signedOpen(path: string) { Signer.open(path); }
+        function signedClose() { Signer.close(); }
+        function signedToggle(path: string) { Signer.toggle(path); }
+        function signedSave() { Signer.save(); }
+        function signedSignature(path: string) { Signer.setSignature(path); }
+        function signedPosition(x: string, y: string) { Signer.setPosition(x, y); }
+        function signedScale(scale: string) { Signer.setScale(scale); }
+        function signedText(text: string) { Signer.setFillText(text); }
+        function signedTextPosition(x: string, y: string) { Signer.setTextPosition(x, y); }
+        // Disktree: disk treemap (default home), walk in, mark, trash
+        function disktreeOpen(path: string) { Disktree.open(path); }
+        function disktreeClose() { Disktree.close(); }
+        function disktreeToggle() { Disktree.toggle(); }
+        function disktreeScan(path: string) { if (path) Disktree.scan(path); else Disktree.refresh(); }
+        function disktreeEnter(path: string) { Disktree.enter(path); }
+        function disktreeBack() { Disktree.back(); }
+        function disktreeMark(path: string) { Disktree.toggleMark(path); }
+        function disktreeClearMarks() { Disktree.clearMarks(); }
+        function disktreeTrashMarked() { Disktree.trashMarked(); }
         function playerSeek(sec: string) { const p = Media.current; const v = parseFloat(sec); if (p && p.canSeek && isFinite(v)) p.position = Math.max(0, v); }
         function playerVolume(level: string) { const p = Media.current; const v = parseFloat(level); if (p && p.volumeSupported && p.canControl && isFinite(v)) p.volume = Math.max(0, Math.min(1, v)); }
         function playerShuffle() { const p = Media.current; if (p && p.shuffleSupported && p.canControl) p.shuffle = !p.shuffle; }
@@ -640,6 +666,8 @@ ShellRoot {
                 callRecording: CallRecorder.recording,
                 callFile: CallRecorder.file,
                 voiceRecorder: Ui.voiceRecorder, voiceRecording: VoiceRecorder.recording, voicePaused: VoiceRecorder.paused, voiceElapsed: VoiceRecorder.elapsed, voiceFiles: VoiceRecorder.recordings.length, voiceFile: VoiceRecorder.file, voiceLast: VoiceRecorder.last, voiceLevel: Math.round(VoiceRecorder.level * 100),
+                signed: Ui.signed, signedFile: Signer.file, signedName: Signer.name, signedSignature: Signer.signature, signedX: Signer.x, signedY: Signer.y, signedScale: Signer.scale, signedText: Signer.fillText, signedTextX: Signer.textX, signedTextY: Signer.textY, signedSaved: Signer.signedFile, signedLastSaved: Signer.lastSaved, signedSaving: Signer.saving,
+                disktree: Ui.disktree, disktreeRoot: Disktree.root, disktreeCurrent: Disktree.current, disktreeEntries: Disktree.entries.length, disktreeMarked: Disktree.markedCount, disktreeTotal: Disktree.totalSize, disktreeScanning: Disktree.scanning, disktreeLast: Disktree.last,
                 smart: Smart.suggestion ? Smart.suggestion.text : "",
                 assistiveTouch: Settings.data.assistiveTouch,
                 castAvailable: Cast.available,

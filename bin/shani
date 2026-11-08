@@ -239,6 +239,28 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("open", [], "open Messages"),
         ("compose", ["NUMBER"], "open Messages addressed to a number"),
     ],
+    "signed": [
+        ("open", ["PATH"], "open a PDF (or a folder, for its last PDF) in Signed"),
+        ("close", [], "close the Signed panel"),
+        ("toggle", ["PATH"], "open or close Signed"),
+        ("save", [], "save the signed copy (* - signed.pdf beside the original)"),
+        ("signature", ["PATH"], "set the signature image"),
+        ("position", ["X", "Y"], "place the signature at X/Y"),
+        ("scale", ["SCALE"], "scale the signature (1.0 = 100%)"),
+        ("text", ["TEXT"], "set the fill text to render onto the page"),
+        ("text-position", ["X", "Y"], "place the fill text at X/Y"),
+    ],
+    "disktree": [
+        ("open", [], "open the Disktree treemap (default home)"),
+        ("close", [], "close the Disktree panel"),
+        ("toggle", [], "open or close Disktree"),
+        ("scan", ["PATH"], "scan a directory root"),
+        ("enter", ["PATH"], "walk into a directory"),
+        ("back", [], "go back up a directory"),
+        ("mark", ["PATH"], "mark a path for removal (toggle)"),
+        ("clear", [], "clear all marks"),
+        ("trash", [], "move the marked paths to the trash (gio trash)"),
+    ],
 }
 
 
@@ -543,6 +565,24 @@ def _register() -> None:
         ("phone", "recent"): "recentCalls",
         ("messages", "open"): "messagesOpen",
         ("messages", "compose"): "messagesOpen",
+        ("signed", "open"): "signedOpen",
+        ("signed", "close"): "signedClose",
+        ("signed", "toggle"): "signedToggle",
+        ("signed", "save"): "signedSave",
+        ("signed", "signature"): "signedSignature",
+        ("signed", "position"): "signedPosition",
+        ("signed", "scale"): "signedScale",
+        ("signed", "text"): "signedText",
+        ("signed", "text-position"): "signedTextPosition",
+        ("disktree", "open"): "disktreeOpen",
+        ("disktree", "close"): "disktreeClose",
+        ("disktree", "toggle"): "disktreeToggle",
+        ("disktree", "scan"): "disktreeScan",
+        ("disktree", "enter"): "disktreeEnter",
+        ("disktree", "back"): "disktreeBack",
+        ("disktree", "mark"): "disktreeMark",
+        ("disktree", "clear"): "disktreeClearMarks",
+        ("disktree", "trash"): "disktreeTrashMarked",
     }
     IPC_NAMES.update(table)
 
