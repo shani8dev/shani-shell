@@ -29,6 +29,7 @@ Singleton {
     property bool viewer: false
     property bool pdfReader: false
     property bool calendar: false            // the Calendar surface (Modules/Calendar)
+    property bool maps: false                // the Maps surface (Modules/Maps)
     property bool contacts: false            // the Contacts surface (Modules/Contacts)
     property bool annotate: false                  // drawing on the screen
     property int annotateStrokes: 0
@@ -136,6 +137,7 @@ Singleton {
         annotate = false;
         controlCenter = false;
         calendar = false;
+        maps = false;
         layoutSwitcher = false;
         expanded = "";
         dockFocus = false;

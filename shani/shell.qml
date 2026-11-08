@@ -49,6 +49,7 @@ import qs.Modules.Tour
 import qs.Modules.QrView
 import qs.Modules.Viewer as ViewerMod
 import qs.Modules.PdfReader
+import qs.Modules.Maps
 import qs.Modules.Camera
 import qs.Modules.Player
 import qs.Modules.Fonts
@@ -113,6 +114,7 @@ ShellRoot {
     LazyLoader { active: Viewer.shown; ViewerMod.Viewer {} }
     LazyLoader { active: PdfViewer.shown; PdfReader {} }
     LazyLoader { active: Camera.open; CameraPanel {} }
+    LazyLoader { active: Ui.maps; MapsPanel {} }
     LazyLoader { active: Ui.player; Player {} }
     LazyLoader { active: Ui.fonts; FontsPanel {} }
     LazyLoader { active: Ui.voiceRecorder; VoiceRecorderPanel {} }
@@ -271,6 +273,8 @@ ShellRoot {
         function displayKeep() { Displays.keep(); }
         function photo() { Camera.photo(); }
         function cameraOpen() { Ui.closeAll(); Camera.openCamera(); }
+        function maps() { Ui.closeAll(); Ui.maps = true; }
+        function mapsRefresh() { Location.refresh(); }
         function cameraClose() { Camera.closeCamera(); }
         function cameraShutter() { Camera.shutter(); }
         function cameraViewfinder() { Camera.openViewfinder(); }
@@ -558,6 +562,7 @@ ShellRoot {
                 annotate: Ui.annotate, annotateStrokes: Ui.annotateStrokes,
                 shareTargets: Share.targets.map(t => t.label), shareDone: Share.done,
                 cameras: Camera.cameras.length, cameraPhase: Camera.phase, cameraLast: Camera.last,
+                mapsShown: Ui.maps, mapsLat: Location.lat, mapsLon: Location.lon,
                 inputMethod: Ime.current,
                 osk: Osk.shown,
                 dictation: Dictation.phase,
