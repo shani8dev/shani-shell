@@ -140,7 +140,7 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("whatsnew", [], "check what's new"),
     ],
     "calculator": [
-        ("open", [], "open the calculator (standard/scientific/converter)"),
+        ("open", [], "open the calculator (standard/scientific/financial/programming/converter)"),
         ("close", [], "close the calculator"),
         ("press", ["KEY"], "press a calculator key (digit, operator, function)"),
         ("equals", [], "evaluate the calculator expression"),
@@ -150,6 +150,8 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("history-clear", [], "clear the calculation history"),
         ("memory", ["OP"], "memory op: mc | mr | mplus | mminus"),
         ("convert", ["VALUE", "FROM", "TO"], "convert units, e.g. `convert 100 mm km`"),
+        ("financial", ["OP", "A", "B", "C", "D"], "financial op fv|pv|rate|sl|ddb, e.g. `financial fv 1000 0.05 3 0`"),
+        ("programming", ["OP", "A", "B"], "programming op and|or|xor|not|shl|shr|tobase|frombase|twos|charcode|fromchar, e.g. `programming and 5 3`"),
     ],
     "calendar": [
         ("open", [], "open the shell calendar surface"),

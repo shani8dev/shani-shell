@@ -603,6 +603,7 @@ ShellRoot {
                 qrShown: Qr.shown, qrImage: Qr.image,
                 calculatorShown: Calculator.shown, calculatorDisplay: Calculator.display, calculatorResult: Calculator.result, calculatorPreview: Calculator.preview,
                 calculatorHistory: Calculator.history.map(h => h.expr + "=" + h.value), calculatorMemory: Calculator.memory,
+                calculatorBase: Calculator.base, calculatorWidth: Calculator.width, calculatorFin: Calculator.finResult, calculatorProg: Calculator.progResult, calculatorBin: Calculator.progBin, calculatorOct: Calculator.progOct, calculatorDec: Calculator.progDec, calculatorHex: Calculator.progHex, calculatorTwos: Calculator.twosResult, calculatorChar: Calculator.charResult,
                 calendarShown: Ui.calendar, calendarEvents: Agenda.events.length, calendarSearch: Agenda.search,
                 viewerShown: Viewer.shown, viewer: Ui.viewer, viewerFile: Viewer.file, viewerZoom: Viewer.zoom, viewerRotation: Viewer.rotation,
                 viewerSlideshow: Viewer.slideshow, viewerGrid: Viewer.gridMode, viewerThumbs: Viewer.showThumbs, viewerCopied: Viewer.lastCopied,
