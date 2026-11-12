@@ -79,9 +79,13 @@ ColumnLayout {
                 Icon { name: Weather.icon; size: 14; color: Theme.dim; anchors.verticalCenter: parent.verticalCenter }
                 Text {
                     text: Weather.summary + "  ·  " + (Settings.data.weatherCity || Tr.t("here"))
-                    color: Theme.dim
+                    color: weatherArea.containsMouse ? Theme.text : Theme.dim
                     font.family: Theme.font
                     font.pixelSize: 12 * Theme.fontScale
+                    font.underline: weatherArea.containsMouse
+                    // the whole forecast: the Weather app
+                    MouseArea { id: weatherArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Ui.openWeather() }
+                    KeyFocus { name: Tr.t("Weather") + ": " + parent.text; onActivated: Ui.openWeather() }
                 }
             }
             // 7-day strip (Weather.forecast): today + the next six days

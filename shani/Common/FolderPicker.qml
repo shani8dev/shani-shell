@@ -2,7 +2,6 @@
 // Replaces typing a path. Value is the absolute path ("" = system default).
 import Quickshell
 import QtQuick
-import QtQuick.Dialogs
 import QtQuick.Layouts
 import qs.Common
 
@@ -34,7 +33,7 @@ ColumnLayout {
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: 32
-            radius: 8
+            radius: Theme.radiusToken("xs")
             color: Theme.surface1
             border.color: Theme.stroke
             border.width: 1
@@ -52,7 +51,23 @@ ColumnLayout {
         }
         Button {
             text: Tr.t("Browse")
-            onClicked: folderDlg.open()
+            onClicked: {
+                // the shell's own chooser (Services/FilePicker): the native
+                // dialog is the desktop portal's, and made with every picker
+                // it held the whole shell while D-Bus waited for the portal
+                if (!Ui.filePicker)
+                    return;
+                Ui.filePicker.open({
+                    "mode": "folder",
+                    "title": Tr.t("Choose a folder"),
+                    "onPicked": paths => {
+                        if (!paths || !paths.length)
+                            return;
+                        root.value = paths[0];
+                        root.picked(paths[0]);
+                    }
+                });
+            }
         }
         Button {
             visible: root.value !== ""
@@ -121,22 +136,6 @@ ColumnLayout {
         Button {
             text: Tr.t("Use")
             onClicked: customPath.accepted()
-        }
-    }
-
-    // made on first use: a native dialog is the desktop portal's, and made with
-    // every picker it held the whole shell while D-Bus waited for the portal
-    Loader {
-        id: folderDlg
-        active: false
-        function open() { active = true; item.open(); }
-        sourceComponent: FolderDialog {
-            title: Tr.t("Choose a folder")
-            onAccepted: {
-                const p = selectedFolder.toString().replace(/^file:\/\//, "");
-                root.value = p;
-                root.picked(p);
-            }
         }
     }
 }

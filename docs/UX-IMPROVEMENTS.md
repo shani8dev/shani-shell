@@ -263,3 +263,161 @@ echo done
 - **Scheduled power on/off**.
 - **Battery health and charge limit** (we surface charge limit where
   available).
+
+## 12. What else dux (DMS) has that we could take
+
+dux is the other shell in this workspace (`../dux-shell`): a Quickshell shell
+with a **Go** backend (a unix socket, ~146k lines) and a **plugin framework**.
+Scanned 2026-11-11 against `dux-shell/quickshell/{Modules,Services,Common,
+PLUGINS}`, `dux-shell/core/` and the shared widget library
+`dux-qml-common/DCommon/`. Its file manager is already ported (see
+`FINDINGS.md`); this is the rest of the survey.
+
+### 12.1 The plugin system — the big one
+
+dux's `quickshell/PLUGINS/` is a real framework, and we have none — while
+§11 (One UI) already asks for exactly this: "Good Lock style modular
+customization — let users install 'modules' that add tiles/panels without core
+changes".
+
+How it works there: plugins are directories in `~/.config/dms/plugins/` with a
+`plugin.json` manifest (JSON Schema: `id`, `name`, `type`, `capabilities`,
+plus optional `components`, `settings`, `permissions`, `startupCheck`, `dash`).
+`Services/PluginService.qml` watches the directory, parses the manifests and
+loads the components with `Qt.createComponent(url, Component.PreferSynchronous,
+root)` — with a `?revision=N` cache-buster, because **Qt caches a failed
+component per URL** (a file added after startup otherwise fails with "File
+name case mismatch" until a restart). Surface types: `widget | daemon |
+launcher | desktop | dash | dashCard | composite`. Plugin *settings* live in
+their own file, plugin *state* in another, and state writes are debounced
+(150 ms) so a chatty plugin costs one write, not hundreds.
+
+What we would need before it can work here:
+- **A plugin store** — `Common/Settings.qml` is a `JsonAdapter` with a fixed
+  key set, so plugin namespaces cannot live there. It needs its own
+  `~/.config/shani-shell/plugin_settings.json`.
+- **A `Style` shim** — dux's widgets read `Style.primary` / `Style.surfaceText`;
+  ours are `Theme.accent` / `Theme.text`. A missing token renders
+  black-on-black rather than erroring, so the mapping must exist *before* the
+  first widget port.
+- **`Tr.tFor(pluginId, s)`** — `Common/Tr.qml` is a flat string→string map with
+  no per-plugin namespace.
+- **A popout framework** — we have no `DPopout`/`PopoutService`; that is the
+  hardest surface. A v1 could ship bar pills + desktop widgets + launchers and
+  defer popouts.
+
+The most valuable artefact is not the code but the **12-document plugin spec**
+in `dux-shell/.agents/skills/dms-plugin-dev/` — a complete, versioned API
+description that can be re-pointed at `qs.Common`/`qs.Services`.
+
+### 12.2 Pure logic worth copying verbatim
+
+No UI dependencies, no `Style`; each is testable in node the way
+`tests/test_fuzzy.py` already runs `Fuzzy.js`.
+
+**Landed (2026-11-11, `tests/test_shell_helpers.py`):**
+
+- **`Common/Contrast.js` (85)** — `Services/Color.qml` had its own copy of the
+  WCAG maths; it now uses the shared one, and `Theme.accentInk` is
+  *measured* (`readableOn`) instead of guessed from the accent's lightness.
+- **`Common/Shape.js` (79)** — the corner scale, with the shell's own radii in
+  it (s = 10, l = 16, xl = 22). `Theme.radius*` comes from it, and the
+  hardcoded `radius: 10` / `radius: 8` in `Common/` are tokens now.
+- **`Common/WheelInput.js` (42)** — a wheel notch is one step, a finger slides
+  by its own pixels. `Common/SliderRow.qml` used to jump 5 % per pixel of
+  finger movement.
+- **`Common/Proc.qml` (188)** — run a command with a debounce and a timeout, so
+  a burst of calls runs once and a command that hangs cannot wedge the shell.
+  Used by `Services/Disktree.qml` (a disk walk) and, with its own queue, by
+  `Services/Files.qml`.
+- **`Common/Log.qml`** — a scoped logger: `Log.scoped("Files")`, quiet by
+  default, `SHANI_LOG=Files,Audio` to name the ones that should speak.
+- **`Common/Hct.js` + `Tonal.js` + `Accents.js`** (439) — Material's colour
+  space, with the Apache-2.0 notice beside them. In the tree and tested, but
+  **not wired**: ranking a wallpaper by chroma picks the Saturn ring's
+  lavender over the planet's amber, and the accent is meant to be the brand's
+  amber. Deriving the palette is a design decision, not a port.
+
+**Still to take:**
+
+- **`Common/FocusNavigation.js` (60)** — tree-order focus traversal (a helper
+  for ported list widgets; **not** a replacement for `Common/KeyFocus.qml`,
+  which is richer).
+- **`Common/fzf.js` (1416)** — ranked fuzzy matching with highlighting. Keep
+  our `Modules/Launcher/Fuzzy.js` for the launcher (typo tolerance, already
+  tested); BSD-3 attribution needed.
+- **`Common/MaterialWallpaper.js` (529)** + `MaterialShapes.js` — procedural
+  wallpapers, for §11's "super wallpapers".
+- **`Common/IconImagePool.qml` (71)** — an LRU pool of `IconImage`s under a
+  4 MB budget. Worth little here: our icons are 18–54 px and Qt already
+  caches the decoded pixmap by path. Take it only if a surface ever shows
+  hundreds of large icons.
+
+### 12.3 Widgets worth porting (once the `Style` shim exists)
+
+`DSparkline` (198) and `DRingGauge` (84) — live CPU/mem/net graphs;
+`Modules/Processes` shows numbers only today. `DFilterChips` (160) — our
+`Common/Choice.qml` is single-select. `DSearchField` (15) and
+`DTooltipHost` (66). `DReorderList` (274) — we reorder tiles by hand.
+`DAnalogClock` (186) — our desktop clock is digital. `DCarousel` (36).
+`DCollapsibleSection` (174) — extends `Common/Advanced.qml`. `DBottomSheet`
+(320) — §9's bottom sheets for touch. `DIconPicker` (317) — we have no icon
+picker, but **its icon names do not transfer**: dux is Material Symbols, we
+are Adwaita symbolic.
+
+### 12.4 Surfaces and behaviours we lack or could improve
+
+- **A colour picker you can *choose* from** — `Services/Color.qml` only
+  samples one off the screen (`niri msg pick-color`); dux has an SV picker, a
+  hue slider, hex/rgb/hsv fields and a 49-colour palette.
+- **A global toast service** — our `Common/Toast.qml` is used only by the
+  Settings window. dux's `ToastService` queues, throttles and drops toasts
+  from the top edge; it is also the enabler for §3's "toast on every setting
+  change with Undo".
+- **Blurred wallpaper and video wallpaper** — `BlurredWallpaperBackground.qml`
+  (331) and `VideoWallpaperLayer.qml` (85); §11 wants animated wallpapers.
+- **A richer desktop context menu** — `Modules/Background/Wallpaper.qml:91`
+  has six rows that mostly open Settings; dux's has a wallpaper strip,
+  per-monitor wallpaper and plugin entries.
+- **Desktop widget resize and a widget registry** — ours has four fixed cards
+  (clock, media, weather, stats) with drag-to-move only; the registry is also
+  what would let plugin widgets place themselves.
+- **Hold-to-confirm power menu** — dux's `PowerMenuContent.qml` (427) and
+  `DCommon/Session/LockPowerMenu.qml` (885) use a progress ring; our lock
+  screen uses "press twice".
+- **A system monitor with history** — CPU/mem/net graphs, plus dux's drive
+  health tree (`Services/Drives.qml` lists drives only).
+
+### 12.5 Not to take
+
+- **dux's Go core and socket protocol** — our Python-bridge architecture is
+  deliberate; a Go daemon is a re-architecture, not a port. The one exception
+  is a plugin registry, which could be a `bridge/plugins.py` doing a
+  `git clone`, not `core/internal/plugins/`.
+- **dux's `cups.*` namespace** (26 methods) — `GAPS.md` lists "print-queue
+  state in the Island (CUPS)" as built-but-unproven, and
+  `Services/Printing.qml` deliberately shows a job count and opens
+  `system-config-printer`. Porting it would contradict our own scope.
+- **`Frame`, `WorkspaceOverlays`** (Hyprland and niri-overview chrome),
+  **`AppDrawer`**, **`Notepad`**, **`OSD`**, **`Network`**, the `sysupdate`
+  backends — we have equivalents, or deliberately delegate (updating is
+  Cassini's job).
+
+### 12.6 Order to take them in
+
+1. **Prerequisites (S)** — the `Style` shim, a `Log` singleton, `Tr.tFor`.
+2. **The pure-logic batch (S)** — `Proc.qml` first, then the JS above, each
+   with a node test.
+3. **Small visible surfaces (S–M)** — global toast service, colour picker,
+   blurred and video wallpaper, desktop-widget resize, desktop context menu.
+4. **The plugin system (L)** — v1 only: plugin store + service + manifest
+   schema + bar/desktop/launcher surfaces + a scan/enable/disable Settings
+   page + two example plugins. The registry, the dash and popouts come later.
+
+### 12.7 Open decisions
+
+- How far the plugin system goes in v1 (bar/desktop/launcher only, or also
+  popouts and a registry)?
+- Is the `Style` shim a permanent compatibility layer over `Theme`, or a
+  one-off translation during each port?
+

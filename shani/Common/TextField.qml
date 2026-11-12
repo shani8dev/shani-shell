@@ -6,13 +6,17 @@ Rectangle {
     id: root
     property alias text: input.text
     property alias input: input
+    property alias readOnly: input.readOnly
     property string placeholder
+    // the same thing under Qt's own name, so a panel written against
+    // QtQuick.Controls' TextField works here unchanged
+    property alias placeholderText: root.placeholder
     property string label: ""          // what a screen reader calls it; the placeholder when empty
     property bool secret: false
     signal accepted()
 
     implicitHeight: 38
-    radius: 10
+    radius: Theme.radiusSmall
     color: Theme.surface1
     border.width: 1
     border.color: input.activeFocus ? Theme.accent : Theme.stroke

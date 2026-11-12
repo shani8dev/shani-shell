@@ -191,7 +191,6 @@ Singleton {
     }
     Process { id: printProc; onExited: code => root.printState = code === 0 ? "printed " + root.name : "print failed"; }
     // print_file: the shell has no print dialog — `lp` is enough (CUPS).
-    function print() { printFile(); }
 
     Process {
         id: render

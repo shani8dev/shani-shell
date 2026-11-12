@@ -72,7 +72,7 @@ Singleton {
         onRunningChanged: root.lastWanted = null
     }
     // ---- wallpaper slideshow: the pictures in a folder, one after another ----
-    // shuffle (wayle-inspired): random order instead of alphabetical
+    // shuffle: random order instead of alphabetical
     property int slide: 0
     Timer {
         interval: Math.max(1, root.d.slideshowMinutes) * 60000

@@ -5,25 +5,20 @@
 // ~/.local/share/fonts, and the fontconfig cache is refreshed after.
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
 import QtQuick
 import QtQuick.Dialogs
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
 
-PanelWindow {
+AppWindow {
     id: win
-    visible: Ui.fonts && !Lock.locked
-    screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
-    anchors { top: true; bottom: true; left: true; right: true }
-    color: Theme.scrim
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "shani-fonts"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
-    BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurRegion : null
-    Region { id: blurRegion; item: card; radius: Theme.radiusLarge }
+    appName: "Fonts"
+    visible: Ui.fonts
+    onGone: Ui.fonts = false
+    margins: 0
+    implicitWidth: 640
+    implicitHeight: 600
 
     property var fonts: []        // [{ family, style }]
     property string preview: previewField.text ? previewField.text : Tr.t("The quick brown fox jumps over the lazy dog 1234567890")
@@ -113,18 +108,12 @@ PanelWindow {
         }
     }
 
-    MouseArea { anchors.fill: parent; onClicked: Ui.fonts = false }
     Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: Ui.fonts = false }
 
-    Glass {
+    Item {
         id: card
-        anchors.centerIn: parent
-        width: Math.min(640, parent.width - 40)
-        height: Math.min(600, parent.height - 80)
-        strong: true
-        radius: Theme.radiusLarge
+        anchors.fill: parent
 
-        MouseArea { anchors.fill: parent }
 
         ColumnLayout {
             anchors.fill: parent
@@ -134,10 +123,7 @@ PanelWindow {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
-                SectionTitle {
-                    Layout.fillWidth: true
-                    text: Tr.t("Fonts")
-                }
+                Item { Layout.fillWidth: true }
                 Text {
                     text: win.fonts.length ? Tr.t("%1 styles", win.fonts.length) : ""
                     color: Theme.faint
@@ -149,12 +135,6 @@ PanelWindow {
                     size: 28
                     tip: Tr.t("Refresh")
                     onClicked: win.refresh()
-                }
-                IconButton {
-                    icon: "window-close"
-                    size: 28
-                    tip: Tr.t("Close")
-                    onClicked: Ui.fonts = false
                 }
             }
 
@@ -307,6 +287,7 @@ PanelWindow {
                 subtitle: Tr.t("fc-list found nothing — is fontconfig installed?")
             }
 
+            Item { Layout.fillWidth: true }
             Text {
                 Layout.fillWidth: true
                 text: Tr.t("Click a font to copy its family name · Esc closes")

@@ -3,6 +3,7 @@
 // Sound's equaliser and Automations, which the control centre's narrow column
 // never had. The pages themselves are SettingsPage's, made when opened.
 // Ui.openSettings(cat) opens it; Escape or the window's close closes it.
+// A window like the shell's other apps (Common/AppWindow), with their header.
 import Quickshell
 import Quickshell.Wayland
 import QtQuick
@@ -11,18 +12,14 @@ import qs.Common
 import qs.Services
 import "SettingsIndex.js" as SettingsIndex
 
-FloatingWindow {
+AppWindow {
     id: win
-    title: Tr.t("Settings")
+    appName: "Settings"
     visible: Ui.settingsOpen
+    onGone: Ui.settingsOpen = false
+    margins: 0
     implicitWidth: 1040
-    implicitHeight: 760
-    // glass, as the rest of the shell: translucent over a blur of what is behind
-    color: Settings.blurWanted ? Theme.alpha(Theme.bg, 0.82) : Theme.bg
-    BackgroundEffect.blurRegion: Settings.blurWanted ? whole : null
-    Region { id: whole; item: winRoot }
-    // closed by the compositor (Super+Q, its close button): Settings knows
-    onVisibleChanged: if (!visible) Ui.settingsOpen = false
+    implicitHeight: 800
 
     Item {
         id: winRoot
@@ -41,15 +38,6 @@ FloatingWindow {
                 anchors.fill: parent
                 anchors.margins: 14
                 spacing: 10
-                Text {
-                    text: Tr.t("Settings")
-                    color: Theme.text
-                    font.family: Theme.font
-                    font.pixelSize: 20 * Theme.fontScale
-                    font.weight: Font.DemiBold
-                    Layout.leftMargin: 6
-                    Layout.topMargin: 6
-                }
                 TextField {
                     id: search
                     Layout.fillWidth: true
@@ -117,6 +105,50 @@ FloatingWindow {
                         KeyFocus { name: row.modelData.label; onActivated: Ui.settingsCat = row.modelData.id }
                     }
                 }
+                // ---- changed since sign-in: take one back, or all. Below the categories, so
+                // the list above stays where it was and the keyboard reaches it first ----
+                // (named as the search names them; five at most, so the list stays short)
+                ColumnLayout {
+                    id: changed
+                    Layout.fillWidth: true
+                    readonly property var keys: Settings.changedKeys.filter(k => SettingsIndex.labelOf(k) !== "")
+                    visible: keys.length > 0 && page.query === ""
+                    spacing: 6
+                    SectionTitle {
+                        Layout.fillWidth: true
+                        text: Tr.t("Changed this session")
+                    }
+                    Repeater {
+                        model: changed.keys.slice(0, 5)
+                        delegate: RowLayout {
+                            id: changedRow
+                            required property string modelData
+                            Layout.fillWidth: true
+                            spacing: 6
+                            Text {
+                                text: Tr.t(SettingsIndex.labelOf(changedRow.modelData))
+                                font.family: Theme.font
+                                font.pixelSize: 11 * Theme.fontScale
+                                color: Theme.dim
+                                elide: Text.ElideRight
+                                Layout.fillWidth: true
+                            }
+                            Button {
+                                text: Tr.t("Undo")
+                                flat: true
+                                Accessible.name: Tr.t("Undo") + ": " + SettingsIndex.labelOf(changedRow.modelData)
+                                onClicked: Settings.undo(changedRow.modelData)
+                            }
+                        }
+                    }
+                    Button {
+                        Layout.fillWidth: true
+                        visible: changed.keys.length > 1
+                        text: Tr.t("Undo all") + " (" + changed.keys.length + ")"
+                        kind: "outline"
+                        onClicked: Settings.undoAll()
+                    }
+                }
             }
         }
 
@@ -147,7 +179,26 @@ FloatingWindow {
                 }
             }
             // a new category starts at its top
-            Connections { target: Ui; function onSettingsCatChanged() { content.contentY = 0; } }
+            Connections { target: Ui; function onSettingsCatChanged() { content.contentY = 0; } function onSettingsSectionChanged() { if (Ui.settingsSection) toSection.restart(); } }
+            // ...or at the part it was opened for (Ui.openSettings(cat, "section:…")),
+            // once the category's page has laid out
+            Timer {
+                id: toSection
+                interval: 300
+                running: Ui.settingsSection !== ""
+                onTriggered: {
+                    const find = (it, name) => {
+                        if (!it) return null;
+                        if (it.objectName === name && it.visible) return it;
+                        for (const c of it.children || []) { const f = find(c, name); if (f) return f; }
+                        return null;
+                    };
+                    const it = find(page, Ui.settingsSection);
+                    if (it)
+                        content.contentY = Math.max(0, Math.min(content.contentHeight - content.height, it.mapToItem(content.contentItem, 0, 0).y - 12));
+                    Ui.settingsSection = "";
+                }
+            }
         }
     }
     // a setting changed: a toast with Undo, over the bottom of the window

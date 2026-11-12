@@ -82,6 +82,33 @@ ColumnLayout {
         }
     }
 
+    // Nearby Share (LocalSend): found by phones and computers here, for this session only
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Nearby Share") }
+    SwitchRow {
+        Layout.fillWidth: true
+        text: Tr.t("Visible to devices nearby")
+        hint: Nearby.visible_ ? Tr.t("On until you turn it off or sign out — LocalSend apps on this network can send you files, and you say yes to each")
+                              : Tr.t("Off — nothing can find this computer; you can still send")
+        checked: Nearby.visible_
+        onToggled: on => Nearby.setVisible(on)
+    }
+    Text {
+        Layout.fillWidth: true
+        visible: Nearby.note !== ""
+        text: Nearby.note
+        color: Theme.danger
+        wrapMode: Text.Wrap
+        font.family: Theme.font
+        font.pixelSize: 11 * Theme.fontScale
+    }
+    ListRow {
+        Layout.fillWidth: true
+        icon: "send-to"
+        title: Tr.t("Open Nearby Share")
+        subtitle: Tr.t("Devices around you, and files on the way")
+        onClicked: { Ui.closeAll(); Ui.nearby = true; }
+    }
+
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Share folders on this network") }
     SwitchRow {
         Layout.fillWidth: true

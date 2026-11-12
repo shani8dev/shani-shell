@@ -2,11 +2,12 @@ pragma Singleton
 // The graphics cards (switcheroo-control): on a machine with two, an app can
 // be opened on the one that is not the default — a game, a 3D or video tool.
 // switcherooctl names each card and the environment that selects it.
-// `stats` is the Mission Center's GPU line: nvidia-smi's utilisation and
+// `stats` is the System Monitor's GPU line: nvidia-smi's utilisation and
 // memory when nvidia-smi is present, else null — shown as "no GPU".
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs.Common
 
 Singleton {
     id: root
@@ -50,7 +51,7 @@ Singleton {
             }
         }
     }
-    // nvidia-smi utilisation, throttled (2s) and only while the Mission Center
+    // nvidia-smi utilisation, throttled (2s) and only while the System Monitor
     // is open; absent => stats stays null and the panel says "no GPU"
     Timer {
         interval: 2000

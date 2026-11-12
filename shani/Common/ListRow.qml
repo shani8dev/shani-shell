@@ -21,7 +21,7 @@ Rectangle {
     Accessible.onPressAction: root.clicked()
 
     implicitHeight: 40
-    radius: 10
+    radius: Theme.radiusSmall
     color: selected ? Theme.accentSoft : (area.containsMouse ? Theme.hover : "transparent")
 
     Icon {

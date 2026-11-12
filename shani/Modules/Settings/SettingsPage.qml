@@ -147,6 +147,12 @@ ColumnLayout {
     }
     // jump to a setting found by search: open the category, flash the control
     function openSetting(entry) {
+        // a string key (from the recently-changed rail) looks up its category
+        if (typeof entry === "string") {
+            const found = SettingsIndex.entries.find(e => e.key === entry);
+            if (found) entry = found;
+            else return;   // unknown key: nowhere to open
+        }
         Ui.settingsCat = entry.cat;
         Ui.flashSetting(entry.label);
         settingsSearch.text = "";
@@ -199,7 +205,7 @@ ColumnLayout {
     // Deepin's control centre in a sidebar: a grid of categories, then one at a time
     readonly property string cat: Ui.settingsCat
     property bool inWindow: false        // in the Settings window: its own list replaces the grid
-    readonly property var cats: [{ id: "personal", words: "wallpaper accent theme dark icons fonts cursor pointer blur dock bar tiles hot corners weather night light look click through glyph volume brightness layout preset slideshow desktop widgets scrollbars corner radius calendar events celsius fahrenheit temperature degrees", label: Tr.t("Personalisation"), icon: "preferences-desktop-wallpaper" }, { id: "notifications", words: "notifications pop-ups sound apps plugged devices greetings do not disturb focus modes schedule quiet lock privacy hide content locked", label: Tr.t("Notifications"), icon: "preferences-system-notifications" }, { id: "network", words: "network proxy dns wifi vpn wired internet bluetooth", label: Tr.t("Network"), icon: "network-workgroup" }, { id: "displays", words: "displays screens monitor resolution refresh rate scale rotation arrange mirror vrr auto rotate brightness", label: Tr.t("Displays"), icon: "video-display" }, { id: "windows", words: "windows gaps focus ring column width animations tiling layout preset", label: Tr.t("Windows"), icon: "preferences-system-windows" }, { id: "sound", words: "sound equaliser equalizer eq bass loudness crossfeed headphones autoeq impulse microphone noise profiles system sounds volume balance", label: Tr.t("Sound"), icon: "audio-speakers" }, { id: "access", words: "accessibility screen reader large text contrast mono flash speak captions magnifier smart touch transparency opaque battery", label: Tr.t("Accessibility"), icon: "preferences-desktop-accessibility" }, { id: "input", words: "keyboard layouts language input touchpad mouse tap scroll speed repeat shortcuts compose caps osk numlock tablet touchscreen drawing middle paste gaming mouse dpi polling rate buttons game controllers gamepad joystick", label: Tr.t("Keyboard & input"), icon: "input-keyboard" }, { id: "time", words: "date time timezone clock 24-hour language locale region formats calendar events week start monday sunday first day", label: Tr.t("Date & language"), icon: "preferences-system-time" }, { id: "apps", words: "default apps browser mail startup autostart flatpak permissions screenshots terminal recordings webapp web apps pwa screenshot format region sound fps recording framerate", label: Tr.t("Default apps"), icon: "view-app-grid" }, { id: "search", words: "search launcher files folders documents web engine google duckduckgo calculator pointer nav hints ignore mouse", label: Tr.t("Search"), icon: "system-search" }, { id: "printers", words: "printers printer print cups default test page queue scanner add", label: Tr.t("Printers"), icon: "printer" }, { id: "sharing", words: "sharing share folder network samba smb files public windows remote", label: Tr.t("Sharing"), icon: "folder-remote" }, { id: "backup", words: "backup backups restore earlier versions snapshots time machine history deleted files drive restic", label: Tr.t("Backup"), icon: "drive-harddisk" }, { id: "automations", words: "automations rules when then routines triggers wifi plugged headphones schedule shortcuts", label: Tr.t("Automations"), icon: "system-run" }, { id: "privacy", words: "privacy permissions camera microphone recent files trash lock screen clipboard pin", label: Tr.t("Privacy"), icon: "preferences-system-privacy" }, { id: "chronoa", words: "chronoa assistant ai island model voice wake word", label: Tr.t("Chronoa"), icon: "face-smile-big" }, { id: "account", words: "account name password picture avatar fingerprint security key yubikey fido u2f", label: Tr.t("Your account"), icon: "avatar-default" }, { id: "users", words: "users add user remove administrator automatic login", label: Tr.t("Users"), icon: "system-users" }, { id: "power", words: "power battery saver idle lock suspend lid power button charge limit dim screen off wellbeing break percentage", label: Tr.t("Power"), icon: "preferences-system-power" }, { id: "about", words: "about computer name hostname system version hardware reset defaults", label: Tr.t("About"), icon: "help-about" }]
+    readonly property var cats: [{ id: "personal", words: "wallpaper style colours from a picture matugen palette saved themes accent theme dark icons fonts cursor pointer blur dock bar tiles hot corners weather night light look click through glyph volume brightness layout preset slideshow desktop widgets scrollbars corner radius calendar events celsius fahrenheit temperature degrees", label: Tr.t("Personalisation"), icon: "preferences-desktop-wallpaper" }, { id: "notifications", words: "notifications pop-ups sound apps plugged devices greetings do not disturb focus modes schedule quiet lock privacy hide content locked", label: Tr.t("Notifications"), icon: "preferences-system-notifications" }, { id: "network", words: "network proxy dns wifi vpn wired internet bluetooth", label: Tr.t("Network"), icon: "network-workgroup" }, { id: "displays", words: "displays screens monitor resolution refresh rate scale rotation arrange mirror vrr auto rotate brightness", label: Tr.t("Displays"), icon: "video-display" }, { id: "windows", words: "windows gaps focus ring column width animations tiling layout preset effects glide pop dissolve shadow corners rounded blur frosted glass speed", label: Tr.t("Windows"), icon: "focus-windows" }, { id: "sound", words: "sound equaliser equalizer eq bass loudness crossfeed headphones autoeq impulse microphone noise profiles system sounds volume balance", label: Tr.t("Sound"), icon: "audio-speakers" }, { id: "access", words: "accessibility screen reader large text contrast mono flash speak captions magnifier smart touch transparency opaque battery", label: Tr.t("Accessibility"), icon: "preferences-desktop-accessibility" }, { id: "input", words: "keyboard layouts language input touchpad mouse tap scroll speed repeat shortcuts compose caps osk numlock tablet touchscreen drawing middle paste gaming mouse dpi polling rate buttons game controllers gamepad joystick", label: Tr.t("Keyboard & input"), icon: "input-keyboard" }, { id: "time", words: "date time timezone clock 24-hour language locale region formats calendar events week start monday sunday first day", label: Tr.t("Date & language"), icon: "preferences-system-time" }, { id: "apps", words: "default apps browser mail startup autostart flatpak permissions screenshots terminal recordings webapp web apps pwa screenshot format region sound fps recording framerate", label: Tr.t("Default apps"), icon: "view-app-grid" }, { id: "search", words: "search launcher files folders documents web engine google duckduckgo calculator pointer nav hints ignore mouse", label: Tr.t("Search"), icon: "system-search" }, { id: "printers", words: "printers printer print cups default test page queue scanner add", label: Tr.t("Printers"), icon: "printer" }, { id: "sharing", words: "sharing share folder network samba smb files public windows remote nearby localsend airdrop send to phone visible", label: Tr.t("Sharing"), icon: "folder-remote" }, { id: "backup", words: "backup backups restore earlier versions snapshots time machine history deleted files drive restic", label: Tr.t("Backup"), icon: "drive-harddisk" }, { id: "automations", words: "automations rules when then routines triggers wifi plugged headphones schedule shortcuts", label: Tr.t("Automations"), icon: "system-run" }, { id: "privacy", words: "privacy permissions camera microphone recent files trash lock screen clipboard pin", label: Tr.t("Privacy"), icon: "preferences-system-privacy" }, { id: "chronoa", words: "chronoa assistant ai island model voice wake word", label: Tr.t("Chronoa"), icon: "face-smile-big" }, { id: "account", words: "account name password picture avatar fingerprint security key yubikey fido u2f", label: Tr.t("Your account"), icon: "avatar-default" }, { id: "users", words: "users add user remove administrator automatic login", label: Tr.t("Users"), icon: "system-users" }, { id: "power", words: "power battery saver idle lock suspend lid power button charge limit dim screen off wellbeing break percentage", label: Tr.t("Power"), icon: "system-run" }, { id: "storage", words: "storage disk space free clean up cleanup trash cache thumbnails downloads flatpak", label: Tr.t("Storage"), icon: "drive-harddisk" }, { id: "screentime", words: "screen time wellbeing digital break reminder limit usage apps today week focus", label: Tr.t("Screen time"), icon: "preferences-desktop-screensaver" }, { id: "about", words: "about computer name hostname system version hardware reset defaults", label: Tr.t("About"), icon: "help-about" }]
     readonly property var catIcons: { const o = {}; for (const c of cats) o[c.id] = c.icon; return o; }
     readonly property string catTitle: (cats.find(c => c.id === cat) || { label: Tr.t("Settings") }).label
     // find a setting by what is in it: "proxy" → Network, "lid" → Power
@@ -248,7 +254,7 @@ ColumnLayout {
             anchors.leftMargin: 10
             anchors.rightMargin: 10
             spacing: 8
-            Icon { name: "find"; size: 14; color: Theme.accent }
+            Icon { name: "edit-find"; size: 14; color: Theme.accent }
             Text {
                 Layout.fillWidth: true
                 text: Tr.t("Found: %1").arg(Ui.settingsHighlight)
@@ -256,6 +262,22 @@ ColumnLayout {
                 font.family: Theme.font
                 font.pixelSize: 12 * Theme.fontScale
                 elide: Text.ElideRight
+            }
+        }
+    }
+    // recently changed rail: last settings you touched, so you can undo quickly
+    RowLayout {
+        Layout.fillWidth: true
+        visible: Settings.recentlyChanged.length > 0 && page.cat === "" && !page.inWindow
+        spacing: 6
+        Text { text: Tr.t("Just changed:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+        Repeater {
+            model: Settings.recentlyChanged
+            Choice {
+                required property string modelData
+                text: modelData
+                onClicked: page.openSetting(modelData)
+                Accessible.name: Tr.t("Open %1 setting", modelData)
             }
         }
     }
@@ -593,7 +615,7 @@ ColumnLayout {
                     current: page.d.slideshowMinutes
                     onPicked: v => page.d.slideshowMinutes = v
                 }
-                SwitchRow { visible: page.d.slideshowDir !== ""; Layout.fillWidth: true; text: Tr.t("Shuffle"); hint: Tr.t("in a random order, not by name"); checked: page.d.slideshowShuffle; onToggled: on => page.d.slideshowShuffle = on }
+                SwitchRow { visible: page.d.slideshowDir !== ""; Layout.fillWidth: true; text: Tr.t("Shuffle"); hint: Tr.t("in a random order, not by name"); checked: page.d.slideshowShuffle; defaultValue: false; onToggled: on => { page.d.slideshowShuffle = on; Settings.touch("slideshowShuffle"); } onReset: page.d.slideshowShuffle = false }
                 // colours from the wallpaper: with a picture per screen, which one leads
                 Picks {
                     visible: page.d.adaptivePalette && Matugen.available && page.d.wallpaperPerMonitor && Quickshell.screens.length > 1
@@ -681,8 +703,8 @@ ColumnLayout {
                         Accessible.checked: true
                     }
                 }
-                SwitchRow { Layout.fillWidth: true; text: Tr.t("Accent from wallpaper"); hint: Tr.t("the wallpaper's most vivid colour, made to read on this style"); checked: page.d.accentFromWallpaper; onToggled: on => page.d.accentFromWallpaper = on }
-                SwitchRow { Layout.fillWidth: true; text: Tr.t("Adaptive palette (Material You)"); hint: Tr.t("a full palette from the wallpaper via matugen — the shell and GTK apps follow"); checked: page.d.adaptivePalette; enabled: Matugen.available; onToggled: on => page.d.adaptivePalette = on }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("Accent from wallpaper"); hint: Tr.t("the wallpaper's most vivid colour, made to read on this style"); checked: page.d.accentFromWallpaper; defaultValue: true; onToggled: on => { page.d.accentFromWallpaper = on; Settings.touch("accentFromWallpaper"); } onReset: page.d.accentFromWallpaper = true }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("Adaptive palette (Material You)"); hint: Tr.t("a full palette from the wallpaper via matugen — the shell and GTK apps follow"); checked: page.d.adaptivePalette; defaultValue: false; enabled: Matugen.available; onToggled: on => { page.d.adaptivePalette = on; Settings.touch("adaptivePalette"); } onReset: page.d.adaptivePalette = false }
                 // GTK receives the palette (the only matugen target we ship; foot,
                 // not kitty; shani's own bar, not waybar)
                 Flow {
@@ -706,7 +728,7 @@ ColumnLayout {
                     }
                 }
                 Text { visible: page.d.adaptivePalette && Matugen.available; text: Tr.t("GTK apps (gnome-software, nautilus, etc.) adopt the palette via a colour-scheme flip-flop; the shell's own surfaces follow via Theme."); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; wrapMode: Text.Wrap; Layout.fillWidth: true }
-                // Theme palette preview strip (vgshell-inspired): show active palette colors
+                // Theme palette preview strip: show active palette colors
                 Rectangle {
                     visible: page.d.adaptivePalette && Matugen.available
                     Layout.fillWidth: true; height: 12; radius: 6; Layout.margins: 4
@@ -715,8 +737,6 @@ ColumnLayout {
                         GradientStop { position: 0.0; color: Theme.surface1 }
                         GradientStop { position: 1.0; color: Theme.surface3 }
                     }
-                // Theme info (vgshell-inspired)
-                Text { visible: page.d.adaptivePalette && Matugen.available; text: Tr.t("Active: " + page.d.matugenScheme + " · Contrast: " + String(Math.round(page.d.matugenContrast * 10) / 10) + " · Source: " + String(page.d.matugenSourceColor)); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; wrapMode: Text.Wrap; Layout.fillWidth: true }
                     RowLayout {
                         anchors.fill: parent; spacing: 1; anchors.margins: 1
                         Repeater {
@@ -729,8 +749,31 @@ ColumnLayout {
                         }
                     }
                 }
+                // Theme palette preview strip: show active palette colors
+                Rectangle {
+                    visible: page.d.adaptivePalette && Matugen.available
+                    Layout.fillWidth: true; height: 12; radius: 6; Layout.margins: 4
+                    color: Theme.surface2; border.color: Theme.stroke; border.width: 1
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: Theme.surface1 }
+                        GradientStop { position: 1.0; color: Theme.surface3 }
+                    }
+                    RowLayout {
+                        anchors.fill: parent; spacing: 1; anchors.margins: 1
+                        Repeater {
+                            model: ["primary", "secondary", "tertiary", "surface", "surface_high", "on_surface"]
+                            Rectangle {
+                                required property string modelData
+                                Layout.fillWidth: true; height: parent.height
+                                color: Matugen.ready ? (Matugen.palette[modelData] || Theme.accent) : Theme.accent
+                            }
+                        }
+                    }
+                }
+                // Theme info
+                Text { visible: page.d.adaptivePalette && Matugen.available; text: Tr.t("Active: " + page.d.matugenScheme + " · Contrast: " + String(Math.round(page.d.matugenContrast * 10) / 10) + " · Source: " + String(page.d.matugenSourceColor)); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; wrapMode: Text.WordWrap; Layout.fillWidth: true }
 
-                // matugen scheme options (wayle-inspired)
+                // matugen scheme options
                 ColumnLayout {
                     visible: page.d.adaptivePalette && Matugen.available
                     Layout.fillWidth: true
@@ -800,8 +843,9 @@ ColumnLayout {
                     text: Tr.t("Dark style now")
                     hint: page.d.darkSchedule === "manual" ? Tr.t("off: the light style") : Tr.t("a schedule is choosing; switch to “By hand” to control it")
                     checked: page.d.darkMode
+                    defaultValue: true
                     enabled: page.d.darkSchedule === "manual"
-                    onToggled: on => { const prev = page.d.darkMode; page.d.darkMode = on; if (prev !== on) page.showToast("Dark mode: " + (on ? "on" : "off"), prev, "darkMode"); }
+                    onToggled: on => { const prev = page.d.darkMode; page.d.darkMode = on; if (prev !== on) page.showToast("Dark mode: " + (on ? "on" : "off"), prev, "darkMode"); Settings.touch("darkMode"); } onReset: page.d.darkMode = true
                 }
                 ColumnLayout {
                     visible: page.d.darkSchedule === "custom"
@@ -818,9 +862,9 @@ ColumnLayout {
                         onPicked: t => page.d.darkTo = t
                     }
                 }
-                SwitchRow { Layout.fillWidth: true; text: Tr.t("Always show scrollbars"); hint: Tr.t("off: they appear while scrolling"); checked: page.d.showScrollbars; onToggled: on => page.d.showScrollbars = on }
-                SwitchRow { Layout.fillWidth: true; text: Tr.t("Blur"); checked: page.d.blur; onToggled: on => page.d.blur = on }
-                SwitchRow { Layout.fillWidth: true; text: Tr.t("Reduce motion"); hint: Tr.t("no slides, fades or zoom"); checked: page.d.reduceMotion; onToggled: on => page.d.reduceMotion = on }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("Always show scrollbars"); hint: Tr.t("off: they appear while scrolling"); checked: page.d.showScrollbars; defaultValue: true; onToggled: on => { page.d.showScrollbars = on; Settings.touch("showScrollbars"); } onReset: page.d.showScrollbars = true }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("Blur"); checked: page.d.blur; defaultValue: true; onToggled: on => { page.d.blur = on; Settings.touch("blur"); } onReset: page.d.blur = true }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("Reduce motion"); hint: Tr.t("no slides, fades or zoom"); checked: page.d.reduceMotion; defaultValue: false; onToggled: on => { page.d.reduceMotion = on; Settings.touch("reduceMotion"); } onReset: page.d.reduceMotion = false }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Adaptive brightness"); hint: Tr.t("ambient sensor if present, else time of day"); checked: page.d.adaptiveBrightness; onToggled: on => page.d.adaptiveBrightness = on; visible: Brightness.available }
                 RowLayout {
                     Layout.fillWidth: true
@@ -842,8 +886,9 @@ ColumnLayout {
                     text: Tr.t("Night light on")
                     hint: page.d.nightLightSchedule === "manual" ? Tr.t("warm the screen by hand") : Tr.t("a schedule is choosing; switch to “By hand” to control it")
                     checked: page.d.nightLight
+                    defaultValue: false
                     enabled: page.d.nightLightSchedule === "manual"
-                    onToggled: on => page.d.nightLight = on
+                    onToggled: on => { page.d.nightLight = on; Settings.touch("nightLight"); }
                 }
                 RowLayout {
                     Layout.fillWidth: true
@@ -885,15 +930,16 @@ ColumnLayout {
                 }
 
                 SettingsLook { Layout.fillWidth: true; active: page.cat === "personal" }
+                SettingsWallpaperStyle { Layout.fillWidth: true; active: page.cat === "personal" }
 
                 // ---- the sidebar's tiles: which, and in what order (after Android) -----
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("Bar & dock") }
-                SwitchRow { Layout.fillWidth: true; text: Tr.t("Network speed"); checked: page.d.showNetSpeed; onToggled: on => page.d.showNetSpeed = on }
-                SwitchRow { Layout.fillWidth: true; text: Tr.t("CPU and memory"); checked: page.d.showSysStats; onToggled: on => page.d.showSysStats = on }
-                SwitchRow { Layout.fillWidth: true; text: Tr.t("24-hour clock"); checked: page.d.use24h; onToggled: on => page.d.use24h = on }
-                SwitchRow { Layout.fillWidth: true; text: Tr.t("Seconds"); checked: page.d.showSeconds; onToggled: on => page.d.showSeconds = on }
-                SwitchRow { Layout.fillWidth: true; text: Tr.t("Date beside the clock"); checked: page.d.barDate; onToggled: on => page.d.barDate = on }
-                SwitchRow { Layout.fillWidth: true; text: Tr.t("Battery percentage"); checked: page.d.barBatteryPercent; onToggled: on => page.d.barBatteryPercent = on }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("Network speed"); checked: page.d.showNetSpeed; defaultValue: false; onToggled: on => { page.d.showNetSpeed = on; Settings.touch("showNetSpeed"); } onReset: page.d.showNetSpeed = false }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("CPU and memory"); checked: page.d.showSysStats; defaultValue: false; onToggled: on => { page.d.showSysStats = on; Settings.touch("showSysStats"); } onReset: page.d.showSysStats = false }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("24-hour clock"); checked: page.d.use24h; defaultValue: true; onToggled: on => { page.d.use24h = on; Settings.touch("use24h"); } onReset: page.d.use24h = true }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("Seconds"); checked: page.d.showSeconds; defaultValue: false; onToggled: on => { page.d.showSeconds = on; Settings.touch("showSeconds"); } onReset: page.d.showSeconds = false }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("Date beside the clock"); checked: page.d.barDate; defaultValue: false; onToggled: on => { page.d.barDate = on; Settings.touch("barDate"); } onReset: page.d.barDate = false }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("Battery percentage"); checked: page.d.barBatteryPercent; defaultValue: false; onToggled: on => { page.d.barBatteryPercent = on; Settings.touch("barBatteryPercent"); } onReset: page.d.barBatteryPercent = false }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Dock"); checked: page.d.dock; onToggled: on => page.d.dock = on }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Rounded screen corners"); hint: Tr.t("not over fullscreen video"); checked: page.d.screenCorners; onToggled: on => page.d.screenCorners = on }
                 SwitchRow { Layout.fillWidth: true; visible: page.d.dock; text: Tr.t("Trash at the dock's end"); checked: page.d.dockTrash; onToggled: on => page.d.dockTrash = on }
@@ -1402,38 +1448,57 @@ ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 12
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("Apps & files") }
-                // terminal: pick one that is installed, or type any command
+                // terminal: pick one that is installed, or type any command (Services/Terminal
+                // makes Mod+Return and other apps open the same one)
+                SectionTitle { Layout.fillWidth: true; text: Tr.t("Terminal") }
                 property var installedTerminals: []
                 // made with the category, so asked once when it opens
                 Process {
                     running: true
-                    command: ["sh", "-c", 'for t in foot kitty alacritty gnome-terminal konsole terminator xterm wezterm tilix sakura st qterminal xfce4-terminal mate-terminal lxterminal; do command -v "$t" >/dev/null 2>&1 && echo "$t"; done']
+                    command: ["sh", "-c", 'for t; do command -v "$t" >/dev/null 2>&1 && echo "$t"; done', "sh"].concat(Terminal.known.map(k => k.cmd))
                     stdout: StdioCollector { onStreamFinished: installedTerminals = text.trim().split("\n").filter(x => x) }
                 }
-                Flow {
+                Repeater {
+                    model: Terminal.known.filter(k => installedTerminals.indexOf(k.cmd) >= 0)
+                    ListRow {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        icon: modelData.cmd.indexOf("ghostty") >= 0 ? "com.mitchellh.ghostty" : "utilities-terminal"
+                        title: modelData.name
+                        subtitle: modelData.note
+                        trailing: page.d.terminal === modelData.cmd ? Tr.t("Chosen") : ""
+                        onClicked: page.d.terminal = modelData.cmd
+                    }
+                }
+                ListRow {
                     Layout.fillWidth: true
-                    spacing: 6
-                    Repeater {
-                        model: installedTerminals.length ? installedTerminals : ["foot"]
-                        Choice {
-                            required property string modelData
-                            text: modelData
-                            selected: page.d.terminal === modelData
-                            onClicked: page.d.terminal = modelData
-                        }
-                    }
-                    Choice {
-                        text: Tr.t("Other…")
-                        selected: installedTerminals.indexOf(page.d.terminal) < 0
-                        onClicked: { }
-                    }
+                    visible: installedTerminals.length > 0 && !installedTerminals.some(c => c.indexOf("ghostty") >= 0)
+                    icon: "system-software-install"
+                    title: Tr.t("Get Ghostty")
+                    subtitle: Tr.t("Tabs, splits and pictures in the terminal; heavier than Foot. From Flathub, in Software")
+                    onClicked: Quickshell.execDetached(["xdg-open", "appstream://com.mitchellh.ghostty"])
+                }
+                SwitchRow {
+                    Layout.fillWidth: true
+                    text: Tr.t("Foot in the desktop's colours")
+                    hint: Terminal.footState === "theirs" ? Tr.t("You have your own ~/.config/foot/foot.ini, so it is left as it is")
+                        : Tr.t("Its background, text, accent and titlebar follow the desktop, light or dark")
+                    checked: page.d.terminalThemed
+                    onToggled: on => page.d.terminalThemed = on
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: Tr.t("In Foot: Ctrl+Shift+A asks Chronoa about the last command's output, Ctrl+Shift+E about what is selected; Ctrl+Shift+Z and X jump between prompts.")
+                    color: Theme.faint
+                    wrapMode: Text.Wrap
+                    font.family: Theme.font
+                    font.pixelSize: 11 * Theme.fontScale
                 }
                 TextField {
                     Layout.fillWidth: true
-                    visible: installedTerminals.indexOf(page.d.terminal) < 0
-                    placeholder: Tr.t("Terminal command, e.g. foot")
-                    text: page.d.terminal
-                    onAccepted: page.d.terminal = text.trim() || "foot"
+                    placeholder: Tr.t("Or another terminal's command")
+                    text: Terminal.known.some(k => k.cmd === page.d.terminal) ? "" : page.d.terminal
+                    onAccepted: if (text.trim()) page.d.terminal = text.trim()
                 }
                 FolderPicker {
                     label: Tr.t("Screen recordings folder")
@@ -1738,6 +1803,18 @@ ColumnLayout {
             }
         }
     }
+    Loader {
+        Layout.fillWidth: true
+        active: page.cat === "storage"
+        visible: active
+        sourceComponent: Component { SettingsStorage { Layout.fillWidth: true; active: true } }
+    }
+    Loader {
+        Layout.fillWidth: true
+        active: page.cat === "screentime"
+        visible: active
+        sourceComponent: Component { SettingsScreenTime { Layout.fillWidth: true; active: true } }
+    }
     // made when the category is opened, gone when another is (most never are)
     Loader {
         Layout.fillWidth: true
@@ -1842,28 +1919,7 @@ ColumnLayout {
                     }
                 }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Lock when critically low"); hint: Tr.t("lock the screen at 7 % battery — plug in to unlock"); checked: page.d.autoLockOnLowBattery; onToggled: on => page.d.autoLockOnLowBattery = on }
-                SwitchRow { Layout.fillWidth: true; text: Tr.t("Screen time"); hint: Tr.t("per-app focus time, kept on this machine"); checked: page.d.screenTime; onToggled: on => page.d.screenTime = on }
-                // wellbeing: reminders on top of screen time, never a lock-out
-                Text { visible: page.d.screenTime; text: Tr.t("Remind me to take a break"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
-                Flow {
-                    visible: page.d.screenTime
-                    Layout.fillWidth: true
-                    spacing: 6
-                    Repeater {
-                        model: [0, 20, 30, 45, 60, 90]
-                        Choice { required property int modelData; text: modelData ? Tr.t("every %1 min", modelData) : Tr.t("Never"); selected: page.d.breakEveryMinutes === modelData; onClicked: page.d.breakEveryMinutes = modelData }
-                    }
-                }
-                Text { visible: page.d.screenTime; text: Tr.t("Daily screen time reminder"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
-                Flow {
-                    visible: page.d.screenTime
-                    Layout.fillWidth: true
-                    spacing: 6
-                    Repeater {
-                        model: [0, 120, 240, 360, 480, 600]
-                        Choice { required property int modelData; text: modelData ? Tr.t("%1 h", modelData / 60) : Tr.t("Off"); selected: page.d.screenLimitMinutes === modelData; onClicked: page.d.screenLimitMinutes = modelData }
-                    }
-                }
+                ListRow { Layout.fillWidth: true; icon: "preferences-desktop-screensaver"; title: Tr.t("Screen time and break reminders"); trailing: Tr.t("Open"); onClicked: Ui.settingsCat = "screentime" }
 
                 SettingsPowerKeys { Layout.fillWidth: true; active: page.cat === "power" }
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("When idle") }
@@ -1931,7 +1987,6 @@ ColumnLayout {
             }
         }
     }
-    // made when the category is opened, gone when another is (most never are)
 }
 // USB Storage settings (Android-style)
 // Device info / About (Android-style device preferences)

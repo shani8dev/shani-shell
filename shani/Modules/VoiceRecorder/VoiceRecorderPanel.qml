@@ -5,40 +5,32 @@
 // surface, in the QrView PanelWindow pattern.
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
 
-PanelWindow {
+AppWindow {
     id: win
-    visible: Ui.voiceRecorder && !Lock.locked
-    screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
-    anchors { top: true; bottom: true; left: true; right: true }
-    color: Theme.scrim
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "shani-voice-recorder"
-    BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurArea : null
-    Region { id: blurArea; item: blurCard; radius: blurCard.radius }
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    appName: "Voice Recorder"
+    tools: [
+        IconButton { size: 30; icon: "view-refresh"; tip: Tr.t("Refresh"); onClicked: VoiceRecorder.refresh() }
+    ]
+    visible: Ui.voiceRecorder
+    onGone: Ui.voiceRecorder = false
+    margins: 0
+    implicitWidth: 560
+    implicitHeight: Math.max(320, Math.min(900, col.implicitHeight + 40))
 
     property string renaming: ""        // path being renamed, "" when none
 
     onVisibleChanged: { if (visible) VoiceRecorder.refresh(); }
 
-    MouseArea { anchors.fill: parent; onClicked: Ui.voiceRecorder = false }
     Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: Ui.voiceRecorder = false }
 
-    Glass {
+    Item {
         id: blurCard
-        anchors.centerIn: parent
-        width: Math.min(560, parent.width - 80)
-        implicitHeight: col.implicitHeight + 40
-        strong: true
-        radius: Theme.radiusLarge
-        MouseArea { anchors.fill: parent }
+        anchors.fill: parent
 
         ColumnLayout {
             id: col
@@ -47,20 +39,6 @@ PanelWindow {
             width: parent.width - 40
             spacing: 12
 
-            RowLayout {
-                Layout.fillWidth: true
-                Icon { name: "audio-input-microphone"; size: 20; color: Theme.accent }
-                Text {
-                    Layout.fillWidth: true
-                    text: Tr.t("Voice Recorder")
-                    color: Theme.text
-                    font.family: Theme.font
-                    font.pixelSize: 15 * Theme.fontScale
-                    font.weight: Font.DemiBold
-                }
-                IconButton { icon: "view-refresh"; size: 28; tip: Tr.t("Refresh"); onClicked: VoiceRecorder.refresh() }
-                IconButton { icon: "window-close"; size: 28; tip: Tr.t("Close"); onClicked: Ui.voiceRecorder = false }
-            }
 
             Text {
                 Layout.fillWidth: true
@@ -295,7 +273,7 @@ PanelWindow {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
                     text: VoiceRecorder.trimDuration > 0
-                        ? Tr.t("Selection %1 – %2").arg(Trim.fmt(VoiceRecorder.trimStart)).arg(Trim.fmt(VoiceRecorder.trimEnd > 0 ? VoiceRecorder.trimEnd : VoiceRecorder.trimDuration))
+                        ? Tr.t("Selection %1 – %2").arg(VideoTrimmer.fmt(VoiceRecorder.trimStart)).arg(VideoTrimmer.fmt(VoiceRecorder.trimEnd > 0 ? VoiceRecorder.trimEnd : VoiceRecorder.trimDuration))
                         : Tr.t("Duration unknown — drag the sliders")
                     color: Theme.faint
                     font.family: Theme.mono
@@ -311,7 +289,7 @@ PanelWindow {
                     Layout.alignment: Qt.AlignHCenter
                     text: Tr.t("Save trimmed copy")
                     kind: "primary"
-                    enabled: VoiceRecorder.trimFile !== "" && !Trim.cutting
+                    enabled: VoiceRecorder.trimFile !== "" && !VideoTrimmer.cutting
                     onClicked: VoiceRecorder.saveTrimmedCopy()
                 }
                 Text {

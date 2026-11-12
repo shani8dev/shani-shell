@@ -4,27 +4,21 @@
 // continuous scroll option, rotation, print button (lp via Printing).
 // poppler's PNGs in ~/.cache/shani-pdf, ← → or wheel to turn, Esc closes.
 import Quickshell
-import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
 
-PanelWindow {
+AppWindow {
     id: win
-    visible: PdfViewer.shown && !Lock.locked
-    screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
-    anchors { top: true; bottom: true; left: true; right: true }
-    color: Theme.scrim
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "shani-pdf"
+    appName: "Document Viewer"
+    visible: PdfViewer.shown
+    onGone: PdfViewer.close()
+    margins: 0
+    implicitWidth: 960
+    implicitHeight: 760
     // blur behind the card, as on every shell surface (ext-background-effect)
-    BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurArea : null
-    Region { id: blurArea; item: blurCard; radius: blurCard.radius }
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    MouseArea { anchors.fill: parent; onClicked: PdfViewer.close() }
     Item {
         anchors.fill: parent
         focus: win.visible
@@ -41,13 +35,9 @@ PanelWindow {
             else if (e.key === Qt.Key_P) Printing.printFile(PdfViewer.file);
         }
     }
-    Glass {
+    Item {
         id: blurCard
-        anchors.centerIn: parent
-        width: Math.min(960, parent.width - 80)
-        height: Math.min(760, parent.height - 120)
-        strong: true
-        radius: Theme.radiusLarge
+        anchors.fill: parent
         MouseArea { anchors.fill: parent }       // clicks inside do not close it
         ColumnLayout {
             anchors.fill: parent
@@ -71,7 +61,6 @@ PanelWindow {
                 IconButton { icon: "go-next"; size: 28; tip: Tr.t("Next page"); onClicked: PdfViewer.nextPage() }
                 IconButton { icon: "document-open"; size: 28; tip: Tr.t("Toggle thumbnails"); on: PdfViewer.showSidebar; onClicked: PdfViewer.toggleSidebar() }
                 IconButton { icon: "printer"; size: 28; tip: Tr.t("Print (P)"); onClicked: PdfViewer.printFile() }
-                IconButton { icon: "window-close"; size: 28; tip: Tr.t("Close (Esc)"); onClicked: PdfViewer.close() }
             }
 
             // search bar: find text (pdftotext -bbox) + jump-to-page box
@@ -311,7 +300,7 @@ PanelWindow {
                 IconButton { icon: "zoom-fit-best"; size: 28; tip: Tr.t("Fit page (F)"); on: PdfViewer.fitMode === "page"; onClicked: PdfViewer.setFit("page") }
                 IconButton { icon: "view-fullscreen"; size: 28; tip: Tr.t("Fit width (W)"); on: PdfViewer.fitMode === "width"; onClicked: PdfViewer.setFit("width") }
                 IconButton { icon: "document-save"; size: 28; tip: Tr.t("Actual size"); on: PdfViewer.fitMode === "actual"; onClicked: PdfViewer.setFit("actual") }
-                IconButton { icon: "view-column"; size: 28; tip: Tr.t("Continuous scroll"); on: PdfViewer.continuous; onClicked: PdfViewer.toggleContinuous() }
+                IconButton { icon: "view-dual"; size: 28; tip: Tr.t("Continuous scroll"); on: PdfViewer.continuous; onClicked: PdfViewer.toggleContinuous() }
                 IconButton { icon: "object-rotate-right"; size: 28; tip: Tr.t("Rotate right (R)"); onClicked: PdfViewer.rotate() }
                 IconButton { icon: "object-rotate-left"; size: 28; tip: Tr.t("Rotate left"); onClicked: PdfViewer.rotateCCW() }
                 Text {

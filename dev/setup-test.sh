@@ -96,8 +96,9 @@ getent passwd shani | grep -q ':Shani Tester:/home/shani:/bin/bash$' && result s
 id -nG shani | grep -qw wheel && result setup-account-is-admin PASS || result setup-account-is-admin FAIL "$(id -nG shani)"
 grep -q '^shani:\$' /etc/shadow && result setup-sets-password PASS || result setup-sets-password FAIL
 [ -d /home/shani ] && result setup-creates-home PASS || result setup-creates-home FAIL
-# what /etc/skel gives every new account (shani-desktop-niri's): the default apps
-[ -f "/home/shani/.config/mimeapps.list" ] && grep -q "image/jpeg=org.gnome.Loupe" "/home/shani/.config/mimeapps.list" \
+# what /etc/skel gives every new account (shani-desktop-niri's): the default apps -
+# the shell's own first, the Flatpak after it
+[ -f "/home/shani/.config/mimeapps.list" ] && grep -q "image/jpeg=dev.shani.ImageViewer.desktop;org.gnome.Loupe" "/home/shani/.config/mimeapps.list" \
     && result setup-home-has-default-apps PASS || result setup-home-has-default-apps FAIL "$(ls -a /home/shani/.config 2>&1 | tr '\n' ' ')"
 LOG=/work/out/logs/greetd.log
 python3 - "$LOG" <<'PY' && result setup-signs-in PASS || result setup-signs-in FAIL "$(cat $LOG)"

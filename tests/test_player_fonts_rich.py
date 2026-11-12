@@ -104,8 +104,8 @@ def test_fonts_install_from_file_refreshes_cache_without_freezing():
 
 def test_player_and_fonts_are_registered():
     shell = read("shani/shell.qml")
-    assert "LazyLoader { active: Ui.player; Player {} }" in shell
-    assert "LazyLoader { active: Ui.fonts; FontsPanel {} }" in shell
+    assert 'LazyLoader { active: Ui.player; source: "Modules/Player/Player.qml" }' in shell
+    assert 'LazyLoader { active: Ui.fonts; source: "Modules/Fonts/FontsPanel.qml" }' in shell
     assert "function togglePlayer(" in shell
     assert "function toggleFonts(" in shell
     ui = read("shani/Common/Ui.qml")

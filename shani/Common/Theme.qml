@@ -10,6 +10,8 @@ pragma Singleton
 import Quickshell
 import QtQuick
 import "ThemeFade.js" as Fade
+import "Contrast.js" as Contrast
+import "Shape.js" as Shape
 
 Singleton {
     id: root
@@ -49,6 +51,11 @@ Singleton {
     // the chosen accent is used instead of a washed-out slate. The winner keeps
     // the picture's hue but is pushed to an accent's vividness — lightening it
     // to "read on dark" is what turned a teal wall into pale grey-blue.
+    //
+    // Ranked by HSL saturation, not by HCT chroma: perceptual vividness ranks
+    // the Saturn ring's lavender above the planet's amber, and the accent is
+    // the brand's amber (Common/Hct.js is here for the tonal work, where
+    // perception is the point).
     readonly property color picked: {
         const cs = quant.colors || [];
         let best = null, score = -1;
@@ -73,7 +80,10 @@ Singleton {
     })
     readonly property color chosen: mix((accents[Settings.data.accentName] || accents.orange)[0], (accents[Settings.data.accentName] || accents.orange)[1])
     readonly property color accent: Settings.data.accentFromWallpaper ? picked : chosen
-    readonly property color accentInk: mix("#ffffff", "#08110f")
+    // the ink on the accent: measured, not guessed. A pale accent takes dark
+    // text, a deep one takes white - and the switch happens where the
+    // contrast says it does, not where the eye expects it.
+    readonly property color accentInk: Contrast.readableOn(root.accent, [Qt.color("#08110f"), Qt.color("#ffffff")], 4.5)
 
     // the wallpaper in use: the style's own when one is set, the one wallpaper otherwise
     readonly property string wallpaper: (dark ? Settings.data.wallpaperDark : Settings.data.wallpaperLight) || Settings.data.wallpaper
@@ -152,9 +162,15 @@ Singleton {
     readonly property int fontBody: 13
     readonly property int fontTitle: 15
 
-    readonly property int radius: Settings.data.cornerRadius !== undefined ? Settings.data.cornerRadius : 16
-    readonly property int radiusSmall: Settings.data.cornerRadiusSmall !== undefined ? Settings.data.cornerRadiusSmall : 10
-    readonly property int radiusLarge: Math.max(radius + 6, 22)
+    // the corner scale: one table of shapes (Shape.js), so a card, a button
+    // and a chip are cut from the same scale instead of each picking a number
+    readonly property int radius: Settings.data.cornerRadius !== undefined ? Settings.data.cornerRadius : Shape.radius("l", 1)
+    readonly property int radiusSmall: Settings.data.cornerRadiusSmall !== undefined ? Settings.data.cornerRadiusSmall : Shape.radius("s", 1)
+    readonly property int radiusLarge: Math.max(radius + 6, Shape.radius("xl", 1))
+    // the radius of a circle or a pill
+    function pillRadius(w, h) { return Shape.fullRadius(w, h, 1); }
+    // a radius from the scale by name ("s", "m", "l", "xl" …)
+    function radiusToken(token) { return Shape.radius(token, 1); }
     readonly property int gap: 12
     readonly property int barHeight: 40
     // 0 with reduce motion: every Behavior keyed on it jumps instead of moving

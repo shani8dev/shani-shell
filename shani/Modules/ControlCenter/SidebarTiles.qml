@@ -12,7 +12,7 @@ import QtQuick.Layouts
 import qs.Common
 import qs.Services
 // `Color` unqualified binds to QtQuick 6.12's Color value-type namespace,
-// not this singleton — qualify it (see voltkit-alignment.md / Quickshell docs)
+// not this singleton — qualify it (see the Quickshell docs)
 import qs.Services as Services
 import qs.Modules.Notifications
 
@@ -189,7 +189,7 @@ ColumnLayout {
             hasDetail: true
             expanded: Ui.expanded === "timer"
             onToggled: FocusTimer.running ? FocusTimer.stop() : FocusTimer.start(25)
-            onDetail: Ui.expanded = Ui.expanded === "timer" ? "" : "timer"
+            onDetail: Ui.openClocks("timer")
         }
         Tile {
             tid: "caffeine"
@@ -256,7 +256,7 @@ ColumnLayout {
             }
             onDetail: {
                 Ui.closeAll();
-                Camera.open();
+                Camera.openCamera();
             }
         }
         Tile {
@@ -394,7 +394,7 @@ ColumnLayout {
                 }
             }
         }
-        // ---- voltkit-aligned tiles -------------------------------------------
+        // ---- tiles -------------------------------------------
         // Text expansion: quick snippet entry, copied to the clipboard.
         Tile {
             tid: "snippets"

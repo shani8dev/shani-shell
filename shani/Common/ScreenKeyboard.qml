@@ -44,7 +44,7 @@ Rectangle {
         signal tapped()
         Layout.fillWidth: true
         Layout.fillHeight: true
-        radius: 10
+        radius: Theme.radiusSmall
         color: tap.pressed ? Theme.pressed : accent ? Theme.accentSoft : Theme.alpha(Theme.text, 0.08)
         Text {
             anchors.centerIn: parent

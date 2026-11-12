@@ -66,7 +66,7 @@ PanelWindow {
         if (Dictation.phase === "transcribing")
             return { icon: "audio-input-microphone", text: Tr.t("Writing it down…"), color: Theme.accent, run: () => {} };
         if (FocusTimer.running)
-            return { icon: "alarm", text: "Focus · " + FocusTimer.label, color: Theme.accent, run: () => Ui.toggleControlCenter("timer") };
+            return { icon: "alarm", text: "Focus · " + FocusTimer.label, color: Theme.accent, run: () => Ui.openClocks("timer") };
         if (Audio.screenShared)
             return { icon: "screen-shared", text: Tr.t("Sharing your screen"), color: Theme.red, run: () => {} };
         if (Backup.running)

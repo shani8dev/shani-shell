@@ -3,41 +3,35 @@
 // EXIF-aware rotation (applied by the service), batch grid mode, copy path,
 // open-with, delete-to-trash. ← → through its folder, Esc or click to close.
 import Quickshell
-import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
 
-PanelWindow {
+AppWindow {
     id: win
-    visible: Viewer.shown && !Lock.locked
-    screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
-    anchors { top: true; bottom: true; left: true; right: true }
-    color: Theme.scrim
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "shani-viewer"
+    appName: "Image Viewer"
+    visible: Viewer.shown
+    onGone: Viewer.close()
+    margins: 0
+    implicitWidth: 920
+    implicitHeight: 720
     // blur behind the card, as on every shell surface (ext-background-effect)
-    BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurArea : null
-    Region { id: blurArea; item: blurCard; radius: blurCard.radius }
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     property int dragStartX: 0
     property int dragStartY: 0
     property real dragPanX: 0
     property real dragPanY: 0
 
-    MouseArea { anchors.fill: parent; onClicked: Viewer.close() }
     Item {
         anchors.fill: parent
         focus: win.visible
         Keys.onEscapePressed: Viewer.close()
         Keys.onRightPressed: Viewer.next()
         Keys.onLeftPressed: Viewer.prev()
-        Keys.onHomePressed: if (Viewer.list.length) Viewer.goToIndex(0)
-        Keys.onEndPressed: if (Viewer.list.length) Viewer.goToIndex(Viewer.list.length - 1)
         Keys.onPressed: e => {
+            if (e.key === Qt.Key_Home) { if (Viewer.list.length) Viewer.goToIndex(0); e.accepted = true; return; }
+            if (e.key === Qt.Key_End) { if (Viewer.list.length) Viewer.goToIndex(Viewer.list.length - 1); e.accepted = true; return; }
             if (e.key === Qt.Key_R && (e.modifiers & Qt.ShiftModifier)) Viewer.rotateCCW();
             else if (e.key === Qt.Key_R) Viewer.rotate();
             else if (e.key === Qt.Key_Plus || e.key === Qt.Key_Equal) Viewer.zoomIn();
@@ -56,13 +50,9 @@ PanelWindow {
             else if (e.key === Qt.Key_O) Viewer.openWith();
         }
     }
-    Glass {
+    Item {
         id: blurCard
-        anchors.centerIn: parent
-        width: Math.min(920, parent.width - 80)
-        height: Math.min(720, parent.height - 120)
-        strong: true
-        radius: Theme.radiusLarge
+        anchors.fill: parent
         MouseArea { anchors.fill: parent }       // clicks inside do not close it
         ColumnLayout {
             anchors.fill: parent
@@ -84,7 +74,6 @@ PanelWindow {
                     font.weight: Font.DemiBold
                 }
                 IconButton { icon: "go-next"; size: 28; tip: Tr.t("Next (→)"); onClicked: Viewer.next() }
-                IconButton { icon: "window-close"; size: 28; tip: Tr.t("Close (Esc)"); onClicked: Viewer.close() }
             }
 
             // main stage: single image, or the batch grid
@@ -238,7 +227,7 @@ PanelWindow {
                 IconButton { icon: "edit-copy"; size: 28; tip: Tr.t("Flip vertically (V)"); on: Viewer.flipV; onClicked: Viewer.toggleFlipV() }
                 IconButton { icon: "media-playback-start"; size: 28; tip: Tr.t("Slideshow (S)"); on: Viewer.slideshow; onClicked: Viewer.toggleSlideshow() }
                 IconButton { icon: "view-grid"; size: 28; tip: Tr.t("Grid (G)"); on: Viewer.gridMode; onClicked: Viewer.toggleGrid() }
-                IconButton { icon: "view-list-details"; size: 28; tip: Tr.t("Thumbnails (T)"); on: Viewer.showThumbs; onClicked: Viewer.toggleThumbs() }
+                IconButton { icon: "view-list"; size: 28; tip: Tr.t("Thumbnails (T)"); on: Viewer.showThumbs; onClicked: Viewer.toggleThumbs() }
             }
             RowLayout {
                 Layout.fillWidth: true

@@ -331,7 +331,7 @@ Variants {
                     tint: Theme.accent
                     mono: true
                     label: FocusTimer.label
-                    onClicked: Ui.toggleControlCenter("timer")
+                    onClicked: Ui.openClocks("timer")
                 }
 
                 // recording + privacy: always visible when true, never hidden in a menu

@@ -4,8 +4,7 @@
 For every surface/feature, lists the external binaries it calls, marks each
 present/missing, and prints the distro install command for anything missing.
 
-Modelled on `voltkit doctor`: "tells you exactly what's missing and the
-command to install it."
+It says exactly what is missing and the command to install it.
 
 Exit 0 if every needed tool is present, 1 otherwise.
 """
@@ -23,6 +22,8 @@ FEATURES = [
      "wl-clipboard libnotify", "wl-clipboard libnotify-bin"),
     ("App launching", ["gtk-launch", "xdg-open", "xdg-email", "gio"],
      "gtk3 xdg-utils glib2", "gtk3 xdg-utils libglib2.0-bin"),
+    ("File manager", ["python3", "gio"],
+     "python glib2", "python3 libglib2.0-bin"),
     ("Systemd unit management", ["kill", "systemctl"],
      "systemd", "systemd"),
     ("Printing GUI", ["system-config-printer"],

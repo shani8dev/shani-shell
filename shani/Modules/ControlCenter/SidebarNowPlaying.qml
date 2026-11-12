@@ -20,7 +20,7 @@ ColumnLayout {
     Glass {
         id: np
         visible: sidebar.player !== null
-        // a wash of the cover's own colour (dux's): the most vivid of a few candidates
+        // a wash of the cover's own colour: the most vivid of a few candidates
         ColorQuantizer {
             id: art
             source: sidebar.visible && sidebar.player && sidebar.player.trackArtUrl ? sidebar.player.trackArtUrl : ""
@@ -180,6 +180,7 @@ ColumnLayout {
                     IconButton { icon: "media-skip-backward"; size: 28; onClicked: sidebar.player.previous() }
                     IconButton { icon: sidebar.player && sidebar.player.isPlaying ? "media-playback-pause" : "media-playback-start"; size: 28; on: true; onClicked: sidebar.player.togglePlaying() }
                     IconButton { icon: "media-skip-forward"; size: 28; onClicked: sidebar.player.next() }
+                    IconButton { visible: sidebar.player && sidebar.player.canRaise; icon: "window-new"; size: 28; tip: Tr.t("Show the player"); onClicked: { Ui.closeAll(); sidebar.player.raise(); } }
                 }
             }
         }

@@ -123,7 +123,7 @@ PanelWindow {
         const p = win.trimPath();
         if (p) {
             Ui.closeAll();
-            Trim.open(p);
+            VideoTrimmer.open(p);
         }
     }
     function repeatLabel() {
@@ -373,7 +373,7 @@ PanelWindow {
                 Layout.alignment: Qt.AlignHCenter
                 spacing: 12
                 IconButton {
-                    icon: "media-repeat"
+                    icon: "media-playlist-repeat"
                     size: 36
                     on: win.player ? (win.player.loopSupported && win.player.loopState !== MprisLoopState.None) : false
                     tip: win.repeatLabel()
@@ -402,7 +402,7 @@ PanelWindow {
                     onClicked: win.player.next()
                 }
                 IconButton {
-                    icon: "media-shuffle"
+                    icon: "media-playlist-shuffle"
                     size: 36
                     on: win.player ? win.player.shuffle : false
                     tip: Tr.t("Shuffle")

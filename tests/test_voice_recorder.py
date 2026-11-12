@@ -149,12 +149,9 @@ def test_service_list_rename_delete_play():
 
 def test_panel_follows_the_qrview_pattern():
     t = PANEL.read_text()
-    assert "PanelWindow" in t
-    assert "visible: Ui.voiceRecorder && !Lock.locked" in t
-    assert 'WlrLayershell.namespace: "shani-voice-recorder"' in t
-    assert "WlrKeyboardFocus.Exclusive" in t
+    assert "AppWindow {" in t and "appName:" in t and "onGone:" in t   # a window of its own (Common/AppWindow)
+    assert "visible: Ui.voiceRecorder" in t
     assert "Keys.onEscapePressed: Ui.voiceRecorder = false" in t
-    assert "Theme.scrim" in t and "Glass" in t and "Theme.radiusLarge" in t
 
 
 def test_panel_has_record_pause_timer_level_and_rows():
@@ -176,13 +173,13 @@ def test_panel_has_record_pause_timer_level_and_rows():
 def test_ui_flag_and_close_all():
     t = (SHANI / "Common/Ui.qml").read_text()
     assert "property bool voiceRecorder: false" in t
-    close_all = t[t.index("function closeAll()"):]
+    close_all = t[t.index("function closeApps()"):]
     assert "voiceRecorder = false" in close_all.split("}")[0]
 
 
 def test_shell_lazy_loads_panel_and_exposes_ipc():
     t = (SHANI / "shell.qml").read_text()
-    assert "LazyLoader { active: Ui.voiceRecorder; VoiceRecorderPanel {} }" in t
+    assert 'LazyLoader { active: Ui.voiceRecorder; source: "Modules/VoiceRecorder/VoiceRecorderPanel.qml" }' in t
     assert "import qs.Modules.VoiceRecorder" in t
     assert "VoiceRecorder" in t.split("_services")[1].split("]")[0]
     for fn in ("voiceRecorderOpen", "voiceRecorderClose", "voiceRecorderToggle",

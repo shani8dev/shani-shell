@@ -72,7 +72,7 @@ Variants {
         onWantedChanged: swap()
         Component.onCompleted: swap()
 
-        // right-click on the empty desktop: what people look for there (dux's menu)
+        // right-click on the empty desktop: what people look for there
         MouseArea {
             anchors.fill: parent
             z: 10

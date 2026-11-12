@@ -1,188 +1,178 @@
-// Scanner (Scanner): native QML surface for scanning documents.
-// Replaces org.gnome.SimpleScan. Uses scanimage (SANE) for actual scanning.
+// Scanner: a page from a scanner (SANE's scanimage), kept in Documents/Scans
+// and shown - then open, copy the path, or scan again. The scanner, its
+// resolution and the file type are picks. Errors are the scanner's own words,
+// never written into the file (scanimage's messages go to stderr).
 import Quickshell
-import Quickshell.Wayland
 import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Controls
-import QtQuick.Dialogs
 import qs.Common
 import qs.Services as Services
 
-PanelWindow {
+AppWindow {
     id: win
-    visible: Ui.scanner && !Lock.locked
-    screen: Quickshell.screens.find(s => s.name === Services.Niri.focusedOutput) || Quickshell.screens[0]
-    anchors { top: true; bottom: true; left: true; right: true }
-    color: Theme.scrim
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "shani-scanner"
-    BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurArea : null
-    Region { id: blurArea; item: card; radius: card.radius }
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    appName: "Document Scanner"
+    visible: Ui.scanner
+    onGone: Ui.scanner = false
+    implicitWidth: 640
+    implicitHeight: 620
 
-    property var devices: []
-    property string selectedDevice: ""
-    property string resolution: "300"
+    property var devices: []            // [{ id, name }]
+    property string device: ""
+    property int resolution: 300
     property string format: "png"
-    property string lastScan: ""
+    property bool looking: false
     property bool scanning: false
-    property string status: ""
+    property string lastScan: ""
+    property string error: ""
+    readonly property string folder: (Quickshell.env("XDG_DOCUMENTS_DIR") || (Quickshell.env("HOME") + "/Documents")) + "/Scans"
 
-    MouseArea { anchors.fill: parent; onClicked: Ui.scanner = false }
+    function refreshDevices() { looking = true; error = ""; deviceProc.running = true; }
+    Process {
+        id: deviceProc
+        command: ["scanimage", "-f", "%d\t%v %m%n"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                win.devices = text.split("\n").filter(l => l.indexOf("\t") > 0).map(l => ({ id: l.split("\t")[0], name: l.split("\t")[1].trim() }));
+                if (win.devices.length && !win.devices.some(d => d.id === win.device))
+                    win.device = win.devices[0].id;
+            }
+        }
+        onExited: win.looking = false
+    }
+    function scan() {
+        if (device === "" || scanning)
+            return;
+        scanning = true;
+        error = "";
+        const out = folder + "/Scan " + Qt.formatDateTime(new Date(), "yyyy-MM-dd hh.mm.ss") + "." + (format === "jpeg" ? "jpg" : format);
+        scanProc.target = out;
+        scanProc.command = ["sh", "-c", 'mkdir -p "${4%/*}" && scanimage --device-name="$1" --resolution="$2" --format="$3" --output-file="$4.part" && mv -f "$4.part" "$4"',
+                            "sh", device, String(resolution), format, out];
+        scanProc.running = true;
+    }
+    Process {
+        id: scanProc
+        property string target: ""
+        stderr: StdioCollector { id: scanErr }
+        onExited: code => {
+            win.scanning = false;
+            if (code === 0) win.lastScan = scanProc.target;
+            else win.error = scanErr.text.trim().split("\n").pop() || Tr.t("The scanner did not answer");
+        }
+    }
+    Component.onCompleted: refreshDevices()
 
-    Glass {
-        id: card
-        anchors.centerIn: parent
-        width: Math.min(parent.width - 60, 600)
-        height: Math.min(parent.height - 60, 550)
-        radius: Theme.radiusLg
+    Item {
+        anchors.fill: parent
+        focus: true
+        Keys.onEscapePressed: Ui.scanner = false
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 16
-            spacing: 12
+            spacing: 10
 
             RowLayout {
                 Layout.fillWidth: true
-                Label { text: "Scanner"; font.bold: true; font.pixelSize: 18 }
-                Button {
-                    Layout.alignment: Qt.AlignRight
-                    text: "✕"
-                    flat: true
-                    onClicked: Ui.scanner = false
-                }
+                SectionTitle { Layout.fillWidth: true; text: Tr.t("Scanner") }
+                Text { visible: win.looking; text: Tr.t("Looking…"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+                IconButton { size: 28; icon: "view-refresh"; tip: Tr.t("Look again"); enabled: !win.looking; onClicked: win.refreshDevices() }
             }
-
-            Label {
-                text: win.status
-                font.pixelSize: 11
-                color: Theme.onSurfaceVariant
-                wrapMode: Text.Wrap
-                Layout.fillWidth: true
-            }
-
-            // Device selection
-            Label { text: "Device:"; font.bold: true; font.pixelSize: 13 }
-            ComboBox {
-                Layout.fillWidth: true
+            Repeater {
                 model: win.devices
-                onCurrentIndexChanged: {
-                    if (currentIndex >= 0) win.selectedDevice = win.devices[currentIndex];
-                }
-            }
-
-            // Resolution
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-                Label { text: "Resolution:"; font.pixelSize: 12 }
-                ComboBox {
-                    Layout.preferredWidth: 120
-                    model: ["75", "150", "300", "600", "1200"]
-                    currentIndex: 2
-                    onCurrentTextChanged: win.resolution = currentText
-                }
-                Label { text: "Format:"; font.pixelSize: 12 }
-                ComboBox {
-                    Layout.preferredWidth: 100
-                    model: ["png", "jpeg", "tiff", "pdf"]
-                    onCurrentTextChanged: win.format = currentText
-                }
-            }
-
-            // Scan buttons
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-                Button {
+                ListRow {
+                    required property var modelData
                     Layout.fillWidth: true
-                    text: win.scanning ? "Scanning..." : "Scan"
-                    enabled: !win.scanning && win.selectedDevice !== ""
-                    onClicked: win.doScan()
-                }
-                Button {
-                    Layout.fillWidth: true
-                    text: "Refresh devices"
-                    onClicked: win.refreshDevices()
+                    icon: "scanner"
+                    title: modelData.name
+                    subtitle: modelData.id
+                    trailing: win.device === modelData.id ? Tr.t("Chosen") : ""
+                    onClicked: win.device = modelData.id
                 }
             }
-
-            // Last scan preview
-            Label { text: "Last scan:"; font.bold: true; font.pixelSize: 13; visible: win.lastScan !== "" }
-            Label {
-                text: win.lastScan
-                font.pixelSize: 11
-                color: Theme.onSurfaceVariant
+            Text {
+                Layout.fillWidth: true
+                visible: !win.looking && win.devices.length === 0
+                text: Tr.t("No scanner found. Plug one in or turn it on; a network scanner needs to be on the same Wi-Fi.")
+                color: Theme.dim
                 wrapMode: Text.Wrap
-                Layout.fillWidth: true
-                visible: win.lastScan !== ""
+                font.family: Theme.font
+                font.pixelSize: 12 * Theme.fontScale
             }
 
-            Button {
+            Flow {
                 Layout.fillWidth: true
-                text: "Open last scan"
-                visible: win.lastScan !== ""
-                onClicked: Quickshell.execDetached(["gio", "open", win.lastScan])
+                spacing: 6
+                Repeater {
+                    model: [[150, Tr.t("Text · 150 dpi")], [300, Tr.t("Documents · 300")], [600, Tr.t("Photos · 600")]]
+                    Choice {
+                        required property var modelData
+                        text: modelData[1]
+                        selected: win.resolution === modelData[0]
+                        onClicked: win.resolution = modelData[0]
+                    }
+                }
+            }
+            Flow {
+                Layout.fillWidth: true
+                spacing: 6
+                Repeater {
+                    model: [["png", "PNG"], ["jpeg", "JPEG"], ["pdf", "PDF"], ["tiff", "TIFF"]]
+                    Choice {
+                        required property var modelData
+                        text: modelData[1]
+                        selected: win.format === modelData[0]
+                        onClicked: win.format = modelData[0]
+                    }
+                }
             }
 
-            Button { Layout.fillWidth: true; text: "Close"; onClicked: Ui.scanner = false }
-        }
-    }
-
-    Process {
-        id: deviceProc
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const lines = text.trim().split("\n").filter(l => l.trim());
-                win.devices = lines.map(l => {
-                    const m = l.match(/device `(.+?)' is (.+)/);
-                    return m ? m[1] + " — " + m[2] : l;
-                });
-                win.status = "Found " + win.devices.length + " device(s)";
-                if (win.devices.length > 0 && win.selectedDevice === "") {
-                    win.selectedDevice = win.devices[0].split(" — ")[0];
+            // the last scan, to look at
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                radius: Theme.radiusSmall
+                color: Theme.surface1
+                clip: true
+                Image {
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    visible: win.lastScan !== "" && !win.lastScan.endsWith(".pdf")
+                    fillMode: Image.PreserveAspectFit
+                    asynchronous: true
+                    sourceSize: Qt.size(800, 800)
+                    source: visible ? "file://" + win.lastScan.split("/").map(encodeURIComponent).join("/") : ""
+                }
+                EmptyState {
+                    anchors.centerIn: parent
+                    visible: win.lastScan === "" || win.lastScan.endsWith(".pdf")
+                    icon: win.scanning ? "content-loading" : "scanner"
+                    title: win.scanning ? Tr.t("Scanning…") : win.lastScan !== "" ? win.lastScan.split("/").pop() : Tr.t("Nothing scanned yet")
+                    subtitle: win.lastScan === "" ? Tr.t("Scans are kept in Documents/Scans") : ""
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: win.error !== ""
+                text: win.error
+                color: Theme.danger
+                wrapMode: Text.Wrap
+                font.family: Theme.font
+                font.pixelSize: 12 * Theme.fontScale
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                Button { visible: win.lastScan !== ""; text: Tr.t("Open"); onClicked: Quickshell.execDetached(["gio", "open", win.lastScan]) }
+                Button { visible: win.lastScan !== ""; flat: true; text: Tr.t("Show in Files"); onClicked: Services.Files.show(win.folder) }
+                Item { Layout.fillWidth: true }
+                Button {
+                    kind: "primary"
+                    text: win.scanning ? Tr.t("Scanning…") : Tr.t("Scan")
+                    enabled: win.device !== "" && !win.scanning
+                    onClicked: win.scan()
                 }
             }
         }
     }
-
-    Process {
-        id: scanProc
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                if (text.trim()) {
-                    win.lastScan = text.trim();
-                    win.status = "Scan complete: " + win.lastScan.split("/").pop();
-                }
-            }
-        }
-        onExited: (code, signal) => {
-            win.scanning = false;
-            if (code !== 0) win.status = "Scan failed (code " + code + ")";
-        }
-    }
-
-    function refreshDevices() {
-        win.status = "Discovering devices...";
-        deviceProc.command = ["scanimage", "-L"];
-        deviceProc.running = true;
-    }
-
-    function doScan() {
-        win.scanning = true;
-        win.status = "Scanning...";
-        const outPath = "/tmp/scan-" + Date.now() + "." + win.format;
-        scanProc.command = ["sh", "-c",
-            'scanimage --device-name="$1" --resolution="$2" --format="$3" > "$4" 2>&1 && echo "$4"',
-            "sh", win.selectedDevice.split(" — ")[0], win.resolution, win.format, outPath];
-        scanProc.running = true;
-    }
-
-    Component.onCompleted: { win.refreshDevices(); }
-    Keys.onEscapePressed: Ui.scanner = false
 }

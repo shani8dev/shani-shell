@@ -4,66 +4,35 @@
 // copy the character, Enter copies it too, Esc closes.
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
 
-PanelWindow {
+AppWindow {
     id: win
-    visible: Ui.characters && !Lock.locked
-    screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
-    anchors { top: true; bottom: true; left: true; right: true }
-    color: Theme.scrim
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "shani-characters"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
-    BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurRegion : null
-    Region { id: blurRegion; item: card; radius: Theme.radiusLarge }
+    appName: "Characters"
+    tools: [ IconButton { size: 30; icon: "view-refresh"; tip: Tr.t("Refresh"); onClicked: Characters.browse() } ]
+    visible: Ui.characters
+    onGone: Ui.characters = false
+    margins: 0
+    implicitWidth: 640
+    implicitHeight: 580
 
     onVisibleChanged: if (visible) Characters.browse()
     Component.onCompleted: if (visible) Characters.browse()
 
-    MouseArea { anchors.fill: parent; onClicked: Ui.characters = false }
     Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: Ui.characters = false }
 
-    Glass {
+    Item {
         id: card
-        anchors.centerIn: parent
-        width: 640
-        height: 580
-        strong: true
-        radius: Theme.radiusLarge
+        anchors.fill: parent
 
-        MouseArea { anchors.fill: parent }
 
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: 16
             spacing: 12
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-                SectionTitle {
-                    Layout.fillWidth: true
-                    text: Tr.t("Characters")
-                }
-                IconButton {
-                    icon: "view-refresh"
-                    size: 28
-                    tip: Tr.t("Refresh")
-                    onClicked: Characters.browse()
-                }
-                IconButton {
-                    icon: "window-close"
-                    size: 28
-                    tip: Tr.t("Close")
-                    onClicked: Ui.characters = false
-                }
-            }
 
             TextField {
                 id: searchField
@@ -167,6 +136,7 @@ PanelWindow {
                 subtitle: Tr.t("Try a word like arrow, star, rupee, devanagari or math")
             }
 
+            Item { Layout.fillWidth: true }
             Text {
                 Layout.fillWidth: true
                 text: Characters.results.length ? Tr.t("Click a character to copy it · Esc closes") : Tr.t("Searching Unicode…")

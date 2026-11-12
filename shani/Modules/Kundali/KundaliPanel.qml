@@ -1,7 +1,6 @@
 // Kundali (Kundali): Vedic birth chart and Panchang using NASA JPL DE440s.
 // Offline, no API keys. Computes sidereal birth charts and daily panchang.
 import Quickshell
-import Quickshell.Wayland
 import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
@@ -9,18 +8,14 @@ import QtQuick.Controls
 import qs.Common
 import qs.Services as Services
 
-PanelWindow {
+AppWindow {
     id: win
-    visible: Ui.kundali && !Lock.locked
-    screen: Quickshell.screens.find(s => s.name === Services.Niri.focusedOutput) || Quickshell.screens[0]
-    anchors { top: true; bottom: true; left: true; right: true }
-    color: Theme.scrim
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "shani-kundali"
-    BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurArea : null
-    Region { id: blurArea; item: card; radius: card.radius }
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    appName: "Kundali"
+    visible: Ui.kundali
+    onGone: Ui.kundali = false
+    margins: 0
+    implicitWidth: 700
+    implicitHeight: 600
 
     property string mode: "panchang"  // panchang or kundali
     property string dateInput: ""
@@ -30,21 +25,15 @@ PanelWindow {
     property string result: ""
     property bool loading: false
 
-    MouseArea { anchors.fill: parent; onClicked: Ui.kundali = false }
 
-    Glass {
+    Item {
         id: card
-        anchors.centerIn: parent
-        width: Math.min(parent.width - 60, 700)
-        height: Math.min(parent.height - 60, 600)
-        radius: Theme.radiusLg
+        anchors.fill: parent
 
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: 16
             spacing: 8
-
-            Label { text: "Kundali & Panchang"; font.bold: true; font.pixelSize: 18 }
 
             RowLayout {
                 Layout.fillWidth: true
@@ -96,7 +85,6 @@ PanelWindow {
                 }
             }
 
-            Button { Layout.fillWidth: true; text: "Close"; onClicked: Ui.kundali = false }
         }
     }
 

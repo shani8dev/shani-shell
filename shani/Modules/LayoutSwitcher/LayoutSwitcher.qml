@@ -40,7 +40,7 @@ PanelWindow {
         { id: "tiling", name: Tr.t("Tiling"), icon: "view-grid", desc: Tr.t("For the keyboard: no dock, tight gaps, a strong focus ring, focus follows the pointer."),
           set: Object.assign({ dock: false, dockVisibility: "hide", barVisibility: "always", dockIconSize: 48, desktopWidgets: [], desktopIcons: false, deskStacks: false,
                  winGaps: 6, winFocusRing: 3, winDefaultWidth: 0.5, winFocusFollowsMouse: true, assistiveTouch: false, showSysStats: true }, cornersAll("none")) },
-        { id: "dashboard", name: Tr.t("Dashboard"), icon: "view-list-details", desc: Tr.t("Everything at a glance: agenda, weather, music, a note, system use; files grouped into stacks."),
+        { id: "dashboard", name: Tr.t("Dashboard"), icon: "view-list", desc: Tr.t("Everything at a glance: agenda, weather, music, a note, system use; files grouped into stacks."),
           set: Object.assign({ dock: true, dockVisibility: "always", barVisibility: "always", dockIconSize: 44, desktopWidgets: ["clock", "agenda", "weather", "media", "stats", "note"], desktopIcons: true, deskStacks: true,
                  winGaps: 12, winFocusRing: 2, winDefaultWidth: 0.5, winFocusFollowsMouse: false, assistiveTouch: false, showSysStats: true }, cornersAll("overview")) },
         { id: "touch", name: Tr.t("Touch"), icon: "input-tablet", desc: Tr.t("For fingers: big dock icons, full-width windows, the Smart Touch button, no hot corners to brush by mistake."),

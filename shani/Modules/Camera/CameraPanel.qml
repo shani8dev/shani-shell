@@ -8,35 +8,24 @@
 // GNOME app involved; cam/qcam are in the image via shani-video.
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
 
-PanelWindow {
+AppWindow {
     id: win
+    appName: "Camera"
     visible: Camera.open
-    screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
-    anchors { top: true; bottom: true; left: true; right: true }
-    color: Theme.scrim
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "shani-camera"
-    BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurArea : null
-    Region { id: blurArea; item: blurCard; radius: blurCard.radius }
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    onGone: Camera.closeCamera()
+    margins: 0
+    implicitWidth: 720
+    implicitHeight: Math.max(320, Math.min(900, col.implicitHeight + 40))
 
-    MouseArea { anchors.fill: parent; onClicked: Camera.closeCamera() }
     Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: Camera.closeCamera() }
-    Glass {
+    Item {
         id: blurCard
-        anchors.centerIn: parent
-        width: Math.min(720, parent.width - 80)
-        implicitHeight: col.implicitHeight + 40
-        strong: true
-        radius: Theme.radiusLarge
-        MouseArea { anchors.fill: parent }
+        anchors.fill: parent
 
         ColumnLayout {
             id: col
@@ -46,19 +35,18 @@ PanelWindow {
 
             RowLayout {
                 Layout.fillWidth: true
-                Icon { name: "camera-photo"; size: 20; color: Theme.accent }
                 Text {
                     Layout.fillWidth: true
+                    // what is happening; the window's header names the app
                     text: Camera.phase === "recording" ? "Recording · " + Camera.elapsed
                         : Camera.phase === "counting" ? "Photo in " + Camera.countdown + "…"
-                        : "Camera"
+                        : ""
                     color: Theme.text
                     font.family: Theme.font
                     font.pixelSize: 15 * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
                 IconButton { icon: "view-refresh"; size: 28; onClicked: Camera.openViewfinder() }
-                IconButton { icon: "window-close"; size: 28; onClicked: Camera.closeCamera() }
             }
 
             RowLayout {
@@ -133,7 +121,7 @@ PanelWindow {
                         spacing: 6
                         Choice { text: "Open folder"; onClicked: Qt.openUrlExternally("file://" + (Camera.last ? Camera.last.substring(0, Camera.last.lastIndexOf("/")) : Camera.photosDir)); }
                         Choice { text: "Copy path"; onClicked: Quickshell.clipboardText = Camera.last; }
-                        Choice { text: "Trim video"; visible: Camera.last.endsWith(".webm"); onClicked: { const p = Camera.last; Camera.closeCamera(); Trim.open(p); } }
+                        Choice { text: "Trim video"; visible: Camera.last.endsWith(".webm"); onClicked: { const p = Camera.last; Camera.closeCamera(); VideoTrimmer.open(p); } }
                     }
                 }
             }
@@ -146,7 +134,7 @@ PanelWindow {
             }
             ListView {
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(180, gallery.count * 44)
+                Layout.preferredHeight: Math.min(180, count * 44)
                 model: Camera.gallery
                 spacing: 4
                 delegate: ListRow {

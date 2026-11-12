@@ -13,8 +13,11 @@ Requisite=graphical-session.target
 # shell's own icons too; Quickshell has no icons without one
 # (gsettings prints it quoted: 'Adwaita' — the first and last characters go);
 # and the person's own folders (xdg-user-dirs: a German "Bilder", say) as the
-# XDG_*_DIR variables screenshots, recordings and the camera save into
-ExecStart=/bin/sh -c 'f="$${XDG_CONFIG_HOME:-$$HOME/.config}/user-dirs.dirs"; [ -r "$$f" ] && { set -a; . "$$f"; set +a; }; t=$(gsettings get org.gnome.desktop.interface icon-theme 2>/dev/null); t=$${t#?}; t=$${t%%?}; QS_ICON_THEME="$${t:-Adwaita}" exec /usr/bin/qs -c shani'
+# XDG_*_DIR variables screenshots, recordings and the camera save into;
+# and no Qt window decoration: the shell's windows draw their own header in
+# its colours (Common/AppWindow) - Qt's is a white Adwaita bar (QT_WAYLAND_DECORATION
+# in niri's environment is for other Qt apps)
+ExecStart=/bin/sh -c 'f="$${XDG_CONFIG_HOME:-$$HOME/.config}/user-dirs.dirs"; [ -r "$$f" ] && { set -a; . "$$f"; set +a; }; t=$(gsettings get org.gnome.desktop.interface icon-theme 2>/dev/null); t=$${t#?}; t=$${t%%?}; QS_ICON_THEME="$${t:-Adwaita}" QT_WAYLAND_DISABLE_WINDOWDECORATION=1 exec /usr/bin/qs -c shani'
 Restart=on-failure
 RestartSec=2
 

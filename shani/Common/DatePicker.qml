@@ -74,7 +74,7 @@ ColumnLayout {
                 readonly property bool isToday: day === new Date().getDate() && current.getMonth() === new Date().getMonth() && current.getFullYear() === new Date().getFullYear()
                 Layout.fillWidth: true
                 Layout.preferredHeight: 30
-                radius: 8
+                radius: Theme.radiusToken("xs")
                 color: isSelected ? Theme.accent : (isToday ? Theme.hover : "transparent")
                 border.width: isToday && !isSelected ? 1 : 0
                 border.color: Theme.accent

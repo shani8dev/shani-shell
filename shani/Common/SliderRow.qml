@@ -3,6 +3,7 @@
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
+import "WheelInput.js" as WheelInput
 
 RowLayout {
     id: root
@@ -70,7 +71,13 @@ RowLayout {
             }
             onPressed: m => at(m.x)
             onPositionChanged: m => pressed && at(m.x)
-            onWheel: w => root.moved(Math.max(0, Math.min(1, root.value + (w.angleDelta.y > 0 ? 0.05 : -0.05))))
+            // a wheel notch is one step; a finger slides it by its own pixels
+            onWheel: w => {
+                const delta = WheelInput.stepDelta(w, 0.05, 40);
+                if (delta === 0)
+                    return;
+                root.moved(Math.max(0, Math.min(1, root.value + delta)));
+            }
         }
         // keyboard and controller: Left / Right move it by 5 %
         KeyFocus {

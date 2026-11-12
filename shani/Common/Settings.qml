@@ -30,15 +30,63 @@ Singleton {
     // missing key at whatever it was (measured: a file reset to {} changed
     // nothing), so an outside edit is applied as defaults + file.
     property var defaults: ({})
-    Component.onCompleted: {
-        const d = {};
+    // recently changed keys, newest first, capped at 8 (UX: recently changed rail)
+    property var recentlyChanged: []
+    // the values as the file gave them at sign-in — what "Undo" goes back to.
+    // Taken once the file is read (onLoadedChanged): taken any earlier it is
+    // the defaults, and Undo would throw away what the person chose last week.
+    property var loadedValues: ({})
+    function snapshot() {
+        const out = {};
         for (const k in adapter) {
             const v = adapter[k];
             if (typeof v === "function" || k === "objectName" || k.startsWith("__"))
                 continue;
-            d[k] = JSON.parse(JSON.stringify(v === undefined ? null : v));
+            out[k] = JSON.parse(JSON.stringify(v === undefined ? null : v));
         }
-        defaults = d;
+        return out;
+    }
+    Component.onCompleted: defaults = snapshot()
+    onLoadedChanged: if (loaded) Qt.callLater(() => { loadedValues = snapshot(); })
+    // record a setting key as recently changed (called from SettingsPage toggles)
+    function touch(key) {
+        if (!key) return;
+        const now = [...recentlyChanged.filter(k => k !== key), key];
+        recentlyChanged = now.slice(0, 8);
+    }
+    // all scalar keys whose current value differs from what was loaded
+    readonly property var changedKeys: {
+        const out = [];
+        for (const k of Object.keys(loadedValues)) {
+            const cur = adapter[k];
+            const orig = loadedValues[k];
+            if (typeof cur === "function" || k === "objectName" || k.startsWith("__"))
+                continue;
+            if (JSON.stringify(cur) !== JSON.stringify(orig))
+                out.push(k);
+        }
+        return out;
+    }
+    // how many settings differ from their loaded values
+    readonly property int changedCount: root.changedKeys.length
+    // undo one setting key back to its loaded value
+    function undo(key) {
+        if (!key || !(key in loadedValues))
+            return false;
+        const orig = loadedValues[key];
+        adapter[key] = orig === undefined ? null : orig;
+        touch(key);
+        save();
+        return true;
+    }
+    // undo every changed setting back to its loaded value
+    function undoAll() {
+        for (const k of root.changedKeys) {
+            const orig = loadedValues[k];
+            adapter[k] = orig === undefined ? null : orig;
+        }
+        recentlyChanged = [];
+        save();
     }
     function applyOutside(text) {
         let file = {};
@@ -152,7 +200,8 @@ Singleton {
             property bool autoRotate: false
             // ShaniOS's pair (the Saturn brand art, re-encoded — see assets/make-wallpapers.py)
             property string wallpaper: "/usr/share/backgrounds/shani/shani-dark.jpg"
-            property string terminal: "foot"
+            property string terminal: "footclient"     // a window of the foot server (Services/Terminal)
+            property bool terminalThemed: true         // foot in the desktop's colours (~/.config/foot/foot.ini, while it is the shell's)
             property bool dock: true
             // always | smart (in view, steps aside only for a window over it - Plank's
             // and Dash-to-Dock's default) | hide (until the pointer asks)
@@ -184,15 +233,15 @@ Singleton {
             // from the wallpaper feeds the shell's own tones and app templates
             // (GTK, kitty, rofi…); off keeps the hue-tinted material above
             property bool adaptivePalette: false
-            // matugen scheme options (wayle-inspired)
+            // matugen scheme options
             property string matugenScheme: "tonal-spot"       // tonal-spot, vibrant, expressive, fidelity, content, monochrome, neutral, fruit-salad, rainbow
             property real matugenContrast: 0.0               // -1.0 to 1.0
             property int matugenSourceColor: 0                // 0-3
             // which apps receive the palette (only GTK is shipped in ShaniOS niri)
             property var matugenApps: []
-            // named themes saved from Aether (Modules/Aether): [{ name, image,
+            // named themes saved from WallpaperStyle (Settings > Personalisation): [{ name, image,
             // palette, savedAt }] — palette is a snapshot of the matugen roles
-            property var aetherThemes: []
+            property var wallpaperStyleThemes: []
             // hooks: user scripts on shell events (noctalia-inspired)
             property var hooks: ({ enabled: false, wallpaperChange: "", darkModeChange: "", screenLock: "", screenUnlock: "", startup: "", colorGeneration: "", notificationRules: [] })
             // notification rules: filter/mute/block notifications (noctalia-inspired)
@@ -204,6 +253,10 @@ Singleton {
             property int cursorSize: 24
             property string uiFont: "Inter"
             property int uiFontSize: 11
+            property int textEditorFontSize: 13
+            property list<string> calendarsHidden: []   // calendars (by name) the Calendar, the agenda and reminders leave out
+            property string translateTo: "en"        // the Translate app's target language
+            property bool textEditorColours: true     // syntax colours in the Text Editor
             property string monoFont: "JetBrains Mono"
             // GNOME's accent names (libadwaita apps follow it too): blue teal green
             // yellow orange red pink purple slate — default is the brand amber (orange)
@@ -288,6 +341,12 @@ Singleton {
             property real winDefaultWidth: 0.5
             property bool winFocusFollowsMouse: false   // click to focus, as on every other desktop (the Tiling layout turns it on)
             property bool winAnimations: true
+            // how windows look and move (Services/WindowLook -> niri's shani-look.kdl)
+            property string winMotion: "glide"     // glide | pop | dissolve | plain (niri's own)
+            property real winSpeed: 1.0            // niri's slowdown: 0.7 brisk, 1 normal, 1.5 relaxed
+            property string winShadow: "soft"      // off | soft | deep
+            property int winCorners: 12            // 0 square .. 18 round
+            property string blurStrength: "medium" // light | medium | strong
             property var windowRules: []           // [{ app, float, workspace, width }] — per-app, niri window-rules
             property string screenshotDir: "~/Pictures/Screenshots"
             // screenshot output format/quality (subagent finding #2 — missing adapter entries)
@@ -333,10 +392,10 @@ Singleton {
             property bool islandActivities: true       // timers, music, recordings in the Island
             property string slideshowDir: ""           // "" = no slideshow
             property int slideshowMinutes: 30
-            property bool slideshowShuffle: false      // shuffle order (wayle-inspired)
+            property bool slideshowShuffle: false      // shuffle order
             property string themingMonitor: ""         // which monitor's wallpaper drives color extraction; "" = first available
-            property bool wallpaperPerMonitor: false    // per-monitor wallpapers (wayle-inspired)
-            property var wallpapersByMonitor: ({})      // monitor name -> wallpaper path (wayle-inspired)
+            property bool wallpaperPerMonitor: false    // per-monitor wallpapers
+            property var wallpapersByMonitor: ({})      // monitor name -> wallpaper path
             // desktop widgets (Background/DesktopWidgets): which cards float on the
             // wallpaper — clock, media, weather, stats — and where each was dragged
             property bool desktopIcons: false           // the Desktop folder's files on the desktop (nothing while it is empty)
@@ -376,6 +435,13 @@ Singleton {
             property int recordFps: 0                // 0 = what the compositor does; 30 | 60 locks wf-recorder's -r
             property string recordCodec: ""          // "" = wf-recorder's default (libx264); h264 | hevc | vp9 | av1
             property int trashDays: 0                 // empty trash older than this; 0 = never
+            // the file manager's view: grid or list, how it is sorted, and
+            // whether the hidden files and the preview are shown
+            property string filesViewMode: "grid"
+            property string filesSortKey: "name"
+            property bool filesSortDesc: false
+            property bool filesShowHidden: false
+            property bool filesShowPreview: true
             property list<string> kbLayouts: []      // xkb "layout" or "layout+variant"; [] = the system's (localectl)
             property string kbSwitch: "grp:alt_shift_toggle"   // Super+Space is the launcher
             property string kbdBacklight: "auto"       // auto | on | off (keyboard backlight)

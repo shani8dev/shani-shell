@@ -88,7 +88,9 @@ PanelWindow {
 
     // ---- what the shell itself can do, by name -----------------------------
     LauncherActions { id: builtIn; launcher: win }
-    readonly property var actions: builtIn.list
+    // an action that is also one of the shell's apps (bin/shani's APPS) is listed
+    // once: as the app where its desktop entry is installed, as the action where not
+    readonly property var actions: builtIn.list.filter(a => !a.app || !DesktopEntries.byId(a.app))
     // the words typos are forgiven against (Fuzzy.js), made once per list, not per key
     readonly property var actionWords: actions.map(a => Fuzzy.words(a.title))
 

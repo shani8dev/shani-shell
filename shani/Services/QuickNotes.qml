@@ -314,9 +314,6 @@ Singleton {
         Quickshell.execDetached(["lp", "--", root.path]);
         return root.path;
     }
-    function print() {
-        return printNote();
-    }
 
     // ---- [[wiki links]] -------------------------------------------------------
     // names inside [[ ]] in the current text, in order of first appearance

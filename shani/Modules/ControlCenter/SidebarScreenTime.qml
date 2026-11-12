@@ -20,7 +20,11 @@ ColumnLayout {
         visible: Settings.data.screenTime && ScreenTime.todayTotal >= 60
         Layout.fillWidth: true
         spacing: 6
-        SectionTitle { text: "Screen time today · " + ScreenTime.label(ScreenTime.todayTotal) }
+        RowLayout {
+            Layout.fillWidth: true
+            SectionTitle { Layout.fillWidth: true; text: Tr.t("Screen time today") + " · " + ScreenTime.label(ScreenTime.todayTotal) }
+            IconButton { icon: "go-next"; size: 26; tip: Tr.t("The week, and reminders"); onClicked: Ui.openScreenTime() }
+        }
         Repeater {
             model: ScreenTime.top
             RowLayout {

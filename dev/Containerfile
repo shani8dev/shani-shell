@@ -58,3 +58,16 @@ RUN pacman -Sy --noconfirm --needed swh-plugins && pacman -Scc --noconfirm
 # wlrctl does similar jobs but is AUR-only: it has zero entries in the official
 # Arch repos, so wtype (Wayland virtual keyboard) stays the text-injection path.
 RUN pacman -Sy --noconfirm --needed ydotool && pacman -Scc --noconfirm
+
+# the Media Player (Modules/MediaPlayer): QtMultimedia's MediaPlayer/VideoOutput
+# with its FFmpeg backend. ffmpeg makes the suite's test clips; desktop-file-utils
+# validates the apps' desktop entries (dev/shell-parts/apps.sh).
+RUN pacman -Sy --noconfirm --needed qt6-multimedia qt6-multimedia-ffmpeg ffmpeg desktop-file-utils && pacman -Scc --noconfirm
+
+# Authenticator (bridge/otp.py) keeps its secrets in the Secret Service: the
+# keyring daemon the image has (gnome-keyring), started unlocked by the suite
+RUN pacman -Sy --noconfirm --needed gnome-keyring libsecret && pacman -Scc --noconfirm
+
+# the icons the image uses (shani-desktop-niri's gschema override: Papirus-Dark),
+# so the suite's screenshots show what a person sees, not Adwaita's gaps
+RUN pacman -Sy --noconfirm --needed papirus-icon-theme && pacman -Scc --noconfirm

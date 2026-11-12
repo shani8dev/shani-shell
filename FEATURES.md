@@ -42,6 +42,15 @@ covered by an automated test that drives the real shell.
   into any app.
 - **Trash on the dock** — drop to bin, empty with two clicks.
 - **A desktop right-click menu** — wallpaper, widgets, icons, displays, terminal.
+- **Windows that open beautifully** — pick how they open and close: *Glide*
+  (rises into place as it fades in), *Pop* (springs open with a little bounce),
+  *Dissolve* (gathers in grains with your accent colour along the edge) or
+  niri's plain fade; how fast; a soft or deep shadow; square to round corners;
+  and how strong the frosted glass is. Settings › Windows › Look and motion.
+- **A terminal that opens instantly and knows the desktop** — Foot as a server
+  (a window in about 90 ms), in the desktop's colours, switching light and dark
+  with it; Ctrl+Shift+A asks Chronoa what the last command's output means.
+  Mod+Return, the shell and every app open the terminal chosen in Settings.
 - **Per-app window rules** — choose how each app opens: floating or tiled, which
   workspace, how wide.
 - **A drop-down terminal** (or any app) one key away, over whatever is open.
@@ -53,6 +62,15 @@ covered by an automated test that drives the real shell.
 - **One launcher for everything** — apps, open windows, files (and words inside
   them), actions like "dark style" or "lock", a **calculator** with unit
   conversion, **emoji**, **clipboard history**, web search.
+- **A file manager of your own** — the **Files** surface: the places on the left
+  (Home, Documents, Downloads, Pictures, Videos, the drives you plugged in), the
+  folder on screen as a grid of tiles or a list of rows, a search box, and a
+  preview of what you chose. Click to choose, Ctrl-click for more, Shift-click
+  for a range, Enter to open, F2 to rename, Delete to move to the **trash**
+  (the desktop trash, so it can be put back). The folder is **watched**: a file
+  made or removed elsewhere shows up at once.
+- **Choose a file in the shell, not in a portal** — the chooser is the shell's
+  own: no waiting for the desktop portal, no another app's window.
 - **Picks go where you were** — choose an emoji or a clipboard entry and it's typed
   or pasted into the window you came from.
 - **Apps' own answers** — GNOME Calculator, Files, Characters and more add their
@@ -62,6 +80,41 @@ covered by an automated test that drives the real shell.
 - **Smart suggestions when you copy** — a link to open, an address to email, a
   number to call, a foreign script **translated on your computer**, an error
   explained.
+
+
+## Apps of its own
+
+- **Apps of its own, each a window** — Files, Text Editor, Media Player, Image
+  Viewer, Document Viewer, Photos, Archive Manager, Calculator, Calendar, Tasks,
+  Clocks, Weather, Notes, Translate, Camera, Voice Recorder, Characters, Fonts,
+  Maps, Disk Usage, Document Scanner, System Monitor, Logs, Password Generator,
+  Authenticator, Nearby Share, Converter, PDF Signer, Video Trimmer, Kundali and
+  Settings (screen time, storage and colours from a picture live there, as on
+  other desktops); and the tools
+  Screenshot, Screen Recorder, Color Picker, Screen Ruler, Lens, Magnifier, Live
+  Captions and Tour. They tile and float like any window, are in Alt+Tab, can
+  be pinned to the dock, and open from a terminal with `shani app <name>`.
+  How the set compares with GNOME, KDE, Deepin, Kylin, Cinnamon, macOS,
+  Windows and Android: `docs/ECOSYSTEM.md`.
+- **One place for each thing** — the sidebar's weather opens Weather, its
+  alarms Clocks, a running timer opens Clocks' timer, screen time the Screen
+  Time app; the Media Player is in "now playing", on the lock screen and on the
+  media keys like any other player.
+- **They open your files** — double-click a video, a song, a picture, a PDF, a
+  text file or a zip and the shell's own app opens it.
+- **A media player** — play, pause, seek, the next episode or track from the
+  same folder, speed, repeat, shuffle, full screen.
+- **A text editor that does not lose work** — tabs, find and replace, syntax
+  colours, line numbers; close it mid-sentence and the text is there when you
+  come back. Saving keeps the file's permissions and line endings.
+- **Archive Manager** — see what is inside a zip, tar, 7z or ISO; extract it into a new
+  folder, never over what is there.
+- **Clocks** — world time, alarms, a stopwatch and a timer in one place.
+- **Tasks** — to-dos with a due day picked, not typed; the same lists as
+  Thunderbird and Chronoa.
+- **Photos** — every picture in Pictures by month; **Translate** — on this
+  computer, nothing sent anywhere.
+- **Nothing extra at sign-in** — an app is read the first time it is opened.
 
 ## Quick Settings and notifications
 

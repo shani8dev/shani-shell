@@ -18,14 +18,39 @@ import qs.Common
 Singleton {
     id: root
     readonly property string tool: Quickshell.env("SHANI_AGENDA_TOOL") || "/usr/lib/shani-shell/agenda.py"
-    property var events: []               // [{ start, end, summary, location, calendar, allDay, uid }] (seconds)
+    property var allEvents: []            // [{ start, end, summary, location, calendar, allDay, uid }] (seconds)
+    // what everything shows: the events of the calendars not hidden
+    readonly property var events: hidden.length ? allEvents.filter(e => hidden.indexOf(e.calendar) < 0) : allEvents
     property bool available: false
     property string search: ""            // title filter for the Calendar surface
+    // the calendars there are ([{ name, uid, color, readOnly }], agenda.py
+    // calendars), the ones the person chose not to see (by name, kept in
+    // Settings) and the one a new event goes to ("" = the first one)
+    property var calendars: []
+    readonly property var calendarNames: calendars.length ? calendars.map(c => c.name) : [...new Set(allEvents.map(e => e.calendar).filter(n => n))].sort()
+    readonly property var writableNames: calendars.length ? calendars.filter(c => !c.readOnly).map(c => c.name) : calendarNames
+    readonly property var hidden: Array.from(Settings.data.calendarsHidden || [])
+    function isShown(name) { return hidden.indexOf(name) < 0; }
+    function setShown(name, on) {
+        const list = hidden.filter(n => n !== name);
+        if (!on)
+            list.push(name);
+        Settings.data.calendarsHidden = list;
+    }
+    function colorOf(name) { const c = calendars.find(x => x.name === name); return c && c.color ? c.color : ""; }
+    property string selectedCalendar: ""
     property var told: ({})
     // what is still to come, today first
     readonly property var upcoming: events.filter(e => e.end * 1000 > Date.now()).slice(0, 6)
 
-    function refresh() { if (!read.running) read.running = true; }
+    function refresh() { if (!read.running) read.running = true; if (!sources.running) sources.running = true; }
+    Process {
+        id: sources
+        command: ["python3", root.tool, "calendars"]
+        stdout: StdioCollector {
+            onStreamFinished: { try { root.calendars = JSON.parse(text); } catch (e) {} }
+        }
+    }
     // the shell's own Calendar surface (the editor lives there), never
     // GNOME Calendar
     function openCalendar() {
@@ -81,7 +106,7 @@ Singleton {
         command: ["python3", root.tool, "7"]
         stdout: StdioCollector {
             onStreamFinished: {
-                try { root.events = JSON.parse(text); root.available = true; } catch (e) {}
+                try { root.allEvents = JSON.parse(text); root.available = true; } catch (e) {}
             }
         }
         onExited: code => { if (code === 2) root.available = false; }

@@ -105,7 +105,7 @@ ColumnLayout {
                     onClicked: { Ui.closeAll(); FileActions.offer([shelfFile.modelData.path]); }
                 }
                 IconButton {
-                    icon: "emblem-shared"
+                    icon: "folder-publicshare"
                     size: 24
                     Accessible.name: "Share " + shelfFile.modelData.name
                     onClicked: { Ui.closeAll(); Share.open(shelfFile.modelData.path); }

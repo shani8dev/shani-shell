@@ -39,7 +39,7 @@ Item {
             color: "transparent"
             Rectangle {
                 anchors.fill: parent
-                radius: 8
+                radius: Theme.radiusToken("xs")
                 color: Theme.glassStrong
                 border.width: 1
                 border.color: Theme.stroke

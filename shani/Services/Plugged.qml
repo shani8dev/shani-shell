@@ -134,7 +134,7 @@ Singleton {
             arrived: () => Settings.data.iphoneNoteDone = true },
         "clicker": { icon: "x-office-presentation", body: Tr.t("Page Up/Down move your slides.") },
         "capture": { icon: "camera-video", body: Tr.t("A capture card: what it receives can be shown and recorded."), action: ["camera", Tr.t("Open in Camera")] },
-        "midi": { icon: "audio-midi", body: Tr.t("A MIDI device. Apps can use it now.") },
+        "midi": { icon: "audio-x-generic", body: Tr.t("A MIDI device. Apps can use it now.") },
         "serial": { icon: "utilities-terminal", body: name => Tr.t("Arduino or serial device connected - %1", name.split(" - ").pop()), action: ["copy", Tr.t("Copy the port name")] },
         "cardreader": { icon: "auth-smartcard", body: Tr.t("Card reader ready.") },
         // a braille display is a person who reads by touch: the screen reader comes on at once
@@ -192,12 +192,27 @@ Singleton {
             Quickshell.execDetached(["sh", "-c", 'for f in /sys/class/input/event*/device/capabilities/ff; do [ -e "$f" ] && [ -n "$(tr -d "0" < "$f" 2>/dev/null)" ] && { notify-send -a Devices -i input-gaming "Force feedback works" "This wheel can push back in games."; exit 0; }; done; notify-send -a Devices -i input-gaming "No force feedback" "This device does not offer force feedback to the kernel."']);
         else if (kind === "security-key" && action === "signin")
             Ui.openSettings("account");
-        else if (kind === "scanner" && action === "scan")
-            Launch.app("org.gnome.SimpleScan");
+        else if (kind === "scanner" && action === "scan") {
+            // the scanning app where one is installed, the shell's own Scanner
+            // where not (the niri image ships no org.gnome.SimpleScan)
+            if (DesktopEntries.byId("org.gnome.SimpleScan"))
+                Launch.app("org.gnome.SimpleScan");
+            else {
+                Ui.closeAll();
+                Ui.scanner = true;
+            }
+        }
         else if (action === "files")
             Quickshell.execDetached(["python3", root.mountsTool, "open", kind === "camera" ? "gphoto2" : kind === "iphone" ? "afc" : "mtp"]);
-        else if (kind === "capture" && action === "camera")
-            Launch.app("org.gnome.Snapshot");
+        else if (kind === "capture" && action === "camera") {
+            // likewise: the camera app, or the shell's Camera
+            if (DesktopEntries.byId("org.gnome.Snapshot"))
+                Launch.app("org.gnome.Snapshot");
+            else {
+                Ui.closeAll();
+                Camera.openCamera();
+            }
+        }
         else if (kind === "serial" && action === "copy")
             Quickshell.execDetached(["wl-copy", String(label).split(" - ").pop()]);
         else if (kind === "braille" && action === "undo")

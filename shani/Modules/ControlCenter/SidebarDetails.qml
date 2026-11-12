@@ -29,7 +29,7 @@ ColumnLayout {
 
         SectionTitle {
             text: Tr.t("Wi-Fi networks")
-            IconButton { icon: "view-barcode-qr"; size: 24; visible: Net.activeWifi !== null; Accessible.name: Tr.t("Share this Wi-Fi as a QR code"); onClicked: { Ui.closeAll(); Qr.shareWifi(); } }
+            IconButton { icon: "view-paged"; size: 24; visible: Net.activeWifi !== null; Accessible.name: Tr.t("Share this Wi-Fi as a QR code"); onClicked: { Ui.closeAll(); Qr.shareWifi(); } }
             IconButton { icon: "preferences-system"; size: 24; onClicked: { Ui.closeAll(); Net.editConnections(); } }
         }
         Repeater {
@@ -353,7 +353,7 @@ ColumnLayout {
             ListRow {
                 required property int modelData
                 Layout.fillWidth: true
-                icon: "chronometer"
+                icon: "alarm"
                 title: Tr.t("Whole screen in %1 seconds").arg(modelData)
                 onClicked: { Ui.closeAll(); Screenshots.later(modelData); }
             }

@@ -3,6 +3,8 @@
 
     agenda.py [DAYS]                    events from the start of today to DAYS
                                         ahead (7), sorted by start
+    agenda.py calendars                 the calendars there are:
+                                        [{"name", "uid", "color", "readOnly"}]
     agenda.py add '<json>'              create an event (see below)
     agenda.py edit '<json>'             change summary/location of an event
     agenda.py delete '<json>'           delete an event
@@ -81,6 +83,25 @@ def _clients(timeout: int = 10):
             continue
         out.append((source.get_display_name(), client))
     return out
+
+
+def calendars() -> list[dict]:
+    """Every enabled calendar source, whether or not it has an event this week:
+    what the Calendar's "show" and "new events go to" choices are made from."""
+    _, EDataServer, _ = bindings()
+    registry = EDataServer.SourceRegistry.new_sync(None)
+    out = []
+    for source in registry.list_sources(EDataServer.SOURCE_EXTENSION_CALENDAR):
+        if not source.get_enabled():
+            continue
+        color = ""
+        try:
+            color = source.get_extension(EDataServer.SOURCE_EXTENSION_CALENDAR).get_color() or ""
+        except Exception:  # noqa: BLE001 - a source without the extension's colour
+            pass
+        out.append({"name": source.get_display_name() or "", "uid": source.get_uid() or "", "color": color,
+                    "readOnly": not source.get_writable()})
+    return sorted(out, key=lambda c: c["name"].lower())
 
 
 def events(start: float, end: float, timeout: int = 10) -> list[dict]:
@@ -204,6 +225,13 @@ def main(argv: list[str]) -> int:
         except ValueError as exc:
             print(f"agenda: {exc}", file=sys.stderr)
             return 3
+        except Exception as exc:  # noqa: BLE001 - no bindings, or the registry did not answer
+            print(f"agenda: no calendar service ({exc})", file=sys.stderr)
+            return 2
+        return 0
+    if len(argv) > 1 and argv[1] == "calendars":
+        try:
+            print(json.dumps(calendars()))
         except Exception as exc:  # noqa: BLE001 - no bindings, or the registry did not answer
             print(f"agenda: no calendar service ({exc})", file=sys.stderr)
             return 2

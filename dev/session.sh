@@ -42,6 +42,15 @@ export SHANI_DYNAMIC_LOCK_GRACE=1500     # ms: the dynamic-lock test waits 1.5 s
 export SHANI_AGENDA_TOOL=/work/bridge/agenda.py SHANI_MODEM_TOOL=/work/dev/fake-modem.py
 export XDG_CONFIG_HOME=/root/.config SHANI_SHELL_SETTINGS=/tmp/shani-settings.json
 export SHANI_SCRCPY=/work/dev/fake-scrcpy.sh SHANI_ADB=/work/dev/fake-adb.sh SHANI_LAUNCHER_ENTRY_TOOL=/work/bridge/launcher-entry.py SHANI_APPFILTER_TOOL=/work/dev/fake-appfilter.sh SHANI_LAUNCH_TOOL=/work/bridge/launch-app.py
+# the shell's own apps, as the package installs them: their desktop entries
+# (the launcher's app list, the dock's and the switcher's icon for an app window)
+python3 /work/bin/shani app --write-desktop /root/.local/share/applications
+export SHANI_CHARACTERS_TOOL=/work/bridge/characters.py
+export SHANI_MPRIS_TOOL=/work/bridge/mpris-player.py SHANI_TASKS_TOOL=/work/bridge/tasks.py SHANI_MUSIC_LIBRARY_TOOL=/work/bridge/music-library.py SHANI_CLEANUP_TOOL=/work/bridge/cleanup.py SHANI_OTP_TOOL=/work/bridge/otp.py SHANI_NEARBY_TOOL=/work/bridge/nearby.py SHANI_CONVERT_TOOL=/work/bridge/convert.py
+# no sweep of the host's network from the test session; a stand-in firewall-cmd records what it is asked
+export SHANI_NEARBY_SUBNET=0 SHANI_NEARBY_PEERS=127.0.0.1:53399 SHANI_FIREWALL_CMD=/work/dev/fake-firewall-cmd.sh
+# the file manager's backend: the listing, the watch and the trash
+export SHANI_FILES_TOOL=/work/bridge/files.py
 # a keyboard's Caps Lock and Num Lock lights, where the kernel keeps them
 export SHANI_LEDS_DIR=/tmp/fake-leds
 for k in capslock numlock; do mkdir -p "/tmp/fake-leds/input3::$k"; echo 0 > "/tmp/fake-leds/input3::$k/brightness"; done
@@ -134,6 +143,8 @@ python3 /work/dev/mock-chronoa.py >$L/mock.log 2>&1 &
 python3 /work/bridge/chronoa-bridge.py >$L/bridge.log 2>&1 &
 sleep 0.5
 
+# foot as the image has it: shani-desktop-niri.install puts its foot.ini in /etc/xdg/foot
+[ -f /desk/usr/share/shani-desktop-niri/foot.ini ] && install -Dm644 /desk/usr/share/shani-desktop-niri/foot.ini /etc/xdg/foot/foot.ini
 WAYLAND_DISPLAY=wayland-parent niri -c "${NIRI_CONFIG:-/work/dev/niri/session.kdl}" >$L/niri.log 2>&1 &
 i=0
 until [ -S "$XDG_RUNTIME_DIR/wayland-1" ] || [ $i -ge 40 ]; do sleep 0.25; i=$((i+1)); done
@@ -155,10 +166,16 @@ if [ -n "${SHANI_SETTINGS_EXTRA:-}" ] && command -v python3 >/dev/null 2>&1; the
     python3 -c 'import json, sys; d = json.loads(sys.argv[1]); d.update(json.loads(sys.argv[2])); print(json.dumps(d))' \
         "$(cat "$SHANI_SHELL_SETTINGS")" "$SHANI_SETTINGS_EXTRA" > "$SHANI_SHELL_SETTINGS"
 fi
-# the tests keep Adwaita (fixed icons to compare); the showcase passes the image's own
-export QS_ICON_THEME=${QS_ICON_THEME:-Adwaita} QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1
+# the image's own icon theme (shani-desktop-niri's gschema override); and
+# accessibility on, so the suite can press controls through AT-SPI
+export QS_ICON_THEME=${QS_ICON_THEME:-Papirus-Dark} QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1
 # every frame the shell renders, per window, into qs.log: what shell-test's
 # perf-* checks count (a surface redrawing while nothing changes is GPU and battery)
 date +%s%N > /tmp/qs-started
+# the keyring, made and unlocked as pam_gnome_keyring does at sign-in (the
+# Authenticator keeps its secrets there; needs the container's IPC_LOCK)
+printf 'test' | gnome-keyring-daemon --unlock --components=secrets >$L/keyring.log 2>&1 || true
+# as shani-shell.service: the shell's windows draw their own header (Common/AppWindow)
+export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
 QT_LOGGING_RULES="qt.scenegraph.time.renderloop=true" qs -p /work/shani >$L/qs.log 2>&1 &
 sleep 4

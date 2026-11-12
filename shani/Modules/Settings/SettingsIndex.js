@@ -105,6 +105,11 @@ var entries = [
     { key: "winDefaultWidth", label: "Default window width", cat: "windows", hint: "how wide a new window opens", words: "window width default column" },
     { key: "winFocusFollowsMouse", label: "Focus follows the mouse", cat: "windows", hint: "the window under the pointer takes focus", words: "focus follows mouse pointer hover" },
     { key: "winAnimations", label: "Window animations", cat: "windows", hint: "sliding and resizing", words: "window animations animation motion" },
+    { key: "winMotion", label: "Windows open and close", cat: "windows", hint: "Glide, Pop, Dissolve or Plain", words: "window open close animation effect glide pop dissolve shader motion" },
+    { key: "winSpeed", label: "Animation speed", cat: "windows", hint: "brisk, normal or relaxed", words: "animation speed fast slow slowdown motion" },
+    { key: "winShadow", label: "Window shadow", cat: "windows", hint: "none, soft or deep", words: "shadow depth window drop shadow" },
+    { key: "winCorners", label: "Window corners", cat: "windows", hint: "square to round", words: "corners rounded radius round square window" },
+    { key: "blurStrength", label: "Frosted glass", cat: "windows", hint: "how strong the blur behind the panels is", words: "blur frosted glass transparency translucent effect" },
     { key: "windowRules", label: "Per-app rules", cat: "windows", hint: "open an app floating or on a workspace", words: "window rules per app floating workspace" },
 
     // ---- Sound
@@ -188,7 +193,8 @@ var entries = [
     { key: "weekStartsOn", label: "Week starts on", cat: "time", hint: "Monday or Sunday in the calendar", words: "week start monday sunday calendar first day" },
 
     // ---- Apps & files
-    { key: "terminal", label: "Terminal", cat: "apps", hint: "the Shift+Enter terminal", words: "terminal shell foot xterm default" },
+    { key: "terminal", label: "Terminal", cat: "apps", hint: "the one Mod+Return and every app opens", words: "terminal shell foot footclient ghostty kitty xterm console default" },
+    { key: "terminalThemed", label: "Foot in the desktop's colours", cat: "apps", hint: "background, text, accent, titlebar", words: "terminal foot colours colors theme dark light accent titlebar" },
     { key: "reopenApps", label: "Reopen apps at login", cat: "apps", hint: "bring back what you had open", words: "reopen apps session restore login startup" },
     { key: "recordingsDir", label: "Recordings folder", cat: "apps", hint: "where screen recordings go", words: "recordings folder screen record videos directory" },
     { key: "screenshotDir", label: "Screenshots folder", cat: "apps", hint: "where screenshots go", words: "screenshots folder pictures directory screenshot" },
@@ -230,9 +236,9 @@ var entries = [
     { key: "autoLockOnLowBattery", label: "Lock when critically low", cat: "power", hint: "lock the screen at 7 % battery", words: "lock battery low critical auto" },
     { key: "profileFollowsCharger", label: "Power mode follows the charger", cat: "power", hint: "one power mode on battery, another plugged in", words: "power mode profile charger battery plugged performance balanced saver" },
     { key: "powerSaverAt", label: "Battery saver turns on at", cat: "power", hint: "10, 15, 20 or 30 percent", words: "battery saver percentage threshold power" },
-    { key: "screenTime", label: "Screen time", cat: "power", hint: "per-app time, kept on this machine", words: "screen time wellbeing usage break" },
-    { key: "breakEveryMinutes", label: "Break reminder", cat: "power", hint: "a nudge to look away", words: "break reminder every minutes wellbeing" },
-    { key: "screenLimitMinutes", label: "Daily screen time reminder", cat: "power", hint: "a nudge at the daily limit", words: "screen time daily limit reminder wellbeing" },
+    { key: "screenTime", label: "Screen time", cat: "screentime", hint: "per-app time, kept on this machine", words: "screen time wellbeing usage break" },
+    { key: "breakEveryMinutes", label: "Break reminder", cat: "screentime", hint: "a nudge to look away", words: "break reminder every minutes wellbeing" },
+    { key: "screenLimitMinutes", label: "Daily screen time reminder", cat: "screentime", hint: "a nudge at the daily limit", words: "screen time daily limit reminder wellbeing" },
     { key: "dimAfter", label: "Dim the screen after", cat: "power", hint: "on idle, before it locks", words: "dim screen idle brightness power" },
     { key: "lockAfter", label: "Lock after", cat: "power", hint: "lock the screen on idle", words: "lock screen idle power" },
     { key: "screenOffAfter", label: "Screen off after", cat: "power", hint: "turn the display off on idle", words: "screen off display idle power" },
@@ -245,21 +251,24 @@ var entries = [
 
     // ---- Automations
     { key: "automations", label: "Automations", cat: "automations", hint: "when this happens, do that", words: "automation rule when then routine trigger wifi plugged headphones" },
+
+    // ---- About (read-only machine info)
+    { key: "about", label: "About", cat: "about", hint: "this machine — model, CPU, GPU, memory, kernel, compositor", words: "about machine info system kernel cpu memory gpu" },
 ];
 
 // every key, grouped by category: for “N customised” and “Reset this section”
 // (scalars only — arrays and objects in a section survive a reset)
 var groups = {
-    personal: ["blur", "darkMode", "darkSchedule", "darkFrom", "darkTo", "wallpaper", "wallpaperLight", "wallpaperDark", "accentFromWallpaper", "accentName", "iconTheme", "cursorTheme", "cursorSize", "uiFont", "uiFontSize", "monoFont", "monoFontSize", "cornerRadius", "cornerRadiusSmall", "showScrollbars", "reduceMotion", "animationSpeed", "dock", "dockVisibility", "barVisibility", "dockIconSize", "layoutPreset", "tileOrder", "hiddenTiles", "desktopWidgets", "slideshowDir", "slideshowMinutes", "showSysStats", "showNetSpeed", "barBatteryPercent", "barDate", "hideVolumeGlyph", "hideBrightnessGlyph", "barClickThrough", "hotCornerTopLeft", "hotCornerTopRight", "hotCornerBottomLeft", "hotCornerBottomRight", "hotCornersInFullscreen", "weatherCity", "weatherLat", "weatherLon", "useLocation", "weatherUnits"],
+    personal: ["blur", "darkMode", "darkSchedule", "darkFrom", "darkTo", "wallpaper", "wallpaperLight", "wallpaperDark", "accentFromWallpaper", "accentName", "iconTheme", "cursorTheme", "cursorSize", "uiFont", "uiFontSize", "monoFont", "monoFontSize", "cornerRadius", "cornerRadiusSmall", "showScrollbars", "reduceMotion", "animationSpeed", "dock", "dockVisibility", "barVisibility", "dockIconSize", "layoutPreset", "tileOrder", "hiddenTiles", "desktopWidgets", "slideshowDir", "slideshowMinutes", "showSysStats", "showNetSpeed", "barBatteryPercent", "barDate", "hideVolumeGlyph", "hideBrightnessGlyph", "barClickThrough", "hotCornerTopLeft", "hotCornerTopRight", "hotCornerBottomLeft", "hotCornerBottomRight", "hotCornersInFullscreen", "weatherCity", "weatherLat", "weatherLon", "useLocation", "weatherUnits", ],
     notifications: ["doNotDisturb", "plugGreetings", "dndSchedule", "dndFrom", "dndTo", "dndWhileLocked", "notifHideContent", "notifSound", "popupSeconds", "popupPosition", "silentApps", "dndAllowedApps", "notifApps", "quietWhileSharing", "quietWhileFullscreen", "focusModes", "focusMode"],
     network: ["proxyMode", "proxyHttp", "proxyHttps", "proxySocks", "proxyPac", "bluetoothAutoConnect", "bluetoothOnBoot", "hotspotName", "hotspotBand", "wifiMacRandom", "wakeOnLan", "obexDir"],
     displays: ["displays", "autoRotate", "adaptiveBrightness", "nightLight", "nightLightTemp", "nightLightSchedule", "nightLightFrom", "nightLightTo"],
-    windows: ["winGaps", "winFocusRing", "winDefaultWidth", "winFocusFollowsMouse", "winAnimations", "windowRules"],
+    windows: ["winGaps", "winFocusRing", "winDefaultWidth", "winFocusFollowsMouse", "winAnimations", "winMotion", "winSpeed", "winShadow", "winCorners", "blurStrength", "windowRules"],
     sound: ["fxEnabled", "fxSpatial", "fxEq", "fxPreset", "fxBass", "fxAutoEq", "fxIr", "fxWidth", "fxCrossfeed", "fxLoudness", "micNoise", "fxCompress", "overAmplify", "audioBalance", "systemSounds", "soundVolumeChange", "soundScreenshot", "soundNotification", "volumeStep"],
     access: ["screenReader", "largeText", "highContrast", "monoAudio", "flashAlerts", "speakNotifications", "speechRate", "captionLanguage", "assistiveTouch", "touchX", "touchY", "reduceTransparency", "reduceTransparencyOnBattery"],
     input: ["tapToClick", "typingGuard", "naturalScroll", "touchpadSpeed", "mouseNaturalScroll", "mouseSpeed", "leftHanded", "tpAccel", "tpScroll", "tpClick", "tpScrollMethod", "tpOffWithMouse", "mouseAccel", "mouseScroll", "numlock", "middlePaste", "doubleClickSpeed", "keyRepeatDelay", "keyRepeatRate", "kbCompose", "kbCaps", "kbLayouts", "kbSwitch", "oskLanguages", "tabletOutput", "tabletLeftHanded", "touchOutput", "customBinds", "kbdBacklight", "kbdBacklightLevel", "tpMiddleEmulation", "tpDragLock", "tpTapButtonMap", "dndEdgeViewScroll", "dndEdgeWorkspaceSwitch", "gamepadNav", "oskButton", "oskWithTabletMode"],
     time: ["use24h", "showSeconds", "worldClocks", "showCalendarEvents", "machineTranslate", "weekStartsOn"],
-    apps: ["terminal", "reopenApps", "recordingsDir", "screenshotDir", "screenshotFormat", "screenshotQuality", "clipboardOutputFormat", "screenshotAnnotationTool", "recordArea", "recordSound", "recordFps", "screenSaverMinutes", "screenSaverEnabled", "webApps"],
+    apps: ["terminal", "terminalThemed", "reopenApps", "recordingsDir", "screenshotDir", "screenshotFormat", "screenshotQuality", "clipboardOutputFormat", "screenshotAnnotationTool", "recordArea", "recordSound", "recordFps", "screenSaverMinutes", "screenSaverEnabled", "webApps"],
     search: ["searchFiles", "searchInside", "searchProviders", "searchCalc", "searchFolders", "webSearch", "launcherIgnoreMouse", "launcherHideNavLabels"],
     backup: [],
     sharing: [],
@@ -269,11 +278,23 @@ var groups = {
     chronoa: ["islandActivities"],
     account: [],
     users: [],
-    power: ["dimAfter", "dimAfterBattery", "lockAfter", "screenOffAfter", "suspendAfter", "lockAfterBattery", "screenOffAfterBattery", "suspendAfterBattery", "lockBeforeSuspend", "autoPowerSaver", "powerSaverAt", "profileFollowsCharger", "profileOnBattery", "profilePluggedIn", "autoLockOnLowBattery", "breakEveryMinutes", "screenLimitMinutes", "screenTime", "batteryLimit"],
+    screentime: ["screenTime", "breakEveryMinutes", "screenLimitMinutes"],
+    power: ["dimAfter", "dimAfterBattery", "lockAfter", "screenOffAfter", "suspendAfter", "lockAfterBattery", "screenOffAfterBattery", "suspendAfterBattery", "lockBeforeSuspend", "autoPowerSaver", "powerSaverAt", "profileFollowsCharger", "profileOnBattery", "profilePluggedIn", "autoLockOnLowBattery", "batteryLimit"],
     about: []
 };
 
 // is a value a scalar we may compare and reset?
+// a setting's name as the search shows it ("" for a key that is not a setting a person picks)
+var _labels = null;
+function labelOf(key) {
+    if (!_labels) {
+        _labels = {};
+        for (var i = 0; i < entries.length; i++)
+            _labels[entries[i].key] = entries[i].label;
+    }
+    return _labels[key] || "";
+}
+
 function isScalar(v) {
     return v === null || typeof v === "string" || typeof v === "number" || typeof v === "boolean";
 }

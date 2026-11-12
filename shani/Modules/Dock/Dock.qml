@@ -247,7 +247,7 @@ PanelWindow {
                 id: multi
                 on: Niri.overviewOpen
                 tip: Tr.t("Multitasking view")
-                icon: "multitasking-view"
+                icon: "focus-windows"
                 onActivated: Niri.action("toggle-overview")
                 // two windows above a strip of workspaces, drawn as Pantheon's icon is
                 Item {
@@ -273,7 +273,7 @@ PanelWindow {
                 id: desk
                 on: Niri.desktopShown.length > 0
                 tip: Tr.t("Show the desktop")
-                icon: "show-desktop"
+                icon: "computer"
                 onActivated: Niri.showDesktop()
                 // a small screen with nothing on it (drawn: icon themes disagree on this one)
                 Item {
@@ -636,7 +636,7 @@ PanelWindow {
                 }
             }
         }
-        // the trash, last (dux's): drop files to throw them away; a click opens it in
+        // the trash, last: drop files to throw them away; a click opens it in
         // Files; right-click twice empties it. Watched by inotify, never polled.
         DockSeparator { visible: Settings.data.dockTrash }
         DockTile {

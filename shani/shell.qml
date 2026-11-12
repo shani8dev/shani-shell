@@ -67,15 +67,17 @@ import qs.Modules.Logs
 import qs.Modules.VoiceRecorder
 import qs.Modules.Notes
 import qs.Modules.TextEditor
-import qs.Modules.VideoPlayer
 import qs.Modules.Scanner
-import qs.Modules.Secrets
+import qs.Modules.PasswordGenerator
 import qs.Modules.Kundali
-import qs.Modules.LocalSend
-import qs.Modules.Signed
-import qs.Modules.Disktree
-import qs.Modules.Aether
-import qs.Modules.Trim
+import qs.Modules.PdfSigner
+import qs.Modules.DiskUsage
+import qs.Modules.Files
+import qs.Modules.FilePicker
+import qs.Modules.VideoTrimmer
+// registers the folder as a module for the Media Player window, which a `source:`
+// loader reads (an import loads nothing by itself)
+import qs.Modules.MediaPlayer
 
 ShellRoot {
     Wallpaper {}
@@ -103,15 +105,19 @@ ShellRoot {
     LensPanel {}
     LazyLoader { active: Ruler.phase !== "idle"; RulerPanel {} }    Ring {}
     Switcher {}                     // always made: it opens itself on Ui.switcherRequested
-    LazyLoader { active: Ui.layoutSwitcher; LayoutSwitcher {} }
+    // The surfaces below that say `source:` are the shell's apps and other
+    // rarely opened panels: read and compiled when first opened, not at sign-in
+    // (measured: 527 -> 512 MB idle). A mistake in one therefore shows when it
+    // is opened, not at load - dev/shell-parts/apps.sh opens every one of them.
+    LazyLoader { active: Ui.layoutSwitcher; source: "Modules/LayoutSwitcher/LayoutSwitcher.qml" }
     Keyboard {}
     OskButton {}
-    LazyLoader { active: Ui.windowMenu; WindowMenu {} }
+    LazyLoader { active: Ui.windowMenu; source: "Modules/WindowMenu/WindowMenu.qml" }
     HotCorners {}
-    LazyLoader { active: Ui.processes; Processes {} }
-    LazyLoader { active: Ui.logs; LogsPanel {} }
+    LazyLoader { active: Ui.processes; source: "Modules/Processes/Processes.qml" }
+    LazyLoader { active: Ui.logs; source: "Modules/Logs/LogsPanel.qml" }
     LazyLoader { active: Captions.on; CaptionBar {} }
-    LazyLoader { active: Ui.magnifier; Magnifier {} }
+    LazyLoader { active: Ui.magnifier; source: "Modules/Magnifier/Magnifier.qml" }
     LazyLoader { active: Ui.annotate; Annotate {} }
     LazyLoader { active: Ui.settingsOpen; SettingsWindow {} }
     LazyLoader { active: Settings.data.assistiveTouch; AssistiveTouch {} }
@@ -119,37 +125,67 @@ ShellRoot {
     PairDialog {}
     LazyLoader { active: Displays.pending; DisplayConfirm {} }
     LazyLoader { active: Ui.tour || (Settings.loaded && !Settings.data.tourSeen && !Quickshell.env("SHANI_NO_TOUR")); Tour {} }
-    LazyLoader { active: Qr.shown; QrView {} }
-    LazyLoader { active: Calculator.shown; CalcMod.Calculator {} }
-    LazyLoader { active: Ui.calendar; CalMod.CalendarPanel {} }
-    LazyLoader { active: Viewer.shown; ViewerMod.Viewer {} }
-    LazyLoader { active: PdfViewer.shown; PdfReader {} }
-    LazyLoader { active: Camera.open; CameraPanel {} }
-    LazyLoader { active: Ui.maps; MapsPanel {} }
-    LazyLoader { active: Ui.player; Player {} }
-    LazyLoader { active: Ui.fonts; FontsPanel {} }
-    LazyLoader { active: Ui.voiceRecorder; VoiceRecorderPanel {} }
-    LazyLoader { active: Ui.notes; NotesPanel {} }
-    LazyLoader { active: Ui.textEditor; TextEditorPanel {} }
-    LazyLoader { active: Ui.videoPlayer; VideoPlayerPanel {} }
-    LazyLoader { active: Ui.scanner; ScannerPanel {} }
-    LazyLoader { active: Ui.secrets; SecretsPanel {} }
-    LazyLoader { active: Ui.kundali; KundaliPanel {} }
-    LazyLoader { active: Ui.localSend; LocalSendPanel {} }
-    LazyLoader { active: Ui.signed; SignedPanel {} }
-    LazyLoader { active: Ui.disktree; DisktreePanel {} }
-    LazyLoader { active: Ui.aether; AetherPanel {} }
-    LazyLoader { active: Ui.trim; TrimPanel {} }
-    LazyLoader { active: Ui.characters; CharactersPanel {} }
+    LazyLoader { active: Qr.shown; source: "Modules/QrView/QrView.qml" }
+    LazyLoader { active: Calculator.shown; source: "Modules/Calculator/Calculator.qml" }
+    LazyLoader { active: Ui.calendar; source: "Modules/Calendar/CalendarPanel.qml" }
+    LazyLoader { active: Viewer.shown; source: "Modules/Viewer/Viewer.qml" }
+    LazyLoader { active: PdfViewer.shown; source: "Modules/PdfReader/PdfReader.qml" }
+    LazyLoader { active: Camera.open; source: "Modules/Camera/CameraPanel.qml" }
+    LazyLoader { active: Ui.maps; source: "Modules/Maps/MapsPanel.qml" }
+    LazyLoader { active: Ui.player; source: "Modules/Player/Player.qml" }
+    LazyLoader { active: Ui.fonts; source: "Modules/Fonts/FontsPanel.qml" }
+    LazyLoader { active: Ui.voiceRecorder; source: "Modules/VoiceRecorder/VoiceRecorderPanel.qml" }
+    LazyLoader { active: Ui.notes; source: "Modules/Notes/NotesPanel.qml" }
+    LazyLoader { active: Ui.textEditor; source: "Modules/TextEditor/TextEditorPanel.qml" }
+    LazyLoader { active: PlayQueue.shown; source: "Modules/MediaPlayer/MediaPlayerWindow.qml" }
+    LazyLoader { active: Ui.clocks; source: "Modules/Clocks/ClocksWindow.qml" }
+    LazyLoader { active: Ui.authenticator; source: "Modules/Authenticator/AuthenticatorWindow.qml" }
+    LazyLoader { active: Ui.nearby; source: "Modules/Nearby/NearbyWindow.qml" }
+    LazyLoader { active: Ui.converter; source: "Modules/Converter/ConverterWindow.qml" }
+    LazyLoader { active: Ui.tasks; source: "Modules/Tasks/TasksWindow.qml" }
+    LazyLoader { active: Ui.photos; source: "Modules/Photos/PhotosWindow.qml" }
+    LazyLoader { active: Ui.translate; source: "Modules/Translate/TranslateWindow.qml" }
+    LazyLoader { active: Ui.weather; source: "Modules/Weather/WeatherWindow.qml" }
+    LazyLoader { active: Archive.shown; source: "Modules/Archives/ArchivesWindow.qml" }
+    LazyLoader { active: Ui.scanner; source: "Modules/Scanner/ScannerPanel.qml" }
+    LazyLoader { active: Ui.passwordGenerator; source: "Modules/PasswordGenerator/PasswordGeneratorPanel.qml" }
+    LazyLoader { active: Ui.kundali; source: "Modules/Kundali/KundaliPanel.qml" }
+    LazyLoader { active: Ui.pdfSigner; source: "Modules/PdfSigner/PdfSignerPanel.qml" }
+    LazyLoader { active: Ui.diskUsage; source: "Modules/DiskUsage/DiskUsagePanel.qml" }
+    LazyLoader { active: Ui.files; source: "Modules/Files/FilesPanel.qml" }
+    LazyLoader { active: FilePicker.shown; source: "Modules/FilePicker/FilePickerPanel.qml" }
+    LazyLoader { active: Ui.videoTrimmer; source: "Modules/VideoTrimmer/VideoTrimmerPanel.qml" }
+    LazyLoader { active: Ui.characters; source: "Modules/Characters/CharactersPanel.qml" }
     ModemDialog {}
-    LazyLoader { active: Share.file !== ""; ShareSheet {} }
+    LazyLoader { active: Share.file !== ""; source: "Modules/Share/ShareSheet.qml" }
     LockScreen { id: lockScreen }
     ChronoaSurface { id: chronoa }
     // the screen being worked on: the control centre opens there
     Binding { target: Ui; property: "screen"; value: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0] }
+    // the file chooser, for the widgets in Common that ask for a file
+    Component.onCompleted: { Ui.filePicker = FilePicker; Ui.minimiser = () => { if (Niri.focusedWindow) Niri.minimise(Niri.focusedWindow.id); }; }
+
+    // closeApps() (the IPC's closeAll, a script's "empty desktop"): the apps
+    // shown by their services, not by a Ui flag, close with the others
+    // "raise" from a media client (the bar's now playing, playerctl): the player's window forward
+    Connections {
+        target: PlayQueue
+        function onRaiseRequested() { Niri.raiseApp("dev.shani.MediaPlayer"); }
+    }
+    Connections {
+        target: Ui
+        function onClosedApps() {
+            if (Calculator.shown) Calculator.close();
+            if (Viewer.shown) Viewer.close();
+            if (PdfViewer.shown) PdfViewer.close();
+            if (Camera.open) Camera.closeCamera();
+            if (PlayQueue.shown) PlayQueue.close();
+            if (Archive.shown) Archive.close();
+        }
+    }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, Signer, Disktree, Aether, Trim]
+    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WindowLook, Terminal, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, PdfSigner, DiskUsage, WallpaperStyle, VideoTrimmer]
 
     IpcHandler {
         target: "shani"
@@ -162,7 +198,7 @@ ShellRoot {
         function toggleControlCenter() { Ui.toggleControlCenter(); }
         function controlCenter(section: string) { Ui.closeAll(); Ui.toggleControlCenter(section); }
         function toggleNotifications() { Ui.toggleControlCenter("notifications"); }
-        function closeAll() { Ui.closeAll(); Ui.settingsOpen = false; }
+        function closeAll() { Ui.closeAll(); Ui.closeApps(); Ui.settingsOpen = false; }
         // back to a resting desktop: closeAll() closes the panels Ui owns; the
         // overlays below live in their services, and a script photographing one
         // surface after another must not stack them (a render of Settings once
@@ -179,11 +215,12 @@ ShellRoot {
             Calculator.close();
             Viewer.close();
             PdfViewer.close();
-            Signer.close();
-            Disktree.close();
-            Trim.close();
+            PdfSigner.close();
+            DiskUsage.close();
+            FilePicker.cancel();
+            VideoTrimmer.close();
             Share.close();
-            Aether.close();
+            WallpaperStyle.close();
             Chronoa.open = false;
             if (Captions.on) Captions.start(Captions.source);   // toggles it off
             Notifs.clearAll();
@@ -194,6 +231,15 @@ ShellRoot {
         function closeChronoa() { Chronoa.open = false; }
         function toggleChronoa() { Chronoa.open = !Chronoa.open; }
         function ask(text: string) { Chronoa.ask(text); }
+        // a terminal's output (foot: Ctrl+Shift+A = the last command's, Ctrl+Shift+E = the
+        // selection): the panel opens with the question and the end of the text
+        function chronoaExplain(text: string) {
+            const t = text.replace(/\x1b\[[0-9;?]*[ -\/]*[@-~]/g, "").trim();
+            if (!t)
+                return;
+            Chronoa.open = true;
+            Chronoa.ask(Tr.t("What does this terminal output mean? If something went wrong, what should I do?") + "\n\n```\n" + (t.length > 6000 ? "…" + t.slice(-6000) : t) + "\n```");
+        }
         // Chronoa surfaces (wiring only, ask-fallback): see Services/Chronoa.openEditor/openDiff
         function openEditor(path: string) { Chronoa.openEditor(path); }
         function openDiff() { Chronoa.openDiff(); }
@@ -208,13 +254,13 @@ ShellRoot {
         // session
         function lock() { Lock.lock(); }
         function themeReload() { Matugen.reload(); }
-        // Aether (Modules/Aether): theme extraction + application over Matugen
-        function themeFromImage(path: string) { Ui.closeAll(); Aether.open(path || ""); }
-        function aetherOpen(path: string) { Ui.closeAll(); Aether.open(path || ""); }
-        function aetherClose() { Aether.close(); }
-        function aetherExtract() { Aether.extract(); }
-        function aetherApply() { Aether.apply(); }
-        function aetherSaveTheme(name: string) { Aether.saveTheme(name); }
+        // WallpaperStyle (Settings > Personalisation): theme extraction + application over Matugen
+        function themeFromImage(path: string) { Ui.closeAll(); WallpaperStyle.open(path || ""); }
+        function wallpaperStyleOpen(path: string) { Ui.closeAll(); WallpaperStyle.open(path || ""); }
+        function wallpaperStyleClose() { WallpaperStyle.close(); }
+        function wallpaperStyleExtract() { WallpaperStyle.extract(); }
+        function wallpaperStyleApply() { WallpaperStyle.apply(); }
+        function wallpaperStyleSaveTheme(name: string) { WallpaperStyle.saveTheme(name); }
         function volumeUp() { Audio.stepKey(true); }
         function volumeDown() { Audio.stepKey(false); }
         function volumeMute() { Audio.toggleMute(); }
@@ -239,6 +285,13 @@ ShellRoot {
         function osk() { Osk.toggle(); }
         function dictate() { Dictation.toggle(); }
         function timer(minutes: int) { minutes > 0 ? FocusTimer.start(minutes) : FocusTimer.stop(); }
+        // one of the shell's app windows, forward (`shani app` asks after opening it)
+        function appRaise(id: string) { Niri.raiseApp(id); }
+        // opening, not toggling: what a desktop entry (`shani app …`) and a dock pin ask for
+        function processesOpen() { Ui.closeAll(); Ui.processes = true; }
+        function logsOpen() { Ui.closeAll(); Ui.logs = true; }
+        function fontsOpen() { Ui.closeAll(); Ui.fonts = true; }
+        function charactersOpen() { Ui.closeAll(); Ui.characters = true; }
         function processes() { const was = Ui.processes; Ui.closeAll(); Ui.processes = !was; }
         function toggleLogs() { const was = Ui.logs; Ui.closeAll(); Ui.logs = !was; }
         function togglePlayer() { const was = Ui.player; Ui.closeAll(); Ui.player = !was; }
@@ -251,48 +304,100 @@ ShellRoot {
         function notesClose() { Ui.notes = false; }
         function notesRefresh() { QuickNotes.refresh(); }
         function notesToggle() { const was = Ui.notes; Ui.closeAll(); Ui.notes = !was; if (Ui.notes) { QuickNotes.refresh(); if (QuickNotes.current === "") { if (QuickNotes.notes.length > 0) QuickNotes.open(QuickNotes.notes[0].name, QuickNotes.notes[0].notebook); else QuickNotes.create("Untitled", ""); } } }
-        function textEditorOpen(path: string) { Ui.closeAll(); Ui.textEditor = true; }
         function textEditorClose() { Ui.textEditor = false; }
         function textEditorToggle() { const was = Ui.textEditor; Ui.closeAll(); Ui.textEditor = !was; }
-        function videoPlayerOpen(path: string) { Ui.closeAll(); Ui.videoPlayer = true; }
-        function videoPlayerClose() { Ui.videoPlayer = false; }
-        function videoPlayerToggle() { const was = Ui.videoPlayer; Ui.closeAll(); Ui.videoPlayer = !was; }
+        function tasksOpen() { Ui.closeAll(); Ui.tasks = true; Tasks.refresh(); }
+        function tasksAdd(summary: string, due: string) { Tasks.add(summary, parseFloat(due) || 0); }
+        function photosOpen() { Ui.closeAll(); Ui.photos = true; }
+        function translateOpen() { Ui.closeAll(); Ui.translate = true; }
+        // Converter: files, if any, then the window
+        function converterOpen(path: string) { Ui.closeAll(); if (path) Ui.converterFiles = [path]; Ui.converter = true; }
+        // Nearby (LocalSend): files to send, if any, then the window
+        function nearbyOpen(path: string) { Ui.closeAll(); if (path) Nearby.pending = [path]; Ui.nearby = true; }
+        function nearbyVisible(on: string) { Nearby.setVisible(on === "true"); }
+        function nearbyAnswer(accept: string) { if (Nearby.offers.length) Nearby.answer(Nearby.offers[0].session, accept === "true"); }
+        function nearbySendTo(alias: string) { const d = Nearby.devices.find(x => x.alias === alias); if (d) Nearby.sendTo(d.fingerprint); }
+        function authenticatorOpen() { Ui.closeAll(); Ui.authenticator = true; }
+        function cleanUpOpen() { Ui.openSettings("storage"); }
+        function weatherOpen() { Ui.closeAll(); Ui.weather = true; }
+        function screenTimeOpen() { Ui.openSettings("screentime"); }
+        // the tools that are an action, not a window (their desktop entries start these)
+        function screenshotTool() { Ui.closeAll(); Niri.action("screenshot"); }
+        function colorPicker() { Ui.closeAll(); Quickshell.execDetached(["sh", "-c", "c=$(niri msg pick-color | sed -n 's/^Hex: //p'); [ -n \"$c\" ] && printf %s \"$c\" | wl-copy && notify-send -a 'Color picker' -i color-select \"$c\" 'Copied'"]); }
+        // Clocks (Modules/Clocks): a tab - world | alarms | stopwatch | timer - or "" for the last one
+        function clocksOpen(tab: string) { Ui.closeAll(); if (tab) Ui.clocksTab = tab; Ui.clocks = true; }
+        function clocksClose() { Ui.clocks = false; }
+        // Archives (Modules/Archives, Services/Archive): look inside, extract beside it or into a folder
+        function archiveOpen(path: string) { Ui.closeAll(); Archive.open(path); }
+        function archiveClose() { Archive.close(); }
+        function archiveExtract(where: string) { Archive.extract(where || ""); }
+        // Media Player (Modules/MediaPlayer, Services/PlayQueue): videos and music
+        // the Library: an album by its title, from its first song
+        function mediaLibraryVideos() { MusicLibrary.scanVideos(); }
+        function mediaPage(page: string) { if (page === "library" || page === "playing") PlayQueue.page = page; }
+        function mediaPlayAlbum(title: string) { const a = MusicLibrary.albums.find(x => x.title === title); if (a) MusicLibrary.play(a.songs, 0); }
+        function mediaOpen(path: string) { Ui.closeAll(); PlayQueue.open(path); }
+        function mediaClose() { PlayQueue.close(); }
+        function mediaPlayPause() { PlayQueue.toggleRequested(); }
+        function mediaPlay() { PlayQueue.playRequested(); }
+        function mediaPause() { PlayQueue.pauseRequested(); }
+        function mediaSeek(seconds: string) { const v = parseFloat(seconds); if (isFinite(v)) PlayQueue.seekRequested(v); }
+        function mediaNext() { PlayQueue.next(); }
+        function mediaPrevious() { PlayQueue.previous(); }
+        function mediaVolume(level: string) { const v = parseFloat(level); if (isFinite(v)) { PlayQueue.muted = false; PlayQueue.volume = Math.max(0, Math.min(1, v)); } }
+        function mediaRate(rate: string) { const v = parseFloat(rate); if (isFinite(v) && v >= 0.25 && v <= 4) PlayQueue.rate = v; }
         function scannerOpen() { Ui.closeAll(); Ui.scanner = true; }
         function scannerClose() { Ui.scanner = false; }
         function scannerToggle() { const was = Ui.scanner; Ui.closeAll(); Ui.scanner = !was; }
-        function secretsOpen() { Ui.closeAll(); Ui.secrets = true; }
-        function secretsClose() { Ui.secrets = false; }
-        function secretsToggle() { const was = Ui.secrets; Ui.closeAll(); Ui.secrets = !was; }
+        function passwordGeneratorOpen() { Ui.closeAll(); Ui.passwordGenerator = true; }
+        function passwordGeneratorClose() { Ui.passwordGenerator = false; }
+        function passwordGeneratorToggle() { const was = Ui.passwordGenerator; Ui.closeAll(); Ui.passwordGenerator = !was; }
         function kundaliOpen() { Ui.closeAll(); Ui.kundali = true; }
         function kundaliClose() { Ui.kundali = false; }
-        function localSendOpen() { Ui.closeAll(); Ui.localSend = true; }
-        function localSendClose() { Ui.localSend = false; }
-        function localSendToggle() { const was = Ui.localSend; Ui.closeAll(); Ui.localSend = !was; }
         function kundaliToggle() { const was = Ui.kundali; Ui.closeAll(); Ui.kundali = !was; }
         function voiceRecorderRecord() { VoiceRecorder.start(); }
         function voiceRecorderPause() { VoiceRecorder.togglePause(); }
         function voiceRecorderStop() { VoiceRecorder.stop(); }
         function voiceRecorderPlay(path: string) { VoiceRecorder.play(path); }
         // Signed: sign / fill a PDF (arg or a folder's last PDF)
-        function signedOpen(path: string) { Signer.open(path); }
-        function signedClose() { Signer.close(); }
-        function signedToggle(path: string) { Signer.toggle(path); }
-        function signedSave() { Signer.save(); }
-        function signedSignature(path: string) { Signer.setSignature(path); }
-        function signedPosition(x: string, y: string) { Signer.setPosition(x, y); }
-        function signedScale(scale: string) { Signer.setScale(scale); }
-        function signedText(text: string) { Signer.setFillText(text); }
-        function signedTextPosition(x: string, y: string) { Signer.setTextPosition(x, y); }
-        // Disktree: disk treemap (default home), walk in, mark, trash
-        function disktreeOpen(path: string) { Disktree.open(path); }
-        function disktreeClose() { Disktree.close(); }
-        function disktreeToggle() { Disktree.toggle(); }
-        function disktreeScan(path: string) { if (path) Disktree.scan(path); else Disktree.refresh(); }
-        function disktreeEnter(path: string) { Disktree.enter(path); }
-        function disktreeBack() { Disktree.back(); }
-        function disktreeMark(path: string) { Disktree.toggleMark(path); }
-        function disktreeClearMarks() { Disktree.clearMarks(); }
-        function disktreeTrashMarked() { Disktree.trashMarked(); }
+        function pdfSignerOpen(path: string) { PdfSigner.open(path); }
+        function pdfSignerClose() { PdfSigner.close(); }
+        function pdfSignerToggle(path: string) { PdfSigner.toggle(path); }
+        function pdfSignerSave() { PdfSigner.save(); }
+        function pdfSignerSignature(path: string) { PdfSigner.setSignature(path); }
+        function pdfSignerPosition(x: string, y: string) { PdfSigner.setPosition(x, y); }
+        function pdfSignerScale(scale: string) { PdfSigner.setScale(scale); }
+        function pdfSignerText(text: string) { PdfSigner.setFillText(text); }
+        function pdfSignerTextPosition(x: string, y: string) { PdfSigner.setTextPosition(x, y); }
+        // DiskUsage: disk treemap (default home), walk in, mark, trash
+        function diskUsageOpen(path: string) { DiskUsage.open(path); }
+        function diskUsageClose() { DiskUsage.close(); }
+        function diskUsageToggle() { DiskUsage.toggle(); }
+        function diskUsageScan(path: string) { if (path) DiskUsage.scan(path); else DiskUsage.refresh(); }
+        function diskUsageEnter(path: string) { DiskUsage.enter(path); }
+        function diskUsageBack() { DiskUsage.back(); }
+        function diskUsageMark(path: string) { DiskUsage.toggleMark(path); }
+        function diskUsageClearMarks() { DiskUsage.clearMarks(); }
+        function diskUsageTrashMarked() { DiskUsage.trashMarked(); }
+        // Files: the file manager
+        function filesOpen(path: string) { Files.show(path); }
+        function filesHome() { Files.show(""); }
+        function filesClose() { Files.hide(); }
+        function filesToggle(path: string) { Files.toggle(path); }
+        function filesGo(path: string) { Files.open(path); }
+        function filesBack() { Files.back(); }
+        function filesUp() { Files.up(); }
+        function filesSelect(path: string) { Files.select(path, "single"); }
+        function filesTrash() { Files.trashEntries([]); }
+        function filesMakeFolder(name: string) { Files.makeFolder(name); }
+        function filesRename(path: string, name: string) { Files.renameEntry(path, name); }
+        // the file chooser: open | save | folder
+        function filePickerOpen(mode: string, path: string) { FilePicker.open({ "mode": mode || "open", "startPath": path || "" }); }
+        function filePickerHome() { FilePicker.open({ "mode": "open" }); }
+        function filePickerClose() { FilePicker.cancel(); }
+        function filePickerGo(path: string) { FilePicker.go(path); }
+        function filePickerSelect(path: string) { FilePicker.select(path, "single"); }
+        function filePickerAccept() { FilePicker.accept(); }
         function voiceRecorderTrim(path: string, start: string, end: string) {
             const s = parseFloat(start), e = parseFloat(end);
             if (!path || !isFinite(s) || !isFinite(e))
@@ -300,15 +405,13 @@ ShellRoot {
             VoiceRecorder.openTrim(path);
             VoiceRecorder.setTrimStart(s);
             VoiceRecorder.setTrimEnd(e);
-            Trim.trimAudio(path, s, e);
+            VideoTrimmer.trimAudio(path, s, e);
         }
-        // Omacut video trimmer: a file, or a folder's last video
-        function trimOpen(path: string) { Ui.closeAll(); Trim.open(path); }
-        function TrimOpen(path: string) { trimOpen(path); }
-        function trimClose() { Trim.close(); }
-        function trimToggle() { const was = Ui.trim; Ui.closeAll(); Ui.trim = !was; if (Ui.trim) Trim.open(""); }
-        function trimCut() { Trim.cut(); }
-        function TrimCut() { Trim.cut(); }
+        // Video Trimmer: a file, or a folder's last video
+        function videoTrimmerOpen(path: string) { Ui.closeAll(); VideoTrimmer.open(path); }
+        function videoTrimmerClose() { VideoTrimmer.close(); }
+        function videoTrimmerToggle() { const was = Ui.videoTrimmer; Ui.closeAll(); Ui.videoTrimmer = !was; if (Ui.videoTrimmer) VideoTrimmer.open(""); }
+        function videoTrimmerCut() { VideoTrimmer.cut(); }
         function playerSeek(sec: string) { const p = Media.current; const v = parseFloat(sec); if (p && p.canSeek && isFinite(v)) p.position = Math.max(0, v); }
         function playerVolume(level: string) { const p = Media.current; const v = parseFloat(level); if (p && p.volumeSupported && p.canControl && isFinite(v)) p.volume = Math.max(0, Math.min(1, v)); }
         function playerShuffle() { const p = Media.current; if (p && p.shuffleSupported && p.canControl) p.shuffle = !p.shuffle; }
@@ -333,6 +436,14 @@ ShellRoot {
         function fontCopy(family: string) { if (family) Quickshell.clipboardText = family; }
         function weather(city: string) { Settings.data.weatherLat = 0; Settings.data.weatherLon = 0; Settings.data.weatherCity = city; }
         function weatherForecast(): string { return JSON.stringify({ city: Settings.data.weatherCity, forecast: Weather.forecast, hourly: Weather.hourly, summary: Weather.summary }); }
+        // Text Editor: the documents are Services/TextDocs's, so they outlive the panel.
+        // A file handed over while it is open joins the tabs (nothing else is closed).
+        function textEditorOpen(path: string) { Ui.closeAll(); Ui.textEditor = true; TextDocs.open(path); }
+        function textEditorNew() { Ui.closeAll(); Ui.textEditor = true; TextDocs.newDoc(); }
+        function textEditorSetText(text: string) { TextDocs.setText(text); TextDocs.revision++; }
+        function textEditorSave(): string { return TextDocs.save() ? "ok" : "no name yet: use save-as"; }
+        function textEditorSaveAs(path: string) { TextDocs.saveAs(path); }
+        function textEditorCloseTab() { TextDocs.close(TextDocs.active); }
         function setting(key: string, value: string) { Settings.data[key] = value === "true" ? true : value === "false" ? false : value; }
         function snoozeLatest(minutes: int) { if (Notifs.list.length) Notifs.snooze(Notifs.list[0], minutes); }
         function summarize() { Notifs.summarize(); }
@@ -346,6 +457,15 @@ ShellRoot {
         function whatsNewCheck() { WhatsNew.check(); }
         function settings() { Ui.openSettings(""); }
         function settingsCategory(cat: string) { Ui.openSettings(cat); }
+        // settings undo: revert one or all changed settings
+        function settingsChangedKeys(): string { return JSON.stringify(Settings.changedKeys); }
+        function settingsUndo(key: string) { Settings.undo(key); }
+        function settingsUndoAll() { Settings.undoAll(); }
+        // Files split view: two panes side by side
+        function filesSplit() { Files.toggleSplit(); }
+        function filesSplitPath(p: string) { Files.openInSplit(p); }
+        function filesSplitCopy() { Files.copyToSplit(); }
+        function filesSplitMove() { Files.moveToSplit(); }
         // the keyboard into the dock or the bar (a key binds these; Escape gives it back)
         function focusDock() { Ui.closeAll(); Ui.dockFocus = true; }
         function focusBar() { Ui.closeAll(); Ui.barFocus = true; }
@@ -372,6 +492,8 @@ ShellRoot {
         function cameraRefresh() { Camera.refresh(); }
         function tour() { Ui.closeAll(); Ui.tour = true; }
         function agendaRefresh() { Agenda.refresh(); }
+        // which calendars show (the Calendar's chips): a name, and "true" or "false"
+        function calendarShow(name: string, on: string) { Agenda.setShown(name, on !== "false"); }
         function dynamicLockAway() { DynamicLock.away(); }
         function share(path: string) { Ui.closeAll(); Share.open(path); }
         function textMessage(to: string) { Ui.closeAll(); Ui.smsTo = to; Ui.modemDialog = "sms"; }
@@ -398,7 +520,7 @@ ShellRoot {
             Phone.openRecentCalls();
         }
         function qr(title: string, text: string) { Ui.closeAll(); Qr.show(title, text); }
-        function calculator() { Ui.closeAll(); Calculator.toggle(); }
+        function calculator() { const was = Calculator.shown; Ui.closeAll(); if (!was) Calculator.open(); }
         function calculatorOpen(expr: string) { Ui.closeAll(); if (expr) { Calculator.clear(); Calculator.display = expr; } Calculator.open(); }
         function calculatorPress(key: string) { Calculator.press(key); }
         function calculatorEquals() { Calculator.evaluate(); }
@@ -413,7 +535,7 @@ ShellRoot {
         function notesCreateNotebook(name: string) { QuickNotes.createNotebook(name); }
         function notesRenameNotebook(oldName: string, newName: string) { QuickNotes.renameNotebook(oldName, newName); }
         function notesCreate(name: string, notebook: string) { QuickNotes.create(name, notebook); }
-        function notesOpen(name: string, notebook: string) { QuickNotes.open(name, notebook); }
+        function notesOpenNote(name: string, notebook: string) { QuickNotes.open(name, notebook); }
         function notesExportHtml(): string { return QuickNotes.exportHtml(); }
         function notesPrint(): string { return QuickNotes.printNote(); }
         function calendar() { const was = Ui.calendar; Ui.closeAll(); Ui.calendar = !was; }
@@ -575,7 +697,7 @@ ShellRoot {
                 logs: Ui.logs,
                 timerLeft: FocusTimer.left,
                 weather: Weather.summary,
-                notes: QuickNotes.loaded, notesCount: QuickNotes.notes.length, notesCurrent: QuickNotes.current, notesLinks: QuickNotes.links(), notesNotebooks: QuickNotes.notebooks.join(" "), notesNotebook: QuickNotes.currentNotebook, notesExported: QuickNotes.lastExported, notesPrinted: QuickNotes.lastPrinted, notesSync: QuickNotes.syncState,
+                notesLoaded: QuickNotes.loaded, notesCount: QuickNotes.notes.length, notesCurrent: QuickNotes.current, notesLinks: QuickNotes.links(), notesNotebooks: QuickNotes.notebooks.join(" "), notesNotebook: QuickNotes.currentNotebook, notesExported: QuickNotes.lastExported, notesPrinted: QuickNotes.lastPrinted, notesSync: QuickNotes.syncState,
                 alarms: WorldClock.alarms.length, stopwatch: WorldClock.swDisplay,
                 characters: Ui.characters, characterLast: Characters.last,
                 forecast: Weather.forecast, hourly: Weather.hourly,
@@ -623,7 +745,7 @@ ShellRoot {
                 powerProfile: Power.profileName,
                 wallpaper: Settings.data.wallpaper,
                 dark: Settings.data.darkMode,
-                players: Audio.players.length,
+                players: Audio.players.length, mprisPlayers: Media.players.map(p => p.identity), mprisCurrent: Media.current ? Media.current.identity : "",
                 screenShared: Audio.screenShared,
                 updates: Updates.summary,
                 whatsNewVersion: WhatsNew.currentVersion, whatsNewShown: WhatsNew.shownVersion,
@@ -650,7 +772,7 @@ ShellRoot {
                 converted: Recorder.converted, converting: Recorder.converting,
                 cpuTemp: SysStats.temp,
                 gpus: Gpu.gpus.length,
-                agenda: Agenda.events.map(e => e.summary),
+                agenda: Agenda.events.map(e => e.summary), calendars: Agenda.calendarNames, calendarsHidden: Agenda.hidden,
                 modem: Modem.modem ? Modem.modem.state + "/" + (Modem.modem.locked || "unlocked") + "/" + Modem.modem.operator : "",
                 modemCall: Modem.call ? Modem.call.state + ":" + Modem.call.number : "",
                 modemDialog: Ui.modemDialog, phonePage: Ui.phonePage, phoneNumber: Ui.phoneNumber,
@@ -663,9 +785,9 @@ ShellRoot {
                 shareTargets: Share.targets.map(t => t.label), shareDone: Share.done,
                 cameras: Camera.cameras.length, cameraPhase: Camera.phase, cameraLast: Camera.last,
                 mapsShown: Ui.maps, mapsLat: Location.lat, mapsLon: Location.lon,
-                aetherShown: Ui.aether, aetherImage: Aether.image, aetherNote: Aether.note,
-                aetherPalette: Object.keys(Matugen.previewPalette || {}).length,
-                aetherThemes: (Settings.data.aetherThemes || []).length, aetherSaved: Aether.lastSaved,
+                wallpaperStyleShown: Ui.settingsOpen && Ui.settingsCat === "personal", terminalList: Terminal.listState, terminalFoot: Terminal.footState, wallpaperStyleImage: WallpaperStyle.image, wallpaperStyleNote: WallpaperStyle.note,
+                wallpaperStylePalette: Object.keys(Matugen.previewPalette || {}).length,
+                wallpaperStyleThemes: (Settings.data.wallpaperStyleThemes || []).length, wallpaperStyleSaved: WallpaperStyle.lastSaved,
                 inputMethod: Ime.current,
                 osk: Osk.shown,
                 dictation: Dictation.phase,
@@ -696,7 +818,7 @@ ShellRoot {
                 windows: Object.keys(Niri.windows).length,
                 focusedTitle: Niri.focusedWindow ? Niri.focusedTitle : null,
                 layout: Niri.layout,
-                chronoa: Chronoa.state, chronoaOpen: Chronoa.open,
+                chronoa: Chronoa.state, chronoaOpen: Chronoa.open, chronoaAsked: Chronoa.lastAsked.slice(0, 400),
                 bridge: Bridge.connected,
                 approval: Chronoa.approval ? Chronoa.approval.text : null,
                 art: Chronoa.art,
@@ -742,12 +864,18 @@ ShellRoot {
                 playerSeekable: Media.current ? Media.current.canSeek : false,
                 callRecording: CallRecorder.recording,
                 callFile: CallRecorder.file,
-                voiceRecorder: Ui.voiceRecorder, voiceRecording: VoiceRecorder.recording, voicePaused: VoiceRecorder.paused, voiceElapsed: VoiceRecorder.elapsed, voiceFiles: VoiceRecorder.recordings.length, voiceFile: VoiceRecorder.file, voiceLast: VoiceRecorder.last, voiceLevel: Math.round(VoiceRecorder.level * 100),
-                notes: Ui.notes, textEditor: Ui.textEditor, videoPlayer: Ui.videoPlayer, scanner: Ui.scanner, secrets: Ui.secrets, kundali: Ui.kundali,
-                signed: Ui.signed, signedFile: Signer.file, signedName: Signer.name, signedSignature: Signer.signature, signedX: Signer.x, signedY: Signer.y, signedScale: Signer.scale, signedText: Signer.fillText, signedTextX: Signer.textX, signedTextY: Signer.textY, signedSaved: Signer.signedFile, signedLastSaved: Signer.lastSaved, signedSaving: Signer.saving,
-                disktree: Ui.disktree, disktreeRoot: Disktree.root, disktreeCurrent: Disktree.current, disktreeEntries: Disktree.entries.length, disktreeMarked: Disktree.markedCount, disktreeTotal: Disktree.totalSize, disktreeScanning: Disktree.scanning, disktreeLast: Disktree.last,
+                cameraShown: Camera.open, notes: Ui.notes, textEditor: Ui.textEditor,
+                textEditorFile: TextDocs.current ? TextDocs.current.path : "", textEditorDocs: TextDocs.docs.length, textEditorUnsaved: TextDocs.unsaved, textEditorChars: TextDocs.current ? TextDocs.current.text.length : 0, textEditorSaved: TextDocs.lastSaved, textEditorError: TextDocs.error, textEditorReadOnly: TextDocs.current ? TextDocs.current.readOnly : false,
+                tasksShown: Ui.tasks, tasksOpen: Tasks.open.map(t => t.summary), tasksDone: Tasks.done.map(t => t.summary), tasksAvailable: Tasks.available, photosShown: Ui.photos, translateShown: Ui.translate, weatherShown: Ui.weather, cleanUpShown: Ui.settingsOpen && Ui.settingsCat === "storage", authenticatorShown: Ui.authenticator, converterShown: Ui.converter, nearbyShown: Ui.nearby, nearbyVisible: Nearby.visible_, nearbyDevices: Nearby.devices.map(d => d.alias), nearbyOffers: Nearby.offers.length, nearbyTransfers: Object.values(Nearby.transfers).map(t => t.direction + ":" + t.state), nearbyNote: Nearby.note, screenTimeShown: Ui.settingsOpen && Ui.settingsCat === "screentime", clocksShown: Ui.clocks, clocksTab: Ui.clocksTab,
+                archiveShown: Archive.shown, archiveFile: Archive.file, archiveEntries: Archive.entries.length, archiveSize: Archive.totalSize, archiveExtractedTo: Archive.extractedTo, archiveError: Archive.error, archiveReading: Archive.reading, archiveExtracting: Archive.extracting,
+                librarySongs: MusicLibrary.songs.length, libraryVideos: MusicLibrary.videos.length, libraryAlbums: MusicLibrary.albums.map(a => a.title), libraryScanning: MusicLibrary.scanning, mediaPage: PlayQueue.page, mediaShown: PlayQueue.shown, mediaFile: PlayQueue.current, mediaPlayerPlaying: PlayQueue.playing, mediaPosition: Math.round(PlayQueue.position * 10) / 10, mediaDuration: Math.round(PlayQueue.duration * 10) / 10, mediaHasVideo: PlayQueue.hasVideo, mediaQueue: PlayQueue.queue.length, mediaIndex: PlayQueue.index, mediaError: PlayQueue.error, mediaVolume: PlayQueue.volume, mediaRate: PlayQueue.rate,
+                scanner: Ui.scanner, passwordGenerator: Ui.passwordGenerator, kundali: Ui.kundali,
+                pdfSigner: Ui.pdfSigner, pdfSignerFile: PdfSigner.file, pdfSignerName: PdfSigner.name, pdfSignerSignature: PdfSigner.signature, pdfSignerX: PdfSigner.x, pdfSignerY: PdfSigner.y, pdfSignerScale: PdfSigner.scale, pdfSignerText: PdfSigner.fillText, pdfSignerTextX: PdfSigner.textX, pdfSignerTextY: PdfSigner.textY, pdfSignerSaved: PdfSigner.pdfSignerFile, pdfSignerLastSaved: PdfSigner.lastSaved, pdfSignerSaving: PdfSigner.saving,
+                disktree: Ui.diskUsage, diskUsageRoot: DiskUsage.scanRoot, diskUsageCurrent: DiskUsage.current, diskUsageEntries: DiskUsage.entries.length, diskUsageMarked: DiskUsage.markedCount, diskUsageTotal: DiskUsage.totalSize, diskUsageScanning: DiskUsage.scanning, diskUsageLast: DiskUsage.last,
+                filesShown: Ui.files, filesPath: Files.path, filesSelected: Files.selected.length, filesView: Files.viewMode, filesError: Files.error, filesPlaces: Files.places.length, filesEntries: Files.entryCount,
+                pickerShown: FilePicker.shown, pickerPath: FilePicker.path, pickerPicked: FilePicker.lastPicked.join(" "),
                 voiceRecorder: Ui.voiceRecorder, voiceRecording: VoiceRecorder.recording, voicePaused: VoiceRecorder.paused, voiceElapsed: VoiceRecorder.elapsed, voiceFiles: VoiceRecorder.recordings.length, voiceFile: VoiceRecorder.file, voiceLast: VoiceRecorder.last, voiceLevel: Math.round(VoiceRecorder.level * 100), voiceTrimFile: VoiceRecorder.trimFile, voiceTrimStart: VoiceRecorder.trimStart, voiceTrimEnd: VoiceRecorder.trimEnd, voiceTrimmed: VoiceRecorder.trimmedLast,
-                trim: Ui.trim, trimInput: Trim.input, trimStart: Trim.start, trimEnd: Trim.end, trimDuration: Trim.inputDuration, trimResult: Trim.result, trimCutting: Trim.cutting, trimError: Trim.error, trimAvailable: Trim.available, trimResultDuration: Trim.resultDuration,
+                videoTrimmer: Ui.videoTrimmer, videoTrimmerInput: VideoTrimmer.input, videoTrimmerStart: VideoTrimmer.start, videoTrimmerEnd: VideoTrimmer.end, videoTrimmerDuration: VideoTrimmer.inputDuration, videoTrimmerResult: VideoTrimmer.result, videoTrimmerCutting: VideoTrimmer.cutting, videoTrimmerError: VideoTrimmer.error, videoTrimmerAvailable: VideoTrimmer.available, videoTrimmerResultDuration: VideoTrimmer.resultDuration,
                 smart: Smart.suggestion ? Smart.suggestion.text : "",
                 assistiveTouch: Settings.data.assistiveTouch,
                 castAvailable: Cast.available,

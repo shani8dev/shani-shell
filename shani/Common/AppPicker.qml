@@ -33,7 +33,7 @@ ColumnLayout {
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: 32
-            radius: 8
+            radius: Theme.radiusToken("xs")
             color: Theme.surface1
             border.color: Theme.stroke
             border.width: 1

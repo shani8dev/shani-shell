@@ -867,3 +867,290 @@ The shell talks D-Bus through `bridge/modem.py` (no mmcli in the image). Surfaci
 - Setup wizard default locale no longer opens on `aa_DJ.utf8`.
 - Documented a UI/UX improvement backlog and design references (Deepin, Pantheon,
   Cutefish, macOS, Windows, Android, custom ROMs) in `docs/UX-IMPROVEMENTS.md`.
+
+## 2026-11-11 — A file manager of our own, and a shell that starts at all
+- **The Files surface** (`shani/Modules/Files/FilesPanel.qml`): the places on
+  the left, the folder as a grid of tiles or a list of rows, a search box, a
+  preview of what is chosen. Click to choose, Ctrl-click for more, Shift-click
+  for a range, Enter or a double click to open, F2 to rename, Delete to the
+  trash, Backspace up, Escape closes. The folder is **watched** (inotify), so a
+  file made or removed elsewhere shows up at once.
+- **The backend** (`bridge/files.py`): `list`, `watch`, `stat`, `mkdir`,
+  `rename`, `trash`, `places`. One JSON object per answer; the watch answers
+  one per change. The trash is the **desktop trash** (`gio trash`), so anything
+  moved there can be put back — the file manager never deletes.
+- **The model** (`shani/Common/FileDirectory.qml`): the listing, the name
+  filter, and the watch (a python process, alive only while a folder is open).
+- **The chooser** (`shani/Services/FilePicker.qml` +
+  `Modules/FilePicker/FilePickerPanel.qml`): the shell's own open/save/folder
+  picker. `Common/FolderPicker.qml` now uses it instead of the native dialog,
+  which was the desktop portal's and **held the whole shell while D-Bus waited
+  for the portal**.
+- Wired in: the launcher's "Files" action, `Super+E`, `shani files …` and
+  `shani picker …` on the CLI, `Ui.files`, and `state` (`filesShown`,
+  `filesPath`, `filesEntries`, …).
+- **The shell did not load at HEAD** — before any of this, `qs` refused to
+  start. Fixed: `TrimOpen`/`TrimCut` (upper-case IPC names), a duplicate
+  `notesOpen`, a duplicate `notesNotebook` in `Common/Ui.qml`,
+  `import qs.Modules.LocalSend` (a file, not a directory), `function print()`
+  in `Services/PdfViewer.qml` and `Services/QuickNotes.qml`,
+  `Keys.onBackspacePressed`/`onHomePressed`/`onEndPressed` (not real Qt
+  signals), `TabBar.delegate`/`tabDelegate`, `Theme.radiusLg` and
+  `Theme.onSurfaceVariant` (dux's token names), `const` at QML object scope,
+  `TextArea`'s `cursorPositionChanged` handler declared twice, and
+  `placeholderText`/`flat`/`checked`/`readOnly` missing from our own
+  `Common/TextField.qml` and `Common/Button.qml`.
+- 303 unit tests pass (`tests/test_files.py` is new: the backend's contract for
+  real, the JS helpers in node, and the wiring). The nine checks added to
+  `dev/shell-test.sh` (listing, watch, new folder, rename, trash, the chooser's
+  answer) all pass.
+- The Files surface and the chooser are **overlay** (layer-shell) surfaces, and
+  the nested niri shows no Overlay layer: they cannot be photographed there,
+  like the Disktree panel. Noted in `GAPS.md`.
+- `docs/UX-IMPROVEMENTS.md` §12: what else dux (DMS) has that we could take —
+  the plugin system, the pure-logic helpers, the widgets, and what not to take.
+
+## 2026-11-11 — The cheap half of what dux has: the shared helpers
+- **`Common/Contrast.js`** — WCAG luminance, ratio and "which ink reads on
+  this". `Services/Color.qml` had its own copy of the maths; it uses the
+  shared one now. `Theme.accentInk` is measured (`readableOn`) instead of
+  guessed from the accent's lightness: a pale accent takes dark text, a deep
+  one takes white, and the switch happens where the contrast says.
+- **`Common/Shape.js`** — the corner scale, carrying the shell's own radii
+  (s = 10, l = 16, xl = 22). `Theme.radius*` comes from it, and the hardcoded
+  `radius: 10` / `radius: 8` in `Common/` (button, field, list row, screen
+  keyboard, hints, pickers) are tokens now. The look is unchanged: the
+  Settings render before and after differs by 0.18 % of the pixels (the clock
+  and the focused button).
+- **`Common/WheelInput.js`** — a wheel notch is one step, a finger slides by
+  its own pixels. `Common/SliderRow.qml` used to move 5 % per *pixel* of
+  finger movement; it moves 5 % per 40 pixels now, and a notch is still 5 %.
+- **`Common/Proc.qml`** — run a command with a debounce and a timeout: a burst
+  of calls runs once, and a command that hangs cannot wedge the shell.
+  `Services/Disktree.qml` uses it for the disk walk (a minute's grace);
+  `Services/Files.qml` keeps its own one-at-a-time queue and gained a
+  watchdog (20 s) on top.
+- **`Common/Log.qml`** — `Log.scoped("Files")`: a line with a name on it,
+  quiet by default, `SHANI_LOG=Files,Audio` to name the ones that should
+  speak, `SHANI_LOG=Files:debug` for the details.
+- **`Common/Hct.js` + `Tonal.js` + `Accents.js`** — Material's colour space
+  (Apache-2.0, the notice beside them). In the tree and tested, **not
+  wired**: ranking a wallpaper by chroma picks the Saturn ring's lavender
+  over the planet's amber, and the accent is meant to be the brand's amber.
+  Deriving the palette is a design decision, not a port.
+- **`tests/test_shell_helpers.py`** — the helpers in node (a small loader
+  turns QML's `.import "X.js" as X` into plain namespaces, and a `Qt` shim
+  stands in for the colour calls), plus a check that the shell really uses
+  them. 315 unit tests pass.
+- **Fixed: the Disktree panel never opened.** `Services/Disktree.qml` had a
+  property called `root` and an id called `root`; `root = dir` inside
+  `open()` was not an lvalue, so the scan never started (the property is now
+  `scanRoot`, and `state` reports `disktreeRoot` from it).
+
+## 2026-11-11 (later) — The shell's surfaces become apps, and a tree that loads again
+- **The working tree did not load.** A round of additions after the entry
+  above left `shell.qml` with a duplicate IPC method, duplicate properties in
+  `Services/Files.qml`, `Component.onCompleted` set twice in the Processes
+  panel, a second "About" page in `SettingsPage.qml` written with another
+  shell's types, and imports of single files as modules. All fixed; the
+  load is clean and the unit tests are back.
+- **Taken out, because they could not work as written** (kept, outside the
+  repo, in `../shani-shell-parked-2026-11-11/`): a Battery Health centre
+  (`pkexec sh -c` with the values never passed; Settings > Power already has
+  health and the charge limit through `shani-admin.py`), a speed test (eight
+  parallel transfers against another project's server), a video wallpaper
+  (mpv as an ordinary window, which niri tiles), recorder click rings (a
+  `MouseArea` in a singleton sees no clicks; a 16 ms timer ran forever), a
+  camera "mic meter" (it read the volume setting, and its "No audio" switch
+  did not stop the microphone), theme presets (not valid JS), and a native
+  annotation panel that did not parse — screenshots annotate with satty again.
+- **Files: copy, move and duplicate pass argv.** They built `sh -c` strings
+  from file names; a name with `$(…)` in it ran. Now `cp -rn -- …` / `mv -n`.
+- **Settings > "Changed this session"** (below the category list): what was
+  changed since sign-in, by the name the search uses, each with Undo. The
+  snapshot it undoes to is taken *after* the file is read; taken at
+  construction it was the defaults, and Undo would have discarded older
+  choices.
+- **The shell's apps** (`bin/shani`'s `APPS`): one table feeds `shani app NAME
+  [FILE]`, the desktop entries the package writes (`dev.shani.*.desktop`, 17
+  of them — the launcher's app list, dock pins, "Open with", default apps),
+  and `dev/shell-parts/apps.sh`, which opens every one in the live shell and
+  fails on any QML error written while it opens.
+- **That test found six surfaces that had never been visible**: Notes,
+  Scanner, Passwords, Kundali, LocalSend and the video player import
+  `qs.Services as Services` and said `Lock.locked` — a ReferenceError inside
+  `visible:`. Also: the Calendar's week view called four members of its own
+  and nine of `Agenda` that did not exist (the week view is finished on real
+  data; the calendars/online-accounts sections, which had no backend, are
+  gone); `Camera.open()` called a bool (the launcher's Camera action and the
+  sidebar tile did nothing); the Files grid's `grid.columns`; `parent: win`.
+  `tests/test_wiring.py` now guards theme tokens and service references.
+- **Text Editor, rebuilt** on `Services/TextDocs.qml`: the documents outlive
+  the panel (Escape or a click outside no longer discards what was typed),
+  saves are atomic and keep permissions, links and CRLF, a binary file, a
+  folder or a file over 2 MB is refused and said. Before: the save handler
+  was assigned to a signal (never ran), shortcuts sat on a sibling of the
+  editor (never reached while typing), and opening a file marked it modified.
+  It is the image's default for text files (`mimeapps.list` named
+  `org.gnome.TextEditor`, which the niri image no longer ships).
+- **Packaging**: the PKGBUILD's hand-kept list of bridge scripts left out
+  `screensaver.py` — which `chronoa-bridge.py` imports, so the *packaged*
+  bridge died at import — and `characters.py`, and `data/whats-new.md` was
+  never installed. It installs `bridge/*.py` by glob now, and
+  `tests/test_packaging.py` runs the real `package()` and checks the result.
+  `matugen` (Adaptive palette, Aether) is a dependency of shani-desktop-niri.
+- **Handing off to apps the image has**: a scanner's "Scan" and a capture
+  card's "Camera" open the shell's own surfaces where SimpleScan / Snapshot
+  are not installed; "Passwords and Keys" is started by its desktop entry
+  (a Flatpak here: there is no `seahorse` on the path).
+- **The sidebar's alarm time chips** show only while an alarm is being added
+  (they were forty keyboard stops ahead of the notifications; a notification's
+  action took more than 60 presses of Down, now 33). The button beside
+  "Alarms & stopwatch" opened the character browser; it adds an alarm.
+- **Idle memory**: the apps and other rarely opened surfaces are read on first
+  open (`LazyLoader { source: … }`): 527 → 512 MB idle, under the 520 budget.
+
+## 2026-11-11 (night) — The apps are windows
+- **`Common/AppWindow`**: every app of the shell's is a niri window now, as
+  Settings already was - it tiles or floats, is in Alt+Tab and the overview,
+  several are open at once, and opening the launcher or the sidebar no longer
+  closes it. Before, each was a full-screen overlay holding the keyboard, one
+  at a time. 23 panels were converted (a script for the common header, the
+  rest by hand); `Ui.closeAll()` leaves app windows alone, `Ui.closeApps()`
+  (the IPC's `closeAll`) closes them.
+- **Each window has its own identity.** Every Quickshell window reaches niri
+  as `org.quickshell`; `Services/Niri.own()` gives each the id of its desktop
+  entry by its title (`ShellApps.js`, kept equal to `bin/shani`'s `APPS` by
+  `tests/test_apps.py`), so the dock, the switcher and the bar show the app's
+  icon and name. Small utilities float at their own size (a niri window rule
+  by title); Files, the editor and the viewers tile.
+- **Seeing them for the first time found more** (the overlay layer cannot be
+  photographed in the nested session; windows can): Maps showed "Access
+  blocked" on every tile - Qt's user agent is refused by OpenStreetMap, so
+  tiles are fetched with curl under the shell's own, into a cache; Characters
+  was empty in the test session; the System Monitor's process rows were drawn
+  on top of each other (a Repeater of heightless Items; a ListView now);
+  Scanner, Passwords, Kundali, LocalSend and Notes had white stock controls
+  (AppWindow sets the palette); the Calculator was a column wide.
+- **Media Player** (`Modules/MediaPlayer`, `Services/PlayQueue`): QtMultimedia
+  (FFmpeg). Play, pause, seek, the folder's other files as the queue, volume,
+  speed, repeat, shuffle, full screen, drop a file on it. It replaces the
+  panel that started `gst-play-1.0` in a bare window. The suite makes two
+  clips and a song with ffmpeg and plays them: position moves, pause holds,
+  seek lands, Next goes on, a text file is refused.
+- **Archives** (`Services/Archive`, bsdtar): lists and extracts into a new
+  folder beside the archive or in a chosen one; never writes over what is
+  there. **Clocks**: world, alarms, stopwatch, timer in one window, on the
+  services the sidebar already used.
+- **Text Editor colours** (`Common/Highlight.js`): drawn under the text being
+  typed, which is see-through; a test holds that no character is lost.
+- **Calendar sources**: `agenda.py calendars` lists EDS's calendars; the ones
+  hidden are left out of the agenda, the Calendar and the reminders.
+- **Defaults** (`shani-desktop-niri`'s `mimeapps.list`): the shell's app first
+  for video, audio, pictures, PDF, text and archives, the Flatpak after it.
+  `shani-shell` depends on `qt6-multimedia`, `qt6-multimedia-ffmpeg`,
+  `libarchive`.
+
+## 2026-11-12 — A header of its own, one place for each thing, and the gaps filled
+- **No more white title bar.** Qt's own decoration (QT_WAYLAND_DECORATION
+  "adwaita", meant for other Qt apps) drew a white bar over every shell
+  window. It is off for the shell's process (QT_WAYLAND_DISABLE_WINDOWDECORATION,
+  shani-shell.service and the test session) and `Common/AppWindow` draws a
+  header in the shell's colours: icon, the file and the app's name, the app's
+  own buttons (`tools:`), minimise, maximise, close; drag to move, double-click
+  to maximise, the edges resize a floating window. Settings is an AppWindow
+  too. In-app "×" and "Close" buttons that duplicated it are gone.
+- **The Media Player is an MPRIS player** (`bridge/mpris-player.py`): the
+  bar's now playing, the sidebar, the lock screen and the media keys read
+  MPRIS, and never saw what the shell itself played. Checked live: the media
+  key pauses it. `tests/test_mpris_player.py` runs it on a private bus.
+- **One place for each thing.** The sidebar's weather line opens Weather; its
+  alarms section has "Open Clocks"; the bar's and the Island's timer and the
+  timer tile's detail open Clocks' timer; the desktop clock opens Clocks and
+  the weather card Weather; the sidebar's screen time opens Screen Time; its
+  notes open Notes (they asked Chronoa before); now playing can raise any
+  player that can be raised. Checked live through AT-SPI.
+- **New apps from the survey** (`docs/ECOSYSTEM.md`): Weather (GNOME Weather
+  left the niri image with nothing in its place), Screen Time, Tasks (EDS task
+  lists, `bridge/tasks.py`; checked live: add, done from elsewhere, delete),
+  Photos, Translate (the local model), and entries for the action tools.
+- **LocalSend taken out.** Its panel broadcast a made-up discovery message (no
+  LocalSend device answers it), sent with `requests` and ran an HTTP server
+  that took uploads from anyone on the network into ~/Downloads. Parked in
+  `../shani-shell-parked-2026-11-11/replaced/`; a real one is a gap.
+- The app-filter check searched "Files", which is now two apps (Nautilus and
+  ours); it uses Clocks.
+- **Settings things moved into Settings.** Screen Time, Disk Cleanup and
+  Wallpaper & Style were apps; every other desktop keeps them in its settings.
+  They are now Settings › Screen time, › Storage and › Personalisation
+  ("Colours from a picture"), and Nearby Share's "Visible to devices nearby"
+  is a switch in › Sharing. Their IPC (`screenTimeOpen`, `cleanUpOpen`,
+  `wallpaperStyleOpen`, `themeFromImage`) opens those pages; `Ui.openSettings`
+  takes a section to scroll to. Battery health was already in › Power. The
+  old windows are parked in `../shani-shell-parked-2026-11-11/moved-to-settings/`.
+- **The test session had accessibility off.** An edit to `dev/session.sh`
+  put `QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1` inside the comment after the icon
+  theme's export, so a part run alone (`shell=apps`) found nothing over
+  AT-SPI and the sidebar "Open Clocks" press failed with "0 on-screen
+  matches". Fixed; the check now prints the press's own words when it fails.
+- State keys `secrets`, `signed` and `trim` were the old names of Password
+  Generator, PDF Signer and Video Trimmer; renamed to `passwordGenerator`,
+  `pdfSigner` and `videoTrimmer` (the load-on-open check asked for those and
+  failed).
+- **Windows open and close with niri's custom shaders** (Settings › Windows ›
+  Look and motion, `Services/WindowLook.qml` → `~/.config/niri/shani-look.kdl`):
+  Glide (rises 3.5% and grows from 88% while fading in; sinks away),
+  Pop (a spring from 72%, damping 0.62: a small bounce), Dissolve (5 px
+  grains swept from the top left, the accent glowing along the moving edge),
+  or Plain (niri's own). Also the speed (niri's `slowdown`), the shadow (none,
+  soft, deep), the corners (0-18 px) and the frosted glass (blur passes, with
+  `saturation 1.25` and `noise 0.02` against banding). The include is the
+  config's last line: niri lets a later window rule win, and the config's own
+  12 px corner rule comes after the other includes. The animations block moved
+  here from InputConfig (one writer). Checked live (`shell=window-look`): each
+  style loads, niri logs no shader error, and windows photographed mid-open and
+  mid-close at slowdown 12 show each effect; corners stay rounded mid-animation.
+- **The default scratchpad lost its name.** An icon-name sweep turned the
+  `name: "terminal"` of `scratchPads` into `"utilities-terminal"`, so Mod+`
+  (`scratchpad terminal`) found nothing; put back.
+- `dev/shell-parts/zz-tab.sh` was a leftover isolation copy of the tablet
+  checks; in a full run the tablet had been greeted already, so it failed.
+  Parked. The PDF Signer's name had become "PDF PdfSigner" in the rename.
+- **The terminal, measured and set up** (2026-11-12). In the nested niri, 5
+  windows each: `footclient` (foot server) 92 ms to the first window and 35 MB
+  for five; foot, a process each, 335 ms and 60 MB; Ghostty 1.4.0 1577 ms and
+  969 MB (software GL in the container inflates a GPU terminal - on a real GPU
+  published figures are 60-100 MB); kitty 0.50 opened no window there. Foot stays
+  the default, now as footclient: shani-desktop-niri enables
+  `foot-server.socket` for every user and lists footclient.desktop first in
+  `niri-xdg-terminals.list`; Mod+Return spawns `xdg-terminal-exec`, and
+  `Services/Terminal.qml` writes `~/.config/niri-xdg-terminals.list` from
+  Settings › Apps & files, so the bind, the shell and every app open the same
+  terminal. Ghostty is offered there (Flathub) when not installed.
+- **foot in the desktop's colours.** `Services/Terminal.qml` writes
+  `~/.config/foot/foot.ini` - an include of the system file plus the theme's
+  background, text, accent (cursor, selection, links) and the shell's header
+  colour for the titlebar - only while its first line is the shell's mark (a
+  person's own file is left alone; checked live, as the negative control). Open
+  windows follow light/dark at once: SIGUSR2 is foot's light, SIGUSR1 its dark
+  (measured by pixel, and foot survives both). The titlebar and the accent are
+  read when foot starts, so an idle foot server is stopped after a change and
+  the next window, socket-activated, has them (checked: a new window's titlebar
+  is light after the switch). `foot --check-config` refuses a missing include
+  (exit 230), so the file never includes anything optional.
+- **Chronoa from the terminal.** foot's `pipe-command-output` (Ctrl+Shift+A)
+  and `pipe-selected` (Ctrl+Shift+E) run `shani chronoa explain -`, which reads
+  stdin (`-` for any TEXT argument now), strips colour escapes and opens the
+  panel asking what the output means. The last command's output needs the
+  shell's OSC 133 marks: shani-settings' `terminal.zsh`/`terminal.bash` send
+  them, with OSC 7 (new windows in the same folder) and the title (the folder,
+  or the running command).
+- **Device greetings "only failed in the full run" - harness orphans.** The
+  suite restarts the shell early; it killed `qs` alone, so its plugwatch lived on
+  (reparented to PID 1, seen with ps) beside the new one, and the fake monitor's
+  `cat` outlived its script too - both reading the udev FIFO, eating events: one
+  run lost only the first tablet, another every device (13 failures). On a real
+  system systemd kills shani-shell.service's whole cgroup, so this is the
+  harness's: `stopshell` now stops the shell's bridges with it, and
+  `dev/fake-udevadm.sh` reads with the shell's own `read` (no child to orphan).
+  Checked with a probe of the same restart: nothing left over, the tablet greeted.

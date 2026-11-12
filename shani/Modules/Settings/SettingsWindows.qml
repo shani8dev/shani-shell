@@ -33,6 +33,53 @@ ColumnLayout {
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Focus follows the pointer"); hint: Tr.t("the window under the pointer takes the keyboard"); checked: page.d.winFocusFollowsMouse; onToggled: on => page.d.winFocusFollowsMouse = on }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Window animations"); hint: Tr.t("opening, closing and scrolling (Reduce motion turns the shell's own off)"); checked: page.d.winAnimations; onToggled: on => page.d.winAnimations = on }
 
+    // ---- look and motion: Services/WindowLook writes niri's shani-look.kdl -------------
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Look and motion") }
+    Picks {
+        label: Tr.t("Windows open and close")
+        enabled: page.d.winAnimations && !page.d.reduceMotion
+        options: [{ label: Tr.t("Glide"), value: "glide" }, { label: Tr.t("Pop"), value: "pop" }, { label: Tr.t("Dissolve"), value: "dissolve" }, { label: Tr.t("Plain"), value: "plain" }]
+        current: page.d.winMotion
+        onPicked: v => page.d.winMotion = v
+    }
+    Text {
+        Layout.fillWidth: true
+        text: !page.d.winAnimations || page.d.reduceMotion ? Tr.t("Animations are off, so windows simply appear.")
+            : ({ glide: Tr.t("Rises into place as it fades in; sinks away when closed."),
+                 pop: Tr.t("Springs open with a little bounce; shrinks away quickly."),
+                 dissolve: Tr.t("Gathers in small grains, with your accent colour along the edge."),
+                 plain: Tr.t("niri's own: a quick fade and zoom.") })[page.d.winMotion] || ""
+        color: Theme.faint
+        wrapMode: Text.Wrap
+        font.family: Theme.font
+        font.pixelSize: 11 * Theme.fontScale
+    }
+    Picks {
+        label: Tr.t("Speed")
+        enabled: page.d.winAnimations && !page.d.reduceMotion
+        options: [{ label: Tr.t("Brisk"), value: 0.7 }, { label: Tr.t("Normal"), value: 1.0 }, { label: Tr.t("Relaxed"), value: 1.5 }]
+        current: page.d.winSpeed
+        onPicked: v => page.d.winSpeed = v
+    }
+    Picks {
+        label: Tr.t("Shadow")
+        options: [{ label: Tr.t("None"), value: "off" }, { label: Tr.t("Soft"), value: "soft" }, { label: Tr.t("Deep"), value: "deep" }]
+        current: page.d.winShadow
+        onPicked: v => page.d.winShadow = v
+    }
+    Picks {
+        label: Tr.t("Corners")
+        options: [{ label: Tr.t("Square"), value: 0 }, { label: Tr.t("Slight"), value: 8 }, { label: Tr.t("Rounded"), value: 12 }, { label: Tr.t("Round"), value: 18 }]
+        current: page.d.winCorners
+        onPicked: v => page.d.winCorners = v
+    }
+    Picks {
+        label: Tr.t("Frosted glass")
+        options: [{ label: Tr.t("Light"), value: "light" }, { label: Tr.t("Medium"), value: "medium" }, { label: Tr.t("Strong"), value: "strong" }]
+        current: page.d.blurStrength
+        onPicked: v => page.d.blurStrength = v
+    }
+
     // ---- per-app rules: written to the shell's niri include (WindowRules) -------------
     function setRule(i, patch) {
         const rules = Array.from(page.d.windowRules || []);

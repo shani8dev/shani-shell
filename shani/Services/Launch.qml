@@ -25,7 +25,7 @@ Singleton {
             return;
         const o = Object.assign({}, options(id), opts || {});
         // the person's terminal, for apps that run in one (Terminal=true)
-        const argv = ["env", "SHANI_TERMINAL=" + (Settings.data.terminal || "foot"), root.tool, id, "--gpu", o.gpu || "auto"];
+        const argv = ["env", "SHANI_TERMINAL=" + (Settings.data.terminal || "footclient"), root.tool, id, "--gpu", o.gpu || "auto"];
         if (o.action) argv.push("--action", o.action);
         for (const kv of String(o.env || "").split(/\s+/).filter(x => x.indexOf("=") > 0)) argv.push("--env", kv);
         if (o.args) argv.push("--args", o.args);

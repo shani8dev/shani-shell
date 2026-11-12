@@ -8,26 +8,23 @@
 // offline the tiles are blank and the centre + coordinates are what's left.
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
 
-PanelWindow {
+AppWindow {
     id: win
+    // who is asking, as OpenStreetMap's tile and Nominatim policies require
+    readonly property string userAgent: "shani-shell-maps/1.0 (+https://github.com/shani8dev/shani-shell)"
+    readonly property string tileCache: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/shani-shell/map-tiles"
+    appName: "Maps"
     visible: Ui.maps
-    screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
-    anchors { top: true; bottom: true; left: true; right: true }
-    color: Theme.scrim
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "shani-maps"
-    BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurArea : null
-    Region { id: blurArea; item: blurCard; radius: blurCard.radius }
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    onGone: Ui.maps = false
+    margins: 0
+    implicitWidth: 900
+    implicitHeight: 620
 
-    MouseArea { anchors.fill: parent; onClicked: Ui.maps = false }
     Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: Ui.maps = false }
 
     // ---- slippy-map tile math (OSM tiles, z/x/y) ----
@@ -87,7 +84,7 @@ PanelWindow {
         searchField = q;
         // fields: display_name, lat, lon, type, class
         const url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=" + encodeURIComponent(Tr.lang || "en") + "&q=" + encodeURIComponent(q);
-        geoProc.command = ["curl", "-sf", "--max-time", "10", "-H", "User-Agent: ShaniOS-Maps/1.0", url];
+        geoProc.command = ["curl", "-sf", "--max-time", "10", "-H", "User-Agent: " + win.userAgent, url];
         geoProc.running = true;
     }
     function openDirections() {
@@ -101,14 +98,9 @@ PanelWindow {
         return { x: Math.round(win.px / tile + (cxp - grid.width / 2) / tile), y: Math.round(win.py / tile + (cyp - grid.height / 2) / tile) };
     }
 
-    Glass {
+    Item {
         id: blurCard
-        anchors.centerIn: parent
-        width: Math.min(900, parent.width - 80)
-        height: Math.min(620, parent.height - 120)
-        strong: true
-        radius: Theme.radiusLarge
-        MouseArea { anchors.fill: parent }
+        anchors.fill: parent
 
         ColumnLayout {
             id: col
@@ -118,19 +110,17 @@ PanelWindow {
 
             RowLayout {
                 Layout.fillWidth: true
-                Icon { name: "mappin"; size: 20; color: Theme.accent }
                 Text {
                     Layout.fillWidth: true
-                    text: win.placeName !== "" ? win.placeName : (Location.available ? "Maps · " + (Weather.zoneCity || "current location") : "Maps")
+                    text: win.placeName !== "" ? win.placeName : (Location.available ? (Weather.zoneCity || Tr.t("Where you are")) : "")
                     color: Theme.text
                     font.family: Theme.font
                     font.pixelSize: 15 * Theme.fontScale
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }
-                IconButton { icon: "location"; size: 28; tip: "Recenter"; onClicked: win.recenter(); }
+                IconButton { icon: "mark-location"; size: 28; tip: "Recenter"; onClicked: win.recenter(); }
                 IconButton { icon: "view-refresh"; size: 28; onClicked: Location.refresh(); }
-                IconButton { icon: "window-close"; size: 28; onClicked: Ui.maps = false }
             }
 
             RowLayout {
@@ -169,7 +159,7 @@ PanelWindow {
             Rectangle {
                 id: grid
                 Layout.fillWidth: true
-                Layout.preferredHeight: 380
+                Layout.preferredHeight: Math.max(380, win.height - 190)   // the map takes the window
                 radius: Theme.radiusSmall
                 color: Theme.hover
                 clip: true
@@ -180,18 +170,36 @@ PanelWindow {
                     Repeater {
                         model: 16
                         Rectangle {
+                            id: tile
+                            required property int index
                             width: 256; height: 256
                             color: "transparent"
+                            readonly property string key: {
+                                const dx = (index % 4) - 1.5, dy = Math.floor(index / 4) - 1.5;
+                                const n = Math.pow(2, win.z);
+                                const x = ((Math.floor(win.px / win.tile + dx) % n) + n) % n;
+                                const y = Math.min(n - 1, Math.max(0, Math.floor(win.py / win.tile + dy)));
+                                return win.z + "/" + x + "/" + y;
+                            }
+                            // OpenStreetMap's tile policy: say who is asking (Qt's own
+                            // user agent is refused - every tile came back "Access
+                            // blocked") and keep what was fetched. Each tile is fetched
+                            // once with curl into the cache, and shown from there.
+                            readonly property string file: win.tileCache + "/" + key + ".png"
+                            property string shown: ""
+                            onKeyChanged: { shown = ""; fetch.running = false; fetch.running = true; }
+                            Component.onCompleted: fetch.running = true
+                            Process {
+                                id: fetch
+                                command: ["sh", "-c", '[ -s "$1" ] || { mkdir -p "${1%/*}" && curl -sf --max-time 20 -A "$3" -o "$1.part" "$2" && mv -f "$1.part" "$1"; }',
+                                          "sh", tile.file, "https://tile.openstreetmap.org/" + tile.key + ".png", win.userAgent]
+                                onExited: code => { if (code === 0) tile.shown = tile.file; }
+                            }
                             Image {
                                 anchors.fill: parent
                                 fillMode: Image.PreserveAspectCrop
-                                source: {
-                                    const dx = (index % 4) - 1.5, dy = Math.floor(index / 4) - 1.5;
-                                    const n = Math.pow(2, win.z);
-                                    const x = Math.floor(win.px / win.tile + dx);
-                                    const y = Math.min(n - 1, Math.max(0, Math.floor(win.py / win.tile + dy)));
-                                    return "https://tile.openstreetmap.org/" + win.z + "/" + x + "/" + y + ".png";
-                                }
+                                asynchronous: true
+                                source: tile.shown !== "" ? "file://" + tile.shown : ""
                             }
                         }
                     }

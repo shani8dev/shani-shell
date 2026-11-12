@@ -3,25 +3,23 @@
 // click a row for the full entry, tail-follow toggle. Lazy: the journal is
 // only read while the panel is open — nothing runs while it is closed.
 import Quickshell
-import Quickshell.Wayland
 import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
 
-PanelWindow {
+AppWindow {
     id: win
-    visible: Ui.logs && !Lock.locked
-    screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
-    anchors { top: true; bottom: true; left: true; right: true }
-    color: Theme.scrim
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "shani-logs"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
-    BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurRegion : null
-    Region { id: blurRegion; item: card; radius: Theme.radiusLarge }
+    appName: "Logs"
+    tools: [
+        IconButton { size: 30; icon: "view-refresh"; tip: Tr.t("Refresh"); onClicked: win.readJournal() }
+    ]
+    visible: Ui.logs
+    onGone: Ui.logs = false
+    margins: 0
+    implicitWidth: 460
+    implicitHeight: Math.max(320, Math.min(900, col.implicitHeight + 40))
 
     // parsed journal entries: [{ time, pri, cat, unit, id, msg, cursor, raw }]
     property var entries: []
@@ -129,17 +127,11 @@ PanelWindow {
         onExited: code => { if (code !== 0 && win.journalError === "") win.journalError = "unreadable"; }
     }
 
-    MouseArea { anchors.fill: parent; onClicked: Ui.logs = false }
     Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: Ui.logs = false }
 
-    Glass {
+    Item {
         id: card
-        anchors.centerIn: parent
-        width: 460
-        implicitHeight: Math.min(parent.height - 80, col.implicitHeight + 32)
-        strong: true
-        radius: Theme.radiusLarge
-        MouseArea { anchors.fill: parent }
+        anchors.fill: parent
 
         ColumnLayout {
             id: col
@@ -147,12 +139,6 @@ PanelWindow {
             anchors.margins: 16
             spacing: 10
 
-            RowLayout {
-                Layout.fillWidth: true
-                SectionTitle { Layout.fillWidth: true; text: Tr.t("Logs — systemd journal") }
-                IconButton { icon: "view-refresh"; size: 28; tip: Tr.t("Refresh"); onClicked: win.readJournal() }
-                IconButton { icon: "window-close"; size: 28; tip: Tr.t("Close"); onClicked: Ui.logs = false }
-            }
 
             // category filter: all | kernel | user | app | hardware
             Flow {

@@ -65,7 +65,7 @@ PanelWindow {
     readonly property var kinds: ({
         folder: { label: Tr.t("Folders"), icon: "folder" }, image: { label: Tr.t("Images"), icon: "image-x-generic" },
         screenshot: { label: Tr.t("Screenshots"), icon: "applets-screenshooter" }, video: { label: Tr.t("Videos"), icon: "video-x-generic" },
-        audio: { label: Tr.t("Music"), icon: "audio-x-generic" }, pdf: { label: Tr.t("PDFs"), icon: "application-pdf" },
+        audio: { label: Tr.t("Music"), icon: "audio-x-generic" }, pdf: { label: Tr.t("PDFs"), icon: "x-office-document" },
         archive: { label: Tr.t("Archives"), icon: "package-x-generic" }, document: { label: Tr.t("Documents"), icon: "x-office-document" },
         other: { label: Tr.t("Other"), icon: "text-x-generic" }
     })

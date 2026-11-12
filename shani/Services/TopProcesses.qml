@@ -1,5 +1,5 @@
 pragma Singleton
-// The heaviest processes, for the bar's CPU chip and the Mission Center:
+// The heaviest processes, for the bar's CPU chip and the System Monitor:
 // refreshed every two seconds only while a list is open, in the background
 // (a Process, never the UI thread) so the UI never freezes.
 //
@@ -66,7 +66,7 @@ Singleton {
             "        for l in open('/proc/'+pid+'/status'):\n" +
             "            if l.startswith('VmRSS:'): rss=int(l.split()[1])\n" +
             "            if l.startswith('Threads:'): threads=int(l.split()[1])\n" +
-            "        out.append({'pid':int(pid),'name':name,'ticks':ticks,'rss':rss,'threads':threads})\n" +
+            "        out.append({'pid':int(pid),'ppid':int(st[2]),'name':name,'ticks':ticks,'rss':rss,'threads':threads})\n" +
             "    except Exception: pass\n" +
             "print(json.dumps({'total':total(),'cpus':cpus(),'memtotal':mt,'nethogs':shutil.which('nethogs') is not None,'procs':out}))\n"]
         stdout: StdioCollector {
@@ -87,10 +87,10 @@ Singleton {
                         next[p.pid] = p.ticks;
                         return { pid: p.pid, name: p.name, cpu: cpu, mem: mem, threads: p.threads || 0, ticks: p.ticks };
                     });
-                    // sorted by CPU, top 6 — on the first sample everything is
-                    // 0, so fall back to memory order so the list is not blank
+                    // all processes, sorted by CPU then memory — tree view
+                    // builds parent->children from ppid
                     rows.sort((a, b) => b.cpu - a.cpu || b.mem - a.mem);
-                    root.list = rows.slice(0, 6);
+                    root.list = rows;
                     root.lastTicks = next;
                     root._prevTotal = d.total;
                 } catch (e) {

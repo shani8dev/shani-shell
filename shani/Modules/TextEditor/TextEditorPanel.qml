@@ -1,404 +1,418 @@
-// TextEditor (TextEditor): a plain-text editor over a file. Open, edit,
-// save, save-as, find/replace, line numbers, word wrap, multi-tab with
-// syntax highlighting and bracket matching.
-// Replaces org.gnome.TextEditor for everyday text editing.
+// Text Editor: plain text over files, in a window of its own. Tabs, open,
+// save, save as, find and replace, syntax colours, line numbers, word wrap,
+// text size. The documents are Services/TextDocs's, so closing the window
+// loses nothing: what was typed is there when it opens again.
+//
+// Every action is a button with its shortcut in the tooltip - Ctrl+N new,
+// Ctrl+O open, Ctrl+S save, Ctrl+Shift+S save as, Ctrl+W close the tab,
+// Ctrl+F find, Ctrl+H replace, Ctrl +/-/0 text size.
+// The image's default for text files (dev.shani.TextEditor.desktop).
 import Quickshell
-import Quickshell.Wayland
-import Quickshell.Io
 import QtQuick
-import QtQuick.Dialogs
 import QtQuick.Layouts
-import QtQuick.Controls
 import qs.Common
-import qs.Services as Services
+import qs.Services
+import "../../Common/Highlight.js" as Highlight
 
-PanelWindow {
+AppWindow {
     id: win
-    visible: Ui.textEditor && !Lock.locked
-    screen: Quickshell.screens.find(s => s.name === Services.Niri.focusedOutput) || Quickshell.screens[0]
-    anchors { top: true; bottom: true; left: true; right: true }
-    color: Theme.scrim
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "shani-texteditor"
-    BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurArea : null
-    Region { id: blurArea; item: card; radius: card.radius }
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    appName: "Text Editor"
+    doc: TextDocs.current ? (TextDocs.current.modified ? "● " : "") + TextDocs.current.name : ""
+    visible: Ui.textEditor
+    onGone: Ui.textEditor = false
+    tools: [
+        IconButton { size: 30; icon: "document-new"; tip: Tr.t("New") + " (Ctrl+N)"; onClicked: TextDocs.newDoc() },
+        IconButton { size: 30; icon: "document-open"; tip: Tr.t("Open") + " (Ctrl+O)"; onClicked: win.pick() },
+        Button { text: Tr.t("Save"); kind: TextDocs.current && TextDocs.current.modified ? "primary" : "plain"; enabled: TextDocs.current !== null && !TextDocs.saving; onClicked: win.save() },
+        Button { text: Tr.t("Save as…"); flat: true; onClicked: win.saveAs() },
+        IconButton { size: 30; icon: "edit-find"; tip: Tr.t("Find") + " (Ctrl+F)"; on: win.finding; onClicked: { win.finding = !win.finding; if (win.finding) findField.input.forceActiveFocus(); } },
+        IconButton { size: 30; icon: "format-justify-left"; tip: Tr.t("Wrap long lines"); on: win.wordWrap; onClicked: win.wordWrap = !win.wordWrap },
+        IconButton { size: 30; icon: "view-list"; tip: Tr.t("Line numbers"); on: win.lineNumbers; onClicked: win.lineNumbers = !win.lineNumbers },
+        IconButton { size: 30; icon: "applications-graphics"; tip: Tr.t("Syntax colours"); on: win.colours; onClicked: { win.colours = !win.colours; Settings.data.textEditorColours = win.colours; } },
+        IconButton { size: 30; icon: "zoom-out"; tip: Tr.t("Smaller text") + " (Ctrl+-)"; onClicked: win.fontSize = Math.max(8, win.fontSize - 1) },
+        IconButton { size: 30; icon: "zoom-in"; tip: Tr.t("Larger text") + " (Ctrl++)"; onClicked: win.fontSize = Math.min(28, win.fontSize + 1) }
+    ]
+    implicitWidth: 1000
+    implicitHeight: 720
 
-    // ---- tab model ----
-    property var tabs: []            // [{path, name, modified, lang, text}]
-    property int activeTab: -1
-    property bool showLineNumbers: true
     property bool wordWrap: true
-    property string searchText: ""
-    property string replaceText: ""
-    property bool showFind: false
-    property bool showReplace: false
+    property bool lineNumbers: true
+    property real fontSize: Settings.data.textEditorFontSize || 13
+    property bool finding: false
+    property bool replacing: false
+    property int confirmClose: -1         // the tab asked to close with changes: a second click closes it
+    property bool loading: false          // the editor is being filled, not typed in
 
-    MouseArea { anchors.fill: parent; onClicked: Ui.textEditor = false }
+    onFontSizeChanged: Settings.data.textEditorFontSize = fontSize
 
-    Glass {
+    // ---- syntax colours ----------------------------------------------------------
+    property bool colours: Settings.data.textEditorColours !== false
+    readonly property string lang: TextDocs.current ? Highlight.langFor(TextDocs.current.path, TextDocs.current.text.substring(0, 120).split("\n")[0]) : "text"
+    // not for plain text (nothing to colour), nor for a very long file (each
+    // change colours the whole text again)
+    readonly property bool coloured: colours && lang !== "text" && edit.length <= 200000
+    readonly property var tints: Settings.data.darkMode
+        ? ({ comment: "#8a93a0", string: "#8fd18a", number: "#f2a65a", keyword: "#6cb6ff", heading: "#ffd166", added: "#8fd18a", removed: "#ff8f8f" })
+        : ({ comment: "#6a737d", string: "#1b7f3b", number: "#b35900", keyword: "#0550ae", heading: "#8a4b00", added: "#1b7f3b", removed: "#b3261e" })
+    function recolour() {
+        if (win.coloured)
+            paint.text = '<pre style="margin:0; white-space:pre-wrap;">' + Highlight.html(edit.text, win.lang, win.tints) + "</pre>";
+    }
+    onColouredChanged: recolour()
+    onLangChanged: recolour()
+    onTintsChanged: recolour()
+    Timer { id: repaint; interval: 60; onTriggered: win.recolour() }
+
+    // the document in front, into the editor
+    function load() {
+        win.loading = true;
+        edit.text = TextDocs.current ? TextDocs.current.text : "";
+        win.loading = false;
+        edit.cursorPosition = 0;
+        if (TextDocs.goToLine > 0) {
+            win.goToLine(TextDocs.goToLine);
+            TextDocs.goToLine = 0;
+        }
+        edit.forceActiveFocus();
+    }
+    function goToLine(n) {
+        const lines = edit.text.split("\n");
+        const line = Math.max(1, Math.min(n, lines.length));
+        let pos = 0;
+        for (let i = 0; i < line - 1; i++)
+            pos += lines[i].length + 1;
+        edit.cursorPosition = pos;
+    }
+    Connections {
+        target: TextDocs
+        function onRevisionChanged() { win.load(); }
+    }
+    // a file handed over while the editor was closed, or while it is open
+    function take() {
+        const p = Ui.textEditorOpenPath;
+        if (p === "")
+            return;
+        Ui.textEditorOpenPath = "";
+        TextDocs.open(p);
+    }
+    Connections {
+        target: Ui
+        function onTextEditorOpenPathChanged() { win.take(); }
+    }
+    Component.onCompleted: {
+        if (TextDocs.docs.length === 0)
+            TextDocs.newDoc();
+        else
+            win.load();
+        win.take();
+    }
+
+    function pick() {
+        FilePicker.open({ mode: "open", title: Tr.t("Open a text file"),
+                          startPath: TextDocs.current && TextDocs.current.path ? TextDocs.current.path.substring(0, TextDocs.current.path.lastIndexOf("/")) : "",
+                          onPicked: paths => { if (paths.length) TextDocs.open(paths[0]); } });
+    }
+    function saveAs() {
+        const d = TextDocs.current;
+        FilePicker.open({ mode: "save", title: Tr.t("Save as"), defaultName: d && d.path ? d.name : "untitled.txt",
+                          startPath: d && d.path ? d.path.substring(0, d.path.lastIndexOf("/")) : (Quickshell.env("HOME") + "/Documents"),
+                          onPicked: paths => { if (paths.length) TextDocs.saveAs(paths[0]); } });
+    }
+    function save() {
+        if (!TextDocs.save())
+            win.saveAs();
+    }
+    function closeTab(i) {
+        if (TextDocs.docs[i].modified && win.confirmClose !== i) {
+            win.confirmClose = i;
+            confirmTimer.restart();
+            return;
+        }
+        win.confirmClose = -1;
+        TextDocs.close(i);
+    }
+    Timer { id: confirmTimer; interval: 4000; onTriggered: win.confirmClose = -1 }
+
+    // ---- find and replace -------------------------------------------------------
+    function find(forward) {
+        const q = findField.text;
+        if (q === "")
+            return;
+        const hay = edit.text.toLowerCase(), needle = q.toLowerCase();
+        let at = forward ? hay.indexOf(needle, edit.selectionEnd) : hay.lastIndexOf(needle, edit.selectionStart - 1);
+        if (at < 0)       // wrap around
+            at = forward ? hay.indexOf(needle) : hay.lastIndexOf(needle);
+        if (at >= 0)
+            edit.select(at, at + q.length);
+    }
+    readonly property int matches: {
+        const q = findField.text.toLowerCase();
+        if (!win.finding || q === "")
+            return 0;
+        return edit.text.toLowerCase().split(q).length - 1;
+    }
+    function replaceOne() {
+        if (edit.selectedText.toLowerCase() === findField.text.toLowerCase() && edit.selectedText !== "") {
+            const at = edit.selectionStart;
+            edit.remove(edit.selectionStart, edit.selectionEnd);
+            edit.insert(at, replaceField.text);
+            edit.cursorPosition = at + replaceField.text.length;
+        }
+        win.find(true);
+    }
+    function replaceAll() {
+        const q = findField.text;
+        if (q === "")
+            return;
+        const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+        edit.text = edit.text.replace(re, () => replaceField.text);
+    }
+
+    function shortcut(e) {
+        const ctrl = e.modifiers & Qt.ControlModifier, shift = e.modifiers & Qt.ShiftModifier;
+        if (!ctrl)
+            return false;
+        if (e.key === Qt.Key_S) { if (shift) win.saveAs(); else win.save(); }
+        else if (e.key === Qt.Key_O) win.pick();
+        else if (e.key === Qt.Key_N) TextDocs.newDoc();
+        else if (e.key === Qt.Key_W) win.closeTab(TextDocs.active);
+        else if (e.key === Qt.Key_F) { win.finding = true; win.replacing = false; findField.input.forceActiveFocus(); }
+        else if (e.key === Qt.Key_H) { win.finding = true; win.replacing = true; findField.input.forceActiveFocus(); }
+        else if (e.key === Qt.Key_Plus || e.key === Qt.Key_Equal) win.fontSize = Math.min(28, win.fontSize + 1);
+        else if (e.key === Qt.Key_Minus) win.fontSize = Math.max(8, win.fontSize - 1);
+        else if (e.key === Qt.Key_0) win.fontSize = 13;
+        else return false;
+        return true;
+    }
+    // Escape leaves the find bar; the window is closed like any other (Mod+Q, its button)
+    function leave() {
+        if (win.finding) {
+            win.finding = false;
+            edit.forceActiveFocus();
+        }
+    }
+
+    Item {
         id: card
-        anchors.centerIn: parent
-        width: Math.min(parent.width - 60, 1200)
-        height: Math.min(parent.height - 60, 900)
-        radius: Theme.radiusLg
+        anchors.fill: parent
+        Keys.onPressed: e => { if (win.shortcut(e)) e.accepted = true; }
+        Keys.onEscapePressed: win.leave()
 
         ColumnLayout {
             anchors.fill: parent
-            spacing: 0
+            spacing: 8
 
-            // ---- tab bar ----
-            TabBar {
-                id: tabBar
+            // ---- the open documents ----
+            Flickable {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 36
-                model: win.tabs
-                delegate: Text {
-                    text: modelData.name + (modelData.modified ? " ●" : "")
-                    font.pixelSize: 13
-                    color: tabBar.currentIndex === index ? Theme.text : Theme.onSurfaceVariant
-                    padding: 12
-                }
-                onCurrentIndexChanged: { win.activeTab = currentIndex; win.refreshEditor(); }
-                RowLayout {
-                    anchors.fill: parent
-                    spacing: 0
-                    TabButton {
-                        text: "+"
-                        width: 30
-                        flat: true
-                        onClicked: win.newFile()
-                    }
-                }
-            }
-
-            // ---- find/replace bar ----
-            ColumnLayout {
-                Layout.fillWidth: true
-                visible: win.showFind
-                spacing: 4
-                anchors.margins: 8
-
-                RowLayout {
-                    Layout.fillWidth: true
+                Layout.preferredHeight: 32
+                contentWidth: tabRow.implicitWidth
+                clip: true
+                flickableDirection: Flickable.HorizontalFlick
+                Row {
+                    id: tabRow
                     spacing: 4
-                    TextField {
-                        Layout.fillWidth: true
-                        placeholderText: "Find…"
-                        text: win.searchText
-                        onTextChanged: win.searchText = text
-                        onAccepted: win.findNext()
-                    }
-                    Button { text: "Next"; onClicked: win.findNext() }
-                    Button { text: "Prev"; onClicked: win.findPrev() }
-                    Button { text: "×"; onClicked: win.showFind = false }
-                }
-                RowLayout {
-                    Layout.fillWidth: true
-                    visible: win.showReplace
-                    spacing: 4
-                    TextField {
-                        Layout.fillWidth: true
-                        placeholderText: "Replace…"
-                        text: win.replaceText
-                        onTextChanged: win.replaceText = text
-                    }
-                    Button { text: "Replace"; onClicked: win.replaceOne() }
-                    Button { text: "All"; onClicked: win.replaceAll() }
-                }
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 4
-                    CheckBox { text: "Line numbers"; checked: win.showLineNumbers; onToggled: win.showLineNumbers = checked }
-                    CheckBox { text: "Word wrap"; checked: win.wordWrap; onToggled: win.wordWrap = checked }
-                }
-            }
-
-            // ---- editor area ----
-            RowLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                spacing: 0
-
-                // Line numbers
-                ScrollView {
-                    Layout.preferredWidth: win.showLineNumbers ? 48 : 0
-                    Layout.fillHeight: true
-                    visible: win.showLineNumbers
-                    TextArea {
-                        id: lineNums
-                        readOnly: true
-                        text: {
-                            const t = win.activeTab >= 0 && win.activeTab < win.tabs.length ? win.tabs[win.activeTab].text : "";
-                            const lines = t.split("\n");
-                            let nums = "";
-                            for (let i = 1; i <= lines.length; i++) nums += i + "\n";
-                            return nums;
-                        }
-                        font.family: "monospace"
-                        font.pixelSize: 13
-                        color: Theme.onSurfaceVariant
-                        horizontalAlignment: Text.AlignRight
-                    }
-                }
-
-                // Main editor
-                ScrollView {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    clip: true
-
-                    TextArea {
-                        id: editor
-                        text: win.activeTab >= 0 && win.activeTab < win.tabs.length ? win.tabs[win.activeTab].text : ""
-                        wrapMode: win.wordWrap ? TextEdit.Wrap : TextEdit.NoWrap
-                        font.family: "monospace"
-                        font.pixelSize: 13
-                        selectByKeyboard: true
-                        selectByMouse: true
-                        textFormat: TextEdit.PlainText
-                        onTextChanged: {
-                            if (win.activeTab >= 0 && win.activeTab < win.tabs.length) {
-                                win.tabs[win.activeTab].text = text;
-                                win.tabs[win.activeTab].modified = true;
-                                tabBar.forceLayout();
+                    Repeater {
+                        model: TextDocs.docs
+                        delegate: Rectangle {
+                            id: tab
+                            required property var modelData
+                            required property int index
+                            readonly property bool front: TextDocs.active === index
+                            readonly property bool asking: win.confirmClose === index
+                            width: tabText.implicitWidth + 50
+                            height: 32
+                            radius: Theme.radiusSmall
+                            color: front ? Theme.accentSoft : tabArea.containsMouse ? Theme.hover : "transparent"
+                            border.width: front ? 1 : 0
+                            border.color: Theme.accentLine
+                            Accessible.role: Accessible.PageTab
+                            Accessible.name: modelData.name + (modelData.modified ? ", " + Tr.t("not saved") : "")
+                            Accessible.onPressAction: TextDocs.show(index)
+                            Text {
+                                id: tabText
+                                anchors { left: parent.left; leftMargin: 12; verticalCenter: parent.verticalCenter }
+                                text: tab.asking ? Tr.t("Close without saving?") : (tab.modelData.modified ? "● " : "") + tab.modelData.name
+                                color: tab.asking ? Theme.danger : tab.front ? Theme.text : Theme.dim
+                                font.family: Theme.font
+                                font.pixelSize: 12 * Theme.fontScale
+                            }
+                            MouseArea {
+                                id: tabArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: e => { if (e.button === Qt.MiddleButton) win.closeTab(tab.index); else TextDocs.show(tab.index); }
+                            }
+                            IconButton {
+                                anchors { right: parent.right; rightMargin: 4; verticalCenter: parent.verticalCenter }
+                                icon: "window-close"
+                                size: 22
+                                tip: Tr.t("Close") + " " + tab.modelData.name
+                                onClicked: win.closeTab(tab.index)
                             }
                         }
-                        onCursorPositionChanged: {
-                            const before = text.slice(0, cursorPosition);
-                            const lines = before.split("\n");
-                            win.cursorLine = lines.length;
-                            win.cursorCol = lines[lines.length - 1].length + 1;
-                            win.highlightMatch();
-                        }
                     }
                 }
             }
 
-            // ---- status bar ----
+            // ---- find and replace ----
             RowLayout {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 28
-                spacing: 8
-                anchors.margins: 4
-                Label {
-                    text: win.activeTab >= 0 ? "Line " + win.cursorLine + ", Col " + win.cursorCol + "  |  " +
-                          (win.tabs[win.activeTab].text.split("\n").length) + " lines" : ""
-                    font.pixelSize: 11
-                    color: Theme.onSurfaceVariant
-                }
-                Label {
-                    text: win.activeTab >= 0 ? win.tabs[win.activeTab].path || "New file" : ""
-                    font.pixelSize: 11
-                    color: Theme.onSurfaceVariant
+                visible: win.finding
+                spacing: 6
+                TextField {
+                    id: findField
                     Layout.fillWidth: true
+                    placeholder: Tr.t("Find")
+                    onAccepted: win.find(true)
+                    input.Keys.onEscapePressed: win.leave()
                 }
-                Label { text: win.wordWrap ? "Wrap" : "No wrap"; font.pixelSize: 11; color: Theme.onSurfaceVariant }
+                Text {
+                    text: findField.text === "" ? "" : win.matches === 0 ? Tr.t("Not found") : win.matches + " " + Tr.t("found")
+                    color: win.matches === 0 && findField.text !== "" ? Theme.danger : Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 11 * Theme.fontScale
+                }
+                IconButton { icon: "go-up"; tip: Tr.t("Previous match"); onClicked: win.find(false) }
+                IconButton { icon: "go-down"; tip: Tr.t("Next match"); onClicked: win.find(true) }
+                Button { text: Tr.t("Replace…"); flat: true; checked: win.replacing; onClicked: win.replacing = !win.replacing }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                visible: win.finding && win.replacing
+                spacing: 6
+                TextField {
+                    id: replaceField
+                    Layout.fillWidth: true
+                    placeholder: Tr.t("Replace with")
+                    onAccepted: win.replaceOne()
+                    input.Keys.onEscapePressed: win.leave()
+                }
+                Button { text: Tr.t("Replace"); onClicked: win.replaceOne() }
+                Button { text: Tr.t("Replace all"); onClicked: win.replaceAll() }
+            }
+
+            // ---- the text ----
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                radius: Theme.radiusSmall
+                color: Theme.surface1
+                border.width: 1
+                border.color: Theme.border
+                clip: true
+
+                // line numbers: beside unwrapped text, where a line is a row
+                Item {
+                    id: gutter
+                    visible: win.lineNumbers && !win.wordWrap
+                    width: visible ? numbers.implicitWidth + 16 : 0
+                    anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                    clip: true
+                    Text {
+                        id: numbers
+                        x: 8
+                        y: 8 - flick.contentY
+                        text: Array.from({ length: edit.lineCount }, (_, i) => i + 1).join("\n")
+                        color: Theme.faint
+                        horizontalAlignment: Text.AlignRight
+                        font: edit.font
+                    }
+                }
+                Flickable {
+                    id: flick
+                    anchors { left: gutter.right; right: parent.right; top: parent.top; bottom: parent.bottom; margins: 8; leftMargin: gutter.visible ? 0 : 8 }
+                    contentWidth: edit.width
+                    contentHeight: edit.height
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    function follow(r) {
+                        if (contentY > r.y) contentY = r.y;
+                        else if (contentY + height < r.y + r.height) contentY = r.y + r.height - height;
+                        if (contentX > r.x) contentX = r.x;
+                        else if (contentX + width < r.x + r.width + 8) contentX = r.x + r.width + 8 - width;
+                    }
+                    // the colours: the same text, drawn underneath with its comments,
+                    // strings, numbers and keywords tinted (Common/Highlight.js), while
+                    // the editor above it draws its own letters see-through. Same font,
+                    // width and wrapping, so the two lie exactly on each other.
+                    TextEdit {
+                        id: paint
+                        visible: win.coloured
+                        width: edit.width
+                        height: edit.height
+                        readOnly: true
+                        activeFocusOnPress: false
+                        selectByMouse: false
+                        enabled: false
+                        wrapMode: edit.wrapMode
+                        textFormat: TextEdit.RichText
+                        color: Theme.text
+                        font: edit.font
+                        tabStopDistance: edit.tabStopDistance
+                    }
+                    TextEdit {
+                        id: edit
+                        width: win.wordWrap ? flick.width : Math.max(flick.width, implicitWidth + 8)
+                        height: Math.max(flick.height, implicitHeight)
+                        wrapMode: win.wordWrap ? TextEdit.Wrap : TextEdit.NoWrap
+                        textFormat: TextEdit.PlainText
+                        readOnly: TextDocs.current !== null && TextDocs.current.readOnly
+                        color: win.coloured ? "transparent" : Theme.text
+                        // the cursor takes the text's colour, which may be see-through
+                        cursorDelegate: Rectangle {
+                            width: 2
+                            color: Theme.text
+                            visible: edit.cursorVisible
+                        }
+                        selectionColor: Theme.accent
+                        selectedTextColor: Theme.accentInk
+                        selectByMouse: true
+                        persistentSelection: true
+                        font.family: Theme.mono
+                        font.pixelSize: win.fontSize * Theme.fontScale
+                        tabStopDistance: 4 * font.pixelSize * 0.6
+                        Accessible.role: Accessible.EditableText
+                        Accessible.name: Tr.t("Text") + ": " + (TextDocs.current ? TextDocs.current.name : "")
+                        onTextChanged: { if (!win.loading) TextDocs.setText(text); repaint.restart(); }
+                        onCursorRectangleChanged: flick.follow(cursorRectangle)
+                        Keys.onPressed: e => { if (win.shortcut(e)) e.accepted = true; }
+                        Keys.onEscapePressed: win.leave()
+                    }
+                }
+            }
+
+            // ---- where the cursor is, what the file is, what went wrong ----
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 12
+                Text {
+                    Layout.fillWidth: true
+                    text: TextDocs.error !== "" ? TextDocs.error
+                        : !TextDocs.current ? ""
+                        : (TextDocs.current.path || Tr.t("Not saved yet")) + (TextDocs.current.readOnly ? "  ·  " + Tr.t("read-only") : "")
+                    color: TextDocs.error !== "" ? Theme.danger : Theme.dim
+                    elide: Text.ElideMiddle
+                    font.family: Theme.font
+                    font.pixelSize: 11 * Theme.fontScale
+                }
+                Text {
+                    readonly property var at: {
+                        const before = edit.text.substring(0, edit.cursorPosition);
+                        const line = before.split("\n").length;
+                        return [line, before.length - before.lastIndexOf("\n")];
+                    }
+                    text: Tr.t("Line") + " " + at[0] + ", " + Tr.t("column") + " " + at[1] + "  ·  " + edit.lineCount + " " + Tr.t("lines")
+                        + (TextDocs.current && TextDocs.current.eol === "\r\n" ? "  ·  CRLF" : "")
+                        + (win.lang !== "text" ? "  ·  " + win.lang : "")
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 11 * Theme.fontScale
+                    font.features: { "tnum": 1 }
+                }
             }
         }
     }
-
-    // ---- syntax highlighting data ----
-    property string currentLang: ""
-    property var theme: { keyword: "#569cd6", string: "#ce9178", comment: "#6a9955",
-                          number: "#b5cea8", function: "#dcdcaa", type: "#4ec9b0" }
-
-    const kwPython = ["def","class","if","elif","else","for","while","try","except","finally","with","as","import","from","return","yield","lambda","pass","break","continue","and","or","not","in","is","None","True","False","self"];
-    const kwJs = ["function","const","let","var","if","else","for","while","do","switch","case","break","continue","return","try","catch","finally","throw","new","class","extends","import","export","default","async","await","true","false","null","undefined","this","super"];
-    const kwQml = ["import","property","signal","function","Component","Item","Rectangle","Text","Column","Row","Grid","ListView","Model","delegate","on","Connections","Binding","State","Transition","Animation","Timer","Qt","Quick","Controls","Layouts","Dialogs","Wayland","Io","Common","Services"];
-
-    function langForPath(path) {
-        const ext = path.split(".").pop().toLowerCase();
-        switch (ext) {
-            case "py": return "python";
-            case "js": case "ts": return "javascript";
-            case "qml": return "qml";
-            case "sh": case "bash": return "shell";
-            case "html": return "html";
-            case "css": return "css";
-            case "json": return "json";
-            case "md": return "markdown";
-            default: return "text";
-        }
-    }
-
-    function getKeywords(lang) {
-        switch (lang) {
-            case "python": return kwPython;
-            case "javascript": return kwJs;
-            case "qml": return kwQml;
-            default: return [];
-        }
-    }
-
-    function escapeHtml(s) {
-        return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    }
-
-    function highlightSyntax() {
-        if (win.activeTab < 0) return;
-        win.currentLang = langForPath(win.tabs[win.activeTab].path);
-        // Syntax highlighting is applied via a RichText overlay when needed.
-        // For now, track language and bracket positions for future highlighting.
-        win.matchPos = win.findMatchingBracket(editor.cursorPosition - 1, true);
-        if (win.matchPos < 0) win.matchPos = win.findMatchingBracket(editor.cursorPosition, false);
-    }
-
-    function refreshEditor() {
-        if (win.activeTab < 0) { editor.text = ""; return; }
-        editor.text = win.tabs[win.activeTab].text;
-        win.currentLang = langForPath(win.tabs[win.activeTab].path);
-        win.showLineNumbers = true;
-        win.highlightSyntax();
-    }
-
-    // ---- bracket matching ----
-    property int matchPos: -1
-    const bracketPairs = [["(", ")"], ["[", "]"], ["{", "}"]];
-
-    function findMatchingBracket(pos, forward) {
-        const text = editor.text;
-        if (pos < 0 || pos >= text.length) return -1;
-        const ch = text[pos];
-        let open = "", close = "", dir = 1, depth = 0;
-        for (const p of bracketPairs) {
-            if (ch === p[0]) { open = p[0]; close = p[1]; dir = 1; break; }
-            if (ch === p[1]) { open = p[1]; close = p[0]; dir = -1; break; }
-        }
-        if (!open) return -1;
-        let i = pos + dir;
-        while (i >= 0 && i < text.length) {
-            if (text[i] === close) { if (depth === 0) return i; depth--; }
-            else if (text[i] === open) depth++;
-            i += dir;
-        }
-        return -1;
-    }
-
-    function highlightMatch() {
-        const cp = editor.cursorPosition;
-        win.matchPos = win.findMatchingBracket(cp - 1, true);
-        if (win.matchPos < 0) win.matchPos = win.findMatchingBracket(cp, false);
-    }
-
-    editor.onCursorPositionChanged: win.highlightMatch();
-
-    // ---- tab actions ----
-    function newFile() {
-        win.tabs.push({ path: "", name: "Untitled", modified: false, lang: "text", text: "" });
-        win.activeTab = win.tabs.length - 1;
-        tabBar.currentIndex = win.activeTab;
-        win.refreshEditor();
-    }
-
-    function closeTab(index) {
-        win.tabs.splice(index, 1);
-        if (win.tabs.length === 0) win.newFile();
-        else if (win.activeTab >= win.tabs.length) win.activeTab = win.tabs.length - 1;
-        tabBar.currentIndex = win.activeTab;
-        win.refreshEditor();
-    }
-
-    function openFile(path) {
-        for (let i = 0; i < win.tabs.length; i++) {
-            if (win.tabs[i].path === path) { win.activeTab = i; tabBar.currentIndex = i; win.refreshEditor(); return; }
-        }
-        fileReader.path = path;
-        fileReader.running = true;
-    }
-
-    function saveFile() {
-        if (win.activeTab < 0) return;
-        const tab = win.tabs[win.activeTab];
-        if (tab.path === "") { saveAsFile(); return; }
-        fileWriter.path = tab.path;
-        fileWriter.text = tab.text;
-        fileWriter.running = true;
-        tab.modified = false;
-        tabBar.forceLayout();
-    }
-
-    function saveAsFile(path) {
-        if (win.activeTab < 0) return;
-        const tab = win.tabs[win.activeTab];
-        tab.path = path;
-        tab.name = path.split("/").pop();
-        tab.lang = langForPath(path);
-        saveFile();
-    }
-
-    function findNext() {
-        if (win.searchText === "" || win.activeTab < 0) return;
-        const idx = editor.text.indexOf(win.searchText, editor.cursorPosition);
-        if (idx >= 0) { editor.cursorPosition = idx; editor.select(idx, idx + win.searchText.length); }
-    }
-
-    function findPrev() {
-        if (win.searchText === "" || win.activeTab < 0) return;
-        const idx = editor.text.lastIndexOf(win.searchText, editor.cursorPosition - 1);
-        if (idx >= 0) { editor.cursorPosition = idx; editor.select(idx, idx + win.searchText.length); }
-    }
-
-    function replaceOne() {
-        if (editor.selectedText === win.searchText) {
-            editor.remove(editor.selectionStart, editor.selectionEnd);
-            editor.insert(editor.cursorPosition, win.replaceText);
-        }
-        findNext();
-    }
-
-    function replaceAll() {
-        if (win.activeTab < 0) return;
-        editor.text = editor.text.split(win.searchText).join(win.replaceText);
-    }
-
-    // File I/O via Process
-    Process {
-        id: fileReader
-        property string path: ""
-        property string text: ""
-        command: ["cat", path]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const tab = { path: fileReader.path, name: fileReader.path.split("/").pop(),
-                              modified: false, lang: langForPath(fileReader.path), text: text };
-                win.tabs.push(tab);
-                win.activeTab = win.tabs.length - 1;
-                tabBar.currentIndex = win.activeTab;
-                win.refreshEditor();
-            }
-        }
-    }
-
-    Process {
-        id: fileWriter
-        property string path: ""
-        property string text: ""
-        command: ["sh", "-c", 'printf "%s" "$1" > "$2"', "sh", text, path]
-        onExited: { /* saved */ }
-    }
-
-    // File dialogs
-    FileDialog {
-        id: fileDialog
-        title: "Open file"
-        onAccepted: openFile(fileDialog.selectedFile.toString().replace("file://", ""))
-    }
-    FileDialog {
-        id: saveAsDialog
-        title: "Save as"
-        fileMode: FileDialog.SaveFile
-        onAccepted: saveAsFile(saveAsDialog.selectedFile.toString().replace("file://", ""))
-    }
-
-    Keys.onEscapePressed: Ui.textEditor = false
-    Keys.onPressed: e => {
-        if (e.modifiers & Qt.ControlModifier && e.key === Qt.Key_S) { saveFile(); e.accepted = true; }
-        if (e.modifiers & Qt.ControlModifier && e.key === Qt.Key_O) { fileDialog.open(); e.accepted = true; }
-        if (e.modifiers & Qt.ControlModifier && e.key === Qt.Key_F) { win.showFind = true; e.accepted = true; }
-        if (e.modifiers & Qt.ControlModifier && e.key === Qt.Key_N) { newFile(); e.accepted = true; }
-    }
-
-    Component.onCompleted: { win.newFile(); }
 }

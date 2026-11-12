@@ -2,37 +2,28 @@
 // you type. Notebooks are subfolders. Wiki links [[like this]] jump
 // between notes. Export to HTML, print via CUPS. Sync is a TODO.
 import Quickshell
-import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import qs.Common
 import qs.Services as Services
 
-PanelWindow {
+AppWindow {
     id: win
-    visible: Ui.notes && !Lock.locked
-    screen: Quickshell.screens.find(s => s.name === Services.Niri.focusedOutput) || Quickshell.screens[0]
-    anchors { top: true; bottom: true; left: true; right: true }
-    color: Theme.scrim
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "shani-notes"
-    BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurArea : null
-    Region { id: blurArea; item: card; radius: card.radius }
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    appName: "Notes"
+    visible: Ui.notes
+    onGone: Ui.notes = false
+    margins: 0
+    implicitWidth: 900
+    implicitHeight: 600
 
     property string filterText: ""
     property string selectedNotebook: ""
 
-    MouseArea { anchors.fill: parent; onClicked: Ui.notes = false }
 
-    Glass {
+    Item {
         id: card
-        anchors.centerIn: parent
-        width: Math.min(parent.width - 80, 900)
-        height: Math.min(parent.height - 80, 600)
-        radius: Theme.radiusLg
+        anchors.fill: parent
 
         RowLayout {
             anchors.fill: parent
@@ -42,8 +33,8 @@ PanelWindow {
             Rectangle {
                 Layout.preferredWidth: 260
                 Layout.fillHeight: true
-                color: Theme.surfaceContainerLow
-                radius: Theme.radiusLg
+                color: Theme.surface1
+                radius: Theme.radiusLarge
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -58,28 +49,31 @@ PanelWindow {
                         onTextChanged: win.filterText = text
                     }
 
-                    // Notebook selector
-                    RowLayout {
+                    // the notebooks, as picks (all of them, or one); + makes one, − removes the chosen
+                    Flow {
                         Layout.fillWidth: true
                         spacing: 4
-                        ComboBox {
-                            Layout.fillWidth: true
-                            model: ["(root)"].concat(Services.QuickNotes.notebooks)
-                            currentIndex: {
-                                const nb = Services.QuickNotes.currentNotebook;
-                                return nb === "" ? 0 : Services.QuickNotes.notebooks.indexOf(nb) + 1;
-                            }
-                            onActivated: {
-                                win.selectedNotebook = index === 0 ? "" : model[index];
+                        Choice {
+                            text: Tr.t("All")
+                            selected: win.selectedNotebook === ""
+                            onClicked: win.selectedNotebook = ""
+                        }
+                        Repeater {
+                            model: Services.QuickNotes.notebooks
+                            Choice {
+                                required property string modelData
+                                text: modelData
+                                selected: win.selectedNotebook === modelData
+                                onClicked: win.selectedNotebook = modelData
                             }
                         }
-                        Button {
-                            text: "+"
-                            onClicked: Services.QuickNotes.createNotebook("New notebook")
-                        }
-                        Button {
-                            text: "−"
-                            onClicked: { if (win.selectedNotebook !== "") Services.QuickNotes.deleteNotebook(win.selectedNotebook); }
+                        IconButton { size: 28; icon: "list-add"; tip: Tr.t("New notebook"); onClicked: Services.QuickNotes.createNotebook(Tr.t("New notebook")) }
+                        IconButton {
+                            size: 28
+                            visible: win.selectedNotebook !== ""
+                            icon: "list-remove"
+                            tip: Tr.t("Remove the notebook %1").arg(win.selectedNotebook)
+                            onClicked: { Services.QuickNotes.deleteNotebook(win.selectedNotebook); win.selectedNotebook = ""; }
                         }
                     }
 
@@ -137,7 +131,6 @@ PanelWindow {
                     Button { text: "Export HTML"; onClicked: Services.QuickNotes.exportHtml() }
                     Button { text: "Print"; onClicked: Services.QuickNotes.printNote() }
                     Button { text: "Delete"; onClicked: { if (Services.QuickNotes.current !== "") Services.QuickNotes.remove(Services.QuickNotes.current, Services.QuickNotes.currentNotebook); } }
-                    Button { text: "✕"; onClicked: Ui.notes = false }
                 }
 
                 // Text editor

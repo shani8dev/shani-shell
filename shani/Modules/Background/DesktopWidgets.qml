@@ -93,7 +93,7 @@ Variants {
                     drag.target: clockCard
                     drag.threshold: 8
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: Ui.toggleControlCenter()
+                    onClicked: Ui.openClocks("")
                     onReleased: if (clockDrag.drag.active) scr.savePos("clock", clockCard.x, clockCard.y)
                 }
 
@@ -302,7 +302,7 @@ Variants {
                     drag.target: weatherCard
                     drag.threshold: 8
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: Ui.openSettings("personal")
+                    onClicked: Weather.enabled ? Ui.openWeather() : Ui.openSettings("personal")
                     onReleased: if (weatherDrag.drag.active) scr.savePos("weather", weatherCard.x, weatherCard.y)
                 }
 

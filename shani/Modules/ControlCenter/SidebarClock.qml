@@ -20,17 +20,23 @@ ColumnLayout {
     spacing: 10
     property string alarmTime: Qt.formatTime(new Date(Date.now() + 3600000), "HH:mm")
     property string alarmLabel: ""
+    property bool adding: false
     readonly property var alarms: Array.from(WorldClock.alarms || [])
 
     RowLayout {
         Layout.fillWidth: true
         spacing: 8
         SectionTitle { Layout.fillWidth: true; text: Tr.t("Alarms & stopwatch") }
+        IconButton { icon: "preferences-system-time"; size: 28; tip: Tr.t("Open Clocks"); onClicked: Ui.openClocks(WorldClock.swRunning ? "stopwatch" : "alarms") }
+        // the time chips (24 hours and the minutes) only while an alarm is being
+        // added: shown always, they were forty stops between the keyboard and
+        // the notifications below, and most of this section's height
         IconButton {
-            icon: "alarm"
+            icon: root.adding ? "window-close" : "list-add"
             size: 28
-            tip: Tr.t("Open the character browser")
-            onClicked: { Ui.closeAll(); Ui.characters = true; }
+            on: root.adding
+            tip: root.adding ? Tr.t("Cancel") : Tr.t("Add an alarm")
+            onClicked: root.adding = !root.adding
         }
     }
 
@@ -56,17 +62,19 @@ ColumnLayout {
         visible: root.alarms.length === 0
         icon: "alarm"
         title: Tr.t("No alarms")
-        subtitle: Tr.t("Add one below — it rings once, with a notification")
+        subtitle: Tr.t("Add one with + — it rings once, with a notification")
     }
     TimePicker {
         id: picker
         Layout.fillWidth: true
+        visible: root.adding
         label: Tr.t("Alarm time")
         value: root.alarmTime
         onPicked: t => root.alarmTime = t
     }
     RowLayout {
         Layout.fillWidth: true
+        visible: root.adding
         spacing: 6
         TextField {
             Layout.fillWidth: true
@@ -74,13 +82,13 @@ ColumnLayout {
             label: Tr.t("Alarm label")
             onTextChanged: root.alarmLabel = text
             onAccepted: {
-                if (WorldClock.addAlarm(root.alarmTime, text)) { text = ""; root.alarmLabel = ""; }
+                if (WorldClock.addAlarm(root.alarmTime, text)) { text = ""; root.alarmLabel = ""; root.adding = false; }
             }
         }
         Button {
             text: Tr.t("Add")
             onClicked: {
-                if (WorldClock.addAlarm(root.alarmTime, root.alarmLabel)) root.alarmLabel = "";
+                if (WorldClock.addAlarm(root.alarmTime, root.alarmLabel)) { root.alarmLabel = ""; root.adding = false; }
             }
         }
     }
@@ -116,7 +124,7 @@ ColumnLayout {
                 required property string modelData
                 required property int index
                 Layout.fillWidth: true
-                icon: "chronometer"
+                icon: "alarm"
                 title: Tr.t("Lap %1").arg(index + 1)
                 trailing: modelData
                 onClicked: {}

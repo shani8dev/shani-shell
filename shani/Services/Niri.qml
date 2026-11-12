@@ -14,6 +14,7 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import "ShellApps.js" as ShellApps
 
 Singleton {
     id: root
@@ -40,6 +41,17 @@ Singleton {
     signal configLoaded(bool failed)
     property var focusOrder: []          // window ids, most recently focused first
 
+    // One of the shell's own app windows (they all arrive as "org.quickshell"):
+    // it is given the id of its desktop entry, by its title (ShellApps.js)
+    function own(w) {
+        if (w.app_id !== "org.quickshell")
+            return w;
+        const id = ShellApps.idFor(w.title);
+        return id ? Object.assign({}, w, { app_id: id }) : w;
+    }
+    // the window of one of the shell's apps, to bring it forward when it is asked for again
+    function appWindow(id) { return mru().find(w => w.app_id === id) || null; }
+    function raiseApp(id) { const w = appWindow(id); if (w) focusWin(w); }
     function mru() {
         const seen = new Set(focusOrder.filter(id => windows[id]));
         const rest = Object.keys(windows).map(Number).filter(id => !seen.has(id));
@@ -292,7 +304,8 @@ Singleton {
         } else if (ev.WindowsChanged) {
             const m = {};
             let focused = null;
-            for (const w of ev.WindowsChanged.windows) {
+            for (const raw of ev.WindowsChanged.windows) {
+                const w = own(raw);
                 m[w.id] = w;
                 if (w.is_focused)
                     focused = w.id;
@@ -300,7 +313,7 @@ Singleton {
             windows = m;
             focusedWindowId = focused;
         } else if (ev.WindowOpenedOrChanged) {
-            const w = ev.WindowOpenedOrChanged.window;
+            const w = own(ev.WindowOpenedOrChanged.window);
             // only the title changed (a terminal's clock, a download's percent):
             // niri sends the whole window again, and a new map wakes every binding
             // on `windows` - measured 290 ms of CPU a second for a title ticking

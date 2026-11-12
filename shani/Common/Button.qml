@@ -7,6 +7,8 @@ Rectangle {
     id: root
     property string text
     property string kind: "plain"      // plain | outline | primary | danger
+    property bool flat: false          // no border, no fill until it is hovered
+    property bool checked: false       // it stays on: the mode it chose
     signal clicked()
 
     Accessible.role: Accessible.Button
@@ -15,7 +17,7 @@ Rectangle {
 
     implicitWidth: label.implicitWidth + 28
     implicitHeight: 36
-    radius: 10
+    radius: Theme.radiusSmall
     clip: true
 
     // ---- base fill ---------------------------------------------------------
@@ -24,10 +26,12 @@ Rectangle {
         if (kind === "primary") return area.pressed ? Theme.accentPressed : (area.containsMouse ? Theme.accentHover : Theme.accent)
         if (kind === "danger") return area.pressed ? Theme.alpha(Theme.danger, 0.45) : (area.containsMouse ? Theme.alpha(Theme.danger, 0.35) : Theme.alpha(Theme.danger, 0.22))
         if (kind === "outline") return area.pressed ? Theme.pressed : (area.containsMouse ? Theme.hover : "transparent")
+        if (checked) return area.pressed ? Theme.accentPressed : (area.containsMouse ? Theme.accentHover : Theme.accentSoft)
+        if (flat) return area.pressed ? Theme.pressed : (area.containsMouse ? Theme.hover : "transparent")
         return area.pressed ? Theme.pressed : (area.containsMouse ? Theme.hover : "transparent")
     }
-    border.width: kind === "outline" ? 1 : (kind === "plain" && !area.containsMouse ? 0 : 1)
-    border.color: kind === "outline" ? Theme.stroke : (kind === "plain" ? Theme.stroke : (area.pressed ? Theme.accentPressed : Theme.accentLine))
+    border.width: flat ? 0 : (kind === "outline" ? 1 : (kind === "plain" && !area.containsMouse && !checked ? 0 : 1))
+    border.color: kind === "outline" ? Theme.stroke : (kind === "plain" ? (checked ? Theme.accentLine : Theme.stroke) : (area.pressed ? Theme.accentPressed : Theme.accentLine))
     opacity: enabled ? 1 : 0.5
 
     // ---- ripple on press ---------------------------------------------------
@@ -59,7 +63,7 @@ Rectangle {
         id: label
         anchors.centerIn: parent
         text: root.text
-        color: root.kind === "primary" ? Theme.accentInk : root.kind === "danger" ? Theme.danger : Theme.text
+        color: root.kind === "primary" ? Theme.accentInk : root.kind === "danger" ? Theme.danger : root.checked ? Theme.accent : Theme.text
         font.family: Theme.font
         font.pixelSize: 12 * Theme.fontScale
         font.weight: Font.DemiBold

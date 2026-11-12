@@ -62,6 +62,7 @@ KEYBOARD_SURFACES = ["shani/Modules/ControlCenter", "shani/Modules/Dock", "shani
                      "shani/Modules/Settings", "shani/Modules/Lock", "shani/Modules/Bar", "shani/Modules/WindowMenu",
                      "shani/Modules/Background/Wallpaper.qml", "shani/Common", "greeter/shell.qml", "setup/shell.qml"]
 KEYBOARD_EXEMPT = {
+    ("AppWindow.qml", "win.startSystemMove()"): "dragging the header moves the window; niri's own keys move, maximise and close it",
     ("Sidebar.qml", "onClicked: Ui.closeAll()"): "a click outside closes it; Escape does that",
     ("Dock.qml", "onClicked: win.menuFor = -1"): "a click elsewhere closes the menu; Escape does that",
     ("Tile.qml", "onClicked: root.detail()"): "the chevron: the tile's Menu key opens the detail",
@@ -113,3 +114,78 @@ def test_every_click_has_a_keyboard_way():
                 line = text.count("\n", 0, s) + 1
                 missing.append(f"{f.relative_to(ROOT)}:{line}")
     assert missing == [], f"clickable with no keyboard way (add a KeyFocus, or exempt it with a reason): {missing}"
+
+
+def test_every_theme_token_used_is_declared():
+    """`Theme.radiusLg` (another shell's name for it) is undefined, silently: a
+    panel's corners, colours and - with it in a binding - whole rows quietly
+    fall back or vanish. Six panels carried such names."""
+    theme = (SHANI / "Common/Theme.qml").read_text()
+    declared = set(re.findall(r"^\s*(?:readonly\s+)?property\s+[\w<>.]+\s+(\w+)", theme, re.M))
+    declared |= set(re.findall(r"^\s*function\s+(\w+)", theme, re.M))
+    used = {}
+    for path, text in qml().items():
+        for name in re.findall(r"\bTheme\.(\w+)", text):
+            if name not in declared:
+                used.setdefault(name, path.name)
+    assert used == {}
+
+
+def test_services_are_reached_the_way_they_are_imported():
+    """A panel that imports `qs.Services as Services` and then says `Lock.locked`
+    gets a ReferenceError; in `visible: Ui.notes && !Lock.locked` that made the
+    whole surface invisible - Notes, Scanner, Passwords, Kundali, LocalSend (since taken out) and
+    the video player never showed, and nothing failed."""
+    services = {p.stem for p in (SHANI / "Services").glob("*.qml")}
+    wrong = {}
+    for path, text in qml().items():
+        if "Modules" not in path.parts or re.search(r"^import qs\.Services\s*$", text, re.M):
+            continue
+        code = re.sub(r'"(?:[^"\\\n]|\\.)*"', '""', re.sub(r"//[^\n]*", "", text))
+        bare = {m for m in re.findall(r"(?<![\w.])([A-Z]\w+)\.\w", code) if m in services}
+        if bare:
+            wrong[path.name] = sorted(bare)
+    assert wrong == {}
+
+
+def test_every_surface_read_on_first_open_is_there():
+    """A `source:` loader names a file; a renamed or moved one is found only
+    when a person opens that surface (nothing compiles it at load)."""
+    shell = (SHANI / "shell.qml").read_text()
+    named = re.findall(r'LazyLoader \{ active: [^;]+; source: "([^"]+)" \}', shell)
+    assert len(named) >= 20, "the pattern no longer matches shell.qml"
+    assert [n for n in named if not (SHANI / n).is_file()] == []
+    # and each is opened, for real, by the suite (dev/shell-parts/apps.sh or the main run)
+    opened = "".join((ROOT / f).read_text() for f in ("dev/shell-parts/apps.sh", "bin/shani", "dev/shell-test.sh"))
+    for flag in re.findall(r'LazyLoader \{ active: Ui\.(\w+); source:', shell):
+        assert re.search(r"\b%s\b" % flag, opened, re.I), f"nothing in the suite opens Ui.{flag}"
+
+
+def test_a_surface_read_on_first_open_imports_its_own_folder():
+    """A file a `source:` loader reads does not see the components beside it
+    (measured: "MusicLibraryView is not a type" - the Media Player never
+    opened). Using one from its own folder needs `import qs.Modules.<Folder>`."""
+    shell = (SHANI / "shell.qml").read_text()
+    wrong = []
+    for src in re.findall(r'LazyLoader \{ active: [^;]+; source: "([^"]+)" \}', shell):
+        f = SHANI / src
+        siblings = {p.stem for p in f.parent.glob("*.qml") if p != f}
+        used = {name for name in re.findall(r"^\s*([A-Z]\w+)\s*\{", f.read_text(), re.M) if name in siblings}
+        module = "qs." + ".".join(f.parent.relative_to(SHANI).parts)
+        # the folder's own import, and shell.qml's - without which Quickshell has no such module
+        if used and (f"import {module}" not in f.read_text() or f"import {module}\n" not in shell):
+            wrong.append(f"{src}: {sorted(used)}")
+    assert wrong == []
+
+
+
+def test_the_state_has_each_key_once():
+    """`state` is one object literal: a key written twice keeps the second, and
+    the first silently means nothing - "mediaPlaying" (any MPRIS player) was
+    shadowed by the Media Player's own and the media-key checks read the wrong
+    one; "notes" meant both "notes loaded" and "the Notes window is open"."""
+    shell = (SHANI / "shell.qml").read_text()
+    start = shell.index("function state(): string {")
+    body = shell[start:shell.index("\n        }\n", start)]
+    keys = re.findall(r"(?<![\w.])(\w+):\s", body)
+    assert sorted({k for k in keys if keys.count(k) > 1}) == []

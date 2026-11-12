@@ -231,7 +231,7 @@ while True:
         trimmedLast = "";
         trimError = "";
         if (trimFile)
-            Trim.setInput(trimFile);
+            VideoTrimmer.setInput(trimFile);
     }
     function setTrimStart(v) {
         v = parseFloat(v);
@@ -253,7 +253,7 @@ while True:
         trimEnd = v;
     }
     function saveTrimmedCopy() {
-        if (!trimFile || Trim.cutting)
+        if (!trimFile || VideoTrimmer.cutting)
             return;
         const out = trimmedPathFor(trimFile);
         const s = trimStart, e = trimDuration > 0 && trimEnd <= 0 ? trimDuration : trimEnd;
@@ -263,26 +263,26 @@ while True:
         }
         trimError = "";
         trimmedLast = "";
-        Trim.trimAudio(trimFile, s, e);
+        VideoTrimmer.trimAudio(trimFile, s, e);
         // trimmedLast is set on Trim's completion (Connections below);
         // the output name is deterministic, so the check there suffices.
     }
     Connections {
-        target: Trim
+        target: VideoTrimmer
         function onResultChanged() {
-            if (Trim.result && Trim.result === root.trimmedPathFor(root.trimFile))
-                root.trimmedLast = Trim.result;
+            if (VideoTrimmer.result && VideoTrimmer.result === root.trimmedPathFor(root.trimFile))
+                root.trimmedLast = VideoTrimmer.result;
         }
         function onInputDurationChanged() {
-            if (Trim.input === root.trimFile) {
-                root.trimDuration = Trim.inputDuration;
-                if (root.trimEnd <= 0 && Trim.inputDuration > 0)
-                    root.trimEnd = Trim.inputDuration;
+            if (VideoTrimmer.input === root.trimFile) {
+                root.trimDuration = VideoTrimmer.inputDuration;
+                if (root.trimEnd <= 0 && VideoTrimmer.inputDuration > 0)
+                    root.trimEnd = VideoTrimmer.inputDuration;
             }
         }
         function onErrorChanged() {
-            if (Trim.error)
-                root.trimError = Trim.error;
+            if (VideoTrimmer.error)
+                root.trimError = VideoTrimmer.error;
         }
     }
 

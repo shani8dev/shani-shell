@@ -1,7 +1,7 @@
 pragma Singleton
 // CPU, memory, network throughput and the CPU's temperature for the bar, read
 // straight from /proc and the kernel's hwmon sensors (no helper script), one
-// sample every interval. Also the Mission Center numbers: per-core use,
+// sample every interval. Also the System Monitor numbers: per-core use,
 // per-interface network rates, uptime, threads, clock speed and handles.
 import Quickshell
 import Quickshell.Io
@@ -20,7 +20,7 @@ Singleton {
     property string tempPath: ""
     property var lastNet: null
     readonly property int interval: 3000
-    // --- Mission Center ----------------------------------------------------
+    // --- System Monitor ----------------------------------------------------
     property var perCore: []            // [0..1] per core, since the last sample
     property var lastCores: null
     property var nets: []               // [{ name, rx, tx }] bytes/s per interface

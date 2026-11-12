@@ -2,12 +2,12 @@ pragma Singleton
 // Color — pick a colour from the screen, convert between HEX/RGB/HSL,
 // and score it against WCAG contrast.
 //
-// Logic ported from voltkit's color module (src/modules/color.rs):
+// Logic ported from color module (src/modules/color.rs):
 //   parse #rgb / #rrggbb / rgb(r,g,b)
 //   toHex / toRgbString / toHslString
 //   luminance, contrastRatio, wcagRating
 // Recent picks live in Settings.data.recentColors: capped at 32,
-// deduplicated, newest first (the same shape as voltkit's color history).
+// deduplicated, newest first (the same shape as color history).
 //
 // Picking: `niri msg pick-color` waits for a pixel click, then prints a line
 // like "Hex: #3584e4". The result is emitted through `picked` and stored in
@@ -19,6 +19,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/Contrast.js" as Contrast
 
 Singleton {
     id: root
@@ -34,7 +35,7 @@ Singleton {
             Settings.data.recentColors = [];
     }
 
-    // ---------- parse + convert (voltkit color.rs) ----------
+    // ---------- parse + convert ----------
     function parse(input) {
         if (typeof input !== "string")
             return null;
@@ -90,17 +91,16 @@ Singleton {
         return "hsl(" + Math.round(hs.h) + ", " + Math.round(hs.s) + "%, " +
                Math.round(hs.l) + "%)";
     }
-    function lin(channel) {
-        channel = channel / 255;
-        return channel <= 0.04045 ? channel / 12.92 :
-               Math.pow((channel + 0.055) / 1.055, 2.4);
+    // the shared contrast maths (Common/Contrast.js), which works in 0..1
+    // channels; a colour here is 0..255
+    function _norm(c) {
+        return { r: c.r / 255, g: c.g / 255, b: c.b / 255, a: c.a === undefined ? 1 : c.a };
     }
     function luminance(c) {
-        return 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
+        return Contrast.relativeLuminance(root._norm(c));
     }
     function contrastRatio(a, b) {
-        var la = luminance(a), lb = luminance(b);
-        return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+        return Contrast.ratio(root._norm(a), root._norm(b));
     }
     function wcagRating(ratio) {
         if (ratio >= 7.0) return "AAA";

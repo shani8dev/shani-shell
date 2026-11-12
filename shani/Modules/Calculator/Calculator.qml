@@ -11,25 +11,23 @@
 // the keys do (A-F in Programming), Escape closes, Enter evaluates,
 // Ctrl+C copies.
 import Quickshell
-import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services as Services
 
-PanelWindow {
+AppWindow {
     id: win
-    visible: Services.Calculator.shown && !Services.Lock.locked
-    screen: Quickshell.screens.find(s => s.name === Services.Niri.focusedOutput) || Quickshell.screens[0]
-    anchors { top: true; bottom: true; left: true; right: true }
-    color: Theme.scrim
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "shani-calculator"
+    appName: "Calculator"
+    tools: [
+        IconButton { size: 30; icon: "edit-copy"; tip: Tr.t("Copy result"); onClicked: Services.Calculator.copyResult() }
+    ]
+    visible: Services.Calculator.shown
+    onGone: Services.Calculator.close()
+    margins: 0
+    implicitWidth: 460
+    implicitHeight: Math.max(320, Math.min(900, col.implicitHeight + 40))
     // blur behind the card, as on every shell surface (ext-background-effect)
-    BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurArea : null
-    Region { id: blurArea; item: card; radius: card.radius }
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     // standard keypad: digits, + − × ÷ ( ), √, %, ±, π, e, C, copy and backspace.
     // `key` is what the service hears; `label` is what is drawn.
@@ -122,16 +120,19 @@ PanelWindow {
             win.convertedValue = r.value;
     }
 
-    MouseArea { anchors.fill: parent; onClicked: Services.Calculator.close() }
     Item {
         anchors.fill: parent
         focus: win.visible
         Keys.onEscapePressed: Services.Calculator.close()
         Keys.onReturnPressed: Services.Calculator.evaluate()
         Keys.onEnterPressed: Services.Calculator.evaluate()
-        Keys.onBackspacePressed: Services.Calculator.backspace()
         Keys.onDeletePressed: Services.Calculator.clear()
         Keys.onPressed: e => {
+            if (e.key === Qt.Key_Backspace) {
+                Services.Calculator.backspace();
+                e.accepted = true;
+                return;
+            }
             // typing goes to the calculator as the keys do (the converter's
             // and the financial/programming value fields have their own
             // focus, so they are not disturbed). In Programming, A-F are
@@ -145,33 +146,15 @@ PanelWindow {
         }
     }
 
-    Glass {
+    Item {
         id: card
-        anchors.centerIn: parent
-        width: (win.tab === "financial" || win.tab === "programming") ? 460 : win.tab === "converter" ? 400 : win.tab === "scientific" ? 440 : 360
-        implicitHeight: Math.min(parent.height - 60, col.implicitHeight + 40)
-        strong: true
-        radius: Theme.radiusLarge
-        MouseArea { anchors.fill: parent }
+        anchors.fill: parent
         ColumnLayout {
             id: col
             anchors.fill: parent
             anchors.margins: 20
             spacing: 10
 
-            RowLayout {
-                Layout.fillWidth: true
-                Text {
-                    Layout.fillWidth: true
-                    text: Tr.t("Calculator")
-                    color: Theme.text
-                    font.family: Theme.font
-                    font.pixelSize: 15 * Theme.fontScale
-                    font.weight: Font.DemiBold
-                }
-                IconButton { icon: "edit-copy"; size: 28; tip: Tr.t("Copy result"); onClicked: Services.Calculator.copyResult() }
-                IconButton { icon: "window-close"; size: 28; onClicked: Services.Calculator.close() }
-            }
 
             RowLayout {
                 Layout.fillWidth: true

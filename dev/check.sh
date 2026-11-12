@@ -42,15 +42,17 @@ own
 box() {
     tb=; [ -d "$TESTBED" ] && tb="-v $(cd "$TESTBED" && pwd):/testbed:ro"
     # shellcheck disable=SC2086
-    docker run --rm --cap-add SYS_PTRACE $tb -v "$REPO":/work "$@"
+    # IPC_LOCK: the keyring daemon locks its memory (secrets never reach swap) or will not start
+    docker run --rm --cap-add SYS_PTRACE --cap-add IPC_LOCK $tb -v "$REPO":/work "$@"
 }
 run() {
     case "$1" in
         unit) cd "$REPO" && python3 -m pytest tests -q ;;
-        shell) box $IMG sh /work/dev/shell-test.sh ;;
+        # shani-desktop-niri at /desk: its foot.ini, as the image installs it (dev/session.sh)
+        shell) box -v "$DESK":/desk:ro $IMG sh /work/dev/shell-test.sh ;;
         # one part of it on a fresh session: dev/shell-parts/<name>.sh
-        shell=*) box -e SHELL_TEST_ONLY="part:${1#shell=}" $IMG sh /work/dev/shell-test.sh ;;
-        idle|a11y|perf) box -e SHELL_TEST_ONLY="$1" $IMG sh /work/dev/shell-test.sh ;;
+        shell=*) box -v "$DESK":/desk:ro -e SHELL_TEST_ONLY="part:${1#shell=}" $IMG sh /work/dev/shell-test.sh ;;
+        idle|a11y|perf) box -v "$DESK":/desk:ro -e SHELL_TEST_ONLY="$1" $IMG sh /work/dev/shell-test.sh ;;
         # the greeter's niri config is shani-desktop-niri's, as greetd runs it
         greeter) box -v "$DESK":/desk:ro $IMG sh /work/dev/greeter-test.sh /desk/etc/greetd/shani-niri-greeter.kdl ;;
         setup) box -v "$DESK":/desk:ro $IMG sh /work/dev/setup-test.sh /desk/etc/greetd/shani-niri-greeter.kdl ;;
@@ -58,7 +60,7 @@ run() {
         polkit) sh "$REPO/dev/polkit-run.sh" ;;
         admin) sh "$REPO/dev/admin-test.sh" "$DESK" ;;
         setup-polkit) sh "$REPO/dev/setup-polkit-test.sh" "$DESK" ;;
-        showcase) box $IMG sh /work/dev/showcase.sh ;;
+        showcase) box -v "$DESK":/desk:ro $IMG sh /work/dev/showcase.sh ;;
         render|render=*) box $IMG sh /work/dev/render.sh "${1#render=}" ;;
         *) echo "unknown suite: $1 (see the top of dev/check.sh)"; return 2 ;;
     esac

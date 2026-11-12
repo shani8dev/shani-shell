@@ -17,6 +17,14 @@ result() {
 st() { timeout 5 qs -p /work/shani ipc call shani state 2>/dev/null; }
 q() { st | python3 -c "import json,sys; d=json.load(sys.stdin); print(d$1)"; }
 ipc() { qs -p /work/shani ipc call shani "$@" >/dev/null 2>&1; }
+# stop the shell AND its bridges, as systemd does for shani-shell.service (it kills
+# the unit's whole cgroup): killing qs alone left its plugwatch running, an orphan
+# reading the udev FIFO, and the next shell's device greetings went missing
+stopshell() {
+    kids=$(pgrep -P "$1")
+    kill "$1" 2>/dev/null; while kill -0 "$1" 2>/dev/null; do sleep 0.1; done
+    [ -n "$kids" ] && kill $kids 2>/dev/null; sleep 0.3
+}
 shot() { sleep "${2:-0.8}"; grim "$SHOTS/$1.png"; }
 # the suite runs longer than the default idle lock (5 min) between keyboard
 # inputs: no dimming, lock or screen-off unless a test sets them itself
@@ -117,9 +125,9 @@ for i in 1 2 3 4; do cycle; done; rss2=$(floor3)
 grow=$((rss2 - rss1))
 [ "$grow" -le "${LEAK_MB_BUDGET:-24}" ] && result perf-no-leak PASS "${grow} MB, lowest of 3 early vs late over 11 rounds (${rss1} -> ${rss2} MB)" || result perf-no-leak FAIL "+$grow MB lowest-of-3 floor over 11 rounds of launcher/sidebar/layouts/overview (${rss1} -> ${rss2} MB, budget ${LEAK_MB_BUDGET:-24})"
 # startup: a fresh shell, from launch to its first answer (and its frames' render cost)
-kill "$qpid"; while kill -0 "$qpid" 2>/dev/null; do sleep 0.1; done
+stopshell "$qpid"
 t0=$(date +%s%N)
-QS_ICON_THEME=Adwaita QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1 QT_LOGGING_RULES="qt.scenegraph.time.renderloop=true" qs -p /work/shani >>/work/out/logs/qs.log 2>&1 &
+QS_ICON_THEME=$QS_ICON_THEME QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1 QT_LOGGING_RULES="qt.scenegraph.time.renderloop=true" qs -p /work/shani >>/work/out/logs/qs.log 2>&1 &
 i=0; until st >/dev/null 2>&1 || [ $i -ge 300 ]; do sleep 0.05; i=$((i+1)); done
 boot=$(( ($(date +%s%N) - t0) / 1000000 )); qpid=$(pgrep -o -x qs); sleep 2
 [ "$boot" -le "${STARTUP_MS_BUDGET:-3500}" ] && result perf-startup PASS "$boot ms" || result perf-startup FAIL "$boot ms (budget ${STARTUP_MS_BUDGET:-3500} ms)"
@@ -424,6 +432,31 @@ ipc fileActions /tmp/fa/big.jpg; sleep 0.3; ipc fileFit 50 20 200 230
 waitfor "d['fileActionLast'].endswith('.jpg') and '20 KB-50 KB' in d['fileActionLast']" 15
 f=$(q "['fileActionLast']"); sz=$(stat -c%s "$f" 2>/dev/null || echo 0); dim=$(magick identify -format "%wx%h" "$f" 2>/dev/null)
 [ "$sz" -ge 20480 ] && [ "$sz" -le 51200 ] && [ "$dim" = 200x230 ] && result file-fit-size-limit PASS "$((sz/1024)) KB $dim" || result file-fit-size-limit FAIL "'$f' $sz bytes $dim"
+
+# ---- the file manager: the listing, the watch, a new folder, a rename, the trash ----
+rm -rf /tmp/fm; mkdir -p /tmp/fm; echo one > /tmp/fm/one.txt; echo two > /tmp/fm/two.txt
+ipc filesOpen /tmp/fm
+waitfor "d['filesShown'] and d['filesPath'] == '/tmp/fm'" 6 && result files-opens PASS || result files-opens FAIL "$(q "['filesPath']")"
+waitfor "d['filesEntries'] == 2" 8 && result files-lists-the-folder PASS || result files-lists-the-folder FAIL "$(q "['filesEntries']")"
+# the folder is watched: a file made elsewhere shows up at once, and one removed goes away
+echo three > /tmp/fm/three.txt
+waitfor "d['filesEntries'] == 3" 10 && result files-watches-the-folder PASS || result files-watches-the-folder FAIL "$(q "['filesEntries']")"
+rm -f /tmp/fm/three.txt
+waitfor "d['filesEntries'] == 2" 10 && result files-notices-a-removal PASS || result files-notices-a-removal FAIL "$(q "['filesEntries']")"
+# a new folder, a rename, and the trash (the desktop trash, so it can be put back)
+ipc filesMakeFolder made; sleep 2
+[ -d /tmp/fm/made ] && result files-makes-a-folder PASS || result files-makes-a-folder FAIL "$(ls /tmp/fm)"
+ipc filesSelect /tmp/fm/one.txt; sleep 0.5; ipc filesRename /tmp/fm/one.txt renamed.txt; sleep 2
+[ -f /tmp/fm/renamed.txt ] && result files-renames PASS || result files-renames FAIL "$(ls /tmp/fm)"
+ipc filesSelect /tmp/fm/two.txt; sleep 0.5; ipc filesTrash; sleep 2.5
+[ ! -f /tmp/fm/two.txt ] && result files-trashes PASS || result files-trashes FAIL "$(ls /tmp/fm)"
+ipc filesClose; sleep 0.5
+
+# ---- the chooser: the shell's own, not the portal's ----
+ipc filePickerOpen open /tmp/fm; sleep 1
+waitfor "d['pickerShown'] and d['pickerPath'] == '/tmp/fm'" 6 && result file-picker-opens PASS || result file-picker-opens FAIL "$(q "['pickerPath']")"
+ipc filePickerSelect /tmp/fm/renamed.txt; sleep 0.5; ipc filePickerAccept; sleep 1
+waitfor "d['pickerPicked'] == '/tmp/fm/renamed.txt'" 6 && result file-picker-answers PASS || result file-picker-answers FAIL "$(q "['pickerPicked']")"
 
 # ---- desktop layouts: a click tries one on for real, Esc puts it back, Enter keeps it --------
 lsw() { niri msg -j layers | python3 -c "import json,sys; print(sum(1 for l in json.load(sys.stdin) if l['namespace'] == 'shani-layout-switcher'))"; }
@@ -772,11 +805,12 @@ if [ -f "$A11Y" ]; then
 fi
 
 # ---- parental controls: an app the app filter blocks is not offered ---------------------
-ipc launcher "Files"; waitfor "d['topResult'] == 'Files'" 4 || true
-echo org.gnome.Nautilus > /tmp/appfilter-blocked; ipc closeAll; ipc appFilterRefresh
-waitfor "'org.gnome.Nautilus' in d['appsBlocked']" 4 || true
-ipc launcher "Files"; sleep 1
-[ "$(q "['topResult']")" != Files ] && result app-filter-hides-from-launcher PASS || result app-filter-hides-from-launcher FAIL "$(q "['topResult']")"
+# (an app with one name: "Files" is both Nautilus and the shell's own Files)
+ipc launcher "Clocks"; waitfor "d['topResult'] == 'Clocks'" 4 || true
+printf "dev.shani.Clocks\norg.gnome.Nautilus\n" > /tmp/appfilter-blocked; ipc closeAll; ipc appFilterRefresh
+waitfor "'dev.shani.Clocks' in d['appsBlocked']" 4 || true
+ipc launcher "Clocks"; sleep 1
+[ "$(q "['topResult']")" != Clocks ] && result app-filter-hides-from-launcher PASS || result app-filter-hides-from-launcher FAIL "$(q "['topResult']")"
 ipc closeAll
 if [ -f "$A11Y" ]; then
     a=$(timeout 20 python3 "$A11Y" find "button:^Files" 2>/dev/null | head -1)
@@ -989,9 +1023,9 @@ ipc timer 1
 waitfor "d['islandActivity'].startswith('Focus · ')" 3 && result island-live-activity PASS "$(q "['islandActivity']")" || result island-live-activity FAIL "$(q "['islandActivity']")"
 shot 53-island-activity 0.4
 ipc timer 0
-# an app's own answers (GNOME Calculator's provider): a factorial (3+ characters, as providers are asked), which the
-# launcher's calculator leaves to it ...
-ipc launcher "10!"
+# an app's own answers (GNOME Calculator's provider): a remainder (3+ characters, as providers are asked), which the
+# launcher's calculator leaves to it (it answers factorials itself since the rich calculator) ...
+ipc launcher "7 mod 3"
 waitfor "'From Calculator' in d['launcherSections']" 12 && result launcher-search-providers PASS || result launcher-search-providers FAIL "$(q "['launcherSections']")"
 # ... and a sum the launcher answered itself is not answered twice
 ipc launcher "12*12"
@@ -1286,7 +1320,7 @@ f=/root/.config/niri/shani-windows.kdl
 grep -Fq 'match app-id="^foot$"' $f && grep -q 'open-floating true' $f \
     && result window-rules-written PASS || result window-rules-written FAIL "$(cat $f 2>&1)"
 niri validate -c /work/dev/niri/session.kdl >/dev/null 2>&1 && result window-include-valid PASS || result window-include-valid FAIL "$(niri validate -c /work/dev/niri/session.kdl 2>&1 | tail -3)"
-foot >/dev/null 2>&1 &
+foot >/dev/null 2>&1 & footpid=$!
 i=0; float=""
 while [ $i -lt 12 ]; do
     sleep 0.5
@@ -1295,6 +1329,8 @@ while [ $i -lt 12 ]; do
     i=$((i+1))
 done
 [ "$float" = "True" ] && result window-rule-foot-floats PASS || result window-rule-foot-floats FAIL "$(niri msg -j windows 2>&1 | head -c 200)"
+# closed again: a floating terminal left here sat over every app photographed after it
+kill "$footpid" 2>/dev/null
 settings '{}'
 
 # ---- world clocks on the calendar ---------------------------------------------
@@ -1359,7 +1395,7 @@ shot 75-settings-about 0.3
 ipc closeAll
 
 # ---- the launcher finds settings by what people call them --------------------------
-for pair in "timezone:Date & language" "time zone:Date & language" "add user:Users" "password:Your account" "default browser:Default apps" "touchpad:Keyboard & input" "hostname:About this computer"; do
+for pair in "timezone:Date & language" "time zone:Date & language" "add user:Users" "change password:Your account" "passwords:Password Generator" "default browser:Default apps" "touchpad:Keyboard & input" "hostname:About this computer"; do
     ipc launcher "${pair%%:*}"
     waitfor "d['topResult'] == '${pair#*:}'" 4 && result "launcher-finds-$(echo ${pair%%:*} | tr ' ' -)" PASS || result "launcher-finds-$(echo ${pair%%:*} | tr ' ' -)" FAIL "$(q "['topResult']")"
 done
@@ -1544,7 +1580,7 @@ settings '{}'
 f=/root/.config/niri/shani-input.kdl
 settings '{"winGaps": 6, "winFocusFollowsMouse": false, "winAnimations": false, "kbCompose": "ralt", "kbCaps": "caps:escape", "customBinds": [{"key": "Mod+Alt+J", "title": "test bind", "command": "touch /tmp/bind-ran"}]}'
 sleep 1.5
-grep -q 'gaps 6' $f && ! grep -q 'focus-follows-mouse' $f && grep -q 'animations' $f && grep -q 'options "compose:ralt,caps:escape"' $f \
+grep -q 'gaps 6' $f && ! grep -q 'focus-follows-mouse' $f && grep -A1 '^animations {' /root/.config/niri/shani-look.kdl | grep -q '^    off' && grep -q 'options "compose:ralt,caps:escape"' $f \
     && niri validate -c /work/dev/niri/session.kdl >/dev/null 2>&1 && result windows-and-keys-reach-niri PASS || result windows-and-keys-reach-niri FAIL "$(niri validate -c /work/dev/niri/session.kdl 2>&1 | tail -2; cat $f)"
 # niri does not run binds for virtual-keyboard input (wtype), so the press itself
 # is a real-keyboard check; here: the bind as niri will load it
@@ -1690,6 +1726,13 @@ ipc agendaRefresh
 waitfor "'Design review' in d['agenda']" 12 || ipc agendaRefresh
 waitfor "'Design review' in d['agenda'] and 'Weekly sync' in d['agenda']" 30 && result agenda-from-eds PASS "$(q "['agenda']")" \
     || result agenda-from-eds FAIL "$(q "['agenda']") $(python3 /work/bridge/agenda.py 2>&1 | tail -1)"
+# the calendars there are, from EDS's registry; hiding one takes its events out of
+# everything (the agenda, the Calendar, the reminders), showing it brings them back
+waitfor "'Personal' in d['calendars']" 10 && result calendar-sources-listed PASS "$(q "['calendars']")" || result calendar-sources-listed FAIL "$(q "['calendars']") $(python3 /work/bridge/agenda.py calendars 2>&1 | tail -1 | cut -c1-200)"
+ipc calendarShow Personal false
+waitfor "'Design review' not in d['agenda'] and 'Personal' in d['calendarsHidden']" 4 && result calendar-hidden-leaves-the-agenda PASS || result calendar-hidden-leaves-the-agenda FAIL "$(q "['agenda'], d['calendarsHidden']")"
+ipc calendarShow Personal true
+waitfor "'Design review' in d['agenda'] and d['calendarsHidden'] == []" 4 && result calendar-shown-again PASS || result calendar-shown-again FAIL "$(q "['agenda'], d['calendarsHidden']")"
 ipc controlCenter ""
 shot 94-agenda 0.8
 ipc closeAll
@@ -2133,7 +2176,11 @@ if [ -f "$A11Y" ]; then
     ipc osk; sleep 1
     timeout 20 python3 "$A11Y" press "^Keyboard language$" >/dev/null 2>&1; sleep 0.6
     timeout 20 python3 "$A11Y" find "^Add a language…$" >/dev/null 2>&1 && result osk-globe-offers-languages PASS || result osk-globe-offers-languages FAIL
-    ipc osk; settings '{}'
+    # the globe's menu holds the keyboard open: Escape it, then close the keyboard for good
+    wtype -k Escape 2>/dev/null; sleep 0.3
+    ipc osk; waitfor "not d['osk']" 2 || ipc osk
+    waitfor "not d['osk']" 2 || echo "  (the on-screen keyboard stayed open)"
+    settings '{}'
 fi
 
 # ---- devices plugged in: greeted once, each with its next step (Plugged) -----------------
@@ -2142,7 +2189,11 @@ fi
 udev() { cat "/work/dev/udev/$1.txt" > /tmp/udev-events; }
 n0=$(q "['plugGreeted']")
 udev tablet
-waitfor "'Wacom Intuos S plugged in' in d['notificationSummaries']" 6 && result plug-tablet-greeted PASS || result plug-tablet-greeted FAIL "$(q "['plugLast']")"
+if waitfor "'Wacom Intuos S plugged in' in d['notificationSummaries']" 6; then result plug-tablet-greeted PASS
+else   # say whether it came late or never, and what the watcher saw
+    t0=$(date +%s); waitfor "d['plugLast'] == 'Wacom Intuos S plugged in'" 20; late=$(( $(date +%s) - t0 ))
+    result plug-tablet-greeted FAIL "last '$(q "['plugLast']")' greeted $(q "['plugGreeted']") (was $n0) after 6+${late}s; plugwatch: $(pgrep -af plugwatch | head -1 | cut -c1-80); fifo: $(ls -l /tmp/udev-events 2>&1 | cut -c1-60)"
+fi
 ipc notificationAct "Wacom Intuos S plugged in" here
 waitfor "d['tabletOutput'] not in ('', '@focused')" 4 && sleep 0.6 && grep -q "map-to-output \"$(q "['tabletOutput']")\"" /root/.config/niri/shani-input.kdl \
     && result plug-tablet-uses-this-screen PASS "$(q "['tabletOutput']")" || result plug-tablet-uses-this-screen FAIL "$(q "['tabletOutput']")"
@@ -2155,7 +2206,11 @@ grep -q "map-to-focused-output" /root/.config/niri/shani-input.kdl && niri valid
 settings '{}'
 # a security key: "Use it to sign in" opens Your account
 udev security-key
-waitfor "'YubiKey OTP+FIDO+CCID plugged in' in d['notificationSummaries']" 6 && ipc notificationAct "YubiKey OTP+FIDO+CCID plugged in" signin
+if waitfor "'YubiKey OTP+FIDO+CCID plugged in' in d['notificationSummaries']" 6; then
+    ipc notificationAct "YubiKey OTP+FIDO+CCID plugged in" signin
+else   # which half failed: the greeting, or the action
+    echo "  security key not greeted: last=$(q "['plugLast']") greeted=$(q "['plugGreeted']") dnd=$(q ".get('dnd')") summaries=$(q "['notificationSummaries']" | cut -c1-200)"
+fi
 waitfor "d['settingsOpen'] and d['settingsCat'] == 'account'" 4 && result plug-security-key-opens-account PASS || result plug-security-key-opens-account FAIL "$(q "['settingsCat']")"
 ipc closeAll
 # a scanner: greeted with "Scan a document"
@@ -2409,8 +2464,8 @@ for part in /work/dev/shell-parts/*.sh; do
 done
 
 # ---- the shell in Marathi (shani/i18n/mr.json), read as a screen reader would -----------
-pkill -x qs; sleep 1
-SHANI_SHELL_LANG=mr QS_ICON_THEME=Adwaita QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1 qs -p /work/shani >>/work/out/logs/qs.log 2>&1 &
+stopshell "$(pgrep -o -x qs)"
+SHANI_SHELL_LANG=mr QS_ICON_THEME=$QS_ICON_THEME QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1 qs -p /work/shani >>/work/out/logs/qs.log 2>&1 &
 waitfor "d['language'] == 'mr' and d['sampleWord'] == 'सूचना'" 15 && result i18n-marathi-catalog PASS || result i18n-marathi-catalog FAIL "$(q "['language']") / $(q "['sampleWord']")"
 if [ -f /testbed/lib/a11y_client.py ]; then
     sleep 2

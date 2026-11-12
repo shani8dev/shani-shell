@@ -73,7 +73,7 @@ ColumnLayout {
                 text: tool.note
                 color: Theme.danger
                 wrapMode: Text.Wrap
-                font.family: Theme.monoFont || Theme.font
+                font.family: Theme.mono || Theme.font
                 font.pixelSize: 10 * Theme.fontScale
             }
 

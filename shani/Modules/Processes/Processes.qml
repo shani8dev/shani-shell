@@ -1,40 +1,70 @@
-// The Mission Center: the heaviest processes, what is using the machine,
+// The System Monitor: the heaviest processes, what is using the machine,
 // and a way to end it (SIGTERM, so the program can save and close). System
 // numbers come from SysStats / Gpu / TopProcesses, all throttled background
 // Processes (2s) — the UI thread never blocks on /proc or nvidia-smi.
+//
+// Process list is shown as a tree: parent processes
+// with their children indented beneath, so you can see what spawned what
+// and end a whole family at once.
 import Quickshell
-import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
 
-PanelWindow {
+AppWindow {
     id: win
+    appName: "System Monitor"
     visible: Ui.processes
-    screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
-    anchors { top: true; bottom: true; left: true; right: true }
-    color: "transparent"
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "shani-processes"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
-    BackgroundEffect.blurRegion: visible && Settings.blurWanted ? procRegion : null
-    Region { id: procRegion; item: card; radius: Theme.radius }
+    onGone: Ui.processes = false
+    margins: 0
+    implicitWidth: 520
+    implicitHeight: 720
     onVisibleChanged: TopProcesses.watching = visible
     // made when opened and gone when closed (shell.qml's LazyLoader)
-    Component.onCompleted: TopProcesses.watching = visible
+    Component.onCompleted: { TopProcesses.watching = visible; treeList = buildTree(); }
     Component.onDestruction: TopProcesses.watching = false
 
-    MouseArea { anchors.fill: parent; onClicked: Ui.processes = false }
-    Glass {
+    // ---- build a flat tree list with indent levels -------------------------
+    // root processes (ppid <= 1 or ppid not among listed pids) are top-level;
+    // children are indented under their parent
+    property var treeList: []
+    function buildTree() {
+        const procs = TopProcesses.list;
+        const byPid = {};
+        for (const p of procs) byPid[p.pid] = p;
+        const kids = {};
+        for (const p of procs) {
+            const pp = p.ppid;
+            if (!kids[pp]) kids[pp] = [];
+            kids[pp].push(p);
+        }
+        const out = [];
+        function walk(parentIndent, ppid) {
+            const children = kids[ppid] || [];
+            children.sort((a, b) => b.cpu - a.cpu || b.mem - a.mem);
+            for (const p of children) {
+                out.push({ p: p, indent: parentIndent });
+                walk(parentIndent + 1, p.pid);
+            }
+        }
+        // roots: ppid <= 1 (init/systemd) or ppid not in our list
+        const roots = procs.filter(p => p.ppid <= 1 || !byPid[p.ppid]);
+        roots.sort((a, b) => b.cpu - a.cpu || b.mem - a.mem);
+        for (const p of roots) {
+            out.push({ p: p, indent: 0 });
+            walk(1, p.pid);
+        }
+        return out;
+    }
+    Connections {
+        target: TopProcesses
+        function onListChanged() { treeList = buildTree(); }
+    }
+
+    Item {
         id: card
-        strong: true
-        x: parent.width - width - 12
-        y: Theme.barHeight + 14
-        width: 420
-        implicitHeight: Math.min(parent.height - (Theme.barHeight + 30), col.implicitHeight + 20)
-        MouseArea { anchors.fill: parent }
+        anchors.fill: parent
         ColumnLayout {
             id: col
             anchors.fill: parent
@@ -43,7 +73,7 @@ PanelWindow {
             SectionTitle {
                 Layout.fillWidth: true
                 Layout.margins: 4
-                text: "Mission Center · cpu " + Math.round(SysStats.cpu * 100) + "% · mem " + Math.round(SysStats.mem * 100) + "%"
+                text: "CPU " + Math.round(SysStats.cpu * 100) + " %  ·  " + Tr.t("memory") + " " + Math.round(SysStats.mem * 100) + "%"
             }
             // --- system ---------------------------------------------------
             Rectangle {
@@ -123,21 +153,57 @@ PanelWindow {
             SectionTitle {
                 Layout.fillWidth: true
                 Layout.margins: 4
-                text: Tr.t("Using the most")
+                text: Tr.t("Process tree")
             }
-            Repeater {
-                model: TopProcesses.list
-                ListRow {
+            // the processes, a row each, in a list that scrolls: as a Repeater of
+            // heightless Items every row was drawn on top of the one before
+            ListView {
+                id: procList
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.minimumHeight: 160
+                clip: true
+                spacing: 2
+                boundsBehavior: Flickable.StopAtBounds
+                model: win.treeList
+                delegate: RowLayout {
+                    id: procRow
                     required property var modelData
-                    Layout.fillWidth: true
-                    icon: "utilities-system-monitor"
-                    title: modelData.name + "  ·  " + modelData.threads + " threads"
-                    subtitle: "pid " + modelData.pid
-                    trailing: modelData.cpu.toFixed(0) + "% cpu · " + modelData.mem.toFixed(1) + "% mem"
+                    readonly property int indent: modelData.indent
+                    readonly property var p: modelData.p
+                    width: procList.width
+                    height: 28
+                    spacing: 6
+                    Item { implicitWidth: procRow.indent * 14; implicitHeight: 1 }
+                    Text {
+                        text: procRow.p.name
+                        font.family: Theme.font
+                        font.pixelSize: 11 * Theme.fontScale
+                        color: procRow.indent === 0 ? Theme.text : Theme.dim
+                        elide: Text.ElideRight
+                        Layout.fillWidth: true
+                    }
+                    Text {
+                        text: procRow.p.pid
+                        font.family: Theme.font
+                        font.pixelSize: 10 * Theme.fontScale
+                        font.features: { "tnum": 1 }
+                        color: Theme.faint
+                    }
+                    Text {
+                        text: procRow.p.cpu.toFixed(0) + " %  ·  " + procRow.p.mem.toFixed(1) + " %"
+                        font.family: Theme.font
+                        font.pixelSize: 10 * Theme.fontScale
+                        font.features: { "tnum": 1 }
+                        color: procRow.p.cpu >= 50 ? Theme.danger : Theme.dim
+                        horizontalAlignment: Text.AlignRight
+                        Layout.preferredWidth: 96
+                    }
                     Button {
                         text: Tr.t("End")
-                        kind: "danger"
-                        onClicked: TopProcesses.end(parent.parent.modelData.pid)
+                        flat: true
+                        Accessible.name: Tr.t("End") + " " + procRow.p.name
+                        onClicked: TopProcesses.end(procRow.p.pid)
                     }
                 }
             }

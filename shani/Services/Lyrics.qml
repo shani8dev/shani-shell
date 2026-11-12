@@ -1,5 +1,5 @@
 pragma Singleton
-// Synced lyrics for the track playing (dux's), from LRCLIB (lrclib.net: free, no
+// Synced lyrics for the track playing, from LRCLIB (lrclib.net: free, no
 // account). A network call to a third party, so off until switched on (Settings >
 // Sound), and made only while the media card is on screen - once per track.
 import Quickshell

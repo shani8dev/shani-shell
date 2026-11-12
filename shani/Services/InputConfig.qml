@@ -71,7 +71,7 @@ Singleton {
         d.winFocusRing > 0 ? "        active-color \"" + String(Theme.accent).slice(0, 7) + "\"" : "",
         "    }",
         "}",
-        d.winAnimations && !d.reduceMotion ? "" : "animations {\n    off\n}",
+        // animations, shadows, corners and blur: WindowLook's shani-look.kdl
         // niri encodes PNG or JPEG by the file extension; other formats (WebP, JPEG-XL) fall back to PNG.
         "screenshot-path \"" + (d.screenshotDir || "~/Pictures/Screenshots").replace(/"/g, "") + "/Screenshot from %Y-%m-%d %H-%M-%S." + (d.screenshotFormat === "jpeg" ? "jpg" : "png") + "\"",
         // your own shortcuts: a command each

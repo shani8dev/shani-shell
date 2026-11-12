@@ -60,8 +60,8 @@ ColumnLayout {
         IconButton {
             icon: "accessories-text-editor"
             size: 28
-            tip: Tr.t("Open this note in the editor")
-            onClicked: { Ui.closeAll(); Chronoa.openEditor(QuickNotes.path); }
+            tip: Tr.t("Open in Notes")
+            onClicked: Ui.openNotes()
         }
     }
 

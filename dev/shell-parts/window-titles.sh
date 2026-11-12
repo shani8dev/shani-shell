@@ -26,8 +26,11 @@ pkill -f "shani-filler" 2>/dev/null; pkill -f "Filler" 2>/dev/null
 # and a title shown still follows: the focused window's title on the bar, and the
 # launcher finds a background window by its new title
 foot -a shani-ticker -T "count start" sh -c 'sleep 1; printf "\033]2;count one\007"; sleep 1.5; printf "\033]2;count two\007"; sleep 600' >/dev/null 2>&1 &
+# focus it by id: the fillers closing just before can leave focus elsewhere for a moment
+i=0; until id_=$(niri msg -j windows | python3 -c "import json,sys; print(next(w['id'] for w in json.load(sys.stdin) if w['app_id']=='shani-ticker'))" 2>/dev/null) || [ $i -ge 20 ]; do sleep 0.1; i=$((i+1)); done
+[ -n "$id_" ] && niri msg action focus-window --id "$id_" 2>/dev/null
 waitfor "d['focusedTitle'] == 'count one'" 6 && waitfor "d['focusedTitle'] == 'count two'" 6 \
-    && result window-title-follows PASS || result window-title-follows FAIL "$(q "['focusedTitle']")"
+    && result window-title-follows PASS || result window-title-follows FAIL "shell: $(q "['focusedTitle']"); niri: $(niri msg -j focused-window 2>&1 | python3 -c "import json,sys; w=json.load(sys.stdin); print(w and (w['app_id'], w['title']))" 2>&1 | cut -c1-80); ticker id '$id_'; ws: $(niri msg -j workspaces | python3 -c "import json,sys; print([(w['id'], w['is_focused'], w['active_window_id']) for w in json.load(sys.stdin)])" 2>&1 | cut -c1-120); keyboard layers: $(niri msg -j layers | python3 -c "import json,sys; print([(l['namespace'], l['keyboard_interactivity']) for l in json.load(sys.stdin) if l['keyboard_interactivity'] != 'None'])" 2>&1 | cut -c1-200); windows: $(niri msg -j windows | python3 -c "import json,sys; print([(w['app_id'], w['title'][:20], w['is_focused']) for w in json.load(sys.stdin)])" 2>&1 | cut -c1-200)"
 ipc windowFocus "Filler 2"; sleep 0.5
 [ "$(qs -p /work/shani ipc call shani windowFocus "count two" 2>/dev/null)" = "focused count two" ] \
     && result window-title-found-by-new-title PASS || result window-title-found-by-new-title FAIL

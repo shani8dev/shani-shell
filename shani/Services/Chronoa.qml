@@ -30,7 +30,9 @@ Singleton {
         : state === "offline" ? Theme.faint : Theme.amber
     readonly property string label: ["offline", "thinking", "listening", "speaking", "waiting"].indexOf(state) >= 0 ? state : "ready"
 
+    property string lastAsked: ""      // what was asked last (the tests read it)
     function ask(text) {
+        lastAsked = text;
         userAsked(text);
         deliver(text);
     }

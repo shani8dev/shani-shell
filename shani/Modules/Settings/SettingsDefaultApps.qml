@@ -26,7 +26,7 @@ ColumnLayout {
         { id: "images", label: Tr.t("Pictures"), icon: "image-x-generic", types: ["image/png", "image/jpeg", "image/webp", "image/gif"] },
         { id: "video", label: Tr.t("Video"), icon: "video-x-generic", types: ["video/mp4", "video/x-matroska", "video/webm"] },
         { id: "music", label: Tr.t("Music"), icon: "audio-x-generic", types: ["audio/mpeg", "audio/flac", "audio/ogg"] },
-        { id: "pdf", label: Tr.t("PDF"), icon: "application-pdf", types: ["application/pdf"] }
+        { id: "pdf", label: Tr.t("PDF"), icon: "x-office-document", types: ["application/pdf"] }
     ]
     property var found: ({})              // id → { current, candidates: [] }
     property string open: ""              // the kind whose list is shown

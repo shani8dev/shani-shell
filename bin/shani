@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """shani — the command center for the desktop, agent-first.
 
-Omarchy's bet is that the OS should be drivable by an agent: every menu
-function behind one CLI, with --json for machines and --help for people.
-This is the same bet, on the IPC the shell already exposes
+The desktop should be drivable by an agent: every menu function behind one
+CLI, with --json for machines and --help for people, on the IPC the shell
+already exposes
 (`qs -c shani ipc call shani <fn>`):
 
     shani ask "summarise my calendar today"
@@ -52,6 +52,7 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("close", [], "close Chronoa"),
         ("toggle", [], "open or close Chronoa"),
         ("ask", ["TEXT"], "ask Chronoa something (opens the panel)"),
+        ("explain", ["TEXT"], "ask Chronoa what a command's output means; TEXT - reads it from stdin (foot: Ctrl+Shift+A)"),
         ("action", ["NAME"], "run a Chronoa action by name"),
         ("editor", ["PATH"], "ask Chronoa to open a file in the editor"),
         ("diff", [], "ask Chronoa to show the diff surface"),
@@ -149,6 +150,12 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("switcher", [], "open the app switcher"),
         ("switcher-back", [], "go back in the app switcher"),
     ],
+    "settings": [
+        ("open", [], "open the settings window"),
+        ("undo", ["KEY"], "undo one changed setting back to its loaded value"),
+        ("undo-all", [], "undo every changed setting back to its loaded value"),
+        ("changed", [], "list changed setting keys as JSON"),
+    ],
     "calculator": [
         ("open", [], "open the calculator (standard/scientific/financial/programming/converter)"),
         ("close", [], "close the calculator"),
@@ -174,7 +181,7 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("close", [], "close the scanner"),
         ("toggle", [], "toggle the scanner"),
     ],
-    "secrets": [
+    "password-generator": [
         ("open", [], "open passwords and keys"),
         ("close", [], "close passwords and keys"),
         ("toggle", [], "toggle passwords and keys"),
@@ -184,22 +191,43 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("close", [], "close the kundali/panchang surface"),
         ("toggle", [], "toggle the kundali/panchang surface"),
     ],
-    "localSend": [
-        ("open", [], "open the localSend surface"),
-        ("close", [], "close the localSend surface"),
-        ("toggle", [], "toggle the localSend surface"),
+    "clocks": [
+        ("open", ["TAB"], "open Clocks at a tab: world | alarms | stopwatch | timer"),
+        ("close", [], "close Clocks"),
     ],
-    "videoplayer": [
-        ("open", ["PATH"], "open a video file"),
-        ("close", [], "close the video player"),
-        ("toggle", [], "toggle the video player"),
+    "archive": [
+        ("open", ["PATH"], "look inside an archive (zip, tar, 7z, ISO)"),
+        ("close", [], "close Archives"),
+        ("extract", ["FOLDER"], "extract the open archive into a new folder inside FOLDER ('' = beside the archive)"),
+    ],
+    "tasks": [
+        ("open", [], "open Tasks"),
+        ("add", ["SUMMARY", "DUE"], "add a task (DUE: seconds since the epoch, 0 for none)"),
+    ],
+    "mediaplayer": [
+        ("open", ["PATH"], "play a video or a song in the Media Player (a folder plays its files)"),
+        ("close", [], "close the Media Player"),
+        ("play-pause", [], "play or pause"),
+        ("play", [], "play"),
+        ("pause", [], "pause"),
+        ("seek", ["SECONDS"], "go to a position"),
+        ("next", [], "the next file in the queue"),
+        ("previous", [], "back to the start, or the file before"),
+        ("volume", ["LEVEL"], "the player's own volume, 0 to 1"),
+        ("rate", ["RATE"], "playback speed, 0.25 to 4"),
     ],
     "texteditor": [
-        ("open", ["PATH"], "open a file in the text editor"),
-        ("close", [], "close the text editor"),
-        ("toggle", [], "toggle the text editor"),
+        ("open", ["PATH"], "open a text file (or '+LINE PATH') in the Text Editor"),
+        ("new", [], "a new, empty document"),
+        ("close", [], "close the Text Editor (the documents are kept)"),
+        ("toggle", [], "open or close the Text Editor"),
+        ("set-text", ["TEXT"], "replace the text of the document in front"),
+        ("save", [], "save the document in front"),
+        ("save-as", ["PATH"], "save the document in front under a name"),
+        ("close-tab", [], "close the document in front"),
     ],
     "calendar": [
+        ("show", ["NAME", "ON"], "show or hide a calendar by name (ON: true | false)"),
         ("open", [], "open the shell calendar surface"),
         ("toggle", [], "open or close the calendar surface"),
         ("refresh", [], "re-read the calendars"),
@@ -218,9 +246,9 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("close", [], "close the Logs surface"),
     ],
     "processes": [
-        ("open", [], "open the Mission Center"),
-        ("toggle", [], "open or close the Mission Center"),
-        ("close", [], "close the Mission Center"),
+        ("open", [], "open the System Monitor"),
+        ("toggle", [], "open or close the System Monitor"),
+        ("close", [], "close the System Monitor"),
     ],
     "viewer": [
         ("open", ["PATH"], "open an image in the viewer"),
@@ -279,7 +307,7 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("play", ["PATH"], "play a recording in the current player"),
         ("trim", ["PATH", "START", "END"], "save a trimmed copy (*.trimmed.opus) of a take"),
     ],
-    "trim": [
+    "video-trimmer": [
         ("open", ["PATH"], "open the video trimmer on a video or its folder"),
         ("close", [], "close the video trimmer"),
         ("toggle", [], "open or close the video trimmer"),
@@ -298,7 +326,7 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("open", [], "open the Characters panel"),
         ("toggle", [], "toggle the Characters panel"),
     ],
-    "signed": [
+    "pdf-signer": [
         ("open", ["PATH"], "open a PDF (or a folder, for its last PDF) in Signed"),
         ("close", [], "close the Signed panel"),
         ("toggle", ["PATH"], "open or close Signed"),
@@ -309,10 +337,10 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("text", ["TEXT"], "set the fill text to render onto the page"),
         ("text-position", ["X", "Y"], "place the fill text at X/Y"),
     ],
-    "disktree": [
-        ("open", [], "open the Disktree treemap (default home)"),
-        ("close", [], "close the Disktree panel"),
-        ("toggle", [], "open or close Disktree"),
+    "disk-usage": [
+        ("open", [], "open the DiskUsage treemap (default home)"),
+        ("close", [], "close the DiskUsage panel"),
+        ("toggle", [], "open or close DiskUsage"),
         ("scan", ["PATH"], "scan a directory root"),
         ("enter", ["PATH"], "walk into a directory"),
         ("back", [], "go back up a directory"),
@@ -320,20 +348,48 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("clear", [], "clear all marks"),
         ("trash", [], "move the marked paths to the trash (gio trash)"),
     ],
-    "aether": [
-        ("theme-from-image", ["PATH"], "open Aether with a picture and extract its colours"),
-        ("open", [], "open Aether (last wallpaper)"),
+    "wallpaper-style": [
+        ("theme-from-image", ["PATH"], "open WallpaperStyle with a picture and extract its colours"),
+        ("open", [], "open WallpaperStyle (last wallpaper)"),
         ("extract", [], "extract the palette preview from the current picture"),
         ("apply", [], "apply as wallpaper + colours"),
         ("save", ["NAME"], "save the palette as a named theme"),
-        ("close", [], "close Aether"),
+        ("close", [], "close WallpaperStyle"),
+    ],
+    "files": [
+        ("open", ["PATH"], "open the file manager at a folder"),
+        ("home", [], "open the file manager at the home folder"),
+        ("close", [], "close the file manager"),
+        ("toggle", ["PATH"], "open or close the file manager"),
+        ("go", ["PATH"], "show a folder"),
+        ("back", [], "back to the folder before"),
+        ("up", [], "go to the folder above"),
+        ("select", ["PATH"], "choose a file"),
+        ("trash", [], "move what is chosen to the trash"),
+        ("mkdir", ["NAME"], "make a folder here"),
+        ("rename", ["PATH", "NAME"], "rename a file"),
+        ("split", [], "open or close the split view (two panes)"),
+        ("split-path", ["PATH"], "show a folder in the split pane"),
+        ("split-copy", [], "copy chosen files to the split pane's folder"),
+        ("split-move", [], "move chosen files to the split pane's folder"),
+    ],
+    "picker": [
+        ("open", ["MODE", "PATH"], "open the file chooser (open | save | folder)"),
+        ("home", [], "open the file chooser at the home folder"),
+        ("close", [], "close the file chooser"),
+        ("go", ["PATH"], "show a folder"),
+        ("select", ["PATH"], "choose a file"),
+        ("accept", [], "take what is chosen"),
     ],
 }
 
 
 def _ipc(*args: str) -> str:
     """Call the shell's IPC. Returns stdout; raises on failure."""
-    cmd = ["qs", "-c", "shani", "ipc", "call", "shani", *args]
+    # SHANI_QS_CONFIG: a checkout's shani/ (the tests' shell is `qs -p <dir>`)
+    import os
+    where = ["-p", os.environ["SHANI_QS_CONFIG"]] if os.environ.get("SHANI_QS_CONFIG") else ["-c", "shani"]
+    cmd = ["qs", *where, "ipc", "call", "shani", *args]
     try:
         done = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
     except (OSError, subprocess.TimeoutExpired) as exc:
@@ -346,6 +402,172 @@ def _ipc(*args: str) -> str:
 
 def _state_json() -> dict:
     return json.loads(_ipc("state"))
+
+
+#: The shell's own apps: its surfaces, as things a person starts. One table
+#: feeds three things, so they cannot drift apart: `shani app NAME [FILE]`,
+#: the desktop entries (`shani app --write-desktop DIR`, run by the package:
+#: the launcher's app list, the dock's pins, "Open with" and the default
+#: apps all read those), and dev/shell-parts/apps.sh, which opens each one in
+#: the live shell.
+#:   name: (desktop id, Name, Comment, Icon, Categories, [mime types],
+#:          IPC without a file, IPC with a file or None, state key that is truthy once open)
+#: An entry with no way to open without a file is NoDisplay: it is offered
+#: for its files, and is not in the app grid.
+APPS: dict[str, tuple] = {
+    "text-editor": ("dev.shani.TextEditor", "Text Editor", "Edit text files", "accessories-text-editor", "Utility;TextEditor;",
+                    ["text/plain", "text/markdown", "text/x-log", "text/x-readme", "text/css", "text/csv", "text/x-python",
+                     "text/x-csrc", "text/x-chdr", "text/x-c++src", "text/x-java", "text/x-makefile", "text/x-shellscript",
+                     "text/x-script.python", "text/x-qml", "text/x-patch", "text/x-kdl", "application/x-shellscript",
+                     "application/json", "application/toml", "application/x-yaml", "application/xml", "application/javascript",
+                     "application/x-desktop", "text/vnd.trolltech.linguist", "text/xml", "text/x-c++", "text/x-ruby",
+                     "text/x-perl", "text/x-diff", "application/x-latex", "application/x-tex", "application/x-bibtex",
+                     "application/x-texinfo"],
+                    ["textEditorOpen", ""], "textEditorOpen", "textEditor"),
+    "files": ("dev.shani.Files", "Files", "Browse folders and files", "system-file-manager", "System;FileManager;",
+              ["inode/directory"], ["filesHome"], "filesOpen", "filesShown"),
+    "image-viewer": ("dev.shani.ImageViewer", "Image Viewer", "Look at pictures", "image-viewer", "Graphics;Viewer;",
+                     ["image/png", "image/jpeg", "image/webp", "image/gif", "image/bmp", "image/svg+xml", "image/avif", "image/tiff"],
+                     None, "openViewer", "viewerShown"),
+    "document-viewer": ("dev.shani.DocumentViewer", "Document Viewer", "Read PDF documents", "evince", "Office;Viewer;",
+                        ["application/pdf"], None, "openPdf", "pdfShown"),
+    "media-player": ("dev.shani.MediaPlayer", "Media Player", "Play videos and music", "multimedia-video-player", "AudioVideo;Player;Video;Audio;",
+                     ["video/mp4", "video/x-matroska", "video/webm", "video/quicktime", "video/x-msvideo", "video/mpeg", "video/ogg",
+                      "video/x-m4v", "video/3gpp", "video/mp2t", "video/x-flv", "video/x-ms-wmv",
+                      "audio/mpeg", "audio/flac", "audio/ogg", "audio/x-vorbis+ogg", "audio/opus", "audio/x-opus+ogg", "audio/mp4",
+                      "audio/aac", "audio/x-wav", "audio/wav", "audio/x-ms-wma", "audio/x-aiff", "audio/x-matroska", "audio/webm"],
+                     ["mediaOpen", ""], "mediaOpen", "mediaShown"),
+    "clocks": ("dev.shani.Clocks", "Clocks", "World clocks, alarms, a stopwatch and a timer", "gnome-clocks", "Utility;Clock;",
+               [], ["clocksOpen", ""], None, "clocksShown"),
+    "archive-manager": ("dev.shani.Archives", "Archive Manager", "Look inside and extract zip, tar and 7z files", "ark", "Utility;Archiving;Compression;",
+                 ["application/zip", "application/x-tar", "application/x-compressed-tar", "application/x-xz-compressed-tar",
+                  "application/x-zstd-compressed-tar", "application/x-bzip-compressed-tar", "application/x-bzip2-compressed-tar",
+                  "application/gzip", "application/x-7z-compressed", "application/x-cd-image", "application/x-iso9660-image",
+                  "application/java-archive", "application/x-cpio"],
+                 ["archiveOpen", ""], "archiveOpen", "archiveShown"),
+    "weather": ("dev.shani.Weather", "Weather", "Now, the next hours and the week", "gnome-weather", "Utility;",
+                [], ["weatherOpen"], None, "weatherShown"),
+    # tools that are an action, not a window: their state key is None and the
+    # suite does not start them (a screenshot or a colour pick waits for the pointer)
+    "screenshot": ("dev.shani.Screenshot", "Screenshot", "Take a picture of the screen or part of it", "gnome-screenshot", "Utility;Graphics;",
+                   [], ["screenshotTool"], None, None),
+    "screen-recorder": ("dev.shani.ScreenRecorder", "Screen Recorder", "Record the screen; run again to stop", "simplescreenrecorder", "AudioVideo;Recorder;",
+                        [], ["record"], None, None),
+    "color-picker": ("dev.shani.ColorPicker", "Color Picker", "Pick a colour anywhere on the screen", "gcolor3", "Graphics;",
+                     [], ["colorPicker"], None, None),
+    "lens": ("dev.shani.Lens", "Lens", "Read text, QR codes or ask Chronoa about part of the screen", "system-search", "Utility;",
+             [], ["lens"], None, None),
+    "magnifier": ("dev.shani.Magnifier", "Magnifier", "Make part of the screen bigger", "kmag", "Utility;Accessibility;",
+                  [], ["magnifier"], None, None),
+    "live-captions": ("dev.shani.LiveCaptions", "Live Captions", "Captions for what is playing; run again to stop", "accessibility", "Utility;Accessibility;",
+                      [], ["captions"], None, None),
+    "tour": ("dev.shani.Tour", "Tour", "A short tour of the desktop, and every shortcut", "org.gnome.Tour", "Utility;Documentation;",
+             [], ["tour"], None, None),
+    "tasks": ("dev.shani.Tasks", "Tasks", "To-dos, ticked off when done", "gnome-todo", "Office;ProjectManagement;",
+              [], ["tasksOpen"], None, "tasksShown"),
+    "photos": ("dev.shani.Photos", "Photos", "Every picture in Pictures, by month", "shotwell", "Graphics;Photography;",
+               [], ["photosOpen"], None, "photosShown"),
+    "translate": ("dev.shani.Translate", "Translate", "Translate text, on this computer", "translator", "Utility;Office;",
+                  [], ["translateOpen"], None, "translateShown"),
+    "screen-ruler": ("dev.shani.ScreenRuler", "Screen Ruler", "Measure distances on the screen", "kruler", "Utility;Graphics;",
+                     [], ["ruler"], None, None),
+    "converter": ("dev.shani.Converter", "Converter", "Videos, songs and pictures into another format", "applications-multimedia", "AudioVideo;Graphics;Utility;",
+                  [], ["converterOpen", ""], "converterOpen", "converterShown"),
+    "nearby-share": ("dev.shani.Nearby", "Nearby Share", "Send files to phones and computers on the Wi-Fi (LocalSend)", "localsend", "Network;FileTransfer;",
+               [], ["nearbyOpen", ""], "nearbyOpen", "nearbyShown"),
+    "authenticator": ("dev.shani.Authenticator", "Authenticator", "Two-factor codes for websites and apps", "com.belmoussaoui.Authenticator", "Utility;Security;",
+                      [], ["authenticatorOpen"], None, "authenticatorShown"),
+    "calculator": ("dev.shani.Calculator", "Calculator", "Sums, units, money and number bases", "gnome-calculator", "Utility;Calculator;",
+                   [], ["calculatorOpen", ""], None, "calculatorShown"),
+    "calendar": ("dev.shani.Calendar", "Calendar", "Your days and events", "gnome-calendar", "Office;Calendar;",
+                 [], ["calendarOpen"], None, "calendarShown"),
+    "notes": ("dev.shani.Notes", "Notes", "Quick notes in notebooks", "gnote", "Utility;",
+              [], ["notesOpen"], None, "notes"),
+    "camera": ("dev.shani.Camera", "Camera", "Take photos and videos", "cheese", "AudioVideo;Recorder;",
+               [], ["cameraOpen"], None, "cameraShown"),
+    "voice-recorder": ("dev.shani.VoiceRecorder", "Voice Recorder", "Record and trim sound", "org.gnome.SoundRecorder", "AudioVideo;Recorder;",
+                       [], ["voiceRecorderOpen"], None, "voiceRecorder"),
+    "characters": ("dev.shani.Characters", "Characters", "Find symbols and emoji", "gnome-characters", "Utility;",
+                   [], ["charactersOpen"], None, "characters"),
+    "fonts": ("dev.shani.Fonts", "Fonts", "See the fonts on this computer", "org.gnome.font-viewer", "Utility;",
+              [], ["fontsOpen"], None, "fonts"),
+    "maps": ("dev.shani.Maps", "Maps", "A map of where you are", "gnome-maps", "Utility;Maps;",
+             [], ["maps"], None, "mapsShown"),
+    "disk-usage": ("dev.shani.DiskUsage", "Disk Usage", "What is filling the disk", "baobab", "System;Filesystem;",
+                   [], ["diskUsageOpen", ""], "diskUsageOpen", "disktree"),
+    "document-scanner": ("dev.shani.Scanner", "Document Scanner", "Scan a page", "org.gnome.SimpleScan", "Graphics;Scanning;",
+                [], ["scannerOpen"], None, "scanner"),
+    "system-monitor": ("dev.shani.SystemMonitor", "System Monitor", "What is running, and what it uses", "gnome-system-monitor", "System;Monitor;",
+                       [], ["processesOpen"], None, "processes"),
+    "logs": ("dev.shani.Logs", "Logs", "What the system wrote down", "gnome-logs", "System;",
+             [], ["logsOpen"], None, "logs"),
+    "password-generator": ("dev.shani.Passwords", "Password Generator", "Keys and a password generator", "seahorse", "Utility;Security;",
+                  [], ["passwordGeneratorOpen"], None, "passwordGenerator"),
+    "pdf-signer": ("dev.shani.SignPdf", "PDF Signer", "Put your signature or text on a PDF", "xournalpp", "Office;",
+                 [], ["pdfSignerOpen", ""], "pdfSignerOpen", "pdfSigner"),
+    "video-trimmer": ("dev.shani.VideoTrimmer", "Video Trimmer", "Cut a clip out of a video", "kdenlive", "AudioVideo;",
+                      [], ["videoTrimmerOpen", ""], "videoTrimmerOpen", "videoTrimmer"),
+    "kundali": ("dev.shani.Kundali", "Kundali", "A birth chart", "kstars", "Education;",
+                [], ["kundaliOpen"], None, "kundali"),
+    "settings": ("dev.shani.Settings", "Settings", "Change how the desktop looks and works", "preferences-system", "Settings;",
+                 [], ["settings"], None, "settingsOpen"),
+}
+
+
+def _file_arg(arg: str) -> str:
+    """A desktop entry's %u: a path, or a file:// URI, as an absolute path."""
+    import os
+    from urllib.parse import unquote, urlparse
+    if arg.startswith("file://"):
+        arg = unquote(urlparse(arg).path)
+    return os.path.abspath(os.path.expanduser(arg))
+
+
+def desktop_entry(name: str) -> str:
+    desktop_id, title, comment, icon, categories, mimes, plain, with_file, _state = APPS[name]
+    lines = ["[Desktop Entry]", "Type=Application", f"Name={title}", f"Comment={comment}", f"Icon={icon}",
+             f"Exec=shani app {name}" + (" %u" if with_file else ""), "Terminal=false", f"Categories={categories}",
+             # the shell draws it: there is no window for a startup notification to wait on
+             "StartupNotify=false"]
+    if mimes:
+        lines.append("MimeType=" + ";".join(mimes) + ";")
+    if plain is None:
+        lines.append("NoDisplay=true")
+    return "\n".join(lines) + "\n"
+
+
+def _cmd_app(args) -> int:
+    import os
+    if args.write_desktop:
+        os.makedirs(args.write_desktop, exist_ok=True)
+        for name, spec in APPS.items():
+            with open(os.path.join(args.write_desktop, spec[0] + ".desktop"), "w", encoding="utf-8") as out:
+                out.write(desktop_entry(name))
+        return 0
+    if not args.name:
+        for name, spec in APPS.items():
+            print(f"{name:16} {spec[1]} - {spec[2]}")
+        return 0
+    spec = APPS.get(args.name)
+    if spec is None:
+        print(f"no such app: {args.name} (`shani app` lists them)", file=sys.stderr)
+        return 2
+    plain, with_file = spec[6], spec[7]
+    if args.file and with_file:
+        done = _run_call(with_file, [_file_arg(args.file)])
+    elif plain is None:
+        print(f"{spec[1]} opens a file: shani app {args.name} FILE", file=sys.stderr)
+        return 2
+    else:
+        done = _run_call(plain[0], plain[1:])
+    # already open somewhere: its window comes forward (a new one takes the focus by itself)
+    if done == 0:
+        try:
+            _ipc("appRaise", spec[0])
+        except RuntimeError:
+            pass
+    return done
+
 
 
 def _cmd_state(_args) -> int:
@@ -382,6 +604,12 @@ def build_parser() -> argparse.ArgumentParser:
     # the doctor, forwarded
     p = sub.add_parser("doctor", help="check the tools the shell needs")
     p.set_defaults(func=_cmd_doctor)
+    # the shell's own apps, the way a desktop entry starts them
+    p = sub.add_parser("app", help="open one of the shell's apps, with a file if it takes one (no name: list them)")
+    p.add_argument("name", nargs="?")
+    p.add_argument("file", nargs="?")
+    p.add_argument("--write-desktop", metavar="DIR", help="write the apps' desktop entries into DIR (the package does)")
+    p.set_defaults(func=_cmd_app)
     # a raw call, for anything not in the groups
     p = sub.add_parser("call", help="call any shell IPC function directly")
     p.add_argument("fn")
@@ -408,7 +636,8 @@ def _run_group(args) -> int:
               file=sys.stderr)
         return 2
     call = []
-    extras = list(args.args)
+    # "-" for a TEXT: what is piped in (a terminal's pipe-command-output binding)
+    extras = [sys.stdin.read()[-12000:] if a == "-" else a for a in args.args]
     for part in args.ipc_args:
         if part.isupper():
             call.append(extras.pop(0))
@@ -480,6 +709,7 @@ def _register() -> None:
         ("chronoa", "close"): "closeChronoa",
         ("chronoa", "toggle"): "toggleChronoa",
         ("chronoa", "ask"): "ask",
+        ("chronoa", "explain"): "chronoaExplain",
         ("chronoa", "action"): "action",
         ("chronoa", "editor"): "openEditor",
         ("chronoa", "diff"): "openDiff",
@@ -564,6 +794,10 @@ def _register() -> None:
         ("system", "layout-switcher"): "layoutSwitcher",
         ("system", "switcher"): "switcher",
         ("system", "switcher-back"): "switcherBack",
+        ("settings", "open"): "settings",
+        ("settings", "undo"): "settingsUndo",
+        ("settings", "undo-all"): "settingsUndoAll",
+        ("settings", "changed"): "settingsChangedKeys",
         ("calculator", "open"): "calculator",
         ("calculator", "close"): "closeAll",
         ("calculator", "press"): "calculatorPress",
@@ -575,6 +809,7 @@ def _register() -> None:
         ("calculator", "memory"): "calculatorMemory",
         ("calculator", "convert"): "calculatorConvert",
         ("calendar", "open"): "calendarOpen",
+        ("calendar", "show"): "calendarShow",
         ("calendar", "toggle"): "calendar",
         ("calendar", "refresh"): "calendarRefresh",
         ("calendar", "search"): "calendarSearch",
@@ -582,24 +817,40 @@ def _register() -> None:
         ("notes", "close"): "notesClose",
         ("notes", "toggle"): "notesToggle",
         ("notes", "refresh"): "notesRefresh",
+        ("mediaplayer", "open"): "mediaOpen",
+        ("mediaplayer", "close"): "mediaClose",
+        ("mediaplayer", "play-pause"): "mediaPlayPause",
+        ("mediaplayer", "play"): "mediaPlay",
+        ("mediaplayer", "pause"): "mediaPause",
+        ("mediaplayer", "seek"): "mediaSeek",
+        ("mediaplayer", "next"): "mediaNext",
+        ("mediaplayer", "previous"): "mediaPrevious",
+        ("mediaplayer", "volume"): "mediaVolume",
+        ("mediaplayer", "rate"): "mediaRate",
+        ("clocks", "open"): "clocksOpen",
+        ("clocks", "close"): "clocksClose",
+        ("archive", "open"): "archiveOpen",
+        ("archive", "close"): "archiveClose",
+        ("archive", "extract"): "archiveExtract",
+        ("tasks", "open"): "tasksOpen",
+        ("tasks", "add"): "tasksAdd",
         ("texteditor", "open"): "textEditorOpen",
+        ("texteditor", "new"): "textEditorNew",
+        ("texteditor", "set-text"): "textEditorSetText",
+        ("texteditor", "save"): "textEditorSave",
+        ("texteditor", "save-as"): "textEditorSaveAs",
+        ("texteditor", "close-tab"): "textEditorCloseTab",
         ("texteditor", "close"): "textEditorClose",
         ("texteditor", "toggle"): "textEditorToggle",
-        ("videoplayer", "open"): "videoPlayerOpen",
-        ("videoplayer", "close"): "videoPlayerClose",
-        ("videoplayer", "toggle"): "videoPlayerToggle",
         ("scanner", "open"): "scannerOpen",
         ("scanner", "close"): "scannerClose",
         ("scanner", "toggle"): "scannerToggle",
-        ("secrets", "open"): "secretsOpen",
-        ("secrets", "close"): "secretsClose",
-        ("secrets", "toggle"): "secretsToggle",
+        ("password-generator", "open"): "passwordGeneratorOpen",
+        ("password-generator", "close"): "passwordGeneratorClose",
+        ("password-generator", "toggle"): "passwordGeneratorToggle",
         ("kundali", "open"): "kundaliOpen",
         ("kundali", "close"): "kundaliClose",
         ("kundali", "toggle"): "kundaliToggle",
-        ("localSend", "open"): "localSendOpen",
-        ("localSend", "close"): "localSendClose",
-        ("localSend", "toggle"): "localSendToggle",
         ("calendar", "add"): "calendarAdd",
         ("calendar", "edit"): "calendarEdit",
         ("calendar", "delete"): "calendarDelete",
@@ -661,10 +912,10 @@ def _register() -> None:
         ("voice", "stop"): "voiceRecorderStop",
         ("voice", "play"): "voiceRecorderPlay",
         ("voice", "trim"): "voiceRecorderTrim",
-        ("trim", "open"): "trimOpen",
-        ("trim", "close"): "trimClose",
-        ("trim", "toggle"): "trimToggle",
-        ("trim", "cut"): "trimCut",
+        ("video-trimmer", "open"): "videoTrimmerOpen",
+        ("video-trimmer", "close"): "videoTrimmerClose",
+        ("video-trimmer", "toggle"): "videoTrimmerToggle",
+        ("video-trimmer", "cut"): "videoTrimmerCut",
         ("phone", "open"): "phoneOpen",
         ("phone", "dial"): "phoneOpen",
         ("phone", "recent"): "recentCalls",
@@ -672,30 +923,51 @@ def _register() -> None:
         ("messages", "compose"): "messagesOpen",
         ("characters", "open"): "toggleCharacters",
         ("characters", "toggle"): "toggleCharacters",
-        ("signed", "open"): "signedOpen",
-        ("signed", "close"): "signedClose",
-        ("signed", "toggle"): "signedToggle",
-        ("signed", "save"): "signedSave",
-        ("signed", "signature"): "signedSignature",
-        ("signed", "position"): "signedPosition",
-        ("signed", "scale"): "signedScale",
-        ("signed", "text"): "signedText",
-        ("signed", "text-position"): "signedTextPosition",
-        ("disktree", "open"): "disktreeOpen",
-        ("disktree", "close"): "disktreeClose",
-        ("disktree", "toggle"): "disktreeToggle",
-        ("disktree", "scan"): "disktreeScan",
-        ("disktree", "enter"): "disktreeEnter",
-        ("disktree", "back"): "disktreeBack",
-        ("disktree", "mark"): "disktreeMark",
-        ("disktree", "clear"): "disktreeClearMarks",
-        ("disktree", "trash"): "disktreeTrashMarked",
-        ("aether", "open"): "themeFromImage",
-        ("aether", "theme-from-image"): "themeFromImage",
-        ("aether", "close"): "aetherClose",
-        ("aether", "extract"): "aetherExtract",
-        ("aether", "apply"): "aetherApply",
-        ("aether", "save"): "aetherSaveTheme",
+        ("pdf-signer", "open"): "pdfSignerOpen",
+        ("pdf-signer", "close"): "pdfSignerClose",
+        ("pdf-signer", "toggle"): "pdfSignerToggle",
+        ("pdf-signer", "save"): "pdfSignerSave",
+        ("pdf-signer", "signature"): "pdfSignerSignature",
+        ("pdf-signer", "position"): "pdfSignerPosition",
+        ("pdf-signer", "scale"): "pdfSignerScale",
+        ("pdf-signer", "text"): "pdfSignerText",
+        ("pdf-signer", "text-position"): "pdfSignerTextPosition",
+        ("disk-usage", "open"): "diskUsageOpen",
+        ("disk-usage", "close"): "diskUsageClose",
+        ("disk-usage", "toggle"): "diskUsageToggle",
+        ("disk-usage", "scan"): "diskUsageScan",
+        ("disk-usage", "enter"): "diskUsageEnter",
+        ("disk-usage", "back"): "diskUsageBack",
+        ("disk-usage", "mark"): "diskUsageMark",
+        ("disk-usage", "clear"): "diskUsageClearMarks",
+        ("disk-usage", "trash"): "diskUsageTrashMarked",
+        ("wallpaper-style", "open"): "themeFromImage",
+        ("wallpaper-style", "theme-from-image"): "themeFromImage",
+        ("wallpaper-style", "close"): "wallpaperStyleClose",
+        ("wallpaper-style", "extract"): "wallpaperStyleExtract",
+        ("wallpaper-style", "apply"): "wallpaperStyleApply",
+        ("wallpaper-style", "save"): "wallpaperStyleSaveTheme",
+        ("files", "open"): "filesOpen",
+        ("files", "home"): "filesHome",
+        ("files", "close"): "filesClose",
+        ("files", "toggle"): "filesToggle",
+        ("files", "go"): "filesGo",
+        ("files", "back"): "filesBack",
+        ("files", "up"): "filesUp",
+        ("files", "select"): "filesSelect",
+        ("files", "trash"): "filesTrash",
+        ("files", "mkdir"): "filesMakeFolder",
+        ("files", "rename"): "filesRename",
+        ("files", "split"): "filesSplit",
+        ("files", "split-path"): "filesSplitPath",
+        ("files", "split-copy"): "filesSplitCopy",
+        ("files", "split-move"): "filesSplitMove",
+        ("picker", "open"): "filePickerOpen",
+        ("picker", "home"): "filePickerHome",
+        ("picker", "close"): "filePickerClose",
+        ("picker", "go"): "filePickerGo",
+        ("picker", "select"): "filePickerSelect",
+        ("picker", "accept"): "filePickerAccept",
     }
     IPC_NAMES.update(table)
 

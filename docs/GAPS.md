@@ -52,10 +52,54 @@ centre, and against what a session needs before any app runs.
   nested container only. Needs the niri image built (shani-shell has no remote
   yet, and its PKGBUILD fetches from GitHub) and a shani-testbed UEFI boot.
 
+## The shell's apps: what each still lacks (Nov 2026)
+
+`shani app` lists them (26). Each is a window of its own (`Common/AppWindow`),
+opens cleanly in the suite and is photographed there (`out/shots/app-*.png`).
+The shell's app is the default for its file types and the Flatpak is kept
+after it as the fallback; a Flatpak leaves the niri image when its app has
+been used on a real screen and nothing below is in the way.
+
+- **Media Player** (default for video and audio; Showtime, Decibels behind
+  it): no subtitles, no audio-track choice, no album art or tags, no
+  resume-where-you-left-off. Hardware decoding is whatever QtMultimedia's
+  FFmpeg backend picks - unmeasured on real hardware.
+- **Image Viewer** (default for png, jpeg, webp, gif, bmp, svg, avif, tiff;
+  Loupe behind it and still the default for HEIC and camera raw).
+- **Document Viewer** (default for PDF; Papers behind it): PDF only - no
+  DjVu, EPUB or comic archives; no form filling (PDF Signer places text).
+- **Text Editor**: colours for ~20 languages by one regular expression each
+  (not a parser); a file over 2 MB is refused, over 200 000 characters is
+  shown without colours.
+- **Archive Manager** (default for zip, tar.*, 7z, ISO; File Roller behind it):
+  reads and extracts; it does not create archives, extract a single entry, or
+  open one with a password.
+- **Calendar**: which calendars show, and which a new event goes to. Adding
+  an online account is still GNOME Online Accounts' (not in this image).
+- **Files**: offered for folders; Nautilus stays the default and is the
+  portal's file chooser.
+- **Maps**: a 4x4 grid of OpenStreetMap tiles around one point - no
+  dragging, no routes. GNOME Maps stays.
+- **Document Scanner, Password Generator, Kundali**: they work and take the shell's
+  colours, but are laid out with stock controls, not the shell's own widgets.
+- **Still Flatpaks with no app of ours**: an office suite, a browser, a
+  torrent client, internet radio, virtual machines, remote desktop, the games.
+- **Not there at all**: a video wallpaper, a battery health centre beyond
+  Settings > Power, a network speed test (tried and taken out, see FINDINGS).
+- **Nearby Share (LocalSend)**: exchanged with a second LocalSend implementation
+  (ours) only - never with the LocalSend app on a real phone; PIN-protected
+  devices are refused, not asked for the PIN. Discovery without the port open
+  asks each address of the local /24 directly.
+
 ## Built, but not provable in the dev container
 
 Each needs real hardware or shani-testbed:
 
+- The **Files** surface and the **file chooser** are overlay (layer-shell)
+  surfaces, and the nested niri shows no Overlay layer: they cannot be
+  photographed there, like the Disktree panel and the other overlay surfaces.
+  What they do is driven over IPC and read back in the shell's own state (the
+  listing, the watch, a new folder, a rename, the trash, the chooser's answer).
 - Wi-Fi: wrong-password retry, forget, hidden network; Wi-Fi in first-boot setup.
 - Bluetooth: pairing, receiving and sending files against a real
   BlueZ/obexd (both agents are tested against fakes; sending is untested).
@@ -129,6 +173,9 @@ Each needs real hardware or shani-testbed:
 
 ## Settings (Nov 2026)
 - Settings search now finds individual settings (not just categories), jumps to them, flashes the control; categories show a customised dot; every section can be reset to defaults (scalars; custom lists kept). See FINDINGS.md.
+- Recently changed rail at the top of Settings shows the last 8 touched settings for quick re-access.
+- Per-setting "reset to default" via refresh icon on SwitchRow when changed (defaultValue + onReset pattern).
+- Theme palette preview strip (vgshell-inspired): visual color strip showing active Material You palette colors, plus scheme/contrast/source info text.
 - New, all wired: °C/°F, calendar week starts Monday/Sunday, battery saver at 10/15/20/30 %, notifications held while locked, message content hidden on lock/off by hand, wf-recorder fps 30/60, opaque panels while on battery.
 
 ## Network / Bluetooth / modem (Nov 2026)

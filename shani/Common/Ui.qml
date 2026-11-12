@@ -25,9 +25,10 @@ Singleton {
     property bool fonts: false  // the Fonts surface (Modules/Fonts): preview, size, install
     property bool characters: false        // the Characters panel (Modules/Characters)
     property bool voiceRecorder: false     // the Voice Recorder panel (Modules/VoiceRecorder)
-    property bool signed: false            // the Signed panel (Modules/Signed): sign / fill a PDF
-    property bool disktree: false          // the Disktree panel (Modules/Disktree): disk treemap
-    property bool trim: false              // the Omacut trimmer (Modules/Trim)
+    property bool pdfSigner: false            // the Signed panel (Modules/PdfSigner): sign / fill a PDF
+    property bool diskUsage: false          // the DiskUsage panel (Modules/DiskUsage): disk treemap
+    property bool files: false             // the Files surface (Modules/Files): the file manager
+    property bool videoTrimmer: false              // the Video Trimmer (Modules/VideoTrimmer)
     property bool magnifier: false
     property bool viewer: false
     property bool pdfReader: false
@@ -40,16 +41,23 @@ Singleton {
     property real mapsLon: 0
     property string mapsPlace: ""           // maps search result label
     property string mapsQuery: ""           // maps search box
-    property bool aether: false              // the Aether theme extractor (Modules/Aether)
     property bool textEditor: false         // the TextEditor surface (Modules/TextEditor)
-    property bool localSend: false          // the LocalSend surface (Modules/LocalSend): nearby-device file transfer
     property bool scanner: false           // the Scanner surface (Modules/Scanner)
-    property bool secrets: false           // the Secrets surface (Modules/Secrets)
+    property bool passwordGenerator: false           // the Secrets surface (Modules/PasswordGenerator)
     property bool kundali: false          // the Kundali/Panchang surface (Modules/Kundali)
-    property bool videoPlayer: false      // the VideoPlayer surface (Modules/VideoPlayer)
+    property bool weather: false             // the Weather app (Modules/Weather)
+    property bool tasks: false               // the Tasks app (Modules/Tasks)
+    property bool photos: false              // the Photos app (Modules/Photos)
+    property bool translate: false           // the Translate app (Modules/Translate)
+    property bool converter: false           // the Converter app (Modules/Converter)
+    property var converterFiles: []          // files handed to it (the Media Player's Convert…)
+    property bool nearby: false              // the Nearby app (Modules/Nearby): LocalSend
+    property bool authenticator: false       // the Authenticator app (Modules/Authenticator)
+    property bool clocks: false              // the Clocks app (Modules/Clocks): world, alarms, stopwatch, timer
+    property string clocksTab: "world"
+    property string textEditorOpenPath: ""   // a file a widget in Common hands to the Text Editor (which takes it and clears this)
     property bool notes: false               // the Notes surface (Modules/Notes): notebooks + wiki links
     property bool contacts: false            // the Contacts surface (Modules/Contacts)
-    property string notesNotebook: ""        // notebook filter (SidebarNotes)
     property string calculatorTab: "standard" // the Calculator tab (Modules/Calculator): standard | scientific | financial | programming | converter
     property string notesNotebook: ""         // the notes notebook filter (SidebarNotes): "" = all notebooks, else a notebook name
     property bool annotate: false                  // drawing on the screen
@@ -57,6 +65,7 @@ Singleton {
     property var printersSeen: []                  // Settings > Printers, for the tests
     property string backupSummary: ""              // Settings > Backup, for the tests
     property string settingsCat: ""                // the settings category open
+    property string settingsSection: ""            // a part of it to scroll to, once (openSettings)
     property bool settingsOpen: false              // the Settings window (Modules/Settings)
     // flash the control for a just-searched setting: the longest significant
     // word of its label is matched against every control's accessible name;
@@ -79,10 +88,19 @@ Singleton {
         settingsFlashClear.restart();
     }
     property string dockMenu: ""                   // an app whose dock menu the tests opened
+    // the file chooser (Services/FilePicker): the shell sets it, so a widget
+    // in Common can ask for a file without reaching into the services
+    property var filePicker: null
+    // the window in front, minimised (Services/Niri's way: niri has no minimise);
+    // the shell sets it, so a window in Common can ask without reaching into the services
+    property var minimiser: null
+    function minimiseFocused() { if (minimiser) minimiser(); }
     property bool chargingPreview: false           // the charging animation, once (the tests, the showcase)
-    function openSettings(cat) {
+    // section: an objectName in the page to scroll to ("section:colours")
+    function openSettings(cat, section) {
         closeAll();
         settingsCat = cat || settingsCat || "personal";
+        settingsSection = section || "";
         settingsOpen = true;
     }
     property int faceRev: 0                        // bumped when ~/.face changes
@@ -142,34 +160,55 @@ Singleton {
         Quickshell.execDetached(["sh", "-c", 'id=$1; shift; IFS=:; for d in "${XDG_DATA_HOME:-$HOME/.local/share}" ${XDG_DATA_DIRS:-/usr/local/share:/usr/share}; do '
             + 'f="$d/applications/$id.desktop"; [ -f "$f" ] && exec gio launch "$f" "$@"; done; exit 1', "sh", appId].concat(files));
     }
+    // closeApps() has run: the apps whose state is a service's (the calculator,
+    // the viewers, the camera) close on it too - shell.qml listens
+    signal closedApps()
+    // The shell's apps are windows (Common/AppWindow): they stay open while the
+    // launcher, the sidebar or another app is used, so closeAll() leaves them.
+    // closeApps() closes them too - the "back to an empty desktop" a script asks for.
+    // the apps the sidebar, the desktop widgets, the bar and the Island hand over to:
+    // one place for each thing (a timer is Clocks', the weather is Weather's)
+    function openClocks(tab) { closeAll(); if (tab) clocksTab = tab; clocks = true; }
+    function openWeather() { closeAll(); weather = true; }
+    function openScreenTime() { openSettings("screentime"); }
+    function openNotes() { closeAll(); notes = true; }
+    function closeApps() {
+        converter = false;
+        nearby = false;
+        authenticator = false;
+        tasks = false;
+        photos = false;
+        translate = false;
+        weather = false;
+        clocks = false;
+        processes = false;
+        textEditor = false;
+        logs = false;
+        fonts = false;
+        characters = false;
+        voiceRecorder = false;
+        pdfSigner = false;
+        diskUsage = false;
+        files = false;
+        videoTrimmer = false;
+        calendar = false;
+        maps = false;
+        scanner = false;
+        passwordGenerator = false;
+        kundali = false;
+        notes = false;
+        closedApps();
+    }
     function closeAll() {
         dockMenu = "";
         launcher = false;
         ring = false;
         switcher = false;
         windowMenu = false;
-        processes = false;
-        logs = false;
         player = false;
-        fonts = false;
-        characters = false;
-        voiceRecorder = false;
-        signed = false;
-        disktree = false;
-        trim = false;
         magnifier = false;
         annotate = false;
         controlCenter = false;
-        calendar = false;
-        maps = false;
-        aether = false;
-        textEditor = false;
-        localSend = false;
-        scanner = false;
-        secrets = false;
-        kundali = false;
-        videoPlayer = false;
-        notes = false;
         layoutSwitcher = false;
         expanded = "";
         dockFocus = false;

@@ -1,7 +1,7 @@
 pragma Singleton
 // Ruler: freeze the screen and measure anything in pixels.
 //
-// Ported from voltkit's Screen Ruler (src/ruler.rs): take a full-screen
+// Ported from Screen Ruler (src/ruler.rs): take a full-screen
 // screenshot, show it frozen full screen, drag to measure (width × height),
 // Shift for a straight line, right-click to clear, Esc to close,
 // Ctrl+C to copy the size. Measurements are in the screenshot's real pixels.

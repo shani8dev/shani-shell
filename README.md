@@ -16,6 +16,7 @@ selection of the screen (Lens), or the pie menu.
 | **Sidebar** | Raven-style: power row, volume/brightness, ~20 quick tiles (Wi-Fi, Bluetooth, airplane, hotspot, VPN, DND, caffeine, power mode, night light, dark style, mic, camera kill switch, screen record, screenshot, color picker, Lens, auto-rotate, flashlight, keyboard, clipboard, Chronoa) — each only where it can work — with Wi-Fi/Bluetooth/VPN/audio lists, calendar, media card, notification history grouped by app with inline reply and **Ask Chronoa**, per-app volume mixer, display scale + mirroring, removable drives (mount / eject), ShaniOS update status (shani-deploy) |
 | **Dock** | Latte-style: parabolic zoom, launch bounce, window indicators, pins |
 | **Launcher** | full screen. Empty: frequent apps, recent files, the app grid with category chips. Typing: one ranked list — apps (with their actions), open **windows**, **actions** (a command palette: dark style, DND, lock, Lens, wifi …), **files** (recent + home search via fd/find), calculator, emoji, clipboard, web — with **Chronoa** on the right, one keystroke away (Ctrl+Enter, about the selected file too). Prefixes `= : c > ?` still work |
+| **Files** | the file manager, in the shell: the places on the left (Home, Documents, Downloads, Pictures, Videos, plugged-in drives), the folder as a grid of tiles or a list of rows, a search box, a preview of what is chosen. Click to choose, Ctrl-click for more, Shift-click for a range, Enter to open, F2 to rename, Delete to the **trash** (the desktop trash, so it can be put back). The folder is watched (inotify), so a file made or removed elsewhere shows up at once. The **chooser** it offers replaces the portal's native dialog — that one held the whole shell while D-Bus waited |
 | **Lens** | select part of the screen: its text (Tesseract, offline), QR/barcodes (zbar), copy/search/translate — or ask Chronoa, which *sees* it through its `look_at_image` skill |
 | **Ring** | a pie menu at the pointer (Mod+X): Chronoa, Lens, screenshot, media, window, workspaces, apps, power; sub-rings on dwell |
 | **Alt+Tab** | every window, most recent first, the previous one preselected; releasing Alt switches |
@@ -47,7 +48,8 @@ shani/              Quickshell config (`qs -c shani`)
   Services/         one singleton per system: Niri (event stream), Audio, Net,
                     Power, Notifs, Lock, Idle, Polkit, Lens, Recorder, Chronoa, …
   Modules/          Bar, Island, Sidebar (ControlCenter), Settings (window + pages), Dock, Launcher, Lens,
-                    Ring, Notifications, Osd, Lock, Polkit, Chronoa, Idle
+                    Ring, Notifications, Osd, Lock, Polkit, Chronoa, Idle, Files (the file manager),
+                    FilePicker (the chooser)
 greeter/            greetd greeter (`qs -c shani-greeter`); Common -> ../shani/Common
 setup/              first-boot wizard (`qs -c shani-setup`); Common -> ../shani/Common
 bridge/             helpers the shell runs: shani-chronoa-bridge (D-Bus <-> the

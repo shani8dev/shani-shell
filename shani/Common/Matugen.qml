@@ -8,7 +8,7 @@ pragma Singleton
 //   2) `matugen wall <wallpaper> --config … --mode dark|light` runs on every
 //      wallpaper, style or app-set change, writing ~/.config/shani-shell/colors.json
 //      which Theme maps onto its tokens; scheme/contrast/source-color options
-//      from Settings are passed through (wayle-inspired).
+//      from Settings are passed through.
 //   3) the apps chosen in Settings (>chose GTK) get templates written into
 //      their own config dirs — the GTK set adapted from mylinuxforwork/dotfiles,
 //      in the dotted {{colors.X.default.hex}} style, and without their non-standard
@@ -38,7 +38,7 @@ Singleton {
 
     readonly property string mode: Settings.data.darkMode ? "dark" : "light"
     // the wallpaper the Theme itself resolves (per style); reactivity rides Settings bindings
-    // theming monitor (wayle-inspired): use that monitor's wallpaper if set
+    // theming monitor: use that monitor's wallpaper if set
     readonly property string wallpaper: {
         if (Settings.data.wallpaperPerMonitor && Settings.data.themingMonitor) {
             const perMon = Settings.data.wallpapersByMonitor || {};
@@ -67,7 +67,7 @@ Singleton {
     }
     function reload() { _ensure(); }   // `qs -c shani ipc call shani themeReload`
     // themeReload regenerates from the current wallpaper file only (root.wallpaper
-    // above): matugen has no "any image" entry point here. Aether's Extract runs
+    // above): matugen has no "any image" entry point here. WallpaperStyle's Extract runs
     // the *same* `matugen wall <image> --config … --mode … --type … --contrast …
     // --source-color-index …` invocation as `run`, for an explicit picture and
     // with an isolated config/output, so the live palette (colors.json) is not
@@ -85,7 +85,7 @@ Singleton {
         if (!root.available) {
             root.previewRunning = false;
             root.previewPalette = {};
-            root.previewError = "matugen is not installed — Aether needs it to extract colours";
+            root.previewError = "matugen is not installed — Wallpaper & Style needs it to extract colours";
             return;
         }
         if (!src) {
@@ -289,7 +289,7 @@ Singleton {
         onLoaded: root._absorb()
     }
     // the preview's result file: same flat JSON as colors.json, absorbed into
-    // previewPalette instead of the live palette (Aether exhibits it)
+    // previewPalette instead of the live palette (WallpaperStyle exhibits it)
     FileView {
         id: previewReader
         path: root.previewFile
