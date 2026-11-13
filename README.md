@@ -2,7 +2,7 @@
 
 # Shani Shell
 
-**The desktop of Shani OS — click, don't type.**
+**The desktop of Shani OS — Chronoa, and everything else a desktop needs.**
 
 Sign in without typing, find anything from one launcher, 39 apps of its own, your phone built in,
 a desktop you can drive by keyboard, touch or game controller — and an assistant that asks before it acts.
@@ -227,7 +227,7 @@ The Tour app shows every shortcut.
 
 - **Proven in a nested session, not yet on an installed image.** Features that need real hardware —
   Wi-Fi edge cases, Bluetooth pairing, two screens, face and fingerprint sign-in, the camera, modem
-  calls — are tested against stand-ins only; a few (hooks, sticky Ctrl/Alt, casting, drives) have no
+  calls — are tested against stand-ins only; two (casting to a TV, drives) have no
   check yet. [docs/GAPS.md](docs/GAPS.md) lists every one.
 - **Translations are partial**: Marathi and Hindi are translated for the shell's main surfaces
   (1527 of 2347 strings; the newer app windows and settings still show in English); German, Spanish
