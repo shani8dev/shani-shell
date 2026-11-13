@@ -33,7 +33,7 @@ still() {  # still NAME FILE "caption": a screenshot, captioned, for 3 seconds
 n=0; : > $T/list.txt
 add() { [ -f $T/$1.mp4 ] && echo "file '$T/$1.mp4'" >> $T/list.txt && n=$((n+1)); }
 
-card start "Shani Shell" "The desktop of Shani OS - click, don't type" 3; add start; n=0
+card start "Shani Shell" "Chronoa, and everything else a desktop needs" 3; add start; n=0
 still desktop /work/docs/showcase-desktop.jpg "A complete desktop on niri"; add desktop
 still face $SHOTS/greeter.jpg "Sign in by face, fingerprint, a key - or the password"; add face
 still overview /work/docs/more/overview.jpg "Every window, at a glance"; add overview
