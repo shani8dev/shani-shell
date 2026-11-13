@@ -53,6 +53,10 @@ QtObject {
         { title: Tr.t("Privacy"), words: "privacy permissions camera microphone location recent files trash lock screen notifications previews", icon: "preferences-system-privacy", run: () => launcher.openSettings("privacy") },
         { title: Tr.t("Network settings"), words: "network proxy dns vpn wired ethernet ip", icon: "network-workgroup", run: () => launcher.openSettings("network") },
         { title: Tr.t("Windows"), words: "windows gaps focus ring column width animations focus follows mouse tiling", icon: "focus-windows", run: () => launcher.openSettings("windows") },
+        { title: Tr.t("Close frozen window"), words: "close force kill frozen stuck unresponsive quit hanging", icon: "window-close-symbolic", run: () => Niri.forceCloseFocused() },
+        { title: Tr.t("Cast this window to the phone"), words: "cast phone screen mirror window show share", icon: "network-wired", run: () => Niri.action("set-dynamic-cast-window") },
+        { title: Tr.t("Cast this screen to the phone"), words: "cast phone monitor screen mirror share", icon: "view-fullscreen", run: () => Niri.action("set-dynamic-cast-monitor") },
+        { title: Tr.t("Stop casting to the phone"), words: "cast stop clear phone screen", icon: "media-playback-stop", run: () => Niri.action("clear-dynamic-cast-target") },
         // every key at a glance (niri's own list, from the config's titles) - and where to change them
         { title: Tr.t("Desktop layout"), words: "desktop layout style preset classic focus tiling dashboard touch tablet dock widgets look switcher", icon: "view-grid", run: () => { Ui.closeAll(); Ui.layoutSwitcher = true; } },
         { title: Tr.t("Show all keyboard shortcuts"), words: "keyboard shortcuts keys hotkeys cheat sheet help what keys super", icon: "preferences-desktop-keyboard-shortcuts", run: () => { Ui.closeAll(); Niri.action("show-hotkey-overlay"); } },

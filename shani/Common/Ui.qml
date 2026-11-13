@@ -48,6 +48,7 @@ Singleton {
     property bool scanner: false           // the Scanner surface (Modules/Scanner)
     property bool passwordGenerator: false           // the Secrets surface (Modules/PasswordGenerator)
     property bool kundali: false          // the Kundali/Panchang surface (Modules/Kundali)
+    property string kundaliDate: ""       // the day the calendar asked about (YYYY-MM-DD)
     property bool weather: false             // the Weather app (Modules/Weather)
     property bool tasks: false               // the Tasks app (Modules/Tasks)
     property bool photos: false              // the Photos app (Modules/Photos)

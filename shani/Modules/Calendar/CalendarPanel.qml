@@ -228,6 +228,15 @@ AppWindow {
                 spacing: 6
                 Choice { text: Tr.t("Month"); selected: win.view === "month"; onClicked: { Ui.calendarView = "month"; Agenda.refresh(); } }
                 Choice { text: Tr.t("Week"); selected: win.view === "week"; onClicked: { Ui.calendarView = "week"; Agenda.refresh(); } }
+                Choice {
+                    text: Moon.glyph(win.today) + " " + Tr.t("Panchang")
+                    selected: false
+                    onClicked: {
+                        Ui.kundaliDate = Qt.formatDate(win.today, "yyyy-MM-dd");
+                        Ui.closeAll();
+                        Ui.kundali = true;
+                    }
+                }
                 Item { Layout.fillWidth: true }
                 Choice { text: Tr.t("Today"); onClicked: win.goToday() }
             }

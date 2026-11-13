@@ -98,7 +98,60 @@ def ffmpeg_args(kind: str, fmt: str, q: str) -> list[str]:
     raise ValueError(f"cannot make {fmt} from a {kind}")
 
 
-def run(src: Path, fmt: str, q: str) -> int:
+class Options:
+    """The optional trims and tags, with ffmpeg's own limits kept in front."""
+
+    def __init__(self, **kw):
+        self.start = max(0.0, _float(kw.get("start"), 0.0))
+        self.end = _float(kw.get("end"), 0.0)
+        self.volume = max(0, min(400, int(_float(kw.get("volume"), 100))))
+        self.fade = max(0.0, _float(kw.get("fade"), 0.0))
+        self.speed = max(0.25, min(4.0, _float(kw.get("speed"), 1.0)))
+        self.title = (kw.get("title") or "").strip()
+        self.artist = (kw.get("artist") or "").strip()
+
+
+def _float(value, fallback: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
+def _afilters(o: "Options", seconds: float) -> list:
+    """The sound filters: speed first, then volume, then the fades."""
+    out = []
+    if o.speed != 1.0:
+        tempo = o.speed
+        while tempo > 2.0:                     # atempo takes 0.5 to 2.0
+            out.append("atempo=2.0")
+            tempo /= 2.0
+        while tempo < 0.5:
+            out.append("atempo=0.5")
+            tempo /= 0.5
+        out.append(f"atempo={tempo:.4f}")
+    if o.volume != 100:
+        out.append(f"volume={o.volume / 100:.3f}")   # a fraction, not "50%"
+    if o.fade:
+        out.append(f"afade=t=in:st=0:d={o.fade}")
+        if seconds > o.fade:
+            out.append(f"afade=t=out:st={seconds - o.fade:.3f}:d={o.fade}")
+    return out
+
+
+def _vfilters(o: "Options", seconds: float, video: bool) -> str:
+    """The picture filters: speed, then the fades. Gif keeps its own palette chain."""
+    out = []
+    if video and o.speed != 1.0:
+        out.append(f"setpts=PTS/{o.speed:.4f}")
+    if video and o.fade:
+        out.append(f"fade=t=in:st=0:d={o.fade}")
+        if seconds > o.fade:
+            out.append(f"fade=t=out:st={seconds - o.fade:.3f}:d={o.fade}")
+    return ",".join(out)
+
+
+def run(src: Path, fmt: str, q: str, options: "Optional[Options]" = None) -> int:
     kind = kind_of(src)
     if not src.is_file():
         emit({"error": f"there is no file at {src}"})
@@ -122,10 +175,28 @@ def run(src: Path, fmt: str, q: str) -> int:
                 raise RuntimeError(r.stderr.strip().split("\n")[-1] or "ImageMagick refused it")
         else:
             total = duration(src)
+            o = options or Options()
+            span = max(0.0, (o.end or total) - o.start) if (o.start or o.end) else total
             container = {"mp3": "mp3", "m4a": "ipod", "ogg": "ogg", "opus": "opus", "flac": "flac", "wav": "wav",
                          "mp4": "mp4", "webm": "webm", "mkv": "matroska", "gif": "gif"}[fmt]
-            cmd = [FFMPEG, "-hide_banner", "-nostdin", "-y", "-i", str(src)] + ffmpeg_args(kind, fmt, q) + \
-                  ["-progress", "pipe:1", "-nostats", "-f", container, str(part)]
+            cmd = [FFMPEG, "-hide_banner", "-nostdin", "-y"]
+            if o.start or o.end:
+                # `-to` is an output option; before -i ffmpeg refuses it, so the
+                # length is what goes in (start is the input seek)
+                cmd += ["-ss", f"{o.start:.3f}"]
+                if o.end:
+                    cmd += ["-t", f"{max(0.1, o.end - o.start):.3f}"]
+            cmd += ["-i", str(src)] + ffmpeg_args(kind, fmt, q)
+            af = _afilters(o, span)
+            vf = _vfilters(o, span, kind == "video" and fmt != "gif")
+            if af:
+                cmd += ["-af", ",".join(af)]
+            if vf:
+                cmd += ["-vf", vf]
+            for key, value in (("title", o.title), ("artist", o.artist)):
+                if value:
+                    cmd += ["-metadata", f"{key}={value}"]
+            cmd += ["-progress", "pipe:1", "-nostats", "-f", container, str(part)]
             proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             last = -1.0
             for line in proc.stdout:
@@ -154,8 +225,16 @@ def main(argv: list[str]) -> int:
         print(json.dumps({"kind": kind, "formats": FORMATS.get(kind, [])}))
         return 0
     if len(argv) >= 4 and argv[1] == "run":
-        q = argv[4] if len(argv) > 4 and argv[4] in QUALITY else "balanced"
-        return run(Path(argv[2]).expanduser(), argv[3].lower().lstrip("."), q)
+        rest = argv[4:]
+        q = rest.pop(0) if rest and rest[0] in QUALITY else "balanced"
+        flags, i = {}, 0
+        while i < len(rest):
+            if rest[i].startswith("--") and i + 1 < len(rest):
+                flags[rest[i][2:]] = rest[i + 1]
+                i += 2
+            else:
+                i += 1
+        return run(Path(argv[2]).expanduser(), argv[3].lower().lstrip("."), q, Options(**flags))
     print("usage: convert.py formats FILE | run FILE FORMAT [small|balanced|best]", file=sys.stderr)
     return 3
 

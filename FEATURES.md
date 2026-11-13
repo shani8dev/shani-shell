@@ -122,6 +122,14 @@ in that nested session - not yet on an installed image - is listed in
   be pinned to the dock, and open from a terminal with `shani app <name>`.
   How the set compares with GNOME, KDE, Deepin, Kylin, Cinnamon, macOS,
   Windows and Android: `docs/ECOSYSTEM.md`.
+- **Notes you can tick and paste into** — a task's box flips where you click it,
+  and an image on the clipboard becomes a file beside the notes, pointed at by
+  the note. **The Converter** takes a trim (from/to), a volume, fades, a title
+  and an artist, beside the format and the quality.
+- **The launcher's escapes** — *Close frozen window* when the polite close is
+  ignored, and *Cast this window / this screen / stop casting* for the phone
+  (niri's dynamic cast target, so the phone's picture changes without the
+  portal asking again).
 - **One place for each thing** — the sidebar's weather opens Weather, its
   alarms Clocks, a running timer opens Clocks' timer, screen time the Screen
   Time app; the Media Player is in "now playing", on the lock screen and on the

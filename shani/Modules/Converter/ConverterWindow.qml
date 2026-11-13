@@ -69,7 +69,10 @@ AppWindow {
         if (i < 0) { running = -1; return; }
         running = i;
         set(i, { state: "working", progress: 0 });
-        worker.command = ["python3", win.tool, "run", jobs[i].path, jobs[i].format, win.quality];
+        const flags = [];
+        const add = (name, field) => { const v = field.text.trim(); if (v) flags.push("--" + name, v); };
+        add("start", fromField); add("end", toField); add("volume", volField); add("title", titleField);
+        worker.command = ["python3", win.tool, "run", jobs[i].path, jobs[i].format, win.quality].concat(flags);
         worker.running = true;
     }
     Process {
@@ -116,6 +119,19 @@ AppWindow {
                     model: [["small", Tr.t("Small")], ["balanced", Tr.t("Balanced")], ["best", Tr.t("Best")]]
                     Choice { required property var modelData; text: modelData[1]; selected: win.quality === modelData[0]; onClicked: win.quality = modelData[0] }
                 }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 6
+                Text { text: Tr.t("From"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                TextField { id: fromField; Layout.preferredWidth: 64; placeholderText: "0"; Accessible.name: Tr.t("Start, in seconds") }
+                Text { text: Tr.t("To"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                TextField { id: toField; Layout.preferredWidth: 64; placeholderText: Tr.t("end"); Accessible.name: Tr.t("End, in seconds") }
+                Text { text: Tr.t("Volume"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                TextField { id: volField; Layout.preferredWidth: 56; placeholderText: "100"; Accessible.name: Tr.t("Volume, percent") }
+                Text { text: Tr.t("Title"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                TextField { id: titleField; Layout.fillWidth: true; placeholderText: Tr.t("What the file says about itself"); Accessible.name: Tr.t("Title") }
             }
 
             ListView {

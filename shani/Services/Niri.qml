@@ -407,6 +407,17 @@ Singleton {
         }
     }
 
+    // A window that will not close: the polite `close-window` request is
+    // ignored by a frozen app, so this is the person's own "close it anyway",
+    // aimed at the focused window's process. The launcher offers it by name.
+    function forceCloseFocused() {
+        const w = focusedWindow
+        if (!w || !w.pid)
+            return false
+        Quickshell.execDetached(["/bin/kill", "-9", String(w.pid)])
+        return true
+    }
+
     // niri restarts (config error, crash) close the stream; reconnect.
     Timer {
         interval: 1500

@@ -31,6 +31,9 @@ ColumnLayout {
             echo "disk=$(df -h --output=avail,size / | tail -1 | awk "{print \\$1 \\" free of \\" \\$2}")"
             echo "uptime=$(uptime -p 2>/dev/null | sed "s/^up //")"
             echo "gpu=$(glxinfo -B 2>/dev/null | sed -n "s/^ *OpenGL renderer string: //p" | sed "s/ (.*)$//" | head -1)"
+            echo "driver=$(lspci -nnk 2>/dev/null | grep -A3 "VGA compatible controller" | grep -m1 "Kernel driver in use:" | sed -n "s/.*Kernel driver in use: //p")"
+            # what the card wants, so the driver is a name rather than a search
+            echo "driverpkg=$(d=$(lspci -nnk 2>/dev/null | grep -A3 "VGA compatible controller" | grep -m1 "Kernel driver in use:" | sed -n "s/.*Kernel driver in use: //p"); case "$d" in nvidia) echo nvidia-open;; amdgpu|i915|xe) echo mesa;; *) echo "$d";; esac)"
             echo "session=niri $(niri --version 2>/dev/null | cut -d" " -f2) · Quickshell $(qs --version 2>/dev/null | head -1 | grep -o "[0-9][0-9.]*" | head -1)"
             command -v shani-cassini >/dev/null && echo "cassini=yes"']
         stdout: StdioCollector {
@@ -68,6 +71,11 @@ ColumnLayout {
             spacing: 2
             Text { text: page.info.host || ""; color: Theme.text; font.family: Theme.font; font.pixelSize: 18 * Theme.fontScale; font.weight: Font.DemiBold }
             Text { text: page.info.os || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+            Text {
+                text: [page.info.gpu, page.info.driver].filter(x => x).join(" · ")
+                color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale
+                visible: text !== ""
+            }
         }
     }
     Flow {
@@ -145,7 +153,7 @@ ColumnLayout {
         spacing: 8
         Button {
             text: Tr.t("Copy details")
-            onClicked: Quickshell.clipboardText = [page.info.host, page.info.os, page.info.cpu, page.info.gpu, page.info.memory, page.info.disk, page.info.kernel, page.info.session].filter(x => x).join("\n")
+            onClicked: Quickshell.clipboardText = [page.info.host, page.info.os, page.info.cpu, page.info.gpu, page.info.driver, page.info.driverpkg, page.info.memory, page.info.disk, page.info.kernel, page.info.session].filter(x => x).join("\n")
         }
         Button {
             visible: page.hasCassini

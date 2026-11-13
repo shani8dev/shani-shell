@@ -2,6 +2,7 @@
 // you type. Notebooks are subfolders. Wiki links [[like this]] jump
 // between notes. Export to HTML, print via CUPS. Sync is a TODO.
 import Quickshell
+import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
@@ -16,6 +17,15 @@ AppWindow {
     margins: 0
     implicitWidth: 900
     implicitHeight: 600
+    property string note: ""            // the last word about an image, in a line of its own
+    tools: [
+        IconButton {
+            size: 30
+            icon: "insert-image-symbolic"
+            tip: Tr.t("Insert an image from the clipboard")
+            onClicked: win.insertImage()
+        }
+    ]
 
     property string filterText: ""
     property string selectedNotebook: ""
@@ -147,6 +157,31 @@ AppWindow {
                         wrapMode: TextEdit.Wrap
                         font.family: "monospace"
                         font.pixelSize: 14
+                        // a task's box toggles where it is clicked, without a preview
+                        TapHandler {
+                            onTapped: event => {
+                                if (win.toggleTask(event.position)) event.accepted = true;
+                            }
+                        }
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: win.note
+                        visible: win.note !== ""
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: 12 * Theme.fontScale
+                        wrapMode: Text.Wrap
+                    }
+
+                    Process {
+                        id: paste
+                        property string name: ""
+                        property string target: ""
+                        stdout: StdioCollector {}
+                        stderr: StdioCollector {}
+                        onExited: code => win.pasted(code)
                     }
                 }
 
@@ -168,4 +203,43 @@ AppWindow {
     }
 
     Keys.onEscapePressed: Ui.notes = false
+
+    /// Flip a task's [ ] to [x] (or back) when its box is clicked.
+    function toggleTask(point) {
+        const index = editor.positionAt(point.x, point.y);
+        const text = editor.text;
+        const start = text.lastIndexOf("\n", index - 1) + 1;
+        let end = text.indexOf("\n", index);
+        if (end < 0) end = text.length;
+        const line = text.slice(start, end);
+        const m = /^(\s*[-*]\s+\[)([ xX])(\].*)$/.exec(line);
+        if (!m) return false;
+        const box = start + m[1].length;                 // the char between [ and ]
+        if (index < box - 1 || index > box + 1) return false;
+        const mark = m[2] === " " ? "x" : " ";
+        editor.text = text.slice(0, box) + mark + text.slice(box + 1);
+        editor.cursorPosition = index;
+        return true;
+    }
+
+    /// Take the clipboard's picture (wl-paste), keep it beside the notes, and
+    /// point the note at it. Images in notes are files, so they survive.
+    function insertImage() {
+        const folder = Services.QuickNotes.dir + "/assets";
+        const name = "pasted-" + Date.now() + ".png";
+        paste.name = name;
+        paste.target = folder + "/" + name;
+        win.note = "";
+        paste.command = ["sh", "-c", 'mkdir -p "$1" && (wl-paste --type image/png || wl-paste --type image/jpeg) > "$2"', "sh", folder, paste.target];
+        paste.running = true;
+    }
+
+    function pasted(code) {
+        if (code !== 0) {
+            win.note = Tr.t("The clipboard has no image");
+            return;
+        }
+        editor.insert(editor.cursorPosition, "![](" + paste.name + ")");
+        win.note = Tr.t("Image added");
+    }
 }

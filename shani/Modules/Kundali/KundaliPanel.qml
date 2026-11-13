@@ -25,6 +25,26 @@ AppWindow {
     property string result: ""
     property bool loading: false
 
+    // The calendar opens this with a day in mind: use it, and do the panchang
+    // once, so the person sees the tithi rather than an empty form.
+    onVisibleChanged: if (visible && Ui.kundaliDate) {
+        win.mode = "panchang";
+        win.dateInput = Ui.kundaliDate;
+        win.calculate();
+    }
+
+    function calculate() {
+        win.loading = true;
+        win.result = "";
+        if (win.mode === "panchang")
+            kundaliProc.command = ["python3", win.scriptPath, "panchang", win.dateInput, win.latInput, win.lonInput];
+        else
+            kundaliProc.command = ["python3", win.scriptPath, "kundali",
+                                   win.dateInput + "T" + win.timeInput + ":00Z",
+                                   win.latInput, win.lonInput];
+        kundaliProc.running = true;
+    }
+
 
     Item {
         id: card
@@ -60,17 +80,7 @@ AppWindow {
                 Layout.fillWidth: true
                 text: win.loading ? "Computing..." : "Calculate"
                 enabled: !win.loading && win.dateInput !== ""
-                onClicked: {
-                    win.loading = true;
-                    win.result = "";
-                    if (win.mode === "panchang") {
-                        kundaliProc.command = ["python3", win.scriptPath, "panchang", win.dateInput, win.latInput, win.lonInput];
-                    } else {
-                        const dt = win.dateInput + "T" + win.timeInput + ":00Z";
-                        kundaliProc.command = ["python3", win.scriptPath, "kundali", dt, win.latInput, win.lonInput];
-                    }
-                    kundaliProc.running = true;
-                }
+                onClicked: win.calculate()
             }
 
             ScrollView {
