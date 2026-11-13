@@ -260,6 +260,9 @@ in that nested session - not yet on an installed image - is listed in
   own modem; texts; **one address book**; one call history; a dial pad that finds
   contacts as you type; phone links anywhere open the dial pad; use the phone's
   internet over Bluetooth. Watches and fitness bands too.
+  **This screen on your phone**, over a cable or Wi-Fi, and with **touch and
+  type** turned on, fingers, a stylus and the phone's keyboard drive the desktop
+  through virtual devices; **sound on** plays the desktop's audio on the phone.
   With "Share the clipboard with your phone" on, copy on one and paste on the
   other; the clipboard history says what came from the phone, and nothing a
   password manager marks secret is sent.
