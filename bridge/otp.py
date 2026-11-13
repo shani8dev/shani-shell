@@ -6,6 +6,10 @@ secrets in the keyring.
     otp.py add 'otpauth://totp/Issuer:me@example.com?secret=…&issuer=…'
     otp.py add '{"issuer": …, "account": …, "secret": "BASE32", "digits": 6, "period": 30, "algorithm": "SHA1"}'
     otp.py remove ID
+    otp.py key-code NAME          a code kept on a YubiKey that wants a touch: waits for
+                                 it, prints {"code"}; codes on a connected key that need
+                                 none come in `list` too ("fromKey": true), read with
+                                 yubikey-manager's ykman (shani-peripherals ships it)
     otp.py scan-screen           the person picks part of the screen (slurp), the
                                  QR code there is read (grim + zbarimg) and added
 
@@ -24,6 +28,8 @@ import base64
 import hashlib
 import hmac
 import json
+import shutil
+import re
 import os
 import struct
 import subprocess
@@ -159,11 +165,58 @@ def scan_screen() -> str:
     return text.splitlines()[0]
 
 
+YKMAN = os.environ.get("SHANI_YKMAN", "ykman")
+KEY_LINE = re.compile(r"^(.*?)\s{2,}(\d{6,10}|\[Requires Touch\]|\[HOTP Account\])\s*$")
+
+
+def key_codes() -> list:
+    """The OATH codes on a connected YubiKey, as list() gives its own; [] without one."""
+    if not shutil.which(YKMAN):
+        return []
+    try:
+        # stdin empty: a key with a password asks for it, and must not wait here
+        out = subprocess.run([YKMAN, "oath", "accounts", "code"], capture_output=True, text=True, timeout=8, input="")
+    except (OSError, subprocess.TimeoutExpired):
+        return []
+    if out.returncode != 0:
+        said = (out.stdout + out.stderr).lower()
+        if "password" in said or "authenticat" in said:
+            # its codes are locked: one row that says so (the window offers to unlock it)
+            return [{"id": "key:locked", "issuer": "", "account": "", "name": "", "code": "", "touch": False,
+                     "locked": True, "fromKey": True, "period": 30, "digits": 6, "remaining": 30}]
+        return []
+    now = int(time.time())
+    rows = []
+    for line in out.stdout.splitlines():
+        m = KEY_LINE.match(line.strip())
+        if not m:
+            continue
+        name, code = m.group(1), m.group(2)
+        issuer, _, account = name.partition(":") if ":" in name else ("", "", name)
+        touch = code == "[Requires Touch]"
+        if code == "[HOTP Account]":
+            continue                      # a counter, not a clock: pressed for on the key itself
+        rows.append({"id": "key:" + name, "issuer": issuer, "account": account, "name": name,
+                     "code": "" if touch else code, "touch": touch, "fromKey": True,
+                     "period": 30, "digits": len(code) if not touch else 6, "remaining": 30 - now % 30})
+    return rows
+
+
+def key_code(name: str) -> dict:
+    out = subprocess.run([YKMAN, "oath", "accounts", "code", "--single", name], capture_output=True, text=True, timeout=30)
+    code = out.stdout.strip().split()[-1] if out.stdout.strip() else ""
+    if out.returncode != 0 or not code.isdigit():
+        raise ValueError((out.stderr.strip().splitlines() or ["the key gave no code"])[-1])
+    return {"code": code}
+
+
 def main(argv: list[str]) -> int:
     cmd = argv[1] if len(argv) > 1 else "list"
     try:
         if cmd == "list":
-            print(json.dumps(listing()))
+            print(json.dumps(listing() + key_codes()))
+        elif cmd == "key-code" and len(argv) > 2:
+            print(json.dumps(key_code(argv[2])))
         elif cmd in ("add", "scan-screen"):
             text = scan_screen() if cmd == "scan-screen" else (argv[2] if len(argv) > 2 else sys.stdin.read())
             entry = parse(text)

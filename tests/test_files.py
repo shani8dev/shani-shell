@@ -233,11 +233,25 @@ def test_the_listing_is_watched_and_the_watch_is_the_only_thing_that_runs():
 
 
 def test_nothing_is_deleted_by_the_file_manager():
-    # the trash is the desktop trash: `gio trash`, which can be undone
+    # the trash is the desktop trash (and `gio trash` for another drive's), which can
+    # be undone; the only deleting is the trash's own - "Empty trash", and a
+    # .trashinfo once its file is put back - and only of paths inside the trash
+    import ast
     bridge = read(BRIDGE)
     assert "gio" in bridge
-    assert "os.remove" not in bridge
-    assert "shutil.rmtree" not in bridge
+    tree = ast.parse(bridge)
+    deleting = {}
+    for fn in ast.walk(tree):
+        if not isinstance(fn, ast.FunctionDef):
+            continue
+        for node in ast.walk(fn):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name) \
+                    and (node.func.value.id, node.func.attr) in (("os", "remove"), ("os", "unlink"), ("shutil", "rmtree"), ("os", "rmdir")):
+                deleting.setdefault(fn.name, []).append(node.func.attr)
+    assert set(deleting) <= {"empty_trash", "restore"}, f"deleting outside the trash: {deleting}"
+    for name in deleting:
+        src = ast.get_source_segment(bridge, next(f for f in ast.walk(tree) if isinstance(f, ast.FunctionDef) and f.name == name))
+        assert "trash_dir()" in src, f"{name} deletes, but not from the trash"
 
 
 def test_recent_files_are_the_ones_opened_lately_newest_first(tmp_path):

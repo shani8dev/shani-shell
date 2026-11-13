@@ -19,7 +19,10 @@ Rectangle {
     property string elevation: "card"     // none | soft | card | raised
     property string edge: "subtle"        // subtle | strong | none
     // the person's view needs the cards readable: opaque, not translucent
-    readonly property bool opaque: Settings.data.reduceTransparency || (Settings.data.reduceTransparencyOnBattery && PowerState.onBattery)
+    readonly property bool opaque: solid || Settings.data.reduceTransparency || (Settings.data.reduceTransparencyOnBattery && PowerState.onBattery)
+    // a card over an app's own content (Files' Tidy and rename cards): nothing
+    // blurs what is behind it there, so translucent would show text through text
+    property bool solid: false
     radius: Theme.radius
     color: strong ? (opaque ? Theme.bg : Theme.glassStrong) : (opaque ? Theme.bg : Theme.glass)
     border.width: edge === "strong" ? 1 : (edge === "subtle" ? 0.5 : 0)

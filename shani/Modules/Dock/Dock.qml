@@ -21,8 +21,12 @@ PanelWindow {
     screen: modelData
     visible: Settings.data.dock && !Lock.locked
     anchors.bottom: true
-    // sized for the widest zoom once, so the surface is not resized on every pointer move
-    implicitWidth: (items.length + spaces.length + 2) * (base + Math.round(base * 0.18)) + (peak - base) * 3 + 120
+    // the screen's width: never resized on a pointer move, and never narrower than
+    // the base. A width counted from the items once fell behind as the dock grew
+    // (multitasking, show desktop, workspaces, the trash): the base outgrew its
+    // surface and its rounded ends were cut off square. Input stays the dock's
+    // own (mask: zone), so the transparent rest takes no clicks.
+    implicitWidth: screen ? screen.width : 1920
     // room for a zoomed icon and its label (140 at 44 px), and the menu above it while open
     implicitHeight: peak + 68 + (menuFor >= 0 ? Math.max(230, menuHeight + 40) : 0)
     color: "transparent"
@@ -42,7 +46,11 @@ PanelWindow {
         ((screen ? screen.width : 1920) - dock.width) / 2, ((screen ? screen.width : 1920) + dock.width) / 2)
     readonly property bool shown: mode === "always" || (revealed && hover.hovered) || menuFor >= 0 || dragging || Ui.dockFocus
         || Niri.overviewOpen || (mode === "smart" && (!covered || Hiding.urgent))
-    Component.onCompleted: Hiding.setDockShown(output, shown)
+    Component.onCompleted: { Hiding.setDockShown(output, shown); Hiding.setDockFits(output, baseFits); }
+    // the base fits its surface (the tests read it: a base wider than the surface
+    // had its rounded ends cut off square)
+    readonly property bool baseFits: dock.width <= width
+    onBaseFitsChanged: Hiding.setDockFits(output, baseFits)
     property bool dragging: false        // a file carried to the bottom edge brings the dock up to drop on
     // the first time a smart dock steps aside, say where it went - once
     onShownChanged: {
@@ -188,7 +196,8 @@ PanelWindow {
     Item {
         id: edge
         anchors.bottom: parent.bottom
-        width: parent.width
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: Math.min(parent.width, dock.width + 120)   // under the dock, not the whole screen's edge
         height: 4
         HoverHandler { id: edgeHover }
         // a drag gives no hover: carrying a file to the edge raises the dock too

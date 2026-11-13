@@ -32,7 +32,7 @@ AppWindow {
             else if (e.key === Qt.Key_R) PdfViewer.rotate();
             else if (e.key === Qt.Key_F) PdfViewer.setFit("page");
             else if (e.key === Qt.Key_W) PdfViewer.setFit("width");
-            else if (e.key === Qt.Key_P) Printing.printFile(PdfViewer.file);
+            else if (e.key === Qt.Key_P) PdfViewer.printFile();
         }
     }
     Item {
@@ -61,6 +61,13 @@ AppWindow {
                 IconButton { icon: "go-next"; size: 28; tip: Tr.t("Next page"); onClicked: PdfViewer.nextPage() }
                 IconButton { icon: "document-open"; size: 28; tip: Tr.t("Toggle thumbnails"); on: PdfViewer.showSidebar; onClicked: PdfViewer.toggleSidebar() }
                 IconButton { icon: "printer"; size: 28; tip: Tr.t("Print (P)"); onClicked: PdfViewer.printFile() }
+                // a form: fill it in, save a filled copy
+                Button {
+                    visible: PdfViewer.formFields.length > 0
+                    text: Tr.t("Fill in (%1)", PdfViewer.formFields.length)
+                    kind: PdfViewer.formShown ? "primary" : ""
+                    onClicked: PdfViewer.formShown = !PdfViewer.formShown
+                }
             }
 
             // search bar: find text (pdftotext -bbox) + jump-to-page box
@@ -156,7 +163,7 @@ AppWindow {
                                 }
                             }
                         }
-                        // outline / bookmarks (PyMuPDF / mutool when there is one)
+                        // outline / bookmarks (PyMuPDF)
                         Rectangle {
                             visible: PdfViewer.outline.length > 0
                             Layout.fillWidth: true
@@ -288,6 +295,80 @@ AppWindow {
                                     rotation: PdfViewer.rotation
                                 }
                             }
+                        }
+                    }
+                }
+
+                // the form's fields, one control each; the copy is saved beside the PDF
+                Rectangle {
+                    visible: PdfViewer.formShown
+                    Layout.preferredWidth: 280
+                    Layout.fillHeight: true
+                    radius: Theme.radiusSmall
+                    color: Theme.surface1
+                    Flickable {
+                        anchors.fill: parent
+                        anchors.margins: 10
+                        contentHeight: formCol.implicitHeight
+                        clip: true
+                        ColumnLayout {
+                            id: formCol
+                            width: parent.width
+                            spacing: 8
+                            SectionTitle { Layout.fillWidth: true; text: Tr.t("Fill in") }
+                            Repeater {
+                                model: PdfViewer.formFields
+                                ColumnLayout {
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    spacing: 3
+                                    Text {
+                                        visible: modelData.type !== "checkbox"
+                                        text: modelData.label.replace(/_/g, " ")
+                                        color: Theme.dim
+                                        font.family: Theme.font
+                                        font.pixelSize: 11 * Theme.fontScale
+                                    }
+                                    TextField {
+                                        Layout.fillWidth: true
+                                        visible: modelData.type === "text"
+                                        text: String(PdfViewer.fieldValue(modelData))
+                                        onTextChanged: if (visible && text !== String(PdfViewer.fieldValue(modelData))) PdfViewer.setField(modelData.name, text)
+                                    }
+                                    SwitchRow {
+                                        Layout.fillWidth: true
+                                        visible: modelData.type === "checkbox"
+                                        text: modelData.label.replace(/_/g, " ")
+                                        checked: PdfViewer.fieldValue(modelData) === true
+                                        onToggled: on => PdfViewer.setField(modelData.name, on)
+                                    }
+                                    Flow {
+                                        Layout.fillWidth: true
+                                        visible: modelData.type === "choice"
+                                        spacing: 6
+                                        Repeater {
+                                            model: modelData.options
+                                            Choice {
+                                                required property string modelData
+                                                text: modelData
+                                                selected: PdfViewer.fieldValue(parent.parent.modelData) === modelData
+                                                onClicked: PdfViewer.setField(parent.parent.modelData.name, modelData)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Button { Layout.fillWidth: true; kind: "primary"; text: Tr.t("Save a filled copy"); onClicked: PdfViewer.saveForm() }
+                            Text {
+                                Layout.fillWidth: true
+                                visible: PdfViewer.formSaved !== "" || PdfViewer.formError !== ""
+                                text: PdfViewer.formError !== "" ? PdfViewer.formError : Tr.t("Saved as %1", PdfViewer.formSaved.split("/").pop())
+                                color: PdfViewer.formError !== "" ? Theme.danger : Theme.dim
+                                wrapMode: Text.Wrap
+                                font.family: Theme.font
+                                font.pixelSize: 11 * Theme.fontScale
+                            }
+                            Button { visible: PdfViewer.formSaved !== ""; flat: true; text: Tr.t("Open the filled copy"); onClicked: PdfViewer.open(PdfViewer.formSaved) }
                         }
                     }
                 }

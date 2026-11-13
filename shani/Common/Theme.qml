@@ -28,6 +28,12 @@ Singleton {
     // redraws, so the idle-frames budget is untouched.
     property real darkT: Settings.data.darkMode ? 1 : 0
     Behavior on darkT { NumberAnimation { duration: Fade.fadeMs(Settings.data.reduceMotion); easing.type: Easing.InOutQuad } }
+    // how many in-between values the last fade drew (the tests read it: polling
+    // for one mid-fade sample missed the 300 ms fade on a busy machine)
+    property int darkSteps: 0
+    readonly property bool _wantDark: Settings.data.darkMode
+    on_WantDarkChanged: darkSteps = 0       // a new fade starts counting afresh
+    onDarkTChanged: if (darkT > 0 && darkT < 1) darkSteps++
     function mix(light, dark) {
         // Qt.color() first: several tokens pass "#rrggbb" strings, and a
         // string has no .r/.g/.b — blendC would get undefined and the token

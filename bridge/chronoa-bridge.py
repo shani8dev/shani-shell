@@ -23,6 +23,7 @@ absent the bridge falls back to Gateways.Submit and says so.
 from __future__ import annotations
 
 import json
+import re
 import os
 import socket
 import socketserver
@@ -208,6 +209,14 @@ def handle_request(msg: dict) -> None:
     elif op == "locked":
         logind.locked(bool(msg.get("locked")))
         screensaver.locked(bool(msg.get("locked")))
+    elif op == "findfiles":
+        # the person's files by meaning (Agent.FindFiles, Chronoa's file index)
+        threading.Thread(target=find_files, args=(msg.get("id", ""), msg.get("query", "")), daemon=True).start()
+    elif op == "write":
+        # text in, text out (Agent.Write): on its own thread, as the model may
+        # take a while and the bridge must keep answering meanwhile
+        threading.Thread(target=write, args=(msg.get("id", ""), msg.get("instruction", ""), msg.get("text", "")),
+                         daemon=True).start()
     elif op == "release-sleep":
         # "lock before suspend" is off: let sleep go without a lock
         logind.release_sleep()
@@ -243,6 +252,37 @@ def ask(text: str) -> None:
         return
     broadcast({"type": "error",
                "text": "Chronoa is not running (no Agent and no Gateways on the bus)."})
+
+
+def write(req_id: str, instruction: str, text: str) -> None:
+    """Agent.Write for the shell's writing tools, replies and naming; the answer
+    (or why there is none) goes back as {"type": "written", "id", "text"|"error"}."""
+    if not has_owner(AGENT_NAME):
+        broadcast({"type": "written", "id": req_id, "error": "Chronoa is not running"})
+        return
+    try:
+        r = call(AGENT_NAME, AGENT_PATH, AGENT_IFACE, "Write",
+                 GLib.Variant("(ss)", (instruction, text)), timeout=200000)
+        broadcast({"type": "written", "id": req_id, "text": r.unpack()[0]})
+    except Exception as exc:
+        msg = str(exc)
+        # GLib's "GDBus.Error:name: message" - the message is what a person reads
+        if "GDBus.Error" in msg:
+            msg = re.sub(r"\s*\(\d+\)$", "", msg.split(": ", 1)[-1])     # GLib's "... (36)" code
+        broadcast({"type": "written", "id": req_id, "error": msg})
+
+
+def find_files(req_id: str, query: str) -> None:
+    """Agent.FindFiles for the launcher; {"type": "found", "id", "hits", "how", "indexing"}."""
+    if not has_owner(AGENT_NAME):
+        broadcast({"type": "found", "id": req_id, "hits": [], "how": "", "error": "Chronoa is not running"})
+        return
+    try:
+        r = call(AGENT_NAME, AGENT_PATH, AGENT_IFACE, "FindFiles", GLib.Variant("(si)", (query, 8)), timeout=20000)
+        data = json.loads(r.unpack()[0])
+        broadcast(dict(data, type="found", id=req_id))
+    except Exception as exc:
+        broadcast({"type": "found", "id": req_id, "hits": [], "how": "", "error": str(exc)})
 
 
 def action(name: str) -> None:

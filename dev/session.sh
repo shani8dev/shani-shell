@@ -41,12 +41,12 @@ export SHANI_TRANSLATE_TOOL=/work/dev/fake-translate.py
 export SHANI_DYNAMIC_LOCK_GRACE=1500     # ms: the dynamic-lock test waits 1.5 s, not 30
 export SHANI_AGENDA_TOOL=/work/bridge/agenda.py SHANI_MODEM_TOOL=/work/dev/fake-modem.py
 export XDG_CONFIG_HOME=/root/.config SHANI_SHELL_SETTINGS=/tmp/shani-settings.json
-export SHANI_SCRCPY=/work/dev/fake-scrcpy.sh SHANI_ADB=/work/dev/fake-adb.sh SHANI_LAUNCHER_ENTRY_TOOL=/work/bridge/launcher-entry.py SHANI_APPFILTER_TOOL=/work/dev/fake-appfilter.sh SHANI_LAUNCH_TOOL=/work/bridge/launch-app.py
+export SHANI_SCRCPY=/work/dev/fake-scrcpy.sh SHANI_ADB=/work/dev/fake-adb.sh SHANI_LAUNCHER_ENTRY_TOOL=/work/bridge/launcher-entry.py SHANI_APPFILTER_TOOL=/work/dev/fake-appfilter.sh SHANI_LAUNCH_TOOL=/work/bridge/launch-app.py SHANI_APPMENU_TOOL=/work/bridge/appmenu.py SHANI_INPUTPLUMBER_TOOL=/work/bridge/inputplumber.py SHANI_UPS_TOOL=/work/bridge/ups.py SHANI_UPSC=/work/dev/fake-upsc.sh SHANI_YKMAN=/work/dev/fake-ykman.sh
 # the shell's own apps, as the package installs them: their desktop entries
 # (the launcher's app list, the dock's and the switcher's icon for an app window)
 python3 /work/bin/shani app --write-desktop /root/.local/share/applications
 export SHANI_CHARACTERS_TOOL=/work/bridge/characters.py
-export SHANI_MPRIS_TOOL=/work/bridge/mpris-player.py SHANI_TASKS_TOOL=/work/bridge/tasks.py SHANI_MUSIC_LIBRARY_TOOL=/work/bridge/music-library.py SHANI_CLEANUP_TOOL=/work/bridge/cleanup.py SHANI_OTP_TOOL=/work/bridge/otp.py SHANI_NEARBY_TOOL=/work/bridge/nearby.py SHANI_CONVERT_TOOL=/work/bridge/convert.py
+export SHANI_PDFFORM_TOOL=/work/bridge/pdfform.py SHANI_TIDY_TOOL=/work/bridge/tidy.py SHANI_BATTERY_TOOL=/work/bridge/battery.py SHANI_MPRIS_TOOL=/work/bridge/mpris-player.py SHANI_TASKS_TOOL=/work/bridge/tasks.py SHANI_MUSIC_LIBRARY_TOOL=/work/bridge/music-library.py SHANI_CLEANUP_TOOL=/work/bridge/cleanup.py SHANI_OTP_TOOL=/work/bridge/otp.py SHANI_NEARBY_TOOL=/work/bridge/nearby.py SHANI_CONVERT_TOOL=/work/bridge/convert.py
 # no sweep of the host's network from the test session; a stand-in firewall-cmd records what it is asked
 export SHANI_NEARBY_SUBNET=0 SHANI_NEARBY_PEERS=127.0.0.1:53399 SHANI_FIREWALL_CMD=/work/dev/fake-firewall-cmd.sh
 # the file manager's backend: the listing, the watch and the trash
@@ -109,8 +109,20 @@ export DBUS_SESSION_BUS_ADDRESS
 # a system bus with the real daemons the shell's services talk to; no
 # hardware behind them, but their D-Bus APIs are the real ones
 mkdir -p /run/dbus
+# InputPlumber's bus policy, as its package ships it (the stand-in below owns its name)
+mkdir -p /etc/dbus-1/system.d
+cat > /etc/dbus-1/system.d/org.shadowblip.InputPlumber.conf <<'POLICY'
+<!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-BUS Bus Configuration 1.0//EN" "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
+<busconfig>
+  <policy user="root"><allow own="org.shadowblip.InputPlumber"/></policy>
+  <policy context="default"><allow send_destination="org.shadowblip.InputPlumber"/></policy>
+</busconfig>
+POLICY
 dbus-daemon --system --fork --nopidfile 2>$L/dbus-system.log
 sleep 0.5
+# InputPlumber, stood in for (dev/fake-inputplumber.py): one handheld controller,
+# its intercept modes, presses from /tmp/fake-inputplumber
+python3 /work/dev/fake-inputplumber.py >$L/fake-inputplumber.log 2>&1 &
 /usr/lib/upowerd >$L/upower.log 2>&1 &
 /usr/lib/power-profiles-daemon >$L/ppd.log 2>&1 &
 NetworkManager --no-daemon >$L/nm.log 2>&1 &
@@ -139,7 +151,18 @@ pactl load-module module-null-sink sink_name=hdmi sink_properties=device.descrip
 pactl load-module module-null-source source_name=mic >/dev/null 2>&1 || true
 pactl set-default-sink speakers 2>/dev/null
 
-python3 /work/dev/mock-chronoa.py >$L/mock.log 2>&1 &
+# Chronoa: the scripted mock (the suite: the same answers every run), or with
+# CHRONOA=real the real shani-chronoa app from ../shani-chronoa (dev/check.sh
+# mounts it at /chronoa, on the host network so it reaches the model on
+# 127.0.0.1:8765) - started below, once niri is up, as it is a window
+[ "${CHRONOA:-mock}" = real ] && [ -x /chronoa/usr/bin/shani-chronoa ] || python3 /work/dev/mock-chronoa.py >$L/mock.log 2>&1 &
+# Maps: OpenStreetMap's tiles, Nominatim and OSRM stood in for (dev/fake-osm.py), so
+# the suite has the same answers every run and does not load OSM's servers; with
+# SHANI_ONLINE=1 (dev/check.sh) the real ones (dev/shell-parts/maps-online.sh)
+if [ "${SHANI_ONLINE:-}" != 1 ]; then
+    python3 /work/dev/fake-osm.py 8797 >$L/fake-osm.log 2>&1 &
+    export SHANI_MAP_TILES="http://127.0.0.1:8797/tiles/{key}.png" SHANI_MAP_SEARCH=http://127.0.0.1:8797/search SHANI_MAP_ROUTE=http://127.0.0.1:8797
+fi
 python3 /work/bridge/chronoa-bridge.py >$L/bridge.log 2>&1 &
 sleep 0.5
 
@@ -150,6 +173,14 @@ i=0
 until [ -S "$XDG_RUNTIME_DIR/wayland-1" ] || [ $i -ge 40 ]; do sleep 0.25; i=$((i+1)); done
 export WAYLAND_DISPLAY=wayland-1
 export NIRI_SOCKET=$(ls "$XDG_RUNTIME_DIR"/niri.wayland-1.*.sock | head -1)
+
+if [ "${CHRONOA:-mock}" = real ] && [ -x /chronoa/usr/bin/shani-chronoa ]; then
+    # its schema from the source tree, shani-link (its phone skills) beside it
+    GSETTINGS_SCHEMA_DIR=/chronoa/usr/share/glib-2.0/schemas PYTHONPATH=/link \
+        python3 /chronoa/usr/bin/shani-chronoa >$L/chronoa.log 2>&1 &
+    i=0; until gdbus introspect --session --dest dev.shani.chronoa.Agent --object-path /dev/shani/chronoa/Agent >/dev/null 2>&1 || [ $i -ge 120 ]; do sleep 0.25; i=$((i+1)); done
+    echo "  real Chronoa: $(grep -o 'Using the local llama.cpp server at [^ ]*' $L/chronoa.log | head -1 || echo 'no model found')"
+fi
 
 # the accessibility bus, and Qt exposing its tree on it (what Orca reads)
 /usr/lib/at-spi-bus-launcher --launch-immediately >$L/atspi.log 2>&1 &

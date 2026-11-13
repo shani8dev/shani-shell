@@ -11,6 +11,7 @@
 import Quickshell
 import Quickshell.Wayland
 import QtQuick
+import QtMultimedia
 import qs.Common
 import qs.Services
 
@@ -154,6 +155,34 @@ Variants {
             opacity: 0
             onStatusChanged: if (status === Image.Ready) { opacity = 1; a.opacity = 0; }
             Behavior on opacity { NumberAnimation { duration: Theme.anim * 4 } }
+        }
+
+        // the live wallpaper (Services/LiveWallpaper): made only when one is chosen,
+        // played only while it can be seen; its first frame fades in over the picture
+        Loader {
+            anchors.fill: parent
+            active: LiveWallpaper.enabled
+            sourceComponent: Item {
+                id: live
+                readonly property string why: LiveWallpaper.why[scr.modelData.name] || ""
+                onWhyChanged: why === "" ? player.play() : player.pause()
+                MediaPlayer {
+                    id: player
+                    source: "file://" + LiveWallpaper.video.split("/").map(encodeURIComponent).join("/")
+                    videoOutput: out
+                    loops: MediaPlayer.Infinite
+                    audioOutput: AudioOutput { muted: true }
+                    Component.onCompleted: if (live.why === "") play()
+                    onPlaybackStateChanged: Ui.liveWallpaperPlaying = Object.assign({}, Ui.liveWallpaperPlaying, { [scr.modelData.name]: playbackState === MediaPlayer.PlayingState })
+                }
+                VideoOutput {
+                    id: out
+                    anchors.fill: parent
+                    fillMode: VideoOutput.PreserveAspectCrop
+                    opacity: player.position > 0 ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: Theme.anim * 4 } }
+                }
+            }
         }
     }
 }

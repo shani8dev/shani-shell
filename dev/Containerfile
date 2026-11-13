@@ -71,3 +71,9 @@ RUN pacman -Sy --noconfirm --needed gnome-keyring libsecret && pacman -Scc --noc
 # the icons the image uses (shani-desktop-niri's gschema override: Papirus-Dark),
 # so the suite's screenshots show what a person sees, not Adwaita's gaps
 RUN pacman -Sy --noconfirm --needed papirus-icon-theme && pacman -Scc --noconfirm
+# the real Chronoa app, for CHRONOA=real sessions (last, so the layers above stay cached; -Syu, as a partial upgrade breaks; its runtime from shani-chronoa's
+# PKGBUILD; the shani-* ones and the speech models are not in Arch)
+RUN pacman -Syu --noconfirm --needed gtk4 libadwaita gtk4-layer-shell python-gobject python-httpx \
+        python-symengine libnotify upower bubblewrap espeak-ng psmisc && pacman -Scc --noconfirm
+# Document Viewer: e-books, comics and XPS made PDFs and PDF forms (PyMuPDF), DjVu (ddjvu)
+RUN pacman -Syu --noconfirm --needed djvulibre python-pymupdf && pacman -Scc --noconfirm

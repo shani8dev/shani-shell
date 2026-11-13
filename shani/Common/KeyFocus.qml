@@ -2,6 +2,7 @@
 // the thing, and it takes focus in the surface's tab order, draws the accent
 // ring while focused, and turns keys into what a click does.
 //   Enter / Space        activated()        (what the click does)
+//   Space, with `peekable`  peek()           (a file: Quick Look, as Finder and Nautilus do)
 //   Menu / Shift+F10     menu()             (what a right-click does, where there is one)
 //   arrows               the next / previous item in reading order; with `columns`
 //                        set, Up / Down jump a row (a grid of tiles)
@@ -26,6 +27,8 @@ Item {
     property var ordered: null
     property real radius: parent && parent.radius !== undefined ? parent.radius : Theme.radiusSmall
     signal activated()
+    property bool peekable: false
+    signal peek()
     signal menu()
     signal step(int dir)
     activeFocusOnTab: enabled
@@ -92,7 +95,8 @@ Item {
     }
     Keys.onPressed: e => {
         const k = e.key;
-        if (k === Qt.Key_Return || k === Qt.Key_Enter || k === Qt.Key_Space) { f.activated(); e.accepted = true; }
+        if (k === Qt.Key_Space && f.peekable) { f.peek(); e.accepted = true; }
+        else if (k === Qt.Key_Return || k === Qt.Key_Enter || k === Qt.Key_Space) { f.activated(); e.accepted = true; }
         else if (k === Qt.Key_Menu || (k === Qt.Key_F10 && (e.modifiers & Qt.ShiftModifier))) { f.menu(); e.accepted = true; }
         else if (f.slider && (k === Qt.Key_Left || k === Qt.Key_Right)) { f.step(k === Qt.Key_Left ? -1 : 1); e.accepted = true; }
         else if (k === Qt.Key_Down) { f.move(f.columns || 1); e.accepted = true; }

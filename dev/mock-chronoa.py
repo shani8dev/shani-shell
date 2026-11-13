@@ -51,22 +51,9 @@ WINDOWS_NAME = "org.shani.Chronoa.Windows"
 WINDOWS_PATH = "/org/shani/Chronoa/Windows"
 WINDOWS_IFACE = "org.shani.Chronoa.Windows"
 
-AGENT_XML = """
-<node>
-  <interface name="dev.shani.chronoa.Agent">
-    <method name="Turn">
-      <arg type="s" name="text" direction="in"/>
-      <arg type="s" name="turn" direction="out"/>
-    </method>
-    <method name="Approve">
-      <arg type="s" name="turn" direction="in"/>
-      <arg type="s" name="decision" direction="in"/>
-      <arg type="b" name="ok" direction="out"/>
-    </method>
-    <signal name="Event"><arg type="s" name="json"/></signal>
-  </interface>
-</node>
-"""
+# the Agent interface as the shell's bridge knows it (bridge/agent_contract.py):
+# one shell-side description, so the mock cannot drift from what the bridge calls
+from agent_contract import XML as AGENT_XML  # noqa: E402
 
 GATEWAY_XML = """
 <node>
@@ -229,6 +216,30 @@ def on_agent_call(connection, sender, path, iface, method, params, invocation):
         if event is not None:
             event.set()
         invocation.return_value(GLib.Variant("(b)", (event is not None,)))
+    elif method == "FindFiles":
+        # the real one is Chronoa's file index (by meaning when its embedding model
+        # answers); here: a file in ~/Documents with every word of the query in it
+        query, limit = params.unpack()
+        words = [w.lower() for w in query.split() if len(w) > 2]
+        hits = []
+        docs = Path.home() / "Documents"
+        for f in sorted(docs.glob("*")) if docs.is_dir() else []:
+            try:
+                text = f.read_text(errors="replace")
+            except OSError:
+                continue
+            if words and all(w in text.lower() for w in words):
+                hits.append({"path": str(f), "kind": "text", "size": f.stat().st_size, "excerpt": " ".join(text.split())[:120]})
+        invocation.return_value(GLib.Variant("(s)", (json.dumps({"how": "keyword (the mock)", "hits": hits[:limit], "indexing": False}),)))
+    elif method == "Write":
+        # the real one is the model (shani-chronoa agent_service.Write); here a
+        # predictable answer the suite can check: the instruction's first word, then the text
+        instruction, text = params.unpack()
+        word = (instruction.split() or ["?"])[0].lower().strip(".,:")
+        if "fail" in text:
+            invocation.return_dbus_error("dev.shani.chronoa.Error.WriteFailed", "the mock was asked to fail")
+        else:
+            invocation.return_value(GLib.Variant("(s)", (f"[{word}] {text}",)))
     else:
         invocation.return_dbus_error("dev.shani.chronoa.Error.Unknown", method)
 

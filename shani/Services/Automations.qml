@@ -47,7 +47,7 @@ Singleton {
         case "dnd": Settings.data.doNotDisturb = a !== "off"; break;
         case "volume": Audio.setVolume(Math.max(0, Math.min(100, parseInt(a) || 0)) / 100); break;
         case "style": Settings.data.darkMode = a === "dark"; break;
-        case "open": Quickshell.execDetached(["gtk-launch", a]); break;
+        case "open": Launch.app(a); break;
         case "run": Quickshell.execDetached(["sh", "-c", a]); break;
         default: return;
         }

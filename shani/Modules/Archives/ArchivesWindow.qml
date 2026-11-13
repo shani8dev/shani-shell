@@ -68,6 +68,66 @@ AppWindow {
                 Button { text: Tr.t("Open…"); flat: true; onClicked: win.pick() }
             }
 
+            // ---- Compress (Files' right-click): the chosen files into one archive ----
+            ColumnLayout {
+                Layout.fillWidth: true
+                visible: Archive.toCompress.length > 0
+                spacing: 8
+                Text {
+                    Layout.fillWidth: true
+                    text: Archive.toCompress.length === 1
+                        ? Tr.t("Compress “%1”", Archive.toCompress[0].split("/").pop())
+                        : Tr.t("Compress %1 items", Archive.toCompress.length)
+                    color: Theme.text
+                    elide: Text.ElideMiddle
+                    font.family: Theme.font
+                    font.pixelSize: 13 * Theme.fontScale
+                    font.weight: Font.DemiBold
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Repeater {
+                        model: Archive.formats
+                        Choice {
+                            required property var modelData
+                            text: modelData.label
+                            selected: Archive.format === modelData.ext
+                            onClicked: Archive.format = modelData.ext
+                        }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    TextField {
+                        id: archName
+                        Layout.fillWidth: true
+                        placeholder: Tr.t("Name (optional) — otherwise “%1”", Archive.defaultName(Archive.toCompress))
+                    }
+                    Button {
+                        kind: "primary"
+                        enabled: !Archive.creating
+                        text: Archive.creating ? Tr.t("Compressing…") : Tr.t("Create")
+                        onClicked: Archive.create(Archive.toCompress, Archive.format, archName.text.trim())
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: Archive.made !== ""
+                    Text {
+                        Layout.fillWidth: true
+                        text: Tr.t("Made") + " " + Archive.made.split("/").pop()
+                        color: Theme.dim
+                        elide: Text.ElideMiddle
+                        font.family: Theme.font
+                        font.pixelSize: 11 * Theme.fontScale
+                    }
+                    Button { text: Tr.t("Show in Files"); onClicked: Files.show(Archive.made) }
+                    Button { text: Tr.t("Open it"); flat: true; onClicked: { const m = Archive.made; Archive.toCompress = []; Archive.open(m); } }
+                }
+            }
+
             // ---- what is inside ----
             Rectangle {
                 Layout.fillWidth: true
@@ -109,6 +169,14 @@ AppWindow {
                             font.pixelSize: 11 * Theme.fontScale
                             font.features: { "tnum": 1 }
                         }
+                        // just this one, beside the archive
+                        IconButton {
+                            size: 24
+                            icon: "document-save"
+                            tip: Tr.t("Extract only this")
+                            enabled: !Archive.extracting
+                            onClicked: Archive.extractOne(row.modelData.path)
+                        }
                     }
                 }
                 EmptyState {
@@ -119,6 +187,23 @@ AppWindow {
                     subtitle: Archive.error !== "" || !Archive.available ? "" : Tr.t("Open a zip, tar, 7z or ISO to see what is inside")
                 }
             }
+
+            // ---- a password, when the archive has one ----
+            RowLayout {
+                Layout.fillWidth: true
+                visible: Archive.needsPassword
+                spacing: 8
+                Icon { name: "dialog-password"; size: 20; color: Theme.accent }
+                TextField {
+                    id: pw
+                    Layout.fillWidth: true
+                    placeholder: Archive.error !== "" ? Archive.error + " — " + Tr.t("try again") : Tr.t("This archive has a password")
+                    secret: true
+                    onAccepted: if (text !== "") { Archive.unlock(text); text = ""; }
+                }
+                Button { kind: "primary"; text: Tr.t("Unlock"); onClicked: if (pw.text !== "") { Archive.unlock(pw.text); pw.text = ""; } }
+            }
+            Connections { target: Archive; function onNeedsPasswordChanged() { if (Archive.needsPassword) pw.forceActiveFocus(); } }
 
             // ---- what happened ----
             RowLayout {

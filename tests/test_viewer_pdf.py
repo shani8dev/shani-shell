@@ -82,7 +82,8 @@ def test_pdf_sidebar_search_outline():
     assert "pdftotext -layout" in t, "fallback page texts"
     assert "searchWords" in t and "highlight" in t
     assert "findNext" in t and "findPrev" in t
-    assert "fitz" in t and "mutool" in t, "outline via PyMuPDF / mutool"
+    assert "import pymupdf" in t and "get_toc()" in t, "outline via PyMuPDF"
+    assert "mutool" not in t, "PyMuPDF does what mutool did; mupdf-tools is no longer a dependency"
     assert "outline" in t and "goToOutline" in t
     m = read("shani/Modules/PdfReader/PdfReader.qml")
     assert "Find in document" in m, "search box"

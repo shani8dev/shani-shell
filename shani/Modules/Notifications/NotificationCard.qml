@@ -267,6 +267,25 @@ Glass {
             }
         }
 
+        // suggested replies (SmartReplies: Chronoa writes three), one click sends one
+        Flow {
+            Layout.fillWidth: true
+            spacing: 6
+            visible: !root.hideContent && root.notification && root.notification.hasInlineReply && replies.length > 0
+            readonly property var replies: root.notification ? SmartReplies.forId(root.notification.id) : []
+            Component.onCompleted: if (root.notification && !root.hideContent) SmartReplies.suggest(root.notification)
+            Repeater {
+                model: parent.replies
+                Choice {
+                    required property string modelData
+                    text: modelData
+                    onClicked: {
+                        root.notification.sendInlineReply(modelData);
+                        root.done();
+                    }
+                }
+            }
+        }
         // inline reply, for apps that offer it (messaging)
         TextField {
             Layout.fillWidth: true
@@ -326,15 +345,18 @@ Glass {
                         }
                         Accessible.role: Accessible.Button
                         Accessible.name: modelData.name || modelData.text
-                        Accessible.onPressAction: { modelData.run(); if (!modelData.keep) root.done(); }
+                        // the action may already have closed this card (and this handler's context)
+                        Accessible.onPressAction: { const keep = !!modelData.keep; modelData.run(); if (!keep && typeof root !== "undefined" && root) root.done(); }
                         MouseArea {
                             id: pill
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
+                                const keep = !!parent.modelData.keep;
                                 parent.modelData.run();
-                                if (!parent.modelData.keep)
+                                // the action may already have closed this card (and this handler's context)
+                                if (!keep && typeof root !== "undefined" && root)
                                     root.done();
                             }
                         }

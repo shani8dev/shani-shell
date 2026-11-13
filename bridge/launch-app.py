@@ -125,9 +125,15 @@ def main(argv: list[str]) -> int:
     import gi
     gi.require_version("Gio", "2.0")
     from gi.repository import Gio, GLib
+    try:                # GLib 2.86 moved it to GioUnix; Gio's is the deprecated alias
+        gi.require_version("GioUnix", "2.0")
+        from gi.repository import GioUnix
+        AppInfo = GioUnix.DesktopAppInfo
+    except (ValueError, ImportError):
+        AppInfo = Gio.DesktopAppInfo
 
     try:
-        info = Gio.DesktopAppInfo.new(app_id if app_id.endswith(".desktop") else app_id + ".desktop")
+        info = AppInfo.new(app_id if app_id.endswith(".desktop") else app_id + ".desktop")
     except TypeError:                    # newer PyGObject raises for an unknown id
         info = None
     if info is None:

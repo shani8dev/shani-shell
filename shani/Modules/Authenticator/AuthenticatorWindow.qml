@@ -52,7 +52,31 @@ AppWindow {
             win.refresh();
         }
     }
+    // a code on a YubiKey that wants a touch: asked for, and copied when the key gives it
+    property string touching: ""
+    Process {
+        id: keyCode
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { const r = JSON.parse(text); Quickshell.clipboardText = r.code; win.copied = win.touching; copiedTimer.restart(); } catch (e) {}
+                win.touching = "";
+            }
+        }
+    }
     function copy(a) {
+        // the key's codes behind a password: ykman asks for it in a terminal (never on a
+        // command line) and remembers it, so the codes read from then on
+        if (a.locked) {
+            Quickshell.execDetached([Settings.data.terminal || "footclient", "-e", "sh", "-c",
+                'ykman oath access remember; echo; read -p "Done - press Enter to close." x']);
+            return;
+        }
+        if (a.touch) {
+            win.touching = a.id;
+            keyCode.command = ["python3", win.tool, "key-code", a.name];
+            keyCode.running = true;
+            return;
+        }
         Quickshell.clipboardText = a.code;
         win.copied = a.id;
         copiedTimer.restart();
@@ -129,9 +153,12 @@ AppWindow {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Text { Layout.fillWidth: true; text: row.modelData.issuer || row.modelData.account; color: Theme.dim; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                            Text { Layout.fillWidth: true; text: row.modelData.locked ? Tr.t("Your security key - click to unlock its codes") : (row.modelData.issuer || row.modelData.account) + (row.modelData.fromKey ? "  ·  " + Tr.t("on your security key") : ""); color: Theme.dim; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
                             Text {
-                                text: win.copied === row.modelData.id ? Tr.t("Copied") : row.modelData.code.replace(/^(\d{3})(\d+)$/, "$1 $2")
+                                text: win.copied === row.modelData.id ? Tr.t("Copied")
+                                      : row.modelData.locked ? Tr.t("Locked with a password")
+                                      : row.modelData.touch ? (win.touching === row.modelData.id ? Tr.t("Touch your key now") : Tr.t("Touch your key"))
+                                      : row.modelData.code.replace(/^(\d{3})(\d+)$/, "$1 $2")
                                 color: row.secondsLeft <= 5 ? Theme.danger : Theme.text
                                 font.family: Theme.mono
                                 font.pixelSize: 26 * Theme.fontScale
@@ -148,6 +175,7 @@ AppWindow {
                             Text { anchors.centerIn: parent; text: row.secondsLeft; color: row.secondsLeft <= 5 ? Theme.danger : Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale; font.features: { "tnum": 1 } }
                         }
                         IconButton {
+                            visible: !row.modelData.fromKey          // the key's codes are the key's to remove
                             size: 30
                             icon: win.removing === row.modelData.id ? "dialog-warning" : "user-trash"
                             on: win.removing === row.modelData.id

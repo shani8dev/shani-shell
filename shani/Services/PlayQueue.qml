@@ -32,6 +32,59 @@ Singleton {
     property bool muted: false
     property real rate: 1
 
+    // ---- where each long video or song was left: it starts there again ----
+    // (over two minutes long, more than ten seconds in, not near the end;
+    // the newest 300 kept, in the shell's state folder)
+    property var resumeAt: ({})           // path -> seconds
+    property real resumedFrom: 0          // where the one playing was resumed from (0: from the start)
+    property string resumedPath: ""       // which file that was: only another one clears it
+    function remember(path, pos, dur) {
+        if (!path || dur < 120)
+            return;
+        const m = Object.assign({}, resumeAt);
+        delete m[path];
+        if (pos > 10 && pos < dur * 0.95)
+            m[path] = Math.round(pos);
+        const keys = Object.keys(m);
+        for (let i = 0; i < keys.length - 300; i++)
+            delete m[keys[i]];
+        resumeAt = m;
+        resumeSave.restart();
+    }
+    function forget(path) { remember(path, 0, 9999); }
+    function resumePoint(path) { return resumeAt[path] || 0; }
+    FileView {
+        id: resumeStore
+        path: Quickshell.statePath("media-resume.json")
+        printErrors: false                 // none yet: nothing left halfway
+        onLoaded: { try { root.resumeAt = JSON.parse(text()) || {}; } catch (e) {} }
+    }
+    Timer { id: resumeSave; interval: 1500; onTriggered: resumeStore.setText(JSON.stringify(root.resumeAt)) }
+
+    // a subtitle file beside the video: "film.mkv" -> "film.srt" (or .vtt, or "film.en.srt")
+    property string subtitleFile: ""
+    onCurrentChanged: {
+        tellMpris();
+        if (current !== resumedPath) { resumedFrom = 0; resumedPath = ""; }
+        subtitleFile = "";
+        if (current && kind(current) === "video") {
+            subFinder.command = ["sh", "-c", 'b=${1%.*}; for f in "$b.srt" "$b.vtt" "$b".*.srt "$b".*.vtt; do [ -f "$f" ] && { printf "%s" "$f"; exit 0; }; done; exit 0', "sh", current];
+            subFinder.running = true;
+        }
+    }
+    Process {
+        id: subFinder
+        stdout: StdioCollector { onStreamFinished: root.subtitleFile = text.trim() }
+    }
+
+    // what the window shows, for `state` and the tests
+    property bool mini: false
+    signal miniRequested(bool on)
+    property string cue: ""               // the subtitle line on screen now
+    property int audioTrackCount: 0
+    property string tagLine: ""           // the song's own title and artist, when read from the file
+    property string coverShown: ""
+
     signal playRequested()
     signal pauseRequested()
     signal toggleRequested()
@@ -144,7 +197,6 @@ Singleton {
     }
     function tellMpris() { if (mpris.running) mpris.write(mprisState()); }
     onPlayingChanged: tellMpris()
-    onCurrentChanged: tellMpris()
     onDurationChanged: tellMpris()
     onVolumeChanged: tellMpris()
     onMutedChanged: tellMpris()

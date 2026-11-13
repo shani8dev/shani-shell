@@ -16,9 +16,17 @@
 #   pam           the lock screen's and greeter's PAM stacks through real libpam (needs shani-desktop-niri)
 #   render[=mode] every surface to PNG in out/renders; mode shell|greeter|setup|all
 #   showcase      restage the README's two pictures in docs/ (the rest: out/showcase)
+#   demo[=a,b]    record the README's GIFs into out/demos (CHRONOA=real for the AI scenes)
+#   montage       join out/demos' clips into out/demos/tour.mp4 (LinkedIn, the blog)
 #   all           unit shell greeter setup polkit admin setup-polkit pam
 #
 # --build rebuilds shani-shell-dev first (it is built anyway when missing).
+# SHANI_ONLINE=1 sh dev/check.sh shell=maps-online: Maps against OpenStreetMap's real
+# tiles, Nominatim and OSRM (the suite uses dev/fake-osm.py: same answers every run).
+# CHRONOA=real sh dev/check.sh shell=<part>: the real shani-chronoa (../shani-chronoa)
+# instead of dev/mock-chronoa.py, answering with the model on this machine's
+# 127.0.0.1:8765 (the container joins the host network). The full suite keeps
+# the mock: the same answers every run.
 # shani-desktop-niri is looked for beside this repo in shani-pkgbuilds, or at
 # $SHANI_DESKTOP_NIRI; shani-testbed (the AT-SPI client) beside this repo.
 # Everything a run writes is in out/ (git-ignored, yours to delete): each
@@ -43,7 +51,12 @@ box() {
     tb=; [ -d "$TESTBED" ] && tb="-v $(cd "$TESTBED" && pwd):/testbed:ro"
     # shellcheck disable=SC2086
     # IPC_LOCK: the keyring daemon locks its memory (secrets never reach swap) or will not start
-    docker run --rm --cap-add SYS_PTRACE --cap-add IPC_LOCK $tb -v "$REPO":/work "$@"
+    # CHRONOA=real: the real shani-chronoa (and shani-link, its phone skills) from
+    # beside this repo, on the host network for the model on 127.0.0.1:8765
+    ch=; [ "${CHRONOA:-}" = real ] && ch="-e CHRONOA=real --network=host -v $(cd "$REPO/../shani-chronoa" && pwd):/chronoa:ro -v $(cd "$REPO/../shani-link" && pwd):/link:ro"
+    # SHANI_ONLINE=1: the real web services where the suite has stand-ins (Maps)
+    on=; [ "${SHANI_ONLINE:-}" = 1 ] && on="-e SHANI_ONLINE=1"
+    docker run --rm --cap-add SYS_PTRACE --cap-add IPC_LOCK $tb $ch $on -v "$REPO":/work "$@"
 }
 run() {
     case "$1" in
@@ -61,6 +74,11 @@ run() {
         admin) sh "$REPO/dev/admin-test.sh" "$DESK" ;;
         setup-polkit) sh "$REPO/dev/setup-polkit-test.sh" "$DESK" ;;
         showcase) box -v "$DESK":/desk:ro $IMG sh /work/dev/showcase.sh ;;
+        # the README's GIFs, out/demos/<scene>.gif (demo=island,ring: just those)
+        demo|demo=*) sc=; [ "$1" != demo ] && sc=$(echo "${1#demo=}" | tr , " ")
+                     box -v "$DESK":/desk:ro $IMG sh /work/dev/demo.sh $sc ;;
+        # the clips joined into one MP4 (out/demos/tour.mp4), for where a GIF does not play
+        montage) box $IMG sh /work/dev/montage.sh ;;
         render|render=*) box $IMG sh /work/dev/render.sh "${1#render=}" ;;
         *) echo "unknown suite: $1 (see the top of dev/check.sh)"; return 2 ;;
     esac

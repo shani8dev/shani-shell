@@ -164,6 +164,20 @@ PanelWindow {
         command: ["sh", "-c", 'q="$1"; d="$HOME/Documents $HOME/Desktop $HOME/Downloads"; if command -v localsearch >/dev/null && localsearch status >/dev/null 2>&1; then localsearch search --limit 8 -- "$q" 2>/dev/null | sed -n "s|.*file://\\([^ ]*\\).*|\\1|p" | head -8 ; elif command -v rg >/dev/null; then rg -l -i -F --max-depth 4 --max-filesize 2M -- "$q" $d 2>/dev/null | head -8 ; else grep -rliF --exclude-dir=".*" -- "$q" $d 2>/dev/null | head -8 ; fi',"sh", query]
         stdout: StdioCollector { onStreamFinished: win.inside = text.trim().split("\n").filter(x => x).map(p => decodeURIComponent(p)) }
     }
+    // files by meaning (Chronoa's FindFiles): [{ path, excerpt }], and how it searched
+    property var meaning: []
+    property string meaningHow: ""
+    property int meaningSeq: 0
+    Connections {
+        target: Bridge
+        function onMessage(msg) {
+            if (msg.type !== "found" || msg.id !== "f" + win.meaningSeq)
+                return;                             // an older query's answer
+            win.meaning = (msg.hits || []).map(h => ({ path: h.path, excerpt: h.excerpt || "" }));
+            win.meaningHow = msg.how || "";
+            Ui.launcherMeaning = win.meaning.length;
+        }
+    }
     Timer {
         id: fileDebounce
         interval: 250
@@ -186,10 +200,16 @@ PanelWindow {
                     providerSearch.terms = t.split(/\s+/);
                     providerSearch.running = true;
                 }
+                // by meaning: Chronoa's own index of Documents, Downloads, Desktop
+                if (Settings.data.searchMeaning !== false && t.length >= 4) {
+                    win.meaningSeq++;
+                    Bridge.send({ op: "findfiles", id: "f" + win.meaningSeq, query: t });
+                }
             } else {
                 win.found = [];
                 win.inside = [];
                 win.provided = [];
+                win.meaning = [];
             }
         }
     }
@@ -288,7 +308,7 @@ PanelWindow {
                              run: shift => shift ? Quickshell.clipboardText = t : Clipboard.setAndPaste(t), pin: () => Clipboard.unpin(t) }));
             const items = Clipboard.entries.filter(e => f === "" || e.text.toLowerCase().indexOf(f) >= 0).slice(0, 30)
                 .map(e => ({ kind: "clip", icon: e.image ? "image-x-generic" : "edit-paste", thumb: e.image ? e.preview : "",
-                             title: e.text.replace(/\s+/g, " ").slice(0, 140), subtitle: (e.image ? Tr.t("Picture · Enter pastes it · Shift+Enter copies") : Tr.t("Enter pastes it · Shift+Enter copies · Ctrl+P pins")) + " · " + Tr.t("Shift+Delete removes it"),
+                             title: e.text.replace(/\s+/g, " ").slice(0, 140), subtitle: (!e.image && Clipboard.originOf(e.text) ? Tr.t("From %1", Clipboard.originOf(e.text)) + " · " : "") + (e.image ? Tr.t("Picture · Enter pastes it · Shift+Enter copies") : Tr.t("Enter pastes it · Shift+Enter copies · Ctrl+P pins")) + " · " + Tr.t("Shift+Delete removes it"),
                              run: shift => shift ? Clipboard.copy(e) : Clipboard.copyAndPaste(e), remove: () => Clipboard.remove(e), pin: e.image ? null : () => Clipboard.pin(e) }));
             const clipItems = items.length ? items
                 : [{ kind: "none", icon: "edit-paste", title: Clipboard.available ? "Clipboard history is empty" : "cliphist is not installed", subtitle: "", run: () => {} }];
@@ -341,6 +361,11 @@ PanelWindow {
         const byContent = win.inside.filter(p => allFiles.indexOf(p) < 0).slice(0, 6);
         if (allFiles.length || byContent.length)
             out.push({ title: Tr.t("Files"), items: allFiles.map(fileItem).concat(byContent.map(p => Object.assign(fileItem(p), { subtitle: "contains “" + q + "” · " + p.replace(Quickshell.env("HOME"), "~") }))) });
+        // what Chronoa's index found, by meaning (or by words, when it says so)
+        const meant = win.meaning.filter(m => allFiles.indexOf(m.path) < 0 && byContent.indexOf(m.path) < 0).slice(0, 6);
+        if (meant.length)
+            out.push({ title: /embedding/.test(win.meaningHow) ? Tr.t("In your files, by meaning") : Tr.t("In your files"),
+                       items: meant.map(m => Object.assign(fileItem(m.path), { subtitle: (m.excerpt ? "“" + m.excerpt.slice(0, 90) + "…” · " : "") + m.path.replace(Quickshell.env("HOME"), "~") })) });
         // what the apps themselves found, one section per app
         // a sum the launcher already answered is not answered again by Calculator's own provider
         const answered = out.some(s => s.items.some(i => i.kind === "calc"));
@@ -356,9 +381,10 @@ PanelWindow {
     }
     readonly property var flat: sections.reduce((acc, s) => acc.concat(s.items), [])
     readonly property var current: flat[Math.max(0, Math.min(sel, flat.length - 1))] || null
-    onFlatChanged: Ui.topResult = flat.length > 0 ? flat[0].title : ""
+    onFlatChanged: { Ui.topResult = flat.length > 0 ? flat[0].title : ""; Ui.launcherFiles = flat.filter(x => x.kind === "file").length; }
     onSectionsChanged: Ui.launcherSections = sections.map(x => x.title)
     onQChanged: {
+        if (q.trim().length < 4) meaning = [];
         sel = 0;
         fileDebounce.restart();
         if (q === "c" || q.startsWith("c "))
@@ -376,11 +402,16 @@ PanelWindow {
         const t = q.trim().replace(/^\?/, "").trim();
         const c = current;
         Ui.closeAll();
-        if (c && c.kind === "file")
+        // a question typed here wants its answer seen: the conversation opens
+        // with it (the Island alone showed "thinking", then nothing - the
+        // answer went nowhere a person could read; found filming the README demo)
+        if (c && c.kind === "file") {
             Chronoa.ask((t ? t + "\n" : "What is this file, and what can I do with it?\n") + "The file: " + c.path);
-        else if (t)
+            Chronoa.open = true;
+        } else if (t) {
             Chronoa.ask(t);
-        else
+            Chronoa.open = true;
+        } else
             Ui.askIsland();
     }
 
@@ -455,6 +486,16 @@ PanelWindow {
                         // Ctrl+P: pin or unpin a clipboard entry
                         if (e.key === Qt.Key_P && (e.modifiers & Qt.ControlModifier) && win.flat[win.sel] && win.flat[win.sel].pin) {
                             win.flat[win.sel].pin();
+                            e.accepted = true;
+                            return;
+                        }
+                        // Ctrl+Y: Quick Look at the highlighted file, else the first file found
+                        // (as Spotlight's), Left/Right walking the others
+                        const files = e.key === Qt.Key_Y && (e.modifiers & Qt.ControlModifier) ? win.flat.filter(x => x.kind === "file").map(x => x.path) : [];
+                        if (files.length) {
+                            const at = win.current && win.current.kind === "file" ? win.current.path : files[0];
+                            Ui.closeAll();
+                            QuickLook.open(at, files);
                             e.accepted = true;
                             return;
                         }

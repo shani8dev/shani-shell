@@ -31,6 +31,16 @@ XML = """
       <arg type="s" name="decision" direction="in"/>
       <arg type="b" name="ok" direction="out"/>
     </method>
+    <method name="Write">
+      <arg type="s" name="instruction" direction="in"/>
+      <arg type="s" name="text" direction="in"/>
+      <arg type="s" name="result" direction="out"/>
+    </method>
+    <method name="FindFiles">
+      <arg type="s" name="query" direction="in"/>
+      <arg type="i" name="limit" direction="in"/>
+      <arg type="s" name="json" direction="out"/>
+    </method>
     <signal name="Event"><arg type="s" name="json"/></signal>
   </interface>
 </node>

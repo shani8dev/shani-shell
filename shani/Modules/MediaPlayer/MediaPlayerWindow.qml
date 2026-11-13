@@ -7,6 +7,7 @@
 // N and P the next and the one before; M mutes; F full screen; O opens a file.
 // The image's default for video and audio files (dev.shani.MediaPlayer.desktop).
 import Quickshell
+import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import QtMultimedia
@@ -19,10 +20,42 @@ AppWindow {
     appName: "Media Player"
     doc: PlayQueue.name
     visible: PlayQueue.shown
-    onGone: PlayQueue.close()
+    onGone: { if (mini) setMini(false); PlayQueue.close(); }
     margins: 0
-    implicitWidth: 960
-    implicitHeight: 620
+    // the mini player: a small floating picture, on every workspace (Niri's pinning)
+    property bool mini: false
+    header: !mini
+    implicitWidth: mini ? 480 : 960
+    implicitHeight: mini ? 270 : 620
+    function myWindowId() {
+        // by title: the shell names its own windows' app ids itself (Niri.own)
+        const w = Object.values(Niri.windows).find(x => / — Media Player$|^Media Player$/.test(x.title || ""));
+        return w ? w.id : -1;
+    }
+    function setMini(on) {
+        if (on === mini)
+            return;
+        mini = on;
+        if (on) { listShown = false; tracksShown = false; PlayQueue.page = "playing"; }
+        const id = myWindowId();
+        if (id < 0)
+            return;
+        if (on && !Niri.isPinned(id)) {
+            Niri.togglePinned(id);                  // floats it, and carries it to each workspace
+            // niri keeps a window's size whatever it asks for: niri sizes it
+            Niri.action("set-window-width", "--id", id, "480");
+            Niri.action("set-window-height", "--id", id, "270");
+        } else if (!on && Niri.isPinned(id)) {
+            Niri.togglePinned(id);
+            Niri.action("move-window-to-tiling", "--id", id);
+        }
+    }
+    onMiniChanged: PlayQueue.mini = mini
+    Connections { target: PlayQueue; function onMiniRequested(on) { win.setMini(on); } }
+    onCueNowChanged: PlayQueue.cue = cueNow
+    Connections { target: player; function onAudioTracksChanged() { PlayQueue.audioTrackCount = player.audioTracks.length; } }
+    onTagTitleChanged: PlayQueue.tagLine = [tagTitle, tagArtist].filter(x => x).join(" — ")
+    onCoverChanged: PlayQueue.coverShown = cover
 
     property bool listShown: false
     // library | playing: the music in ~/Music, or what is playing (a video always shows)
@@ -49,6 +82,99 @@ AppWindow {
     ]
     readonly property bool audioOnly: PlayQueue.current !== "" && !player.hasVideo
 
+    // where it is, every few seconds while it plays, for next time
+    Timer {
+        interval: 5000
+        repeat: true
+        running: PlayQueue.playing
+        onTriggered: PlayQueue.remember(PlayQueue.current, player.position / 1000, player.duration / 1000)
+    }
+    Timer { id: resumeNote; interval: 8000 }
+    property real pendingResume: 0
+    function resumeNow() {
+        if (pendingResume <= 0 || !player.seekable || player.playbackState !== MediaPlayer.PlayingState || player.position <= 0)
+            return;
+        // taken and cleared before the seek: the seek reports a position, which calls
+        // this again from inside the assignment (measured: the inner call cleared it
+        // and the outer one then wrote 0 as where it was resumed from)
+        const at = pendingResume;
+        pendingResume = 0;
+        PlayQueue.resumedFrom = at;
+        PlayQueue.resumedPath = PlayQueue.current;
+        resumeNote.restart();
+        player.position = at * 1000;
+    }
+
+    // ---- sound and subtitle tracks; a subtitle file beside the video ----
+    property bool tracksShown: false
+    property string subSource: "off"             // off | embedded | file
+    function trackName(md, i) {
+        const title = md ? md.stringValue(MediaMetaData.Title) : "";
+        const lang = md ? md.stringValue(MediaMetaData.Language) : "";
+        return [title, lang].filter(x => x && x !== "C" && x !== "AnyLanguage").join(" · ") || Tr.t("Track %1", i + 1);
+    }
+    function setSubtitles(src, track) {
+        subSource = src;
+        player.activeSubtitleTrack = src === "embedded" ? track : -1;
+    }
+    property var cues: []                        // [{ start, end, text }] in seconds, from the file
+    readonly property string cueNow: {
+        if (subSource !== "file") return "";
+        const t = player.position / 1000;
+        const c = cues.find(x => t >= x.start && t < x.end);
+        return c ? c.text : "";
+    }
+    function stamp(s) {
+        const m = /(?:(\d+):)?(\d+):(\d+)[.,](\d+)/.exec(s);
+        return m ? (Number(m[1] || 0) * 3600 + Number(m[2]) * 60 + Number(m[3]) + Number(m[4]) / 1000) : -1;
+    }
+    Connections {
+        target: PlayQueue
+        function onSubtitleFileChanged() {
+            win.cues = [];
+            if (PlayQueue.subtitleFile) { cueReader.command = ["cat", PlayQueue.subtitleFile]; cueReader.running = true; }
+            else if (win.subSource === "file") win.setSubtitles("off", -1);
+        }
+        function onCurrentChanged() { if (win.subSource === "embedded") win.setSubtitles("off", -1); }
+    }
+    Process {
+        id: cueReader
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const out = [];
+                for (const block of text.replace(/\r/g, "").split(/\n\s*\n/)) {
+                    const lines = block.split("\n").filter(l => l.trim() !== "");
+                    const i = lines.findIndex(l => l.indexOf("-->") > 0);
+                    if (i < 0) continue;
+                    const [a, b] = lines[i].split("-->");
+                    const s = win.stamp(a), e = win.stamp(b);
+                    if (s < 0 || e < 0) continue;
+                    out.push({ start: s, end: e, text: lines.slice(i + 1).join("\n").replace(/<[^>]+>/g, "") });
+                }
+                win.cues = out;
+                if (out.length) win.setSubtitles("file", -1);      // a file beside the video: shown, as players do
+            }
+        }
+    }
+
+    // ---- a song's own tags and cover, when the Library does not know the file ----
+    readonly property string tagTitle: player.metaData.stringValue(MediaMetaData.Title)
+    readonly property string tagArtist: player.metaData.stringValue(MediaMetaData.ContributingArtist) || player.metaData.stringValue(MediaMetaData.AlbumArtist)
+    readonly property string tagAlbum: player.metaData.stringValue(MediaMetaData.AlbumTitle)
+    property string fileCover: ""
+    Connections {
+        target: PlayQueue
+        function onCurrentChanged() {
+            win.fileCover = "";
+            if (PlayQueue.current && PlayQueue.kind(PlayQueue.current) === "audio" && !(win.song && win.song.cover)) {
+                coverOut.command = ["sh", "-c", 'd=${XDG_CACHE_HOME:-$HOME/.cache}/shani-shell/covers; mkdir -p "$d"; o="$d/$(printf %s "$1" | md5sum | cut -c1-16).jpg"; [ -s "$o" ] || ffmpeg -loglevel error -y -i "$1" -an -map 0:v:0 -frames:v 1 "$o" 2>/dev/null; [ -s "$o" ] && printf %s "$o"', "sh", PlayQueue.current];
+                coverOut.running = true;
+            }
+        }
+    }
+    Process { id: coverOut; stdout: StdioCollector { onStreamFinished: win.fileCover = text.trim() } }
+    readonly property string cover: win.song && win.song.cover ? win.song.cover : fileCover
+
     MediaPlayer {
         id: player
         source: PlayQueue.current !== "" ? "file://" + PlayQueue.current.split("/").map(encodeURIComponent).join("/") : ""
@@ -56,10 +182,21 @@ AppWindow {
         audioOutput: AudioOutput { volume: PlayQueue.volume; muted: PlayQueue.muted }
         playbackRate: PlayQueue.rate
         onPlaybackStateChanged: PlayQueue.playing = playbackState === MediaPlayer.PlayingState
-        onPositionChanged: PlayQueue.position = position / 1000
-        onDurationChanged: PlayQueue.duration = duration / 1000
+        onPositionChanged: { PlayQueue.position = player.position / 1000; win.resumeNow(); }
+        onDurationChanged: {
+            PlayQueue.duration = player.duration / 1000;
+            // where it was left last time (PlayQueue.resumeAt), once its length is known
+            const r = PlayQueue.resumePoint(PlayQueue.current);
+            if (player.duration > 0 && r > 0 && player.position < 2000 && PlayQueue.resumedFrom === 0)
+                win.pendingResume = r;
+            win.resumeNow();
+        }
+        // a seek before playback has really started is dropped (measured twice: the
+        // note said 1:03, the clock 0:01; then seekable alone was not enough) - so it
+        // waits for the first position the playing file reports
+        onSeekableChanged: win.resumeNow()
         onHasVideoChanged: PlayQueue.hasVideo = hasVideo
-        onMediaStatusChanged: if (mediaStatus === MediaPlayer.EndOfMedia) PlayQueue.ended()
+        onMediaStatusChanged: if (mediaStatus === MediaPlayer.EndOfMedia) { PlayQueue.forget(PlayQueue.current); PlayQueue.ended(); }
         onErrorOccurred: (error, text) => PlayQueue.error = text || Tr.t("This file cannot be played")
     }
     Connections {
@@ -100,6 +237,8 @@ AppWindow {
         else if (e.key === Qt.Key_F) Niri.action("fullscreen-window");
         else if (e.key === Qt.Key_O) win.pick();
         else if (e.key === Qt.Key_L) win.listShown = !win.listShown;
+        else if (e.key === Qt.Key_I) win.setMini(!win.mini);
+        else if (e.key === Qt.Key_Escape && win.mini) win.setMini(false);
         else return false;
         return true;
     }
@@ -121,14 +260,41 @@ AppWindow {
                 MusicLibraryView {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    visible: win.page === "library"
+                    visible: win.page === "library" && !win.mini
                 }
                 // ---- the picture (or, for music, what is playing) ----
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    visible: win.page === "playing"
+                    visible: win.page === "playing" || win.mini
                     color: "black"
+                    // the mini player's own controls, over the picture while the pointer is on it
+                    HoverHandler { id: miniHover; enabled: win.mini }
+                    MouseArea {
+                        anchors.fill: parent
+                        visible: win.mini
+                        z: 2
+                        acceptedButtons: Qt.LeftButton
+                        onPressed: win.startSystemMove()        // no header: the picture moves it
+                        onDoubleClicked: win.setMini(false)
+                    }
+                    RowLayout {
+                        z: 3
+                        anchors.centerIn: parent
+                        visible: win.mini && miniHover.hovered
+                        spacing: 14
+                        IconButton { size: 40; icon: "media-skip-backward"; tip: Tr.t("Previous"); onClicked: PlayQueue.previous() }
+                        IconButton { size: 52; on: true; icon: PlayQueue.playing ? "media-playback-pause" : "media-playback-start"; tip: Tr.t("Play or pause"); onClicked: win.toggle() }
+                        IconButton { size: 40; icon: "media-skip-forward"; tip: Tr.t("Next"); onClicked: PlayQueue.next() }
+                    }
+                    IconButton {
+                        z: 3
+                        anchors { top: parent.top; right: parent.right; margins: 8 }
+                        visible: win.mini && miniHover.hovered
+                        icon: "view-restore"
+                        tip: Tr.t("Back to the full player") + " (I)"
+                        onClicked: win.setMini(false)
+                    }
                     VideoOutput {
                         id: video
                         anchors.fill: parent
@@ -142,7 +308,7 @@ AppWindow {
                         visible: !player.hasVideo
                         Icon {
                             Layout.alignment: Qt.AlignHCenter
-                            visible: !win.song || win.song.cover === ""
+                            visible: win.cover === ""
                             name: PlayQueue.current === "" ? "folder-videos" : "audio-x-generic"
                             size: 72
                             color: Theme.accent
@@ -151,16 +317,16 @@ AppWindow {
                             Layout.alignment: Qt.AlignHCenter
                             Layout.preferredWidth: 260
                             Layout.preferredHeight: 260
-                            visible: !!win.song && win.song.cover !== ""
+                            visible: win.cover !== ""
                             fillMode: Image.PreserveAspectCrop
                             asynchronous: true
                             sourceSize: Qt.size(520, 520)
-                            source: win.song && win.song.cover ? "file://" + win.song.cover.split("/").map(encodeURIComponent).join("/") : ""
+                            source: win.cover ? "file://" + win.cover.split("/").map(encodeURIComponent).join("/") : ""
                         }
                         Text {
                             Layout.fillWidth: true
                             horizontalAlignment: Text.AlignHCenter
-                            text: PlayQueue.error !== "" ? PlayQueue.error : PlayQueue.current === "" ? Tr.t("Nothing playing") : win.song ? win.song.title : PlayQueue.name
+                            text: PlayQueue.error !== "" ? PlayQueue.error : PlayQueue.current === "" ? Tr.t("Nothing playing") : win.song ? win.song.title : (win.tagTitle || PlayQueue.name)
                             color: PlayQueue.error !== "" ? Theme.danger : "white"
                             wrapMode: Text.Wrap
                             font.family: Theme.font
@@ -170,8 +336,8 @@ AppWindow {
                         Text {
                             Layout.fillWidth: true
                             horizontalAlignment: Text.AlignHCenter
-                            visible: !!win.song && PlayQueue.error === ""
-                            text: win.song ? win.song.artist + "  ·  " + win.song.album : ""
+                            visible: (!!win.song || win.tagArtist !== "" || win.tagAlbum !== "") && PlayQueue.error === ""
+                            text: win.song ? win.song.artist + "  ·  " + win.song.album : [win.tagArtist, win.tagAlbum].filter(x => x).join("  ·  ")
                             color: "#c0ffffff"
                             elide: Text.ElideRight
                             font.family: Theme.font
@@ -197,6 +363,7 @@ AppWindow {
                     }
                     // a click plays or pauses, a double click is full screen
                     MouseArea {
+                        z: -1
                         anchors.fill: parent
                         enabled: PlayQueue.current !== ""
                         onClicked: win.toggle()
@@ -204,13 +371,103 @@ AppWindow {
                         onWheel: w => win.louder(w.angleDelta.y > 0 ? 0.05 : -0.05)
                     }
                     DropArea {
+                        z: -1
                         anchors.fill: parent
                         onDropped: drop => { if (drop.hasUrls && drop.urls.length) PlayQueue.open(String(drop.urls[0])); }
+                    }
+                    // the subtitle file's line, outlined so it reads on any picture
+                    Text {
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: parent.height * 0.07
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: parent.width * 0.86
+                        visible: win.cueNow !== ""
+                        text: win.cueNow
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
+                        color: "white"
+                        style: Text.Outline
+                        styleColor: "black"
+                        font.family: Theme.font
+                        font.pixelSize: Math.max(18, parent.height * 0.045)
+                        font.weight: Font.DemiBold
+                    }
+                    // "Resumed at 12:34" for a few seconds, with the way back to the start
+                    Rectangle {
+                        anchors { top: parent.top; left: parent.left; margins: 14 }
+                        visible: resumeNote.running && PlayQueue.resumedFrom > 0
+                        implicitWidth: resumeRow.implicitWidth + 20
+                        implicitHeight: 36
+                        radius: 18
+                        color: Qt.rgba(0, 0, 0, 0.66)
+                        RowLayout {
+                            id: resumeRow
+                            anchors.centerIn: parent
+                            spacing: 10
+                            Text { text: Tr.t("Resumed at %1", PlayQueue.clock(PlayQueue.resumedFrom)); color: "white"; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                            Button { text: Tr.t("Start over"); flat: true; onClicked: { player.position = 0; PlayQueue.resumedFrom = 0; resumeNote.stop(); } }
+                        }
+                    }
+                    // sound and subtitle tracks
+                    Rectangle {
+                        anchors { right: parent.right; bottom: parent.bottom; margins: 12 }
+                        visible: win.tracksShown
+                        width: 300
+                        implicitHeight: tracksCol.implicitHeight + 24
+                        radius: Theme.radiusSmall
+                        color: Theme.alpha(Theme.bg, 0.94)
+                        border.width: 1
+                        border.color: Theme.border
+                        MouseArea { anchors.fill: parent }
+                        ColumnLayout {
+                            id: tracksCol
+                            x: 12; y: 12
+                            width: parent.width - 24
+                            spacing: 6
+                            SectionTitle { Layout.fillWidth: true; text: Tr.t("Sound") }
+                            Flow {
+                                Layout.fillWidth: true
+                                spacing: 6
+                                Repeater {
+                                    model: player.audioTracks
+                                    Choice {
+                                        required property var modelData
+                                        required property int index
+                                        text: win.trackName(modelData, index)
+                                        selected: player.activeAudioTrack === index || (player.activeAudioTrack < 0 && index === 0)
+                                        onClicked: player.activeAudioTrack = index
+                                    }
+                                }
+                            }
+                            SectionTitle { Layout.fillWidth: true; text: Tr.t("Subtitles") }
+                            Flow {
+                                Layout.fillWidth: true
+                                spacing: 6
+                                Choice { text: Tr.t("Off"); selected: win.subSource === "off"; onClicked: win.setSubtitles("off", -1) }
+                                Repeater {
+                                    model: player.subtitleTracks
+                                    Choice {
+                                        required property var modelData
+                                        required property int index
+                                        text: win.trackName(modelData, index)
+                                        selected: win.subSource === "embedded" && player.activeSubtitleTrack === index
+                                        onClicked: win.setSubtitles("embedded", index)
+                                    }
+                                }
+                                Choice {
+                                    visible: win.cues.length > 0
+                                    text: PlayQueue.subtitleFile.split("/").pop()
+                                    selected: win.subSource === "file"
+                                    onClicked: win.setSubtitles("file", -1)
+                                }
+                            }
+                        }
                     }
                 }
 
                 // ---- where it is: click or drag to seek ----
                 Item {
+                    visible: !win.mini
                     Layout.fillWidth: true
                     Layout.preferredHeight: 22
                     Layout.leftMargin: 14
@@ -254,6 +511,7 @@ AppWindow {
 
                 // ---- the controls ----
                 RowLayout {
+                    visible: !win.mini
                     Layout.fillWidth: true
                     Layout.margins: 10
                     spacing: 4
@@ -313,9 +571,17 @@ AppWindow {
                             onWheel: w => win.louder(w.angleDelta.y > 0 ? 0.05 : -0.05)
                         }
                     }
+                    IconButton {
+                        icon: "media-view-subtitles"
+                        tip: Tr.t("Sound and subtitles")
+                        visible: player.audioTracks.length > 1 || player.subtitleTracks.length > 0 || win.cues.length > 0
+                        on: win.tracksShown
+                        onClicked: win.tracksShown = !win.tracksShown
+                    }
                     IconButton { icon: "view-list"; tip: Tr.t("Queue") + " (L)"; on: win.listShown; onClicked: win.listShown = !win.listShown }
                     IconButton { icon: "document-save-as"; tip: Tr.t("Convert…"); enabled: PlayQueue.current !== ""; onClicked: { Ui.converterFiles = [PlayQueue.current]; Ui.converter = true; } }
                     IconButton { icon: "document-open"; tip: Tr.t("Open") + " (O)"; onClicked: win.pick() }
+                    IconButton { icon: "view-restore"; tip: Tr.t("Mini player") + " (I)"; enabled: PlayQueue.current !== ""; onClicked: win.setMini(true) }
                     IconButton { icon: "view-fullscreen"; tip: Tr.t("Full screen") + " (F)"; onClicked: Niri.action("fullscreen-window") }
                 }
             }
@@ -324,7 +590,7 @@ AppWindow {
             Rectangle {
                 Layout.fillHeight: true
                 Layout.preferredWidth: 280
-                visible: win.listShown
+                visible: win.listShown && !win.mini
                 color: Theme.surface1
                 ColumnLayout {
                     anchors.fill: parent

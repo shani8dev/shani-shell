@@ -22,7 +22,8 @@ Singleton {
     property int controllers: 0
     readonly property var top: ToplevelManager.activeToplevel
     readonly property bool fullscreen: top !== null && Boolean(top.fullscreen)
-    readonly property bool wanted: Settings.loaded && Settings.data.gamepadNav && controllers > 0 && !fullscreen
+    // InputPlumber, when it manages the controllers, hands the presses over itself (Services/InputPlumber)
+    readonly property bool wanted: Settings.loaded && Settings.data.gamepadNav && controllers > 0 && !fullscreen && !InputPlumber.managing
     readonly property bool running: reader.running
     property string lastAction: ""        // for the tests
 

@@ -5,11 +5,14 @@ the camera. Find anything by typing a few letters. Change any setting by picking
 from choices — never by typing values you'd have to know. And when you're not
 using it, it costs almost nothing.
 
-![The ShaniOS desktop](docs/showcase-desktop.png)
+![The ShaniOS desktop](docs/showcase-desktop.jpg)
 
 Built on the [niri](https://github.com/YaLTeR/niri) scrolling compositor and
-[Quickshell](https://quickshell.org). Every feature below ships today and is
-covered by an automated test that drives the real shell.
+[Quickshell](https://quickshell.org). Every feature below is in the shell today.
+Most are driven by the test suite in a real nested session (over 700 checks);
+what needs real hardware, what has no check yet, and what has only been proven
+in that nested session - not yet on an installed image - is listed in
+[docs/GAPS.md](docs/GAPS.md).
 
 ---
 
@@ -37,6 +40,11 @@ covered by an automated test that drives the real shell.
   call, a timer, a print job — click to act on it.
 - **Overview** of every window, an **Alt+Tab** switcher, a **pie menu** at the
   pointer, **hot corners**, **desktop layouts** to try on with one click.
+- **The app's own menus, from the bar** — click the focused window's title: its
+  File, Edit, View … with their shortcuts and submenus, read from the app's
+  accessibility tree (niri has no app-menu protocol). GTK 3, Qt and XWayland apps
+  show theirs; apps that show no menu bar (GTK 4's popover menus, Firefox,
+  Electron) offer their desktop actions, like "New Window", instead.
 - **Name your workspaces** from the bar. **Rounded screen corners.**
 - **A drop shelf** — drop files on the dock to keep them for later, then drag them
   into any app.
@@ -62,6 +70,11 @@ covered by an automated test that drives the real shell.
 - **One launcher for everything** — apps, open windows, files (and words inside
   them), actions like "dark style" or "lock", a **calculator** with unit
   conversion, **emoji**, **clipboard history**, web search.
+- **Quick Look** — press Space on a file in Files (or Ctrl+Y on one in the
+  launcher, or `shani quick-look PATH`) to see it without opening an app: a
+  picture, a video or a song playing, a PDF's first page, code in colour, what
+  is inside an archive or folder. Left and Right walk the files beside it; Enter
+  opens it. Files now moves with the arrow keys too.
 - **A file manager of your own** — the **Files** surface: the places on the left
   (Home, Documents, Downloads, Pictures, Videos, the drives you plugged in), the
   folder on screen as a grid of tiles or a list of rows, a search box, and a
@@ -69,6 +82,19 @@ covered by an automated test that drives the real shell.
   for a range, Enter to open, F2 to rename, Delete to move to the **trash**
   (the desktop trash, so it can be put back). The folder is **watched**: a file
   made or removed elsewhere shows up at once.
+- **Copy, cut and paste files** (Ctrl+C / X / V, or the right-click menu) — with
+  other apps too: files copied in Files paste in GNOME Files and GTK apps, and the
+  other way round. Nothing is ever written over: a name that is taken becomes
+  "name (2)". **Undo** (Ctrl+Z) puts back a paste, a move, a rename, a batch
+  rename or a trip to the trash.
+- **The trash** says where each file came from: **put back** returns it there
+  (beside it, if something new took the name), **delete for good** and **empty
+  the trash** ask twice.
+- **Search through the folders inside too**, **Properties** (Alt+Enter: size
+  counted through folders, dates, owner, permissions), **rename several at once**
+  ("Holiday #" makes Holiday 1, Holiday 2 … each keeping its extension, with a
+  preview first) and **bookmarks** in the sidebar - GTK's own, so GTK apps'
+  sidebars have them too.
 - **Choose a file in the shell, not in a portal** — the chooser is the shell's
   own: no waiting for the desktop portal, no another app's window.
 - **Picks go where you were** — choose an emoji or a clipboard entry and it's typed
@@ -104,14 +130,36 @@ covered by an automated test that drives the real shell.
   text file or a zip and the shell's own app opens it.
 - **A media player** — play, pause, seek, the next episode or track from the
   same folder, speed, repeat, shuffle, full screen.
+  It picks up where you left a long video or song ("Resumed at 1:03 · Start
+  over"), offers the sound tracks and subtitles a file has, shows a .srt or
+  .vtt lying beside the video, reads a song's own title, artist and cover, and
+  shrinks to a mini player that floats on every workspace (I).
 - **A text editor that does not lose work** — tabs, find and replace, syntax
   colours, line numbers; close it mid-sentence and the text is there when you
   come back. Saving keeps the file's permissions and line endings.
-- **Archive Manager** — see what is inside a zip, tar, 7z or ISO; extract it into a new
-  folder, never over what is there.
+- **Document Viewer** — PDFs, and e-books (EPUB, FB2, MOBI), comics (CBZ, CBR,
+  CB7), XPS and DjVu, each searchable like a PDF; a PDF's form can be filled in
+  and a filled copy saved beside it.
+- **Tidy and name** — Files' Tidy sorts a folder (Downloads, say) into folders by
+  kind, shown first and undone in one click; "Suggest a name" asks Chronoa for a
+  name from the file's own words (a scan's text, a PDF's first pages).
+- **Search by meaning** — the launcher also asks Chronoa's index of Documents,
+  Downloads and Desktop, so "the electricity bill from March" finds the scan
+  that says so.
+- **Maps** — a map that fills the window: drag to move, wheel or +/- to zoom,
+  search a place, and directions there by car, on foot or by bike
+  (OpenStreetMap's tiles, Nominatim and OSRM), drawn on the map with the
+  distance, the time and each turn.
+- **Archive Manager** — see what is inside a zip, tar, 7z or ISO; extract all of it
+  into a new folder, or one item beside the archive (never over a file);
+  password-protected archives ask for their password instead of hanging; and
+  Compress in Files' right-click menu makes a zip, tar.gz, tar.xz or 7z.
 - **Clocks** — world time, alarms, a stopwatch and a timer in one place.
 - **Tasks** — to-dos with a due day picked, not typed; the same lists as
   Thunderbird and Chronoa.
+- **Authenticator** — two-factor codes kept on this computer, and the ones on a
+  connected **YubiKey** too (yubikey-manager): a code that wants a touch says so,
+  and is copied when the key is touched.
 - **Photos** — every picture in Pictures by month; **Translate** — on this
   computer, nothing sent anywhere.
 - **Nothing extra at sign-in** — an app is read the first time it is opened.
@@ -212,6 +260,9 @@ covered by an automated test that drives the real shell.
   own modem; texts; **one address book**; one call history; a dial pad that finds
   contacts as you type; phone links anywhere open the dial pad; use the phone's
   internet over Bluetooth. Watches and fitness bands too.
+  With "Share the clipboard with your phone" on, copy on one and paste on the
+  other; the clipboard history says what came from the phone, and nothing a
+  password manager marks secret is sent.
 - **Calls ring once**, on the Island, wherever they come from.
 - **Your phone's screen in a window** (Android), driven with your mouse and keyboard.
 - **Dynamic lock** — the screen locks itself when your phone walks out of range.
@@ -225,7 +276,14 @@ covered by an automated test that drives the real shell.
   scan; MIDI, capture cards, serial boards, card readers, braille displays and eGPUs
   are named, each with one next step.
 - **Gaming mice** — DPI, polling rate and buttons, picked from the mouse's own options.
-- **Game controllers** — battery and a live button test.
+- **Game controllers** — battery and a live button test. With InputPlumber
+  (shani-peripherals), a handheld's built-in controls - or every controller -
+  play as the kind a game expects (Xbox, DualSense, Steam Deck), picked in
+  Settings; and the **guide button opens Quick Settings over a game**: the
+  controller is lent to the desktop, the game sees no press until you close it.
+- **A UPS** (NUT) — a power cut is said the moment the UPS takes over, with its
+  charge and minutes left; power coming back too; a low UPS battery is
+  critical. Settings › Power shows it.
 - **Drawing tablets** — draw on one screen, the screen you're working on, or left-handed.
 - **Sound follows you** — plug in headphones and an on-screen notice says where the
   sound went.
@@ -235,6 +293,10 @@ covered by an automated test that drives the real shell.
 
 ## Power that thinks ahead
 
+- **Battery health** — Settings › Power shows how worn the battery is (what it
+  holds today against what it held new, and its charge cycles, read from
+  UPower), the charge over the last day or week, time left, and what is
+  keeping the processor busiest right now.
 - **Sleep, then hibernate** on laptops so a flat battery never loses your work — or
   **hybrid sleep** for a copy on disk. Offered only where your computer can.
 - **60 Hz on battery** for fast laptop screens, back up on the charger.
@@ -255,6 +317,9 @@ covered by an automated test that drives the real shell.
   combination is refused before it can break anything.
 - **Wallpapers** — your own, a slideshow, one per screen, or **found online** with
   one search. **Accent colour from your wallpaper.**
+- **Live wallpaper** — a video behind the desktop, without sound, that plays only
+  while it can be seen: it pauses under windows, when locked or dimmed, and on
+  battery unless you allow it (Settings › Personalisation).
 - **Light and dark** that follow the time of day.
 - **First setup in six short steps**, in six languages, with a screen keyboard and
   accessibility options from the first screen.
@@ -280,6 +345,11 @@ covered by an automated test that drives the real shell.
   notification, a screen selection or the pie menu.
 - **Approve or deny in place** when it wants to act.
 - **Live captions and voice typing** use its speech engine — on your computer.
+- **Writing tools anywhere** — select text in any app and press Mod+Shift+W:
+  proofread, rewrite, friendlier, professional, shorter, longer, a list, a
+  summary or a translation, one click each; Replace puts Chronoa's version
+  where the selection was (Chronoa's own `Agent.Write`: the model alone, no
+  tools, nothing added to the conversation).
 - **Ask about a file, a window, an error or a notification** in one click.
 
 ## Fast and light

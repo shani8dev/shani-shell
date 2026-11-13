@@ -64,6 +64,7 @@ var entries = [
     { key: "dndFrom", label: "Quiet hours from", cat: "notifications", hint: "when quiet hours begin", words: "do not disturb from schedule start" },
     { key: "dndTo", label: "Quiet hours until", cat: "notifications", hint: "when quiet hours end", words: "do not disturb until schedule end" },
     { key: "dndWhileLocked", label: "Quiet while locked", cat: "notifications", hint: "no popups on the lock screen", words: "do not disturb locked screen lock quiet" },
+    { key: "smartReplies", label: "Suggested replies", cat: "notifications", hint: "Chronoa writes three answers for a message", words: "smart replies suggested reply quick answer message chronoa notification" },
     { key: "notifHideContent", label: "Hide message content", cat: "notifications", hint: "the app is named; the message is not", words: "notification privacy hide content preview private" },
     { key: "notifSound", label: "Notification sounds", cat: "notifications", hint: "a chime for each pop-up", words: "notification sound chime ping alert" },
     { key: "popupSeconds", label: "Pop-up duration", cat: "notifications", hint: "how long a banner stays up", words: "notification popup duration seconds timeout banner" },
@@ -260,7 +261,7 @@ var entries = [
 // (scalars only — arrays and objects in a section survive a reset)
 var groups = {
     personal: ["blur", "darkMode", "darkSchedule", "darkFrom", "darkTo", "wallpaper", "wallpaperLight", "wallpaperDark", "accentFromWallpaper", "accentName", "iconTheme", "cursorTheme", "cursorSize", "uiFont", "uiFontSize", "monoFont", "monoFontSize", "cornerRadius", "cornerRadiusSmall", "showScrollbars", "reduceMotion", "animationSpeed", "dock", "dockVisibility", "barVisibility", "dockIconSize", "layoutPreset", "tileOrder", "hiddenTiles", "desktopWidgets", "slideshowDir", "slideshowMinutes", "showSysStats", "showNetSpeed", "barBatteryPercent", "barDate", "hideVolumeGlyph", "hideBrightnessGlyph", "barClickThrough", "hotCornerTopLeft", "hotCornerTopRight", "hotCornerBottomLeft", "hotCornerBottomRight", "hotCornersInFullscreen", "weatherCity", "weatherLat", "weatherLon", "useLocation", "weatherUnits", ],
-    notifications: ["doNotDisturb", "plugGreetings", "dndSchedule", "dndFrom", "dndTo", "dndWhileLocked", "notifHideContent", "notifSound", "popupSeconds", "popupPosition", "silentApps", "dndAllowedApps", "notifApps", "quietWhileSharing", "quietWhileFullscreen", "focusModes", "focusMode"],
+    notifications: ["smartReplies", "doNotDisturb", "plugGreetings", "dndSchedule", "dndFrom", "dndTo", "dndWhileLocked", "notifHideContent", "notifSound", "popupSeconds", "popupPosition", "silentApps", "dndAllowedApps", "notifApps", "quietWhileSharing", "quietWhileFullscreen", "focusModes", "focusMode"],
     network: ["proxyMode", "proxyHttp", "proxyHttps", "proxySocks", "proxyPac", "bluetoothAutoConnect", "bluetoothOnBoot", "hotspotName", "hotspotBand", "wifiMacRandom", "wakeOnLan", "obexDir"],
     displays: ["displays", "autoRotate", "adaptiveBrightness", "nightLight", "nightLightTemp", "nightLightSchedule", "nightLightFrom", "nightLightTo"],
     windows: ["winGaps", "winFocusRing", "winDefaultWidth", "winFocusFollowsMouse", "winAnimations", "winMotion", "winSpeed", "winShadow", "winCorners", "blurStrength", "windowRules"],

@@ -35,9 +35,11 @@ AppWindow {
         focus: win.visible
         // Escape goes back a folder first, and out of the surface at the top
         Keys.onEscapePressed: {
-            if (renameBox.visible || newFolderBox.visible) {
+            if (renameBox.visible || newFolderBox.visible || batchBox.visible || Files.props) {
                 renameBox.visible = false;
                 newFolderBox.visible = false;
+                batchBox.visible = false;
+                Files.props = null;
                 return;
             }
             if (Files.splitActive) {
@@ -70,6 +72,32 @@ AppWindow {
                 event.accepted = true;
                 return;
             }
+            // the file clipboard, undo, Properties, search
+            if (control && !alt && (event.key === Qt.Key_C || event.key === Qt.Key_X) && Files.selected.length > 0) {
+                Files.toClipboard(event.key === Qt.Key_X ? "cut" : "copy", []);
+                event.accepted = true;
+                return;
+            }
+            if (control && !alt && event.key === Qt.Key_V) {
+                Files.pasteHere(Files.path);
+                event.accepted = true;
+                return;
+            }
+            if (control && !alt && event.key === Qt.Key_Z) {
+                Files.undo();
+                event.accepted = true;
+                return;
+            }
+            if (control && event.key === Qt.Key_F) {
+                searchBox.forceActiveFocus();
+                event.accepted = true;
+                return;
+            }
+            if (alt && (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && Files.selected.length > 0) {
+                Files.showProps([]);
+                event.accepted = true;
+                return;
+            }
             if (event.key === Qt.Key_F5) {
                 dir.reload();
                 event.accepted = true;
@@ -79,6 +107,16 @@ AppWindow {
                 Files.trashEntries([]);
                 event.accepted = true;
                 return;
+            }
+            // Space: Quick Look at the file the keyboard is on (or the one chosen),
+            // with the folder's files to walk with Left and Right
+            if (event.key === Qt.Key_Space && !control && !alt) {
+                const at = Files.current || (Files.selected.length ? Files.selected[0] : "");
+                if (at) {
+                    QuickLook.open(at, Files._paths);
+                    event.accepted = true;
+                    return;
+                }
             }
             if (event.key === Qt.Key_F2 && Files.selected.length === 1) {
                 win.beginRename(Files.selected[0]);
@@ -96,9 +134,13 @@ AppWindow {
     }
 
     // ---- the folder being shown ------------------------------------------------
+    // the search box's words, settled (a new search per keystroke would walk the tree each time)
+    property string deepWords: ""
+    Timer { id: deepTimer; interval: 400; onTriggered: win.deepWords = searchBox.text.trim().length >= 2 ? searchBox.text.trim() : "" }
+    readonly property bool searchingDeep: Files.searchDeep && deepWords !== "" && Files.path.startsWith("/")
     FileDirectory {
         id: dir
-        path: Files.path
+        path: win.searchingDeep ? Files.searchPath(win.deepWords) : Files.path
         includeHidden: Files.showHidden
         sortKey: Files.sortKey
         sortDesc: Files.sortDesc
@@ -192,7 +234,16 @@ AppWindow {
                     Layout.preferredWidth: 210
                     placeholder: Tr.t("Search this folder")
                     label: Tr.t("Search this folder")
-                    onTextChanged: dir.query = text
+                    onTextChanged: { Files.searchText = text; dir.query = Files.searchDeep ? "" : text; deepTimer.restart(); }
+                    Connections { target: Files; function onSearchTextChanged() { if (searchBox.text !== Files.searchText) searchBox.text = Files.searchText; } }
+                }
+                // through the folders under this one too (the words then search a tree, not a folder)
+                IconButton {
+                    icon: "folder-saved-search"
+                    size: 30
+                    on: Files.searchDeep
+                    tip: Files.searchDeep ? Tr.t("Searching the folders inside too") : Tr.t("Search the folders inside too")
+                    onClicked: { Files.setSearchDeep(!Files.searchDeep); dir.query = Files.searchDeep ? "" : searchBox.text; deepTimer.restart(); }
                 }
                 IconButton {
                     icon: Files.viewMode === "grid" ? "view-list" : (Files.viewMode === "columns" ? "view-column" : "view-grid")
@@ -221,7 +272,13 @@ AppWindow {
                     tip: Files.splitActive ? Tr.t("Close split view") : Tr.t("Split view (Ctrl+Alt+N)")
                     onClicked: Files.toggleSplit()
                 }
+                IconButton { icon: "edit-paste"; size: 30; tip: Tr.t("Paste here (Ctrl+V)"); onClicked: Files.pasteHere(Files.path) }
+                IconButton { icon: "edit-undo"; size: 30; tip: Files.undoLabel ? Tr.t("Undo: %1 (Ctrl+Z)", Files.undoLabel) : Tr.t("Nothing to undo"); enabled: Files.undoLabel !== ""; onClicked: Files.undo() }
+                IconButton { visible: Files.isTrash; icon: "user-trash-full"; size: 30; on: win.confirmEmpty
+                             tip: win.confirmEmpty ? Tr.t("Click again: everything in the trash is deleted for good") : Tr.t("Empty the trash")
+                             onClicked: { if (!win.confirmEmpty) { win.confirmEmpty = true; confirmTimer.restart(); return; } win.confirmEmpty = false; Files.emptyTrash(); } }
                 IconButton { icon: "folder-new"; size: 30; tip: Tr.t("New folder"); onClicked: win.openNewFolder() }
+                IconButton { icon: "edit-clear-all"; size: 30; tip: Tr.t("Tidy this folder: files into folders by kind"); onClicked: Tidy.plan(Files.path) }
                 IconButton { icon: "view-refresh"; size: 30; tip: Tr.t("Refresh (F5)"); onClicked: dir.reload() }
             }
 
@@ -487,6 +544,9 @@ AppWindow {
                                     columns: Math.max(1, Math.floor(grid.width / grid.cellWidth))
                                     ordered: grid.orderedFocus
                                     onActivated: Files.openEntry(cell.modelData.path)
+                                    peekable: true
+                                    onPeek: QuickLook.open(cell.modelData.path, Files._paths)
+                                    onActiveFocusChanged: if (activeFocus) Files.current = cell.modelData.path
                                     onMenu: win.openMenu(cell.modelData, cellArea.mapToItem(win, mouseX, mouseY))
                                 }
                                 Accessible.role: Accessible.Button
@@ -563,6 +623,9 @@ AppWindow {
                                 KeyFocus {
                                     name: row.modelData.name + (row.modelData.isDir ? ", " + Tr.t("folder") : "")
                                     onActivated: Files.openEntry(row.modelData.path)
+                                    peekable: true
+                                    onPeek: QuickLook.open(row.modelData.path, Files._paths)
+                                    onActiveFocusChanged: if (activeFocus) Files.current = row.modelData.path
                                     onMenu: win.openMenu(row.modelData, rowArea.mapToItem(win, mouseX, mouseY))
                                 }
                                 Accessible.role: Accessible.Button
@@ -875,15 +938,17 @@ AppWindow {
                         anchors.fill: parent
                         hoverEnabled: true
                         onClicked: {
-                            win.menuEntry = null;
+                            const keep = !!modelData.keep;      // "Delete for good": the first click only arms it
                             modelData.run();
+                            if (!keep) win.menuEntry = null;
                         }
                     }
                     KeyFocus {
                         name: modelData.label
                         onActivated: {
-                            win.menuEntry = null;
+                            const keep = !!modelData.keep;
                             modelData.run();
+                            if (!keep) win.menuEntry = null;
                         }
                     }
                 }
@@ -898,12 +963,14 @@ AppWindow {
         visible: false
         z: 30
         strong: true
+        solid: true
         radius: 12
-        width: 360
-        height: 118
+        width: 420
+        height: renameCol.implicitHeight + 28
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
         ColumnLayout {
+            id: renameCol
             anchors.fill: parent
             anchors.margins: 14
             spacing: 10
@@ -925,8 +992,86 @@ AppWindow {
                 }
                 Button { text: Tr.t("Rename"); kind: "primary"; onClicked: win.commitRename() }
             }
+            // "Suggest a name": what Chronoa is doing, or why there is no suggestion
+            Text {
+                Layout.fillWidth: true
+                visible: win.suggesting && (Tidy.naming || Tidy.namingError !== "" || Tidy.suggestion !== "")
+                text: Tidy.naming ? Tr.t("Chronoa is reading it…") : Tidy.namingError !== "" ? Tidy.namingError : Tr.t("Chronoa's suggestion — change it or press Enter")
+                color: Tidy.namingError !== "" ? Theme.danger : Theme.dim
+                wrapMode: Text.Wrap
+                font.family: Theme.font
+                font.pixelSize: 11 * Theme.fontScale
+            }
         }
     }
+    property bool suggesting: false
+    Connections {
+        target: Tidy
+        function onSuggestionChanged() {
+            if (win.suggesting && renameBox.visible && Tidy.suggestion !== "") {
+                renameField.text = Tidy.suggestion;
+                renameField.forceActiveFocus();
+            }
+        }
+    }
+    Connections { target: renameBox; function onVisibleChanged() { if (!renameBox.visible) win.suggesting = false; } }
+
+    // ---- Tidy: what goes where, shown first; then Undo ----
+    Glass {
+        parent: win.contentItem
+        visible: Tidy.folder === Files.path && Files.path !== "" && (Tidy.planned.length > 0 || Tidy.note !== "" || Tidy.planning)
+        z: 25
+        strong: true
+        solid: true
+        radius: 12
+        width: Math.min(parent.width - 40, 460)
+        height: tidyCol.implicitHeight + 28
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: 70
+        ColumnLayout {
+            id: tidyCol
+            anchors.fill: parent
+            anchors.margins: 14
+            spacing: 8
+            Text {
+                Layout.fillWidth: true
+                text: Tidy.planning ? Tr.t("Looking at the files…") : Tidy.planned.length ? Tr.t("Tidy %1: %2 files into folders by kind", Files.path.split("/").pop() || "/", Tidy.planned.length) : Tidy.note
+                color: Theme.text
+                wrapMode: Text.Wrap
+                font.family: Theme.font
+                font.pixelSize: 13 * Theme.fontScale
+                font.weight: Font.DemiBold
+            }
+            Repeater {
+                model: Tidy.groups
+                RowLayout {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    Icon { name: "folder"; size: 16; color: Theme.accent }
+                    Text { Layout.fillWidth: true; text: modelData.group; color: Theme.text; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                    Text { text: Tr.t("%1 files", modelData.count); color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: Tidy.planned.length > 0
+                text: Tr.t("Nothing is written over, files still downloading stay, and Undo puts every one back.")
+                color: Theme.faint
+                wrapMode: Text.Wrap
+                font.family: Theme.font
+                font.pixelSize: 11 * Theme.fontScale
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                Button { text: Tidy.planned.length ? Tr.t("Cancel") : Tr.t("Close"); flat: true; onClicked: { Tidy.cancel(); Tidy.note = ""; } }
+                Button { visible: Tidy.canUndo && Tidy.planned.length === 0; text: Tr.t("Undo"); onClicked: { Tidy.undo(); dir.reload(); } }
+                Button { visible: Tidy.planned.length > 0; kind: "primary"; text: Tr.t("Sort them"); onClicked: Tidy.apply() }
+            }
+        }
+    }
+    Connections { target: Tidy; function onMovedChanged() { dir.reload(); } function onNoteChanged() { dir.reload(); } }
 
     Glass {
         id: newFolderBox
@@ -934,6 +1079,7 @@ AppWindow {
         visible: false
         z: 30
         strong: true
+        solid: true
         radius: 12
         width: 360
         height: 118
@@ -962,6 +1108,144 @@ AppWindow {
                 Button { text: Tr.t("Create"); kind: "primary"; onClicked: win.commitNewFolder() }
             }
         }
+    }
+
+    // ---- several renamed at once: a pattern, and what it will make of them ----------
+    Glass {
+        id: batchBox
+        parent: win.contentItem
+        visible: false
+        z: 30
+        strong: true
+        solid: true
+        radius: 12
+        width: 460
+        height: batchCol.implicitHeight + 28
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.verticalCenter: parent.verticalCenter
+        ColumnLayout {
+            id: batchCol
+            anchors.fill: parent
+            anchors.margins: 14
+            spacing: 8
+            Text {
+                text: Tr.t("Rename %1 files", win.batchPaths.length)
+                color: Theme.text
+                font.family: Theme.font
+                font.pixelSize: 13 * Theme.fontScale
+                font.weight: Font.DemiBold
+            }
+            Text {
+                Layout.fillWidth: true
+                text: Tr.t("# is the number, in the order they are chosen; each keeps its own extension")
+                color: Theme.dim
+                wrapMode: Text.Wrap
+                font.family: Theme.font
+                font.pixelSize: 11 * Theme.fontScale
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                TextField {
+                    id: batchField
+                    Layout.fillWidth: true
+                    label: Tr.t("New names")
+                    onAccepted: { batchBox.visible = false; Files.batchRename(text, win.batchPaths); }
+                }
+                Button { text: Tr.t("Rename"); kind: "primary"; onClicked: { batchBox.visible = false; Files.batchRename(batchField.text, win.batchPaths); } }
+            }
+            Repeater {
+                model: win.batchPreview(batchField.text)
+                Text {
+                    required property string modelData
+                    text: "→ " + modelData
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 12 * Theme.fontScale
+                }
+            }
+        }
+    }
+
+    // ---- Properties ------------------------------------------------------------------
+    Glass {
+        id: propsBox
+        parent: win.contentItem
+        visible: Files.props !== null
+        z: 30
+        strong: true
+        solid: true
+        radius: 12
+        width: 420
+        height: propsCol.implicitHeight + 28
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.verticalCenter: parent.verticalCenter
+        readonly property var p: Files.props || ({})
+        function row(label, value) { return value ? [label, value] : null; }
+        ColumnLayout {
+            id: propsCol
+            anchors.fill: parent
+            anchors.margins: 14
+            spacing: 6
+            RowLayout {
+                Layout.fillWidth: true
+                Text {
+                    Layout.fillWidth: true
+                    text: propsBox.p.name || Tr.t("%1 items", propsBox.p.count || 0)
+                    elide: Text.ElideMiddle
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: 13 * Theme.fontScale
+                    font.weight: Font.DemiBold
+                }
+                IconButton { icon: "window-close"; size: 26; tip: Tr.t("Close"); onClicked: Files.props = null }
+            }
+            Repeater {
+                model: propsBox.p.loading ? [[Tr.t("Size"), Tr.t("Counting…")]] : [
+                    propsBox.row(Tr.t("Kind"), propsBox.p.type === "folder" ? Tr.t("Folder") : propsBox.p.type),
+                    propsBox.row(Tr.t("Size"), Files.humanSize(propsBox.p.size || 0) + (propsBox.p.partial ? " +" : "")
+                        + ((propsBox.p.files || propsBox.p.dirs) ? "  ·  " + Tr.t("%1 files, %2 folders", propsBox.p.files || 0, propsBox.p.dirs || 0) : "")),
+                    propsBox.row(Tr.t("Where"), propsBox.p.path ? FilePaths.parentOf(propsBox.p.path) : ""),
+                    propsBox.row(Tr.t("Changed"), propsBox.p.mtime ? Files.formatTime(propsBox.p.mtime) : ""),
+                    propsBox.row(Tr.t("Created"), propsBox.p.btime ? Files.formatTime(propsBox.p.btime) : ""),
+                    propsBox.row(Tr.t("Opened"), propsBox.p.atime ? Files.formatTime(propsBox.p.atime) : ""),
+                    propsBox.row(Tr.t("Owner"), propsBox.p.owner ? propsBox.p.owner + (propsBox.p.group && propsBox.p.group !== propsBox.p.owner ? " · " + propsBox.p.group : "") : ""),
+                    propsBox.row(Tr.t("Permissions"), propsBox.p.mode || "")
+                ].filter(r => r)
+                RowLayout {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: 10
+                    Text { text: modelData[0]; Layout.preferredWidth: 96; color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                    Text { Layout.fillWidth: true; text: modelData[1]; wrapMode: Text.WrapAnywhere; color: Theme.text; font.family: modelData[0] === Tr.t("Permissions") ? Theme.mono : Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                }
+            }
+        }
+    }
+
+    // ---- what was just done, with Undo -------------------------------------------------
+    Glass {
+        id: noteBar
+        parent: win.contentItem
+        visible: Files.note !== "" && !Files.props
+        z: 28
+        strong: true
+        solid: true
+        radius: 12
+        width: Math.min(parent.width - 40, noteRow.implicitWidth + 28)
+        height: noteRow.implicitHeight + 18
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 18
+        RowLayout {
+            id: noteRow
+            anchors.centerIn: parent
+            spacing: 12
+            Text { text: Files.note; color: Theme.text; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+            Button { visible: Files.undoLabel !== "" && Files.note === Files.undoLabel; flat: true; text: Tr.t("Undo"); onClicked: Files.undo() }
+        }
+        Timer { id: noteTimer; running: noteBar.visible; interval: 7000; onTriggered: Files.note = "" }
+        Connections { target: Files; function onNoteChanged() { noteTimer.restart(); } }
     }
 
     // ---- the pieces that need the window ------------------------------------------
@@ -1036,17 +1320,70 @@ AppWindow {
         if (!e)
             return [];
         const items = [];
+        const chosen = Files.selected.indexOf(e.path) >= 0 ? Files.selected.slice() : [e.path];
+        // in the trash: put back where it came from, or delete for good (asked twice)
+        if (Files.isTrash) {
+            const from = (Files.trashItems[Files.trashNameOf(e.path)] || {}).original || "";
+            items.push({ label: from ? Tr.t("Put back in %1", FilePaths.baseName(FilePaths.parentOf(from)) || "/") : Tr.t("Put back"),
+                         icon: "edit-undo", danger: false, run: () => Files.putBack(chosen) });
+            items.push({ label: win.confirmDelete === e.path ? Tr.t("Click again: gone for good") : Tr.t("Delete for good"), icon: "edit-delete", danger: true,
+                         keep: win.confirmDelete !== e.path,
+                         run: () => { if (win.confirmDelete !== e.path) { win.confirmDelete = e.path; confirmTimer.restart(); return; } win.confirmDelete = ""; Files.deleteForGood(chosen); } });
+            return items;
+        }
         if (e.isDir)
             items.push({ label: Tr.t("Open"), icon: "folder-open", danger: false, run: () => Files.open(e.path) });
         else
             items.push({ label: Tr.t("Open"), icon: "document-open", danger: false, run: () => Files.openEntry(e.path) });
         items.push({ label: Tr.t("Open with…"), icon: "view-app-grid", danger: false, run: () => { /* handled by Ui.openFilesWith */ } });
         items.push({ label: Tr.t("Rename"), icon: "document-edit", danger: false, run: () => beginRename(e.path) });
+        if (!e.isDir)
+            items.push({ label: Tr.t("Suggest a name"), icon: "tools-check-spelling", danger: false,
+                         run: () => { Files.select(e.path, "single"); win.suggesting = true; beginRename(e.path); Tidy.suggestName(e.path); } });
+        items.push({ label: Tr.t("Copy"), icon: "edit-copy", danger: false, run: () => Files.toClipboard("copy", chosen) });
+        items.push({ label: Tr.t("Cut"), icon: "edit-cut", danger: false, run: () => Files.toClipboard("cut", chosen) });
+        if (e.isDir)
+            items.push({ label: Tr.t("Paste into this folder"), icon: "edit-paste", danger: false, run: () => Files.pasteHere(e.path) });
+        if (chosen.length > 1)
+            items.push({ label: Tr.t("Rename %1…", chosen.length), icon: "document-edit", danger: false, run: () => win.beginBatchRename(chosen) });
+        if (e.isDir)
+            items.push(Files.isBookmarked(e.path)
+                       ? { label: Tr.t("Remove from the sidebar"), icon: "user-bookmarks", danger: false, run: () => Files.setBookmark(e.path, false) }
+                       : { label: Tr.t("Add to the sidebar"), icon: "user-bookmarks", danger: false, run: () => Files.setBookmark(e.path, true) });
+        items.push({ label: Tr.t("Properties"), icon: "document-properties", danger: false, run: () => Files.showProps(chosen) });
         items.push({ label: Tr.t("Duplicate"), icon: "edit-copy", danger: false, run: () => Files.duplicateEntry(e.path) });
         items.push({ label: Tr.t("Copy path"), icon: "edit-copy", danger: false, run: () => Files.copyPath(e.path) });
         items.push({ label: Tr.t("Share…"), icon: "folder-publicshare", danger: false, run: () => Share.open(e.path) });
+        // the chosen files when this one is among them, else this one
+        items.push({ label: Tr.t("Compress…"), icon: "package-x-generic", danger: false,
+                     run: () => Archive.createAsk(Files.selected.indexOf(e.path) >= 0 ? Files.selected : [e.path]) });
+        if (!e.isDir && Archive.types.indexOf((e.name.split(".").pop() || "").toLowerCase()) >= 0)
+            items.push({ label: Tr.t("Extract here"), icon: "archive-extract", danger: false, run: () => Archive.extractHere(e.path) });
         items.push({ label: Tr.t("Move to trash"), icon: "edit-delete", danger: true, run: () => Files.trashEntries([e.path]) });
         return items;
+    }
+
+    // two clicks for what has no undo; the first arms it for a few seconds
+    property bool confirmEmpty: false
+    property string confirmDelete: ""
+    Timer { id: confirmTimer; interval: 4000; onTriggered: { win.confirmEmpty = false; win.confirmDelete = ""; } }
+
+    property var batchPaths: []
+    function beginBatchRename(paths) {
+        win.batchPaths = paths;
+        batchField.text = Tr.t("Name") + " #";
+        batchBox.visible = true;
+        batchField.forceActiveFocus();
+        batchField.selectAll();
+    }
+    // what "Holiday #" makes of the chosen files, as files.py batch-rename will
+    function batchPreview(pattern) {
+        const w = String(win.batchPaths.length).length;
+        return win.batchPaths.slice(0, 3).map((p, i) => {
+            const base = FilePaths.baseName(p), dot = base.lastIndexOf(".");
+            const num = String(i + 1).padStart(w, "0");
+            return (pattern.indexOf("#") >= 0 ? pattern.split("#").join(num) : pattern + " " + num).trim() + (dot > 0 ? base.slice(dot) : "");
+        });
     }
 
     function beginRename(path) {

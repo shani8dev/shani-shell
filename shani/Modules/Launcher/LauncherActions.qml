@@ -39,6 +39,7 @@ QtObject {
         { title: Tr.t("Date & language"), words: "date time timezone time zone clock 24-hour ntp language locale region formats", icon: "preferences-system-time", run: () => launcher.openSettings("time") },
         { title: Tr.t("Default apps"), words: "default apps browser mail email files text pictures video music pdf open with terminal", icon: "view-app-grid", run: () => launcher.openSettings("apps") },
         { title: Tr.t("Your account"), words: "account user name change password sign-in picture avatar photo face", icon: "system-users", run: () => launcher.openSettings("account") },
+        { title: Tr.t("Writing tools"), words: "writing tools proofread rewrite grammar spelling shorter longer friendlier professional tone summary translate selected text", icon: "tools-check-spelling", run: () => { Ui.closeAll(); WritingTools.open(); } },
         { title: Tr.t("Clipboard as a QR code"), words: "qr code clipboard link phone share scan", icon: "view-paged", run: () => Qr.show("From the clipboard", Quickshell.clipboardText) },
         { title: Tr.t("Share Wi-Fi"), words: "wifi wi-fi share password qr code phone guest", icon: "network-wireless", run: () => Qr.shareWifi() },
         { title: Tr.t("Send a text message"), words: "sms text message send phone mobile sim", icon: "mail-send", run: () => { Ui.smsTo = ""; Ui.modemDialog = "sms"; } },

@@ -242,9 +242,11 @@ Variants {
                             spacing: 2
                             opacity: titleHover.hovered ? 1 : 0.55
                             Behavior on opacity { NumberAnimation { duration: Theme.anim } }
-                            IconButton { size: 22; icon: "window-minimize-symbolic"; tip: Tr.t("Minimise (Super+M)"); onClicked: Niri.minimise(Niri.focusedWindow.id) }
+                            // by the focused id, not the window looked up from it: the lookup can be
+                            // empty for a moment while niri reports a layout change (seen under load)
+                            IconButton { size: 22; icon: "window-minimize-symbolic"; tip: Tr.t("Minimise (Super+M)"); onClicked: if (Niri.focusedWindowId !== null) Niri.minimise(Niri.focusedWindowId) }
                             IconButton { size: 22; icon: "window-maximize-symbolic"; tip: Tr.t("Maximise"); onClicked: Niri.action("maximize-column") }
-                            IconButton { size: 22; icon: "window-close-symbolic"; tip: Tr.t("Close (Super+Q)"); onClicked: Niri.action("close-window", "--id", Niri.focusedWindow.id) }
+                            IconButton { size: 22; icon: "window-close-symbolic"; tip: Tr.t("Close (Super+Q)"); onClicked: Niri.focusedWindowId !== null ? Niri.action("close-window", "--id", String(Niri.focusedWindowId)) : Niri.action("close-window") }
                         }
                     }
                     // a handler, not a MouseArea child: a child sized to the Row

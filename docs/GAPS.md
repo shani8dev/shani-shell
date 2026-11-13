@@ -31,8 +31,9 @@ centre, and against what a session needs before any app runs.
   client to draw at), Sticky / Slow / Bounce Keys (keyboard input is the
   compositor's), a gamma control (night light owns the gamma ramp, and only
   one client may hold it), Picture-in-Picture of part of a window (Gala's). Out of scope
-  for a shell: desktop widgets, presence sensing, receiving AirPlay, a phone
-  as webcam, "Find my device" (needs a server).
+  for a shell: presence sensing, receiving AirPlay, a phone as webcam, "Find my
+  device" (needs a server). (Desktop widgets were here; they are built since:
+  Settings > Personalisation, `desktop-widgets-*` in the suite.)
 - **A live camera viewfinder on the lock screen.** The lock screen takes a
   photo (libcamera stills, after a countdown) and shows it; qcam, the live
   view, is a window, and nothing shows above the lock.
@@ -42,50 +43,97 @@ centre, and against what a session needs before any app runs.
 - **Headphone virtual surround.** Implemented via the matrix_spatialiser LADSPA plugin (shipped in ladspa) as a "Stereo widening" toggle in Settings › Sound effects, behind `SoundFx.canSpatial`. The convolver-based virtual surround (KEMAR/Hesuvi HRIR) still needs HRIR wav files that no package ships; stereo widening is what is available.
 - **More setup-wizard languages** than English, मराठी, हिन्दी, Deutsch, Español,
   Français (strings.js).
-- **Translations**: 104 of 684 strings reviewed in Marathi and Hindi (the bar,
-  control centre tiles, Settings categories, launcher's main actions); German,
-  Spanish and French have none yet. The rest show in English, or - opt-in - are
-  translated by Chronoa's local model, which got about a third of short labels
-  wrong when measured with Qwen3-8B. Strings built by concatenation are not yet
-  wrapped (`tools/i18n.py` says how).
+- **Translations**: 1527 of 2347 strings are translated into Marathi and Hindi
+  (the bar, control centre, Settings and its pages, launcher, notifications, lock
+  screen, overview, dock, window menu). The 820 still missing are the newer app
+  windows and settings (Files, Archives, Quick Look, the viewers, the terminal);
+  German, Spanish and French have setup only. The untranslated strings show in
+  English, or - opt-in - are translated by Chronoa's local model, which got about
+  a third of short labels wrong when measured with Qwen3-8B. Strings built by
+  concatenation are not yet wrapped (`tools/i18n.py` says how).
 - **One run on a real installed niri image**: everything here is proven in the
   nested container only. Needs the niri image built (shani-shell has no remote
   yet, and its PKGBUILD fetches from GitHub) and a shani-testbed UEFI boot.
 
+## The app's menus in the window menu (2026-11-13)
+
+Read over AT-SPI (bridge/appmenu.py), after noctalia-appmenu on niri. Tested with a
+GTK 3 menu bar (dev/menubar-app.py) and a GTK 4 app's fallback; **not yet tried**
+with a Qt app, LibreOffice or an XWayland app on a real session. GTK 4 popover menu
+bars are empty until opened and Firefox's fill only when opened, so they get the
+desktop-action fallback; a real Firefox menu needs niri to carry KWin's appmenu
+protocol (niri issue #1839).
+
+## Peripherals against stand-ins only (2026-11-13)
+
+- **InputPlumber**: driven against dev/fake-inputplumber.py (0.84's D-Bus
+  interfaces): the controller list, "plays as", "manage every controller", pass /
+  always intercept, the guide button lending the controller to the desktop and
+  closing giving it back. Not yet on a real handheld (Legion Go, ROG Ally, Steam
+  Deck) or with a real pad under "manage every controller" - and whether a real
+  InputPlumber reports devices appearing through the ObjectManager signals the
+  bridge listens to, rather than only at start.
+- **UPS (NUT)**: against a stand-in `upsc`; not yet on a real UPS through upsd.
+- **YubiKey codes in the Authenticator**: against a stand-in `ykman`; not with a
+  real key. A key whose codes have an OATH password shows "Locked with a password";
+  a click opens `ykman oath access remember` in the terminal (stand-in only).
+
+## In the shell, but no check runs them yet (audit, 2026-11-13)
+
+FEATURES.md lists these and they are built, but nothing in the suite drives them:
+**casting the screen** to a TV, and **drives** (mount, eject, unlock from Quick
+Settings - real devices, see below). (Hooks and sticky Ctrl/Alt were here: they
+have checks now, dev/shell-parts/hooks-sticky.sh - the dark-style and wallpaper
+hooks run, hooks off run nothing, and Ctrl tapped once, then twice, reaches a
+terminal as 01 02 03.) **Quick notes** and
+**parental controls** have unit tests only (tests/test_notes_chars_clock.py,
+tests/test_appfilter.py), not a run in the session.
+
 ## The shell's apps: what each still lacks (Nov 2026)
 
-`shani app` lists them (26). Each is a window of its own (`Common/AppWindow`),
+`shani app` lists them (39). Each is a window of its own (`Common/AppWindow`),
 opens cleanly in the suite and is photographed there (`out/shots/app-*.png`).
 The shell's app is the default for its file types and the Flatpak is kept
 after it as the fallback; a Flatpak leaves the niri image when its app has
 been used on a real screen and nothing below is in the way.
 
 - **Media Player** (default for video and audio; Showtime, Decibels behind
-  it): no subtitles, no audio-track choice, no album art or tags, no
-  resume-where-you-left-off. Hardware decoding is whatever QtMultimedia's
+  it): subtitles (inside the file, or a .srt/.vtt beside it), sound tracks,
+  a song's tags and cover, resume, a mini player. Not yet: subtitle timing
+  shifts, chapters, playlists of its own. Hardware decoding is whatever QtMultimedia's
   FFmpeg backend picks - unmeasured on real hardware.
 - **Image Viewer** (default for png, jpeg, webp, gif, bmp, svg, avif, tiff;
   Loupe behind it and still the default for HEIC and camera raw).
-- **Document Viewer** (default for PDF; Papers behind it): PDF only - no
-  DjVu, EPUB or comic archives; no form filling (PDF Signer places text).
+- **Document Viewer** (default for PDF, EPUB, comics, DjVu, XPS; Papers behind
+  it): other formats are read through a PDF copy (PyMuPDF, ddjvu), so an
+  e-book's pages are fixed, not reflowed to the window; forms fill through
+  PyMuPDF into a copy (no signing fields, no JavaScript forms).
 - **Text Editor**: colours for ~20 languages by one regular expression each
   (not a parser); a file over 2 MB is refused, over 200 000 characters is
   shown without colours.
 - **Archive Manager** (default for zip, tar.*, 7z, ISO; File Roller behind it):
-  reads and extracts; it does not create archives, extract a single entry, or
-  open one with a password.
+  creates (zip, tar.gz, tar.xz, 7z), extracts all or one item, opens
+  password-protected archives (the password is passed as bsdtar's
+  --passphrase, so it is in the process list while bsdtar runs: bsdtar 3.8
+  reads no other source but a terminal). It does not add to an existing
+  archive or make protected ones.
 - **Calendar**: which calendars show, and which a new event goes to. Adding
   an online account is still GNOME Online Accounts' (not in this image).
 - **Files**: offered for folders; Nautilus stays the default and is the
-  portal's file chooser.
-- **Maps**: a 4x4 grid of OpenStreetMap tiles around one point - no
-  dragging, no routes. GNOME Maps stays.
+  portal's file chooser. Has copy / cut / paste (with other apps), undo, the
+  trash's put back and empty, search through folders, Properties, batch rename
+  and bookmarks (dev/shell-parts/files-ops.sh). Not yet: tabs, dragging files
+  out to other apps, network places (SMB, SFTP), finding duplicates, cloud
+  folders (rclone), a progress bar for a long copy (it runs in one call),
+  conflicts asked about rather than always "name (2)".
+- **Maps**: drag, zoom, search, directions (OSRM's public server: fine for a
+  person, not for heavy use). No offline maps, no transit, no live traffic.
+  GNOME Maps stays.
 - **Document Scanner, Password Generator, Kundali**: they work and take the shell's
   colours, but are laid out with stock controls, not the shell's own widgets.
 - **Still Flatpaks with no app of ours**: an office suite, a browser, a
   torrent client, internet radio, virtual machines, remote desktop, the games.
-- **Not there at all**: a video wallpaper, a battery health centre beyond
-  Settings > Power, a network speed test (tried and taken out, see FINDINGS).
+- **Not there at all**: a network speed test (tried and taken out, see FINDINGS).
 - **Nearby Share (LocalSend)**: exchanged with a second LocalSend implementation
   (ours) only - never with the LocalSend app on a real phone; PIN-protected
   devices are refused, not asked for the PIN. Discovery without the port open
@@ -138,7 +186,7 @@ Each needs real hardware or shani-testbed:
   and connect in silence; phones over Bluetooth (Chronoa) carry sound.
 
 ## Improved (Nov 2026)
-- Translations: 104/684 Marathi/Hindi strings done; remaining strings documented here.
+- Translations: 1527/2347 Marathi/Hindi strings done; the remaining 820 (newer app windows and settings) are documented above.
 - Real-hardware runs: nested niri only; shani-testbed boot needed for Wi-Fi BT multi-screen recording.
 # Improvements applied (Nov 2026)
 - Scratchpads: plugin manifest + full settings schema + service lifecycle

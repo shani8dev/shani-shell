@@ -8,11 +8,29 @@ import qs.Common
 
 Singleton {
     id: root
-    property var entries: []        // [{ id, text, image, preview }]
+    property var entries: []        // [{ id, text, image, preview }]; originOf(text) says where one came from
+    // where an entry came from, when Shani Link put it there from the paired phone
+    // (shani-link's clipboard_sync.py writes it, keyed by the text's first 60
+    // characters with whitespace collapsed - what cliphist's list shows can match)
+    property var origins: ({})
+    function originOf(text) {
+        const o = origins[String(text).split(/\s+/).filter(x => x).join(" ").slice(0, 60)];
+        return o ? o.device : "";
+    }
+    FileView {
+        id: originFile
+        path: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/shani-link/clipboard-origin.json"
+        watchChanges: true
+        printErrors: false                 // none until something comes from the phone
+        onFileChanged: reload()
+        onLoaded: { try { root.origins = JSON.parse(text()) || {}; } catch (e) {} }
+    }
     readonly property string cache: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/shani-clip"
     property bool available: false
 
     function refresh() {
+        // a watch on a file that is not there yet never fires: read it again each time
+        originFile.reload();
         list.running = true;
     }
     // the keys that paste in the window being typed into: terminals take

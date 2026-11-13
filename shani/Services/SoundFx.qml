@@ -266,7 +266,10 @@ context.modules = [
             // prefers the cleaned-up one, which is about to go: no default at all for
             // a moment, measured), then by name once the filter has gone
             const t = Pipewire.nodes.values.find(n => n.name === root.micTarget);
-            if (t)
+            // a monitor (speakers.monitor as the previous default) is not a source
+            // Quickshell will set as one: it refuses and leaves none, so pactl takes
+            // it by name below, once the filter has gone
+            if (t && Audio.has(t, PwNodeType.AudioSource))
                 Pipewire.preferredDefaultAudioSource = t;
             mic.running = false;
         }

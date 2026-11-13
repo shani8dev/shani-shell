@@ -11,7 +11,7 @@ mkdir -p "$SHOTS"     # not in git (a run's output): made here
 fail=0
 result() {
     echo "RESULT $1 $2${3:+ ($3)}"
-    [ "$2" = PASS ] || fail=1
+    if [ "$2" = FAIL ]; then fail=1; fi   # a SKIP (a mode not on, hardware not there) is not a failure
 }
 # a hung shell must fail the next check, not stall the run
 st() { timeout 5 qs -p /work/shani ipc call shani state 2>/dev/null; }
@@ -40,8 +40,16 @@ waitfor() {   # waitfor <python expr over d> <seconds>
 
 # ---- loads clean -------------------------------------------------------------
 # (no system bus logind/polkit session in a container: those two warnings are expected)
-bad=$(grep -E "TypeError|ReferenceError|Unable to assign|is not a function|is not defined|caused by|ERROR" /work/out/logs/qs.log \
-      | grep -v -E "ZINK|libvulkan|polkit" | head -5)
+# QML that fails to load a surface (a duplicate method, a property set twice, an
+# unknown type) is only a WARN in the log, and a surface made on first use (the window
+# menu, Settings pages) fails long after start-up - so the same scan runs again at the
+# end (shell-ends-clean): a duplicate handler once kept the whole window menu from
+# loading while shell-loads-clean passed
+qml_bad() {
+    grep -aE "TypeError|ReferenceError|Unable to assign|is not a function|is not defined|caused by|ERROR|Duplicate method name|Property value set multiple times|is not a type|Cannot assign to non-existent" /work/out/logs/qs.log \
+        | grep -v -E "ZINK|libvulkan|polkit" | head -5
+}
+bad=$(qml_bad)
 [ -z "$bad" ] && result shell-loads-clean PASS || { result shell-loads-clean FAIL; echo "$bad"; }
 # nothing below means anything if the shell is not running
 if ! st >/dev/null 2>&1 || [ -z "$(st)" ]; then
@@ -52,7 +60,9 @@ fi
 # on a fresh session - for working on one feature without the half hour. The whole
 # suite runs every part too, at the end.
 case "${SHELL_TEST_ONLY:-}" in part:*)
-    . "/work/dev/shell-parts/${SHELL_TEST_ONLY#part:}.sh"; exit $fail ;;
+    . "/work/dev/shell-parts/${SHELL_TEST_ONLY#part:}.sh"
+    bad=$(qml_bad); [ -z "$bad" ] && result shell-ends-clean PASS || { result shell-ends-clean FAIL; echo "$bad"; }
+    exit $fail ;;
 esac
 
 # ---- what the shell costs while nothing happens ---------------------------------------
@@ -243,6 +253,9 @@ wtype -M ctrl -k Return -m ctrl
 sleep 1
 grep -q "The file: /root/Documents/quarterly-report.txt" /work/out/logs/mock.log \
     && result launcher-ctrl-enter-asks-about-file PASS || result launcher-ctrl-enter-asks-about-file FAIL "$(tail -2 /work/out/logs/mock.log)"
+# ...and the answer is somewhere to be read: the conversation opens with the question
+waitfor "d['chronoaOpen']" 3 && result launcher-ctrl-enter-shows-the-answer PASS || result launcher-ctrl-enter-shows-the-answer FAIL "the conversation stayed closed"
+ipc closeChronoa
 ipc launcher "Q3 numbers"      # only inside the file, not in its name
 waitfor "d['topResult'] == 'quarterly-report.txt'" 6 && result launcher-searches-inside-files PASS || result launcher-searches-inside-files FAIL "$(q "['topResult']")"
 ipc launcher "5 km in miles"
@@ -541,6 +554,13 @@ settings '{"desktopWidgets": ["clock"]}'
 [ "$(layer shani-desk-agenda)$(layer shani-desk-note)$(layer shani-desk-clocks)" = 000 ] && result desktop-widgets-hide PASS || result desktop-widgets-hide FAIL
 settings '{}'
 
+# ---- the dock's base fits its surface: a base wider than its surface had its rounded ends
+# cut off square (the surface was sized by a count of items that fell behind the dock's growth)
+ls /usr/share/applications/*.desktop | head -12 | xargs -n1 basename | sed 's/\.desktop$//' > /tmp/many-pins
+settings "{\"dockVisibility\": \"always\", \"dockPinned\": $(python3 -c 'import json; print(json.dumps(open("/tmp/many-pins").read().split()))')}"
+waitfor "d['dockFits']" 4 && result dock-base-fits-its-surface PASS || result dock-base-fits-its-surface FAIL "a crowded dock is wider than its surface"
+settings '{}'
+
 # ---- the dock and bar step aside (Plank's intelligent hide, the default) ---------------
 # smart: in view while windows sit beside it, away while one is moved over it, back after
 settings '{}'
@@ -619,7 +639,9 @@ printf 'kept' > "/tmp/kept for later.txt"
 ipc shelfPark "/tmp/kept for later.txt"
 waitfor "'/tmp/kept for later.txt' in d['shelfParked'] and d['shelfItems'][0] == 'kept for later.txt'" 3 \
     && result shelf-keeps-a-dropped-file PASS || result shelf-keeps-a-dropped-file FAIL "$(q "['shelfParked'], d['shelfItems'][:3]")"
-sleep 1; grep -rqs "kept for later" /root/.local/state/quickshell 2>/dev/null && result shelf-survives-a-restart PASS || result shelf-survives-a-restart FAIL "not written under ~/.local/state/quickshell"
+# written asynchronously (FileView.setText): up to 5 s, not a fixed second
+i=0; until grep -rqs "kept for later" /root/.local/state/quickshell 2>/dev/null || [ $i -ge 20 ]; do sleep 0.25; i=$((i+1)); done
+grep -rqs "kept for later" /root/.local/state/quickshell 2>/dev/null && result shelf-survives-a-restart PASS || result shelf-survives-a-restart FAIL "not written under ~/.local/state/quickshell"
 if [ -f "$A11Y" ]; then
     timeout 20 python3 "$A11Y" find "button:^Shelf$" >/dev/null 2>&1 && result shelf-tile-in-dock PASS || result shelf-tile-in-dock FAIL
 fi
@@ -1089,7 +1111,9 @@ ipc processes
 waitfor "d['processes'] >= 3" 5 && result processes-listed PASS || result processes-listed FAIL
 shot 50-processes 0.4
 ipc closeAll
-if curl -sf --max-time 5 -o /dev/null https://api.open-meteo.com; then
+# online is any HTTP answer: open-meteo's root page answers 404, which `curl -f`
+# took for "no network", so this was skipped in a container that was online
+if [ "$(curl -s --max-time 5 -o /dev/null -w '%{http_code}' https://api.open-meteo.com 2>/dev/null)" != 000 ]; then
     ipc weather Pune
     waitfor "d['weather'] != ''" 20 && result weather-from-open-meteo PASS "$(q "['weather']")" || result weather-from-open-meteo FAIL
     ipc weather ""
@@ -2328,6 +2352,9 @@ q "['navFocus']" | grep -qE 'Restart|Power off|Suspend|Sleep' && result keys-loc
 i=0; until [ "$(q "['locked']")" = False ] || [ $i -ge 3 ]; do wtype "shani-test" -k Return; sleep 1.5; i=$((i+1)); done
 
 # ---- a game controller drives the desktop (bridge/gamepad.py nav, a FIFO for the pad) ----
+# without InputPlumber: with it, the controllers are its to hand over (Services/InputPlumber,
+# dev/shell-parts/inputplumber.sh) and this reader steps aside - so the stand-in goes for this
+pkill -f fake-inputplumber.py; waitfor "not d['ipRunning']" 5
 cp /work/dev/input-devices.txt /tmp/input-devices
 rm -f /tmp/fake-input/event21 /tmp/fake-input/event23; mkfifo /tmp/fake-input/event21 /tmp/fake-input/event23
 exec 7<>/tmp/fake-input/event21 8<>/tmp/fake-input/event23      # held open: the pads stay plugged in
@@ -2347,6 +2374,8 @@ settings '{"gamepadNav": false, "gamepadHintDone": true}'
 waitfor "not d['gamepadNavRunning']" 4 && result pad-nav-setting-off-stops-it PASS || result pad-nav-setting-off-stops-it FAIL
 settings '{}'
 exec 7>&- 8>&-
+python3 /work/dev/fake-inputplumber.py >/work/out/logs/fake-inputplumber.log 2>&1 &     # back for the parts after
+waitfor "d['ipRunning']" 8
 : > /tmp/input-devices
 
 # ---- the screen keyboard: hidden to see the whole screen, and back with one tap ----------
@@ -2473,5 +2502,6 @@ if [ -f /testbed/lib/a11y_client.py ]; then
         && result i18n-marathi-bar PASS || result i18n-marathi-bar FAIL "$(timeout 20 python3 /testbed/lib/a11y_client.py observe 2>&1 | head -8 | tr '\n' ';')"
 fi
 
+bad=$(qml_bad); [ -z "$bad" ] && result shell-ends-clean PASS || { result shell-ends-clean FAIL; echo "$bad"; }
 echo "--- qs warnings"; grep -E "WARN|ERROR" /work/out/logs/qs.log | grep -v -E "ZINK|libvulkan" | sort | uniq -c | sort -rn | head -15
 [ "$fail" = 0 ]

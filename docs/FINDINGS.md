@@ -318,7 +318,7 @@ the fake greetd.
 | recording sound unreachable | the recorder had `withAudio`, nothing set it; whole screen only | Screen record detail: focused screen or a part (slurp), no sound / computer / microphone |
 | a stopped region selection left slurp running | stopping during the selection killed the wrapper shell only; slurp kept the keyboard over the whole screen, and the next overlay's Escape went to it (the magnifier test failed). A trap did not help either: the script inherits SIGINT as ignored, and an ignored-on-entry signal cannot be trapped | the script reports slurp's pid and stop kills exactly it; the Island says "Choose an area" until recording really starts |
 | "clear clipboard history" left the secret in it | the text was still on the clipboard; wl-clip-persist offers it again and cliphist stores it straight back | clearing also empties the clipboard and the primary selection |
-| noise suppression off: default source not restored | "Cannot change default source to a node that is not a source" — the previous default can be a monitor | restored by name (`pactl set-default-source`) |
+| noise suppression off: default source not restored | "Cannot change default source to a node that is not a source" — the previous default can be a monitor, which Quickshell refuses as a source | restored at once when it is a real source; by name (`pactl set-default-source`) when it is a monitor |
 | "channelVolumes and channelMap are not the same size" | the mono RNNoise node reports two volumes for one channel | run it stereo, as PipeWire's own example does; the mic slider acts on the real microphone |
 | Update button did nothing | it opened Cassini, which the niri desktop may not install (Cassini is shipped on the niri image today; the fallback covers hosts without it) | Cassini where present, else `pkexec shani-deploy` in a terminal |
 | initials instead of pictures on the login screen | the greeter reads AccountsService, which the desktop did not install | `accountsservice` in shani-desktop-niri |
@@ -1154,3 +1154,143 @@ The shell talks D-Bus through `bridge/modem.py` (no mmcli in the image). Surfaci
   harness's: `stopshell` now stops the shell's bridges with it, and
   `dev/fake-udevadm.sh` reads with the shell's own `read` (no child to orphan).
   Checked with a probe of the same restart: nothing left over, the tablet greeted.
+- **Real Chronoa in the dev session** (`CHRONOA=real sh dev/check.sh shell=<part>`):
+  ../shani-chronoa's app runs in the nested niri on the host network and answers
+  with this machine's llama-server; the suite keeps the mock. It found what the
+  mock could not: Chronoa's local model client has no `chat()` (only
+  `chat_message()`), so `Agent.Write` failed against the real model while its
+  stubbed test passed - the test now stubs the real interface. The mock now
+  registers the bridge's contract (bridge/agent_contract.py) instead of its own
+  third copy of the XML, and tests/test_agent_contract.py keeps the shell's copy
+  equal to Chronoa's.
+- **bsdtar asks for a passphrase forever.** Extracting a protected zip with no
+  `--passphrase` printed "Enter passphrase:" in an endless loop (no terminal to
+  answer); `LIBARCHIVE_PASSPHRASE` is ignored by bsdtar 3.8. The Archive Manager
+  now always passes `--passphrase` (a placeholder until a person types one), so
+  a protected archive reports "Incorrect passphrase" and the window asks.
+- **qs ipc splits a JSON list argument** into several arguments ("2 required
+  but 3 were provided" for `'["a", "b"]'`), while a sentence with spaces passes
+  whole. Lists go over IPC one item per line.
+- **Resume seeks were lost twice, then overwritten.** A seek before playback
+  has really started is dropped by the FFmpeg backend (the note said 1:03, the
+  clock 0:01; `seekable` alone was not enough), so the resume waits for the
+  first reported position. Then the seek, by reporting a position, re-entered
+  the same function, which cleared the value the outer call went on to write
+  as "resumed from": 0. Taken and cleared before seeking now; the check reads
+  the real clock, not only the note.
+- **niri keeps a window's size**: shrinking the mini player's implicit size did
+  nothing; it is sized with `set-window-width/height`, and the check measures it.
+- **Twelve features, Nov 2026, each checked live** (dev/shell-parts/): Quick
+  Look, writing tools, Archive Manager (create, one item, passwords), Media
+  Player (tracks, subtitles, resume, tags, mini player), battery health,
+  clipboard with the phone (shani-link), smart replies, tidy and name, search by
+  meaning, Document Viewer (EPUB, comics, DjVu, forms), Maps (pan, zoom,
+  directions), live wallpaper. The AI ones go through Chronoa's own interface:
+  `Agent.Write` (text in, text out; no tools, no conversation) and
+  `Agent.FindFiles` (its file index), both added to shani-chronoa.
+- **What real execution caught this round**, none visible to reading:
+  - `time.monotonic()` counts from boot, so FindFiles' "never indexed" stored as
+    0.0 looked fresh for the first ten minutes after a boot (measured 350 s) and
+    the index was never built. None now.
+  - mutool picks its output format from the extension; writing to "out.pdf.part"
+    failed silently for every e-book and comic. `-F pdf`.
+  - A `\\(` meant for the shell lost its backslash on the way through Python and
+    QML; the whole conversion script failed for every format, DjVu included.
+  - Maps showed no tiles: one shared Process restarted per tile did not start
+    again while the last was stopping, and per-delegate downloads finished after
+    the layout had re-keyed the delegate. The window now records which files are
+    on disk; every image shows its file once it is there.
+  - A Media Player and a launcher handler were each declared twice when a
+    feature was added (QML refuses the file: "Property value set multiple
+    times"); the compile check does not see files loaded on first open, the
+    live parts do.
+- **The live wallpaper is QtMultimedia in the shell's own background layer**, not
+  the parked mpv window (a window cannot be a niri background).
+- **The test container was online all along.** Docker's default network reaches
+  the internet (an OpenStreetMap tile answered 200); the Weather check called it
+  offline because `curl -f` against open-meteo's root page fails on its 404, so
+  that check was skipped in every run. It now counts any HTTP answer. Maps keeps
+  dev/fake-osm.py for the suite (the same answers every run, no load on OSM);
+  `SHANI_ONLINE=1 sh dev/check.sh shell=maps-online` uses the real tiles,
+  Nominatim and OSRM - measured: Shaniwar Wada found at 18.5194, 73.8554, 60 real
+  tiles, a 3343 m route from Pune Railway Station in 7 steps. Its "new name"
+  maneuver read "New name straight onto ..."; OSRM's types are words now.
+
+## Dependencies, checked against what the code runs (2026-11-13)
+
+- `shani-pkgbuilds/tools/check-deps.py` runs the PKGBUILD's own `package()`,
+  reads every program the packaged files start, and looks its package up in a
+  map built from pacman's file database. `tests/test_declared_deps.py` here (and
+  in Cassini, Link and Chronoa) fails when a program's package is neither
+  declared, on every image, nor marked `# check-deps: unlisted PROG - why`.
+- What it found the first time: `pw-record` (voice typing, the recorder) is in
+  `pipewire-audio`, not the `pipewire` that was declared; Fonts runs fc-list /
+  fc-cache (fontconfig) and Automations gtk-launch (gtk3), neither declared;
+  swappy, zenity and `net` (smbclient) were not offered as optdepends.
+- Trimmed: `mupdf-tools` is gone. PyMuPDF, already required for forms, makes the
+  PDF copy of e-books, XPS and comics (`pdfform.py topdf`) and reads the outline;
+  `djvulibre` is an optdepend (DjVu only). The documents part passes all 9 checks
+  with the conversion through PyMuPDF. A first run failed for CB7 only: `set --`
+  in the comic branch cleared `$4`, the tool path; it is read into `tool` first.
+- Swapped for what is already there, so nothing new is pulled in:
+  - gtk3 was about to become a dependency for `gtk-launch` alone. An automation's
+    "open an app" and a shortcut that opens one now go through
+    `bridge/launch-app.py` (GLib - what the launcher and dock always used), and the
+    browser key in both niri configs too; Chronoa's open_application runs
+    `gio launch` (glib2). `dev/shell-parts/lean-launch.sh` moves gtk-launch aside
+    and opens a test app both ways; put back, the old call FAILs it.
+  - zenity: Snippets opens the clipboard's pinned texts; Compress picks the file
+    with Qt's own FileDialog and offers FileActions' "A smaller file".
+  - Chronoa: check_port makes its one connection with `socket` (it already did,
+    to explain a refusal) instead of `nc`; the Pictures folder comes from GLib,
+    not `xdg-user-dir`.
+  - `Gio.DesktopAppInfo` is deprecated (GLib 2.86 moved it to GioUnix); the two
+    launch paths use GioUnix and fall back to it.
+- The dock's rounded ends were cut off square (seen filming the README demos;
+  the 2026-10-30 showcase still had them). Its surface was sized by a count of
+  items made before the dock grew multitasking, show-desktop, workspace squares,
+  "+" and the trash, so the base outgrew the surface and was clipped at both
+  ends, the first and last icons with it. The surface is the screen's width now
+  (input stays the dock's, by its mask); the suite pins twelve apps and checks
+  `dockFits` - with the old sizing put back, it FAILs.
+- Asking from the launcher (Ctrl+Enter) showed "thinking" in the Island and then
+  nothing: the answer reached no surface a person could read. The conversation
+  opens with the question now (`launcher-ctrl-enter-shows-the-answer`).
+- Maps drew nothing after a search until something else moved it, and maximised
+  it showed some streets twice (seen photographing the app gallery). Its tile
+  slots were a Repeater over a count, each slot working out its tile from its
+  index, so slots were re-keyed while a resize or a search settled and kept a
+  neighbour's picture or none. The slots are the tiles in view by name now, and
+  the map reports what it draws (tilesDrawn, tilesDistinct): `maps-search-draws-its-tiles`
+  (with the old slots: FAIL, 0 drawn) and `maps-maximised-no-tile-twice`.
+- The window menu shows the app's own menus, read over AT-SPI (bridge/appmenu.py):
+  `dev/shell-parts/app-menu.sh` reads a GTK 3 menu bar (labels, Ctrl+S-style
+  shortcuts, a submenu), presses File > Save and File > Recent > b.txt in the app,
+  and checks a GTK 4 app falls back to its desktop actions. The first run found
+  the window menu never loading at all - a duplicate handler, only a WARN in the
+  log - while `shell-loads-clean` passed: that check runs at start-up and the
+  window menu is made on first use. It now also matches QML load failures, and
+  runs again at the end of a run (`shell-ends-clean`; with the duplicate put
+  back, both FAIL).
+- Every suite's `result()` set the failure flag for anything but PASS, so a SKIP
+  (CHRONOA=real or SHANI_ONLINE=1 not on, a machine on mains) failed the run
+  while the summary counted "0 fail": the full run reported `FAILED 668 pass 0
+  fail`. Only FAIL fails now, and `result()` returns 0 - written as `[ ] && fail=1`
+  it returned 1 after a PASS and the `check && result PASS || result FAIL` pattern
+  would have recorded both.
+- Peripherals the image ships and the shell never used (audit of shani-peripherals):
+  InputPlumber (added - controllers lent to the desktop over a game), NUT (a UPS
+  said on a power cut), yubikey-manager (a key's OATH codes in the Authenticator).
+  Left to other apps by design: lirc, libnfc, rtl-sdr (Shani Link), ykman's admin
+  (Cassini); not used: libdvdcss (the Media Player has no DVD menus), linuxconsole.
+- Files gained copy / cut / paste, undo, the trash's put back and empty, search
+  through folders, Properties, batch rename and bookmarks (bridge/files.py; 12 unit
+  tests, 17 checks in dev/shell-parts/files-ops.sh; with the undo of a move not
+  recorded, `files-undo-move` FAILs). Two things found on the way:
+  - Recent (`recent:`) had no inotify watch to fall back on and was re-read every
+    second while it was open; it now waits on the folder of GTK's recently-used
+    file. A search ("search:" + words + a folder) is answered once and never polled.
+  - The rule "nothing is deleted by the file manager" was a text search for
+    `os.remove`; it is now a check over the code's own tree: the only deleting is
+    in the trash's empty and put-back, and only of paths under the trash (a remove
+    slipped into paste FAILs it, naming the function).

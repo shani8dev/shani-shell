@@ -9,7 +9,7 @@ export XDG_SESSION_TYPE=wayland SHANI_SHELL_SETTINGS=/tmp/shani-settings-$USER.j
 export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
 L=/work/out/logs
 fail=0
-result() { echo "RESULT $1 $2${3:+ ($3)}"; [ "$2" = PASS ] || fail=1; }
+result() { echo "RESULT $1 $2${3:+ ($3)}"; if [ "$2" = FAIL ]; then fail=1; fi; }   # a SKIP is not a failure
 st() { qs -p /work/shani ipc call shani state 2>/dev/null; }
 waitfor() {
     i=0

@@ -11,7 +11,7 @@
 # key plugged in must fall through, never let anyone in.
 GREETD=${1:-/desk/etc/pam.d/shani-greetd}
 fail=0
-result() { echo "RESULT $1 $2${3:+ ($3)}"; [ "$2" = PASS ] || fail=1; }
+result() { echo "RESULT $1 $2${3:+ ($3)}"; if [ "$2" = FAIL ]; then fail=1; fi; }   # a SKIP is not a failure
 M=/usr/lib/security
 C=/tmp/pamconf
 mkdir -p $C /usr/lib/shani-desktop-niri

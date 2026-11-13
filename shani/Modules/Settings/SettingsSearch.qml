@@ -15,6 +15,7 @@ ColumnLayout {
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Search") }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("File names"); checked: page.d.searchFiles; onToggled: on => page.d.searchFiles = on }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Inside documents"); hint: Tr.t("words in Documents, Desktop and Downloads"); checked: page.d.searchInside; onToggled: on => page.d.searchInside = on }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("By meaning"); hint: Tr.t("Chronoa finds “the electricity bill from March” even when the words differ"); checked: page.d.searchMeaning; onToggled: on => page.d.searchMeaning = on }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Results from apps"); hint: Tr.t("what Files, Characters, Calculator … find themselves"); checked: page.d.searchProviders; onToggled: on => page.d.searchProviders = on }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Sums and conversions"); hint: Tr.t("12*12, 5 km in miles, 100 USD in INR"); checked: page.d.searchCalc; onToggled: on => page.d.searchCalc = on }
 

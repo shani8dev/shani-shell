@@ -29,6 +29,15 @@ Singleton {
         o[output] = on;
         root.dockShown = o;
     }
+    // whether each screen's dock base fits its surface (Dock.baseFits; the tests read it)
+    property var dockFits: ({})
+    function setDockFits(output, on) {
+        if (root.dockFits[output] === on)
+            return;
+        const o = Object.assign({}, root.dockFits);
+        o[output] = on;
+        root.dockFits = o;
+    }
     // an app asking for attention brings a smart dock back, as Plank does
     readonly property bool urgent: Object.values(Niri.windows).some(w => w.is_urgent)
 

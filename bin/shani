@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 
@@ -46,6 +47,14 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("caffeine", [], "toggle the idle inhibitor"),
         ("airplane", [], "toggle airplane mode"),
         ("dnd-snooze", ["MINUTES"], "snooze the latest notification"),
+    ],
+    "write": [
+        ("tools", [], "writing tools on the selected text (Mod+Shift+W)"),
+        ("close", [], "close the writing tools"),
+    ],
+    "quick-look": [
+        ("open", ["PATH"], "see a file without opening its app (Space or Esc closes)"),
+        ("close", [], "close Quick Look"),
     ],
     "chronoa": [
         ("open", [], "open Chronoa"),
@@ -429,8 +438,11 @@ APPS: dict[str, tuple] = {
     "image-viewer": ("dev.shani.ImageViewer", "Image Viewer", "Look at pictures", "image-viewer", "Graphics;Viewer;",
                      ["image/png", "image/jpeg", "image/webp", "image/gif", "image/bmp", "image/svg+xml", "image/avif", "image/tiff"],
                      None, "openViewer", "viewerShown"),
-    "document-viewer": ("dev.shani.DocumentViewer", "Document Viewer", "Read PDF documents", "evince", "Office;Viewer;",
-                        ["application/pdf"], None, "openPdf", "pdfShown"),
+    "document-viewer": ("dev.shani.DocumentViewer", "Document Viewer", "Read PDFs, e-books, comics and DjVu", "evince", "Office;Viewer;",
+                        ["application/pdf", "application/epub+zip", "application/x-fictionbook+xml", "application/x-mobipocket-ebook",
+                         "application/vnd.comicbook+zip", "application/vnd.comicbook-rar", "application/x-cbz", "application/x-cbr",
+                         "application/x-cb7", "application/x-cbt", "image/vnd.djvu", "image/vnd.djvu+multipage",
+                         "application/oxps", "application/vnd.ms-xpsdocument"], None, "openPdf", "pdfShown"),
     "media-player": ("dev.shani.MediaPlayer", "Media Player", "Play videos and music", "multimedia-video-player", "AudioVideo;Player;Video;Audio;",
                      ["video/mp4", "video/x-matroska", "video/webm", "video/quicktime", "video/x-msvideo", "video/mpeg", "video/ogg",
                       "video/x-m4v", "video/3gpp", "video/mp2t", "video/x-flv", "video/x-ms-wmv",
@@ -638,6 +650,9 @@ def _run_group(args) -> int:
     call = []
     # "-" for a TEXT: what is piped in (a terminal's pipe-command-output binding)
     extras = [sys.stdin.read()[-12000:] if a == "-" else a for a in args.args]
+    # a PATH is the shell's to open, from wherever this was run: absolute
+    extras = [os.path.abspath(os.path.expanduser(v)) if p == "PATH" and v and not v.startswith("+") and "://" not in v else v
+              for p, v in zip([x for x in args.ipc_args if x.isupper()], extras)] + extras[len([x for x in args.ipc_args if x.isupper()]):]
     for part in args.ipc_args:
         if part.isupper():
             call.append(extras.pop(0))
@@ -710,6 +725,10 @@ def _register() -> None:
         ("chronoa", "toggle"): "toggleChronoa",
         ("chronoa", "ask"): "ask",
         ("chronoa", "explain"): "chronoaExplain",
+        ("quick-look", "open"): "quickLook",
+        ("write", "tools"): "writingTools",
+        ("write", "close"): "writingToolsClose",
+        ("quick-look", "close"): "quickLookClose",
         ("chronoa", "action"): "action",
         ("chronoa", "editor"): "openEditor",
         ("chronoa", "diff"): "openDiff",

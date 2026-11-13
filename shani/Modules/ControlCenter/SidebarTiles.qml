@@ -8,6 +8,7 @@ import Quickshell.Services.Notifications
 import Quickshell.Bluetooth
 import Quickshell.Networking
 import QtQuick
+import QtQuick.Dialogs
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
@@ -17,6 +18,19 @@ import qs.Services as Services
 import qs.Modules.Notifications
 
 ColumnLayout {
+    // made on first use, as in Settings > Sound: a native dialog waits on
+    // the portal over D-Bus, and made up front it held the whole shell
+    Loader {
+        id: compressDialog
+        active: false
+        visible: false      // a hidden item takes no row in the layout
+        function open() { active = true; item.open(); }
+        sourceComponent: FileDialog {
+            title: Tr.t("Choose a picture or video to shrink")
+            nameFilters: [Tr.t("Pictures and videos") + " (*.jpg *.jpeg *.png *.webp *.heic *.mp4 *.mkv *.webm *.mov *.avi)"]
+            onAccepted: FileActions.offer([selectedFile.toString().replace(/^file:\/\//, "")])
+        }
+    }
     required property var sidebar
     spacing: 14
 
@@ -395,21 +409,18 @@ ColumnLayout {
             }
         }
         // ---- tiles -------------------------------------------
-        // Text expansion: quick snippet entry, copied to the clipboard.
+        // Snippets: the clipboard's pinned texts (Clipboard.pin), above its
+        // history in the launcher - a click puts one back on the clipboard
         Tile {
             tid: "snippets"
+            can: Clipboard.available
             icon: "accessories-text-editor"
             title: Tr.t("Snippets")
-            subtitle: Tr.t("Quick text inserts")
-            onToggled: {
-                Ui.closeAll();
-                Quickshell.execDetached(["sh", "-c",
-                    "text=$(zenity --entry --title='Snippet' --text='Enter text to copy:' 2>/dev/null); " +
-                    "[ -n \"$text\" ] && printf %s \"$text\" | wl-copy && " +
-                    "notify-send -a 'Snippets' 'Copied to clipboard'"])
-            }
+            subtitle: Tr.t("Pinned texts")
+            onToggled: Ui.toggleLauncher("c ")
         }
-        // Asset compressor: pick a file, shrink it with ffmpeg next to the original.
+        // Compress: pick a file (Qt's dialog, the desktop portal's) and the
+        // "what to do with it" card offers "A smaller file" (FileActions)
         Tile {
             tid: "compress"
             icon: "package-x-generic"
@@ -417,12 +428,7 @@ ColumnLayout {
             subtitle: Tr.t("Shrink image or video")
             onToggled: {
                 Ui.closeAll();
-                Quickshell.execDetached(["sh", "-c",
-                    "file=$(zenity --file-selection --title='Select file to compress' 2>/dev/null); " +
-                    "[ -n \"$file\" ] && ffmpeg -hide-banner -loglevel error -i \"$file\" " +
-                    "-vf 'scale=iw*3/4:ih*3/4' -c:v libx264 -crf 28 -c:a copy " +
-                    "\"${file%.*}.min.${file##*.}\" -y 2>/dev/null && " +
-                    "notify-send -a 'Compress' 'Compressed: ${file##*/}'"])
+                compressDialog.open();
             }
         }
         // QR code generator: makes a QR from clipboard text. Needs qrencode.

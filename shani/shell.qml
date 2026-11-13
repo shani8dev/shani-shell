@@ -143,6 +143,8 @@ ShellRoot {
     LazyLoader { active: Ui.nearby; source: "Modules/Nearby/NearbyWindow.qml" }
     LazyLoader { active: Ui.converter; source: "Modules/Converter/ConverterWindow.qml" }
     LazyLoader { active: Ui.tasks; source: "Modules/Tasks/TasksWindow.qml" }
+    LazyLoader { active: QuickLook.shown; source: "Modules/QuickLook/QuickLookSheet.qml" }
+    LazyLoader { active: WritingTools.shown; source: "Modules/WritingTools/WritingToolsSheet.qml" }
     LazyLoader { active: Ui.photos; source: "Modules/Photos/PhotosWindow.qml" }
     LazyLoader { active: Ui.translate; source: "Modules/Translate/TranslateWindow.qml" }
     LazyLoader { active: Ui.weather; source: "Modules/Weather/WeatherWindow.qml" }
@@ -185,7 +187,7 @@ ShellRoot {
     }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [Idle, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WindowLook, Terminal, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, PdfSigner, DiskUsage, WallpaperStyle, VideoTrimmer]
+    readonly property var _services: [Idle, InputPlumber, Ups, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WindowLook, Terminal, SmartReplies, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, PdfSigner, DiskUsage, WallpaperStyle, VideoTrimmer]
 
     IpcHandler {
         target: "shani"
@@ -231,6 +233,16 @@ ShellRoot {
         function closeChronoa() { Chronoa.open = false; }
         function toggleChronoa() { Chronoa.open = !Chronoa.open; }
         function ask(text: string) { Chronoa.ask(text); }
+        // Quick Look: a file seen without opening its app (Space in Files)
+        function quickLook(path: string) { QuickLook.open(path, []); }
+        function quickLookClose() { QuickLook.close(); }
+        // writing tools on the selected text (Mod+Shift+W); Chronoa's Agent.Write
+        function writingTools() { Ui.closeAll(); WritingTools.open(); }
+        function writingToolsChoose(i: string) { WritingTools.choose(Number(i)); }
+        function writingToolsTranslate(lang: string) { WritingTools.translate(lang); }
+        function writingToolsReplace() { WritingTools.replace(); }
+        function writingToolsClose() { WritingTools.close(); }
+        function quickLookStep(d: string) { QuickLook.step(Number(d)); }
         // a terminal's output (foot: Ctrl+Shift+A = the last command's, Ctrl+Shift+E = the
         // selection): the panel opens with the question and the end of the text
         function chronoaExplain(text: string) {
@@ -331,6 +343,10 @@ ShellRoot {
         function archiveOpen(path: string) { Ui.closeAll(); Archive.open(path); }
         function archiveClose() { Archive.close(); }
         function archiveExtract(where: string) { Archive.extract(where || ""); }
+        function archiveExtractOne(entry: string) { Archive.extractOne(entry); }
+        function archiveUnlock(password: string) { Archive.unlock(password); }
+        // paths one per line (qs ipc turns a JSON list argument into several arguments)
+        function archiveCompress(paths: string, ext: string) { const p = paths.split("\n").filter(x => x); Archive.createAsk(p); Archive.create(p, ext || "zip", ""); }
         // Media Player (Modules/MediaPlayer, Services/PlayQueue): videos and music
         // the Library: an album by its title, from its first song
         function mediaLibraryVideos() { MusicLibrary.scanVideos(); }
@@ -338,6 +354,7 @@ ShellRoot {
         function mediaPlayAlbum(title: string) { const a = MusicLibrary.albums.find(x => x.title === title); if (a) MusicLibrary.play(a.songs, 0); }
         function mediaOpen(path: string) { Ui.closeAll(); PlayQueue.open(path); }
         function mediaClose() { PlayQueue.close(); }
+        function mediaMini(on: string) { PlayQueue.miniRequested(on === "true"); }
         function mediaPlayPause() { PlayQueue.toggleRequested(); }
         function mediaPlay() { PlayQueue.playRequested(); }
         function mediaPause() { PlayQueue.pauseRequested(); }
@@ -381,6 +398,11 @@ ShellRoot {
         function diskUsageTrashMarked() { DiskUsage.trashMarked(); }
         // Files: the file manager
         function filesOpen(path: string) { Files.show(path); }
+        // Tidy and name (Files): sort a folder by kind, undo it; a name from Chronoa
+        function filesTidy(path: string) { Files.show(path); Tidy.plan(path); }
+        function filesTidyApply() { Tidy.apply(); }
+        function filesTidyUndo() { Tidy.undo(); }
+        function filesSuggestName(path: string) { Tidy.suggestName(path); }
         function filesHome() { Files.show(""); }
         function filesClose() { Files.hide(); }
         function filesToggle(path: string) { Files.toggle(path); }
@@ -451,12 +473,24 @@ ShellRoot {
         function hotCorner(action: string) { HotCornerActions.run(action); }
         function windowMenu() { Ui.closeAll(); Ui.windowMenu = true; }
         function windowMenuAction(id: string) { Ui.windowMenuActionRequested(id); }
+        // the app's own menus in the window menu (Services/AppMenu): open one, press an item
+        function windowMenuOpenApp(index: string) { Ui.windowMenuAppRequested(Number(index)); }
+        function appMenuActivate(path: string) { AppMenu.activate(path); }
+        // InputPlumber (Settings > Game controllers): what a controller plays as, every controller
+        function inputPlumberPlaysAs(path: string, id: string) {
+            const d = InputPlumber.devices.find(x => x.path === path);
+            InputPlumber.setTargets(path, [id].concat(((d && d.targets) || []).filter(t => ["keyboard", "mouse", "touchpad", "touchscreen"].indexOf(t) >= 0)));
+        }
+        function inputPlumberManageAll(on: bool) { InputPlumber.setManageAll(on); }
+        function upsRefresh() { Ups.refresh(); }
         // the same path a tap takes (tests drive the keyboard with it)
         function oskPress(key: string) { Osk.press(key); }
+        function oskTapMod(name: string) { if (name === "ctrl" || name === "alt") Osk.tapMod(name); }
         function oskLanguage() { Osk.nextLanguage(); }
         function whatsNewCheck() { WhatsNew.check(); }
         function settings() { Ui.openSettings(""); }
         function settingsCategory(cat: string) { Ui.openSettings(cat); }
+        function settingsAt(cat: string, section: string) { Ui.openSettings(cat, section); }
         // settings undo: revert one or all changed settings
         function settingsChangedKeys(): string { return JSON.stringify(Settings.changedKeys); }
         function settingsUndo(key: string) { Settings.undo(key); }
@@ -465,6 +499,18 @@ ShellRoot {
         function filesSplit() { Files.toggleSplit(); }
         function filesSplitPath(p: string) { Files.openInSplit(p); }
         function filesSplitCopy() { Files.copyToSplit(); }
+        // copy / cut / paste, undo, the trash, Properties, batch rename, bookmarks, deep search
+        function filesCopy(paths: string) { Files.toClipboard("copy", paths ? paths.split("\n") : []); }
+        function filesCut(paths: string) { Files.toClipboard("cut", paths ? paths.split("\n") : []); }
+        function filesPaste(dest: string) { Files.pasteHere(dest); }
+        function filesUndo() { Files.undo(); }
+        function filesPutBack(paths: string) { Files.putBack(paths ? paths.split("\n") : []); }
+        function filesEmptyTrash() { Files.emptyTrash(); }
+        function filesProps(paths: string) { Files.showProps(paths ? paths.split("\n") : []); }
+        function filesBatchRename(pattern: string, paths: string) { Files.batchRename(pattern, paths.split("\n")); }
+        function filesBookmark(path: string, on: bool) { Files.setBookmark(path, on); }
+        function filesSearchDeep(on: bool) { Files.setSearchDeep(on); }
+        function filesSearch(words: string) { Files.searchText = words; }
         function filesSplitMove() { Files.moveToSplit(); }
         // the keyboard into the dock or the bar (a key binds these; Escape gives it back)
         function focusDock() { Ui.closeAll(); Ui.dockFocus = true; }
@@ -486,6 +532,11 @@ ShellRoot {
         function cameraOpen() { Ui.closeAll(); Camera.openCamera(); }
         function maps() { Ui.closeAll(); Ui.maps = true; }
         function mapsRefresh() { Location.refresh(); }
+        function mapsSearch(query: string) { Ui.closeAll(); Ui.maps = true; Ui.mapsQuery = query; }
+        function mapsPan(dxdy: string) { Ui.mapsAsked("pan", dxdy); }
+        function mapsZoomBy(d: string) { Ui.mapsAsked("zoom", d); }
+        function mapsDirections(profile: string) { Ui.mapsAsked("directions", profile); }
+        function mapsFrom(place: string) { Ui.mapsAsked("from", place); }
         function cameraClose() { Camera.closeCamera(); }
         function cameraShutter() { Camera.shutter(); }
         function cameraViewfinder() { Camera.openViewfinder(); }
@@ -573,6 +624,10 @@ ShellRoot {
         function pdfPrev() { PdfViewer.prevPage(); }
         function pdfGoTo(page: int) { PdfViewer.jumpTo(page); }
         function pdfSearch(text: string) { PdfViewer.search(text); }
+        // a form: show it, set a field (text, or "true"/"false" for a box), save a filled copy
+        function pdfFormShow() { PdfViewer.formShown = true; }
+        function pdfFormSet(name: string, value: string) { PdfViewer.setField(name, value === "true" ? true : value === "false" ? false : value); }
+        function pdfFormSave() { PdfViewer.saveForm(); }
         function pdfFindNext() { PdfViewer.findNext(); }
         function pdfFindPrev() { PdfViewer.findPrev(); }
         function pdfClearSearch() { PdfViewer.clearSearch(); }
@@ -657,6 +712,12 @@ ShellRoot {
             const a = n ? Array.from(n.actions).find(x => x.identifier === action) : null;
             if (a) a.invoke();
         }
+        // one of the suggested replies (SmartReplies), by its place on the card
+        function notificationSuggestedReply(summary: string, index: int) {
+            const n = Notifs.list.find(x => x.summary === summary);
+            const s = n ? SmartReplies.forId(n.id) : [];
+            if (n && n.hasInlineReply && s[index]) n.sendInlineReply(s[index]);
+        }
         function notificationReply(summary: string, text: string) {
             const n = Notifs.list.find(x => x.summary === summary);
             if (n && n.hasInlineReply) n.sendInlineReply(text);
@@ -692,7 +753,7 @@ ShellRoot {
                 expanded: Ui.expanded,
                 ring: Ui.ring,
                 switcher: Ui.switcher,
-                windowMenu: Ui.windowMenu,
+                windowMenu: Ui.windowMenu, appMenus: AppMenu.menus.map(m => m.label), appMenuItems: AppMenu.menus.map(m => (m.items || []).filter(i => !i.separator).map(i => i.label + (i.shortcut ? " " + i.shortcut : "") + (i.items ? " >" : ""))), appMenuLoading: AppMenu.loading, appMenuWhy: AppMenu.why, appMenuDid: AppMenu.did, windowMenuLabels: Ui.windowMenuLabels, windowPid: Niri.focusedWindow ? (Niri.focusedWindow.pid || 0) : 0,
                 processes: TopProcesses.list.length,
                 logs: Ui.logs,
                 timerLeft: FocusTimer.left,
@@ -703,11 +764,11 @@ ShellRoot {
                 forecast: Weather.forecast, hourly: Weather.hourly,
                 accent: String(Theme.accent),
                 bg: String(Theme.bg),
-                darkFade: Theme.darkT,
+                darkFade: Theme.darkT, darkSteps: Theme.darkSteps,
                 wallpaperNow: Theme.wallpaper,
                 quiet: Notifs.quiet,
                 fullscreen: GameMode.fullscreen,
-                clipImages: Clipboard.entries.filter(e => e.image).length,
+                clipImages: Clipboard.entries.filter(e => e.image).length, smartReplies: Notifs.list.filter(n => SmartReplies.forId(n.id).length).map(n => n.summary + ': ' + SmartReplies.forId(n.id).join(' | ')), clipFromPhone: Clipboard.entries.filter(e => !e.image && Clipboard.originOf(e.text)).map(e => Clipboard.originOf(e.text) + ": " + e.text.slice(0, 40)),
                 lastScreenshot: Screenshots.last,
                 snoozed: Notifs.snoozed.length,
                 tilesShown: Ui.tilesShown, hiddenTiles: Settings.data.hiddenTiles,
@@ -768,7 +829,7 @@ ShellRoot {
                 viewerAction: Viewer.lastAction, viewerTrash: Viewer.trashLast, exifOrientation: Viewer.exifOrientation,
                 pdfShown: PdfViewer.shown, pdfReader: Ui.pdfReader, pdfFile: PdfViewer.file, pdfPage: PdfViewer.page, pdfPages: PdfViewer.pageCount,
                 pdfFit: PdfViewer.fitMode, pdfContinuous: PdfViewer.continuous, pdfSidebar: PdfViewer.showSidebar, pdfSearch: PdfViewer.searchText,
-                pdfSearchMatches: PdfViewer.searchMatches.length, pdfOutline: PdfViewer.outline.length, pdfPrint: PdfViewer.printState,
+                pdfSearchMatches: PdfViewer.searchMatches.length, pdfOutline: PdfViewer.outline.length, pdfError: PdfViewer.error, pdfCopy: PdfViewer.pdf, pdfFormFields: PdfViewer.formFields.length, pdfFormSaved: PdfViewer.formSaved, pdfFormError: PdfViewer.formError, pdfPrint: PdfViewer.printState,
                 converted: Recorder.converted, converting: Recorder.converting,
                 cpuTemp: SysStats.temp,
                 gpus: Gpu.gpus.length,
@@ -784,7 +845,7 @@ ShellRoot {
                 annotate: Ui.annotate, annotateStrokes: Ui.annotateStrokes,
                 shareTargets: Share.targets.map(t => t.label), shareDone: Share.done,
                 cameras: Camera.cameras.length, cameraPhase: Camera.phase, cameraLast: Camera.last,
-                mapsShown: Ui.maps, mapsLat: Location.lat, mapsLon: Location.lon,
+                mapsShown: Ui.maps, mapsView: Ui.mapsView, mapsLat: Location.lat, mapsLon: Location.lon,
                 wallpaperStyleShown: Ui.settingsOpen && Ui.settingsCat === "personal", terminalList: Terminal.listState, terminalFoot: Terminal.footState, wallpaperStyleImage: WallpaperStyle.image, wallpaperStyleNote: WallpaperStyle.note,
                 wallpaperStylePalette: Object.keys(Matugen.previewPalette || {}).length,
                 wallpaperStyleThemes: (Settings.data.wallpaperStyleThemes || []).length, wallpaperStyleSaved: WallpaperStyle.lastSaved,
@@ -795,7 +856,7 @@ ShellRoot {
                 oskLang: Osk.lang,
                 oskTyped: Osk.typed,
                 ringDepth: Ui.ringDepth,
-                topResult: Ui.topResult,
+                topResult: Ui.topResult, liveWallpaperWhy: LiveWallpaper.why, liveWallpaperPlaying: Ui.liveWallpaperPlaying, launcherFiles: Ui.launcherFiles, launcherMeaning: Ui.launcherMeaning,
                 locked: Lock.locked,
                 lockSecure: Lock.secure,
                 dnd: Notifs.dnd,
@@ -818,7 +879,7 @@ ShellRoot {
                 windows: Object.keys(Niri.windows).length,
                 focusedTitle: Niri.focusedWindow ? Niri.focusedTitle : null,
                 layout: Niri.layout,
-                chronoa: Chronoa.state, chronoaOpen: Chronoa.open, chronoaAsked: Chronoa.lastAsked.slice(0, 400),
+                chronoa: Chronoa.state, chronoaOpen: Chronoa.open, quickLookShown: QuickLook.shown, tidyPlanned: Tidy.planned.length, tidyGroups: Tidy.groups.map(g => g.group + ' ' + g.count), tidyMoved: Tidy.moved, tidyNote: Tidy.note, tidyCanUndo: Tidy.canUndo, nameSuggestion: Tidy.suggestion, nameError: Tidy.namingError, naming: Tidy.naming, writingShown: WritingTools.shown, writingSource: WritingTools.source, writingFrom: WritingTools.from, writingResult: WritingTools.result, writingError: WritingTools.error, writingBusy: WritingTools.busy, quickLookKind: QuickLook.kind, quickLookText: QuickLook.text.length, quickLookPage: QuickLook.page, quickLookError: QuickLook.error, filesCurrent: Files.current, chronoaAsked: Chronoa.lastAsked.slice(0, 400), chronoaReply: Chronoa.lastReply.slice(-600),
                 bridge: Bridge.connected,
                 approval: Chronoa.approval ? Chronoa.approval.text : null,
                 art: Chronoa.art,
@@ -836,8 +897,8 @@ ShellRoot {
                 capsLock: LockKeys.caps, numLock: LockKeys.num,
                 screenSaver: ScreenSaver.active,
                 desktopIconsShown: Settings.data.desktopIcons,
-                mediaPlayer: Media.current ? Media.current.identity : '', notifEarlier: Notifs.earlier.length, dndUntil: Settings.data.dndUntil, oskWritten: Osk.lastWritten, shortcutsListed: Ui.shortcutsListed, plugGreeted: Plugged.greeted, navFocus: Ui.navFocus, osdLabel: Ui.osdLabel, presenting: Plugged.presenting ? Plugged.presenting.output : '', screenReader: Settings.data.screenReader, iphoneNoteDone: Settings.data.iphoneNoteDone, promptKeyboard: Ui.promptKeyboard, hasKeyboard: InputKinds.keyboard, tabletMode: TabletMode.on, gamepadNavRunning: GamepadNav.running, gamepadLast: GamepadNav.lastAction, dockFocus: Ui.dockFocus, barFocus: Ui.barFocus, controllersListed: Ui.controllersListed, padTestRunning: Ui.padTestRunning, padTestLast: Ui.padTestLast, u2fRegistered: Ui.u2fRegistered, plugLast: Plugged.last, tabletOutput: Settings.data.tabletOutput, sleepVerb: Power.sleepVerb, compassHeading: Compass.heading, onlineWalls: OnlineWalls.results.length, onlineWallSaved: OnlineWalls.lastSaved, lyricsLines: Lyrics.lines.length, trashCount: Ui.trashCount, shotCountdown: Screenshots.countdown, shelfParked: Shelf.parked, shelfItems: Shelf.items.map(x => x.name),
-                layoutSwitcher: Ui.layoutSwitcher, layoutTrying: Ui.layoutTrying, layoutPreset: Settings.data.layoutPreset, dockOn: Settings.data.dock, dockHides: Settings.data.dockVisibility === "hide", dockMode: Settings.data.dockVisibility, barMode: Settings.data.barVisibility, dockShown: Hiding.dockShown[Niri.focusedOutput] !== false, barShown: Hiding.barShown[Niri.focusedOutput] !== false, dockHintSeen: Settings.data.dockHintSeen, desktopIconsOn: Settings.data.desktopIcons, winWidth: Settings.data.winDefaultWidth, widgets: Array.from(Settings.data.desktopWidgets),
+                mediaPlayer: Media.current ? Media.current.identity : '', notifEarlier: Notifs.earlier.length, dndUntil: Settings.data.dndUntil, oskWritten: Osk.lastWritten, shortcutsListed: Ui.shortcutsListed, plugGreeted: Plugged.greeted, navFocus: Ui.navFocus, osdLabel: Ui.osdLabel, presenting: Plugged.presenting ? Plugged.presenting.output : '', screenReader: Settings.data.screenReader, iphoneNoteDone: Settings.data.iphoneNoteDone, promptKeyboard: Ui.promptKeyboard, hasKeyboard: InputKinds.keyboard, tabletMode: TabletMode.on, gamepadNavRunning: GamepadNav.running, gamepadLast: GamepadNav.lastAction, dockFocus: Ui.dockFocus, ipRunning: InputPlumber.running, ipManageAll: InputPlumber.manageAll, ipDevices: InputPlumber.devices.map(d => d.name + " " + InputPlumber.playsAs(d) + " " + d.intercept), ipBorrowed: InputPlumber.borrowed !== "", ipLastEvent: InputPlumber.lastEvent, oskCtrl: Osk.ctrl, oskAlt: Osk.alt, upsPresent: Ups.present, upsOnBattery: Ups.onBattery, upsLow: Ups.low, upsCharge: Ups.info.charge === undefined ? -1 : Ups.info.charge, barFocus: Ui.barFocus, controllersListed: Ui.controllersListed, padTestRunning: Ui.padTestRunning, padTestLast: Ui.padTestLast, u2fRegistered: Ui.u2fRegistered, plugLast: Plugged.last, tabletOutput: Settings.data.tabletOutput, sleepVerb: Power.sleepVerb, compassHeading: Compass.heading, onlineWalls: OnlineWalls.results.length, onlineWallSaved: OnlineWalls.lastSaved, lyricsLines: Lyrics.lines.length, trashCount: Ui.trashCount, shotCountdown: Screenshots.countdown, shelfParked: Shelf.parked, shelfItems: Shelf.items.map(x => x.name),
+                layoutSwitcher: Ui.layoutSwitcher, layoutTrying: Ui.layoutTrying, layoutPreset: Settings.data.layoutPreset, dockOn: Settings.data.dock, dockHides: Settings.data.dockVisibility === "hide", dockMode: Settings.data.dockVisibility, barMode: Settings.data.barVisibility, dockShown: Hiding.dockShown[Niri.focusedOutput] !== false, dockFits: Hiding.dockFits[Niri.focusedOutput] !== false, barShown: Hiding.barShown[Niri.focusedOutput] !== false, dockHintSeen: Settings.data.dockHintSeen, desktopIconsOn: Settings.data.desktopIcons, winWidth: Settings.data.winDefaultWidth, widgets: Array.from(Settings.data.desktopWidgets),
                 fileActions: FileActions.actions.map(x => x.id), fileActionLast: FileActions.last,
                 notifLastSound: Notifs.lastSound,
                 scratchpad: Scratchpads.last,
@@ -867,12 +928,12 @@ ShellRoot {
                 cameraShown: Camera.open, notes: Ui.notes, textEditor: Ui.textEditor,
                 textEditorFile: TextDocs.current ? TextDocs.current.path : "", textEditorDocs: TextDocs.docs.length, textEditorUnsaved: TextDocs.unsaved, textEditorChars: TextDocs.current ? TextDocs.current.text.length : 0, textEditorSaved: TextDocs.lastSaved, textEditorError: TextDocs.error, textEditorReadOnly: TextDocs.current ? TextDocs.current.readOnly : false,
                 tasksShown: Ui.tasks, tasksOpen: Tasks.open.map(t => t.summary), tasksDone: Tasks.done.map(t => t.summary), tasksAvailable: Tasks.available, photosShown: Ui.photos, translateShown: Ui.translate, weatherShown: Ui.weather, cleanUpShown: Ui.settingsOpen && Ui.settingsCat === "storage", authenticatorShown: Ui.authenticator, converterShown: Ui.converter, nearbyShown: Ui.nearby, nearbyVisible: Nearby.visible_, nearbyDevices: Nearby.devices.map(d => d.alias), nearbyOffers: Nearby.offers.length, nearbyTransfers: Object.values(Nearby.transfers).map(t => t.direction + ":" + t.state), nearbyNote: Nearby.note, screenTimeShown: Ui.settingsOpen && Ui.settingsCat === "screentime", clocksShown: Ui.clocks, clocksTab: Ui.clocksTab,
-                archiveShown: Archive.shown, archiveFile: Archive.file, archiveEntries: Archive.entries.length, archiveSize: Archive.totalSize, archiveExtractedTo: Archive.extractedTo, archiveError: Archive.error, archiveReading: Archive.reading, archiveExtracting: Archive.extracting,
-                librarySongs: MusicLibrary.songs.length, libraryVideos: MusicLibrary.videos.length, libraryAlbums: MusicLibrary.albums.map(a => a.title), libraryScanning: MusicLibrary.scanning, mediaPage: PlayQueue.page, mediaShown: PlayQueue.shown, mediaFile: PlayQueue.current, mediaPlayerPlaying: PlayQueue.playing, mediaPosition: Math.round(PlayQueue.position * 10) / 10, mediaDuration: Math.round(PlayQueue.duration * 10) / 10, mediaHasVideo: PlayQueue.hasVideo, mediaQueue: PlayQueue.queue.length, mediaIndex: PlayQueue.index, mediaError: PlayQueue.error, mediaVolume: PlayQueue.volume, mediaRate: PlayQueue.rate,
+                archiveShown: Archive.shown, archiveFile: Archive.file, archiveEntries: Archive.entries.length, archiveSize: Archive.totalSize, archiveExtractedTo: Archive.extractedTo, archiveError: Archive.error, archiveReading: Archive.reading, archiveExtracting: Archive.extracting, archivePassword: Archive.needsPassword, archiveMade: Archive.made, archiveCreating: Archive.creating,
+                librarySongs: MusicLibrary.songs.length, libraryVideos: MusicLibrary.videos.length, libraryAlbums: MusicLibrary.albums.map(a => a.title), libraryScanning: MusicLibrary.scanning, mediaPage: PlayQueue.page, mediaShown: PlayQueue.shown, mediaFile: PlayQueue.current, mediaPlayerPlaying: PlayQueue.playing, mediaMini: PlayQueue.mini, mediaResumedFrom: PlayQueue.resumedFrom, mediaSubtitleFile: PlayQueue.subtitleFile, mediaCue: PlayQueue.cue, mediaAudioTracks: PlayQueue.audioTrackCount, mediaTagLine: PlayQueue.tagLine, mediaCover: PlayQueue.coverShown, mediaPinned: Niri.pinned.length, mediaPosition: Math.round(PlayQueue.position * 10) / 10, mediaDuration: Math.round(PlayQueue.duration * 10) / 10, mediaHasVideo: PlayQueue.hasVideo, mediaQueue: PlayQueue.queue.length, mediaIndex: PlayQueue.index, mediaError: PlayQueue.error, mediaVolume: PlayQueue.volume, mediaRate: PlayQueue.rate,
                 scanner: Ui.scanner, passwordGenerator: Ui.passwordGenerator, kundali: Ui.kundali,
                 pdfSigner: Ui.pdfSigner, pdfSignerFile: PdfSigner.file, pdfSignerName: PdfSigner.name, pdfSignerSignature: PdfSigner.signature, pdfSignerX: PdfSigner.x, pdfSignerY: PdfSigner.y, pdfSignerScale: PdfSigner.scale, pdfSignerText: PdfSigner.fillText, pdfSignerTextX: PdfSigner.textX, pdfSignerTextY: PdfSigner.textY, pdfSignerSaved: PdfSigner.pdfSignerFile, pdfSignerLastSaved: PdfSigner.lastSaved, pdfSignerSaving: PdfSigner.saving,
                 disktree: Ui.diskUsage, diskUsageRoot: DiskUsage.scanRoot, diskUsageCurrent: DiskUsage.current, diskUsageEntries: DiskUsage.entries.length, diskUsageMarked: DiskUsage.markedCount, diskUsageTotal: DiskUsage.totalSize, diskUsageScanning: DiskUsage.scanning, diskUsageLast: DiskUsage.last,
-                filesShown: Ui.files, filesPath: Files.path, filesSelected: Files.selected.length, filesView: Files.viewMode, filesError: Files.error, filesPlaces: Files.places.length, filesEntries: Files.entryCount,
+                filesShown: Ui.files, filesPath: Files.path, filesSelected: Files.selected.length, filesView: Files.viewMode, filesError: Files.error, filesPlaces: Files.places.length, filesEntries: Files.entryCount, filesNote: Files.note, filesUndo: Files.undoLabel, filesProps: Files.props ? JSON.stringify(Files.props) : "", filesTrashNames: Object.keys(Files.trashItems), filesBookmarks: Files.places.filter(p => p.bookmark).map(p => p.path), filesNames: Files._paths.map(p => p.split("/").pop()),
                 pickerShown: FilePicker.shown, pickerPath: FilePicker.path, pickerPicked: FilePicker.lastPicked.join(" "),
                 voiceRecorder: Ui.voiceRecorder, voiceRecording: VoiceRecorder.recording, voicePaused: VoiceRecorder.paused, voiceElapsed: VoiceRecorder.elapsed, voiceFiles: VoiceRecorder.recordings.length, voiceFile: VoiceRecorder.file, voiceLast: VoiceRecorder.last, voiceLevel: Math.round(VoiceRecorder.level * 100), voiceTrimFile: VoiceRecorder.trimFile, voiceTrimStart: VoiceRecorder.trimStart, voiceTrimEnd: VoiceRecorder.trimEnd, voiceTrimmed: VoiceRecorder.trimmedLast,
                 videoTrimmer: Ui.videoTrimmer, videoTrimmerInput: VideoTrimmer.input, videoTrimmerStart: VideoTrimmer.start, videoTrimmerEnd: VideoTrimmer.end, videoTrimmerDuration: VideoTrimmer.inputDuration, videoTrimmerResult: VideoTrimmer.result, videoTrimmerCutting: VideoTrimmer.cutting, videoTrimmerError: VideoTrimmer.error, videoTrimmerAvailable: VideoTrimmer.available, videoTrimmerResultDuration: VideoTrimmer.resultDuration,

@@ -200,6 +200,10 @@ Singleton {
             property bool autoRotate: false
             // ShaniOS's pair (the Saturn brand art, re-encoded — see assets/make-wallpapers.py)
             property string wallpaper: "/usr/share/backgrounds/shani/shani-dark.jpg"
+            property string wallpaperVideo: ""        // a live wallpaper: a video (Services/LiveWallpaper); "" none
+            property bool wallpaperVideoOnBattery: false
+            property bool searchMeaning: true          // the launcher asks Chronoa's file index too (FindFiles)
+            property bool smartReplies: true           // suggested replies on message notifications (SmartReplies)
             property string terminal: "footclient"     // a window of the foot server (Services/Terminal)
             property bool terminalThemed: true         // foot in the desktop's colours (~/.config/foot/foot.ini, while it is the shell's)
             property bool dock: true
@@ -438,6 +442,7 @@ Singleton {
             // the file manager's view: grid or list, how it is sorted, and
             // whether the hidden files and the preview are shown
             property string filesViewMode: "grid"
+            property bool filesSearchDeep: false          // Files' search goes through the folders under this one too
             property string filesSortKey: "name"
             property bool filesSortDesc: false
             property bool filesShowHidden: false

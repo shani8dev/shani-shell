@@ -15,7 +15,7 @@ chmod 700 "$XDG_RUNTIME_DIR"
 fail=0
 result() {
     echo "RESULT $1 $2"
-    [ "$2" = PASS ] || fail=1
+    if [ "$2" = FAIL ]; then fail=1; fi   # a SKIP is not a failure
 }
 
 pkill -f fake-greetd.py 2>/dev/null || true

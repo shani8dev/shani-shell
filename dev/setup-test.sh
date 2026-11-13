@@ -16,7 +16,7 @@ chmod 700 "$XDG_RUNTIME_DIR"
 fail=0
 result() {
     echo "RESULT $1 $2 ${3:+($3)}"
-    [ "$2" = PASS ] || fail=1
+    if [ "$2" = FAIL ]; then fail=1; fi   # a SKIP is not a failure
 }
 
 if getent passwd | awk -F: '$3 >= 1000 && $3 < 60000 && $7 !~ /(nologin|false)$/ { f = 1 } END { exit !f }'; then

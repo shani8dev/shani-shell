@@ -41,6 +41,9 @@ Singleton {
     property real mapsLon: 0
     property string mapsPlace: ""           // maps search result label
     property string mapsQuery: ""           // maps search box
+    // what the Maps window reports (the tests read these) and asks it to do
+    property var mapsView: ({})             // { lat, lon, zoom, tiles, route, distance, steps, error }
+    signal mapsAsked(string what, string arg)
     property bool textEditor: false         // the TextEditor surface (Modules/TextEditor)
     property bool scanner: false           // the Scanner surface (Modules/Scanner)
     property bool passwordGenerator: false           // the Secrets surface (Modules/PasswordGenerator)
@@ -142,10 +145,15 @@ Singleton {
     }
     property real windowMenuX: 0
     signal windowMenuActionRequested(string id)
+    property var windowMenuLabels: []                 // the window menu's rows, as shown (the tests read them)
+    signal windowMenuAppRequested(int index)          // open one of the app's menus (IPC, the tests)
     signal switcherRequested(bool back) // Alt+Tab / Alt+Shift+Tab
     property string expanded: ""        // control-center section: wifi | bluetooth | audio | vpn | power
     property var screen: Quickshell.screens[0]
     property string topResult: ""
+    property int launcherFiles: 0
+    property int launcherMeaning: 0
+    property var liveWallpaperPlaying: ({})        // output -> playing (the tests read it)                // files Chronoa found by meaning (the tests read it)                  // how many file results the launcher shows (the tests read it)
     // read-outs for `state` (tests and scripts)
     property string islandActivity: ""
     property bool islandBusy: false               // the Island is asking, working or waiting on an approval (brings a hidden bar back)

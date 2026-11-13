@@ -7,6 +7,7 @@ import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
+import qs.Services
 import "NiriBinds.js" as NiriBinds
 
 ColumnLayout {
@@ -148,7 +149,7 @@ ColumnLayout {
         label: Tr.t("Or open an app")
         onPicked: id => {
             const e = DesktopEntries.byId(id);
-            page.action = { title: Tr.t("Open %1").arg(e ? e.name : id), command: "gtk-launch " + id.replace(/\.desktop$/, "") };
+            page.action = { title: Tr.t("Open %1").arg(e ? e.name : id), command: Launch.tool + " " + id.replace(/\.desktop$/, "") };
         }
     }
     TextField {

@@ -143,8 +143,70 @@ ColumnLayout {
     SwitchRow {
         Layout.fillWidth: true
         text: Tr.t("Move around the desktop with a controller")
-        hint: Tr.t("the d-pad moves, A selects, B goes back, Start opens Quick Settings - not while a game is fullscreen")
+        hint: InputPlumber.managing
+              ? Tr.t("the guide button opens Quick Settings, over a game too - the game sees no press until you close it; the d-pad moves, A selects, B goes back")
+              : Tr.t("the d-pad moves, A selects, B goes back, Start opens Quick Settings - not while a game is fullscreen")
         checked: Settings.data.gamepadNav
         onToggled: on => Settings.data.gamepadNav = on
+    }
+
+    // ---- InputPlumber (shani-peripherals): what each controller plays as in games ----
+    SectionTitle { objectName: "in-games"; visible: InputPlumber.running; Layout.fillWidth: true; Layout.topMargin: 8; text: Tr.t("In games") }
+    Text {
+        visible: InputPlumber.running && InputPlumber.devices.length === 0
+        Layout.fillWidth: true
+        text: Tr.t("No controller is managed yet: a handheld's own controls are, by themselves; others when \"Manage every controller\" is on.")
+        color: Theme.dim
+        wrapMode: Text.WordWrap
+        font.family: Theme.font
+        font.pixelSize: 12 * Theme.fontScale
+    }
+    Repeater {
+        model: InputPlumber.running ? InputPlumber.devices : []
+        ColumnLayout {
+            id: ipDev
+            required property var modelData
+            Layout.fillWidth: true
+            spacing: 6
+            Text {
+                Layout.fillWidth: true
+                text: ipDev.modelData.name + (ipDev.modelData.profile ? "  ·  " + ipDev.modelData.profile : "")
+                color: Theme.text
+                font.family: Theme.font
+                font.pixelSize: 13 * Theme.fontScale
+                font.weight: Font.DemiBold
+            }
+            Text {
+                text: Tr.t("Plays as")
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: 11 * Theme.fontScale
+            }
+            // gamepad kinds only: its keyboard and mouse (a handheld's touchpad, its
+            // extra keys) stay as they are
+            Flow {
+                Layout.fillWidth: true
+                spacing: 6
+                Repeater {
+                    model: InputPlumber.supportedIds.map((id, i) => ({ id: id, name: InputPlumber.supported[i] || id }))
+                                                   .filter(t => ["keyboard", "mouse", "touchpad", "touchscreen", "dbus", "debug"].indexOf(t.id) < 0)
+                    Choice {
+                        required property var modelData
+                        text: modelData.name
+                        selected: (ipDev.modelData.targets || []).indexOf(modelData.id) >= 0
+                        onClicked: InputPlumber.setTargets(ipDev.modelData.path,
+                            [modelData.id].concat((ipDev.modelData.targets || []).filter(t => ["keyboard", "mouse", "touchpad", "touchscreen"].indexOf(t) >= 0)))
+                    }
+                }
+            }
+        }
+    }
+    SwitchRow {
+        visible: InputPlumber.running
+        Layout.fillWidth: true
+        text: Tr.t("Manage every controller")
+        hint: Tr.t("not only a handheld's own: every pad plays as the kind above, and the guide button reaches the desktop")
+        checked: InputPlumber.manageAll
+        onToggled: on => InputPlumber.setManageAll(on)
     }
 }

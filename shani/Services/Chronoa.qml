@@ -31,8 +31,10 @@ Singleton {
     readonly property string label: ["offline", "thinking", "listening", "speaking", "waiting"].indexOf(state) >= 0 ? state : "ready"
 
     property string lastAsked: ""      // what was asked last (the tests read it)
+    property string lastReply: ""      // the answer to it, as it streams in
     function ask(text) {
         lastAsked = text;
+        lastReply = "";
         userAsked(text);
         deliver(text);
     }
@@ -82,6 +84,7 @@ Singleton {
             step = "";
         } else if (e.event === "reply") {
             state = "speaking";
+            lastReply += e.text || "";
         } else if (e.event === "approval") {
             state = "waiting";
             approval = { id: e.id, text: e.text || "", detail: e.detail || "",
