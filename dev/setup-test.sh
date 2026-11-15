@@ -58,6 +58,23 @@ waitfor() {
 shot() { sleep "${2:-0.8}"; grim "/work/out/shots/$1.png" 2>/dev/null || true; }
 
 waitfor "d['locales'] > 0 and d['zones'] > 0 and d['locale'] != ''" 10 && result setup-reads-system PASS || result setup-reads-system FAIL "$(st)"
+# Super+Alt+S turns the screen reader on and off - a person who cannot see
+# the screen cannot find its button (Orca itself is what then starts)
+# pressed again (up to three times) while the window may still be getting
+# keyboard focus - the first press can land before it has it
+on=0
+for try in 1 2 3; do
+    wtype -M logo -M alt -k s -m alt -m logo 2>/dev/null
+    waitfor "d['screenReader'] == True" 2 && { on=1; break; }
+done
+if [ "$on" = 1 ] && sleep 1 && pgrep -x orca >/dev/null; then
+    result setup-screen-reader-shortcut PASS
+    wtype -M logo -M alt -k s -m alt -m logo 2>/dev/null
+    waitfor "d['screenReader'] == False" 3 && result setup-screen-reader-shortcut-off PASS || result setup-screen-reader-shortcut-off FAIL "$(st)"
+else
+    result setup-screen-reader-shortcut FAIL "$(st) orca=$(pgrep -x orca)"
+    result setup-screen-reader-shortcut-off SKIP "it never came on"
+fi
 shot 80-setup-welcome 1.5
 # the wizard speaks the language picked on its first page
 call set locale mr_IN.UTF-8

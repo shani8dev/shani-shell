@@ -212,6 +212,14 @@ ShellRoot {
             WlrLayershell.layer: WlrLayer.Overlay
             WlrLayershell.keyboardFocus: primary ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
+            // Super+Alt+S, the screen reader - the shortcut GNOME and Plasma use
+            // too: someone who cannot see the screen cannot find its button
+            Shortcut {
+                sequences: ["Meta+Alt+S"]
+                context: Qt.WindowShortcut
+                onActivated: root.screenReader = !root.screenReader
+            }
+
             Image {
                 anchors.fill: parent
                 source: root.wallpaper === "" ? "" : "file://" + root.wallpaper

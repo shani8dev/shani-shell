@@ -222,7 +222,9 @@ in that nested session - not yet on an installed image - is listed in
 ## Accessible by default
 
 - **Screen reader** support throughout — every control has a name, verified with
-  real accessibility tools.
+  real accessibility tools. **Super + Alt + S** starts it from the very first
+  screen (first setup and the sign-in screen), the same shortcut GNOME and
+  Plasma use, so it can be found without seeing the screen.
 - **Larger text, high contrast, reduce motion, mono audio, magnifier.**
 - **Live captions** and **read aloud** for any text.
 - **A floating assist button** (AssistiveTouch) for touch and pointer users.

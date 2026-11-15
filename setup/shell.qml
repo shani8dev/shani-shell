@@ -332,7 +332,8 @@ ShellRoot {
             return JSON.stringify({ page: root.pageId, locale: root.locale, keymap: root.keymap, timezone: root.timezone,
                                     username: root.username, hostname: root.hostname, problem: root.accountProblem,
                                     status: root.status, warnings: root.warnings, greetd: String(Greetd.state),
-                                    locales: root.locales.length, zones: root.zones.length, nextWord: root.t("next") });
+                                    locales: root.locales.length, zones: root.zones.length, nextWord: root.t("next"),
+                                    screenReader: root.screenReader });
         }
         function next() { root.next(); }
         function back() { root.back(); }
@@ -359,6 +360,14 @@ ShellRoot {
             WlrLayershell.namespace: "shani-setup"
             WlrLayershell.layer: WlrLayer.Overlay
             WlrLayershell.keyboardFocus: primary ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+
+            // Super+Alt+S, the screen reader - the shortcut GNOME and Plasma use
+            // too: someone who cannot see the screen cannot find its button
+            Shortcut {
+                sequences: ["Meta+Alt+S"]
+                context: Qt.WindowShortcut
+                onActivated: root.screenReader = !root.screenReader
+            }
 
             Image {
                 anchors.fill: parent

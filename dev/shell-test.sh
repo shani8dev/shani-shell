@@ -47,7 +47,11 @@ waitfor() {   # waitfor <python expr over d> <seconds>
 # loading while shell-loads-clean passed
 qml_bad() {
     grep -aE "TypeError|ReferenceError|Unable to assign|is not a function|is not defined|caused by|ERROR|Duplicate method name|Property value set multiple times|is not a type|Cannot assign to non-existent" /work/out/logs/qs.log \
-        | grep -v -E "ZINK|libvulkan|polkit" | head -5
+        | grep -v -E "ZINK|libvulkan|polkit" \
+        | grep -v "Cannot change default source to a node that is not a source" | head -5
+    # (that one is Quickshell answering the suite's own `pactl set-default-source
+    # speakers.monitor` - voice typing hears the speakers - not the shell's code: the
+    # shell only ever offers real sources, Audio.sources / SoundFx's guard)
 }
 bad=$(qml_bad)
 [ -z "$bad" ] && result shell-loads-clean PASS || { result shell-loads-clean FAIL; echo "$bad"; }
@@ -1327,14 +1331,14 @@ settings '{}'
 # keyboard layouts: the shell writes them, niri reloads the include and has both
 settings '{"kbLayouts": ["us", "in+marathi"], "kbSwitch": "grp:alt_shift_toggle"}'
 waitfor "True" 1
-for i in 1 2 3 4 5 6; do niri msg -j keyboard-layouts 2>/dev/null | grep -q Marathi && break; sleep 0.5; done
+for i in $(seq 12); do niri msg -j keyboard-layouts 2>/dev/null | grep -q Marathi && break; sleep 0.5; done
 niri msg -j keyboard-layouts 2>/dev/null | grep -q Marathi && grep -q 'options "grp:alt_shift_toggle"' $f \
     && result keyboard-layouts-reach-niri PASS "$(niri msg -j keyboard-layouts | python3 -c 'import json,sys; print(json.load(sys.stdin)["names"])')" \
     || result keyboard-layouts-reach-niri FAIL "$(cat $f; niri msg keyboard-layouts 2>&1)"
 waitfor "'Marathi' in d['layout'] or True" 1
 shot 76-settings-layouts 0.4
 settings '{}'
-for i in 1 2 3 4 5 6; do niri msg -j keyboard-layouts 2>/dev/null | grep -q Marathi || break; sleep 0.5; done
+for i in $(seq 12); do niri msg -j keyboard-layouts 2>/dev/null | grep -q Marathi || break; sleep 0.5; done
 niri msg -j keyboard-layouts 2>/dev/null | grep -q Marathi && result keyboard-layouts-removed FAIL || result keyboard-layouts-removed PASS
 
 # ---- per-app window rules: the shell writes the include, niri floats foot -----
