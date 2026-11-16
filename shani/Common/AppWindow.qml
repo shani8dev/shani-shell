@@ -26,7 +26,7 @@ FloatingWindow {
     id: win
     property string appName: ""
     property string doc: ""
-    property int margins: 14
+    property int margins: Theme.px(14)
     property bool header: true
     // closed by the compositor (Mod+Q, the bar's close button) or by the app itself
     signal gone()
@@ -37,8 +37,8 @@ FloatingWindow {
     readonly property var entry: desktopId !== "" ? DesktopEntries.byId(desktopId) : null
 
     title: doc !== "" ? doc + " — " + appName : appName
-    implicitWidth: 900
-    implicitHeight: 640
+    implicitWidth: Theme.px(900)
+    implicitHeight: Theme.px(640)
     // glass, as the rest of the shell: translucent over a blur of what is behind
     color: Settings.blurWanted ? Theme.alpha(Theme.bg, 0.86) : Theme.bg
     BackgroundEffect.blurRegion: Settings.blurWanted ? whole : null
@@ -70,23 +70,23 @@ FloatingWindow {
             }
 
             RowLayout {
-                anchors { fill: parent; leftMargin: 12; rightMargin: 6 }
-                spacing: 8
+                anchors { fill: parent; leftMargin: Theme.px(12); rightMargin: Theme.px(6) }
+                spacing: Theme.px(8)
                 Image {
-                    Layout.preferredWidth: 20
-                    Layout.preferredHeight: 20
+                    Layout.preferredWidth: Theme.px(20)
+                    Layout.preferredHeight: Theme.px(20)
                     sourceSize: Qt.size(40, 40)
                     source: win.entry && win.entry.icon ? Quickshell.iconPath(win.entry.icon, true) : ""
                     visible: source != ""
                 }
                 Text {
                     Layout.fillWidth: true
-                    Layout.minimumWidth: 60
+                    Layout.minimumWidth: Theme.px(60)
                     text: win.doc !== "" ? win.doc : win.appName
                     color: Theme.text
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: 13 * Theme.fontScale
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
                     font.weight: Font.DemiBold
                     Accessible.ignored: true
                 }
@@ -95,15 +95,15 @@ FloatingWindow {
                     text: win.appName
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: 12 * Theme.fontScale
-                    rightPadding: 6
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    rightPadding: Theme.px(6)
                     Accessible.ignored: true
                 }
                 RowLayout {
                     id: toolRow
                     spacing: 2
                 }
-                Rectangle { visible: toolRow.children.length > 0; Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: Theme.border }
+                Rectangle { visible: toolRow.children.length > 0; Layout.preferredWidth: 1; Layout.preferredHeight: Theme.px(20); color: Theme.border }
                 WindowButton { icon: "window-minimize"; tip: Tr.t("Minimise"); onClicked: Ui.minimiseFocused() }
                 WindowButton { icon: win.maximized ? "window-restore" : "window-maximize"; tip: win.maximized ? Tr.t("Restore") : Tr.t("Maximise"); onClicked: win.toggleMaximised() }
                 WindowButton { icon: "window-close"; tip: Tr.t("Close"); danger: true; onClicked: win.visible = false }
@@ -164,9 +164,9 @@ FloatingWindow {
         property string tip
         property bool danger: false
         signal clicked()
-        Layout.preferredWidth: 30
-        Layout.preferredHeight: 30
-        radius: 15
+        Layout.preferredWidth: Theme.px(30)
+        Layout.preferredHeight: Theme.px(30)
+        radius: Theme.px(15)
         color: area.pressed ? (danger ? Theme.danger : Theme.pressed) : area.containsMouse ? (danger ? Theme.alpha(Theme.danger, 0.85) : Theme.hover) : "transparent"
         Accessible.role: Accessible.Button
         Accessible.name: tip
@@ -174,7 +174,7 @@ FloatingWindow {
         Icon {
             anchors.centerIn: parent
             name: wb.icon
-            size: 16
+            size: Theme.px(16)
             color: wb.danger && area.containsMouse ? "white" : Theme.dim
         }
         MouseArea {

@@ -9,7 +9,7 @@ ColumnLayout {
     id: page
     property bool active: false
     visible: Ups.present
-    spacing: 6
+    spacing: Theme.px(6)
     onActiveChanged: if (active) Ups.refresh()
     SectionTitle { objectName: "ups"; Layout.fillWidth: true; text: Tr.t("UPS") }
     Text {
@@ -17,7 +17,7 @@ ColumnLayout {
         text: Ups.info.model || Ups.info.name || ""
         color: Theme.text
         font.family: Theme.font
-        font.pixelSize: 13 * Theme.fontScale
+        font.pixelSize: Theme.px(13) * Theme.fontScale
         font.weight: Font.DemiBold
     }
     Text {
@@ -28,19 +28,19 @@ ColumnLayout {
         color: Ups.low ? Theme.danger : (Ups.onBattery ? Theme.accent : Theme.dim)
         wrapMode: Text.WordWrap
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     // the charge, as a bar
     Rectangle {
         Layout.fillWidth: true
         Layout.topMargin: 2
-        implicitHeight: 6
-        radius: 3
+        implicitHeight: Theme.px(6)
+        radius: Theme.px(3)
         color: Theme.hover
         Rectangle {
             width: parent.width * Math.max(0, Math.min(1, (Ups.info.charge || 0) / 100))
             height: parent.height
-            radius: 3
+            radius: Theme.px(3)
             color: Ups.low ? Theme.danger : Theme.accent
         }
     }

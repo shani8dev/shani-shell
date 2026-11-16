@@ -220,20 +220,20 @@ PanelWindow {
         RowLayout {
             id: body
             anchors.fill: parent
-            anchors.margins: 24
-            spacing: 24
+            anchors.margins: Theme.px(24)
+            spacing: Theme.px(24)
             ColumnLayout {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignTop
-                spacing: 14
-                Text { text: Tr.t("Desktop layout"); color: Theme.text; font.family: Theme.font; font.pixelSize: 20 * Theme.fontScale; font.weight: Font.DemiBold }
-                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale
+                spacing: Theme.px(14)
+                Text { text: Tr.t("Desktop layout"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(20) * Theme.fontScale; font.weight: Font.DemiBold }
+                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale
                     text: Tr.t("Pick one to try it on — your desktop changes at once. Keep it, or Cancel to go back. You can still change any part of it in Settings afterwards.") }
                 GridLayout {
                     Layout.fillWidth: true
                     columns: 3
-                    rowSpacing: 12
-                    columnSpacing: 12
+                    rowSpacing: Theme.px(12)
+                    columnSpacing: Theme.px(12)
                     Repeater {
                         model: root.presets
                         Rectangle {
@@ -256,53 +256,53 @@ PanelWindow {
                                 id: tcol
                                 x: 8; y: 8
                                 width: parent.width - 16
-                                spacing: 8
+                                spacing: Theme.px(8)
                                 Mini { Layout.fillWidth: true; Layout.preferredHeight: width * 0.625; s: tile.modelData.set }
                                 RowLayout {
-                                    spacing: 6
-                                    Icon { name: tile.modelData.icon; size: 16; color: tile.chosen ? Theme.accent : Theme.text }
-                                    Text { text: tile.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: 14 * Theme.fontScale; font.weight: Font.Medium }
-                                    Rectangle { visible: root.now === tile.index && !root.tried; radius: 8; color: Theme.alpha(Theme.accent, 0.25); implicitWidth: nowL.implicitWidth + 12; implicitHeight: nowL.implicitHeight + 4
-                                        Text { id: nowL; anchors.centerIn: parent; text: Tr.t("Now"); color: Theme.text; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale } }
+                                    spacing: Theme.px(6)
+                                    Icon { name: tile.modelData.icon; size: Theme.px(16); color: tile.chosen ? Theme.accent : Theme.text }
+                                    Text { text: tile.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(14) * Theme.fontScale; font.weight: Font.Medium }
+                                    Rectangle { visible: root.now === tile.index && !root.tried; radius: Theme.px(8); color: Theme.alpha(Theme.accent, 0.25); implicitWidth: nowL.implicitWidth + 12; implicitHeight: nowL.implicitHeight + 4
+                                        Text { id: nowL; anchors.centerIn: parent; text: Tr.t("Now"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale } }
                                 }
                             }
                             MouseArea { id: ta; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.tryOn(tile.index) }
                         }
                     }
                 }
-                Text { visible: root.now < 0 && !root.tried; Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale
+                Text { visible: root.now < 0 && !root.tried; Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
                     text: Tr.t("Your desktop is set up your own way right now, so none of these is marked. Cancel keeps it exactly as it is.") }
             }
             // the chosen layout: big picture, what it changes, Keep / Cancel
             ColumnLayout {
-                Layout.preferredWidth: 300
-                Layout.maximumWidth: 300
+                Layout.preferredWidth: Theme.px(300)
+                Layout.maximumWidth: Theme.px(300)
                 Layout.fillHeight: true
-                spacing: 12
+                spacing: Theme.px(12)
                 Mini { Layout.fillWidth: true; Layout.preferredHeight: width * 0.625; s: root.p.set }
-                Text { text: root.p.name; color: Theme.text; font.family: Theme.font; font.pixelSize: 17 * Theme.fontScale; font.weight: Font.DemiBold }
-                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: root.p.desc; color: Theme.dim; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale }
-                Text { text: root.tried ? Tr.t("What changed") : Tr.t("What it changes"); color: Theme.text; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale; font.weight: Font.Medium }
+                Text { text: root.p.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(17) * Theme.fontScale; font.weight: Font.DemiBold }
+                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: root.p.desc; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                Text { text: root.tried ? Tr.t("What changed") : Tr.t("What it changes"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.Medium }
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 4
+                    spacing: Theme.px(4)
                     Repeater {
                         model: { const c = root.changes(root.p.set); return c.length ? c : [Tr.t("Nothing — this is how your desktop is now")]; }
                         RowLayout {
                             required property string modelData
                             Layout.fillWidth: true
-                            spacing: 6
-                            Icon { name: "object-select-symbolic"; size: 14; color: Theme.accent; Layout.alignment: Qt.AlignTop }
-                            Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: modelData; color: Theme.text; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                            spacing: Theme.px(6)
+                            Icon { name: "object-select-symbolic"; size: Theme.px(14); color: Theme.accent; Layout.alignment: Qt.AlignTop }
+                            Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: modelData; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                         }
                     }
                 }
                 Item { Layout.fillHeight: true }
-                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale
+                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
                     text: Tr.t("Arrows to look through them · Enter to keep · Esc to cancel") }
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: Theme.px(8)
                     Button { text: Tr.t("More settings…"); onClicked: { root.tried ? root.keep() : root.cancel(); Ui.openSettings("personal"); } }
                     Item { Layout.fillWidth: true }
                     Button { text: Tr.t("Cancel"); kind: "outline"; onClicked: root.cancel() }

@@ -13,8 +13,8 @@ AppWindow {
     appName: "Tasks"
     visible: Ui.tasks
     onGone: Ui.tasks = false
-    implicitWidth: 560
-    implicitHeight: 640
+    implicitWidth: Theme.px(560)
+    implicitHeight: Theme.px(640)
 
     property real dueChoice: 0        // seconds; 0 = no date
     property bool showDone: false
@@ -39,11 +39,11 @@ AppWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            spacing: 10
+            spacing: Theme.px(10)
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 TextField {
                     id: field
                     Layout.fillWidth: true
@@ -55,7 +55,7 @@ AppWindow {
             }
             Flow {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 Repeater {
                     model: win.dueOptions
                     Choice {
@@ -69,8 +69,8 @@ AppWindow {
             Flow {
                 Layout.fillWidth: true
                 visible: Tasks.lists.length > 1
-                spacing: 6
-                Text { text: Tr.t("Into:"); color: Theme.dim; height: 30; verticalAlignment: Text.AlignVCenter; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                spacing: Theme.px(6)
+                Text { text: Tr.t("Into:"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                 Repeater {
                     model: Tasks.lists.filter(l => !l.readOnly)
                     Choice {
@@ -89,7 +89,7 @@ AppWindow {
                 color: Theme.danger
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
 
             ListView {
@@ -105,22 +105,22 @@ AppWindow {
                     required property var modelData
                     readonly property bool late: !modelData.done && modelData.due > 0 && modelData.due * 1000 < Date.now()
                     width: list.width
-                    height: 44
+                    height: Theme.px(44)
                     radius: Theme.radiusSmall
                     color: rowArea.containsMouse ? Theme.hover : "transparent"
                     MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
                     RowLayout {
-                        anchors { fill: parent; leftMargin: 6; rightMargin: 6 }
-                        spacing: 10
+                        anchors { fill: parent; leftMargin: Theme.px(6); rightMargin: Theme.px(6) }
+                        spacing: Theme.px(10)
                         // the tick: done or not
                         Rectangle {
-                            Layout.preferredWidth: 22
-                            Layout.preferredHeight: 22
-                            radius: 11
+                            Layout.preferredWidth: Theme.px(22)
+                            Layout.preferredHeight: Theme.px(22)
+                            radius: Theme.px(11)
                             color: row.modelData.done ? Theme.accent : "transparent"
                             border.width: 2
                             border.color: row.modelData.done ? Theme.accent : row.late ? Theme.danger : Theme.dim
-                            Icon { anchors.centerIn: parent; visible: row.modelData.done; name: "object-select"; size: 14; color: Theme.accentInk }
+                            Icon { anchors.centerIn: parent; visible: row.modelData.done; name: "object-select"; size: Theme.px(14); color: Theme.accentInk }
                             Accessible.role: Accessible.CheckBox
                             Accessible.checked: row.modelData.done
                             Accessible.name: row.modelData.summary
@@ -139,17 +139,17 @@ AppWindow {
                                 font.strikeout: row.modelData.done
                                 elide: Text.ElideRight
                                 font.family: Theme.font
-                                font.pixelSize: 13 * Theme.fontScale
+                                font.pixelSize: Theme.px(13) * Theme.fontScale
                             }
                             Text {
                                 visible: text !== ""
                                 text: [Tasks.when(row.modelData), Tasks.lists.length > 1 ? row.modelData.list : ""].filter(x => x).join("  ·  ")
                                 color: row.late ? Theme.danger : Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: 11 * Theme.fontScale
+                                font.pixelSize: Theme.px(11) * Theme.fontScale
                             }
                         }
-                        IconButton { size: 28; icon: "user-trash"; tip: Tr.t("Delete") + " " + row.modelData.summary; onClicked: Tasks.remove(row.modelData) }
+                        IconButton { size: Theme.px(28); icon: "user-trash"; tip: Tr.t("Delete") + " " + row.modelData.summary; onClicked: Tasks.remove(row.modelData) }
                     }
                 }
                 EmptyState {

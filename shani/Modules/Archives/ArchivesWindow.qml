@@ -13,8 +13,8 @@ AppWindow {
     doc: Archive.name
     visible: Archive.shown
     onGone: Archive.close()
-    implicitWidth: 720
-    implicitHeight: 620
+    implicitWidth: Theme.px(720)
+    implicitHeight: Theme.px(620)
 
     function pick() {
         FilePicker.open({ mode: "open", title: Tr.t("Open an archive"), filters: Archive.types,
@@ -37,12 +37,12 @@ AppWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            spacing: 10
+            spacing: Theme.px(10)
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
-                Icon { name: "package-x-generic"; size: 22; color: Theme.accent }
+                spacing: Theme.px(8)
+                Icon { name: "package-x-generic"; size: Theme.px(22); color: Theme.accent }
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 0
@@ -52,7 +52,7 @@ AppWindow {
                         color: Theme.text
                         elide: Text.ElideMiddle
                         font.family: Theme.font
-                        font.pixelSize: 15 * Theme.fontScale
+                        font.pixelSize: Theme.px(15) * Theme.fontScale
                         font.weight: Font.DemiBold
                     }
                     Text {
@@ -62,7 +62,7 @@ AppWindow {
                             : Archive.entries.length + " " + Tr.t("items") + "  ·  " + Archive.human(Archive.totalSize) + " " + Tr.t("when extracted")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: 11 * Theme.fontScale
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
                     }
                 }
                 Button { text: Tr.t("Open…"); flat: true; onClicked: win.pick() }
@@ -72,7 +72,7 @@ AppWindow {
             ColumnLayout {
                 Layout.fillWidth: true
                 visible: Archive.toCompress.length > 0
-                spacing: 8
+                spacing: Theme.px(8)
                 Text {
                     Layout.fillWidth: true
                     text: Archive.toCompress.length === 1
@@ -81,12 +81,12 @@ AppWindow {
                     color: Theme.text
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: 13 * Theme.fontScale
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: Archive.formats
                         Choice {
@@ -99,7 +99,7 @@ AppWindow {
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: Theme.px(8)
                     TextField {
                         id: archName
                         Layout.fillWidth: true
@@ -121,7 +121,7 @@ AppWindow {
                         color: Theme.dim
                         elide: Text.ElideMiddle
                         font.family: Theme.font
-                        font.pixelSize: 11 * Theme.fontScale
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
                     }
                     Button { text: Tr.t("Show in Files"); onClicked: Files.show(Archive.made) }
                     Button { text: Tr.t("Open it"); flat: true; onClicked: { const m = Archive.made; Archive.toCompress = []; Archive.open(m); } }
@@ -140,7 +140,7 @@ AppWindow {
                 ListView {
                     id: list
                     anchors.fill: parent
-                    anchors.margins: 6
+                    anchors.margins: Theme.px(6)
                     clip: true
                     spacing: 1
                     boundsBehavior: Flickable.StopAtBounds
@@ -150,28 +150,28 @@ AppWindow {
                         required property var modelData
                         readonly property int depth: modelData.path.split("/").length - 1
                         width: list.width
-                        height: 26
-                        spacing: 8
+                        height: Theme.px(26)
+                        spacing: Theme.px(8)
                         Item { implicitWidth: row.depth * 14; implicitHeight: 1 }
-                        Icon { name: row.modelData.dir ? "folder" : "text-x-generic"; size: 16; color: row.modelData.dir ? Theme.accent : Theme.dim }
+                        Icon { name: row.modelData.dir ? "folder" : "text-x-generic"; size: Theme.px(16); color: row.modelData.dir ? Theme.accent : Theme.dim }
                         Text {
                             Layout.fillWidth: true
                             text: row.modelData.path.split("/").pop()
                             color: Theme.text
                             elide: Text.ElideMiddle
                             font.family: Theme.font
-                            font.pixelSize: 12 * Theme.fontScale
+                            font.pixelSize: Theme.px(12) * Theme.fontScale
                         }
                         Text {
                             text: row.modelData.dir ? "" : Archive.human(row.modelData.size)
                             color: Theme.faint
                             font.family: Theme.font
-                            font.pixelSize: 11 * Theme.fontScale
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
                             font.features: { "tnum": 1 }
                         }
                         // just this one, beside the archive
                         IconButton {
-                            size: 24
+                            size: Theme.px(24)
                             icon: "document-save"
                             tip: Tr.t("Extract only this")
                             enabled: !Archive.extracting
@@ -192,8 +192,8 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 visible: Archive.needsPassword
-                spacing: 8
-                Icon { name: "dialog-password"; size: 20; color: Theme.accent }
+                spacing: Theme.px(8)
+                Icon { name: "dialog-password"; size: Theme.px(20); color: Theme.accent }
                 TextField {
                     id: pw
                     Layout.fillWidth: true
@@ -209,14 +209,14 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 visible: Archive.extractedTo !== "" || (Archive.error !== "" && Archive.entries.length > 0)
-                spacing: 8
+                spacing: Theme.px(8)
                 Text {
                     Layout.fillWidth: true
                     text: Archive.error !== "" ? Archive.error : Tr.t("Extracted to") + " " + Archive.extractedTo
                     color: Archive.error !== "" ? Theme.danger : Theme.dim
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 Button {
                     visible: Archive.extractedTo !== ""
@@ -227,7 +227,7 @@ AppWindow {
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Button {
                     Layout.fillWidth: true
                     kind: "primary"

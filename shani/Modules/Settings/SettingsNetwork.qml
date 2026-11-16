@@ -14,7 +14,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     property bool active: false
     readonly property var d: Settings.data
     property string conn: ""              // the active connection's UUID
@@ -34,7 +34,7 @@ ColumnLayout {
         text: page.usage
         color: Theme.text
         font.family: Theme.font
-        font.pixelSize: 13 * Theme.fontScale
+        font.pixelSize: Theme.px(13) * Theme.fontScale
     }
 
     Process {
@@ -152,14 +152,14 @@ ColumnLayout {
             spacing: 2
             RowLayout {
                 Layout.fillWidth: true
-                Icon { name: net.modelData.type === "802-11-wireless" ? "network-wireless" : net.modelData.type === "gsm" ? "network-cellular" : net.modelData.type === "bluetooth" ? "bluetooth-active" : "network-wired"; size: 18; color: Theme.dim }
+                Icon { name: net.modelData.type === "802-11-wireless" ? "network-wireless" : net.modelData.type === "gsm" ? "network-cellular" : net.modelData.type === "bluetooth" ? "bluetooth-active" : "network-wired"; size: Theme.px(18); color: Theme.dim }
                 Text {
                     Layout.fillWidth: true
                     text: net.modelData.name
                     color: Theme.text
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: 13 * Theme.fontScale
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
                 }
                 Button { text: Tr.t("Forget"); onClicked: page.modify(net.modelData.uuid, ["delete"]) }
             }
@@ -180,11 +180,11 @@ ColumnLayout {
             ColumnLayout {
                 visible: net.modelData.type === "gsm"
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 Text { text: Tr.t("APN — tap one, or type your own"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Choice {
                         text: Tr.t("Automatic (operator)")
                         selected: (net.modelData.apn || "") === ""
@@ -244,7 +244,7 @@ ColumnLayout {
         wrapMode: Text.Wrap
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     TextField {
         Layout.fillWidth: true
@@ -254,11 +254,11 @@ ColumnLayout {
         onAccepted: page.d.hotspotName = text.trim()
     }
     // a label above the chips, not among them: a child as wide as its Flow makes the Flow re-lay out itself forever
-    Text { Layout.fillWidth: true; visible: Net.hasWifi; text: Tr.t("Suggestions:"); color: Theme.faint; font.family: Theme.font; font.pixelSize: 10 * Theme.fontScale }
+    Text { Layout.fillWidth: true; visible: Net.hasWifi; text: Tr.t("Suggestions:"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
     Flow {
         Layout.fillWidth: true
         visible: Net.hasWifi
-        spacing: 6
+        spacing: Theme.px(6)
         Choice {
             text: (Quickshell.env("HOSTNAME") || "shani") + "-hotspot"
             selected: page.d.hotspotName === (Quickshell.env("HOSTNAME") || "shani") + "-hotspot"
@@ -283,7 +283,7 @@ ColumnLayout {
     Flow {
         Layout.fillWidth: true
         visible: Net.hasWifi
-        spacing: 6
+        spacing: Theme.px(6)
         Repeater {
             model: [{ id: "auto", label: Tr.t("Automatic band") }, { id: "bg", label: "2.4 GHz" }, { id: "a", label: "5 GHz" }]
             Choice {
@@ -304,7 +304,7 @@ ColumnLayout {
             : Tr.t("No modem found")
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     SwitchRow {
         Layout.fillWidth: true
@@ -320,7 +320,7 @@ ColumnLayout {
         text: Tr.t("APN and roaming are set per connection in the saved list above.")
         color: Theme.faint
         font.family: Theme.font
-        font.pixelSize: 10 * Theme.fontScale
+        font.pixelSize: Theme.px(10) * Theme.fontScale
     }
 
     // ---- VPN -------------------------------------------------------------------
@@ -334,14 +334,14 @@ ColumnLayout {
             spacing: 2
             RowLayout {
                 Layout.fillWidth: true
-                Icon { name: "network-vpn"; size: 18; color: Theme.dim }
+                Icon { name: "network-vpn"; size: Theme.px(18); color: Theme.dim }
                 Text {
                     Layout.fillWidth: true
                     text: vpnRow.modelData.name + (vpnRow.modelData.active ? " · " + Tr.t("connected") : "")
                     color: Theme.text
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: 13 * Theme.fontScale
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
                 }
                 Button {
                     text: vpnRow.modelData.active ? Tr.t("Disconnect") : Tr.t("Connect")
@@ -409,7 +409,7 @@ ColumnLayout {
         hint: Tr.t("Proxy, DNS servers, connection details")
         SectionTitle { Layout.fillWidth: true; text: Tr.t("Proxy") }
         RowLayout {
-            spacing: 6
+            spacing: Theme.px(6)
             Repeater {
                 model: [{ label: Tr.t("Off"), value: "none" }, { label: Tr.t("Manual"), value: "manual" }, { label: Tr.t("Automatic (PAC)"), value: "auto" }]
                 Choice {
@@ -423,11 +423,11 @@ ColumnLayout {
         ColumnLayout {
             visible: page.d.proxyMode === "manual"
             Layout.fillWidth: true
-            spacing: 12
+            spacing: Theme.px(12)
             Text { text: Tr.t("HTTP proxy (host:port)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
             Flow {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 Choice { text: Tr.t("Automatic (Tor)"); selected: page.d.proxyHttp === "127.0.0.1:9050"; onClicked: page.d.proxyHttp = "127.0.0.1:9050" }
                 Choice { text: Tr.t("Corporate (ask IT)"); selected: page.d.proxyHttp === "proxy.company.local:8080"; onClicked: page.d.proxyHttp = "proxy.company.local:8080" }
                 Choice { text: Tr.t("Other…"); selected: !["127.0.0.1:9050", "proxy.company.local:8080", ""].includes(page.d.proxyHttp || ""); onClicked: {} }
@@ -454,7 +454,7 @@ ColumnLayout {
         ColumnLayout {
             visible: page.d.proxyMode === "auto"
             Layout.fillWidth: true
-            spacing: 6
+            spacing: Theme.px(6)
             Text { text: Tr.t("Configuration URL"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
             TextField {
                 Layout.fillWidth: true
@@ -472,7 +472,7 @@ ColumnLayout {
             text: page.conn ? "For " + page.connName + ": " + (page.dns || "from the network") : "Not connected."
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: 12 * Theme.fontScale
+            font.pixelSize: Theme.px(12) * Theme.fontScale
         }
         // what each does, in a line: picked with a tap, the servers behind it shown small
         Repeater {
@@ -507,7 +507,7 @@ ColumnLayout {
             color: Theme.danger
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: 11 * Theme.fontScale
+            font.pixelSize: Theme.px(11) * Theme.fontScale
         }
         Button { text: Tr.t("Advanced connection settings…"); onClicked: { Ui.closeAll(); Net.editConnections(); } }
     }

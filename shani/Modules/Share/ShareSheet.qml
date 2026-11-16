@@ -34,7 +34,7 @@ PanelWindow {
     Glass {
         id: blurCard
         anchors.centerIn: parent
-        width: 380
+        width: Theme.px(380)
         implicitHeight: col.implicitHeight + 32
         strong: true
         radius: Theme.radiusLarge
@@ -44,17 +44,17 @@ PanelWindow {
             x: 16
             y: 16
             width: parent.width - 32
-            spacing: 4
+            spacing: Theme.px(4)
             Text {
                 Layout.fillWidth: true
                 text: "Share “" + Share.name + "”"
                 color: Theme.text
                 elide: Text.ElideMiddle
                 font.family: Theme.font
-                font.pixelSize: 15 * Theme.fontScale
+                font.pixelSize: Theme.px(15) * Theme.fontScale
                 font.weight: Font.DemiBold
             }
-            Item { implicitHeight: 4 }
+            Item { implicitHeight: Theme.px(4) }
             Repeater {
                 model: Share.targets
                 ListRow {

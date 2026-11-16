@@ -15,7 +15,7 @@ import qs.Modules.Notifications
 
 ColumnLayout {
     required property var sidebar
-    spacing: 14
+    spacing: Theme.px(14)
 
     Glass {
         id: np
@@ -49,13 +49,13 @@ ColumnLayout {
         }
         RowLayout {
             anchors.fill: parent
-            anchors.margins: 12
+            anchors.margins: Theme.px(12)
             anchors.bottomMargin: 12 + (lyricLine.visible ? 24 : 0)
-            spacing: 12
+            spacing: Theme.px(12)
             ClippingRectangle {
-                implicitWidth: 66
-                implicitHeight: 66
-                radius: 10
+                implicitWidth: Theme.px(66)
+                implicitHeight: Theme.px(66)
+                radius: Theme.px(10)
                 color: Theme.hover
                 Image {
                     anchors.fill: parent
@@ -73,7 +73,7 @@ ColumnLayout {
                     color: Theme.text
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: 13 * Theme.fontScale
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
                 Text {
@@ -83,7 +83,7 @@ ColumnLayout {
                     color: Theme.accent
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: 10 * Theme.fontScale
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
                     Accessible.role: Accessible.Button
                     Accessible.name: Tr.t("Switch player (now %1)").arg(sidebar.player ? sidebar.player.identity : "")
                     Accessible.onPressAction: Media.cycle()
@@ -97,14 +97,14 @@ ColumnLayout {
                     color: Theme.dim
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 // seek: click along the track (only when the player allows it)
                 Rectangle {
                     id: seek
                     visible: sidebar.player && sidebar.player.canSeek && sidebar.player.length > 0
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 13
+                    Layout.preferredHeight: Theme.px(13)
                     color: "transparent"
                     readonly property real len: sidebar.player ? sidebar.player.length : 0
                     Text {
@@ -112,25 +112,25 @@ ColumnLayout {
                         text: Math.floor(np.shown / 60) + ":" + String(Math.floor(np.shown % 60)).padStart(2, "0")
                         color: Theme.faint
                         font.family: Theme.mono
-                        font.pixelSize: 9 * Theme.fontScale
+                        font.pixelSize: Theme.px(9) * Theme.fontScale
                     }
                     Text {
                         anchors { right: parent.right; bottom: parent.bottom }
                         text: Math.floor(parent.len / 60) + ":" + String(Math.floor(parent.len % 60)).padStart(2, "0")
                         color: Theme.faint
                         font.family: Theme.mono
-                        font.pixelSize: 9 * Theme.fontScale
+                        font.pixelSize: Theme.px(9) * Theme.fontScale
                     }
                     Rectangle {
                         anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
-                        height: 3
+                        height: Theme.px(3)
                         radius: 1.5
                         color: Theme.hover
                     }
                     Rectangle {
                         width: Math.max(3, parent.width * Math.min(1, parent.len > 0 ? np.shown / parent.len : 0))
                         anchors { left: parent.left; verticalCenter: parent.verticalCenter }
-                        height: 3
+                        height: Theme.px(3)
                         radius: 1.5
                         color: Theme.accent
                     }
@@ -147,12 +147,12 @@ ColumnLayout {
                     }
                 }
                 Row {
-                    spacing: 4
+                    spacing: Theme.px(4)
                     // the output level over the last second and a half
                     Row {
                         id: meter
                         spacing: 2
-                        height: 14
+                        height: Theme.px(14)
                         property var history: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
                         PwNodePeakMonitor {
                             id: outLevel
@@ -169,7 +169,7 @@ ColumnLayout {
                             model: meter.history
                             Rectangle {
                                 required property real modelData
-                                width: 4
+                                width: Theme.px(4)
                                 height: Math.max(2, modelData * meter.height)
                                 anchors.bottom: parent ? parent.bottom : undefined
                                 radius: 2
@@ -177,10 +177,10 @@ ColumnLayout {
                             }
                         }
                     }
-                    IconButton { icon: "media-skip-backward"; size: 28; onClicked: sidebar.player.previous() }
-                    IconButton { icon: sidebar.player && sidebar.player.isPlaying ? "media-playback-pause" : "media-playback-start"; size: 28; on: true; onClicked: sidebar.player.togglePlaying() }
-                    IconButton { icon: "media-skip-forward"; size: 28; onClicked: sidebar.player.next() }
-                    IconButton { visible: sidebar.player && sidebar.player.canRaise; icon: "window-new"; size: 28; tip: Tr.t("Show the player"); onClicked: { Ui.closeAll(); sidebar.player.raise(); } }
+                    IconButton { icon: "media-skip-backward"; size: Theme.px(28); onClicked: sidebar.player.previous() }
+                    IconButton { icon: sidebar.player && sidebar.player.isPlaying ? "media-playback-pause" : "media-playback-start"; size: Theme.px(28); on: true; onClicked: sidebar.player.togglePlaying() }
+                    IconButton { icon: "media-skip-forward"; size: Theme.px(28); onClicked: sidebar.player.next() }
+                    IconButton { visible: sidebar.player && sidebar.player.canRaise; icon: "window-new"; size: Theme.px(28); tip: Tr.t("Show the player"); onClicked: { Ui.closeAll(); sidebar.player.raise(); } }
                 }
             }
         }
@@ -189,13 +189,13 @@ ColumnLayout {
             id: lyricLine
             readonly property string line: Lyrics.lineAt(np.shown)
             visible: Lyrics.lines.length > 0
-            anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 10 }
+            anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: Theme.px(10) }
             horizontalAlignment: Text.AlignHCenter
             text: line || "♪"
             color: Theme.text
             elide: Text.ElideRight
             font.family: Theme.font
-            font.pixelSize: 12 * Theme.fontScale
+            font.pixelSize: Theme.px(12) * Theme.fontScale
             font.italic: true
         }
     }

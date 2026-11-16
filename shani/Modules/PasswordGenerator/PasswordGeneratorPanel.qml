@@ -15,8 +15,8 @@ AppWindow {
     appName: "Password Generator"
     visible: Ui.passwordGenerator
     onGone: Ui.passwordGenerator = false
-    implicitWidth: 560
-    implicitHeight: 560
+    implicitWidth: Theme.px(560)
+    implicitHeight: Theme.px(560)
 
     // [{ name, email, id, expires }]
     property var keys: []
@@ -99,26 +99,26 @@ while True:
 
         ColumnLayout {
             anchors.fill: parent
-            spacing: 10
+            spacing: Theme.px(10)
 
             SectionTitle { Layout.fillWidth: true; text: Tr.t("A new password") }
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 64
+                Layout.preferredHeight: Theme.px(64)
                 radius: Theme.radiusSmall
                 color: Theme.surface1
                 border.width: 1
                 border.color: Theme.border
                 RowLayout {
-                    anchors { fill: parent; leftMargin: 14; rightMargin: 8 }
-                    spacing: 8
+                    anchors { fill: parent; leftMargin: Theme.px(14); rightMargin: Theme.px(8) }
+                    spacing: Theme.px(8)
                     Text {
                         Layout.fillWidth: true
                         text: win.copied === "password" ? Tr.t("Copied") : win.generated
                         color: Theme.text
                         elide: Text.ElideRight
                         font.family: Theme.mono
-                        font.pixelSize: 17 * Theme.fontScale
+                        font.pixelSize: Theme.px(17) * Theme.fontScale
                         Accessible.role: Accessible.StaticText
                         Accessible.name: Tr.t("New password")
                     }
@@ -128,8 +128,8 @@ while True:
             }
             Flow {
                 Layout.fillWidth: true
-                spacing: 6
-                Text { text: Tr.t("Length"); color: Theme.dim; height: 30; verticalAlignment: Text.AlignVCenter; rightPadding: 4; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                spacing: Theme.px(6)
+                Text { text: Tr.t("Length"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; rightPadding: Theme.px(4); font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                 Repeater {
                     model: [12, 16, 20, 24, 32, 48]
                     Choice {
@@ -146,9 +146,9 @@ while True:
 
             RowLayout {
                 Layout.fillWidth: true
-                Layout.topMargin: 6
+                Layout.topMargin: Theme.px(6)
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("GPG keys") }
-                IconButton { size: 28; icon: "view-refresh"; tip: Tr.t("Read again"); onClicked: win.refreshKeys() }
+                IconButton { size: Theme.px(28); icon: "view-refresh"; tip: Tr.t("Read again"); onClicked: win.refreshKeys() }
             }
             ListView {
                 id: keyList
@@ -172,7 +172,7 @@ while True:
                     text: Tr.t("No GPG keys on this computer")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: 12 * Theme.fontScale
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
                 }
             }
             Button {

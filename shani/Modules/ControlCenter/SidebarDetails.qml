@@ -15,7 +15,7 @@ import qs.Modules.Notifications
 
 ColumnLayout {
     required property var sidebar
-    spacing: 14
+    spacing: Theme.px(14)
 
     ColumnLayout {
         id: wifiList
@@ -29,8 +29,8 @@ ColumnLayout {
 
         SectionTitle {
             text: Tr.t("Wi-Fi networks")
-            IconButton { icon: "view-paged"; size: 24; visible: Net.activeWifi !== null; Accessible.name: Tr.t("Share this Wi-Fi as a QR code"); onClicked: { Ui.closeAll(); Qr.shareWifi(); } }
-            IconButton { icon: "preferences-system"; size: 24; onClicked: { Ui.closeAll(); Net.editConnections(); } }
+            IconButton { icon: "view-paged"; size: Theme.px(24); visible: Net.activeWifi !== null; Accessible.name: Tr.t("Share this Wi-Fi as a QR code"); onClicked: { Ui.closeAll(); Qr.shareWifi(); } }
+            IconButton { icon: "preferences-system"; size: Theme.px(24); onClicked: { Ui.closeAll(); Net.editConnections(); } }
         }
         Repeater {
             model: Net.networks
@@ -38,7 +38,7 @@ ColumnLayout {
                 id: netRow
                 required property var modelData
                 Layout.fillWidth: true
-                spacing: 4
+                spacing: Theme.px(4)
                 readonly property bool secured: modelData.security !== WifiSecurityType.Open
                 ListRow {
                     Layout.fillWidth: true
@@ -60,7 +60,7 @@ ColumnLayout {
                     IconButton {
                         visible: netRow.modelData.known
                         icon: "edit-delete"
-                        size: 24
+                        size: Theme.px(24)
                         Accessible.name: "Forget " + netRow.modelData.name
                         onClicked: netRow.modelData.forget()
                     }
@@ -154,7 +154,7 @@ ColumnLayout {
                 IconButton {
                     visible: btRow.modelData.paired
                     icon: "edit-delete"
-                    size: 24
+                    size: Theme.px(24)
                     Accessible.name: "Forget " + (btRow.modelData.name || btRow.modelData.address)
                     onClicked: btRow.modelData.forget()
                 }
@@ -180,11 +180,11 @@ ColumnLayout {
         Text {
             visible: Net.tailscaleUp && Net.exitNodes.length > 0
             Layout.fillWidth: true
-            Layout.topMargin: 4
+            Layout.topMargin: Theme.px(4)
             text: Tr.t("Exit node")
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: 11 * Theme.fontScale
+            font.pixelSize: Theme.px(11) * Theme.fontScale
         }
         ListRow {
             visible: Net.tailscaleUp && Net.exitNodes.length > 0
@@ -224,7 +224,7 @@ ColumnLayout {
     ColumnLayout {
         visible: Ui.expanded === "display"
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         onVisibleChanged: if (visible) Displays.refresh()
         SectionTitle { text: Tr.t("Displays") }
         Repeater {
@@ -233,11 +233,11 @@ ColumnLayout {
                 id: out
                 required property var modelData
                 Layout.fillWidth: true
-                spacing: 4
-                Text { text: out.modelData.label + "  ·  " + out.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                spacing: Theme.px(4)
+                Text { text: out.modelData.label + "  ·  " + out.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [1, 1.25, 1.5, 1.75, 2]
                         Choice {
@@ -288,11 +288,11 @@ ColumnLayout {
     ColumnLayout {
         visible: Ui.expanded === "record"
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         SectionTitle { text: Tr.t("Screen recording") }
         Flow {
             Layout.fillWidth: true
-            spacing: 6
+            spacing: Theme.px(6)
             Repeater {
                 model: [{ label: Tr.t("Focused screen"), v: "screen" }, { label: Tr.t("Part of the screen"), v: "region" }]
                 Choice {
@@ -305,7 +305,7 @@ ColumnLayout {
         }
         Flow {
             Layout.fillWidth: true
-            spacing: 6
+            spacing: Theme.px(6)
             Repeater {
                 model: [{ label: Tr.t("No sound"), v: "none" }, { label: Tr.t("Computer sound"), v: "desktop" }, { label: Tr.t("Microphone"), v: "mic" }, { label: Tr.t("Both"), v: "both" }]
                 Choice {
@@ -396,7 +396,7 @@ ColumnLayout {
         onVisibleChanged: if (visible) Phone.search()
         SectionTitle {
             text: Tr.t("Phones · KDE Connect")
-            IconButton { icon: "view-refresh"; size: 24; Accessible.name: Tr.t("Search again"); onClicked: Phone.search() }
+            IconButton { icon: "view-refresh"; size: Theme.px(24); Accessible.name: Tr.t("Search again"); onClicked: Phone.search() }
         }
         Repeater {
             model: Phone.devices
@@ -415,15 +415,15 @@ ColumnLayout {
                     IconButton {
                         visible: devRow.modelData.paired
                         icon: "edit-delete"
-                        size: 24
+                        size: Theme.px(24)
                         Accessible.name: "Unpair " + devRow.modelData.name
                         onClicked: Phone.unpair(devRow.modelData.id)
                     }
                 }
                 RowLayout {
                     visible: devRow.modelData.paired && devRow.modelData.reachable
-                    Layout.leftMargin: 40
-                    spacing: 6
+                    Layout.leftMargin: Theme.px(40)
+                    spacing: Theme.px(6)
                     Button { text: Tr.t("Ring"); onClicked: Phone.ring(devRow.modelData.id) }
                     Button { text: Tr.t("Ping"); onClicked: Phone.ping(devRow.modelData.id) }
                     Button { text: Tr.t("Send clipboard"); onClicked: Phone.sendClipboard(devRow.modelData.id) }
@@ -437,7 +437,7 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: 12 * Theme.fontScale
+            font.pixelSize: Theme.px(12) * Theme.fontScale
         }
     }
 
@@ -445,11 +445,11 @@ ColumnLayout {
     ColumnLayout {
         visible: Ui.expanded === "phone" && Mirror.available
         Layout.fillWidth: true
-        spacing: 4
+        spacing: Theme.px(4)
         onVisibleChanged: if (visible) Mirror.refresh()
         SectionTitle {
             text: Tr.t("Phone screen")
-            IconButton { icon: "view-refresh"; size: 24; Accessible.name: Tr.t("Look for phones again"); onClicked: Mirror.refresh() }
+            IconButton { icon: "view-refresh"; size: Theme.px(24); Accessible.name: Tr.t("Look for phones again"); onClicked: Mirror.refresh() }
         }
         Repeater {
             model: Mirror.devices
@@ -457,15 +457,15 @@ ColumnLayout {
                 id: mRow
                 required property var modelData
                 Layout.fillWidth: true
-                spacing: 6
-                Icon { name: "phone"; size: 18; color: Theme.dim }
+                spacing: Theme.px(6)
+                Icon { name: "phone"; size: Theme.px(18); color: Theme.dim }
                 Text {
                     Layout.fillWidth: true
                     text: mRow.modelData.name
                     color: Theme.text
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: 13 * Theme.fontScale
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
                 }
                 Button { text: Tr.t("Mirror"); onClicked: Mirror.mirror(mRow.modelData.serial, false) }
                 Button { visible: !mRow.modelData.wifi; text: Tr.t("Over Wi-Fi"); onClicked: Mirror.mirror(mRow.modelData.serial, true) }
@@ -478,14 +478,14 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: 12 * Theme.fontScale
+            font.pixelSize: Theme.px(12) * Theme.fontScale
         }
     }
 
     RowLayout {
         visible: Ui.expanded === "timer"
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Repeater {
             model: [15, 25, 45, 60]
             Choice {
@@ -501,7 +501,7 @@ ColumnLayout {
     ColumnLayout {
         visible: Ui.expanded === "access"
         Layout.fillWidth: true
-        spacing: 8
+        spacing: Theme.px(8)
         SectionTitle { text: Tr.t("Accessibility") }
         SwitchRow { Layout.fillWidth: true; text: Tr.t("Screen reader"); hint: Access.hasOrca ? "Orca reads the screen aloud" : "install orca"; checked: Settings.data.screenReader; onToggled: on => Settings.data.screenReader = on }
         SwitchRow { Layout.fillWidth: true; text: Tr.t("Large text"); hint: Tr.t("the shell and apps, 125 %"); checked: Settings.data.largeText; onToggled: on => Settings.data.largeText = on }

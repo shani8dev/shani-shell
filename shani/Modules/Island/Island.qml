@@ -175,13 +175,13 @@ PanelWindow {
             x: 8
             height: Theme.barHeight
             width: card.width - 16
-            spacing: 10
+            spacing: Theme.px(10)
 
             // ---- the companion ----------------------------------------------
             Item {
                 id: mascot
-                implicitWidth: 30
-                implicitHeight: 30
+                implicitWidth: Theme.px(30)
+                implicitHeight: Theme.px(30)
                 scale: win.mascotScale
                 Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
@@ -206,9 +206,9 @@ PanelWindow {
                 // halo: state colour, breathing while busy
                 Rectangle {
                     anchors.centerIn: parent
-                    width: 30
-                    height: 30
-                    radius: 15
+                    width: Theme.px(30)
+                    height: Theme.px(30)
+                    radius: Theme.px(15)
                     color: "transparent"
                     border.width: 2
                     border.color: Chronoa.color
@@ -227,8 +227,8 @@ PanelWindow {
                 Image {
                     id: art
                     anchors.centerIn: parent
-                    width: 26
-                    height: 26
+                    width: Theme.px(26)
+                    height: Theme.px(26)
                     visible: Chronoa.art !== "" && status === Image.Ready
                     // a new rev forces a reload of the same path; Chronoa
                     // rewrites the file atomically, so no half frame is read
@@ -244,9 +244,9 @@ PanelWindow {
                     id: orb
                     visible: !art.visible
                     anchors.centerIn: parent
-                    width: 24
-                    height: 24
-                    radius: 12
+                    width: Theme.px(24)
+                    height: Theme.px(24)
+                    radius: Theme.px(12)
                     gradient: Gradient {
                         GradientStop { position: 0.0; color: Theme.alpha(Chronoa.color, 0.95) }
                         GradientStop { position: 1.0; color: Theme.alpha(Chronoa.color, 0.45) }
@@ -257,8 +257,8 @@ PanelWindow {
                     // GPU busy at idle (70 ms/s against 4 without it, measured)
                     Rectangle {
                         anchors.centerIn: parent
-                        width: 18; height: 18
-                        radius: 9
+                        width: Theme.px(18); height: Theme.px(18)
+                        radius: Theme.px(9)
                         gradient: Gradient {
                             orientation: Gradient.Vertical
                             GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.32) }
@@ -273,7 +273,7 @@ PanelWindow {
                             required property int index
                             x: 6 + index * 8 + orb.lookX * 2
                             y: Chronoa.state === "offline" ? 11 + win.eyeLookY : 9 + win.eyeLookY
-                            width: 4
+                            width: Theme.px(4)
                             height: orb.blink || Chronoa.state === "offline" ? 1 : 6
                             radius: 2
                             color: Theme.accentInk
@@ -313,20 +313,20 @@ PanelWindow {
             Icon {
                 visible: win.mode === "rest" && win.activity !== null
                 name: win.activity ? win.activity.icon : ""
-                size: 14
+                size: Theme.px(14)
                 color: win.activity ? win.activity.color : Theme.dim
             }
             Text {
                 visible: win.mode !== "ask"
                 Layout.fillWidth: win.mode !== "rest"
-                Layout.maximumWidth: 340
+                Layout.maximumWidth: Theme.px(340)
                 Layout.preferredWidth: win.mode === "rest" && win.activity ? Math.min(260, implicitWidth) : implicitWidth
                 text: win.line
                 color: win.working ? Theme.text : Theme.dim
                 elide: Text.ElideRight
                 // a running step reads as words, like everything else on the Island
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: win.mode === "rest" && win.activity ? Qt.PointingHandCursor : Qt.IBeamCursor
@@ -350,7 +350,7 @@ PanelWindow {
                 color: Theme.text
                 selectionColor: Theme.accent
                 font.family: Theme.font
-                font.pixelSize: 13 * Theme.fontScale
+                font.pixelSize: Theme.px(13) * Theme.fontScale
                 clip: true
                 Keys.onEscapePressed: {
                     text = "";
@@ -377,7 +377,7 @@ PanelWindow {
                 text: Chronoa.label
                 color: Chronoa.color
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
         }
 
@@ -388,7 +388,7 @@ PanelWindow {
             x: 18
             y: Theme.barHeight + 2
             width: card.width - 36
-            spacing: 8
+            spacing: Theme.px(8)
 
             Text {
                 Layout.fillWidth: true
@@ -396,7 +396,7 @@ PanelWindow {
                 color: Theme.text
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: 13 * Theme.fontScale
+                font.pixelSize: Theme.px(13) * Theme.fontScale
                 font.weight: Font.DemiBold
             }
             Text {
@@ -408,11 +408,11 @@ PanelWindow {
                 maximumLineCount: 4
                 elide: Text.ElideRight
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
             Flow {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Repeater {
                     model: Chronoa.approval ? Chronoa.approval.options : []
                     Button {
@@ -429,7 +429,7 @@ PanelWindow {
                     onClicked: Chronoa.open = true
                 }
             }
-            Item { implicitHeight: 4 }
+            Item { implicitHeight: Theme.px(4) }
         }
     }
 

@@ -11,7 +11,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     property bool active: false
     property var apps: []                 // [{ id, name }]
     property string open: ""
@@ -68,7 +68,7 @@ ColumnLayout {
         text: Tr.t("No Flatpak apps installed.")
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     Repeater {
         model: page.apps
@@ -76,7 +76,7 @@ ColumnLayout {
             id: arow
             required property var modelData
             Layout.fillWidth: true
-            spacing: 4
+            spacing: Theme.px(4)
             readonly property var entry: DesktopEntries.byId(modelData.id)
             ListRow {
                 Layout.fillWidth: true
@@ -88,7 +88,7 @@ ColumnLayout {
             }
             ColumnLayout {
                 visible: page.open === arow.modelData.id && page.perms.network !== undefined
-                Layout.leftMargin: 28
+                Layout.leftMargin: Theme.px(28)
                 Layout.fillWidth: true
                 spacing: 2
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Internet"); checked: !!page.perms.network; onToggled: on => page.set("network", on) }

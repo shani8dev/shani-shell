@@ -10,7 +10,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     property bool active: false
     property var info: ({})
     property string renameError: ""
@@ -57,11 +57,11 @@ ColumnLayout {
     SectionTitle { Layout.fillWidth: true; text: Tr.t("This computer") }
     RowLayout {
         Layout.fillWidth: true
-        spacing: 14
+        spacing: Theme.px(14)
         Image {
             source: Theme.wallpaper ? "file://" + Theme.wallpaper : ""
-            Layout.preferredWidth: 96
-            Layout.preferredHeight: 60
+            Layout.preferredWidth: Theme.px(96)
+            Layout.preferredHeight: Theme.px(60)
             fillMode: Image.PreserveAspectCrop
             sourceSize: Qt.size(192, 120)
             visible: status === Image.Ready
@@ -69,18 +69,18 @@ ColumnLayout {
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 2
-            Text { text: page.info.host || ""; color: Theme.text; font.family: Theme.font; font.pixelSize: 18 * Theme.fontScale; font.weight: Font.DemiBold }
-            Text { text: page.info.os || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+            Text { text: page.info.host || ""; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(18) * Theme.fontScale; font.weight: Font.DemiBold }
+            Text { text: page.info.os || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
             Text {
                 text: [page.info.gpu, page.info.driver].filter(x => x).join(" · ")
-                color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale
+                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
                 visible: text !== ""
             }
         }
     }
     Flow {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Repeater {
             // from who uses it and what it is: "asha-laptop", "asha-pc"
             readonly property string who: (Quickshell.env("USER") || "my").toLowerCase().replace(/[^a-z0-9-]/g, "")
@@ -113,13 +113,13 @@ ColumnLayout {
         color: Theme.danger
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
     GridLayout {
         Layout.fillWidth: true
         columns: 2
-        columnSpacing: 12
-        rowSpacing: 6
+        columnSpacing: Theme.px(12)
+        rowSpacing: Theme.px(6)
         Repeater {
             model: [["Processor", "cpu"], ["Graphics", "gpu"], ["Memory", "memory"], ["Disk", "disk"], ["Kernel", "kernel"], ["Desktop", "session"], ["Up for", "uptime"]]
             Text {
@@ -130,7 +130,7 @@ ColumnLayout {
                 text: modelData[0]
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
         }
         Repeater {
@@ -145,12 +145,12 @@ ColumnLayout {
                 color: Theme.text
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
         }
     }
     RowLayout {
-        spacing: 8
+        spacing: Theme.px(8)
         Button {
             text: Tr.t("Copy details")
             onClicked: Quickshell.clipboardText = [page.info.host, page.info.os, page.info.cpu, page.info.gpu, page.info.driver, page.info.driverpkg, page.info.memory, page.info.disk, page.info.kernel, page.info.session].filter(x => x).join("\n")
@@ -167,7 +167,7 @@ ColumnLayout {
     Flow {
         Layout.fillWidth: true
         visible: page.hasCassini
-        spacing: 6
+        spacing: Theme.px(6)
         Repeater {
             model: [
                 { label: Tr.t("Updates & going back"), id: "updates" },

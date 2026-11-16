@@ -12,7 +12,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     property bool active: false
     readonly property string user: Quickshell.env("USER") || ""
     readonly property string home: Quickshell.env("HOME") || ""
@@ -203,26 +203,26 @@ ColumnLayout {
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Your account") }
     RowLayout {
         Layout.fillWidth: true
-        spacing: 14
-        Avatar { size: 64 }
+        spacing: Theme.px(14)
+        Avatar { size: Theme.px(64) }
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 2
-            Text { text: page.realName || page.user; color: Theme.text; font.family: Theme.font; font.pixelSize: 17 * Theme.fontScale; font.weight: Font.DemiBold }
-            Text { text: page.user; color: Theme.dim; font.family: Theme.mono; font.pixelSize: 11 * Theme.fontScale }
+            Text { text: page.realName || page.user; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(17) * Theme.fontScale; font.weight: Font.DemiBold }
+            Text { text: page.user; color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
         }
     }
 
     Text { text: Tr.t("Picture"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
     Flow {
         Layout.fillWidth: true
-        spacing: 8
+        spacing: Theme.px(8)
         Repeater {
             model: page.pictures
             Image {
                 required property string modelData
-                width: 48
-                height: 48
+                width: Theme.px(48)
+                height: Theme.px(48)
                 source: "file://" + modelData
                 sourceSize: Qt.size(96, 96)
                 fillMode: Image.PreserveAspectCrop
@@ -240,7 +240,7 @@ ColumnLayout {
         text: Tr.t("Put a picture in Pictures to choose it here.")
         color: Theme.faint
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
 
     TextField {
@@ -262,19 +262,19 @@ ColumnLayout {
         color: Theme.dim
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     // face
     RowLayout {
         visible: page.face.camera
         Layout.fillWidth: true
-        Layout.topMargin: 4
-        spacing: 10
-        Icon { name: "camera-web"; size: 22; color: page.face.saved ? Theme.accent : Theme.dim }
+        Layout.topMargin: Theme.px(4)
+        spacing: Theme.px(10)
+        Icon { name: "camera-web"; size: Theme.px(22); color: page.face.saved ? Theme.accent : Theme.dim }
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 1
-            Text { text: Tr.t("Face"); color: Theme.text; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale; font.weight: Font.Medium }
+            Text { text: Tr.t("Face"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.Medium }
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
@@ -284,22 +284,22 @@ ColumnLayout {
                     : Tr.t("On, but your face is not set up yet - it takes five quick looks.")
                 color: page.faceStep >= 0 ? Theme.accent : Theme.dim
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
         }
     }
     Rectangle {      // the looks so far
         visible: page.faceStep >= 0
         Layout.fillWidth: true
-        implicitHeight: 6
-        radius: 3
+        implicitHeight: Theme.px(6)
+        radius: Theme.px(3)
         color: Theme.hover
-        Rectangle { width: parent.width * page.faceStep / Math.max(1, page.faceSteps.length); height: parent.height; radius: 3; color: Theme.accent }
+        Rectangle { width: parent.width * page.faceStep / Math.max(1, page.faceSteps.length); height: parent.height; radius: Theme.px(3); color: Theme.accent }
     }
     Flow {
         visible: page.face.camera && page.faceStep < 0
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Button { visible: !page.face.on; kind: "primary"; text: Tr.t("Turn on face sign-in"); onClicked: page.faceService(true) }
         Button { visible: page.face.on && !page.face.saved; kind: "primary"; text: Tr.t("Set up my face"); onClicked: page.faceStart(page.faceLooks) }
         Button { visible: page.face.on && page.face.saved; text: Tr.t("Add another look"); onClicked: page.faceStart([{ label: "extra_" + Date.now(), tip: Tr.t("With glasses, or in other light: look at the camera") }]) }
@@ -314,19 +314,19 @@ ColumnLayout {
         color: page.faceNote.indexOf("Done") === 0 ? Theme.dim : Theme.danger
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     // fingerprint
     RowLayout {
         visible: page.hasReader
         Layout.fillWidth: true
-        Layout.topMargin: 6
-        spacing: 10
-        Icon { name: "auth-fingerprint"; size: 22; color: page.enrolled.length ? Theme.accent : Theme.dim }
+        Layout.topMargin: Theme.px(6)
+        spacing: Theme.px(10)
+        Icon { name: "auth-fingerprint"; size: Theme.px(22); color: page.enrolled.length ? Theme.accent : Theme.dim }
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 1
-            Text { text: Tr.t("Fingerprint"); color: Theme.text; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale; font.weight: Font.Medium }
+            Text { text: Tr.t("Fingerprint"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.Medium }
             Text {
                 visible: page.enrolled.length > 0 && page.enrollState === ""
                 text: Tr.t("On the sign-in screen, press Enter with the password empty, then touch the reader.")
@@ -334,7 +334,7 @@ ColumnLayout {
                 wrapMode: Text.Wrap
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
         }
     }
@@ -349,15 +349,15 @@ ColumnLayout {
         color: page.enrollState.startsWith("failed") ? Theme.danger : Theme.dim
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     Rectangle {      // the scans so far
         visible: enroll.running
         Layout.fillWidth: true
-        implicitHeight: 6
-        radius: 3
+        implicitHeight: Theme.px(6)
+        radius: Theme.px(3)
         color: Theme.hover
-        Rectangle { width: parent.width * Math.min(1, page.stages / page.stagesNeeded); height: parent.height; radius: 3; color: Theme.accent }
+        Rectangle { width: parent.width * Math.min(1, page.stages / page.stagesNeeded); height: parent.height; radius: Theme.px(3); color: Theme.accent }
     }
     // saved fingers, each removable
     Repeater {
@@ -365,15 +365,15 @@ ColumnLayout {
         RowLayout {
             required property string modelData
             Layout.fillWidth: true
-            Icon { name: "auth-fingerprint"; size: 18; color: Theme.accent }
-            Text { Layout.fillWidth: true; text: page.fingerLabel(modelData); color: Theme.text; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale }
+            Icon { name: "auth-fingerprint"; size: Theme.px(18); color: Theme.accent }
+            Text { Layout.fillWidth: true; text: page.fingerLabel(modelData); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
             IconButton { icon: "edit-delete"; tip: Tr.t("Remove"); Accessible.name: Tr.t("Remove %1", page.fingerLabel(modelData)); onClicked: page.forgetFinger(modelData) }
         }
     }
     Flow {
         visible: page.hasReader && !enroll.running && page.unsaved.length > 0
         Layout.fillWidth: true
-        spacing: 4
+        spacing: Theme.px(4)
         Repeater {
             model: page.unsaved
             Choice { required property string modelData; text: page.fingerLabel(modelData); selected: page.finger === modelData; onClicked: page.finger = modelData }
@@ -381,7 +381,7 @@ ColumnLayout {
     }
     RowLayout {
         visible: page.hasReader
-        spacing: 6
+        spacing: Theme.px(6)
         Button { text: enroll.running ? Tr.t("Enrolling…") : Tr.t("Add %1", page.fingerLabel(page.finger).toLowerCase()); enabled: !enroll.running && page.unsaved.length > 0; onClicked: page.startEnroll() }
         Button { visible: enroll.running; text: Tr.t("Cancel"); onClicked: enroll.running = false }
         Button { visible: page.enrolled.length > 1 && !enroll.running; kind: "danger"; text: Tr.t("Remove all"); onClicked: page.forgetFinger("") }
@@ -391,13 +391,13 @@ ColumnLayout {
     RowLayout {
         visible: page.u2fShown
         Layout.fillWidth: true
-        Layout.topMargin: 6
-        spacing: 10
-        Icon { name: "auth-smartcard"; size: 22; color: page.u2f.registered > 0 ? Theme.accent : Theme.dim }
+        Layout.topMargin: Theme.px(6)
+        spacing: Theme.px(10)
+        Icon { name: "auth-smartcard"; size: Theme.px(22); color: page.u2f.registered > 0 ? Theme.accent : Theme.dim }
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 1
-            Text { text: Tr.t("Security key"); color: Theme.text; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale; font.weight: Font.Medium }
+            Text { text: Tr.t("Security key"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.Medium }
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
@@ -409,14 +409,14 @@ ColumnLayout {
                     : Tr.t("%1 is plugged in. Register it, then touch it to sign in.", page.u2f.keys[0] || Tr.t("A key"))
                 color: page.u2fState.indexOf("failed") === 0 ? Theme.danger : page.u2fState === "touch" ? Theme.accent : Theme.dim
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
         }
     }
     Flow {
         visible: page.u2fShown && !u2fRun.running
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Button { visible: page.u2f.key; kind: "primary"; text: page.u2f.registered > 0 ? Tr.t("Register another key") : Tr.t("Register this key"); onClicked: page.u2fDo("register") }
         Button { visible: page.u2f.registered > 0; kind: "danger"; text: Tr.t("Remove my keys"); onClicked: page.u2fDo("remove") }
     }
@@ -435,6 +435,6 @@ ColumnLayout {
         color: Theme.danger
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
 }

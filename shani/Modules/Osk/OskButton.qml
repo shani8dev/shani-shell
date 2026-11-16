@@ -17,8 +17,8 @@ PanelWindow {
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     anchors { bottom: true; right: true }
     margins { bottom: 18; right: 18 }
-    implicitWidth: 52
-    implicitHeight: 52
+    implicitWidth: Theme.px(52)
+    implicitHeight: Theme.px(52)
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
     WlrLayershell.namespace: "shani-osk-button"
@@ -30,7 +30,7 @@ PanelWindow {
         strong: true
         IconButton {
             anchors.centerIn: parent
-            size: 46
+            size: Theme.px(46)
             icon: "input-keyboard"
             tip: Tr.t("Show keyboard")
             onClicked: Osk.toggle()

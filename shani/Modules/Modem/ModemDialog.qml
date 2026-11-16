@@ -13,7 +13,7 @@ PanelWindow {
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     anchors.top: true
     margins.top: 80
-    implicitWidth: 400
+    implicitWidth: Theme.px(400)
     implicitHeight: card.implicitHeight
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
@@ -37,16 +37,16 @@ PanelWindow {
             x: 18
             y: 18
             width: parent.width - 36
-            spacing: 10
+            spacing: Theme.px(10)
             RowLayout {
-                spacing: 10
-                Icon { name: win.mode === "pin" ? "network-cellular-offline" : "mail-send"; size: 22; color: Theme.accent }
+                spacing: Theme.px(10)
+                Icon { name: win.mode === "pin" ? "network-cellular-offline" : "mail-send"; size: Theme.px(22); color: Theme.accent }
                 Text {
                     Layout.fillWidth: true
                     text: win.mode === "pin" ? "Unlock the SIM card" : "New text message"
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 15 * Theme.fontScale
+                    font.pixelSize: Theme.px(15) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
             }
@@ -82,11 +82,11 @@ PanelWindow {
                 color: Theme.danger
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
             RowLayout {
                 Layout.alignment: Qt.AlignRight
-                spacing: 8
+                spacing: Theme.px(8)
                 Button { text: Tr.t("Cancel"); onClicked: win.close() }
                 Button {
                     id: send

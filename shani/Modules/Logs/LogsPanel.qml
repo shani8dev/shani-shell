@@ -13,12 +13,12 @@ AppWindow {
     id: win
     appName: "Logs"
     tools: [
-        IconButton { size: 30; icon: "view-refresh"; tip: Tr.t("Refresh"); onClicked: win.readJournal() }
+        IconButton { size: Theme.px(30); icon: "view-refresh"; tip: Tr.t("Refresh"); onClicked: win.readJournal() }
     ]
     visible: Ui.logs
     onGone: Ui.logs = false
     margins: 0
-    implicitWidth: 460
+    implicitWidth: Theme.px(460)
     implicitHeight: Math.max(320, Math.min(900, col.implicitHeight + 40))
 
     // parsed journal entries: [{ time, pri, cat, unit, id, msg, cursor, raw }]
@@ -136,14 +136,14 @@ AppWindow {
         ColumnLayout {
             id: col
             anchors.fill: parent
-            anchors.margins: 16
-            spacing: 10
+            anchors.margins: Theme.px(16)
+            spacing: Theme.px(10)
 
 
             // category filter: all | kernel | user | app | hardware
             Flow {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 Repeater {
                     model: [{ id: "all", label: "All" }, { id: "kernel", label: "Kernel" }, { id: "user", label: "User" }, { id: "app", label: "App" }, { id: "hardware", label: "Hardware" }]
                     Choice {
@@ -189,7 +189,7 @@ AppWindow {
                 id: list
                 Layout.fillWidth: true
                 Layout.preferredHeight: Math.min(260, Math.max(60, listCol.implicitHeight + 4))
-                Layout.minimumHeight: 60
+                Layout.minimumHeight: Theme.px(60)
                 contentHeight: listCol.implicitHeight
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
@@ -218,21 +218,21 @@ AppWindow {
                 visible: win.selected !== null
                 Layout.fillWidth: true
                 implicitHeight: detailCol.implicitHeight + 16
-                radius: 10
+                radius: Theme.px(10)
                 color: Theme.surface1
                 border.width: 1
                 border.color: Theme.stroke
                 Column {
                     id: detailCol
                     anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 4
+                    anchors.margins: Theme.px(10)
+                    spacing: Theme.px(4)
                     Text {
                         width: parent.width
                         text: win.selected ? (win.selected.time + " · " + win.selected.cat + " · " + win.selected.unit + " · " + win.selected.id) : ""
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: 11 * Theme.fontScale
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
                         font.weight: Font.DemiBold
                         wrapMode: Text.Wrap
                     }
@@ -241,7 +241,7 @@ AppWindow {
                         text: win.selected ? String(win.selected.msg || "") : ""
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: 11 * Theme.fontScale
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
                         wrapMode: Text.Wrap
                     }
                     Text {
@@ -249,7 +249,7 @@ AppWindow {
                         text: win.selected ? JSON.stringify(win.selected.raw || {}) : ""
                         color: Theme.dim
                         font.family: Theme.mono
-                        font.pixelSize: 9 * Theme.fontScale
+                        font.pixelSize: Theme.px(9) * Theme.fontScale
                         wrapMode: Text.Wrap
                     }
                     Button {
@@ -266,7 +266,7 @@ AppWindow {
                 text: Tr.t("%1 shown · Esc closes").arg(win.shown.length)
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
         }
     }

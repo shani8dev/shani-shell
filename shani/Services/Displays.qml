@@ -155,6 +155,7 @@ Singleton {
                         return {
                             name: k,
                             label: [v.make, v.model].filter(x => x && x !== "Unknown").join(" ") || k,
+                            physical: v.physical_size || [0, 0],     // mm; [0, 0] when it does not say
                             on: !!lg,
                             scale: lg ? lg.scale : 1,
                             x: lg ? lg.x : 0, y: lg ? lg.y : 0,

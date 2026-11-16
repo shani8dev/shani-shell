@@ -15,8 +15,8 @@ AppWindow {
     appName: "Authenticator"
     visible: Ui.authenticator
     onGone: Ui.authenticator = false
-    implicitWidth: 520
-    implicitHeight: 470
+    implicitWidth: Theme.px(520)
+    implicitHeight: Theme.px(470)
 
     readonly property string tool: Quickshell.env("SHANI_OTP_TOOL") || "/usr/lib/shani-shell/otp.py"
     property var accounts: []
@@ -91,11 +91,11 @@ AppWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            spacing: 10
+            spacing: Theme.px(10)
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Button { kind: "primary"; text: Tr.t("Scan a QR code on the screen"); enabled: win.available && !writer.running; onClicked: { win.note = Tr.t("Draw a box round the QR code…"); win.run(["scan-screen"]); } }
                 Button { text: win.adding ? Tr.t("Cancel") : Tr.t("Enter a setup key"); flat: true; onClicked: win.adding = !win.adding }
                 Item { Layout.fillWidth: true }
@@ -107,14 +107,14 @@ AppWindow {
                 color: Theme.dim
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
 
             // ---- by hand: where the website offers "can't scan it?" ----
             ColumnLayout {
                 Layout.fillWidth: true
                 visible: win.adding
-                spacing: 6
+                spacing: Theme.px(6)
                 TextField { id: issuer; Layout.fillWidth: true; placeholder: Tr.t("The website or app — GitHub, Google…"); label: Tr.t("Issuer") }
                 TextField { id: account; Layout.fillWidth: true; placeholder: Tr.t("Your account there — you@example.com"); label: Tr.t("Account") }
                 TextField { id: key; Layout.fillWidth: true; placeholder: Tr.t("The setup key it shows (letters and digits)"); label: Tr.t("Setup key"); secret: true }
@@ -132,7 +132,7 @@ AppWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
-                spacing: 6
+                spacing: Theme.px(6)
                 boundsBehavior: Flickable.StopAtBounds
                 model: win.accounts
                 delegate: Rectangle {
@@ -140,7 +140,7 @@ AppWindow {
                     required property var modelData
                     readonly property int secondsLeft: { win.tick; return modelData.period - (Math.floor(Date.now() / 1000) % modelData.period); }
                     width: list.width
-                    height: 72
+                    height: Theme.px(72)
                     radius: Theme.radiusSmall
                     color: rowArea.containsMouse ? Theme.hover : Theme.surface1
                     MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.copy(row.modelData) }
@@ -148,12 +148,12 @@ AppWindow {
                     Accessible.role: Accessible.Button
                     Accessible.name: (row.modelData.issuer || row.modelData.account) + ": " + row.modelData.code.split("").join(" ")
                     RowLayout {
-                        anchors { fill: parent; leftMargin: 14; rightMargin: 8 }
-                        spacing: 12
+                        anchors { fill: parent; leftMargin: Theme.px(14); rightMargin: Theme.px(8) }
+                        spacing: Theme.px(12)
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Text { Layout.fillWidth: true; text: row.modelData.locked ? Tr.t("Your security key - click to unlock its codes") : (row.modelData.issuer || row.modelData.account) + (row.modelData.fromKey ? "  ·  " + Tr.t("on your security key") : ""); color: Theme.dim; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                            Text { Layout.fillWidth: true; text: row.modelData.locked ? Tr.t("Your security key - click to unlock its codes") : (row.modelData.issuer || row.modelData.account) + (row.modelData.fromKey ? "  ·  " + Tr.t("on your security key") : ""); color: Theme.dim; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                             Text {
                                 text: win.copied === row.modelData.id ? Tr.t("Copied")
                                       : row.modelData.locked ? Tr.t("Locked with a password")
@@ -161,22 +161,22 @@ AppWindow {
                                       : row.modelData.code.replace(/^(\d{3})(\d+)$/, "$1 $2")
                                 color: row.secondsLeft <= 5 ? Theme.danger : Theme.text
                                 font.family: Theme.mono
-                                font.pixelSize: 26 * Theme.fontScale
+                                font.pixelSize: Theme.px(26) * Theme.fontScale
                                 font.weight: Font.DemiBold
                                 font.letterSpacing: 2
                             }
-                            Text { visible: !!row.modelData.issuer && !!row.modelData.account; text: row.modelData.account; color: Theme.faint; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+                            Text { visible: !!row.modelData.issuer && !!row.modelData.account; text: row.modelData.account; color: Theme.faint; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                         }
                         // the time left on this code
                         Item {
-                            Layout.preferredWidth: 30
-                            Layout.preferredHeight: 30
-                            Rectangle { anchors.fill: parent; radius: 15; color: "transparent"; border.width: 3; border.color: Theme.surface3 }
-                            Text { anchors.centerIn: parent; text: row.secondsLeft; color: row.secondsLeft <= 5 ? Theme.danger : Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale; font.features: { "tnum": 1 } }
+                            Layout.preferredWidth: Theme.px(30)
+                            Layout.preferredHeight: Theme.px(30)
+                            Rectangle { anchors.fill: parent; radius: Theme.px(15); color: "transparent"; border.width: 3; border.color: Theme.surface3 }
+                            Text { anchors.centerIn: parent; text: row.secondsLeft; color: row.secondsLeft <= 5 ? Theme.danger : Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.features: { "tnum": 1 } }
                         }
                         IconButton {
                             visible: !row.modelData.fromKey          // the key's codes are the key's to remove
-                            size: 30
+                            size: Theme.px(30)
                             icon: win.removing === row.modelData.id ? "dialog-warning" : "user-trash"
                             on: win.removing === row.modelData.id
                             tip: win.removing === row.modelData.id ? Tr.t("Click again to remove - the website will still ask for a code") : Tr.t("Remove")
@@ -198,7 +198,7 @@ AppWindow {
             }
             RowLayout {
                 Layout.fillWidth: true
-                Text { Layout.fillWidth: true; text: Tr.t("A code to sign in to this computer itself is set up in Cassini."); color: Theme.faint; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+                Text { Layout.fillWidth: true; text: Tr.t("A code to sign in to this computer itself is set up in Cassini."); color: Theme.faint; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                 Button { flat: true; text: Tr.t("Sign-in codes…"); onClicked: Quickshell.execDetached(["shani-cassini", "--section=totp"]) }
             }
         }

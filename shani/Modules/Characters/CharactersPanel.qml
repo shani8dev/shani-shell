@@ -12,12 +12,12 @@ import qs.Services
 AppWindow {
     id: win
     appName: "Characters"
-    tools: [ IconButton { size: 30; icon: "view-refresh"; tip: Tr.t("Refresh"); onClicked: Characters.browse() } ]
+    tools: [ IconButton { size: Theme.px(30); icon: "view-refresh"; tip: Tr.t("Refresh"); onClicked: Characters.browse() } ]
     visible: Ui.characters
     onGone: Ui.characters = false
     margins: 0
-    implicitWidth: 640
-    implicitHeight: 580
+    implicitWidth: Theme.px(640)
+    implicitHeight: Theme.px(580)
 
     onVisibleChanged: if (visible) Characters.browse()
     Component.onCompleted: if (visible) Characters.browse()
@@ -31,8 +31,8 @@ AppWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 16
-            spacing: 12
+            anchors.margins: Theme.px(16)
+            spacing: Theme.px(12)
 
             TextField {
                 id: searchField
@@ -45,7 +45,7 @@ AppWindow {
             // quick categories, one tap each
             Flow {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 Repeater {
                     model: ["Symbols", "Arrows", "Math", "Devanagari", "Greek", "Emoji"]
                     Choice {
@@ -76,7 +76,7 @@ AppWindow {
                     required property int index
                     width: grid.cellWidth
                     height: grid.cellHeight
-                    radius: 10
+                    radius: Theme.px(10)
                     color: cellArea.containsMouse ? Theme.hover : "transparent"
                     Accessible.role: Accessible.Button
                     Accessible.name: cell.modelData.name
@@ -84,7 +84,7 @@ AppWindow {
 
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 4
+                        anchors.margins: Theme.px(4)
                         spacing: 2
                         Text {
                             Layout.fillWidth: true
@@ -92,7 +92,7 @@ AppWindow {
                             text: cell.modelData.ch
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: 22 * Theme.fontScale
+                            font.pixelSize: Theme.px(22) * Theme.fontScale
                             elide: Text.ElideRight
                         }
                         Text {
@@ -102,7 +102,7 @@ AppWindow {
                             color: Theme.faint
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: 9 * Theme.fontScale
+                            font.pixelSize: Theme.px(9) * Theme.fontScale
                         }
                         Text {
                             Layout.fillWidth: true
@@ -111,7 +111,7 @@ AppWindow {
                             color: Theme.dim
                             elide: Text.ElideRight
                             font.family: Theme.mono
-                            font.pixelSize: 9 * Theme.fontScale
+                            font.pixelSize: Theme.px(9) * Theme.fontScale
                         }
                     }
                     MouseArea {
@@ -143,7 +143,7 @@ AppWindow {
                 color: Theme.faint
                 horizontalAlignment: Text.AlignHCenter
                 font.family: Theme.font
-                font.pixelSize: 10 * Theme.fontScale
+                font.pixelSize: Theme.px(10) * Theme.fontScale
             }
         }
     }

@@ -14,8 +14,8 @@ PanelWindow {
     id: win
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     visible: shown || card.opacity > 0
-    implicitWidth: 260
-    implicitHeight: 260
+    implicitWidth: Theme.px(260)
+    implicitHeight: Theme.px(260)
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "shani-charging"
@@ -47,9 +47,9 @@ PanelWindow {
     Glass {
         id: card
         anchors.centerIn: parent
-        width: 220
-        height: 220
-        radius: 44
+        width: Theme.px(220)
+        height: Theme.px(220)
+        radius: Theme.px(44)
         strong: true
         opacity: win.shown ? 1 : 0
         scale: win.shown ? 1 : 0.86
@@ -59,8 +59,8 @@ PanelWindow {
         Shape {
             id: ring
             anchors.centerIn: parent
-            width: 150
-            height: 150
+            width: Theme.px(150)
+            height: Theme.px(150)
             preferredRendererType: Shape.CurveRenderer
             ShapePath {           // the track
                 strokeColor: Theme.alpha(Theme.text, 0.12)
@@ -80,13 +80,13 @@ PanelWindow {
         Column {
             anchors.centerIn: ring
             spacing: 2
-            Icon { anchors.horizontalCenter: parent.horizontalCenter; name: "battery-level-100-charged"; size: 26; color: Theme.accent }
+            Icon { anchors.horizontalCenter: parent.horizontalCenter; name: "battery-level-100-charged"; size: Theme.px(26); color: Theme.accent }
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: Math.round(win.level * 100) + "%"
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: 28 * Theme.fontScale
+                font.pixelSize: Theme.px(28) * Theme.fontScale
                 font.weight: Font.DemiBold
                 font.features: { "tnum": 1 }
             }
@@ -94,11 +94,11 @@ PanelWindow {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: 14
+            anchors.bottomMargin: Theme.px(14)
             text: Power.timeLeft || Tr.t("Charging")
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: 12 * Theme.fontScale
+            font.pixelSize: Theme.px(12) * Theme.fontScale
         }
     }
 }

@@ -9,7 +9,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     readonly property var d: Settings.data
     readonly property var dayNames: ["S", "M", "T", "W", "T", "F", "S"]
 
@@ -32,11 +32,11 @@ ColumnLayout {
             required property int index
             readonly property var sc: modelData.schedule || { days: [], from: "", to: "", on: false }
             Layout.fillWidth: true
-            spacing: 6
+            spacing: Theme.px(6)
             RowLayout {
-                spacing: 8
-                Icon { name: mode.modelData.icon || "weather-clear-night"; size: 18; color: Theme.accent }
-                Text { text: mode.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: 14 * Theme.fontScale; font.weight: Font.DemiBold }
+                spacing: Theme.px(8)
+                Icon { name: mode.modelData.icon || "weather-clear-night"; size: Theme.px(18); color: Theme.accent }
+                Text { text: mode.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(14) * Theme.fontScale; font.weight: Font.DemiBold }
             }
             SwitchRow {
                 Layout.fillWidth: true
@@ -48,7 +48,7 @@ ColumnLayout {
             }
             RowLayout {
                 visible: mode.sc.on
-                spacing: 4
+                spacing: Theme.px(4)
                 Repeater {
                     model: 7
                     Choice {
@@ -64,16 +64,16 @@ ColumnLayout {
             }
             RowLayout {
                 visible: mode.sc.on
-                spacing: 8
-                Text { text: Tr.t("From"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                spacing: Theme.px(8)
+                Text { text: Tr.t("From"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                 TimePicker {
-                    Layout.preferredWidth: 140
+                    Layout.preferredWidth: Theme.px(140)
                     value: mode.sc.from
                     onPicked: t => page.updateSchedule(mode.index, { from: t })
                 }
-                Text { text: Tr.t("to"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                Text { text: Tr.t("to"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                 TimePicker {
-                    Layout.preferredWidth: 140
+                    Layout.preferredWidth: Theme.px(140)
                     value: mode.sc.to
                     onPicked: t => page.updateSchedule(mode.index, { to: t })
                 }
@@ -83,11 +83,11 @@ ColumnLayout {
                 text: Tr.t("Notifications that still come through:")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
             Flow {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 Repeater {
                     model: page.d.notifApps
                     Choice {

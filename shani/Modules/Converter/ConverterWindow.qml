@@ -14,8 +14,8 @@ AppWindow {
     appName: "Converter"
     visible: Ui.converter
     onGone: Ui.converter = false
-    implicitWidth: 620
-    implicitHeight: 600
+    implicitWidth: Theme.px(620)
+    implicitHeight: Theme.px(600)
 
     readonly property string tool: Quickshell.env("SHANI_CONVERT_TOOL") || "/usr/lib/shani-shell/convert.py"
     // [{ path, kind, formats, format, state: "ready"|"working"|"done"|"failed", progress, out, error }]
@@ -108,13 +108,13 @@ AppWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            spacing: 10
+            spacing: Theme.px(10)
 
             RowLayout {
                 Layout.fillWidth: true
                 Button { kind: win.jobs.length ? "plain" : "primary"; text: Tr.t("Add files…"); onClicked: win.pick() }
                 Item { Layout.fillWidth: true }
-                Text { text: Tr.t("Quality"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                Text { text: Tr.t("Quality"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                 Repeater {
                     model: [["small", Tr.t("Small")], ["balanced", Tr.t("Balanced")], ["best", Tr.t("Best")]]
                     Choice { required property var modelData; text: modelData[1]; selected: win.quality === modelData[0]; onClicked: win.quality = modelData[0] }
@@ -123,14 +123,14 @@ AppWindow {
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 6
-                Text { text: Tr.t("From"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
-                TextField { id: fromField; Layout.preferredWidth: 64; placeholderText: "0"; Accessible.name: Tr.t("Start, in seconds") }
-                Text { text: Tr.t("To"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
-                TextField { id: toField; Layout.preferredWidth: 64; placeholderText: Tr.t("end"); Accessible.name: Tr.t("End, in seconds") }
-                Text { text: Tr.t("Volume"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
-                TextField { id: volField; Layout.preferredWidth: 56; placeholderText: "100"; Accessible.name: Tr.t("Volume, percent") }
-                Text { text: Tr.t("Title"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                spacing: Theme.px(6)
+                Text { text: Tr.t("From"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                TextField { id: fromField; Layout.preferredWidth: Theme.px(64); placeholderText: "0"; Accessible.name: Tr.t("Start, in seconds") }
+                Text { text: Tr.t("To"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                TextField { id: toField; Layout.preferredWidth: Theme.px(64); placeholderText: Tr.t("end"); Accessible.name: Tr.t("End, in seconds") }
+                Text { text: Tr.t("Volume"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                TextField { id: volField; Layout.preferredWidth: Theme.px(56); placeholderText: "100"; Accessible.name: Tr.t("Volume, percent") }
+                Text { text: Tr.t("Title"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                 TextField { id: titleField; Layout.fillWidth: true; placeholderText: Tr.t("What the file says about itself"); Accessible.name: Tr.t("Title") }
             }
 
@@ -139,7 +139,7 @@ AppWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
-                spacing: 6
+                spacing: Theme.px(6)
                 boundsBehavior: Flickable.StopAtBounds
                 model: win.jobs
                 delegate: Rectangle {
@@ -152,19 +152,19 @@ AppWindow {
                     color: Theme.surface1
                     ColumnLayout {
                         id: col
-                        anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
-                        spacing: 6
+                        anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.px(10) }
+                        spacing: Theme.px(6)
                         RowLayout {
                             Layout.fillWidth: true
-                            Icon { name: row.modelData.kind === "video" ? "video-x-generic" : row.modelData.kind === "audio" ? "audio-x-generic" : "image-x-generic"; size: 18; color: Theme.dim }
-                            Text { Layout.fillWidth: true; text: row.modelData.path.split("/").pop(); color: Theme.text; elide: Text.ElideMiddle; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale }
-                            IconButton { size: 26; visible: row.modelData.state !== "working"; icon: "window-close"; tip: Tr.t("Remove from the list"); onClicked: { const l = win.jobs.slice(); l.splice(row.index, 1); win.jobs = l; } }
+                            Icon { name: row.modelData.kind === "video" ? "video-x-generic" : row.modelData.kind === "audio" ? "audio-x-generic" : "image-x-generic"; size: Theme.px(18); color: Theme.dim }
+                            Text { Layout.fillWidth: true; text: row.modelData.path.split("/").pop(); color: Theme.text; elide: Text.ElideMiddle; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                            IconButton { size: Theme.px(26); visible: row.modelData.state !== "working"; icon: "window-close"; tip: Tr.t("Remove from the list"); onClicked: { const l = win.jobs.slice(); l.splice(row.index, 1); win.jobs = l; } }
                         }
                         // into what: a pick of what makes sense for this file
                         Flow {
                             Layout.fillWidth: true
                             visible: row.modelData.state === "ready"
-                            spacing: 4
+                            spacing: Theme.px(4)
                             Repeater {
                                 model: row.modelData.formats
                                 Choice {
@@ -177,11 +177,11 @@ AppWindow {
                         }
                         Rectangle {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 5
+                            Layout.preferredHeight: Theme.px(5)
                             visible: row.modelData.state === "working"
-                            radius: 3
+                            radius: Theme.px(3)
                             color: Theme.surface3
-                            Rectangle { width: parent.width * row.modelData.progress; height: parent.height; radius: 3; color: Theme.accent }
+                            Rectangle { width: parent.width * row.modelData.progress; height: parent.height; radius: Theme.px(3); color: Theme.accent }
                         }
                         RowLayout {
                             Layout.fillWidth: true
@@ -192,7 +192,7 @@ AppWindow {
                                 color: row.modelData.state === "done" ? Theme.dim : Theme.danger
                                 elide: Text.ElideMiddle
                                 font.family: Theme.font
-                                font.pixelSize: 12 * Theme.fontScale
+                                font.pixelSize: Theme.px(12) * Theme.fontScale
                             }
                             Button { visible: row.modelData.state === "done"; flat: true; text: Tr.t("Open"); onClicked: Quickshell.execDetached(["gio", "open", row.modelData.out]) }
                             Button { visible: row.modelData.state === "done"; flat: true; text: Tr.t("Show in Files"); onClicked: Files.show(row.modelData.out.replace(/\/[^/]*$/, "")) }
@@ -214,7 +214,7 @@ AppWindow {
                     text: Tr.t("New files go beside the originals; nothing is written over.")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 Button {
                     kind: "primary"

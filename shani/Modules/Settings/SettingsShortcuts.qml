@@ -12,7 +12,7 @@ import "NiriBinds.js" as NiriBinds
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     property bool active: false
     readonly property var d: Settings.data
 
@@ -41,9 +41,9 @@ ColumnLayout {
         RowLayout {
             required property var modelData
             Layout.fillWidth: true
-            spacing: 12
-            Text { text: page.pretty(modelData.key); color: Theme.text; font.family: Theme.mono; font.pixelSize: 11 * Theme.fontScale; Layout.preferredWidth: 190 }
-            Text { text: modelData.title; color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; Layout.fillWidth: true; elide: Text.ElideRight
+            spacing: Theme.px(12)
+            Text { text: page.pretty(modelData.key); color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale; Layout.preferredWidth: Theme.px(190) }
+            Text { text: modelData.title; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.fillWidth: true; elide: Text.ElideRight
                    Accessible.role: Accessible.StaticText; Accessible.name: modelData.title }
         }
     }
@@ -81,8 +81,8 @@ ColumnLayout {
     }
     Rectangle {
         Layout.fillWidth: true
-        implicitHeight: 48
-        radius: 12
+        implicitHeight: Theme.px(48)
+        radius: Theme.px(12)
         color: page.capturing ? Theme.accentSoft : Theme.hover
         border.color: page.conflict !== "" ? Theme.danger : page.capturing ? Theme.accent : "transparent"
         focus: page.capturing
@@ -95,7 +95,7 @@ ColumnLayout {
                 : page.combo !== "" ? page.pretty(page.combo) : Tr.t("Click here, then press the keys for a new shortcut")
             color: page.combo !== "" ? Theme.text : Theme.dim
             font.family: page.combo !== "" ? Theme.mono : Theme.font
-            font.pixelSize: 13 * Theme.fontScale
+            font.pixelSize: Theme.px(13) * Theme.fontScale
         }
         MouseArea { anchors.fill: parent; onClicked: { page.capturing = true; page.combo = ""; parent.forceActiveFocus(); } }
         KeyFocus { onActivated: { page.capturing = true; page.combo = ""; parent.forceActiveFocus(); } }
@@ -120,7 +120,7 @@ ColumnLayout {
         text: Tr.t("That one is already taken: %1. Try another.").arg(page.conflict)
         color: Theme.danger
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
 
     // 2. what it does: an app, a few ready ones, or a command of your own
@@ -128,7 +128,7 @@ ColumnLayout {
     Flow {
         visible: page.combo !== "" && page.conflict === ""
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Repeater {
             model: [{ title: Tr.t("Open a terminal"), command: page.d.terminal || "foot" },
                     { title: Tr.t("Open my files"), command: "xdg-open \"$HOME\"" },

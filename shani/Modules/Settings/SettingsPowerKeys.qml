@@ -10,7 +10,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 10
+    spacing: Theme.px(10)
     property bool active: false
     readonly property var adminCmd: (Quickshell.env("SHANI_ADMIN_TOOL") || "pkexec /usr/lib/shani-shell/shani-admin.py").split(" ")
     property string lid: ""
@@ -127,6 +127,6 @@ ColumnLayout {
         color: Theme.danger
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
 }

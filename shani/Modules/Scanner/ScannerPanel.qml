@@ -14,8 +14,8 @@ AppWindow {
     appName: "Document Scanner"
     visible: Ui.scanner
     onGone: Ui.scanner = false
-    implicitWidth: 640
-    implicitHeight: 620
+    implicitWidth: Theme.px(640)
+    implicitHeight: Theme.px(620)
 
     property var devices: []            // [{ id, name }]
     property string device: ""
@@ -70,13 +70,13 @@ AppWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            spacing: 10
+            spacing: Theme.px(10)
 
             RowLayout {
                 Layout.fillWidth: true
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("Scanner") }
-                Text { visible: win.looking; text: Tr.t("Looking…"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
-                IconButton { size: 28; icon: "view-refresh"; tip: Tr.t("Look again"); enabled: !win.looking; onClicked: win.refreshDevices() }
+                Text { visible: win.looking; text: Tr.t("Looking…"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                IconButton { size: Theme.px(28); icon: "view-refresh"; tip: Tr.t("Look again"); enabled: !win.looking; onClicked: win.refreshDevices() }
             }
             Repeater {
                 model: win.devices
@@ -97,12 +97,12 @@ AppWindow {
                 color: Theme.dim
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
 
             Flow {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 Repeater {
                     model: [[150, Tr.t("Text · 150 dpi")], [300, Tr.t("Documents · 300")], [600, Tr.t("Photos · 600")]]
                     Choice {
@@ -115,7 +115,7 @@ AppWindow {
             }
             Flow {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 Repeater {
                     model: [["png", "PNG"], ["jpeg", "JPEG"], ["pdf", "PDF"], ["tiff", "TIFF"]]
                     Choice {
@@ -136,7 +136,7 @@ AppWindow {
                 clip: true
                 Image {
                     anchors.fill: parent
-                    anchors.margins: 8
+                    anchors.margins: Theme.px(8)
                     visible: win.lastScan !== "" && !win.lastScan.endsWith(".pdf")
                     fillMode: Image.PreserveAspectFit
                     asynchronous: true
@@ -158,11 +158,11 @@ AppWindow {
                 color: Theme.danger
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Button { visible: win.lastScan !== ""; text: Tr.t("Open"); onClicked: Quickshell.execDetached(["gio", "open", win.lastScan]) }
                 Button { visible: win.lastScan !== ""; flat: true; text: Tr.t("Show in Files"); onClicked: Services.Files.show(win.folder) }
                 Item { Layout.fillWidth: true }

@@ -15,12 +15,12 @@ AppWindow {
     visible: Ui.notes
     onGone: Ui.notes = false
     margins: 0
-    implicitWidth: 900
-    implicitHeight: 600
+    implicitWidth: Theme.px(900)
+    implicitHeight: Theme.px(600)
     property string note: ""            // the last word about an image, in a line of its own
     tools: [
         IconButton {
-            size: 30
+            size: Theme.px(30)
             icon: "insert-image-symbolic"
             tip: Tr.t("Insert an image from the clipboard")
             onClicked: win.insertImage()
@@ -41,15 +41,15 @@ AppWindow {
 
             // Sidebar: notebooks + notes list
             Rectangle {
-                Layout.preferredWidth: 260
+                Layout.preferredWidth: Theme.px(260)
                 Layout.fillHeight: true
                 color: Theme.surface1
                 radius: Theme.radiusLarge
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 8
-                    spacing: 6
+                    anchors.margins: Theme.px(8)
+                    spacing: Theme.px(6)
 
                     // Search
                     TextField {
@@ -62,7 +62,7 @@ AppWindow {
                     // the notebooks, as picks (all of them, or one); + makes one, − removes the chosen
                     Flow {
                         Layout.fillWidth: true
-                        spacing: 4
+                        spacing: Theme.px(4)
                         Choice {
                             text: Tr.t("All")
                             selected: win.selectedNotebook === ""
@@ -77,9 +77,9 @@ AppWindow {
                                 onClicked: win.selectedNotebook = modelData
                             }
                         }
-                        IconButton { size: 28; icon: "list-add"; tip: Tr.t("New notebook"); onClicked: Services.QuickNotes.createNotebook(Tr.t("New notebook")) }
+                        IconButton { size: Theme.px(28); icon: "list-add"; tip: Tr.t("New notebook"); onClicked: Services.QuickNotes.createNotebook(Tr.t("New notebook")) }
                         IconButton {
-                            size: 28
+                            size: Theme.px(28)
                             visible: win.selectedNotebook !== ""
                             icon: "list-remove"
                             tip: Tr.t("Remove the notebook %1").arg(win.selectedNotebook)
@@ -133,9 +133,9 @@ AppWindow {
                 // Toolbar
                 RowLayout {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 40
-                    spacing: 4
-                    anchors.margins: 8
+                    Layout.preferredHeight: Theme.px(40)
+                    spacing: Theme.px(4)
+                    anchors.margins: Theme.px(8)
 
                     Label { text: Services.QuickNotes.current || "No note selected"; font.bold: true; Layout.fillWidth: true }
                     Button { text: "Export HTML"; onClicked: Services.QuickNotes.exportHtml() }
@@ -156,7 +156,7 @@ AppWindow {
                         }
                         wrapMode: TextEdit.Wrap
                         font.family: "monospace"
-                        font.pixelSize: 14
+                        font.pixelSize: Theme.px(14)
                         // a task's box toggles where it is clicked, without a preview
                         TapHandler {
                             onTapped: event => {
@@ -171,7 +171,7 @@ AppWindow {
                         visible: win.note !== ""
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: 12 * Theme.fontScale
+                        font.pixelSize: Theme.px(12) * Theme.fontScale
                         wrapMode: Text.Wrap
                     }
 
@@ -189,7 +189,7 @@ AppWindow {
                 Flow {
                     Layout.fillWidth: true
                     Layout.preferredHeight: implicitHeight
-                    spacing: 4
+                    spacing: Theme.px(4)
                     Repeater {
                         model: Services.QuickNotes.links()
                         delegate: Button {

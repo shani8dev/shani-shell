@@ -14,8 +14,8 @@ AppWindow {
     doc: Settings.data.weatherCity
     visible: Ui.weather
     onGone: Ui.weather = false
-    implicitWidth: 640
-    implicitHeight: 600
+    implicitWidth: Theme.px(640)
+    implicitHeight: Theme.px(600)
 
     onVisibleChanged: if (visible) Weather.fetch()
 
@@ -26,12 +26,12 @@ AppWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            spacing: 14
+            spacing: Theme.px(14)
 
             // ---- the place ----
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 TextField {
                     id: place
                     Layout.fillWidth: true
@@ -42,7 +42,7 @@ AppWindow {
                 }
                 Choice { text: "°C"; selected: !Weather.fahrenheit; onClicked: Settings.data.weatherUnits = "celsius" }
                 Choice { text: "°F"; selected: Weather.fahrenheit; onClicked: Settings.data.weatherUnits = "fahrenheit" }
-                IconButton { icon: "view-refresh"; size: 30; tip: Tr.t("Refresh"); onClicked: Weather.fetch() }
+                IconButton { icon: "view-refresh"; size: Theme.px(30); tip: Tr.t("Refresh"); onClicked: Weather.fetch() }
             }
 
             EmptyState {
@@ -58,22 +58,22 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 visible: Weather.summary !== ""
-                spacing: 18
-                Icon { name: Weather.icon; size: 72; color: Theme.accent }
+                spacing: Theme.px(18)
+                Icon { name: Weather.icon; size: Theme.px(72); color: Theme.accent }
                 ColumnLayout {
                     spacing: 2
                     Text {
                         text: Math.round(Weather.temp) + Weather.degree
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: 44 * Theme.fontScale
+                        font.pixelSize: Theme.px(44) * Theme.fontScale
                         font.weight: Font.DemiBold
                     }
                     Text {
                         text: Weather.describe(Weather.code) + (Weather.forecast.length ? "  ·  " + Math.round(Weather.forecast[0].hi) + "° / " + Math.round(Weather.forecast[0].lo) + "°" : "")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: 14 * Theme.fontScale
+                        font.pixelSize: Theme.px(14) * Theme.fontScale
                     }
                 }
                 Item { Layout.fillWidth: true }
@@ -83,24 +83,24 @@ AppWindow {
             SectionTitle { Layout.fillWidth: true; visible: Weather.hourly.length > 0; text: Tr.t("Next hours") }
             ListView {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 92
+                Layout.preferredHeight: Theme.px(92)
                 visible: Weather.hourly.length > 0
                 orientation: ListView.Horizontal
                 clip: true
-                spacing: 6
+                spacing: Theme.px(6)
                 model: Weather.hourly
                 delegate: Rectangle {
                     required property var modelData
-                    width: 62
-                    height: 88
+                    width: Theme.px(62)
+                    height: Theme.px(88)
                     radius: Theme.radiusSmall
                     color: Theme.surface1
                     ColumnLayout {
                         anchors.centerIn: parent
-                        spacing: 4
-                        Text { Layout.alignment: Qt.AlignHCenter; text: modelData.hour; color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
-                        Icon { Layout.alignment: Qt.AlignHCenter; name: Weather.iconFor(modelData.code); size: 22; color: Theme.text }
-                        Text { Layout.alignment: Qt.AlignHCenter; text: Math.round(modelData.temp) + "°"; color: Theme.text; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale; font.weight: Font.DemiBold }
+                        spacing: Theme.px(4)
+                        Text { Layout.alignment: Qt.AlignHCenter; text: modelData.hour; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        Icon { Layout.alignment: Qt.AlignHCenter; name: Weather.iconFor(modelData.code); size: Theme.px(22); color: Theme.text }
+                        Text { Layout.alignment: Qt.AlignHCenter; text: Math.round(modelData.temp) + "°"; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.DemiBold }
                     }
                 }
             }
@@ -117,29 +117,29 @@ AppWindow {
                         id: dayRow
                         required property var modelData
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 34
-                        spacing: 12
-                        Text { Layout.preferredWidth: 90; text: dayRow.modelData.day; color: Theme.text; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale }
-                        Icon { name: Weather.iconFor(dayRow.modelData.code); size: 20; color: Theme.text }
-                        Text { Layout.fillWidth: true; text: Weather.describe(dayRow.modelData.code); color: Theme.dim; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
-                        Text { text: Math.round(dayRow.modelData.lo) + "°"; color: Theme.faint; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale; font.features: { "tnum": 1 } }
+                        Layout.preferredHeight: Theme.px(34)
+                        spacing: Theme.px(12)
+                        Text { Layout.preferredWidth: Theme.px(90); text: dayRow.modelData.day; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                        Icon { name: Weather.iconFor(dayRow.modelData.code); size: Theme.px(20); color: Theme.text }
+                        Text { Layout.fillWidth: true; text: Weather.describe(dayRow.modelData.code); color: Theme.dim; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                        Text { text: Math.round(dayRow.modelData.lo) + "°"; color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.features: { "tnum": 1 } }
                         // the day's range on the week's scale
                         Item {
-                            Layout.preferredWidth: 110
-                            Layout.preferredHeight: 6
+                            Layout.preferredWidth: Theme.px(110)
+                            Layout.preferredHeight: Theme.px(6)
                             readonly property real low: Math.min(...Weather.forecast.map(f => f.lo))
                             readonly property real high: Math.max(...Weather.forecast.map(f => f.hi))
                             readonly property real span: Math.max(1, high - low)
-                            Rectangle { anchors.fill: parent; radius: 3; color: Theme.surface3 }
+                            Rectangle { anchors.fill: parent; radius: Theme.px(3); color: Theme.surface3 }
                             Rectangle {
                                 x: parent.width * (dayRow.modelData.lo - parent.low) / parent.span
                                 width: Math.max(6, parent.width * (dayRow.modelData.hi - dayRow.modelData.lo) / parent.span)
                                 height: parent.height
-                                radius: 3
+                                radius: Theme.px(3)
                                 color: Theme.accent
                             }
                         }
-                        Text { text: Math.round(dayRow.modelData.hi) + "°"; color: Theme.text; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale; font.features: { "tnum": 1 } }
+                        Text { text: Math.round(dayRow.modelData.hi) + "°"; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.features: { "tnum": 1 } }
                     }
                 }
             }
@@ -150,7 +150,7 @@ AppWindow {
                 color: Theme.faint
                 horizontalAlignment: Text.AlignRight
                 font.family: Theme.font
-                font.pixelSize: 10 * Theme.fontScale
+                font.pixelSize: Theme.px(10) * Theme.fontScale
             }
         }
     }

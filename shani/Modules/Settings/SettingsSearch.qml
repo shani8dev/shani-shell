@@ -9,7 +9,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     readonly property var d: Settings.data
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Search") }
@@ -38,7 +38,7 @@ ColumnLayout {
             IconButton {
                 visible: page.d.searchFolders.length > 1
                 icon: "edit-delete"
-                size: 24
+                size: Theme.px(24)
                 Accessible.name: "Stop searching " + folderRow.modelData
                 onClicked: page.d.searchFolders = Array.from(page.d.searchFolders).filter(x => x !== folderRow.modelData)
             }
@@ -56,7 +56,7 @@ ColumnLayout {
     Text { text: Tr.t("Search the web with"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
     Flow {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Repeater {
             model: Object.keys(Ui.webSearches)
             Choice {

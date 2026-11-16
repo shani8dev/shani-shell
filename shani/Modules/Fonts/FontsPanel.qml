@@ -17,8 +17,8 @@ AppWindow {
     visible: Ui.fonts
     onGone: Ui.fonts = false
     margins: 0
-    implicitWidth: 640
-    implicitHeight: 600
+    implicitWidth: Theme.px(640)
+    implicitHeight: Theme.px(600)
 
     property var fonts: []        // [{ family, style }]
     property string preview: previewField.text ? previewField.text : Tr.t("The quick brown fox jumps over the lazy dog 1234567890")
@@ -117,22 +117,22 @@ AppWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 16
-            spacing: 12
+            anchors.margins: Theme.px(16)
+            spacing: Theme.px(12)
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Item { Layout.fillWidth: true }
                 Text {
                     text: win.fonts.length ? Tr.t("%1 styles", win.fonts.length) : ""
                     color: Theme.faint
                     font.family: Theme.mono
-                    font.pixelSize: 10 * Theme.fontScale
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
                 }
                 IconButton {
                     icon: "view-refresh"
-                    size: 28
+                    size: Theme.px(28)
                     tip: Tr.t("Refresh")
                     onClicked: win.refresh()
                 }
@@ -147,35 +147,35 @@ AppWindow {
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Text {
                     text: Tr.t("Size")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 Item {
                     Layout.fillWidth: true
-                    implicitHeight: 28
+                    implicitHeight: Theme.px(28)
                     Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width
-                        height: 8
-                        radius: 4
+                        height: Theme.px(8)
+                        radius: Theme.px(4)
                         color: Theme.hover
                         Rectangle {
                             width: Math.max(8, parent.width * ((win.previewSize - 10) / 38))
                             height: parent.height
-                            radius: 4
+                            radius: Theme.px(4)
                             color: Theme.accent
                         }
                     }
                     Rectangle {
                         x: Math.max(0, Math.min(parent.width - width, parent.width * ((win.previewSize - 10) / 38) - width / 2))
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 16
-                        height: 16
-                        radius: 8
+                        width: Theme.px(16)
+                        height: Theme.px(16)
+                        radius: Theme.px(8)
                         color: Theme.text
                         border.width: 3
                         border.color: Theme.accent
@@ -199,13 +199,13 @@ AppWindow {
                     text: win.previewSize + " pt"
                     color: Theme.dim
                     font.family: Theme.mono
-                    font.pixelSize: 10 * Theme.fontScale
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
                 }
             }
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Button {
                     text: Tr.t("Install a font…")
                     enabled: !win.installing
@@ -218,7 +218,7 @@ AppWindow {
                     color: Theme.dim
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
             }
 
@@ -237,7 +237,7 @@ AppWindow {
                     required property int index
                     width: list.width
                     height: Math.max(52, win.previewSize * 2 + 22)
-                    radius: 10
+                    radius: Theme.px(10)
                     color: rowArea.containsMouse ? Theme.hover : "transparent"
                     Accessible.role: Accessible.Button
                     Accessible.name: row.modelData.family + (row.modelData.style ? ", " + row.modelData.style : "")
@@ -245,8 +245,8 @@ AppWindow {
 
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 12
-                        anchors.rightMargin: 12
+                        anchors.leftMargin: Theme.px(12)
+                        anchors.rightMargin: Theme.px(12)
                         spacing: 0
                         Text {
                             Layout.fillWidth: true
@@ -262,7 +262,7 @@ AppWindow {
                             color: Theme.faint
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: 10 * Theme.fontScale
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
                         }
                     }
                     MouseArea {
@@ -294,7 +294,7 @@ AppWindow {
                 color: Theme.faint
                 horizontalAlignment: Text.AlignHCenter
                 font.family: Theme.font
-                font.pixelSize: 10 * Theme.fontScale
+                font.pixelSize: Theme.px(10) * Theme.fontScale
             }
         }
     }

@@ -31,8 +31,8 @@ Rectangle {
     opacity: editing && hiddenNow ? 0.45 : 1
     Behavior on opacity { NumberAnimation { duration: Theme.anim } }
 
-    implicitHeight: 58
-    height: 58
+    implicitHeight: Theme.px(58)
+    height: Theme.px(58)
     // the grid places it: by id, in the person's order, only if it can work here
     onCanChanged: report()
     Component.onCompleted: report()
@@ -50,7 +50,7 @@ Rectangle {
         function onEditingChanged() { parent.place(root); }
         function onWidthChanged() { parent.place(root); }
     }
-    radius: 14
+    radius: Theme.px(14)
     // off: a tint of the text colour, so a tile reads as a tile on a light panel too
     color: on ? Theme.accent : Theme.alpha(Theme.text, area.containsMouse ? 0.11 : 0.065)
     border.width: 1
@@ -62,17 +62,17 @@ Rectangle {
     Icon {
         id: ic
         anchors.left: parent.left
-        anchors.leftMargin: 12
+        anchors.leftMargin: Theme.px(12)
         anchors.verticalCenter: parent.verticalCenter
         name: root.icon
-        size: 20
+        size: Theme.px(20)
         color: root.ink
     }
     Column {
         anchors.left: ic.right
-        anchors.leftMargin: 10
+        anchors.leftMargin: Theme.px(10)
         anchors.right: chevron.visible ? chevron.left : parent.right
-        anchors.rightMargin: 6
+        anchors.rightMargin: Theme.px(6)
         anchors.verticalCenter: parent.verticalCenter
         spacing: 1
         Text {
@@ -81,7 +81,7 @@ Rectangle {
             color: root.ink
             elide: Text.ElideRight
             font.family: Theme.font
-            font.pixelSize: 12 * Theme.fontScale
+            font.pixelSize: Theme.px(12) * Theme.fontScale
             font.weight: Font.DemiBold
         }
         Text {
@@ -91,7 +91,7 @@ Rectangle {
             color: root.on ? Theme.alpha(Theme.accentInk, 0.75) : Theme.dim
             elide: Text.ElideRight
             font.family: Theme.font
-            font.pixelSize: 10 * Theme.fontScale
+            font.pixelSize: Theme.px(10) * Theme.fontScale
         }
     }
 
@@ -117,9 +117,9 @@ Rectangle {
     // in edit mode: a badge, − to hide or + to show
     Rectangle {
         visible: root.editing
-        width: 18
-        height: 18
-        radius: 9
+        width: Theme.px(18)
+        height: Theme.px(18)
+        radius: Theme.px(9)
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.margins: -4
@@ -130,7 +130,7 @@ Rectangle {
             anchors.centerIn: parent
             text: root.hiddenNow ? "+" : "−"
             color: root.hiddenNow ? Theme.accentInk : Theme.text
-            font.pixelSize: 13 * Theme.fontScale
+            font.pixelSize: Theme.px(13) * Theme.fontScale
             font.weight: Font.DemiBold
         }
     }
@@ -138,18 +138,18 @@ Rectangle {
     Rectangle {
         id: chevron
         visible: root.hasDetail && !root.editing
-        width: 26
+        width: Theme.px(26)
         height: parent.height - 12
         anchors.right: parent.right
-        anchors.rightMargin: 6
+        anchors.rightMargin: Theme.px(6)
         anchors.verticalCenter: parent.verticalCenter
-        radius: 9
+        radius: Theme.px(9)
         color: chevArea.containsMouse ? Theme.alpha(root.ink, 0.15) : "transparent"
         Text {
             anchors.centerIn: parent
             text: root.expanded ? "▾" : "›"
             color: root.ink
-            font.pixelSize: 15 * Theme.fontScale
+            font.pixelSize: Theme.px(15) * Theme.fontScale
         }
         MouseArea {
             id: chevArea

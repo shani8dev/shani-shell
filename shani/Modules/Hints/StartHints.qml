@@ -27,17 +27,17 @@ PanelWindow {
         anchors.centerIn: parent
         implicitWidth: col.implicitWidth + 48
         implicitHeight: col.implicitHeight + 36
-        radius: 22
+        radius: Theme.px(22)
         Column {
             id: col
             anchors.centerIn: parent
-            spacing: 12
+            spacing: Theme.px(12)
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: Tr.t("Nothing open here")
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: 16 * Theme.fontScale
+                font.pixelSize: Theme.px(16) * Theme.fontScale
                 font.weight: Font.DemiBold
             }
             Repeater {
@@ -47,24 +47,24 @@ PanelWindow {
                         { keys: "Super + Shift + /", what: Tr.t("every keyboard shortcut") }]
                 Row {
                     required property var modelData
-                    spacing: 12
+                    spacing: Theme.px(12)
                     Rectangle {
-                        width: 132
-                        height: 24
-                        radius: 6
+                        width: Theme.px(132)
+                        height: Theme.px(24)
+                        radius: Theme.px(6)
                         color: Theme.alpha(Theme.text, 0.09)
-                        Text { anchors.centerIn: parent; text: parent.parent.modelData.keys; color: Theme.text; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; font.weight: Font.Medium }
+                        Text { anchors.centerIn: parent; text: parent.parent.modelData.keys; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.Medium }
                     }
-                    Text { anchors.verticalCenter: parent.verticalCenter; text: parent.modelData.what; color: Theme.dim; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale }
+                    Text { anchors.verticalCenter: parent.verticalCenter; text: parent.modelData.what; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
                 }
             }
         }
         IconButton {
             anchors.top: parent.top
             anchors.right: parent.right
-            anchors.margins: 8
+            anchors.margins: Theme.px(8)
             icon: "window-close"
-            size: 22
+            size: Theme.px(22)
             tip: Tr.t("Don't show this again")
             onClicked: Settings.data.startHintsDone = true
         }

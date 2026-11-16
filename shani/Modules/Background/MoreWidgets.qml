@@ -77,7 +77,7 @@ Variants {
         component Label: Text {
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: 12 * Theme.fontScale
+            font.pixelSize: Theme.px(12) * Theme.fontScale
             elide: Text.ElideRight
         }
 
@@ -92,9 +92,9 @@ Variants {
             Column {
                 id: agendaCol
                 anchors.fill: parent
-                anchors.margins: 14
-                spacing: 6
-                Label { text: Tr.t("Coming up"); color: Theme.dim; font.pixelSize: 11 * Theme.fontScale; font.weight: Font.DemiBold }
+                anchors.margins: Theme.px(14)
+                spacing: Theme.px(6)
+                Label { text: Tr.t("Coming up"); color: Theme.dim; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold }
                 Label { visible: Agenda.upcoming.length === 0; text: Agenda.available ? Tr.t("Nothing in the calendar") : Tr.t("Add a calendar in Settings > Your account"); color: Theme.faint }
                 Repeater {
                     model: Agenda.upcoming.slice(0, 4)
@@ -102,7 +102,7 @@ Variants {
                         required property var modelData
                         width: agendaCol.width
                         Label { width: agendaCol.width; text: modelData.summary; font.weight: Font.Medium }
-                        Label { width: agendaCol.width; text: Agenda.when(modelData) + (modelData.location ? " · " + modelData.location : ""); color: Theme.dim; font.pixelSize: 10.5 * Theme.fontScale }
+                        Label { width: agendaCol.width; text: Agenda.when(modelData) + (modelData.location ? " · " + modelData.location : ""); color: Theme.dim; font.pixelSize: Theme.px(10.5) * Theme.fontScale }
                     }
                 }
             }
@@ -118,10 +118,10 @@ Variants {
             onOpen: Ui.openSettings("power")
             Row {
                 anchors.fill: parent
-                anchors.margins: 14
-                spacing: 12
+                anchors.margins: Theme.px(14)
+                spacing: Theme.px(12)
                 Shape {
-                    width: 60; height: 60
+                    width: Theme.px(60); height: Theme.px(60)
                     anchors.verticalCenter: parent.verticalCenter
                     preferredRendererType: Shape.CurveRenderer
                     ShapePath { strokeColor: Theme.alpha(Theme.text, 0.12); strokeWidth: 6; fillColor: "transparent"; capStyle: ShapePath.RoundCap
@@ -134,8 +134,8 @@ Variants {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 2
                     Label { text: Power.charging ? Tr.t("Charging") : Power.full ? Tr.t("Full") : Tr.t("On battery"); font.weight: Font.Medium }
-                    Label { text: Power.timeLeft; color: Theme.dim; font.pixelSize: 10.5 * Theme.fontScale; visible: text !== "" }
-                    Label { text: Power.profileName; color: Theme.faint; font.pixelSize: 10.5 * Theme.fontScale }
+                    Label { text: Power.timeLeft; color: Theme.dim; font.pixelSize: Theme.px(10.5) * Theme.fontScale; visible: text !== "" }
+                    Label { text: Power.profileName; color: Theme.faint; font.pixelSize: Theme.px(10.5) * Theme.fontScale }
                 }
             }
         }
@@ -150,9 +150,9 @@ Variants {
             onOpen: Ui.toggleControlCenter()
             Column {
                 anchors.fill: parent
-                anchors.margins: 14
-                spacing: 6
-                Label { text: Tr.t("Note"); color: Theme.dim; font.pixelSize: 11 * Theme.fontScale; font.weight: Font.DemiBold }
+                anchors.margins: Theme.px(14)
+                spacing: Theme.px(6)
+                Label { text: Tr.t("Note"); color: Theme.dim; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold }
                 Text {
                     id: noteText
                     width: parent.width
@@ -162,7 +162,7 @@ Variants {
                     maximumLineCount: 8
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: 12 * Theme.fontScale
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
                 }
             }
         }
@@ -178,9 +178,9 @@ Variants {
             Column {
                 id: clocksCol
                 anchors.fill: parent
-                anchors.margins: 14
-                spacing: 4
-                Label { text: Tr.t("World clocks"); color: Theme.dim; font.pixelSize: 11 * Theme.fontScale; font.weight: Font.DemiBold }
+                anchors.margins: Theme.px(14)
+                spacing: Theme.px(4)
+                Label { text: Tr.t("World clocks"); color: Theme.dim; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold }
                 Label { visible: WorldClock.clocks.length === 0; text: Tr.t("Pick cities under the calendar"); color: Theme.faint }
                 Repeater {
                     model: WorldClock.clocks
@@ -188,7 +188,7 @@ Variants {
                         required property var modelData
                         width: clocksCol.width
                         Label { width: clocksCol.width - 70; text: modelData.city }
-                        Label { width: 70; horizontalAlignment: Text.AlignRight; text: modelData.time; font.features: { "tnum": 1 } }
+                        Label { width: Theme.px(70); horizontalAlignment: Text.AlignRight; text: modelData.time; font.features: { "tnum": 1 } }
                     }
                 }
             }

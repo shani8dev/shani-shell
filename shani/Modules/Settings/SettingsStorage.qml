@@ -12,7 +12,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 8
+    spacing: Theme.px(8)
     property bool active: false
     onActiveChanged: if (active) scan()
 
@@ -76,18 +76,18 @@ ColumnLayout {
         property bool can: size > 0
         signal go()
         Layout.fillWidth: true
-        Layout.preferredHeight: 52
-        spacing: 12
-        Icon { name: r.icon; size: 22; color: Theme.dim }
+        Layout.preferredHeight: Theme.px(52)
+        spacing: Theme.px(12)
+        Icon { name: r.icon; size: Theme.px(22); color: Theme.dim }
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 0
-            Text { Layout.fillWidth: true; text: r.title; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale }
-            Text { Layout.fillWidth: true; visible: r.detail !== ""; text: r.detail; color: Theme.dim; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+            Text { Layout.fillWidth: true; text: r.title; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+            Text { Layout.fillWidth: true; visible: r.detail !== ""; text: r.detail; color: Theme.dim; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
         }
-        Text { text: page.human(r.size); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; font.features: { "tnum": 1 } }
+        Text { text: page.human(r.size); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.features: { "tnum": 1 } }
         Button {
-            Layout.preferredWidth: 140
+            Layout.preferredWidth: Theme.px(140)
             enabled: r.can && !r.working && page.busy === ""
             kind: r.asking ? "danger" : "plain"
             text: r.working ? Tr.t("Cleaning…") : r.asking ? Tr.t("Click again") : r.action
@@ -105,17 +105,17 @@ ColumnLayout {
                 text: page.scanning && !page.found ? Tr.t("Measuring…") : Tr.t("Up to %1 can be freed").arg(page.human(page.freeable))
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: 20 * Theme.fontScale
+                font.pixelSize: Theme.px(20) * Theme.fontScale
                 font.weight: Font.DemiBold
             }
             Text {
                 text: page.done !== "" ? page.done : Tr.t("Only your own files. Nothing here is needed to use the computer.")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
         }
-        IconButton { size: 30; icon: "view-refresh"; tip: Tr.t("Measure again"); onClicked: page.scan() }
+        IconButton { size: Theme.px(30); icon: "view-refresh"; tip: Tr.t("Measure again"); onClicked: page.scan() }
     }
 
     Row_ {
@@ -188,7 +188,7 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: 11 * Theme.fontScale
+            font.pixelSize: Theme.px(11) * Theme.fontScale
         }
         Button { text: Tr.t("System clean-up…"); onClicked: Quickshell.execDetached(["shani-cassini", "--section=maintenance"]) }
     }

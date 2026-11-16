@@ -15,7 +15,7 @@ import qs.Modules.Notifications
 
 ColumnLayout {
     required property var sidebar
-    spacing: 14
+    spacing: Theme.px(14)
 
     SliderRow {
         Layout.fillWidth: true
@@ -85,8 +85,8 @@ ColumnLayout {
                     text: Audio.streamName(modelData)
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 10 * Theme.fontScale
-                    Layout.maximumWidth: 90
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    Layout.maximumWidth: Theme.px(90)
                     elide: Text.ElideRight
                 }
             }

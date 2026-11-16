@@ -14,8 +14,8 @@ AppWindow {
     visible: Ui.kundali
     onGone: Ui.kundali = false
     margins: 0
-    implicitWidth: 700
-    implicitHeight: 600
+    implicitWidth: Theme.px(700)
+    implicitHeight: Theme.px(600)
 
     property string mode: "panchang"  // panchang or kundali
     property string dateInput: ""
@@ -52,26 +52,26 @@ AppWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 16
-            spacing: 8
+            anchors.margins: Theme.px(16)
+            spacing: Theme.px(8)
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 4
+                spacing: Theme.px(4)
                 Button { text: "Panchang"; checked: win.mode === "panchang"; onClicked: win.mode = "panchang" }
                 Button { text: "Kundali"; checked: win.mode === "kundali"; onClicked: win.mode = "kundali" }
             }
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 4
+                spacing: Theme.px(4)
                 TextField { Layout.fillWidth: true; placeholderText: "Date (YYYY-MM-DD)"; text: win.dateInput; onTextChanged: win.dateInput = text }
-                TextField { Layout.preferredWidth: 80; placeholderText: "Time (HH:MM)"; text: win.timeInput; onTextChanged: win.timeInput = text }
+                TextField { Layout.preferredWidth: Theme.px(80); placeholderText: "Time (HH:MM)"; text: win.timeInput; onTextChanged: win.timeInput = text }
             }
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 4
+                spacing: Theme.px(4)
                 TextField { Layout.fillWidth: true; placeholderText: "Latitude"; text: win.latInput; onTextChanged: win.latInput = text }
                 TextField { Layout.fillWidth: true; placeholderText: "Longitude"; text: win.lonInput; onTextChanged: win.lonInput = text }
             }
@@ -90,7 +90,7 @@ AppWindow {
                     text: win.result
                     readOnly: true
                     font.family: "monospace"
-                    font.pixelSize: 12
+                    font.pixelSize: Theme.px(12)
                     wrapMode: TextEdit.Wrap
                 }
             }

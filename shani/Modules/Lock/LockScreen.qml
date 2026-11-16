@@ -233,7 +233,7 @@ Scope {
                     font.features: { "tnum": 1 }
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 96 * Theme.fontScale
+                    font.pixelSize: Theme.px(96) * Theme.fontScale
                     font.weight: Font.Light
                 }
                 Text {
@@ -242,20 +242,20 @@ Scope {
                     visible: Settings.data.lockScreenDate
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 18 * Theme.fontScale
+                    font.pixelSize: Theme.px(18) * Theme.fontScale
                 }
                 // (the battery is shown once, with its icon, under the password field)
                 // at a glance (a phone's lock screen): the weather, and the next event
                 // only when previews are allowed on the lock screen (Privacy)
                 Text {
                     Layout.alignment: Qt.AlignHCenter
-                    Layout.topMargin: 6
+                    Layout.topMargin: Theme.px(6)
                     readonly property var next: Settings.data.lockPreviews && Agenda.upcoming.length ? Agenda.upcoming[0] : null
                     text: [Weather.summary, next ? Agenda.when(next) + " · " + next.summary : ""].filter(x => x).join("    ")
                     visible: text !== ""
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 14 * Theme.fontScale
+                    font.pixelSize: Theme.px(14) * Theme.fontScale
                 }
                 // unread notifications count, when previews are on
                 Text {
@@ -264,7 +264,7 @@ Scope {
                     text: Notifs.count === 1 ? "1 notification" : Notifs.count + " notifications"
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 13 * Theme.fontScale
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
                 }
             }
 
@@ -273,8 +273,8 @@ Scope {
             Row {
                 anchors.left: parent.left
                 anchors.bottom: parent.bottom
-                anchors.margins: 32
-                spacing: 10
+                anchors.margins: Theme.px(32)
+                spacing: Theme.px(10)
                 Repeater {
                     model: [{ icon: "system-reboot", name: Tr.t("Restart"), run: () => Power.reboot() },
                             { icon: "system-shutdown", name: Tr.t("Shut down"), run: () => Power.poweroff() }]
@@ -285,14 +285,14 @@ Scope {
                         function press() { if (armed) modelData.run(); else armed = true; }
                         strong: true
                         width: armed ? sure.implicitWidth + 64 : 48
-                        height: 48
-                        radius: 24
+                        height: Theme.px(48)
+                        radius: Theme.px(24)
                         Behavior on width { NumberAnimation { duration: Theme.anim } }
                         Timer { running: powerKey.armed; interval: 4000; onTriggered: powerKey.armed = false }
                         Row {
                             anchors.centerIn: parent
-                            spacing: 6
-                            Icon { anchors.verticalCenter: parent.verticalCenter; name: powerKey.modelData.icon; size: 22; color: powerKey.armed ? Theme.danger : Theme.text }
+                            spacing: Theme.px(6)
+                            Icon { anchors.verticalCenter: parent.verticalCenter; name: powerKey.modelData.icon; size: Theme.px(22); color: powerKey.armed ? Theme.danger : Theme.text }
                             Text {
                                 id: sure
                                 visible: powerKey.armed
@@ -300,7 +300,7 @@ Scope {
                                 text: powerKey.modelData.name + "?"
                                 color: Theme.danger
                                 font.family: Theme.font
-                                font.pixelSize: 13 * Theme.fontScale
+                                font.pixelSize: Theme.px(13) * Theme.fontScale
                             }
                         }
                         Accessible.role: Accessible.Button
@@ -322,13 +322,13 @@ Scope {
                 visible: Camera.available && Privacy.cameraEnabled
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                anchors.margins: 32
-                spacing: 10
+                anchors.margins: Theme.px(32)
+                spacing: Theme.px(10)
                 Image {
                     visible: root.lockPhotos.length > 0
                     anchors.horizontalCenter: parent.horizontalCenter
-                    width: 96
-                    height: 72
+                    width: Theme.px(96)
+                    height: Theme.px(72)
                     fillMode: Image.PreserveAspectCrop
                     sourceSize: Qt.size(192, 144)
                     source: root.lockPhotos.length ? "file://" + root.lockPhotos[root.lockPhotos.length - 1] : ""
@@ -338,23 +338,23 @@ Scope {
                 Glass {
                     anchors.horizontalCenter: parent.horizontalCenter
                     strong: true
-                    width: 56
-                    height: 56
-                    radius: 28
+                    width: Theme.px(56)
+                    height: Theme.px(56)
+                    radius: Theme.px(28)
                     Text {
                         visible: Camera.phase === "counting"
                         anchors.centerIn: parent
                         text: Camera.countdown
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: 22 * Theme.fontScale
+                        font.pixelSize: Theme.px(22) * Theme.fontScale
                         font.weight: Font.DemiBold
                     }
                     IconButton {
                         visible: Camera.phase !== "counting"
                         anchors.centerIn: parent
                         icon: "camera-photo"
-                        size: 40
+                        size: Theme.px(40)
                         tip: Tr.t("Take a photo")
                         enabled: Camera.phase === "idle"
                         onClicked: root.lockPhoto()
@@ -370,18 +370,18 @@ Scope {
                 strong: true
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: 80
-                width: 380
-                height: 76
+                anchors.bottomMargin: Theme.px(80)
+                width: Theme.px(380)
+                height: Theme.px(76)
                 radius: Theme.radiusLarge
                 RowLayout {
                     anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 12
+                    anchors.margins: Theme.px(12)
+                    spacing: Theme.px(12)
                     ClippingRectangle {
-                        implicitWidth: 52
-                        implicitHeight: 52
-                        radius: 10
+                        implicitWidth: Theme.px(52)
+                        implicitHeight: Theme.px(52)
+                        radius: Theme.px(10)
                         color: Theme.hover
                         Image {
                             anchors.fill: parent
@@ -398,7 +398,7 @@ Scope {
                             color: Theme.text
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: 13 * Theme.fontScale
+                            font.pixelSize: Theme.px(13) * Theme.fontScale
                             font.weight: Font.DemiBold
                         }
                         Text {
@@ -407,12 +407,12 @@ Scope {
                             color: Theme.dim
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: 11 * Theme.fontScale
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
                         }
                     }
-                    IconButton { icon: "media-skip-backward"; size: 30; onClicked: nowPlaying.player.previous() }
-                    IconButton { icon: nowPlaying.player && nowPlaying.player.isPlaying ? "media-playback-pause" : "media-playback-start"; size: 34; on: true; onClicked: nowPlaying.player.togglePlaying() }
-                    IconButton { icon: "media-skip-forward"; size: 30; onClicked: nowPlaying.player.next() }
+                    IconButton { icon: "media-skip-backward"; size: Theme.px(30); onClicked: nowPlaying.player.previous() }
+                    IconButton { icon: nowPlaying.player && nowPlaying.player.isPlaying ? "media-playback-pause" : "media-playback-start"; size: Theme.px(34); on: true; onClicked: nowPlaying.player.togglePlaying() }
+                    IconButton { icon: "media-skip-forward"; size: Theme.px(30); onClicked: nowPlaying.player.next() }
                 }
             }
 
@@ -421,27 +421,27 @@ Scope {
                 anchors.centerIn: parent
                 // above the screen keyboard while it is up
                 anchors.verticalCenterOffset: root.kb ? -parent.height * 0.18 : parent.height * 0.1
-                width: 380
+                width: Theme.px(380)
                 height: form.implicitHeight + 40
                 radius: Theme.radiusLarge
 
                 ColumnLayout {
                     id: form
                     anchors.fill: parent
-                    anchors.margins: 20
-                    spacing: 12
-                    Avatar { Layout.alignment: Qt.AlignHCenter; size: 72 }
+                    anchors.margins: Theme.px(20)
+                    spacing: Theme.px(12)
+                    Avatar { Layout.alignment: Qt.AlignHCenter; size: Theme.px(72) }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         text: Quickshell.env("USER") || ""
                         color: Theme.accent
                         font.family: Theme.font
-                        font.pixelSize: 15 * Theme.fontScale
+                        font.pixelSize: Theme.px(15) * Theme.fontScale
                         font.weight: Font.DemiBold
                     }
                     RowLayout {
                         Layout.fillWidth: true
-                        spacing: 8
+                        spacing: Theme.px(8)
                         TextField {
                             id: pass
                             Layout.fillWidth: true
@@ -455,7 +455,7 @@ Scope {
                         }
                         IconButton {
                             icon: "input-keyboard"
-                            size: 34
+                            size: Theme.px(34)
                             on: root.kb
                             tip: root.kb ? Tr.t("Hide keyboard") : Tr.t("Screen keyboard")
                             onClicked: root.kb = !root.kb
@@ -463,7 +463,7 @@ Scope {
                         // the arrow, for a mouse or a touch screen
                         IconButton {
                             icon: "go-next"
-                            size: 34
+                            size: Theme.px(34)
                             on: pass.text !== ""
                             tip: Tr.t("Unlock")
                             onClicked: { root.submit(pass.text); pass.text = ""; }
@@ -476,7 +476,7 @@ Scope {
                         color: Theme.amber
                         horizontalAlignment: Text.AlignHCenter
                         font.family: Theme.font
-                        font.pixelSize: 12 * Theme.fontScale
+                        font.pixelSize: Theme.px(12) * Theme.fontScale
                     }
                     Text {
                         Layout.fillWidth: true
@@ -486,7 +486,7 @@ Scope {
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.Wrap
                         font.family: Theme.font
-                        font.pixelSize: 12 * Theme.fontScale
+                        font.pixelSize: Theme.px(12) * Theme.fontScale
                     }
                     Text {
                         Layout.fillWidth: true
@@ -495,7 +495,7 @@ Scope {
                         color: root.error ? Theme.danger : Theme.dim
                         wrapMode: Text.Wrap
                         font.family: Theme.font
-                        font.pixelSize: 12 * Theme.fontScale
+                        font.pixelSize: Theme.px(12) * Theme.fontScale
                     }
                     // the newest few, by title — only if the person chose that (Privacy)
                     Repeater {
@@ -507,7 +507,7 @@ Scope {
                             color: Theme.text
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: 12 * Theme.fontScale
+                            font.pixelSize: Theme.px(12) * Theme.fontScale
                         }
                     }
                     // what is waiting, at a glance: how many, not what (the content
@@ -515,28 +515,28 @@ Scope {
                     Row {
                         Layout.alignment: Qt.AlignHCenter
                         Layout.topMargin: 2
-                        spacing: 16
+                        spacing: Theme.px(16)
                         Row {
                             visible: Notifs.count > 0
-                            spacing: 5
-                            Icon { name: "preferences-system-notifications"; size: 14; color: Theme.dim; anchors.verticalCenter: parent.verticalCenter }
+                            spacing: Theme.px(5)
+                            Icon { name: "preferences-system-notifications"; size: Theme.px(14); color: Theme.dim; anchors.verticalCenter: parent.verticalCenter }
                             Text {
                                 text: Notifs.count
                                 color: Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: 12 * Theme.fontScale
+                                font.pixelSize: Theme.px(12) * Theme.fontScale
                                 Accessible.name: Notifs.count + (Notifs.count === 1 ? " notification" : " notifications")
                             }
                         }
                         Row {
                             visible: Power.hasBattery && Settings.data.lockScreenBattery
-                            spacing: 5
-                            Icon { name: Power.batteryIcon; size: 14; color: Theme.dim; anchors.verticalCenter: parent.verticalCenter }
+                            spacing: Theme.px(5)
+                            Icon { name: Power.batteryIcon; size: Theme.px(14); color: Theme.dim; anchors.verticalCenter: parent.verticalCenter }
                             Text {
                                 text: Math.round(Power.percent * 100) + "%"
                                 color: Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: 12 * Theme.fontScale
+                                font.pixelSize: Theme.px(12) * Theme.fontScale
                             }
                         }
                     }
@@ -545,7 +545,7 @@ Scope {
                 ScreenKeyboard {
                     visible: root.kb
                     anchors.bottom: parent.bottom
-                    anchors.bottomMargin: 18
+                    anchors.bottomMargin: Theme.px(18)
                     anchors.horizontalCenter: parent.horizontalCenter
                     width: Math.min(900, parent.width - 36)
                     target: pass.input

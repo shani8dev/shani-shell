@@ -128,7 +128,7 @@ Glass {
         visible: root.critical
         x: 0
         y: 14
-        width: 3
+        width: Theme.px(3)
         height: Math.max(0, parent.height - 28)
         radius: 2
         color: Theme.red
@@ -139,19 +139,19 @@ Glass {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.margins: 14
-        spacing: 10
+        anchors.margins: Theme.px(14)
+        spacing: Theme.px(10)
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 12
+            spacing: Theme.px(12)
 
             // the avatar: a sender's picture with the app as a badge, the app's
             // icon on a soft tile, or the app's initial
             Item {
                 Layout.alignment: Qt.AlignTop
-                implicitWidth: 40
-                implicitHeight: 40
+                implicitWidth: Theme.px(40)
+                implicitHeight: Theme.px(40)
                 ClippingRectangle {
                     anchors.fill: parent
                     radius: root.picture ? 20 : 12
@@ -174,7 +174,7 @@ Glass {
                         anchors.centerIn: parent
                         visible: !root.picture && root.appSymbolic !== ""
                         name: root.appSymbolic
-                        size: 22
+                        size: Theme.px(22)
                         color: Theme.text
                     }
                     Text {
@@ -183,7 +183,7 @@ Glass {
                         text: root.appName.charAt(0).toUpperCase()
                         color: Theme.accent
                         font.family: Theme.font
-                        font.pixelSize: 18
+                        font.pixelSize: Theme.px(18)
                         font.weight: Font.DemiBold
                     }
                 }
@@ -192,9 +192,9 @@ Glass {
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
                     anchors.margins: -3
-                    width: 20
-                    height: 20
-                    radius: 10
+                    width: Theme.px(20)
+                    height: Theme.px(20)
+                    radius: Theme.px(10)
                     color: Theme.glassStrong
                     border.width: 1
                     border.color: Theme.stroke
@@ -207,19 +207,19 @@ Glass {
                 spacing: 2
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Text {
                         Layout.fillWidth: true
                         text: (root.showApp ? root.appName : "") + (root.showApp && root.age ? "  ·  " : "") + root.age
                         color: Theme.dim
                         elide: Text.ElideRight
                         font.family: Theme.font
-                        font.pixelSize: 11 * Theme.fontScale
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
                     }
                     // more: Snooze and Ask Chronoa (in the header, not a row of their own)
                     IconButton {
                         icon: "view-more"
-                        size: 22
+                        size: Theme.px(22)
                         on: root.more
                         opacity: hover.hovered || root.more ? 1 : 0.55
                         Accessible.name: Tr.t("More actions")
@@ -228,7 +228,7 @@ Glass {
                     // close: always there to a screen reader and a keyboard, clearer on hover
                     IconButton {
                         icon: "window-close"
-                        size: 22
+                        size: Theme.px(22)
                         opacity: hover.hovered || root.critical ? 1 : 0.55
                         Accessible.name: Tr.t("Dismiss")
                         onClicked: {
@@ -245,7 +245,7 @@ Glass {
                     maximumLineCount: 2
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: 14 * Theme.fontScale
+                    font.pixelSize: Theme.px(14) * Theme.fontScale
                     font.weight: Font.DemiBold
                     font.italic: root.hideContent
                 }
@@ -261,7 +261,7 @@ Glass {
                     elide: Text.ElideRight
                     lineHeight: 1.1
                     font.family: Theme.font
-                    font.pixelSize: 12.5 * Theme.fontScale
+                    font.pixelSize: Theme.px(12.5) * Theme.fontScale
                     onLinkActivated: link => Qt.openUrlExternally(link)
                 }
             }
@@ -270,7 +270,7 @@ Glass {
         // suggested replies (SmartReplies: Chronoa writes three), one click sends one
         Flow {
             Layout.fillWidth: true
-            spacing: 6
+            spacing: Theme.px(6)
             visible: !root.hideContent && root.notification && root.notification.hasInlineReply && replies.length > 0
             readonly property var replies: root.notification ? SmartReplies.forId(root.notification.id) : []
             Component.onCompleted: if (root.notification && !root.hideContent) SmartReplies.suggest(root.notification)
@@ -306,8 +306,8 @@ Glass {
         ClippingRectangle {
             Layout.fillWidth: true
             visible: !root.hideContent && (root.actions.length > 0 || root.more)
-            implicitHeight: 34
-            radius: 12
+            implicitHeight: Theme.px(34)
+            radius: Theme.px(12)
             color: "transparent"
             RowLayout {
                 anchors.fill: parent
@@ -340,7 +340,7 @@ Glass {
                             color: index === 0 && root.actions.length > 0 ? Theme.accent : Theme.text
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: 12 * Theme.fontScale
+                            font.pixelSize: Theme.px(12) * Theme.fontScale
                             font.weight: Font.Medium
                         }
                         Accessible.role: Accessible.Button

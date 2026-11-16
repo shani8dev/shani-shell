@@ -17,7 +17,7 @@ PanelWindow {
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     anchors { top: true; right: true }
     margins { top: 58; right: 16 }
-    implicitWidth: 300
+    implicitWidth: Theme.px(300)
     implicitHeight: card.implicitHeight + 8
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
@@ -52,22 +52,22 @@ PanelWindow {
         property string value
         property real fraction: 0
         Layout.fillWidth: true
-        spacing: 4
+        spacing: Theme.px(4)
         RowLayout {
             Layout.fillWidth: true
-            Text { text: m.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+            Text { text: m.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
             Item { Layout.fillWidth: true }
-            Text { text: m.value; color: Theme.text; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; font.features: { "tnum": 1 } }
+            Text { text: m.value; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.features: { "tnum": 1 } }
         }
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: 6
-            radius: 3
+            implicitHeight: Theme.px(6)
+            radius: Theme.px(3)
             color: Theme.hover
             Rectangle {
                 width: parent.width * Math.max(0, Math.min(1, m.fraction))
                 height: parent.height
-                radius: 3
+                radius: Theme.px(3)
                 color: m.fraction > 0.85 ? Theme.danger : Theme.accent
                 Behavior on width { NumberAnimation { duration: 300 } }
             }
@@ -85,21 +85,21 @@ PanelWindow {
             id: col
             x: 14; y: 14
             width: parent.width - 28
-            spacing: 10
+            spacing: Theme.px(10)
             Meter { label: Tr.t("Processor"); value: Math.round(SysStats.cpu * 100) + "%"; fraction: SysStats.cpu }
             Meter {
                 label: Tr.t("Memory")
                 value: SysStats.memTotalGb > 0 ? (SysStats.mem * SysStats.memTotalGb).toFixed(1) + " " + Tr.t("of") + " " + SysStats.memTotalGb.toFixed(1) + " GB" : Math.round(SysStats.mem * 100) + "%"
                 fraction: SysStats.mem
             }
-            Text { visible: win.heavy.length > 0; text: Tr.t("Using the most memory"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+            Text { visible: win.heavy.length > 0; text: Tr.t("Using the most memory"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
             Repeater {
                 model: win.heavy
                 RowLayout {
                     required property var modelData
                     Layout.fillWidth: true
-                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
-                    Text { text: modelData.mem.toFixed(1) + "%"; color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; font.features: { "tnum": 1 } }
+                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                    Text { text: modelData.mem.toFixed(1) + "%"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.features: { "tnum": 1 } }
                 }
             }
             Button {
@@ -116,7 +116,7 @@ PanelWindow {
                 text: Tr.t("Closing what you no longer use is what frees memory; apps may ask to save first.")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: 10 * Theme.fontScale
+                font.pixelSize: Theme.px(10) * Theme.fontScale
             }
         }
     }

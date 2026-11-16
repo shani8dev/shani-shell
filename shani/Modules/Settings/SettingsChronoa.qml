@@ -9,7 +9,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     readonly property var d: Settings.data
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Chronoa") }
@@ -19,7 +19,7 @@ ColumnLayout {
         color: Theme.dim
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     Button {
         text: Tr.t("Chronoa's settings — model, voice, wake word, permissions")
@@ -43,6 +43,6 @@ ColumnLayout {
         color: Theme.faint
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
 }

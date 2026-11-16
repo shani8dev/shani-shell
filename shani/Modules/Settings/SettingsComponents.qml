@@ -4,16 +4,16 @@ import qs.Common
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     property bool active: false
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Components") }
 
-    Text { Layout.fillWidth: true; text: Tr.t("UI component preview"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+    Text { Layout.fillWidth: true; text: Tr.t("UI component preview"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
 
     RowLayout {
         Layout.fillWidth: true
-        spacing: 8
+        spacing: Theme.px(8)
         Button { text: Tr.t("Primary") }
         Button { text: Tr.t("Secondary") }
         IconButton { icon: "view-refresh" }

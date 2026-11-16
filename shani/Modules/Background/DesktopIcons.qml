@@ -143,7 +143,7 @@ PanelWindow {
                 Accessible.onPressAction: win.activate(modelData)
                 Rectangle {
                     anchors.fill: parent
-                    radius: 10
+                    radius: Theme.px(10)
                     color: win.selected === ic.modelData.key ? Theme.accentSoft : area.containsMouse ? Theme.alpha(Theme.bg, 0.35) : "transparent"
                     border.width: win.selected === ic.modelData.key ? 1 : 0
                     border.color: Theme.accentLine
@@ -152,7 +152,7 @@ PanelWindow {
                 Rectangle {
                     visible: ic.modelData.type === "stack"
                     x: parent.width / 2 - 20; y: 2
-                    width: 48; height: 48; radius: 8
+                    width: Theme.px(48); height: Theme.px(48); radius: Theme.px(8)
                     rotation: 6
                     color: Theme.alpha(Theme.text, 0.15)
                 }
@@ -161,7 +161,7 @@ PanelWindow {
                     visible: status === Image.Ready
                     anchors.horizontalCenter: parent.horizontalCenter
                     y: 6
-                    width: 48; height: 48
+                    width: Theme.px(48); height: Theme.px(48)
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
                     sourceSize: Qt.size(96, 96)
@@ -178,7 +178,7 @@ PanelWindow {
                 Text {
                     visible: win.renaming !== ic.modelData.path || !ic.modelData.path
                     anchors.top: parent.top
-                    anchors.topMargin: 58
+                    anchors.topMargin: Theme.px(58)
                     width: parent.width - 4
                     x: 2
                     horizontalAlignment: Text.AlignHCenter
@@ -190,12 +190,12 @@ PanelWindow {
                     maximumLineCount: 2
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 TextField {
                     visible: ic.modelData.path !== undefined && win.renaming === ic.modelData.path
                     anchors.top: parent.top
-                    anchors.topMargin: 56
+                    anchors.topMargin: Theme.px(56)
                     width: parent.width + 40
                     x: -20
                     text: ic.modelData.name
@@ -242,21 +242,21 @@ PanelWindow {
         visible: false
         strong: true
         radius: Theme.radiusLarge
-        width: 380
+        width: Theme.px(380)
         height: Math.min(win.height - win.top - 120, stackCol.implicitHeight + 24)
         x: win.cell + 24
         y: win.startY
         z: 20
         Flickable {
             anchors.fill: parent
-            anchors.margins: 12
+            anchors.margins: Theme.px(12)
             contentHeight: stackCol.implicitHeight
             clip: true
             Column {
                 id: stackCol
                 width: parent.width
                 spacing: 2
-                Text { text: stack.entry ? stack.entry.name : ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; font.weight: Font.DemiBold; bottomPadding: 6 }
+                Text { text: stack.entry ? stack.entry.name : ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.DemiBold; bottomPadding: Theme.px(6) }
                 Repeater {
                     model: stack.entry ? stack.entry.files : []
                     ListRow {
@@ -277,8 +277,8 @@ PanelWindow {
         property string target: ""
         visible: false
         strong: true
-        radius: 12
-        width: 220
+        radius: Theme.px(12)
+        width: Theme.px(220)
         height: menuCol.implicitHeight + 12
         z: 20
         Column {

@@ -186,12 +186,12 @@ PanelWindow {
         ColumnLayout {
             id: col
             anchors.fill: parent
-            anchors.margins: 16
-            spacing: 10
+            anchors.margins: Theme.px(16)
+            spacing: Theme.px(10)
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 SectionTitle {
                     Layout.fillWidth: true
                     text: Tr.t("Now playing")
@@ -201,17 +201,17 @@ PanelWindow {
                     text: Tr.t("tracklist")
                     color: Theme.faint
                     font.family: Theme.mono
-                    font.pixelSize: 10 * Theme.fontScale
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
                 }
                 IconButton {
                     icon: "view-refresh"
-                    size: 28
+                    size: Theme.px(28)
                     tip: Tr.t("Refresh queue")
                     onClicked: win.refreshQueue()
                 }
                 IconButton {
                     icon: "window-close"
-                    size: 28
+                    size: Theme.px(28)
                     tip: Tr.t("Close")
                     onClicked: Ui.player = false
                 }
@@ -228,12 +228,12 @@ PanelWindow {
             RowLayout {
                 Layout.fillWidth: true
                 visible: win.player !== null
-                spacing: 12
+                spacing: Theme.px(12)
 
                 ClippingRectangle {
-                    implicitWidth: 88
-                    implicitHeight: 88
-                    radius: 14
+                    implicitWidth: Theme.px(88)
+                    implicitHeight: Theme.px(88)
+                    radius: Theme.px(14)
                     color: Theme.hover
                     Image {
                         anchors.fill: parent
@@ -253,7 +253,7 @@ PanelWindow {
                         color: Theme.text
                         elide: Text.ElideRight
                         font.family: Theme.font
-                        font.pixelSize: 15 * Theme.fontScale
+                        font.pixelSize: Theme.px(15) * Theme.fontScale
                         font.weight: Font.DemiBold
                     }
                     Text {
@@ -262,7 +262,7 @@ PanelWindow {
                         color: Theme.dim
                         elide: Text.ElideRight
                         font.family: Theme.font
-                        font.pixelSize: 12 * Theme.fontScale
+                        font.pixelSize: Theme.px(12) * Theme.fontScale
                     }
                     Text {
                         Layout.fillWidth: true
@@ -271,7 +271,7 @@ PanelWindow {
                         color: Theme.dim
                         elide: Text.ElideRight
                         font.family: Theme.font
-                        font.pixelSize: 11 * Theme.fontScale
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
                     }
                     Text {
                         Layout.fillWidth: true
@@ -279,7 +279,7 @@ PanelWindow {
                         color: Theme.faint
                         elide: Text.ElideRight
                         font.family: Theme.mono
-                        font.pixelSize: 10 * Theme.fontScale
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
                     }
                 }
             }
@@ -289,29 +289,29 @@ PanelWindow {
                 id: seek
                 Layout.fillWidth: true
                 visible: win.player !== null
-                implicitHeight: 30
+                implicitHeight: Theme.px(30)
                 color: "transparent"
                 readonly property real len: win.player ? win.player.length : 0
                 readonly property bool seekable: win.player ? (win.player.canSeek && len > 0) : false
                 Rectangle {
                     anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
-                    height: 4
+                    height: Theme.px(4)
                     radius: 2
                     color: Theme.hover
                 }
                 Rectangle {
                     width: Math.max(4, parent.width * Math.min(1, seek.len > 0 ? win.shown / seek.len : 0))
                     anchors { left: parent.left; verticalCenter: parent.verticalCenter }
-                    height: 4
+                    height: Theme.px(4)
                     radius: 2
                     color: Theme.accent
                 }
                 Rectangle {
                     x: Math.max(0, Math.min(parent.width - width, parent.width * (seek.len > 0 ? win.shown / seek.len : 0) - width / 2))
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 14
-                    height: 14
-                    radius: 7
+                    width: Theme.px(14)
+                    height: Theme.px(14)
+                    radius: Theme.px(7)
                     color: Theme.text
                     border.width: 3
                     border.color: Theme.accent
@@ -322,7 +322,7 @@ PanelWindow {
                     text: win.player ? win.fmt(win.shown) : "0:00"
                     color: Theme.faint
                     font.family: Theme.mono
-                    font.pixelSize: 9 * Theme.fontScale
+                    font.pixelSize: Theme.px(9) * Theme.fontScale
                 }
                 Text {
                     anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom }
@@ -330,14 +330,14 @@ PanelWindow {
                     text: win.player ? win.fmtRemaining(win.shown, seek.len) : "-0:00"
                     color: Theme.faint
                     font.family: Theme.mono
-                    font.pixelSize: 9 * Theme.fontScale
+                    font.pixelSize: Theme.px(9) * Theme.fontScale
                 }
                 Text {
                     anchors { right: parent.right; bottom: parent.bottom }
                     text: win.player ? win.fmt(seek.len) : "0:00"
                     color: Theme.faint
                     font.family: Theme.mono
-                    font.pixelSize: 9 * Theme.fontScale
+                    font.pixelSize: Theme.px(9) * Theme.fontScale
                 }
                 MouseArea {
                     anchors.fill: parent
@@ -364,17 +364,17 @@ PanelWindow {
                 color: Theme.faint
                 horizontalAlignment: Text.AlignHCenter
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
 
             RowLayout {
                 Layout.fillWidth: true
                 visible: win.player !== null
                 Layout.alignment: Qt.AlignHCenter
-                spacing: 12
+                spacing: Theme.px(12)
                 IconButton {
                     icon: "media-playlist-repeat"
-                    size: 36
+                    size: Theme.px(36)
                     on: win.player ? (win.player.loopSupported && win.player.loopState !== MprisLoopState.None) : false
                     tip: win.repeatLabel()
                     enabled: win.player ? (win.player.loopSupported && win.player.canControl) : false
@@ -382,28 +382,28 @@ PanelWindow {
                 }
                 IconButton {
                     icon: "media-skip-backward"
-                    size: 40
+                    size: Theme.px(40)
                     tip: Tr.t("Previous track")
                     enabled: win.player && win.player.canGoPrevious
                     onClicked: win.player.previous()
                 }
                 IconButton {
                     icon: win.player && win.player.isPlaying ? "media-playback-pause" : "media-playback-start"
-                    size: 52
+                    size: Theme.px(52)
                     on: true
                     tip: win.player && win.player.isPlaying ? Tr.t("Pause") : Tr.t("Play")
                     onClicked: win.player.togglePlaying()
                 }
                 IconButton {
                     icon: "media-skip-forward"
-                    size: 40
+                    size: Theme.px(40)
                     tip: Tr.t("Next track")
                     enabled: win.player && win.player.canGoNext
                     onClicked: win.player.next()
                 }
                 IconButton {
                     icon: "media-playlist-shuffle"
-                    size: 36
+                    size: Theme.px(36)
                     on: win.player ? win.player.shuffle : false
                     tip: Tr.t("Shuffle")
                     enabled: win.player ? (win.player.shuffleSupported && win.player.canControl) : false
@@ -422,7 +422,7 @@ PanelWindow {
                 color: Theme.faint
                 horizontalAlignment: Text.AlignHCenter
                 font.family: Theme.font
-                font.pixelSize: 10 * Theme.fontScale
+                font.pixelSize: Theme.px(10) * Theme.fontScale
             }
 
             // per-player volume: the followed player's own level
@@ -440,7 +440,7 @@ PanelWindow {
                 color: Theme.faint
                 horizontalAlignment: Text.AlignHCenter
                 font.family: Theme.font
-                font.pixelSize: 10 * Theme.fontScale
+                font.pixelSize: Theme.px(10) * Theme.fontScale
             }
 
             // gapless and format info: MPRIS does not advertise gapless, so
@@ -454,19 +454,19 @@ PanelWindow {
                     + Array.from(win.player.supportedMimeTypes || []).slice(0, 3).join(", ")) : ""
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: 10 * Theme.fontScale
+                font.pixelSize: Theme.px(10) * Theme.fontScale
             }
 
             // lyrics: the line being sung, via the Lyrics service (LRCLIB)
             Rectangle {
                 Layout.fillWidth: true
                 visible: win.player !== null
-                radius: 10
+                radius: Theme.px(10)
                 color: Theme.surface1
-                implicitHeight: 44
+                implicitHeight: Theme.px(44)
                 Text {
                     anchors.fill: parent
-                    anchors.margins: 10
+                    anchors.margins: Theme.px(10)
                     verticalAlignment: Text.AlignVCenter
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.Wrap
@@ -477,14 +477,14 @@ PanelWindow {
                         : Tr.t("Looking for lyrics…")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 12 * Theme.fontScale
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
                     font.italic: true
                 }
             }
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 SectionTitle {
                     Layout.fillWidth: true
                     text: Tr.t("Queue")
@@ -494,28 +494,28 @@ PanelWindow {
                     text: Tr.t("%1 files", win.queue.length)
                     color: Theme.faint
                     font.family: Theme.mono
-                    font.pixelSize: 10 * Theme.fontScale
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
                 }
             }
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Rectangle {
                     Layout.fillWidth: true
-                    implicitHeight: 30
-                    radius: 8
+                    implicitHeight: Theme.px(30)
+                    radius: Theme.px(8)
                     color: Theme.surface1
                     border.color: Theme.stroke
                     border.width: 1
                     Text {
                         anchors.fill: parent
-                        anchors.leftMargin: 10
-                        anchors.rightMargin: 10
+                        anchors.leftMargin: Theme.px(10)
+                        anchors.rightMargin: Theme.px(10)
                         verticalAlignment: Text.AlignVCenter
                         text: win.musicFolder || Tr.t("No folder")
                         color: Theme.text
                         font.family: Theme.mono
-                        font.pixelSize: 10 * Theme.fontScale
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
                         elide: Text.ElideMiddle
                     }
                 }
@@ -527,7 +527,7 @@ PanelWindow {
             ListView {
                 id: queueList
                 Layout.fillWidth: true
-                Layout.preferredHeight: 130
+                Layout.preferredHeight: Theme.px(130)
                 clip: true
                 spacing: 2
                 model: win.queue
@@ -550,7 +550,7 @@ PanelWindow {
                 color: Theme.faint
                 horizontalAlignment: Text.AlignHCenter
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
 
             SectionTitle {
@@ -583,7 +583,7 @@ PanelWindow {
                 color: Theme.faint
                 horizontalAlignment: Text.AlignHCenter
                 font.family: Theme.font
-                font.pixelSize: 10 * Theme.fontScale
+                font.pixelSize: Theme.px(10) * Theme.fontScale
             }
         }
     }

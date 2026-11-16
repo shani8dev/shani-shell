@@ -9,7 +9,7 @@ Item {
     id: root
     property string name
     property color color: Theme.text
-    property real size: 18
+    property real size: Theme.px(18)
 
     implicitWidth: size
     implicitHeight: size

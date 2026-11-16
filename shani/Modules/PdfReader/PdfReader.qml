@@ -15,8 +15,8 @@ AppWindow {
     visible: PdfViewer.shown
     onGone: PdfViewer.close()
     margins: 0
-    implicitWidth: 960
-    implicitHeight: 760
+    implicitWidth: Theme.px(960)
+    implicitHeight: Theme.px(760)
     // blur behind the card, as on every shell surface (ext-background-effect)
 
     Item {
@@ -41,13 +41,13 @@ AppWindow {
         MouseArea { anchors.fill: parent }       // clicks inside do not close it
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 16
-            spacing: 8
+            anchors.margins: Theme.px(16)
+            spacing: Theme.px(8)
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 6
-                IconButton { icon: "go-previous"; size: 28; tip: Tr.t("Previous page"); onClicked: PdfViewer.prevPage() }
+                spacing: Theme.px(6)
+                IconButton { icon: "go-previous"; size: Theme.px(28); tip: Tr.t("Previous page"); onClicked: PdfViewer.prevPage() }
                 Text {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
@@ -55,12 +55,12 @@ AppWindow {
                     color: Theme.text
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: 14 * Theme.fontScale
+                    font.pixelSize: Theme.px(14) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
-                IconButton { icon: "go-next"; size: 28; tip: Tr.t("Next page"); onClicked: PdfViewer.nextPage() }
-                IconButton { icon: "document-open"; size: 28; tip: Tr.t("Toggle thumbnails"); on: PdfViewer.showSidebar; onClicked: PdfViewer.toggleSidebar() }
-                IconButton { icon: "printer"; size: 28; tip: Tr.t("Print (P)"); onClicked: PdfViewer.printFile() }
+                IconButton { icon: "go-next"; size: Theme.px(28); tip: Tr.t("Next page"); onClicked: PdfViewer.nextPage() }
+                IconButton { icon: "document-open"; size: Theme.px(28); tip: Tr.t("Toggle thumbnails"); on: PdfViewer.showSidebar; onClicked: PdfViewer.toggleSidebar() }
+                IconButton { icon: "printer"; size: Theme.px(28); tip: Tr.t("Print (P)"); onClicked: PdfViewer.printFile() }
                 // a form: fill it in, save a filled copy
                 Button {
                     visible: PdfViewer.formFields.length > 0
@@ -73,7 +73,7 @@ AppWindow {
             // search bar: find text (pdftotext -bbox) + jump-to-page box
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 TextField {
                     id: searchField
                     Layout.fillWidth: true
@@ -81,41 +81,41 @@ AppWindow {
                     label: Tr.t("Find in document")
                     onAccepted: PdfViewer.search(searchField.text)
                 }
-                IconButton { icon: "go-up"; size: 28; tip: Tr.t("Find previous"); onClicked: PdfViewer.findPrev() }
-                IconButton { icon: "go-down"; size: 28; tip: Tr.t("Find next"); onClicked: PdfViewer.findNext() }
+                IconButton { icon: "go-up"; size: Theme.px(28); tip: Tr.t("Find previous"); onClicked: PdfViewer.findPrev() }
+                IconButton { icon: "go-down"; size: Theme.px(28); tip: Tr.t("Find next"); onClicked: PdfViewer.findNext() }
                 Text {
                     text: PdfViewer.searchLabel !== "" ? PdfViewer.searchLabel : (PdfViewer.searchState !== "" ? PdfViewer.searchState : PdfViewer.label)
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 TextField {
                     id: jumpField
-                    Layout.preferredWidth: 80
+                    Layout.preferredWidth: Theme.px(80)
                     placeholder: Tr.t("Page…")
                     label: Tr.t("Go to page")
                     onAccepted: PdfViewer.jumpTo(jumpField.text)
                 }
-                IconButton { icon: "go-next"; size: 28; tip: Tr.t("Go to page"); onClicked: PdfViewer.jumpTo(jumpField.text) }
+                IconButton { icon: "go-next"; size: Theme.px(28); tip: Tr.t("Go to page"); onClicked: PdfViewer.jumpTo(jumpField.text) }
             }
 
             RowLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                spacing: 8
+                spacing: Theme.px(8)
 
                 // page thumbnails sidebar (+ outline/bookmarks underneath)
                 Rectangle {
                     visible: PdfViewer.showSidebar
-                    Layout.preferredWidth: 132
+                    Layout.preferredWidth: Theme.px(132)
                     Layout.fillHeight: true
                     radius: Theme.radiusSmall
                     color: Theme.hover
                     clip: true
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 4
-                        spacing: 4
+                        anchors.margins: Theme.px(4)
+                        spacing: Theme.px(4)
                         Flickable {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
@@ -125,21 +125,21 @@ AppWindow {
                             contentHeight: thumbCol.height
                             Column {
                                 id: thumbCol
-                                spacing: 4
+                                spacing: Theme.px(4)
                                 Repeater {
                                     model: PdfViewer.pages
                                     Rectangle {
                                         required property var modelData
                                         required property int index
-                                        width: 116
-                                        height: 150
+                                        width: Theme.px(116)
+                                        height: Theme.px(150)
                                         radius: Theme.radiusSmall
                                         color: index === PdfViewer.page ? Theme.alpha(Theme.accent, 0.22) : Theme.surface1
                                         border.width: index === PdfViewer.page ? 2 : 0
                                         border.color: Theme.accent
                                         Image {
                                             anchors.fill: parent
-                                            anchors.margins: 5
+                                            anchors.margins: Theme.px(5)
                                             source: "file://" + modelData
                                             fillMode: Image.PreserveAspectFit
                                             smooth: true
@@ -148,11 +148,11 @@ AppWindow {
                                         Text {
                                             anchors.bottom: parent.bottom
                                             anchors.right: parent.right
-                                            anchors.margins: 4
+                                            anchors.margins: Theme.px(4)
                                             text: String(index + 1)
                                             color: Theme.dim
                                             font.family: Theme.font
-                                            font.pixelSize: 10 * Theme.fontScale
+                                            font.pixelSize: Theme.px(10) * Theme.fontScale
                                         }
                                         MouseArea {
                                             anchors.fill: parent
@@ -167,7 +167,7 @@ AppWindow {
                         Rectangle {
                             visible: PdfViewer.outline.length > 0
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 140
+                            Layout.preferredHeight: Theme.px(140)
                             radius: Theme.radiusSmall
                             color: Theme.surface1
                             clip: true
@@ -185,11 +185,11 @@ AppWindow {
                                         Text {
                                             required property var modelData
                                             required property int index
-                                            width: 110
+                                            width: Theme.px(110)
                                             text: "  ".repeat(modelData.level) + modelData.title
                                             color: Theme.text
                                             font.family: Theme.font
-                                            font.pixelSize: 10 * Theme.fontScale
+                                            font.pixelSize: Theme.px(10) * Theme.fontScale
                                             elide: Text.ElideRight
                                             MouseArea {
                                                 anchors.fill: parent
@@ -250,7 +250,7 @@ AppWindow {
                             text: Tr.t("Rendering pages…")
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: 13 * Theme.fontScale
+                            font.pixelSize: Theme.px(13) * Theme.fontScale
                         }
                         Text {
                             visible: !PdfViewer.loading && PdfViewer.current === ""
@@ -258,7 +258,7 @@ AppWindow {
                             text: PdfViewer.error !== "" ? PdfViewer.error : Tr.t("No pages yet")
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: 13 * Theme.fontScale
+                            font.pixelSize: Theme.px(13) * Theme.fontScale
                         }
                         MouseArea {
                             anchors.fill: parent
@@ -277,16 +277,16 @@ AppWindow {
                         contentHeight: contCol.height
                         Column {
                             id: contCol
-                            spacing: 8
-                            anchors.leftMargin: 8
-                            anchors.rightMargin: 8
+                            spacing: Theme.px(8)
+                            anchors.leftMargin: Theme.px(8)
+                            anchors.rightMargin: Theme.px(8)
                             Repeater {
                                 model: PdfViewer.pages
                                 Image {
                                     required property var modelData
                                     required property int index
-                                    width: 640
-                                    height: 800
+                                    width: Theme.px(640)
+                                    height: Theme.px(800)
                                     x: 8
                                     source: "file://" + modelData
                                     fillMode: Image.PreserveAspectFit
@@ -302,32 +302,32 @@ AppWindow {
                 // the form's fields, one control each; the copy is saved beside the PDF
                 Rectangle {
                     visible: PdfViewer.formShown
-                    Layout.preferredWidth: 280
+                    Layout.preferredWidth: Theme.px(280)
                     Layout.fillHeight: true
                     radius: Theme.radiusSmall
                     color: Theme.surface1
                     Flickable {
                         anchors.fill: parent
-                        anchors.margins: 10
+                        anchors.margins: Theme.px(10)
                         contentHeight: formCol.implicitHeight
                         clip: true
                         ColumnLayout {
                             id: formCol
                             width: parent.width
-                            spacing: 8
+                            spacing: Theme.px(8)
                             SectionTitle { Layout.fillWidth: true; text: Tr.t("Fill in") }
                             Repeater {
                                 model: PdfViewer.formFields
                                 ColumnLayout {
                                     required property var modelData
                                     Layout.fillWidth: true
-                                    spacing: 3
+                                    spacing: Theme.px(3)
                                     Text {
                                         visible: modelData.type !== "checkbox"
                                         text: modelData.label.replace(/_/g, " ")
                                         color: Theme.dim
                                         font.family: Theme.font
-                                        font.pixelSize: 11 * Theme.fontScale
+                                        font.pixelSize: Theme.px(11) * Theme.fontScale
                                     }
                                     TextField {
                                         Layout.fillWidth: true
@@ -345,7 +345,7 @@ AppWindow {
                                     Flow {
                                         Layout.fillWidth: true
                                         visible: modelData.type === "choice"
-                                        spacing: 6
+                                        spacing: Theme.px(6)
                                         Repeater {
                                             model: modelData.options
                                             Choice {
@@ -366,7 +366,7 @@ AppWindow {
                                 color: PdfViewer.formError !== "" ? Theme.danger : Theme.dim
                                 wrapMode: Text.Wrap
                                 font.family: Theme.font
-                                font.pixelSize: 11 * Theme.fontScale
+                                font.pixelSize: Theme.px(11) * Theme.fontScale
                             }
                             Button { visible: PdfViewer.formSaved !== ""; flat: true; text: Tr.t("Open the filled copy"); onClicked: PdfViewer.open(PdfViewer.formSaved) }
                         }
@@ -377,13 +377,13 @@ AppWindow {
             // fit / continuous / rotation toolbar
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 4
-                IconButton { icon: "zoom-fit-best"; size: 28; tip: Tr.t("Fit page (F)"); on: PdfViewer.fitMode === "page"; onClicked: PdfViewer.setFit("page") }
-                IconButton { icon: "view-fullscreen"; size: 28; tip: Tr.t("Fit width (W)"); on: PdfViewer.fitMode === "width"; onClicked: PdfViewer.setFit("width") }
-                IconButton { icon: "document-save"; size: 28; tip: Tr.t("Actual size"); on: PdfViewer.fitMode === "actual"; onClicked: PdfViewer.setFit("actual") }
-                IconButton { icon: "view-dual"; size: 28; tip: Tr.t("Continuous scroll"); on: PdfViewer.continuous; onClicked: PdfViewer.toggleContinuous() }
-                IconButton { icon: "object-rotate-right"; size: 28; tip: Tr.t("Rotate right (R)"); onClicked: PdfViewer.rotate() }
-                IconButton { icon: "object-rotate-left"; size: 28; tip: Tr.t("Rotate left"); onClicked: PdfViewer.rotateCCW() }
+                spacing: Theme.px(4)
+                IconButton { icon: "zoom-fit-best"; size: Theme.px(28); tip: Tr.t("Fit page (F)"); on: PdfViewer.fitMode === "page"; onClicked: PdfViewer.setFit("page") }
+                IconButton { icon: "view-fullscreen"; size: Theme.px(28); tip: Tr.t("Fit width (W)"); on: PdfViewer.fitMode === "width"; onClicked: PdfViewer.setFit("width") }
+                IconButton { icon: "document-save"; size: Theme.px(28); tip: Tr.t("Actual size"); on: PdfViewer.fitMode === "actual"; onClicked: PdfViewer.setFit("actual") }
+                IconButton { icon: "view-dual"; size: Theme.px(28); tip: Tr.t("Continuous scroll"); on: PdfViewer.continuous; onClicked: PdfViewer.toggleContinuous() }
+                IconButton { icon: "object-rotate-right"; size: Theme.px(28); tip: Tr.t("Rotate right (R)"); onClicked: PdfViewer.rotate() }
+                IconButton { icon: "object-rotate-left"; size: Theme.px(28); tip: Tr.t("Rotate left"); onClicked: PdfViewer.rotateCCW() }
                 Text {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
@@ -392,7 +392,7 @@ AppWindow {
                         + (PdfViewer.fitMode === "width" ? "  ·  " + Tr.t("fit width") : PdfViewer.fitMode === "actual" ? "  ·  " + Tr.t("actual size") : "")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                     elide: Text.ElideRight
                 }
             }

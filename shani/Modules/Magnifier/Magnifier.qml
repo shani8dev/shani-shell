@@ -24,7 +24,7 @@ PanelWindow {
 
     property real zoom: 2.5
     property point at: Qt.point(width / 2, height / 2)
-    readonly property real size: 320
+    readonly property real size: Theme.px(320)
 
     // the frame comes from grim, taken before the window maps (Ui.magnifier
     // flips on once it is written) — Quickshell's ScreencopyView needs dmabuf
@@ -100,9 +100,9 @@ PanelWindow {
     Glass {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: 40
+        anchors.bottomMargin: Theme.px(40)
         width: hint.implicitWidth + 32
-        height: 34
+        height: Theme.px(34)
         strong: true
         Text {
             id: hint
@@ -110,7 +110,7 @@ PanelWindow {
             text: "Magnifier " + win.zoom.toFixed(1) + "×  ·  scroll to zoom  ·  right-click: fresh frame  ·  Esc to close"
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: 12 * Theme.fontScale
+            font.pixelSize: Theme.px(12) * Theme.fontScale
         }
     }
 }

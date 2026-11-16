@@ -6,10 +6,11 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import "../../Common/FormFactor.js" as FF
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     property bool active: false
     onActiveChanged: if (active) Displays.refresh()
     // made already active (a Settings category is a Loader): load now too
@@ -23,7 +24,7 @@ ColumnLayout {
     Rectangle {
         id: map
         Layout.fillWidth: true
-        Layout.preferredHeight: 170
+        Layout.preferredHeight: Theme.px(170)
         radius: Theme.radius
         color: Theme.hover
         visible: Displays.outputs.length > 0
@@ -63,7 +64,7 @@ ColumnLayout {
                 y: map.oy + (modelData.y - map.minY) * map.k + drag.dy
                 width: modelData.width * map.k
                 height: modelData.height * map.k
-                radius: 6
+                radius: Theme.px(6)
                 color: page.selected === modelData.name ? Theme.accentSoft : Theme.glassStrong
                 border.width: 2
                 border.color: page.selected === modelData.name ? Theme.accent : Theme.stroke
@@ -75,7 +76,7 @@ ColumnLayout {
                     color: Theme.text
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: 10 * Theme.fontScale
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
                 }
                 MouseArea {
                     id: drag
@@ -112,13 +113,13 @@ ColumnLayout {
         text: Tr.t("Drag a screen to where it stands on your desk.")
         color: Theme.faint
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
 
     // ---- the chosen screen ---------------------------------------------------------------
     Flow {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         visible: Displays.outputs.length > 1
         Repeater {
             model: Displays.outputs
@@ -133,7 +134,7 @@ ColumnLayout {
     ColumnLayout {
         visible: page.sel !== null
         Layout.fillWidth: true
-        spacing: 10
+        spacing: Theme.px(10)
         SwitchRow {
             Layout.fillWidth: true
             visible: Displays.outputs.length > 1
@@ -168,6 +169,15 @@ ColumnLayout {
             current: page.sel ? page.sel.scale : 1
             onPicked: v => Displays.apply(page.selected, { scale: v })
         }
+        // what kind of screen this is: the shell's size and layout follow it
+        // (Services/FormFactor); Automatic tells it by its size and input
+        Picks {
+            label: Tr.t("Kind of screen")
+            options: [{ label: Tr.t("Automatic") + (page.sel ? " (" + Tr.t(FF.label(FormFactor.detected(page.selected))) + ")" : ""), value: "auto" }]
+                .concat(["computer", "laptop", "tablet", "handheld", "phone", "tv", "board"].map(p => ({ label: Tr.t(FF.label(p)), value: p })))
+            current: (Settings.data.formFactors || {})[page.selected] || "auto"
+            onPicked: v => FormFactor.choose(page.selected, v)
+        }
         Picks {
             label: Tr.t("Rotation")
             options: [{ label: Tr.t("Normal"), value: "normal" }, { label: "90°", value: "90" }, { label: "180°", value: "180" }, { label: "270°", value: "270" }]
@@ -189,7 +199,7 @@ ColumnLayout {
                 id: ddcRow
                 required property var modelData
                 Layout.fillWidth: true
-                spacing: 4
+                spacing: Theme.px(4)
                 Text { text: "Brightness — " + ddcRow.modelData.model; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
                 SliderRow {
                     Layout.fillWidth: true

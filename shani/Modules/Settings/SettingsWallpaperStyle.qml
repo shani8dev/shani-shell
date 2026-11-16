@@ -12,7 +12,7 @@ import qs.Services
 ColumnLayout {
     id: page
     objectName: "section:colours"
-    spacing: 10
+    spacing: Theme.px(10)
     property bool active: false
     onActiveChanged: if (active && WallpaperStyle.image === "" && WallpaperStyle.lastWallpaper) WallpaperStyle.open(WallpaperStyle.lastWallpaper)
 
@@ -25,13 +25,13 @@ ColumnLayout {
         text: Tr.t("The desktop's colours, taken from a picture. Extract shows them first; Apply makes the picture your wallpaper and the colours yours.")
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
         wrapMode: Text.Wrap
     }
 
     Rectangle {
         Layout.fillWidth: true
-        Layout.preferredHeight: 180
+        Layout.preferredHeight: Theme.px(180)
         radius: Theme.radiusSmall
         color: Theme.hover
         clip: true
@@ -48,7 +48,7 @@ ColumnLayout {
             text: Tr.t("No picture yet — pick one, type a path, or use the last wallpaper")
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: 12 * Theme.fontScale
+            font.pixelSize: Theme.px(12) * Theme.fontScale
             wrapMode: Text.Wrap
             horizontalAlignment: Text.AlignHCenter
         }
@@ -58,13 +58,13 @@ ColumnLayout {
         text: WallpaperStyle.image || Tr.t("(nothing picked)")
         color: Theme.faint
         font.family: Theme.font
-        font.pixelSize: 10 * Theme.fontScale
+        font.pixelSize: Theme.px(10) * Theme.fontScale
         elide: Text.ElideMiddle
     }
 
     RowLayout {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         TextField {
             id: pathField
             Layout.fillWidth: true
@@ -81,14 +81,14 @@ ColumnLayout {
 
     Flow {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Button { text: Tr.t("Browse…"); onClicked: fileDlg.open() }
         Button { text: Tr.t("Use last wallpaper"); onClicked: WallpaperStyle.open(WallpaperStyle.lastWallpaper) }
     }
 
     RowLayout {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Button { text: Tr.t("Extract palette"); onClicked: WallpaperStyle.extract() }
         Button { text: Tr.t("Apply as wallpaper + colours"); kind: "primary"; onClicked: WallpaperStyle.apply() }
     }
@@ -98,14 +98,14 @@ ColumnLayout {
         text: Tr.t("Extracting…")
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
     Text {
         visible: !Matugen.previewRunning && Matugen.previewError !== ""
         text: Matugen.previewError
         color: Theme.danger
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
         wrapMode: Text.Wrap
         Layout.fillWidth: true
     }
@@ -114,7 +114,7 @@ ColumnLayout {
         text: Tr.t("matugen is not installed — colours from a picture need it (ShaniOS ships it)")
         color: Theme.danger
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
         wrapMode: Text.Wrap
         Layout.fillWidth: true
     }
@@ -123,7 +123,7 @@ ColumnLayout {
         text: WallpaperStyle.note
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
         wrapMode: Text.Wrap
         Layout.fillWidth: true
     }
@@ -132,16 +132,16 @@ ColumnLayout {
     ColumnLayout {
         visible: Object.keys(page.shown || {}).length > 0
         Layout.fillWidth: true
-        spacing: 4
+        spacing: Theme.px(4)
         Repeater {
             model: page.roles
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Rectangle {
-                    implicitWidth: 28
-                    implicitHeight: 20
-                    radius: 6
+                    implicitWidth: Theme.px(28)
+                    implicitHeight: Theme.px(20)
+                    radius: Theme.px(6)
                     color: (page.shown && page.shown[modelData]) || Theme.accent
                     border.color: Theme.stroke
                     border.width: 1
@@ -153,7 +153,7 @@ ColumnLayout {
                     text: modelData + "  " + ((page.shown && page.shown[modelData]) || "—")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
             }
         }
@@ -161,7 +161,7 @@ ColumnLayout {
 
     RowLayout {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         TextField {
             id: themeField
             Layout.fillWidth: true
@@ -176,24 +176,24 @@ ColumnLayout {
         text: Tr.t("No themes saved yet — extract, name it, Save theme.")
         color: Theme.faint
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
         Layout.fillWidth: true
     }
     ColumnLayout {
         visible: (Settings.data.wallpaperStyleThemes || []).length > 0
         Layout.fillWidth: true
-        spacing: 4
+        spacing: Theme.px(4)
         Repeater {
             model: Settings.data.wallpaperStyleThemes || []
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Text {
                     Layout.fillWidth: true
                     text: (modelData.name || "Untitled theme") + (modelData.image ? "  ·  " + modelData.image : "")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                     elide: Text.ElideMiddle
                 }
                 Button { text: Tr.t("Load"); onClicked: WallpaperStyle.loadTheme(index) }

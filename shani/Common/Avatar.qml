@@ -8,7 +8,7 @@ Item {
     id: root
     property string user: Quickshell.env("USER") || ""
     property string home: Quickshell.env("HOME") || ""
-    property real size: 72
+    property real size: Theme.px(72)
     implicitWidth: size
     implicitHeight: size
 

@@ -35,7 +35,7 @@ Item {
             anchor.edges: root.above ? Edges.Top : Edges.Bottom
             anchor.gravity: root.above ? Edges.Top : Edges.Bottom
             implicitWidth: label.implicitWidth + 20
-            implicitHeight: 28
+            implicitHeight: Theme.px(28)
             color: "transparent"
             Rectangle {
                 anchors.fill: parent
@@ -46,16 +46,16 @@ Item {
                 Row {
                     id: label
                     anchors.centerIn: parent
-                    spacing: 8
-                    Text { text: root.text; color: Theme.text; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                    spacing: Theme.px(8)
+                    Text { text: root.text; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                     Rectangle {
                         visible: root.keys !== ""
                         anchors.verticalCenter: parent.verticalCenter
                         width: keyText.implicitWidth + 10
-                        height: 18
-                        radius: 5
+                        height: Theme.px(18)
+                        radius: Theme.px(5)
                         color: Theme.alpha(Theme.text, 0.1)
-                        Text { id: keyText; anchors.centerIn: parent; text: root.keys; color: Theme.dim; font.family: Theme.font; font.pixelSize: 10.5 * Theme.fontScale }
+                        Text { id: keyText; anchors.centerIn: parent; text: root.keys; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10.5) * Theme.fontScale }
                     }
                 }
             }

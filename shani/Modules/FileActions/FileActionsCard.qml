@@ -14,7 +14,7 @@ PanelWindow {
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     anchors.top: true
     margins.top: 56
-    implicitWidth: 520
+    implicitWidth: Theme.px(520)
     implicitHeight: card.implicitHeight + 12
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
@@ -28,7 +28,7 @@ PanelWindow {
         id: card
         anchors.top: parent.top
         anchors.horizontalCenter: parent.horizontalCenter
-        width: 500
+        width: Theme.px(500)
         implicitHeight: col.implicitHeight + 32
         radius: Theme.radiusLarge
         strong: true
@@ -37,11 +37,11 @@ PanelWindow {
         ColumnLayout {
             id: col
             anchors.fill: parent
-            anchors.margins: 16
-            spacing: 12
+            anchors.margins: Theme.px(16)
+            spacing: Theme.px(12)
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 10
+                spacing: Theme.px(10)
                 AppIcon {
                     implicitSize: 32
                     icon: ({ image: "image-x-generic", video: "video-x-generic", audio: "audio-x-generic", pdf: "x-office-document" })[FileActions.kinds] || "text-x-generic"
@@ -55,7 +55,7 @@ PanelWindow {
                         text: FileActions.fitting ? Tr.t("What size does the form allow?") : Tr.t("What should happen to it?")
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: 15 * Theme.fontScale
+                        font.pixelSize: Theme.px(15) * Theme.fontScale
                         font.weight: Font.DemiBold
                     }
                     Text {
@@ -65,7 +65,7 @@ PanelWindow {
                             : Tr.t("%1 files", FileActions.files.length) + " · " + FileActions.files.map(f => f.split("/").pop()).join(", ")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: 12 * Theme.fontScale
+                        font.pixelSize: Theme.px(12) * Theme.fontScale
                     }
                 }
             }
@@ -74,8 +74,8 @@ PanelWindow {
                 Layout.fillWidth: true
                 visible: FileActions.fitting
                 columns: 2
-                rowSpacing: 6
-                columnSpacing: 6
+                rowSpacing: Theme.px(6)
+                columnSpacing: Theme.px(6)
                 Repeater {
                     model: FileActions.presetsHere
                     ListRow {
@@ -92,12 +92,12 @@ PanelWindow {
             RowLayout {
                 Layout.fillWidth: true
                 visible: FileActions.fitting
-                spacing: 6
-                Text { text: Tr.t("Or the form's own:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
-                TextField { id: fMin; Layout.preferredWidth: 70; placeholder: Tr.t("min KB") }
-                TextField { id: fMax; Layout.preferredWidth: 70; placeholder: Tr.t("max KB") }
-                TextField { id: fW; Layout.preferredWidth: 60; visible: FileActions.kinds === "image"; placeholder: Tr.t("width") }
-                TextField { id: fH; Layout.preferredWidth: 60; visible: FileActions.kinds === "image"; placeholder: Tr.t("height") }
+                spacing: Theme.px(6)
+                Text { text: Tr.t("Or the form's own:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                TextField { id: fMin; Layout.preferredWidth: Theme.px(70); placeholder: Tr.t("min KB") }
+                TextField { id: fMax; Layout.preferredWidth: Theme.px(70); placeholder: Tr.t("max KB") }
+                TextField { id: fW; Layout.preferredWidth: Theme.px(60); visible: FileActions.kinds === "image"; placeholder: Tr.t("width") }
+                TextField { id: fH; Layout.preferredWidth: Theme.px(60); visible: FileActions.kinds === "image"; placeholder: Tr.t("height") }
                 Button {
                     text: Tr.t("Fit")
                     kind: "primary"
@@ -109,8 +109,8 @@ PanelWindow {
                 Layout.fillWidth: true
                 visible: !FileActions.fitting
                 columns: 2
-                rowSpacing: 6
-                columnSpacing: 6
+                rowSpacing: Theme.px(6)
+                columnSpacing: Theme.px(6)
                 Repeater {
                     model: FileActions.actions
                     ListRow {
@@ -129,7 +129,7 @@ PanelWindow {
                                           : Tr.t("The result is saved next to the file - nothing is overwritten.")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
             Button { Layout.alignment: Qt.AlignRight; text: Tr.t("Cancel"); onClicked: FileActions.close() }
         }

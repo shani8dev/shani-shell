@@ -17,8 +17,8 @@ PanelWindow {
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     anchors.top: true
     margins.top: 58
-    implicitWidth: 620
-    implicitHeight: 64
+    implicitWidth: Theme.px(620)
+    implicitHeight: Theme.px(64)
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "shani-overview-search"
@@ -41,27 +41,27 @@ PanelWindow {
     Glass {
         id: pill
         anchors.fill: parent
-        anchors.margins: 4
+        anchors.margins: Theme.px(4)
         strong: true
         radius: height / 2
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 22
-            anchors.rightMargin: 22
-            spacing: 12
-            Icon { name: "system-search"; size: 20; color: Theme.accent }
+            anchors.leftMargin: Theme.px(22)
+            anchors.rightMargin: Theme.px(22)
+            spacing: Theme.px(12)
+            Icon { name: "system-search"; size: Theme.px(20); color: Theme.accent }
             Text {
                 Layout.fillWidth: true
                 text: win.typed || Tr.t("Type to search apps, files and settings")
                 color: win.typed ? Theme.text : Theme.dim
                 font.family: Theme.font
-                font.pixelSize: 16 * Theme.fontScale
+                font.pixelSize: Theme.px(16) * Theme.fontScale
             }
             Text {
                 text: Tr.t("arrows · Enter · Esc")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
         }
         MouseArea { anchors.fill: parent; cursorShape: Qt.IBeamCursor; onClicked: win.search("") }

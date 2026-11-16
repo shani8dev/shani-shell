@@ -30,17 +30,17 @@ Item {
     RowLayout {
         id: row
         anchors.fill: parent
-        spacing: 10
+        spacing: Theme.px(10)
 
         Column {
             Layout.fillWidth: true
-            Text { text: root.text; color: Theme.text; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
-            Text { visible: root.hint !== ""; text: root.hint; color: Theme.faint; font.family: Theme.font; font.pixelSize: 10 * Theme.fontScale }
+            Text { text: root.text; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+            Text { visible: root.hint !== ""; text: root.hint; color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
         }
         Icon {
             visible: root.info !== ""
             name: "help-about-symbolic"
-            size: 14
+            size: Theme.px(14)
             color: Theme.faint
             ToolTip.visible: infoArea.containsMouse
             ToolTip.text: root.info
@@ -53,15 +53,15 @@ Item {
             }
         }
         Rectangle {
-            implicitWidth: 40
-            implicitHeight: 22
-            radius: 11
+            implicitWidth: Theme.px(40)
+            implicitHeight: Theme.px(22)
+            radius: Theme.px(11)
             color: root.checked ? Theme.accent : Theme.pressed
             Behavior on color { ColorAnimation { duration: Theme.anim } }
             Rectangle {
-                width: 16
-                height: 16
-                radius: 8
+                width: Theme.px(16)
+                height: Theme.px(16)
+                radius: Theme.px(8)
                 y: 3
                 x: root.checked ? parent.width - width - 3 : 3
                 color: root.checked ? Theme.accentInk : Theme.text
@@ -78,7 +78,7 @@ Item {
         IconButton {
             visible: root.defaultValue !== undefined && root.checked !== root.defaultValue
             icon: "view-refresh"
-            size: 18
+            size: Theme.px(18)
             Accessible.name: Tr.t("Reset this setting")
             onClicked: root.reset()
         }
@@ -89,7 +89,7 @@ Item {
         id: flashRing
         anchors.fill: parent
         anchors.margins: -4
-        radius: 10
+        radius: Theme.px(10)
         color: Theme.alpha(Theme.accent, 0.18)
         border.width: 1.5
         border.color: Theme.alpha(Theme.accent, 0.8)

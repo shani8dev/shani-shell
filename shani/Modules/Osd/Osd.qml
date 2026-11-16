@@ -228,28 +228,28 @@ Scope {
             strong: true
             scale: root.shown ? 1 : 0.9
             Behavior on scale { NumberAnimation { duration: Theme.anim; easing.type: Easing.OutBack } }
-            width: 320
-            height: 52
-            radius: 26
+            width: Theme.px(320)
+            height: Theme.px(52)
+            radius: Theme.px(26)
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 18
-                anchors.rightMargin: 18
-                spacing: 12
+                anchors.leftMargin: Theme.px(18)
+                anchors.rightMargin: Theme.px(18)
+                spacing: Theme.px(12)
 
-                Icon { name: root.icon; size: 20 }
+                Icon { name: root.icon; size: Theme.px(20) }
 
                 // Slider bar (for volume, mic volume, brightness)
                 Rectangle {
                     visible: root.kind === "slider"
                     Layout.fillWidth: true
-                    implicitHeight: 6
-                    radius: 3
+                    implicitHeight: Theme.px(6)
+                    radius: Theme.px(3)
                     color: Theme.hover
                     Rectangle {
                         width: parent.width * Math.max(0, Math.min(1, root.value))
                         height: parent.height
-                        radius: 3
+                        radius: Theme.px(3)
                         color: Theme.accent
                         Behavior on width { NumberAnimation { duration: 90 } }
                     }
@@ -261,24 +261,24 @@ Scope {
                     text: Math.round(root.value * 100) + "%"
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 12 * Theme.fontScale
-                    Layout.preferredWidth: 26
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    Layout.preferredWidth: Theme.px(26)
                     horizontalAlignment: Text.AlignRight
                 }
 
                 // Toggle indicator
                 Rectangle {
                     visible: root.kind === "toggle"
-                    Layout.preferredWidth: 36
-                    height: 20
-                    radius: 10
+                    Layout.preferredWidth: Theme.px(36)
+                    height: Theme.px(20)
+                    radius: Theme.px(10)
                     color: root.label.indexOf(" on") >= 0 ? Theme.accent : Theme.hover
                     Rectangle {
                         x: root.label.indexOf(" on") >= 0 ? parent.width - width - 2 : 2
                         y: 2
-                        width: 16
-                        height: 16
-                        radius: 8
+                        width: Theme.px(16)
+                        height: Theme.px(16)
+                        radius: Theme.px(8)
                         color: Theme.text
                         Behavior on x { NumberAnimation { duration: 120 } }
                     }
@@ -291,7 +291,7 @@ Scope {
                     text: root.label
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 13 * Theme.fontScale
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
                     elide: Text.ElideRight
                 }
             }

@@ -13,7 +13,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     property bool active: false
     readonly property string me: Quickshell.env("USER") || ""
     readonly property var adminCmd: (Quickshell.env("SHANI_ADMIN_TOOL") || "pkexec /usr/lib/shani-shell/shani-admin.py").split(" ")
@@ -78,7 +78,7 @@ ColumnLayout {
             id: urow
             required property var modelData
             Layout.fillWidth: true
-            spacing: 4
+            spacing: Theme.px(4)
             ListRow {
                 Layout.fillWidth: true
                 icon: "avatar-default"
@@ -90,9 +90,9 @@ ColumnLayout {
             }
             ColumnLayout {
                 visible: page.open === urow.modelData.name
-                Layout.leftMargin: 28
+                Layout.leftMargin: Theme.px(28)
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 SwitchRow {
                     Layout.fillWidth: true
                     text: Tr.t("Administrator")
@@ -118,7 +118,7 @@ ColumnLayout {
                 }
                 RowLayout {
                     visible: urow.modelData.name !== page.me
-                    spacing: 6
+                    spacing: Theme.px(6)
                     property bool confirm: false
                     // what a standard account may run (GNOME's Parental Controls, malcontent)
                     Button {
@@ -157,7 +157,7 @@ ColumnLayout {
         color: Theme.faint
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
     // ---- add someone ------------------------------------------------------------
     Button {
@@ -169,7 +169,7 @@ ColumnLayout {
         id: addForm
         visible: page.adding
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         property string user: ""
         property bool userEdited: false
         function suggest(name) {
@@ -186,7 +186,7 @@ ColumnLayout {
         TextField { id: newPw; Layout.fillWidth: true; placeholder: Tr.t("Password (they can change it)"); secret: true }
         SwitchRow { id: newAdmin; Layout.fillWidth: true; text: Tr.t("Administrator"); checked: false }
         RowLayout {
-            spacing: 6
+            spacing: Theme.px(6)
             Button { text: Tr.t("Cancel"); onClicked: page.adding = false }
             Button {
                 kind: "primary"
@@ -207,7 +207,7 @@ ColumnLayout {
         color: Theme.faint
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
     Text {
         Layout.fillWidth: true
@@ -216,6 +216,6 @@ ColumnLayout {
         color: Theme.danger
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
 }

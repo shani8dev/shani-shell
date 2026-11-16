@@ -16,8 +16,8 @@ Rectangle {
     Accessible.onPressAction: root.clicked()
     Accessible.onToggleAction: root.clicked()      // a radio button's action is Toggle
     implicitWidth: label.implicitWidth + 20
-    implicitHeight: 28
-    radius: 9
+    implicitHeight: Theme.px(28)
+    radius: Theme.px(9)
     color: selected ? Theme.accent : (area.containsMouse ? Theme.pressed : Theme.hover)
     Text {
         id: label
@@ -25,7 +25,7 @@ Rectangle {
         text: root.text
         color: root.selected ? Theme.accentInk : Theme.text
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
     MouseArea {
         id: area

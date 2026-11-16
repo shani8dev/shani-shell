@@ -12,7 +12,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     property bool active: false
     property var printers: []            // [{ name, state, enabled, jobs }]
     property string defaultName: ""
@@ -68,7 +68,7 @@ ColumnLayout {
             : Tr.t("No printers yet. Printers on the network usually appear by themselves; Add a printer finds the rest.")
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     Repeater {
         model: page.printers
@@ -76,25 +76,25 @@ ColumnLayout {
             id: pr
             required property var modelData
             Layout.fillWidth: true
-            spacing: 4
+            spacing: Theme.px(4)
             readonly property bool isDefault: modelData.name === page.defaultName
             RowLayout {
-                spacing: 10
-                Icon { name: "printer"; size: 20; color: pr.isDefault ? Theme.accent : Theme.text }
+                spacing: Theme.px(10)
+                Icon { name: "printer"; size: Theme.px(20); color: pr.isDefault ? Theme.accent : Theme.text }
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 1
-                    Text { text: pr.modelData.name.replace(/_/g, " "); color: Theme.text; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale }
+                    Text { text: pr.modelData.name.replace(/_/g, " "); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
                     Text {
                         text: pr.modelData.state + (pr.isDefault ? " · " + Tr.t("your default") : "")
                               + (pr.modelData.jobs ? " · " + Tr.t("%1 waiting", pr.modelData.jobs) : "")
-                        color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale
+                        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
                     }
                 }
             }
             Flow {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 Choice { visible: !pr.isDefault; text: Tr.t("Make default"); onClicked: page.run(["lpoptions", "-d", pr.modelData.name], Tr.t("%1 is your default printer", pr.modelData.name)) }
                 Choice { text: Tr.t("Print a test page"); onClicked: page.run(["lp", "-d", pr.modelData.name, "/usr/share/cups/data/testprint"], Tr.t("Test page sent")) }
                 Choice { visible: pr.modelData.jobs > 0; text: Tr.t("Cancel my jobs"); onClicked: page.run(["cancel", "-u", Quickshell.env("USER") || "", pr.modelData.name], Tr.t("Your jobs were cancelled")) }
@@ -104,7 +104,7 @@ ColumnLayout {
         }
     }
     RowLayout {
-        spacing: 8
+        spacing: Theme.px(8)
         Button { text: Tr.t("Add a printer…"); onClicked: { Ui.closeAll(); Quickshell.execDetached(["system-config-printer"]); } }
         Button { text: Tr.t("Refresh"); onClicked: list.running = true }
     }
@@ -115,6 +115,6 @@ ColumnLayout {
         text: page.note
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
 }

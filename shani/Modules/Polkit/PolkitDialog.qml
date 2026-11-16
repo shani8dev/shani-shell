@@ -32,24 +32,24 @@ PanelWindow {
         strong: true
         anchors.centerIn: parent
         anchors.verticalCenterOffset: win.kb ? -parent.height * 0.18 : 0
-        width: 440
+        width: Theme.px(440)
         height: form.implicitHeight + 44
         radius: Theme.radiusLarge
 
         ColumnLayout {
             id: form
             anchors.fill: parent
-            anchors.margins: 22
-            spacing: 12
+            anchors.margins: Theme.px(22)
+            spacing: Theme.px(12)
 
             RowLayout {
-                spacing: 10
-                Icon { name: "dialog-password"; size: 26; color: Theme.accent }
+                spacing: Theme.px(10)
+                Icon { name: "dialog-password"; size: Theme.px(26); color: Theme.accent }
                 Text {
                     text: Tr.t("Authentication required")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 16 * Theme.fontScale
+                    font.pixelSize: Theme.px(16) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
             }
@@ -59,7 +59,7 @@ PanelWindow {
                 color: Theme.text
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: 13 * Theme.fontScale
+                font.pixelSize: Theme.px(13) * Theme.fontScale
             }
             Text {
                 Layout.fillWidth: true
@@ -67,11 +67,11 @@ PanelWindow {
                 visible: text !== ""
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
             RowLayout {
             Layout.fillWidth: true
-            spacing: 8
+            spacing: Theme.px(8)
             visible: pass.visible
             TextField {
                 id: pass
@@ -84,7 +84,7 @@ PanelWindow {
                     text = "";
                 }
             }
-            IconButton { icon: "input-keyboard"; size: 32; on: win.kb; tip: win.kb ? Tr.t("Hide keyboard") : Tr.t("Screen keyboard"); onClicked: win.kb = !win.kb }
+            IconButton { icon: "input-keyboard"; size: Theme.px(32); on: win.kb; tip: win.kb ? Tr.t("Hide keyboard") : Tr.t("Screen keyboard"); onClicked: win.kb = !win.kb }
             }
             Text {
                 Layout.fillWidth: true
@@ -94,7 +94,7 @@ PanelWindow {
                 color: Polkit.error || (win.flow && win.flow.supplementaryIsError) ? Theme.danger : Theme.dim
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
             Text {
                 Layout.fillWidth: true
@@ -102,7 +102,7 @@ PanelWindow {
                 color: Theme.faint
                 elide: Text.ElideMiddle
                 font.family: Theme.mono
-                font.pixelSize: 10 * Theme.fontScale
+                font.pixelSize: Theme.px(10) * Theme.fontScale
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -122,7 +122,7 @@ PanelWindow {
     ScreenKeyboard {
         visible: win.kb && pass.visible
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: 18
+        anchors.bottomMargin: Theme.px(18)
         anchors.horizontalCenter: parent.horizontalCenter
         width: Math.min(900, parent.width - 36)
         target: pass.input

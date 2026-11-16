@@ -131,13 +131,13 @@ PanelWindow {
         visible: win.openItems.length > 0
         x: card.x + card.width + 8
         y: card.y
-        width: 300
+        width: Theme.px(300)
         height: menuCol.implicitHeight + 16
         MouseArea { anchors.fill: parent }
         ColumnLayout {
             id: menuCol
             anchors.fill: parent
-            anchors.margins: 8
+            anchors.margins: Theme.px(8)
             spacing: 1
             Repeater {
                 model: win.openItems
@@ -162,13 +162,13 @@ PanelWindow {
                         RowLayout {
                             anchors.fill: parent
                             anchors.leftMargin: 10 + (mi.modelData.depth || 0) * 16
-                            anchors.rightMargin: 10
-                            spacing: 8
+                            anchors.rightMargin: Theme.px(10)
+                            spacing: Theme.px(8)
                             Text {
                                 text: mi.modelData.checked ? "✓" : ""
-                                Layout.preferredWidth: 12
+                                Layout.preferredWidth: Theme.px(12)
                                 color: Theme.accent
-                                font.pixelSize: 12 * Theme.fontScale
+                                font.pixelSize: Theme.px(12) * Theme.fontScale
                             }
                             Text {
                                 Layout.fillWidth: true
@@ -176,13 +176,13 @@ PanelWindow {
                                 elide: Text.ElideRight
                                 color: mi.modelData.enabled === false ? Theme.faint : Theme.text
                                 font.family: Theme.font
-                                font.pixelSize: 12 * Theme.fontScale
+                                font.pixelSize: Theme.px(12) * Theme.fontScale
                             }
                             Text {
                                 text: mi.modelData.items ? (win.expanded[mi.modelData.path] ? "▾" : "▸") : (mi.modelData.shortcut || "")
                                 color: Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: 11 * Theme.fontScale
+                                font.pixelSize: Theme.px(11) * Theme.fontScale
                             }
                         }
                         MouseArea {
@@ -203,37 +203,37 @@ PanelWindow {
         strong: true
         x: Math.max(10, Ui.windowMenuX)
         y: Theme.barHeight + 14
-        width: 280
+        width: Theme.px(280)
         height: col.implicitHeight + 16
         MouseArea { anchors.fill: parent }
         ColumnLayout {
             id: col
             anchors.fill: parent
-            anchors.margins: 8
+            anchors.margins: Theme.px(8)
             spacing: 2
             Text {
                 Layout.fillWidth: true
-                Layout.margins: 6
+                Layout.margins: Theme.px(6)
                 text: win.target ? ((Niri.windows[win.target.id] || win.target).title || win.target.app_id) : ""
                 color: Theme.dim
                 elide: Text.ElideRight
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
             // the app's own menus: File, Edit, View ... (one opens beside the card)
             Flow {
                 Layout.fillWidth: true
-                Layout.leftMargin: 4
-                Layout.rightMargin: 4
+                Layout.leftMargin: Theme.px(4)
+                Layout.rightMargin: Theme.px(4)
                 visible: AppMenu.menus.length > 0 || AppMenu.loading
-                spacing: 4
+                spacing: Theme.px(4)
                 Text {
                     visible: AppMenu.loading
                     text: Tr.t("Reading the app's menus…")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
-                    padding: 6
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    padding: Theme.px(6)
                 }
                 Repeater {
                     model: AppMenu.menus
@@ -243,7 +243,7 @@ PanelWindow {
                         required property int index
                         readonly property bool on: win.openMenu === index
                         width: chipText.implicitWidth + 18
-                        height: 28
+                        height: Theme.px(28)
                         radius: Theme.radiusSmall
                         color: on ? Theme.accent : (chipMouse.containsMouse ? Theme.hover : "transparent")
                         Accessible.role: Accessible.Button
@@ -254,7 +254,7 @@ PanelWindow {
                             text: chip.modelData.label
                             color: chip.on ? Theme.accentInk : Theme.text
                             font.family: Theme.font
-                            font.pixelSize: 12 * Theme.fontScale
+                            font.pixelSize: Theme.px(12) * Theme.fontScale
                         }
                         MouseArea {
                             id: chipMouse
@@ -269,10 +269,10 @@ PanelWindow {
             Rectangle {
                 visible: AppMenu.menus.length > 0
                 Layout.fillWidth: true
-                Layout.topMargin: 4
-                Layout.bottomMargin: 4
-                Layout.leftMargin: 10
-                Layout.rightMargin: 10
+                Layout.topMargin: Theme.px(4)
+                Layout.bottomMargin: Theme.px(4)
+                Layout.leftMargin: Theme.px(10)
+                Layout.rightMargin: Theme.px(10)
                 implicitHeight: 1
                 color: Theme.alpha(Theme.text, 0.1)
             }
@@ -288,10 +288,10 @@ PanelWindow {
                     Rectangle {
                         visible: !!entryRow.modelData.sep
                         Layout.fillWidth: true
-                        Layout.topMargin: 4
-                        Layout.bottomMargin: 4
-                        Layout.leftMargin: 10
-                        Layout.rightMargin: 10
+                        Layout.topMargin: Theme.px(4)
+                        Layout.bottomMargin: Theme.px(4)
+                        Layout.leftMargin: Theme.px(10)
+                        Layout.rightMargin: Theme.px(10)
                         implicitHeight: 1
                         color: Theme.alpha(Theme.text, 0.1)
                     }

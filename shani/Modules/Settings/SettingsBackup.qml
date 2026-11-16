@@ -11,7 +11,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     property bool active: false
     readonly property bool installed: Backup.available
     onActiveChanged: if (active) Backup.refresh()
@@ -28,7 +28,7 @@ ColumnLayout {
         text: Tr.t("Shani Backup is not installed.")
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     Repeater {
         model: page.installed ? [
@@ -37,13 +37,13 @@ ColumnLayout {
         RowLayout {
             required property var modelData
             Layout.fillWidth: true
-            spacing: 10
-            Icon { name: modelData.icon; size: 20; color: Theme.accent }
+            spacing: Theme.px(10)
+            Icon { name: modelData.icon; size: Theme.px(20); color: Theme.accent }
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 1
-                Text { text: modelData.title; color: Theme.text; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale }
-                Text { Layout.fillWidth: true; text: modelData.sub; elide: Text.ElideRight; color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+                Text { text: modelData.title; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                Text { Layout.fillWidth: true; text: modelData.sub; elide: Text.ElideRight; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
             }
             Button { text: Tr.t("Open"); onClicked: { Backup.open(modelData.open); Ui.closeAll(); } }
         }

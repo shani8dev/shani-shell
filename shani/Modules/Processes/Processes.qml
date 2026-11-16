@@ -18,8 +18,8 @@ AppWindow {
     visible: Ui.processes
     onGone: Ui.processes = false
     margins: 0
-    implicitWidth: 520
-    implicitHeight: 720
+    implicitWidth: Theme.px(520)
+    implicitHeight: Theme.px(720)
     onVisibleChanged: TopProcesses.watching = visible
     // made when opened and gone when closed (shell.qml's LazyLoader)
     Component.onCompleted: { TopProcesses.watching = visible; treeList = buildTree(); }
@@ -68,32 +68,32 @@ AppWindow {
         ColumnLayout {
             id: col
             anchors.fill: parent
-            anchors.margins: 10
-            spacing: 6
+            anchors.margins: Theme.px(10)
+            spacing: Theme.px(6)
             SectionTitle {
                 Layout.fillWidth: true
-                Layout.margins: 4
+                Layout.margins: Theme.px(4)
                 text: "CPU " + Math.round(SysStats.cpu * 100) + " %  ·  " + Tr.t("memory") + " " + Math.round(SysStats.mem * 100) + "%"
             }
             // --- system ---------------------------------------------------
             Rectangle {
                 Layout.fillWidth: true
                 implicitHeight: sysCol.implicitHeight + 16
-                radius: 10
+                radius: Theme.px(10)
                 color: Theme.surface1
                 border.width: 1
                 border.color: Theme.stroke
                 Column {
                     id: sysCol
                     anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 3
+                    anchors.margins: Theme.px(10)
+                    spacing: Theme.px(3)
                     Text {
                         width: parent.width
                         text: Tr.t("System — up %1 · threads %2 · %3 · handles %4").arg(SysStats.uptimeStr).arg(SysStats.threads).arg(SysStats.clockSpeed || "clock unknown").arg(SysStats.fileHandles)
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: 11 * Theme.fontScale
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
                         wrapMode: Text.Wrap
                     }
                     Text {
@@ -103,25 +103,25 @@ AppWindow {
                             + (Gpu.stats ? (Gpu.stats.name + " " + Math.round(Gpu.stats.util) + "% · " + Math.round(Gpu.stats.memUsed / Math.max(1, Gpu.stats.memTotal) * 100) + "% mem") : "no GPU")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: 10 * Theme.fontScale
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
                         wrapMode: Text.Wrap
                     }
                     // per-core bars
                     Row {
-                        spacing: 4
+                        spacing: Theme.px(4)
                         visible: SysStats.perCore.length > 0
                         Repeater {
                             model: SysStats.perCore
                             Rectangle {
                                 required property real modelData
-                                width: 30
-                                height: 8
-                                radius: 4
+                                width: Theme.px(30)
+                                height: Theme.px(8)
+                                radius: Theme.px(4)
                                 color: Theme.pressed
                                 Rectangle {
                                     width: parent.width * Math.min(1, Math.max(0, parent.modelData))
                                     height: parent.height
-                                    radius: 4
+                                    radius: Theme.px(4)
                                     color: Theme.accent
                                 }
                             }
@@ -136,7 +136,7 @@ AppWindow {
                             text: "↓ " + SysStats.rate(modelData.rx) + "  ↑ " + SysStats.rate(modelData.tx) + "  (" + modelData.name + ")"
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: 10 * Theme.fontScale
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
                             font.features: { "tnum": 1 }
                         }
                     }
@@ -145,14 +145,14 @@ AppWindow {
                         text: Tr.t("Per-process network: needs nethogs (root) — %1").arg(TopProcesses.nethogsAvailable ? "available" : "not installed, omitted")
                         color: Theme.faint
                         font.family: Theme.font
-                        font.pixelSize: 9 * Theme.fontScale
+                        font.pixelSize: Theme.px(9) * Theme.fontScale
                         wrapMode: Text.Wrap
                     }
                 }
             }
             SectionTitle {
                 Layout.fillWidth: true
-                Layout.margins: 4
+                Layout.margins: Theme.px(4)
                 text: Tr.t("Process tree")
             }
             // the processes, a row each, in a list that scrolls: as a Repeater of
@@ -161,7 +161,7 @@ AppWindow {
                 id: procList
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.minimumHeight: 160
+                Layout.minimumHeight: Theme.px(160)
                 clip: true
                 spacing: 2
                 boundsBehavior: Flickable.StopAtBounds
@@ -172,13 +172,13 @@ AppWindow {
                     readonly property int indent: modelData.indent
                     readonly property var p: modelData.p
                     width: procList.width
-                    height: 28
-                    spacing: 6
+                    height: Theme.px(28)
+                    spacing: Theme.px(6)
                     Item { implicitWidth: procRow.indent * 14; implicitHeight: 1 }
                     Text {
                         text: procRow.p.name
                         font.family: Theme.font
-                        font.pixelSize: 11 * Theme.fontScale
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
                         color: procRow.indent === 0 ? Theme.text : Theme.dim
                         elide: Text.ElideRight
                         Layout.fillWidth: true
@@ -186,18 +186,18 @@ AppWindow {
                     Text {
                         text: procRow.p.pid
                         font.family: Theme.font
-                        font.pixelSize: 10 * Theme.fontScale
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
                         font.features: { "tnum": 1 }
                         color: Theme.faint
                     }
                     Text {
                         text: procRow.p.cpu.toFixed(0) + " %  ·  " + procRow.p.mem.toFixed(1) + " %"
                         font.family: Theme.font
-                        font.pixelSize: 10 * Theme.fontScale
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
                         font.features: { "tnum": 1 }
                         color: procRow.p.cpu >= 50 ? Theme.danger : Theme.dim
                         horizontalAlignment: Text.AlignRight
-                        Layout.preferredWidth: 96
+                        Layout.preferredWidth: Theme.px(96)
                     }
                     Button {
                         text: Tr.t("End")
@@ -213,7 +213,7 @@ AppWindow {
                 text: Tr.t("CPU is % since the last sample (/proc/stat deltas) · updates every 2s")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: 10 * Theme.fontScale
+                font.pixelSize: Theme.px(10) * Theme.fontScale
                 wrapMode: Text.Wrap
             }
         }

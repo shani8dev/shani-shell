@@ -14,8 +14,8 @@ AppWindow {
     appName: "Photos"
     visible: Ui.photos
     onGone: Ui.photos = false
-    implicitWidth: 1000
-    implicitHeight: 700
+    implicitWidth: Theme.px(1000)
+    implicitHeight: Theme.px(700)
 
     readonly property string pictures: Quickshell.env("XDG_PICTURES_DIR") || (Quickshell.env("HOME") + "/Pictures")
     property var photos: []           // [{ path, time (s), month "November 2026" }]
@@ -65,10 +65,10 @@ AppWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            spacing: 10
+            spacing: Theme.px(10)
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 Repeater {
                     model: [["all", Tr.t("All")], ["camera", Tr.t("Camera")], ["screenshots", Tr.t("Screenshots")]]
                     Choice {
@@ -83,10 +83,10 @@ AppWindow {
                     text: win.scanning ? Tr.t("Looking…") : win.shown.length + " " + Tr.t("photos")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 12 * Theme.fontScale
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
                 }
-                IconButton { size: 30; icon: "view-refresh"; tip: Tr.t("Look again"); onClicked: win.scan() }
-                IconButton { size: 30; icon: "folder-pictures"; tip: Tr.t("Open Pictures in Files"); onClicked: Files.show(win.pictures) }
+                IconButton { size: Theme.px(30); icon: "view-refresh"; tip: Tr.t("Look again"); onClicked: win.scan() }
+                IconButton { size: Theme.px(30); icon: "folder-pictures"; tip: Tr.t("Open Pictures in Files"); onClicked: Files.show(win.pictures) }
             }
 
             ListView {
@@ -94,7 +94,7 @@ AppWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
-                spacing: 14
+                spacing: Theme.px(14)
                 boundsBehavior: Flickable.StopAtBounds
                 model: win.months
                 // one month: its name, then its photos as square tiles
@@ -102,14 +102,14 @@ AppWindow {
                     id: monthCol
                     required property var modelData
                     width: monthList.width
-                    spacing: 8
+                    spacing: Theme.px(8)
                     readonly property int cols: Math.max(2, Math.floor(width / 150))
                     readonly property real cell: width / cols
                     Text {
                         text: monthCol.modelData.month + "  ·  " + monthCol.modelData.items.length
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: 14 * Theme.fontScale
+                        font.pixelSize: Theme.px(14) * Theme.fontScale
                         font.weight: Font.DemiBold
                     }
                     Grid {
@@ -124,7 +124,7 @@ AppWindow {
                                 height: monthCol.cell
                                 Rectangle {
                                     anchors.fill: parent
-                                    anchors.margins: 3
+                                    anchors.margins: Theme.px(3)
                                     radius: Theme.radiusSmall
                                     color: Theme.surface1
                                     clip: true

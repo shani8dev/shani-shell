@@ -16,7 +16,7 @@ AppWindow {
     visible: Ui.videoTrimmer
     onGone: Ui.videoTrimmer = false
     margins: 0
-    implicitWidth: 560
+    implicitWidth: Theme.px(560)
     implicitHeight: Math.max(320, Math.min(900, col.implicitHeight + 40))
 
     property string manualPath: ""
@@ -46,7 +46,7 @@ AppWindow {
             x: 20
             y: 20
             width: parent.width - 40
-            spacing: 12
+            spacing: Theme.px(12)
 
             RowLayout {
                 Layout.fillWidth: true
@@ -56,7 +56,7 @@ AppWindow {
                     text: Tr.t("ffmpeg is not installed")
                     color: Theme.red
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
             }
 
@@ -66,27 +66,27 @@ AppWindow {
                 text: Tr.t("Input video")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Rectangle {
                     Layout.fillWidth: true
-                    implicitHeight: 36
-                    radius: 8
+                    implicitHeight: Theme.px(36)
+                    radius: Theme.px(8)
                     color: Theme.surface1
                     border.color: Theme.stroke
                     border.width: 1
                     Text {
                         anchors.fill: parent
-                        anchors.leftMargin: 10
-                        anchors.rightMargin: 10
+                        anchors.leftMargin: Theme.px(10)
+                        anchors.rightMargin: Theme.px(10)
                         verticalAlignment: Text.AlignVCenter
                         text: VideoTrimmer.input === "" ? Tr.t("No video — pick one") : VideoTrimmer.input
                         color: VideoTrimmer.input === "" ? Theme.faint : Theme.text
                         font.family: Theme.mono
-                        font.pixelSize: 10 * Theme.fontScale
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
                         elide: Text.ElideMiddle
                         Accessible.role: Accessible.StaticText
                         Accessible.name: Tr.t("Input video")
@@ -99,7 +99,7 @@ AppWindow {
             }
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 TextField {
                     id: pathField
                     Layout.fillWidth: true
@@ -123,13 +123,13 @@ AppWindow {
                     : Tr.t("Duration unknown — set start and end in seconds")
                 color: Theme.faint
                 font.family: Theme.mono
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
 
             // start offset: slider + seconds field + -1s / +1s
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 SliderRow {
                     Layout.fillWidth: true
                     icon: "go-previous"
@@ -141,12 +141,12 @@ AppWindow {
             }
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Text {
                     text: Tr.t("Start")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 TextField {
                     id: startField
@@ -161,7 +161,7 @@ AppWindow {
             // end offset
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 SliderRow {
                     Layout.fillWidth: true
                     icon: "go-next"
@@ -173,12 +173,12 @@ AppWindow {
             }
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Text {
                     text: Tr.t("End")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 TextField {
                     id: endField
@@ -205,7 +205,7 @@ AppWindow {
                 color: Theme.red
                 horizontalAlignment: Text.AlignHCenter
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
 
             // the result: path, output duration via ffprobe when present,
@@ -213,13 +213,13 @@ AppWindow {
             ColumnLayout {
                 Layout.fillWidth: true
                 visible: VideoTrimmer.result !== ""
-                spacing: 6
+                spacing: Theme.px(6)
                 Text {
                     Layout.fillWidth: true
                     text: VideoTrimmer.result
                     color: Theme.text
                     font.family: Theme.mono
-                    font.pixelSize: 10 * Theme.fontScale
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
                     elide: Text.ElideMiddle
                     wrapMode: Text.Wrap
                 }
@@ -230,11 +230,11 @@ AppWindow {
                     color: Theme.faint
                     horizontalAlignment: Text.AlignHCenter
                     font.family: Theme.mono
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 RowLayout {
                     Layout.alignment: Qt.AlignHCenter
-                    spacing: 8
+                    spacing: Theme.px(8)
                     Button { text: Tr.t("Open"); onClicked: VideoTrimmer.openResult() }
                     Button { text: Tr.t("Trash"); kind: "danger"; onClicked: VideoTrimmer.trashResult() }
                 }
@@ -246,7 +246,7 @@ AppWindow {
                 text: Tr.t("Esc closes · -1s / +1s step the offsets")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: 10 * Theme.fontScale
+                font.pixelSize: Theme.px(10) * Theme.fontScale
             }
         }
     }

@@ -11,7 +11,7 @@ PanelWindow {
     anchors.bottom: true
     margins.bottom: 100
     implicitWidth: Math.min(1100, (screen ? screen.width : 1920) - 120)
-    implicitHeight: 84
+    implicitHeight: Theme.px(84)
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "shani-captions"
@@ -31,16 +31,16 @@ PanelWindow {
         Row {
             x: 18
             y: 12
-            spacing: 8
-            Rectangle { width: 8; height: 8; radius: 4; color: Theme.red; anchors.verticalCenter: parent.verticalCenter }
-            Text { text: Captions.source === "mic" ? "Live transcribe · saved to Documents/Transcripts" : "Live captions"; color: "#c8d0da"; font.family: Theme.font; font.pixelSize: 10 * Theme.fontScale }
+            spacing: Theme.px(8)
+            Rectangle { width: Theme.px(8); height: Theme.px(8); radius: Theme.px(4); color: Theme.red; anchors.verticalCenter: parent.verticalCenter }
+            Text { text: Captions.source === "mic" ? "Live transcribe · saved to Documents/Transcripts" : "Live captions"; color: "#c8d0da"; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
         }
         Text {
             anchors.fill: parent
-            anchors.leftMargin: 18
-            anchors.rightMargin: 18
-            anchors.topMargin: 30
-            anchors.bottomMargin: 10
+            anchors.leftMargin: Theme.px(18)
+            anchors.rightMargin: Theme.px(18)
+            anchors.topMargin: Theme.px(30)
+            anchors.bottomMargin: Theme.px(10)
             text: Captions.text || (Captions.source === "mic" ? "Listening to the room…" : "Listening to what is playing…")
             color: Captions.text ? "#ffffff" : "#8a94a3"
             wrapMode: Text.Wrap
@@ -48,7 +48,7 @@ PanelWindow {
             elide: Text.ElideLeft
             verticalAlignment: Text.AlignBottom
             font.family: Theme.font
-            font.pixelSize: 17 * Theme.fontScale
+            font.pixelSize: Theme.px(17) * Theme.fontScale
         }
     }
 }

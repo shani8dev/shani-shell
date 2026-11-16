@@ -8,7 +8,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     property bool active: false
     readonly property var d: Settings.data
     readonly property var whens: [
@@ -45,7 +45,7 @@ ColumnLayout {
         text: Tr.t("No automations yet. A rule acts once, when its moment comes — joining the office Wi-Fi can turn on Work focus; plugging in headphones can set the volume.")
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     Repeater {
         model: page.d.automations
@@ -82,8 +82,8 @@ ColumnLayout {
             required property var modelData
             Layout.fillWidth: true
             visible: !!(Settings.data.hooks && Settings.data.hooks.enabled)
-            spacing: 8
-            Text { text: hookRow.modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; Layout.preferredWidth: 170 }
+            spacing: Theme.px(8)
+            Text { text: hookRow.modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.preferredWidth: Theme.px(170) }
             TextField {
                 Layout.fillWidth: true
                 placeholder: (Settings.data.hooks && Settings.data.hooks[hookRow.modelData.key]) || Tr.t("a command, e.g. notify-send Locked")
@@ -106,7 +106,7 @@ ColumnLayout {
     readonly property var t: thens.find(x => x.id === then)
     Flow {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Repeater {
             model: page.whens
             Choice { required property var modelData; text: modelData.label; selected: page.when === modelData.id
@@ -117,10 +117,10 @@ ColumnLayout {
     ColumnLayout {
         visible: page.when === "wifi"
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Flow {
             Layout.fillWidth: true
-            spacing: 6
+            spacing: Theme.px(6)
             Repeater {
                 model: Net.networks.map(n => n.name)
                 Choice {
@@ -143,7 +143,7 @@ ColumnLayout {
     Flow {
         visible: page.when === "power"
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Repeater {
             model: ["plugged", "battery"]
             Choice { required property string modelData; text: modelData === "plugged" ? Tr.t("Plugged in") : Tr.t("On battery"); selected: page.is === modelData; onClicked: page.is = modelData }
@@ -153,10 +153,10 @@ ColumnLayout {
     ColumnLayout {
         visible: page.when === "output"
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Flow {
             Layout.fillWidth: true
-            spacing: 6
+            spacing: Theme.px(6)
             Repeater {
                 model: Audio.sinks.map(o => Audio.nodeName(o))
                 Choice {
@@ -179,7 +179,7 @@ ColumnLayout {
     Flow {
         visible: page.when === "displays"
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Repeater {
             model: ["1", "2", "3"]
             Choice { required property string modelData; text: modelData; selected: page.is === modelData; onClicked: page.is = modelData }
@@ -192,10 +192,10 @@ ColumnLayout {
         value: page.is || "09:00"
         onPicked: t => page.is = t
     }
-    Text { text: Tr.t("then"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+    Text { text: Tr.t("then"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
     Flow {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Repeater {
             model: page.thens
             Choice { required property var modelData; text: modelData.label; selected: page.then === modelData.id
@@ -206,7 +206,7 @@ ColumnLayout {
     Flow {
         visible: page.then === "focus"
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Repeater {
             model: page.d.focusModes.map(m => m.name).concat([""])
             Choice {
@@ -221,7 +221,7 @@ ColumnLayout {
     Flow {
         visible: page.then === "dnd"
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Repeater {
             model: ["on", "off"]
             Choice { required property string modelData; text: modelData === "on" ? Tr.t("On") : Tr.t("Off"); selected: page.arg === modelData; onClicked: page.arg = modelData }
@@ -231,7 +231,7 @@ ColumnLayout {
     Flow {
         visible: page.then === "volume"
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Repeater {
             model: [0, 20, 40, 60, 80, 100]
             Choice { required property int modelData; text: modelData + "%"; selected: page.arg === String(modelData); onClicked: page.arg = String(modelData) }
@@ -241,7 +241,7 @@ ColumnLayout {
     Flow {
         visible: page.then === "style"
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Repeater {
             model: ["dark", "light"]
             Choice { required property string modelData; text: modelData === "dark" ? Tr.t("Dark") : Tr.t("Light"); selected: page.arg === modelData; onClicked: page.arg = modelData }

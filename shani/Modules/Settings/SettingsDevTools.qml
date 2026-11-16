@@ -9,7 +9,7 @@ import qs.Common
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     property bool active: false
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Developer tools") }
@@ -18,7 +18,7 @@ ColumnLayout {
         text: Tr.t("Quick install of common tools. Installing asks for your password (pkexec) and uses this system's package manager.")
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
         wrapMode: Text.Wrap
     }
 
@@ -37,19 +37,19 @@ ColumnLayout {
             id: tool
             required property var modelData
             Layout.fillWidth: true
-            spacing: 4
+            spacing: Theme.px(4)
             property bool installed: false
             property string note: ""
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Text {
                     Layout.fillWidth: true
                     text: tool.modelData.name
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 12 * Theme.fontScale
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
                 }
                 Button {
                     text: tool.installed ? Tr.t("Installed") : Tr.t("Install")
@@ -74,7 +74,7 @@ ColumnLayout {
                 color: Theme.danger
                 wrapMode: Text.Wrap
                 font.family: Theme.mono || Theme.font
-                font.pixelSize: 10 * Theme.fontScale
+                font.pixelSize: Theme.px(10) * Theme.fontScale
             }
 
             // is it here? one look, when the row is made

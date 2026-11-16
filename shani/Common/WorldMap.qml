@@ -156,9 +156,9 @@ Item {
         visible: map.showMarker
         x: map.px - width / 2
         y: map.py - height / 2
-        width: 26
-        height: 26
-        radius: 13
+        width: Theme.px(26)
+        height: Theme.px(26)
+        radius: Theme.px(13)
         color: "transparent"
         border.width: 2
         border.color: Theme.alpha(Theme.accent, 0.65)
@@ -178,9 +178,9 @@ Item {
         visible: map.showMarker
         x: map.px - width / 2
         y: map.py - height / 2
-        width: 11
-        height: 11
-        radius: 6
+        width: Theme.px(11)
+        height: Theme.px(11)
+        radius: Theme.px(6)
         color: Theme.accent
         border.width: 2
         border.color: Theme.accentInk
@@ -189,9 +189,9 @@ Item {
     // the city, in a small pill beside the dot (kept inside the map)
     Rectangle {
         visible: map.showMarker && map.label !== ""
-        height: 22
+        height: Theme.px(22)
         width: cityLabel.implicitWidth + 16
-        radius: 11
+        radius: Theme.px(11)
         x: Math.max(4, Math.min(map.width - width - 4, map.px + 12))
         y: map.py > map.height / 2 ? map.py - height - 8 : map.py + 8
         color: Theme.alpha(Theme.bg, 0.82)
@@ -203,7 +203,7 @@ Item {
             text: map.label
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: 11 * Theme.fontScale
+            font.pixelSize: Theme.px(11) * Theme.fontScale
         }
     }
 

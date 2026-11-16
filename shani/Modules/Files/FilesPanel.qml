@@ -25,8 +25,8 @@ AppWindow {
     visible: Ui.files
     onGone: Files.hide()
     margins: 0
-    implicitWidth: 1100
-    implicitHeight: 760
+    implicitWidth: Theme.px(1100)
+    implicitHeight: Theme.px(760)
 
     // the keys the surface answers, wherever the focus is not on a control
     Item {
@@ -204,21 +204,21 @@ AppWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 14
-            spacing: 10
+            anchors.margins: Theme.px(14)
+            spacing: Theme.px(10)
 
             // ---- the toolbar ----------------------------------------------------
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
 
-                IconButton { icon: "go-previous"; size: 30; tip: Tr.t("Back"); enabled: Files.canBack; onClicked: Files.back() }
-                IconButton { icon: "go-next"; size: 30; tip: Tr.t("Forward"); enabled: Files.canForward; onClicked: Files.forward() }
-                IconButton { icon: "go-up"; size: 30; tip: Tr.t("Up"); enabled: Files.canUp; onClicked: Files.up() }
+                IconButton { icon: "go-previous"; size: Theme.px(30); tip: Tr.t("Back"); enabled: Files.canBack; onClicked: Files.back() }
+                IconButton { icon: "go-next"; size: Theme.px(30); tip: Tr.t("Forward"); enabled: Files.canForward; onClicked: Files.forward() }
+                IconButton { icon: "go-up"; size: Theme.px(30); tip: Tr.t("Up"); enabled: Files.canUp; onClicked: Files.up() }
 
-                Icon { name: "folder"; size: 20; color: Theme.accent }
+                Icon { name: "folder"; size: Theme.px(20); color: Theme.accent }
                 Text {
-                    Layout.maximumWidth: 200
+                    Layout.maximumWidth: Theme.px(200)
                     text: Files.path === "" ? Tr.t("Files") : Files.path === "recent:" ? Tr.t("Recent") : Files.path.endsWith("/.local/share/Trash/files") ? Tr.t("Trash") : Files.baseName(Files.path) || "/"
                     color: Theme.text
                     elide: Text.ElideMiddle
@@ -231,7 +231,7 @@ AppWindow {
 
                 TextField {
                     id: searchBox
-                    Layout.preferredWidth: 210
+                    Layout.preferredWidth: Theme.px(210)
                     placeholder: Tr.t("Search this folder")
                     label: Tr.t("Search this folder")
                     onTextChanged: { Files.searchText = text; dir.query = Files.searchDeep ? "" : text; deepTimer.restart(); }
@@ -240,14 +240,14 @@ AppWindow {
                 // through the folders under this one too (the words then search a tree, not a folder)
                 IconButton {
                     icon: "folder-saved-search"
-                    size: 30
+                    size: Theme.px(30)
                     on: Files.searchDeep
                     tip: Files.searchDeep ? Tr.t("Searching the folders inside too") : Tr.t("Search the folders inside too")
                     onClicked: { Files.setSearchDeep(!Files.searchDeep); dir.query = Files.searchDeep ? "" : searchBox.text; deepTimer.restart(); }
                 }
                 IconButton {
                     icon: Files.viewMode === "grid" ? "view-list" : (Files.viewMode === "columns" ? "view-column" : "view-grid")
-                    size: 30
+                    size: Theme.px(30)
                     tip: Tr.t("Change view")
                     onClicked: {
                         const m = Files.viewMode === "grid" ? "list" : Files.viewMode === "list" ? "columns" : "grid";
@@ -256,39 +256,39 @@ AppWindow {
                 }
                 IconButton {
                     icon: "view-sort-descending"
-                    size: 30
+                    size: Theme.px(30)
                     tip: Tr.t("Sort by %1").arg(win.sortLabel())
                     onClicked: Files.setSort(Files.sortKey === "name" ? "size" : Files.sortKey === "size" ? "mtime" : "name")
                 }
                 IconButton {
                     icon: Files.showHidden ? "view-reveal" : "view-conceal"
-                    size: 30
+                    size: Theme.px(30)
                     tip: Tr.t("Show hidden files")
                     onClicked: Files.toggleHidden()
                 }
                 IconButton {
                     icon: Files.splitActive ? "view-close" : "view-dual"
-                    size: 30
+                    size: Theme.px(30)
                     tip: Files.splitActive ? Tr.t("Close split view") : Tr.t("Split view (Ctrl+Alt+N)")
                     onClicked: Files.toggleSplit()
                 }
-                IconButton { icon: "edit-paste"; size: 30; tip: Tr.t("Paste here (Ctrl+V)"); onClicked: Files.pasteHere(Files.path) }
-                IconButton { icon: "edit-undo"; size: 30; tip: Files.undoLabel ? Tr.t("Undo: %1 (Ctrl+Z)", Files.undoLabel) : Tr.t("Nothing to undo"); enabled: Files.undoLabel !== ""; onClicked: Files.undo() }
-                IconButton { visible: Files.isTrash; icon: "user-trash-full"; size: 30; on: win.confirmEmpty
+                IconButton { icon: "edit-paste"; size: Theme.px(30); tip: Tr.t("Paste here (Ctrl+V)"); onClicked: Files.pasteHere(Files.path) }
+                IconButton { icon: "edit-undo"; size: Theme.px(30); tip: Files.undoLabel ? Tr.t("Undo: %1 (Ctrl+Z)", Files.undoLabel) : Tr.t("Nothing to undo"); enabled: Files.undoLabel !== ""; onClicked: Files.undo() }
+                IconButton { visible: Files.isTrash; icon: "user-trash-full"; size: Theme.px(30); on: win.confirmEmpty
                              tip: win.confirmEmpty ? Tr.t("Click again: everything in the trash is deleted for good") : Tr.t("Empty the trash")
                              onClicked: { if (!win.confirmEmpty) { win.confirmEmpty = true; confirmTimer.restart(); return; } win.confirmEmpty = false; Files.emptyTrash(); } }
-                IconButton { icon: "folder-new"; size: 30; tip: Tr.t("New folder"); onClicked: win.openNewFolder() }
-                IconButton { icon: "edit-clear-all"; size: 30; tip: Tr.t("Tidy this folder: files into folders by kind"); onClicked: Tidy.plan(Files.path) }
-                IconButton { icon: "view-refresh"; size: 30; tip: Tr.t("Refresh (F5)"); onClicked: dir.reload() }
+                IconButton { icon: "folder-new"; size: Theme.px(30); tip: Tr.t("New folder"); onClicked: win.openNewFolder() }
+                IconButton { icon: "edit-clear-all"; size: Theme.px(30); tip: Tr.t("Tidy this folder: files into folders by kind"); onClicked: Tidy.plan(Files.path) }
+                IconButton { icon: "view-refresh"; size: Theme.px(30); tip: Tr.t("Refresh (F5)"); onClicked: dir.reload() }
             }
 
             // split pane toolbar
             RowLayout {
                 visible: Files.splitActive
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 Text {
-                    Layout.maximumWidth: 200
+                    Layout.maximumWidth: Theme.px(200)
                     text: Files.splitPath === "" ? Tr.t("Split") : Files.baseName(Files.splitPath) || "/"
                     color: Theme.text
                     elide: Text.ElideMiddle
@@ -299,26 +299,26 @@ AppWindow {
                 Item { Layout.fillWidth: true }
                 IconButton {
                     icon: Files.splitViewMode === "grid" ? "view-list" : "view-grid"
-                    size: 30
+                    size: Theme.px(30)
                     tip: Tr.t("Change split view")
                     onClicked: Files.toggleSplitViewMode()
                 }
-                IconButton { icon: "edit-copy"; size: 30; tip: Tr.t("Copy chosen here"); onClicked: Files.copyToSplit(); enabled: Files.selected.length > 0 }
-                IconButton { icon: "edit-cut"; size: 30; tip: Tr.t("Move chosen here"); onClicked: Files.moveToSplit(); enabled: Files.selected.length > 0 }
-                IconButton { icon: "go-up"; size: 30; tip: Tr.t("Up"); enabled: Files.splitPath !== "" && Files.splitPath !== "/"; onClicked: { Files.splitPath = FilePaths.parentOf(Files.splitPath); splitDir.reload(); } }
+                IconButton { icon: "edit-copy"; size: Theme.px(30); tip: Tr.t("Copy chosen here"); onClicked: Files.copyToSplit(); enabled: Files.selected.length > 0 }
+                IconButton { icon: "edit-cut"; size: Theme.px(30); tip: Tr.t("Move chosen here"); onClicked: Files.moveToSplit(); enabled: Files.selected.length > 0 }
+                IconButton { icon: "go-up"; size: Theme.px(30); tip: Tr.t("Up"); enabled: Files.splitPath !== "" && Files.splitPath !== "/"; onClicked: { Files.splitPath = FilePaths.parentOf(Files.splitPath); splitDir.reload(); } }
             }
 
             // ---- the body -------------------------------------------------------
             RowLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                spacing: 10
+                spacing: Theme.px(10)
 
                 // the places
                 ColumnLayout {
                     // a fixed column: the rows inside would otherwise stretch it to half the window
-                    Layout.preferredWidth: 176
-                    Layout.maximumWidth: 176
+                    Layout.preferredWidth: Theme.px(176)
+                    Layout.maximumWidth: Theme.px(176)
                     Layout.fillWidth: false
                     Layout.fillHeight: true
                     spacing: 2
@@ -326,30 +326,30 @@ AppWindow {
                         text: Tr.t("Places")
                         color: Theme.faint
                         font.family: Theme.font
-                        font.pixelSize: 10 * Theme.fontScale
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
                     }
                     Repeater {
                         model: Files.places
                         delegate: Rectangle {
                             required property var modelData
                             Layout.fillWidth: true
-                            height: 30
-                            radius: 8
+                            height: Theme.px(30)
+                            radius: Theme.px(8)
                             color: Files.path === modelData.path ? Theme.accentSoft
                                  : (placeArea.containsMouse ? Theme.hover : "transparent")
                             RowLayout {
                                 anchors.fill: parent
-                                anchors.leftMargin: 8
-                                anchors.rightMargin: 6
-                                spacing: 8
-                                Icon { name: modelData.icon; size: 15; color: Theme.dim }
+                                anchors.leftMargin: Theme.px(8)
+                                anchors.rightMargin: Theme.px(6)
+                                spacing: Theme.px(8)
+                                Icon { name: modelData.icon; size: Theme.px(15); color: Theme.dim }
                                 Text {
                                     Layout.fillWidth: true
                                     text: modelData.name
                                     color: Theme.text
                                     elide: Text.ElideRight
                                     font.family: Theme.font
-                                    font.pixelSize: 12 * Theme.fontScale
+                                    font.pixelSize: Theme.px(12) * Theme.fontScale
                                 }
                             }
                             MouseArea {
@@ -373,8 +373,8 @@ AppWindow {
                             text: Tr.t("Special")
                             color: Theme.faint
                             font.family: Theme.font
-                            font.pixelSize: 10 * Theme.fontScale
-                            Layout.topMargin: 10
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            Layout.topMargin: Theme.px(10)
                         }
                         ListRow {
                             Layout.fillWidth: true
@@ -397,12 +397,12 @@ AppWindow {
                 ColumnLayout {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    spacing: 8
+                    spacing: Theme.px(8)
 
                     // the path, as the parts that lead to it
                     Rectangle {
                         Layout.fillWidth: true
-                        implicitHeight: 32
+                        implicitHeight: Theme.px(32)
                         radius: Theme.radiusSmall
                         color: Theme.surface1
                         border.width: 1
@@ -411,8 +411,8 @@ AppWindow {
                             id: crumbs
                             anchors.left: parent.left
                             anchors.right: pathBox.visible ? pathBox.left : parent.right
-                            anchors.rightMargin: 6
-                            anchors.leftMargin: 8
+                            anchors.rightMargin: Theme.px(6)
+                            anchors.leftMargin: Theme.px(8)
                             anchors.verticalCenter: parent.verticalCenter
                             spacing: 2
                             Repeater {
@@ -425,7 +425,7 @@ AppWindow {
                                         text: modelData.name
                                         color: index === win.crumbsModel.length - 1 ? Theme.text : Theme.dim
                                         font.family: Theme.font
-                                        font.pixelSize: 12 * Theme.fontScale
+                                        font.pixelSize: Theme.px(12) * Theme.fontScale
                                         font.weight: index === win.crumbsModel.length - 1 ? Font.DemiBold : Font.Normal
                                         MouseArea {
                                             anchors.fill: parent
@@ -438,7 +438,7 @@ AppWindow {
                                         text: "›"
                                         color: Theme.faint
                                         font.family: Theme.font
-                                        font.pixelSize: 12 * Theme.fontScale
+                                        font.pixelSize: Theme.px(12) * Theme.fontScale
                                     }
                                 }
                             }
@@ -447,8 +447,8 @@ AppWindow {
                         TextField {
                             id: pathBox
                             anchors.fill: parent
-                            anchors.leftMargin: 6
-                            anchors.rightMargin: 6
+                            anchors.leftMargin: Theme.px(6)
+                            anchors.rightMargin: Theme.px(6)
                             visible: false
                             label: Tr.t("Path")
                             onAccepted: {
@@ -473,7 +473,7 @@ AppWindow {
                         GridView {
                             id: grid
                             anchors.fill: parent
-                            anchors.margins: 6
+                            anchors.margins: Theme.px(6)
                             visible: Files.viewMode === "grid"
                             model: dir.entries
                             cellWidth: 124
@@ -498,7 +498,7 @@ AppWindow {
                                 height: grid.cellHeight
                                 Rectangle {
                                     anchors.fill: parent
-                                    anchors.margins: 3
+                                    anchors.margins: Theme.px(3)
                                     radius: Theme.radiusSmall
                                     color: Files.isSelected(cell.modelData.path) ? Theme.accentSoft
                                          : (cellArea.containsMouse ? Theme.hover : "transparent")
@@ -507,12 +507,12 @@ AppWindow {
                                 }
                                 ColumnLayout {
                                     anchors.fill: parent
-                                    anchors.margins: 8
-                                    spacing: 4
+                                    anchors.margins: Theme.px(8)
+                                    spacing: Theme.px(4)
                                     FileIcon {
                                         Layout.alignment: Qt.AlignHCenter
                                         entry: cell.modelData
-                                        size: 48
+                                        size: Theme.px(48)
                                     }
                                     Text {
                                         Layout.fillWidth: true
@@ -523,7 +523,7 @@ AppWindow {
                                         maximumLineCount: 2
                                         wrapMode: Text.Wrap
                                         font.family: Theme.font
-                                        font.pixelSize: 11 * Theme.fontScale
+                                        font.pixelSize: Theme.px(11) * Theme.fontScale
                                     }
                                 }
                                 MouseArea {
@@ -559,7 +559,7 @@ AppWindow {
                         ListView {
                             id: list
                             anchors.fill: parent
-                            anchors.margins: 4
+                            anchors.margins: Theme.px(4)
                             visible: Files.viewMode === "list"
                             model: dir.entries
                             spacing: 1
@@ -570,42 +570,42 @@ AppWindow {
                                 required property var modelData
                                 required property int index
                                 width: list.width
-                                height: 32
+                                height: Theme.px(32)
                                 Rectangle {
                                     anchors.fill: parent
-                                    radius: 6
+                                    radius: Theme.px(6)
                                     color: Files.isSelected(row.modelData.path) ? Theme.accentSoft
                                          : (rowArea.containsMouse ? Theme.hover : "transparent")
                                 }
                                 RowLayout {
                                     anchors.fill: parent
-                                    anchors.leftMargin: 8
-                                    anchors.rightMargin: 10
-                                    spacing: 10
-                                    FileIcon { entry: row.modelData; size: 20 }
+                                    anchors.leftMargin: Theme.px(8)
+                                    anchors.rightMargin: Theme.px(10)
+                                    spacing: Theme.px(10)
+                                    FileIcon { entry: row.modelData; size: Theme.px(20) }
                                     Text {
                                         Layout.fillWidth: true
                                         text: row.modelData.name
                                         color: Theme.text
                                         elide: Text.ElideMiddle
                                         font.family: Theme.font
-                                        font.pixelSize: 12 * Theme.fontScale
+                                        font.pixelSize: Theme.px(12) * Theme.fontScale
                                     }
                                     Text {
-                                        Layout.preferredWidth: 78
+                                        Layout.preferredWidth: Theme.px(78)
                                         horizontalAlignment: Text.AlignRight
                                         text: row.modelData.isDir ? "" : Files.humanSize(row.modelData.size)
                                         color: Theme.faint
                                         font.family: Theme.font
-                                        font.pixelSize: 11 * Theme.fontScale
+                                        font.pixelSize: Theme.px(11) * Theme.fontScale
                                     }
                                     Text {
-                                        Layout.preferredWidth: 92
+                                        Layout.preferredWidth: Theme.px(92)
                                         horizontalAlignment: Text.AlignRight
                                         text: Files.formatTime(row.modelData.mtime)
                                         color: Theme.faint
                                         font.family: Theme.font
-                                        font.pixelSize: 11 * Theme.fontScale
+                                        font.pixelSize: Theme.px(11) * Theme.fontScale
                                     }
                                 }
                                 MouseArea {
@@ -649,7 +649,7 @@ AppWindow {
                             text: Tr.t("Loading…")
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: 13 * Theme.fontScale
+                            font.pixelSize: Theme.px(13) * Theme.fontScale
                         }
                     }
 
@@ -667,7 +667,7 @@ AppWindow {
                         color: Files.error !== "" ? Theme.red : Theme.faint
                         elide: Text.ElideRight
                         font.family: Theme.font
-                        font.pixelSize: 11 * Theme.fontScale
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
                     }
                 }
 
@@ -676,12 +676,12 @@ AppWindow {
                     visible: Files.splitActive
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    spacing: 8
+                    spacing: Theme.px(8)
 
                     // split path breadcrumbs
                     Rectangle {
                         Layout.fillWidth: true
-                        implicitHeight: 32
+                        implicitHeight: Theme.px(32)
                         radius: Theme.radiusSmall
                         color: Theme.surface1
                         border.width: 1
@@ -689,8 +689,8 @@ AppWindow {
                         Row {
                             anchors.left: parent.left
                             anchors.right: parent.right
-                            anchors.rightMargin: 6
-                            anchors.leftMargin: 8
+                            anchors.rightMargin: Theme.px(6)
+                            anchors.leftMargin: Theme.px(8)
                             anchors.verticalCenter: parent.verticalCenter
                             spacing: 2
                             Repeater {
@@ -703,7 +703,7 @@ AppWindow {
                                         text: modelData.name
                                         color: index === win.splitCrumbsModel.length - 1 ? Theme.text : Theme.dim
                                         font.family: Theme.font
-                                        font.pixelSize: 11 * Theme.fontScale
+                                        font.pixelSize: Theme.px(11) * Theme.fontScale
                                         font.weight: index === win.splitCrumbsModel.length - 1 ? Font.DemiBold : Font.Normal
                                         MouseArea {
                                             anchors.fill: parent
@@ -716,7 +716,7 @@ AppWindow {
                                         text: "›"
                                         color: Theme.faint
                                         font.family: Theme.font
-                                        font.pixelSize: 11 * Theme.fontScale
+                                        font.pixelSize: Theme.px(11) * Theme.fontScale
                                     }
                                 }
                             }
@@ -732,7 +732,7 @@ AppWindow {
 
                             GridView {
                                 anchors.fill: parent
-                                anchors.margins: 6
+                                anchors.margins: Theme.px(6)
                                 model: splitDir.entries
                                 cellWidth: 110
                                 cellHeight: 100
@@ -742,23 +742,23 @@ AppWindow {
                                     id: scell
                                     required property var modelData
                                     required property int index
-                                    width: 110
-                                    height: 100
+                                    width: Theme.px(110)
+                                    height: Theme.px(100)
                                     Rectangle {
                                         anchors.fill: parent
-                                        anchors.margins: 3
+                                        anchors.margins: Theme.px(3)
                                         radius: Theme.radiusSmall
                                         color: Files.isSplitSelected(scell.modelData.path) ? Theme.accentSoft
                                              : (scellArea.containsMouse ? Theme.hover : "transparent")
                                     }
                                     ColumnLayout {
                                         anchors.fill: parent
-                                        anchors.margins: 6
-                                        spacing: 3
+                                        anchors.margins: Theme.px(6)
+                                        spacing: Theme.px(3)
                                         FileIcon {
                                             Layout.alignment: Qt.AlignHCenter
                                             entry: scell.modelData
-                                            size: 40
+                                            size: Theme.px(40)
                                         }
                                         Text {
                                             Layout.fillWidth: true
@@ -769,7 +769,7 @@ AppWindow {
                                             maximumLineCount: 2
                                             wrapMode: Text.Wrap
                                             font.family: Theme.font
-                                            font.pixelSize: 10 * Theme.fontScale
+                                            font.pixelSize: Theme.px(10) * Theme.fontScale
                                         }
                                     }
                                     MouseArea {
@@ -812,7 +812,7 @@ AppWindow {
                             color: Theme.faint
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: 11 * Theme.fontScale
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
                         }
                     }
                 }
@@ -820,7 +820,7 @@ AppWindow {
                 // the preview of what is chosen
                 Rectangle {
                     id: preview
-                    Layout.preferredWidth: 230
+                    Layout.preferredWidth: Theme.px(230)
                     Layout.fillHeight: true
                     visible: Files.showPreview && !Files.splitActive
                     radius: Theme.radiusSmall
@@ -833,15 +833,15 @@ AppWindow {
 
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 12
-                        spacing: 8
+                        anchors.margins: Theme.px(12)
+                        spacing: Theme.px(8)
                         visible: preview.entry !== null
                         FileIcon {
                             Layout.alignment: Qt.AlignHCenter
-                            Layout.preferredWidth: 140
-                            Layout.preferredHeight: 140
+                            Layout.preferredWidth: Theme.px(140)
+                            Layout.preferredHeight: Theme.px(140)
                             entry: preview.entry
-                            size: 140
+                            size: Theme.px(140)
                         }
                         Text {
                             Layout.fillWidth: true
@@ -852,7 +852,7 @@ AppWindow {
                             maximumLineCount: 3
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: 12 * Theme.fontScale
+                            font.pixelSize: Theme.px(12) * Theme.fontScale
                             font.weight: Font.DemiBold
                         }
                         Text {
@@ -861,7 +861,7 @@ AppWindow {
                             text: preview.entry && !preview.entry.isDir ? Files.humanSize(preview.entry.size) : ""
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: 11 * Theme.fontScale
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
                         }
                         Text {
                             Layout.fillWidth: true
@@ -869,7 +869,7 @@ AppWindow {
                             text: preview.entry ? Files.formatTime(preview.entry.mtime) : ""
                             color: Theme.faint
                             font.family: Theme.font
-                            font.pixelSize: 11 * Theme.fontScale
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
                         }
                         Item { Layout.fillHeight: true }
                         Button {
@@ -900,8 +900,8 @@ AppWindow {
         visible: win.menuEntry !== null
         z: 20
         strong: true
-        radius: 12
-        width: 230
+        radius: Theme.px(12)
+        width: Theme.px(230)
         height: menuCol.implicitHeight + 12
         x: Math.min(Math.max(8, win.menuX), win.width - width - 8)
         y: Math.min(Math.max(8, win.menuY), win.height - height - 8)
@@ -916,21 +916,21 @@ AppWindow {
                     required property var modelData
                     required property int index
                     width: menuCol.width
-                    height: 30
-                    radius: 8
+                    height: Theme.px(30)
+                    radius: Theme.px(8)
                     color: menuArea.containsMouse ? Theme.hover : "transparent"
                     Row {
                         anchors.fill: parent
-                        anchors.leftMargin: 8
-                        anchors.rightMargin: 6
-                        spacing: 8
-                        Icon { name: modelData.icon; size: 15; color: Theme.dim }
+                        anchors.leftMargin: Theme.px(8)
+                        anchors.rightMargin: Theme.px(6)
+                        spacing: Theme.px(8)
+                        Icon { name: modelData.icon; size: Theme.px(15); color: Theme.dim }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             text: modelData.label
                             color: modelData.danger ? Theme.danger : Theme.text
                             font.family: Theme.font
-                            font.pixelSize: 12 * Theme.fontScale
+                            font.pixelSize: Theme.px(12) * Theme.fontScale
                         }
                     }
                     MouseArea {
@@ -964,26 +964,26 @@ AppWindow {
         z: 30
         strong: true
         solid: true
-        radius: 12
-        width: 420
+        radius: Theme.px(12)
+        width: Theme.px(420)
         height: renameCol.implicitHeight + 28
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
         ColumnLayout {
             id: renameCol
             anchors.fill: parent
-            anchors.margins: 14
-            spacing: 10
+            anchors.margins: Theme.px(14)
+            spacing: Theme.px(10)
             Text {
                 text: Tr.t("Rename")
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: 13 * Theme.fontScale
+                font.pixelSize: Theme.px(13) * Theme.fontScale
                 font.weight: Font.DemiBold
             }
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 TextField {
                     id: renameField
                     Layout.fillWidth: true
@@ -1000,7 +1000,7 @@ AppWindow {
                 color: Tidy.namingError !== "" ? Theme.danger : Theme.dim
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
         }
     }
@@ -1023,24 +1023,24 @@ AppWindow {
         z: 25
         strong: true
         solid: true
-        radius: 12
+        radius: Theme.px(12)
         width: Math.min(parent.width - 40, 460)
         height: tidyCol.implicitHeight + 28
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
-        anchors.topMargin: 70
+        anchors.topMargin: Theme.px(70)
         ColumnLayout {
             id: tidyCol
             anchors.fill: parent
-            anchors.margins: 14
-            spacing: 8
+            anchors.margins: Theme.px(14)
+            spacing: Theme.px(8)
             Text {
                 Layout.fillWidth: true
                 text: Tidy.planning ? Tr.t("Looking at the files…") : Tidy.planned.length ? Tr.t("Tidy %1: %2 files into folders by kind", Files.path.split("/").pop() || "/", Tidy.planned.length) : Tidy.note
                 color: Theme.text
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: 13 * Theme.fontScale
+                font.pixelSize: Theme.px(13) * Theme.fontScale
                 font.weight: Font.DemiBold
             }
             Repeater {
@@ -1048,9 +1048,9 @@ AppWindow {
                 RowLayout {
                     required property var modelData
                     Layout.fillWidth: true
-                    Icon { name: "folder"; size: 16; color: Theme.accent }
-                    Text { Layout.fillWidth: true; text: modelData.group; color: Theme.text; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
-                    Text { text: Tr.t("%1 files", modelData.count); color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+                    Icon { name: "folder"; size: Theme.px(16); color: Theme.accent }
+                    Text { Layout.fillWidth: true; text: modelData.group; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                    Text { text: Tr.t("%1 files", modelData.count); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                 }
             }
             Text {
@@ -1060,7 +1060,7 @@ AppWindow {
                 color: Theme.faint
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -1080,25 +1080,25 @@ AppWindow {
         z: 30
         strong: true
         solid: true
-        radius: 12
-        width: 360
-        height: 118
+        radius: Theme.px(12)
+        width: Theme.px(360)
+        height: Theme.px(118)
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 14
-            spacing: 10
+            anchors.margins: Theme.px(14)
+            spacing: Theme.px(10)
             Text {
                 text: Tr.t("New folder")
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: 13 * Theme.fontScale
+                font.pixelSize: Theme.px(13) * Theme.fontScale
                 font.weight: Font.DemiBold
             }
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 TextField {
                     id: newFolderField
                     Layout.fillWidth: true
@@ -1118,21 +1118,21 @@ AppWindow {
         z: 30
         strong: true
         solid: true
-        radius: 12
-        width: 460
+        radius: Theme.px(12)
+        width: Theme.px(460)
         height: batchCol.implicitHeight + 28
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
         ColumnLayout {
             id: batchCol
             anchors.fill: parent
-            anchors.margins: 14
-            spacing: 8
+            anchors.margins: Theme.px(14)
+            spacing: Theme.px(8)
             Text {
                 text: Tr.t("Rename %1 files", win.batchPaths.length)
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: 13 * Theme.fontScale
+                font.pixelSize: Theme.px(13) * Theme.fontScale
                 font.weight: Font.DemiBold
             }
             Text {
@@ -1141,11 +1141,11 @@ AppWindow {
                 color: Theme.dim
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 TextField {
                     id: batchField
                     Layout.fillWidth: true
@@ -1161,7 +1161,7 @@ AppWindow {
                     text: "→ " + modelData
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 12 * Theme.fontScale
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
                 }
             }
         }
@@ -1175,8 +1175,8 @@ AppWindow {
         z: 30
         strong: true
         solid: true
-        radius: 12
-        width: 420
+        radius: Theme.px(12)
+        width: Theme.px(420)
         height: propsCol.implicitHeight + 28
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
@@ -1185,8 +1185,8 @@ AppWindow {
         ColumnLayout {
             id: propsCol
             anchors.fill: parent
-            anchors.margins: 14
-            spacing: 6
+            anchors.margins: Theme.px(14)
+            spacing: Theme.px(6)
             RowLayout {
                 Layout.fillWidth: true
                 Text {
@@ -1195,10 +1195,10 @@ AppWindow {
                     elide: Text.ElideMiddle
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 13 * Theme.fontScale
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
-                IconButton { icon: "window-close"; size: 26; tip: Tr.t("Close"); onClicked: Files.props = null }
+                IconButton { icon: "window-close"; size: Theme.px(26); tip: Tr.t("Close"); onClicked: Files.props = null }
             }
             Repeater {
                 model: propsBox.p.loading ? [[Tr.t("Size"), Tr.t("Counting…")]] : [
@@ -1215,9 +1215,9 @@ AppWindow {
                 RowLayout {
                     required property var modelData
                     Layout.fillWidth: true
-                    spacing: 10
-                    Text { text: modelData[0]; Layout.preferredWidth: 96; color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
-                    Text { Layout.fillWidth: true; text: modelData[1]; wrapMode: Text.WrapAnywhere; color: Theme.text; font.family: modelData[0] === Tr.t("Permissions") ? Theme.mono : Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                    spacing: Theme.px(10)
+                    Text { text: modelData[0]; Layout.preferredWidth: Theme.px(96); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                    Text { Layout.fillWidth: true; text: modelData[1]; wrapMode: Text.WrapAnywhere; color: Theme.text; font.family: modelData[0] === Tr.t("Permissions") ? Theme.mono : Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                 }
             }
         }
@@ -1231,17 +1231,17 @@ AppWindow {
         z: 28
         strong: true
         solid: true
-        radius: 12
+        radius: Theme.px(12)
         width: Math.min(parent.width - 40, noteRow.implicitWidth + 28)
         height: noteRow.implicitHeight + 18
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: 18
+        anchors.bottomMargin: Theme.px(18)
         RowLayout {
             id: noteRow
             anchors.centerIn: parent
-            spacing: 12
-            Text { text: Files.note; color: Theme.text; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+            spacing: Theme.px(12)
+            Text { text: Files.note; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
             Button { visible: Files.undoLabel !== "" && Files.note === Files.undoLabel; flat: true; text: Tr.t("Undo"); onClicked: Files.undo() }
         }
         Timer { id: noteTimer; running: noteBar.visible; interval: 7000; onTriggered: Files.note = "" }

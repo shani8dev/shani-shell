@@ -30,13 +30,13 @@ Rectangle {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 14
-        spacing: 10
+        anchors.margins: Theme.px(14)
+        spacing: Theme.px(10)
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 6
-            IconButton { visible: lib.album !== null || lib.artist !== ""; size: 30; icon: "go-previous"; tip: Tr.t("Back"); onClicked: { if (lib.album) lib.album = null; else lib.artist = ""; } }
+            spacing: Theme.px(6)
+            IconButton { visible: lib.album !== null || lib.artist !== ""; size: Theme.px(30); icon: "go-previous"; tip: Tr.t("Back"); onClicked: { if (lib.album) lib.album = null; else lib.artist = ""; } }
             Repeater {
                 model: [["albums", Tr.t("Albums")], ["artists", Tr.t("Artists")], ["songs", Tr.t("Songs")], ["videos", Tr.t("Videos")]]
                 Choice {
@@ -59,9 +59,9 @@ Rectangle {
                 text: MusicLibrary.scanning ? Tr.t("Looking…") : lib.tab === "videos" ? MusicLibrary.videos.length + " " + Tr.t("videos") : MusicLibrary.songs.length + " " + Tr.t("songs")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
-            IconButton { size: 30; icon: "view-refresh"; tip: Tr.t("Look again"); onClicked: lib.tab === "videos" ? MusicLibrary.scanVideos() : MusicLibrary.scan() }
+            IconButton { size: Theme.px(30); icon: "view-refresh"; tip: Tr.t("Look again"); onClicked: lib.tab === "videos" ? MusicLibrary.scanVideos() : MusicLibrary.scan() }
         }
 
         // ---- albums (all, or an artist's) ----
@@ -92,8 +92,8 @@ Rectangle {
                     Image { id: cover; anchors.fill: parent; fillMode: Image.PreserveAspectCrop; asynchronous: true; sourceSize: Qt.size(320, 320); source: lib.fileUrl(cell.modelData.cover) }
                     Rectangle { anchors.fill: parent; color: "transparent"; radius: parent.radius; border.width: cellArea.containsMouse ? 2 : 0; border.color: Theme.accent }
                 }
-                Text { anchors { left: art.left; right: art.right; top: art.bottom; topMargin: 6 } text: cell.modelData.title; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; font.weight: Font.DemiBold }
-                Text { anchors { left: art.left; right: art.right; top: art.bottom; topMargin: 24 } text: cell.modelData.artist; color: Theme.dim; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+                Text { anchors { left: art.left; right: art.right; top: art.bottom; topMargin: Theme.px(6) } text: cell.modelData.title; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.DemiBold }
+                Text { anchors { left: art.left; right: art.right; top: art.bottom; topMargin: Theme.px(24) } text: cell.modelData.artist; color: Theme.dim; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                 Accessible.role: Accessible.Button
                 Accessible.name: cell.modelData.title + ", " + cell.modelData.artist
                 Accessible.onPressAction: lib.album = cell.modelData
@@ -126,23 +126,23 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             visible: lib.album !== null
-            spacing: 16
+            spacing: Theme.px(16)
             Rectangle {
-                Layout.preferredWidth: 140
-                Layout.preferredHeight: 140
+                Layout.preferredWidth: Theme.px(140)
+                Layout.preferredHeight: Theme.px(140)
                 radius: Theme.radiusSmall
                 color: Theme.surface2
                 clip: true
-                Icon { anchors.centerIn: parent; name: "media-optical"; size: 52; color: Theme.faint; visible: bigCover.status !== Image.Ready }
+                Icon { anchors.centerIn: parent; name: "media-optical"; size: Theme.px(52); color: Theme.faint; visible: bigCover.status !== Image.Ready }
                 Image { id: bigCover; anchors.fill: parent; fillMode: Image.PreserveAspectCrop; asynchronous: true; sourceSize: Qt.size(320, 320); source: lib.album ? lib.fileUrl(lib.album.cover) : "" }
             }
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 4
-                Text { Layout.fillWidth: true; text: lib.album ? lib.album.title : ""; color: Theme.text; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: 20 * Theme.fontScale; font.weight: Font.DemiBold }
-                Text { text: lib.album ? lib.album.artist + (lib.album.year ? "  ·  " + lib.album.year : "") + "  ·  " + lib.album.songs.length + " " + Tr.t("songs") : ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                spacing: Theme.px(4)
+                Text { Layout.fillWidth: true; text: lib.album ? lib.album.title : ""; color: Theme.text; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(20) * Theme.fontScale; font.weight: Font.DemiBold }
+                Text { text: lib.album ? lib.album.artist + (lib.album.year ? "  ·  " + lib.album.year : "") + "  ·  " + lib.album.songs.length + " " + Tr.t("songs") : ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                 RowLayout {
-                    spacing: 8
+                    spacing: Theme.px(8)
                     Button { kind: "primary"; text: Tr.t("Play"); onClicked: MusicLibrary.play(lib.album.songs, 0) }
                     Button { text: Tr.t("Shuffle"); onClicked: { PlayQueue.shuffle = true; MusicLibrary.play(lib.album.songs, Math.floor(Math.random() * lib.album.songs.length)); } }
                 }
@@ -165,20 +165,20 @@ Rectangle {
                 required property int index
                 readonly property bool now: PlayQueue.current === modelData.path
                 width: songList.width
-                height: 38
+                height: Theme.px(38)
                 radius: Theme.radiusSmall
                 color: now ? Theme.accentSoft : songArea.containsMouse ? Theme.hover : "transparent"
                 RowLayout {
-                    anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
-                    spacing: 12
-                    Text { Layout.preferredWidth: 26; horizontalAlignment: Text.AlignRight; text: songRow.now ? "▶" : (lib.album !== null && songRow.modelData.track ? songRow.modelData.track : ""); color: songRow.now ? Theme.accent : Theme.faint; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; font.features: { "tnum": 1 } }
+                    anchors { fill: parent; leftMargin: Theme.px(10); rightMargin: Theme.px(10) }
+                    spacing: Theme.px(12)
+                    Text { Layout.preferredWidth: Theme.px(26); horizontalAlignment: Text.AlignRight; text: songRow.now ? "▶" : (lib.album !== null && songRow.modelData.track ? songRow.modelData.track : ""); color: songRow.now ? Theme.accent : Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.features: { "tnum": 1 } }
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 0
-                        Text { Layout.fillWidth: true; text: songRow.modelData.title; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale }
-                        Text { Layout.fillWidth: true; visible: lib.album === null; text: songRow.modelData.artist + "  ·  " + songRow.modelData.album; color: Theme.dim; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+                        Text { Layout.fillWidth: true; text: songRow.modelData.title; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                        Text { Layout.fillWidth: true; visible: lib.album === null; text: songRow.modelData.artist + "  ·  " + songRow.modelData.album; color: Theme.dim; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                     }
-                    Text { text: PlayQueue.clock(songRow.modelData.duration); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; font.features: { "tnum": 1 } }
+                    Text { text: PlayQueue.clock(songRow.modelData.duration); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.features: { "tnum": 1 } }
                 }
                 Accessible.role: Accessible.ListItem
                 Accessible.name: songRow.modelData.title + ", " + songRow.modelData.artist
@@ -195,14 +195,14 @@ Rectangle {
             Layout.fillHeight: true
             visible: lib.album === null && lib.tab === "videos"
             clip: true
-            spacing: 14
+            spacing: Theme.px(14)
             boundsBehavior: Flickable.StopAtBounds
             model: MusicLibrary.videoFolders.map(f => ({ name: f.name, videos: f.videos.filter(v => lib.q === "" || (v.title + " " + f.name).toLowerCase().indexOf(lib.q) >= 0) })).filter(f => f.videos.length)
             delegate: Column {
                 id: folderCol
                 required property var modelData
                 width: videoList.width
-                spacing: 8
+                spacing: Theme.px(8)
                 readonly property int cols: Math.max(1, Math.floor(width / 230))
                 readonly property real cell: width / cols
                 Text {
@@ -210,7 +210,7 @@ Rectangle {
                     text: folderCol.modelData.name + "  ·  " + folderCol.modelData.videos.length
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 14 * Theme.fontScale
+                    font.pixelSize: Theme.px(14) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
                 Grid {
@@ -234,14 +234,14 @@ Rectangle {
                                 clip: true
                                 Image { anchors.fill: parent; fillMode: Image.PreserveAspectCrop; asynchronous: true; sourceSize: Qt.size(480, 270); source: lib.fileUrl(vcell.modelData.thumb) }
                                 Rectangle {
-                                    anchors { right: parent.right; bottom: parent.bottom; margins: 6 }
-                                    width: dur.implicitWidth + 10; height: 20; radius: 4
+                                    anchors { right: parent.right; bottom: parent.bottom; margins: Theme.px(6) }
+                                    width: dur.implicitWidth + 10; height: Theme.px(20); radius: Theme.px(4)
                                     color: "#b0000000"
-                                    Text { id: dur; anchors.centerIn: parent; text: PlayQueue.clock(vcell.modelData.duration); color: "white"; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale; font.features: { "tnum": 1 } }
+                                    Text { id: dur; anchors.centerIn: parent; text: PlayQueue.clock(vcell.modelData.duration); color: "white"; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.features: { "tnum": 1 } }
                                 }
                                 Rectangle { anchors.fill: parent; color: "transparent"; radius: parent.radius; border.width: vArea.containsMouse ? 2 : 0; border.color: Theme.accent }
                             }
-                            Text { anchors { left: frame.left; right: frame.right; top: frame.bottom; topMargin: 6 } text: vcell.modelData.title; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                            Text { anchors { left: frame.left; right: frame.right; top: frame.bottom; topMargin: Theme.px(6) } text: vcell.modelData.title; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                             Accessible.role: Accessible.Button
                             Accessible.name: vcell.modelData.title
                             Accessible.onPressAction: vcell.play()

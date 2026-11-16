@@ -194,19 +194,19 @@ PanelWindow {
         transform: Translate { id: boardRise }
         strong: true
         anchors.fill: parent
-        anchors.margins: 8
-        anchors.bottomMargin: 6
+        anchors.margins: Theme.px(8)
+        anchors.bottomMargin: Theme.px(6)
         radius: Theme.radiusLarge
 
         Glass {
             visible: win.langMenu
             z: 5
             strong: true
-            radius: 14
+            radius: Theme.px(14)
             x: 12
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: 70
-            width: 300
+            anchors.bottomMargin: Theme.px(70)
+            width: Theme.px(300)
             height: langCol.implicitHeight + 16
             Column {
                 id: langCol
@@ -235,21 +235,21 @@ PanelWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 10
-            spacing: 6
+            anchors.margins: Theme.px(10)
+            spacing: Theme.px(6)
 
             // remote mode: what is being typed, before it goes to the app
             Rectangle {
                 visible: Osk.remote
                 Layout.fillWidth: true
-                Layout.preferredHeight: 48
-                radius: 10
+                Layout.preferredHeight: Theme.px(48)
+                radius: Theme.px(10)
                 color: Theme.alpha(Theme.text, 0.06)
                 border.color: Theme.accent
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.left: parent.left
-                    anchors.leftMargin: 14
+                    anchors.leftMargin: Theme.px(14)
                     text: Osk.draft === "" ? Tr.t("Type with the arrows and OK · Done sends it · Back cancels") : Osk.draft + "▏"
                     color: Osk.draft === "" ? Theme.dim : Theme.text
                     font.family: Theme.font
@@ -262,22 +262,22 @@ PanelWindow {
                 visible: Osk.page === "write"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.preferredHeight: 3
-                spacing: 6
+                Layout.preferredHeight: Theme.px(3)
+                spacing: Theme.px(6)
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    radius: 10
+                    radius: Theme.px(10)
                     color: Theme.alpha(Theme.text, 0.04)
                     border.color: Theme.stroke
                     WritePad { anchors.fill: parent; visible: Osk.page === "write" }
                 }
                 GridLayout {
                     Layout.fillHeight: true
-                    Layout.preferredWidth: 200
+                    Layout.preferredWidth: Theme.px(200)
                     columns: 2
-                    rowSpacing: 6
-                    columnSpacing: 6
+                    rowSpacing: Theme.px(6)
+                    columnSpacing: Theme.px(6)
                     Repeater {
                         model: [{ l: "⌫", k: "BackSpace" }, { l: "⌦", k: "Delete" }, { l: "⇥", k: "Tab" }, { l: "Esc", k: "Escape" },
                                 { l: "←", k: "Left" }, { l: "→", k: "Right" }, { l: "↑", k: "Up" }, { l: "↓", k: "Down" }]
@@ -292,7 +292,7 @@ PanelWindow {
                     required property var modelData
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: keyRow.modelData
                         Key {
@@ -313,18 +313,18 @@ PanelWindow {
             RowLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                spacing: 6
-                Key { Layout.preferredWidth: 130; Layout.fillHeight: true; label: Osk.page !== "letters" ? "abc" : (Osk.lang === "mr" ? "?१२३" : "?123"); onTapped: Osk.page = Osk.page !== "letters" ? "letters" : "symbols" }
+                spacing: Theme.px(6)
+                Key { Layout.preferredWidth: Theme.px(130); Layout.fillHeight: true; label: Osk.page !== "letters" ? "abc" : (Osk.lang === "mr" ? "?१२३" : "?123"); onTapped: Osk.page = Osk.page !== "letters" ? "letters" : "symbols" }
                 // write by hand; Ctrl and Alt, sticky (one tap: the next key; two: held)
-                Key { Layout.preferredWidth: 80; Layout.fillHeight: true; label: "✍"; accent: Osk.page === "write"; onTapped: Osk.page = Osk.page === "write" ? "letters" : "write"; Accessible.name: Tr.t("Write by hand") }
-                Key { Layout.preferredWidth: 80; Layout.fillHeight: true; label: Osk.ctrl === 2 ? "Ctrl ●" : "Ctrl"; accent: Osk.ctrl > 0; onTapped: Osk.tapMod("ctrl") }
-                Key { Layout.preferredWidth: 80; Layout.fillHeight: true; label: Osk.alt === 2 ? "Alt ●" : "Alt"; accent: Osk.alt > 0; onTapped: Osk.tapMod("alt") }
-                Key { Layout.preferredWidth: 90; Layout.fillHeight: true; label: "⇧"; visible: Osk.isXkb; accent: Osk.shift; onTapped: Osk.shift = !Osk.shift }
+                Key { Layout.preferredWidth: Theme.px(80); Layout.fillHeight: true; label: "✍"; accent: Osk.page === "write"; onTapped: Osk.page = Osk.page === "write" ? "letters" : "write"; Accessible.name: Tr.t("Write by hand") }
+                Key { Layout.preferredWidth: Theme.px(80); Layout.fillHeight: true; label: Osk.ctrl === 2 ? "Ctrl ●" : "Ctrl"; accent: Osk.ctrl > 0; onTapped: Osk.tapMod("ctrl") }
+                Key { Layout.preferredWidth: Theme.px(80); Layout.fillHeight: true; label: Osk.alt === 2 ? "Alt ●" : "Alt"; accent: Osk.alt > 0; onTapped: Osk.tapMod("alt") }
+                Key { Layout.preferredWidth: Theme.px(90); Layout.fillHeight: true; label: "⇧"; visible: Osk.isXkb; accent: Osk.shift; onTapped: Osk.shift = !Osk.shift }
                 // the globe (Gboard's): a tap - the next language, or the list when there is
                 // only one (so adding one is never hidden); held - the list
                 Key {
                     id: globe
-                    Layout.preferredWidth: 110
+                    Layout.preferredWidth: Theme.px(110)
                     Layout.fillHeight: true
                     label: Osk.languages.length > 1 ? "🌐 " + win.nextSample : "🌐"
                     Accessible.name: Tr.t("Keyboard language")
@@ -334,7 +334,7 @@ PanelWindow {
                 }
                 // voice typing: tap, speak, tap again — the words land where the keys would
                 Key {
-                    Layout.preferredWidth: 90
+                    Layout.preferredWidth: Theme.px(90)
                     Layout.fillHeight: true
                     label: Dictation.phase === "transcribing" ? "…" : ""
                     icon: Dictation.phase === "transcribing" ? "" : "audio-input-microphone"
@@ -343,9 +343,9 @@ PanelWindow {
                     onTapped: Dictation.toggle()
                 }
                 Key { Layout.fillWidth: true; Layout.fillHeight: true; label: win.layoutName; dim: true; onTapped: Osk.press("space") }
-                Key { Layout.preferredWidth: 130; Layout.fillHeight: true; label: Osk.remote ? Tr.t("Done") : "⏎"; accent: true; onTapped: Osk.remote ? Osk.commit() : Osk.press("Return") }
+                Key { Layout.preferredWidth: Theme.px(130); Layout.fillHeight: true; label: Osk.remote ? Tr.t("Done") : "⏎"; accent: true; onTapped: Osk.remote ? Osk.commit() : Osk.press("Return") }
                 // hide it to see the whole screen; the floating button (OskButton) or the bar brings it back
-                Key { Layout.preferredWidth: 90; Layout.fillHeight: true; label: "⌄"; Accessible.name: Tr.t("Hide keyboard"); onTapped: Osk.remote ? Osk.cancelRemote() : Osk.toggle() }
+                Key { Layout.preferredWidth: Theme.px(90); Layout.fillHeight: true; label: "⌄"; Accessible.name: Tr.t("Hide keyboard"); onTapped: Osk.remote ? Osk.cancelRemote() : Osk.toggle() }
             }
         }
     }
@@ -365,7 +365,7 @@ PanelWindow {
         Accessible.role: Accessible.Button
         Accessible.name: key.icon !== "" ? "microphone" : key.label
         Accessible.onPressAction: key.tapped()
-        radius: 10
+        radius: Theme.px(10)
         color: key.danger ? Theme.red : key.accent ? Theme.accent : (area.pressed ? Theme.pressed : Theme.hover)
         // the controller's cursor
         border.width: Osk.padDriven && win.cursor === key ? 3 : 0
@@ -377,7 +377,7 @@ PanelWindow {
             visible: key.icon !== ""
             anchors.centerIn: parent
             name: key.icon
-            size: 22
+            size: Theme.px(22)
             color: key.accent || key.danger ? Theme.accentInk : Theme.text
         }
         Text {

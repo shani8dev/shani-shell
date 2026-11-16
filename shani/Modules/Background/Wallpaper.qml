@@ -95,9 +95,9 @@ Variants {
             onVisibleChanged: if (visible) Ui.focusFirst(deskMenu)
             Keys.onEscapePressed: deskMenu.visible = false
             strong: true
-            radius: 12
+            radius: Theme.px(12)
             z: 11
-            width: 240
+            width: Theme.px(240)
             height: deskCol.implicitHeight + 12
             Column {
                 id: deskCol

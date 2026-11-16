@@ -13,8 +13,8 @@ AppWindow {
     appName: "Translate"
     visible: Ui.translate
     onGone: Ui.translate = false
-    implicitWidth: 760
-    implicitHeight: 540
+    implicitWidth: Theme.px(760)
+    implicitHeight: Theme.px(540)
 
     readonly property string tool: Quickshell.env("SHANI_TRANSLATE_TOOL") || "/usr/lib/shani-shell/translate.py"
     property string target: Settings.data.translateTo || "en"
@@ -51,11 +51,11 @@ AppWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            spacing: 10
-            Text { text: Tr.t("Into"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+            spacing: Theme.px(10)
+            Text { text: Tr.t("Into"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
             Flow {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 Repeater {
                     model: win.languages
                     Choice {
@@ -69,7 +69,7 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                spacing: 10
+                spacing: Theme.px(10)
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
@@ -79,7 +79,7 @@ AppWindow {
                     border.color: input.activeFocus ? Theme.accent : Theme.border
                     Flickable {
                         anchors.fill: parent
-                        anchors.margins: 10
+                        anchors.margins: Theme.px(10)
                         contentHeight: input.implicitHeight
                         clip: true
                         TextEdit {
@@ -89,7 +89,7 @@ AppWindow {
                             color: Theme.text
                             selectionColor: Theme.accent
                             font.family: Theme.font
-                            font.pixelSize: 15 * Theme.fontScale
+                            font.pixelSize: Theme.px(15) * Theme.fontScale
                             Accessible.role: Accessible.EditableText
                             Accessible.name: Tr.t("Text to translate")
                             Keys.onPressed: e => { if ((e.modifiers & Qt.ControlModifier) && (e.key === Qt.Key_Return || e.key === Qt.Key_Enter)) { win.go(); e.accepted = true; } }
@@ -109,7 +109,7 @@ AppWindow {
                     color: Theme.surface2
                     Flickable {
                         anchors.fill: parent
-                        anchors.margins: 10
+                        anchors.margins: Theme.px(10)
                         contentHeight: outText.implicitHeight
                         clip: true
                         TextEdit {
@@ -122,7 +122,7 @@ AppWindow {
                             color: win.error !== "" ? Theme.danger : Theme.text
                             selectionColor: Theme.accent
                             font.family: Theme.font
-                            font.pixelSize: 15 * Theme.fontScale
+                            font.pixelSize: Theme.px(15) * Theme.fontScale
                             Accessible.role: Accessible.StaticText
                             Accessible.name: Tr.t("Translation") + ": " + text
                         }
@@ -131,11 +131,11 @@ AppWindow {
             }
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Button { text: Tr.t("Paste"); flat: true; onClicked: { input.text = Quickshell.clipboardText || ""; win.go(); } }
                 Button { text: Tr.t("Clear"); flat: true; onClicked: { input.text = ""; win.result = ""; win.error = ""; } }
                 Item { Layout.fillWidth: true }
-                Text { text: Tr.t("On this computer — nothing is sent anywhere"); color: Theme.faint; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+                Text { text: Tr.t("On this computer — nothing is sent anywhere"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                 Button { text: Tr.t("Copy"); enabled: win.result !== "" && win.error === ""; onClicked: Quickshell.clipboardText = win.result }
                 Button { kind: "primary"; text: Tr.t("Translate"); enabled: input.text.trim() !== "" && !win.working; onClicked: win.go() }
             }

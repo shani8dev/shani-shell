@@ -14,7 +14,7 @@ import qs.Services
 import qs.Modules.Notifications
 
 ColumnLayout {
-    spacing: 14
+    spacing: Theme.px(14)
 
     ColumnLayout {
         id: drivesList
@@ -40,7 +40,7 @@ ColumnLayout {
                         : driveRow.modelData.mount ? Drives.open(driveRow.modelData) : Drives.mount(driveRow.modelData)
                     IconButton {
                         icon: "media-eject"
-                        size: 26
+                        size: Theme.px(26)
                         Accessible.name: "Eject " + driveRow.modelData.label
                         onClicked: Drives.eject(driveRow.modelData)
                     }

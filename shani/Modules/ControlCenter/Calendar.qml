@@ -40,7 +40,7 @@ ColumnLayout {
         return out;
     }
     readonly property var weekNames: sundayFirst ? ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] : ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
-    spacing: 6
+    spacing: Theme.px(6)
 
     RowLayout {
         Layout.fillWidth: true
@@ -49,13 +49,13 @@ ColumnLayout {
             text: Qt.formatDate(root.month, "MMMM yyyy")
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: 13 * Theme.fontScale
+            font.pixelSize: Theme.px(13) * Theme.fontScale
             font.weight: Font.DemiBold
             MouseArea { anchors.fill: parent; onClicked: root.offset = 0 }
             KeyFocus { onActivated: root.offset = 0 }
         }
-        IconButton { icon: "go-previous"; size: 26; onClicked: root.offset-- }
-        IconButton { icon: "go-next"; size: 26; onClicked: root.offset++ }
+        IconButton { icon: "go-previous"; size: Theme.px(26); onClicked: root.offset-- }
+        IconButton { icon: "go-next"; size: Theme.px(26); onClicked: root.offset++ }
     }
 
     GridLayout {
@@ -69,7 +69,7 @@ ColumnLayout {
             color: Theme.faint
             horizontalAlignment: Text.AlignHCenter
             font.family: Theme.font
-            font.pixelSize: 10 * Theme.fontScale
+            font.pixelSize: Theme.px(10) * Theme.fontScale
         }
         Repeater {
             model: root.weekNames
@@ -80,7 +80,7 @@ ColumnLayout {
                 text: modelData
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: 10 * Theme.fontScale
+                font.pixelSize: Theme.px(10) * Theme.fontScale
             }
         }
         Repeater {
@@ -91,8 +91,8 @@ ColumnLayout {
                 readonly property int day: isWeek ? 0 : modelData.day
                 readonly property bool isToday: day === root.today.getDate() && root.offset === 0
                 Layout.fillWidth: true
-                implicitHeight: 28
-                radius: 8
+                implicitHeight: Theme.px(28)
+                radius: Theme.px(8)
                 color: isToday ? Theme.accent : "transparent"
                 Text {
                     anchors.centerIn: parent
@@ -100,7 +100,7 @@ ColumnLayout {
                     text: parent.isWeek ? parent.modelData.week : parent.day
                     color: parent.isToday ? Theme.accentInk : parent.isWeek ? Theme.faint : Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                     font.weight: parent.isToday ? Font.DemiBold : Font.Normal
                 }
             }

@@ -454,20 +454,20 @@ PanelWindow {
         transform: Translate { id: rise }
         anchors.fill: parent
         anchors.topMargin: Math.max(60, parent.height * 0.08)
-        anchors.bottomMargin: 40
+        anchors.bottomMargin: Theme.px(40)
         anchors.leftMargin: Math.max(40, (parent.width - 1280) / 2)
         anchors.rightMargin: Math.max(40, (parent.width - 1280) / 2)
-        spacing: 18
+        spacing: Theme.px(18)
 
         // the field
         Glass {
             Layout.fillWidth: true
-            Layout.preferredWidth: 760
-            Layout.maximumWidth: 760
+            Layout.preferredWidth: Theme.px(760)
+            Layout.maximumWidth: Theme.px(760)
             Layout.alignment: Qt.AlignHCenter
-            implicitHeight: 58
+            implicitHeight: Theme.px(58)
             strong: true
-            radius: 29
+            radius: Theme.px(29)
             // the remote's cursor on the search bar
             Rectangle {
                 anchors.fill: parent
@@ -479,10 +479,10 @@ PanelWindow {
             MouseArea { anchors.fill: parent }
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 22
-                anchors.rightMargin: 22
-                spacing: 12
-                Icon { name: "system-search"; size: 22; color: Theme.accent }
+                anchors.leftMargin: Theme.px(22)
+                anchors.rightMargin: Theme.px(22)
+                spacing: Theme.px(12)
+                Icon { name: "system-search"; size: Theme.px(22); color: Theme.accent }
                 TextInput {
                     id: search
                     Accessible.role: Accessible.EditableText
@@ -491,7 +491,7 @@ PanelWindow {
                     color: Theme.text
                     selectionColor: Theme.accent
                     font.family: Theme.font
-                    font.pixelSize: 20 * Theme.fontScale
+                    font.pixelSize: Theme.px(20) * Theme.fontScale
                     clip: true
                     Keys.onEscapePressed: Ui.closeAll()
                     Keys.onDownPressed: {
@@ -550,14 +550,14 @@ PanelWindow {
                         text: Tr.t("Search apps, files, windows and actions — or ask Chronoa")
                         color: Theme.faint
                         font.family: Theme.font
-                        font.pixelSize: 17 * Theme.fontScale
+                        font.pixelSize: Theme.px(17) * Theme.fontScale
                     }
                 }
                 Text {
                     text: Tr.t("Ctrl+Enter  Chronoa")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
             }
         }
@@ -565,7 +565,7 @@ PanelWindow {
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 18
+            spacing: Theme.px(18)
 
             // results
             Flickable {
@@ -579,7 +579,7 @@ PanelWindow {
                 ColumnLayout {
                     id: resultCol
                     width: list.width
-                    spacing: 14
+                    spacing: Theme.px(14)
 
                     Repeater {
                         model: win.sections
@@ -590,7 +590,7 @@ PanelWindow {
                             // where this section's items start in `flat`
                             readonly property int base: win.sections.slice(0, index).reduce((n, s) => n + s.items.length, 0)
                             Layout.fillWidth: true
-                            spacing: 8
+                            spacing: Theme.px(8)
 
                             RowLayout {
                                 Layout.fillWidth: true
@@ -598,7 +598,7 @@ PanelWindow {
                                     text: section.modelData.title
                                     color: Theme.dim
                                     font.family: Theme.font
-                                    font.pixelSize: 12 * Theme.fontScale
+                                    font.pixelSize: Theme.px(12) * Theme.fontScale
                                     font.weight: Font.DemiBold
                                     font.capitalization: Font.AllUppercase
                                     font.letterSpacing: 1
@@ -620,8 +620,8 @@ PanelWindow {
                                 visible: !!section.modelData.grid
                                 Layout.fillWidth: true
                                 columns: win.gridCols
-                                columnSpacing: 8
-                                rowSpacing: 8
+                                columnSpacing: Theme.px(8)
+                                rowSpacing: Theme.px(8)
                                 Repeater {
                                     model: section.modelData.grid ? section.modelData.items : []
                                     Rectangle {
@@ -630,15 +630,15 @@ PanelWindow {
                                         required property int index
                                         readonly property bool isSel: win.sel === section.base + index
                                         Layout.fillWidth: true
-                                        implicitHeight: 112
-                                        radius: 18
+                                        implicitHeight: Theme.px(112)
+                                        radius: Theme.px(18)
                                         color: isSel ? Theme.accentSoft : (win.hoverArmed && tileArea.containsMouse ? Theme.hover : "transparent")
                                         border.width: isSel ? 1 : 0
                                         border.color: Theme.accentLine
                                         ColumnLayout {
                                             anchors.centerIn: parent
                                             width: parent.width - 16
-                                            spacing: 8
+                                            spacing: Theme.px(8)
                                             IconImage {
                                                 Layout.alignment: Qt.AlignHCenter
                                                 implicitSize: 54
@@ -651,7 +651,7 @@ PanelWindow {
                                                 color: Theme.text
                                                 elide: Text.ElideRight
                                                 font.family: Theme.font
-                                                font.pixelSize: 12 * Theme.fontScale
+                                                font.pixelSize: Theme.px(12) * Theme.fontScale
                                             }
                                         }
                                         MouseArea {
@@ -674,14 +674,14 @@ PanelWindow {
                                     required property int index
                                     readonly property bool isSel: win.sel === section.base + index
                                     Layout.fillWidth: true
-                                    implicitHeight: 48
-                                    radius: 14
+                                    implicitHeight: Theme.px(48)
+                                    radius: Theme.px(14)
                                     color: isSel ? Theme.accentSoft : (win.hoverArmed && rowArea.containsMouse ? Theme.hover : "transparent")
                                     RowLayout {
                                         anchors.fill: parent
-                                        anchors.leftMargin: 14
-                                        anchors.rightMargin: 14
-                                        spacing: 12
+                                        anchors.leftMargin: Theme.px(14)
+                                        anchors.rightMargin: Theme.px(14)
+                                        spacing: Theme.px(12)
                                         IconImage {
                                             visible: !!row.modelData.app
                                             implicitSize: 28
@@ -689,9 +689,9 @@ PanelWindow {
                                         }
                                         ClippingRectangle {
                                             visible: !!row.modelData.thumb
-                                            implicitWidth: 56
-                                            implicitHeight: 36
-                                            radius: 6
+                                            implicitWidth: Theme.px(56)
+                                            implicitHeight: Theme.px(36)
+                                            radius: Theme.px(6)
                                             color: Theme.hover
                                             Image {
                                                 anchors.fill: parent
@@ -704,17 +704,17 @@ PanelWindow {
                                         }
                                         Text {
                                             visible: row.modelData.kind === "emoji"
-                                            Layout.preferredWidth: 28
+                                            Layout.preferredWidth: Theme.px(28)
                                             horizontalAlignment: Text.AlignHCenter
                                             text: row.modelData.glyph || ""
                                             color: Theme.text
                                             font.family: Theme.font
-                                            font.pixelSize: 26 * Theme.fontScale
+                                            font.pixelSize: Theme.px(26) * Theme.fontScale
                                         }
                                         Icon {
                                             visible: !row.modelData.app && !row.modelData.thumb && row.modelData.kind !== "emoji"
                                             name: row.modelData.icon || ""
-                                            size: 20
+                                            size: Theme.px(20)
                                             color: row.modelData.kind === "ask" ? Theme.accent : Theme.text
                                         }
                                         Text {
@@ -723,7 +723,7 @@ PanelWindow {
                                             color: Theme.text
                                             elide: Text.ElideRight
                                             font.family: Theme.font
-                                            font.pixelSize: 14 * Theme.fontScale
+                                            font.pixelSize: Theme.px(14) * Theme.fontScale
                                         }
                                         Text {
                                             Layout.maximumWidth: list.width * 0.4
@@ -731,7 +731,7 @@ PanelWindow {
                                             color: Theme.dim
                                             elide: Text.ElideMiddle
                                             font.family: Theme.font
-                                            font.pixelSize: 11 * Theme.fontScale
+                                            font.pixelSize: Theme.px(11) * Theme.fontScale
                                         }
                                     }
                                     MouseArea {
@@ -752,7 +752,7 @@ PanelWindow {
             // as tall as what it holds, not the whole column
             Glass {
                 visible: win.q !== "" || (win.current && win.current.kind === "file")
-                Layout.preferredWidth: 340
+                Layout.preferredWidth: Theme.px(340)
                 Layout.alignment: Qt.AlignTop
                 Layout.preferredHeight: chronoaCol.implicitHeight + 36
                 strong: true
@@ -761,42 +761,42 @@ PanelWindow {
                 ColumnLayout {
                     id: chronoaCol
                     anchors.fill: parent
-                    anchors.margins: 18
-                    spacing: 12
+                    anchors.margins: Theme.px(18)
+                    spacing: Theme.px(12)
                     RowLayout {
-                        Icon { name: "face-smile-big"; size: 20; color: Chronoa.color }
+                        Icon { name: "face-smile-big"; size: Theme.px(20); color: Chronoa.color }
                         Text {
                             text: Tr.t("Chronoa")
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: 15 * Theme.fontScale
+                            font.pixelSize: Theme.px(15) * Theme.fontScale
                             font.weight: Font.DemiBold
                         }
-                        Text { text: "· " + Chronoa.label; color: Chronoa.color; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                        Text { text: "· " + Chronoa.label; color: Chronoa.color; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                     }
                     Rectangle {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 220
+                        Layout.preferredHeight: Theme.px(220)
                         visible: win.lookText && lookFile.loaded
-                        radius: 12
+                        radius: Theme.px(12)
                         color: Theme.hover
                         clip: true
                         Text {
                             anchors.fill: parent
-                            anchors.margins: 10
+                            anchors.margins: Theme.px(10)
                             text: lookFile.loaded ? lookFile.text().split("\n").slice(0, 16).join("\n").slice(0, 1500) : ""
                             textFormat: Text.PlainText
                             color: Theme.dim
                             font.family: Theme.mono
-                            font.pixelSize: 10 * Theme.fontScale
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
                             wrapMode: Text.NoWrap
                         }
                     }
                     ClippingRectangle {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 240
+                        Layout.preferredHeight: Theme.px(240)
                         visible: win.lookPdfImage !== ""
-                        radius: 12
+                        radius: Theme.px(12)
                         color: Theme.hover
                         Image {
                             anchors.fill: parent
@@ -808,9 +808,9 @@ PanelWindow {
                     ClippingRectangle {
                         id: imagePreview
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 180
+                        Layout.preferredHeight: Theme.px(180)
                         visible: win.current && win.current.kind === "file" && win.current.icon === "image-x-generic"
-                        radius: 12
+                        radius: Theme.px(12)
                         color: Theme.hover
                         Image {
                             anchors.fill: parent
@@ -829,7 +829,7 @@ PanelWindow {
                             : "“" + win.q.trim() + "”"
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: 14 * Theme.fontScale
+                        font.pixelSize: Theme.px(14) * Theme.fontScale
                     }
                     Button {
                         text: Tr.t("Ask Chronoa")
@@ -838,12 +838,12 @@ PanelWindow {
                     }
                     Text {
                         Layout.fillWidth: true
-                        Layout.topMargin: 4
+                        Layout.topMargin: Theme.px(4)
                         wrapMode: Text.Wrap
                         text: Tr.t("Start with  =  to calculate,  :  for emoji,  c  for the clipboard,  >  to run a command")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: 11 * Theme.fontScale
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
                     }
                 }
             }

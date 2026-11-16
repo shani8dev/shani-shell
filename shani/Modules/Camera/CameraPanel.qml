@@ -19,7 +19,7 @@ AppWindow {
     visible: Camera.open
     onGone: Camera.closeCamera()
     margins: 0
-    implicitWidth: 720
+    implicitWidth: Theme.px(720)
     implicitHeight: Math.max(320, Math.min(900, col.implicitHeight + 40))
 
     Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: Camera.closeCamera() }
@@ -31,7 +31,7 @@ AppWindow {
             id: col
             x: 20; y: 20
             width: parent.width - 40
-            spacing: 12
+            spacing: Theme.px(12)
 
             RowLayout {
                 Layout.fillWidth: true
@@ -43,15 +43,15 @@ AppWindow {
                         : ""
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 15 * Theme.fontScale
+                    font.pixelSize: Theme.px(15) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
-                IconButton { icon: "view-refresh"; size: 28; onClicked: Camera.openViewfinder() }
+                IconButton { icon: "view-refresh"; size: Theme.px(28); onClicked: Camera.openViewfinder() }
             }
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Repeater {
                     model: Camera.cameras
                     Choice {
@@ -68,9 +68,9 @@ AppWindow {
 
             Rectangle {
                 Layout.alignment: Qt.AlignHCenter
-                Layout.preferredWidth: 120
-                Layout.preferredHeight: 56
-                radius: 28
+                Layout.preferredWidth: Theme.px(120)
+                Layout.preferredHeight: Theme.px(56)
+                radius: Theme.px(28)
                 color: Camera.phase === "recording" ? Theme.red : Theme.accent
                 MouseArea { anchors.fill: parent; onClicked: Camera.shutter() }
                 Text {
@@ -78,22 +78,22 @@ AppWindow {
                     text: Camera.phase === "recording" ? "Stop" : Camera.mode === "video" ? "Record" : "Photo"
                     color: "white"
                     font.family: Theme.font
-                    font.pixelSize: 16 * Theme.fontScale
+                    font.pixelSize: Theme.px(16) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
             }
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Theme.px(12)
                 Rectangle {
-                    Layout.preferredWidth: 220
-                    Layout.preferredHeight: 140
+                    Layout.preferredWidth: Theme.px(220)
+                    Layout.preferredHeight: Theme.px(140)
                     radius: Theme.radiusSmall
                     color: Theme.hover
                     Image {
                         anchors.fill: parent
-                        anchors.margins: 6
+                        anchors.margins: Theme.px(6)
                         source: Camera.last !== "" && Camera.last.endsWith(".png") ? "file://" + Camera.last : ""
                         fillMode: Image.PreserveAspectFit
                         visible: Camera.last.endsWith(".png")
@@ -103,22 +103,22 @@ AppWindow {
                         text: Camera.available ? "No capture yet" : "No camera found"
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: 12 * Theme.fontScale
+                        font.pixelSize: Theme.px(12) * Theme.fontScale
                         visible: Camera.last === ""
                     }
                 }
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Text {
                         text: Camera.last ? Camera.last : Camera.available ? "Last capture appears here" : "Connect a camera, or check the camera switch."
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: 12 * Theme.fontScale
+                        font.pixelSize: Theme.px(12) * Theme.fontScale
                         wrapMode: Text.WordWrap
                     }
                     RowLayout {
-                        spacing: 6
+                        spacing: Theme.px(6)
                         Choice { text: "Open folder"; onClicked: Qt.openUrlExternally("file://" + (Camera.last ? Camera.last.substring(0, Camera.last.lastIndexOf("/")) : Camera.photosDir)); }
                         Choice { text: "Copy path"; onClicked: Quickshell.clipboardText = Camera.last; }
                         Choice { text: "Trim video"; visible: Camera.last.endsWith(".webm"); onClicked: { const p = Camera.last; Camera.closeCamera(); VideoTrimmer.open(p); } }
@@ -130,13 +130,13 @@ AppWindow {
                 text: "Gallery"
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
             ListView {
                 Layout.fillWidth: true
                 Layout.preferredHeight: Math.min(180, count * 44)
                 model: Camera.gallery
-                spacing: 4
+                spacing: Theme.px(4)
                 delegate: ListRow {
                     title: modelData.name
                     subtitle: modelData.when

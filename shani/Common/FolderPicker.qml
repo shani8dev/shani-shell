@@ -14,7 +14,7 @@ ColumnLayout {
     signal picked(string path)
 
     Layout.fillWidth: true
-    spacing: 6
+    spacing: Theme.px(6)
 
     readonly property string homeDir: Quickshell.env("HOME") || "/home"
 
@@ -29,23 +29,23 @@ ColumnLayout {
     // Current value display
     RowLayout {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: 32
+            implicitHeight: Theme.px(32)
             radius: Theme.radiusToken("xs")
             color: Theme.surface1
             border.color: Theme.stroke
             border.width: 1
             Text {
                 anchors.fill: parent
-                anchors.leftMargin: 10
-                anchors.rightMargin: 10
+                anchors.leftMargin: Theme.px(10)
+                anchors.rightMargin: Theme.px(10)
                 verticalAlignment: Text.AlignVCenter
                 text: root.value || (root.placeholder || Tr.t("Not set — pick a folder below"))
                 color: root.value ? Theme.text : Theme.faint
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
                 elide: Text.ElideMiddle
             }
         }
@@ -81,10 +81,10 @@ ColumnLayout {
 
     // Quick-pick common folders
     // a label above the chips, not among them: a child as wide as its Flow makes the Flow re-lay out itself forever
-    Text { Layout.fillWidth: true; text: Tr.t("Quick picks:"); color: Theme.faint; font.family: Theme.font; font.pixelSize: 10 * Theme.fontScale }
+    Text { Layout.fillWidth: true; text: Tr.t("Quick picks:"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
     Flow {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Repeater {
             model: [
                 { label: Tr.t("Home"), path: homeDir },
@@ -118,7 +118,7 @@ ColumnLayout {
     // Custom path: type your own
     RowLayout {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         TextField {
             id: customPath
             Layout.fillWidth: true

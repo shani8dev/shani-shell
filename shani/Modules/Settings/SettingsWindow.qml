@@ -18,8 +18,8 @@ AppWindow {
     visible: Ui.settingsOpen
     onGone: Ui.settingsOpen = false
     margins: 0
-    implicitWidth: 1040
-    implicitHeight: 800
+    implicitWidth: Theme.px(1040)
+    implicitHeight: Theme.px(800)
 
     Item {
         id: winRoot
@@ -31,13 +31,13 @@ AppWindow {
         Rectangle {
             id: side
             objectName: "region:categories"
-            width: 260
+            width: Theme.px(260)
             anchors { top: parent.top; bottom: parent.bottom; left: parent.left }
             color: Settings.blurWanted ? Theme.alpha(Theme.surface1, 0.55) : Theme.surface1
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 14
-                spacing: 10
+                anchors.margins: Theme.px(14)
+                spacing: Theme.px(10)
                 TextField {
                     id: search
                     Layout.fillWidth: true
@@ -70,7 +70,7 @@ AppWindow {
                         required property var modelData
                         readonly property bool current: Ui.settingsCat === modelData.id
                         width: ListView.view.width
-                        height: 40
+                        height: Theme.px(40)
                         radius: Theme.radiusSmall
                         color: current ? Theme.accentSoft : (rowArea.containsMouse ? Theme.surface2 : "transparent")
                         Behavior on color { ColorAnimation { duration: Theme.anim } }
@@ -79,23 +79,23 @@ AppWindow {
                         Accessible.onPressAction: Ui.settingsCat = modelData.id
                         RowLayout {
                             anchors.fill: parent
-                            anchors.leftMargin: 12
-                            anchors.rightMargin: 12
-                            spacing: 12
-                            Icon { name: row.modelData.icon; size: 18; color: row.current ? Theme.accent : Theme.dim }
+                            anchors.leftMargin: Theme.px(12)
+                            anchors.rightMargin: Theme.px(12)
+                            spacing: Theme.px(12)
+                            Icon { name: row.modelData.icon; size: Theme.px(18); color: row.current ? Theme.accent : Theme.dim }
                             Text {
                                 Layout.fillWidth: true
                                 text: row.modelData.label
                                 elide: Text.ElideRight
                                 color: row.current ? Theme.text : Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: 13 * Theme.fontScale
+                                font.pixelSize: Theme.px(13) * Theme.fontScale
                                 font.weight: row.current ? Font.DemiBold : Font.Normal
                             }
                             Rectangle {
                                 visible: (page.modified[row.modelData.id] || 0) > 0
-                                implicitWidth: 7
-                                implicitHeight: 7
+                                implicitWidth: Theme.px(7)
+                                implicitHeight: Theme.px(7)
                                 radius: 3.5
                                 color: Theme.accent
                                 Layout.alignment: Qt.AlignVCenter
@@ -113,7 +113,7 @@ AppWindow {
                     Layout.fillWidth: true
                     readonly property var keys: Settings.changedKeys.filter(k => SettingsIndex.labelOf(k) !== "")
                     visible: keys.length > 0 && page.query === ""
-                    spacing: 6
+                    spacing: Theme.px(6)
                     SectionTitle {
                         Layout.fillWidth: true
                         text: Tr.t("Changed this session")
@@ -124,11 +124,11 @@ AppWindow {
                             id: changedRow
                             required property string modelData
                             Layout.fillWidth: true
-                            spacing: 6
+                            spacing: Theme.px(6)
                             Text {
                                 text: Tr.t(SettingsIndex.labelOf(changedRow.modelData))
                                 font.family: Theme.font
-                                font.pixelSize: 11 * Theme.fontScale
+                                font.pixelSize: Theme.px(11) * Theme.fontScale
                                 color: Theme.dim
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true
@@ -157,19 +157,19 @@ AppWindow {
             id: content
             objectName: "region:page"
             anchors { top: parent.top; bottom: parent.bottom; left: side.right; right: parent.right }
-            anchors.margins: 28
+            anchors.margins: Theme.px(28)
             contentHeight: body.implicitHeight + 40
             clip: true
             boundsBehavior: Flickable.StopAtBounds
             ColumnLayout {
                 id: body
                 width: Math.min(content.width, 720)
-                spacing: 16
+                spacing: Theme.px(16)
                 Text {
                     text: page.catTitle
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 24 * Theme.fontScale
+                    font.pixelSize: Theme.px(24) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
                 SettingsPage {
@@ -205,7 +205,7 @@ AppWindow {
     Toast {
         anchors.bottom: parent.bottom
         anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottomMargin: 24
+        anchors.bottomMargin: Theme.px(24)
         z: 20
         message: page.toastMsg
         showUndo: page.toastUndo !== undefined

@@ -10,7 +10,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 8
+    spacing: Theme.px(8)
     property bool active: false
     readonly property var d: Settings.data
     property var found: []
@@ -28,11 +28,11 @@ ColumnLayout {
         color: Theme.dim
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
     Flow {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Choice { text: Tr.t("None"); selected: !page.d.wallpaperVideo; onClicked: page.d.wallpaperVideo = "" }
         Repeater {
             model: page.found

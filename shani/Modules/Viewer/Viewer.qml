@@ -14,8 +14,8 @@ AppWindow {
     visible: Viewer.shown
     onGone: Viewer.close()
     margins: 0
-    implicitWidth: 920
-    implicitHeight: 720
+    implicitWidth: Theme.px(920)
+    implicitHeight: Theme.px(720)
     // blur behind the card, as on every shell surface (ext-background-effect)
 
     property int dragStartX: 0
@@ -56,13 +56,13 @@ AppWindow {
         MouseArea { anchors.fill: parent }       // clicks inside do not close it
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 16
-            spacing: 8
+            anchors.margins: Theme.px(16)
+            spacing: Theme.px(8)
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 6
-                IconButton { icon: "go-previous"; size: 28; tip: Tr.t("Previous (←)"); onClicked: Viewer.prev() }
+                spacing: Theme.px(6)
+                IconButton { icon: "go-previous"; size: Theme.px(28); tip: Tr.t("Previous (←)"); onClicked: Viewer.prev() }
                 Text {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
@@ -70,10 +70,10 @@ AppWindow {
                     color: Theme.text
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: 14 * Theme.fontScale
+                    font.pixelSize: Theme.px(14) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
-                IconButton { icon: "go-next"; size: 28; tip: Tr.t("Next (→)"); onClicked: Viewer.next() }
+                IconButton { icon: "go-next"; size: Theme.px(28); tip: Tr.t("Next (→)"); onClicked: Viewer.next() }
             }
 
             // main stage: single image, or the batch grid
@@ -113,7 +113,7 @@ AppWindow {
                     text: Tr.t("No picture")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 13 * Theme.fontScale
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
                 }
 
                 // batch grid mode: the whole folder at once (Loupe's gallery)
@@ -127,22 +127,22 @@ AppWindow {
                     Grid {
                         id: grid
                         columns: 4
-                        spacing: 8
-                        padding: 8
+                        spacing: Theme.px(8)
+                        padding: Theme.px(8)
                         Repeater {
                             model: Viewer.list
                             Rectangle {
                                 required property var modelData
                                 required property int index
-                                width: 180
-                                height: 140
+                                width: Theme.px(180)
+                                height: Theme.px(140)
                                 radius: Theme.radiusSmall
                                 color: index === Viewer.index ? Theme.alpha(Theme.accent, 0.22) : Theme.surface1
                                 border.width: index === Viewer.index ? 2 : 0
                                 border.color: Theme.accent
                                 Image {
                                     anchors.fill: parent
-                                    anchors.margins: 6
+                                    anchors.margins: Theme.px(6)
                                     source: "file://" + modelData
                                     fillMode: Image.PreserveAspectFit
                                     smooth: true
@@ -151,11 +151,11 @@ AppWindow {
                                 Text {
                                     anchors.bottom: parent.bottom
                                     anchors.horizontalCenter: parent.horizontalCenter
-                                    anchors.bottomMargin: 4
+                                    anchors.bottomMargin: Theme.px(4)
                                     text: String(index + 1)
                                     color: Theme.dim
                                     font.family: Theme.font
-                                    font.pixelSize: 10 * Theme.fontScale
+                                    font.pixelSize: Theme.px(10) * Theme.fontScale
                                 }
                                 MouseArea {
                                     anchors.fill: parent
@@ -204,12 +204,12 @@ AppWindow {
             // toolbar: zoom, rotate + flip, slideshow, grid, thumbs, actions
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 4
-                IconButton { icon: "zoom-out"; size: 28; tip: Tr.t("Zoom out (−)"); onClicked: Viewer.zoomOut() }
-                IconButton { icon: "zoom-in"; size: 28; tip: Tr.t("Zoom in (+)"); onClicked: Viewer.zoomIn() }
-                IconButton { icon: "zoom-fit-best"; size: 28; tip: Tr.t("Fit to window (F)"); on: Viewer.zoomMode === "fit"; onClicked: Viewer.zoomFit() }
-                IconButton { icon: "document-save"; size: 28; tip: Tr.t("100% (1)"); on: Viewer.zoomMode === "100"; onClicked: Viewer.zoomActual() }
-                IconButton { icon: "view-fullscreen"; size: 28; tip: Tr.t("200% (2)"); on: Viewer.zoomMode === "200"; onClicked: Viewer.zoom200() }
+                spacing: Theme.px(4)
+                IconButton { icon: "zoom-out"; size: Theme.px(28); tip: Tr.t("Zoom out (−)"); onClicked: Viewer.zoomOut() }
+                IconButton { icon: "zoom-in"; size: Theme.px(28); tip: Tr.t("Zoom in (+)"); onClicked: Viewer.zoomIn() }
+                IconButton { icon: "zoom-fit-best"; size: Theme.px(28); tip: Tr.t("Fit to window (F)"); on: Viewer.zoomMode === "fit"; onClicked: Viewer.zoomFit() }
+                IconButton { icon: "document-save"; size: Theme.px(28); tip: Tr.t("100% (1)"); on: Viewer.zoomMode === "100"; onClicked: Viewer.zoomActual() }
+                IconButton { icon: "view-fullscreen"; size: Theme.px(28); tip: Tr.t("200% (2)"); on: Viewer.zoomMode === "200"; onClicked: Viewer.zoom200() }
                 Text {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
@@ -219,28 +219,28 @@ AppWindow {
                         + (Viewer.slideshow ? "  ·  " + Tr.t("slideshow") : "")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 10 * Theme.fontScale
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
                 }
-                IconButton { icon: "object-rotate-right"; size: 28; tip: Tr.t("Rotate right (R)"); onClicked: Viewer.rotate() }
-                IconButton { icon: "object-rotate-left"; size: 28; tip: Tr.t("Rotate left"); onClicked: Viewer.rotateCCW() }
-                IconButton { icon: "edit-copy"; size: 28; tip: Tr.t("Flip horizontally (H)"); on: Viewer.flipH; onClicked: Viewer.toggleFlipH() }
-                IconButton { icon: "edit-copy"; size: 28; tip: Tr.t("Flip vertically (V)"); on: Viewer.flipV; onClicked: Viewer.toggleFlipV() }
-                IconButton { icon: "media-playback-start"; size: 28; tip: Tr.t("Slideshow (S)"); on: Viewer.slideshow; onClicked: Viewer.toggleSlideshow() }
-                IconButton { icon: "view-grid"; size: 28; tip: Tr.t("Grid (G)"); on: Viewer.gridMode; onClicked: Viewer.toggleGrid() }
-                IconButton { icon: "view-list"; size: 28; tip: Tr.t("Thumbnails (T)"); on: Viewer.showThumbs; onClicked: Viewer.toggleThumbs() }
+                IconButton { icon: "object-rotate-right"; size: Theme.px(28); tip: Tr.t("Rotate right (R)"); onClicked: Viewer.rotate() }
+                IconButton { icon: "object-rotate-left"; size: Theme.px(28); tip: Tr.t("Rotate left"); onClicked: Viewer.rotateCCW() }
+                IconButton { icon: "edit-copy"; size: Theme.px(28); tip: Tr.t("Flip horizontally (H)"); on: Viewer.flipH; onClicked: Viewer.toggleFlipH() }
+                IconButton { icon: "edit-copy"; size: Theme.px(28); tip: Tr.t("Flip vertically (V)"); on: Viewer.flipV; onClicked: Viewer.toggleFlipV() }
+                IconButton { icon: "media-playback-start"; size: Theme.px(28); tip: Tr.t("Slideshow (S)"); on: Viewer.slideshow; onClicked: Viewer.toggleSlideshow() }
+                IconButton { icon: "view-grid"; size: Theme.px(28); tip: Tr.t("Grid (G)"); on: Viewer.gridMode; onClicked: Viewer.toggleGrid() }
+                IconButton { icon: "view-list"; size: Theme.px(28); tip: Tr.t("Thumbnails (T)"); on: Viewer.showThumbs; onClicked: Viewer.toggleThumbs() }
             }
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 4
-                IconButton { icon: "edit-copy"; size: 28; tip: Tr.t("Copy path (C)"); onClicked: Viewer.copyPath() }
-                IconButton { icon: "document-open"; size: 28; tip: Tr.t("Open with… (O)"); onClicked: Viewer.openWith() }
-                IconButton { icon: "edit-delete"; size: 28; tip: Tr.t("Move to trash (Del)"); onClicked: Viewer.trash() }
+                spacing: Theme.px(4)
+                IconButton { icon: "edit-copy"; size: Theme.px(28); tip: Tr.t("Copy path (C)"); onClicked: Viewer.copyPath() }
+                IconButton { icon: "document-open"; size: Theme.px(28); tip: Tr.t("Open with… (O)"); onClicked: Viewer.openWith() }
+                IconButton { icon: "edit-delete"; size: Theme.px(28); tip: Tr.t("Move to trash (Del)"); onClicked: Viewer.trash() }
                 Text {
                     Layout.fillWidth: true
                     text: Tr.t("← → to browse · wheel to zoom · R to turn · Esc closes")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: 10 * Theme.fontScale
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
                     elide: Text.ElideRight
                 }
             }
@@ -249,28 +249,28 @@ AppWindow {
             Flickable {
                 visible: Viewer.showThumbs && !Viewer.gridMode && Viewer.list.length > 1
                 Layout.fillWidth: true
-                Layout.preferredHeight: 68
+                Layout.preferredHeight: Theme.px(68)
                 clip: true
                 contentWidth: thumbRow.width
                 contentHeight: thumbRow.height
                 boundsBehavior: Flickable.StopAtBounds
                 Row {
                     id: thumbRow
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: Viewer.list
                         Rectangle {
                             required property var modelData
                             required property int index
-                            width: 88
-                            height: 60
+                            width: Theme.px(88)
+                            height: Theme.px(60)
                             radius: Theme.radiusSmall
                             color: index === Viewer.index ? Theme.alpha(Theme.accent, 0.22) : Theme.surface1
                             border.width: index === Viewer.index ? 2 : 0
                             border.color: Theme.accent
                             Image {
                                 anchors.fill: parent
-                                anchors.margins: 4
+                                anchors.margins: Theme.px(4)
                                 source: "file://" + modelData
                                 fillMode: Image.PreserveAspectFit
                                 smooth: true

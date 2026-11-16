@@ -14,12 +14,12 @@ import qs.Services
 import qs.Modules.Notifications
 
 ColumnLayout {
-    spacing: 14
+    spacing: Theme.px(14)
 
     ColumnLayout {
         visible: Shelf.items.length > 0
         Layout.fillWidth: true
-        spacing: 4
+        spacing: Theme.px(4)
         Component.onCompleted: Shelf.refresh()
         Connections { target: Ui; function onControlCenterChanged() { if (Ui.controlCenter) Shelf.refresh(); } }
         SectionTitle { text: Tr.t("Shelf") }
@@ -27,19 +27,19 @@ ColumnLayout {
             visible: Shelf.parked.length === 0
             Layout.fillWidth: true; wrapMode: Text.Wrap
             text: Tr.t("Drop files on the Shelf in the dock to keep them here for later. Drag any of these into an app.")
-            color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale
+            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
         }
         Flow {
             Layout.fillWidth: true
-            spacing: 6
+            spacing: Theme.px(6)
             Repeater {
                 model: Shelf.items.filter(x => x.image).slice(0, 6)
                 ClippingRectangle {
                     id: shelfItem
                     required property var modelData
-                    width: 120
-                    height: 72
-                    radius: 10
+                    width: Theme.px(120)
+                    height: Theme.px(72)
+                    radius: Theme.px(10)
                     color: Theme.hover
                     Image {
                         anchors.fill: parent
@@ -53,7 +53,7 @@ ColumnLayout {
                         visible: shelfItem.modelData.parked
                         z: 2
                         anchors.right: parent.right; anchors.top: parent.top
-                        size: 22; icon: "window-close-symbolic"; tip: Tr.t("Put away (the file stays where it is)")
+                        size: Theme.px(22); icon: "window-close-symbolic"; tip: Tr.t("Put away (the file stays where it is)")
                         onClicked: Shelf.unpark(shelfItem.modelData.path)
                     }
                     // dragged out onto an app: the file itself
@@ -94,19 +94,19 @@ ColumnLayout {
                 IconButton {
                     visible: shelfFile.modelData.parked
                     icon: "window-close-symbolic"
-                    size: 24
+                    size: Theme.px(24)
                     tip: Tr.t("Put away (the file stays where it is)")
                     onClicked: Shelf.unpark(shelfFile.modelData.path)
                 }
                 IconButton {
                     icon: "document-edit"
-                    size: 24
+                    size: Theme.px(24)
                     tip: Tr.t("Convert, shrink, zip…")
                     onClicked: { Ui.closeAll(); FileActions.offer([shelfFile.modelData.path]); }
                 }
                 IconButton {
                     icon: "folder-publicshare"
-                    size: 24
+                    size: Theme.px(24)
                     Accessible.name: "Share " + shelfFile.modelData.name
                     onClicked: { Ui.closeAll(); Share.open(shelfFile.modelData.path); }
                 }

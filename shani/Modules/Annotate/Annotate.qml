@@ -100,21 +100,21 @@ PanelWindow {
         visible: win.hintShown
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: 40
+        anchors.bottomMargin: Theme.px(40)
         width: row.implicitWidth + 32
-        height: 34
+        height: Theme.px(34)
         strong: true
         Row {
             id: row
             anchors.centerIn: parent
-            spacing: 8
+            spacing: Theme.px(8)
             Repeater {
                 model: win.colours
                 Rectangle {
                     required property string modelData
                     required property int index
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 14; height: 14; radius: 7
+                    width: Theme.px(14); height: Theme.px(14); radius: Theme.px(7)
                     color: modelData
                     border.width: index === win.colour ? 2 : 0
                     border.color: Theme.text
@@ -124,7 +124,7 @@ PanelWindow {
                 text: Tr.t("  Shift: straight line  ·  Z undo  ·  E erase  ·  S save  ·  Esc close")
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
         }
     }

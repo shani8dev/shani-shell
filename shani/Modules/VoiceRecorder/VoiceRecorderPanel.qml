@@ -14,12 +14,12 @@ AppWindow {
     id: win
     appName: "Voice Recorder"
     tools: [
-        IconButton { size: 30; icon: "view-refresh"; tip: Tr.t("Refresh"); onClicked: VoiceRecorder.refresh() }
+        IconButton { size: Theme.px(30); icon: "view-refresh"; tip: Tr.t("Refresh"); onClicked: VoiceRecorder.refresh() }
     ]
     visible: Ui.voiceRecorder
     onGone: Ui.voiceRecorder = false
     margins: 0
-    implicitWidth: 560
+    implicitWidth: Theme.px(560)
     implicitHeight: Math.max(320, Math.min(900, col.implicitHeight + 40))
 
     property string renaming: ""        // path being renamed, "" when none
@@ -37,7 +37,7 @@ AppWindow {
             x: 20
             y: 20
             width: parent.width - 40
-            spacing: 12
+            spacing: Theme.px(12)
 
 
             Text {
@@ -46,7 +46,7 @@ AppWindow {
                 text: VoiceRecorder.elapsed
                 color: Theme.text
                 font.family: Theme.mono
-                font.pixelSize: 34 * Theme.fontScale
+                font.pixelSize: Theme.px(34) * Theme.fontScale
                 font.weight: Font.DemiBold
             }
             Text {
@@ -57,20 +57,20 @@ AppWindow {
                     : VoiceRecorder.available ? Tr.t("Ready") : Tr.t("pw-record is not installed")
                 color: VoiceRecorder.recording ? Theme.red : Theme.dim
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
 
             // input level: a thin bar, peak of the last 100 ms of capture
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 8
-                radius: 4
+                Layout.preferredHeight: Theme.px(8)
+                radius: Theme.px(4)
                 color: Theme.hover
                 visible: VoiceRecorder.recording
                 Rectangle {
                     width: Math.max(4, parent.width * Math.min(1, VoiceRecorder.level))
                     height: parent.height
-                    radius: 4
+                    radius: Theme.px(4)
                     color: VoiceRecorder.level > 0.9 ? Theme.red : Theme.accent
                     Behavior on width { NumberAnimation { duration: 90 } }
                 }
@@ -79,18 +79,18 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignHCenter
-                spacing: 16
+                spacing: Theme.px(16)
                 IconButton {
                     icon: VoiceRecorder.paused ? "media-playback-start" : "media-playback-pause"
-                    size: 44
+                    size: Theme.px(44)
                     tip: VoiceRecorder.paused ? Tr.t("Resume") : Tr.t("Pause")
                     visible: VoiceRecorder.recording
                     onClicked: VoiceRecorder.togglePause()
                 }
                 Rectangle {
-                    Layout.preferredWidth: 88
-                    Layout.preferredHeight: 88
-                    radius: 44
+                    Layout.preferredWidth: Theme.px(88)
+                    Layout.preferredHeight: Theme.px(88)
+                    radius: Theme.px(44)
                     color: VoiceRecorder.recording ? Theme.red : Theme.accent
                     MouseArea {
                         anchors.fill: parent
@@ -105,14 +105,14 @@ AppWindow {
                     Icon {
                         anchors.centerIn: parent
                         name: VoiceRecorder.recording ? "media-playback-stop" : "media-record"
-                        size: 36
+                        size: Theme.px(36)
                         color: "white"
                     }
                     Accessible.role: Accessible.Button
                     Accessible.name: VoiceRecorder.recording ? Tr.t("Stop recording") : Tr.t("Record")
                     Accessible.onPressAction: VoiceRecorder.toggle()
                 }
-                Item { Layout.preferredWidth: 44; visible: !VoiceRecorder.recording }
+                Item { Layout.preferredWidth: Theme.px(44); visible: !VoiceRecorder.recording }
             }
 
             Text {
@@ -123,19 +123,19 @@ AppWindow {
                 horizontalAlignment: Text.AlignHCenter
                 elide: Text.ElideMiddle
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("Recordings") }
                 Text {
                     visible: VoiceRecorder.recordings.length > 0
                     text: Tr.t("%1 files", VoiceRecorder.recordings.length)
                     color: Theme.faint
                     font.family: Theme.mono
-                    font.pixelSize: 10 * Theme.fontScale
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
                 }
             }
 
@@ -153,7 +153,7 @@ AppWindow {
                 Layout.preferredHeight: Math.min(240, Math.max(44, VoiceRecorder.recordings.length * 48))
                 visible: VoiceRecorder.recordings.length > 0
                 clip: true
-                spacing: 4
+                spacing: Theme.px(4)
                 model: VoiceRecorder.recordings
                 boundsBehavior: Flickable.StopAtBounds
 
@@ -162,16 +162,16 @@ AppWindow {
                     required property var modelData
                     required property int index
                     width: list.width
-                    height: 44
-                    radius: 10
+                    height: Theme.px(44)
+                    radius: Theme.px(10)
                     color: rowArea.containsMouse ? Theme.hover : "transparent"
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 10
-                        anchors.rightMargin: 6
-                        spacing: 4
-                        Icon { name: "audio-x-generic"; size: 16; color: Theme.text }
+                        anchors.leftMargin: Theme.px(10)
+                        anchors.rightMargin: Theme.px(6)
+                        spacing: Theme.px(4)
+                        Icon { name: "audio-x-generic"; size: Theme.px(16); color: Theme.text }
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 0
@@ -182,7 +182,7 @@ AppWindow {
                                 color: Theme.text
                                 elide: Text.ElideRight
                                 font.family: Theme.font
-                                font.pixelSize: 12 * Theme.fontScale
+                                font.pixelSize: Theme.px(12) * Theme.fontScale
                             }
                             Text {
                                 Layout.fillWidth: true
@@ -190,7 +190,7 @@ AppWindow {
                                 color: Theme.dim
                                 elide: Text.ElideRight
                                 font.family: Theme.font
-                                font.pixelSize: 10 * Theme.fontScale
+                                font.pixelSize: Theme.px(10) * Theme.fontScale
                             }
                         }
                         TextField {
@@ -206,13 +206,13 @@ AppWindow {
                         }
                         IconButton {
                             icon: "media-playback-start"
-                            size: 30
+                            size: Theme.px(30)
                             tip: Tr.t("Play")
                             onClicked: VoiceRecorder.play(row.modelData.path)
                         }
                         IconButton {
                             icon: "document-edit"
-                            size: 30
+                            size: Theme.px(30)
                             tip: Tr.t("Rename")
                             onClicked: {
                                 win.renaming = row.modelData.path;
@@ -221,13 +221,13 @@ AppWindow {
                         }
                         IconButton {
                             icon: "edit-cut"
-                            size: 30
+                            size: Theme.px(30)
                             tip: Tr.t("Trim take")
                             onClicked: VoiceRecorder.openTrim(row.modelData.path)
                         }
                         IconButton {
                             icon: "edit-delete"
-                            size: 30
+                            size: Theme.px(30)
                             tip: Tr.t("Move to trash")
                             onClicked: VoiceRecorder.trash(row.modelData.path)
                         }
@@ -247,7 +247,7 @@ AppWindow {
             ColumnLayout {
                 Layout.fillWidth: true
                 visible: VoiceRecorder.trimFile !== ""
-                spacing: 6
+                spacing: Theme.px(6)
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("Trim take") }
                 Text {
                     Layout.fillWidth: true
@@ -255,7 +255,7 @@ AppWindow {
                     color: Theme.dim
                     elide: Text.ElideMiddle
                     font.family: Theme.mono
-                    font.pixelSize: 10 * Theme.fontScale
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
                 }
                 SliderRow {
                     Layout.fillWidth: true
@@ -277,11 +277,11 @@ AppWindow {
                         : Tr.t("Duration unknown — drag the sliders")
                     color: Theme.faint
                     font.family: Theme.mono
-                    font.pixelSize: 10 * Theme.fontScale
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
                 }
                 RowLayout {
                     Layout.alignment: Qt.AlignHCenter
-                    spacing: 8
+                    spacing: Theme.px(8)
                     Button { text: "-1s"; onClicked: VoiceRecorder.setTrimStart(VoiceRecorder.trimStart - 1) }
                     Button { text: "+1s"; onClicked: VoiceRecorder.setTrimStart(VoiceRecorder.trimStart + 1) }
                 }
@@ -299,7 +299,7 @@ AppWindow {
                     color: Theme.red
                     horizontalAlignment: Text.AlignHCenter
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 Text {
                     Layout.fillWidth: true
@@ -308,7 +308,7 @@ AppWindow {
                     color: Theme.text
                     elide: Text.ElideMiddle
                     font.family: Theme.mono
-                    font.pixelSize: 10 * Theme.fontScale
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
                 }
             }
 
@@ -318,7 +318,7 @@ AppWindow {
                 text: Tr.t("Esc closes")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: 10 * Theme.fontScale
+                font.pixelSize: Theme.px(10) * Theme.fontScale
             }
         }
     }

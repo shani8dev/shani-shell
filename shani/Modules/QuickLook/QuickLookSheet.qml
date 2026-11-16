@@ -53,14 +53,14 @@ PanelWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 16
-            spacing: 12
+            anchors.margins: Theme.px(16)
+            spacing: Theme.px(12)
 
             // the file: what it is, how big, when; and where it can go
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 10
-                Icon { name: QuickLook.icon(); size: 28 }
+                spacing: Theme.px(10)
+                Icon { name: QuickLook.icon(); size: Theme.px(28) }
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 0
@@ -70,7 +70,7 @@ PanelWindow {
                         color: Theme.text
                         elide: Text.ElideMiddle
                         font.family: Theme.font
-                        font.pixelSize: 15 * Theme.fontScale
+                        font.pixelSize: Theme.px(15) * Theme.fontScale
                         font.weight: Font.DemiBold
                     }
                     Text {
@@ -79,7 +79,7 @@ PanelWindow {
                                QuickLook.list.length > 1 ? (QuickLook.list.indexOf(QuickLook.path) + 1) + " / " + QuickLook.list.length : ""].filter(x => x).join("  ·  ")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: 11 * Theme.fontScale
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
                     }
                 }
                 IconButton { visible: QuickLook.list.length > 1; icon: "go-previous"; tip: Tr.t("Previous") + " (←)"; onClicked: QuickLook.step(-1) }
@@ -99,7 +99,7 @@ PanelWindow {
 
                 Image {
                     anchors.fill: parent
-                    anchors.margins: 8
+                    anchors.margins: Theme.px(8)
                     visible: QuickLook.kind === "image" || (QuickLook.kind === "pdf" && QuickLook.page !== "")
                     source: !visible ? "" : QuickLook.kind === "pdf" ? "file://" + QuickLook.page : win.url
                     fillMode: Image.PreserveAspectFit
@@ -125,19 +125,19 @@ PanelWindow {
                 ColumnLayout {
                     anchors.centerIn: parent
                     visible: QuickLook.kind === "audio"
-                    spacing: 10
-                    Icon { Layout.alignment: Qt.AlignHCenter; name: "audio-x-generic"; size: 96 }
+                    spacing: Theme.px(10)
+                    Icon { Layout.alignment: Qt.AlignHCenter; name: "audio-x-generic"; size: Theme.px(96) }
                     // play / pause: a round accent button, as the Media Player's
                     Rectangle {
                         Layout.alignment: Qt.AlignHCenter
-                        implicitWidth: 64
-                        implicitHeight: 64
-                        radius: 32
+                        implicitWidth: Theme.px(64)
+                        implicitHeight: Theme.px(64)
+                        radius: Theme.px(32)
                         color: playArea.containsMouse ? Qt.lighter(Theme.accent, 1.1) : Theme.accent
                         Icon {
                             anchors.centerIn: parent
                             name: player.playbackState === MediaPlayer.PlayingState ? "media-playback-pause" : "media-playback-start"
-                            size: 28
+                            size: Theme.px(28)
                             color: Theme.accentInk
                         }
                         MouseArea {
@@ -157,14 +157,14 @@ PanelWindow {
                               + " / " + Math.floor(player.duration / 60000) + ":" + String(Math.floor(player.duration / 1000) % 60).padStart(2, "0") : ""
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: 12 * Theme.fontScale
+                        font.pixelSize: Theme.px(12) * Theme.fontScale
                     }
                 }
 
                 // a text file in the editor's colours; an archive's or folder's list
                 ListView {
                     anchors.fill: parent
-                    anchors.margins: 12
+                    anchors.margins: Theme.px(12)
                     visible: (QuickLook.kind === "archive" || QuickLook.kind === "folder") && QuickLook.text !== ""
                     clip: true
                     spacing: 2
@@ -172,12 +172,12 @@ PanelWindow {
                     delegate: RowLayout {
                         required property string modelData
                         width: ListView.view.width
-                        spacing: 8
+                        spacing: Theme.px(8)
                         readonly property bool dir: modelData.endsWith("/")
                         readonly property string base: (dir ? modelData.slice(0, -1) : modelData)
                         Icon {
                             name: FileIcons.iconFor({ isDir: parent.dir, ext: parent.base.indexOf(".") > 0 ? "." + parent.base.split(".").pop().toLowerCase() : "" })
-                            size: 18
+                            size: Theme.px(18)
                         }
                         Text {
                             Layout.fillWidth: true
@@ -185,13 +185,13 @@ PanelWindow {
                             color: Theme.text
                             elide: Text.ElideMiddle
                             font.family: Theme.font
-                            font.pixelSize: 13 * Theme.fontScale
+                            font.pixelSize: Theme.px(13) * Theme.fontScale
                         }
                     }
                 }
                 Flickable {
                     anchors.fill: parent
-                    anchors.margins: 12
+                    anchors.margins: Theme.px(12)
                     visible: QuickLook.kind === "text" && QuickLook.text !== ""
                     contentHeight: listing.implicitHeight
                     clip: true
@@ -203,7 +203,7 @@ PanelWindow {
                         color: Theme.text
                         wrapMode: Text.WrapAnywhere
                         font.family: Theme.mono
-                        font.pixelSize: 13 * Theme.fontScale
+                        font.pixelSize: Theme.px(13) * Theme.fontScale
                     }
                 }
 
@@ -226,7 +226,7 @@ PanelWindow {
                 text: Tr.t("Space or Esc closes · ← → the files beside it · Enter opens")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: 10 * Theme.fontScale
+                font.pixelSize: Theme.px(10) * Theme.fontScale
             }
         }
     }

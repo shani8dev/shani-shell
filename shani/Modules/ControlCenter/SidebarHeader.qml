@@ -16,7 +16,7 @@ import qs.Modules.Notifications
 ColumnLayout {
     required property var sidebar
     required property var sidebarClock
-    spacing: 14
+    spacing: Theme.px(14)
 
     RowLayout {
         Layout.fillWidth: true
@@ -27,7 +27,7 @@ ColumnLayout {
                 font.features: { "tnum": 1 }
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: 34 * Theme.fontScale
+                font.pixelSize: Theme.px(34) * Theme.fontScale
                 font.weight: Font.Light
             }
             Text {
@@ -36,27 +36,27 @@ ColumnLayout {
                 font.features: { "tnum": 1 }
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
             // the batteries of the mouse, the headphones, the phone …
             Flow {
                 visible: Power.peripherals.length > 0
-                width: 300
-                spacing: 10
+                width: Theme.px(300)
+                spacing: Theme.px(10)
                 Repeater {
                     model: Power.peripherals
                     Row {
                         required property var modelData
                         readonly property real pct: modelData.percentage <= 1 ? modelData.percentage * 100 : modelData.percentage
-                        spacing: 4
+                        spacing: Theme.px(4)
                         Accessible.role: Accessible.StaticText
                         Accessible.name: modelData.model + " battery " + Math.round(pct) + " percent"
-                        Icon { name: parent.modelData.iconName || "battery-good"; size: 14; color: parent.pct < 15 ? Theme.red : Theme.dim; anchors.verticalCenter: parent.verticalCenter }
+                        Icon { name: parent.modelData.iconName || "battery-good"; size: Theme.px(14); color: parent.pct < 15 ? Theme.red : Theme.dim; anchors.verticalCenter: parent.verticalCenter }
                         Text {
                             text: parent.modelData.model.split(" ").slice(0, 2).join(" ") + " " + Math.round(parent.pct) + "%"
                             color: parent.pct < 15 ? Theme.red : Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: 11 * Theme.fontScale
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
                         }
                     }
                 }
@@ -65,9 +65,9 @@ ColumnLayout {
             // computer's location (GeoClue, or a GPS through gpsd) or the time zone's city
             Row {
                 visible: Weather.summary === "" && Settings.data.weatherCity === "" && !Settings.data.useLocation
-                spacing: 8
-                Icon { name: "weather-few-clouds"; size: 14; color: Theme.dim; anchors.verticalCenter: parent.verticalCenter }
-                Text { text: Tr.t("Weather for"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; anchors.verticalCenter: parent.verticalCenter }
+                spacing: Theme.px(8)
+                Icon { name: "weather-few-clouds"; size: Theme.px(14); color: Theme.dim; anchors.verticalCenter: parent.verticalCenter }
+                Text { text: Tr.t("Weather for"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; anchors.verticalCenter: parent.verticalCenter }
                 Choice { text: Tr.t("where I am"); onClicked: { Settings.data.useLocation = true; Location.refresh(); }
                     Hint { text: Tr.t("Uses this computer's location (Wi-Fi, GPS) - you can turn it off in Settings > Privacy") } }
                 Choice { visible: Weather.zoneCity !== ""; text: Weather.zoneCity; onClicked: Settings.data.weatherCity = Weather.zoneCity
@@ -75,13 +75,13 @@ ColumnLayout {
             }
             Row {
                 visible: Weather.summary !== ""
-                spacing: 6
-                Icon { name: Weather.icon; size: 14; color: Theme.dim; anchors.verticalCenter: parent.verticalCenter }
+                spacing: Theme.px(6)
+                Icon { name: Weather.icon; size: Theme.px(14); color: Theme.dim; anchors.verticalCenter: parent.verticalCenter }
                 Text {
                     text: Weather.summary + "  ·  " + (Settings.data.weatherCity || Tr.t("here"))
                     color: weatherArea.containsMouse ? Theme.text : Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 12 * Theme.fontScale
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
                     font.underline: weatherArea.containsMouse
                     // the whole forecast: the Weather app
                     MouseArea { id: weatherArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Ui.openWeather() }
@@ -92,10 +92,10 @@ ColumnLayout {
             ColumnLayout {
                 visible: Weather.summary !== "" && Weather.forecast.length > 0
                 Layout.fillWidth: true
-                spacing: 4
+                spacing: Theme.px(4)
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 4
+                    spacing: Theme.px(4)
                     Repeater {
                         model: Weather.forecast
                         ColumnLayout {
@@ -108,13 +108,13 @@ ColumnLayout {
                                 text: modelData.day
                                 color: Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: 10 * Theme.fontScale
+                                font.pixelSize: Theme.px(10) * Theme.fontScale
                                 font.weight: Font.DemiBold
                             }
                             Icon {
                                 Layout.alignment: Qt.AlignHCenter
                                 name: Weather.iconFor(modelData.code)
-                                size: 16
+                                size: Theme.px(16)
                                 color: Theme.text
                             }
                             Text {
@@ -123,7 +123,7 @@ ColumnLayout {
                                 text: Math.round(modelData.hi) + "°/" + Math.round(modelData.lo) + "°"
                                 color: Theme.text
                                 font.family: Theme.font
-                                font.pixelSize: 10 * Theme.fontScale
+                                font.pixelSize: Theme.px(10) * Theme.fontScale
                                 font.features: { "tnum": 1 }
                             }
                             Text {
@@ -133,7 +133,7 @@ ColumnLayout {
                                 text: Weather.describe(modelData.code).split(" ")[0]
                                 color: Theme.faint
                                 font.family: Theme.font
-                                font.pixelSize: 9 * Theme.fontScale
+                                font.pixelSize: Theme.px(9) * Theme.fontScale
                             }
                         }
                     }
@@ -141,38 +141,38 @@ ColumnLayout {
                 // next 24 hours (Weather.hourly), a compact strip
                 Flickable {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 34
-                    Layout.minimumHeight: 34
+                    Layout.preferredHeight: Theme.px(34)
+                    Layout.minimumHeight: Theme.px(34)
                     contentWidth: hourRow.implicitWidth
                     contentHeight: 34
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
                     Row {
                         id: hourRow
-                        height: 34
-                        spacing: 8
+                        height: Theme.px(34)
+                        spacing: Theme.px(8)
                         Repeater {
                             model: Weather.hourly
                             Column {
                                 required property var modelData
-                                width: 36
+                                width: Theme.px(36)
                                 spacing: 0
                                 Text {
-                                    width: 36
+                                    width: Theme.px(36)
                                     horizontalAlignment: Text.AlignHCenter
                                     text: modelData.hour
                                     color: Theme.dim
                                     font.family: Theme.font
-                                    font.pixelSize: 9 * Theme.fontScale
+                                    font.pixelSize: Theme.px(9) * Theme.fontScale
                                     font.features: { "tnum": 1 }
                                 }
                                 Text {
-                                    width: 36
+                                    width: Theme.px(36)
                                     horizontalAlignment: Text.AlignHCenter
                                     text: Math.round(modelData.temp) + "°"
                                     color: Theme.text
                                     font.family: Theme.font
-                                    font.pixelSize: 11 * Theme.fontScale
+                                    font.pixelSize: Theme.px(11) * Theme.fontScale
                                     font.features: { "tnum": 1 }
                                 }
                             }
@@ -198,8 +198,8 @@ ColumnLayout {
         visible: Ui.expanded === "power"
         Layout.fillWidth: true
         columns: 3
-        columnSpacing: 6
-        rowSpacing: 6
+        columnSpacing: Theme.px(6)
+        rowSpacing: Theme.px(6)
         Repeater {
             model: [
                 { id: "logout", label: Tr.t("Log out"), run: () => Power.logout() },

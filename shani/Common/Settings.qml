@@ -335,6 +335,9 @@ Singleton {
             property int keyRepeatRate: 30
             // screens, by connector: { mode, scale, transform, x, y, vrr, off } (Displays)
             property var displays: ({})
+            // what kind of screen each one is, when the owner chose it (FormFactor.js):
+            // { "HDMI-A-1": "tv" }; a screen not here is told by its size and input
+            property var formFactors: ({})
             property string kbCompose: ""            // xkb: "" | ralt | rwin | menu | caps
             property string kbCaps: ""               // xkb: "" | ctrl:nocaps | caps:escape | caps:backspace
             // your own shortcuts: [{ key: "Mod+Alt+T", title, command }]

@@ -17,12 +17,12 @@ AppWindow {
     id: win
     appName: "Calendar"
     tools: [
-        IconButton { size: 30; icon: "view-refresh"; tip: Tr.t("Refresh"); onClicked: Agenda.refresh() }
+        IconButton { size: Theme.px(30); icon: "view-refresh"; tip: Tr.t("Refresh"); onClicked: Agenda.refresh() }
     ]
     visible: Ui.calendar
     onGone: Ui.calendar = false
     margins: 0
-    implicitWidth: 760
+    implicitWidth: Theme.px(760)
     implicitHeight: Math.max(320, Math.min(900, col.implicitHeight + 40))
     // blur behind the card, as on every shell surface (ext-background-effect)
 
@@ -219,13 +219,13 @@ AppWindow {
         ColumnLayout {
             id: col
             anchors.fill: parent
-            anchors.margins: 16
-            spacing: 12
+            anchors.margins: Theme.px(16)
+            spacing: Theme.px(12)
 
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 Choice { text: Tr.t("Month"); selected: win.view === "month"; onClicked: { Ui.calendarView = "month"; Agenda.refresh(); } }
                 Choice { text: Tr.t("Week"); selected: win.view === "week"; onClicked: { Ui.calendarView = "week"; Agenda.refresh(); } }
                 Choice {
@@ -243,22 +243,22 @@ AppWindow {
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 6
-                IconButton { icon: "go-previous"; size: 28; tip: win.view === "week" ? Tr.t("Previous week") : Tr.t("Previous month"); onClicked: win.stepView(-1) }
+                spacing: Theme.px(6)
+                IconButton { icon: "go-previous"; size: Theme.px(28); tip: win.view === "week" ? Tr.t("Previous week") : Tr.t("Previous month"); onClicked: win.stepView(-1) }
                 Text {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
                     text: win.view === "week" ? win.weekLabel : Qt.formatDate(win.month, "MMMM yyyy")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 14 * Theme.fontScale
+                    font.pixelSize: Theme.px(14) * Theme.fontScale
                     font.weight: Font.DemiBold
                     Accessible.role: Accessible.Button
                     Accessible.name: Tr.t("Back to today")
                     MouseArea { anchors.fill: parent; onClicked: win.goToday() }
                     KeyFocus { onActivated: win.goToday() }
                 }
-                IconButton { icon: "go-next"; size: 28; tip: win.view === "week" ? Tr.t("Next week") : Tr.t("Next month"); onClicked: win.stepView(1) }
+                IconButton { icon: "go-next"; size: Theme.px(28); tip: win.view === "week" ? Tr.t("Next week") : Tr.t("Next month"); onClicked: win.stepView(1) }
             }
 
             GridLayout {
@@ -273,7 +273,7 @@ AppWindow {
                     color: Theme.faint
                     horizontalAlignment: Text.AlignHCenter
                     font.family: Theme.font
-                    font.pixelSize: 10 * Theme.fontScale
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
                 }
                 Repeater {
                     model: win.weekNames
@@ -284,7 +284,7 @@ AppWindow {
                         text: modelData
                         color: Theme.faint
                         font.family: Theme.font
-                        font.pixelSize: 10 * Theme.fontScale
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
                     }
                 }
                 Repeater {
@@ -296,8 +296,8 @@ AppWindow {
                         readonly property bool isToday: day === win.today.getDate() && win.offset === 0 && win.month.getMonth() === win.today.getMonth() && win.month.getFullYear() === win.today.getFullYear()
                         readonly property bool isSelected: !isWeek && day === win.selectedDate.getDate() && win.selectedDate.getMonth() === win.month.getMonth() && win.selectedDate.getFullYear() === win.month.getFullYear()
                         Layout.fillWidth: true
-                        implicitHeight: 30
-                        radius: 8
+                        implicitHeight: Theme.px(30)
+                        radius: Theme.px(8)
                         color: isSelected ? Theme.accent : isToday ? Theme.accentSoft : "transparent"
                         Accessible.role: isWeek ? Accessible.StaticText : Accessible.Button
                         Accessible.name: isWeek ? Tr.t("Week %1").arg(modelData.week) : Qt.formatDate(new Date(win.month.getFullYear(), win.month.getMonth(), day), "dddd d MMMM yyyy")
@@ -307,16 +307,16 @@ AppWindow {
                             text: parent.isWeek ? parent.modelData.week : parent.day
                             color: parent.isSelected ? Theme.accentInk : parent.isWeek ? Theme.faint : parent.isToday ? Theme.accent : Theme.text
                             font.family: Theme.font
-                            font.pixelSize: 11 * Theme.fontScale
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
                             font.weight: parent.isSelected || parent.isToday ? Font.DemiBold : Font.Normal
                         }
                         Rectangle {
                             visible: !parent.isWeek && win.hasEvents(parent.day)
                             anchors.horizontalCenter: parent.horizontalCenter
                             anchors.bottom: parent.bottom
-                            anchors.bottomMargin: 3
-                            width: 5
-                            height: 5
+                            anchors.bottomMargin: Theme.px(3)
+                            width: Theme.px(5)
+                            height: Theme.px(5)
                             radius: 2.5
                             color: parent.isSelected ? Theme.accentInk : Theme.accent
                         }
@@ -339,7 +339,7 @@ AppWindow {
             ColumnLayout {
                 visible: win.view === "week"
                 Layout.fillWidth: true
-                spacing: 4
+                spacing: Theme.px(4)
                 GridLayout {
                     Layout.fillWidth: true
                     columns: 8
@@ -348,11 +348,11 @@ AppWindow {
                     Text {
                         text: ""
                         Layout.fillWidth: false
-                        Layout.preferredWidth: 44
+                        Layout.preferredWidth: Theme.px(44)
                         color: Theme.faint
                         horizontalAlignment: Text.AlignHCenter
                         font.family: Theme.font
-                        font.pixelSize: 10 * Theme.fontScale
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
                     }
                     Repeater {
                         model: win.weekDays
@@ -363,8 +363,8 @@ AppWindow {
                             readonly property bool isToday: win.isSameDay(dayDate, win.today)
                             readonly property bool isSelected: win.isSameDay(dayDate, win.selectedDate)
                             Layout.fillWidth: true
-                            implicitHeight: 34
-                            radius: 8
+                            implicitHeight: Theme.px(34)
+                            radius: Theme.px(8)
                             color: isSelected ? Theme.accent : isToday ? Theme.accentSoft : "transparent"
                             Accessible.role: Accessible.Button
                             Accessible.name: Qt.formatDate(dayDate, "dddd d MMMM yyyy") + (isToday ? " (" + Tr.t("today") + ")" : "")
@@ -373,7 +373,7 @@ AppWindow {
                                 text: Qt.formatDate(dayDate, "ddd d")
                                 color: isSelected ? Theme.accentInk : isToday ? Theme.accent : Theme.text
                                 font.family: Theme.font
-                                font.pixelSize: 11 * Theme.fontScale
+                                font.pixelSize: Theme.px(11) * Theme.fontScale
                                 font.weight: isSelected || isToday ? Font.DemiBold : Font.Normal
                             }
                             MouseArea {
@@ -393,11 +393,11 @@ AppWindow {
                     columnSpacing: 2
                     Text {
                         text: Tr.t("All-day")
-                        Layout.preferredWidth: 44
+                        Layout.preferredWidth: Theme.px(44)
                         color: Theme.faint
                         horizontalAlignment: Text.AlignHCenter
                         font.family: Theme.font
-                        font.pixelSize: 10 * Theme.fontScale
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
                         verticalAlignment: Text.AlignVCenter
                     }
                     Repeater {
@@ -408,7 +408,7 @@ AppWindow {
                             readonly property var _evs: win.allDayForDay(index)
                             Layout.fillWidth: true
                             implicitHeight: Math.max(22, _evs.length * 18 + 4)
-                            radius: 6
+                            radius: Theme.px(6)
                             color: "transparent"
                             ColumnLayout {
                                 anchors.fill: parent
@@ -418,20 +418,20 @@ AppWindow {
                                     Rectangle {
                                         required property var modelData
                                         Layout.fillWidth: true
-                                        implicitHeight: 16
-                                        radius: 4
+                                        implicitHeight: Theme.px(16)
+                                        radius: Theme.px(4)
                                         color: Theme.accentSoft
                                         Accessible.role: Accessible.Button
                                         Accessible.name: modelData.summary
                                         Text {
                                             anchors.fill: parent
-                                            anchors.leftMargin: 4; anchors.rightMargin: 4
+                                            anchors.leftMargin: Theme.px(4); anchors.rightMargin: Theme.px(4)
                                             text: modelData.summary
                                             color: Theme.text
                                             elide: Text.ElideRight
                                             verticalAlignment: Text.AlignVCenter
                                             font.family: Theme.font
-                                            font.pixelSize: 9 * Theme.fontScale
+                                            font.pixelSize: Theme.px(9) * Theme.fontScale
                                         }
                                         MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.openEditor(modelData) }
                                         KeyFocus { onActivated: win.openEditor(modelData) }
@@ -443,7 +443,7 @@ AppWindow {
                 }
                 Flickable {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 200
+                    Layout.preferredHeight: Theme.px(200)
                     contentHeight: hourCol.implicitHeight
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
@@ -460,13 +460,13 @@ AppWindow {
                                 Layout.fillWidth: true
                                 spacing: 2
                                 Text {
-                                    Layout.preferredWidth: 44
+                                    Layout.preferredWidth: Theme.px(44)
                                     Layout.fillWidth: false
                                     text: (hour < 10 ? "0" : "") + hour + ":00"
                                     color: Theme.faint
                                     horizontalAlignment: Text.AlignHCenter
                                     font.family: Theme.font
-                                    font.pixelSize: 10 * Theme.fontScale
+                                    font.pixelSize: Theme.px(10) * Theme.fontScale
                                     verticalAlignment: Text.AlignVCenter
                                 }
                                 Repeater {
@@ -477,7 +477,7 @@ AppWindow {
                                         readonly property var _evs: win.weekEventsForHour(index, hourRow.hour)
                                         Layout.fillWidth: true
                                         implicitHeight: Math.max(20, _evs.length * 16 + 2)
-                                        radius: 4
+                                        radius: Theme.px(4)
                                         color: "transparent"
                                         border.width: 1
                                         border.color: Theme.stroke
@@ -490,20 +490,20 @@ AppWindow {
                                                 Rectangle {
                                                     required property var modelData
                                                     Layout.fillWidth: true
-                                                    implicitHeight: 14
-                                                    radius: 3
+                                                    implicitHeight: Theme.px(14)
+                                                    radius: Theme.px(3)
                                                     color: Theme.accentSoft
                                                     Accessible.role: Accessible.Button
                                                     Accessible.name: modelData.summary + " " + Qt.formatTime(new Date(modelData.start * 1000), "HH:mm")
                                                     Text {
                                                         anchors.fill: parent
-                                                        anchors.leftMargin: 3; anchors.rightMargin: 3
+                                                        anchors.leftMargin: Theme.px(3); anchors.rightMargin: Theme.px(3)
                                                         text: modelData.summary
                                                         color: Theme.text
                                                         elide: Text.ElideRight
                                                         verticalAlignment: Text.AlignVCenter
                                                         font.family: Theme.font
-                                                        font.pixelSize: 9 * Theme.fontScale
+                                                        font.pixelSize: Theme.px(9) * Theme.fontScale
                                                     }
                                                     MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.openEditor(modelData) }
                                                     KeyFocus { onActivated: win.openEditor(modelData) }
@@ -523,7 +523,7 @@ AppWindow {
                     text: Tr.t("%1 in this week").arg(win.weekEvents.length)
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
             }
 
@@ -540,7 +540,7 @@ AppWindow {
                     text: Qt.formatDate(win.selectedDate, "dddd d MMMM yyyy")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 13 * Theme.fontScale
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
                 Text {
@@ -548,14 +548,14 @@ AppWindow {
                     text: Tr.t("%1 in this month").arg(win.monthEvents.length)
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 Text {
                     visible: win.view === "week" && win.weekEvents.length > 0
                     text: Tr.t("%1 in this week").arg(win.weekEvents.length)
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
             }
 
@@ -563,7 +563,7 @@ AppWindow {
             Flow {
                 Layout.fillWidth: true
                 visible: !win.editor && Agenda.calendarNames.length > 1
-                spacing: 6
+                spacing: Theme.px(6)
                 Repeater {
                     model: Agenda.calendarNames
                     Choice {
@@ -591,7 +591,7 @@ AppWindow {
                 visible: !win.editor
                 Layout.fillWidth: true
                 Layout.preferredHeight: Math.min(190, dayList.implicitHeight + 4)
-                Layout.minimumHeight: 24
+                Layout.minimumHeight: Theme.px(24)
                 contentHeight: dayList.implicitHeight
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
@@ -625,13 +625,13 @@ AppWindow {
             ColumnLayout {
                 visible: win.editor
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Text {
                     Layout.fillWidth: true
                     text: win.editingEvent ? Tr.t("Edit event") : Tr.t("New event")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 13 * Theme.fontScale
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
                 TextField {
@@ -652,7 +652,7 @@ AppWindow {
                 Flow {
                     visible: !win.editingEvent
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Choice { text: Tr.t("The first one"); selected: Agenda.selectedCalendar === ""; onClicked: Agenda.selectedCalendar = "" }
                     Repeater {
                         model: Agenda.writableNames
@@ -670,20 +670,20 @@ AppWindow {
                     text: Tr.t("Calendar: %1").arg(win.editingEvent ? win.editingEvent.calendar : "")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 6
-                    TextField { id: fDateA; Layout.preferredWidth: 110; placeholder: "2026-11-08"; label: Tr.t("Start date (yyyy-MM-dd)") }
-                    TextField { id: fTimeA; Layout.preferredWidth: 70; placeholder: "09:00"; label: Tr.t("Start time (HH:mm)"); enabled: !win.fAllDay }
+                    spacing: Theme.px(6)
+                    TextField { id: fDateA; Layout.preferredWidth: Theme.px(110); placeholder: "2026-11-08"; label: Tr.t("Start date (yyyy-MM-dd)") }
+                    TextField { id: fTimeA; Layout.preferredWidth: Theme.px(70); placeholder: "09:00"; label: Tr.t("Start time (HH:mm)"); enabled: !win.fAllDay }
                     Button { text: win.fAllDay ? Tr.t("All-day: on") : Tr.t("All-day: off"); kind: "outline"; onClicked: win.fAllDay = !win.fAllDay }
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 6
-                    TextField { id: fDateB; Layout.preferredWidth: 110; placeholder: "2026-11-08"; label: Tr.t("End date (yyyy-MM-dd)") }
-                    TextField { id: fTimeB; Layout.preferredWidth: 70; placeholder: "10:00"; label: Tr.t("End time (HH:mm)"); enabled: !win.fAllDay }
+                    spacing: Theme.px(6)
+                    TextField { id: fDateB; Layout.preferredWidth: Theme.px(110); placeholder: "2026-11-08"; label: Tr.t("End date (yyyy-MM-dd)") }
+                    TextField { id: fTimeB; Layout.preferredWidth: Theme.px(70); placeholder: "10:00"; label: Tr.t("End time (HH:mm)"); enabled: !win.fAllDay }
                 }
                 Text {
                     visible: win.formError !== ""
@@ -691,11 +691,11 @@ AppWindow {
                     text: win.formError
                     color: Theme.danger
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: Theme.px(8)
                     Button { Layout.fillWidth: true; text: Tr.t("Save"); kind: "primary"; onClicked: win.saveEditor() }
                     Button { Layout.fillWidth: true; text: Tr.t("Cancel"); onClicked: win.closeEditor() }
                     Button { visible: win.editingEvent !== null; text: Tr.t("Delete"); kind: "danger"; onClicked: win.deleteEditor() }
@@ -716,7 +716,7 @@ AppWindow {
                 text: win.editor ? Tr.t("Esc closes the form") : Tr.t("Esc closes · title returns to today · click an event to edit it")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
         }
     }

@@ -18,8 +18,8 @@ AppWindow {
     visible: Ui.pdfSigner
     onGone: PdfSigner.close()
     margins: 0
-    implicitWidth: 920
-    implicitHeight: 720
+    implicitWidth: Theme.px(920)
+    implicitHeight: Theme.px(720)
 
     // made on first use: the native picker is the portal's, and made with
     // every picker it held the whole shell while D-Bus waited for it
@@ -48,12 +48,12 @@ AppWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 16
-            spacing: 10
+            anchors.margins: Theme.px(16)
+            spacing: Theme.px(10)
 
             RowLayout {
                 Layout.fillWidth: true
-                Icon { name: "x-office-document"; size: 20; color: Theme.accent }
+                Icon { name: "x-office-document"; size: Theme.px(20); color: Theme.accent }
                 Text {
                     Layout.fillWidth: true
                     text: PdfSigner.name
@@ -61,17 +61,17 @@ AppWindow {
                     color: Theme.text
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: 15 * Theme.fontScale
+                    font.pixelSize: Theme.px(15) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
-                IconButton { icon: "go-previous"; size: 28; tip: Tr.t("Previous page"); onClicked: PdfViewer.prevPage() }
-                IconButton { icon: "go-next"; size: 28; tip: Tr.t("Next page"); onClicked: PdfViewer.nextPage() }
+                IconButton { icon: "go-previous"; size: Theme.px(28); tip: Tr.t("Previous page"); onClicked: PdfViewer.prevPage() }
+                IconButton { icon: "go-next"; size: Theme.px(28); tip: Tr.t("Next page"); onClicked: PdfViewer.nextPage() }
             }
 
             // open a PDF: a path, or a folder (its last PDF is opened)
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 TextField {
                     id: pdfField
                     Layout.fillWidth: true
@@ -86,7 +86,7 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                spacing: 10
+                spacing: Theme.px(10)
 
                 // the page, as PdfViewer rendered it, with the overlays
                 Rectangle {
@@ -98,7 +98,7 @@ AppWindow {
                     Image {
                         id: pageImage
                         anchors.fill: parent
-                        anchors.margins: 10
+                        anchors.margins: Theme.px(10)
                         source: PdfViewer.current !== "" ? "file://" + PdfViewer.current : ""
                         fillMode: Image.PreserveAspectFit
                         smooth: true
@@ -134,7 +134,7 @@ AppWindow {
                         text: PdfSigner.error !== "" ? PdfSigner.error : Tr.t("Open a PDF to sign")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: 13 * Theme.fontScale
+                        font.pixelSize: Theme.px(13) * Theme.fontScale
                     }
                     MouseArea {
                         anchors.fill: parent
@@ -144,9 +144,9 @@ AppWindow {
 
                 // placement + fill controls, beside the page
                 ColumnLayout {
-                    Layout.preferredWidth: 300
+                    Layout.preferredWidth: Theme.px(300)
                     Layout.fillHeight: true
-                    spacing: 8
+                    spacing: Theme.px(8)
 
                     SectionTitle { Layout.fillWidth: true; text: Tr.t("Signature") }
                     Button {
@@ -164,7 +164,7 @@ AppWindow {
                     }
                     RowLayout {
                         Layout.fillWidth: true
-                        spacing: 6
+                        spacing: Theme.px(6)
                         TextField {
                             id: xField
                             Layout.fillWidth: true
@@ -195,7 +195,7 @@ AppWindow {
                         text: Tr.t("x / y / scale place the signature on the page")
                         color: Theme.faint
                         font.family: Theme.font
-                        font.pixelSize: 10 * Theme.fontScale
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
                     }
 
                     SectionTitle { Layout.fillWidth: true; text: Tr.t("Fill text") }
@@ -209,7 +209,7 @@ AppWindow {
                     }
                     RowLayout {
                         Layout.fillWidth: true
-                        spacing: 6
+                        spacing: Theme.px(6)
                         TextField {
                             id: textXField
                             Layout.fillWidth: true
@@ -244,7 +244,7 @@ AppWindow {
                         color: PdfSigner.error !== "" ? Theme.red : Theme.dim
                         elide: Text.ElideMiddle
                         font.family: Theme.font
-                        font.pixelSize: 11 * Theme.fontScale
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
                     }
                     Text {
                         Layout.fillWidth: true
@@ -252,7 +252,7 @@ AppWindow {
                         color: Theme.faint
                         horizontalAlignment: Text.AlignHCenter
                         font.family: Theme.font
-                        font.pixelSize: 10 * Theme.fontScale
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
                     }
                 }
             }

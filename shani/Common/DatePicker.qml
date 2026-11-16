@@ -11,7 +11,7 @@ ColumnLayout {
     signal picked(string date)
 
     Layout.fillWidth: true
-    spacing: 6
+    spacing: Theme.px(6)
 
     property date current: new Date()
     readonly property date month: new Date(current.getFullYear(), current.getMonth(), 1)
@@ -30,20 +30,20 @@ ColumnLayout {
 
     RowLayout {
         Layout.fillWidth: true
-        spacing: 8
-        IconButton { icon: "go-previous"; size: 26; onClicked: current = new Date(current.getFullYear(), current.getMonth() - 1, 1) }
+        spacing: Theme.px(8)
+        IconButton { icon: "go-previous"; size: Theme.px(26); onClicked: current = new Date(current.getFullYear(), current.getMonth() - 1, 1) }
         Text {
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
             text: Qt.formatDate(root.month, "MMMM yyyy")
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: 13 * Theme.fontScale
+            font.pixelSize: Theme.px(13) * Theme.fontScale
             font.weight: Font.DemiBold
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.current = new Date() }
             KeyFocus { onActivated: root.current = new Date() }
         }
-        IconButton { icon: "go-next"; size: 26; onClicked: current = new Date(current.getFullYear(), current.getMonth() + 1, 1) }
+        IconButton { icon: "go-next"; size: Theme.px(26); onClicked: current = new Date(current.getFullYear(), current.getMonth() + 1, 1) }
     }
 
     GridLayout {
@@ -61,7 +61,7 @@ ColumnLayout {
                 text: modelData
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: 10 * Theme.fontScale
+                font.pixelSize: Theme.px(10) * Theme.fontScale
             }
         }
 
@@ -73,7 +73,7 @@ ColumnLayout {
                 readonly property bool isSelected: day > 0 && root.format(day) === root.value
                 readonly property bool isToday: day === new Date().getDate() && current.getMonth() === new Date().getMonth() && current.getFullYear() === new Date().getFullYear()
                 Layout.fillWidth: true
-                Layout.preferredHeight: 30
+                Layout.preferredHeight: Theme.px(30)
                 radius: Theme.radiusToken("xs")
                 color: isSelected ? Theme.accent : (isToday ? Theme.hover : "transparent")
                 border.width: isToday && !isSelected ? 1 : 0
@@ -84,7 +84,7 @@ ColumnLayout {
                     text: parent.day
                     color: parent.isSelected ? Theme.accentInk : Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                     font.weight: parent.isSelected || parent.isToday ? Font.DemiBold : Font.Normal
                 }
                 MouseArea {
@@ -109,17 +109,17 @@ ColumnLayout {
 
     RowLayout {
         Layout.fillWidth: true
-        spacing: 6
-        Text { text: root.value; color: Theme.accent; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; font.weight: Font.DemiBold }
-        Text { text: Tr.t("· tap a day to change"); color: Theme.faint; font.family: Theme.font; font.pixelSize: 10 * Theme.fontScale }
+        spacing: Theme.px(6)
+        Text { text: root.value; color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.DemiBold }
+        Text { text: Tr.t("· tap a day to change"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
     }
 
     // Quick picks
     // a label above the chips, not among them: a child as wide as its Flow makes the Flow re-lay out itself forever
-    Text { Layout.fillWidth: true; text: Tr.t("Quick picks:"); color: Theme.faint; font.family: Theme.font; font.pixelSize: 10 * Theme.fontScale }
+    Text { Layout.fillWidth: true; text: Tr.t("Quick picks:"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
     Flow {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Choice {
             text: Tr.t("Today")
             selected: root.value === Qt.formatDate(new Date(), "yyyy-MM-dd")
@@ -150,7 +150,7 @@ ColumnLayout {
     // Custom date: type your own
     RowLayout {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         TextField {
             id: customDate
             Layout.fillWidth: true

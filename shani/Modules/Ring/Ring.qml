@@ -25,7 +25,7 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: (Ui.ring) && !Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    readonly property real radius: 132
+    readonly property real radius: Theme.px(132)
     readonly property real dead: 34          // the centre: no slice, closes on click
     property point center: Qt.point(width / 2, height / 2)
     property bool placed: false
@@ -253,7 +253,7 @@ PanelWindow {
                 visible: !slice.modelData.app
                 anchors.centerIn: parent
                 name: slice.modelData.icon || ""
-                size: 22
+                size: Theme.px(22)
                 color: slice.isHot ? Theme.accentInk : Theme.text
             }
             IconImage {
@@ -265,13 +265,13 @@ PanelWindow {
             // a dot on slices that open a ring of their own
             Rectangle {
                 visible: !!slice.modelData.children
-                width: 6
-                height: 6
-                radius: 3
+                width: Theme.px(6)
+                height: Theme.px(6)
+                radius: Theme.px(3)
                 color: slice.isHot ? Theme.accentInk : Theme.accent
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: 5
+                anchors.bottomMargin: Theme.px(5)
             }
         }
     }

@@ -13,7 +13,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     property bool active: false
     readonly property var d: Settings.data
 
@@ -93,7 +93,7 @@ ColumnLayout {
                 ListRow {
                     required property string modelData
                     Layout.fillWidth: true
-                    Layout.leftMargin: 28
+                    Layout.leftMargin: Theme.px(28)
                     icon: { const e = page.entry(modelData); return e && e.icon ? e.icon : "application-x-executable"; }
                     title: page.nameOf(modelData)
                     selected: modelData === kindRow.info.current
@@ -115,7 +115,7 @@ ColumnLayout {
             : Tr.t("Give an app its own settings when it starts - environment variables (MANGOHUD=1, for example) and extra arguments.")
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     property string launchApp: ""
     readonly property var launchOpts: launchApp ? Launch.options(launchApp) : ({})
@@ -127,7 +127,7 @@ ColumnLayout {
     // the apps that already have their own
     Flow {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         visible: Object.keys(page.d.appLaunch || {}).length > 0
         Repeater {
             model: Object.keys(page.d.appLaunch || {})
@@ -148,12 +148,12 @@ ColumnLayout {
     ColumnLayout {
         Layout.fillWidth: true
         visible: page.launchApp !== ""
-        spacing: 8
+        spacing: Theme.px(8)
         RowLayout {
             Layout.fillWidth: true
             visible: Gpu.hasChoice
-            spacing: 6
-            Text { text: Tr.t("Graphics card"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; Layout.preferredWidth: 120 }
+            spacing: Theme.px(6)
+            Text { text: Tr.t("Graphics card"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.preferredWidth: Theme.px(120) }
             Repeater {
                 model: [{ id: "", label: Tr.t("As the app asks") }, { id: "discrete", label: Gpu.other ? Gpu.other.name.split(" ").slice(0, 3).join(" ") : Tr.t("The faster one") }, { id: "default", label: Tr.t("The default one") }]
                 Choice {
@@ -166,8 +166,8 @@ ColumnLayout {
         }
         RowLayout {
             Layout.fillWidth: true
-            spacing: 6
-            Text { text: Tr.t("Environment"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; Layout.preferredWidth: 120 }
+            spacing: Theme.px(6)
+            Text { text: Tr.t("Environment"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.preferredWidth: Theme.px(120) }
             TextField {
                 Layout.fillWidth: true
                 placeholder: page.launchOpts.env || Tr.t("NAME=value, space between - Enter to keep")
@@ -176,8 +176,8 @@ ColumnLayout {
         }
         RowLayout {
             Layout.fillWidth: true
-            spacing: 6
-            Text { text: Tr.t("Arguments"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; Layout.preferredWidth: 120 }
+            spacing: Theme.px(6)
+            Text { text: Tr.t("Arguments"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.preferredWidth: Theme.px(120) }
             TextField {
                 Layout.fillWidth: true
                 placeholder: page.launchOpts.args || Tr.t("added after the app's own - Enter to keep")
@@ -185,7 +185,7 @@ ColumnLayout {
             }
         }
         RowLayout {
-            spacing: 8
+            spacing: Theme.px(8)
             Button { text: Tr.t("Start it now"); kind: "primary"; onClicked: Launch.app(page.launchApp) }
             Button { text: Tr.t("Back to how it came"); onClicked: { Launch.setOptions(page.launchApp, null); } }
         }

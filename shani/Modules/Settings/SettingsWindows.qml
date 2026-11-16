@@ -8,7 +8,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     readonly property var d: Settings.data
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Windows") }
@@ -52,7 +52,7 @@ ColumnLayout {
         color: Theme.faint
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
     Picks {
         label: Tr.t("Speed")
@@ -98,7 +98,7 @@ ColumnLayout {
         color: Theme.faint
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
     Repeater {
         model: Array.from(page.d.windowRules || [])
@@ -106,10 +106,10 @@ ColumnLayout {
             required property var modelData
             required property int index
             Layout.fillWidth: true
-            spacing: 4
+            spacing: Theme.px(4)
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 AppPicker {
                     Layout.fillWidth: true
                     label: Tr.t("App")
@@ -126,11 +126,11 @@ ColumnLayout {
             }
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Text { text: Tr.t("Opens on workspace"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: ["", "1", "2", "3", "4", "5"]
                         Choice {
@@ -163,6 +163,6 @@ ColumnLayout {
         color: Theme.faint
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
 }

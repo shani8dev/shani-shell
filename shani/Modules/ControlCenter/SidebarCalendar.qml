@@ -15,7 +15,7 @@ import qs.Modules.Notifications
 
 ColumnLayout {
     required property var sidebarClock
-    spacing: 14
+    spacing: Theme.px(14)
 
     Calendar {
         Layout.fillWidth: true

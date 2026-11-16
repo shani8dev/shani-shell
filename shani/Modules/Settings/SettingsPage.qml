@@ -12,7 +12,7 @@ import "SettingsIndex.js" as SettingsIndex
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     readonly property var d: Settings.data
     property var wallpapers: []
     property string myZone: ""          // this computer's time zone (its city: a weather pick)
@@ -48,20 +48,20 @@ ColumnLayout {
     ColumnLayout {
         Layout.fillWidth: true
         visible: page.settingsMatches === undefined || (Object.keys(page.d).length === 0 && page.cat === "")
-        spacing: 8
+        spacing: Theme.px(8)
         Repeater {
             model: 4
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: 36
-                radius: 6
+                implicitHeight: Theme.px(36)
+                radius: Theme.px(6)
                 color: Theme.surface2
                 RowLayout {
                     anchors.fill: parent
-                    anchors.margins: 8
-                    spacing: 10
-                    Rectangle { width: 20; height: 20; radius: 5; color: Theme.surface3 }
-                    Rectangle { width: 160; height: 10; radius: 5; color: Theme.surface3 }
+                    anchors.margins: Theme.px(8)
+                    spacing: Theme.px(10)
+                    Rectangle { width: Theme.px(20); height: Theme.px(20); radius: Theme.px(5); color: Theme.surface3 }
+                    Rectangle { width: Theme.px(160); height: Theme.px(10); radius: Theme.px(5); color: Theme.surface3 }
                 }
             }
         }
@@ -175,29 +175,29 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         visible: page.cat === "" && !page.inWindow
-        spacing: 8
+        spacing: Theme.px(8)
         Button {
             text: Tr.t("Backup now")
             kind: "outline"
-            implicitHeight: 32
+            implicitHeight: Theme.px(32)
             onClicked: { Quickshell.execDetached(["sh", "-c", "echo 'Backup started' >> /tmp/quick-op.log"]); page.showToast("Backup started", true, "backup"); }
         }
         Button {
             text: Tr.t("Network status")
             kind: "outline"
-            implicitHeight: 32
+            implicitHeight: Theme.px(32)
             onClicked: { page.showToast("Connected to Wi-Fi", false, ""); page.openSetting({ cat: "network", label: "Wi-Fi" }); }
         }
         Button {
             text: Tr.t("Update check")
             kind: "outline"
-            implicitHeight: 32
+            implicitHeight: Theme.px(32)
             onClicked: { Quickshell.execDetached(["sh", "-c", "echo 'Update check' >> /tmp/quick-op.log"]); page.showToast("Update check started", false, ""); }
         }
         Button {
             text: Tr.t("System info")
             kind: "outline"
-            implicitHeight: 32
+            implicitHeight: Theme.px(32)
             onClicked: { page.showToast("Memory: 477 MB  ·  CPU: 54 ms/s", false, ""); }
         }
     }
@@ -248,19 +248,19 @@ ColumnLayout {
         visible: Ui.settingsHighlight !== "" && page.cat !== ""
         radius: Theme.radiusSmall
         color: Theme.accentSoft
-        implicitHeight: 34
+        implicitHeight: Theme.px(34)
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 10
-            anchors.rightMargin: 10
-            spacing: 8
-            Icon { name: "edit-find"; size: 14; color: Theme.accent }
+            anchors.leftMargin: Theme.px(10)
+            anchors.rightMargin: Theme.px(10)
+            spacing: Theme.px(8)
+            Icon { name: "edit-find"; size: Theme.px(14); color: Theme.accent }
             Text {
                 Layout.fillWidth: true
                 text: Tr.t("Found: %1").arg(Ui.settingsHighlight)
                 color: Theme.accent
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
                 elide: Text.ElideRight
             }
         }
@@ -269,8 +269,8 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         visible: Settings.recentlyChanged.length > 0 && page.cat === "" && !page.inWindow
-        spacing: 6
-        Text { text: Tr.t("Just changed:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+        spacing: Theme.px(6)
+        Text { text: Tr.t("Just changed:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
         Repeater {
             model: Settings.recentlyChanged
             Choice {
@@ -285,13 +285,13 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         visible: page.cat !== "" && (page.modified[page.cat] || 0) > 0
-        spacing: 8
+        spacing: Theme.px(8)
         Text {
             Layout.fillWidth: true
             text: Tr.t("%1 customised", page.modified[page.cat] || 0)
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: 11 * Theme.fontScale
+            font.pixelSize: Theme.px(11) * Theme.fontScale
         }
         Button {
             kind: page.confirmResetSection ? "danger" : "plain"
@@ -312,15 +312,15 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: page.cat === "" && !page.inWindow
         columns: 2
-        columnSpacing: 8
-        rowSpacing: 8
+        columnSpacing: Theme.px(8)
+        rowSpacing: Theme.px(8)
         Repeater {
             model: page.shownCats
             Rectangle {
                 id: catTile
                 required property var modelData
                 Layout.fillWidth: true
-                implicitHeight: 64
+                implicitHeight: Theme.px(64)
                 radius: Theme.radius
                 color: catArea.containsMouse ? Theme.surface3 : Theme.surface2
                 Accessible.role: Accessible.Button
@@ -328,23 +328,23 @@ ColumnLayout {
                 Accessible.description: (page.modified[modelData.id] || 0) + Tr.t(" customised")
                 // amber dot: this section differs from the defaults
                 Rectangle {
-                    anchors { right: parent.right; top: parent.top; margins: 10 }
-                    width: 8
-                    height: 8
-                    radius: 4
+                    anchors { right: parent.right; top: parent.top; margins: Theme.px(10) }
+                    width: Theme.px(8)
+                    height: Theme.px(8)
+                    radius: Theme.px(4)
                     visible: (page.modified[modelData.id] || 0) > 0
                     color: Theme.accent
                 }
                 RowLayout {
                     anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 10
+                    anchors.margins: Theme.px(12)
+                    spacing: Theme.px(10)
                     Rectangle {
-                        implicitWidth: 36
-                        implicitHeight: 36
-                        radius: 10
+                        implicitWidth: Theme.px(36)
+                        implicitHeight: Theme.px(36)
+                        radius: Theme.px(10)
                         color: Theme.accentSoft
-                        Icon { anchors.centerIn: parent; name: catTile.modelData.icon; size: 20; color: Theme.accent }
+                        Icon { anchors.centerIn: parent; name: catTile.modelData.icon; size: Theme.px(20); color: Theme.accent }
                     }
                     Text {
                         Layout.fillWidth: true
@@ -352,7 +352,7 @@ ColumnLayout {
                         color: Theme.text
                         wrapMode: Text.Wrap
                         font.family: Theme.font
-                        font.pixelSize: 13 * Theme.fontScale
+                        font.pixelSize: Theme.px(13) * Theme.fontScale
                         font.weight: Font.Medium
                     }
                 }
@@ -371,7 +371,7 @@ ColumnLayout {
         sourceComponent: Component {
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Theme.px(12)
                 SettingsAbout { Layout.fillWidth: true; active: true }
 
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("Your settings") }
@@ -381,7 +381,7 @@ ColumnLayout {
                     color: Theme.faint
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 Button {
                     Layout.fillWidth: true
@@ -421,17 +421,17 @@ ColumnLayout {
         id: recentRail
         Layout.fillWidth: true
         visible: page.recentChanged.length > 0 && page.cat === ""
-        spacing: 4
+        spacing: Theme.px(4)
         Text {
             text: Tr.t("Recently changed (%1)").arg(page.recentChanged.length)
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: 10 * Theme.fontScale
+            font.pixelSize: Theme.px(10) * Theme.fontScale
             font.weight: Font.DemiBold
         }
         Flow {
             Layout.fillWidth: true
-            spacing: 4
+            spacing: Theme.px(4)
             Repeater {
                 model: page.recentChanged
                 Choice {
@@ -457,7 +457,7 @@ ColumnLayout {
         sourceComponent: Component {
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Theme.px(12)
                 // the whole desktop at once: dock, widgets, icons, window spacing (LayoutSwitcher)
                 ListRow {
                     Layout.fillWidth: true
@@ -487,15 +487,15 @@ ColumnLayout {
                 GridLayout {
                     Layout.fillWidth: true
                     columns: 3
-                    columnSpacing: 6
-                    rowSpacing: 6
+                    columnSpacing: Theme.px(6)
+                    rowSpacing: Theme.px(6)
                     Repeater {
                         model: page.wallpapers
                         Rectangle {
                             required property string modelData
                             Layout.fillWidth: true
-                            implicitHeight: 62
-                            radius: 10
+                            implicitHeight: Theme.px(62)
+                            radius: Theme.px(10)
                             color: Theme.hover
                             border.width: page.currentWall() === modelData ? 2 : 0
                             border.color: Theme.accent
@@ -519,7 +519,7 @@ ColumnLayout {
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     // any picture, not only those in the wallpaper folders
                     TextField {
                         Layout.fillWidth: true
@@ -531,7 +531,7 @@ ColumnLayout {
                 // more, found online (Wallhaven): nothing is asked until a search
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     TextField {
                         id: wallSearch
                         Layout.fillWidth: true
@@ -546,21 +546,21 @@ ColumnLayout {
                     text: OnlineWalls.error
                     color: Theme.danger
                     font.family: Theme.font
-                    font.pixelSize: 12 * Theme.fontScale
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
                 }
                 GridLayout {
                     visible: OnlineWalls.results.length > 0
                     Layout.fillWidth: true
                     columns: 3
-                    columnSpacing: 6
-                    rowSpacing: 6
+                    columnSpacing: Theme.px(6)
+                    rowSpacing: Theme.px(6)
                     Repeater {
                         model: OnlineWalls.results
                         Rectangle {
                             required property var modelData
                             Layout.fillWidth: true
-                            implicitHeight: 62
-                            radius: 10
+                            implicitHeight: Theme.px(62)
+                            radius: Theme.px(10)
                             color: Theme.hover
                             clip: true
                             Image {
@@ -661,15 +661,15 @@ ColumnLayout {
                 Text { text: Tr.t("Accent colour"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: Theme.px(8)
                     Repeater {
                         model: ["orange", "teal", "blue", "purple", "pink", "red", "yellow", "green", "slate"]
                         Rectangle {
                             required property string modelData
                             readonly property bool chosen: !page.d.accentFromWallpaper && page.d.accentName === modelData
-                            width: 30
-                            height: 30
-                            radius: 15
+                            width: Theme.px(30)
+                            height: Theme.px(30)
+                            radius: Theme.px(15)
                             color: Theme.accents[modelData][Theme.dark ? 1 : 0]
                             border.width: chosen ? 3 : 0
                             border.color: Theme.text
@@ -692,9 +692,9 @@ ColumnLayout {
                     // selected under "Accent from wallpaper"
                     Rectangle {
                         visible: page.d.accentFromWallpaper
-                        width: 30
-                        height: 30
-                        radius: 15
+                        width: Theme.px(30)
+                        height: Theme.px(30)
+                        radius: Theme.px(15)
                         color: Theme.accent
                         border.width: 3
                         border.color: Theme.text
@@ -710,7 +710,7 @@ ColumnLayout {
                 Flow {
                     visible: page.d.adaptivePalette && Matugen.available
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [{ id: "gtk", label: "GTK apps" }]
                         Choice {
@@ -731,7 +731,7 @@ ColumnLayout {
                 // Theme palette preview strip: show active palette colors
                 Rectangle {
                     visible: page.d.adaptivePalette && Matugen.available
-                    Layout.fillWidth: true; height: 12; radius: 6; Layout.margins: 4
+                    Layout.fillWidth: true; height: Theme.px(12); radius: Theme.px(6); Layout.margins: Theme.px(4)
                     color: Theme.surface2; border.color: Theme.stroke; border.width: 1
                     gradient: Gradient {
                         GradientStop { position: 0.0; color: Theme.surface1 }
@@ -752,7 +752,7 @@ ColumnLayout {
                 // Theme palette preview strip: show active palette colors
                 Rectangle {
                     visible: page.d.adaptivePalette && Matugen.available
-                    Layout.fillWidth: true; height: 12; radius: 6; Layout.margins: 4
+                    Layout.fillWidth: true; height: Theme.px(12); radius: Theme.px(6); Layout.margins: Theme.px(4)
                     color: Theme.surface2; border.color: Theme.stroke; border.width: 1
                     gradient: Gradient {
                         GradientStop { position: 0.0; color: Theme.surface1 }
@@ -777,11 +777,11 @@ ColumnLayout {
                 ColumnLayout {
                     visible: page.d.adaptivePalette && Matugen.available
                     Layout.fillWidth: true
-                    spacing: 4
+                    spacing: Theme.px(4)
                     Text { text: Tr.t("Palette scheme"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
                     Flow {
                         Layout.fillWidth: true
-                        spacing: 6
+                        spacing: Theme.px(6)
                         Repeater {
                             model: ["tonal-spot", "vibrant", "expressive", "fidelity", "content", "monochrome", "neutral", "fruit-salad", "rainbow"]
                             Choice {
@@ -796,7 +796,7 @@ ColumnLayout {
                     Text { text: Tr.t("Contrast level"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
                     Flow {
                         Layout.fillWidth: true
-                        spacing: 6
+                        spacing: Theme.px(6)
                         Repeater {
                             model: [-1.0, -0.5, 0.0, 0.5, 1.0]
                             Choice {
@@ -811,7 +811,7 @@ ColumnLayout {
                     Text { text: Tr.t("Source color index"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
                     Flow {
                         Layout.fillWidth: true
-                        spacing: 6
+                        spacing: Theme.px(6)
                         Repeater {
                             model: [0, 1, 2, 3]
                             Choice {
@@ -827,7 +827,7 @@ ColumnLayout {
                 Text { text: Tr.t("Dark style"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [{ id: "manual", label: Tr.t("By hand") }, { id: "sunset", label: Tr.t("Sunset to sunrise") }, { id: "custom", label: Tr.t("Set hours") }]
                         Choice {
@@ -850,7 +850,7 @@ ColumnLayout {
                 ColumnLayout {
                     visible: page.d.darkSchedule === "custom"
                     Layout.fillWidth: true
-                    spacing: 12
+                    spacing: Theme.px(12)
                     TimePicker {
                         label: Tr.t("Dark from")
                         value: page.d.darkFrom
@@ -869,7 +869,7 @@ ColumnLayout {
                 RowLayout {
                     Layout.fillWidth: true
                     visible: NightLight.available
-                    Text { text: Tr.t("Night light"); color: Theme.text; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; Layout.preferredWidth: 90 }
+                    Text { text: Tr.t("Night light"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.preferredWidth: Theme.px(90) }
                     Repeater {
                         model: [2700, 3400, 4000, 5000]
                         Choice {
@@ -893,7 +893,7 @@ ColumnLayout {
                 RowLayout {
                     Layout.fillWidth: true
                     visible: NightLight.available
-                    Text { text: Tr.t("Turns on"); color: Theme.text; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; Layout.preferredWidth: 90 }
+                    Text { text: Tr.t("Turns on"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.preferredWidth: Theme.px(90) }
                     Repeater {
                         model: [{ id: "manual", label: Tr.t("By hand") }, { id: "sunset", label: Tr.t("Sunset to sunrise") }, { id: "custom", label: Tr.t("Set hours") }]
                         Choice {
@@ -911,12 +911,12 @@ ColumnLayout {
                     color: Theme.faint
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 ColumnLayout {
                     Layout.fillWidth: true
                     visible: NightLight.available && (page.d.nightLightSchedule === "custom" || (page.d.nightLightSchedule === "sunset" && !NightLight.located))
-                    spacing: 12
+                    spacing: Theme.px(12)
                     TimePicker {
                         label: Tr.t("Night light from")
                         value: page.d.nightLightFrom
@@ -947,12 +947,12 @@ ColumnLayout {
                 // buttons of your own: a command's output in the bar, a click that runs another
                 Text {
                     Layout.fillWidth: true
-                    Layout.topMargin: 6
+                    Layout.topMargin: Theme.px(6)
                     text: Tr.t("Your own bar buttons - a command's last line of output, shown in the bar")
                     color: Theme.dim
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: 12 * Theme.fontScale
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
                 }
                 Repeater {
                     model: page.d.barCommands || []
@@ -969,7 +969,7 @@ ColumnLayout {
                 }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [{ label: Tr.t("Free disk space"), command: "df -h --output=avail / | tail -1 | tr -d ' '", every: 300 },
                                 { label: Tr.t("Up for"), command: "uptime -p | sed 's/up //'", every: 60 },
@@ -983,10 +983,10 @@ ColumnLayout {
                         }
                     }
                 }
-                Text { text: Tr.t("Or your own command:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+                Text { text: Tr.t("Or your own command:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     TextField { id: ownCmd; Layout.fillWidth: true; placeholder: Tr.t("Command, e.g. date +%H:%M"); label: Tr.t("Bar button command") }
                     Picks {
                         id: ownEveryPick
@@ -1025,7 +1025,7 @@ ColumnLayout {
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { text: Tr.t("Dock icons"); color: Theme.text; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; Layout.preferredWidth: 90 }
+                    Text { text: Tr.t("Dock icons"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.preferredWidth: Theme.px(90) }
                     Repeater {
                         model: [{ v: 40, label: Tr.t("Small") }, { v: 48, label: Tr.t("Medium") }, { v: 56, label: Tr.t("Large") }, { v: 64, label: Tr.t("Touch") }]
                         Choice {
@@ -1051,7 +1051,7 @@ ColumnLayout {
                         required property string modelData
                         required property int index
                         Layout.fillWidth: true
-                        spacing: 4
+                        spacing: Theme.px(4)
                         SwitchRow {
                             Layout.fillWidth: true
                             text: page.tileNames[modelData]
@@ -1059,8 +1059,8 @@ ColumnLayout {
                             onToggled: on => page.d.hiddenTiles = on ? Array.from(page.d.hiddenTiles).filter(x => x !== modelData)
                                                                       : Array.from(page.d.hiddenTiles).concat([modelData])
                         }
-                        IconButton { icon: "go-up"; size: 24; enabled: index > 0; onClicked: page.moveTile(modelData, -1) }
-                        IconButton { icon: "go-down"; size: 24; enabled: index < page.tileOrder.length - 1; onClicked: page.moveTile(modelData, 1) }
+                        IconButton { icon: "go-up"; size: Theme.px(24); enabled: index > 0; onClicked: page.moveTile(modelData, -1) }
+                        IconButton { icon: "go-down"; size: Theme.px(24); enabled: index < page.tileOrder.length - 1; onClicked: page.moveTile(modelData, 1) }
                     }
                 }
 
@@ -1074,11 +1074,11 @@ ColumnLayout {
                         id: cornerRow
                         required property var modelData
                         Layout.fillWidth: true
-                        spacing: 4
-                        Text { text: cornerRow.modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+                        spacing: Theme.px(4)
+                        Text { text: cornerRow.modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                         Flow {
                             Layout.fillWidth: true
-                            spacing: 6
+                            spacing: Theme.px(6)
                             Repeater {
                                 model: ["none", "overview", "launcher", "sidebar", "chronoa", "lock"]
                                 Choice {
@@ -1109,7 +1109,7 @@ ColumnLayout {
                 Flow {
                     Layout.fillWidth: true
                     visible: !page.d.useLocation
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         // the time zone's city first, then the world clocks' - each a tap
                         model: [...new Set([page.myZone].concat(Array.from(page.d.worldClocks || []))
@@ -1131,7 +1131,7 @@ ColumnLayout {
                 }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [{ id: "celsius", label: Tr.t("Celsius °C") }, { id: "fahrenheit", label: Tr.t("Fahrenheit °F") }]
                         Choice {
@@ -1154,12 +1154,12 @@ ColumnLayout {
         sourceComponent: Component {
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Theme.px(12)
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("Notifications") }
                 Text { text: Tr.t("Pop-ups appear"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [{ id: "top-right", label: Tr.t("Top right") }, { id: "top-center", label: Tr.t("Top centre") }, { id: "bottom-right", label: Tr.t("Bottom right") }]
                         Choice {
@@ -1179,7 +1179,7 @@ ColumnLayout {
                     onPicked: v => page.d.snoozeMinutes = v
                 }
                 // rules: what to keep from popping up, or drop altogether
-                Text { Layout.fillWidth: true; Layout.topMargin: 6; text: Tr.t("Rules"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; font.weight: Font.DemiBold }
+                Text { Layout.fillWidth: true; Layout.topMargin: Theme.px(6); text: Tr.t("Rules"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; font.weight: Font.DemiBold }
                 Repeater {
                     model: NotifsRules.rules
                     ListRow {
@@ -1202,7 +1202,7 @@ ColumnLayout {
                 }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         // the apps that have sent something: a tap makes the rule
                         model: Array.from(page.d.notifApps || []).slice(-8).reverse()
@@ -1224,7 +1224,7 @@ ColumnLayout {
                 ColumnLayout {
                     Layout.fillWidth: true
                     visible: page.d.dndSchedule !== "manual"
-                    spacing: 12
+                    spacing: Theme.px(12)
                     TimePicker {
                         label: Tr.t("Do Not Disturb from")
                         value: page.d.dndFrom
@@ -1241,7 +1241,7 @@ ColumnLayout {
                     text: page.d.notifApps.length ? "Each app that has sent a notification:" : "Apps appear here once they send a notification."
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 12 * Theme.fontScale
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
                 }
                 Repeater {
                     model: page.d.notifApps
@@ -1252,9 +1252,9 @@ ColumnLayout {
                         readonly property bool through: Array.from(page.d.dndAllowedApps).indexOf(modelData) >= 0
                         Layout.fillWidth: true
                         spacing: 2
-                        Text { text: appRow.modelData; color: Theme.text; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale; font.weight: Font.Medium }
+                        Text { text: appRow.modelData; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.Medium }
                         RowLayout {
-                            spacing: 6
+                            spacing: Theme.px(6)
                             Choice {
                                 text: Tr.t("Pop-ups")
                                 selected: !appRow.silent
@@ -1273,7 +1273,7 @@ ColumnLayout {
                 Text { text: Tr.t("Show pop-ups for"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [4, 6, 10, 20]
                         Choice {
@@ -1304,7 +1304,7 @@ ColumnLayout {
         sourceComponent: Component {
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Theme.px(12)
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("Accessibility") }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Screen reader"); hint: Tr.t("Orca; the shell's own controls are labelled for it"); checked: page.d.screenReader; onToggled: on => page.d.screenReader = on }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Large text"); hint: Tr.t("the shell and apps, 125 %"); checked: page.d.largeText; onToggled: on => page.d.largeText = on }
@@ -1312,9 +1312,9 @@ ColumnLayout {
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Reduce motion"); hint: Tr.t("minimise animations"); checked: page.d.reduceMotion; onToggled: on => page.d.reduceMotion = on }
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: Theme.px(8)
                     visible: !page.d.reduceMotion
-                    Text { text: Tr.t("Animation speed"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; Layout.preferredWidth: 120 }
+                    Text { text: Tr.t("Animation speed"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; Layout.preferredWidth: Theme.px(120) }
                     Repeater {
                         model: [{v:0.75,l:"Slow"},{v:1.0,l:"Normal"},{v:1.25,l:"Fast"}]
                         Choice {
@@ -1335,7 +1335,7 @@ ColumnLayout {
                 Text { text: Tr.t("Read aloud speed"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [{ id: "slow", label: Tr.t("Slow") }, { id: "normal", label: Tr.t("Normal") }, { id: "fast", label: Tr.t("Fast") }]
                         Choice {
@@ -1349,7 +1349,7 @@ ColumnLayout {
                 Text { text: Tr.t("Captions and transcribe language"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [{ id: "auto", label: Tr.t("Detect") }, { id: "en", label: Tr.t("English") }, { id: "mr", label: "मराठी" }, { id: "hi", label: "हिन्दी" }]
                         Choice {
@@ -1372,7 +1372,7 @@ ColumnLayout {
         sourceComponent: Component {
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Theme.px(12)
                 // ---- screen keyboard languages: any xkb layout, plus the hand-made two
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("Screen keyboard") }
                 Process {
@@ -1382,7 +1382,7 @@ ColumnLayout {
                 }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: page.d.oskLanguages
                         Choice {
@@ -1435,7 +1435,7 @@ ColumnLayout {
         sourceComponent: Component {
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Theme.px(12)
                 SettingsDateLanguage { Layout.fillWidth: true; active: page.cat === "time" }
             }
         }
@@ -1448,7 +1448,7 @@ ColumnLayout {
         sourceComponent: Component {
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Theme.px(12)
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("Apps & files") }
                 // terminal: pick one that is installed, or type any command (Services/Terminal
                 // makes Mod+Return and other apps open the same one)
@@ -1494,7 +1494,7 @@ ColumnLayout {
                     color: Theme.faint
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 TextField {
                     Layout.fillWidth: true
@@ -1525,7 +1525,7 @@ ColumnLayout {
                 }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [{ id: "png", label: "PNG" }, { id: "jpeg", label: "JPEG" }]
                         Choice {
@@ -1539,7 +1539,7 @@ ColumnLayout {
                 Text { text: Tr.t("Drawings are saved as (the drawing tool)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [{ id: "png", label: "PNG" }, { id: "jpeg", label: "JPEG" }, { id: "webp", label: "WebP" }]
                         Choice {
@@ -1561,7 +1561,7 @@ ColumnLayout {
                 Flow {
                     Layout.fillWidth: true
                     visible: page.d.screenshotFormat !== "png"
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [60, 75, 85, 90, 95, 100]
                         Choice {
@@ -1575,7 +1575,7 @@ ColumnLayout {
                 Text { text: Tr.t("Copied to the clipboard as"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [{ id: "", label: Tr.t("Same as the file") }, { id: "png", label: "PNG" }, { id: "jpeg", label: "JPEG" }]
                         Choice {
@@ -1590,7 +1590,7 @@ ColumnLayout {
                 Text { text: Tr.t("Annotate screenshots with"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [{ id: "", label: Tr.t("Satty") }, { id: "swappy", label: "Swappy" }]
                         Choice {
@@ -1604,7 +1604,7 @@ ColumnLayout {
                 Text { text: Tr.t("Recording video codec"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [{ id: "", label: Tr.t("Auto") }, { id: "libx264", label: "H.264" }, { id: "libx265", label: "HEVC" }, { id: "libvpx-vp9", label: "VP9" }, { id: "libaom-av1", label: "AV1" }]
                         Choice {
@@ -1618,7 +1618,7 @@ ColumnLayout {
                 Text { text: Tr.t("A recording captures"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [{ id: "screen", label: Tr.t("The whole screen") }, { id: "region", label: Tr.t("A region I choose each time") }]
                         Choice {
@@ -1632,7 +1632,7 @@ ColumnLayout {
                 Text { text: Tr.t("A recording's sound is"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [{ id: "none", label: Tr.t("No sound") }, { id: "desktop", label: Tr.t("The computer's sound") }, { id: "mic", label: Tr.t("My microphone") }, { id: "both", label: Tr.t("Both, on two tracks") }]
                         Choice {
@@ -1646,7 +1646,7 @@ ColumnLayout {
                 Text { text: Tr.t("A recording is captured at"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [{ id: 0, label: Tr.t("What the screen does") }, { id: 30, label: "30 fps" }, { id: 60, label: "60 fps" }]
                         Choice {
@@ -1669,8 +1669,8 @@ ColumnLayout {
                 RowLayout {
                     Layout.fillWidth: true
                     visible: page.d.screenSaverEnabled
-                    spacing: 8
-                    Text { text: Tr.t("After"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; Layout.preferredWidth: 100 }
+                    spacing: Theme.px(8)
+                    Text { text: Tr.t("After"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; Layout.preferredWidth: Theme.px(100) }
                     Repeater {
                         model: [1, 2, 3, 5, 10]
                         Choice {
@@ -1686,8 +1686,8 @@ ColumnLayout {
                 RowLayout {
                     Layout.fillWidth: true
                     visible: page.d.screenSaverEnabled
-                    spacing: 8
-                    Text { text: Tr.t("Show"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; Layout.preferredWidth: 100 }
+                    spacing: Theme.px(8)
+                    Text { text: Tr.t("Show"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; Layout.preferredWidth: Theme.px(100) }
                     Repeater {
                         model: [{ id: "clock", label: Tr.t("A clock") }, { id: "photos", label: Tr.t("My photos") }]
                         Choice {
@@ -1709,7 +1709,7 @@ ColumnLayout {
         sourceComponent: Component {
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Theme.px(12)
                 SettingsAccount { Layout.fillWidth: true; active: page.cat === "account" }
             }
         }
@@ -1722,7 +1722,7 @@ ColumnLayout {
         sourceComponent: Component {
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Theme.px(12)
                 SettingsNetwork { Layout.fillWidth: true; active: page.cat === "network" }
             }
         }
@@ -1735,7 +1735,7 @@ ColumnLayout {
         sourceComponent: Component {
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Theme.px(12)
                 SettingsWindows { Layout.fillWidth: true }
             }
         }
@@ -1748,7 +1748,7 @@ ColumnLayout {
         sourceComponent: Component {
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Theme.px(12)
                 SettingsDisplays { Layout.fillWidth: true; active: page.cat === "displays" }
             }
         }
@@ -1761,7 +1761,7 @@ ColumnLayout {
         sourceComponent: Component {
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Theme.px(12)
                 SettingsSound { Layout.fillWidth: true }
             }
         }
@@ -1774,7 +1774,7 @@ ColumnLayout {
         sourceComponent: Component {
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Theme.px(12)
                 SettingsSearch { Layout.fillWidth: true }
             }
         }
@@ -1787,7 +1787,7 @@ ColumnLayout {
         sourceComponent: Component {
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Theme.px(12)
                 SettingsPrivacy { Layout.fillWidth: true; active: page.cat === "privacy" }
             }
         }
@@ -1800,7 +1800,7 @@ ColumnLayout {
         sourceComponent: Component {
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Theme.px(12)
                 SettingsSharing { Layout.fillWidth: true; active: page.cat === "sharing" }
             }
         }
@@ -1834,7 +1834,7 @@ ColumnLayout {
         sourceComponent: Component {
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Theme.px(12)
                 SettingsBackup { Layout.fillWidth: true; active: page.cat === "backup" }
             }
         }
@@ -1847,7 +1847,7 @@ ColumnLayout {
         sourceComponent: Component {
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Theme.px(12)
                 SettingsAutomations { Layout.fillWidth: true; active: page.cat === "automations" }
             }
         }
@@ -1860,7 +1860,7 @@ ColumnLayout {
         sourceComponent: Component {
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Theme.px(12)
                 SettingsChronoa { Layout.fillWidth: true }
             }
         }
@@ -1873,7 +1873,7 @@ ColumnLayout {
         sourceComponent: Component {
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Theme.px(12)
                 SettingsUsers { Layout.fillWidth: true; active: page.cat === "users" }
             }
         }
@@ -1886,7 +1886,7 @@ ColumnLayout {
         sourceComponent: Component {
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Theme.px(12)
                 SettingsBattery { Layout.fillWidth: true; active: page.cat === "power" }
                 SettingsUps { Layout.fillWidth: true; active: page.cat === "power" }
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("Battery & wellbeing") }
@@ -1894,7 +1894,7 @@ ColumnLayout {
                 Flow {
                     visible: page.d.autoPowerSaver
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [10, 15, 20, 30]
                         Choice { required property int modelData; text: modelData + " %"; selected: page.d.powerSaverAt === modelData; onClicked: page.d.powerSaverAt = modelData }
@@ -1902,21 +1902,21 @@ ColumnLayout {
                 }
                 // the profile follows the charger: picked from choices; Power.qml has the order
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Power mode follows the charger"); hint: Tr.t("set when you plug in or unplug; battery saver and games still come first"); checked: page.d.profileFollowsCharger; onToggled: on => page.d.profileFollowsCharger = on }
-                Text { visible: page.d.profileFollowsCharger; text: Tr.t("On battery use"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                Text { visible: page.d.profileFollowsCharger; text: Tr.t("On battery use"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                 Flow {
                     visible: page.d.profileFollowsCharger
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [["power-saver", Tr.t("Power saver")], ["balanced", Tr.t("Balanced")]]
                         Choice { required property var modelData; text: modelData[1]; selected: page.d.profileOnBattery === modelData[0]; onClicked: page.d.profileOnBattery = modelData[0] }
                     }
                 }
-                Text { visible: page.d.profileFollowsCharger; text: Tr.t("Plugged in use"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                Text { visible: page.d.profileFollowsCharger; text: Tr.t("Plugged in use"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                 Flow {
                     visible: page.d.profileFollowsCharger
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [["balanced", Tr.t("Balanced")], ["performance", Tr.t("Performance")]]
                         Choice { required property var modelData; text: modelData[1]; selected: page.d.profilePluggedIn === modelData[0]; onClicked: page.d.profilePluggedIn = modelData[0] }
@@ -1927,7 +1927,7 @@ ColumnLayout {
 
                 SettingsPowerKeys { Layout.fillWidth: true; active: page.cat === "power" }
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("When idle") }
-                Text { Layout.fillWidth: true; text: Tr.t("Plugged in"); color: Theme.faint; font.family: Theme.font; font.pixelSize: 10 * Theme.fontScale }
+                Text { Layout.fillWidth: true; text: Tr.t("Plugged in"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
                 Repeater {
                     model: [
                         { label: Tr.t("Dim the screen"), key: "dimAfter", options: [60, 120, 240, 300, 0] },
@@ -1939,11 +1939,11 @@ ColumnLayout {
                         id: stage
                         required property var modelData
                         Layout.fillWidth: true
-                        spacing: 4
-                        Text { text: stage.modelData.label + Tr.t(" after"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+                        spacing: Theme.px(4)
+                        Text { text: stage.modelData.label + Tr.t(" after"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                         Flow {
                             Layout.fillWidth: true
-                            spacing: 6
+                            spacing: Theme.px(6)
                             Repeater {
                                 model: stage.modelData.options
                                 Choice {
@@ -1956,7 +1956,7 @@ ColumnLayout {
                         }
                     }
                 }
-                Text { Layout.fillWidth: true; visible: Power.hasBattery; text: Tr.t("On battery"); color: Theme.faint; font.family: Theme.font; font.pixelSize: 10 * Theme.fontScale }
+                Text { Layout.fillWidth: true; visible: Power.hasBattery; text: Tr.t("On battery"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
                 Repeater {
                     model: [
                         { label: Tr.t("Dim the screen"), key: "dimAfterBattery", options: [30, 60, 120, 180, 300, 0] },
@@ -1968,12 +1968,12 @@ ColumnLayout {
                         id: stageB
                         required property var modelData
                         Layout.fillWidth: true
-                        spacing: 4
+                        spacing: Theme.px(4)
                         visible: Power.hasBattery
-                        Text { text: stageB.modelData.label + Tr.t(" after"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+                        Text { text: stageB.modelData.label + Tr.t(" after"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                         Flow {
                             Layout.fillWidth: true
-                            spacing: 6
+                            spacing: Theme.px(6)
                             Repeater {
                                 model: stageB.modelData.options
                                 Choice {

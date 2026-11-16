@@ -14,7 +14,7 @@ ColumnLayout {
     signal picked(string appId)
 
     Layout.fillWidth: true
-    spacing: 6
+    spacing: Theme.px(6)
 
     property string searchText: ""
 
@@ -29,23 +29,23 @@ ColumnLayout {
     // Current value display
     RowLayout {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: 32
+            implicitHeight: Theme.px(32)
             radius: Theme.radiusToken("xs")
             color: Theme.surface1
             border.color: Theme.stroke
             border.width: 1
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 10
-                anchors.rightMargin: 10
-                spacing: 8
+                anchors.leftMargin: Theme.px(10)
+                anchors.rightMargin: Theme.px(10)
+                spacing: Theme.px(8)
                 Icon {
                     visible: root.value !== ""
                     name: root.selectedApp ? (root.selectedApp.icon || "application-x-executable") : "application-x-executable"
-                    size: 18
+                    size: Theme.px(18)
                     color: Theme.text
                 }
                 Text {
@@ -54,7 +54,7 @@ ColumnLayout {
                     text: root.selectedApp ? root.selectedApp.name : (root.value || root.placeholder)
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 12 * Theme.fontScale
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
                     elide: Text.ElideRight
                 }
             }
@@ -123,7 +123,7 @@ ColumnLayout {
     // Custom: type any app ID (for apps not in the list)
     RowLayout {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         TextField {
             id: customApp
             Layout.fillWidth: true
@@ -149,6 +149,6 @@ ColumnLayout {
         text: Tr.t("No apps found.")
         color: Theme.faint
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
 }

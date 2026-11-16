@@ -37,22 +37,22 @@ PanelWindow {
         ColumnLayout {
             id: col
             anchors.fill: parent
-            anchors.margins: 18
-            spacing: 12
+            anchors.margins: Theme.px(18)
+            spacing: Theme.px(12)
 
             RowLayout {
                 Layout.fillWidth: true
-                Icon { name: "system-search"; size: 20; color: Theme.accent }
+                Icon { name: "system-search"; size: Theme.px(20); color: Theme.accent }
                 Text {
                     Layout.fillWidth: true
                     text: Lens.phase === "reading" ? "Lens · reading…" : "Lens"
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 15 * Theme.fontScale
+                    font.pixelSize: Theme.px(15) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
-                IconButton { icon: "view-refresh"; size: 28; onClicked: Lens.capture() }
-                IconButton { icon: "window-close"; size: 28; onClicked: Lens.close() }
+                IconButton { icon: "view-refresh"; size: Theme.px(28); onClicked: Lens.capture() }
+                IconButton { icon: "window-close"; size: Theme.px(28); onClicked: Lens.close() }
             }
 
             Rectangle {
@@ -64,7 +64,7 @@ PanelWindow {
                 Image {
                     id: snippet
                     anchors.fill: parent
-                    anchors.margins: 8
+                    anchors.margins: Theme.px(8)
                     // only once grim has written it: a load attempted at capture
                     // start fails on the missing file and is never retried
                     source: Lens.phase === "ready" && Lens.image !== "" ? "file://" + Lens.image : ""
@@ -89,7 +89,7 @@ PanelWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.preferredHeight: Math.min(180, found.implicitHeight)
-                Layout.minimumHeight: 24
+                Layout.minimumHeight: Theme.px(24)
                 contentHeight: found.implicitHeight
                 clip: true
                 TextEdit {
@@ -105,13 +105,13 @@ PanelWindow {
                     selectionColor: Theme.accent
                     selectedTextColor: Theme.accentInk
                     font.family: Theme.font
-                    font.pixelSize: 13 * Theme.fontScale
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
                 }
             }
 
             Flow {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Button { text: Tr.t("Copy text"); enabled: Lens.text !== ""; onClicked: { Lens.copyText(); Lens.close(); } }
                 Button { text: Tr.t("Search"); enabled: Lens.text !== ""; onClicked: { Lens.search(); Lens.close(); } }
                 Button { text: Tr.t("Translate"); enabled: Lens.text !== ""; onClicked: { Lens.translate(); Lens.close(); } }
@@ -121,7 +121,7 @@ PanelWindow {
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 TextField {
                     id: question
                     Layout.fillWidth: true

@@ -14,50 +14,50 @@ import qs.Services
 import qs.Modules.Notifications
 
 ColumnLayout {
-    spacing: 14
+    spacing: Theme.px(14)
 
     ColumnLayout {
         visible: Settings.data.screenTime && ScreenTime.todayTotal >= 60
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         RowLayout {
             Layout.fillWidth: true
             SectionTitle { Layout.fillWidth: true; text: Tr.t("Screen time today") + " · " + ScreenTime.label(ScreenTime.todayTotal) }
-            IconButton { icon: "go-next"; size: 26; tip: Tr.t("The week, and reminders"); onClicked: Ui.openScreenTime() }
+            IconButton { icon: "go-next"; size: Theme.px(26); tip: Tr.t("The week, and reminders"); onClicked: Ui.openScreenTime() }
         }
         Repeater {
             model: ScreenTime.top
             RowLayout {
                 required property var modelData
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Text {
-                    Layout.preferredWidth: 110
+                    Layout.preferredWidth: Theme.px(110)
                     text: modelData.app
                     color: Theme.text
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 Rectangle {
                     Layout.fillWidth: true
-                    implicitHeight: 6
-                    radius: 3
+                    implicitHeight: Theme.px(6)
+                    radius: Theme.px(3)
                     color: Theme.hover
                     Rectangle {
                         width: parent.width * modelData.seconds / Math.max(1, ScreenTime.top[0].seconds)
                         height: parent.height
-                        radius: 3
+                        radius: Theme.px(3)
                         color: Theme.accent
                     }
                 }
                 Text {
-                    Layout.preferredWidth: 70
+                    Layout.preferredWidth: Theme.px(70)
                     horizontalAlignment: Text.AlignRight
                     text: ScreenTime.label(modelData.seconds)
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 10 * Theme.fontScale
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
                 }
             }
         }

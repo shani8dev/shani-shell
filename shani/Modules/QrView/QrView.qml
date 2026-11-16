@@ -25,7 +25,7 @@ PanelWindow {
     Glass {
         id: blurCard
         anchors.centerIn: parent
-        width: 360
+        width: Theme.px(360)
         implicitHeight: col.implicitHeight + 40
         strong: true
         radius: Theme.radiusLarge
@@ -34,7 +34,7 @@ PanelWindow {
             x: 20
             y: 20
             width: parent.width - 40
-            spacing: 12
+            spacing: Theme.px(12)
             Text {
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
@@ -42,19 +42,19 @@ PanelWindow {
                 color: Theme.text
                 elide: Text.ElideRight
                 font.family: Theme.font
-                font.pixelSize: 16 * Theme.fontScale
+                font.pixelSize: Theme.px(16) * Theme.fontScale
                 font.weight: Font.DemiBold
             }
             // white around the code, whatever the style: scanners want the quiet zone light
             Rectangle {
                 Layout.alignment: Qt.AlignHCenter
-                implicitWidth: 280
-                implicitHeight: 280
-                radius: 12
+                implicitWidth: Theme.px(280)
+                implicitHeight: Theme.px(280)
+                radius: Theme.px(12)
                 color: "white"
                 Image {
                     anchors.fill: parent
-                    anchors.margins: 10
+                    anchors.margins: Theme.px(10)
                     source: Qr.image ? "file://" + Qr.image + "?" + Qr.rev : ""
                     smooth: false
                     fillMode: Image.PreserveAspectFit
@@ -68,7 +68,7 @@ PanelWindow {
                 text: Tr.t("Point a phone's camera at it · Esc closes")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
         }
     }

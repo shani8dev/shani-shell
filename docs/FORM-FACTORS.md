@@ -41,6 +41,18 @@ same foundation before any of their own work:
 3. **Width breakpoints**: surfaces reflow by available width (one column,
    two, a sidebar or a sheet). The shell has one breakpoint today.
 
+## Progress
+
+- **Profile per screen** - done: `Common/FormFactor.js` (the rules, tested in
+  `tests/test_form_factor.py`), `Services/FormFactor` (per screen, live, the
+  owner's choice in Settings > Displays > Kind of screen), `Theme.ui` /
+  `Theme.px()`; `SHANI_FORM_FACTOR=tv sh dev/check.sh render` draws every
+  surface as that kind (`dev/shell-parts/form-factor.sh`).
+- **One UI scale** - done: `tools/ui-scale.py` drew 2,600 literal sizes through
+  `Theme.px()` (identical on a computer, where the scale is 1); `check` keeps
+  it at 0. Left: sizes computed in expressions (`list.width / 132`).
+- **Width breakpoints** - not started.
+
 ## The order
 
 | Step | What | Sessions (rough) |

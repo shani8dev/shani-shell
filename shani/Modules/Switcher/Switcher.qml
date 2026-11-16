@@ -88,7 +88,7 @@ PanelWindow {
         strong: true
         anchors.centerIn: parent
         width: Math.min(parent.width - 80, Math.max(320, row.implicitWidth + 32))
-        height: 176
+        height: Theme.px(176)
         radius: Theme.radiusLarge
 
         Text {
@@ -97,15 +97,15 @@ PanelWindow {
             text: Tr.t("No windows open")
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: 13 * Theme.fontScale
+            font.pixelSize: Theme.px(13) * Theme.fontScale
         }
 
         ListView {
             id: row
             anchors.fill: parent
-            anchors.margins: 16
+            anchors.margins: Theme.px(16)
             orientation: ListView.Horizontal
-            spacing: 10
+            spacing: Theme.px(10)
             clip: true
             model: win.list
             currentIndex: win.sel
@@ -115,16 +115,16 @@ PanelWindow {
                 id: cell
                 required property var modelData
                 required property int index
-                width: 120
-                height: 144
-                radius: 16
+                width: Theme.px(120)
+                height: Theme.px(144)
+                radius: Theme.px(16)
                 color: index === win.sel ? Theme.accentSoft : (cellArea.containsMouse ? Theme.hover : "transparent")
                 border.width: index === win.sel ? 1 : 0
                 border.color: Theme.accentLine
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 6
+                    anchors.margins: Theme.px(10)
+                    spacing: Theme.px(6)
                     AppIcon {
                         readonly property var entry: DesktopEntries.heuristicLookup(cell.modelData.app_id || "")
                         Layout.alignment: Qt.AlignHCenter
@@ -141,7 +141,7 @@ PanelWindow {
                         maximumLineCount: 2
                         wrapMode: Text.Wrap
                         font.family: Theme.font
-                        font.pixelSize: 11 * Theme.fontScale
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
                     }
                     Text {
                         Layout.fillWidth: true
@@ -149,7 +149,7 @@ PanelWindow {
                         text: Niri.workspaceLabel(cell.modelData.workspace_id)
                         color: Theme.faint
                         font.family: Theme.font
-                        font.pixelSize: 10 * Theme.fontScale
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
                     }
                 }
                 MouseArea {

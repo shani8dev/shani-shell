@@ -75,7 +75,7 @@ Variants {
             // ---- the clock: large, or small in a corner over photos; it moves
             Column {
                 id: face
-                spacing: 6
+                spacing: Theme.px(6)
                 x: (cover.width - width) / 2 + cover.dx
                 y: cover.photos ? cover.height - height - 48 : (cover.height - height) / 2 + cover.dy
                 Behavior on x { NumberAnimation { duration: 2500; easing.type: Easing.InOutSine } }
@@ -94,7 +94,7 @@ Variants {
                     text: Qt.formatDate(clock.date, "dddd, d MMMM")
                     color: Qt.rgba(1, 1, 1, 0.75)
                     font.family: Theme.font
-                    font.pixelSize: 22 * Theme.fontScale
+                    font.pixelSize: Theme.px(22) * Theme.fontScale
                 }
             }
         }

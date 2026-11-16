@@ -57,14 +57,14 @@ PanelWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 14
-            spacing: 10
+            anchors.margins: Theme.px(14)
+            spacing: Theme.px(10)
 
             // the title
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
-                Icon { name: "document-open"; size: 18; color: Theme.accent }
+                spacing: Theme.px(8)
+                Icon { name: "document-open"; size: Theme.px(18); color: Theme.accent }
                 Text {
                     Layout.fillWidth: true
                     text: FilePicker.title !== "" ? FilePicker.title : Tr.t("Choose a file")
@@ -74,22 +74,22 @@ PanelWindow {
                     font.pixelSize: Theme.fontTitle * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
-                IconButton { icon: "window-close"; size: 28; tip: Tr.t("Close (Esc)"); onClicked: FilePicker.cancel() }
+                IconButton { icon: "window-close"; size: Theme.px(28); tip: Tr.t("Close (Esc)"); onClicked: FilePicker.cancel() }
             }
 
             // the path
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: 32
+                implicitHeight: Theme.px(32)
                 radius: Theme.radiusSmall
                 color: Theme.surface1
                 border.width: 1
                 border.color: Theme.stroke
                 Row {
                     anchors.left: parent.left
-                    anchors.leftMargin: 8
+                    anchors.leftMargin: Theme.px(8)
                     anchors.right: parent.right
-                    anchors.rightMargin: 8
+                    anchors.rightMargin: Theme.px(8)
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 2
                     Repeater {
@@ -102,7 +102,7 @@ PanelWindow {
                                 text: modelData.name
                                 color: index === win.crumbs.length - 1 ? Theme.text : Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: 12 * Theme.fontScale
+                                font.pixelSize: Theme.px(12) * Theme.fontScale
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
@@ -114,7 +114,7 @@ PanelWindow {
                                 text: "›"
                                 color: Theme.faint
                                 font.family: Theme.font
-                                font.pixelSize: 12 * Theme.fontScale
+                                font.pixelSize: Theme.px(12) * Theme.fontScale
                             }
                         }
                     }
@@ -124,11 +124,11 @@ PanelWindow {
             RowLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                spacing: 10
+                spacing: Theme.px(10)
 
                 // the places
                 ColumnLayout {
-                    Layout.preferredWidth: 160
+                    Layout.preferredWidth: Theme.px(160)
                     Layout.fillHeight: true
                     spacing: 2
                     Repeater {
@@ -136,23 +136,23 @@ PanelWindow {
                         delegate: Rectangle {
                             required property var modelData
                             Layout.fillWidth: true
-                            height: 28
-                            radius: 8
+                            height: Theme.px(28)
+                            radius: Theme.px(8)
                             color: FilePicker.path === modelData.path ? Theme.accentSoft
                                  : (placeArea.containsMouse ? Theme.hover : "transparent")
                             RowLayout {
                                 anchors.fill: parent
-                                anchors.leftMargin: 8
-                                anchors.rightMargin: 6
-                                spacing: 8
-                                Icon { name: modelData.icon; size: 15; color: Theme.dim }
+                                anchors.leftMargin: Theme.px(8)
+                                anchors.rightMargin: Theme.px(6)
+                                spacing: Theme.px(8)
+                                Icon { name: modelData.icon; size: Theme.px(15); color: Theme.dim }
                                 Text {
                                     Layout.fillWidth: true
                                     text: modelData.name
                                     color: Theme.text
                                     elide: Text.ElideRight
                                     font.family: Theme.font
-                                    font.pixelSize: 12 * Theme.fontScale
+                                    font.pixelSize: Theme.px(12) * Theme.fontScale
                                 }
                             }
                             MouseArea {
@@ -178,7 +178,7 @@ PanelWindow {
                     ListView {
                         id: list
                         anchors.fill: parent
-                        anchors.margins: 4
+                        anchors.margins: Theme.px(4)
                         model: win.model
                         spacing: 1
                         boundsBehavior: Flickable.StopAtBounds
@@ -188,34 +188,34 @@ PanelWindow {
                             required property var modelData
                             required property int index
                             width: list.width
-                            height: 30
+                            height: Theme.px(30)
                             Rectangle {
                                 anchors.fill: parent
-                                radius: 6
+                                radius: Theme.px(6)
                                 color: FilePicker.isSelected(row.modelData.path) ? Theme.accentSoft
                                      : (rowArea.containsMouse ? Theme.hover : "transparent")
                             }
                             RowLayout {
                                 anchors.fill: parent
-                                anchors.leftMargin: 8
-                                anchors.rightMargin: 10
-                                spacing: 10
-                                FileIcon { entry: row.modelData; size: 18 }
+                                anchors.leftMargin: Theme.px(8)
+                                anchors.rightMargin: Theme.px(10)
+                                spacing: Theme.px(10)
+                                FileIcon { entry: row.modelData; size: Theme.px(18) }
                                 Text {
                                     Layout.fillWidth: true
                                     text: row.modelData.name
                                     color: Theme.text
                                     elide: Text.ElideMiddle
                                     font.family: Theme.font
-                                    font.pixelSize: 12 * Theme.fontScale
+                                    font.pixelSize: Theme.px(12) * Theme.fontScale
                                 }
                                 Text {
-                                    Layout.preferredWidth: 78
+                                    Layout.preferredWidth: Theme.px(78)
                                     horizontalAlignment: Text.AlignRight
                                     text: row.modelData.isDir ? "" : Files.humanSize(row.modelData.size)
                                     color: Theme.faint
                                     font.family: Theme.font
-                                    font.pixelSize: 11 * Theme.fontScale
+                                    font.pixelSize: Theme.px(11) * Theme.fontScale
                                 }
                             }
                             MouseArea {
@@ -254,7 +254,7 @@ PanelWindow {
             // the name to save under, and the button that does it
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 TextField {
                     id: nameField
                     Layout.fillWidth: true
@@ -270,7 +270,7 @@ PanelWindow {
                     color: FilePicker.error !== "" ? Theme.red : Theme.faint
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 Button { text: Tr.t("Cancel"); onClicked: FilePicker.cancel() }
                 Button {

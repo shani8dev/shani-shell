@@ -11,7 +11,7 @@ import qs.Common
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     property bool active: false
     visible: devices.length > 0
     readonly property string tool: Quickshell.env("SHANI_RATBAG_TOOL") || "/usr/lib/shani-shell/ratbag.py"
@@ -68,7 +68,7 @@ ColumnLayout {
             id: dev
             required property var modelData
             Layout.fillWidth: true
-            spacing: 10
+            spacing: Theme.px(10)
             SectionTitle { Layout.fillWidth: true; text: Tr.t("Gaming mouse") }
             ListRow { Layout.fillWidth: true; icon: "input-mouse"; title: dev.modelData.name; subtitle: Tr.t("Settings are kept in the mouse itself") }
             Picks {
@@ -91,7 +91,7 @@ ColumnLayout {
                     id: btn
                     required property var modelData
                     Layout.fillWidth: true
-                    spacing: 4
+                    spacing: Theme.px(4)
                     ListRow {
                         Layout.fillWidth: true
                         icon: "input-mouse"
@@ -129,6 +129,6 @@ ColumnLayout {
         color: Theme.danger
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
 }

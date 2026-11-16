@@ -63,14 +63,14 @@ PanelWindow {
             x: 24
             y: 24
             width: parent.width - 48
-            spacing: 14
+            spacing: Theme.px(14)
             Rectangle {
                 Layout.alignment: Qt.AlignHCenter
-                implicitWidth: 64
-                implicitHeight: 64
-                radius: 20
+                implicitWidth: Theme.px(64)
+                implicitHeight: Theme.px(64)
+                radius: Theme.px(20)
                 color: Theme.accentSoft
-                Icon { anchors.centerIn: parent; name: win.cards[win.step].icon; size: 34; color: Theme.accent }
+                Icon { anchors.centerIn: parent; name: win.cards[win.step].icon; size: Theme.px(34); color: Theme.accent }
             }
             Text {
                 Layout.fillWidth: true
@@ -79,7 +79,7 @@ PanelWindow {
                 color: Theme.text
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: 20 * Theme.fontScale
+                font.pixelSize: Theme.px(20) * Theme.fontScale
                 font.weight: Font.DemiBold
             }
             Text {
@@ -90,23 +90,23 @@ PanelWindow {
                 wrapMode: Text.Wrap
                 lineHeight: 1.15
                 font.family: Theme.font
-                font.pixelSize: 13 * Theme.fontScale
+                font.pixelSize: Theme.px(13) * Theme.fontScale
             }
             Rectangle {
                 visible: win.cards[win.step].keys !== ""
                 Layout.alignment: Qt.AlignHCenter
                 implicitWidth: keys.implicitWidth + 20
-                implicitHeight: 28
-                radius: 8
+                implicitHeight: Theme.px(28)
+                radius: Theme.px(8)
                 color: Theme.hover
                 border.color: Theme.stroke
-                Text { id: keys; anchors.centerIn: parent; text: win.cards[win.step].keys; color: Theme.text; font.family: Theme.mono; font.pixelSize: 12 * Theme.fontScale }
+                Text { id: keys; anchors.centerIn: parent; text: win.cards[win.step].keys; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(12) * Theme.fontScale }
             }
             // "Make it yours": each opens the place to do it, the tour stays done
             Flow {
                 visible: !!win.cards[win.step].choices
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Button { kind: "outline"; text: Tr.t("Desktop layout…"); onClicked: { win.finish(); Ui.layoutSwitcher = true; } }
                 Button { kind: "outline"; text: Tr.t("Wallpaper & colours…"); onClicked: { win.finish(); Ui.openSettings("personal"); } }
                 Button { kind: "outline"; text: Settings.data.darkMode ? Tr.t("Try the light style") : Tr.t("Try the dark style"); onClicked: Settings.data.darkMode = !Settings.data.darkMode }
@@ -114,14 +114,14 @@ PanelWindow {
             RowLayout {
                 Layout.fillWidth: true
                 Row {
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: win.cards.length
                         Rectangle {
                             required property int index
                             width: index === win.step ? 18 : 7
-                            height: 7
-                            radius: 4
+                            height: Theme.px(7)
+                            radius: Theme.px(4)
                             color: index <= win.step ? Theme.accent : Theme.stroke
                         }
                     }

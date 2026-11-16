@@ -48,7 +48,7 @@ Variants {
         onShownChanged: Hiding.setBarShown(output, shown)
         Component.onCompleted: Hiding.setBarShown(output, shown)
         HoverHandler { id: barHover }
-        Item { id: edgeStrip; width: parent.width; height: 4; HoverHandler { id: topEdge } }
+        Item { id: edgeStrip; width: parent.width; height: Theme.px(4); HoverHandler { id: topEdge } }
         mask: Region { item: bar.shown ? whole : edgeStrip }
         Item { id: whole; anchors.fill: parent }
         color: "transparent"
@@ -71,7 +71,7 @@ Variants {
             focus: bar.keyed
             Keys.onEscapePressed: Ui.barFocus = false
             anchors.fill: parent
-            anchors.topMargin: 8
+            anchors.topMargin: Theme.px(8)
             opacity: bar.shown ? 1 : 0
             transform: Translate { y: bar.shown ? 0 : -(Theme.barHeight + 12); Behavior on y { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } } }
             Behavior on opacity { NumberAnimation { duration: 160 } }
@@ -86,9 +86,9 @@ Variants {
             // ---- left -----------------------------------------------------
             RowLayout {
                 anchors.left: parent.left
-                anchors.leftMargin: 6
+                anchors.leftMargin: Theme.px(6)
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: 4
+                spacing: Theme.px(4)
 
                 Chip {
                     icon: "view-app-grid"
@@ -104,7 +104,7 @@ Variants {
                 // active one (iOS / Android-style), the numbers sit on top
                 Item {
                     implicitWidth: wsRow.implicitWidth
-                    implicitHeight: 22
+                    implicitHeight: Theme.px(22)
                     readonly property var activeItem: {
                         const ws = Niri.workspacesOn(bar.output);
                         const i = ws.findIndex(w => w.is_active);
@@ -116,8 +116,8 @@ Variants {
                         edge: "subtle"
                         x: parent.activeItem ? parent.activeItem.x : 0
                         width: parent.activeItem ? parent.activeItem.width : 0
-                        height: 22
-                        radius: 11
+                        height: Theme.px(22)
+                        radius: Theme.px(11)
                         color: Theme.card
                         border.color: Theme.accentLine
                         Behavior on x { NumberAnimation { duration: Theme.anim * 1.4; easing.type: Easing.OutCubic } }
@@ -125,7 +125,7 @@ Variants {
                     }
                 Row {
                     id: wsRow
-                    spacing: 4
+                    spacing: Theme.px(4)
                     Repeater {
                         id: wsRepeater
                         model: Niri.workspacesOn(bar.output)
@@ -135,8 +135,8 @@ Variants {
                             readonly property bool occupied: modelData.active_window_id !== null
                             readonly property bool renaming: bar.renamingWs === modelData.id
                             implicitWidth: renaming ? 110 : modelData.is_active ? Math.max(28, wsLabel.implicitWidth + 14) : Math.max(20, wsLabel.implicitWidth + 10)
-                            implicitHeight: 20
-                            radius: 10
+                            implicitHeight: Theme.px(20)
+                            radius: Theme.px(10)
                             color: modelData.is_active ? Theme.accent : (wsArea.containsMouse ? Theme.hover : "transparent")
                             border.width: modelData.is_urgent ? 1 : 0
                             border.color: Theme.red
@@ -145,12 +145,12 @@ Variants {
                             TextInput {
                                 visible: parent.renaming
                                 anchors.fill: parent
-                                anchors.leftMargin: 8; anchors.rightMargin: 8
+                                anchors.leftMargin: Theme.px(8); anchors.rightMargin: Theme.px(8)
                                 verticalAlignment: TextInput.AlignVCenter
                                 text: parent.modelData.name || ""
                                 color: parent.modelData.is_active ? Theme.accentInk : Theme.text
                                 font.family: Theme.font
-                                font.pixelSize: 11 * Theme.fontScale
+                                font.pixelSize: Theme.px(11) * Theme.fontScale
                                 maximumLength: 24
                                 onVisibleChanged: if (visible) { forceActiveFocus(); selectAll(); }
                                 onAccepted: { Niri.renameWorkspace(parent.modelData, text); bar.renamingWs = -1; }
@@ -165,7 +165,7 @@ Variants {
                                 text: modelData.name || (parent.index + 1)
                                 color: modelData.is_active ? Theme.accentInk : (parent.occupied ? Theme.text : Theme.dim)
                                 font.family: Theme.font
-                                font.pixelSize: 11 * Theme.fontScale
+                                font.pixelSize: Theme.px(11) * Theme.fontScale
                                 font.weight: Font.DemiBold
                             }
                             MouseArea {
@@ -193,7 +193,7 @@ Variants {
                 }
                 }
 
-                Rectangle { width: 1; height: 16; color: Theme.stroke; Layout.leftMargin: 6; Layout.rightMargin: 6 }
+                Rectangle { width: 1; height: Theme.px(16); color: Theme.stroke; Layout.leftMargin: Theme.px(6); Layout.rightMargin: Theme.px(6) }
 
                 // focused window: app icon + title in a chip; click for the window menu.
                 // Its minimise, maximise and close sit right after the title, for every
@@ -206,16 +206,16 @@ Variants {
                     Layout.maximumWidth: Math.max(140, bar.width * 0.25) + 84
                     // sized by what it holds (it had no width of its own and drew no chip)
                     implicitWidth: titleRow.implicitWidth + 20
-                    implicitHeight: 28
-                    radius: 10
+                    implicitHeight: Theme.px(28)
+                    radius: Theme.px(10)
                     color: Theme.card
                     border.color: Theme.stroke
                     Row {
                         id: titleRow
-                        spacing: 8
+                        spacing: Theme.px(8)
                         anchors.fill: parent
-                        anchors.leftMargin: 10
-                        anchors.rightMargin: 10
+                        anchors.leftMargin: Theme.px(10)
+                        anchors.rightMargin: Theme.px(10)
                         anchors.verticalCenter: parent.verticalCenter
                         IconImage {
                             implicitSize: 16
@@ -232,7 +232,7 @@ Variants {
                             color: Theme.text
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: 12 * Theme.fontScale
+                            font.pixelSize: Theme.px(12) * Theme.fontScale
                             font.weight: Font.Medium
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -244,9 +244,9 @@ Variants {
                             Behavior on opacity { NumberAnimation { duration: Theme.anim } }
                             // by the focused id, not the window looked up from it: the lookup can be
                             // empty for a moment while niri reports a layout change (seen under load)
-                            IconButton { size: 22; icon: "window-minimize-symbolic"; tip: Tr.t("Minimise (Super+M)"); onClicked: if (Niri.focusedWindowId !== null) Niri.minimise(Niri.focusedWindowId) }
-                            IconButton { size: 22; icon: "window-maximize-symbolic"; tip: Tr.t("Maximise"); onClicked: Niri.action("maximize-column") }
-                            IconButton { size: 22; icon: "window-close-symbolic"; tip: Tr.t("Close (Super+Q)"); onClicked: Niri.focusedWindowId !== null ? Niri.action("close-window", "--id", String(Niri.focusedWindowId)) : Niri.action("close-window") }
+                            IconButton { size: Theme.px(22); icon: "window-minimize-symbolic"; tip: Tr.t("Minimise (Super+M)"); onClicked: if (Niri.focusedWindowId !== null) Niri.minimise(Niri.focusedWindowId) }
+                            IconButton { size: Theme.px(22); icon: "window-maximize-symbolic"; tip: Tr.t("Maximise"); onClicked: Niri.action("maximize-column") }
+                            IconButton { size: Theme.px(22); icon: "window-close-symbolic"; tip: Tr.t("Close (Super+Q)"); onClicked: Niri.focusedWindowId !== null ? Niri.action("close-window", "--id", String(Niri.focusedWindowId)) : Niri.action("close-window") }
                         }
                     }
                     // a handler, not a MouseArea child: a child sized to the Row
@@ -270,7 +270,7 @@ Variants {
             // ---- right ----------------------------------------------------
             RowLayout {
                 anchors.right: parent.right
-                anchors.rightMargin: 6
+                anchors.rightMargin: Theme.px(6)
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 2
 
@@ -371,9 +371,9 @@ Variants {
                         Rectangle {
                             id: trayItem
                             required property var modelData
-                            implicitWidth: 26
-                            implicitHeight: 26
-                            radius: 8
+                            implicitWidth: Theme.px(26)
+                            implicitHeight: Theme.px(26)
+                            radius: Theme.px(8)
                             color: trayArea.containsMouse ? Theme.hover : "transparent"
                             IconImage {
                                 id: trayIcon
@@ -386,7 +386,7 @@ Variants {
                                 anchors.centerIn: parent
                                 visible: trayIcon.status !== Image.Ready
                                 name: "application-x-executable"
-                                size: 16
+                                size: Theme.px(16)
                                 color: Theme.dim
                             }
                             QsMenuAnchor {
@@ -448,26 +448,26 @@ Variants {
                         text: Ime.running ? Ime.label : Niri.layout.slice(0, 2).toLowerCase()
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: 11 * Theme.fontScale
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
                         anchors.verticalCenter: parent.verticalCenter
                     }
-                    Icon { visible: Focus.on && !(Settings.data.hideVolumeGlyph || Settings.data.hideBrightnessGlyph); name: Focus.mode ? Focus.mode.icon : ""; size: 15; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
-                    Icon { visible: Idle.caffeine || Idle.keptAwake; name: "preferences-desktop-screensaver"; size: 15; color: Theme.amber; anchors.verticalCenter: parent.verticalCenter }
-                    Icon { visible: Net.vpnActive; name: "network-vpn"; size: 15; color: Theme.text; anchors.verticalCenter: parent.verticalCenter }
-                    Icon { name: Net.icon; size: 15; color: Theme.text; anchors.verticalCenter: parent.verticalCenter }
+                    Icon { visible: Focus.on && !(Settings.data.hideVolumeGlyph || Settings.data.hideBrightnessGlyph); name: Focus.mode ? Focus.mode.icon : ""; size: Theme.px(15); color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
+                    Icon { visible: Idle.caffeine || Idle.keptAwake; name: "preferences-desktop-screensaver"; size: Theme.px(15); color: Theme.amber; anchors.verticalCenter: parent.verticalCenter }
+                    Icon { visible: Net.vpnActive; name: "network-vpn"; size: Theme.px(15); color: Theme.text; anchors.verticalCenter: parent.verticalCenter }
+                    Icon { name: Net.icon; size: Theme.px(15); color: Theme.text; anchors.verticalCenter: parent.verticalCenter }
                     Icon {
                         visible: Bluetooth.defaultAdapter !== null && Bluetooth.defaultAdapter.enabled
                         name: "bluetooth-active"
-                        size: 15
+                        size: Theme.px(15)
                         color: Bluetooth.devices.values.some(d => d.connected) ? Theme.accent : Theme.text
                         anchors.verticalCenter: parent.verticalCenter
                     }
-                    Icon { visible: Audio.micMuted && Audio.source !== null; name: "microphone-sensitivity-muted"; size: 15; color: Theme.red; anchors.verticalCenter: parent.verticalCenter }
-                    Icon { name: Audio.icon; size: 15; color: Theme.text; anchors.verticalCenter: parent.verticalCenter }
+                    Icon { visible: Audio.micMuted && Audio.source !== null; name: "microphone-sensitivity-muted"; size: Theme.px(15); color: Theme.red; anchors.verticalCenter: parent.verticalCenter }
+                    Icon { name: Audio.icon; size: Theme.px(15); color: Theme.text; anchors.verticalCenter: parent.verticalCenter }
                     Icon {
                         visible: Power.hasBattery
                         name: Power.batteryIcon
-                        size: 15
+                        size: Theme.px(15)
                         color: Power.percent < 0.15 && !Power.charging ? Theme.red : Theme.text
                         anchors.verticalCenter: parent.verticalCenter
                     }
@@ -476,7 +476,7 @@ Variants {
                         text: Math.round(Power.percent * 100) + "%"
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: 12 * Theme.fontScale
+                        font.pixelSize: Theme.px(12) * Theme.fontScale
                         anchors.verticalCenter: parent.verticalCenter
                     }
                 }
@@ -504,7 +504,7 @@ Variants {
                         font.features: { "tnum": 1 }
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: 13 * Theme.fontScale
+                        font.pixelSize: Theme.px(13) * Theme.fontScale
                         font.weight: Font.DemiBold
                         anchors.verticalCenter: parent.verticalCenter
                     }
@@ -514,14 +514,14 @@ Variants {
                         font.features: { "tnum": 1 }
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: 11 * Theme.fontScale
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     // an update waiting: a dot on the clock
                     Rectangle {
                         visible: Updates.attention
-                        width: 6; height: 6
-                        radius: 3
+                        width: Theme.px(6); height: Theme.px(6)
+                        radius: Theme.px(3)
                         color: Theme.amber
                         anchors.verticalCenter: parent.verticalCenter
                     }

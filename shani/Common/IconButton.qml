@@ -6,7 +6,7 @@ Rectangle {
     id: root
     property string icon
     property bool on: false
-    property real size: 32
+    property real size: Theme.px(32)
     property color iconColor: on ? Theme.accentInk : Theme.text
     property string tip: ""
     signal clicked()

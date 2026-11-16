@@ -12,7 +12,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 10
+    spacing: Theme.px(10)
     property bool active: false
     readonly property string tool: Quickshell.env("SHANI_GAMEPAD_TOOL") || "/usr/lib/shani-shell/gamepad.py"
     property var pads: []                  // [{ name, event, uniq }]
@@ -74,7 +74,7 @@ ColumnLayout {
         color: Theme.dim
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     Repeater {
         model: page.pads
@@ -84,7 +84,7 @@ ColumnLayout {
             readonly property int battery: Plugged.controllerBattery(modelData.name)
             readonly property bool open: page.testing === modelData.event
             Layout.fillWidth: true
-            spacing: 6
+            spacing: Theme.px(6)
             ListRow {
                 Layout.fillWidth: true
                 icon: "input-gaming"
@@ -100,40 +100,40 @@ ColumnLayout {
             ColumnLayout {
                 visible: pad.open
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Text {
                     text: Ui.padTestLast && Object.keys(page.held).length ? Tr.t("Pressed: %1", Object.keys(page.held).join(", ")) : Tr.t("Press any button, move the sticks.")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 12 * Theme.fontScale
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
                 }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: ["A", "B", "X", "Y", "LB", "RB", "LT", "RT", "Select", "Start", "Home", "Left stick", "Right stick", "Up", "Down", "Left", "Right"]
                         Choice { required property string modelData; text: modelData; selected: !!page.held[modelData]; enabled: false }
                     }
                 }
                 Row {
-                    spacing: 18
+                    spacing: Theme.px(18)
                     Repeater {
                         model: [["left-x", "left-y", Tr.t("Left stick")], ["right-x", "right-y", Tr.t("Right stick")]]
                         Column {
                             id: stick
                             required property var modelData
-                            spacing: 4
+                            spacing: Theme.px(4)
                             Rectangle {
-                                width: 64; height: 64; radius: 32
+                                width: Theme.px(64); height: Theme.px(64); radius: Theme.px(32)
                                 color: Theme.hover
                                 Rectangle {
-                                    width: 12; height: 12; radius: 6
+                                    width: Theme.px(12); height: Theme.px(12); radius: Theme.px(6)
                                     color: Theme.accent
                                     x: 26 + 26 * (page.axes[stick.modelData[0]] || 0)
                                     y: 26 + 26 * (page.axes[stick.modelData[1]] || 0)
                                 }
                             }
-                            Text { text: stick.modelData[2]; color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+                            Text { text: stick.modelData[2]; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                         }
                     }
                 }
@@ -151,7 +151,7 @@ ColumnLayout {
     }
 
     // ---- InputPlumber (shani-peripherals): what each controller plays as in games ----
-    SectionTitle { objectName: "in-games"; visible: InputPlumber.running; Layout.fillWidth: true; Layout.topMargin: 8; text: Tr.t("In games") }
+    SectionTitle { objectName: "in-games"; visible: InputPlumber.running; Layout.fillWidth: true; Layout.topMargin: Theme.px(8); text: Tr.t("In games") }
     Text {
         visible: InputPlumber.running && InputPlumber.devices.length === 0
         Layout.fillWidth: true
@@ -159,7 +159,7 @@ ColumnLayout {
         color: Theme.dim
         wrapMode: Text.WordWrap
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     Repeater {
         model: InputPlumber.running ? InputPlumber.devices : []
@@ -167,26 +167,26 @@ ColumnLayout {
             id: ipDev
             required property var modelData
             Layout.fillWidth: true
-            spacing: 6
+            spacing: Theme.px(6)
             Text {
                 Layout.fillWidth: true
                 text: ipDev.modelData.name + (ipDev.modelData.profile ? "  ·  " + ipDev.modelData.profile : "")
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: 13 * Theme.fontScale
+                font.pixelSize: Theme.px(13) * Theme.fontScale
                 font.weight: Font.DemiBold
             }
             Text {
                 text: Tr.t("Plays as")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
             // gamepad kinds only: its keyboard and mouse (a handheld's touchpad, its
             // extra keys) stay as they are
             Flow {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 Repeater {
                     model: InputPlumber.supportedIds.map((id, i) => ({ id: id, name: InputPlumber.supported[i] || id }))
                                                    .filter(t => ["keyboard", "mouse", "touchpad", "touchscreen", "dbus", "debug"].indexOf(t.id) < 0)

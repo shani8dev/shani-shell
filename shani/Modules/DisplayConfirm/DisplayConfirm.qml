@@ -16,7 +16,7 @@ Variants {
         visible: Displays.pending && !Lock.locked
         anchors.top: true
         margins.top: 120
-        implicitWidth: 420
+        implicitWidth: Theme.px(420)
         implicitHeight: card.implicitHeight
         color: "transparent"
         exclusionMode: ExclusionMode.Ignore
@@ -41,22 +41,22 @@ Variants {
                 x: 18
                 y: 18
                 width: parent.width - 36
-                spacing: 10
+                spacing: Theme.px(10)
                 RowLayout {
-                    spacing: 10
-                    Icon { name: "video-display"; size: 22; color: Theme.accent }
-                    Text { text: Tr.t("Keep these display settings?"); color: Theme.text; font.family: Theme.font; font.pixelSize: 15 * Theme.fontScale; font.weight: Font.DemiBold }
+                    spacing: Theme.px(10)
+                    Icon { name: "video-display"; size: Theme.px(22); color: Theme.accent }
+                    Text { text: Tr.t("Keep these display settings?"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(15) * Theme.fontScale; font.weight: Font.DemiBold }
                 }
                 Text {
                     Layout.fillWidth: true
                     text: "Going back to the previous ones in " + Displays.countdown + " s."
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 12 * Theme.fontScale
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
                 }
                 RowLayout {
                     Layout.alignment: Qt.AlignRight
-                    spacing: 8
+                    spacing: Theme.px(8)
                     Button { text: Tr.t("Revert"); onClicked: Displays.revert() }
                     Button { kind: "primary"; text: Tr.t("Keep"); onClicked: Displays.keep() }
                 }

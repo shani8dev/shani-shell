@@ -11,7 +11,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     property bool active: false
     readonly property var d: Settings.data
     property var iconThemes: []
@@ -51,14 +51,14 @@ ColumnLayout {
     }
     RowLayout {
         visible: Appearance.iconsNeedRestart
-        spacing: 8
+        spacing: Theme.px(8)
         Text {
             Layout.fillWidth: true
             text: Tr.t("Apps use it now; the shell's own icons after it restarts.")
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: 11 * Theme.fontScale
+            font.pixelSize: Theme.px(11) * Theme.fontScale
         }
         Button { text: Tr.t("Restart the shell"); onClicked: Appearance.restartShell() }
     }
@@ -78,8 +78,8 @@ ColumnLayout {
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Corner radius") }
     RowLayout {
         Layout.fillWidth: true
-        spacing: 8
-        Text { text: Tr.t("Roundness"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; Layout.preferredWidth: 80 }
+        spacing: Theme.px(8)
+        Text { text: Tr.t("Roundness"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; Layout.preferredWidth: Theme.px(80) }
         Repeater {
             model: [8, 10, 12, 16, 20, 24, 28]
             Choice {
@@ -98,11 +98,11 @@ ColumnLayout {
             id: fontRow
             required property var modelData
             Layout.fillWidth: true
-            spacing: 6
+            spacing: Theme.px(6)
             Text { text: fontRow.modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 Choice {
                     text: page.d[fontRow.modelData.key] + "  ›"
                     selected: page.picking === fontRow.modelData.id

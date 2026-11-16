@@ -12,7 +12,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     property bool active: false
     readonly property var d: Settings.data
     property var grants: []               // [{ table, id, app, perms }]
@@ -56,13 +56,13 @@ ColumnLayout {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            anchors.margins: 10
-            spacing: 6
+            anchors.margins: Theme.px(10)
+            spacing: Theme.px(6)
             Text {
                 text: Tr.t("Privacy dashboard")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: 10 * Theme.fontScale
+                font.pixelSize: Theme.px(10) * Theme.fontScale
                 font.weight: Font.DemiBold
             }
             Text {
@@ -73,11 +73,11 @@ ColumnLayout {
                     : Tr.t("Apps with access: ") + Object.keys(page.permCounts).map(k => (page.names[k + "/" + page.grants.find(g => g.table === k).id] || k) + " " + page.permCounts[k]).join("  ·  ")
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
             Flow {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 Repeater {
                     model: Object.keys(page.permCounts)
                     Choice {
@@ -107,11 +107,11 @@ ColumnLayout {
         color: Theme.dim
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     Flow {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Choice { text: Tr.t("Off"); selected: page.d.dynamicLockDevice === ""; onClicked: page.d.dynamicLockDevice = "" }
         Repeater {
             model: Bluetooth.devices.values.filter(d => d.paired)
@@ -127,13 +127,13 @@ ColumnLayout {
     Flow {
         Layout.fillWidth: true
         visible: page.d.dynamicLockDevice !== ""
-        spacing: 6
+        spacing: Theme.px(6)
         Text {
             text: Tr.t("Lock after")
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: 12 * Theme.fontScale
-            height: 28
+            font.pixelSize: Theme.px(12) * Theme.fontScale
+            height: Theme.px(28)
             verticalAlignment: Text.AlignVCenter
         }
         Repeater {
@@ -154,8 +154,8 @@ ColumnLayout {
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Trash") }
     RowLayout {
-        spacing: 6
-        Text { text: Tr.t("Empty automatically"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+        spacing: Theme.px(6)
+        Text { text: Tr.t("Empty automatically"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
         Repeater {
             model: [{ label: Tr.t("Never"), value: 0 }, { label: Tr.t("After 7 days"), value: 7 }, { label: Tr.t("After 30 days"), value: 30 }]
             Choice {
@@ -179,7 +179,7 @@ ColumnLayout {
         color: Theme.dim
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     Repeater {
         model: page.grants
@@ -193,7 +193,7 @@ ColumnLayout {
             subtitle: (page.names[modelData.table + "/" + modelData.id] || modelData.table + " " + modelData.id) + ": " + (modelData.perms.indexOf("yes") >= 0 ? "allowed" : "denied")
             IconButton {
                 icon: "edit-delete"
-                size: 24
+                size: Theme.px(24)
                 Accessible.name: Tr.t("Forget this permission; the app asks again")
                 onClicked: {
                     revoke.command = ["flatpak", "permission-remove", g.modelData.table, g.modelData.id, g.modelData.app];
@@ -208,6 +208,6 @@ ColumnLayout {
         color: Theme.faint
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
 }

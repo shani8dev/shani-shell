@@ -149,7 +149,7 @@ PanelWindow {
         y: Math.min(Math.max(Ruler.endY + 14, 4), win.height - height - 4)
         width: badge.implicitWidth + 16
         height: badge.implicitHeight + 10
-        radius: 6
+        radius: Theme.px(6)
         color: Qt.rgba(0.08, 0.08, 0.1, 0.85)
         Text {
             id: badge
@@ -157,7 +157,7 @@ PanelWindow {
             text: Ruler.sizeLabel()
             color: "#ffffff"
             font.family: Theme.font
-            font.pixelSize: 15 * Theme.fontScale
+            font.pixelSize: Theme.px(15) * Theme.fontScale
             font.bold: true
         }
     }
@@ -165,12 +165,12 @@ PanelWindow {
     // hint line at top
     Text {
         anchors.top: parent.top
-        anchors.topMargin: 16
+        anchors.topMargin: Theme.px(16)
         anchors.horizontalCenter: parent.horizontalCenter
         text: "Drag to measure  ·  Shift: straight line  ·  Right-click: clear  ·  Esc: close  ·  Ctrl+C: copy"
         color: "#ffffff"
         font.family: Theme.font
-        font.pixelSize: 13 * Theme.fontScale
+        font.pixelSize: Theme.px(13) * Theme.fontScale
         // dark shadow for readability over any background
         style: Text.Outline
         styleColor: Qt.rgba(0, 0, 0, 0.6)

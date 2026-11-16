@@ -14,7 +14,7 @@ Rectangle {
     property bool shift: false
     property bool symbols: false
 
-    implicitHeight: 280
+    implicitHeight: Theme.px(280)
     radius: Theme.radiusLarge
     color: Theme.alpha(Theme.bg, 0.92)
     border.width: 1
@@ -51,7 +51,7 @@ Rectangle {
             text: key.label
             color: key.accent ? Theme.accent : Theme.text
             font.family: Theme.font
-            font.pixelSize: 18 * Theme.fontScale
+            font.pixelSize: Theme.px(18) * Theme.fontScale
         }
         Accessible.role: Accessible.Button
         Accessible.name: key.label
@@ -62,8 +62,8 @@ Rectangle {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 10
-        spacing: 6
+        anchors.margins: Theme.px(10)
+        spacing: Theme.px(6)
         Repeater {
             model: root.rows
             RowLayout {
@@ -72,7 +72,7 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 // the third row of letters sits between Shift and Backspace
-                Key { visible: index === 2; label: root.symbols ? "" : "⇧"; accent: root.shift; Layout.maximumWidth: 90; onTapped: root.shift = !root.shift }
+                Key { visible: index === 2; label: root.symbols ? "" : "⇧"; accent: root.shift; Layout.maximumWidth: Theme.px(90); onTapped: root.shift = !root.shift }
                 Repeater {
                     model: modelData.split(" ")
                     Key {
@@ -81,16 +81,16 @@ Rectangle {
                         onTapped: root.type(modelData)
                     }
                 }
-                Key { visible: index === 2; label: "⌫"; Layout.maximumWidth: 90; onTapped: root.back() }
+                Key { visible: index === 2; label: "⌫"; Layout.maximumWidth: Theme.px(90); onTapped: root.back() }
             }
         }
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Key { label: root.symbols ? "abc" : "?123"; Layout.maximumWidth: 110; onTapped: root.symbols = !root.symbols }
+            Key { label: root.symbols ? "abc" : "?123"; Layout.maximumWidth: Theme.px(110); onTapped: root.symbols = !root.symbols }
             Key { label: "space"; onTapped: root.type(" ") }
-            Key { label: "⏎"; accent: true; Layout.maximumWidth: 110; onTapped: root.entered() }
-            Key { label: "⌄"; Accessible.name: Tr.t("Hide keyboard"); Layout.maximumWidth: 70; onTapped: root.hideRequested() }
+            Key { label: "⏎"; accent: true; Layout.maximumWidth: Theme.px(110); onTapped: root.entered() }
+            Key { label: "⌄"; Accessible.name: Tr.t("Hide keyboard"); Layout.maximumWidth: Theme.px(70); onTapped: root.hideRequested() }
         }
     }
 }

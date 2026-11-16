@@ -12,7 +12,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     property bool active: false
     readonly property var d: Settings.data
     readonly property string userDir: (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config") + "/autostart"
@@ -58,7 +58,7 @@ ColumnLayout {
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Apps open when you signed out") }
     Flow {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Repeater {
             model: [{ id: "ask", label: Tr.t("Offer to reopen them") }, { id: "always", label: Tr.t("Reopen them") }, { id: "never", label: Tr.t("Start fresh") }]
             Choice {
@@ -86,7 +86,7 @@ ColumnLayout {
             IconButton {
                 visible: row.modelData.mine
                 icon: "edit-delete"
-                size: 24
+                size: Theme.px(24)
                 Accessible.name: "Remove " + row.modelData.name + " from startup"
                 onClicked: page.remove(row.modelData)
             }
@@ -95,7 +95,7 @@ ColumnLayout {
     // the usual ones, where installed: a tap each
     Flow {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Repeater {
             model: ["org.gnome.Nautilus", "com.vivaldi.Vivaldi", "org.mozilla.firefox", "org.telegram.desktop", "org.signal.Signal",
                     "com.slack.Slack", "org.mozilla.Thunderbird", "com.spotify.Client", "org.localsend.localsend_app", "dev.shani.chronoa"]

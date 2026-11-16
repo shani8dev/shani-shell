@@ -12,7 +12,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     property bool active: false
     readonly property var d: Settings.data
 
@@ -91,7 +91,7 @@ ColumnLayout {
     ColumnLayout {
         visible: !page.ntp
         Layout.fillWidth: true
-        spacing: 12
+        spacing: Theme.px(12)
         DatePicker {
             id: setDate
             label: Tr.t("Date")
@@ -160,7 +160,7 @@ ColumnLayout {
         color: Theme.danger
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
 
     // ---- world clocks: more cities on the control centre's calendar ---------
@@ -248,11 +248,11 @@ ColumnLayout {
         wrapMode: Text.Wrap
         lineHeight: 1.2
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     property string choosing: ""            // "lang" | "formats" | ""
     RowLayout {
-        spacing: 6
+        spacing: Theme.px(6)
         Choice { text: Tr.t("Change language"); selected: page.choosing === "lang"; onClicked: page.choosing = page.choosing === "lang" ? "" : "lang" }
         Choice { text: Tr.t("Change formats"); selected: page.choosing === "formats"; onClicked: page.choosing = page.choosing === "formats" ? "" : "formats" }
     }
@@ -309,7 +309,7 @@ ColumnLayout {
         color: page.systemLocaleNote.startsWith("Set") ? Theme.dim : Theme.danger
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
     Text {
         Layout.fillWidth: true
@@ -317,7 +317,7 @@ ColumnLayout {
         color: Theme.faint
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }    Button {
         visible: page.lang !== "" && page.lang !== page.langAtLogin
         text: Tr.t("Log out now, to finish")
@@ -329,11 +329,11 @@ ColumnLayout {
         text: Tr.t("The week starts on")
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     Flow {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Repeater {
             model: [{ id: "monday", label: Tr.t("Monday") }, { id: "sunday", label: Tr.t("Sunday") }]
             Choice {

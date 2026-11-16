@@ -14,12 +14,12 @@ ColumnLayout {
 
     Layout.fillWidth: true
     Layout.alignment: Qt.AlignHCenter
-    spacing: 8
+    spacing: Theme.px(8)
 
     Icon {
         Layout.alignment: Qt.AlignHCenter
         name: root.icon
-        size: 40
+        size: Theme.px(40)
         color: Theme.faint
     }
     Text {
@@ -30,7 +30,7 @@ ColumnLayout {
         text: root.title
         color: Theme.text
         font.family: Theme.font
-        font.pixelSize: 14 * Theme.fontScale
+        font.pixelSize: Theme.px(14) * Theme.fontScale
         font.weight: Font.DemiBold
         visible: root.title !== ""
     }
@@ -42,7 +42,7 @@ ColumnLayout {
         text: root.subtitle
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
         visible: root.subtitle !== ""
     }
     Button {

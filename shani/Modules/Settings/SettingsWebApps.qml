@@ -5,7 +5,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     property bool active: false
     readonly property var d: Settings.data
 
@@ -42,11 +42,11 @@ ColumnLayout {
         ColumnLayout {
             id: addCol
             anchors.fill: parent
-            spacing: 8
+            spacing: Theme.px(8)
 
             Flow {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 Repeater {
                     model: [{ n: "WhatsApp", u: "https://web.whatsapp.com" }, { n: "Gmail", u: "https://mail.google.com" },
                             { n: "YouTube", u: "https://www.youtube.com" }, { n: "YouTube Music", u: "https://music.youtube.com" },
@@ -86,7 +86,7 @@ ColumnLayout {
             }
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Button {
                     text: Tr.t("Cancel")
                     onClicked: { addDialog.visible = false; nameInput.text = ""; urlInput.text = ""; iconInput.text = "" }

@@ -19,9 +19,9 @@ Rectangle {
 
     anchors.bottom: parent ? parent.bottom : undefined
     anchors.horizontalCenter: parent ? parent.horizontalCenter : undefined
-    anchors.margins: 20
+    anchors.margins: Theme.px(20)
     width: Math.min(parent ? parent.width - 40 : 600, 640)
-    implicitHeight: 44
+    implicitHeight: Theme.px(44)
     radius: Theme.radiusLarge
     color: Theme.glassStrong
     border.width: 1
@@ -29,14 +29,14 @@ Rectangle {
 
     RowLayout {
         anchors.fill: parent
-        anchors.margins: 10
-        spacing: 8
+        anchors.margins: Theme.px(10)
+        spacing: Theme.px(8)
         Text {
             Layout.fillWidth: true
             text: root.message
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: 12 * Theme.fontScale
+            font.pixelSize: Theme.px(12) * Theme.fontScale
             wrapMode: Text.Wrap
             verticalAlignment: Text.AlignVCenter
         }
@@ -44,7 +44,7 @@ Rectangle {
             visible: root.showUndo
             text: Tr.t("Undo")
             kind: "primary"
-            implicitHeight: 28
+            implicitHeight: Theme.px(28)
             onClicked: root.undo()
         }
     }

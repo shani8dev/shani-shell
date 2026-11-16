@@ -8,7 +8,7 @@ import "FileIcons.js" as FileIcons
 Item {
     id: root
     property var entry: null
-    property real size: 36
+    property real size: Theme.px(36)
     property bool showImage: true          // false: the kind's icon, even for a picture
 
     implicitWidth: size

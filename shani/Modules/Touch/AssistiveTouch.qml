@@ -14,8 +14,8 @@ PanelWindow {
     anchors { top: true; left: true }
     margins.left: Settings.data.touchX
     margins.top: Settings.data.touchY
-    implicitWidth: 56
-    implicitHeight: 56
+    implicitWidth: Theme.px(56)
+    implicitHeight: Theme.px(56)
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "shani-touch"
@@ -32,7 +32,7 @@ PanelWindow {
         color: Theme.alpha(Theme.bg, 0.55)
         border.width: 2
         border.color: Theme.alpha(Theme.accent, 0.8)
-        Rectangle { anchors.centerIn: parent; width: 26; height: 26; radius: 13; color: Theme.alpha(Theme.accent, 0.85) }
+        Rectangle { anchors.centerIn: parent; width: Theme.px(26); height: Theme.px(26); radius: Theme.px(13); color: Theme.alpha(Theme.accent, 0.85) }
         Accessible.role: Accessible.Button
         Accessible.name: Tr.t("Smart touch: open the Ring")
     }

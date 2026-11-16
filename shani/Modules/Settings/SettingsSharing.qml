@@ -14,7 +14,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     property bool active: false
     readonly property string user: Quickshell.env("USER") || ""
     property bool smbOn: false
@@ -99,7 +99,7 @@ ColumnLayout {
         color: Theme.danger
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
     ListRow {
         Layout.fillWidth: true
@@ -125,14 +125,14 @@ ColumnLayout {
             wrapMode: Text.WordWrap
             text: page.groupNext ? Tr.t("This account may share folders from your next sign-in.")
                                  : Tr.t("This account may not share folders yet.")
-            color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale
+            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
         }
         Button { visible: !page.groupNext; text: Tr.t("Allow"); onClicked: page.run(["pkexec", "gpasswd", "-a", page.user, "sambashare"], Tr.t("Allowed — sign out and in again to share")) }
     }
     // Samba's own password for this account: what someone types when opening your share
     RowLayout {
         Layout.fillWidth: true
-        spacing: 8
+        spacing: Theme.px(8)
         TextField { id: pw; Layout.fillWidth: true; secret: true; placeholder: Tr.t("Network password for your shares"); label: Tr.t("Network password") }
         Button {
             text: Tr.t("Set")
@@ -169,20 +169,20 @@ ColumnLayout {
     Text {
         visible: page.shares.length === 0
         text: Tr.t("Nothing shared.")
-        color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale
+        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     Repeater {
         model: page.shares
         RowLayout {
             required property var modelData
             Layout.fillWidth: true
-            spacing: 10
-            Icon { name: "folder-remote"; size: 20; color: Theme.accent }
+            spacing: Theme.px(10)
+            Icon { name: "folder-remote"; size: Theme.px(20); color: Theme.accent }
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 1
-                Text { text: modelData.name + " — " + modelData.path; elide: Text.ElideMiddle; Layout.fillWidth: true; color: Theme.text; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale }
-                Text { text: "smb://" + page.host + ".local/" + modelData.name + " · " + (modelData.write ? Tr.t("others can change files") : Tr.t("read only")); color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+                Text { text: modelData.name + " — " + modelData.path; elide: Text.ElideMiddle; Layout.fillWidth: true; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                Text { text: "smb://" + page.host + ".local/" + modelData.name + " · " + (modelData.write ? Tr.t("others can change files") : Tr.t("read only")); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
             }
             IconButton { icon: "edit-delete"; tip: Tr.t("Stop sharing"); Accessible.name: Tr.t("Stop sharing %1", modelData.name); onClicked: page.run(["net", "usershare", "delete", modelData.name], Tr.t("%1 is no longer shared", modelData.name)) }
         }
@@ -190,14 +190,14 @@ ColumnLayout {
     ColumnLayout {
         visible: page.inGroup
         Layout.fillWidth: true
-        spacing: 8
+        spacing: Theme.px(8)
         FolderPicker {
             id: folderPicker
             label: Tr.t("Folder to share")
         }
         RowLayout {
             Layout.fillWidth: true
-            spacing: 8
+            spacing: Theme.px(8)
             Choice { id: writable; text: Tr.t("Others can change files"); selected: false; onClicked: selected = !selected }
             Button {
                 text: Tr.t("Share")
@@ -217,6 +217,6 @@ ColumnLayout {
         Layout.fillWidth: true
         wrapMode: Text.WordWrap
         text: page.note
-        color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale
+        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
     }
 }

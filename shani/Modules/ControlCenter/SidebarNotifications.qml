@@ -14,29 +14,29 @@ import qs.Services
 import qs.Modules.Notifications
 
 ColumnLayout {
-    spacing: 14
+    spacing: Theme.px(14)
 
     SectionTitle {
         Layout.fillWidth: true
         text: Notifs.count > 0 ? "Notifications · " + Notifs.count : "Notifications"
         IconButton {
             icon: Notifs.dnd ? "notifications-disabled" : "preferences-system-notifications"
-            size: 26
+            size: Theme.px(26)
             on: Notifs.dnd
             onClicked: Notifs.setDnd(!Notifs.dnd)
         }
-        IconButton { visible: Notifs.count > 1; icon: "chat-message-new"; size: 26; onClicked: { Ui.closeAll(); Notifs.summarize(); } }
-        IconButton { visible: Notifs.count > 0 || Notifs.earlier.length > 0; icon: "edit-clear-all"; size: 26; onClicked: Notifs.clearAll() }
+        IconButton { visible: Notifs.count > 1; icon: "chat-message-new"; size: Theme.px(26); onClicked: { Ui.closeAll(); Notifs.summarize(); } }
+        IconButton { visible: Notifs.count > 0 || Notifs.earlier.length > 0; icon: "edit-clear-all"; size: Theme.px(26); onClicked: Notifs.clearAll() }
     }
     Text {
         visible: Notifs.count === 0 && Notifs.earlier.length === 0
         Layout.fillWidth: true
-        Layout.topMargin: 6
+        Layout.topMargin: Theme.px(6)
         horizontalAlignment: Text.AlignHCenter
         text: Tr.t("You're all caught up")
         color: Theme.faint
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     // grouped by app, newest group first; the app is named once
     Repeater {
@@ -55,7 +55,7 @@ ColumnLayout {
             id: group
             required property var modelData
             Layout.fillWidth: true
-            spacing: 6
+            spacing: Theme.px(6)
             RowLayout {
                 Layout.fillWidth: true
                 visible: group.modelData.items.length > 1
@@ -64,7 +64,7 @@ ColumnLayout {
                     text: group.modelData.app + " · " + group.modelData.items.length
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
                 Button {
@@ -88,13 +88,13 @@ ColumnLayout {
     RowLayout {
         visible: Notifs.earlier.length > 0
         Layout.fillWidth: true
-        Layout.topMargin: 6
+        Layout.topMargin: Theme.px(6)
         Text {
             Layout.fillWidth: true
             text: Tr.t("Earlier") + " · " + Notifs.earlier.length
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: 11 * Theme.fontScale
+            font.pixelSize: Theme.px(11) * Theme.fontScale
             font.weight: Font.DemiBold
         }
         Button { text: Tr.t("Clear"); onClicked: Notifs.forgetEarlier() }

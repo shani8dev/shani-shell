@@ -25,8 +25,8 @@ Rectangle {
     Accessible.onPressAction: root.clicked()
 
     implicitWidth: row.implicitWidth + 16
-    implicitHeight: 28
-    radius: 9
+    implicitHeight: Theme.px(28)
+    radius: Theme.px(9)
     color: active ? Theme.accentSoft : (area.containsMouse ? Theme.hover : pill ? Theme.alpha(Theme.text, 0.07) : "transparent")
     border.width: pill && !active ? 1 : 0
     border.color: Theme.alpha(Theme.text, 0.08)
@@ -35,11 +35,11 @@ Rectangle {
     Row {
         id: row
         anchors.centerIn: parent
-        spacing: 6
+        spacing: Theme.px(6)
         Icon {
             visible: root.icon !== ""
             name: root.icon
-            size: 16
+            size: Theme.px(16)
             color: root.tint
             anchors.verticalCenter: parent.verticalCenter
         }

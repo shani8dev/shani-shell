@@ -20,24 +20,24 @@ Rectangle {
     Accessible.selected: root.selected
     Accessible.onPressAction: root.clicked()
 
-    implicitHeight: 40
+    implicitHeight: Theme.px(40)
     radius: Theme.radiusSmall
     color: selected ? Theme.accentSoft : (area.containsMouse ? Theme.hover : "transparent")
 
     Icon {
         id: ic
         anchors.left: parent.left
-        anchors.leftMargin: 10
+        anchors.leftMargin: Theme.px(10)
         anchors.verticalCenter: parent.verticalCenter
         name: root.icon
-        size: 16
+        size: Theme.px(16)
         color: root.selected ? Theme.accent : Theme.text
     }
     Column {
         anchors.left: ic.right
-        anchors.leftMargin: 10
+        anchors.leftMargin: Theme.px(10)
         anchors.right: tail.left
-        anchors.rightMargin: 8
+        anchors.rightMargin: Theme.px(8)
         anchors.verticalCenter: parent.verticalCenter
         Text {
             width: parent.width
@@ -45,7 +45,7 @@ Rectangle {
             color: root.selected ? Theme.accent : Theme.text
             elide: Text.ElideRight
             font.family: Theme.font
-            font.pixelSize: 12 * Theme.fontScale
+            font.pixelSize: Theme.px(12) * Theme.fontScale
         }
         Text {
             width: parent.width
@@ -54,7 +54,7 @@ Rectangle {
             color: Theme.dim
             elide: Text.ElideRight
             font.family: Theme.font
-            font.pixelSize: 10 * Theme.fontScale
+            font.pixelSize: Theme.px(10) * Theme.fontScale
         }
     }
     MouseArea {
@@ -68,15 +68,15 @@ Rectangle {
     Row {
         id: tail
         anchors.right: parent.right
-        anchors.rightMargin: 8
+        anchors.rightMargin: Theme.px(8)
         anchors.verticalCenter: parent.verticalCenter
-        spacing: 6
+        spacing: Theme.px(6)
         Text {
             visible: root.trailing !== ""
             text: root.trailing
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: 10 * Theme.fontScale
+            font.pixelSize: Theme.px(10) * Theme.fontScale
             anchors.verticalCenter: parent.verticalCenter
         }
     }

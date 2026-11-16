@@ -12,8 +12,8 @@ AppWindow {
     appName: "Clocks"
     visible: Ui.clocks
     onGone: Ui.clocks = false
-    implicitWidth: 460
-    implicitHeight: 520
+    implicitWidth: Theme.px(460)
+    implicitHeight: Theme.px(520)
 
     property string tab: Ui.clocksTab || "world"      // world | alarms | stopwatch | timer
     onTabChanged: Ui.clocksTab = tab
@@ -29,11 +29,11 @@ AppWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            spacing: 12
+            spacing: Theme.px(12)
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 Repeater {
                     model: [["world", Tr.t("World")], ["alarms", Tr.t("Alarms")], ["stopwatch", Tr.t("Stopwatch")], ["timer", Tr.t("Timer")]]
                     Choice {
@@ -54,7 +54,7 @@ AppWindow {
                 text: Qt.formatTime(clock.date, Settings.data.use24h ? "HH:mm:ss" : "h:mm:ss AP")
                 color: Theme.text
                 font.family: Theme.mono
-                font.pixelSize: 40 * Theme.fontScale
+                font.pixelSize: Theme.px(40) * Theme.fontScale
                 font.weight: Font.DemiBold
                 SystemClock { id: clock; precision: SystemClock.Seconds; enabled: win.visible }
             }
@@ -64,7 +64,7 @@ AppWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 visible: win.tab === "world"
-                spacing: 4
+                spacing: Theme.px(4)
                 Repeater {
                     model: WorldClock.clocks
                     ListRow {
@@ -96,7 +96,7 @@ AppWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 visible: win.tab === "alarms"
-                spacing: 6
+                spacing: Theme.px(6)
                 Repeater {
                     model: win.alarms
                     ListRow {
@@ -125,7 +125,7 @@ AppWindow {
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     TextField {
                         id: labelField
                         Layout.fillWidth: true
@@ -148,19 +148,19 @@ AppWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 visible: win.tab === "stopwatch"
-                spacing: 8
+                spacing: Theme.px(8)
                 Text {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
                     text: WorldClock.swDisplay
                     color: Theme.text
                     font.family: Theme.mono
-                    font.pixelSize: 48 * Theme.fontScale
+                    font.pixelSize: Theme.px(48) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Button { Layout.fillWidth: true; kind: "primary"; text: WorldClock.swRunning ? Tr.t("Pause") : Tr.t("Start"); onClicked: WorldClock.swToggle() }
                     Button { Layout.fillWidth: true; text: Tr.t("Lap"); enabled: WorldClock.swRunning; onClicked: WorldClock.swLap() }
                     Button { Layout.fillWidth: true; text: Tr.t("Reset"); onClicked: WorldClock.swReset() }
@@ -188,32 +188,32 @@ AppWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 visible: win.tab === "timer"
-                spacing: 10
+                spacing: Theme.px(10)
                 Text {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
                     text: FocusTimer.running ? FocusTimer.label : "0:00"
                     color: FocusTimer.running ? Theme.accent : Theme.dim
                     font.family: Theme.mono
-                    font.pixelSize: 48 * Theme.fontScale
+                    font.pixelSize: Theme.px(48) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
                 Rectangle {
                     Layout.fillWidth: true
-                    height: 6
-                    radius: 3
+                    height: Theme.px(6)
+                    radius: Theme.px(3)
                     color: Theme.surface3
                     visible: FocusTimer.running
                     Rectangle {
                         width: FocusTimer.total > 0 ? parent.width * (1 - FocusTimer.left / FocusTimer.total) : 0
                         height: parent.height
-                        radius: 3
+                        radius: Theme.px(3)
                         color: Theme.accent
                     }
                 }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [1, 3, 5, 10, 15, 20, 25, 30, 45, 60, 90]
                         Choice {
@@ -237,7 +237,7 @@ AppWindow {
                     color: Theme.faint
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 Item { Layout.fillHeight: true }
             }

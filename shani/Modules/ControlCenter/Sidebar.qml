@@ -46,7 +46,7 @@ PanelWindow {
     Glass {
         id: slide
         strong: true
-        width: 420
+        width: Theme.px(420)
         y: Theme.barHeight + 18
         height: parent.height - y - 10
         x: Ui.controlCenter ? parent.width - width - 10 : parent.width + 10
@@ -70,7 +70,7 @@ PanelWindow {
         Flickable {
             id: flick
             anchors.fill: parent
-            anchors.margins: 16
+            anchors.margins: Theme.px(16)
             contentHeight: col.implicitHeight
             clip: true
             boundsBehavior: Flickable.StopAtBounds
@@ -78,7 +78,7 @@ PanelWindow {
             ColumnLayout {
                 id: col
                 width: flick.width
-                spacing: 14
+                spacing: Theme.px(14)
 
                 // ---- header ---------------------------------------------------
                 SidebarHeader { objectName: "region:header"; Layout.fillWidth: true; sidebar: win; sidebarClock: clock }
@@ -119,7 +119,7 @@ PanelWindow {
                 // ---- notifications ------------------------------------------
                 SidebarNotifications { objectName: "region:notifications"; Layout.fillWidth: true }
 
-                Item { implicitHeight: 4 }
+                Item { implicitHeight: Theme.px(4) }
             }
         }
     }

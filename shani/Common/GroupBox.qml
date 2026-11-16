@@ -15,8 +15,8 @@ Item {
         Layout.fillWidth: true
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 12
-            spacing: 8
+            anchors.margins: Theme.px(12)
+            spacing: Theme.px(8)
 
             SectionTitle {
                 text: root.title
@@ -26,7 +26,7 @@ Item {
             ColumnLayout {
                 id: col
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
             }
         }
     }

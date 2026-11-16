@@ -16,8 +16,8 @@ AppWindow {
     visible: Ui.diskUsage
     onGone: DiskUsage.close()
     margins: 0
-    implicitWidth: 920
-    implicitHeight: 700
+    implicitWidth: Theme.px(920)
+    implicitHeight: Theme.px(700)
 
     onVisibleChanged: { if (visible && DiskUsage.current === "") DiskUsage.open(""); }
 
@@ -34,23 +34,23 @@ AppWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 16
-            spacing: 10
+            anchors.margins: Theme.px(16)
+            spacing: Theme.px(10)
 
             RowLayout {
                 Layout.fillWidth: true
-                Icon { name: "drive-harddisk"; size: 20; color: Theme.accent }
+                Icon { name: "drive-harddisk"; size: Theme.px(20); color: Theme.accent }
                 Text {
                     Layout.fillWidth: true
                     text: DiskUsage.current !== "" ? DiskUsage.current.replace(Quickshell.env("HOME"), "~") : ""
                     color: Theme.text
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: 15 * Theme.fontScale
+                    font.pixelSize: Theme.px(15) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
-                IconButton { icon: "go-previous"; size: 28; tip: Tr.t("Back (Esc)"); enabled: DiskUsage.history.length > 0; onClicked: DiskUsage.back() }
-                IconButton { icon: "view-refresh"; size: 28; tip: Tr.t("Rescan"); onClicked: DiskUsage.refresh() }
+                IconButton { icon: "go-previous"; size: Theme.px(28); tip: Tr.t("Back (Esc)"); enabled: DiskUsage.history.length > 0; onClicked: DiskUsage.back() }
+                IconButton { icon: "view-refresh"; size: Theme.px(28); tip: Tr.t("Rescan"); onClicked: DiskUsage.refresh() }
             }
 
             // the treemap: area ~ size, weighted (DiskUsage.treemap)
@@ -75,7 +75,7 @@ AppWindow {
                         y: modelData.y + 1.5
                         width: Math.max(2, modelData.w - 3)
                         height: Math.max(2, modelData.h - 3)
-                        radius: 6
+                        radius: Theme.px(6)
                         readonly property bool marked: DiskUsage.isMarked(modelData.path)
                         readonly property bool big: width > 160 && height > 90
                         // each its own colour (the accent's hue, stepped by the golden angle,
@@ -96,11 +96,11 @@ AppWindow {
                             visible: tile.width > 46 && tile.height > 28
                             Row {
                                 width: parent.width
-                                spacing: 6
+                                spacing: Theme.px(6)
                                 Icon {
                                     visible: tile.big
                                     name: modelData.isDir ? "folder" : "text-x-generic"
-                                    size: 16
+                                    size: Theme.px(16)
                                 }
                                 Text {
                                     width: parent.width - (tile.big ? 22 : 0)
@@ -141,7 +141,7 @@ AppWindow {
                     text: Tr.t("Scanning…")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 13 * Theme.fontScale
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
                 }
                 Text {
                     visible: !DiskUsage.scanning && DiskUsage.entries.length === 0
@@ -149,7 +149,7 @@ AppWindow {
                     text: DiskUsage.error !== "" ? DiskUsage.error : Tr.t("Nothing here")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 13 * Theme.fontScale
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
                 }
             }
 
@@ -160,7 +160,7 @@ AppWindow {
                     : Tr.t("Click a folder to walk in · click a file to mark it")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
 
             // review the marked list before anything is trashed
@@ -182,26 +182,26 @@ AppWindow {
                     required property var modelData
                     required property int index
                     width: markedList.width
-                    height: 30
-                    radius: 8
+                    height: Theme.px(30)
+                    radius: Theme.px(8)
                     color: "transparent"
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 8
-                        anchors.rightMargin: 4
-                        spacing: 6
-                        Icon { name: "edit-delete"; size: 14; color: Theme.red }
+                        anchors.leftMargin: Theme.px(8)
+                        anchors.rightMargin: Theme.px(4)
+                        spacing: Theme.px(6)
+                        Icon { name: "edit-delete"; size: Theme.px(14); color: Theme.red }
                         Text {
                             Layout.fillWidth: true
                             text: modelData
                             color: Theme.text
                             elide: Text.ElideMiddle
                             font.family: Theme.font
-                            font.pixelSize: 11 * Theme.fontScale
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
                         }
                         IconButton {
                             icon: "window-close"
-                            size: 24
+                            size: Theme.px(24)
                             tip: Tr.t("Unmark")
                             onClicked: DiskUsage.toggleMark(modelData)
                         }
@@ -218,12 +218,12 @@ AppWindow {
                 text: Tr.t("Nothing marked — click a file block to mark it for removal")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 Button {
                     text: Tr.t("Clear marks")
                     kind: "outline"
@@ -237,7 +237,7 @@ AppWindow {
                     color: Theme.red
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 Button {
                     text: Tr.t("Move marked to trash (%1)").arg(DiskUsage.markedCount)
@@ -253,7 +253,7 @@ AppWindow {
                 text: Tr.t("Click a folder to walk in · Esc goes back · nothing is deleted until you review the marked list")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: 10 * Theme.fontScale
+                font.pixelSize: Theme.px(10) * Theme.fontScale
             }
         }
     }

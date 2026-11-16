@@ -17,7 +17,7 @@ import qs.Modules.Notifications
 
 ColumnLayout {
     id: root
-    spacing: 10
+    spacing: Theme.px(10)
     property string alarmTime: Qt.formatTime(new Date(Date.now() + 3600000), "HH:mm")
     property string alarmLabel: ""
     property bool adding: false
@@ -25,15 +25,15 @@ ColumnLayout {
 
     RowLayout {
         Layout.fillWidth: true
-        spacing: 8
+        spacing: Theme.px(8)
         SectionTitle { Layout.fillWidth: true; text: Tr.t("Alarms & stopwatch") }
-        IconButton { icon: "preferences-system-time"; size: 28; tip: Tr.t("Open Clocks"); onClicked: Ui.openClocks(WorldClock.swRunning ? "stopwatch" : "alarms") }
+        IconButton { icon: "preferences-system-time"; size: Theme.px(28); tip: Tr.t("Open Clocks"); onClicked: Ui.openClocks(WorldClock.swRunning ? "stopwatch" : "alarms") }
         // the time chips (24 hours and the minutes) only while an alarm is being
         // added: shown always, they were forty stops between the keyboard and
         // the notifications below, and most of this section's height
         IconButton {
             icon: root.adding ? "window-close" : "list-add"
-            size: 28
+            size: Theme.px(28)
             on: root.adding
             tip: root.adding ? Tr.t("Cancel") : Tr.t("Add an alarm")
             onClicked: root.adding = !root.adding
@@ -75,7 +75,7 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         visible: root.adding
-        spacing: 6
+        spacing: Theme.px(6)
         TextField {
             Layout.fillWidth: true
             placeholder: Tr.t("Label — Wake up, …")
@@ -96,7 +96,7 @@ ColumnLayout {
     // ---- stopwatch ----------------------------------------------------------
     Rectangle {
         Layout.fillWidth: true
-        implicitHeight: 56
+        implicitHeight: Theme.px(56)
         radius: Theme.radiusSmall
         color: Theme.surface1
         Text {
@@ -104,13 +104,13 @@ ColumnLayout {
             text: WorldClock.swDisplay
             color: Theme.text
             font.family: Theme.mono
-            font.pixelSize: 22 * Theme.fontScale
+            font.pixelSize: Theme.px(22) * Theme.fontScale
             font.weight: Font.DemiBold
         }
     }
     RowLayout {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Button { Layout.fillWidth: true; text: WorldClock.swRunning ? Tr.t("Pause") : Tr.t("Start"); onClicked: WorldClock.swToggle() }
         Button { Layout.fillWidth: true; text: Tr.t("Lap"); enabled: WorldClock.swRunning; onClicked: WorldClock.swLap() }
         Button { Layout.fillWidth: true; text: Tr.t("Reset"); onClicked: WorldClock.swReset() }

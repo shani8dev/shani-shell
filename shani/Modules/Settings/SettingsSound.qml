@@ -11,7 +11,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     readonly property var d: Settings.data
     property string fileTarget: ""
     // made on first use: a native dialog is the desktop portal's, and made with
@@ -66,8 +66,8 @@ ColumnLayout {
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Notification sounds"); checked: page.d.soundNotification !== false; onToggled: on => page.d.soundNotification = on }
     RowLayout {
         Layout.fillWidth: true
-        spacing: 8
-        Text { text: Tr.t("Balance"); color: Theme.text; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale }
+        spacing: Theme.px(8)
+        Text { text: Tr.t("Balance"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
         Text { Layout.fillWidth: true; text: Tr.t("L"); color: Theme.dim; horizontalAlignment: Text.AlignRight }
         Text { text: (Audio.balance || 0) === 0 ? Tr.t("Centre") : ((Audio.balance || 0) > 0 ? ("R+" + (Audio.balance||0)) : ("L+" + Math.abs(Audio.balance||0))); color: Theme.accent; font.family: Theme.font }
         Text { text: Tr.t("R"); color: Theme.dim }
@@ -81,11 +81,11 @@ ColumnLayout {
             id: card
             required property var modelData
             Layout.fillWidth: true
-            spacing: 6
+            spacing: Theme.px(6)
             Text { text: card.modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
             Flow {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 Repeater {
                     model: card.modelData.profiles
                     Choice {
@@ -113,7 +113,7 @@ ColumnLayout {
 
     Flow {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Repeater {
             model: Object.keys(SoundFx.presets)
             Choice {
@@ -128,8 +128,8 @@ ColumnLayout {
     // the equaliser: drag a bar up or down, ±12 dB
     RowLayout {
         Layout.fillWidth: true
-        Layout.preferredHeight: 150
-        spacing: 4
+        Layout.preferredHeight: Theme.px(150)
+        spacing: Theme.px(4)
         Repeater {
             model: SoundFx.bands
             ColumnLayout {
@@ -140,19 +140,19 @@ ColumnLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 spacing: 2
-                Text { Layout.alignment: Qt.AlignHCenter; text: (band.gain > 0 ? "+" : "") + band.gain; color: Theme.dim; font.family: Theme.font; font.pixelSize: 9 * Theme.fontScale }
+                Text { Layout.alignment: Qt.AlignHCenter; text: (band.gain > 0 ? "+" : "") + band.gain; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(9) * Theme.fontScale }
                 Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    Rectangle { anchors.horizontalCenter: parent.horizontalCenter; width: 4; height: parent.height; radius: 2; color: Theme.hover }
+                    Rectangle { anchors.horizontalCenter: parent.horizontalCenter; width: Theme.px(4); height: parent.height; radius: 2; color: Theme.hover }
                     Rectangle {      // 0 dB line
                         anchors.horizontalCenter: parent.horizontalCenter
                         y: parent.height / 2
-                        width: 12; height: 1; color: Theme.stroke
+                        width: Theme.px(12); height: 1; color: Theme.stroke
                     }
                     Rectangle {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        width: 4
+                        width: Theme.px(4)
                         radius: 2
                         color: Theme.accent
                         y: band.gain >= 0 ? parent.height / 2 - parent.height / 2 * band.gain / 12 : parent.height / 2
@@ -160,7 +160,7 @@ ColumnLayout {
                     }
                     Rectangle {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        width: 14; height: 14; radius: 7
+                        width: Theme.px(14); height: Theme.px(14); radius: Theme.px(7)
                         color: Theme.accent
                         y: parent.height / 2 - parent.height / 2 * band.gain / 12 - 7
                     }
@@ -199,7 +199,7 @@ ColumnLayout {
                     text: band.modelData >= 1000 ? band.modelData / 1000 + "k" : String(band.modelData)
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 9 * Theme.fontScale
+                    font.pixelSize: Theme.px(9) * Theme.fontScale
                 }
             }
         }
@@ -244,11 +244,11 @@ ColumnLayout {
     // compression: quiet parts up and loud parts down (night mode for films)
     Text {
         text: SoundFx.canCompress ? Tr.t("Quiet and loud parts") : Tr.t("Quiet and loud parts — needs swh-plugins")
-        color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale
+        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     Flow {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         enabled: SoundFx.canCompress
         opacity: enabled ? 1 : 0.5
         Repeater {
@@ -296,11 +296,11 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: 12 * Theme.fontScale
+            font.pixelSize: Theme.px(12) * Theme.fontScale
         }
         RowLayout {
             Layout.fillWidth: true
-            spacing: 6
+            spacing: Theme.px(6)
             Button { text: Tr.t("Browse for ParametricEQ.txt"); onClicked: { page.fileTarget = "autoeq"; soundFileDialog.open(); } }
             Button { visible: page.d.fxAutoEq !== ""; text: Tr.t("Remove"); onClicked: page.d.fxAutoEq = "" }
         }
@@ -308,7 +308,7 @@ ColumnLayout {
         SectionTitle { Layout.fillWidth: true; text: Tr.t("Impulse response") }
         RowLayout {
             Layout.fillWidth: true
-            spacing: 6
+            spacing: Theme.px(6)
             Text {
                 Layout.fillWidth: true
                 visible: page.d.fxIr !== ""
@@ -316,7 +316,7 @@ ColumnLayout {
                 color: Theme.text
                 elide: Text.ElideMiddle
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
             Text {
                 Layout.fillWidth: true
@@ -324,7 +324,7 @@ ColumnLayout {
                 text: Tr.t("A .wav impulse response — room, speaker or headphone")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
             Button { text: Tr.t("Browse"); onClicked: { page.fileTarget = "ir"; soundFileDialog.open(); } }
             Button { visible: page.d.fxIr !== ""; text: Tr.t("Remove"); onClicked: page.d.fxIr = "" }

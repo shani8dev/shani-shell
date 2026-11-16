@@ -15,6 +15,7 @@
 #   setup-polkit  first-boot's pkexec rule                    (needs shani-desktop-niri)
 #   pam           the lock screen's and greeter's PAM stacks through real libpam (needs shani-desktop-niri)
 #   render[=mode] every surface to PNG in out/renders; mode shell|greeter|setup|all
+#                 (SHANI_FORM_FACTOR=tv sh dev/check.sh render: drawn as on a TV)
 #   showcase      restage the README's two pictures in docs/ (the rest: out/showcase)
 #   demo[=a,b]    record the README's GIFs into out/demos (CHRONOA=real for the AI scenes)
 #   montage       join out/demos' clips into out/demos/tour.mp4 (LinkedIn, the blog)
@@ -56,7 +57,10 @@ box() {
     ch=; [ "${CHRONOA:-}" = real ] && ch="-e CHRONOA=real --network=host -v $(cd "$REPO/../shani-chronoa" && pwd):/chronoa:ro -v $(cd "$REPO/../shani-link" && pwd):/link:ro"
     # SHANI_ONLINE=1: the real web services where the suite has stand-ins (Maps)
     on=; [ "${SHANI_ONLINE:-}" = 1 ] && on="-e SHANI_ONLINE=1"
-    docker run --rm --cap-add SYS_PTRACE --cap-add IPC_LOCK $tb $ch $on -v "$REPO":/work "$@"
+    # SHANI_FORM_FACTOR=tv|handheld|tablet|board|phone|laptop: every screen is that
+    # kind (docs/FORM-FACTORS.md) - the suites and renders at its size
+    ff=; [ -n "${SHANI_FORM_FACTOR:-}" ] && ff="-e SHANI_FORM_FACTOR=$SHANI_FORM_FACTOR"
+    docker run --rm --cap-add SYS_PTRACE --cap-add IPC_LOCK $tb $ch $on $ff -v "$REPO":/work "$@"
 }
 run() {
     case "$1" in

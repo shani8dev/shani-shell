@@ -198,7 +198,7 @@ PanelWindow {
         anchors.bottom: parent.bottom
         anchors.horizontalCenter: parent.horizontalCenter
         width: Math.min(parent.width, dock.width + 120)   // under the dock, not the whole screen's edge
-        height: 4
+        height: Theme.px(4)
         HoverHandler { id: edgeHover }
         // a drag gives no hover: carrying a file to the edge raises the dock too
         DropArea { anchors.fill: parent; onEntered: { win.dragging = true; dragOff.restart(); } }
@@ -264,7 +264,7 @@ PanelWindow {
                     width: parent.width * 0.56
                     height: width
                     readonly property color ink: multi.on ? Theme.accent : Theme.text
-                    Rectangle { x: 0; y: 0; width: parent.width * 0.58; height: parent.height * 0.56; radius: 3; color: parent.ink; opacity: 0.9 }
+                    Rectangle { x: 0; y: 0; width: parent.width * 0.58; height: parent.height * 0.56; radius: Theme.px(3); color: parent.ink; opacity: 0.9 }
                     Rectangle { x: parent.width * 0.66; y: 0; width: parent.width * 0.34; height: parent.height * 0.25; radius: 2; color: parent.ink; opacity: 0.9 }
                     Rectangle { x: parent.width * 0.66; y: parent.height * 0.31; width: parent.width * 0.34; height: parent.height * 0.25; radius: 2; color: parent.ink; opacity: 0.9 }
                     Row {
@@ -293,7 +293,7 @@ PanelWindow {
                     Rectangle {
                         width: parent.width
                         height: parent.height * 0.72
-                        radius: 4
+                        radius: Theme.px(4)
                         color: "transparent"
                         border.width: 2
                         border.color: parent.ink
@@ -359,7 +359,7 @@ PanelWindow {
                     anchors.bottom: icon.bottom
                     anchors.bottomMargin: 2
                     width: icon.width * 0.8
-                    height: 5
+                    height: Theme.px(5)
                     radius: 2.5
                     color: Theme.alpha(Theme.bg, 0.8)
                     Rectangle {
@@ -377,9 +377,9 @@ PanelWindow {
                     anchors.top: icon.top
                     anchors.topMargin: -2
                     anchors.rightMargin: -2
-                    height: 18
+                    height: Theme.px(18)
                     width: Math.max(18, badgeText.implicitWidth + 10)
-                    radius: 9
+                    radius: Theme.px(9)
                     color: Theme.red
                     border.width: 1.5
                     border.color: Theme.bg
@@ -389,7 +389,7 @@ PanelWindow {
                         text: cell.badge > 99 ? "99+" : cell.badge
                         color: "white"
                         font.family: Theme.font
-                        font.pixelSize: 10 * Theme.fontScale
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
                         font.weight: Font.DemiBold
                     }
                 }
@@ -406,12 +406,12 @@ PanelWindow {
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.top: parent.bottom
                     anchors.topMargin: 2
-                    spacing: 3
+                    spacing: Theme.px(3)
                     Repeater {
                         model: Math.min(3, cell.modelData.windows.length)
                         Rectangle {
                             width: cell.focused ? 14 : 5
-                            height: 4
+                            height: Theme.px(4)
                             radius: 2
                             color: cell.focused ? Theme.accent : Theme.dim
                             Rectangle {
@@ -452,7 +452,7 @@ PanelWindow {
                     visible: drop.containsDrag
                     anchors.fill: parent
                     anchors.margins: -4
-                    radius: 12
+                    radius: Theme.px(12)
                     color: Theme.accentSoft
                     border.color: Theme.accent
                     z: -1
@@ -484,7 +484,7 @@ PanelWindow {
                 // keyboard and controller: Enter opens or focuses it, Menu (X) its menu
                 KeyFocus {
                     name: cell.Accessible.name
-                    radius: 12
+                    radius: Theme.px(12)
                     onActivated: { win.activate(cell.modelData); Ui.dockFocus = false; }
                     onMenu: { win.menuFor = cell.index; Ui.focusFirst(menuBox); }
                 }
@@ -495,12 +495,12 @@ PanelWindow {
                     onHeightChanged: if (visible) win.menuHeight = height
                     onVisibleChanged: if (visible) win.menuHeight = height
                     strong: true
-                    radius: 12
-                    width: 190
+                    radius: Theme.px(12)
+                    width: Theme.px(190)
                     height: menuCol.implicitHeight + 12
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.bottom: parent.top
-                    anchors.bottomMargin: 16
+                    anchors.bottomMargin: Theme.px(16)
                     z: 10
                     Column {
                         id: menuCol
@@ -527,8 +527,8 @@ PanelWindow {
                                 required property var modelData
                                 required property int index
                                 width: menuCol.width
-                                height: 30
-                                radius: 8
+                                height: Theme.px(30)
+                                radius: Theme.px(8)
                                 Rectangle {
                                     visible: !!parent.modelData.sep && parent.index > 0
                                     width: parent.width - 16; x: 8; height: 1; y: -1
@@ -546,7 +546,7 @@ PanelWindow {
                                     elide: Text.ElideRight
                                     color: Theme.text
                                     font.family: Theme.font
-                                    font.pixelSize: 12 * Theme.fontScale
+                                    font.pixelSize: Theme.px(12) * Theme.fontScale
                                 }
                                 MouseArea {
                                     id: item
@@ -554,7 +554,7 @@ PanelWindow {
                                     hoverEnabled: true
                                     onClicked: { parent.modelData.run(); win.menuFor = -1; }
                                 }
-                                KeyFocus { radius: 8; onActivated: { parent.modelData.run(); win.menuFor = -1; } }
+                                KeyFocus { radius: Theme.px(8); onActivated: { parent.modelData.run(); win.menuFor = -1; } }
                             }
                         }
                     }
@@ -580,9 +580,9 @@ PanelWindow {
             Rectangle {
                 visible: Shelf.parked.length > 0
                 anchors.right: parent.right; anchors.top: parent.top
-                width: Math.max(16, countText.implicitWidth + 8); height: 16; radius: 8
+                width: Math.max(16, countText.implicitWidth + 8); height: Theme.px(16); radius: Theme.px(8)
                 color: Theme.accent
-                Text { id: countText; anchors.centerIn: parent; text: Shelf.parked.length; color: Theme.accentInk; font.family: Theme.font; font.pixelSize: 10 * Theme.fontScale; font.weight: Font.DemiBold }
+                Text { id: countText; anchors.centerIn: parent; text: Shelf.parked.length; color: Theme.accentInk; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; font.weight: Font.DemiBold }
             }
             DropArea {
                 id: shelfDrop
@@ -729,8 +729,8 @@ PanelWindow {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.bottom
             anchors.topMargin: 2
-            width: 14
-            height: 4
+            width: Theme.px(14)
+            height: Theme.px(4)
             radius: 2
             color: Theme.accent
         }
@@ -762,7 +762,7 @@ PanelWindow {
     }
 
     component DockSeparator: Item {
-        width: 13
+        width: Theme.px(13)
         height: win.base
         Rectangle {
             anchors.centerIn: parent
@@ -777,8 +777,8 @@ PanelWindow {
         property alias text: tip.text
         strong: true
         width: tip.implicitWidth + 16
-        height: 24
-        radius: 8
+        height: Theme.px(24)
+        radius: Theme.px(8)
         anchors.horizontalCenter: parent.horizontalCenter
         y: -32
         Text {
@@ -786,7 +786,7 @@ PanelWindow {
             anchors.centerIn: parent
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: 11 * Theme.fontScale
+            font.pixelSize: Theme.px(11) * Theme.fontScale
         }
     }
 
@@ -794,7 +794,7 @@ PanelWindow {
         visible: hintTimer.running && !win.shown
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: 12
+        anchors.bottomMargin: Theme.px(12)
         width: hintRow.implicitWidth + 28
         height: hintRow.implicitHeight + 16
         radius: height / 2
@@ -804,9 +804,9 @@ PanelWindow {
         Row {
             id: hintRow
             anchors.centerIn: parent
-            spacing: 8
-            Icon { name: "go-down"; size: 16; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
-            Text { text: Tr.t("The dock steps aside for your windows — rest the pointer on the bottom edge to bring it back"); color: Theme.text; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+            spacing: Theme.px(8)
+            Icon { name: "go-down"; size: Theme.px(16); color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
+            Text { text: Tr.t("The dock steps aside for your windows — rest the pointer on the bottom edge to bring it back"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
         }
     }
 }

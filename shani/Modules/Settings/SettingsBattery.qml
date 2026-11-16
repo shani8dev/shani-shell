@@ -11,7 +11,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 10
+    spacing: Theme.px(10)
     property bool active: false
     readonly property string tool: Quickshell.env("SHANI_BATTERY_TOOL") || "/usr/lib/shani-shell/battery.py"
     property var info: ({ present: false })
@@ -82,28 +82,28 @@ ColumnLayout {
     // ---- health: one number, what it means, and why ----
     RowLayout {
         Layout.fillWidth: true
-        spacing: 16
+        spacing: Theme.px(16)
         ColumnLayout {
             spacing: 0
             Text {
                 text: Math.round(page.health) + " %"
                 color: page.healthColour
                 font.family: Theme.font
-                font.pixelSize: 34 * Theme.fontScale
+                font.pixelSize: Theme.px(34) * Theme.fontScale
                 font.weight: Font.DemiBold
             }
-            Text { text: Tr.t("health"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+            Text { text: Tr.t("health"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
         }
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 6
-            Text { text: page.verdict; color: Theme.text; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale; font.weight: Font.DemiBold }
+            spacing: Theme.px(6)
+            Text { text: page.verdict; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.DemiBold }
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: 8
-                radius: 4
+                implicitHeight: Theme.px(8)
+                radius: Theme.px(4)
                 color: Theme.surface3
-                Rectangle { width: parent.width * Math.min(1, page.health / 100); height: parent.height; radius: 4; color: page.healthColour }
+                Rectangle { width: parent.width * Math.min(1, page.health / 100); height: parent.height; radius: Theme.px(4); color: page.healthColour }
             }
             Text {
                 Layout.fillWidth: true
@@ -112,7 +112,7 @@ ColumnLayout {
                 color: Theme.dim
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
         }
     }
@@ -127,20 +127,20 @@ ColumnLayout {
             + (page.info.rate > 0.05 ? "  ·  " + page.info.rate.toFixed(1) + " W" : "")
         color: Theme.text
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
 
     // ---- the charge over time (upowerd's own record) ----
     RowLayout {
         Layout.fillWidth: true
-        Text { Layout.fillWidth: true; text: Tr.t("Charge"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+        Text { Layout.fillWidth: true; text: Tr.t("Charge"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
         Choice { text: Tr.t("24 hours"); selected: page.span === 86400; onClicked: page.span = 86400 }
         Choice { text: Tr.t("7 days"); selected: page.span === 604800; onClicked: page.span = 604800 }
     }
     Canvas {
         id: chart
         Layout.fillWidth: true
-        implicitHeight: 150
+        implicitHeight: Theme.px(150)
         onWidthChanged: requestPaint()
         Connections { target: Theme; function onAccentChanged() { chart.requestPaint(); } }
         onPaint: {
@@ -148,7 +148,7 @@ ColumnLayout {
             ctx.reset();
             const w = width, h = height, padL = 30, padB = 18, gw = w - padL - 6, gh = h - padB - 6;
             const now = Date.now() / 1000, from = now - page.span;
-            ctx.font = Math.round(10 * Theme.fontScale) + "px " + Theme.font;
+            ctx.font = Math.round(Theme.px(10) * Theme.fontScale) + "px " + Theme.font;
             // 0, 50 and 100 %: faint lines, labelled
             for (const v of [0, 50, 100]) {
                 const y = 6 + gh * (1 - v / 100);
@@ -186,14 +186,14 @@ ColumnLayout {
         text: Tr.t("No history yet: the system records the charge as the battery is used.")
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
     Text {
         Layout.fillWidth: true
         text: Tr.t("Accent: charging. The line: on battery.")
         color: Theme.faint
         font.family: Theme.font
-        font.pixelSize: 10 * Theme.fontScale
+        font.pixelSize: Theme.px(10) * Theme.fontScale
     }
 
     // ---- what is using the most power right now ----
@@ -204,23 +204,23 @@ ColumnLayout {
         color: Theme.dim
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     Repeater {
         model: page.hungry
         RowLayout {
             required property var modelData
             Layout.fillWidth: true
-            spacing: 8
-            Text { Layout.preferredWidth: 160; text: modelData.name; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+            spacing: Theme.px(8)
+            Text { Layout.preferredWidth: Theme.px(160); text: modelData.name; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: 6
-                radius: 3
+                implicitHeight: Theme.px(6)
+                radius: Theme.px(3)
                 color: Theme.surface3
-                Rectangle { width: parent.width * Math.min(1, modelData.cpu / 100); height: parent.height; radius: 3; color: Theme.accent }
+                Rectangle { width: parent.width * Math.min(1, modelData.cpu / 100); height: parent.height; radius: Theme.px(3); color: Theme.accent }
             }
-            Text { Layout.preferredWidth: 44; horizontalAlignment: Text.AlignRight; text: modelData.cpu + " %"; color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+            Text { Layout.preferredWidth: Theme.px(44); horizontalAlignment: Text.AlignRight; text: modelData.cpu + " %"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
         }
     }
 
@@ -232,6 +232,6 @@ ColumnLayout {
                page.info.temperature > 0 ? page.info.temperature.toFixed(0) + " °C" : ""].filter(x => x).join("  ·  ")
         color: Theme.faint
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
 }

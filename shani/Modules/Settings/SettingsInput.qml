@@ -9,7 +9,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
-    spacing: 12
+    spacing: Theme.px(12)
     readonly property var d: Settings.data
 
     // ---- keyboard layouts --------------------------------------------------
@@ -38,7 +38,7 @@ ColumnLayout {
         color: Theme.dim
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     Repeater {
         model: page.d.kbLayouts
@@ -53,7 +53,7 @@ ColumnLayout {
             IconButton {
                 visible: kbRow.index > 0
                 icon: "go-up"
-                size: 24
+                size: Theme.px(24)
                 Accessible.name: "Make " + kbRow.title + " first"
                 onClicked: {
                     const l = Array.from(page.d.kbLayouts);
@@ -64,7 +64,7 @@ ColumnLayout {
             }
             IconButton {
                 icon: "edit-delete"
-                size: 24
+                size: Theme.px(24)
                 Accessible.name: "Remove " + kbRow.title
                 onClicked: page.d.kbLayouts = Array.from(page.d.kbLayouts).filter(x => x !== kbRow.modelData)
             }
@@ -123,7 +123,7 @@ ColumnLayout {
         color: page.loginError.startsWith("Set") ? Theme.dim : Theme.danger
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Touchpad") }
@@ -177,7 +177,7 @@ ColumnLayout {
         color: Theme.faint
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Mouse") }
@@ -225,11 +225,11 @@ ColumnLayout {
             id: mapRow
             required property var modelData
             Layout.fillWidth: true
-            spacing: 4
-            Text { text: modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+            spacing: Theme.px(4)
+            Text { text: modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
             Flow {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 Repeater {
                     // a tablet can also follow the screen being worked on (niri's map-to-focused-output)
                     model: [""].concat(Displays.outputs.map(o => o.name), mapRow.modelData.key === "tabletOutput" ? ["@focused"] : [])
@@ -253,14 +253,14 @@ ColumnLayout {
         color: Theme.faint
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Keyboard") }
     Text { text: Tr.t("Keyboard backlight"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
     Flow {
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Repeater {
             model: [{ id: "auto", label: Tr.t("Automatic") }, { id: "on", label: Tr.t("Always on") }, { id: "off", label: Tr.t("Off") }]
             Choice {
@@ -274,7 +274,7 @@ ColumnLayout {
     Flow {
         visible: page.d.kbdBacklight === "on"
         Layout.fillWidth: true
-        spacing: 6
+        spacing: Theme.px(6)
         Repeater {
             model: [1, 2, 3]
             Choice {

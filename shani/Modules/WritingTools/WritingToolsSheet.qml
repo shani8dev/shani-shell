@@ -43,25 +43,25 @@ PanelWindow {
             x: 18
             y: 18
             width: parent.width - 36
-            spacing: 12
+            spacing: Theme.px(12)
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 10
-                Icon { name: "tools-check-spelling"; size: 22; color: Theme.accent }
+                spacing: Theme.px(10)
+                Icon { name: "tools-check-spelling"; size: Theme.px(22); color: Theme.accent }
                 Text {
                     Layout.fillWidth: true
                     text: Tr.t("Writing tools")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 16 * Theme.fontScale
+                    font.pixelSize: Theme.px(16) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
                 Text {
                     text: WritingTools.from === "selection" ? Tr.t("the selected text") : Tr.t("what you copied")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 IconButton { icon: "window-close"; tip: Tr.t("Close") + " (Esc)"; onClicked: WritingTools.close() }
             }
@@ -84,14 +84,14 @@ PanelWindow {
                     maximumLineCount: 6
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: 13 * Theme.fontScale
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
                 }
             }
 
             // what to do: one click each
             Flow {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 visible: WritingTools.source !== ""
                 Repeater {
                     model: WritingTools.presets
@@ -108,16 +108,16 @@ PanelWindow {
             RowLayout {
                 Layout.fillWidth: true
                 visible: WritingTools.source !== ""
-                spacing: 6
+                spacing: Theme.px(6)
                 Text {
                     text: Tr.t("Translate into")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 12 * Theme.fontScale
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
                 }
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: WritingTools.languages
                         Choice {
@@ -150,7 +150,7 @@ PanelWindow {
                 clip: true
                 Flickable {
                     anchors.fill: parent
-                    anchors.margins: 12
+                    anchors.margins: Theme.px(12)
                     contentHeight: outText.implicitHeight
                     clip: true
                     TextEdit {
@@ -162,14 +162,14 @@ PanelWindow {
                         color: WritingTools.error ? Theme.danger : WritingTools.busy ? Theme.dim : Theme.text
                         wrapMode: Text.Wrap
                         font.family: Theme.font
-                        font.pixelSize: 14 * Theme.fontScale
+                        font.pixelSize: Theme.px(14) * Theme.fontScale
                     }
                 }
             }
             RowLayout {
                 Layout.fillWidth: true
                 visible: WritingTools.result !== ""
-                spacing: 8
+                spacing: Theme.px(8)
                 Button { flat: true; text: Tr.t("Try again"); onClicked: WritingTools.again() }
                 Item { Layout.fillWidth: true }
                 Button { text: Tr.t("Copy"); onClicked: WritingTools.copy() }
@@ -181,7 +181,7 @@ PanelWindow {
                 text: Tr.t("Written by Chronoa · Esc closes")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: 10 * Theme.fontScale
+                font.pixelSize: Theme.px(10) * Theme.fontScale
             }
         }
     }

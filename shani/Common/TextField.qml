@@ -15,7 +15,7 @@ Rectangle {
     property bool secret: false
     signal accepted()
 
-    implicitHeight: 38
+    implicitHeight: Theme.px(38)
     radius: Theme.radiusSmall
     color: Theme.surface1
     border.width: 1
@@ -25,13 +25,13 @@ Rectangle {
     TextInput {
         id: input
         anchors.fill: parent
-        anchors.leftMargin: 12
-        anchors.rightMargin: 12
+        anchors.leftMargin: Theme.px(12)
+        anchors.rightMargin: Theme.px(12)
         verticalAlignment: TextInput.AlignVCenter
         color: Theme.text
         selectionColor: Theme.accent
         font.family: Theme.font
-        font.pixelSize: 13 * Theme.fontScale
+        font.pixelSize: Theme.px(13) * Theme.fontScale
         echoMode: root.secret ? TextInput.Password : TextInput.Normal
         Accessible.role: Accessible.EditableText
         Accessible.name: root.label || root.placeholder

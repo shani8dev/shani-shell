@@ -73,7 +73,7 @@ Variants {
             Glass {
                 id: clockCard
                 x: 24; y: 64
-                width: 216
+                width: Theme.px(216)
                 height: agendaText.visible ? 108 : 90
                 radius: Theme.radiusLarge
                 elevation: "soft"
@@ -98,31 +98,31 @@ Variants {
                 }
 
                 Column {
-                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
-                    spacing: 3
+                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.px(14) }
+                    spacing: Theme.px(3)
                     Text {
                         text: Settings.data.use24h ? Qt.formatTime(deskClock.date, "HH:mm") : Qt.formatTime(deskClock.date, "h:mm AP")
                         color: Theme.text
                         font.family: Theme.mono
-                        font.pixelSize: 30
+                        font.pixelSize: Theme.px(30)
                         font.weight: Font.Medium
                     }
                     Text {
                         text: Qt.formatDate(deskClock.date, "dddd d MMMM")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: 11 * Theme.fontScale
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
                     }
                 }
                 Text {
                     id: agendaText
                     visible: Agenda.available && Agenda.upcoming.length > 0
-                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 14 }
+                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: Theme.px(14) }
                     text: visible ? Agenda.when(Agenda.upcoming[0]) + "  ·  " + Agenda.upcoming[0].summary : ""
                     color: Theme.faint
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: 10 * Theme.fontScale
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
                 }
                 Accessible.role: Accessible.Button
                 Accessible.name: "Clock, opens the control centre"
@@ -151,8 +151,8 @@ Variants {
             Glass {
                 id: mediaCard
                 x: 24; y: 900
-                width: 252
-                height: 80
+                width: Theme.px(252)
+                height: Theme.px(80)
                 radius: Theme.radiusLarge
                 elevation: "soft"
 
@@ -177,11 +177,11 @@ Variants {
 
                 Row {
                     anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 10
+                    anchors.margins: Theme.px(12)
+                    spacing: Theme.px(10)
                     ClippingRectangle {
-                        width: 56; height: 56
-                        radius: 12
+                        width: Theme.px(56); height: Theme.px(56)
+                        radius: Theme.px(12)
                         color: Theme.accentSoft
                         Image {
                             anchors.fill: parent
@@ -193,14 +193,14 @@ Variants {
                     }
                     Column {
                         width: parent.width - 56 - 10 - 30 - 4
-                        spacing: 3
+                        spacing: Theme.px(3)
                         Text {
                             width: parent.width
                             text: mediaWin.player ? (mediaWin.player.trackTitle || mediaWin.player.identity) : ""
                             color: Theme.text
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: 12 * Theme.fontScale
+                            font.pixelSize: Theme.px(12) * Theme.fontScale
                             font.weight: Font.DemiBold
                         }
                         Text {
@@ -209,16 +209,16 @@ Variants {
                             color: Theme.dim
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: 10 * Theme.fontScale
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
                         }
                         // seek by clicking along the track (only players that allow it)
                         Rectangle {
                             width: parent.width
-                            height: 12
+                            height: Theme.px(12)
                             color: "transparent"
                             Rectangle {
                                 anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
-                                height: 3
+                                height: Theme.px(3)
                                 radius: 1.5
                                 color: Theme.hover
                             }
@@ -226,7 +226,7 @@ Variants {
                                 width: Math.max(3, parent.width * Math.min(1,
                                     mediaWin.player && mediaWin.player.length > 0 ? mediaWin.shown / mediaWin.player.length : 0))
                                 anchors { left: parent.left; verticalCenter: parent.verticalCenter }
-                                height: 3
+                                height: Theme.px(3)
                                 radius: 1.5
                                 color: Theme.accent
                             }
@@ -240,28 +240,28 @@ Variants {
                         // elapsed and total, tucked over the seek bar's ends
                         Rectangle {
                             width: parent.width
-                            height: 11
+                            height: Theme.px(11)
                             color: "transparent"
                             Text {
                                 anchors.left: parent.left
                                 text: scr.fmt(mediaWin.player ? mediaWin.shown : 0)
                                 color: Theme.faint
                                 font.family: Theme.mono
-                                font.pixelSize: 9 * Theme.fontScale
+                                font.pixelSize: Theme.px(9) * Theme.fontScale
                             }
                             Text {
                                 anchors.right: parent.right
                                 text: scr.fmt(mediaWin.player ? mediaWin.player.length : 0)
                                 color: Theme.faint
                                 font.family: Theme.mono
-                                font.pixelSize: 9 * Theme.fontScale
+                                font.pixelSize: Theme.px(9) * Theme.fontScale
                             }
                         }
                     }
                     IconButton {
                         anchors.verticalCenter: parent.verticalCenter
                         icon: mediaWin.player && mediaWin.player.isPlaying ? "media-playback-pause" : "media-playback-start"
-                        size: 30
+                        size: Theme.px(30)
                         onClicked: mediaWin.player.togglePlaying()
                         Accessible.name: "Play or pause"
                     }
@@ -282,7 +282,7 @@ Variants {
             Glass {
                 id: weatherCard
                 x: 1650; y: 64
-                width: 196
+                width: Theme.px(196)
                 height: Weather.enabled ? 92 : 84
                 radius: Theme.radiusLarge
                 elevation: "soft"
@@ -312,17 +312,17 @@ Variants {
                     text: Tr.t("Weather — set a city")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 Row {
                     visible: Weather.enabled
                     anchors.fill: parent
-                    anchors.margins: 14
-                    spacing: 12
+                    anchors.margins: Theme.px(14)
+                    spacing: Theme.px(12)
                     Icon {
                         anchors.verticalCenter: parent.verticalCenter
                         name: Weather.icon
-                        size: 30
+                        size: Theme.px(30)
                         color: Theme.accent
                     }
                     Column {
@@ -333,7 +333,7 @@ Variants {
                             text: isNaN(Weather.temp) ? "" : Math.round(Weather.temp) + "°"
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: 20 * Theme.fontScale
+                            font.pixelSize: Theme.px(20) * Theme.fontScale
                             font.weight: Font.DemiBold
                         }
                         Text {
@@ -342,7 +342,7 @@ Variants {
                             color: Theme.dim
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: 10 * Theme.fontScale
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
                         }
                         Text {
                             width: parent.width
@@ -350,7 +350,7 @@ Variants {
                             color: Theme.faint
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: 10 * Theme.fontScale
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
                         }
                     }
                 }
@@ -370,8 +370,8 @@ Variants {
             Glass {
                 id: statsCard
                 x: 1650; y: 900
-                width: 212
-                height: 104
+                width: Theme.px(212)
+                height: Theme.px(104)
                 radius: Theme.radiusLarge
                 elevation: "soft"
 
@@ -396,8 +396,8 @@ Variants {
 
                 Column {
                     anchors.fill: parent
-                    anchors.margins: 14
-                    spacing: 10
+                    anchors.margins: Theme.px(14)
+                    spacing: Theme.px(10)
                     Repeater {
                         model: [
                             { label: "cpu", value: SysStats.cpu, tint: Theme.accent },
@@ -406,24 +406,24 @@ Variants {
                         Row {
                             required property var modelData
                             width: parent.width
-                            height: 14
-                            spacing: 8
+                            height: Theme.px(14)
+                            spacing: Theme.px(8)
                             Text {
                                 text: modelData.label
                                 color: Theme.dim
-                                width: 30
+                                width: Theme.px(30)
                                 font.family: Theme.mono
-                                font.pixelSize: 10 * Theme.fontScale
+                                font.pixelSize: Theme.px(10) * Theme.fontScale
                             }
                             Rectangle {
-                                width: 116
+                                width: Theme.px(116)
                                 anchors.verticalCenter: parent.verticalCenter
-                                height: 4
+                                height: Theme.px(4)
                                 radius: 2
                                 color: Theme.hover
                                 Rectangle {
                                     width: Math.max(2, parent.width * modelData.value)
-                                    height: 4
+                                    height: Theme.px(4)
                                     radius: 2
                                     color: modelData.tint
                                 }
@@ -433,7 +433,7 @@ Variants {
                                 text: Math.round(modelData.value * 100) + "%"
                                 color: Theme.faint
                                 font.family: Theme.mono
-                                font.pixelSize: 10 * Theme.fontScale
+                                font.pixelSize: Theme.px(10) * Theme.fontScale
                                 horizontalAlignment: Text.AlignRight
                             }
                         }
@@ -442,7 +442,7 @@ Variants {
                         text: "↓ " + SysStats.rate(SysStats.rxRate) + "  ↑ " + SysStats.rate(SysStats.txRate)
                         color: Theme.dim
                         font.family: Theme.mono
-                        font.pixelSize: 10 * Theme.fontScale
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
                     }
                 }
                 Accessible.role: Accessible.Button

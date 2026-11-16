@@ -32,7 +32,7 @@ ColumnLayout {
         }
     }
     required property var sidebar
-    spacing: 14
+    spacing: Theme.px(14)
 
     // tiles in the person's order (Settings: tileOrder, hiddenTiles); a tile
     // that cannot work here (no Wi-Fi, no camera …) leaves no gap
@@ -469,13 +469,13 @@ ColumnLayout {
             Item {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                anchors.rightMargin: 10
-                width: 26; height: 26
+                anchors.rightMargin: Theme.px(10)
+                width: Theme.px(26); height: Theme.px(26)
                 visible: Compass.heading >= 0
                 rotation: -Compass.heading
                 Behavior on rotation { RotationAnimation { duration: Theme.anim; direction: RotationAnimation.Shortest } }
-                Icon { anchors.centerIn: parent; name: "go-up-symbolic"; size: 20; color: Theme.red }
-                Text { anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.top; text: "N"; color: Theme.red; font.family: Theme.font; font.pixelSize: 9 * Theme.fontScale; font.weight: Font.Bold }
+                Icon { anchors.centerIn: parent; name: "go-up-symbolic"; size: Theme.px(20); color: Theme.red }
+                Text { anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.top; text: "N"; color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.px(9) * Theme.fontScale; font.weight: Font.Bold }
             }
         }
         Tile {
@@ -583,7 +583,7 @@ ColumnLayout {
     // arranging them, there and then - two small buttons under the grid
     RowLayout {
         Layout.alignment: Qt.AlignHCenter
-        spacing: 8
+        spacing: Theme.px(8)
         Button {
             visible: tileGrid.hiddenCount > 0 && !tileGrid.editing
             text: tileGrid.showAll ? Tr.t("Fewer tiles") : Tr.t("All tiles (%1 more)", tileGrid.hiddenCount)

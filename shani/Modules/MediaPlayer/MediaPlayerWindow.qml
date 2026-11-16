@@ -282,14 +282,14 @@ AppWindow {
                         z: 3
                         anchors.centerIn: parent
                         visible: win.mini && miniHover.hovered
-                        spacing: 14
-                        IconButton { size: 40; icon: "media-skip-backward"; tip: Tr.t("Previous"); onClicked: PlayQueue.previous() }
-                        IconButton { size: 52; on: true; icon: PlayQueue.playing ? "media-playback-pause" : "media-playback-start"; tip: Tr.t("Play or pause"); onClicked: win.toggle() }
-                        IconButton { size: 40; icon: "media-skip-forward"; tip: Tr.t("Next"); onClicked: PlayQueue.next() }
+                        spacing: Theme.px(14)
+                        IconButton { size: Theme.px(40); icon: "media-skip-backward"; tip: Tr.t("Previous"); onClicked: PlayQueue.previous() }
+                        IconButton { size: Theme.px(52); on: true; icon: PlayQueue.playing ? "media-playback-pause" : "media-playback-start"; tip: Tr.t("Play or pause"); onClicked: win.toggle() }
+                        IconButton { size: Theme.px(40); icon: "media-skip-forward"; tip: Tr.t("Next"); onClicked: PlayQueue.next() }
                     }
                     IconButton {
                         z: 3
-                        anchors { top: parent.top; right: parent.right; margins: 8 }
+                        anchors { top: parent.top; right: parent.right; margins: Theme.px(8) }
                         visible: win.mini && miniHover.hovered
                         icon: "view-restore"
                         tip: Tr.t("Back to the full player") + " (I)"
@@ -304,19 +304,19 @@ AppWindow {
                     ColumnLayout {
                         anchors.centerIn: parent
                         width: Math.min(parent.width - 60, 520)
-                        spacing: 10
+                        spacing: Theme.px(10)
                         visible: !player.hasVideo
                         Icon {
                             Layout.alignment: Qt.AlignHCenter
                             visible: win.cover === ""
                             name: PlayQueue.current === "" ? "folder-videos" : "audio-x-generic"
-                            size: 72
+                            size: Theme.px(72)
                             color: Theme.accent
                         }
                         Image {
                             Layout.alignment: Qt.AlignHCenter
-                            Layout.preferredWidth: 260
-                            Layout.preferredHeight: 260
+                            Layout.preferredWidth: Theme.px(260)
+                            Layout.preferredHeight: Theme.px(260)
                             visible: win.cover !== ""
                             fillMode: Image.PreserveAspectCrop
                             asynchronous: true
@@ -330,7 +330,7 @@ AppWindow {
                             color: PlayQueue.error !== "" ? Theme.danger : "white"
                             wrapMode: Text.Wrap
                             font.family: Theme.font
-                            font.pixelSize: 16 * Theme.fontScale
+                            font.pixelSize: Theme.px(16) * Theme.fontScale
                             font.weight: Font.DemiBold
                         }
                         Text {
@@ -341,7 +341,7 @@ AppWindow {
                             color: "#c0ffffff"
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: 13 * Theme.fontScale
+                            font.pixelSize: Theme.px(13) * Theme.fontScale
                         }
                         Text {
                             Layout.fillWidth: true
@@ -351,7 +351,7 @@ AppWindow {
                             color: "#b0ffffff"
                             wrapMode: Text.Wrap
                             font.family: Theme.font
-                            font.pixelSize: 12 * Theme.fontScale
+                            font.pixelSize: Theme.px(12) * Theme.fontScale
                         }
                         Button {
                             Layout.alignment: Qt.AlignHCenter
@@ -394,25 +394,25 @@ AppWindow {
                     }
                     // "Resumed at 12:34" for a few seconds, with the way back to the start
                     Rectangle {
-                        anchors { top: parent.top; left: parent.left; margins: 14 }
+                        anchors { top: parent.top; left: parent.left; margins: Theme.px(14) }
                         visible: resumeNote.running && PlayQueue.resumedFrom > 0
                         implicitWidth: resumeRow.implicitWidth + 20
-                        implicitHeight: 36
-                        radius: 18
+                        implicitHeight: Theme.px(36)
+                        radius: Theme.px(18)
                         color: Qt.rgba(0, 0, 0, 0.66)
                         RowLayout {
                             id: resumeRow
                             anchors.centerIn: parent
-                            spacing: 10
-                            Text { text: Tr.t("Resumed at %1", PlayQueue.clock(PlayQueue.resumedFrom)); color: "white"; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                            spacing: Theme.px(10)
+                            Text { text: Tr.t("Resumed at %1", PlayQueue.clock(PlayQueue.resumedFrom)); color: "white"; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                             Button { text: Tr.t("Start over"); flat: true; onClicked: { player.position = 0; PlayQueue.resumedFrom = 0; resumeNote.stop(); } }
                         }
                     }
                     // sound and subtitle tracks
                     Rectangle {
-                        anchors { right: parent.right; bottom: parent.bottom; margins: 12 }
+                        anchors { right: parent.right; bottom: parent.bottom; margins: Theme.px(12) }
                         visible: win.tracksShown
-                        width: 300
+                        width: Theme.px(300)
                         implicitHeight: tracksCol.implicitHeight + 24
                         radius: Theme.radiusSmall
                         color: Theme.alpha(Theme.bg, 0.94)
@@ -423,11 +423,11 @@ AppWindow {
                             id: tracksCol
                             x: 12; y: 12
                             width: parent.width - 24
-                            spacing: 6
+                            spacing: Theme.px(6)
                             SectionTitle { Layout.fillWidth: true; text: Tr.t("Sound") }
                             Flow {
                                 Layout.fillWidth: true
-                                spacing: 6
+                                spacing: Theme.px(6)
                                 Repeater {
                                     model: player.audioTracks
                                     Choice {
@@ -442,7 +442,7 @@ AppWindow {
                             SectionTitle { Layout.fillWidth: true; text: Tr.t("Subtitles") }
                             Flow {
                                 Layout.fillWidth: true
-                                spacing: 6
+                                spacing: Theme.px(6)
                                 Choice { text: Tr.t("Off"); selected: win.subSource === "off"; onClicked: win.setSubtitles("off", -1) }
                                 Repeater {
                                     model: player.subtitleTracks
@@ -469,23 +469,23 @@ AppWindow {
                 Item {
                     visible: !win.mini
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 22
-                    Layout.leftMargin: 14
-                    Layout.rightMargin: 14
-                    Layout.topMargin: 8
+                    Layout.preferredHeight: Theme.px(22)
+                    Layout.leftMargin: Theme.px(14)
+                    Layout.rightMargin: Theme.px(14)
+                    Layout.topMargin: Theme.px(8)
                     Accessible.role: Accessible.Slider
                     Accessible.name: Tr.t("Position") + ": " + PlayQueue.clock(PlayQueue.position) + " / " + PlayQueue.clock(PlayQueue.duration)
                     Rectangle {
                         id: track
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width
-                        height: 5
-                        radius: 3
+                        height: Theme.px(5)
+                        radius: Theme.px(3)
                         color: Theme.surface3
                         Rectangle {
                             width: player.duration > 0 ? parent.width * Math.min(1, (seekArea.pressed ? seekArea.at : player.position) / player.duration) : 0
                             height: parent.height
-                            radius: 3
+                            radius: Theme.px(3)
                             color: Theme.accent
                         }
                     }
@@ -493,7 +493,7 @@ AppWindow {
                         visible: player.duration > 0
                         x: (player.duration > 0 ? track.width * Math.min(1, (seekArea.pressed ? seekArea.at : player.position) / player.duration) : 0) - width / 2
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 13; height: 13; radius: 7
+                        width: Theme.px(13); height: Theme.px(13); radius: Theme.px(7)
                         color: Theme.accent
                     }
                     MouseArea {
@@ -513,12 +513,12 @@ AppWindow {
                 RowLayout {
                     visible: !win.mini
                     Layout.fillWidth: true
-                    Layout.margins: 10
-                    spacing: 4
+                    Layout.margins: Theme.px(10)
+                    spacing: Theme.px(4)
                     IconButton { icon: "media-skip-backward"; tip: Tr.t("Previous") + " (P)"; enabled: PlayQueue.current !== ""; onClicked: PlayQueue.previous() }
                     IconButton {
                         icon: PlayQueue.playing ? "media-playback-pause" : "media-playback-start"
-                        size: 40
+                        size: Theme.px(40)
                         on: true
                         tip: (PlayQueue.playing ? Tr.t("Pause") : Tr.t("Play")) + " (Space)"
                         enabled: PlayQueue.current !== ""
@@ -526,11 +526,11 @@ AppWindow {
                     }
                     IconButton { icon: "media-skip-forward"; tip: Tr.t("Next") + " (N)"; enabled: PlayQueue.queue.length > 1; onClicked: PlayQueue.next() }
                     Text {
-                        Layout.leftMargin: 8
+                        Layout.leftMargin: Theme.px(8)
                         text: PlayQueue.clock(seekArea.pressed ? seekArea.at / 1000 : PlayQueue.position) + " / " + PlayQueue.clock(PlayQueue.duration)
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: 12 * Theme.fontScale
+                        font.pixelSize: Theme.px(12) * Theme.fontScale
                         font.features: { "tnum": 1 }
                     }
                     Item { Layout.fillWidth: true }
@@ -552,15 +552,15 @@ AppWindow {
                         onClicked: PlayQueue.muted = !PlayQueue.muted
                     }
                     Item {
-                        Layout.preferredWidth: 90
-                        Layout.preferredHeight: 22
+                        Layout.preferredWidth: Theme.px(90)
+                        Layout.preferredHeight: Theme.px(22)
                         Accessible.role: Accessible.Slider
                         Accessible.name: Tr.t("Volume") + ": " + Math.round(PlayQueue.volume * 100) + " %"
                         Rectangle {
                             anchors.verticalCenter: parent.verticalCenter
-                            width: parent.width; height: 5; radius: 3
+                            width: parent.width; height: Theme.px(5); radius: Theme.px(3)
                             color: Theme.surface3
-                            Rectangle { width: parent.width * (PlayQueue.muted ? 0 : PlayQueue.volume); height: parent.height; radius: 3; color: Theme.accent }
+                            Rectangle { width: parent.width * (PlayQueue.muted ? 0 : PlayQueue.volume); height: parent.height; radius: Theme.px(3); color: Theme.accent }
                         }
                         MouseArea {
                             anchors.fill: parent
@@ -589,13 +589,13 @@ AppWindow {
             // ---- the queue: the folder's other files ----
             Rectangle {
                 Layout.fillHeight: true
-                Layout.preferredWidth: 280
+                Layout.preferredWidth: Theme.px(280)
                 visible: win.listShown && !win.mini
                 color: Theme.surface1
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 6
+                    anchors.margins: Theme.px(10)
+                    spacing: Theme.px(6)
                     SectionTitle { Layout.fillWidth: true; text: Tr.t("Queue") + "  ·  " + PlayQueue.queue.length }
                     ListView {
                         Layout.fillWidth: true
@@ -610,19 +610,19 @@ AppWindow {
                             required property int index
                             readonly property bool now: PlayQueue.index === index
                             width: ListView.view.width
-                            height: 32
+                            height: Theme.px(32)
                             radius: Theme.radiusSmall
                             color: now ? Theme.accentSoft : rowArea.containsMouse ? Theme.hover : "transparent"
                             Accessible.role: Accessible.ListItem
                             Accessible.name: modelData.split("/").pop()
                             Accessible.onPressAction: PlayQueue.go(index)
                             Text {
-                                anchors { left: parent.left; right: parent.right; margins: 8; verticalCenter: parent.verticalCenter }
+                                anchors { left: parent.left; right: parent.right; margins: Theme.px(8); verticalCenter: parent.verticalCenter }
                                 text: row.modelData.split("/").pop()
                                 color: row.now ? Theme.text : Theme.dim
                                 elide: Text.ElideMiddle
                                 font.family: Theme.font
-                                font.pixelSize: 12 * Theme.fontScale
+                                font.pixelSize: Theme.px(12) * Theme.fontScale
                             }
                             MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: PlayQueue.go(row.index) }
                         }

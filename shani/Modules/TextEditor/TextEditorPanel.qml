@@ -21,19 +21,19 @@ AppWindow {
     visible: Ui.textEditor
     onGone: Ui.textEditor = false
     tools: [
-        IconButton { size: 30; icon: "document-new"; tip: Tr.t("New") + " (Ctrl+N)"; onClicked: TextDocs.newDoc() },
-        IconButton { size: 30; icon: "document-open"; tip: Tr.t("Open") + " (Ctrl+O)"; onClicked: win.pick() },
+        IconButton { size: Theme.px(30); icon: "document-new"; tip: Tr.t("New") + " (Ctrl+N)"; onClicked: TextDocs.newDoc() },
+        IconButton { size: Theme.px(30); icon: "document-open"; tip: Tr.t("Open") + " (Ctrl+O)"; onClicked: win.pick() },
         Button { text: Tr.t("Save"); kind: TextDocs.current && TextDocs.current.modified ? "primary" : "plain"; enabled: TextDocs.current !== null && !TextDocs.saving; onClicked: win.save() },
         Button { text: Tr.t("Save as…"); flat: true; onClicked: win.saveAs() },
-        IconButton { size: 30; icon: "edit-find"; tip: Tr.t("Find") + " (Ctrl+F)"; on: win.finding; onClicked: { win.finding = !win.finding; if (win.finding) findField.input.forceActiveFocus(); } },
-        IconButton { size: 30; icon: "format-justify-left"; tip: Tr.t("Wrap long lines"); on: win.wordWrap; onClicked: win.wordWrap = !win.wordWrap },
-        IconButton { size: 30; icon: "view-list"; tip: Tr.t("Line numbers"); on: win.lineNumbers; onClicked: win.lineNumbers = !win.lineNumbers },
-        IconButton { size: 30; icon: "applications-graphics"; tip: Tr.t("Syntax colours"); on: win.colours; onClicked: { win.colours = !win.colours; Settings.data.textEditorColours = win.colours; } },
-        IconButton { size: 30; icon: "zoom-out"; tip: Tr.t("Smaller text") + " (Ctrl+-)"; onClicked: win.fontSize = Math.max(8, win.fontSize - 1) },
-        IconButton { size: 30; icon: "zoom-in"; tip: Tr.t("Larger text") + " (Ctrl++)"; onClicked: win.fontSize = Math.min(28, win.fontSize + 1) }
+        IconButton { size: Theme.px(30); icon: "edit-find"; tip: Tr.t("Find") + " (Ctrl+F)"; on: win.finding; onClicked: { win.finding = !win.finding; if (win.finding) findField.input.forceActiveFocus(); } },
+        IconButton { size: Theme.px(30); icon: "format-justify-left"; tip: Tr.t("Wrap long lines"); on: win.wordWrap; onClicked: win.wordWrap = !win.wordWrap },
+        IconButton { size: Theme.px(30); icon: "view-list"; tip: Tr.t("Line numbers"); on: win.lineNumbers; onClicked: win.lineNumbers = !win.lineNumbers },
+        IconButton { size: Theme.px(30); icon: "applications-graphics"; tip: Tr.t("Syntax colours"); on: win.colours; onClicked: { win.colours = !win.colours; Settings.data.textEditorColours = win.colours; } },
+        IconButton { size: Theme.px(30); icon: "zoom-out"; tip: Tr.t("Smaller text") + " (Ctrl+-)"; onClicked: win.fontSize = Math.max(8, win.fontSize - 1) },
+        IconButton { size: Theme.px(30); icon: "zoom-in"; tip: Tr.t("Larger text") + " (Ctrl++)"; onClicked: win.fontSize = Math.min(28, win.fontSize + 1) }
     ]
-    implicitWidth: 1000
-    implicitHeight: 720
+    implicitWidth: Theme.px(1000)
+    implicitHeight: Theme.px(720)
 
     property bool wordWrap: true
     property bool lineNumbers: true
@@ -200,18 +200,18 @@ AppWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            spacing: 8
+            spacing: Theme.px(8)
 
             // ---- the open documents ----
             Flickable {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 32
+                Layout.preferredHeight: Theme.px(32)
                 contentWidth: tabRow.implicitWidth
                 clip: true
                 flickableDirection: Flickable.HorizontalFlick
                 Row {
                     id: tabRow
-                    spacing: 4
+                    spacing: Theme.px(4)
                     Repeater {
                         model: TextDocs.docs
                         delegate: Rectangle {
@@ -221,7 +221,7 @@ AppWindow {
                             readonly property bool front: TextDocs.active === index
                             readonly property bool asking: win.confirmClose === index
                             width: tabText.implicitWidth + 50
-                            height: 32
+                            height: Theme.px(32)
                             radius: Theme.radiusSmall
                             color: front ? Theme.accentSoft : tabArea.containsMouse ? Theme.hover : "transparent"
                             border.width: front ? 1 : 0
@@ -231,11 +231,11 @@ AppWindow {
                             Accessible.onPressAction: TextDocs.show(index)
                             Text {
                                 id: tabText
-                                anchors { left: parent.left; leftMargin: 12; verticalCenter: parent.verticalCenter }
+                                anchors { left: parent.left; leftMargin: Theme.px(12); verticalCenter: parent.verticalCenter }
                                 text: tab.asking ? Tr.t("Close without saving?") : (tab.modelData.modified ? "● " : "") + tab.modelData.name
                                 color: tab.asking ? Theme.danger : tab.front ? Theme.text : Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: 12 * Theme.fontScale
+                                font.pixelSize: Theme.px(12) * Theme.fontScale
                             }
                             MouseArea {
                                 id: tabArea
@@ -246,9 +246,9 @@ AppWindow {
                                 onClicked: e => { if (e.button === Qt.MiddleButton) win.closeTab(tab.index); else TextDocs.show(tab.index); }
                             }
                             IconButton {
-                                anchors { right: parent.right; rightMargin: 4; verticalCenter: parent.verticalCenter }
+                                anchors { right: parent.right; rightMargin: Theme.px(4); verticalCenter: parent.verticalCenter }
                                 icon: "window-close"
-                                size: 22
+                                size: Theme.px(22)
                                 tip: Tr.t("Close") + " " + tab.modelData.name
                                 onClicked: win.closeTab(tab.index)
                             }
@@ -261,7 +261,7 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 visible: win.finding
-                spacing: 6
+                spacing: Theme.px(6)
                 TextField {
                     id: findField
                     Layout.fillWidth: true
@@ -273,7 +273,7 @@ AppWindow {
                     text: findField.text === "" ? "" : win.matches === 0 ? Tr.t("Not found") : win.matches + " " + Tr.t("found")
                     color: win.matches === 0 && findField.text !== "" ? Theme.danger : Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 IconButton { icon: "go-up"; tip: Tr.t("Previous match"); onClicked: win.find(false) }
                 IconButton { icon: "go-down"; tip: Tr.t("Next match"); onClicked: win.find(true) }
@@ -282,7 +282,7 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 visible: win.finding && win.replacing
-                spacing: 6
+                spacing: Theme.px(6)
                 TextField {
                     id: replaceField
                     Layout.fillWidth: true
@@ -323,7 +323,7 @@ AppWindow {
                 }
                 Flickable {
                     id: flick
-                    anchors { left: gutter.right; right: parent.right; top: parent.top; bottom: parent.bottom; margins: 8; leftMargin: gutter.visible ? 0 : 8 }
+                    anchors { left: gutter.right; right: parent.right; top: parent.top; bottom: parent.bottom; margins: Theme.px(8); leftMargin: gutter.visible ? 0 : 8 }
                     contentWidth: edit.width
                     contentHeight: edit.height
                     clip: true
@@ -387,7 +387,7 @@ AppWindow {
             // ---- where the cursor is, what the file is, what went wrong ----
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Theme.px(12)
                 Text {
                     Layout.fillWidth: true
                     text: TextDocs.error !== "" ? TextDocs.error
@@ -396,7 +396,7 @@ AppWindow {
                     color: TextDocs.error !== "" ? Theme.danger : Theme.dim
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 Text {
                     readonly property var at: {
@@ -409,7 +409,7 @@ AppWindow {
                         + (win.lang !== "text" ? "  ·  " + win.lang : "")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                     font.features: { "tnum": 1 }
                 }
             }

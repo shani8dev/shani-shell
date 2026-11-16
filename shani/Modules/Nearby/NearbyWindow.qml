@@ -14,8 +14,8 @@ AppWindow {
     appName: "Nearby Share"
     visible: Ui.nearby
     onGone: Ui.nearby = false
-    implicitWidth: 560
-    implicitHeight: 660
+    implicitWidth: Theme.px(560)
+    implicitHeight: Theme.px(660)
     onVisibleChanged: if (visible) Nearby.scan()
     Component.onCompleted: Nearby.scan()
 
@@ -32,7 +32,7 @@ AppWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            spacing: 10
+            spacing: Theme.px(10)
 
             // ---- asked: someone wants to send ----
             Repeater {
@@ -48,14 +48,14 @@ AppWindow {
                     border.color: Theme.accentLine
                     ColumnLayout {
                         id: offerCol
-                        anchors { fill: parent; margins: 10 }
-                        spacing: 6
-                        Text { Layout.fillWidth: true; text: Tr.t("%1 wants to send you").arg(offerBox.modelData.from); color: Theme.text; font.family: Theme.font; font.pixelSize: 13 * Theme.fontScale; font.weight: Font.DemiBold }
+                        anchors { fill: parent; margins: Theme.px(10) }
+                        spacing: Theme.px(6)
+                        Text { Layout.fillWidth: true; text: Tr.t("%1 wants to send you").arg(offerBox.modelData.from); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.DemiBold }
                         Text {
                             Layout.fillWidth: true
                             text: offerBox.modelData.files.map(f => f.name + " (" + Nearby.human(f.size) + ")").join(", ")
                             color: Theme.dim; wrapMode: Text.Wrap; maximumLineCount: 3; elide: Text.ElideRight
-                            font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale
+                            font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
                         }
                         RowLayout {
                             Layout.alignment: Qt.AlignRight
@@ -69,8 +69,8 @@ AppWindow {
             // ---- what to send ----
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
-                Icon { name: "document-send"; size: 20; color: Theme.dim }
+                spacing: Theme.px(8)
+                Icon { name: "document-send"; size: Theme.px(20); color: Theme.dim }
                 Text {
                     Layout.fillWidth: true
                     text: Nearby.pending.length === 0 ? Tr.t("Choose what to send, then a device")
@@ -79,7 +79,7 @@ AppWindow {
                     color: Nearby.pending.length ? Theme.text : Theme.dim
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: 13 * Theme.fontScale
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
                 }
                 Button { text: Nearby.pending.length ? Tr.t("Change…") : Tr.t("Choose files…"); onClicked: win.pick() }
             }
@@ -87,15 +87,15 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("Devices nearby") }
-                Text { visible: Nearby.scanning; text: Tr.t("Looking…"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
-                IconButton { size: 28; icon: "view-refresh"; tip: Tr.t("Look again"); enabled: !Nearby.scanning; onClicked: Nearby.scan() }
+                Text { visible: Nearby.scanning; text: Tr.t("Looking…"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                IconButton { size: Theme.px(28); icon: "view-refresh"; tip: Tr.t("Look again"); enabled: !Nearby.scanning; onClicked: Nearby.scan() }
             }
             ListView {
                 id: devList
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
-                spacing: 4
+                spacing: Theme.px(4)
                 boundsBehavior: Flickable.StopAtBounds
                 model: Nearby.devices
                 delegate: ListRow {
@@ -123,8 +123,8 @@ AppWindow {
                     id: tr
                     required property var modelData
                     Layout.fillWidth: true
-                    spacing: 8
-                    Icon { name: tr.modelData.direction === "send" ? "go-up" : "go-down"; size: 16; color: tr.modelData.state === "failed" ? Theme.danger : Theme.dim }
+                    spacing: Theme.px(8)
+                    Icon { name: tr.modelData.direction === "send" ? "go-up" : "go-down"; size: Theme.px(16); color: tr.modelData.state === "failed" ? Theme.danger : Theme.dim }
                     Text {
                         Layout.fillWidth: true
                         text: tr.modelData.state === "failed" ? Tr.t("Not sent: %1").arg(tr.modelData.error)
@@ -133,7 +133,7 @@ AppWindow {
                         color: tr.modelData.state === "failed" ? Theme.danger : Theme.dim
                         elide: Text.ElideRight
                         font.family: Theme.font
-                        font.pixelSize: 12 * Theme.fontScale
+                        font.pixelSize: Theme.px(12) * Theme.fontScale
                     }
                     Button {
                         visible: tr.modelData.state === "done" && tr.modelData.direction === "receive"
@@ -143,7 +143,7 @@ AppWindow {
                     }
                 }
             }
-            Text { Layout.fillWidth: true; visible: Nearby.note !== ""; text: Nearby.note; color: Theme.danger; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: 11 * Theme.fontScale }
+            Text { Layout.fillWidth: true; visible: Nearby.note !== ""; text: Nearby.note; color: Theme.danger; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
 
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.border }
             SwitchRow {

@@ -119,6 +119,9 @@ Singleton {
     // what it opens is driven by keys too - the screen keyboard then types
     // from the remote (Services/Osk remote mode)
     property bool keysActivated: false
+    // the focused screen's kind and size (Services/FormFactor): Theme.ui reads it
+    property string formFactor: "computer"
+    property real uiScale: 1.0
     property string launcherSelected: ""      // the highlighted result (the tests)
     property int windowMenuSel: 0             // the window menu's highlighted row (the tests)
     property bool launcherSearchBar: false

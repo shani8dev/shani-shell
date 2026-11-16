@@ -22,8 +22,8 @@ AppWindow {
     visible: Ui.maps
     onGone: Ui.maps = false
     margins: 0
-    implicitWidth: 900
-    implicitHeight: 620
+    implicitWidth: Theme.px(900)
+    implicitHeight: Theme.px(620)
 
     Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: Ui.maps = false }
 
@@ -289,7 +289,7 @@ AppWindow {
             x: 20; y: 20
             width: parent.width - 40
             height: parent.height - 40
-            spacing: 12
+            spacing: Theme.px(12)
 
             RowLayout {
                 Layout.fillWidth: true
@@ -298,17 +298,17 @@ AppWindow {
                     text: win.placeName !== "" ? win.placeName : (Location.available ? (Weather.zoneCity || Tr.t("Where you are")) : "")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 15 * Theme.fontScale
+                    font.pixelSize: Theme.px(15) * Theme.fontScale
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }
-                IconButton { icon: "mark-location"; size: 28; tip: "Recenter"; onClicked: win.recenter(); }
-                IconButton { icon: "view-refresh"; size: 28; onClicked: Location.refresh(); }
+                IconButton { icon: "mark-location"; size: Theme.px(28); tip: "Recenter"; onClicked: win.recenter(); }
+                IconButton { icon: "view-refresh"; size: Theme.px(28); onClicked: Location.refresh(); }
             }
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 TextField {
                     id: mapSearch
                     Layout.fillWidth: true
@@ -326,7 +326,7 @@ AppWindow {
                 text: win.searchError
                 color: Theme.danger
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
                 wrapMode: Text.WordWrap
             }
             Text {
@@ -335,7 +335,7 @@ AppWindow {
                 text: win.placeDesc + (win.placeType ? " · " + win.placeType : "") + " (" + win.mapLat.toFixed(4) + ", " + win.mapLon.toFixed(4) + ")"
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
                 wrapMode: Text.WordWrap
             }
 
@@ -344,7 +344,7 @@ AppWindow {
                 id: grid
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.minimumHeight: 320
+                Layout.minimumHeight: Theme.px(320)
                 radius: Theme.radiusSmall
                 color: Theme.hover
                 clip: true
@@ -429,7 +429,7 @@ AppWindow {
                     readonly property var at: win.toScreen(win.pinLat, win.pinLon)
                     visible: win.pinLat !== 0 || win.pinLon !== 0
                     x: at.x - width / 2; y: at.y - height / 2
-                    width: 16; height: 16; radius: 8
+                    width: Theme.px(16); height: Theme.px(16); radius: Theme.px(8)
                     color: Theme.accent
                     border.width: 3; border.color: "white"
                 }
@@ -446,10 +446,10 @@ AppWindow {
                 }
                 // zoom, on a backing of its own so it reads over any map
                 Rectangle {
-                    anchors { right: parent.right; top: parent.top; margins: 10 }
-                    width: 40
+                    anchors { right: parent.right; top: parent.top; margins: Theme.px(10) }
+                    width: Theme.px(40)
                     height: zoomCol.implicitHeight + 8
-                    radius: 10
+                    radius: Theme.px(10)
                     color: Theme.alpha(Theme.bg, 0.92)
                     border.width: 1
                     border.color: Theme.border
@@ -457,18 +457,18 @@ AppWindow {
                         id: zoomCol
                         anchors.centerIn: parent
                         spacing: 2
-                        IconButton { icon: "zoom-in"; size: 32; tip: Tr.t("Zoom in"); onClicked: win.zoomBy(1) }
-                        IconButton { icon: "zoom-out"; size: 32; tip: Tr.t("Zoom out"); onClicked: win.zoomBy(-1) }
+                        IconButton { icon: "zoom-in"; size: Theme.px(32); tip: Tr.t("Zoom in"); onClicked: win.zoomBy(1) }
+                        IconButton { icon: "zoom-out"; size: Theme.px(32); tip: Tr.t("Zoom out"); onClicked: win.zoomBy(-1) }
                     }
                 }
                 Text {
-                    anchors { right: parent.right; bottom: parent.bottom; margins: 6 }
+                    anchors { right: parent.right; bottom: parent.bottom; margins: Theme.px(6) }
                     text: "© OpenStreetMap contributors"
                     color: Theme.text
                     style: Text.Outline
                     styleColor: Theme.bg
                     font.family: Theme.font
-                    font.pixelSize: 10 * Theme.fontScale
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
                 }
             }
 
@@ -476,10 +476,10 @@ AppWindow {
             ColumnLayout {
                 Layout.fillWidth: true
                 visible: win.routeAsked
-                spacing: 6
+                spacing: Theme.px(6)
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [["driving", Tr.t("Drive")], ["foot", Tr.t("Walk")], ["bike", Tr.t("Cycle")]]
                         Choice {
@@ -497,10 +497,10 @@ AppWindow {
                         color: win.routeError !== "" ? Theme.danger : Theme.text
                         elide: Text.ElideRight
                         font.family: Theme.font
-                        font.pixelSize: 12 * Theme.fontScale
+                        font.pixelSize: Theme.px(12) * Theme.fontScale
                         font.weight: Font.DemiBold
                     }
-                    IconButton { icon: "window-close"; size: 26; tip: Tr.t("Close directions"); onClicked: win.clearRoute() }
+                    IconButton { icon: "window-close"; size: Theme.px(26); tip: Tr.t("Close directions"); onClicked: win.clearRoute() }
                 }
                 RowLayout {
                     Layout.fillWidth: true
@@ -525,7 +525,7 @@ AppWindow {
                         color: Theme.dim
                         elide: Text.ElideRight
                         font.family: Theme.font
-                        font.pixelSize: 11 * Theme.fontScale
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
                     }
                 }
             }

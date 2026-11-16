@@ -17,48 +17,48 @@ RowLayout {
     signal iconClicked()
     signal detail()
 
-    spacing: 8
+    spacing: Theme.px(8)
 
     IconButton {
         icon: root.icon
-        size: 34
+        size: Theme.px(34)
         iconColor: root.muted ? Theme.dim : Theme.text
         onClicked: root.iconClicked()
     }
 
     Item {
         Layout.fillWidth: true
-        implicitHeight: 28
+        implicitHeight: Theme.px(28)
 
         Rectangle {
             id: track
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width
-            height: 8
-            radius: 4
+            height: Theme.px(8)
+            radius: Theme.px(4)
             color: Theme.hover
             // what the microphone hears right now, under the set level
             Rectangle {
                 visible: root.level >= 0
                 width: parent.width * Math.max(0, Math.min(1, root.level))
                 height: parent.height
-                radius: 4
+                radius: Theme.px(4)
                 color: Theme.alpha(Theme.accent, 0.35)
                 Behavior on width { NumberAnimation { duration: 60 } }
             }
             Rectangle {
                 width: Math.max(height, parent.width * Math.max(0, Math.min(1, root.value)))
                 height: parent.height
-                radius: 4
+                radius: Theme.px(4)
                 color: root.muted ? Theme.faint : Theme.accent
             }
         }
         Rectangle {
             x: Math.max(0, Math.min(parent.width - width, parent.width * root.value - width / 2))
             anchors.verticalCenter: parent.verticalCenter
-            width: 18
-            height: 18
-            radius: 9
+            width: Theme.px(18)
+            height: Theme.px(18)
+            radius: Theme.px(9)
             color: Theme.text
             border.width: 3
             border.color: root.muted ? Theme.faint : Theme.accent
@@ -91,18 +91,18 @@ RowLayout {
     }
 
     Text {
-        Layout.preferredWidth: 34
+        Layout.preferredWidth: Theme.px(34)
         text: Math.round(root.value * 100) + "%"
         color: Theme.dim
         horizontalAlignment: Text.AlignRight
         font.family: Theme.font
-        font.pixelSize: 11 * Theme.fontScale
+        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
 
     IconButton {
         visible: root.hasDetail
         icon: "go-next"
-        size: 28
+        size: Theme.px(28)
         rotation: root.expanded ? 90 : 0
         onClicked: root.detail()
     }

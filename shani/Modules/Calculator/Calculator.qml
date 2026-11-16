@@ -20,12 +20,12 @@ AppWindow {
     id: win
     appName: "Calculator"
     tools: [
-        IconButton { size: 30; icon: "edit-copy"; tip: Tr.t("Copy result"); onClicked: Services.Calculator.copyResult() }
+        IconButton { size: Theme.px(30); icon: "edit-copy"; tip: Tr.t("Copy result"); onClicked: Services.Calculator.copyResult() }
     ]
     visible: Services.Calculator.shown
     onGone: Services.Calculator.close()
     margins: 0
-    implicitWidth: 460
+    implicitWidth: Theme.px(460)
     implicitHeight: Math.max(320, Math.min(900, col.implicitHeight + 40))
     // blur behind the card, as on every shell surface (ext-background-effect)
 
@@ -152,13 +152,13 @@ AppWindow {
         ColumnLayout {
             id: col
             anchors.fill: parent
-            anchors.margins: 20
-            spacing: 10
+            anchors.margins: Theme.px(20)
+            spacing: Theme.px(10)
 
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 Choice { text: Tr.t("Standard"); selected: win.tab === "standard"; onClicked: win.tab = "standard" }
                 Choice { text: Tr.t("Scientific"); selected: win.tab === "scientific"; onClicked: win.tab = "scientific" }
                 Choice { text: Tr.t("Financial"); selected: win.tab === "financial"; onClicked: win.tab = "financial" }
@@ -169,11 +169,11 @@ AppWindow {
             Rectangle {
                 radius: Theme.radiusSmall
                 color: Theme.hover
-                implicitHeight: 72
+                implicitHeight: Theme.px(72)
                 Layout.fillWidth: true
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 12
+                    anchors.margins: Theme.px(12)
                     spacing: 2
                     Text {
                         Layout.fillWidth: true
@@ -183,7 +183,7 @@ AppWindow {
                         text: Services.Calculator.error !== "" ? Services.Calculator.error : Services.Calculator.display
                         color: Services.Calculator.error !== "" ? Theme.danger : Theme.text
                         font.family: Theme.mono
-                        font.pixelSize: 26 * Theme.fontScale
+                        font.pixelSize: Theme.px(26) * Theme.fontScale
                         font.weight: Font.DemiBold
                     }
                     Text {
@@ -193,7 +193,7 @@ AppWindow {
                         color: Theme.dim
                         elide: Text.ElideLeft
                         font.family: Theme.mono
-                        font.pixelSize: 13 * Theme.fontScale
+                        font.pixelSize: Theme.px(13) * Theme.fontScale
                     }
                 }
             }
@@ -202,7 +202,7 @@ AppWindow {
             RowLayout {
                 visible: win.tab === "standard" || win.tab === "scientific"
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.px(6)
                 Button { text: "MC"; enabled: Services.Calculator.hasMemory; onClicked: Services.Calculator.memoryClear() }
                 Button { text: "MR"; enabled: Services.Calculator.hasMemory; onClicked: Services.Calculator.memoryRecall() }
                 Button { text: "M+"; onClicked: Services.Calculator.memoryAdd() }
@@ -214,7 +214,7 @@ AppWindow {
                     text: "M = " + Services.Calculator.memory
                     color: Theme.dim
                     font.family: Theme.mono
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
             }
 
@@ -223,8 +223,8 @@ AppWindow {
                 visible: win.tab === "standard" || win.tab === "scientific"
                 Layout.fillWidth: true
                 columns: 5
-                columnSpacing: 6
-                rowSpacing: 6
+                columnSpacing: Theme.px(6)
+                rowSpacing: Theme.px(6)
                 Repeater {
                     model: win.keys
                     Button {
@@ -233,7 +233,7 @@ AppWindow {
                         kind: modelData.kind || "plain"
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        Layout.preferredHeight: 44
+                        Layout.preferredHeight: Theme.px(44)
                         onClicked: {
                             if (modelData.key === "copy")
                                 Services.Calculator.copyResult();
@@ -249,8 +249,8 @@ AppWindow {
                 visible: win.tab === "scientific"
                 Layout.fillWidth: true
                 columns: 5
-                columnSpacing: 6
-                rowSpacing: 6
+                columnSpacing: Theme.px(6)
+                rowSpacing: Theme.px(6)
                 Repeater {
                     model: win.sciKeys
                     Button {
@@ -259,7 +259,7 @@ AppWindow {
                         kind: "plain"
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        Layout.preferredHeight: 38
+                        Layout.preferredHeight: Theme.px(38)
                         onClicked: Services.Calculator.press(modelData.key)
                     }
                 }
@@ -269,7 +269,7 @@ AppWindow {
             ColumnLayout {
                 visible: win.tab === "converter"
                 Layout.fillWidth: true
-                spacing: 10
+                spacing: Theme.px(10)
                 TextField {
                     id: valueField
                     Layout.fillWidth: true
@@ -280,24 +280,24 @@ AppWindow {
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 8
-                    Text { text: Tr.t("From"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                    spacing: Theme.px(8)
+                    Text { text: Tr.t("From"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                     Button { text: win.fromUnit + " ▸"; Layout.fillWidth: true; onClicked: win.cycleUnit("from") }
                     Button { text: "⇄"; onClicked: { const t = win.fromUnit; win.fromUnit = win.toUnit; win.toUnit = t; win.doConvert(); } }
-                    Text { text: Tr.t("To"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                    Text { text: Tr.t("To"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                     Button { text: win.toUnit + " ▸"; Layout.fillWidth: true; onClicked: win.cycleUnit("to") }
                 }
                 Rectangle {
                     radius: Theme.radiusSmall
                     color: Theme.hover
-                    implicitHeight: 56
+                    implicitHeight: Theme.px(56)
                     Layout.fillWidth: true
                     Text {
                         anchors.centerIn: parent
                         text: win.converted
                         color: win.converted === "—" ? Theme.dim : Theme.text
                         font.family: Theme.mono
-                        font.pixelSize: 17 * Theme.fontScale
+                        font.pixelSize: Theme.px(17) * Theme.fontScale
                         font.weight: Font.DemiBold
                     }
                 }
@@ -313,7 +313,7 @@ AppWindow {
                     text: Tr.t("Length, mass, volume, data, time, speed, area and °C/°F/K")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: 10 * Theme.fontScale
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
                 }
             }
 
@@ -326,10 +326,10 @@ AppWindow {
             ColumnLayout {
                 visible: win.tab === "financial"
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Choice { text: Tr.t("Future value"); selected: win.finOp === "fv"; onClicked: { win.finOp = "fv"; win.doFinancial(); } }
                     Choice { text: Tr.t("Present value"); selected: win.finOp === "pv"; onClicked: { win.finOp = "pv"; win.doFinancial(); } }
                     Choice { text: Tr.t("Rate"); selected: win.finOp === "rate"; onClicked: { win.finOp = "rate"; win.doFinancial(); } }
@@ -339,8 +339,8 @@ AppWindow {
                 GridLayout {
                     Layout.fillWidth: true
                     columns: 2
-                    columnSpacing: 8
-                    rowSpacing: 8
+                    columnSpacing: Theme.px(8)
+                    rowSpacing: Theme.px(8)
                     TextField { id: faField; Layout.fillWidth: true; placeholder: Tr.t("Principal / cost"); label: Tr.t("A (principal / cost)"); onAccepted: win.doFinancial(); onTextChanged: win.doFinancial() }
                     TextField { id: fbField; Layout.fillWidth: true; placeholder: Tr.t("Rate / payment / salvage"); label: Tr.t("B"); onAccepted: win.doFinancial(); onTextChanged: win.doFinancial() }
                     TextField { id: fcField; Layout.fillWidth: true; placeholder: Tr.t("Periods / life"); label: Tr.t("C"); onAccepted: win.doFinancial(); onTextChanged: win.doFinancial() }
@@ -349,22 +349,22 @@ AppWindow {
                 Rectangle {
                     radius: Theme.radiusSmall
                     color: Theme.hover
-                    implicitHeight: 56
+                    implicitHeight: Theme.px(56)
                     Layout.fillWidth: true
                     Text {
                         anchors.centerIn: parent
                         text: Services.Calculator.finResult
                         color: Services.Calculator.finResult === "—" ? Theme.dim : Theme.text
                         font.family: Theme.mono
-                        font.pixelSize: 17 * Theme.fontScale
+                        font.pixelSize: Theme.px(17) * Theme.fontScale
                         font.weight: Font.DemiBold
                     }
                 }
                 GridLayout {
                     Layout.fillWidth: true
                     columns: 5
-                    columnSpacing: 6
-                    rowSpacing: 6
+                    columnSpacing: Theme.px(6)
+                    rowSpacing: Theme.px(6)
                     Repeater {
                         model: win.finKeys
                         Button {
@@ -373,7 +373,7 @@ AppWindow {
                             kind: "plain"
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            Layout.preferredHeight: 38
+                            Layout.preferredHeight: Theme.px(38)
                             onClicked: Services.Calculator.press(modelData.key)
                         }
                     }
@@ -388,7 +388,7 @@ AppWindow {
                         : Tr.t("ddb(cost, salvage, life, period) — double-declining balance")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: 10 * Theme.fontScale
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
                     wrapMode: Text.WordWrap
                 }
             }
@@ -399,7 +399,7 @@ AppWindow {
             ColumnLayout {
                 visible: win.tab === "programming"
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 TextField {
                     id: progValueField
                     Layout.fillWidth: true
@@ -410,20 +410,20 @@ AppWindow {
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 6
-                    Text { text: Tr.t("Base"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                    spacing: Theme.px(6)
+                    Text { text: Tr.t("Base"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                     Button { text: Services.Calculator.base + " ▸"; Layout.fillWidth: true; onClicked: win.cycleBase() }
-                    Text { text: Tr.t("Width"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale }
+                    Text { text: Tr.t("Width"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                     Button { text: Services.Calculator.width + " ▸"; Layout.fillWidth: true; onClicked: win.cycleWidth() }
                 }
                 Rectangle {
                     radius: Theme.radiusSmall
                     color: Theme.hover
-                    implicitHeight: 64
+                    implicitHeight: Theme.px(64)
                     Layout.fillWidth: true
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 8
+                        anchors.margins: Theme.px(8)
                         spacing: 2
                         Text {
                             Layout.fillWidth: true
@@ -431,7 +431,7 @@ AppWindow {
                             text: Services.Calculator.progBin === "" ? "—" : ("bin " + Services.Calculator.progBin + " · oct " + Services.Calculator.progOct + " · dec " + Services.Calculator.progDec + " · hex " + Services.Calculator.progHex)
                             color: Services.Calculator.progBin === "" ? Theme.dim : Theme.text
                             font.family: Theme.mono
-                            font.pixelSize: 11 * Theme.fontScale
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
                             elide: Text.ElideLeft
                             wrapMode: Text.WordWrap
                         }
@@ -441,14 +441,14 @@ AppWindow {
                             text: Tr.t("two's complement") + " (" + Services.Calculator.width + "): " + Services.Calculator.twosResult
                             color: Theme.dim
                             font.family: Theme.mono
-                            font.pixelSize: 11 * Theme.fontScale
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
                             elide: Text.ElideLeft
                         }
                     }
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     TextField { id: paField; Layout.fillWidth: true; placeholder: Tr.t("A"); label: Tr.t("A") }
                     Button { text: "AND"; kind: "plain"; onClicked: Services.Calculator.programming("and", paField.text, pbField.text) }
                     Button { text: "OR"; kind: "plain"; onClicked: Services.Calculator.programming("or", paField.text, pbField.text) }
@@ -458,7 +458,7 @@ AppWindow {
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     Button { text: Tr.t("Left shift"); kind: "plain"; Layout.fillWidth: true; onClicked: Services.Calculator.programming("shl", paField.text, pbField.text) }
                     Button { text: Tr.t("Right shift"); kind: "plain"; Layout.fillWidth: true; onClicked: Services.Calculator.programming("shr", paField.text, pbField.text) }
                     Text {
@@ -467,13 +467,13 @@ AppWindow {
                         text: Services.Calculator.progResult
                         color: Theme.text
                         font.family: Theme.mono
-                        font.pixelSize: 14 * Theme.fontScale
+                        font.pixelSize: Theme.px(14) * Theme.fontScale
                         font.weight: Font.DemiBold
                     }
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: Theme.px(6)
                     TextField { id: charField; Layout.fillWidth: true; placeholder: Tr.t("Char, e.g. A"); label: Tr.t("Char"); onAccepted: Services.Calculator.charConvert(text) }
                     Button { text: Tr.t("→ code"); kind: "plain"; onClicked: Services.Calculator.charConvert(charField.text) }
                     TextField { id: codeField; Layout.fillWidth: true; placeholder: Tr.t("Code, e.g. 65"); label: Tr.t("Code"); onAccepted: { Services.Calculator.programming("fromchar", text, ""); } }
@@ -483,15 +483,15 @@ AppWindow {
                         text: Services.Calculator.charResult
                         color: Theme.text
                         font.family: Theme.mono
-                        font.pixelSize: 14 * Theme.fontScale
+                        font.pixelSize: Theme.px(14) * Theme.fontScale
                         font.weight: Font.DemiBold
                     }
                 }
                 GridLayout {
                     Layout.fillWidth: true
                     columns: 5
-                    columnSpacing: 6
-                    rowSpacing: 6
+                    columnSpacing: Theme.px(6)
+                    rowSpacing: Theme.px(6)
                     Repeater {
                         model: win.progKeys
                         Button {
@@ -500,7 +500,7 @@ AppWindow {
                             kind: "plain"
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            Layout.preferredHeight: 38
+                            Layout.preferredHeight: Theme.px(38)
                             onClicked: Services.Calculator.press(modelData.key)
                         }
                     }
@@ -511,7 +511,7 @@ AppWindow {
                     text: Tr.t("64-bit two's complement is a double approximation")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: 10 * Theme.fontScale
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
                 }
             }
 
@@ -519,7 +519,7 @@ AppWindow {
             ColumnLayout {
                 visible: (win.tab === "standard" || win.tab === "scientific") && Services.Calculator.history.length > 0
                 Layout.fillWidth: true
-                spacing: 4
+                spacing: Theme.px(4)
                 RowLayout {
                     Layout.fillWidth: true
                     Text {
@@ -527,7 +527,7 @@ AppWindow {
                         text: Tr.t("History")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: 11 * Theme.fontScale
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
                         font.weight: Font.DemiBold
                     }
                     Button { text: Tr.t("Clear"); kind: "plain"; onClicked: Services.Calculator.clearHistory() }
@@ -535,7 +535,7 @@ AppWindow {
                 Flickable {
                     Layout.fillWidth: true
                     Layout.preferredHeight: Math.min(120, histCol.implicitHeight + 4)
-                    Layout.minimumHeight: 24
+                    Layout.minimumHeight: Theme.px(24)
                     contentHeight: histCol.implicitHeight
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
@@ -567,7 +567,7 @@ AppWindow {
                     : Tr.t("Type to calculate · Esc closes · Enter = · Ctrl+C copies")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
         }
     }

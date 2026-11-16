@@ -16,7 +16,7 @@ Rectangle {
     Accessible.onPressAction: root.clicked()
 
     implicitWidth: label.implicitWidth + 28
-    implicitHeight: 36
+    implicitHeight: Theme.px(36)
     radius: Theme.radiusSmall
     clip: true
 
@@ -65,7 +65,7 @@ Rectangle {
         text: root.text
         color: root.kind === "primary" ? Theme.accentInk : root.kind === "danger" ? Theme.danger : root.checked ? Theme.accent : Theme.text
         font.family: Theme.font
-        font.pixelSize: 12 * Theme.fontScale
+        font.pixelSize: Theme.px(12) * Theme.fontScale
         font.weight: Font.DemiBold
     }
     // keyboard and controller: Enter / Space press it

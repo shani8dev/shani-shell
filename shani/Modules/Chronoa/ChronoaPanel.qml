@@ -235,7 +235,7 @@ PanelWindow {
     Region {
         id: panelRegion
         item: card
-        radius: 22
+        radius: Theme.px(22)
     }
 
     Rectangle {
@@ -253,7 +253,7 @@ PanelWindow {
         width: Math.min(880, parent.width - 140)
         height: Math.min(620, parent.height - 120)
         anchors.centerIn: parent
-        radius: 22
+        radius: Theme.px(22)
         color: Theme.glassStrong
         border.width: 1
         border.color: Theme.alpha(Theme.text, 0.12)
@@ -271,37 +271,37 @@ PanelWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 20
-            spacing: 12
+            anchors.margins: Theme.px(20)
+            spacing: Theme.px(12)
 
             // ---- header -------------------------------------------------
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 10
+                spacing: Theme.px(10)
 
                 Item {
-                    width: 20
-                    height: 20
+                    width: Theme.px(20)
+                    height: Theme.px(20)
 
                     Rectangle {
                         anchors.centerIn: parent
-                        width: 16
-                        height: 16
-                        radius: 8
+                        width: Theme.px(16)
+                        height: Theme.px(16)
+                        radius: Theme.px(8)
                         color: Theme.alpha(panel.stateColor(), 0.15)
                     }
                     Icon {
                         anchors.centerIn: parent
                         name: panel.stateIcon()
-                        size: 12
+                        size: Theme.px(12)
                         color: panel.stateColor()
                     }
                     Rectangle {
                         id: halo
                         anchors.centerIn: parent
-                        width: 20
-                        height: 20
-                        radius: 10
+                        width: Theme.px(20)
+                        height: Theme.px(20)
+                        radius: Theme.px(10)
                         color: "transparent"
                         border.width: 1.5
                         border.color: panel.stateColor()
@@ -313,7 +313,7 @@ PanelWindow {
                     text: Tr.t("Chronoa")
                     color: panel.textColor
                     font.family: Theme.font
-                    font.pixelSize: 16 * Theme.fontScale
+                    font.pixelSize: Theme.px(16) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
 
@@ -321,7 +321,7 @@ PanelWindow {
                     text: panel.stateLabel()
                     color: panel.stateColor()
                     font.family: Theme.font
-                    font.pixelSize: 12 * Theme.fontScale
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
                 }
 
                 Text {
@@ -329,17 +329,17 @@ PanelWindow {
                     text: "· " + panel.detail
                     color: panel.dimColor
                     font.family: Theme.font
-                    font.pixelSize: 11 * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                     elide: Text.ElideRight
-                    Layout.maximumWidth: 280
+                    Layout.maximumWidth: Theme.px(280)
                 }
 
                 Item { Layout.fillWidth: true }
 
                 Rectangle {
                     width: modelChip.implicitWidth + 16
-                    height: 22
-                    radius: 11
+                    height: Theme.px(22)
+                    radius: Theme.px(11)
                     color: Theme.alpha(Theme.text, 0.05)
                     border.width: 1
                     border.color: Theme.alpha(Theme.text, 0.08)
@@ -350,21 +350,21 @@ PanelWindow {
                         text: panel.modelLabel
                         color: panel.dimColor
                         font.family: Theme.mono
-                        font.pixelSize: 10 * Theme.fontScale
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
                     }
                 }
 
                 Rectangle {
-                    width: 26
-                    height: 26
-                    radius: 13
+                    width: Theme.px(26)
+                    height: Theme.px(26)
+                    radius: Theme.px(13)
                     color: closeArea.containsMouse ? Theme.alpha(Theme.text, 0.10) : "transparent"
 
                     Text {
                         anchors.centerIn: parent
                         text: "×"
                         color: panel.dimColor
-                        font.pixelSize: 16 * Theme.fontScale
+                        font.pixelSize: Theme.px(16) * Theme.fontScale
                     }
                     MouseArea {
                         id: closeArea
@@ -387,7 +387,7 @@ PanelWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 visible: panel.model.count === 0
-                spacing: 16
+                spacing: Theme.px(16)
 
                 Item { Layout.fillHeight: true }   // vertical centre, the layout way
 
@@ -395,8 +395,8 @@ PanelWindow {
                 // feels like the same companion waiting, not an empty box
                 Rectangle {
                     id: idleOrb
-                    width: 64; height: 64
-                    radius: 32
+                    width: Theme.px(64); height: Theme.px(64)
+                    radius: Theme.px(32)
                     gradient: Gradient {
                         GradientStop { position: 0.0; color: Theme.alpha(Theme.accent, 0.18) }
                         GradientStop { position: 1.0; color: Theme.alpha(Theme.accent, 0.05) }
@@ -422,7 +422,7 @@ PanelWindow {
                     text: Tr.t("Ask for a job.")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 17 * Theme.fontScale
+                    font.pixelSize: Theme.px(17) * Theme.fontScale
                     font.weight: Font.DemiBold
                     Layout.alignment: Qt.AlignHCenter
                     horizontalAlignment: Text.AlignHCenter
@@ -431,7 +431,7 @@ PanelWindow {
                     text: Tr.t("Chronoa runs it on this machine,\nand asks before anything changes.")
                     color: Theme.alpha(Theme.dim, 0.7)
                     font.family: Theme.font
-                    font.pixelSize: 13 * Theme.fontScale
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
                     lineHeight: 1.5
                     Layout.alignment: Qt.AlignHCenter
                     horizontalAlignment: Text.AlignHCenter
@@ -457,7 +457,7 @@ PanelWindow {
                 Column {
                     id: rows
                     width: list.width
-                    spacing: 6
+                    spacing: Theme.px(6)
 
                     Repeater {
                         model: panel.model
@@ -497,7 +497,7 @@ PanelWindow {
                                 anchors.top: parent.top
                                 width: Math.min(row.width * 0.72, userText.implicitWidth + 28)
                                 height: userText.implicitHeight + 18
-                                radius: 12
+                                radius: Theme.px(12)
                                 color: Theme.alpha(Theme.accent, 0.16)
                                 border.width: 1
                                 border.color: Theme.alpha(Theme.accent, 0.28)
@@ -514,11 +514,11 @@ PanelWindow {
                                 Text {
                                     id: userText
                                     anchors.fill: parent
-                                    anchors.margins: 9
+                                    anchors.margins: Theme.px(9)
                                     text: row.text
                                     color: panel.textColor
                                     font.family: Theme.font
-                                    font.pixelSize: 13 * Theme.fontScale
+                                    font.pixelSize: Theme.px(13) * Theme.fontScale
                                     wrapMode: Text.WordWrap
                                 }
                             }
@@ -531,7 +531,7 @@ PanelWindow {
                                 anchors.top: parent.top
                                 color: "transparent"
                                 Rectangle {
-                                    width: 3
+                                    width: Theme.px(3)
                                     radius: 2
                                     color: panel.accent
                                     anchors.left: parent.left
@@ -545,11 +545,11 @@ PanelWindow {
                                     anchors.left: parent.left
                                     anchors.right: parent.right
                                     anchors.top: parent.top
-                                    anchors.leftMargin: 8
+                                    anchors.leftMargin: Theme.px(8)
                                     text: row.text
                                     color: panel.textColor
                                     font.family: Theme.font
-                                    font.pixelSize: 13 * Theme.fontScale
+                                    font.pixelSize: Theme.px(13) * Theme.fontScale
                                     lineHeight: 1.35
                                     wrapMode: Text.WordWrap
                                 }
@@ -561,8 +561,8 @@ PanelWindow {
                                 anchors.left: parent.left
                                 anchors.top: parent.top
                                 width: toolRow.implicitWidth + 22
-                                height: 28
-                                radius: 8
+                                height: Theme.px(28)
+                                radius: Theme.px(8)
                                 color: Theme.alpha(Theme.amber, 0.10)
                                 border.width: 1
                                 border.color: Theme.alpha(Theme.amber, 0.25)
@@ -570,12 +570,12 @@ PanelWindow {
                                 Row {
                                     id: toolRow
                                     anchors.centerIn: parent
-                                    spacing: 7
+                                    spacing: Theme.px(7)
 
                                     Rectangle {
-                                        width: 5
-                                        height: 5
-                                        radius: 3
+                                        width: Theme.px(5)
+                                        height: Theme.px(5)
+                                        radius: Theme.px(3)
                                         color: panel.amber
                                         anchors.verticalCenter: parent.verticalCenter
                                     }
@@ -583,7 +583,7 @@ PanelWindow {
                                         text: row.text
                                         color: Theme.amber
                                         font.family: Theme.mono
-                                        font.pixelSize: 10 * Theme.fontScale
+                                        font.pixelSize: Theme.px(10) * Theme.fontScale
                                         anchors.verticalCenter: parent.verticalCenter
                                     }
                                 }
@@ -600,7 +600,7 @@ PanelWindow {
                                 anchors.top: parent.top
                                 width: parent.width
                                 height: approvalCol.implicitHeight + 24
-                                radius: 12
+                                radius: Theme.px(12)
                                 color: Theme.alpha(Theme.amber, 0.06)
                                 border.width: 1
                                 border.color: Theme.alpha(Theme.amber, 0.25)
@@ -615,7 +615,7 @@ PanelWindow {
                                 }
 
                                 Rectangle {
-                                    width: 3
+                                    width: Theme.px(3)
                                     radius: 2
                                     color: panel.amber
                                     anchors.left: parent.left
@@ -630,15 +630,15 @@ PanelWindow {
                                     anchors.left: parent.left
                                     anchors.right: parent.right
                                     anchors.top: parent.top
-                                    anchors.margins: 12
-                                    anchors.leftMargin: 20
-                                    spacing: 6
+                                    anchors.margins: Theme.px(12)
+                                    anchors.leftMargin: Theme.px(20)
+                                    spacing: Theme.px(6)
 
                                     Text {
                                         text: row.title
                                         color: panel.textColor
                                         font.family: Theme.font
-                                        font.pixelSize: 13 * Theme.fontScale
+                                        font.pixelSize: Theme.px(13) * Theme.fontScale
                                         font.weight: Font.DemiBold
                                     }
                                     Text {
@@ -646,13 +646,13 @@ PanelWindow {
                                         text: row.detail
                                         color: panel.dimColor
                                         font.family: Theme.font
-                                        font.pixelSize: 11 * Theme.fontScale
+                                        font.pixelSize: Theme.px(11) * Theme.fontScale
                                         wrapMode: Text.WordWrap
                                     }
 
                                     Flow {
                                         width: parent.width
-                                        spacing: 8
+                                        spacing: Theme.px(8)
                                         visible: !row.decided
 
                                         Repeater {
@@ -662,8 +662,8 @@ PanelWindow {
                                                 required property string modelData
                                                 required property int index
                                                 width: Math.min(btnLabel.implicitWidth, 170) + 22
-                                                height: 28
-                                                radius: 8
+                                                height: Theme.px(28)
+                                                radius: Theme.px(8)
                                                 color: index === 0
                                                 ? Theme.alpha(Theme.accent, 0.22)
                                                 : Theme.alpha(Theme.text, 0.06)
@@ -680,7 +680,7 @@ PanelWindow {
                                                     elide: Text.ElideRight
                                                     color: panel.textColor
                                                     font.family: Theme.font
-                                                    font.pixelSize: 11 * Theme.fontScale
+                                                    font.pixelSize: Theme.px(11) * Theme.fontScale
                                                 }
                                                 MouseArea {
                                                     anchors.fill: parent
@@ -699,7 +699,7 @@ PanelWindow {
                                         + row.decision
                                         color: panel.accent
                                         font.family: Theme.font
-                                        font.pixelSize: 11 * Theme.fontScale
+                                        font.pixelSize: Theme.px(11) * Theme.fontScale
                                     }
                                 }
                             }
@@ -713,7 +713,7 @@ PanelWindow {
                                 text: row.text
                                 color: panel.dimColor
                                 font.family: Theme.mono
-                                font.pixelSize: 10 * Theme.fontScale
+                                font.pixelSize: Theme.px(10) * Theme.fontScale
                                 wrapMode: Text.WordWrap
                             }
                         }
@@ -724,7 +724,7 @@ PanelWindow {
             // ---- quick skills -------------------------------------------
             Row {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.px(8)
                 visible: !panel.busy
 
                 Repeater {
@@ -738,8 +738,8 @@ PanelWindow {
                     Rectangle {
                         required property var modelData
                         width: chipLabel.implicitWidth + 20
-                        height: 26
-                        radius: 13
+                        height: Theme.px(26)
+                        radius: Theme.px(13)
                         color: chipArea.containsMouse ? Theme.alpha(Theme.accent, 0.16) : Theme.alpha(Theme.text, 0.04)
                         border.width: 1
                         border.color: Theme.alpha(Theme.text, 0.08)
@@ -750,7 +750,7 @@ PanelWindow {
                             text: modelData.label
                             color: panel.dimColor
                             font.family: Theme.font
-                            font.pixelSize: 11 * Theme.fontScale
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
                         }
                         MouseArea {
                             id: chipArea
@@ -773,17 +773,17 @@ PanelWindow {
             // ---- composer ------------------------------------------------
             Rectangle {
                 Layout.fillWidth: true
-                height: 48
-                radius: 14
+                height: Theme.px(48)
+                radius: Theme.px(14)
                 color: Theme.alpha(Theme.text, 0.05)
                 border.width: 1
                 border.color: input.activeFocus ? Theme.alpha(Theme.accent, 0.55) : Theme.alpha(Theme.text, 0.10)
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: 14
-                    anchors.rightMargin: 8
-                    spacing: 8
+                    anchors.leftMargin: Theme.px(14)
+                    anchors.rightMargin: Theme.px(8)
+                    spacing: Theme.px(8)
 
                     TextInput {
                         id: input
@@ -792,7 +792,7 @@ PanelWindow {
                         Layout.fillWidth: true
                         color: panel.textColor
                         font.family: Theme.font
-                        font.pixelSize: 14 * Theme.fontScale
+                        font.pixelSize: Theme.px(14) * Theme.fontScale
                         selectionColor: Theme.alpha(Theme.accent, 0.35)
                         clip: true
 
@@ -806,14 +806,14 @@ PanelWindow {
                         text: Tr.t("Ask Chronoa, or describe a task…")
                         color: Theme.alpha(Theme.dim, 0.75)
                         font.family: Theme.font
-                        font.pixelSize: 14 * Theme.fontScale
+                        font.pixelSize: Theme.px(14) * Theme.fontScale
                         Layout.fillWidth: true
                     }
 
                     Rectangle {
-                        width: 32
-                        height: 32
-                        radius: 9
+                        width: Theme.px(32)
+                        height: Theme.px(32)
+                        radius: Theme.px(9)
                         color: micArea.containsMouse ? Theme.alpha(Theme.accent, 0.18) : Theme.alpha(Theme.text, 0.05)
                         visible: panel.state !== "listening"
 
@@ -822,7 +822,7 @@ PanelWindow {
                             text: Tr.t("mic")
                             color: panel.dimColor
                             font.family: Theme.mono
-                            font.pixelSize: 9 * Theme.fontScale
+                            font.pixelSize: Theme.px(9) * Theme.fontScale
                         }
                         MouseArea {
                             id: micArea
@@ -834,9 +834,9 @@ PanelWindow {
                     }
 
                     Rectangle {
-                        width: 32
-                        height: 32
-                        radius: 9
+                        width: Theme.px(32)
+                        height: Theme.px(32)
+                        radius: Theme.px(9)
                         visible: panel.state === "listening"
                         color: panel.accent
 
@@ -844,7 +844,7 @@ PanelWindow {
                             anchors.centerIn: parent
                             text: "■"
                             color: Theme.accentInk
-                            font.pixelSize: 12 * Theme.fontScale
+                            font.pixelSize: Theme.px(12) * Theme.fontScale
                         }
                         MouseArea {
                             anchors.fill: parent
@@ -854,9 +854,9 @@ PanelWindow {
                     }
 
                     Rectangle {
-                        width: 34
-                        height: 32
-                        radius: 9
+                        width: Theme.px(34)
+                        height: Theme.px(32)
+                        radius: Theme.px(9)
                         color: input.text.trim() === "" ? Theme.alpha(Theme.text, 0.04) : Theme.alpha(Theme.accent, 0.30)
                         border.width: 1
                         border.color: input.text.trim() === "" ? Theme.alpha(Theme.text, 0.06) : Theme.alpha(Theme.accent, 0.55)
@@ -865,7 +865,7 @@ PanelWindow {
                             anchors.centerIn: parent
                             text: "↵"
                             color: input.text.trim() === "" ? panel.dimColor : panel.textColor
-                            font.pixelSize: 14 * Theme.fontScale
+                            font.pixelSize: Theme.px(14) * Theme.fontScale
                         }
                         MouseArea {
                             anchors.fill: parent
@@ -881,7 +881,7 @@ PanelWindow {
                 text: Tr.t("↵ send    esc close    ·    tools ask before they change anything")
                 color: Theme.alpha(Theme.dim, 0.65)
                 font.family: Theme.font
-                font.pixelSize: 10 * Theme.fontScale
+                font.pixelSize: Theme.px(10) * Theme.fontScale
             }
         }
     }

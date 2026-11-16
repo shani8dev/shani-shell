@@ -164,6 +164,15 @@ Singleton {
     readonly property string mono: Settings.data.monoFont || "JetBrains Mono"
     // large text: every size in the shell is multiplied by this
     readonly property real fontScale: Settings.data.largeText ? 1.25 : 1.0
+    // the size of everything for the kind of screen in front of the person
+    // (docs/FORM-FACTORS.md): 1 on a computer, larger on a tablet, a handheld,
+    // a classroom board and most of all a TV. Ui.uiScale is the focused
+    // screen's (Services/FormFactor); a surface that lives on every screen
+    // asks FormFactor.of(its screen) instead.
+    readonly property real ui: Ui.uiScale
+    readonly property string formFactor: Ui.formFactor
+    // a design size in pixels, drawn for this screen: px(16) is 16 on a computer
+    function px(n) { return Math.round(n * ui); }
     readonly property int fontSmall: 11
     readonly property int fontBody: 13
     readonly property int fontTitle: 15

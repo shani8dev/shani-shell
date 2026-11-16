@@ -16,7 +16,7 @@ PanelWindow {
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     anchors.top: true
     margins.top: 80
-    implicitWidth: 380
+    implicitWidth: Theme.px(380)
     implicitHeight: card.implicitHeight
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
@@ -38,17 +38,17 @@ PanelWindow {
             x: 18
             y: 18
             width: parent.width - 36
-            spacing: 10
+            spacing: Theme.px(10)
             RowLayout {
-                spacing: 10
-                Icon { name: "bluetooth-active"; size: 22; color: Theme.accent }
+                spacing: Theme.px(10)
+                Icon { name: "bluetooth-active"; size: Theme.px(22); color: Theme.accent }
                 Text {
                     Layout.fillWidth: true
                     text: win.show ? "Pairing with " + win.show.device
                         : win.ask ? (win.ask.ask === "authorize" ? win.ask.device + " wants to connect" : "Pair with " + win.ask.device + "?") : ""
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 15 * Theme.fontScale
+                    font.pixelSize: Theme.px(15) * Theme.fontScale
                     font.weight: Font.DemiBold
                     wrapMode: Text.Wrap
                 }
@@ -61,7 +61,7 @@ PanelWindow {
                     : win.typed ? "Type the " + (win.ask.ask === "pin" ? "PIN" : "code") + " it shows (often 0000 or 1234):" : ""
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: 12 * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
                 wrapMode: Text.Wrap
             }
             Text {
@@ -70,7 +70,7 @@ PanelWindow {
                 text: win.show ? (win.show.passkey || win.show.pin || "") : win.ask && win.ask.passkey ? win.ask.passkey : ""
                 color: Theme.text
                 font.family: Theme.mono
-                font.pixelSize: 30 * Theme.fontScale
+                font.pixelSize: Theme.px(30) * Theme.fontScale
                 font.letterSpacing: 6
                 Accessible.name: "Pairing code " + text.split("").join(" ")
             }
@@ -84,7 +84,7 @@ PanelWindow {
             }
             RowLayout {
                 Layout.alignment: Qt.AlignRight
-                spacing: 8
+                spacing: Theme.px(8)
                 Button {
                     text: win.show ? "Close" : "Cancel"
                     onClicked: win.show ? BtAgent.dismiss() : BtAgent.answer(false)

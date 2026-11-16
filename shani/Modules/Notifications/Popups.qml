@@ -18,7 +18,7 @@ PanelWindow {
     readonly property string pos: Settings.data.popupPosition
     anchors { top: pos !== "bottom-right"; bottom: pos === "bottom-right"; right: pos !== "top-center" }
     margins { top: Theme.barHeight + 18; right: 12; bottom: Settings.data.dock && Settings.data.dockVisibility !== "hide" ? Settings.data.dockIconSize + 44 : 16 }
-    implicitWidth: 380
+    implicitWidth: Theme.px(380)
     implicitHeight: list.implicitHeight
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
@@ -32,7 +32,7 @@ PanelWindow {
     ColumnLayout {
         id: list
         width: parent.width
-        spacing: 8
+        spacing: Theme.px(8)
         Repeater {
             model: Notifs.popups.slice().reverse()
             NotificationCard {
