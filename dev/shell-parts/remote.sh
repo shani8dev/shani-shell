@@ -30,8 +30,10 @@ command -v typein >/dev/null 2>&1 || typein() { rm -f "$2"; foot --app-id="$1" s
 ipc closeAll; sleep 0.5
 remote Home
 waitfor "d['launcher']" 4 && result remote-home-opens-the-launcher PASS || result remote-home-opens-the-launcher FAIL
-sleep 0.5
-wtype -k Up; sleep 0.3; wtype -k Return
+# Up onto the search bar - once the launcher has the keys (under load it takes a
+# moment after Home; an Up sent before is lost, and OK then opens the app instead)
+i=0; until [ "$(q "['launcherSearchBar']")" = True ] || [ $i -ge 8 ]; do sleep 0.5; wtype -k Up; i=$((i+1)); done
+wtype -k Return
 waitfor "d['oskRemote'] and d['osk']" 4 && result remote-ok-on-the-search-bar-brings-the-keyboard PASS \
     || result remote-ok-on-the-search-bar-brings-the-keyboard FAIL "remote $(q "['oskRemote']"), shown $(q "['osk']")"
 wtype -k Down; sleep 0.3; c1=$(q "['oskCursor']")              # the cursor appears on the first key
@@ -58,9 +60,13 @@ remote Back
 for i in $(seq 12); do [ -s /tmp/remote-back ] && break; sleep 0.25; done
 od -An -c /tmp/remote-back 2>/dev/null | tr -d ' \n' | grep -q '033\[1;3D' && result remote-back-in-an-app-is-its-back PASS \
     || result remote-back-in-an-app-is-its-back FAIL "the app got '$(od -An -c /tmp/remote-back 2>/dev/null | tr -d '\n')'"
-# Menu: the focused window's menu, as a controller's X
+# Menu: the focused window's menu, as a controller's X (a window of its own: the
+# Back check's terminal exits once it has read Alt+Left's 6 bytes)
+foot --app-id=remote-menu-app sleep 30 >/dev/null 2>&1 &
+i=0; until [ -n "$(winid remote-menu-app)" ] || [ $i -ge 20 ]; do sleep 0.25; i=$((i+1)); done
+niri msg action focus-window --id "$(winid remote-menu-app)"; sleep 0.5
 remote Menu
-waitfor "d['windowMenu']" 3 && result remote-menu-opens-the-window-menu PASS || result remote-menu-opens-the-window-menu FAIL
+waitfor "d['windowMenu']" 3 && result remote-menu-opens-the-window-menu PASS || result remote-menu-opens-the-window-menu FAIL "$(q "['focusedTitle'], d['controlCenter'], d['launcher'], d['dockFocus'], d['barFocus'], d['settingsOpen'] if 'settingsOpen' in d else '-', d['gamepadLast']")"
 remote Back; waitfor "not d['windowMenu']" 3
-pkill -f "head -c 6 > /tmp/remote-back" 2>/dev/null
+pkill -f "head -c 6 > /tmp/remote-back" 2>/dev/null; pkill -f "app-id=remote-menu-app" 2>/dev/null
 ipc closeAll
