@@ -24,7 +24,7 @@ Variants {
         color: "black"
         WlrLayershell.namespace: "shani-screensaver"
         WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: ScreenSaver.preview ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+        WlrLayershell.keyboardFocus: (ScreenSaver.preview) && !Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
         readonly property bool photos: Settings.data.screenSaverStyle === "photos" && pics.count > 0
 
         Item {

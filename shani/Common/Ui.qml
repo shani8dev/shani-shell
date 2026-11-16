@@ -115,6 +115,15 @@ Singleton {
     property bool barFocus: false                  // the bar has the keyboard (IPC focusBar)
     property string osdLabel: ""                   // the OSD's last words (the tests)
     property bool promptKeyboard: false            // a password prompt's screen keyboard is up (lock, polkit)
+    // a TV remote / keyboard activated the last control (Common/KeyFocus), so
+    // what it opens is driven by keys too - the screen keyboard then types
+    // from the remote (Services/Osk remote mode)
+    property bool keysActivated: false
+    property string launcherSelected: ""      // the highlighted result (the tests)
+    property int windowMenuSel: 0             // the window menu's highlighted row (the tests)
+    property bool launcherSearchBar: false
+    property string launcherText: ""          // what the launcher's search holds now (the tests)    // the remote's cursor is on the launcher's search bar
+    signal typingRequested()            // OK on an empty field: the remote's keyboard
     property string navFocus: ""                   // the name of what keyboard/controller focus is on (Common/KeyFocus)
     property bool padTestRunning: false            // a controller's "Test the buttons" reader is running
     property string padTestLast: ""                // the last button it saw pressed

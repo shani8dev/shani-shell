@@ -54,7 +54,7 @@ Variants {
         color: "transparent"
         WlrLayershell.namespace: "shani-panel"
         WlrLayershell.layer: WlrLayer.Top
-        WlrLayershell.keyboardFocus: keyed ? WlrKeyboardFocus.Exclusive : renamingWs >= 0 ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+        WlrLayershell.keyboardFocus: (keyed) && !Osk.remote ? WlrKeyboardFocus.Exclusive : renamingWs >= 0 ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
         property int renamingWs: -1          // the workspace (id) being named: the bar takes the keyboard
         BackgroundEffect.blurRegion: Settings.blurWanted && bar.shown ? barRegion : null
         Region { id: barRegion; item: glass; radius: Theme.radius }

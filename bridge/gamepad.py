@@ -11,6 +11,17 @@
                             menu (X), launcher (Y, Guide), sidebar (Start),
                             overview (Select), workspace-prev / workspace-next (LB / RB),
                             "used" once when a controller first drives the desktop.
+                            While the screen keyboard is open (the shell writes
+                            "osk on" / "osk off" to stdin) the pad drives its keys
+                            instead, as lines: osk-up/down/left/right (repeating),
+                            osk-press (A), osk-close (B), osk-backspace (X),
+                            osk-space (Y), osk-enter (Start), osk-shift (Select).
+                            The right stick moves the pointer and the triggers click
+                            (RT, or a click of the right stick: left; LT: right), for
+                            whatever arrows cannot reach - a web page, a canvas - on
+                            a virtual mouse made through /dev/uinput (game-devices-udev
+                            gives the seat's person that node, as Steam needs it too).
+                            "pointer" on stdout once it exists; without it, none.
                             The devices are read, never grabbed: a game still gets
                             every press. Services/GamepadNav runs it only while a
                             controller is connected and no game is fullscreen.
@@ -119,6 +130,9 @@ def watch(node):
 NAV_KEYS = {0x130: "Return", 0x131: "Escape"}
 NAV_ACTIONS = {0x134: "menu", 0x133: "launcher", 0x13c: "launcher", 0x13b: "sidebar", 0x13a: "overview",
                0x136: "workspace-prev", 0x137: "workspace-next"}
+# the screen keyboard open: its own meaning for the buttons (Steam's keyboard's, by position)
+OSK_BUTTONS = {0x130: "osk-press", 0x131: "osk-close", 0x134: "osk-backspace", 0x133: "osk-space",
+               0x13b: "osk-enter", 0x13a: "osk-shift"}
 DPAD = {0x220: "Up", 0x221: "Down", 0x222: "Left", 0x223: "Right"}
 REPEAT_DELAY, REPEAT_EVERY = 0.4, 0.12
 STICK_ON, STICK_OFF = 0.55, 0.35          # hysteresis: a stick near the edge does not flicker
@@ -133,6 +147,23 @@ class Nav:
         self.sources = {}                 # (source) -> direction it holds
         self.used = False
         self.ranges = {}
+        self.osk = False                  # the screen keyboard is open: the pad drives it
+        self.pointer = None               # a Pointer, when uinput gave one
+        self.aim = [0.0, 0.0]             # the right stick, -1 … 1
+        self.carry = [0.0, 0.0]           # sub-pixel motion not sent yet
+        self.last_move = None
+        self.clicks = {}                  # source -> the button it holds down
+
+    def set_osk(self, on):
+        self.osk = on
+        self.held.clear()                 # a direction held across the switch stops
+        self.sources.clear()
+
+    def _direction(self, d):
+        if self.osk:
+            self.say("osk-" + d.lower())
+        else:
+            self.key(d)
 
     def _use(self):
         if not self.used:
@@ -151,13 +182,48 @@ class Nav:
             self.sources[source] = direction
             if direction not in self.held:
                 self._use()
-                self.key(direction)
+                self._direction(direction)
                 self.held[direction] = self.now() + REPEAT_DELAY
 
-    def event(self, typ, code, value, rng=None):
+    def _click(self, source, button, down):
+        if not self.pointer:
+            return
+        if down and source not in self.clicks:
+            self._use()
+            self.clicks[source] = button
+            self.pointer.button(button, True)
+        elif not down and source in self.clicks:
+            self.pointer.button(self.clicks.pop(source), False)
+
+    def event(self, typ, code, value, rng=None, right_stick=True):
+        """right_stick: the device has ABS_RX/RY. Without them ABS_Z/RZ are its
+        right stick (DirectInput pads), not triggers, and click nothing."""
+        if typ == EV_KEY and code in (0x139, 0x13e, 0x138) and value in (0, 1):
+            # RT and a click of the right stick: left; LT: right
+            self._click(("key", code), BTN_RIGHT if code == 0x138 else BTN_LEFT, value == 1)
+            return
+        if typ == EV_ABS and code in (0x03, 0x04):            # the right stick: the pointer
+            lo, hi = rng or (-32768, 32767)
+            self.aim[code - 3] = (value - lo) / (hi - lo) * 2 - 1 if hi > lo else 0.0
+            if self.pointer and any(abs(a) > DEAD for a in self.aim):
+                self._use()
+            return
+        if typ == EV_ABS and code in (0x02, 0x05):            # the triggers, as axes
+            if right_stick:
+                lo, hi = rng or (0, 255)
+                x = (value - lo) / (hi - lo) if hi > lo else 0
+                held = ("abs", code) in self.clicks
+                if x >= 0.5 or (held and x > 0.3):
+                    self._click(("abs", code), BTN_RIGHT if code == 0x02 else BTN_LEFT, True)
+                elif held:
+                    self._click(("abs", code), None, False)
+            return
         if typ == EV_KEY and value in (0, 1):
             if code in DPAD:
                 self._hold(("btn", code), DPAD[code] if value else None)
+            elif value == 1 and self.osk and code in OSK_BUTTONS:
+                self._use()
+                self.say(OSK_BUTTONS[code])
             elif value == 1 and code in NAV_KEYS:
                 self._use()
                 self.key(NAV_KEYS[code])
@@ -178,13 +244,92 @@ class Nav:
                 self._hold(("stick", code), None)
 
     def tick(self):
-        """Repeats due now; returns seconds until the next one (None: nothing held)."""
+        """Repeats and pointer motion due now; returns seconds until the next
+        (None: nothing held, the stick at rest)."""
         t = self.now()
         for d, due in list(self.held.items()):
             if t >= due:
-                self.key(d)
+                self._direction(d)
                 self.held[d] = t + REPEAT_EVERY
-        return max(0.0, min(self.held.values()) - t) if self.held else None
+        waits = [max(0.0, min(self.held.values()) - t)] if self.held else []
+        if self.pointer and any(abs(a) > DEAD for a in self.aim):
+            dt = min(t - self.last_move, 0.1) if self.last_move is not None else FRAME
+            self.last_move = t
+            for i in (0, 1):
+                self.carry[i] += stick_speed(self.aim[i]) * dt
+            dx, dy = int(self.carry[0]), int(self.carry[1])
+            if dx or dy:
+                self.carry[0] -= dx
+                self.carry[1] -= dy
+                self.pointer.move(dx, dy)
+            waits.append(FRAME)
+        else:
+            self.last_move = None
+            self.carry = [0.0, 0.0]
+        return min(waits) if waits else None
+
+
+# ---- the pointer: a virtual mouse through uinput (linux/uinput.h) ----
+EV_SYN, EV_REL = 0, 2
+REL_X, REL_Y = 0, 1
+BTN_LEFT, BTN_RIGHT = 0x110, 0x111
+UI_SET_EVBIT, UI_SET_KEYBIT, UI_SET_RELBIT = 0x40045564, 0x40045565, 0x40045566
+UI_DEV_SETUP, UI_DEV_CREATE, UI_DEV_DESTROY = 0x405c5503, 0x5501, 0x5502   # struct uinput_setup: 92 bytes
+POINTER_NAME = b"Shani controller pointer"
+
+
+class Pointer:
+    """A mouse the desktop sees like any other: move(dx, dy), button(code, down)."""
+
+    def __init__(self, path=None, ioctl=fcntl.ioctl):
+        self.fd = os.open(path or os.environ.get("SHANI_UINPUT", "/dev/uinput"), os.O_WRONLY | os.O_NONBLOCK)
+        try:
+            ioctl(self.fd, UI_SET_EVBIT, EV_KEY)
+            ioctl(self.fd, UI_SET_EVBIT, EV_REL)
+            for b in (BTN_LEFT, BTN_RIGHT):
+                ioctl(self.fd, UI_SET_KEYBIT, b)
+            for r in (REL_X, REL_Y):
+                ioctl(self.fd, UI_SET_RELBIT, r)
+            # struct input_id (bustype BUS_VIRTUAL, vendor, product, version), name[80], ff_effects_max
+            ioctl(self.fd, UI_DEV_SETUP, struct.pack("4H80sI", 0x06, 0x5348, 0x0001, 1, POINTER_NAME, 0))
+            ioctl(self.fd, UI_DEV_CREATE)
+        except OSError:
+            os.close(self.fd)
+            raise
+        self.ioctl = ioctl
+
+    def _emit(self, events):
+        data = b"".join(EVENT.pack(0, 0, t, c, v) for t, c, v in events + [(EV_SYN, 0, 0)])
+        try:
+            os.write(self.fd, data)
+        except OSError:
+            pass
+
+    def move(self, dx, dy):
+        self._emit([(EV_REL, REL_X, dx), (EV_REL, REL_Y, dy)])
+
+    def button(self, code, down):
+        self._emit([(EV_KEY, code, 1 if down else 0)])
+
+    def close(self):
+        try:
+            self.ioctl(self.fd, UI_DEV_DESTROY)
+        except OSError:
+            pass
+        os.close(self.fd)
+
+
+# the right stick's travel past the dead zone -> pixels a second (squared: fine
+# aim near the centre, across a television at the edge)
+DEAD, TOP_SPEED, FRAME = 0.15, 1500.0, 1 / 60
+
+
+def stick_speed(x):
+    a = abs(x)
+    if a <= DEAD:
+        return 0.0
+    v = ((a - DEAD) / (1 - DEAD)) ** 2 * TOP_SPEED
+    return v if x > 0 else -v
 
 
 def nav():
@@ -211,11 +356,26 @@ def nav():
     if not fds:
         return 1
     n = Nav(key, say)
+    try:
+        n.pointer = Pointer()
+    except OSError:
+        n.pointer = None                   # no uinput: arrows and buttons only
     say("ready")
+    if n.pointer:
+        say("pointer")
+    control = sys.stdin.fileno()           # "osk on" / "osk off" from the shell
+    listen = True
     while fds:
         wait = n.tick()
-        ready, _, _ = select.select(list(fds), [], [], wait)
+        ready, _, _ = select.select(list(fds) + ([control] if listen else []), [], [], wait)
         for fd in ready:
+            if fd == control:
+                line = sys.stdin.readline()
+                if not line:
+                    listen = False         # no shell on the other end: plain navigation
+                elif line.strip() in ("osk on", "osk off"):
+                    n.set_osk(line.strip() == "osk on")
+                continue
             try:
                 data = os.read(fd, EVENT.size * 64)
             except BlockingIOError:
@@ -228,9 +388,13 @@ def nav():
                 continue
             for i in range(0, len(data) - EVENT.size + 1, EVENT.size):
                 _s, _us, typ, code, value = EVENT.unpack_from(data, i)
-                if typ == EV_ABS and code in (0, 1) and code not in fds[fd]:
+                if typ == EV_ABS and code in (0, 1, 2, 3, 4, 5) and code not in fds[fd]:
                     fds[fd][code] = absinfo(fd, code)
-                n.event(typ, code, value, fds[fd].get(code) if typ == EV_ABS else None)
+                if "rx" not in fds[fd]:
+                    fds[fd]["rx"] = absinfo(fd, 0x03) is not None or os.environ.get("SHANI_PAD_RIGHT_STICK") == "1"
+                n.event(typ, code, value, fds[fd].get(code) if typ == EV_ABS else None, fds[fd]["rx"])
+    if n.pointer:
+        n.pointer.close()
     return 0
 
 

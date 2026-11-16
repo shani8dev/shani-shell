@@ -46,7 +46,7 @@ Variants {
         WlrLayershell.namespace: "shani-wallpaper"
         WlrLayershell.layer: WlrLayer.Background
         // the desktop menu takes the keyboard while it is open (arrows, Enter, Escape)
-        WlrLayershell.keyboardFocus: deskMenu.visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+        WlrLayershell.keyboardFocus: (deskMenu.visible) && !Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
         // from the keyboard (IPC desktopMenu): in the middle of the screen being worked on
         Connections {
             target: Ui

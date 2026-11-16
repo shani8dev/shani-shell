@@ -34,11 +34,12 @@ export SHANI_U2F_TOOL=/work/bridge/u2f.py SHANI_FIDO2_TOKEN=/work/dev/fake-fido2
 cp /work/dev/udev-db/laptop.txt /tmp/udev-db
 export SHANI_INPUT_KINDS_TOOL=/work/bridge/input-kinds.py SHANI_UDEV_DB=/tmp/udev-db SHANI_TABLET_MODE_TOOL=/work/bridge/tablet-mode.py
 export SHANI_MOUNTS_TOOL=/work/bridge/mounts.py SHANI_GIO=/work/dev/fake-gio.sh
-export SHANI_GAMEPAD_TOOL=/work/bridge/gamepad.py SHANI_INPUT_DEVICES=/tmp/input-devices SHANI_INPUT_DIR=/tmp/fake-input
+export SHANI_UINPUT=/nonexistent/uinput SHANI_GAMEPAD_TOOL=/work/bridge/gamepad.py SHANI_INPUT_DEVICES=/tmp/input-devices SHANI_INPUT_DIR=/tmp/fake-input
 mkdir -p /tmp/fake-input /tmp/fake-bin && : > /tmp/input-devices
 REAL_NIRI=$(command -v niri) && export REAL_NIRI && ln -sf /work/dev/fake-niri-outputs.sh /tmp/fake-bin/niri
 export SHANI_TRANSLATE_TOOL=/work/dev/fake-translate.py
-export SHANI_DYNAMIC_LOCK_GRACE=1500     # ms: the dynamic-lock test waits 1.5 s, not 30
+# the dynamic-lock grace is a Settings key now (dynamicLockGrace): shell-test.sh
+# sets it to 1.5 s in its base settings, so the phone-leaves test runs the real path
 export SHANI_AGENDA_TOOL=/work/bridge/agenda.py SHANI_MODEM_TOOL=/work/dev/fake-modem.py
 export XDG_CONFIG_HOME=/root/.config SHANI_SHELL_SETTINGS=/tmp/shani-settings.json
 export SHANI_SCRCPY=/work/dev/fake-scrcpy.sh SHANI_ADB=/work/dev/fake-adb.sh SHANI_LAUNCHER_ENTRY_TOOL=/work/bridge/launcher-entry.py SHANI_APPFILTER_TOOL=/work/dev/fake-appfilter.sh SHANI_LAUNCH_TOOL=/work/bridge/launch-app.py SHANI_APPMENU_TOOL=/work/bridge/appmenu.py SHANI_INPUTPLUMBER_TOOL=/work/bridge/inputplumber.py SHANI_UPS_TOOL=/work/bridge/ups.py SHANI_UPSC=/work/dev/fake-upsc.sh SHANI_YKMAN=/work/dev/fake-ykman.sh

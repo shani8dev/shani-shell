@@ -38,7 +38,7 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Top
     // the keyboard reaches the dock on request (Ui.dockFocus: IPC focusDock, a controller):
     // it takes the keyboard until Escape, never otherwise
-    WlrLayershell.keyboardFocus: Ui.dockFocus ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: (Ui.dockFocus) && !Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     BackgroundEffect.blurRegion: Settings.blurWanted && shown ? dockRegion : null
     Region { id: dockRegion; item: dock; radius: dock.radius }
 

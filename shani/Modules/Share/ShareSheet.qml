@@ -18,7 +18,7 @@ PanelWindow {
     BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurArea : null
     Region { id: blurArea; item: blurCard; radius: blurCard.radius }
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: (visible) && !Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     property int sel: 0
     onVisibleChanged: sel = 0

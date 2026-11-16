@@ -17,7 +17,7 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "shani-lens"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: (visible) && !Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     BackgroundEffect.blurRegion: visible && Settings.blurWanted ? lensRegion : null
     Region { id: lensRegion; item: card; radius: Theme.radiusLarge }
 

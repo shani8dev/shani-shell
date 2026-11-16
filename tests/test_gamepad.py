@@ -133,3 +133,146 @@ def test_nav_never_grabs_a_controller():
     # EVIOCGRAB (0x40044590) would take the controller from a game: never used
     src = BRIDGE.read_text()
     assert "EVIOCGRAB" not in src and "0x40044590" not in src.lower()
+
+
+# ---- the screen keyboard open: the pad drives its keys ----
+
+def test_with_the_screen_keyboard_open_the_pad_types_on_it():
+    n, keys, said, clock = nav_with_clock()
+    n.set_osk(True)
+    for code in (0x130, 0x131, 0x134, 0x133, 0x13b, 0x13a, 0x136):
+        n.event(1, code, 1)
+        n.event(1, code, 0)
+    n.event(3, 0x10, 1)                   # hat right
+    n.event(3, 0x10, 0)
+    n.event(1, 0x220, 1)                  # d-pad up, held: repeats on the keyboard too
+    clock.t = 0.45
+    n.tick()
+    n.event(1, 0x220, 0)
+    assert keys == []                     # nothing typed into the app behind
+    assert said == ["used", "osk-press", "osk-close", "osk-backspace", "osk-space", "osk-enter", "osk-shift",
+                    "workspace-prev", "osk-right", "osk-up", "osk-up"]
+
+
+def test_closing_the_keyboard_gives_the_pad_back_to_the_desktop():
+    n, keys, said, _ = nav_with_clock()
+    n.set_osk(True)
+    n.event(1, 0x221, 1)                  # held down while the keyboard closes
+    n.set_osk(False)
+    n.event(1, 0x221, 0)
+    n.event(1, 0x130, 1)
+    n.event(1, 0x221, 1)
+    assert keys == ["Return", "Down"] and said == ["used", "osk-down"]
+
+
+def test_nav_listens_for_the_keyboard_on_stdin(tmp_path):
+    (tmp_path / "devices").write_text((ROOT / "dev/input-devices.txt").read_text())
+    fifo = tmp_path / "event21"
+    os.mkfifo(fifo)
+    os.mkfifo(tmp_path / "event23")
+    typed = tmp_path / "typed"
+    p = subprocess.Popen([sys.executable, str(BRIDGE), "nav"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True,
+                         env=dict(os.environ, SHANI_INPUT_DIR=str(tmp_path), SHANI_INPUT_DEVICES=str(tmp_path / "devices"),
+                                  SHANI_WTYPE=f"sh -c 'echo \"$*\" >> {typed}' wtype"))
+    w = open(fifo, "wb", buffering=0)
+    open(tmp_path / "event23", "wb").close()
+    assert p.stdout.readline().strip() == "ready"
+    w.write(EVENT.pack(0, 0, 1, 0x130, 1))                    # A: Return into the app
+    p.stdin.write("osk on\n"); p.stdin.flush()
+    time.sleep(0.3)
+    w.write(EVENT.pack(0, 0, 1, 0x130, 0) + EVENT.pack(0, 0, 1, 0x130, 1))     # A: a key on the keyboard
+    lines = [p.stdout.readline().strip() for _ in range(2)]
+    w.close()
+    p.wait(timeout=5)
+    assert lines == ["used", "osk-press"]
+    assert typed.read_text().split() == ["-k", "Return"]
+
+
+# ---- the pointer: the right stick moves it, the triggers click ----
+
+class FakePointer:
+    def __init__(self):
+        self.moves, self.buttons = [], []
+
+    def move(self, dx, dy):
+        self.moves.append((dx, dy))
+
+    def button(self, code, down):
+        self.buttons.append((code, down))
+
+
+def nav_with_pointer():
+    n, keys, said, clock = nav_with_clock()
+    n.pointer = FakePointer()
+    return n, keys, said, clock
+
+
+def test_the_right_stick_moves_the_pointer_faster_the_further_it_goes():
+    n, keys, _, clock = nav_with_pointer()
+    n.event(3, 0x03, 16384)               # half right
+    assert n.tick() == gamepad.FRAME      # moving: woken every frame
+    for _ in range(60):                   # one second
+        clock.t += gamepad.FRAME
+        n.tick()
+    half = sum(dx for dx, _ in n.pointer.moves)
+    n.pointer.moves.clear()
+    n.event(3, 0x03, 32767)               # all the way
+    for _ in range(60):
+        clock.t += gamepad.FRAME
+        n.tick()
+    full = sum(dx for dx, _ in n.pointer.moves)
+    assert 200 < half < 400 and 1400 < full <= 1500 and all(dy == 0 for _, dy in n.pointer.moves)
+    assert keys == []                     # the pointer is not the arrows
+
+
+def test_the_dead_zone_and_rest_stop_it():
+    n, _, _, clock = nav_with_pointer()
+    n.event(3, 0x04, 3000)                # a worn stick resting slightly off centre
+    assert n.tick() is None and n.pointer.moves == []
+    n.event(3, 0x04, -32768)
+    clock.t += 0.5
+    n.tick()
+    n.event(3, 0x04, 0)
+    n.pointer.moves.clear()
+    clock.t += 0.5
+    assert n.tick() is None and n.pointer.moves == []
+
+
+def test_triggers_click_as_buttons_and_as_axes():
+    n, _, _, _ = nav_with_pointer()
+    n.event(1, 0x139, 1); n.event(1, 0x139, 0)           # RT, digital
+    n.event(1, 0x138, 1); n.event(1, 0x138, 0)           # LT
+    n.event(1, 0x13e, 1); n.event(1, 0x13e, 0)           # right stick click
+    n.event(3, 0x05, 200, (0, 255)); n.event(3, 0x05, 120, (0, 255)); n.event(3, 0x05, 10, (0, 255))
+    L, R = gamepad.BTN_LEFT, gamepad.BTN_RIGHT
+    assert n.pointer.buttons == [(L, True), (L, False), (R, True), (R, False), (L, True), (L, False),
+                                 (L, True), (L, False)]      # an analog trigger: down past half, held until let go
+
+
+def test_a_pad_without_a_right_stick_axis_pair_never_clicks_from_z():
+    n, _, _, _ = nav_with_pointer()
+    n.event(3, 0x05, 255, (0, 255), right_stick=False)   # a DirectInput pad's right stick, not a trigger
+    assert n.pointer.buttons == []
+
+
+def test_no_uinput_no_pointer_and_nothing_breaks():
+    n, keys, said, _ = nav_with_clock()                  # pointer None
+    n.event(3, 0x03, 32767)
+    n.event(1, 0x139, 1)
+    assert n.tick() is None and keys == [] and said == []
+
+
+def test_pointer_device_setup_is_what_the_kernel_expects(tmp_path):
+    calls = []
+    node = tmp_path / "uinput"
+    node.write_bytes(b"")
+    p = gamepad.Pointer(str(node), ioctl=lambda fd, req, arg=0: calls.append((req, arg)))
+    p.move(3, -2)
+    p.close()
+    setup = [a for r, a in calls if r == gamepad.UI_DEV_SETUP][0]
+    assert len(setup) == 92 and setup[8:8 + len(gamepad.POINTER_NAME)] == gamepad.POINTER_NAME
+    assert (gamepad.UI_SET_EVBIT, gamepad.EV_REL) in calls and (gamepad.UI_SET_KEYBIT, gamepad.BTN_LEFT) in calls
+    assert [r for r, _ in calls][-2:] == [gamepad.UI_DEV_CREATE, gamepad.UI_DEV_DESTROY]
+    data = node.read_bytes()
+    events = [EVENT.unpack_from(data, i)[2:] for i in range(0, len(data), EVENT.size)]
+    assert events == [(2, 0, 3), (2, 1, -2), (0, 0, 0)]

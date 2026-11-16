@@ -18,7 +18,7 @@ PanelWindow {
     BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurArea : null
     Region { id: blurArea; item: blurCard; radius: blurCard.radius }
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: (visible) && !Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     MouseArea { anchors.fill: parent; onClicked: Qr.close() }
     Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: Qr.close() }

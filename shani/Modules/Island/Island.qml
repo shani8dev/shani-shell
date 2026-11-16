@@ -103,7 +103,7 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "shani-island"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: asking ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: (asking) && !Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     BackgroundEffect.blurRegion: Settings.blurWanted ? islandRegion : null
     Region { id: islandRegion; item: card; radius: card.radius }
 

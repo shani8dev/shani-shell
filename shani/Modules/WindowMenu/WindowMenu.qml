@@ -21,7 +21,7 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "shani-window-menu"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: (visible) && !Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     BackgroundEffect.blurRegion: visible && Settings.blurWanted ? menuRegion : null
     Region { id: menuRegion; item: card; radius: Theme.radius }
 
@@ -53,6 +53,7 @@ PanelWindow {
           run: () => Chronoa.ask("About the window “" + (target.title || target.app_id) + "” (" + target.app_id + ") on my screen: what can you help me do with it?") }
     ]
     property int sel: 0
+    onSelChanged: Ui.windowMenuSel = sel
     onEntriesChanged: Ui.windowMenuLabels = entries.map(e => e.label)
     // the app's menus: which one is open (-1: none), which submenus are unfolded in it
     property int openMenu: -1

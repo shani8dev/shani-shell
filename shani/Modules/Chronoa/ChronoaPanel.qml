@@ -6,6 +6,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
 import qs.Common
+import qs.Services
 
 PanelWindow {
     id: panel
@@ -228,7 +229,7 @@ PanelWindow {
 
     WlrLayershell.namespace: "shani-chronoa"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: (open) && !Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     BackgroundEffect.blurRegion: blurEnabled ? panelRegion : null
     Region {

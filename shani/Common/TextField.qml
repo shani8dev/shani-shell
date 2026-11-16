@@ -42,6 +42,10 @@ Rectangle {
         Accessible.labelledBy: a11yLabel
         clip: true
         onAccepted: root.accepted()
+        // OK on an EMPTY field: the screen keyboard, typed from a remote (as a
+        // TV does). With text in it, Enter submits as always.
+        Keys.onReturnPressed: e => { e.accepted = input.text === "" && !root.readOnly; if (e.accepted) Ui.typingRequested(); }
+        Keys.onEnterPressed: e => { e.accepted = input.text === "" && !root.readOnly; if (e.accepted) Ui.typingRequested(); }
         // a field is one line: Down / Up go on to the next / previous control, as in a list
         Keys.onDownPressed: { const n = input.nextItemInFocusChain(true); if (n) n.forceActiveFocus(Qt.TabFocusReason); }
         Keys.onUpPressed: { const n = input.nextItemInFocusChain(false); if (n) n.forceActiveFocus(Qt.BacktabFocusReason); }

@@ -93,28 +93,28 @@ PanelWindow {
                 SidebarDetails { objectName: "region:details"; Layout.fillWidth: true; sidebar: win; visible: Ui.expanded !== "" }
 
                 // ---- quick notes ---------------------------------------------------
-                SidebarNotes { Layout.fillWidth: true }
+                SidebarNotes { objectName: "region:notes"; Layout.fillWidth: true }
 
                 // a section with nothing to show takes no room (its own content's
                 // condition, lifted here: QML's visible is the effective one, so a
                 // section cannot ask its hidden children)
                 // ---- screen time -------------------------------------------------
-                SidebarScreenTime { Layout.fillWidth: true; visible: Settings.data.screenTime && ScreenTime.todayTotal >= 60 }
+                SidebarScreenTime { objectName: "region:screentime"; Layout.fillWidth: true; visible: Settings.data.screenTime && ScreenTime.todayTotal >= 60 }
 
                 // ---- shelf: the newest screenshots, recordings, downloads -------
-                SidebarShelf { Layout.fillWidth: true; visible: Shelf.items.length > 0 }
+                SidebarShelf { objectName: "region:shelf"; Layout.fillWidth: true; visible: Shelf.items.length > 0 }
 
                 // ---- drives ------------------------------------------------------
-                SidebarDrives { Layout.fillWidth: true; visible: Drives.drives.length > 0 }
+                SidebarDrives { objectName: "region:drives"; Layout.fillWidth: true; visible: Drives.drives.length > 0 }
 
                 // ---- calendar --------------------------------------------------
-                SidebarCalendar { Layout.fillWidth: true; sidebarClock: clock }
+                SidebarCalendar { objectName: "region:calendar"; Layout.fillWidth: true; sidebarClock: clock }
 
                 // ---- alarms & stopwatch ---------------------------------------
-                SidebarClock { Layout.fillWidth: true }
+                SidebarClock { objectName: "region:clock"; Layout.fillWidth: true }
 
                 // ---- now playing ------------------------------------------------
-                SidebarNowPlaying { Layout.fillWidth: true; sidebar: win; visible: win.player !== null }
+                SidebarNowPlaying { objectName: "region:nowplaying"; Layout.fillWidth: true; sidebar: win; visible: win.player !== null }
 
                 // ---- notifications ------------------------------------------
                 SidebarNotifications { objectName: "region:notifications"; Layout.fillWidth: true }

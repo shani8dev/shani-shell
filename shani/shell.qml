@@ -487,6 +487,21 @@ ShellRoot {
         function oskPress(key: string) { Osk.press(key); }
         function oskTapMod(name: string) { if (name === "ctrl" || name === "alt") Osk.tapMod(name); }
         function oskLanguage() { Osk.nextLanguage(); }
+        function oskPad(action: string) { Osk.pad(action); }
+        // a TV remote's own keys (niri binds XF86HomePage, XF86Back, XF86MenuKB,
+        // XF86Keyboard here): Home - the launcher, the shell's home; Back - one
+        // level back in the shell, or the app's back (Alt+Left) when nothing of
+        // the shell is open; Menu - the focused thing's menu; Keyboard - typing
+        function remoteHome() { if (Lock.locked) return; Osk.cancelRemote(); Ui.closeAll(); Ui.toggleLauncher(""); }
+        function remoteBack() {
+            if (Lock.locked) return;
+            if (Osk.remote) Osk.cancelRemote();
+            else if (Osk.shown) Osk.toggle();
+            else if (GamepadNav.shellHasKeys || Ui.launcher || Niri.overviewOpen) { Ui.closeAll(); if (Niri.overviewOpen) Niri.action("close-overview"); }
+            else Quickshell.execDetached(["wtype", "-M", "alt", "-k", "Left", "-m", "alt"]);
+        }
+        function remoteMenu() { if (!Lock.locked) GamepadNav.act("menu"); }
+        function remoteKeyboard() { Osk.remote ? Osk.cancelRemote() : Osk.openRemote(); }
         function whatsNewCheck() { WhatsNew.check(); }
         function settings() { Ui.openSettings(""); }
         function settingsCategory(cat: string) { Ui.openSettings(cat); }
@@ -855,6 +870,10 @@ ShellRoot {
                 dictated: Dictation.last,
                 oskLang: Osk.lang,
                 oskTyped: Osk.typed,
+                oskCursor: Osk.cursorLabel,
+                oskRemote: Osk.remote, oskDraft: Osk.draft, oskCommitted: Osk.lastCommitted,
+                launcherSelected: Ui.launcherSelected, launcherText: Ui.launcherText, windowMenuSel: Ui.windowMenuSel, launcherSearchBar: Ui.launcherSearchBar,
+                oskLastPad: Osk.lastPad,
                 ringDepth: Ui.ringDepth,
                 topResult: Ui.topResult, liveWallpaperWhy: LiveWallpaper.why, liveWallpaperPlaying: Ui.liveWallpaperPlaying, launcherFiles: Ui.launcherFiles, launcherMeaning: Ui.launcherMeaning,
                 locked: Lock.locked,

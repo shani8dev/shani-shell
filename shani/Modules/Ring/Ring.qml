@@ -23,7 +23,7 @@ PanelWindow {
     BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurArea : null
     Region { id: blurArea; item: disc; radius: disc.radius }
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: Ui.ring ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: (Ui.ring) && !Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     readonly property real radius: 132
     readonly property real dead: 34          // the centre: no slice, closes on click

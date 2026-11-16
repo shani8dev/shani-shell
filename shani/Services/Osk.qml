@@ -126,8 +126,86 @@ Singleton {
     }
 
     function toggle() {
+        // opened with keys (a remote's OK on the Quick Settings tile, the
+        // launcher's action): typed from the remote
+        if (!shown && Ui.keysActivated) {
+            openRemote();
+            return;
+        }
         shown = !shown;
         typed = "";
+        padDriven = false;
+        remote = false;
+    }
+
+    // Remote mode, a TV's full-width keyboard: the keyboard takes the keys
+    // (arrows move, OK types the key, Back cancels), what is typed collects
+    // on its own line, and Done hands it to the app that had the focus. A
+    // remote cannot type into the app while the keyboard listens to it, so
+    // the text goes over in one piece when the keyboard lets go.
+    property bool remote: false
+    property string draft: ""
+    function openRemote() {
+        if (Lock.locked)
+            return;                          // the lock screen has its own keyboard
+        draft = "";
+        typed = "";
+        remote = true;
+        padDriven = true;
+        shown = true;
+    }
+    function cancelRemote() {
+        remote = false;
+        shown = false;
+        draft = "";
+    }
+    property string lastCommitted: ""        // for the tests
+    function commit() {
+        const text = draft;
+        remote = false;
+        shown = false;
+        draft = "";
+        lastCommitted = text;
+        if (text !== "")
+            commitLater.text = text, commitLater.restart();
+    }
+    Timer {
+        // the keyboard lets go of the keys first and the compositor hands them
+        // back to the field (measured: 180 ms was too soon for the launcher)
+        id: commitLater
+        property string text: ""
+        interval: 450
+        onTriggered: Quickshell.execDetached(["wtype", "--", text])
+    }
+    Connections { target: Ui; function onTypingRequested() { root.openRemote(); } }
+
+    // A controller drives the keys (Services/GamepadNav and Services/InputPlumber
+    // send what the pad did while the keyboard is open): the d-pad moves a
+    // highlighted key, A taps it, and the rest are Steam's keyboard's buttons -
+    // X Backspace, Y space, Start Enter, Select Shift, B hides it. The cursor
+    // shows only once a controller is used, so touch looks as it always did.
+    property bool padDriven: false
+    signal padMove(string direction)        // up, down, left, right (Modules/Osk/Keyboard)
+    signal padTap()
+    property string lastPad: ""             // for the tests
+    property string cursorLabel: ""         // the key under the cursor (Modules/Osk/Keyboard)
+    function pad(action) {
+        lastPad = action;
+        padDriven = true;
+        if (action === "up" || action === "down" || action === "left" || action === "right")
+            padMove(action);
+        else if (action === "press")
+            padTap();
+        else if (action === "backspace")
+            press("BackSpace");
+        else if (action === "space")
+            press("space");
+        else if (action === "enter")
+            press("Return");
+        else if (action === "shift")
+            shift = !shift;
+        else if (action === "close")
+            remote ? cancelRemote() : toggle();
     }
     function nextLanguage() {
         langIndex = (langIndex + 1) % languages.length;
@@ -142,6 +220,21 @@ Singleton {
         if ((ctrl || alt) && (named.indexOf(key) >= 0 || /^[a-z0-9]$/i.test(key))) {
             Quickshell.execDetached(["wtype"].concat(modArgs(true), ["-k", key.length === 1 ? key.toLowerCase() : key], modArgs(false)));
             used();
+            return;
+        }
+        if (remote) {                         // the draft, not the app
+            if (key === "BackSpace")
+                draft = draft.slice(0, -1);
+            else if (key === "Return")
+                commit();
+            else if (named.indexOf(key) < 0) {
+                let ch = key === "space" ? " " : key;
+                if (lang === "mr" && matraOf[ch] !== undefined && draft.length > 0 && isConsonant(draft.slice(-1)))
+                    ch = matraOf[ch];
+                draft += ch;
+                shift = false;
+            }
+            typed = draft.slice(-16);
             return;
         }
         if (named.indexOf(key) >= 0) {

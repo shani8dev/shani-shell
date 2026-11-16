@@ -96,7 +96,12 @@ Item {
     Keys.onPressed: e => {
         const k = e.key;
         if (k === Qt.Key_Space && f.peekable) { f.peek(); e.accepted = true; }
-        else if (k === Qt.Key_Return || k === Qt.Key_Enter || k === Qt.Key_Space) { f.activated(); e.accepted = true; }
+        else if (k === Qt.Key_Return || k === Qt.Key_Enter || k === Qt.Key_Space) {
+            Ui.keysActivated = true;            // what this opens is driven by keys too
+            f.activated();
+            Qt.callLater(() => Ui.keysActivated = false);
+            e.accepted = true;
+        }
         else if (k === Qt.Key_Menu || (k === Qt.Key_F10 && (e.modifiers & Qt.ShiftModifier))) { f.menu(); e.accepted = true; }
         else if (f.slider && (k === Qt.Key_Left || k === Qt.Key_Right)) { f.step(k === Qt.Key_Left ? -1 : 1); e.accepted = true; }
         else if (k === Qt.Key_Down) { f.move(f.columns || 1); e.accepted = true; }

@@ -231,6 +231,15 @@ in that nested session - not yet on an installed image - is listed in
 - **The whole desktop by keyboard or game controller** — every button, tile, list
   and menu is reachable, with a clear focus ring. A controller drives the desktop
   (A selects, B goes back, Start opens Quick Settings) and steps aside for games.
+  The right stick moves a pointer and the triggers click, for what arrows cannot
+  reach (a web page, a canvas).
+  With the screen keyboard open it types on it: the d-pad moves a highlighted key,
+  A types it, X deletes, Y is a space, Start is Enter, B hides it.
+  LB / RB jump between sections (Quick Settings' notifications are one press away).
+- **A TV remote drives it, like an Android TV** - arrows, OK and Back for everything;
+  Home opens the launcher, Menu the window menu, Back goes one level back (in an app,
+  its own back). OK on an empty field - or Up to the launcher's search bar - brings a
+  keyboard you type with the arrows and OK; Done hands the text to the field.
 - **Never locked out without a keyboard** — the lock screen, sign-in, setup and
   admin prompts each have an on-screen keyboard, which opens by itself when no
   keyboard is connected. Hide it to see the whole screen; a small button brings it back.

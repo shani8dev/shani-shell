@@ -53,8 +53,13 @@ Singleton {
     onDeviceCountChanged: applyMode()
 
     // the desktop's surfaces closed: the controller goes back to the game
-    readonly property bool shellHasKeys: Ui.controlCenter || Ui.settingsOpen || Ui.dockFocus || Ui.barFocus || Ui.launcher || Ui.windowMenu
+    readonly property bool shellHasKeys: Ui.controlCenter || Ui.settingsOpen || Ui.dockFocus || Ui.barFocus || Ui.launcher || Ui.windowMenu || oskOpen
     onShellHasKeysChanged: giveBack.restart()
+    // the screen keyboard open: every controller is the desktop's while it is, so
+    // the d-pad moves over its keys instead of reaching the game (pass mode sends
+    // only the guide button here); closing it gives them back like any surface
+    readonly property bool oskOpen: Osk.shown && !Lock.locked
+    onOskOpenChanged: if (oskOpen && running && navWanted) { intercept("*", 2); borrowed = "*"; }
     Timer {
         id: giveBack
         interval: 250
@@ -70,6 +75,10 @@ Singleton {
             if (root.shellHasKeys) Ui.closeAll(); else Ui.toggleControlCenter();
             return;
         }
+        // the screen keyboard open: the pad drives its keys (Services/Osk.pad)
+        const osk = { ui_up: "up", ui_down: "down", ui_left: "left", ui_right: "right", ui_accept: "press",
+                      ui_back: "close", ui_action: "backspace", ui_context: "space", ui_option: "enter", ui_select: "shift" }[ev.event];
+        if (osk && Osk.shown && !Lock.locked) { Osk.pad(osk); return; }
         if (keys[ev.event]) { Quickshell.execDetached(["wtype", "-k", keys[ev.event]]); return; }
         if (ev.event === "ui_back") {
             if (root.shellHasKeys) Quickshell.execDetached(["wtype", "-k", "Escape"]);

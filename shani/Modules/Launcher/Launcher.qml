@@ -32,11 +32,15 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "shani-launcher"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: Ui.launcher ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: (Ui.launcher) && !Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     BackgroundEffect.blurRegion: Ui.launcher && Settings.blurWanted ? fullRegion : null
     Region { id: fullRegion; item: backdrop }
 
     property int sel: 0
+    // a remote went Up past the top row: the search bar is selected, and OK
+    // there brings the screen keyboard (typing, or a new query, leaves it)
+    property bool searchBar: false
+    onSearchBarChanged: Ui.launcherSearchBar = searchBar
     // hover only steers the selection once the pointer really moves: on open,
     // a resting cursor would otherwise steal it from the top result, so Enter
     // launched whatever happened to be under the pointer
@@ -381,9 +385,12 @@ PanelWindow {
     }
     readonly property var flat: sections.reduce((acc, s) => acc.concat(s.items), [])
     readonly property var current: flat[Math.max(0, Math.min(sel, flat.length - 1))] || null
+    onCurrentChanged: Ui.launcherSelected = current ? (current.title || "") : ""
     onFlatChanged: { Ui.topResult = flat.length > 0 ? flat[0].title : ""; Ui.launcherFiles = flat.filter(x => x.kind === "file").length; }
     onSectionsChanged: Ui.launcherSections = sections.map(x => x.title)
     onQChanged: {
+        searchBar = false;
+        Ui.launcherText = q;
         if (q.trim().length < 4) meaning = [];
         sel = 0;
         fileDebounce.restart();
@@ -416,6 +423,7 @@ PanelWindow {
     }
 
     onVisibleChanged: {
+        searchBar = false;
         if (visible) {
             appear.restart();
             search.text = Ui.launcherQuery;
@@ -460,6 +468,14 @@ PanelWindow {
             implicitHeight: 58
             strong: true
             radius: 29
+            // the remote's cursor on the search bar
+            Rectangle {
+                anchors.fill: parent
+                radius: parent.radius
+                color: "transparent"
+                border.width: win.searchBar ? 3 : 0
+                border.color: Theme.accent
+            }
             MouseArea { anchors.fill: parent }
             RowLayout {
                 anchors.fill: parent
@@ -478,8 +494,16 @@ PanelWindow {
                     font.pixelSize: 20 * Theme.fontScale
                     clip: true
                     Keys.onEscapePressed: Ui.closeAll()
-                    Keys.onDownPressed: win.sel = Math.min(win.sel + (win.q === "" ? win.gridCols : 1), win.flat.length - 1)
-                    Keys.onUpPressed: win.sel = Math.max(win.sel - (win.q === "" ? win.gridCols : 1), 0)
+                    Keys.onDownPressed: {
+                        if (win.searchBar) { win.searchBar = false; return; }
+                        win.sel = Math.min(win.sel + (win.q === "" ? win.gridCols : 1), win.flat.length - 1);
+                    }
+                    // Up from the top row reaches the search bar (a TV's way to the
+                    // keyboard): OK there brings the screen keyboard for a remote
+                    Keys.onUpPressed: {
+                        if (win.sel < (win.q === "" ? win.gridCols : 1)) win.searchBar = true;
+                        else win.sel = Math.max(win.sel - (win.q === "" ? win.gridCols : 1), 0);
+                    }
                     Keys.onTabPressed: win.sel = (win.sel + 1) % Math.max(1, win.flat.length)
                     Keys.onBacktabPressed: win.sel = (win.sel - 1 + win.flat.length) % Math.max(1, win.flat.length)
                     Keys.onPressed: e => {
@@ -517,7 +541,8 @@ PanelWindow {
                             e.accepted = true;
                         }
                     }
-                    Keys.onReturnPressed: e => (e.modifiers & Qt.ControlModifier) ? win.askChronoa() : win.activate(win.sel, e.modifiers & Qt.ShiftModifier)
+                    Keys.onReturnPressed: e => win.searchBar ? (win.searchBar = false, Osk.openRemote())
+                        : (e.modifiers & Qt.ControlModifier) ? win.askChronoa() : win.activate(win.sel, e.modifiers & Qt.ShiftModifier)
                     Keys.onEnterPressed: e => (e.modifiers & Qt.ControlModifier) ? win.askChronoa() : win.activate(win.sel, e.modifiers & Qt.ShiftModifier)
                     Text {
                         anchors.verticalCenter: parent.verticalCenter

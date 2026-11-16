@@ -180,6 +180,13 @@ binds {
 
     // through the shell: its step and limit (Settings > Sound), and its OSD
     XF86AudioRaiseVolume allow-when-locked=true { spawn "qs" "-c" "shani" "ipc" "call" "shani" "volumeUp"; }
+    // a TV remote's own keys (Bluetooth/USB remotes, air mice): Home - the
+    // launcher; Back - one level back in the shell, else the app's back;
+    // Menu - the focused thing's menu; Keyboard - type from the remote
+    XF86HomePage { spawn "qs" "-p" "/work/shani" "ipc" "call" "shani" "remoteHome"; }
+    XF86Back     { spawn "qs" "-p" "/work/shani" "ipc" "call" "shani" "remoteBack"; }
+    XF86MenuKB   { spawn "qs" "-p" "/work/shani" "ipc" "call" "shani" "remoteMenu"; }
+    XF86Keyboard { spawn "qs" "-p" "/work/shani" "ipc" "call" "shani" "remoteKeyboard"; }
     XF86AudioLowerVolume allow-when-locked=true { spawn "qs" "-c" "shani" "ipc" "call" "shani" "volumeDown"; }
     XF86AudioMute        allow-when-locked=true { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SINK@" "toggle"; }
     XF86AudioMicMute     allow-when-locked=true { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SOURCE@" "toggle"; }

@@ -23,7 +23,7 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "shani-overview-search"
     WlrLayershell.layer: WlrLayer.Top
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: (visible) && !Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     BackgroundEffect.blurRegion: Settings.blurWanted ? pillRegion : null
     Region { id: pillRegion; item: pill; radius: pill.radius }
 

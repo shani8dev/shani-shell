@@ -13,12 +13,14 @@ PanelWindow {
     visible: Osk.shown && !Lock.locked
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     anchors { bottom: true; left: true; right: true }
-    implicitHeight: 300
-    exclusiveZone: 300
     color: "transparent"
     WlrLayershell.namespace: "shani-osk"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    // remote mode takes the keys (arrows, OK, Back); otherwise never, so the
+    // app's field keeps the focus and the keys type into it
+    WlrLayershell.keyboardFocus: Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    implicitHeight: Osk.remote ? 360 : 300
+    exclusiveZone: Osk.remote ? 360 : 300
     BackgroundEffect.blurRegion: Settings.blurWanted ? kbRegion : null
     Region { id: kbRegion; item: board; radius: Theme.radiusLarge }
 
@@ -93,7 +95,98 @@ PanelWindow {
             Osk.press(k);
     }
 
+    // ---- a controller on the keys (Services/Osk.pad): a highlighted key moved by
+    // where the keys are on screen, so every layout - hand-made, xkb, the
+    // handwriting page's side keys, the wide bottom row - works the same
+    property Item cursor: null
+    property point cursorAt: Qt.point(0, 0)  // where it was: a new page keeps it near
+    onCursorChanged: Osk.cursorLabel = cursor ? cursor.label : ""
+    function keyItems(item, out) {
+        for (const c of item.children) {
+            if (c.isOskKey === true) {
+                if (c.visible && c.width > 0)
+                    out.push(c);
+            } else if (c.visible !== false)
+                keyItems(c, out);
+        }
+        return out;
+    }
+    function centre(k) { return k.mapToItem(board, k.width / 2, k.height / 2); }
+    function nearest(keys, p) {
+        let best = null, bd = Infinity;
+        for (const k of keys) {
+            const c = centre(k), d = Math.hypot(c.x - p.x, (c.y - p.y) * 2);
+            if (d < bd) { bd = d; best = k; }
+        }
+        return best;
+    }
+    function setCursor(k) {
+        cursor = k;
+        if (k) cursorAt = centre(k);
+    }
+    function padMove(dir) {
+        const keys = keyItems(board, []);
+        if (!keys.length)
+            return;
+        if (!cursor || keys.indexOf(cursor) < 0) {      // first use, or the page changed under it
+            setCursor(nearest(keys, cursorAt.x || cursorAt.y ? cursorAt : centre(keys[0])));
+            return;
+        }
+        const here = centre(cursor);
+        const rowOf = k => keys.filter(o => Math.abs(centre(o).y - centre(k).y) < k.height / 2);
+        if (dir === "left" || dir === "right") {
+            const row = rowOf(cursor).sort((a, b) => centre(a).x - centre(b).x);
+            const i = row.indexOf(cursor) + (dir === "right" ? 1 : -1);
+            setCursor(row[(i + row.length) % row.length]);
+            return;
+        }
+        // up / down: the key nearest across in the row above or below (wrapping)
+        const ys = [];
+        for (const k of keys) {
+            const y = centre(k).y;
+            if (!ys.some(v => Math.abs(v - y) < k.height / 2))
+                ys.push(y);
+        }
+        ys.sort((a, b) => a - b);
+        const at = ys.findIndex(v => Math.abs(v - here.y) < cursor.height / 2);
+        const to = ys[(at + (dir === "down" ? 1 : -1) + ys.length) % ys.length];
+        const row = keys.filter(k => Math.abs(centre(k).y - to) < k.height / 2);
+        setCursor(nearest(row, Qt.point(here.x, to)));
+    }
+    Connections {
+        target: Osk
+        function onPadMove(direction) { win.padMove(direction); }
+        function onPadTap() {
+            if (!win.cursor)
+                win.padMove("none");
+            else
+                win.cursor.tapped();
+        }
+        function onShownChanged() { win.cursor = null; win.cursorAt = Qt.point(0, 0); }
+    }
+
     onVisibleChanged: if (visible) boardIn.restart()
+    // the remote's keys, in remote mode: the same moves as a controller's
+    Item {
+        id: remoteKeys
+        focus: Osk.remote
+        Keys.onPressed: e => {
+            const move = { [Qt.Key_Up]: "up", [Qt.Key_Down]: "down", [Qt.Key_Left]: "left", [Qt.Key_Right]: "right" }[e.key];
+            if (move) Osk.pad(move);
+            else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter || e.key === Qt.Key_Select) Osk.pad("press");
+            else if (e.key === Qt.Key_Escape || e.key === Qt.Key_Back) Osk.cancelRemote();
+            else if (e.key === Qt.Key_Backspace) Osk.press("BackSpace");
+            else if (e.text !== "" && e.text.trim() !== "" && !(e.modifiers & (Qt.ControlModifier | Qt.AltModifier))) Osk.press(e.text);
+            else return;
+            e.accepted = true;
+        }
+    }
+    Connections {
+        target: Osk
+        function onRemoteChanged() { if (Osk.remote) focusLater.restart(); }
+    }
+    // after the window is up and niri has given it the keys
+    Timer { id: focusLater; interval: 120; onTriggered: if (Osk.remote) remoteKeys.forceActiveFocus() }
     NumberAnimation { id: boardIn; target: boardRise; property: "y"; from: 60; to: 0; duration: Theme.anim * 1.5; easing.type: Easing.OutCubic }
 
     Glass {
@@ -144,6 +237,25 @@ PanelWindow {
             anchors.fill: parent
             anchors.margins: 10
             spacing: 6
+
+            // remote mode: what is being typed, before it goes to the app
+            Rectangle {
+                visible: Osk.remote
+                Layout.fillWidth: true
+                Layout.preferredHeight: 48
+                radius: 10
+                color: Theme.alpha(Theme.text, 0.06)
+                border.color: Theme.accent
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.left: parent.left
+                    anchors.leftMargin: 14
+                    text: Osk.draft === "" ? Tr.t("Type with the arrows and OK · Done sends it · Back cancels") : Osk.draft + "▏"
+                    color: Osk.draft === "" ? Theme.dim : Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: (Osk.draft === "" ? 14 : 20) * Theme.fontScale
+                }
+            }
 
             // the handwriting pad, in place of the letters; editing keys beside it
             RowLayout {
@@ -231,15 +343,16 @@ PanelWindow {
                     onTapped: Dictation.toggle()
                 }
                 Key { Layout.fillWidth: true; Layout.fillHeight: true; label: win.layoutName; dim: true; onTapped: Osk.press("space") }
-                Key { Layout.preferredWidth: 130; Layout.fillHeight: true; label: "⏎"; accent: true; onTapped: Osk.press("Return") }
+                Key { Layout.preferredWidth: 130; Layout.fillHeight: true; label: Osk.remote ? Tr.t("Done") : "⏎"; accent: true; onTapped: Osk.remote ? Osk.commit() : Osk.press("Return") }
                 // hide it to see the whole screen; the floating button (OskButton) or the bar brings it back
-                Key { Layout.preferredWidth: 90; Layout.fillHeight: true; label: "⌄"; Accessible.name: Tr.t("Hide keyboard"); onTapped: Osk.toggle() }
+                Key { Layout.preferredWidth: 90; Layout.fillHeight: true; label: "⌄"; Accessible.name: Tr.t("Hide keyboard"); onTapped: Osk.remote ? Osk.cancelRemote() : Osk.toggle() }
             }
         }
     }
 
     component Key: Rectangle {
         id: key
+        readonly property bool isOskKey: true
         property string label
         property bool accent: false
         property bool danger: false
@@ -254,6 +367,12 @@ PanelWindow {
         Accessible.onPressAction: key.tapped()
         radius: 10
         color: key.danger ? Theme.red : key.accent ? Theme.accent : (area.pressed ? Theme.pressed : Theme.hover)
+        // the controller's cursor
+        border.width: Osk.padDriven && win.cursor === key ? 3 : 0
+        border.color: Theme.accent
+        scale: Osk.padDriven && win.cursor === key ? 1.06 : 1
+        z: Osk.padDriven && win.cursor === key ? 1 : 0
+        Behavior on scale { NumberAnimation { duration: Theme.anim / 2 } }
         Icon {
             visible: key.icon !== ""
             anchors.centerIn: parent

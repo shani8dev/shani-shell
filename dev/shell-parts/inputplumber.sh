@@ -35,6 +35,20 @@ ipc closeAll
 waitfor "not d['ipBorrowed'] and d['ipDevices'][0].endswith(' 1')" 4 \
     && result inputplumber-closing-gives-it-back PASS || result inputplumber-closing-gives-it-back FAIL "$(q "['ipDevices']"), borrowed $(q "['ipBorrowed']")"
 
+# the screen keyboard open: the controller is the desktop's, and drives the keys
+ipc osk; waitfor "d['osk']" 3
+waitfor "d['ipBorrowed'] and d['ipDevices'][0].endswith(' 2')" 4 \
+    && result inputplumber-osk-borrows-the-pad PASS || result inputplumber-osk-borrows-the-pad FAIL "$(q "['ipDevices']"), borrowed $(q "['ipBorrowed']")"
+before=$(grep -c "^to-game=" $L)
+press ui_down; press ui_right
+c=$(q "['oskCursor']")
+press ui_accept
+waitfor "d['oskTyped'] == '$c'" 3 && [ -n "$c" ] && [ "$(grep -c "^to-game=" $L)" = "$before" ] \
+    && result inputplumber-osk-dpad-and-a-type PASS "$c" || result inputplumber-osk-dpad-and-a-type FAIL "cursor '$c', typed $(q "['oskTyped']"), last $(q "['oskLastPad']")"
+press ui_back
+waitfor "not d['osk'] and not d['ipBorrowed']" 4 \
+    && result inputplumber-osk-b-hides-and-gives-back PASS || result inputplumber-osk-b-hides-and-gives-back FAIL "osk $(q "['osk']"), borrowed $(q "['ipBorrowed']")"
+
 # Settings: what it plays as, and every controller
 ipc settingsAt input in-games; sleep 1.5
 ipc inputPlumberPlaysAs "/org/shadowblip/InputPlumber/CompositeDevice0" ds5

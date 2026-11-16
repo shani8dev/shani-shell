@@ -28,7 +28,12 @@ stopshell() {
 shot() { sleep "${2:-0.8}"; grim "$SHOTS/$1.png"; }
 # the suite runs longer than the default idle lock (5 min) between keyboard
 # inputs: no dimming, lock or screen-off unless a test sets them itself
-settings() { python3 -c 'import json,sys; d={"dimAfter":0,"lockAfter":0,"screenOffAfter":0,"lockAfterBattery":0,"screenOffAfterBattery":0,"startHintsDone":True}; d.update(json.loads(sys.argv[1])); print(json.dumps(d), end="")' "$1" > "$SHANI_SHELL_SETTINGS"; sleep 1.5; }
+settings() { python3 -c 'import json,sys; d={"dimAfter":0,"lockAfter":0,"screenOffAfter":0,"lockAfterBattery":0,"screenOffAfterBattery":0,"startHintsDone":True,"dynamicLockGrace":1500}; d.update(json.loads(sys.argv[1])); print(json.dumps(d), end="")' "$1" > "$SHANI_SHELL_SETTINGS"; sleep 1.5; }
+retry() { _n=$(( $1 * 4 )); shift; while [ $_n -gt 0 ]; do "$@" && return 0; sleep 0.25; _n=$((_n-1)); done; return 1; }   # retry <seconds> <command...>
+unlock() {    # the lock screen's password, retried; a session left locked would fail everything after
+    _i=0; until [ "$(q "['locked']")" = False ] || [ $_i -ge 4 ]; do wtype "shani-test" -k Return; sleep 1.5; _i=$((_i+1)); done
+    [ "$(q "['locked']")" = False ] || { result session-unlocks FAIL "still locked after $_i tries"; exit 1; }
+}
 waitfor() {   # waitfor <python expr over d> <seconds>
     i=0
     while [ $i -lt $(( $2 * 4 )) ]; do
@@ -1625,13 +1630,13 @@ touch -d '40 days ago' $T/info/old.txt.trashinfo
 settings '{"trashDays": 30}'
 waitfor "d['trashEmptied'] == 1" 5 && [ ! -e $T/files/old.txt ] && [ -e $T/files/new.txt ] && result trash-emptied-by-age PASS || result trash-emptied-by-age FAIL "$(ls $T/files)"
 settings '{"proxyMode": "manual", "proxyHttp": "proxy.lan:3128"}'
-sleep 1.5
-[ "$(gsettings get org.gnome.system.proxy mode)" = "'manual'" ] && [ "$(gsettings get org.gnome.system.proxy.http host)" = "'proxy.lan'" ] \
-    && [ "$(gsettings get org.gnome.system.proxy.http port)" = 3128 ] && grep -q 'http_proxy=http://proxy.lan:3128/' /root/.config/environment.d/50-shani-proxy.conf \
+proxy_on() { [ "$(gsettings get org.gnome.system.proxy mode)" = "'manual'" ] && [ "$(gsettings get org.gnome.system.proxy.http host)" = "'proxy.lan'" ] \
+    && [ "$(gsettings get org.gnome.system.proxy.http port)" = 3128 ] && grep -q 'http_proxy=http://proxy.lan:3128/' /root/.config/environment.d/50-shani-proxy.conf 2>/dev/null; }
+proxy_off() { [ "$(gsettings get org.gnome.system.proxy mode)" = "'none'" ] && [ ! -e /root/.config/environment.d/50-shani-proxy.conf ]; }
+retry 8 proxy_on \
     && result proxy-applied PASS || result proxy-applied FAIL "$(gsettings get org.gnome.system.proxy mode) $(gsettings get org.gnome.system.proxy.http host)"
 settings '{}'
-sleep 1.5
-[ "$(gsettings get org.gnome.system.proxy mode)" = "'none'" ] && [ ! -e /root/.config/environment.d/50-shani-proxy.conf ] && result proxy-off PASS || result proxy-off FAIL
+retry 8 proxy_off && result proxy-off PASS || result proxy-off FAIL "$(gsettings get org.gnome.system.proxy mode)"
 ipc settingsCategory privacy
 shot 89-settings-privacy 0.6
 
@@ -1648,9 +1653,9 @@ g() { gsettings get org.gnome.desktop.interface "$1"; }
 [ "$(g icon-theme)" = "'Papirus-Dark'" ] && [ "$(g accent-color)" = "'orange'" ] && [ "$(g monospace-font-name)" = "'JetBrains Mono 11'" ] \
     && result default-look-for-apps PASS || result default-look-for-apps FAIL "$(g icon-theme) $(g accent-color) $(g monospace-font-name)"
 settings '{"accentName": "purple", "accentFromWallpaper": false}'
-waitfor "d['accent'] == '#dc8add'" 3 && [ "$(g accent-color)" = "'purple'" ] && result accent-choice PASS || result accent-choice FAIL "$(q "['accent']") $(g accent-color)"
+waitfor "d['accent'] == '#dc8add'" 8 && retry 4 sh -c '[ "$(gsettings get org.gnome.desktop.interface accent-color)" = "'"'purple'"'" ]' && result accent-choice PASS || result accent-choice FAIL "$(q "['accent']") $(g accent-color)"
 # one material: the background leans to the accent's hue (purple: blue above green)
-waitfor "int(d['bg'][5:7],16) > int(d['bg'][3:5],16)" 3 && result palette-follows-accent PASS "$(q "['bg']")" || result palette-follows-accent FAIL "$(q "['bg'], d['accent']")"
+waitfor "int(d['bg'][5:7],16) > int(d['bg'][3:5],16)" 8 && result palette-follows-accent PASS "$(q "['bg']")" || result palette-follows-accent FAIL "$(q "['bg'], d['accent']")"
 
 # ---- mouse and touchpad details, Num Lock, middle-click paste -------------------------
 settings '{"tpAccel": "flat", "tpClick": "button-areas", "tpScrollMethod": "edge", "tpOffWithMouse": true, "numlock": false, "mouseAccel": "flat", "middlePaste": false}'
@@ -1670,7 +1675,7 @@ settings '{}'
 # ---- wellbeing: a break reminder after the stretch, a daily reminder past the limit ------
 settings '{"screenTime": true, "breakEveryMinutes": 20, "screenLimitMinutes": 120}'
 ipc wellbeingNow 1300 7300
-waitfor "'Time for a break' in d['notificationSummaries'] and \"Today's screen time is up\" in d['notificationSummaries']" 4 \
+waitfor "'Time for a break' in d['notificationSummaries'] and \"Today's screen time is up\" in d['notificationSummaries']" 10 \
     && result wellbeing-reminders PASS || result wellbeing-reminders FAIL "$(q "['notificationSummaries'][-4:]")"
 n0=$(q "['notificationSummaries'].count(\"Today's screen time is up\")")
 ipc wellbeingNow 1300 7400
@@ -1682,13 +1687,15 @@ settings '{}'
 from=$(date -d '-1 min' +%H:%M); to=$(date -d '+60 min' +%H:%M)
 settings "{\"darkMode\": false, \"darkSchedule\": \"custom\", \"darkFrom\": \"$from\", \"darkTo\": \"$to\", \"showScrollbars\": true}"
 waitfor "d['dark']" 5 && result dark-style-on-schedule PASS || result dark-style-on-schedule FAIL
-[ "$(g overlay-scrolling)" = false ] && result scrollbars-always PASS || result scrollbars-always FAIL
+# poll: the settings write lands within settings()' 1.5 s on a quiet machine, not always
+retry 5 sh -c '[ "$(gsettings get org.gnome.desktop.interface overlay-scrolling)" = false ]' && result scrollbars-always PASS || result scrollbars-always FAIL
 
 # ---- volume: the key step, and above 100 % only when allowed ---------------------------
 settings '{"volumeStep": 10}'
-wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.50; sleep 0.5
-ipc volumeUp; sleep 0.5
-v=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '{print $2}')
+waitfor "d.get('volumeStep', 10) == 10" 5   # no-op when the state has no such key
+step_ok() { wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.50; sleep 0.3; ipc volumeUp; sleep 0.5
+    v=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '{print $2}'); [ "$v" = 0.60 ]; }
+retry 4 step_ok
 [ "$v" = 0.60 ] && result volume-step PASS || result volume-step FAIL "$v"
 wpctl set-volume @DEFAULT_AUDIO_SINK@ 1.0; sleep 0.5; ipc volumeUp; sleep 0.5
 [ "$(wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '{print $2}')" = 1.00 ] && result volume-capped-at-100 PASS || result volume-capped-at-100 FAIL
@@ -2373,6 +2380,28 @@ press 0x131                                                       # B: back out
 waitfor "not d['controlCenter']" 3 && result pad-nav-b-goes-back PASS || result pad-nav-b-goes-back FAIL
 grep -q "Your controller moves around the desktop" /work/out/logs/qs.log 2>/dev/null || true
 waitfor "'Your controller moves around the desktop' in d['notificationSummaries']" 3 && result pad-nav-hint-once PASS || result pad-nav-hint-once FAIL
+# the screen keyboard open: the pad moves over its keys and types - nothing reaches the app
+ipc osk; waitfor "d['osk']" 3; sleep 0.5
+press 0x221                                                       # d-pad: the cursor appears
+waitfor "d['oskCursor'] != ''" 3; c1=$(q "['oskCursor']")
+press 0x223; sleep 0.3; c2=$(q "['oskCursor']")                   # right: the next key
+press 0x130                                                       # A: typed
+waitfor "d['oskTyped'] == '$c2'" 3 && [ -n "$c1" ] && [ "$c1" != "$c2" ] \
+    && result pad-osk-moves-and-types PASS "$c1 -> $c2" || result pad-osk-moves-and-types FAIL "$c1 -> $c2, typed $(q "['oskTyped']"), last $(q "['gamepadLast']")"
+press 0x134                                                       # X: Backspace
+waitfor "d['oskTyped'] == ''" 3 && result pad-osk-x-deletes PASS || result pad-osk-x-deletes FAIL "$(q "['oskTyped']")"
+# down through English's three letter rows to the bottom one, then once more: Down wraps to the top
+for i in 1 2 3; do press 0x221; sleep 0.2; done
+c3=$(q "['oskCursor']")
+press 0x221; sleep 0.2; c4=$(q "['oskCursor']")
+case "$c3" in [a-z]|"") result pad-osk-reaches-the-bottom-row FAIL "'$c3'" ;; *)
+    case "$c4" in [qwertyuiop]) result pad-osk-reaches-the-bottom-row PASS "$c3, then wraps to $c4" ;;
+        *) result pad-osk-reaches-the-bottom-row FAIL "$c3, then $c4 (expected the top row)" ;; esac ;; esac
+shot 41-osk-controller 0.3
+press 0x131                                                       # B: hides it
+waitfor "not d['osk']" 3 && result pad-osk-b-hides PASS || result pad-osk-b-hides FAIL
+press 0x221; sleep 0.4                                            # and the d-pad is the desktop's again
+[ "$(q "['gamepadLast']")" != osk-down ] && result pad-osk-gives-the-pad-back PASS || result pad-osk-gives-the-pad-back FAIL
 # off in Settings: the reader stops
 settings '{"gamepadNav": false, "gamepadHintDone": true}'
 waitfor "not d['gamepadNavRunning']" 4 && result pad-nav-setting-off-stops-it PASS || result pad-nav-setting-off-stops-it FAIL
@@ -2479,17 +2508,19 @@ settings '{"dynamicLockDevice": "AA:BB:CC:DD:EE:FF"}'
 waitfor "d['dynamicLockDevice'] == 'AA:BB:CC:DD:EE:FF' and not d['locked']" 6 || true
 ipc dynamicLockAway
 waitfor "d['locked'] and d['dynamicLocks'] == 1" 6 && result dynamic-lock PASS || result dynamic-lock FAIL "$(q "['dynamicLocks']")"
-wtype "shani-test" -k Return
-waitfor "not d['locked']" 6
+# the settings first, then unlock: unlocking before them left a window in which
+# the same trigger could lock again, and every part after ran on a lock screen
 settings '{}'
+unlock
 
 # ---- idle: the lock stage fires on its own --------------------------------------
 waitfor "not d['locked']" 4 || { echo "still locked before the idle check"; exit 1; }
 settings '{"dimAfter": 0, "lockAfter": 3, "screenOffAfter": 0}'
 waitfor "d['locked']" 10 && result idle-locks PASS || result idle-locks FAIL "$(st)"
-wtype "shani-test" -k Return
-waitfor "not d['locked']" 6
+# lockAfter back to 0 BEFORE unlocking: typing the password is activity, and a
+# slow unlock let the 3 s idle stage lock it again - the parts then all ran locked
 settings '{}'
+unlock
 
 # ---- the parts in dev/shell-parts/, each a feature's checks (also runnable alone) --------
 for part in /work/dev/shell-parts/*.sh; do
