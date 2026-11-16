@@ -99,3 +99,20 @@ def test_a_boards_bar_is_at_the_bottom_and_the_owners_choice_wins():
     assert call("barEdge", "board", "top") == "top"
     assert call("barEdge", "computer", "bottom") == "bottom"
     assert call("barEdge", "board", "nonsense") == "bottom"
+
+
+def named(name, label, physical, **inp):
+    return call("detect", {"name": name, "physical": physical, "label": label}, inp, "")
+
+
+def test_a_tv_that_says_so_in_its_name():
+    assert named("HDMI-A-1", "LG Electronics LG TV SSCR2", [0, 0]) == "tv"
+    assert named("HDMI-A-1", "Samsung Electric Company SAMSUNG", [0, 0]) == "computer"   # a monitor's name: no
+    assert named("HDMI-A-1", "Samsung Electric Company SAMSUNG TV", [700, 390]) == "tv"   # "TV" wins over a 32" size
+    assert named("DP-1", "Dell Inc. DELL U2723QE", [600, 340]) == "computer"
+    assert named("DP-1", "TVLogic LVM-170A", [370, 230]) == "computer"                    # TV inside a word: no
+
+
+def test_a_size_that_is_only_a_shape_is_no_size():
+    assert named("HDMI-A-1", "Some Brand", [160, 90]) == "computer"       # 16:9 in cm, not a 7" screen
+    assert named("HDMI-A-1", "Some Brand TV", [160, 90]) == "tv"

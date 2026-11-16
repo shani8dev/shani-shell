@@ -511,6 +511,7 @@ ShellRoot {
             else Ui.toggleLauncher("");
         }
         function tvHome(show: bool) { Ui.tvHome = show; }
+        function cameraSources(video: string, audio: string) { Camera.videoSource = video; Camera.audioSource = audio; }
         function edgeSwipe(action: string) { EdgeSwipe.run(action); }
         function whiteboard(show: bool) { if (show) Ui.closeAll(); Ui.whiteboard = show; }
         function whiteboardLine(x1: int, y1: int, x2: int, y2: int) { if (whiteboardLoader.item) whiteboardLoader.item.addStroke([{ x: x1, y: y1 }, { x: (x1 + x2) / 2, y: (y1 + y2) / 2 + 20 }, { x: x2, y: y2 }]); }
@@ -909,7 +910,7 @@ ShellRoot {
                 ringDepth: Ui.ringDepth,
                 topResult: Ui.topResult, liveWallpaperWhy: LiveWallpaper.why, liveWallpaperPlaying: Ui.liveWallpaperPlaying, launcherFiles: Ui.launcherFiles, launcherMeaning: Ui.launcherMeaning,
                 locked: Lock.locked,
-                lockSecure: Lock.secure,
+                lockSecure: Lock.secure, lockBusy: Ui.lockBusy,
                 dnd: Notifs.dnd,
                 notifications: Notifs.count,
                 notificationSummaries: Notifs.list.map(n => n.summary),

@@ -129,6 +129,10 @@ PY
     }
 
     // ---- video ---------------------------------------------------------------
+    // where video and sound come from: the camera's PipeWire node and the default
+    // microphone; the tests point them at GStreamer's test pattern and tone
+    property string videoSource: "pipewiresrc"
+    property string audioSource: "pulsesrc"
     function video() {
         if (phase === "recording") {
             rec.signal(2);                // SIGINT: gst-launch -e finishes the file
@@ -137,7 +141,7 @@ PY
         if (phase !== "idle" || !available || !Privacy.cameraEnabled)
             return;
         last = videosDir + "/Video " + stamp() + ".webm";
-        rec.command = ["sh", "-c", 'mkdir -p "${1%/*}" && exec gst-launch-1.0 -e pipewiresrc ! videoconvert ! queue ! vp8enc deadline=1 cpu-used=8 ! webmmux name=mux ! filesink location="$1" pulsesrc ! audioconvert ! opusenc ! queue ! mux.', "sh", last];
+        rec.command = ["sh", "-c", 'mkdir -p "${1%/*}" && exec gst-launch-1.0 -e $2 ! videoconvert ! queue ! vp8enc deadline=1 cpu-used=8 ! webmmux name=mux ! filesink location="$1" $3 ! audioconvert ! opusenc ! queue ! mux.', "sh", last, videoSource, audioSource];
         seconds = 0;
         phase = "recording";
         rec.running = true;

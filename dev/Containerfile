@@ -77,3 +77,6 @@ RUN pacman -Syu --noconfirm --needed gtk4 libadwaita gtk4-layer-shell python-gob
         python-symengine libnotify upower bubblewrap espeak-ng psmisc && pacman -Scc --noconfirm
 # Document Viewer: e-books, comics and XPS made PDFs and PDF forms (PyMuPDF), DjVu (ddjvu)
 RUN pacman -Syu --noconfirm --needed djvulibre python-pymupdf && pacman -Scc --noconfirm
+# the camera's video path (Services/Camera: gst-launch, VP8 + Opus in WebM), recorded
+# from GStreamer's test pattern and tone in the suite (no camera here)
+RUN pacman -Syu --noconfirm --needed gst-plugins-base gst-plugins-good && pacman -Scc --noconfirm

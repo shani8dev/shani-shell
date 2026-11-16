@@ -23,8 +23,14 @@ var PROFILES = ["computer", "laptop", "tablet", "handheld", "phone", "tv", "boar
 // viewing distance and fingers.
 var SCALE = { computer: 1.0, laptop: 1.0, tablet: 1.2, handheld: 1.25, phone: 1.15, tv: 1.6, board: 1.4 };
 
+// sizes some TVs put in their EDID that are only their shape (16:9, 16:10, 4:3
+// in cm), not how big they are: read as "does not say"
+var SHAPE_ONLY = ["160x90", "160x100", "40x30", "1600x900", "1600x1000"];
+
 function diagonalInches(physical) {
     if (!physical || physical.length < 2 || !(physical[0] > 0) || !(physical[1] > 0))
+        return 0;
+    if (SHAPE_ONLY.indexOf(physical[0] + "x" + physical[1]) >= 0)
         return 0;
     return Math.sqrt(physical[0] * physical[0] + physical[1] * physical[1]) / 25.4;
 }
@@ -47,6 +53,10 @@ function detect(screen, input, chosen) {
             return "board";
         if (d >= 37)
             return "tv";
+        // a TV that says so in its name (its EDID's model: "LG TV SSCR2",
+        // "SAMSUNG TV", "SONY TV  *00"), whatever size it gives
+        if (/(^|[^A-Za-z])TV([^A-Za-z]|$)/.test((screen && screen.label) || ""))
+            return input.touch && d >= 50 ? "board" : "tv";
         return "computer";
     }
     if (d > 0 && d <= 9.5 && input.builtinPad)

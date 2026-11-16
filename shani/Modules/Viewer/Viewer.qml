@@ -168,6 +168,18 @@ AppWindow {
                     }
                 }
 
+                // two fingers: zoom about the point between them, as the wheel does about the pointer
+                PinchHandler {
+                    target: null
+                    enabled: !Viewer.gridMode
+                    property real last: 1
+                    onActiveChanged: last = 1
+                    onActiveScaleChanged: {
+                        const f = activeScale / last;
+                        last = activeScale;
+                        Viewer.zoomToCursor(centroid.position.x, centroid.position.y, f, parent.width, parent.height);
+                    }
+                }
                 MouseArea {
                     visible: !Viewer.gridMode
                     anchors.fill: parent

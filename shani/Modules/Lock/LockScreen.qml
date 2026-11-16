@@ -21,6 +21,7 @@ Scope {
     property string message: ""
     property bool error: false
     property bool busy: false
+    onBusyChanged: Ui.lockBusy = busy        // the tests: a password being checked
     property string pending: ""
     property string queued: ""      // typed while PAM was still answering the last try
     // the camera from the lock screen (Android's, iOS's): a photo can be taken

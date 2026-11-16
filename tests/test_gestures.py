@@ -57,3 +57,20 @@ def test_a_long_press_is_a_click_that_is_swallowed():
 def test_a_plain_click_is_left_alone():
     assert holds("press(s)", "swallowed(s)") == [False, False]
     assert holds("swallowed(s)") == [False, False]
+
+
+def pinch(scale, base):
+    prog = JS.read_text().replace(".pragma library", "") + "\nprocess.stdout.write(JSON.stringify(pinchSteps(%s, %s)));" % (scale, base)
+    return json.loads(subprocess.run([node, "-e", prog], capture_output=True, text=True, check=True).stdout)
+
+
+def test_a_pinch_zooms_the_map_a_level_per_doubling():
+    assert pinch(1.5, 1) == {"steps": 0, "base": 1}           # not yet
+    assert pinch(2.0, 1) == {"steps": 1, "base": 2}           # twice as far apart: one level in
+    assert pinch(3.9, 2) == {"steps": 0, "base": 2}           # the next level needs 4
+    assert pinch(0.5, 1) == {"steps": -1, "base": 0.5}        # half: one level out
+
+
+def test_a_broken_pinch_does_nothing():
+    assert pinch(0, 1)["steps"] == 0
+    assert pinch(2, 0)["steps"] == 0

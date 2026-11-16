@@ -48,3 +48,18 @@ function swallowed(s) {
     s.long = false;
     return true;
 }
+
+// A pinch on something that zooms in whole steps (the map's levels): one step
+// each time the fingers double (or halve) the distance since the last step.
+// scale: the pinch so far (1 at the start); base: the scale at the last step.
+// Returns { steps: +1 / -1 / 0, base: the new base }.
+function pinchSteps(scale, base) {
+    if (!(scale > 0) || !(base > 0))
+        return { steps: 0, base: base > 0 ? base : 1 };
+    var r = Math.log(scale / base) / Math.LN2;
+    if (r >= 1)
+        return { steps: 1, base: base * 2 };
+    if (r <= -1)
+        return { steps: -1, base: base / 2 };
+    return { steps: 0, base: base };
+}

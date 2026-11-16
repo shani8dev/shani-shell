@@ -1565,6 +1565,19 @@ waitfor "'Photo taken' in d['notificationSummaries']" 4 && result photo-notifies
 ipc video
 waitfor "d['cameraPhase'] == 'idle' and 'Video stopped' in d['notificationSummaries']" 12 \
     && result video-without-camera-node-reported PASS || result video-without-camera-node-reported FAIL "$(q "['cameraPhase']")"
+# a video recorded: from the test pattern and tone, two seconds, stopped as the button
+# stops it (SIGINT, so the file is finished), a real WebM, "Video saved"
+if command -v gst-launch-1.0 >/dev/null; then
+    ipc cameraSources "videotestsrc is-live=true" "audiotestsrc is-live=true"
+    ipc video
+    waitfor "d['cameraPhase'] == 'recording'" 3; sleep 2
+    ipc video
+    waitfor "d['cameraPhase'] == 'idle' and 'Video saved' in d['notificationSummaries']" 10
+    f=$(q "['cameraLast']")
+    python3 -c "import sys; b=open(sys.argv[1],'rb').read(); sys.exit(0 if b[:4]==b'\x1a\x45\xdf\xa3' and len(b) > 4000 else 1)" "$f" 2>/dev/null \
+        && result video-recorded-as-webm PASS "$(stat -c %s "$f") bytes" || result video-recorded-as-webm FAIL "'$f' $(q "['cameraPhase']")"
+    ipc cameraSources pipewiresrc pulsesrc
+fi
 
 # ---- media keys reach the playing player; notifications chime -----------------------
 python3 /work/dev/fake-mpris.py "Test Song" "Test Artist" >/dev/null 2>&1 &
@@ -2013,7 +2026,10 @@ ipc lock
 waitfor "d['locked'] and d['lockSecure']" 5 && result lock-engages PASS || result lock-engages FAIL "$(st)"
 shot 26-lock 0.6
 wtype "wrong-password" -k Return
-sleep 2.5
+sleep 0.5
+# PAM answers a wrong password only after its delay (pam_faildelay): what is typed
+# while the lock screen says "Checking..." goes nowhere, as for a person
+waitfor "not d['lockBusy']" 8
 [ "$(q "['locked']")" = True ] && result lock-refuses-wrong-password PASS || result lock-refuses-wrong-password FAIL
 shot 27-lock-wrong 0.2
 wtype "shani-test" -k Return

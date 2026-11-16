@@ -29,13 +29,13 @@ Singleton {
     })
     function detected(name) {
         const o = Displays.outputs.find(x => x.name === name);
-        return FF.detect({ name: name, physical: o ? o.physical : [0, 0] }, root.input, "");
+        return FF.detect({ name: name, physical: o ? o.physical : [0, 0], label: o ? o.label : "" }, root.input, "");
     }
     readonly property var screens: {
         const chosen = Settings.data.formFactors || {};
         const m = {};
         for (const o of Displays.outputs) {
-            const p = FF.detect({ name: o.name, physical: o.physical }, root.input, root.forced || chosen[o.name] || "");
+            const p = FF.detect({ name: o.name, physical: o.physical, label: o.label }, root.input, root.forced || chosen[o.name] || "");
             m[o.name] = { profile: p, scale: FF.scale(p) };
         }
         return m;

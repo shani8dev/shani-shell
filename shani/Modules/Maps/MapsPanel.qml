@@ -12,6 +12,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import "../../Common/Gestures.js" as G
 
 AppWindow {
     id: win
@@ -432,6 +433,17 @@ AppWindow {
                     width: Theme.px(16); height: Theme.px(16); radius: Theme.px(8)
                     color: Theme.accent
                     border.width: 3; border.color: "white"
+                }
+                // two fingers: a level in or out each time they double or halve their distance
+                PinchHandler {
+                    target: null
+                    property real base: 1
+                    onActiveChanged: base = 1
+                    onActiveScaleChanged: {
+                        const r = G.pinchSteps(activeScale, base);
+                        base = r.base;
+                        if (r.steps) win.zoomBy(r.steps);
+                    }
                 }
                 // drag to pan; wheel to zoom; double-click to zoom in
                 MouseArea {
