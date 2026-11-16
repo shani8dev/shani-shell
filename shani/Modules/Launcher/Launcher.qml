@@ -22,6 +22,7 @@ import "Fuzzy.js" as Fuzzy
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import "../../Common/Gestures.js" as G
 
 PanelWindow {
     id: win
@@ -477,6 +478,14 @@ PanelWindow {
                 border.color: Theme.accent
             }
             MouseArea { anchors.fill: parent }
+            // a finger on the search bar swipes the launcher away, down; the
+            // results below scroll as always
+            DragHandler {
+                target: null
+                xAxis.enabled: false
+                acceptedDevices: PointerDevice.TouchScreen
+                onActiveChanged: if (!active && G.dismissed("down", translation.x, translation.y, Theme.px(80))) Ui.closeAll()
+            }
             RowLayout {
                 anchors.fill: parent
                 anchors.leftMargin: Theme.px(22)

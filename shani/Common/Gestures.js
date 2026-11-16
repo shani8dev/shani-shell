@@ -63,3 +63,13 @@ function pinchSteps(scale, base) {
         return { steps: -1, base: base / 2 };
     return { steps: 0, base: base };
 }
+
+// A finger swiping a panel away, toward the edge it came from (Quick Settings
+// to the right, the quick panel to the right, the launcher down): far enough,
+// and more along that way than across it (a scroll is not a swipe away).
+// dir: "right" / "left" / "down" / "up"; dx, dy: how far the finger moved.
+function dismissed(dir, dx, dy, min) {
+    var along = { right: dx, left: -dx, down: dy, up: -dy }[dir];
+    var across = (dir === "left" || dir === "right") ? Math.abs(dy) : Math.abs(dx);
+    return along !== undefined && along >= min && across <= along * 0.75;
+}

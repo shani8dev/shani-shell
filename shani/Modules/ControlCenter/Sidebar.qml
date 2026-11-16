@@ -17,6 +17,7 @@ import QtQuick.Layouts
 import qs.Common
 import qs.Services
 import qs.Modules.Notifications
+import "../../Common/Gestures.js" as G
 
 PanelWindow {
     id: win
@@ -69,6 +70,14 @@ PanelWindow {
         Connections { target: Ui; function onControlCenterChanged() { if (Ui.controlCenter) Ui.focusFirst(slide); } }
 
         MouseArea { anchors.fill: parent }   // swallow clicks so they don't close
+        // a finger swipes it away (right); the mouse and the pen keep their drags
+        DragHandler {
+            target: null
+            xAxis.enabled: true
+            yAxis.enabled: false
+            acceptedDevices: PointerDevice.TouchScreen
+            onActiveChanged: if (!active && G.dismissed("right", translation.x, translation.y, Theme.px(80))) Ui.closeAll()
+        }
 
         Flickable {
             id: flick

@@ -9,6 +9,7 @@ import Quickshell.Wayland
 import QtQuick
 import qs.Common
 import qs.Services
+import "../../Common/Gestures.js" as G
 
 PanelWindow {
     id: win
@@ -65,6 +66,14 @@ PanelWindow {
         color: Theme.alpha(Theme.bg, 0.97)
         border.color: Theme.border
 
+        // a finger swipes it away (right); the mouse and the pen keep their drags
+        DragHandler {
+            target: null
+            xAxis.enabled: true
+            yAxis.enabled: false
+            acceptedDevices: PointerDevice.TouchScreen
+            onActiveChanged: if (!active && G.dismissed("right", translation.x, translation.y, Theme.px(80))) Ui.closeAll()
+        }
         Item {
             id: keys
             anchors.fill: parent

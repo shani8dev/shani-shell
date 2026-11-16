@@ -74,3 +74,18 @@ def test_a_pinch_zooms_the_map_a_level_per_doubling():
 def test_a_broken_pinch_does_nothing():
     assert pinch(0, 1)["steps"] == 0
     assert pinch(2, 0)["steps"] == 0
+
+
+def away(d, dx, dy, min_px=80):
+    prog = JS.read_text().replace(".pragma library", "") + "\nprocess.stdout.write(JSON.stringify(dismissed(...%s)));" % json.dumps([d, dx, dy, min_px])
+    return json.loads(subprocess.run([node, "-e", prog], capture_output=True, text=True, check=True).stdout)
+
+
+def test_a_panel_is_swiped_away_toward_its_edge():
+    assert away("right", 120, 10) is True          # Quick Settings, back to the right
+    assert away("down", 0, 150) is True            # the launcher, down
+    assert away("right", 50, 0) is False           # not far enough
+    assert away("right", -120, 0) is False         # the wrong way
+    assert away("down", 30, 100) is True
+    assert away("down", 120, 100) is False         # more across than down: a sideways scroll
+    assert away("sideways", 100, 0) is False
