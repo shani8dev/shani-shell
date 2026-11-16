@@ -381,6 +381,7 @@ Singleton {
             property bool machineTranslate: false         // the shell's missing words by the local model (Common/Tr); opt-in
             property var automations: []                // [{ when, is, then, arg, on }] (Services/Automations)
             property string dynamicLockDevice: ""     // a paired device's address: lock when it goes (DynamicLock)
+            property int dynamicLockGrace: 30000      // ms it must stay gone first: a Bluetooth hiccup is not walking away
             property string proxyMode: "none"         // none | manual | auto
             property string proxyHttp: ""             // host:port
             property string proxyHttps: ""

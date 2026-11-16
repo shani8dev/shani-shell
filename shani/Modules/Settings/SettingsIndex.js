@@ -228,6 +228,7 @@ var entries = [
     { key: "rememberRecent", label: "Recent files", cat: "privacy", hint: "the launcher's recent files list", words: "recent files privacy launcher" },
     { key: "trashDays", label: "Empty trash automatically", cat: "privacy", hint: "after this many days", words: "trash empty auto delete days" },
     { key: "dynamicLockDevice", label: "Lock when my phone leaves", cat: "privacy", hint: "the desktop locks when the paired phone goes", words: "dynamic lock phone proximity lock device" },
+    { key: "dynamicLockGrace", label: "Lock delay when the phone leaves", cat: "privacy", hint: "how long it must stay gone before the lock", words: "dynamic lock delay grace phone leaves bluetooth seconds" },
     { key: "clipPins", label: "Pinned clipboard", cat: "privacy", hint: "texts kept above the clipboard history", words: "clipboard pin pinned texts privacy" },
 
     // ---- Chronoa
@@ -275,7 +276,7 @@ var groups = {
     sharing: [],
     printers: [],
     automations: ["automations"],
-    privacy: ["clipPins", "lockPreviews", "lockScreenClock", "lockScreenDate", "lockScreenBattery", "lockScreenBlur", "lockScreenMedia", "rememberRecent", "trashDays", "dynamicLockDevice"],
+    privacy: ["clipPins", "lockPreviews", "lockScreenClock", "lockScreenDate", "lockScreenBattery", "lockScreenBlur", "lockScreenMedia", "rememberRecent", "trashDays", "dynamicLockDevice", "dynamicLockGrace"],
     chronoa: ["islandActivities"],
     account: [],
     users: [],

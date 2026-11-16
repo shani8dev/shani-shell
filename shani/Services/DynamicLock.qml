@@ -1,7 +1,8 @@
 pragma Singleton
 // Dynamic lock (after Windows): a paired phone (or watch) chosen in Settings >
-// Privacy; when it leaves Bluetooth range and stays gone for 30 seconds, the
-// screen locks. The grace keeps a Bluetooth hiccup from locking anyone out.
+// Privacy; when it leaves Bluetooth range and stays gone for the delay picked
+// there (30 s unless changed), the screen locks. The delay keeps a Bluetooth
+// hiccup from locking anyone out.
 import Quickshell
 import Quickshell.Bluetooth
 import QtQuick
@@ -26,7 +27,9 @@ Singleton {
     function away() { if (address) { wasPresent = true; grace.restart(); } }
     Timer {
         id: grace
-        interval: Quickshell.env("SHANI_DYNAMIC_LOCK_GRACE") ? parseInt(Quickshell.env("SHANI_DYNAMIC_LOCK_GRACE")) : 30000
+        // the env var is the suites' override (a phone-leaves test in 1.5 s, not 30)
+        interval: Quickshell.env("SHANI_DYNAMIC_LOCK_GRACE") ? parseInt(Quickshell.env("SHANI_DYNAMIC_LOCK_GRACE"))
+            : (Settings.data.dynamicLockGrace || 30000)
         onTriggered: {
             if (root.present || Lock.locked)
                 return;

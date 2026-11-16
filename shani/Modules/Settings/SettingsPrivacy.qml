@@ -102,8 +102,8 @@ ColumnLayout {
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Lock when my phone leaves") }
     Text {
         Layout.fillWidth: true
-        text: Bluetooth.devices.values.some(d => d.paired) ? "Pick a paired phone or watch: when it goes out of Bluetooth range for half a minute, the screen locks."
-            : "Pair your phone over Bluetooth first."
+        text: Bluetooth.devices.values.some(d => d.paired) ? Tr.t("Pick a paired phone or watch: when it stays out of Bluetooth range for the delay below, the screen locks.")
+            : Tr.t("Pair your phone over Bluetooth first.")
         color: Theme.dim
         wrapMode: Text.Wrap
         font.family: Theme.font
@@ -120,6 +120,30 @@ ColumnLayout {
                 text: modelData.name || modelData.address
                 selected: page.d.dynamicLockDevice === modelData.address
                 onClicked: page.d.dynamicLockDevice = modelData.address
+            }
+        }
+    }
+    // how long it must stay gone - a moment's Bluetooth dropout is not leaving
+    Flow {
+        Layout.fillWidth: true
+        visible: page.d.dynamicLockDevice !== ""
+        spacing: 6
+        Text {
+            text: Tr.t("Lock after")
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: 12 * Theme.fontScale
+            height: 28
+            verticalAlignment: Text.AlignVCenter
+        }
+        Repeater {
+            model: [{ ms: 10000, label: Tr.t("10 s") }, { ms: 30000, label: Tr.t("30 s") },
+                    { ms: 60000, label: Tr.t("1 min") }, { ms: 120000, label: Tr.t("2 min") }]
+            Choice {
+                required property var modelData
+                text: modelData.label
+                selected: (page.d.dynamicLockGrace || 30000) === modelData.ms
+                onClicked: page.d.dynamicLockGrace = modelData.ms
             }
         }
     }
