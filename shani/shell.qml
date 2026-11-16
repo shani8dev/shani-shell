@@ -668,6 +668,7 @@ ShellRoot {
         function openPdf(path: string) { Ui.closeAll(); PdfViewer.open(path); }
         function closePdf() { PdfViewer.close(); }
         function pdfNext() { PdfViewer.nextPage(); }
+        function pdfZoom(z: real) { PdfViewer.setZoom(z); }
         function pdfPrev() { PdfViewer.prevPage(); }
         function pdfGoTo(page: int) { PdfViewer.jumpTo(page); }
         function pdfSearch(text: string) { PdfViewer.search(text); }
@@ -874,7 +875,7 @@ ShellRoot {
                 viewerShown: Viewer.shown, viewer: Ui.viewer, viewerFile: Viewer.file, viewerZoom: Viewer.zoom, viewerRotation: Viewer.rotation,
                 viewerSlideshow: Viewer.slideshow, viewerGrid: Viewer.gridMode, viewerThumbs: Viewer.showThumbs, viewerCopied: Viewer.lastCopied,
                 viewerAction: Viewer.lastAction, viewerTrash: Viewer.trashLast, exifOrientation: Viewer.exifOrientation,
-                pdfShown: PdfViewer.shown, pdfReader: Ui.pdfReader, pdfFile: PdfViewer.file, pdfPage: PdfViewer.page, pdfPages: PdfViewer.pageCount,
+                pdfShown: PdfViewer.shown, pdfReader: Ui.pdfReader, pdfFile: PdfViewer.file, pdfPage: PdfViewer.page, pdfZoom: PdfViewer.zoom, pdfDpi: PdfViewer.dpi, pdfLoading: PdfViewer.loading, pdfPages: PdfViewer.pageCount,
                 pdfFit: PdfViewer.fitMode, pdfContinuous: PdfViewer.continuous, pdfSidebar: PdfViewer.showSidebar, pdfSearch: PdfViewer.searchText,
                 pdfSearchMatches: PdfViewer.searchMatches.length, pdfOutline: PdfViewer.outline.length, pdfError: PdfViewer.error, pdfCopy: PdfViewer.pdf, pdfFormFields: PdfViewer.formFields.length, pdfFormSaved: PdfViewer.formSaved, pdfFormError: PdfViewer.formError, pdfPrint: PdfViewer.printState,
                 converted: Recorder.converted, converting: Recorder.converting,

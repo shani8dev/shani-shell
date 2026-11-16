@@ -25,6 +25,13 @@ for spec in book.epub:1 comic.cbz:3 comic.cb7:3 page.djvu:1; do
         result "documents-open-${f##*.}" FAIL "pages $(q "['pdfPages']"), error '$(q "['pdfError']")'"
     fi
 done
+# zoom: the comic's second page at twice the size, drawn again at 200 dpi, still the second page
+ipc openPdf "$D/comic.cbz"; waitfor "d['pdfPages'] == 3" 15
+ipc pdfNext; waitfor "d['pdfPage'] == 1" 3
+ipc pdfZoom 2
+waitfor "d['pdfDpi'] == 200 and not d['pdfLoading'] and d['pdfPages'] == 3" 15 && [ "$(q "['pdfPage']")" = 1 ] && [ "$(q "['pdfZoom']")" = 2 ] \
+    && result documents-zoom-sharp-same-page PASS || result documents-zoom-sharp-same-page FAIL "zoom $(q "['pdfZoom']") dpi $(q "['pdfDpi']") page $(q "['pdfPage']")"
+shot documents-zoomed 0.3
 # the e-book's words are searchable, as a PDF's are (its PDF copy has the text)
 ipc openPdf "$D/book.epub"; waitfor "d['pdfPages'] == 1" 15
 ipc pdfSearch "lighthouse"

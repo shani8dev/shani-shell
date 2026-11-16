@@ -33,6 +33,9 @@ AppWindow {
             else if (e.key === Qt.Key_F) PdfViewer.setFit("page");
             else if (e.key === Qt.Key_W) PdfViewer.setFit("width");
             else if (e.key === Qt.Key_P) PdfViewer.printFile();
+            else if (e.key === Qt.Key_Plus || e.key === Qt.Key_Equal) PdfViewer.setZoom(PdfViewer.zoom * 1.25);
+            else if (e.key === Qt.Key_Minus) PdfViewer.setZoom(PdfViewer.zoom / 1.25);
+            else if (e.key === Qt.Key_0) PdfViewer.setZoom(1);
         }
     }
     Item {
@@ -217,6 +220,34 @@ AppWindow {
                         visible: !PdfViewer.continuous
                         anchors.fill: parent
                         color: "transparent"
+                        // zoomed: the page larger than the view, dragged around (a finger,
+                        // the mouse); fitted, it is the view's size and nothing moves
+                        Flickable {
+                            id: pageFlick
+                            anchors.fill: parent
+                            clip: true
+                            contentWidth: width * PdfViewer.zoom
+                            contentHeight: height * PdfViewer.zoom
+                            interactive: PdfViewer.zoom > 1.01
+                            boundsBehavior: Flickable.StopAtBounds
+                            // a new zoom keeps the middle of the page in the middle of the view
+                            property real centreX: 0.5
+                            property real centreY: 0.5
+                            onContentXChanged: if (contentWidth > width) centreX = (contentX + width / 2) / contentWidth
+                            onContentYChanged: if (contentHeight > height) centreY = (contentY + height / 2) / contentHeight
+                            Connections {
+                                target: PdfViewer
+                                function onZoomChanged() {
+                                    const cx = pageFlick.centreX, cy = pageFlick.centreY;
+                                    Qt.callLater(() => {
+                                        pageFlick.contentX = Math.max(0, Math.min(pageFlick.contentWidth - pageFlick.width, cx * pageFlick.contentWidth - pageFlick.width / 2));
+                                        pageFlick.contentY = Math.max(0, Math.min(pageFlick.contentHeight - pageFlick.height, cy * pageFlick.contentHeight - pageFlick.height / 2));
+                                    });
+                                }
+                            }
+                            Item {
+                                width: pageFlick.contentWidth
+                                height: pageFlick.contentHeight
                         Image {
                             id: pageImage
                             visible: PdfViewer.current !== ""
@@ -244,6 +275,25 @@ AppWindow {
                             border.color: Theme.accent
                             radius: 2
                         }
+                        MouseArea {
+                            anchors.fill: parent
+                            // Ctrl + wheel zooms; the wheel alone turns pages (scrolls, zoomed)
+                            onWheel: w => {
+                                if (w.modifiers & Qt.ControlModifier) PdfViewer.setZoom(PdfViewer.zoom * (w.angleDelta.y > 0 ? 1.25 : 0.8));
+                                else if (PdfViewer.zoom > 1.01) w.accepted = false;
+                                else if (w.angleDelta.y < 0) PdfViewer.nextPage(); else PdfViewer.prevPage();
+                            }
+                            onClicked: m => { if (PdfViewer.zoom > 1.01) return; if (m.x > width / 2) PdfViewer.nextPage(); else PdfViewer.prevPage(); }
+                        }
+                            }
+                        }
+                        // two fingers: zoom
+                        PinchHandler {
+                            target: null
+                            property real from: 1
+                            onActiveChanged: if (active) from = PdfViewer.zoom
+                            onActiveScaleChanged: PdfViewer.setZoom(from * activeScale)
+                        }
                         Text {
                             visible: PdfViewer.loading
                             anchors.centerIn: parent
@@ -259,11 +309,6 @@ AppWindow {
                             color: Theme.dim
                             font.family: Theme.font
                             font.pixelSize: Theme.px(13) * Theme.fontScale
-                        }
-                        MouseArea {
-                            anchors.fill: parent
-                            onWheel: w => { if (w.angleDelta.y < 0) PdfViewer.nextPage(); else PdfViewer.prevPage(); }
-                            onClicked: m => { if (m.x > width / 2) PdfViewer.nextPage(); else PdfViewer.prevPage(); }
                         }
                     }
 

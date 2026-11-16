@@ -56,6 +56,21 @@ Singleton {
     property bool loading: false            // pdftoppm is running
     property string error: ""               // last render failure, for the card
     property int rotation: 0                // 0 | 90 | 180 | 270, per document
+    // zoom over the fitted page (1 to 4): past 1.5 the pages are drawn again at
+    // 200 dpi, so the letters stay sharp; the page stays where it was
+    property real zoom: 1.0
+    property int dpi: 100
+    property int keepPage: -1
+    function setZoom(z) {
+        zoom = Math.max(1, Math.min(4, Math.round(z * 100) / 100));
+        const want = zoom > 1.5 ? 200 : 100;
+        if (want > dpi && pdf !== "" && !loading) {
+            dpi = want;
+            keepPage = page;
+            loading = true;
+            renderPdf();
+        }
+    }
     property string fitMode: "page"         // fit-page | fit-width | actual (fit-width/fit-page)
     property bool continuous: false          // continuous scroll option (all pages at once)
     property bool showSidebar: true          // page thumbnails sidebar
@@ -88,6 +103,9 @@ Singleton {
         pages = [];
         error = "";
         rotation = 0;
+        zoom = 1.0;
+        dpi = 100;
+        keepPage = -1;
         fitMode = "page";
         continuous = false;
         showSidebar = true;
@@ -129,7 +147,7 @@ Singleton {
         convertProc.running = true;
     }
     function renderPdf() {
-        render.command = ["sh", "-c", 'mkdir -p "$1" && rm -f "$1"/*.png && pdftoppm -png -r 100 "$2" "$3"; ls -1 "$1"/*.png 2>/dev/null | sort', "sh", root.cacheDir, root.pdf, root.cacheDir + "/page"];
+        render.command = ["sh", "-c", 'mkdir -p "$1" && rm -f "$1"/*.png && pdftoppm -png -r "$4" "$2" "$3"; ls -1 "$1"/*.png 2>/dev/null | sort', "sh", root.cacheDir, root.pdf, root.cacheDir + "/page", String(root.dpi)];
         render.running = true;
     }
     Process {
@@ -277,9 +295,12 @@ Singleton {
                 root.loading = false;
                 const items = text.trim().split("\n").filter(s => s);
                 root.pages = items;
-                root.page = 0;
+                // drawn again for a zoom: the same page, not the first
+                root.page = root.keepPage >= 0 ? Math.min(root.keepPage, Math.max(0, items.length - 1)) : 0;
+                const again = root.keepPage >= 0;
+                root.keepPage = -1;
                 root.error = items.length === 0 ? Tr.t("This document could not be read") : "";
-                if (items.length > 0 && root.file !== "") {
+                if (items.length > 0 && root.file !== "" && !again) {
                     root._fetchTexts();
                     root._fetchOutline();
                     // a real PDF may have a form (a copy made from an e-book has none)
