@@ -22,6 +22,7 @@ Singleton {
     readonly property bool available: Quickshell.env("NIRI_SOCKET") !== ""
     property var workspaces: []          // sorted by output, then idx
     property var windows: ({})           // id -> window
+    signal windowOpened(var window)
     property var focusedWindowId: null
     readonly property var focusedWindow: focusedWindowId === null ? null : (windows[focusedWindowId] || null)
     // the focused window's title, kept current also through title-only changes
@@ -314,6 +315,7 @@ Singleton {
             focusedWindowId = focused;
         } else if (ev.WindowOpenedOrChanged) {
             const w = own(ev.WindowOpenedOrChanged.window);
+            if (!windows[w.id]) Qt.callLater(() => root.windowOpened(w));   // a new one (WorkspaceLayout)
             // only the title changed (a terminal's clock, a download's percent):
             // niri sends the whole window again, and a new map wakes every binding
             // on `windows` - measured 290 ms of CPU a second for a title ticking

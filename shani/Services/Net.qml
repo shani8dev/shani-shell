@@ -20,6 +20,24 @@ Singleton {
     readonly property var activeWifi: networks.find(n => n.connected) || null
     readonly property real signal: activeWifi ? activeWifi.signalStrength : 0
     readonly property bool online: Networking.connectivity === NetworkConnectivity.Full
+    // a network that wants a sign-in page first (a hotel's, a café's): NetworkManager's
+    // connectivity check is answered by something else than the internet.
+    // portalForced: the tests (no real portal in the dev session)
+    property bool portalForced: false
+    readonly property bool portal: portalForced || Networking.connectivity === NetworkConnectivity.Portal
+    property int portalOpens: 0
+    function openPortal() {
+        portalOpens++;
+        // a plain http page: the portal answers it with its sign-in page
+        Qt.openUrlExternally("http://nmcheck.gnome.org/");
+    }
+    onPortalChanged: if (portal) portalNote.running = true
+    Process {
+        id: portalNote
+        command: ["notify-send", "-a", Tr.t("Network"), "-i", "network-wireless-hotspot", "-A", "open=" + Tr.t("Sign in"),
+                  Tr.t("This network wants you to sign in"), Tr.t("Open its sign-in page to reach the internet. A public network is still public: prefer sites with https.")]
+        stdout: StdioCollector { onStreamFinished: if (text.trim() === "open") root.openPortal() }
+    }
 
     property bool airplane: false
     property bool hotspotOn: false
@@ -41,7 +59,7 @@ Singleton {
         return s > 0.75 ? "network-wireless-signal-excellent" : s > 0.5 ? "network-wireless-signal-good"
              : s > 0.25 ? "network-wireless-signal-ok" : "network-wireless-signal-weak";
     }
-    readonly property string label: airplane ? "Airplane mode" : wiredConnected ? "Wired"
+    readonly property string label: airplane ? "Airplane mode" : portal ? "Sign-in needed" : wiredConnected ? "Wired"
         : activeWifi ? activeWifi.name : (wifiEnabled ? "Not connected" : "Wi-Fi off")
 
     function setWifi(on) {

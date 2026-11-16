@@ -109,6 +109,7 @@ Singleton {
                 if (a === "open") Qt.openUrlExternally("file://" + saved.file);
                 else if (a === "gif") root.toGif(saved.file);
                 else if (a === "small") root.shrink(saved.file);
+                else if (a === "trim") { Ui.closeAll(); VideoTrimmer.open(saved.file); }
             }
         }
     }
@@ -138,7 +139,7 @@ Singleton {
                 Quickshell.execDetached(["notify-send", "-a", "Screen recorder", "-i", "media-record", "Recording failed", root.file]);
                 return;
             }
-            saved.command = ["notify-send", "-a", "Screen recorder", "-i", "media-record", "-A", "open=Open", "-A", "gif=Make a GIF",
+            saved.command = ["notify-send", "-a", "Screen recorder", "-i", "media-record", "-A", "open=Open", "-A", "trim=Trim", "-A", "gif=Make a GIF",
                              "-A", "small=Make it smaller", "Recording saved", root.file.split("/").pop()];
             saved.file = root.file;
             saved.running = true;

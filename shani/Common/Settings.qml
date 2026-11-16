@@ -211,8 +211,15 @@ Singleton {
             // and Dash-to-Dock's default) | hide (until the pointer asks)
             property string dockVisibility: "smart"
             property string barVisibility: "always"
+            // which edge the bar is on: "auto" (the screen's kind decides - a
+            // classroom board's bar is at the bottom, within reach) | "top" | "bottom"
+            property string barEdge: "auto"
             property bool dockHintSeen: false            // the one-time note on where a smart dock went
             property string layoutPreset: "default"
+            // a laptop's layout follows its desk: docked and on its own each keep
+            // the layout last used there (Services/Docking)
+            property bool layoutFollowsDock: true
+            property var layoutByDock: ({})
             property int dockIconSize: 48            // Plank's and the macOS dock's size; the zoom peaks at about 1.6×
             // desktop-entry ids, in order; ones not installed are skipped
             // what the image ships: Files, Vivaldi (Flatpak), the terminal, Cassini, Chronoa, Text Editor (Flatpak)
@@ -300,6 +307,11 @@ Singleton {
             property list<string> silentApps: []
             property list<string> dndAllowedApps: []
             property bool assistiveTouch: false
+            property bool whiteboardDark: false          // the whiteboard as a green chalkboard
+            property bool edgeSwipes: true              // a tablet's / phone's edge swipes (Modules/EdgeStrips)
+            property bool barWorldClock: false          // the first world clock beside the bar's clock
+            property var floatingWorkspaces: []         // "output:index" of the workspaces whose windows float
+            property string aiConsoleAgent: ""          // the AI console's agent command; "": the first one installed
             // missing Noctalia adapter entries with existing QML bindings (subagent finding #1)
             property bool showCalendarEvents: true     // SidebarCalendar.qml line 40
             property bool bluetoothAutoConnect: true  // BtAgent.qml reconnects audio/input devices

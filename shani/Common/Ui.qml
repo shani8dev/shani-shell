@@ -127,6 +127,17 @@ Singleton {
     // hidden by whatever it opens; tvSelected is its highlighted card (the tests)
     property bool tvHome: true
     property string tvSelected: ""
+    // the quick panel over a running game (Modules/QuickPanel; the ⋯ button)
+    property bool quickPanel: false
+    // a text field of the shell has the keys (Common/TextField, the launcher's
+    // search): on a tablet or a phone the screen keyboard comes up for it
+    property bool textFocus: false
+    // the whiteboard (Modules/Whiteboard; the classroom board's, anyone's)
+    property bool whiteboard: false
+    property int whiteboardStrokes: 0
+    property int whiteboardPage: 0
+    property string whiteboardSaved: ""
+    property string quickSelected: ""
     property string launcherSelected: ""      // the highlighted result (the tests)
     property int windowMenuSel: 0             // the window menu's highlighted row (the tests)
     property bool launcherSearchBar: false
@@ -226,6 +237,7 @@ Singleton {
         closedApps();
     }
     function closeAll() {
+        quickPanel = false;
         dockMenu = "";
         launcher = false;
         ring = false;

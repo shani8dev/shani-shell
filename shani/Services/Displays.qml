@@ -123,6 +123,21 @@ Singleton {
     // first listing is what was there at login, never news
     signal arrived(var output)
     signal departed(string name)            // a monitor unplugged (Plugged ends Presenting with it)
+    // the built-in panel turned off for a monitor, and that monitor unplugged: the
+    // panel comes back on (never a laptop with every screen dark); its own mode,
+    // scale and place are kept, only "off" goes
+    property int panelsRestored: 0
+    onDeparted: name => {
+        const all = JSON.parse(JSON.stringify(Settings.data.displays || {}));
+        const lit = outputs.filter(o => o.name !== name && o.on && !(all[o.name] || {}).off);
+        if (lit.length > 0) return;
+        for (const o of outputs.filter(o => DisplayModes.internal(o.name) && (all[o.name] || {}).off)) {
+            delete all[o.name].off;
+            Settings.data.displays = all;
+            panelsRestored++;
+            Quickshell.execDetached(["niri", "msg", "output", o.name, "on"]);
+        }
+    }
     property var known: null
     function rescan() { settle.go(); }
     function stopMirror() { mirror.running = false; }

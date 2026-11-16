@@ -2038,7 +2038,9 @@ i=0; until [ -n "$(winid raise-me)" ] && [ -n "$(winid on-top)" ] || [ $i -ge 20
 niri msg action focus-window --id "$(winid on-top)"; sleep 0.4
 notify-send -a raise-me "Raise me" "click this"; sleep 1
 if [ -f "$A11Y" ]; then
-    timeout 20 python3 "$A11Y" press "^Raise me" >/dev/null 2>&1; sleep 0.8
+    # the card is rebuilt as it is raised, so a press can land on an object that
+    # has just gone (AT-SPI's "No such object path"): ask again
+    retry 6 python3 "$A11Y" press "^Raise me" >/dev/null 2>&1; sleep 0.8
     [ "$(niri msg -j focused-window | python3 -c 'import json,sys; print(json.load(sys.stdin)["app_id"])')" = raise-me ] \
         && result notification-click-raises-app PASS || result notification-click-raises-app FAIL
 fi

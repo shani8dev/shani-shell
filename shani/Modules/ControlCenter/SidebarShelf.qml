@@ -12,6 +12,7 @@ import QtQuick.Layouts
 import qs.Common
 import qs.Services
 import qs.Modules.Notifications
+import "../../Common/Gestures.js" as Hold
 
 ColumnLayout {
     spacing: Theme.px(14)
@@ -67,9 +68,13 @@ ColumnLayout {
                         drag.target: shelfItem
                         acceptedButtons: Qt.LeftButton | Qt.RightButton
                         cursorShape: Qt.PointingHandCursor
+                        // a finger has no right button: a long press is one
+                        property var held: Hold.state()
+                        onPressed: Hold.press(held)
+                        onPressAndHold: Hold.hold(held)
                         // right-click: what to do with it (convert, shrink, read, share, ask Chronoa)
                         onClicked: e => {
-                            if (e.button === Qt.RightButton) { Ui.closeAll(); FileActions.offer([shelfItem.modelData.path]); }
+                            if (Hold.swallowed(held) || e.button === Qt.RightButton) { Ui.closeAll(); FileActions.offer([shelfItem.modelData.path]); }
                             else Qt.openUrlExternally("file://" + shelfItem.modelData.path);
                         }
                     }

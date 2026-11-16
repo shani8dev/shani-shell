@@ -1019,6 +1019,12 @@ ColumnLayout {
                     current: page.d.barVisibility
                     onPicked: v => page.d.barVisibility = v
                 }
+                Picks {
+                    label: Tr.t("The bar sits")
+                    options: [{ label: Tr.t("At the top"), value: "top" }, { label: Tr.t("At the bottom"), value: "bottom" }, { label: Tr.t("As the screen asks"), value: "auto" }]
+                    current: page.d.barEdge
+                    onPicked: v => page.d.barEdge = v
+                }
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale
                     text: Tr.t("Out of a window's way: it stays in view and windows open beside it, and it slides away only while a window is moved over it. Only at the edge: windows get the whole screen, and it comes back when you rest the pointer on that edge. Either way it also comes back for a dragged file, an app asking for you, and the overview.")
@@ -1043,6 +1049,13 @@ ColumnLayout {
                 // switcher (which does all of that) is what opens - the raw key
                 // alone would not change the desktop
                 Button { Layout.fillWidth: true; text: Tr.t("Change the desktop layout…"); onClicked: Ui.toggleLayoutSwitcher() }
+                SwitchRow {
+                    Layout.fillWidth: true
+                    text: Tr.t("The layout follows the dock")
+                    hint: Tr.t("docked and on its own, each keeps the layout you last used there")
+                    checked: page.d.layoutFollowsDock
+                    onToggled: on => page.d.layoutFollowsDock = on
+                }
 
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("Quick tiles") }
                 Repeater {

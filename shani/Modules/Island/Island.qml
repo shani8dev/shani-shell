@@ -19,6 +19,7 @@ import QtQuick.Layouts
 import QtQuick.Effects
 import qs.Common
 import qs.Services
+import "../../Common/Gestures.js" as Hold
 
 PanelWindow {
     id: win
@@ -302,10 +303,14 @@ PanelWindow {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    // a finger has no right button: a long press is Lens
+                    property var held: Hold.state()
+                    onPressed: Hold.press(held)
+                    onPressAndHold: Hold.hold(held)
                     onPositionChanged: m => orb.lookX = (m.x - width / 2) / (width / 2)
                     onExited: orb.lookX = 0
                     // left: the conversation; right: Lens — point at something and ask
-                    onClicked: e => e.button === Qt.RightButton ? Lens.capture() : (Chronoa.open = !Chronoa.open)
+                    onClicked: e => (Hold.swallowed(held) || e.button === Qt.RightButton) ? Lens.capture() : (Chronoa.open = !Chronoa.open)
                 }
             }
 

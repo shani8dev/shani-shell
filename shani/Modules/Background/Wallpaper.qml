@@ -14,6 +14,7 @@ import QtQuick
 import QtMultimedia
 import qs.Common
 import qs.Services
+import "../../Common/Gestures.js" as Hold
 
 Variants {
     model: Quickshell.screens
@@ -78,7 +79,17 @@ Variants {
             anchors.fill: parent
             z: 10
             acceptedButtons: Qt.RightButton | Qt.LeftButton
+            // a finger has no right button: a long press opens the same menu
+            property var held: Hold.state()
+            onPressed: Hold.press(held)
+            onPressAndHold: {
+                Hold.hold(held);
+                deskMenu.x = Math.min(mouseX, width - deskMenu.width - 8);
+                deskMenu.y = Math.min(mouseY, height - deskMenu.height - 8);
+                deskMenu.visible = true;
+            }
             onClicked: e => {
+                if (Hold.swallowed(held)) return;      // the click that ends a long press
                 if (e.button !== Qt.RightButton) {
                     deskMenu.visible = false;
                     return;

@@ -11,6 +11,7 @@ pragma Singleton
 // a surface on every screen (the bar, the dock) asks of(its screen's name).
 // SHANI_FORM_FACTOR=<kind> sets every screen (the dev renders).
 import Quickshell
+import Quickshell.Io
 import QtQuick
 import qs.Common
 import "../Common/FormFactor.js" as FF
@@ -50,10 +51,43 @@ Singleton {
             m[name] = kind;
         Settings.data.formFactors = m;
     }
+    // which edge this screen's bar is on ("top" or "bottom"): the owner's
+    // choice, else the kind's own - a board's is at the bottom
+    function barEdge(name) { return FF.barEdge(of(name).profile, Settings.data.barEdge); }
+    readonly property string focusedBarEdge: barEdge(Niri.focusedOutput || "")
+    // seen from across a room or at arm's length, driven by a remote or a pad:
+    // the TV home, Guide is Home, the ⋯ button opens the quick panel
+    function tenFootKind(p) { return p === "tv" || p === "handheld"; }
+    readonly property bool tenFoot: tenFootKind(focused.profile)
     readonly property var focused: of(Niri.focusedOutput || (Displays.outputs[0] || {}).name || "")
     onFocusedChanged: {
         Ui.formFactor = focused.profile;
         Ui.uiScale = focused.scale;
     }
     Component.onCompleted: { Ui.formFactor = focused.profile; Ui.uiScale = focused.scale; }
+
+    // a handheld's sideways panel turned the right way, once a session, unless the
+    // owner set the turn in Settings > Displays or the screen turns itself (auto-rotate)
+    property string product: Quickshell.env("SHANI_DMI_PRODUCT") || ""
+    property bool turned: false
+    property bool productKnown: product !== ""
+    function turnPanel() {
+        if (turned || !productKnown || Settings.data.autoRotate) return;
+        const chosen = Settings.data.displays || {};
+        for (const o of Displays.outputs) {
+            if ((chosen[o.name] || {}).transform || (o.transform && o.transform !== "normal")) continue;
+            const pref = (o.modes || []).find(m => m.preferred) || (o.modes || [])[0];
+            const t = FF.panelTurn(product, { name: o.name, nativeMode: pref ? [pref.w, pref.h] : null }, (screens[o.name] || {}).profile);
+            if (t) {
+                turned = true;
+                Quickshell.execDetached(["niri", "msg", "output", o.name, "transform", t]);
+            }
+        }
+    }
+    onScreensChanged: Qt.callLater(turnPanel)
+    Process {
+        running: !root.productKnown
+        command: ["cat", "/sys/class/dmi/id/product_name"]
+        stdout: StdioCollector { onStreamFinished: { root.product = text.trim(); root.productKnown = true; Qt.callLater(root.turnPanel); } }
+    }
 }

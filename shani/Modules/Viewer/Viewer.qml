@@ -7,6 +7,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import "../../Common/Gestures.js" as Hold
 
 AppWindow {
     id: win
@@ -172,12 +173,15 @@ AppWindow {
                     anchors.fill: parent
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                     hoverEnabled: true
+                    // a finger has no right button: a long press turns the picture
+                    property var held: Hold.state()
                     cursorShape: Viewer.zoom > 1.05 ? Qt.OpenHandCursor : Qt.ArrowCursor
                     onWheel: w => {
                         const f = w.angleDelta.y > 0 ? 1.2 : 1 / 1.2;
                         Viewer.zoomToCursor(w.x, w.y, f, width, height);
                     }
                     onPressed: m => {
+                        Hold.press(held);
                         win.dragStartX = m.x;
                         win.dragStartY = m.y;
                         win.dragPanX = Viewer.panX;
@@ -189,8 +193,9 @@ AppWindow {
                             Viewer.panY = win.dragPanY + (m.y - win.dragStartY);
                         }
                     }
+                    onPressAndHold: Hold.hold(held)
                     onClicked: m => {
-                        if (m.button === Qt.RightButton) Viewer.rotate();
+                        if (Hold.swallowed(held) || m.button === Qt.RightButton) Viewer.rotate();
                     }
                     onDoubleClicked: {
                         if (Viewer.zoomMode === "fit" || Viewer.zoomMode === "200")

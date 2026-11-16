@@ -10,6 +10,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import "../../Common/Gestures.js" as Hold
 
 PanelWindow {
     id: win
@@ -40,6 +41,8 @@ PanelWindow {
         hoverEnabled: true
         cursorShape: Qt.CrossCursor
 
+        // a finger has no right button: a long press starts over
+        onPressAndHold: Ruler.clear()
         onPressed: function(mouse) {
             if (mouse.button === Qt.LeftButton) {
                 Ruler.startX = mouse.x;

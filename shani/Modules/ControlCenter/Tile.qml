@@ -2,6 +2,7 @@
 // detail view grow a chevron that opens it below the grid.
 import QtQuick
 import qs.Common
+import "../../Common/Gestures.js" as Hold
 
 Rectangle {
     id: root
@@ -101,11 +102,15 @@ Rectangle {
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         acceptedButtons: Qt.LeftButton | Qt.RightButton
-        onClicked: e => root.editing ? root.activate() : (e.button === Qt.RightButton && root.hasDetail) ? root.detail() : root.toggled()
+        // a finger has no right button: a long press opens the tile's detail
+        property var held: Hold.state()
+        onPressAndHold: Hold.hold(held)
+        onClicked: e => Hold.swallowed(held) ? (root.hasDetail && root.detail())
+            : root.editing ? root.activate() : (e.button === Qt.RightButton && root.hasDetail) ? root.detail() : root.toggled()
         drag.target: root.editing ? root : null
         drag.threshold: 6
         preventStealing: root.editing      // the sidebar's scrolling would take the drag
-        onPressed: if (root.editing) root.z = 10
+        onPressed: { Hold.press(held); if (root.editing) root.z = 10 }
         onReleased: {
             root.z = 0;
             if (root.editing && drag.active === false && moved) root.parent.dropTile(root);

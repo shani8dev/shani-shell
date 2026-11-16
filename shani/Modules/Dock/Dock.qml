@@ -14,6 +14,7 @@ import QtQuick
 import Qt.labs.folderlistmodel
 import qs.Common
 import qs.Services
+import "../../Common/Gestures.js" as Hold
 
 PanelWindow {
     id: win
@@ -21,6 +22,10 @@ PanelWindow {
     screen: modelData
     visible: Settings.data.dock && !Lock.locked
     anchors.bottom: true
+    // a classroom board's bar is at the bottom (docs/FORM-FACTORS.md): the dock
+    // rides above it, still within reach, never under it
+    readonly property real barLift: FormFactor.barEdge(output) === "bottom" ? Theme.barHeight + 8 : 0
+    margins.bottom: barLift
     // the screen's width: never resized on a pointer move, and never narrower than
     // the base. A width counted from the items once fell behind as the dock grew
     // (multitasking, show desktop, workspaces, the trash): the base outgrew its
@@ -33,7 +38,7 @@ PanelWindow {
     readonly property string mode: Settings.data.dockVisibility
     // always and smart keep their space (windows never tile under the dock); hide gives the windows the whole height
     exclusionMode: mode === "hide" ? ExclusionMode.Ignore : ExclusionMode.Normal
-    exclusiveZone: mode === "hide" ? 0 : base + 32
+    exclusiveZone: mode === "hide" ? 0 : base + 32 + barLift
     WlrLayershell.namespace: "shani-dock"
     WlrLayershell.layer: WlrLayer.Top
     // the keyboard reaches the dock on request (Ui.dockFocus: IPC focusDock, a controller):
@@ -42,7 +47,7 @@ PanelWindow {
     BackgroundEffect.blurRegion: Settings.blurWanted && shown ? dockRegion : null
     Region { id: dockRegion; item: dock; radius: dock.radius }
 
-    readonly property bool covered: mode === "smart" && Hiding.covered(output, "bottom", base + 32 + 2, screen ? screen.height : 1080,
+    readonly property bool covered: mode === "smart" && Hiding.covered(output, "bottom", base + 32 + 2 + barLift, screen ? screen.height : 1080,
         ((screen ? screen.width : 1920) - dock.width) / 2, ((screen ? screen.width : 1920) + dock.width) / 2)
     readonly property bool shown: mode === "always" || (revealed && hover.hovered) || menuFor >= 0 || dragging || Ui.dockFocus
         || Niri.overviewOpen || (mode === "smart" && (!covered || Hiding.urgent))
@@ -675,8 +680,15 @@ PanelWindow {
             MouseArea {
                 id: trashMenu
                 anchors.fill: parent
-                acceptedButtons: Qt.RightButton
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                // a finger has no right button: a long press arms the bin
+                property var held: Hold.state()
+                onPressed: Hold.press(held)
+                onPressAndHold: Hold.hold(held)
                 onClicked: {
+                    // a plain click still belongs to the tile's own keys and menu:
+                    // only a long press (a finger's right button) arms the bin
+                    if (!Hold.swallowed(held)) return;
                     if (trashTile.count === 0)
                         return;
                     if (trashTile.arming) {

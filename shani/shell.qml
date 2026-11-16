@@ -79,6 +79,9 @@ import qs.Modules.VideoTrimmer
 // loader reads (an import loads nothing by itself)
 import qs.Modules.MediaPlayer
 import qs.Modules.TvHome
+import qs.Modules.QuickPanel
+import qs.Modules.EdgeStrips
+import qs.Modules.Whiteboard
 
 ShellRoot {
     Wallpaper {}
@@ -90,6 +93,8 @@ ShellRoot {
     Island {}
     Variants { model: Quickshell.screens; Dock {} }
     Variants { model: Quickshell.screens; TvHome {} }
+    QuickPanel {}
+    Variants { model: Quickshell.screens; EdgeStrips {} }
     OverviewSearch {}
     // surfaces most sessions rarely open are made on first use and dropped after:
     // 56 MB of an idle desktop (tests: perf-*)
@@ -121,6 +126,7 @@ ShellRoot {
     LazyLoader { active: Captions.on; CaptionBar {} }
     LazyLoader { active: Ui.magnifier; source: "Modules/Magnifier/Magnifier.qml" }
     LazyLoader { active: Ui.annotate; Annotate {} }
+    LazyLoader { id: whiteboardLoader; active: Ui.whiteboard; Whiteboard {} }
     LazyLoader { active: Ui.settingsOpen; SettingsWindow {} }
     LazyLoader { active: Settings.data.assistiveTouch; AssistiveTouch {} }
     FlashAlert {}
@@ -468,6 +474,9 @@ ShellRoot {
         function textEditorSave(): string { return TextDocs.save() ? "ok" : "no name yet: use save-as"; }
         function textEditorSaveAs(path: string) { TextDocs.saveAs(path); }
         function textEditorCloseTab() { TextDocs.close(TextDocs.active); }
+        // the tests: there is no built-in panel to unplug in a nested niri, so the
+        // laptop's desk is driven through here (Services/Docking)
+        function dockingTest(state: string) { Docking.forced = state; }
         function setting(key: string, value: string) { Settings.data[key] = value === "true" ? true : value === "false" ? false : value; }
         function snoozeLatest(minutes: int) { if (Notifs.list.length) Notifs.snooze(Notifs.list[0], minutes); }
         function summarize() { Notifs.summarize(); }
@@ -498,16 +507,27 @@ ShellRoot {
             if (Lock.locked) return;
             Osk.cancelRemote(); Ui.closeAll();
             // a TV's Home is the TV home; elsewhere the launcher
-            if (FormFactor.focused.profile === "tv") Ui.tvHome = true;
+            if (FormFactor.tenFoot) Ui.tvHome = true;
             else Ui.toggleLauncher("");
         }
         function tvHome(show: bool) { Ui.tvHome = show; }
+        function edgeSwipe(action: string) { EdgeSwipe.run(action); }
+        function whiteboard(show: bool) { if (show) Ui.closeAll(); Ui.whiteboard = show; }
+        function whiteboardLine(x1: int, y1: int, x2: int, y2: int) { if (whiteboardLoader.item) whiteboardLoader.item.addStroke([{ x: x1, y: y1 }, { x: (x1 + x2) / 2, y: (y1 + y2) / 2 + 20 }, { x: x2, y: y2 }]); }
+        function whiteboardNewPage() { if (whiteboardLoader.item) whiteboardLoader.item.newPage(); }
+        function whiteboardSave() { if (whiteboardLoader.item) whiteboardLoader.item.save(); }
+        function workspaceLayout() { WorkspaceLayout.toggle(); }
+        function netPortal(on: bool) { Net.portalForced = on; }
+        function netOpenPortal() { Net.openPortal(); }
+        function displayDeparted(name: string) { Displays.departed(name); }
+        function quickPanel(show: bool) { if (show) Ui.closeAll(); Ui.quickPanel = show; }
         function remoteBack() {
             if (Lock.locked) return;
             if (Osk.remote) Osk.cancelRemote();
+            else if (Ui.quickPanel) Ui.quickPanel = false;
             else if (Osk.shown) Osk.toggle();
             // the TV home goes back to what is open behind it, if anything is
-            else if (Ui.tvHome && FormFactor.focused.profile === "tv" && !Ui.launcher) { if (Niri.mru().some(w => w.app_id && w.app_id !== "org.quickshell")) Ui.tvHome = false; }
+            else if (Ui.tvHome && FormFactor.tenFoot && !Ui.launcher) { if (Niri.mru().some(w => w.app_id && w.app_id !== "org.quickshell")) Ui.tvHome = false; }
             else if (GamepadNav.shellHasKeys || Ui.launcher || Niri.overviewOpen) { Ui.closeAll(); if (Niri.overviewOpen) Niri.action("close-overview"); }
             else Quickshell.execDetached(["wtype", "-M", "alt", "-k", "Left", "-m", "alt"]);
         }
@@ -884,7 +904,7 @@ ShellRoot {
                 oskCursor: Osk.cursorLabel,
                 oskRemote: Osk.remote, oskDraft: Osk.draft, oskCommitted: Osk.lastCommitted,
                 launcherSelected: Ui.launcherSelected, launcherText: Ui.launcherText,
-                formFactor: FormFactor.focused.profile, tvHome: Ui.tvHome && FormFactor.focused.profile === "tv", tvSelected: Ui.tvSelected, uiScale: Theme.ui, formFactors: FormFactor.screens, windowMenuSel: Ui.windowMenuSel, launcherSearchBar: Ui.launcherSearchBar,
+                formFactor: FormFactor.focused.profile, barEdge: FormFactor.focusedBarEdge, dockState: Docking.state, dockSwitches: Docking.switches, dockIcon: Settings.data.dockIconSize, tvHome: Ui.tvHome && FormFactor.tenFoot, tvSelected: Ui.tvSelected, quickPanel: Ui.quickPanel, quickSelected: Ui.quickSelected, edgeLast: EdgeSwipe.last, whiteboard: Ui.whiteboard, whiteboardStrokes: Ui.whiteboardStrokes, whiteboardPage: Ui.whiteboardPage, whiteboardSaved: Ui.whiteboardSaved, edgeStrips: EdgeSwipe.strips, textFocus: Ui.textFocus, netPortal: Net.portal, netLabel: Net.label, portalOpens: Net.portalOpens, floatingWorkspace: WorkspaceLayout.focusedFloating, aiAgent: Scratchpads.agent, panelsRestored: Displays.panelsRestored, uiScale: Theme.ui, formFactors: FormFactor.screens, windowMenuSel: Ui.windowMenuSel, launcherSearchBar: Ui.launcherSearchBar,
                 oskLastPad: Osk.lastPad,
                 ringDepth: Ui.ringDepth,
                 topResult: Ui.topResult, liveWallpaperWhy: LiveWallpaper.why, liveWallpaperPlaying: Ui.liveWallpaperPlaying, launcherFiles: Ui.launcherFiles, launcherMeaning: Ui.launcherMeaning,

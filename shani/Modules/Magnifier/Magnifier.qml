@@ -10,6 +10,7 @@ import Quickshell.Widgets
 import QtQuick
 import qs.Common
 import qs.Services
+import "../../Common/Gestures.js" as Hold
 
 PanelWindow {
     id: win
@@ -73,9 +74,13 @@ PanelWindow {
         anchors.fill: parent
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton
+        // a finger has no right button: a long press takes the grab
+        property var held: Hold.state()
+        onPressed: Hold.press(held)
+        onPressAndHold: Hold.hold(held)
         onPositionChanged: m => win.at = Qt.point(m.x, m.y)
         onWheel: w => win.zoom = Math.max(1.5, Math.min(6, win.zoom + (w.angleDelta.y > 0 ? 0.5 : -0.5)))
-        onClicked: m => m.button === Qt.RightButton ? win.grab() : (Ui.magnifier = false)
+        onClicked: m => (Hold.swallowed(held) || m.button === Qt.RightButton) ? win.grab() : (Ui.magnifier = false)
     }
 
     ClippingRectangle {

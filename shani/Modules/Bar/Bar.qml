@@ -25,17 +25,23 @@ Variants {
         readonly property string output: modelData.name
         readonly property var player: Media.current
 
-        anchors { top: true; left: true; right: true }
-        // the surface starts at the screen's top edge, so a hidden bar can be
-        // called back by resting the pointer there; the bar itself sits 8 px down
-        margins { top: 0; left: 10; right: 10 }
+        anchors { left: true; right: true }
+        anchors.top: bar.edge === "top"
+        anchors.bottom: bar.edge === "bottom"
+        // which edge the bar is on: the owner's choice, else the screen's kind
+        // (a classroom board's is at the bottom, within reach of someone
+        // standing at it - docs/FORM-FACTORS.md). Services/FormFactor decides.
+        readonly property string edge: FormFactor.barEdge(output)
+        // the surface starts at the screen's edge, so a hidden bar can be
+        // called back by resting the pointer there; the bar itself sits 8 px in
+        margins { left: 10; right: 10 }
         implicitHeight: Theme.barHeight + 8
         // always | smart (in view, keeps its space, steps aside for a window over
         // it) | hide (until the pointer asks): Services/Hiding
         readonly property string mode: Settings.data.barVisibility
         exclusionMode: mode === "hide" ? ExclusionMode.Ignore : ExclusionMode.Normal
         exclusiveZone: mode === "hide" ? 0 : Theme.barHeight + 16     // as before: 8 above, the bar, 8 below
-        readonly property bool covered: mode === "smart" && Hiding.covered(output, "top", Theme.barHeight + 16 + 2, modelData.height)
+        readonly property bool covered: mode === "smart" && Hiding.covered(output, edge, Theme.barHeight + 16 + 2, modelData.height)
         // the Island rides on the bar: when it has something to ask or show, the bar comes back with it
         // the keyboard in the bar (IPC focusBar): this screen's bar, the one being worked on
         readonly property bool keyed: Ui.barFocus && output === Niri.focusedOutput
@@ -44,11 +50,18 @@ Variants {
             || Ui.controlCenter || (Ui.islandBusy && output === Niri.focusedOutput) || (mode === "smart" && !covered)
         property bool revealed: false
         Connections { target: barHover; function onHoveredChanged() { if (!barHover.hovered) bar.revealed = false; } }
-        Timer { interval: 250; running: topEdge.hovered && !bar.revealed; onTriggered: bar.revealed = true }
+        Timer { interval: 250; running: barEdgeHover.hovered && !bar.revealed; onTriggered: bar.revealed = true }
         onShownChanged: Hiding.setBarShown(output, shown)
         Component.onCompleted: Hiding.setBarShown(output, shown)
         HoverHandler { id: barHover }
-        Item { id: edgeStrip; width: parent.width; height: Theme.px(4); HoverHandler { id: topEdge } }
+        Item {
+            id: edgeStrip
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: Theme.px(4)
+            y: bar.edge === "top" ? 0 : parent.height - height
+            HoverHandler { id: barEdgeHover }
+        }
         mask: Region { item: bar.shown ? whole : edgeStrip }
         Item { id: whole; anchors.fill: parent }
         color: "transparent"
@@ -72,8 +85,13 @@ Variants {
             Keys.onEscapePressed: Ui.barFocus = false
             anchors.fill: parent
             anchors.topMargin: Theme.px(8)
+            anchors.bottomMargin: Theme.px(8)
             opacity: bar.shown ? 1 : 0
-            transform: Translate { y: bar.shown ? 0 : -(Theme.barHeight + 12); Behavior on y { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } } }
+            // hidden, it slides out over the edge it sits on
+            transform: Translate {
+                y: bar.shown ? 0 : (bar.edge === "bottom" ? 1 : -1) * (Theme.barHeight + 12)
+                Behavior on y { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+            }
             Behavior on opacity { NumberAnimation { duration: 160 } }
             // click-through unused bar space (borrow from Noctalia)
             MouseArea {
@@ -162,7 +180,8 @@ Variants {
                                 visible: !parent.renaming
                                 anchors.centerIn: parent
                                 // its place among the visible ones (the minimised one is hidden)
-                                text: modelData.name || (parent.index + 1)
+                                // a floating workspace (WorkspaceLayout): marked, as the layout is the workspace's own
+                                text: (modelData.name || (parent.index + 1)) + (WorkspaceLayout.isFloating(modelData) ? " ◇" : "")
                                 color: modelData.is_active ? Theme.accentInk : (parent.occupied ? Theme.text : Theme.dim)
                                 font.family: Theme.font
                                 font.pixelSize: Theme.px(11) * Theme.fontScale
@@ -454,7 +473,18 @@ Variants {
                     Icon { visible: Focus.on && !(Settings.data.hideVolumeGlyph || Settings.data.hideBrightnessGlyph); name: Focus.mode ? Focus.mode.icon : ""; size: Theme.px(15); color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
                     Icon { visible: Idle.caffeine || Idle.keptAwake; name: "preferences-desktop-screensaver"; size: Theme.px(15); color: Theme.amber; anchors.verticalCenter: parent.verticalCenter }
                     Icon { visible: Net.vpnActive; name: "network-vpn"; size: Theme.px(15); color: Theme.text; anchors.verticalCenter: parent.verticalCenter }
-                    Icon { name: Net.icon; size: Theme.px(15); color: Theme.text; anchors.verticalCenter: parent.verticalCenter }
+                    Icon { name: Net.icon; size: Theme.px(15); color: Net.portal ? Theme.amber : Theme.text; anchors.verticalCenter: parent.verticalCenter }
+                    // the network wants a sign-in: a click opens its page
+                    Icon {
+                        visible: Net.portal
+                        name: "dialog-warning"
+                        size: Theme.px(13)
+                        color: Theme.amber
+                        anchors.verticalCenter: parent.verticalCenter
+                        Accessible.role: Accessible.Button
+                        Accessible.name: Tr.t("Sign in to this network")
+                        MouseArea { anchors.fill: parent; anchors.margins: -4; onClicked: Net.openPortal() }
+                    }
                     Icon {
                         visible: Bluetooth.defaultAdapter !== null && Bluetooth.defaultAdapter.enabled
                         name: "bluetooth-active"
@@ -506,6 +536,16 @@ Variants {
                         font.family: Theme.font
                         font.pixelSize: Theme.px(13) * Theme.fontScale
                         font.weight: Font.DemiBold
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    // another city's time beside it (Settings > Date & language picks the cities)
+                    Text {
+                        visible: Settings.data.barWorldClock && WorldClock.clocks.length > 0
+                        text: WorldClock.clocks.length ? WorldClock.clocks[0].city + " " + WorldClock.clocks[0].time.split(" ").pop() : ""
+                        font.features: { "tnum": 1 }
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     Text {

@@ -54,6 +54,7 @@ Singleton {
 
     // the desktop's surfaces closed: the controller goes back to the game
     readonly property bool shellHasKeys: Ui.controlCenter || Ui.settingsOpen || Ui.dockFocus || Ui.barFocus || Ui.launcher || Ui.windowMenu || oskOpen
+        || Ui.quickPanel || (Ui.tvHome && FormFactor.tenFoot)
     onShellHasKeysChanged: giveBack.restart()
     // the screen keyboard open: every controller is the desktop's while it is, so
     // the d-pad moves over its keys instead of reaching the game (pass mode sends
@@ -72,6 +73,26 @@ Singleton {
         if (!(ev.value > 0)) return;                 // presses, not releases
         if (ev.event === "ui_guide" || ev.event === "ui_quick" || ev.event === "ui_quick2") {
             root.borrowed = ev.device || root.borrowed;
+            // a handheld or a TV, as on a console: Guide is the home (and back to
+            // the game from it), ⋯ the quick panel over the game
+            if (FormFactor.tenFoot) {
+                // the controller is the desktop's while the home or the panel is up
+                // (InputPlumber takes it on Guide by itself; ⋯ too, said here)
+                if (ev.device && root.navWanted) root.intercept(ev.device, 2);
+                if (ev.event === "ui_guide") {
+                    // the app last used (the home has the keys, so niri reports no focused window)
+                    const behind = Niri.mru().find(w => w.app_id && w.app_id !== "org.quickshell");
+                    const back = Ui.tvHome && !Ui.quickPanel && behind;
+                    Ui.closeAll();
+                    Ui.tvHome = !back;
+                    if (back) Niri.focusWin(behind);
+                } else {
+                    const open = Ui.quickPanel;
+                    Ui.closeAll();
+                    Ui.quickPanel = !open;
+                }
+                return;
+            }
             if (root.shellHasKeys) Ui.closeAll(); else Ui.toggleControlCenter();
             return;
         }

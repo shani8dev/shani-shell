@@ -72,3 +72,30 @@ def test_each_profile_has_a_scale_and_a_name():
         assert call("scale", p) >= 1.0 and call("label", p) not in ("", "Automatic")
     assert call("scale", "tv") > call("scale", "handheld") > call("scale", "computer")
     assert call("scale", "unknown") == 1.0
+
+
+def turn(product, name, native, profile):
+    return call("panelTurn", product, {"name": name, "nativeMode": native}, profile)
+
+
+def test_sideways_handheld_panels_are_turned():
+    assert turn("Jupiter", "eDP-1", [800, 1280], "handheld") == "270"          # Steam Deck LCD
+    assert turn("Galileo", "eDP-1", [800, 1280], "handheld") == "270"          # Steam Deck OLED
+    assert turn("83E1", "eDP-1", [1600, 2560], "handheld") == "90"             # Legion Go
+    assert turn("Some Handheld", "eDP-1", [1080, 1920], "handheld") == "270"   # unknown, portrait-made
+    assert turn("RC71L", "eDP-1", [1920, 1080], "handheld") == ""              # ROG Ally: made landscape
+
+
+def test_nothing_else_is_turned():
+    assert turn("Jupiter", "DP-1", [1080, 1920], "handheld") == ""             # a plugged-in screen, even on a Deck
+    assert turn("Some Tablet", "eDP-1", [1200, 1920], "tablet") == ""          # a tablet turns by its accelerometer
+    assert turn("ThinkPad", "eDP-1", [1920, 1200], "laptop") == ""
+
+
+def test_a_boards_bar_is_at_the_bottom_and_the_owners_choice_wins():
+    assert call("barEdge", "board", "auto") == "bottom"
+    assert call("barEdge", "computer", "auto") == "top"
+    assert call("barEdge", "tv", "auto") == "top"
+    assert call("barEdge", "board", "top") == "top"
+    assert call("barEdge", "computer", "bottom") == "bottom"
+    assert call("barEdge", "board", "nonsense") == "bottom"

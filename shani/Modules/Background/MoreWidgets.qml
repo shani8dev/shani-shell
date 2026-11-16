@@ -19,11 +19,15 @@ Variants {
         required property var modelData
         readonly property real sw: modelData ? modelData.width : 1920
         readonly property real sh: modelData ? modelData.height : 1080
+        readonly property bool bottomBar: FormFactor.barEdge(modelData ? modelData.name : "") === "bottom"
         function on(id) { return Settings.loaded && Array.from(Settings.data.desktopWidgets).indexOf(id) >= 0; }
         function place(card, id, dx, dy) {
             const want = (Settings.data.deskPos || {})[id] || { x: dx, y: dy };
             card.x = Math.min(Math.max(12, want.x), Math.max(12, sw - card.width - 12));
-            card.y = Math.min(Math.max(Theme.barHeight + 12, want.y), Math.max(Theme.barHeight + 12, sh - card.height - 96));
+            // clear of the bar, whichever edge it is on (a board's is at the bottom)
+            const ceil = bottomBar ? 12 : Theme.barHeight + 12;
+            const floor = bottomBar ? Theme.barHeight + 16 : 96;
+            card.y = Math.min(Math.max(ceil, want.y), Math.max(ceil, sh - card.height - floor));
         }
         function save(card, id) {
             const keep = JSON.parse(JSON.stringify(Settings.data.deskPos || {}));

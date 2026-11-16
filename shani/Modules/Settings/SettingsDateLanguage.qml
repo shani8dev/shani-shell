@@ -164,6 +164,14 @@ ColumnLayout {
     }
 
     // ---- world clocks: more cities on the control centre's calendar ---------
+    SwitchRow {
+        Layout.fillWidth: true
+        text: Tr.t("The first city's time in the bar")
+        checked: page.d.barWorldClock
+        defaultValue: false
+        onToggled: on => { page.d.barWorldClock = on; Settings.touch("barWorldClock"); }
+        onReset: page.d.barWorldClock = false
+    }
     // picked zones, remove one at a time
     Repeater {
         model: Array.from(page.d.worldClocks || [])

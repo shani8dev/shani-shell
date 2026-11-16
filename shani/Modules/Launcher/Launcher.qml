@@ -493,6 +493,7 @@ PanelWindow {
                     font.family: Theme.font
                     font.pixelSize: Theme.px(20) * Theme.fontScale
                     clip: true
+                    onActiveFocusChanged: Ui.textFocus = activeFocus
                     Keys.onEscapePressed: Ui.closeAll()
                     Keys.onDownPressed: {
                         if (win.searchBar) { win.searchBar = false; return; }

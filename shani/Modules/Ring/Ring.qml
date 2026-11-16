@@ -10,6 +10,7 @@ import Quickshell.Services.Mpris
 import QtQuick
 import qs.Common
 import qs.Services
+import "../../Common/Gestures.js" as Hold
 
 PanelWindow {
     id: win
@@ -157,6 +158,10 @@ PanelWindow {
         anchors.fill: parent
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton
+        // a finger has no right button: a long press goes back
+        property var held: Hold.state()
+        onPressed: Hold.press(held)
+        onPressAndHold: Hold.hold(held)
         onPositionChanged: m => {
             // the first position we learn is where the pointer was: open there
             if (!win.placed) {
@@ -169,7 +174,7 @@ PanelWindow {
             dwell.restart();
         }
         onClicked: m => {
-            if (m.button === Qt.RightButton)
+            if (Hold.swallowed(held) || m.button === Qt.RightButton)
                 win.back();
             else if (win.sliceAt(m.x, m.y) < 0)
                 win.back();

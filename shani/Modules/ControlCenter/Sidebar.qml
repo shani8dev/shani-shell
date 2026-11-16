@@ -47,8 +47,11 @@ PanelWindow {
         id: slide
         strong: true
         width: Theme.px(420)
-        y: Theme.barHeight + 18
-        height: parent.height - y - 10
+        // clear of the bar: on a board the bar is at the bottom, so the sidebar
+        // starts at the top instead of below a bar that is not there
+        readonly property bool bottomBar: FormFactor.barEdge(win.screen.name) === "bottom"
+        y: bottomBar ? Theme.px(10) : Theme.barHeight + 18
+        height: parent.height - y - (bottomBar ? Theme.barHeight + 18 : 10)
         x: Ui.controlCenter ? parent.width - width - 10 : parent.width + 10
         radius: Theme.radiusLarge
         Behavior on x {

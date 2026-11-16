@@ -73,6 +73,7 @@ KEYBOARD_EXEMPT = {
     ("TimePicker.qml", ""): "its hour and minute steppers are IconButtons",
     ("Dock.qml", "id: trashMenu"): "the trash tile's own KeyFocus (DockTile) sends the Menu key here",
     ("WorldMap.qml", "map.nearest"): "a click on the map; the same time zones are a list to pick from",
+    ("Bar.qml", "onClicked: Net.openPortal()"): "the bar's warning icon; the same sign-in is a button in Quick Settings (SidebarDetails)",
 }
 
 
@@ -189,3 +190,9 @@ def test_the_state_has_each_key_once():
     body = shell[start:shell.index("\n        }\n", start)]
     keys = re.findall(r"(?<![\w.])(\w+):\s", body)
     assert sorted({k for k in keys if keys.count(k) > 1}) == []
+
+
+def test_every_file_that_uses_the_hold_helper_imports_it():
+    for p, s in qml().items():
+        if "Hold." in s:
+            assert 'Gestures.js" as Hold' in s, f"{p.name} uses Hold without importing it"

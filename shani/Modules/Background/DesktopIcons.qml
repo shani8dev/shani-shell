@@ -17,6 +17,7 @@ import QtQuick
 import Qt.labs.folderlistmodel
 import qs.Common
 import qs.Services
+import "../../Common/Gestures.js" as Hold
 
 PanelWindow {
     id: win
@@ -34,7 +35,8 @@ PanelWindow {
     property string selected: ""
     property string renaming: ""
     readonly property real cell: 96
-    readonly property real top: Theme.barHeight + 20
+    // below the bar - or from the top when the bar is at the bottom (a board)
+    readonly property real top: FormFactor.barEdge(win.screen.name) === "bottom" ? Theme.px(20) : Theme.barHeight + 20
     // the first row: under the clock widget while it sits at the top left
     readonly property real startY: {
         const w = Array.from(Settings.data.desktopWidgets || []);
@@ -209,15 +211,19 @@ PanelWindow {
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                     drag.target: ic
                     drag.threshold: 10
-                    onPressed: win.selected = ic.modelData.key
+                    // a finger has no right button: a long press asks for the menu
+                    property var held: Hold.state()
+                    onPressed: { Hold.press(held); win.selected = ic.modelData.key }
+                    onPressAndHold: Hold.hold(held)
                     onDoubleClicked: if (ic.modelData.type !== "stack") win.activate(ic.modelData)
                     onClicked: e => {
-                        if (e.button === Qt.RightButton && ic.modelData.type === "file") {
+                        const right = Hold.swallowed(held) || e.button === Qt.RightButton;
+                        if (right && ic.modelData.type === "file") {
                             menu.target = ic.modelData.path;
                             menu.x = Math.min(ic.x + iconsArea.x + e.x, win.width - menu.width - 8);
                             menu.y = Math.min(ic.y + iconsArea.y + e.y, win.height - menu.height - 8);
                             menu.visible = true;
-                        } else if (ic.modelData.type === "stack")
+                        } else if (!right && ic.modelData.type === "stack")
                             win.activate(ic.modelData);
                     }
                     onReleased: if (drag.active) win.savePos(ic.modelData.key, ic.x + iconsArea.x, ic.y + iconsArea.y)

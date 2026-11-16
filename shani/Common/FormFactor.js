@@ -62,8 +62,36 @@ function scale(profile) {
     return SCALE[profile] || 1.0;
 }
 
+// Which edge a screen's bar is on: the owner's choice ("top" or "bottom"),
+// else the kind's own. A classroom board is used standing up, by someone
+// small, so its bar and its Quick Settings are at the bottom, within reach
+// (docs/FORM-FACTORS.md); every other kind keeps the bar at the top.
+function barEdge(profile, chosen) {
+    if (chosen === "top" || chosen === "bottom")
+        return chosen;
+    return profile === "board" ? "bottom" : "top";
+}
+
 // what the owner sees in Settings for each choice
 function label(profile) {
     return ({ computer: "Computer", laptop: "Laptop", tablet: "Tablet", handheld: "Handheld",
               phone: "Phone", tv: "TV", board: "Classroom board" })[profile] || "Automatic";
+}
+
+// A handheld whose panel is mounted sideways (made portrait, fitted landscape):
+// the turn niri needs so the long edge is across, as the kernel's
+// panel-orientation quirks give it (drm_panel_orientation_quirks.c): the Steam
+// Deck "right side up", the Legion Go "left side up". By the DMI product name;
+// any other built-in portrait panel on a handheld is turned as the Deck is,
+// the most common mounting. "" when nothing needs turning.
+var SIDEWAYS = { "Jupiter": "270", "Galileo": "270", "83E1": "90", "83N0": "90", "83N1": "90" };
+function panelTurn(product, screen, profile) {
+    if (!builtIn(screen && screen.name))
+        return "";
+    if (SIDEWAYS[product])
+        return SIDEWAYS[product];
+    var m = screen && screen.nativeMode;
+    if (profile === "handheld" && m && m[1] > m[0])
+        return "270";
+    return "";
 }

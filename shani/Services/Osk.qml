@@ -125,6 +125,29 @@ Singleton {
         return (cp >= 0x0915 && cp <= 0x0939) || (cp >= 0x0958 && cp <= 0x095F) || c === "ळ" || c === "ऱ";
     }
 
+    // a tablet or a phone: the keyboard comes up with a text field of the shell
+    // and goes with it (a short wait: focus moving between two fields is not a
+    // leaving); one opened by hand stays
+    property bool autoShown: false
+    Connections {
+        target: Ui
+        function onTextFocusChanged() { textFocusSettle.restart(); }
+    }
+    Timer {
+        id: textFocusSettle
+        interval: 200
+        onTriggered: {
+            const touchFirst = ["tablet", "phone"].indexOf(FormFactor.focused.profile) >= 0;
+            if (Ui.textFocus && touchFirst && !root.shown && !Lock.locked) {
+                root.shown = true; root.typed = ""; root.padDriven = false; root.remote = false;
+                root.autoShown = true;
+            } else if (!Ui.textFocus && root.autoShown) {
+                root.shown = false; root.autoShown = false;
+            }
+        }
+    }
+    onShownChanged: if (!shown) autoShown = false
+
     function toggle() {
         // opened with keys (a remote's OK on the Quick Settings tile, the
         // launcher's action): typed from the remote

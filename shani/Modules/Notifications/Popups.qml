@@ -17,7 +17,15 @@ PanelWindow {
     // where pop-ups appear (Settings > Notifications); the dock keeps the bottom clear
     readonly property string pos: Settings.data.popupPosition
     anchors { top: pos !== "bottom-right"; bottom: pos === "bottom-right"; right: pos !== "top-center" }
-    margins { top: Theme.barHeight + 18; right: 12; bottom: Settings.data.dock && Settings.data.dockVisibility !== "hide" ? Settings.data.dockIconSize + 44 : 16 }
+    // clear of the bar, wherever it is: at the top it pushes a popup down; at
+    // the bottom (a board) the top is free and a "bottom" popup sits above it
+    readonly property bool bottomBar: FormFactor.barEdge(win.screen.name) === "bottom"
+    readonly property bool atBottom: pos === "bottom-right"
+    margins {
+        top: bottomBar ? 12 : Theme.barHeight + 18
+        right: 12
+        bottom: atBottom ? (bottomBar ? Theme.barHeight + 18 : (Settings.data.dock && Settings.data.dockVisibility !== "hide" ? Settings.data.dockIconSize + 44 : 16)) : 16
+    }
     implicitWidth: Theme.px(380)
     implicitHeight: list.implicitHeight
     color: "transparent"

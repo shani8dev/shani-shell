@@ -19,6 +19,7 @@ QtObject {
         { title: Tr.t("Night light"), words: "night warm blue light", icon: "night-light", run: () => NightLight.toggle(), state: () => NightLight.active },
         { title: Tr.t("Wi-Fi"), words: "wifi wireless network internet", icon: "network-wireless-signal-excellent", run: () => Net.setWifi(!Net.wifiEnabled), state: () => Net.wifiEnabled },
         { title: Tr.t("Airplane mode"), words: "airplane flight radio", icon: "airplane-mode", run: () => Net.setAirplane(!Net.airplane), state: () => Net.airplane },
+        { title: Tr.t("Whiteboard"), words: "whiteboard board draw write class lesson teach chalk pen", icon: "draw-freehand", run: () => { Ui.closeAll(); Ui.whiteboard = true; } },
         { title: Tr.t("Screenshot"), words: "screenshot capture print", icon: "applets-screenshooter", run: () => Niri.action("screenshot") },
         { title: Tr.t("Screen record"), words: "record video capture", icon: "media-record", run: () => Recorder.toggle(), state: () => Recorder.recording },
         { title: Tr.t("Lens"), words: "lens ocr read text scan qr", icon: "system-search", run: () => Lens.capture() },

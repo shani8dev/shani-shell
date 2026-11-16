@@ -18,8 +18,9 @@ PanelWindow {
     id: win
     required property var modelData
     screen: modelData
-    readonly property bool tv: FormFactor.of(modelData.name).profile === "tv"
-    visible: tv && Ui.tvHome && !Lock.locked
+    // a TV, and a handheld (the same home at arm's length, at its own scale)
+    readonly property bool tv: FormFactor.tenFootKind(FormFactor.of(modelData.name).profile)
+    visible: tv && Ui.tvHome && !Lock.locked && !Ui.quickPanel
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore

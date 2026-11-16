@@ -13,10 +13,10 @@ Measured 2026-11-16 against `master` (70 modules, ~33,000 lines of QML).
 | Form factor | Done | What is there | What is missing |
 |---|---|---|---|
 | Computer | ~95% | six desktop layouts (LayoutSwitcher), multi-monitor, keyboard and mouse everywhere | — |
-| Laptop | ~90% | battery and charging, lid, brightness, keyboard backlight, power profiles, touchpad toggle | the layout following dock / undock by itself |
-| Tablet | ~55% | the Touch layout, the screen keyboard on fold-to-tablet (TabletMode), auto-rotate, the Smart Touch bubble | edge-swipe gestures, the keyboard on text-field focus, finger-sized controls everywhere (only the dock is), one size control for the whole UI |
+| Laptop | ~100% | battery and charging, lid, brightness, keyboard backlight, power profiles, touchpad toggle, the layout following dock / undock | — |
+| Tablet | ~70% | the Touch layout, the screen keyboard on fold-to-tablet (TabletMode), auto-rotate, the Smart Touch bubble, edge swipes, a long press for the right-click | the keyboard on text-field focus, finger-sized controls everywhere (only the dock is), one size control for the whole UI |
 | Handheld | ~45% | InputPlumber (the built-in pad, lent to the desktop over a game), controller navigation and typing, the controller pointer, touch, battery | a handheld profile (7–8" at arm's length: bigger than a laptop, smaller than a TV), a quick panel over a running game (brightness, volume, performance), portrait panels turned the right way (the Deck's and the Legion Go's are portrait), TDP control (PowerStation and ryzenadj are not in Arch's repos) |
-| Board | ~30% | drawing over anything on screen (Annotate), Magnifier, Ruler, the PDF reader, casting, the Touch layout, the screen keyboard | a board profile (65–86" touch, used standing up: controls within a child's reach at the bottom, nothing important at the top), many fingers and pens at once, pen vs. finger (write with the pen, move with the finger), a whiteboard surface and saving it, a guest session that resets after a lesson, a teacher's laptop cast onto it |
+| Board | ~60% | a board profile (65–86" touch, used standing up: the bar and Quick Settings at the bottom within a child's reach, nothing important at the top), the whiteboard (pages, six inks, saving to a PDF), drawing over anything on screen (Annotate), Magnifier, Ruler, the PDF reader, casting, the Touch layout, the screen keyboard | many fingers and pens at once, pen vs. finger (write with the pen, move with the finger), the pen as a pen (pressure, palm rejection, its buttons), a guest session that resets after a lesson, a teacher's laptop cast onto it |
 | TV | ~40% | the whole desktop by remote and controller (KeyFocus, GamepadNav, InputPlumber, `remote*` IPC), typing from a remote, a controller pointer | a 10-foot home, sofa-sized type and targets, knowing a TV is connected |
 | Phone | ~15% | the SIM PIN and texts (Modem), the phone link (Phone), the screen keyboard | a portrait layout of every surface, gesture navigation, a notification shade, a phone lock screen, a calls UI, one app at a time |
 
@@ -59,6 +59,46 @@ same foundation before any of their own work:
   `dev/shell-parts/tv-home.sh` with real key presses. Left for TV: auto-detection
   from EDID (a TV that reports no size is a computer until chosen), and the
   gamescope image's desktop mode switching to this shell.
+- **Handheld** - done: the TV home at arm's length (scale 1.25, touch on every
+  card); through InputPlumber, Guide is the home and back to the game, the ⋯
+  button the quick panel over the game (`Modules/QuickPanel`: brightness,
+  volume, performance, the screen keyboard, home, close the app); a sideways
+  panel turned the right way once a session by the machine's DMI name (Steam
+  Deck LCD and OLED, Legion Go; any other portrait-made handheld panel as the
+  Deck), unless the owner set a turn or auto-rotate is on. Tested in
+  `dev/shell-parts/handheld.sh` (the pad's presses through the InputPlumber
+  stand-in) and `tests/test_form_factor.py`. Unverified until real hardware:
+  whether InputPlumber's "pass" mode hands the ⋯ button to the shell as it does
+  Guide (the shell borrows the pad itself when either arrives), and the Legion
+  Go's turn. Left: TDP control (not in Arch's repos).
+- **Tablet** - done: edge swipes on tablet and phone screens (`Modules/EdgeStrips`,
+  `Common/Gestures.js`: from the bottom the launcher, the top Quick Settings, the
+  left back, the right the overview), the screen keyboard with a text field of the
+  shell (and gone with it), scale 1.2. Tested in `dev/shell-parts/tablet.sh`
+  (the actions through IPC: a nested niri has no finger to swipe with) and
+  `tests/test_gestures.py`. Left: the keyboard for apps' own text fields (needs
+  text-input from niri, which the shell cannot see).
+- **Board** - mostly: scale 1.4, and the bar and Quick Settings at the bottom of
+  the screen, within reach of someone standing at it - the owner can still put the
+  bar back at the top (Settings > Personalisation > "The bar sits"). The
+  whiteboard (`Modules/Whiteboard`, from the launcher): pages, six inks, three
+  widths, a whole-stroke eraser, undo, several fingers writing at once, saved as
+  one PDF in Documents/Whiteboards. Tested in `dev/shell-parts/board.sh` (the
+  bar's edge, the whiteboard, the saved PDF). Left: the pen as a pen (pressure,
+  palm rejection, its buttons), a guest session that resets after a lesson,
+  receiving a cast.
+- **Laptop** - done: the layout follows the desk (`Services/Docking`). Docked and
+  on its own, the laptop each keeps the dock, bar, desktop widgets and icons,
+  gaps, window width and hot corners the owner last used there; the first time in
+  a state nothing changes and is remembered from then on. Only on a machine with a
+  built-in panel, and one switch turns it off (Settings > Personalisation > "The
+  layout follows the dock"). Tested in `dev/shell-parts/laptop.sh`, which drives
+  the desk through the IPC hook a nested niri needs (it has no panel to unplug).
+- **Touch** - a long press is a right-click on a touch screen, wherever a right
+  button opens something: the desktop, its files, the shelf, a quick-settings
+  tile, the island, the ring, the viewer, the magnifier, the ruler and the bin
+  (`Common/Gestures.js`, tested in `tests/test_gestures.py`; the click that ends
+  a long press is swallowed, so one press does one thing).
 
 ## The order
 
@@ -68,8 +108,8 @@ same foundation before any of their own work:
 | 2 | **TV**: a full-screen home (shelves of apps, games, settings; clock and status on top; the buttons' meanings below), the 10-foot scale, TV auto-detection | 1–2 |
 | 3 | **Handheld**: the handheld profile (the TV home at arm's length, with touch), a quick panel over a running game on the Guide / ⋯ button, portrait panels rotated by device | 1–2 |
 | 4 | **Tablet**: edge swipes (bottom: launcher, top: Quick Settings, sides: back / switch), the keyboard on text-field focus, touch-sized targets | 2 |
-| 5 | **Laptop**: the layout follows dock / undock | <1 |
-| 6 | **Board**: the board profile (reach zones, big targets), the pen as a pen (pressure, palm rejection, its buttons), a whiteboard mode that saves to a PDF, a resetting guest session, receiving a cast | 2–3 |
+| 5 | **Laptop**: the layout follows dock / undock - done | <1 |
+| 6 | **Board**: the board profile (reach zones, big targets), a whiteboard mode that saves to a PDF - done; the pen as a pen (pressure, palm rejection, its buttons), a resetting guest session, receiving a cast | 2–3 |
 | 7 | **Phone**: portrait versions of the bar, launcher, Quick Settings (as a shade), notifications, lock screen and Settings; gesture navigation; calls; one full-screen app at a time | 5–8 |
 | | **Total** | ~13–20 |
 

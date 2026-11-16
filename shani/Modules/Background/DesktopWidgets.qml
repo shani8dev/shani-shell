@@ -23,17 +23,25 @@ Variants {
         function loadPos(id, w, h) {
             const sw = scr.modelData ? scr.modelData.width : 1920;
             const sh = scr.modelData ? scr.modelData.height : 1080;
+            // how far a card stays above the bottom edge: the dock, or the bar
+            // when the bar is down there (a classroom board)
+            const bottomGap = bottomBar ? Theme.barHeight + 56 : 104;
             const defaults = {
                 "clock": { x: 24, y: 64 },
                 "weather": { x: Math.max(12, sw - w - 24), y: 64 },
-                "media": { x: 24, y: Math.max(12, sh - h - 104) },
-                "stats": { x: Math.max(12, sw - w - 24), y: Math.max(12, sh - h - 104) }
+                "media": { x: 24, y: Math.max(12, sh - h - bottomGap) },
+                "stats": { x: Math.max(12, sw - w - 24), y: Math.max(12, sh - h - bottomGap) }
             };
             return scr.clampPos(id, Settings.data.deskPos[id] || defaults[id], w, h, sw, sh);
         }
+        // clear of the bar, whichever edge it is on: a bar at the bottom (a
+        // board) is a floor for a card, one at the top a ceiling
+        readonly property bool bottomBar: FormFactor.barEdge(modelData ? modelData.name : "") === "bottom"
         function clampPos(id, want, w, h, sw, sh) {
             const x = Math.min(Math.max(12, want.x), Math.max(12, sw - w - 12));
-            const y = Math.min(Math.max(Theme.barHeight + 12, want.y), Math.max(Theme.barHeight + 12, sh - h - 96));
+            const ceil = bottomBar ? 12 : Theme.barHeight + 12;
+            const floor = bottomBar ? Theme.barHeight + 16 : 96;
+            const y = Math.min(Math.max(ceil, want.y), Math.max(ceil, sh - h - floor));
             return { x: x, y: y };
         }
         function savePos(id, x, y) {

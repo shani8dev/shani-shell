@@ -32,6 +32,13 @@ ColumnLayout {
             IconButton { icon: "view-paged"; size: Theme.px(24); visible: Net.activeWifi !== null; Accessible.name: Tr.t("Share this Wi-Fi as a QR code"); onClicked: { Ui.closeAll(); Qr.shareWifi(); } }
             IconButton { icon: "preferences-system"; size: Theme.px(24); onClicked: { Ui.closeAll(); Net.editConnections(); } }
         }
+        // a sign-in page in the way of the internet (a hotel's, a café's)
+        Button {
+            visible: Net.portal
+            Layout.fillWidth: true
+            text: Tr.t("Sign in to this network")
+            onClicked: { Ui.closeAll(); Net.openPortal(); }
+        }
         Repeater {
             model: Net.networks
             ColumnLayout {
