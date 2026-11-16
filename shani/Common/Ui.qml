@@ -103,6 +103,7 @@ Singleton {
     // section: an objectName in the page to scroll to ("section:colours")
     function openSettings(cat, section) {
         closeAll();
+        tvHome = false;
         settingsCat = cat || settingsCat || "personal";
         settingsSection = section || "";
         settingsOpen = true;
@@ -122,6 +123,10 @@ Singleton {
     // the focused screen's kind and size (Services/FormFactor): Theme.ui reads it
     property string formFactor: "computer"
     property real uiScale: 1.0
+    // the TV home (Modules/TvHome) on a TV screen: shown at start and on Home,
+    // hidden by whatever it opens; tvSelected is its highlighted card (the tests)
+    property bool tvHome: true
+    property string tvSelected: ""
     property string launcherSelected: ""      // the highlighted result (the tests)
     property int windowMenuSel: 0             // the window menu's highlighted row (the tests)
     property bool launcherSearchBar: false

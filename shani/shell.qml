@@ -78,6 +78,7 @@ import qs.Modules.VideoTrimmer
 // registers the folder as a module for the Media Player window, which a `source:`
 // loader reads (an import loads nothing by itself)
 import qs.Modules.MediaPlayer
+import qs.Modules.TvHome
 
 ShellRoot {
     Wallpaper {}
@@ -88,6 +89,7 @@ ShellRoot {
     Bar {}
     Island {}
     Variants { model: Quickshell.screens; Dock {} }
+    Variants { model: Quickshell.screens; TvHome {} }
     OverviewSearch {}
     // surfaces most sessions rarely open are made on first use and dropped after:
     // 56 MB of an idle desktop (tests: perf-*)
@@ -492,11 +494,20 @@ ShellRoot {
         // XF86Keyboard here): Home - the launcher, the shell's home; Back - one
         // level back in the shell, or the app's back (Alt+Left) when nothing of
         // the shell is open; Menu - the focused thing's menu; Keyboard - typing
-        function remoteHome() { if (Lock.locked) return; Osk.cancelRemote(); Ui.closeAll(); Ui.toggleLauncher(""); }
+        function remoteHome() {
+            if (Lock.locked) return;
+            Osk.cancelRemote(); Ui.closeAll();
+            // a TV's Home is the TV home; elsewhere the launcher
+            if (FormFactor.focused.profile === "tv") Ui.tvHome = true;
+            else Ui.toggleLauncher("");
+        }
+        function tvHome(show: bool) { Ui.tvHome = show; }
         function remoteBack() {
             if (Lock.locked) return;
             if (Osk.remote) Osk.cancelRemote();
             else if (Osk.shown) Osk.toggle();
+            // the TV home goes back to what is open behind it, if anything is
+            else if (Ui.tvHome && FormFactor.focused.profile === "tv" && !Ui.launcher) { if (Niri.mru().some(w => w.app_id && w.app_id !== "org.quickshell")) Ui.tvHome = false; }
             else if (GamepadNav.shellHasKeys || Ui.launcher || Niri.overviewOpen) { Ui.closeAll(); if (Niri.overviewOpen) Niri.action("close-overview"); }
             else Quickshell.execDetached(["wtype", "-M", "alt", "-k", "Left", "-m", "alt"]);
         }
@@ -873,7 +884,7 @@ ShellRoot {
                 oskCursor: Osk.cursorLabel,
                 oskRemote: Osk.remote, oskDraft: Osk.draft, oskCommitted: Osk.lastCommitted,
                 launcherSelected: Ui.launcherSelected, launcherText: Ui.launcherText,
-                formFactor: FormFactor.focused.profile, uiScale: Theme.ui, formFactors: FormFactor.screens, windowMenuSel: Ui.windowMenuSel, launcherSearchBar: Ui.launcherSearchBar,
+                formFactor: FormFactor.focused.profile, tvHome: Ui.tvHome && FormFactor.focused.profile === "tv", tvSelected: Ui.tvSelected, uiScale: Theme.ui, formFactors: FormFactor.screens, windowMenuSel: Ui.windowMenuSel, launcherSearchBar: Ui.launcherSearchBar,
                 oskLastPad: Osk.lastPad,
                 ringDepth: Ui.ringDepth,
                 topResult: Ui.topResult, liveWallpaperWhy: LiveWallpaper.why, liveWallpaperPlaying: Ui.liveWallpaperPlaying, launcherFiles: Ui.launcherFiles, launcherMeaning: Ui.launcherMeaning,

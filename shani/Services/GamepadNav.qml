@@ -48,6 +48,7 @@ Singleton {
 
     // a shell surface with the keyboard: X is the Menu key there, else the window menu
     readonly property bool shellHasKeys: Ui.controlCenter || Ui.settingsOpen || Ui.dockFocus || Ui.barFocus || Ui.launcher || Ui.windowMenu
+        || (Ui.tvHome && FormFactor.focused.profile === "tv")
     function act(a) {
         lastAction = a;
         if (a.startsWith("osk-")) {
@@ -74,7 +75,9 @@ Singleton {
                 Ui.desktopMenu = true;
         } else if (a === "launcher") {
             Ui.closeAll();
-            Ui.toggleLauncher("");
+            // on a TV the Guide button is Home, as the remote's
+            if (FormFactor.focused.profile === "tv") Ui.tvHome = true;
+            else Ui.toggleLauncher("");
         } else if (a === "sidebar")
             Ui.toggleControlCenter();
         else if (a === "overview")

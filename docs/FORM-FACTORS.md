@@ -52,6 +52,13 @@ same foundation before any of their own work:
   `Theme.px()` (identical on a computer, where the scale is 1); `check` keeps
   it at 0. Left: sizes computed in expressions (`list.width / 132`).
 - **Width breakpoints** - not started.
+- **TV home** - done: `Modules/TvHome` on every screen whose kind is TV - shelves
+  of what is open, pinned apps, games, every app, settings and power, the clock
+  and status on top, what the buttons do below; arrows / OK / Back / Home from a
+  remote, the controller (Guide is Home), mouse and touch. Tested in
+  `dev/shell-parts/tv-home.sh` with real key presses. Left for TV: auto-detection
+  from EDID (a TV that reports no size is a computer until chosen), and the
+  gamescope image's desktop mode switching to this shell.
 
 ## The order
 
