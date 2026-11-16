@@ -291,9 +291,9 @@ PanelWindow {
             if (win.emojiPath === "")
                 Qt.callLater(() => win.emojiPath = "/usr/share/unicode/emoji/emoji-test.txt");
             // full Unicode as well as emoji (Characters service, by
-            // bridge/characters.py): symbols, math, arrows, Indic scripts
-            if (Characters.query !== q.slice(1).trim())
-                Characters.search(q.slice(1).trim());
+            // bridge/characters.py): symbols, math, arrows, Indic scripts -
+            // asked for in onQChanged, not here: setting Characters.query
+            // inside this binding, which reads it, was a binding loop
             const seen = {};
             const emojiItems = win.emoji.filter(x => f === "" || x.name.toLowerCase().indexOf(f) >= 0).map(x => ({ kind: "emoji", glyph: x.e, icon: "face-smile-big", title: x.name,
                 subtitle: Tr.t("Enter types it · Shift+Enter copies"), run: shift => shift ? Quickshell.clipboardText = x.e : Clipboard.typeText(x.e) }));
@@ -391,6 +391,8 @@ PanelWindow {
     onSectionsChanged: Ui.launcherSections = sections.map(x => x.title)
     onQChanged: {
         searchBar = false;
+        if (q.startsWith(":") && Characters.query !== q.slice(1).trim())
+            Characters.search(q.slice(1).trim());
         Ui.launcherText = q;
         if (q.trim().length < 4) meaning = [];
         sel = 0;
