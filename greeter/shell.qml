@@ -39,6 +39,8 @@ ShellRoot {
     // The answer typed before greetd asked for it: the first prompt arrives
     // after createSession(), but the user types the password up front.
     property string pending: ""
+    // an answer is waiting - an empty one too (the guest has no password)
+    property bool pendingSet: false
     readonly property bool busy: Greetd.state !== GreetdState.Inactive
 
     // ---- typing without a keyboard, and typing the right thing ----------------------
@@ -70,6 +72,14 @@ ShellRoot {
     // flag that /etc/pam.d/shani-greetd's first line looks for (pam_exec): the
     // greeter can only choose the fingerprint path, never skip the check.
     property bool fingerprint: Quickshell.env("SHANI_GREETER_FINGERPRINT") === "1"
+    // the guest account (Settings > Users > Guest): it has no password, so its
+    // empty answer is the password, not "use fingerprint"
+    property string guest: ""
+    Process {
+        running: true
+        command: ["sh", "-c", 'head -n1 "${SHANI_GUEST_MARKER:-/etc/shani/guest}" 2>/dev/null']
+        stdout: StdioCollector { onStreamFinished: root.guest = text.trim() }
+    }
     readonly property string runDir: Quickshell.env("SHANI_GREETER_RUN") || "/run/shani-greeter"
     Process {
         running: Quickshell.env("SHANI_GREETER_FINGERPRINT") === ""
@@ -116,6 +126,7 @@ ShellRoot {
             return;
         error = "";
         pending = "";
+        pendingSet = false;
         fingerUser = user.trim();
         askFinger.running = true;
     }
@@ -125,11 +136,12 @@ ShellRoot {
         if (Greetd.state === GreetdState.Inactive) {
             if (user.trim() === "")
                 return;
-            if (answer === "" && fingerprint) {
+            if (answer === "" && fingerprint && user.trim() !== guest) {
                 useFingerprint(user);
                 return;
             }
             pending = answer;
+            pendingSet = answer !== "" || user.trim() === guest;
             Greetd.createSession(user.trim());
         } else if (Greetd.state === GreetdState.Authenticating) {
             if (asked) {
@@ -137,6 +149,7 @@ ShellRoot {
                 Greetd.respond(answer);
             } else {
                 pending = answer;          // still looking for a face: the password waits its turn
+                pendingSet = answer !== "" || user.trim() === guest;
             }
         }
     }
@@ -148,6 +161,7 @@ ShellRoot {
         prompt = "Password";
         echo = false;
         pending = "";
+        pendingSet = false;
     }
 
     Connections {
@@ -162,9 +176,10 @@ ShellRoot {
                 return;
             }
             root.info = "";
-            if (root.pending !== "" && !echoResponse) {
+            if (root.pendingSet && !echoResponse) {
                 const answer = root.pending;
                 root.pending = "";
+                root.pendingSet = false;
                 Greetd.respond(answer);
                 return;
             }

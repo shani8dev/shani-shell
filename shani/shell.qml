@@ -93,6 +93,12 @@ ShellRoot {
     Island {}
     Variants { model: Quickshell.screens; Dock {} }
     Variants { model: Quickshell.screens; TvHome {} }
+    // signed in as the guest (Settings > Users > Guest): said once, at the start
+    Process {
+        running: true
+        command: ["sh", "-c", '[ -n "$USER" ] && [ "$(head -n1 "${SHANI_GUEST_MARKER:-/etc/shani/guest}" 2>/dev/null)" = "$USER" ] && notify-send -a "$1" -i avatar-default "$2" "$3"',
+                  "sh", Tr.t("Guest"), Tr.t("You are signed in as Guest"), Tr.t("Everything you save or change here is wiped when you sign out.")]
+    }
     QuickPanel {}
     Variants { model: Quickshell.screens; EdgeStrips {} }
     OverviewSearch {}

@@ -127,5 +127,12 @@ got=$(SHANI_GREETER_KEYBOARD=1 greet finger "" enter)     # the screen keyboard 
 [ "$got" = "create_session post_auth_message_response start_session" ] && [ ! -e "$FRUN/fingerprint" ] \
     && result greeter-fingerprint PASS || result greeter-fingerprint FAIL "got: $got"
 
+# ---- the guest (Settings > Users > Guest): no password - Enter on the empty field
+# is the password, never "use fingerprint" (the flag is not left for pam_exec)
+rm -f "$FRUN/fingerprint"; echo guest > /tmp/guest-marker
+got=$(SHANI_GREETER_USER=guest SHANI_GUEST_MARKER=/tmp/guest-marker greet guest "" enter)
+[ "$got" = "create_session post_auth_message_response start_session" ] && [ ! -e "$FRUN/fingerprint" ] \
+    && result greeter-guest-enter-signs-in PASS || result greeter-guest-enter-signs-in FAIL "got: $got; flag $(ls "$FRUN")"
+
 pkill -f fake-greetd.py 2>/dev/null || true
 [ "$fail" = 0 ]

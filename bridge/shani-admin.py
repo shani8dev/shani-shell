@@ -38,7 +38,12 @@ import sys
 from pathlib import Path
 
 USERNAME = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
-RESERVED = {"root", "greeter", "nobody", "admin", "daemon", "bin", "sys", "dbus"}
+RESERVED = {"root", "greeter", "nobody", "admin", "daemon", "bin", "sys", "dbus", "guest"}
+# the guest account (a classroom board, a shared computer): no password, its home
+# wiped before and after every session by shani-desktop-niri's guest-reset - which
+# wipes only the account named in this file, the one this tool made
+GUEST = "guest"
+GUEST_MARKER = Path("/etc/shani/guest")
 FIRST_UID, LAST_UID = 1000, 60000
 ADMIN_GROUP = "wheel"
 
@@ -150,6 +155,8 @@ def user_remove(req: dict) -> dict:
 
 def user_admin(req: dict) -> dict:
     p = person(req.get("username", ""))
+    if req.get("admin") and p.pw_name == GUEST and GUEST_MARKER.exists():
+        raise Refused("the guest account is never an administrator")
     if req.get("admin"):
         run(["gpasswd", "-a", p.pw_name, ADMIN_GROUP])
         return {}
@@ -234,7 +241,37 @@ def battery_limit(req: dict) -> dict:
     return {"batteries": len(files)}
 
 
-COMMANDS = {"user-add": user_add, "user-remove": user_remove, "user-admin": user_admin,
+def guest(req: dict) -> dict:
+    on = bool(req.get("on"))
+    if on:
+        try:
+            pwd.getpwnam(GUEST)
+            made = GUEST_MARKER.exists() and GUEST_MARKER.read_text().strip() == GUEST
+            if not made:
+                raise Refused("an account named guest is someone's own; it is left as it is")
+        except KeyError:
+            run(["useradd", "-m", "-c", "Guest", "-s", "/bin/bash", GUEST])
+        # no password: the greeter signs in on Enter (pam_unix nullok); never an admin
+        run(["passwd", "-d", GUEST])
+        GUEST_MARKER.parent.mkdir(parents=True, exist_ok=True)
+        GUEST_MARKER.write_text(GUEST + "\n")
+        GUEST_MARKER.chmod(0o644)
+        return {}
+    if caller() == GUEST:
+        raise Refused("the guest cannot turn the guest account off")
+    if GUEST_MARKER.exists() and GUEST_MARKER.read_text().strip() == GUEST:
+        if autologin_user() == GUEST:
+            set_autologin("")
+        try:
+            pwd.getpwnam(GUEST)
+            run(["userdel", "-r", GUEST])
+        except KeyError:
+            pass
+    GUEST_MARKER.unlink(missing_ok=True)
+    return {}
+
+
+COMMANDS = {"guest": guest, "user-add": user_add, "user-remove": user_remove, "user-admin": user_admin,
             "user-password": user_password, "autologin": autologin, "power-keys": power_keys,
             "battery-limit": battery_limit}
 

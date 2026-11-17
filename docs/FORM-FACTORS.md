@@ -84,9 +84,17 @@ same foundation before any of their own work:
   whiteboard (`Modules/Whiteboard`, from the launcher): pages, six inks, three
   widths, a whole-stroke eraser, undo, several fingers writing at once, saved as
   one PDF in Documents/Whiteboards. Tested in `dev/shell-parts/board.sh` (the
-  bar's edge, the whiteboard, the saved PDF). Left: the pen as a pen (pressure,
-  palm rejection, its buttons), a guest session that resets after a lesson,
-  receiving a cast.
+  bar's edge, the whiteboard, the saved PDF). The pen as a pen: a line as wide
+  as it is pressed, its eraser end and side button erase, touches ignored while
+  it is near and a palm at any time (`Common/Pen.js`, `tests/test_pen.py`; the
+  handlers need a real pen to verify). The guest: Settings > Users > Guest makes
+  a passwordless, never-admin account; shani-desktop-niri's `guest-reset` makes
+  its home new before and after every session (a `user-runtime-dir@` drop-in)
+  and logind ends its programs at sign-out; the greeter sends its empty answer
+  as the password (tested: `dev/check.sh admin`, `pam`, `greeter`). Left:
+  receiving a cast - skipped for now; nothing in Arch's repos receives a screen,
+  the one maintained receiver is UxPlay (AirPlay, in the AUR) to package when it
+  comes back, and Miracast/Chromecast have none maintained.
 - **Laptop** - done: the layout follows the desk (`Services/Docking`). Docked and
   on its own, the laptop each keeps the dock, bar, desktop widgets and icons,
   gaps, window width and hot corners the owner last used there; the first time in
@@ -109,7 +117,7 @@ same foundation before any of their own work:
 | 3 | **Handheld**: the handheld profile (the TV home at arm's length, with touch), a quick panel over a running game on the Guide / ⋯ button, portrait panels rotated by device | 1–2 |
 | 4 | **Tablet**: edge swipes (bottom: launcher, top: Quick Settings, sides: back / switch), the keyboard on text-field focus, touch-sized targets | 2 |
 | 5 | **Laptop**: the layout follows dock / undock - done | <1 |
-| 6 | **Board**: the board profile (reach zones, big targets), a whiteboard mode that saves to a PDF - done; the pen as a pen (pressure, palm rejection, its buttons), a resetting guest session, receiving a cast | 2–3 |
+| 6 | **Board**: the board profile (reach zones, big targets), a whiteboard mode that saves to a PDF - done; the pen as a pen (pressure, palm rejection, its buttons), a resetting guest session, receiving a cast (skipped for now) | 2–3 |
 | 7 | **Phone**: portrait versions of the bar, launcher, Quick Settings (as a shade), notifications, lock screen and Settings; gesture navigation; calls; one full-screen app at a time | 5–8 |
 | | **Total** | ~13–20 |
 
@@ -138,8 +146,11 @@ the largest step and needs hardware ShaniOS does not target yet.
 - **Touchscreen all-in-ones**: the computer profile with touch input;
   `InputKinds` decides what is offered, not the screen size alone.
 - **Projectors and presenting**: the existing presenting mode (`Plugged`).
-- **Kiosk and signage**: a separate image (cage + labwc + Firefox) with one
-  app on purpose; not this shell.
+- **Kiosk and signage**: a separate image (shani-install-media's `kiosk`
+  profile: gdm autologin into cage + Firefox, a passwordless `kiosk` account
+  with its home on tmpfs, new at every boot) with one app on purpose; not this
+  shell. The board's guest is the same idea for a person rather than a screen:
+  a home made new at every sign-out, not only at boot.
 
 ## Decisions it depends on
 

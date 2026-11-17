@@ -34,7 +34,7 @@ def machine(monkeypatch, tmp_path):
     monkeypatch.setenv("PKEXEC_UID", "1000")
     calls = []
     monkeypatch.setattr(sa, "run", lambda cmd, stdin=None: calls.append((cmd, stdin)))
-    for name in ("GREETD_CONFIG", "AUTOLOGIN_CONFIG", "AUTOLOGIN_DROPIN", "LOGIND_DROPIN"):
+    for name in ("GREETD_CONFIG", "AUTOLOGIN_CONFIG", "AUTOLOGIN_DROPIN", "LOGIND_DROPIN", "GUEST_MARKER"):
         monkeypatch.setattr(sa, name, tmp_path / name)
     (tmp_path / "GREETD_CONFIG").write_text('[terminal]\nvt = 1\n\n[default_session]\ncommand = "niri"\nuser = "greeter"\n')
     return calls, wheel
@@ -142,3 +142,43 @@ def test_battery_limit(machine, tmp_path, monkeypatch):
 def test_no_battery_no_limit(machine, tmp_path, monkeypatch):
     monkeypatch.setattr(sa, "POWER_SUPPLY", tmp_path)
     refused(sa.battery_limit, {"percent": 80}, "no charge limit")
+
+
+def test_the_guest_account_on_and_off(machine, monkeypatch, tmp_path):
+    calls, _ = machine
+    sa.guest({"on": True})
+    assert ["useradd", "-m", "-c", "Guest", "-s", "/bin/bash", "guest"] in [c for c, _ in calls]
+    assert ["passwd", "-d", "guest"] in [c for c, _ in calls]           # no password: Enter signs in
+    assert not any("-G" in c for c, _ in calls)                          # never an administrator
+    assert sa.GUEST_MARKER.read_text().strip() == "guest"                # the reset wipes only this one
+    # off: the account and its home go, and the marker with them
+    people = [account("asha", 1000), account("guest", 1002)]
+    monkeypatch.setattr(sa.pwd, "getpwnam", lambda n: next((p for p in people if p.pw_name == n), None) or (_ for _ in ()).throw(KeyError(n)))
+    calls.clear()
+    sa.guest({"on": False})
+    assert ["userdel", "-r", "guest"] in [c for c, _ in calls]
+    assert not sa.GUEST_MARKER.exists()
+
+
+def test_someones_own_account_named_guest_is_never_taken_over(machine, monkeypatch):
+    calls, _ = machine
+    people = [account("asha", 1000), account("guest", 1002)]         # a person's, made by hand
+    monkeypatch.setattr(sa.pwd, "getpwnam", lambda n: next((p for p in people if p.pw_name == n), None) or (_ for _ in ()).throw(KeyError(n)))
+    refused(sa.guest, {"on": True}, "someone's own")
+    assert not sa.GUEST_MARKER.exists() and calls == []
+    sa.guest({"on": False})                                              # off: their account is not removed
+    assert calls == []
+
+
+def test_guest_is_not_a_name_a_person_can_take(machine):
+    refused(sa.user_add, {"username": "guest", "password": "x"}, "user name")
+
+
+def test_the_guest_is_never_made_an_administrator(machine, monkeypatch):
+    calls, _ = machine
+    sa.GUEST_MARKER.write_text("guest\n")
+    people = [account("asha", 1000), account("guest", 1002)]
+    monkeypatch.setattr(sa.pwd, "getpwnam", lambda n: next((p for p in people if p.pw_name == n), None) or (_ for _ in ()).throw(KeyError(n)))
+    refused(sa.user_admin, {"username": "guest", "admin": True}, "never an administrator")
+    assert calls == []
+

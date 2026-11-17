@@ -56,6 +56,25 @@ rm -f /tmp/fp-flag
 fp touch; u2f miss; expect pam-greeter-no-flag-skips-the-finger fail shani-greetd wrong-password
 fp none; u2f none
 
+# ---- the guest account (Settings > Users > Guest): no password, so Enter signs in ----
+# Arch's system-auth checks the password with pam_unix and nullok - an account
+# with no password is let in by it; the greeter sends the guest's empty answer
+# as a password, never as "use fingerprint" (greeter/shell.qml)
+if grep -Eq '^auth.*pam_unix\.so.*nullok' /etc/pam.d/system-auth; then
+    result pam-arch-system-auth-has-nullok PASS
+else
+    result pam-arch-system-auth-has-nullok FAIL "$(grep pam_unix /etc/pam.d/system-auth)"
+fi
+printf 'auth required pam_unix.so nullok\naccount required pam_permit.so\npassword required pam_permit.so\nsession required pam_permit.so\n' > $C/system-local-login
+id guest >/dev/null 2>&1 || useradd -m guest
+passwd -d guest >/dev/null
+rm -f /tmp/fp-flag; fp touch; u2f none
+gauth() { python3 /work/dev/pam-auth.py shani-greetd "$1" $C "$2" 2>&1; }
+case "$(gauth guest '')" in success*) result pam-greeter-guest-enter-signs-in PASS ;; *) result pam-greeter-guest-enter-signs-in FAIL "$(gauth guest '')" ;; esac
+case "$(gauth alice '')" in success*) result pam-greeter-empty-password-not-for-others FAIL ;; *) result pam-greeter-empty-password-not-for-others PASS ;; esac
+fp none; u2f none
+printf 'auth required pam_unix.so\naccount required pam_permit.so\npassword required pam_permit.so\nsession required pam_permit.so\n' > $C/system-local-login
+
 # ---- the real pam_u2f (when the package can be fetched): never a way in on its own ----
 if pacman -Sy --noconfirm --needed pam-u2f >/dev/null 2>&1; then
     rm -rf /home/alice/.config/Yubico

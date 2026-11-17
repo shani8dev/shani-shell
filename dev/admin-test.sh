@@ -42,5 +42,34 @@ sleep 1
 p() { busctl get-property org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager "$1"; }
 [ "$(p HandleLidSwitch)" = 's "lock"' ] && [ "$(p HandleLidSwitchExternalPower)" = 's "ignore"' ] && [ "$(p HandlePowerKey)" = 's "suspend"' ] \
     && result power-keys-reach-logind PASS || result power-keys-reach-logind FAIL "$out $(p HandleLidSwitch) $(p HandlePowerKey)"
+
+# ---- the guest account: no password, never an admin, its home new before and after each session ----
+install -Dm755 /desk/usr/lib/shani-desktop-niri/guest-reset /usr/lib/shani-desktop-niri/guest-reset
+install -Dm644 /desk/usr/lib/systemd/system/user-runtime-dir@.service.d/50-shani-guest.conf /usr/lib/systemd/system/user-runtime-dir@.service.d/50-shani-guest.conf
+install -Dm644 /desk/usr/lib/systemd/logind.conf.d/50-shani-guest.conf /usr/lib/systemd/logind.conf.d/50-shani-guest.conf
+systemctl daemon-reload
+systemctl kill -s HUP systemd-logind   # logind reads its drop-ins at start and on a reload (the package's is there from boot)
+out=$(echo '{"on": true}' | A guest)
+getent passwd guest | grep -q ':Guest:/home/guest:/bin/bash$' && [ "$(passwd -S guest | awk '{print $2}')" = NP ] && ! id -nG guest | grep -qw wheel \
+    && [ "$(cat /etc/shani/guest)" = guest ] && result guest-on-no-password-no-admin PASS || result guest-on-no-password-no-admin FAIL "$out $(passwd -S guest 2>&1)"
+g=$(id -u guest)
+touch /home/guest/left-by-the-last-lesson; echo 'a note' > /etc/skel/.from-skel
+systemctl start "user-runtime-dir@$g.service"
+[ ! -e /home/guest/left-by-the-last-lesson ] && [ -e /home/guest/.from-skel ] && [ "$(stat -c %U /home/guest/.from-skel)" = guest ] \
+    && result guest-home-new-before-a-session PASS || result guest-home-new-before-a-session FAIL "$(ls -la /home/guest | tail -3)"
+touch /home/guest/written-this-lesson
+systemctl stop "user-runtime-dir@$g.service"
+[ ! -e /home/guest/written-this-lesson ] && [ -d /home/guest ] && [ "$(stat -c %a /home/guest)" = 700 ] \
+    && result guest-home-new-after-a-session PASS || result guest-home-new-after-a-session FAIL "$(ls -la /home/guest | tail -3)"
+# anyone else's start and stop leaves their home alone
+a=$(id -u asha); touch /home/asha/keep-me
+systemctl start "user-runtime-dir@$a.service"; systemctl stop "user-runtime-dir@$a.service"
+[ -e /home/asha/keep-me ] && result guest-reset-leaves-others-alone PASS || result guest-reset-leaves-others-alone FAIL
+sleep 1
+[ "$(busctl get-property org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager KillOnlyUsers)" = 'as 1 "guest"' ] \
+    && result guest-programs-end-with-the-session PASS || result guest-programs-end-with-the-session FAIL "$(busctl get-property org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager KillOnlyUsers 2>&1)"
+out=$(echo '{"on": false}' | A guest)
+! getent passwd guest >/dev/null && [ ! -e /etc/shani/guest ] && [ ! -d /home/guest ] \
+    && result guest-off-gone PASS || result guest-off-gone FAIL "$out"
 exit $fail
 IN

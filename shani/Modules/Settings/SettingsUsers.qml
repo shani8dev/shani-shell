@@ -19,6 +19,7 @@ ColumnLayout {
     readonly property var adminCmd: (Quickshell.env("SHANI_ADMIN_TOOL") || "pkexec /usr/lib/shani-shell/shani-admin.py").split(" ")
     property var users: []                // [{ name, fullname, admin }]
     property string autologin: ""
+    property string guest: ""             // the guest account, when on (/etc/shani/guest)
     property string open: ""              // the user whose actions are shown
     property bool adding: false
     property string note: ""
@@ -34,12 +35,14 @@ ColumnLayout {
         id: list
         command: ["sh", "-c", 'getent passwd | awk -F: "\\$3 >= 1000 && \\$3 < 60000 && \\$7 !~ /(nologin|false)\\$/ {print \\$1 \\":\\" \\$5}"
             echo "--wheel=$(getent group wheel | cut -d: -f4)"
-            f=/etc/greetd/shani-niri-autologin.toml; [ -f /etc/systemd/system/greetd.service.d/20-shani-autologin.conf ] && [ -f $f ] && echo "--auto=$(sed -n "s/^user *= *\\"\\(.*\\)\\"/\\1/p" $f | tail -1)"']
+            f=/etc/greetd/shani-niri-autologin.toml; [ -f /etc/systemd/system/greetd.service.d/20-shani-autologin.conf ] && [ -f $f ] && echo "--auto=$(sed -n "s/^user *= *\\"\\(.*\\)\\"/\\1/p" $f | tail -1)"
+            [ -r /etc/shani/guest ] && echo "--guest=$(head -n1 /etc/shani/guest)"']
         stdout: StdioCollector {
             onStreamFinished: {
                 const l = text.trim().split("\n");
                 const wheel = ((l.find(x => x.startsWith("--wheel=")) || "").slice(8)).split(",");
                 page.autologin = (l.find(x => x.startsWith("--auto=")) || "").slice(7);
+                page.guest = (l.find(x => x.startsWith("--guest=")) || "").slice(8);
                 page.users = l.filter(x => x && !x.startsWith("--")).map(x => {
                     const i = x.indexOf(":");
                     return { name: x.slice(0, i), fullname: x.slice(i + 1).split(",")[0], admin: wheel.indexOf(x.slice(0, i)) >= 0 };
@@ -158,6 +161,16 @@ ColumnLayout {
         wrapMode: Text.Wrap
         font.family: Theme.font
         font.pixelSize: Theme.px(11) * Theme.fontScale
+    }
+    // ---- the guest: a classroom board, a shared computer ---------------------
+    SwitchRow {
+        Layout.fillWidth: true
+        visible: page.iAmAdmin
+        text: Tr.t("Guest")
+        hint: Tr.t("anyone can sign in as Guest without a password; everything they leave is wiped when they sign out")
+        checked: page.guest !== ""
+        enabled: !page.busy && page.me !== page.guest
+        onToggled: on => page.act("guest", { on: on })
     }
     // ---- add someone ------------------------------------------------------------
     Button {

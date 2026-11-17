@@ -6,6 +6,7 @@ response) on $GREETD_SOCK, and prints every request it receives as one JSON line
 so a test can assert the exact conversation. It authenticates one account:
 
   user "shani", password "shani"   -> success, start_session accepted
+  user "guest"                     -> the guest account: an empty password
   user "otp"                       -> password, then a second visible prompt
                                       ("Code:"), answer "123456"
   user "shani", $FAKE_FACE=match     -> success straight away (linux-hello saw them)
@@ -59,7 +60,7 @@ def serve(conn: socket.socket) -> None:
             if user == "shani" and os.environ.get("FAKE_FACE") == "match":
                 send(conn, {"type": "success"})   # the face module said yes: no prompt at all
                 continue
-            prompts = [("secret", "Password:", user if user == "shani" else "otp")]
+            prompts = [("secret", "Password:", {"shani": "shani", "guest": ""}.get(user, "otp"))]
             if user == "otp":
                 prompts.append(("visible", "Code:", "123456"))
             send(conn, {"type": "auth_message", "auth_message_type": prompts[0][0],
@@ -67,7 +68,7 @@ def serve(conn: socket.socket) -> None:
         elif kind == "post_auth_message_response" and prompts and prompts[0][0] == "info":
             send(conn, {"type": "success"})     # the finger matched
         elif kind == "post_auth_message_response":
-            if user not in ("shani", "otp") or req.get("response") != prompts[0][2]:
+            if user not in ("shani", "otp", "guest") or (req.get("response") or "") != prompts[0][2]:
                 user, prompts = None, []
                 send(conn, {"type": "error", "error_type": "auth_error",
                             "description": "Authentication failed"})
