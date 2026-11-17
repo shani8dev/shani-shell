@@ -9,6 +9,7 @@ import Quickshell.Io
 import QtQuick
 import qs.Common
 import qs.Services
+import "../../Common/Pen.js" as Pen
 
 PanelWindow {
     id: win
@@ -135,9 +136,20 @@ PanelWindow {
                 ctx.fillRect(0, 0, width, height);
                 ctx.lineCap = "round";
                 ctx.lineJoin = "round";
-                for (const s of win.strokes().concat(Object.values(live.drawing))) {
+                for (const s of win.strokes().concat(Object.values(live.drawing)).concat(pen.stroke ? [pen.stroke] : [])) {
                     if (!s.points.length) continue;
                     ctx.strokeStyle = s.color;
+                    // a pen's line: each piece as wide as it was pressed
+                    if (s.pen && s.points.length > 1) {
+                        for (let i = 1; i < s.points.length; i++) {
+                            ctx.lineWidth = s.points[i].w || s.width;
+                            ctx.beginPath();
+                            ctx.moveTo(s.points[i - 1].x, s.points[i - 1].y);
+                            ctx.lineTo(s.points[i].x, s.points[i].y);
+                            ctx.stroke();
+                        }
+                        continue;
+                    }
                     ctx.lineWidth = s.width;
                     ctx.beginPath();
                     ctx.moveTo(s.points[0].x, s.points[0].y);
@@ -148,7 +160,50 @@ PanelWindow {
             }
         }
 
-        // every finger (and the mouse, and a pen) its own stroke, all at once
+        // the pen: its own line, as wide as it is pressed; turned over (its eraser
+        // end) or with its side button held, it erases. While it is on the board
+        // or just above it, touches are the hand holding it, not writing.
+        HoverHandler { id: penNear; acceptedDevices: PointerDevice.Stylus }
+        PointHandler {
+            id: pen
+            target: null
+            enabled: win.saving < 0
+            acceptedDevices: PointerDevice.Stylus
+            acceptedPointerTypes: PointerDevice.Pen
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            property var stroke: null
+            readonly property bool erasing: win.erasing || (point.pressedButtons & Qt.RightButton)
+            onActiveChanged: {
+                if (active && !erasing) {
+                    stroke = { color: String(win.ink), width: win.thickness, pen: true,
+                               points: [{ x: point.position.x, y: point.position.y, w: Pen.width(win.thickness, point.pressure, true) }] };
+                } else if (!active && stroke) {
+                    const s = stroke;
+                    stroke = null;
+                    if (s.points.length) win.setStrokes(win.strokes().concat([s]));
+                }
+                canvas.requestPaint();
+            }
+            onPointChanged: {
+                if (!active) return;
+                if (erasing) { win.eraseAt(point.position.x, point.position.y); return; }
+                if (stroke) {
+                    stroke.points.push({ x: point.position.x, y: point.position.y, w: Pen.width(win.thickness, point.pressure, true) });
+                    canvas.requestPaint();
+                }
+            }
+        }
+        PointHandler {
+            id: penEraser
+            target: null
+            enabled: win.saving < 0
+            acceptedDevices: PointerDevice.Stylus
+            acceptedPointerTypes: PointerDevice.Eraser
+            onPointChanged: if (active) win.eraseAt(point.position.x, point.position.y)
+        }
+
+        // every finger (and the mouse) its own stroke, all at once; a palm, and
+        // any touch while the pen is near, is left alone
         MultiPointTouchArea {
             id: live
             anchors { fill: parent; bottomMargin: bar.height + Theme.px(24) }
@@ -156,9 +211,11 @@ PanelWindow {
             maximumTouchPoints: 10
             property var drawing: ({})       // touch point id -> stroke being drawn
             enabled: win.saving < 0
+            readonly property bool penAround: penNear.hovered || pen.active || penEraser.active
             onPressed: pts => {
                 const d = Object.assign({}, drawing);
                 for (const p of pts) {
+                    if (Pen.rejectTouch(penAround, p.ellipseDiameters.width, p.ellipseDiameters.height, Theme.px(60))) continue;
                     if (win.erasing) { win.eraseAt(p.x, p.y); continue; }
                     d[p.pointId] = { color: String(win.ink), width: win.thickness, points: [{ x: p.x, y: p.y }] };
                 }
