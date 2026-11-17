@@ -49,13 +49,17 @@ Variants {
         // the keyboard in the bar (IPC focusBar): this screen's bar, the one being worked on
         readonly property bool keyed: Ui.barFocus && output === Niri.focusedOutput
         onKeyedChanged: if (keyed) Ui.focusFirst(glass)
+        // the fit test the phone part reads: on a narrow screen the two clusters
+        // must still leave a gap between them (docs/FORM-FACTORS.md)
+        readonly property bool overlap: rightCluster.x < leftCluster.x + leftCluster.width
         readonly property bool shown: mode === "always" || (revealed && barHover.hovered) || Niri.overviewOpen || keyed
             || Ui.controlCenter || (Ui.islandBusy && output === Niri.focusedOutput) || (mode === "smart" && !covered)
         property bool revealed: false
         Connections { target: barHover; function onHoveredChanged() { if (!barHover.hovered) bar.revealed = false; } }
         Timer { interval: 250; running: barEdgeHover.hovered && !bar.revealed; onTriggered: bar.revealed = true }
         onShownChanged: Hiding.setBarShown(output, shown)
-        Component.onCompleted: Hiding.setBarShown(output, shown)
+        Component.onCompleted: { Hiding.setBarShown(output, shown); Hiding.setBarOverlap(output, bar.overlap) }
+        onOverlapChanged: Hiding.setBarOverlap(output, overlap)
         HoverHandler { id: barHover }
         Item {
             id: edgeStrip
@@ -106,6 +110,7 @@ Variants {
 
             // ---- left -----------------------------------------------------
             RowLayout {
+                id: leftCluster
                 anchors.left: parent.left
                 anchors.leftMargin: Theme.px(6)
                 anchors.verticalCenter: parent.verticalCenter
@@ -292,6 +297,7 @@ Variants {
 
             // ---- right ----------------------------------------------------
             RowLayout {
+                id: rightCluster
                 anchors.right: parent.right
                 anchors.rightMargin: Theme.px(6)
                 anchors.verticalCenter: parent.verticalCenter

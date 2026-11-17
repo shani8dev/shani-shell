@@ -113,9 +113,11 @@ same foundation before any of their own work:
   A notification is a card the width of the screen now, not 437 of 412. Left:
   the lock screen in portrait - still unverified, and the reason is the harness:
   every run is a 1920x1080 nested niri, and the profile only changes the scale,
-  so nothing here can tell a 412-wide screen from a small window. SHANI_WIDTH=412
-  SHANI_SCREEN=915 now makes one (dev/session.sh), which is what the next piece
-  needs; Settings in portrait; gesture navigation; calls; one app at a time.
+  so nothing here could tell a 412-wide screen from a small window.
+  SHANI_WIDTH=412 SHANI_SCREEN=915 makes one, and the phone part runs at it: the
+  bar's two clusters keep a gap, the launcher and the shade open, no surface
+  fails to load. Left: Settings in portrait; gesture navigation; calls; one app
+  at a time.
 - **Touch** - a long press is a right-click on a touch screen, wherever a right
   button opens something: the desktop, its files, the shelf, a quick-settings
   tile, the island, the ring, the viewer, the magnifier, the ruler and the bin

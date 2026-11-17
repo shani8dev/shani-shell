@@ -21,6 +21,16 @@ Singleton {
         o[output] = on;
         root.barShown = o;
     }
+    // whether a screen's bar clusters run into each other (the phone's fit test)
+    property var barOverlap: ({})
+    function setBarOverlap(output, on) {
+        if (root.barOverlap[output] === on)
+            return;
+        const o = Object.assign({}, root.barOverlap);
+        o[output] = on;
+        root.barOverlap = o;
+    }
+    function overlap(output) { return root.barOverlap[output] === true; }
     property var dockShown: ({})
     function setDockShown(output, on) {
         if (root.dockShown[output] === on)

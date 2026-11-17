@@ -9,6 +9,9 @@ if [ -z "${SHANI_FORM_FACTOR:-}" ]; then
         && result phone-scale PASS || result phone-scale FAIL "$(q "['formFactor'], d['uiScale']")"
     waitfor "d['barNarrow']" 5 && result phone-bar-is-one-column PASS \
         || result phone-bar-is-one-column FAIL "$(q "['barNarrow']")"
+    # at a phone's width the two clusters must still leave a gap between them
+    waitfor "not d['barOverlap']" 5 && result phone-bar-fits PASS \
+        || result phone-bar-fits FAIL "the clusters meet at this width"
     shot phone-bar 0.4
     # the two surfaces a phone opens most still open at this width
     ipc launcher ""

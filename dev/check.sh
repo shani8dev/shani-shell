@@ -60,7 +60,11 @@ box() {
     # SHANI_FORM_FACTOR=tv|handheld|tablet|board|phone|laptop: every screen is that
     # kind (docs/FORM-FACTORS.md) - the suites and renders at its size
     ff=; [ -n "${SHANI_FORM_FACTOR:-}" ] && ff="-e SHANI_FORM_FACTOR=$SHANI_FORM_FACTOR"
-    docker run --rm --cap-add SYS_PTRACE --cap-add IPC_LOCK $tb $ch $on $ff -v "$REPO":/work "$@"
+    # SHANI_WIDTH / SHANI_SCREEN: the shape of the nested niri, so a phone can
+    # be a phone rather than a small window (dev/session.sh)
+    shape=; [ -n "${SHANI_WIDTH:-}" ] && shape="$shape -e SHANI_WIDTH=$SHANI_WIDTH"
+    shape="$shape -e SHANI_SCREEN=${SHANI_SCREEN:-1080}"
+    docker run --rm --cap-add SYS_PTRACE --cap-add IPC_LOCK $tb $ch $on $ff $shape -v "$REPO":/work "$@"
 }
 run() {
     case "$1" in
