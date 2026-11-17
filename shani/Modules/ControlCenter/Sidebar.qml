@@ -22,7 +22,11 @@ import "../../Common/Gestures.js" as G
 PanelWindow {
     id: win
     screen: Ui.screen
-    visible: Ui.controlCenter || slide.x < width
+    // a phone: the sidebar is a shade that covers the screen, so while it is
+    // closed it must not be there at all - a transparent window would still
+    // take the taps meant for the desktop
+    readonly property bool narrow: FormFactor.focused.profile === "phone"
+    visible: Ui.controlCenter || (!narrow && slide.x < width)
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
@@ -48,15 +52,26 @@ PanelWindow {
         id: slide
         strong: true
         // never wider than the screen (a phone's is ~412)
-        width: Math.min(Theme.px(420), parent.width - 20)
+        readonly property bool narrow: win.narrow
+        width: narrow ? parent.width : Math.min(Theme.px(420), parent.width - 20)
         // clear of the bar: on a board the bar is at the bottom, so the sidebar
         // starts at the top instead of below a bar that is not there
         readonly property bool bottomBar: FormFactor.barEdge(win.screen.name) === "bottom"
-        y: bottomBar ? Theme.px(10) : Theme.barHeight + 18
-        height: parent.height - y - (bottomBar ? Theme.barHeight + 18 : 10)
-        x: Ui.controlCenter ? parent.width - width - 10 : parent.width + 10
+        // a phone: a shade up from the bottom, the whole width; everywhere else
+        // one column in from the right, clear of the bar (docs/FORM-FACTORS.md)
+        readonly property real insetTop: narrow ? Theme.px(10) : (bottomBar ? Theme.px(10) : Theme.barHeight + 18)
+        y: narrow ? (Ui.controlCenter ? insetTop : parent.height) : insetTop
+        height: narrow ? parent.height - insetTop : parent.height - y - (bottomBar ? Theme.barHeight + 18 : 10)
+        x: narrow ? 0 : (Ui.controlCenter ? parent.width - width - 10 : parent.width + 10)
         radius: Theme.radiusLarge
         Behavior on x {
+            NumberAnimation {
+                duration: Ui.controlCenter ? Theme.animEnter : Theme.animExit
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Ui.controlCenter ? Theme.emphasized : Theme.emphasizedExit
+            }
+        }
+        Behavior on y {
             NumberAnimation {
                 duration: Ui.controlCenter ? Theme.animEnter : Theme.animExit
                 easing.type: Easing.BezierSpline

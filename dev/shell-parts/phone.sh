@@ -19,6 +19,8 @@ if [ -z "${SHANI_FORM_FACTOR:-}" ]; then
     ipc closeAll
     ipc toggleControlCenter
     waitfor "d['controlCenter']" 4 && result phone-quick-settings-opens PASS || result phone-quick-settings-opens FAIL
+    waitfor "d['sidebarShade']" 4 && result phone-quick-settings-is-a-shade PASS \
+        || result phone-quick-settings-is-a-shade FAIL "$(q "['sidebarShade']")"
     shot phone-quick-settings 0.4
     ipc closeAll
     settings '{}'
