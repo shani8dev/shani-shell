@@ -16,7 +16,7 @@ PanelWindow {
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     visible: Ui.quickPanel && !Lock.locked
     anchors { top: true; bottom: true; right: true }
-    implicitWidth: Theme.px(360)
+    implicitWidth: Math.min(Theme.px(360), screen ? screen.width : Theme.px(360))
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "shani-quick-panel"

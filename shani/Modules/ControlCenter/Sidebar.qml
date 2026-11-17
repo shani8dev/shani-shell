@@ -47,7 +47,8 @@ PanelWindow {
     Glass {
         id: slide
         strong: true
-        width: Theme.px(420)
+        // never wider than the screen (a phone's is ~412)
+        width: Math.min(Theme.px(420), parent.width - 20)
         // clear of the bar: on a board the bar is at the bottom, so the sidebar
         // starts at the top instead of below a bar that is not there
         readonly property bool bottomBar: FormFactor.barEdge(win.screen.name) === "bottom"

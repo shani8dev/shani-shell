@@ -11,6 +11,7 @@ import QtQuick.Layouts
 import qs.Common
 import qs.Services
 import "SettingsIndex.js" as SettingsIndex
+import "../../Common/FormFactor.js" as FF
 
 AppWindow {
     id: win
@@ -18,20 +19,32 @@ AppWindow {
     visible: Ui.settingsOpen
     onGone: Ui.settingsOpen = false
     margins: 0
-    implicitWidth: Theme.px(1040)
-    implicitHeight: Theme.px(800)
+    // never more than the screen it opens on (a phone's is ~412 wide): niri gives a
+    // window the size it asks for, and 1040 there ran off the screen
+    readonly property var openOn: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
+    implicitWidth: Math.min(Theme.px(1040), openOn ? openOn.width - 16 : Theme.px(1040))
+    implicitHeight: Math.min(Theme.px(800), openOn ? openOn.height - 60 : Theme.px(800))
 
     Item {
         id: winRoot
         anchors.fill: parent
         focus: true
+        // a phone's width or a narrow window: one pane at a time - the categories,
+        // or the page chosen with a way back (docs/FORM-FACTORS.md, breakpoints)
+        readonly property bool compact: FF.widthClass(width) === "compact"
+        property bool showingPage: true
+        onCompactChanged: Ui.settingsCompact = compact
+        Component.onCompleted: Ui.settingsCompact = compact
+        onShowingPageChanged: Ui.settingsShowingPage = showingPage
+        Connections { target: Ui; function onSettingsCatChanged() { winRoot.showingPage = true; } }
         Keys.onEscapePressed: Ui.settingsOpen = false
 
         // ---- the categories -------------------------------------------------------
         Rectangle {
             id: side
             objectName: "region:categories"
-            width: Theme.px(260)
+            visible: !winRoot.compact || !winRoot.showingPage
+            width: winRoot.compact ? parent.width : Theme.px(260)
             anchors { top: parent.top; bottom: parent.bottom; left: parent.left }
             color: Settings.blurWanted ? Theme.alpha(Theme.surface1, 0.55) : Theme.surface1
             ColumnLayout {
@@ -101,7 +114,7 @@ AppWindow {
                                 Layout.alignment: Qt.AlignVCenter
                             }
                         }
-                        MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Ui.settingsCat = row.modelData.id }
+                        MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { Ui.settingsCat = row.modelData.id; winRoot.showingPage = true; } }
                         KeyFocus { name: row.modelData.label; onActivated: Ui.settingsCat = row.modelData.id }
                     }
                 }
@@ -156,8 +169,9 @@ AppWindow {
         Flickable {
             id: content
             objectName: "region:page"
-            anchors { top: parent.top; bottom: parent.bottom; left: side.right; right: parent.right }
-            anchors.margins: Theme.px(28)
+            visible: !winRoot.compact || winRoot.showingPage
+            anchors { top: parent.top; bottom: parent.bottom; left: winRoot.compact ? parent.left : side.right; right: parent.right }
+            anchors.margins: winRoot.compact ? Theme.px(14) : Theme.px(28)
             contentHeight: body.implicitHeight + 40
             clip: true
             boundsBehavior: Flickable.StopAtBounds
@@ -165,6 +179,12 @@ AppWindow {
                 id: body
                 width: Math.min(content.width, 720)
                 spacing: Theme.px(16)
+                // compact: back to the categories
+                Button {
+                    visible: winRoot.compact
+                    text: "← " + Tr.t("Categories")
+                    onClicked: winRoot.showingPage = false
+                }
                 Text {
                     text: page.catTitle
                     color: Theme.text

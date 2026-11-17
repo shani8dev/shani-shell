@@ -116,3 +116,11 @@ def test_a_tv_that_says_so_in_its_name():
 def test_a_size_that_is_only_a_shape_is_no_size():
     assert named("HDMI-A-1", "Some Brand", [160, 90]) == "computer"       # 16:9 in cm, not a 7" screen
     assert named("HDMI-A-1", "Some Brand TV", [160, 90]) == "tv"
+
+
+def test_width_classes():
+    assert call("widthClass", 412) == "compact"       # a phone
+    assert call("widthClass", 599) == "compact"
+    assert call("widthClass", 800) == "medium"        # a tablet upright, half a screen
+    assert call("widthClass", 1040) == "expanded"
+    assert call("widthClass", 0) == "expanded"        # not laid out yet: as designed

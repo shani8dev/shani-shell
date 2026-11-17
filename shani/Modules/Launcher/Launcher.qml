@@ -48,7 +48,7 @@ PanelWindow {
     property bool hoverArmed: false
     // the app grids' column count, the same expression the grid itself uses,
     // so Up/Down move by one real row whatever the window width is
-    readonly property int gridCols: Math.max(4, Math.floor(list.width / 132))
+    readonly property int gridCols: Math.max(3, Math.floor(list.width / Theme.px(132)))
     property string category: "All"
     readonly property string q: search.text
     property var usage: ({})              // desktop id -> launches
@@ -456,10 +456,11 @@ PanelWindow {
         id: body
         transform: Translate { id: rise }
         anchors.fill: parent
-        anchors.topMargin: Math.max(60, parent.height * 0.08)
+        // computed sizes through the UI scale too; a phone's width keeps a narrow margin
+        anchors.topMargin: Math.max(Theme.px(60), parent.height * 0.08)
         anchors.bottomMargin: Theme.px(40)
-        anchors.leftMargin: Math.max(40, (parent.width - 1280) / 2)
-        anchors.rightMargin: Math.max(40, (parent.width - 1280) / 2)
+        anchors.leftMargin: Math.max(parent.width < Theme.px(600) ? Theme.px(10) : Theme.px(40), (parent.width - Theme.px(1280)) / 2)
+        anchors.rightMargin: Math.max(parent.width < Theme.px(600) ? Theme.px(10) : Theme.px(40), (parent.width - Theme.px(1280)) / 2)
         spacing: Theme.px(18)
 
         // the field

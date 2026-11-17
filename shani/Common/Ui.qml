@@ -132,6 +132,8 @@ Singleton {
     // a text field of the shell has the keys (Common/TextField, the launcher's
     // search): on a tablet or a phone the screen keyboard comes up for it
     property bool textFocus: false
+    property bool settingsCompact: false           // Settings is one pane at a time (the tests)
+    property bool settingsShowingPage: true
     property bool lockBusy: false                  // the lock screen is checking a password (the tests)
     // the whiteboard (Modules/Whiteboard; the classroom board's, anyone's)
     property bool whiteboard: false

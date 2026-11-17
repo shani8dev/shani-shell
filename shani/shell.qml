@@ -945,7 +945,7 @@ ShellRoot {
                 captionSource: Captions.source,
                 transcript: Captions.transcript,
                 flashes: Ui.flashes, lastFlash: Ui.lastFlash,
-                settingsCat: Ui.settingsCat, settingsOpen: Ui.settingsOpen,
+                settingsCat: Ui.settingsCat, settingsOpen: Ui.settingsOpen, settingsCompact: Ui.settingsCompact, settingsShowingPage: Ui.settingsShowingPage,
                 pinned: Niri.pinned, badges: Notifs.perApp,
                 capsLock: LockKeys.caps, numLock: LockKeys.num,
                 screenSaver: ScreenSaver.active,

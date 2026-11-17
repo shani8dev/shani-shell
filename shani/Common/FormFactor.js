@@ -105,3 +105,17 @@ function panelTurn(product, screen, profile) {
         return "270";
     return "";
 }
+
+// How much room a surface has, in logical pixels (docs/FORM-FACTORS.md, width
+// breakpoints): "compact" a phone's width or a narrow window (one pane at a
+// time), "medium" a tablet held upright or half a screen (two panes, tighter),
+// "expanded" everything else (as designed).
+function widthClass(px) {
+    if (!(px > 0))
+        return "expanded";
+    if (px < 600)
+        return "compact";
+    if (px < 1000)
+        return "medium";
+    return "expanded";
+}
