@@ -196,3 +196,12 @@ def test_every_file_that_uses_the_hold_helper_imports_it():
     for p, s in qml().items():
         if "Hold." in s:
             assert 'Gestures.js" as Hold' in s, f"{p.name} uses Hold without importing it"
+
+
+def test_every_phone_action_reaches_a_function():
+    """A launcher action that calls a Phone function which is not there does
+    nothing when it is picked."""
+    funcs = set(re.findall(r"function (\w+)\(", (SHANI / "Services/Phone.qml").read_text()))
+    acts = (SHANI / "Modules/Launcher/LauncherActions.qml").read_text()
+    used = set(re.findall(r"Phone\.(\w+)\(", acts))
+    assert used - funcs == set(), f"launcher calls Phone.{sorted(used - funcs)} which is not there"

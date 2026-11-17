@@ -49,6 +49,10 @@ Singleton {
         const n = (number || "").trim();
         Quickshell.execDetached(["shani-link-app", "--page", "phone", "--message=" + n]);
     }
+    // the address book: vCard files of its own, with the phone's contacts beside
+    function openContacts() {
+        Quickshell.execDetached(["shani-link-app", "--page", "contacts"]);
+    }
     function openRecentCalls() {
         Quickshell.execDetached(["shani-link-app", "--page", "phone"]);
     }

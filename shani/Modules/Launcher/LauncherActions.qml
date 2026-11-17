@@ -46,6 +46,7 @@ QtObject {
         { title: Tr.t("Send a text message"), words: "sms text message send phone mobile sim", icon: "mail-send", run: () => { Ui.smsTo = ""; Ui.modemDialog = "sms"; } },
         { title: Tr.t("Dial a number…"), words: "dial number call phone keypad", icon: "call-start", run: () => Phone.openDial("") },
         { title: Tr.t("Messages"), words: "messages sms texts conversations", icon: "mail-send", run: () => Phone.openMessages("") },
+        { title: Tr.t("Contacts"), words: "contacts address book people phone numbers", icon: "x-office-address-book", run: () => Phone.openContacts() },
         { title: Tr.t("Recent calls"), words: "recent calls history missed", icon: "document-open-recent", run: () => Phone.openRecentCalls() },
         { title: Tr.t("Tour"), words: "tour welcome help introduction tips what is new how", icon: "help-about", run: () => Ui.tour = true },
         { title: Tr.t("Take a photo"), words: "camera photo picture selfie snap webcam", icon: "camera-photo", run: () => Camera.photo() },
