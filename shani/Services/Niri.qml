@@ -225,22 +225,6 @@ Singleton {
         Quickshell.execDetached(["niri", "msg", "action", ...args.map(String)]);
     }
 
-    // ---- virtual output ---------------------------------------------------
-    // Asks niri to create a new virtual output beside the physical displays.
-    // Shani Link can then mirror it to a phone over the ScreenCast portal's
-    // VIRTUAL source type. `refreshRate` defaults to 60 when omitted.
-    function createVirtualOutput(width, height, refreshRate) {
-        const args = ["create-virtual-output", "--width", width, "--height", height];
-        if (refreshRate !== undefined)
-            args.push("--refresh-rate", refreshRate);
-        action(...args);
-    }
-
-    // Removes a virtual output previously created with createVirtualOutput.
-    function destroyVirtualOutput(name) {
-        action("destroy-virtual-output", name);
-    }
-
     function findWindow(q) {
         const low = String(q || "").toLowerCase();
         if (!low)
