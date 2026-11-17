@@ -50,6 +50,31 @@ MODEL_GLOBS = [
 SILENCE_RMS = 100
 
 
+def _settings() -> dict:
+    """The shell's Settings file: a greeter session sets no environment, so the
+    engine chosen in Settings > Accessibility lives there (SHANI_SHELL_SETTINGS
+    is the tests' override of its place)."""
+    import json
+    from pathlib import Path
+
+    path = os.environ.get("SHANI_SHELL_SETTINGS") or str(
+        Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "shani-shell" / "settings.json")
+    try:
+        d = json.loads(Path(path).read_text())
+        return d if isinstance(d, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _stt_backend() -> str:
+    # the environment wins (the suites, dev/session.sh), else the Settings choice
+    return os.environ.get("SHANI_DICTATE_ENGINE") or _settings().get("sttBackend") or "chronoa"
+
+
+def _whisper_model() -> str:
+    return os.environ.get("SHANI_WHISPER_MODEL") or _settings().get("whisperModel") or ""
+
+
 def is_silent(wav: str) -> bool:
     """True for a 16-bit recording with nothing above the noise floor."""
     try:
@@ -86,7 +111,7 @@ def language(code: str) -> str:
 
 
 def with_chronoa(lang: str, wav: str) -> str | None:
-    if os.environ.get("SHANI_DICTATE_ENGINE") == "whisper-cli" or not os.path.isdir(CHRONOA_LIB):
+    if _stt_backend() == "whisper-cli" or not os.path.isdir(CHRONOA_LIB):
         return None
     sys.path.insert(0, CHRONOA_LIB)
     try:
@@ -105,7 +130,7 @@ def with_chronoa(lang: str, wav: str) -> str | None:
 
 def with_whisper_cli(lang: str, wav: str) -> str:
     cli = shutil.which("whisper-cli")
-    model = os.environ.get("SHANI_WHISPER_MODEL") or next(
+    model = _whisper_model() or next(
         (m for g in MODEL_GLOBS for m in sorted(glob.glob(g))), "")
     if not cli or not model:
         raise SystemExit("no speech model: install shani-chronoa (or whisper-cpp and a ggml model)")

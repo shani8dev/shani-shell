@@ -396,6 +396,12 @@ Singleton {
             property bool machineTranslate: false         // the shell's missing words by the local model (Common/Tr); opt-in
             property var automations: []                // [{ when, is, then, arg, on }] (Services/Automations)
             property string dynamicLockDevice: ""     // a paired device's address: lock when it goes (DynamicLock)
+            // voice typing's engine: Chronoa's (its stt backend and model), or whisper
+            // on its own; whisperModel "" follows Chronoa's installed model (bridge/dictate.py)
+            property string sttBackend: "chronoa"
+            property string whisperModel: ""
+            property bool compassEnabled: true          // the heading tile, where a magnetometer is
+            property bool tourEnabled: true             // the first-login tour until it has been seen
             property int dynamicLockGrace: 30000      // ms it must stay gone first: a Bluetooth hiccup is not walking away
             property string proxyMode: "none"         // none | manual | auto
             property string proxyHttp: ""             // host:port

@@ -66,3 +66,38 @@ def test_silent_recording_prints_nothing_without_an_engine(tmp_path):
     out = subprocess.run([sys.executable, str(TOOL), "en", str(wav)], capture_output=True, text=True, env=env, timeout=30)
     assert out.returncode == 0, out.stderr
     assert out.stdout.strip() == ""
+
+
+def test_settings_file_chooses_the_engine(tmp_path, monkeypatch):
+    """A greeter session sets no environment: the engine chosen in Settings
+    lives in the shell's Settings file. The environment stays the tests' and
+    dev's override and wins when set."""
+    cfg = tmp_path / "settings.json"
+    monkeypatch.delenv("SHANI_DICTATE_ENGINE", raising=False)
+    monkeypatch.delenv("SHANI_WHISPER_MODEL", raising=False)
+    monkeypatch.setenv("SHANI_SHELL_SETTINGS", str(cfg))
+    assert dictate._stt_backend() == "chronoa"                  # no file yet
+    cfg.write_text('{"sttBackend": "whisper-cli"}')
+    assert dictate._stt_backend() == "whisper-cli"
+    cfg.write_text('{"sttBackend": "whisper-cli", "whisperModel": "/x/m.bin"}')
+    assert dictate._whisper_model() == "/x/m.bin"
+    monkeypatch.setenv("SHANI_DICTATE_ENGINE", "chronoa")
+    assert dictate._stt_backend() == "chronoa"                  # the environment wins
+    cfg.write_text("{ broken")
+    assert dictate._stt_backend() == "chronoa"                  # unreadable: the default
+    cfg.write_text("[1, 2]")
+    assert dictate._stt_backend() == "chronoa"                  # not an object: the default
+
+
+def test_settings_chosen_whisper_is_honoured_end_to_end(tmp_path):
+    """The script itself, its engine picked by the Settings file alone: silence
+    still prints nothing (and no Chronoa library is needed)."""
+    wav = write(tmp_path / "zero.wav", [0] * 16000)
+    cfg = tmp_path / "settings.json"
+    cfg.write_text('{"sttBackend": "whisper-cli"}')
+    env = dict(os.environ, PATH="/nonexistent", SHANI_SHELL_SETTINGS=str(cfg))
+    env.pop("SHANI_DICTATE_ENGINE", None)
+    out = subprocess.run([sys.executable, str(TOOL), "en", str(wav)], capture_output=True, text=True, env=env, timeout=30)
+    assert out.returncode == 0, out.stderr
+    assert out.stdout.strip() == ""
+

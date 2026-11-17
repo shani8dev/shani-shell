@@ -132,7 +132,7 @@ ShellRoot {
     FlashAlert {}
     PairDialog {}
     LazyLoader { active: Displays.pending; DisplayConfirm {} }
-    LazyLoader { active: Ui.tour || (Settings.loaded && !Settings.data.tourSeen && !Quickshell.env("SHANI_NO_TOUR")); Tour {} }
+    LazyLoader { active: Ui.tour || (Settings.loaded && Settings.data.tourEnabled && !Settings.data.tourSeen && !Quickshell.env("SHANI_NO_TOUR")); Tour {} }
     LazyLoader { active: Qr.shown; source: "Modules/QrView/QrView.qml" }
     LazyLoader { active: Calculator.shown; source: "Modules/Calculator/Calculator.qml" }
     LazyLoader { active: Ui.calendar; source: "Modules/Calendar/CalendarPanel.qml" }

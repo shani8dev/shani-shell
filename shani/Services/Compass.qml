@@ -9,17 +9,19 @@ import qs.Common
 
 Singleton {
     id: root
-    property bool available: Quickshell.env("SHANI_COMPASS_CMD") !== ""
+    // off in Settings > Accessibility: no tile, and nothing asks the sensor
+    property bool sensed: Quickshell.env("SHANI_COMPASS_CMD") !== ""
+    readonly property bool available: Settings.data.compassEnabled && sensed
     property bool wanted: false          // the sidebar is open
     property real heading: -1            // degrees from north, clockwise; -1 = not read yet
     readonly property string point: heading < 0 ? "" : ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round(heading / 45) % 8]
     readonly property string text: heading < 0 ? Tr.t("Finding north…") : point + " " + Math.round(heading) + "°"
 
     Process {
-        running: Quickshell.env("SHANI_COMPASS_CMD") === ""
+        running: Settings.data.compassEnabled && Quickshell.env("SHANI_COMPASS_CMD") === ""
         command: ["gdbus", "call", "--system", "--dest", "net.hadess.SensorProxy", "--object-path", "/net/hadess/SensorProxy/Compass",
                   "--method", "org.freedesktop.DBus.Properties.Get", "net.hadess.SensorProxy.Compass", "HasCompass"]
-        stdout: StdioCollector { onStreamFinished: root.available = text.indexOf("<true>") >= 0 }
+        stdout: StdioCollector { onStreamFinished: root.sensed = text.indexOf("<true>") >= 0 }
     }
     Process {
         running: root.available && root.wanted

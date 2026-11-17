@@ -1373,6 +1373,23 @@ ColumnLayout {
                         }
                     }
                 }
+                // voice typing's engine (bridge/dictate.py): Chronoa's own, or whisper alone
+                Text { text: Tr.t("Voice typing engine"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    Repeater {
+                        model: [{ id: "chronoa", label: Tr.t("Chronoa") }, { id: "whisper-cli", label: Tr.t("Whisper alone") }]
+                        Choice {
+                            required property var modelData
+                            text: modelData.label
+                            selected: page.d.sttBackend === modelData.id
+                            onClicked: { page.d.sttBackend = modelData.id; Settings.touch("sttBackend"); }
+                        }
+                    }
+                }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("Compass"); checked: page.d.compassEnabled; defaultValue: true; onToggled: on => { page.d.compassEnabled = on; Settings.touch("compassEnabled"); } onReset: page.d.compassEnabled = true }
+                SwitchRow { Layout.fillWidth: true; text: Tr.t("First-login tour"); checked: page.d.tourEnabled; defaultValue: true; onToggled: on => { page.d.tourEnabled = on; Settings.touch("tourEnabled"); } onReset: page.d.tourEnabled = true }
 
             }
         }
