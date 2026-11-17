@@ -111,10 +111,11 @@ same foundation before any of their own work:
   keeps everything (`dev/shell-parts/phone.sh`: the profile and its scale, the
   one-column bar and launcher, the shade, and a wide screen keeping everything).
   A notification is a card the width of the screen now, not 437 of 412. Left:
-  the lock screen in portrait (unverified: a shell part can lock the screen but
-  not unlock it again, on any profile, so it is a gap in the part, not a finding
-  about the phone); Settings in portrait; gesture navigation; calls; one app at
-  a time.
+  the lock screen in portrait - still unverified, and the reason is the harness:
+  every run is a 1920x1080 nested niri, and the profile only changes the scale,
+  so nothing here can tell a 412-wide screen from a small window. SHANI_WIDTH=412
+  SHANI_SCREEN=915 now makes one (dev/session.sh), which is what the next piece
+  needs; Settings in portrait; gesture navigation; calls; one app at a time.
 - **Touch** - a long press is a right-click on a touch screen, wherever a right
   button opens something: the desktop, its files, the shelf, a quick-settings
   tile, the island, the ring, the viewer, the magnifier, the ruler and the bin

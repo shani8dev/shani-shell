@@ -99,9 +99,12 @@ printf 'auth sufficient pam_exec.so quiet /usr/local/bin/fake-face\nauth requisi
 mkdir -p "$XDG_RUNTIME_DIR" /work/out/logs /root/Videos && chmod 700 "$XDG_RUNTIME_DIR"
 L=/work/out/logs
 
-# a taller headless screen for one run: SHANI_SCREEN=1400 makes the render 1920x1400
-# (verification of surfaces that sit lower in the sidebar than one screen otherwise shows)
-weston --backend=headless-backend.so --shell=kiosk-shell.so --width=1920 --height="${SHANI_SCREEN:-1080}" \
+# a differently shaped headless screen for one run: SHANI_SCREEN=1400 makes the
+# render 1920x1400 (surfaces that sit lower than one screen otherwise shows);
+# SHANI_WIDTH=412 SHANI_SCREEN=915 is a phone, so portrait can be tested at the
+# width a phone really has - the form-factor profile only changes the scale, and
+# every other check here assumes the 1920x1080 default
+weston --backend=headless-backend.so --shell=kiosk-shell.so --width="${SHANI_WIDTH:-1920}" --height="${SHANI_SCREEN:-1080}" \
     --socket=wayland-parent --idle-time=0 --no-config >$L/weston.log 2>&1 &
 sleep 1.5
 DBUS_SESSION_BUS_ADDRESS=$(dbus-daemon --session --fork --print-address=1 | head -1)
