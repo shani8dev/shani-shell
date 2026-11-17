@@ -30,6 +30,14 @@ if [ -z "${SHANI_FORM_FACTOR:-}" ]; then
     notify-send -a shani-test "Hello" "a card the width of the phone"
     sleep 1
     shot phone-notification 0.4
+    # the lock screen, at a phone's width: the password has to exist first - the
+    # suite sets it before its own lock checks, and a part runs before those
+    echo 'root:shani-test' | chpasswd
+    ipc lock
+    waitfor "d['locked']" 6 && result phone-lock-screen PASS || result phone-lock-screen FAIL
+    shot phone-lock 0.4
+    unlock
+    waitfor "not d['locked']" 8 && result phone-unlocks PASS || result phone-unlocks FAIL "$(q "['locked']")"
     settings '{}'
     waitfor "d['formFactor'] == 'computer' and not d['barNarrow']" 5 \
         && result phone-wide-screen-keeps-everything PASS || result phone-wide-screen-keeps-everything FAIL "$(q "['formFactor'], d['barNarrow']")"
