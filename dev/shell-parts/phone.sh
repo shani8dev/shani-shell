@@ -13,6 +13,8 @@ if [ -z "${SHANI_FORM_FACTOR:-}" ]; then
     # the two surfaces a phone opens most still open at this width
     ipc launcher ""
     waitfor "d['launcher']" 4 && result phone-launcher-opens PASS || result phone-launcher-opens FAIL
+    waitfor "d['launcherNarrow']" 4 && result phone-launcher-is-one-column PASS \
+        || result phone-launcher-is-one-column FAIL "$(q "['launcherNarrow']")"
     shot phone-launcher 0.4
     ipc closeAll
     ipc toggleControlCenter

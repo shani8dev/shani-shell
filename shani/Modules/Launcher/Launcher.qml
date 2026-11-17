@@ -26,6 +26,10 @@ import "../../Common/Gestures.js" as G
 
 PanelWindow {
     id: win
+    // a phone: one column - the preview beside the results goes, and the field
+    // and the results take the whole width (docs/FORM-FACTORS.md). The screen's
+    // kind, not its pixels: a phone-sized window on a computer keeps both panes.
+    readonly property bool narrow: FormFactor.focused.profile === "phone"
     visible: Ui.launcher
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     anchors { top: true; bottom: true; left: true; right: true }
@@ -764,7 +768,7 @@ PanelWindow {
             // Chronoa, one keystroke away, with a preview of what is selected
             // as tall as what it holds, not the whole column
             Glass {
-                visible: win.q !== "" || (win.current && win.current.kind === "file")
+                visible: !win.narrow && (win.q !== "" || (win.current && win.current.kind === "file"))
                 Layout.preferredWidth: Theme.px(340)
                 Layout.alignment: Qt.AlignTop
                 Layout.preferredHeight: chronoaCol.implicitHeight + 36

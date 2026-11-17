@@ -110,7 +110,7 @@ ShellRoot {
     StartHints {}
     FileActionsCard {}
     Sidebar {}
-    Launcher {}
+    Launcher { id: launcherWin }
     Popups {}
     Osd {}
     Dim {}
@@ -912,7 +912,7 @@ ShellRoot {
                 oskCursor: Osk.cursorLabel,
                 oskRemote: Osk.remote, oskDraft: Osk.draft, oskCommitted: Osk.lastCommitted,
                 launcherSelected: Ui.launcherSelected, launcherText: Ui.launcherText,
-                formFactor: FormFactor.focused.profile, barEdge: FormFactor.focusedBarEdge, barNarrow: FormFactor.of(Niri.focusedOutput || "").profile === "phone", dockState: Docking.state, dockSwitches: Docking.switches, dockIcon: Settings.data.dockIconSize, tvHome: Ui.tvHome && FormFactor.tenFoot, tvSelected: Ui.tvSelected, quickPanel: Ui.quickPanel, quickSelected: Ui.quickSelected, edgeLast: EdgeSwipe.last, whiteboard: Ui.whiteboard, whiteboardStrokes: Ui.whiteboardStrokes, whiteboardPage: Ui.whiteboardPage, whiteboardSaved: Ui.whiteboardSaved, edgeStrips: EdgeSwipe.strips, textFocus: Ui.textFocus, netPortal: Net.portal, netLabel: Net.label, portalOpens: Net.portalOpens, floatingWorkspace: WorkspaceLayout.focusedFloating, aiAgent: Scratchpads.agent, panelsRestored: Displays.panelsRestored, uiScale: Theme.ui, formFactors: FormFactor.screens, windowMenuSel: Ui.windowMenuSel, launcherSearchBar: Ui.launcherSearchBar,
+                formFactor: FormFactor.focused.profile, barEdge: FormFactor.focusedBarEdge, barNarrow: FormFactor.of(Niri.focusedOutput || "").profile === "phone", launcherNarrow: launcherWin.narrow, dockState: Docking.state, dockSwitches: Docking.switches, dockIcon: Settings.data.dockIconSize, tvHome: Ui.tvHome && FormFactor.tenFoot, tvSelected: Ui.tvSelected, quickPanel: Ui.quickPanel, quickSelected: Ui.quickSelected, edgeLast: EdgeSwipe.last, whiteboard: Ui.whiteboard, whiteboardStrokes: Ui.whiteboardStrokes, whiteboardPage: Ui.whiteboardPage, whiteboardSaved: Ui.whiteboardSaved, edgeStrips: EdgeSwipe.strips, textFocus: Ui.textFocus, netPortal: Net.portal, netLabel: Net.label, portalOpens: Net.portalOpens, floatingWorkspace: WorkspaceLayout.focusedFloating, aiAgent: Scratchpads.agent, panelsRestored: Displays.panelsRestored, uiScale: Theme.ui, formFactors: FormFactor.screens, windowMenuSel: Ui.windowMenuSel, launcherSearchBar: Ui.launcherSearchBar,
                 oskLastPad: Osk.lastPad,
                 ringDepth: Ui.ringDepth,
                 topResult: Ui.topResult, liveWallpaperWhy: LiveWallpaper.why, liveWallpaperPlaying: Ui.liveWallpaperPlaying, launcherFiles: Ui.launcherFiles, launcherMeaning: Ui.launcherMeaning,
