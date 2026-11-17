@@ -119,7 +119,12 @@ same foundation before any of their own work:
   fails to load. The lock screen locks and unlocks at that width, with the
   password the suite sets (a part runs before the suite does, so it has to set it
   itself - that, and not the screen, was why a part could lock but not unlock).
-  Left: Settings in portrait; gesture navigation; calls; one app at a time.
+  Calls, texts and contacts are Shani Link's Phone page, not a shell module:
+  `shani-link-app --page phone | contacts` (the dial pad, Messages, Contacts,
+  Music, Files, Remote), and the pad dials the landline and the SIM modem too.
+  The launcher reaches it by words - Dial a number, Messages, Contacts, Recent
+  calls - and a number in the shell opens it addressed. Left: gesture
+  navigation; one app at a time (niri policy, not the shell).
 - **Touch** - a long press is a right-click on a touch screen, wherever a right
   button opens something: the desktop, its files, the shelf, a quick-settings
   tile, the island, the ring, the viewer, the magnifier, the ruler and the bin
