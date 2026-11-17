@@ -46,6 +46,22 @@ if [ -z "${SHANI_FORM_FACTOR:-}" ]; then
     waitfor "not d['tvHome'] and not d['ipBorrowed']" 4 \
         && result handheld-guide-back-to-the-game PASS || result handheld-guide-back-to-the-game FAIL "$(q "['tvHome'], d['ipBorrowed']")"
 
+    # Upstream PASS forwards Guide only; ⋯ from the game must not be assumed.
+    hpress ui_quick
+    waitfor "not d['quickPanel'] and not d['ipBorrowed']" 3 \
+        && result handheld-pass-keeps-quick-button-in-game PASS || result handheld-pass-keeps-quick-button-in-game FAIL
+    hpress ui_guide
+    waitfor "d['tvHome'] and d['ipBorrowed']" 3
+    hpress ui_option
+    waitfor "d['quickPanel']" 3 \
+        && result handheld-guide-start-opens-quick-panel PASS || result handheld-guide-start-opens-quick-panel FAIL
+    hpress ui_option
+    waitfor "not d['quickPanel'] and d['tvHome']" 3 \
+        && result handheld-start-returns-home PASS || result handheld-start-returns-home FAIL
+    hpress ui_guide
+    waitfor "not d['tvHome'] and not d['ipBorrowed']" 4 \
+        && result handheld-fallback-returns-controller PASS || result handheld-fallback-returns-controller FAIL
+
     w=$(winid handheld-game); [ -n "$w" ] && niri msg action close-window --id "$w" >/dev/null 2>&1
     ipc closeAll
     settings '{}'

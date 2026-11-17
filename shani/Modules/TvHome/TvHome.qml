@@ -279,7 +279,8 @@ PanelWindow {
                     { key: GamepadNav.controllers > 0 ? "A" : "OK", what: Tr.t("Open") },
                     { key: GamepadNav.controllers > 0 ? "B" : "↩", what: Tr.t("Back") },
                     { key: "⌂", what: Tr.t("Home") }
-                ]
+                ].concat(InputPlumber.managing && InputPlumber.navWanted
+                    ? [{ key: "Start", what: Tr.t("Quick settings") }] : [])
                 delegate: Row {
                     required property var modelData
                     spacing: Theme.px(10)

@@ -8,6 +8,9 @@ Reviewed against the implementation on 2026-11-17. There are no completion
 percentages: a container test, a screenshot and a real-device test prove
 different things. **Implemented** below does not mean hardware-certified.
 Other application gaps live in [GAPS.md](GAPS.md).
+Upstream implementations and physical test procedures are recorded in
+[HARDWARE-VALIDATION.md](HARDWARE-VALIDATION.md), including the distinction
+between upstream device support, replay tests and Shani hardware verification.
 
 ## What exists, and what remains
 
@@ -16,7 +19,7 @@ Other application gaps live in [GAPS.md](GAPS.md).
 | Computer | Desktop layouts, keyboard/mouse navigation, multi-monitor output configuration | Mixed-profile scaling; unusual aspect ratios; large-text and screen-reader audits |
 | Laptop | Battery/lid/power controls; separate remembered layouts when docked and undocked | Actual docks, disabled internal panels, suspend/resume, hotplug during settings changes |
 | Tablet | Profile scaling; edge gestures; shell text-field keyboard; rotation; long-press actions | Keyboard in other apps; touch-only targets and scrolling throughout all apps; pen/rotation testing |
-| Handheld | Arm's-length home; Guide and quick panel; controller typing/pointer; panel orientation rules | Real InputPlumber pass-through, gamescope and portrait-mounted panels; TDP integration |
+| Handheld | Arm's-length home; Guide → Start quick-panel fallback; controller typing/pointer; panel orientation rules | Real InputPlumber pass-through, gamescope and portrait-mounted panels; TDP integration |
 | Board | Bottom bar; dock above it; whiteboard pages/PDF; pen pressure/eraser/palm handling; guest account integration | Real pens and simultaneous users; reach of all controls, including the Island; guest isolation checks; cast receiver |
 | TV | Ten-foot home; remote/controller navigation; EDID size/name detection | Real remotes/CEC and TVs; overscan; mixed laptop/TV setup; gamescope desktop integration |
 | Phone | Compact bar/launcher, bottom Quick Settings shade, bounded notifications/lock cards, compact Settings, dial/messages/contacts via Shani Link | Whole-app portrait layouts, safe areas, landscape/keyboard occlusion, native modem/audio testing, suspend/wake and mixed-output policy |

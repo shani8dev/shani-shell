@@ -73,11 +73,10 @@ Singleton {
         if (!(ev.value > 0)) return;                 // presses, not releases
         if (ev.event === "ui_guide" || ev.event === "ui_quick" || ev.event === "ui_quick2") {
             root.borrowed = ev.device || root.borrowed;
-            // a handheld or a TV, as on a console: Guide is the home (and back to
-            // the game from it), ⋯ the quick panel over the game
+            // PASS forwards Guide; a separate quick button needs a device mapping.
             if (FormFactor.tenFoot) {
                 // the controller is the desktop's while the home or the panel is up
-                // (InputPlumber takes it on Guide by itself; ⋯ too, said here)
+                // InputPlumber takes it on Guide by itself.
                 if (ev.device && root.navWanted) root.intercept(ev.device, 2);
                 if (ev.event === "ui_guide") {
                     // the app last used (the home has the keys, so niri reports no focused window)
@@ -98,8 +97,16 @@ Singleton {
         }
         // the screen keyboard open: the pad drives its keys (Services/Osk.pad)
         const osk = { ui_up: "up", ui_down: "down", ui_left: "left", ui_right: "right", ui_accept: "press",
-                      ui_back: "close", ui_action: "backspace", ui_context: "space", ui_option: "enter", ui_select: "shift" }[ev.event];
+                       ui_back: "close", ui_action: "backspace", ui_context: "space", ui_option: "enter", ui_select: "shift" }[ev.event];
         if (osk && Osk.shown && !Lock.locked) { Osk.pad(osk); return; }
+        // Portable quick-panel path: Guide lends the pad, then Start reaches us
+        // in ALL mode. Do not depend on ⋯ being forwarded from a running game.
+        if (ev.event === "ui_option" && FormFactor.tenFoot && Ui.tvHome && !Lock.locked) {
+            const open = Ui.quickPanel;
+            Ui.closeAll();
+            Ui.quickPanel = !open;
+            return;
+        }
         if (keys[ev.event]) { Quickshell.execDetached(["wtype", "-k", keys[ev.event]]); return; }
         if (ev.event === "ui_back") {
             if (root.shellHasKeys) Quickshell.execDetached(["wtype", "-k", "Escape"]);
