@@ -116,8 +116,12 @@ same foundation before any of their own work:
   so nothing here could tell a 412-wide screen from a small window.
   SHANI_WIDTH=412 SHANI_SCREEN=915 makes one, and the phone part runs at it: the
   bar's two clusters keep a gap, the launcher and the shade open, no surface
-  fails to load. Left: Settings in portrait; gesture navigation; calls; one app
-  at a time.
+  fails to load. The lock screen at that width: the password reaches the field -
+  the Unlock arrow enables - but neither Return nor the accessibility bus's press
+  submits it, in a shell part, at 1920 or at 412. So the screen draws and takes
+  text; what is unproven is submitting, and it is the same in a part on a
+  computer, which points at the part rather than at the phone. Left: Settings in
+  portrait; gesture navigation; calls; one app at a time.
 - **Touch** - a long press is a right-click on a touch screen, wherever a right
   button opens something: the desktop, its files, the shelf, a quick-settings
   tile, the island, the ring, the viewer, the magnifier, the ruler and the bin
