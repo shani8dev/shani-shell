@@ -123,8 +123,11 @@ same foundation before any of their own work:
   `shani-link-app --page phone | contacts` (the dial pad, Messages, Contacts,
   Music, Files, Remote), and the pad dials the landline and the SIM modem too.
   The launcher reaches it by words - Dial a number, Messages, Contacts, Recent
-  calls - and a number in the shell opens it addressed. Left: gesture
-  navigation; one app at a time (niri policy, not the shell).
+  calls - and a number in the shell opens it addressed. One app at a time:
+  on a phone the shell writes `open-fullscreen` into the niri window rules, so
+  every window opens the size of the screen (a window opens 915 px tall on a
+  412x915, and niri validates the file). Left: gesture navigation - the hold
+  variants, on a touch screen.
 - **Touch** - a long press is a right-click on a touch screen, wherever a right
   button opens something: the desktop, its files, the shelf, a quick-settings
   tile, the island, the ring, the viewer, the magnifier, the ruler and the bin

@@ -13,6 +13,26 @@ if [ -z "${SHANI_FORM_FACTOR:-}" ]; then
     waitfor "not d['barOverlap']" 5 && result phone-bar-fits PASS \
         || result phone-bar-fits FAIL "the clusters meet at this width"
     shot phone-bar 0.4
+    # one app at a time: niri opens every window fullscreen on a phone. The rule
+    # is read back from the file the shell writes, checked with niri's own parser,
+    # and then with a real window - a fullscreen one is as tall as the screen.
+    kdl="${XDG_CONFIG_HOME:-$HOME/.config}/niri/shani-windows.kdl"
+    i=0; until grep -q "open-fullscreen" "$kdl" 2>/dev/null || [ $i -ge 20 ]; do sleep 0.25; i=$((i+1)); done
+    grep -q "open-fullscreen" "$kdl" 2>/dev/null && result phone-windows-open-fullscreen PASS \
+        || result phone-windows-open-fullscreen FAIL "niri was not told"
+    niri validate -c "$kdl" >/dev/null 2>&1 && result phone-niri-accepts-the-rule PASS \
+        || result phone-niri-accepts-the-rule FAIL "niri cannot read what was written"
+    foot --app-id=fs-test sh -c 'sleep 25' >/dev/null 2>&1 &
+    i=0; until [ -n "$(niri msg -j windows | python3 -c 'import json,sys
+print(next((w["id"] for w in json.load(sys.stdin) if w["app_id"] == "fs-test"), ""))' 2>/dev/null)" ] || [ $i -ge 20 ]; do sleep 0.25; i=$((i+1)); done
+    tall=$(niri msg -j windows | python3 -c 'import json,sys
+for w in json.load(sys.stdin):
+    if w["app_id"] == "fs-test":
+        print(int(w["layout"]["tile_size"][1])); break' 2>/dev/null)
+    [ "${tall:-0}" -ge 800 ] && result phone-a-window-is-fullscreen PASS "$tall px" \
+        || result phone-a-window-is-fullscreen FAIL "a window opened ${tall:-0} px tall"
+    niri msg action close-window --id "$(niri msg -j windows | python3 -c 'import json,sys
+print(next((w["id"] for w in json.load(sys.stdin) if w["app_id"] == "fs-test"), ""))' 2>/dev/null)" 2>/dev/null
     # the two surfaces a phone opens most still open at this width
     ipc launcher ""
     waitfor "d['launcher']" 4 && result phone-launcher-opens PASS || result phone-launcher-opens FAIL

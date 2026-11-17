@@ -34,8 +34,16 @@ Singleton {
             ""
         ].filter(x => x !== "").join("\n");
     }
+    // a phone shows one app at a time: every window opens fullscreen there, the
+    // way a phone does. First, so a per-app rule can still say otherwise.
+    // (niri validate -c on this file is the part's check: open-fullscreen true)
+    readonly property string phoneRule: FormFactor.focused.profile === "phone"
+        ? "window-rule {\n    open-fullscreen true\n}\n"
+        : ""
+
     readonly property string kdl: Settings.loaded
         ? "// written by shani-shell: Settings > Windows > Per-app rules. Edits here are replaced.\n"
+            + root.phoneRule
             + Array.from(d.windowRules || []).map(r => root.kdlRule(r.app, r)).join("")
         : ""
 
