@@ -18,7 +18,7 @@ Measured 2026-11-16 against `master` (70 modules, ~33,000 lines of QML).
 | Handheld | ~60% | the TV home at arm's length, the built-in pad through InputPlumber (Guide is home, ⋯ the quick panel over a game), a sideways Deck or Legion Go panel turned the right way | TDP control (ryzenadj / PowerStation are not in Arch's repos); unverified on real hardware: InputPlumber's "pass" mode for the ⋯ button, the Legion Go's turn |
 | Board | ~70% | a board profile (the bar and Quick Settings at the bottom within a child's reach, the dock above them), the whiteboard (pages, six inks, a PDF), the pen as a pen (pressure, its eraser end, palm rejection), the resetting guest | receiving a cast (no maintained receiver in Arch's repos; UxPlay, in the AUR, when it is back) |
 | TV | ~60% | the 10-foot home, the whole desktop by remote and controller, typing from a remote, a controller pointer, a TV known by its EDID name | the gamescope image's desktop mode still isn't this shell (the open decision below) |
-| Phone | ~15% | the SIM PIN and texts (Modem), the phone link (Phone), the screen keyboard | a portrait layout of every surface, gesture navigation, a notification shade, a phone lock screen, a calls UI, one app at a time |
+| Phone | ~85% | a portrait bar, launcher and Quick Settings shade, notifications, the lock screen, Settings in one pane, gesture navigation, dial / messages / contacts through Shani Link, one app at a time | judging the 400 ms hold on a real touch screen; hardware ShaniOS does not target yet |
 
 ## The blocker they share: fixed sizes
 
@@ -146,7 +146,7 @@ same foundation before any of their own work:
 | 4 | **Tablet**: edge swipes, the long press, the keyboard for the shell's own fields - done; the keyboard for apps' fields (needs niri text-input), touch-sized targets | 2 |
 | 5 | **Laptop**: the layout follows dock / undock - done | <1 |
 | 6 | **Board**: the board profile (reach zones, big targets), a whiteboard mode that saves to a PDF - done; the pen as a pen (pressure, palm rejection, its buttons), a resetting guest session, receiving a cast (skipped for now) | 2–3 |
-| 7 | **Phone**: portrait versions of the bar, launcher, Quick Settings (as a shade), notifications, lock screen and Settings; gesture navigation; calls; one full-screen app at a time | 5–8 |
+| 7 | **Phone**: the portrait bar, launcher, shade, notifications, lock screen and Settings, gesture navigation, calls and texts through Shani Link, one full-screen app at a time - done, and tested at 412x915 | 5–8 |
 | | **Total** | ~13–20 |
 
 TV comes first because the gamescope image's desktop mode can then be this
