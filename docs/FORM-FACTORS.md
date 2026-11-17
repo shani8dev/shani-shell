@@ -126,8 +126,10 @@ same foundation before any of their own work:
   calls - and a number in the shell opens it addressed. One app at a time:
   on a phone the shell writes `open-fullscreen` into the niri window rules, so
   every window opens the size of the screen (a window opens 915 px tall on a
-  412x915, and niri validates the file). Left: gesture navigation - the hold
-  variants, on a touch screen.
+  412x915, and niri validates the file). Gestures: a swipe up that stops and
+  waits is the overview, as on Android's and iOS's - a flick is still the
+  launcher (Common/Gestures.js classifyHold, tested in node). Left: judging the
+  hold's length on a real touch screen.
 - **Touch** - a long press is a right-click on a touch screen, wherever a right
   button opens something: the desktop, its files, the shelf, a quick-settings
   tile, the island, the ring, the viewer, the magnifier, the ruler and the bin
