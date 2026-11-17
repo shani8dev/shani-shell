@@ -26,7 +26,10 @@ PanelWindow {
         right: 12
         bottom: atBottom ? (bottomBar ? Theme.barHeight + 18 : (Settings.data.dock && Settings.data.dockVisibility !== "hide" ? Settings.data.dockIconSize + 44 : 16)) : 16
     }
-    implicitWidth: Theme.px(380)
+    // a phone's card is the width of the screen, less a margin: 380 leaves
+    // 437 with the UI scale, which does not fit 412 (docs/FORM-FACTORS.md)
+    readonly property bool narrow: FormFactor.focused.profile === "phone"
+    implicitWidth: narrow ? win.screen.width - 24 : Theme.px(380)
     implicitHeight: list.implicitHeight
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore

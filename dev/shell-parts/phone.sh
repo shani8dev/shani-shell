@@ -23,6 +23,10 @@ if [ -z "${SHANI_FORM_FACTOR:-}" ]; then
         || result phone-quick-settings-is-a-shade FAIL "$(q "['sidebarShade']")"
     shot phone-quick-settings 0.4
     ipc closeAll
+    # a notification is a card the width of the screen, not 437 of 412
+    notify-send -a shani-test "Hello" "a card the width of the phone"
+    sleep 1
+    shot phone-notification 0.4
     settings '{}'
     waitfor "d['formFactor'] == 'computer' and not d['barNarrow']" 5 \
         && result phone-wide-screen-keeps-everything PASS || result phone-wide-screen-keeps-everything FAIL "$(q "['formFactor'], d['barNarrow']")"
