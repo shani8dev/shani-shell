@@ -15,9 +15,9 @@ Measured 2026-11-16 against `master` (70 modules, ~33,000 lines of QML).
 | Computer | ~95% | six desktop layouts (LayoutSwitcher), multi-monitor, keyboard and mouse everywhere | — |
 | Laptop | ~100% | battery and charging, lid, brightness, keyboard backlight, power profiles, touchpad toggle, the layout following dock / undock | — |
 | Tablet | ~70% | the Touch layout, the screen keyboard on fold-to-tablet (TabletMode), auto-rotate, the Smart Touch bubble, edge swipes, a long press for the right-click | the keyboard on text-field focus, finger-sized controls everywhere (only the dock is), one size control for the whole UI |
-| Handheld | ~45% | InputPlumber (the built-in pad, lent to the desktop over a game), controller navigation and typing, the controller pointer, touch, battery | a handheld profile (7–8" at arm's length: bigger than a laptop, smaller than a TV), a quick panel over a running game (brightness, volume, performance), portrait panels turned the right way (the Deck's and the Legion Go's are portrait), TDP control (PowerStation and ryzenadj are not in Arch's repos) |
-| Board | ~60% | a board profile (65–86" touch, used standing up: the bar and Quick Settings at the bottom within a child's reach, nothing important at the top), the whiteboard (pages, six inks, saving to a PDF), drawing over anything on screen (Annotate), Magnifier, Ruler, the PDF reader, casting, the Touch layout, the screen keyboard | many fingers and pens at once, pen vs. finger (write with the pen, move with the finger), the pen as a pen (pressure, palm rejection, its buttons), a guest session that resets after a lesson, a teacher's laptop cast onto it |
-| TV | ~40% | the whole desktop by remote and controller (KeyFocus, GamepadNav, InputPlumber, `remote*` IPC), typing from a remote, a controller pointer | a 10-foot home, sofa-sized type and targets, knowing a TV is connected |
+| Handheld | ~60% | the TV home at arm's length, the built-in pad through InputPlumber (Guide is home, ⋯ the quick panel over a game), a sideways Deck or Legion Go panel turned the right way | TDP control (ryzenadj / PowerStation are not in Arch's repos); unverified on real hardware: InputPlumber's "pass" mode for the ⋯ button, the Legion Go's turn |
+| Board | ~70% | a board profile (the bar and Quick Settings at the bottom within a child's reach, the dock above them), the whiteboard (pages, six inks, a PDF), the pen as a pen (pressure, its eraser end, palm rejection), the resetting guest | receiving a cast (no maintained receiver in Arch's repos; UxPlay, in the AUR, when it is back) |
+| TV | ~60% | the 10-foot home, the whole desktop by remote and controller, typing from a remote, a controller pointer, a TV known by its EDID name | the gamescope image's desktop mode still isn't this shell (the open decision below) |
 | Phone | ~15% | the SIM PIN and texts (Modem), the phone link (Phone), the screen keyboard | a portrait layout of every surface, gesture navigation, a notification shade, a phone lock screen, a calls UI, one app at a time |
 
 ## The blocker they share: fixed sizes
@@ -113,9 +113,9 @@ same foundation before any of their own work:
 | Step | What | Sessions (rough) |
 |---|---|---|
 | 1 | Foundation: profile, UI scale, breakpoints, the size conversion | 2–3 |
-| 2 | **TV**: a full-screen home (shelves of apps, games, settings; clock and status on top; the buttons' meanings below), the 10-foot scale, TV auto-detection | 1–2 |
-| 3 | **Handheld**: the handheld profile (the TV home at arm's length, with touch), a quick panel over a running game on the Guide / ⋯ button, portrait panels rotated by device | 1–2 |
-| 4 | **Tablet**: edge swipes (bottom: launcher, top: Quick Settings, sides: back / switch), the keyboard on text-field focus, touch-sized targets | 2 |
+| 2 | **TV**: the 10-foot home, the buttons' meanings, TV auto-detection - done (the gamescope image is the open decision) | 1–2 |
+| 3 | **Handheld**: the TV home at arm's length, the quick panel over a game, portrait panels turned - done (TDP control is not in Arch's repos) | 1–2 |
+| 4 | **Tablet**: edge swipes, the long press, the keyboard for the shell's own fields - done; the keyboard for apps' fields (needs niri text-input), touch-sized targets | 2 |
 | 5 | **Laptop**: the layout follows dock / undock - done | <1 |
 | 6 | **Board**: the board profile (reach zones, big targets), a whiteboard mode that saves to a PDF - done; the pen as a pen (pressure, palm rejection, its buttons), a resetting guest session, receiving a cast (skipped for now) | 2–3 |
 | 7 | **Phone**: portrait versions of the bar, launcher, Quick Settings (as a shade), notifications, lock screen and Settings; gesture navigation; calls; one full-screen app at a time | 5–8 |
