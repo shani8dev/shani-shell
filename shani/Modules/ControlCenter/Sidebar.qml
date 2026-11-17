@@ -86,8 +86,30 @@ PanelWindow {
         Connections { target: Ui; function onControlCenterChanged() { if (Ui.controlCenter) Ui.focusFirst(slide); } }
 
         MouseArea { anchors.fill: parent }   // swallow clicks so they don't close
-        // a finger swipes it away (right); the mouse and the pen keep their drags
+        // A shade exits down; a desktop sidebar exits right. Keep vertical
+        // dismissal on the shade's top handle so lists retain touch scrolling.
+        Rectangle {
+            visible: win.narrow
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: Theme.px(4)
+            width: Theme.px(40)
+            height: Theme.px(3)
+            radius: height / 2
+            color: Theme.dim
+        }
+        Item {
+            visible: win.narrow
+            width: parent.width
+            height: Theme.px(16)
+            DragHandler {
+                target: null
+                xAxis.enabled: false
+                acceptedDevices: PointerDevice.TouchScreen
+                onActiveChanged: if (!active && G.dismissed("down", translation.x, translation.y, Theme.px(80))) Ui.closeAll()
+            }
+        }
         DragHandler {
+            enabled: !win.narrow
             target: null
             xAxis.enabled: true
             yAxis.enabled: false

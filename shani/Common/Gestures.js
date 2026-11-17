@@ -74,9 +74,8 @@ function dismissed(dir, dx, dy, min) {
     return along !== undefined && along >= min && across <= along * 0.75;
 }
 
-// A swipe that stops and waits, the way Android's and iOS's do: the same
-// gesture with a hold at the end is the overview, not the launcher. heldMs is
-// how long the finger was down before it let go (0 for a flick).
+// heldMs is time stationary after crossing the swipe threshold, not total
+// contact time: neither a slow swipe nor waiting before swiping is a hold.
 var HOLD_MS = 400;
 
 function classifyHold(edge, dx, dy, min, heldMs) {
@@ -84,4 +83,31 @@ function classifyHold(edge, dx, dy, min, heldMs) {
     if (swipe === "" || !(heldMs >= HOLD_MS))
         return swipe;
     return edge === "bottom" ? "overview" : swipe;
+}
+
+function startSwipe(x, y) {
+    return { x: x, y: y, anchorX: x, anchorY: y, stillSince: null };
+}
+
+function moveSwipe(s, edge, x, y, min, jitter, now) {
+    if (!s)
+        return;
+    if (!classify(edge, x - s.x, y - s.y, min)) {
+        s.stillSince = null;
+        s.anchorX = x;
+        s.anchorY = y;
+    } else if (s.stillSince === null
+               || Math.hypot(x - s.anchorX, y - s.anchorY) > jitter) {
+        s.stillSince = now;
+        s.anchorX = x;
+        s.anchorY = y;
+    }
+}
+
+function finishSwipe(s, edge, x, y, min, jitter, now) {
+    if (!s)
+        return "";
+    moveSwipe(s, edge, x, y, min, jitter, now);
+    return classifyHold(edge, x - s.x, y - s.y, min,
+                        s.stillSince === null ? 0 : now - s.stillSince);
 }

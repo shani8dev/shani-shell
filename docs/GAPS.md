@@ -7,8 +7,9 @@ centre, and against what a session needs before any app runs.
 
 ## Not built — by choice
 
-- **Bar position.** The bar stays on top: the Island grows down from it for
-  Chronoa's approvals and questions, and the dock owns the bottom edge.
+- **Board reach zones.** The bar can sit at the bottom and the dock moves above
+  it; the Island still grows from the top. See [FORM-FACTORS.md](FORM-FACTORS.md)
+  for the remaining reach, input, layout and hardware-verification checklist.
 - **Session chooser on the login screen.** The niri image has one session;
   Plasma and GNOME images have their own greeters.
 - **Switch user from the lock screen.** greetd runs one session; there is no greeter to switch back to (loginctl has no such command).
@@ -51,9 +52,10 @@ centre, and against what a session needs before any app runs.
   English, or - opt-in - are translated by Chronoa's local model, which got about
   a third of short labels wrong when measured with Qwen3-8B. Strings built by
   concatenation are not yet wrapped (`tools/i18n.py` says how).
-- **One run on a real installed niri image**: everything here is proven in the
-  nested container only. Needs the niri image built (shani-shell has no remote
-  yet, and its PKGBUILD fetches from GitHub) and a shani-testbed UEFI boot.
+- **Installed-image form-factor matrix**: container checks do not validate real
+  touchscreens, pen calibration, handheld orientation, suspend or TV remotes.
+  Run the per-device checklist in FORM-FACTORS.md on an installed image through
+  shani-testbed; do not infer that coverage from nested-compositor checks.
 
 ## The app's menus in the window menu (2026-11-13)
 

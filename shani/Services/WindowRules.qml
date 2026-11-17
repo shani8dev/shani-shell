@@ -9,6 +9,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/FormFactor.js" as FF
 
 Singleton {
     id: root
@@ -34,10 +35,9 @@ Singleton {
             ""
         ].filter(x => x !== "").join("\n");
     }
-    // a phone shows one app at a time: every window opens fullscreen there, the
-    // way a phone does. First, so a per-app rule can still say otherwise.
-    // (niri validate -c on this file is the part's check: open-fullscreen true)
-    readonly property string phoneRule: FormFactor.focused.profile === "phone"
+    // Niri's opening rules are global: apply this only to phone-only sessions,
+    // never to a phone docked to a desktop monitor. Existing windows stay as-is.
+    readonly property string phoneRule: FF.phoneOnly(FormFactor.screens)
         ? "window-rule {\n    open-fullscreen true\n}\n"
         : ""
 

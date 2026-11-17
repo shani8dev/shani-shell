@@ -179,6 +179,13 @@ ColumnLayout {
             onPicked: v => FormFactor.choose(page.selected, v)
         }
         Picks {
+            label: Tr.t("Shell size")
+            options: [{ label: Tr.t("Automatic"), value: "auto" }]
+                .concat([1, 1.25, 1.5, 1.75, 2].map(s => ({ label: Math.round(s * 100) + " %", value: s })))
+            current: (Settings.data.formFactorScales || {})[page.selected] || "auto"
+            onPicked: v => FormFactor.chooseScale(page.selected, v)
+        }
+        Picks {
             label: Tr.t("Rotation")
             options: [{ label: Tr.t("Normal"), value: "normal" }, { label: "90°", value: "90" }, { label: "180°", value: "180" }, { label: "270°", value: "270" }]
             current: page.sel ? page.sel.transform : "normal"

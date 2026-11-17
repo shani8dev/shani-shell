@@ -372,7 +372,7 @@ Scope {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: Theme.px(80)
-                width: Math.min(Theme.px(380), root.width - 40)
+                width: Math.max(0, Math.min(Theme.px(380), surface.width - 40))
                 height: Theme.px(76)
                 radius: Theme.radiusLarge
                 RowLayout {
@@ -422,7 +422,7 @@ Scope {
                 anchors.centerIn: parent
                 // above the screen keyboard while it is up
                 anchors.verticalCenterOffset: root.kb ? -parent.height * 0.18 : parent.height * 0.1
-                width: Math.min(Theme.px(380), root.width - 40)
+                width: Math.max(0, Math.min(Theme.px(380), surface.width - 40))
                 height: form.implicitHeight + 40
                 radius: Theme.radiusLarge
 

@@ -13,6 +13,12 @@ if [ -z "${SHANI_FORM_FACTOR:-}" ]; then
     waitfor "d['formFactor'] == 'tv' and abs(d['uiScale'] - 1.6) < 0.01" 5 \
         && result form-factor-chosen-tv-scales-everything PASS "$(q "['uiScale']")" || result form-factor-chosen-tv-scales-everything FAIL "$(q "['formFactor'], d['uiScale']")"
     ipc toggleLauncher; sleep 1.2; shot form-factor-tv-launcher 0.2; ipc closeAll
+    settings '{"formFactors":{"winit":"tv"},"formFactorScales":{"winit":1.25}}'
+    waitfor "d['formFactor'] == 'tv' and abs(d['uiScale'] - 1.25) < 0.01" 5 \
+        && result form-factor-shell-size-override PASS || result form-factor-shell-size-override FAIL
+    settings '{"formFactors":{"winit":"tv"},"formFactorScales":{"winit":9}}'
+    waitfor "abs(d['uiScale'] - 1.6) < 0.01" 5 \
+        && result form-factor-invalid-shell-size-ignored PASS || result form-factor-invalid-shell-size-ignored FAIL
     settings '{}'
     waitfor "d['formFactor'] == 'computer' and d['uiScale'] == 1" 5 \
         && result form-factor-automatic-again PASS || result form-factor-automatic-again FAIL "$(q "['formFactor'], d['uiScale']")"

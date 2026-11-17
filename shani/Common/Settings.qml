@@ -350,6 +350,7 @@ Singleton {
             // what kind of screen each one is, when the owner chose it (FormFactor.js):
             // { "HDMI-A-1": "tv" }; a screen not here is told by its size and input
             property var formFactors: ({})
+            property var formFactorScales: ({})    // optional UI scale per connector; does not change app DPI
             property string kbCompose: ""            // xkb: "" | ralt | rwin | menu | caps
             property string kbCaps: ""               // xkb: "" | ctrl:nocaps | caps:escape | caps:backspace
             // your own shortcuts: [{ key: "Mod+Alt+T", title, command }]

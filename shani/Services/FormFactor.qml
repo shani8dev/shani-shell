@@ -33,10 +33,11 @@ Singleton {
     }
     readonly property var screens: {
         const chosen = Settings.data.formFactors || {};
+        const scales = Settings.data.formFactorScales || {};
         const m = {};
         for (const o of Displays.outputs) {
             const p = FF.detect({ name: o.name, physical: o.physical, label: o.label }, root.input, root.forced || chosen[o.name] || "");
-            m[o.name] = { profile: p, scale: FF.scale(p) };
+            m[o.name] = { profile: p, scale: FF.scale(p, scales[o.name]) };
         }
         return m;
     }
@@ -50,6 +51,17 @@ Singleton {
         else
             m[name] = kind;
         Settings.data.formFactors = m;
+    }
+    function chooseScale(name, scale) {
+        if (!name) return;
+        const m = Object.assign({}, Settings.data.formFactorScales || {});
+        if (scale === "auto")
+            delete m[name];
+        else if (typeof scale === "number" && isFinite(scale) && scale >= 1 && scale <= 2)
+            m[name] = scale;
+        else
+            return;
+        Settings.data.formFactorScales = m;
     }
     // which edge this screen's bar is on ("top" or "bottom"): the owner's
     // choice, else the kind's own - a board's is at the bottom

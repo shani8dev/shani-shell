@@ -68,7 +68,9 @@ function detect(screen, input, chosen) {
     return "laptop";
 }
 
-function scale(profile) {
+function scale(profile, chosen) {
+    if (typeof chosen === "number" && isFinite(chosen) && chosen >= 1 && chosen <= 2)
+        return chosen;
     return SCALE[profile] || 1.0;
 }
 
@@ -118,4 +120,11 @@ function widthClass(px) {
     if (px < 1000)
         return "medium";
     return "expanded";
+}
+
+// Niri has no output matcher for window rules. Do not make a desktop monitor's
+// apps fullscreen just because the phone panel is focused.
+function phoneOnly(screens) {
+    var names = Object.keys(screens || {});
+    return names.length > 0 && names.every(name => screens[name].profile === "phone");
 }

@@ -3,10 +3,17 @@
 # The dev screen chosen as a phone: one column. The bar keeps the launcher, the
 # status cluster and the clock, and drops the workspaces, the world clock and
 # the date - they are what overflows a 412-point screen.
-if [ -z "${SHANI_FORM_FACTOR:-}" ]; then
+if [ -z "${SHANI_FORM_FACTOR:-}" ] || [ "${SHANI_FORM_FACTOR:-}" = phone ]; then
     settings '{"formFactors": {"winit": "phone"}}'
     waitfor "d['formFactor'] == 'phone' and abs(d['uiScale'] - 1.15) < 0.01" 5 \
         && result phone-scale PASS || result phone-scale FAIL "$(q "['formFactor'], d['uiScale']")"
+    python3 - <<'PY' && result phone-output-size PASS || result phone-output-size FAIL
+import json, os, subprocess
+outputs = json.loads(subprocess.check_output(["niri", "msg", "-j", "outputs"]))
+logical = next(iter(outputs.values()))["logical"]
+assert logical["width"] == int(os.environ.get("SHANI_WIDTH", "1920")), logical
+assert logical["height"] == int(os.environ.get("SHANI_SCREEN", "1080")), logical
+PY
     waitfor "d['barNarrow']" 5 && result phone-bar-is-one-column PASS \
         || result phone-bar-is-one-column FAIL "$(q "['barNarrow']")"
     # at a phone's width the two clusters must still leave a gap between them
@@ -25,12 +32,15 @@ if [ -z "${SHANI_FORM_FACTOR:-}" ]; then
     foot --app-id=fs-test sh -c 'sleep 25' >/dev/null 2>&1 &
     i=0; until [ -n "$(niri msg -j windows | python3 -c 'import json,sys
 print(next((w["id"] for w in json.load(sys.stdin) if w["app_id"] == "fs-test"), ""))' 2>/dev/null)" ] || [ $i -ge 20 ]; do sleep 0.25; i=$((i+1)); done
-    tall=$(niri msg -j windows | python3 -c 'import json,sys
-for w in json.load(sys.stdin):
-    if w["app_id"] == "fs-test":
-        print(int(w["layout"]["tile_size"][1])); break' 2>/dev/null)
-    [ "${tall:-0}" -ge 800 ] && result phone-a-window-is-fullscreen PASS "$tall px" \
-        || result phone-a-window-is-fullscreen FAIL "a window opened ${tall:-0} px tall"
+    python3 - <<'PY' && result phone-a-window-is-fullscreen PASS || result phone-a-window-is-fullscreen FAIL
+import json, subprocess
+def query(what):
+    return json.loads(subprocess.check_output(["niri", "msg", "-j", what]))
+window = next(w for w in query("windows") if w["app_id"] == "fs-test")
+screen = next(iter(query("outputs").values()))["logical"]
+width, height = window["layout"]["tile_size"]
+assert abs(width - screen["width"]) <= 1 and abs(height - screen["height"]) <= 1, (window, screen)
+PY
     niri msg action close-window --id "$(niri msg -j windows | python3 -c 'import json,sys
 print(next((w["id"] for w in json.load(sys.stdin) if w["app_id"] == "fs-test"), ""))' 2>/dev/null)" 2>/dev/null
     # the two surfaces a phone opens most still open at this width
@@ -39,6 +49,11 @@ print(next((w["id"] for w in json.load(sys.stdin) if w["app_id"] == "fs-test"), 
     waitfor "d['launcherNarrow']" 4 && result phone-launcher-is-one-column PASS \
         || result phone-launcher-is-one-column FAIL "$(q "['launcherNarrow']")"
     shot phone-launcher 0.4
+    ipc closeAll
+    # Enter a query too: this is when the preview pane used to steal the width.
+    ipc launcher "file"
+    waitfor "d['launcher'] and d['launcherNarrow']" 4 \
+        && result phone-search-stays-compact PASS || result phone-search-stays-compact FAIL
     ipc closeAll
     ipc toggleControlCenter
     waitfor "d['controlCenter']" 4 && result phone-quick-settings-opens PASS || result phone-quick-settings-opens FAIL
@@ -59,6 +74,13 @@ print(next((w["id"] for w in json.load(sys.stdin) if w["app_id"] == "fs-test"), 
     unlock
     waitfor "not d['locked']" 8 && result phone-unlocks PASS || result phone-unlocks FAIL "$(q "['locked']")"
     settings '{}'
-    waitfor "d['formFactor'] == 'computer' and not d['barNarrow']" 5 \
-        && result phone-wide-screen-keeps-everything PASS || result phone-wide-screen-keeps-everything FAIL "$(q "['formFactor'], d['barNarrow']")"
+    if [ -z "${SHANI_FORM_FACTOR:-}" ]; then
+        waitfor "d['formFactor'] == 'computer' and not d['barNarrow']" 5 \
+            && result phone-wide-screen-keeps-everything PASS || result phone-wide-screen-keeps-everything FAIL "$(q "['formFactor'], d['barNarrow']")"
+        i=0; while grep -q 'open-fullscreen' "$kdl" && [ "$i" -lt 20 ]; do sleep 0.25; i=$((i+1)); done
+        ! grep -q 'open-fullscreen' "$kdl" && result phone-leaves-no-fullscreen-rule PASS \
+            || result phone-leaves-no-fullscreen-rule FAIL
+    fi
+else
+    result phone-profile SKIP "requires automatic or phone profile"
 fi

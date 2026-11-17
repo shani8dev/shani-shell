@@ -676,7 +676,17 @@ PanelWindow {
             Icon { anchors.centerIn: parent; name: trashTile.count > 0 ? "user-trash-full" : "user-trash"; size: parent.width * 0.5; color: trashTile.arming ? Theme.danger : Theme.text }
             Timer { running: trashTile.arming; interval: 4000; onTriggered: trashTile.arming = false }
             // the Menu key (a controller's X) is the right-click: arm, then empty
-            onMenuRequested: trashMenu.clicked(null)
+            onMenuRequested: requestEmpty()
+            function requestEmpty() {
+                if (count === 0)
+                    return;
+                if (arming) {
+                    arming = false;
+                    Quickshell.execDetached(["gio", "trash", "--empty"]);
+                } else {
+                    arming = true;
+                }
+            }
             MouseArea {
                 id: trashMenu
                 anchors.fill: parent
@@ -685,18 +695,11 @@ PanelWindow {
                 property var held: Hold.state()
                 onPressed: Hold.press(held)
                 onPressAndHold: Hold.hold(held)
-                onClicked: {
-                    // a plain click still belongs to the tile's own keys and menu:
-                    // only a long press (a finger's right button) arms the bin
-                    if (!Hold.swallowed(held)) return;
-                    if (trashTile.count === 0)
-                        return;
-                    if (trashTile.arming) {
-                        trashTile.arming = false;
-                        Quickshell.execDetached(["gio", "trash", "--empty"]);
-                    } else {
-                        trashTile.arming = true;
-                    }
+                onClicked: e => {
+                    if (Hold.swallowed(held) || e.button === Qt.RightButton)
+                        trashTile.requestEmpty();
+                    else
+                        trashTile.activated();
                 }
             }
             DropArea {
