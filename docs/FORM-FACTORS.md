@@ -105,12 +105,13 @@ same foundation before any of their own work:
 - **Phone** - started: one column. The bar keeps the launcher, the status cluster
   and the clock, and drops the workspaces, the world clock and the date; the
   launcher drops the preview pane beside its results, so the field and the
-  results take the whole width. Both ask the screen's kind, not its pixels, so a
-  phone-sized window on a computer keeps everything (`dev/shell-parts/phone.sh`:
-  the profile and its scale, the one-column bar and launcher, and Quick Settings
-  opening at that width). Left: Quick Settings as a shade, notifications, the
-  lock screen and Settings in portrait; gesture navigation; calls; one app at a
-  time.
+  results take the whole width; and Quick Settings is a shade that comes up from
+  the bottom over the whole screen, not a column in from the right. All of them
+  ask the screen's kind, not its pixels, so a phone-sized window on a computer
+  keeps everything (`dev/shell-parts/phone.sh`: the profile and its scale, the
+  one-column bar and launcher, the shade, and a wide screen keeping everything).
+  Left: notifications, the lock screen and Settings in portrait; gesture
+  navigation; calls; one app at a time.
 - **Touch** - a long press is a right-click on a touch screen, wherever a right
   button opens something: the desktop, its files, the shelf, a quick-settings
   tile, the island, the ring, the viewer, the magnifier, the ruler and the bin
