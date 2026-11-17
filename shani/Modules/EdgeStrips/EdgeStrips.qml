@@ -45,10 +45,12 @@ Scope {
             MouseArea {
                 anchors.fill: parent
                 property point from
-                onPressed: m => from = mapToGlobal(m.x, m.y)
+                property real down: 0        // when the finger went down: a swipe that
+                                             // stops and waits is the overview (Android's, iOS's)
+                onPressed: m => { from = mapToGlobal(m.x, m.y); down = Date.now() }
                 onReleased: m => {
                     const to = mapToGlobal(m.x, m.y);
-                    EdgeSwipe.run(G.classify(strip.modelData, to.x - from.x, to.y - from.y, Theme.px(60)));
+                    EdgeSwipe.run(G.classifyHold(strip.modelData, to.x - from.x, to.y - from.y, Theme.px(60), Date.now() - down));
                 }
             }
         }

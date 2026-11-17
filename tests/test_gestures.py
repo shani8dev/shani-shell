@@ -89,3 +89,19 @@ def test_a_panel_is_swiped_away_toward_its_edge():
     assert away("down", 30, 100) is True
     assert away("down", 120, 100) is False         # more across than down: a sideways scroll
     assert away("sideways", 100, 0) is False
+
+
+def hold(edge, dx, dy, ms, min_px=60):
+    prog = (JS.read_text().replace(".pragma library", "")
+            + "\nprocess.stdout.write(JSON.stringify(classifyHold(...%s)));" % json.dumps([edge, dx, dy, min_px, ms]))
+    return json.loads(subprocess.run([node, "-e", prog], capture_output=True, text=True, check=True).stdout)
+
+
+def test_a_swipe_that_waits_at_the_bottom_is_the_overview():
+    assert hold("bottom", 0, -200, 500) == "overview"
+    assert hold("bottom", 0, -200, 100) == "launcher"        # a flick is still the launcher
+    assert hold("left", 120, 0, 900) == "back"               # a hold changes only the bottom's
+
+
+def test_a_hold_that_is_not_a_swipe_is_still_nothing():
+    assert hold("bottom", 0, -10, 900) == ""

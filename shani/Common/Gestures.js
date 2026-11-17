@@ -73,3 +73,15 @@ function dismissed(dir, dx, dy, min) {
     var across = (dir === "left" || dir === "right") ? Math.abs(dy) : Math.abs(dx);
     return along !== undefined && along >= min && across <= along * 0.75;
 }
+
+// A swipe that stops and waits, the way Android's and iOS's do: the same
+// gesture with a hold at the end is the overview, not the launcher. heldMs is
+// how long the finger was down before it let go (0 for a flick).
+var HOLD_MS = 400;
+
+function classifyHold(edge, dx, dy, min, heldMs) {
+    var swipe = classify(edge, dx, dy, min);
+    if (swipe === "" || !(heldMs >= HOLD_MS))
+        return swipe;
+    return edge === "bottom" ? "overview" : swipe;
+}
