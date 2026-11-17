@@ -28,6 +28,7 @@ FloatingWindow {
     property string doc: ""
     property int margins: Theme.px(14)
     property bool header: true
+    readonly property bool compact: width < Theme.px(600)
     // closed by the compositor (Mod+Q, the bar's close button) or by the app itself
     signal gone()
     default property alias content: body.data
@@ -50,13 +51,20 @@ FloatingWindow {
     Item {
         id: frame
         anchors.fill: parent
+        // Reach a scrolling toolbar without tabbing through a document's text.
+        Keys.onPressed: e => {
+            if (e.key === Qt.Key_F6) {
+                Ui.focusFirst(e.modifiers & Qt.ShiftModifier ? body : toolRow);
+                e.accepted = true;
+            }
+        }
 
         // ---- the header: icon, title, the app's own buttons, the window's ----
         Rectangle {
             id: bar
             visible: win.header
             anchors { left: parent.left; right: parent.right; top: parent.top }
-            height: visible ? 42 : 0
+            height: visible ? Math.max(42, Theme.touchTarget + Theme.px(8)) : 0
             color: Settings.blurWanted ? Theme.alpha(Theme.surface1, 0.7) : Theme.surface1
             Rectangle { anchors { left: parent.left; right: parent.right; bottom: parent.bottom } height: 1; color: Theme.border }
 
@@ -91,7 +99,7 @@ FloatingWindow {
                     Accessible.ignored: true
                 }
                 Text {
-                    visible: win.doc !== ""
+                    visible: win.doc !== "" && !win.compact
                     text: win.appName
                     color: Theme.faint
                     font.family: Theme.font
@@ -99,13 +107,23 @@ FloatingWindow {
                     rightPadding: Theme.px(6)
                     Accessible.ignored: true
                 }
-                RowLayout {
-                    id: toolRow
-                    spacing: 2
+                Flickable {
+                    Layout.preferredWidth: toolRow.implicitWidth
+                    Layout.maximumWidth: win.compact ? win.width * 0.45 : toolRow.implicitWidth
+                    Layout.preferredHeight: toolRow.implicitHeight
+                    contentWidth: toolRow.implicitWidth
+                    contentHeight: height
+                    flickableDirection: Flickable.HorizontalFlick
+                    boundsBehavior: Flickable.StopAtBounds
+                    clip: true
+                    RowLayout {
+                        id: toolRow
+                        spacing: 2
+                    }
                 }
                 Rectangle { visible: toolRow.children.length > 0; Layout.preferredWidth: 1; Layout.preferredHeight: Theme.px(20); color: Theme.border }
-                WindowButton { icon: "window-minimize"; tip: Tr.t("Minimise"); onClicked: Ui.minimiseFocused() }
-                WindowButton { icon: win.maximized ? "window-restore" : "window-maximize"; tip: win.maximized ? Tr.t("Restore") : Tr.t("Maximise"); onClicked: win.toggleMaximised() }
+                WindowButton { visible: !win.compact; icon: "window-minimize"; tip: Tr.t("Minimise"); onClicked: Ui.minimiseFocused() }
+                WindowButton { visible: !win.compact; icon: win.maximized ? "window-restore" : "window-maximize"; tip: win.maximized ? Tr.t("Restore") : Tr.t("Maximise"); onClicked: win.toggleMaximised() }
                 WindowButton { icon: "window-close"; tip: Tr.t("Close"); danger: true; onClicked: win.visible = false }
             }
         }
@@ -164,8 +182,8 @@ FloatingWindow {
         property string tip
         property bool danger: false
         signal clicked()
-        Layout.preferredWidth: Theme.px(30)
-        Layout.preferredHeight: Theme.px(30)
+        Layout.preferredWidth: Math.max(Theme.px(30), Theme.touchTarget)
+        Layout.preferredHeight: Math.max(Theme.px(30), Theme.touchTarget)
         radius: Theme.px(15)
         color: area.pressed ? (danger ? Theme.danger : Theme.pressed) : area.containsMouse ? (danger ? Theme.alpha(Theme.danger, 0.85) : Theme.hover) : "transparent"
         Accessible.role: Accessible.Button

@@ -61,7 +61,7 @@ PanelWindow {
         // one column in from the right, clear of the bar (docs/FORM-FACTORS.md)
         readonly property real insetTop: narrow ? Theme.px(10) : (bottomBar ? Theme.px(10) : Theme.barHeight + 18)
         y: narrow ? (Ui.controlCenter ? insetTop : parent.height) : insetTop
-        height: narrow ? parent.height - insetTop : parent.height - y - (bottomBar ? Theme.barHeight + 18 : 10)
+        height: Math.max(0, parent.height - Osk.heightOn(win.screen.name) - (narrow ? insetTop : y + (bottomBar ? Theme.barHeight + 18 : 10)))
         x: narrow ? 0 : (Ui.controlCenter ? parent.width - width - 10 : parent.width + 10)
         radius: Theme.radiusLarge
         Behavior on x {

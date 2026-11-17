@@ -15,8 +15,8 @@ Rectangle {
     Accessible.checked: root.selected
     Accessible.onPressAction: root.clicked()
     Accessible.onToggleAction: root.clicked()      // a radio button's action is Toggle
-    implicitWidth: label.implicitWidth + 20
-    implicitHeight: Theme.px(28)
+    implicitWidth: Math.max(label.implicitWidth + 20, Theme.touchTarget)
+    implicitHeight: Math.max(Theme.px(28), Theme.touchTarget)
     radius: Theme.px(9)
     color: selected ? Theme.accent : (area.containsMouse ? Theme.pressed : Theme.hover)
     Text {

@@ -30,3 +30,21 @@ def test_trash_menu_and_clicks_keep_their_original_actions():
     assert "Hold.swallowed(held) || e.button === Qt.RightButton" in source
     assert "trashTile.activated();" in source
     assert 'Quickshell.execDetached(["gio", "trash", "--empty"]);' in source
+
+
+def test_touch_controls_share_the_target_minimum():
+    for name in ("Button", "IconButton", "Choice", "TextField", "ListRow"):
+        source = (ROOT / f"shani/Common/{name}.qml").read_text()
+        assert "Math.max(" in source and "Theme.touchTarget" in source, name
+    source = (ROOT / "shani/Common/Theme.qml").read_text()
+    assert '["phone", "tablet", "handheld", "board"]' in source
+
+
+def test_compact_toolbar_keeps_actions_and_keyboard_scrolling():
+    source = (ROOT / "shani/Common/AppWindow.qml").read_text()
+    assert "Flickable.HorizontalFlick" in source
+    assert "default property alias content: body.data" in source
+    assert "property alias tools: toolRow.data" in source
+    source = (ROOT / "shani/Common/KeyFocus.qml").read_text()
+    assert "p.contentX =" in source
+    assert "p.contentY =" in source

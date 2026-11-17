@@ -15,8 +15,8 @@ Rectangle {
     Accessible.name: root.text
     Accessible.onPressAction: root.clicked()
 
-    implicitWidth: label.implicitWidth + 28
-    implicitHeight: Theme.px(36)
+    implicitWidth: Math.max(label.implicitWidth + 28, Theme.touchTarget)
+    implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
     radius: Theme.radiusSmall
     clip: true
 

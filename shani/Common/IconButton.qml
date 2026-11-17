@@ -23,9 +23,9 @@ Rectangle {
     Accessible.checked: root.on
     Accessible.onPressAction: root.clicked()
 
-    implicitWidth: size
-    implicitHeight: size
-    radius: size / 2
+    implicitWidth: Math.max(size, Theme.touchTarget)
+    implicitHeight: Math.max(size, Theme.touchTarget)
+    radius: Math.min(width, height) / 2
     clip: true
 
     // ---- base fill ---------------------------------------------------------

@@ -122,6 +122,10 @@ Item {
                     p.contentY = Math.max(0, r.y - 8);
                 else if (r.y + f.height > p.contentY + p.height)
                     p.contentY = Math.min(Math.max(0, p.contentHeight - p.height), r.y + f.height - p.height + 8);
+                if (r.x < p.contentX)
+                    p.contentX = Math.max(0, r.x - 8);
+                else if (r.x + f.width > p.contentX + p.width)
+                    p.contentX = Math.min(Math.max(0, p.contentWidth - p.width), r.x + f.width - p.width + 8);
                 break;
             }
         }

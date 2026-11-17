@@ -15,7 +15,7 @@ Rectangle {
     property bool secret: false
     signal accepted()
 
-    implicitHeight: Theme.px(38)
+    implicitHeight: Math.max(Theme.px(38), Theme.touchTarget)
     radius: Theme.radiusSmall
     color: Theme.surface1
     border.width: 1
@@ -42,7 +42,9 @@ Rectangle {
         Accessible.labelledBy: a11yLabel
         clip: true
         onAccepted: root.accepted()
-        onActiveFocusChanged: Ui.textFocus = activeFocus && !root.readOnly
+        onActiveFocusChanged: Ui.trackTextInput(input, activeFocus && !readOnly)
+        onReadOnlyChanged: Ui.trackTextInput(input, activeFocus && !readOnly)
+        Component.onDestruction: Ui.trackTextInput(input, false)
         // OK on an EMPTY field: the screen keyboard, typed from a remote (as a
         // TV does). With text in it, Enter submits as always.
         Keys.onReturnPressed: e => { e.accepted = input.text === "" && !root.readOnly; if (e.accepted) Ui.typingRequested(); }

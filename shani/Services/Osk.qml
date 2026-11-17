@@ -17,6 +17,9 @@ Singleton {
     id: root
 
     property bool shown: false
+    property int height: 0
+    property string output: ""
+    function heightOn(name) { return name === output ? height : 0; }
     property bool available: true          // wtype is a dependency of the shell
     readonly property var languages: Settings.data.oskLanguages
     property int langIndex: 0
@@ -133,6 +136,10 @@ Singleton {
         target: Ui
         function onTextFocusChanged() { textFocusSettle.restart(); }
     }
+    Connections {
+        target: FormFactor
+        function onFocusedChanged() { textFocusSettle.restart(); }
+    }
     Timer {
         id: textFocusSettle
         interval: 200
@@ -141,7 +148,7 @@ Singleton {
             if (Ui.textFocus && touchFirst && !root.shown && !Lock.locked) {
                 root.shown = true; root.typed = ""; root.padDriven = false; root.remote = false;
                 root.autoShown = true;
-            } else if (!Ui.textFocus && root.autoShown) {
+            } else if ((!Ui.textFocus || !touchFirst) && root.autoShown) {
                 root.shown = false; root.autoShown = false;
             }
         }

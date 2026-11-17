@@ -26,10 +26,8 @@ import "../../Common/Gestures.js" as G
 
 PanelWindow {
     id: win
-    // a phone: one column - the preview beside the results goes, and the field
-    // and the results take the whole width (docs/FORM-FACTORS.md). The screen's
-    // kind, not its pixels: a phone-sized window on a computer keeps both panes.
-    readonly property bool narrow: FormFactor.focused.profile === "phone"
+    // Hide the preview when there is no room, including narrow desktop outputs.
+    readonly property bool narrow: FormFactor.of(screen.name).profile === "phone" || width < Theme.px(900)
     visible: Ui.launcher
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     anchors { top: true; bottom: true; left: true; right: true }
@@ -45,6 +43,8 @@ PanelWindow {
     // a remote went Up past the top row: the search bar is selected, and OK
     // there brings the screen keyboard (typing, or a new query, leaves it)
     property bool searchBar: false
+    // the suite reads this: how far the results stay above the screen's bottom
+    readonly property real bottomGap: body.keyboardGap
     onSearchBarChanged: Ui.launcherSearchBar = searchBar
     // hover only steers the selection once the pointer really moves: on open,
     // a resting cursor would otherwise steal it from the top result, so Enter
@@ -52,7 +52,7 @@ PanelWindow {
     property bool hoverArmed: false
     // the app grids' column count, the same expression the grid itself uses,
     // so Up/Down move by one real row whatever the window width is
-    readonly property int gridCols: Math.max(3, Math.floor(list.width / Theme.px(132)))
+    readonly property int gridCols: Math.max(1, Math.floor(list.width / Theme.px(132)))
     property string category: "All"
     readonly property string q: search.text
     property var usage: ({})              // desktop id -> launches
@@ -461,8 +461,10 @@ PanelWindow {
         transform: Translate { id: rise }
         anchors.fill: parent
         // computed sizes through the UI scale too; a phone's width keeps a narrow margin
-        anchors.topMargin: Math.max(Theme.px(60), parent.height * 0.08)
-        anchors.bottomMargin: Theme.px(40)
+        anchors.topMargin: win.narrow ? Theme.px(12) : Math.max(Theme.px(60), parent.height * 0.08)
+        anchors.bottomMargin: Math.max(Theme.px(40), Osk.heightOn(win.screen.name) + Theme.px(12))
+        // the suite reads this: the results stop above the screen keyboard
+        readonly property real keyboardGap: Math.max(Theme.px(40), Osk.heightOn(win.screen.name) + Theme.px(12))
         anchors.leftMargin: Math.max(parent.width < Theme.px(600) ? Theme.px(10) : Theme.px(40), (parent.width - Theme.px(1280)) / 2)
         anchors.rightMargin: Math.max(parent.width < Theme.px(600) ? Theme.px(10) : Theme.px(40), (parent.width - Theme.px(1280)) / 2)
         spacing: Theme.px(18)
@@ -509,7 +511,8 @@ PanelWindow {
                     font.family: Theme.font
                     font.pixelSize: Theme.px(20) * Theme.fontScale
                     clip: true
-                    onActiveFocusChanged: Ui.textFocus = activeFocus
+                    onActiveFocusChanged: Ui.trackTextInput(search, activeFocus)
+                    Component.onDestruction: Ui.trackTextInput(search, false)
                     Keys.onEscapePressed: Ui.closeAll()
                     Keys.onDownPressed: {
                         if (win.searchBar) { win.searchBar = false; return; }
@@ -563,14 +566,17 @@ PanelWindow {
                     Keys.onEnterPressed: e => (e.modifiers & Qt.ControlModifier) ? win.askChronoa() : win.activate(win.sel, e.modifiers & Qt.ShiftModifier)
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width
                         visible: search.text === ""
                         text: Tr.t("Search apps, files, windows and actions — or ask Chronoa")
+                        elide: Text.ElideRight
                         color: Theme.faint
                         font.family: Theme.font
                         font.pixelSize: Theme.px(17) * Theme.fontScale
                     }
                 }
                 Text {
+                    visible: !win.narrow
                     text: Tr.t("Ctrl+Enter  Chronoa")
                     color: Theme.faint
                     font.family: Theme.font

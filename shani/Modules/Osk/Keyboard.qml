@@ -19,8 +19,10 @@ PanelWindow {
     // remote mode takes the keys (arrows, OK, Back); otherwise never, so the
     // app's field keeps the focus and the keys type into it
     WlrLayershell.keyboardFocus: Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-    implicitHeight: Osk.remote ? 360 : 300
-    exclusiveZone: Osk.remote ? 360 : 300
+    implicitHeight: Math.min(Osk.remote ? 360 : 300, screen ? Math.floor(screen.height * 0.6) : 300)
+    exclusiveZone: implicitHeight
+    Binding { target: Osk; property: "height"; value: win.visible ? win.height : 0 }
+    Binding { target: Osk; property: "output"; value: win.visible && win.screen ? win.screen.name : "" }
     BackgroundEffect.blurRegion: Settings.blurWanted ? kbRegion : null
     Region { id: kbRegion; item: board; radius: Theme.radiusLarge }
 

@@ -131,7 +131,14 @@ Singleton {
     property bool quickPanel: false
     // a text field of the shell has the keys (Common/TextField, the launcher's
     // search): on a tablet or a phone the screen keyboard comes up for it
-    property bool textFocus: false
+    property var textInput: null
+    readonly property bool textFocus: textInput !== null && textInput.activeFocus && textInput.visible && !textInput.readOnly
+    function trackTextInput(input, focused) {
+        if (focused)
+            textInput = input;
+        else if (textInput === input)
+            textInput = null;
+    }
     property bool settingsCompact: false           // Settings is one pane at a time (the tests)
     property bool settingsShowingPage: true
     property bool lockBusy: false                  // the lock screen is checking a password (the tests)

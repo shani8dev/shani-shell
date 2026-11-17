@@ -20,7 +20,7 @@ Rectangle {
     Accessible.selected: root.selected
     Accessible.onPressAction: root.clicked()
 
-    implicitHeight: Theme.px(40)
+    implicitHeight: Math.max(Theme.px(40), Theme.touchTarget)
     radius: Theme.radiusSmall
     color: selected ? Theme.accentSoft : (area.containsMouse ? Theme.hover : "transparent")
 
