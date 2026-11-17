@@ -178,3 +178,7 @@ hardware. `SHANI_WIDTH`/`SHANI_SCREEN` configure nested shell tests.
 `dev/render.sh` has its own screen setup; do not assume these environment
 variables make all renders portrait. A full suite validates its particular
 source tree and fixtures, not real telephony, pens, casting or gamescope.
+
+The render run also fails on a QML layout warning (`QQuickLayout`, "is larger
+than"): Qt only warns when a layout's minimum is wider than its window, and the
+picture still looks plausible. 101 surfaces render at the phone profile with none.

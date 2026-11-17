@@ -632,6 +632,18 @@ render_shell() {
     rm -f /tmp/test-share.txt
     close_all
 
+    # ---- overflow: a surface with no room draws outside its window --------------
+    # Qt warns rather than failing when a layout's minimum is wider than the
+    # window, and the render still looks plausible at a glance. The guard is the
+    # log: any such warning fails the run. Only QML's own layout warnings count -
+    # the compositor's MESA and font noise is not ours.
+    bad=$(grep -aE "QQuickLayout|Layout::|is larger than|does not fit|Unable to (fit|arrange)" /work/out/logs/qs.log | head -5)
+    if [ -n "$bad" ]; then
+        echo "OVERFLOW in $n renders:" >&2
+        printf '%s\n' "$bad" >&2
+        exit 1
+    fi
+
     echo "=== COMPLETE: $n renders → $OUTDIR ==="
     ls "$OUTDIR" | wc -l
 
