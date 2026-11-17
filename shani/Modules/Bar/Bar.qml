@@ -32,6 +32,9 @@ Variants {
         // (a classroom board's is at the bottom, within reach of someone
         // standing at it - docs/FORM-FACTORS.md). Services/FormFactor decides.
         readonly property string edge: FormFactor.barEdge(output)
+        // a phone is one column: the workspaces, the world clock and the date
+        // go, and the launcher, the status cluster and the clock stay
+        readonly property bool narrow: FormFactor.of(output).profile === "phone"
         // the surface starts at the screen's edge, so a hidden bar can be
         // called back by resting the pointer there; the bar itself sits 8 px in
         margins { left: 10; right: 10 }
@@ -121,6 +124,7 @@ Variants {
                 // niri workspaces of this output: one accent pill slides to the
                 // active one (iOS / Android-style), the numbers sit on top
                 Item {
+                    visible: !bar.narrow
                     implicitWidth: wsRow.implicitWidth
                     implicitHeight: Theme.px(22)
                     readonly property var activeItem: {
@@ -540,7 +544,7 @@ Variants {
                     }
                     // another city's time beside it (Settings > Date & language picks the cities)
                     Text {
-                        visible: Settings.data.barWorldClock && WorldClock.clocks.length > 0
+                        visible: !bar.narrow && Settings.data.barWorldClock && WorldClock.clocks.length > 0
                         text: WorldClock.clocks.length ? WorldClock.clocks[0].city + " " + WorldClock.clocks[0].time.split(" ").pop() : ""
                         font.features: { "tnum": 1 }
                         color: Theme.dim
@@ -549,7 +553,7 @@ Variants {
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     Text {
-                        visible: Settings.data.barDate
+                        visible: !bar.narrow && Settings.data.barDate
                         text: Qt.formatDateTime(clock.date, "ddd d MMM")
                         font.features: { "tnum": 1 }
                         color: Theme.dim

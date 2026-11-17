@@ -102,6 +102,13 @@ same foundation before any of their own work:
   built-in panel, and one switch turns it off (Settings > Personalisation > "The
   layout follows the dock"). Tested in `dev/shell-parts/laptop.sh`, which drives
   the desk through the IPC hook a nested niri needs (it has no panel to unplug).
+- **Phone** - started: one column. The bar keeps the launcher, the status cluster
+  and the clock, and drops the workspaces, the world clock and the date - the
+  three that overflow a 412-point screen (`Services/FormFactor`: the profile, not
+  the width; `dev/shell-parts/phone.sh`: the profile, the one-column bar, and the
+  launcher and Quick Settings opening at that width). Left: the launcher, Quick
+  Settings as a shade, notifications, the lock screen and Settings in portrait;
+  gesture navigation; calls; one app at a time.
 - **Touch** - a long press is a right-click on a touch screen, wherever a right
   button opens something: the desktop, its files, the shelf, a quick-settings
   tile, the island, the ring, the viewer, the magnifier, the ruler and the bin
