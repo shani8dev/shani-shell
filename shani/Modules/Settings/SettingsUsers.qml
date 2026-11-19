@@ -120,9 +120,11 @@ ColumnLayout {
                     onAccepted: if (text !== "") { page.act("user-password", { username: urow.modelData.name, password: text }); text = ""; }
                 }
                 RowLayout {
+                    id: removeRow
                     visible: urow.modelData.name !== page.me
                     spacing: Theme.px(6)
                     property bool confirm: false
+                    onConfirmChanged: typedName.text = ""
                     // what a standard account may run (GNOME's Parental Controls, malcontent)
                     Button {
                         visible: !parent.confirm && !urow.modelData.admin && page.iAmAdmin && AppFilter.canControl
@@ -145,9 +147,19 @@ ColumnLayout {
                         visible: parent.confirm
                         kind: "danger"
                         text: Tr.t("Remove with their files")
+                        // their home folder goes with no undo: only once their name is typed
+                        // (Ananta OS's rule for destructive actions - deliberate, not a second tap)
+                        enabled: typedName.text.trim() === urow.modelData.name
                         onClicked: { page.act("user-remove", { username: urow.modelData.name, deleteHome: true }); parent.confirm = false; page.open = ""; }
                     }
                     Button { visible: parent.confirm; text: Tr.t("Cancel"); onClicked: parent.confirm = false }
+                }
+                TextField {
+                    id: typedName
+                    Layout.fillWidth: true
+                    visible: removeRow.visible && removeRow.confirm
+                    placeholder: Tr.t("To delete their files too, type %1").arg(urow.modelData.name)
+                    label: Tr.t("Their home folder and everything in it is deleted for good. Type %1 to allow it.").arg(urow.modelData.name)
                 }
             }
         }

@@ -108,3 +108,19 @@ def test_no_password_or_secret_is_made_with_math_random():
         if "Math.random" in code and re.search(r"password|passphrase|\bpin\b|token|secret", code, re.I):
             wrong.append(path.name)
     assert wrong == []
+
+
+def test_removing_an_account_with_its_files_needs_its_name_typed():
+    """Settings > Users: "Remove with their files" deletes a home folder with no
+    undo, so it is enabled only when the account's exact name is typed (Ananta
+    OS's rule for destructive actions), and the field empties whenever the
+    confirm row opens or closes. "Remove, keep their files" stays one tap."""
+    t = (SHANI / "Modules/Settings/SettingsUsers.qml").read_text()
+    with_files = t[t.index('text: Tr.t("Remove with their files")'):]
+    with_files = with_files[:with_files.index("}")]
+    assert "enabled: typedName.text.trim() === urow.modelData.name" in with_files
+    keep = t[t.index('text: Tr.t("Remove, keep their files")'):]
+    keep = keep[:keep.index("}")]
+    assert "enabled:" not in keep
+    assert 'onConfirmChanged: typedName.text = ""' in t
+    assert "visible: removeRow.visible && removeRow.confirm" in t
