@@ -222,6 +222,7 @@ AppWindow {
                 Button {
                     kind: "primary"
                     text: win.running >= 0 ? Tr.t("Converting…") : Tr.t("Convert")
+                    busy: win.running >= 0
                     enabled: win.running < 0 && win.jobs.some(j => j.state === "ready" && j.format !== "")
                     onClicked: win.convertAll()
                 }

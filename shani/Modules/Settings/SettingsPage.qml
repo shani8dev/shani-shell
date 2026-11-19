@@ -154,6 +154,9 @@ ColumnLayout {
             else return;   // unknown key: nowhere to open
         }
         Ui.settingsCat = entry.cat;
+        // Ananta's DPage.startAt: a found setting is brought into view, not just
+        // flashed where it happens to sit on a long page.
+        Ui.settingsSection = "label:" + entry.label;
         Ui.flashSetting(entry.label);
         settingsSearch.text = "";
         query = "";

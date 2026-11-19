@@ -102,6 +102,33 @@ def test_problem_report_opens_in_the_text_editor():
     assert "SHANI_REPORT_TOOL=/work/bridge/system-report.py" in session
 
 
+def test_busy_buttons_show_a_spinner_that_respects_reduce_motion():
+    btn = (COMMON / "Button.qml").read_text()
+    assert "property bool busy" in btn
+    assert "Spinner {" in btn and "visible: !root.busy" in btn
+    spinner = (COMMON / "Spinner.qml").read_text()
+    assert "RotationAnimator" in spinner and "Settings.data.reduceMotion" in spinner
+    converter = (SHANI / "Modules/Converter/ConverterWindow.qml").read_text()
+    assert "busy: win.running >= 0" in converter
+
+
+def test_search_brings_the_found_setting_into_view():
+    page = (SHANI / "Modules/Settings/SettingsPage.qml").read_text()
+    assert 'Ui.settingsSection = "label:"' in page
+    window = (SHANI / "Modules/Settings/SettingsWindow.qml").read_text()
+    assert "byLabel" in window
+    assert "it.Accessible.name" in window
+
+
+def test_health_check_is_shown_in_about():
+    about = (SHANI / "Modules/Settings/SettingsAbout.qml").read_text()
+    assert "health-check.py" in about
+    assert "healthProc.running = true" in about
+    assert "page.healthScore" in about
+    session = (Path(__file__).resolve().parent.parent / "dev/session.sh").read_text()
+    assert "SHANI_HEALTH_TOOL=/work/bridge/health-check.py" in session
+
+
 def test_gamepad_visual_uses_the_shells_native_feed():
     t = (COMMON / "GamepadVisual.qml").read_text()
     assert "property var held" in t and "property var axes" in t

@@ -9,6 +9,7 @@ Rectangle {
     property string kind: "plain"      // plain | outline | primary | danger
     property bool flat: false          // no border, no fill until it is hovered
     property bool checked: false       // it stays on: the mode it chose
+    property bool busy: false          // work in progress: a spinner replaces the label
     signal clicked()
 
     Accessible.role: Accessible.Button
@@ -32,7 +33,7 @@ Rectangle {
     }
     border.width: flat ? 0 : (kind === "outline" ? 1 : (kind === "plain" && !area.containsMouse && !checked ? 0 : 1))
     border.color: kind === "outline" ? Theme.stroke : (kind === "plain" ? (checked ? Theme.accentLine : Theme.stroke) : (area.pressed ? Theme.accentPressed : Theme.accentLine))
-    opacity: enabled ? 1 : 0.5
+    opacity: root.busy || enabled ? 1 : 0.5   // a busy button is working, not disabled
 
     // ---- ripple on press ---------------------------------------------------
     Rectangle {
@@ -62,11 +63,18 @@ Rectangle {
     Text {
         id: label
         anchors.centerIn: parent
+        visible: !root.busy
         text: root.text
         color: root.kind === "primary" ? Theme.accentInk : root.kind === "danger" ? Theme.danger : root.checked ? Theme.accent : Theme.text
         font.family: Theme.font
         font.pixelSize: Theme.px(12) * Theme.fontScale
         font.weight: Font.DemiBold
+    }
+    Spinner {
+        anchors.centerIn: parent
+        visible: root.busy
+        size: Theme.px(16)
+        color: root.kind === "primary" ? Theme.accentInk : Theme.accent
     }
     // keyboard and controller: Enter / Space press it
     KeyFocus { enabled: root.enabled && root.visible; onActivated: root.clicked() }

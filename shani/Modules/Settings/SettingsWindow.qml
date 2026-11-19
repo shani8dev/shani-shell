@@ -213,13 +213,21 @@ AppWindow {
                 interval: 300
                 running: Ui.settingsSection !== ""
                 onTriggered: {
-                    const find = (it, name) => {
+                    const find = (it, name, byLabel) => {
                         if (!it) return null;
-                        if (it.objectName === name && it.visible) return it;
-                        for (const c of it.children || []) { const f = find(c, name); if (f) return f; }
+                        const accessible = it.Accessible ? String(it.Accessible.name || "").toLowerCase() : "";
+                        const hit = byLabel
+                            ? (accessible.length > 0 && (accessible.indexOf(name) >= 0 || name.indexOf(accessible) >= 0) && it.visible)
+                            : (it.objectName === name && it.visible);
+                        if (hit) return it;
+                        for (const c of it.children || []) { const f = find(c, name, byLabel); if (f) return f; }
                         return null;
                     };
-                    const it = find(page, Ui.settingsSection);
+                    // "section:id" is a named anchor; "label:text" comes from a
+                    // search result and finds the control a screen reader names.
+                    const name = Ui.settingsSection;
+                    const byLabel = name.indexOf("label:") === 0;
+                    const it = find(page, byLabel ? name.slice(6).toLowerCase() : name, byLabel);
                     if (it)
                         content.contentY = Math.max(0, Math.min(content.contentHeight - content.height, it.mapToItem(content.contentItem, 0, 0).y - 12));
                     Ui.settingsSection = "";

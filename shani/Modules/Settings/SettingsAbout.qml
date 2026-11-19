@@ -15,9 +15,12 @@ ColumnLayout {
     property var info: ({})
     property string renameError: ""
     property bool hasCassini: false
-    onActiveChanged: if (active) facts.running = true
+    property var checks: []
+    readonly property int passedChecks: page.checks.filter(c => c.ok).length
+    readonly property real healthScore: page.checks.length ? page.passedChecks / page.checks.length : 0
+    onActiveChanged: if (active) { facts.running = true; healthProc.running = true; }
     // made already active (a Settings category is a Loader): load now too
-    Component.onCompleted: if (active) facts.running = true
+    Component.onCompleted: if (active) { facts.running = true; healthProc.running = true; }
 
     // one line each: key=value
     Process {
@@ -43,6 +46,14 @@ ColumnLayout {
                 page.info = kv;
                 page.hasCassini = kv.cassini === "yes";
             }
+        }
+    }
+    // Ananta Maintenance's health check, read-only and only while About is open.
+    Process {
+        id: healthProc
+        command: ["python3", Quickshell.env("SHANI_HEALTH_TOOL") || "/usr/lib/shani-shell/health-check.py"]
+        stdout: StdioCollector {
+            onStreamFinished: { try { page.checks = JSON.parse(text); } catch (e) { page.checks = []; } }
         }
     }
     // Ananta's problem report, made on demand and opened in our own editor so it
@@ -179,6 +190,65 @@ ColumnLayout {
             visible: page.hasCassini
             text: Tr.t("Open Cassini")
             onClicked: { Ui.closeAll(); Quickshell.execDetached(["shani-cassini"]); }
+        }
+    }
+    // System health: one score, one line per check — Ananta Maintenance's checks
+    // reduced to what a shell can read without touching anything.
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("System health") }
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.px(16)
+        StatusRing {
+            value: page.healthScore
+            color: !page.checks.length ? Theme.dim
+                 : page.passedChecks === page.checks.length ? Theme.accent
+                 : page.healthScore >= 0.5 ? Theme.amber : Theme.danger
+            size: Theme.px(72)
+            thickness: Theme.px(7)
+            label: Tr.t("System health: %1 of %2 checks passed", page.passedChecks, page.checks.length)
+            Text {
+                anchors.centerIn: parent
+                text: page.checks.length ? Math.round(page.healthScore * 100) + "%" : "–"
+                color: Theme.text
+                font.family: Theme.font
+                font.pixelSize: Theme.px(18) * Theme.fontScale
+                font.weight: Font.DemiBold
+            }
+        }
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: Theme.px(4)
+            Repeater {
+                model: page.checks
+                RowLayout {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    StatusGlyph { tone: modelData.ok ? "ok" : "error"; size: Theme.px(14) }
+                    Text {
+                        Layout.fillWidth: true
+                        text: modelData.title
+                        color: Theme.text
+                        elide: Text.ElideRight
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                    }
+                    Text {
+                        text: modelData.detail
+                        color: Theme.dim
+                        elide: Text.ElideRight
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                    }
+                }
+            }
+            Button {
+                flat: true
+                text: Tr.t("Run check again")
+                busy: healthProc.running
+                enabled: !healthProc.running
+                onClicked: healthProc.running = true
+            }
         }
     }
     // What these Settings leave to Cassini - each opens on its own page there,
