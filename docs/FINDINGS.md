@@ -1294,3 +1294,25 @@ The shell talks D-Bus through `bridge/modem.py` (no mmcli in the image). Surfaci
     `os.remove`; it is now a check over the code's own tree: the only deleting is
     in the trash's empty and put-back, and only of paths under the trash (a remove
     slipped into paste FAILs it, naming the function).
+- The render (`sh dev/check.sh render=all`) now says whether a surface came up: a
+  shot may carry an expectation over the shell's own state (`d['settingsCat'] ==
+  'power'`), a shot whose surface never opened is a FAIL, and so is any QML error,
+  binding loop or layout overflow written while the run lasts. Settings' categories
+  are read from `SettingsPage`'s own `cats` table - the hand-kept list had already
+  drifted, storage and screen time were never rendered - every app in `bin/shani`'s
+  table is rendered from that table, and Quick Look, the writing tools, the
+  wallpaper style, What's new and the screensaver are new frames. 137 shell + 8
+  setup + 3 greeter, 0 FAIL. Two bugs found on the way: `dismissAll` never closed
+  Quick Look or the writing tools, so a render of the wallpaper style came out as a
+  photograph of Quick Look while the state said the style was open (tests now
+  assert both closes); and `dev/check.sh`'s `own()` chowned to `id -u` from inside
+  the container, which under rootless podman is a subuid - `out/` came back
+  unwritable and the run died before its first frame.
+- `Services/ScreenTime.qml` read `clock.date` in the property at the top of the file
+  while the `SystemClock` it names is declared at the foot: at start-up the binding
+  runs before it exists and `today` was assigned undefined - "Unable to assign
+  [undefined] to QString", the one warning that made `shell-ends-clean` FAIL while
+  every screen-time check passed. Guarded, and clean in a `shell=tv-home` run.
+  Settings' sidebar got a line and a gap above "Changed this session": with a short
+  window the category list is clipped mid-row, and the half row sat flush against
+  the rail's title - "Accessibility" cut in half, twice in one render.

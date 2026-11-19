@@ -37,8 +37,20 @@ REPO=$(cd "$(dirname "$0")/.." && pwd)
 DESK=${SHANI_DESKTOP_NIRI:-$REPO/../shani-pkgbuilds/shani-desktop-niri}
 TESTBED=$REPO/../shani-testbed
 IMG=shani-shell-dev
-# the containers write as root: hand what they wrote back to you
-own() { docker run --rm -v "$REPO":/work $IMG sh -c "mkdir -p /work/out/logs /work/out/shots /work/out/renders && chown -R $(id -u):$(id -g) /work/out/logs /work/out/shots /work/out/renders"; }
+# the containers write as root: hand what they wrote back to you. Under rootless
+# podman that root is a subuid on the host (uid 100999 here), so the chown has to
+# be made from inside its user namespace - asking the container to chown to
+# `id -u` hands the files to a subuid instead, and out/ stays unwritable (which
+# killed a render run before its first frame). A real docker writes as real root:
+# then only root can give it back, and the container does it.
+own() {
+    if podman unshare true 2>/dev/null; then
+        podman unshare chown -R 0:0 "$REPO/out" 2>/dev/null || true
+    else
+        docker run --rm -v "$REPO":/work $IMG sh -c "mkdir -p /work/out/logs /work/out/shots /work/out/renders && chown -R $(id -u):$(id -g) /work/out/logs /work/out/shots /work/out/renders" 2>/dev/null || true
+    fi
+}
+
 
 build() { docker build -t $IMG -f "$REPO/dev/Containerfile" "$REPO/dev" || exit 1; }
 [ "${1:-}" = --build ] && { shift; build; }

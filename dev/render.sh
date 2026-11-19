@@ -42,6 +42,25 @@
 #
 # KEY: IPC commands with arguments use eval so multi-word args (e.g.
 #      `launcher "text"`) are passed as a single quoted argument, not split.
+#
+# Every shot may carry an EXPECTATION: a python expression over `d`, the shell's
+# own state IPC (see `state` in shani/shell.qml), that has to be true before the
+# frame is taken. A shot whose expectation never comes true is logged as FAIL and
+# the run exits non-zero — a surface that never opened is not a render. The run
+# also fails on any QML error or binding loop written to qs.log while it ran.
+#
+# What is rendered: the desktop, the island, the control centre and each of its
+# sections, the dock, the switcher, the ring, the layout switcher, the OSDs, the
+# notification shapes, the modem surfaces, Chronoa, the lock screen, the
+# overview, the display-confirm and Bluetooth dialogs, QR/tour/ruler, the Lens,
+# the on-screen keyboard, captions, the launcher (six ways), the Settings window
+# and every category in it, settings search, assistive touch, flash alerts, the
+# share sheet, EVERY app in bin/shani's table (bin/shani is the list, so it
+# cannot drift), and the surfaces that are not apps: writing tools, Quick Look,
+# the wallpaper style, What's new and the screensaver. Overlay (layer-shell)
+# surfaces - Files, the file chooser, the disk treemap - are not rendered: the
+# nested niri draws no Overlay layer, so a photograph of one is a photograph of
+# the wallpaper. The suite drives those instead.
 set -eu
 
 MODE="shell"
@@ -77,9 +96,12 @@ log() { printf '%s\n' "$*" >&2; }
 settings_merge() {
     SHANI_MERGE_JSON="$1" python3 -c 'import json,os
 p = os.environ["SHANI_SHELL_SETTINGS"]
-cur = json.load(open(p)) if open(p).read().strip() else {}
+with open(p) as f:
+    text = f.read()
+cur = json.loads(text) if text.strip() else {}
 cur.update(json.loads(os.environ["SHANI_MERGE_JSON"]))
-json.dump(cur, open(p, "w"))'
+with open(p, "w") as f:
+    json.dump(cur, f)'
 }
 
 # wait (up to $2 * 0.5 s, default 15 s) for a python expression over state → 0
@@ -313,6 +335,10 @@ render_shell() {
     mkdir -p "$_out"
     OUTDIR="$_out"
     . /work/dev/session.sh
+    # `shani app` (below) speaks to the shell through qs: without this it looks
+    # for a config named "shani" under ~/.config/quickshell and finds none (the
+    # suite sets the same variable, dev/shell-parts/apps.sh)
+    export SHANI_QS_CONFIG=/work/shani
 
     ipc() { eval "qs -p /work/shani ipc call shani $*" >/dev/null 2>&1 || true; }
     st() { timeout 5 qs -p /work/shani ipc call shani state 2>/dev/null; }
@@ -327,22 +353,50 @@ render_shell() {
     echo "shell loaded"
 
     n=0
-    # close everything, optionally run an IPC command, wait, capture
+    failed=0
+    last_bad=""
+    # capture() takes a 4th argument: a python expression over `d`, the state
+    # IPC's JSON, that must be true once the surface is up. Without one a failed
+    # IPC or a section id nothing reads leaves the PREVIOUS surface on screen and
+    # the PNG looks plausible — the failure mode this script exists to avoid, so
+    # every shot of a surface this script knows a state key for now checks it.
     capture() {
-        name="$1"; cmd="$2"; delay="${3:-1.5}"
+        name="$1"; cmd="$2"; delay="${3:-1.5}"; want="${4:-}"
         close_all
+        last_bad=""
         if [ -n "$cmd" ]; then ipc "$cmd"; fi
+        check_want "$name" "$want"
         sleep "$delay"
         n=$((n+1)); grim "$OUTDIR/$(printf '%02d' "$n")-$name.png"
         echo "[$n] $name"
+        result "$name"
     }
     # capture what is already on screen (the surface was opened by the caller;
     # closeAll must NOT run first — it would dismiss what is being photographed)
     capture_current() {
-        name="$1"; delay="${2:-0.5}"
+        name="$1"; delay="${2:-0.5}"; want="${3:-}"
+        last_bad=""
+        check_want "$name" "$want"
         sleep "$delay"
         n=$((n+1)); grim "$OUTDIR/$(printf '%02d' "$n")-$name.png"
         echo "[$n] $name"
+        result "$name"
+    }
+    check_want() {
+        if [ -n "$2" ] && ! waitfor "$2" 20; then
+            failed=$((failed+1)); last_bad="$1"
+            log "FAIL: $1 — the shell's state never said: $2"
+        fi
+        return 0
+    }
+    # one RESULT line per shot, so dev/check.sh's summary counts what was
+    # rendered and what never came up (the suites' convention)
+    result() {
+        if [ "$last_bad" = "$1" ]; then
+            echo "RESULT shot-$1 FAIL the surface never came up"
+        else
+            echo "RESULT shot-$1 PASS"
+        fi
     }
 
     # the lock screen unlocks with a password, not IPC — set one, as the test
@@ -407,9 +461,9 @@ render_shell() {
     # ---- control centre: main + every section id Ui.expanded understands ------
     # (only these expand a panel in the sidebar; on hardware wifi/bluetooth/vpn/
     #  phone also need an adapter/device, headless captures show the resting UI)
-    capture cc-main "toggleControlCenter" 1.5
+    capture cc-main "toggleControlCenter" 1.5 "d['controlCenter'] and d['expanded'] == ''"
     for sec in wifi bluetooth vpn audio power access display timer focus record phone; do
-        capture "cc-$sec" "controlCenter $sec" 1.2
+        capture "cc-$sec" "controlCenter $sec" 1.2 "d['controlCenter'] and d['expanded'] == '$sec'"
     done
     close_all
 
@@ -427,16 +481,16 @@ render_shell() {
     close_all
 
     # ---- switcher (the two foot windows from the top) ---------------------------
-    capture switcher-open "switcher" 1.5
+    capture switcher-open "switcher" 1.5 "d['switcher']"
     close_all
     killall -9 foot 2>/dev/null || true     # from here on, window-free
     sleep 1
 
     # ---- ring (pie menu), at the pointer and one level deep ---------------------
-    capture ring-main "ring" 1.5
+    capture ring-main "ring" 1.5 "d['ring']"
     close_all
     ipc ringAt 300 500; sleep 1.2
-    capture_current ring-at-point 0.5
+    capture_current ring-at-point 0.5 "d['ring']"
     wtype -k Escape; sleep 0.5
     close_all
     ipc ring; sleep 1; wtype 8; sleep 1
@@ -445,35 +499,40 @@ render_shell() {
     close_all
 
     # ---- layout switcher ---------------------------------------------------------
-    capture layout-switcher "layoutSwitcher" 1.5
+    capture layout-switcher "layoutSwitcher" 1.5 "d['layoutSwitcher']"
     close_all
 
     # ---- OSD ----------------------------------------------------------------------
-    ipc volumeUp;        sleep 1; capture_current osd-volume 0.5
-    ipc volumeDown;      sleep 1; capture_current osd-volume-down 0.5
-    ipc volumeMute;      sleep 1; capture_current osd-mute 0.5
+    # The pill lives 1.6 s and a slider OSD carries no words (`osdLabel` is only
+    # the last label an OSD said), so what is checked here is the EFFECT: the IPC
+    # has to have moved the value. The null sink starts at maximum, so the volume
+    # is lowered first - raising a volume already at 100 % changes nothing and
+    # draws no OSD at all.
+    ipc volumeDown;      sleep 0.4; capture_current osd-volume-down 0.6 "d['volume'] < 100"
+    ipc volumeUp;        sleep 0.4; capture_current osd-volume 0.6 "d['volume'] == 100"
+    ipc volumeMute;      sleep 0.4; capture_current osd-mute 0.6 "d['muted']"
     ipc volumeMute;      sleep 0.5
-    ipc micMute;         sleep 1; capture_current osd-mic-mute 0.5
+    ipc micMute;         sleep 0.4; capture_current osd-mic-mute 0.6
     ipc micMute;         sleep 0.5
-    ipc brightnessUp;    sleep 1; capture_current osd-brightness-up 0.5
-    ipc brightnessDown;  sleep 1; capture_current osd-brightness-down 0.5
+    ipc brightnessUp;    sleep 0.4; capture_current osd-brightness-up 0.6
+    ipc brightnessDown;  sleep 0.4; capture_current osd-brightness-down 0.6
     brightnessctl set 50% >/dev/null 2>&1 || true
 
     # ---- notifications -------------------------------------------------------------
     notify-send -a Mail "Lunch at 1?" "Priya: the usual place, I'll book a table."
-    sleep 1; capture_current notification-popup 0.5
+    sleep 1; capture_current notification-popup 0.5 "d['popups'] > 0"
     # notify-send -A waits for the action to be picked, so it would block the
     # render forever; background it and stop it after the shot (the daemon keeps
     # the notification on screen, actions and all)
     notify-send -a Messages -A reply=Reply -A call=Call "Asha" "Are we still on for 6?" &
     actions_pid=$!
-    sleep 1; capture_current notification-actions 0.5  # inline actions on the popup
+    sleep 1; capture_current notification-actions 0.5 "d['popups'] > 0"  # inline actions on the popup
     kill "$actions_pid" 2>/dev/null || true
     notify-send -u critical -a Power "Battery low" "5% left"
-    sleep 1; capture_current notification-critical 0.5
+    sleep 1; capture_current notification-critical 0.5 "d['popups'] > 0"
     ipc dnd
     notify-send -a Backup "Backup finished" "142 files, 3.1 GB"
-    sleep 1; capture_current notification-dnd 0.5
+    sleep 1; capture_current notification-dnd 0.5 "d['popups'] > 0"
     ipc dnd
 
     # ---- the SMS/call path (fake modem drives the real shell code) ---------------
@@ -498,27 +557,30 @@ render_shell() {
     close_all
 
     # ---- chronoa panel ------------------------------------------------------------
-    capture chronoa-panel-idle "toggleChronoa" 1.5
+    capture chronoa-panel-idle "toggleChronoa" 1.5 "d['chronoaOpen']"
     ipc "ask 'What is using my battery?'"; sleep 3
-    capture_current chronoa-panel-thinking 0.5
+    capture_current chronoa-panel-thinking 0.5 "d['chronoaOpen']"
     sleep 5
-    capture_current chronoa-panel-speaking 0.5
+    capture_current chronoa-panel-speaking 0.5 "d['chronoaOpen']"
     ipc closeChronoa; sleep 0.5
     close_all
 
     # ---- lock screen (unlock by typing the password) -------------------------------
     ipc lock; sleep 2
-    capture_current lock-screen 0.5
+    capture_current lock-screen 0.5 "d['locked']"
     wtype wrong-password; sleep 0.3; wtype -k Return; sleep 2.5
-    capture_current lock-wrong 0.5                    # the refusal, in place
+    capture_current lock-wrong 0.5 "d['locked']"       # the refusal, in place
     wtype shani-test; sleep 0.3; wtype -k Return
     waitfor "not d['locked']" 12 || { echo "lock did not unlock — later shots would be of a locked screen"; exit 1; }
 
     # ---- overview (niri's) + typing in it -------------------------------------------
+    # Typing in the overview hands the text to the launcher and closes the
+    # overview (Modules/Overview/OverviewSearch.qml): the second shot is the
+    # launcher that came of it, so that is what has to be up.
     niri msg action open-overview || true; sleep 1.5
-    capture_current overview-open 0.5
+    capture_current overview-open 0.5 "d['overview']"
     wtype calc; sleep 1.2
-    capture_current overview-search 0.5
+    capture_current overview-search 0.5 "d['launcher']"
     wtype -k Escape; sleep 0.3
     niri msg action close-overview 2>/dev/null || true
     sleep 0.5
@@ -527,7 +589,7 @@ render_shell() {
     # ---- display confirm (niri applies, keeps or reverts) ---------------------------
     ipc display "winit scale 1.5"
     waitfor "d['displayPending']" 10
-    capture_current display-confirm 0.5
+    capture_current display-confirm 0.5 "d['displayPending']"
     ipc displayKeep; sleep 1
     ipc display "winit scale 1"; sleep 2
 
@@ -535,112 +597,218 @@ render_shell() {
     rm -f /tmp/bt-ask /tmp/bt-answers
     echo '{"ask": "confirm", "id": 7, "device": "Pixel 8", "passkey": "012345"}' > /tmp/bt-ask
     waitfor "d['btAsk'] == 'confirm:Pixel 8'" 10
-    capture_current bt-pair-confirm 0.5
+    capture_current bt-pair-confirm 0.5 "d['btAsk'] != ''"
     ipc "btAnswer true ''"; sleep 1
     echo '{"show": "passkey", "device": "K380", "passkey": "045123", "entered": 0}' > /tmp/bt-ask
     waitfor "d['btShow'] == 'K380'" 10
-    capture_current bt-passkey 0.5
+    capture_current bt-passkey 0.5 "d['btShow'] != ''"
     echo '{"cancel": true}' > /tmp/bt-ask; sleep 1
 
     # ---- QR, tour, ruler -------------------------------------------------------------
-    capture qr-code "qr 'Wi-Fi' 'ShaniOS Guest'" 1.5
+    capture qr-code "qr 'Wi-Fi' 'ShaniOS Guest'" 1.5 "d['qrShown']"
     close_all
-    capture tour "tour" 1.5
+    capture tour "tour" 1.5 "d['tour']"
     close_all
     capture ruler "ruler" 1.5
     close_all
 
     # ---- lens (frozen selection, read offline) -----------------------------------------
-    capture lens-ready "lensRegion '260,460 1400x160'" 3.5
+    capture lens-ready "lensRegion '260,460 1400x160'" 3.5 "d['lens'] != ''"
     close_all
 
     # ---- processes, magnifier, annotate ------------------------------------------------
-    capture processes "processes" 1.5
+    capture processes "processes" 1.5 "d['processes'] > 0"
     close_all
-    capture magnifier "magnifier" 1.5
+    capture magnifier "magnifier" 1.5 "d['magnifier']"
     close_all
-    capture annotate "annotate" 1.5
+    capture annotate "annotate" 1.5 "d['annotate']"
     close_all
 
     # ---- on-screen keyboard -------------------------------------------------------------
-    capture osk-main "osk" 1.5
+    capture osk-main "osk" 1.5 "d['osk']"
     ipc oskLanguage; sleep 0.5
-    capture_current osk-language 0.5
+    capture_current osk-language 0.5 "d['oskLang'] != ''"
     ipc osk; sleep 0.5
     close_all
 
     # ---- captions ----------------------------------------------------------------------
-    capture captions "captions" 1.5
+    capture captions "captions" 1.5 "d['captions']"
     close_all
 
     # ---- launcher: empty → answers → full grid; clipboard mode --------------------------
-    capture "launcher-empty" "launcher ''" 1.5
-    ipc launcher text;       sleep 1.5; capture_current launcher-apps 0.5
-    ipc "launcher '= 2*(3+4)^2'"; sleep 1.5; capture_current launcher-calc 0.5
-    ipc "launcher ':grinning face'"; sleep 1.5; capture_current launcher-emoji 0.5
-    ipc launcher quarterly;  sleep 1.5; capture_current launcher-files 0.5
-    ipc "launcher '5 km in miles'"; sleep 1.5; capture_current launcher-convert 0.5
-    ipc launcher dark;       sleep 1.5; capture_current launcher-actions 0.5
-    ipc "launcher ''";         sleep 1.5; capture_current launcher-full 0.5
+    capture "launcher-empty" "launcher ''" 1.5 "d['launcher']"
+    ipc launcher text;       sleep 1.5; capture_current launcher-apps 0.5 "d['launcher']"
+    ipc "launcher '= 2*(3+4)^2'"; sleep 1.5; capture_current launcher-calc 0.5 "d['launcher']"
+    ipc "launcher ':grinning face'"; sleep 1.5; capture_current launcher-emoji 0.5 "d['launcher']"
+    ipc launcher quarterly;  sleep 1.5; capture_current launcher-files 0.5 "d['launcher']"
+    ipc "launcher '5 km in miles'"; sleep 1.5; capture_current launcher-convert 0.5 "d['launcher']"
+    ipc launcher dark;       sleep 1.5; capture_current launcher-actions 0.5 "d['launcher']"
+    ipc "launcher ''";         sleep 1.5; capture_current launcher-full 0.5 "d['launcher']"
     wl-copy "render clipboard probe"; sleep 0.5
-    ipc "launcher 'c probe'";  sleep 1.5; capture_current launcher-clipboard 0.5
+    ipc "launcher 'c probe'";  sleep 1.5; capture_current launcher-clipboard 0.5 "d['launcher']"
     close_all
 
     # ---- settings window: main + every category (incl. printers and account) -----------
-    capture settings-main "settings" 2
-    for cat in personal notifications network displays windows sound access input time apps search printers sharing backup automations privacy chronoa account users power about; do
-        capture "settings-$cat" "settingsCategory $cat" 1.5
+    # The category ids come from SettingsPage's own `cats` table, so a page added
+    # there is rendered here without anyone remembering to add it (storage and
+    # screen time were missing from this list while nothing checked it).
+    cats=$(python3 - <<'PY'
+import re
+src = open("/work/shani/Modules/Settings/SettingsPage.qml").read()
+print(" ".join(re.findall(r'id: "([a-z]+)", words:', src)))
+PY
+    )
+    if [ -z "$cats" ]; then
+        failed=$((failed+1)); log "FAIL: no settings categories read from SettingsPage.qml"
+    fi
+    capture settings-main "settings" 2 "d['settingsOpen']"
+    for cat in $cats; do
+        capture "settings-$cat" "settingsCategory $cat" 1.5 "d['settingsOpen'] and d['settingsCat'] == '$cat'"
     done
     close_all
     # ---- settings search: highlighted matches + empty state -----------------------
     ipc settings; sleep 1.5
     wtype proxy; sleep 1.5
-    capture_current settings-search-proxy 0.5
+    capture_current settings-search-proxy 0.5 "d['settingsOpen']"
     # clear the query and show the empty state by searching for nonsense
     # type a query with no matches to exercise the empty state
     close_all
     ipc settings; sleep 1.5
     wtype zzzzzzz; sleep 1.2
-    capture_current settings-search-empty 0.5
+    capture_current settings-search-empty 0.5 "d['settingsOpen']"
     close_all
     # ---- settings: search folders empty state -----------------------------------
     settings_merge '{"searchFiles": true, "searchFolders": []}'
     sleep 1
-    capture "settings-search-empty-folders" "settingsCategory search" 1.5
+    capture "settings-search-empty-folders" "settingsCategory search" 1.5 "d['settingsOpen'] and d['settingsCat'] == 'search'"
     settings_merge '{"searchFiles": false}'
     sleep 0.5
     close_all
 
     # ---- assistive touch (floating button) ----------------------------------------------
     ipc smartTouch; sleep 1.5
-    capture_current assistive-touch 0.5
+    capture_current assistive-touch 0.5 "d['assistiveTouch']"
     ipc smartTouch; sleep 0.5
     close_all
 
     # ---- flash alerts (edge glow on a notification; opt-in setting) ---------------------
     ipc setting flashAlerts true; sleep 0.5
     notify-send -a Mail "Flash test" "the edge glows"
-    sleep 0.6
-    capture_current flash-alert 0.5
+    waitfor "d['lastFlash'] != ''" 10
+    capture_current flash-alert 0.5 "d['lastFlash'] != ''"
     ipc setting flashAlerts false; sleep 0.5
     close_all
 
     # ---- share sheet ----------------------------------------------------------------------
     touch /tmp/test-share.txt
     ipc share /tmp/test-share.txt; sleep 1.5
-    capture_current share-sheet 0.5
+    capture_current share-sheet 0.5 "len(d['shareTargets']) > 0"
     rm -f /tmp/test-share.txt
     close_all
 
-    # ---- overflow: a surface with no room draws outside its window --------------
+    # ---- the shell's own windows: every app in bin/shani's table -----------------
+    # One table feeds `shani app`, the desktop entries and dev/shell-parts/apps.sh,
+    # so reading it here is what keeps this list from drifting. A row with no state
+    # key is an action (a screenshot, a colour pick): it waits for the pointer and
+    # is not a window to photograph. capture_current, not capture: closeAll is
+    # called by hand, because dismissAll leaves an app window open and the next
+    # shot would carry it.
+    F=/tmp/render-fixtures; rm -rf "$F"; mkdir -p "$F"
+    cp /work/assets/shani-dark.jpg "$F/photo.jpg"
+    printf 'first line\nsecond line\n' > "$F/note.txt"
+    # a one-page PDF, written by hand (objects, xref, trailer) - as apps.sh does
+    python3 - "$F/one.pdf" <<'PY'
+import sys
+objs = [b"<< /Type /Catalog /Pages 2 0 R >>", b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+        b"<< /Length 44 >>\nstream\nBT /F1 18 Tf 20 100 Td (Shani test) Tj ET\nendstream",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"]
+out, offs = b"%PDF-1.4\n", []
+for i, o in enumerate(objs, 1):
+    offs.append(len(out)); out += b"%d 0 obj\n" % i + o + b"\nendobj\n"
+xref = len(out)
+out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objs) + 1) + b"".join(b"%010d 00000 n \n" % o for o in offs)
+out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objs) + 1, xref)
+open(sys.argv[1], "wb").write(out)
+PY
+    python3 - "$F/pack.zip" <<'PY'
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1], "w") as z:
+    z.writestr("readme.txt", "Shani render fixture\n")
+    z.writestr("notes/todo.txt", "one\ntwo\n")
+PY
+    ffmpeg -loglevel error -y -f lavfi -i "testsrc=size=640x360:rate=25" -f lavfi -i "sine=frequency=440" \
+        -t 3 -c:v libx264 -preset ultrafast -pix_fmt yuv420p "$F/clip.mp4" 2>/dev/null \
+        || log "warn: no video fixture (ffmpeg), the media player and video trimmer shots will be empty"
+
+    for spec in $(python3 - <<'PY'
+import importlib.machinery, importlib.util
+loader = importlib.machinery.SourceFileLoader("shani_cli", "/work/bin/shani")
+m = importlib.util.module_from_spec(importlib.util.spec_from_loader("shani_cli", loader)); loader.exec_module(m)
+# overlay (layer-shell) surfaces: the nested niri shows no Overlay layer, so a
+# photograph of them is a photograph of the wallpaper (see docs/GAPS.md) - they
+# are driven by the test suite instead, not rendered here
+OVERLAYS = {"files", "disk-usage"}
+for name, s in m.APPS.items():
+    if s[8] is None or name in OVERLAYS:
+        continue
+    print(f"{name}:{s[8]}")
+PY
+    ); do
+        name=${spec%%:*}; key=${spec#*:}
+        ipc closeAll; sleep 0.6
+        case "$name" in
+            text-editor)     python3 /work/bin/shani app "$name" "$F/note.txt" >/dev/null 2>&1 || true ;;
+            image-viewer)    python3 /work/bin/shani app "$name" "$F/photo.jpg" >/dev/null 2>&1 || true ;;
+            document-viewer) python3 /work/bin/shani app "$name" "$F/one.pdf" >/dev/null 2>&1 || true ;;
+            archive-manager) python3 /work/bin/shani app "$name" "$F/pack.zip" >/dev/null 2>&1 || true ;;
+            pdf-signer)      python3 /work/bin/shani app "$name" "$F/one.pdf" >/dev/null 2>&1 || true ;;
+            media-player|video-trimmer)
+                             if [ -f "$F/clip.mp4" ]; then
+                                 python3 /work/bin/shani app "$name" "$F/clip.mp4" >/dev/null 2>&1 || true
+                             fi ;;
+            *)               python3 /work/bin/shani app "$name" >/dev/null 2>&1 || true ;;
+        esac
+        capture_current "app-$name" 1.0 "d.get('$key')"
+    done
+    ipc closeAll; sleep 0.5
+    close_all
+
+    # ---- the surfaces that are not apps (they open from an IPC, not a window id) ----
+    # the writing tools act on the selection, else on the clipboard: give it text
+    wl-copy "The quick brown fox jumps over the lazy dog."
+    capture writing-tools "writingTools" 1.2 "d['writingShown']"
+    close_all
+    # the file chooser is an overlay (layer-shell), like Files: not photographable
+    # in the nested niri, so it is not rendered - the suite drives it instead
+    capture quick-look "quickLook '$F/note.txt'" 1.5 "d['quickLookShown']"
+    close_all
+    capture wallpaper-style "wallpaperStyleOpen '$F/photo.jpg'" 1.5 "d['wallpaperStyleShown']"
+    close_all
+    # "What's new" is a notification, not a window: a version the shell has not
+    # told about yet, then the check (WhatsNew reads /etc/shani-version)
+    printf '99.0.0-render\n' > /etc/shani-version
+    ipc whatsNewCheck; sleep 2
+    capture_current whats-new 0.5 "d['whatsNewShown'] != ''"
+    close_all
+    # the screensaver's cover, previewed (its state key is the idle saver, not the preview)
+    capture screensaver "screenSaverPreview" 1.5
+    close_all
+    rm -rf "$F"
+
+    # ---- what makes a render run a failure --------------------------------------
     # Qt warns rather than failing when a layout's minimum is wider than the
-    # window, and the render still looks plausible at a glance. The guard is the
-    # log: any such warning fails the run. Only QML's own layout warnings count -
-    # the compositor's MESA and font noise is not ours.
-    bad=$(grep -aE "QQuickLayout|Layout::|is larger than|does not fit|Unable to (fit|arrange)" /work/out/logs/qs.log | head -5)
+    # window, when a binding loops, or when a handler throws: the render still
+    # looks plausible at a glance. The guard is the log. Only QML's own words
+    # count - the compositor's MESA and font noise is not ours.
+    bad=$(grep -aE "QQuickLayout|Layout::|is larger than|does not fit|Unable to (fit|arrange)|Binding loop|TypeError|ReferenceError|is not a function|is not defined|Unable to assign" /work/out/logs/qs.log | head -5)
     if [ -n "$bad" ]; then
-        echo "OVERFLOW in $n renders:" >&2
+        echo "QML ERROR in $n renders:" >&2
         printf '%s\n' "$bad" >&2
+        failed=$((failed+1))
+    fi
+    if [ "$failed" -gt 0 ]; then
+        echo "=== FAILED: $failed surface(s) never came up (see the FAIL lines above) ===" >&2
         exit 1
     fi
 

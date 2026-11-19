@@ -140,6 +140,9 @@ def test_shell_reaches_the_surfaces():
         assert key in shell, f"state missing {key}"
     assert "Viewer" in shell and "PdfViewer" in shell
     assert "Viewer.close()" in shell and "PdfViewer.close()" in shell, "dismissAll closes both"
+    # ... and the two windows dismissAll forgot: a render of the wallpaper style
+    # came out as a photograph of Quick Look, still open underneath it
+    assert "QuickLook.close()" in shell and "WritingTools.close()" in shell, "dismissAll closes Quick Look and the writing tools too"
 
 
 def test_cli_reaches_the_surfaces():

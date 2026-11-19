@@ -60,8 +60,11 @@ qml_bad() {
 }
 bad=$(qml_bad)
 [ -z "$bad" ] && result shell-loads-clean PASS || { result shell-loads-clean FAIL; echo "$bad"; }
-# nothing below means anything if the shell is not running
-if ! st >/dev/null 2>&1 || [ -z "$(st)" ]; then
+# nothing below means anything if the shell is not running. It has to answer IPC,
+# which is a few seconds after session.sh's fixed 4 s on a cold start - a loaded
+# machine missed it once and the whole run stopped at its first check, with
+# shell-loads-clean already PASSED and the log showing frames being rendered.
+if ! retry 30 st >/dev/null 2>&1 || [ -z "$(st)" ]; then
     echo "the shell is not running — stopping here"; tail -20 /work/out/logs/qs.log; exit 1
 fi
 [ "$(q "['settingsLoaded']")" = True ] && result settings-loaded PASS || result settings-loaded FAIL

@@ -238,6 +238,11 @@ ShellRoot {
             Share.close();
             WallpaperStyle.close();
             Chronoa.open = false;
+            // these two are windows of their own, not of Ui, and were the pair
+            // dismissAll left up: a render of the wallpaper style came out as a
+            // photograph of Quick Look, which was open underneath it
+            QuickLook.close();
+            WritingTools.close();
             if (Captions.on) Captions.start(Captions.source);   // toggles it off
             Notifs.clearAll();
         }

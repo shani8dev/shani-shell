@@ -4,7 +4,11 @@
 #   docker build -t shani-shell-dev -f dev/Containerfile dev
 #   docker run --rm -v "$PWD":/work shani-shell-dev sh /work/dev/<test>.sh
 FROM archlinux:latest
-RUN pacman -Syu --noconfirm --needed \
+# The 300-package layer is the one a slow or flaky mirror kills: pacman aborts the
+# whole transaction on one slow file and loses the download. Retry the transaction
+# (packages already fetched stay in the cache and are not fetched again) and stop
+# treating a slow but working mirror as an error.
+RUN n=0; until pacman -Syu --noconfirm --needed --disable-download-timeout \
         niri weston quickshell xwayland-satellite \
         grim wtype foot swaybg imagemagick \
         python python-gobject dbus libnotify playerctl \
@@ -14,6 +18,7 @@ RUN pacman -Syu --noconfirm --needed \
         wf-recorder wl-clipboard cliphist wlsunset \
         nautilus gnome-text-editor gnome-calculator \
         ttf-dejavu noto-fonts mesa \
+    ; do n=$((n+1)); [ "$n" -ge 4 ] && exit 1; echo "pacman attempt $n failed, retrying"; sleep 10; done \
     && pacman -Scc --noconfirm
 # Lens (OCR, codes, region select) and the clipboard tools the session starts
 RUN pacman -Sy --noconfirm --needed tesseract tesseract-data-eng slurp zbar wl-clip-persist \

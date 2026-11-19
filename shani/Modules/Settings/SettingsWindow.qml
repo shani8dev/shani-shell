@@ -124,9 +124,15 @@ AppWindow {
                 ColumnLayout {
                     id: changed
                     Layout.fillWidth: true
+                    // the category list above is clipped mid-row when it scrolls
+                    // (a short window shows seven of twenty-three): without a gap
+                    // and a line, that half row reads as the rail overprinting a
+                    // category - "Accessibility" cut in half, twice in one render
+                    Layout.topMargin: Theme.px(8)
                     readonly property var keys: Settings.changedKeys.filter(k => SettingsIndex.labelOf(k) !== "")
                     visible: keys.length > 0 && page.query === ""
                     spacing: Theme.px(6)
+                    Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.stroke }
                     SectionTitle {
                         Layout.fillWidth: true
                         text: Tr.t("Changed this session")
