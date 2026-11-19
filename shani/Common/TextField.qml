@@ -13,6 +13,9 @@ Rectangle {
     property alias placeholderText: root.placeholder
     property string label: ""          // what a screen reader calls it; the placeholder when empty
     property bool secret: false
+    // Ananta's PasswordField: a long secret is impossible to check for typos
+    // when it is always masked, so a secret field carries a show/hide eye.
+    property bool revealed: false
     signal accepted()
 
     implicitHeight: Math.max(Theme.px(38), Theme.touchTarget)
@@ -26,13 +29,15 @@ Rectangle {
         id: input
         anchors.fill: parent
         anchors.leftMargin: Theme.px(12)
-        anchors.rightMargin: Theme.px(12)
+        anchors.rightMargin: Theme.px(12) + (root.secret ? Theme.px(34) : 0)
         verticalAlignment: TextInput.AlignVCenter
         color: Theme.text
         selectionColor: Theme.accent
         font.family: Theme.font
         font.pixelSize: Theme.px(13) * Theme.fontScale
-        echoMode: root.secret ? TextInput.Password : TextInput.Normal
+        echoMode: root.secret && !root.revealed ? TextInput.Password : TextInput.Normal
+        passwordCharacter: "•"
+        inputMethodHints: root.secret ? (Qt.ImhSensitiveData | Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase) : Qt.ImhNone
         Accessible.role: Accessible.EditableText
         Accessible.name: root.label || root.placeholder
         // Qt gives a password field no accessible name at all (measured, Qt 6.12:
@@ -59,5 +64,29 @@ Rectangle {
             color: Theme.faint
             font: input.font
         }
+    }
+
+    Item {
+        visible: root.secret
+        anchors.right: parent.right
+        anchors.rightMargin: Theme.px(4)
+        anchors.verticalCenter: parent.verticalCenter
+        width: Theme.px(30)
+        height: parent.height
+        Icon {
+            anchors.centerIn: parent
+            name: root.revealed ? "view-conceal" : "view-reveal"
+            size: Theme.px(16)
+            color: Theme.dim
+        }
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.revealed = !root.revealed
+        }
+        Accessible.role: Accessible.Button
+        Accessible.name: root.revealed ? Tr.t("Hide secret") : Tr.t("Show secret")
+        Accessible.onPressAction: root.revealed = !root.revealed
+        KeyFocus { onActivated: root.revealed = !root.revealed }
     }
 }

@@ -107,35 +107,14 @@ ColumnLayout {
                     font.family: Theme.font
                     font.pixelSize: Theme.px(12) * Theme.fontScale
                 }
-                Flow {
-                    Layout.fillWidth: true
-                    spacing: Theme.px(6)
-                    Repeater {
-                        model: ["A", "B", "X", "Y", "LB", "RB", "LT", "RT", "Select", "Start", "Home", "Left stick", "Right stick", "Up", "Down", "Left", "Right"]
-                        Choice { required property string modelData; text: modelData; selected: !!page.held[modelData]; enabled: false }
-                    }
-                }
-                Row {
-                    spacing: Theme.px(18)
-                    Repeater {
-                        model: [["left-x", "left-y", Tr.t("Left stick")], ["right-x", "right-y", Tr.t("Right stick")]]
-                        Column {
-                            id: stick
-                            required property var modelData
-                            spacing: Theme.px(4)
-                            Rectangle {
-                                width: Theme.px(64); height: Theme.px(64); radius: Theme.px(32)
-                                color: Theme.hover
-                                Rectangle {
-                                    width: Theme.px(12); height: Theme.px(12); radius: Theme.px(6)
-                                    color: Theme.accent
-                                    x: 26 + 26 * (page.axes[stick.modelData[0]] || 0)
-                                    y: 26 + 26 * (page.axes[stick.modelData[1]] || 0)
-                                }
-                            }
-                            Text { text: stick.modelData[2]; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-                        }
-                    }
+                // A drawn pad shows the press, the stick position and the analogue
+                // triggers together — the old chip list could not show LT/RT pressure.
+                GamepadVisual {
+                    Layout.alignment: Qt.AlignHCenter
+                    held: page.held
+                    axes: page.axes
+                    kind: /playstation|dualsense|dualshock/i.test(pad.modelData.name) ? "playstation"
+                        : /switch|joy-?con/i.test(pad.modelData.name) ? "nintendo" : "xbox"
                 }
             }
         }

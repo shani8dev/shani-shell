@@ -52,6 +52,7 @@ export SHANI_PDFFORM_TOOL=/work/bridge/pdfform.py SHANI_TIDY_TOOL=/work/bridge/t
 export SHANI_NEARBY_SUBNET=0 SHANI_NEARBY_PEERS=127.0.0.1:53399 SHANI_FIREWALL_CMD=/work/dev/fake-firewall-cmd.sh
 # the file manager's backend: the listing, the watch and the trash
 export SHANI_FILES_TOOL=/work/bridge/files.py
+export SHANI_REPORT_TOOL=/work/bridge/system-report.py
 # a keyboard's Caps Lock and Num Lock lights, where the kernel keeps them
 export SHANI_LEDS_DIR=/tmp/fake-leds
 for k in capslock numlock; do mkdir -p "/tmp/fake-leds/input3::$k"; echo 0 > "/tmp/fake-leds/input3::$k/brightness"; done

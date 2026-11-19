@@ -80,24 +80,31 @@ ColumnLayout {
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Battery") }
 
     // ---- health: one number, what it means, and why ----
+    // A ring instead of a lone number (the Ananta UI status ring): the arc is the
+    // same health the bar below repeats, so the verdict reads at a glance.
     RowLayout {
         Layout.fillWidth: true
         spacing: Theme.px(16)
-        ColumnLayout {
-            spacing: 0
+        StatusRing {
+            value: page.health / 100
+            color: page.healthColour
+            label: Tr.t("Battery health: %1 percent", Math.round(page.health))
             Text {
+                anchors.centerIn: parent
                 text: Math.round(page.health) + " %"
-                color: page.healthColour
+                color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(34) * Theme.fontScale
+                font.pixelSize: Theme.px(20) * Theme.fontScale
                 font.weight: Font.DemiBold
             }
-            Text { text: Tr.t("health"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
         }
         ColumnLayout {
             Layout.fillWidth: true
             spacing: Theme.px(6)
-            Text { text: page.verdict; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.DemiBold }
+            StatusPill {
+                text: page.verdict
+                tone: page.health >= 80 ? "ok" : page.health >= 60 ? "warn" : "error"
+            }
             Rectangle {
                 Layout.fillWidth: true
                 implicitHeight: Theme.px(8)
@@ -134,8 +141,11 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         Text { Layout.fillWidth: true; text: Tr.t("Charge"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-        Choice { text: Tr.t("24 hours"); selected: page.span === 86400; onClicked: page.span = 86400 }
-        Choice { text: Tr.t("7 days"); selected: page.span === 604800; onClicked: page.span = 604800 }
+        SegmentedTabs {
+            options: [Tr.t("24 hours"), Tr.t("7 days")]
+            currentIndex: page.span === 86400 ? 0 : 1
+            onActivated: index => page.span = index === 0 ? 86400 : 604800
+        }
     }
     Canvas {
         id: chart
@@ -180,13 +190,11 @@ ColumnLayout {
             }
         }
     }
-    Text {
+    InfoBanner {
         Layout.fillWidth: true
         visible: page.history.filter(r => r[0] >= Date.now() / 1000 - page.span).length < 2
+        tone: "info"
         text: Tr.t("No history yet: the system records the charge as the battery is used.")
-        color: Theme.dim
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
     Text {
         Layout.fillWidth: true

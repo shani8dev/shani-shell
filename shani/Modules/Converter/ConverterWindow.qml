@@ -199,12 +199,15 @@ AppWindow {
                         }
                     }
                 }
-                EmptyState {
+                DropZone {
                     anchors.centerIn: parent
+                    width: Math.min(parent.width - Theme.px(40), Theme.px(420))
                     visible: list.count === 0
-                    icon: "document-save-as"
+                    iconName: "document-save-as"
                     title: Tr.t("Nothing to convert yet")
-                    subtitle: Tr.t("Add or drop videos, songs or pictures")
+                    text: Tr.t("Add or drop videos, songs or pictures")
+                    onFileDropped: url => win.add([decodeURIComponent(String(url).replace(/^file:\/\//, ""))])
+                    Button { flat: true; text: Tr.t("Add files…"); onClicked: win.pick() }
                 }
             }
             RowLayout {

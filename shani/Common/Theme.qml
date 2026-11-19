@@ -210,4 +210,14 @@ Singleton {
         const col = Qt.color(c);
         return Qt.rgba(col.r, col.g, col.b, a);
     }
+
+    // SI sizes for network use and other counts — from Ananta UI's Theme.bytes.
+    function bytes(n) {
+        if (n === undefined || n === null || n < 0)
+            return "–";
+        const units = ["B", "KB", "MB", "GB", "TB"];
+        let i = 0, v = n;
+        while (v >= 1000 && i < units.length - 1) { v /= 1000; i++; }
+        return (v >= 100 || i === 0 ? Math.round(v) : v.toFixed(1)) + " " + units[i];
+    }
 }

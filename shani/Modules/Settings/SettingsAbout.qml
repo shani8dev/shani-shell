@@ -45,6 +45,21 @@ ColumnLayout {
             }
         }
     }
+    // Ananta's problem report, made on demand and opened in our own editor so it
+    // can be read and edited before anyone saves or copies it. Nothing is sent.
+    Process {
+        id: reportProc
+        command: ["python3", Quickshell.env("SHANI_REPORT_TOOL") || "/usr/lib/shani-shell/system-report.py"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                TextDocs.newDoc();
+                TextDocs.setText(text);
+                TextDocs.revision++;
+                Ui.closeAll();
+                Ui.textEditor = true;
+            }
+        }
+    }
     Process {
         id: rename
         stderr: StdioCollector { id: renameErr }
@@ -154,6 +169,11 @@ ColumnLayout {
         Button {
             text: Tr.t("Copy details")
             onClicked: Quickshell.clipboardText = [page.info.host, page.info.os, page.info.cpu, page.info.gpu, page.info.driver, page.info.driverpkg, page.info.memory, page.info.disk, page.info.kernel, page.info.session].filter(x => x).join("\n")
+        }
+        Button {
+            text: Tr.t("Problem report…")
+            enabled: !reportProc.running
+            onClicked: reportProc.running = true
         }
         Button {
             visible: page.hasCassini

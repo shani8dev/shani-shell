@@ -66,7 +66,6 @@ ColumnLayout {
         setDns.running = true;
     }
     property string usage: ""
-    function bytes(n) { return n >= 1e9 ? (n / 1e9).toFixed(1) + " GB" : n >= 1e6 ? Math.round(n / 1e6) + " MB" : Math.round(n / 1e3) + " kB"; }
     Process {
         running: page.active
         // --oneline b: version;iface;day;rx;tx;total;rate;month;rx;tx;total;rate;… (bytes)
@@ -81,7 +80,7 @@ ColumnLayout {
                         month += parseFloat(f[10]) || 0;
                     }
                 }
-                page.usage = text.trim() ? "Today " + page.bytes(day) + " · this month " + page.bytes(month) : "";
+                page.usage = text.trim() ? "Today " + Theme.bytes(day) + " · this month " + Theme.bytes(month) : "";
             }
         }
     }

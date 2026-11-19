@@ -8,7 +8,6 @@
 import Quickshell
 import Quickshell.Wayland
 import QtQuick
-import QtQuick.Shapes
 import qs.Common
 import qs.Services
 
@@ -124,14 +123,14 @@ Variants {
                 anchors.fill: parent
                 anchors.margins: Theme.px(14)
                 spacing: Theme.px(12)
-                Shape {
-                    width: Theme.px(60); height: Theme.px(60)
+                StatusRing {
+                    size: Theme.px(60)
+                    thickness: Theme.px(6)
+                    value: Power.percent
+                    color: Power.lowAndDischarging ? Theme.amber : Theme.accent
+                    trackColor: Theme.alpha(Theme.text, 0.12)
+                    label: Tr.t("Battery %1%", Math.round(Power.percent * 100))
                     anchors.verticalCenter: parent.verticalCenter
-                    preferredRendererType: Shape.CurveRenderer
-                    ShapePath { strokeColor: Theme.alpha(Theme.text, 0.12); strokeWidth: 6; fillColor: "transparent"; capStyle: ShapePath.RoundCap
-                        PathAngleArc { centerX: 30; centerY: 30; radiusX: 26; radiusY: 26; startAngle: -90; sweepAngle: 360 } }
-                    ShapePath { strokeColor: Power.lowAndDischarging ? Theme.amber : Theme.accent; strokeWidth: 6; fillColor: "transparent"; capStyle: ShapePath.RoundCap
-                        PathAngleArc { centerX: 30; centerY: 30; radiusX: 26; radiusY: 26; startAngle: -90; sweepAngle: 360 * Power.percent } }
                     Label { anchors.centerIn: parent; text: Math.round(Power.percent * 100) + "%"; font.weight: Font.DemiBold }
                 }
                 Column {
