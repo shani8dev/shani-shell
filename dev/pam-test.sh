@@ -21,9 +21,14 @@ cp "$GREETD" $C/shani-greetd
 printf 'auth required pam_unix.so\naccount required pam_permit.so\npassword required pam_permit.so\nsession required pam_permit.so\n' > $C/system-local-login
 printf '#!/bin/sh\ntest -e /tmp/fp-flag\n' > /usr/lib/shani-desktop-niri/greeter-fingerprint
 chmod +x /usr/lib/shani-desktop-niri/greeter-fingerprint
+# the real "has a session already" check (the password first after a restart)
+cp /desk/usr/lib/shani-desktop-niri/greeter-signed-in /usr/lib/shani-desktop-niri/
 [ -e $M/pam_gnome_keyring.so ] || cp $M/pam_permit.so $M/pam_gnome_keyring.so
 id alice >/dev/null 2>&1 || useradd -m alice
 echo "alice:right-password" | chpasswd
+# alice has a session open (logind's /run/user/<uid>): the checks below are of a
+# second sign-in, where a finger, a face or a key is enough
+mkdir -p "/run/user/$(id -u alice)"
 u2f() { case $1 in touch) cp $M/pam_permit.so $M/pam_u2f.so ;; miss) cp $M/pam_deny.so $M/pam_u2f.so ;; none) rm -f $M/pam_u2f.so ;; esac; }
 fp() { case $1 in touch) cp $M/pam_permit.so $M/pam_fprintd.so ;; miss) cp $M/pam_deny.so $M/pam_fprintd.so ;; none) rm -f $M/pam_fprintd.so ;; esac; }
 auth() { python3 /work/dev/pam-auth.py "$1" alice $C "${2:-}" 2>&1; }
@@ -56,6 +61,20 @@ rm -f /tmp/fp-flag
 fp touch; u2f miss; expect pam-greeter-no-flag-skips-the-finger fail shani-greetd wrong-password
 fp none; u2f none
 
+# ---- the first sign-in after a restart: the password, whatever else is there ----
+# (no session of alice open: greeter-signed-in jumps over finger, face and key)
+rmdir "/run/user/$(id -u alice)"
+fp none; u2f touch; expect pam-greeter-first-signin-key-not-enough fail shani-greetd wrong-password
+expect pam-greeter-first-signin-password-works success shani-greetd right-password
+touch /tmp/fp-flag; fp touch; u2f none
+expect pam-greeter-first-signin-finger-not-enough fail shani-greetd wrong-password
+expect pam-greeter-first-signin-password-after-finger-asked success shani-greetd right-password
+rm -f /tmp/fp-flag; fp none
+cp $M/pam_permit.so $M/pam_linux_hello.so
+expect pam-greeter-first-signin-face-not-enough fail shani-greetd wrong-password
+mkdir -p "/run/user/$(id -u alice)"
+expect pam-greeter-second-signin-face-is-enough success shani-greetd wrong-password
+rm -f $M/pam_linux_hello.so
 # ---- the guest account (Settings > Users > Guest): no password, so Enter signs in ----
 # Arch's system-auth checks the password with pam_unix and nullok - an account
 # with no password is let in by it; the greeter sends the guest's empty answer

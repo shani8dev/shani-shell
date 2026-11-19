@@ -111,6 +111,24 @@ import json, sys
 print(" ".join(json.loads(l)["type"] for l in open(sys.argv[1]) if l.strip())[len("fake-greetd-up "):])
 ' "/work/out/logs/greetd-$1.log"
 }
+# ---- the first sign-in after a restart: no session of shani open yet, so the
+# face is not looked for (only the password unlocks GNOME Keyring) - the typed
+# password signs in, and the screen says why it is asked
+mkdir -p /tmp/sessions; rm -rf /tmp/sessions/*
+export SHANI_GREETER_SESSIONS=/tmp/sessions SHANI_GREETER_USER=shani SHANI_GREETER_FACE=1 SHANI_GREETER_FINGERPRINT=0
+# typing nothing: a face would have started the session at once (greeter-face
+# below); here nothing may be sent to greetd - the password is waited for
+# (fake-greetd lets any session in under FAKE_FACE=match, so this is the check)
+got=$(FAKE_FACE=match greet first-signin "")
+[ -z "$got" ] && result greeter-first-signin-waits-for-password PASS \
+    || result greeter-first-signin-waits-for-password FAIL "got: $got"
+# fingerprint offered but no session: Enter on the empty field leaves no flag for pam_exec
+FRUN0=$(mktemp -d); rm -f "$FRUN0/fingerprint"
+SHANI_GREETER_RUN="$FRUN0" SHANI_GREETER_FINGERPRINT=1 SHANI_GREETER_FACE=0 greet first-signin-finger "" enter >/dev/null
+[ ! -e "$FRUN0/fingerprint" ] && result greeter-first-signin-no-finger PASS || result greeter-first-signin-no-finger FAIL "flag left"
+# from here on shani has a session open: a second sign-in, where a face or a finger is enough
+mkdir -p "/tmp/sessions/$(id -u shani)"
+
 # ---- face (linux-hello): the session starts as soon as the user is known
 export SHANI_GREETER_USER=shani SHANI_GREETER_FACE=1 SHANI_GREETER_FINGERPRINT=0
 got=$(FAKE_FACE=match greet face "")

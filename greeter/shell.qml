@@ -97,10 +97,36 @@ ShellRoot {
         onExited: code => { root.face = code === 0; root.lookForFace(); }
     }
     property string knownUser: Quickshell.env("SHANI_GREETER_USER") || lastUser.text().trim()
-    Component.onCompleted: if (face) Qt.callLater(lookForFace)   // forced on (tests): no probe to wait for
+    // The password first after a restart: only it unlocks GNOME Keyring, so with
+    // no session of this account open yet (logind's /run/user/<uid>) the face
+    // and the fingerprint are not offered - /etc/pam.d/shani-greetd's
+    // greeter-signed-in jumps over them anyway; this keeps the screen honest.
+    readonly property string sessionsDir: Quickshell.env("SHANI_GREETER_SESSIONS") || "/run/user"
+    property bool firstSignIn: true
+    property string probedUser: ""
+    onKnownUserChanged: probeSession()
+    function probeSession() {
+        if (knownUser.trim() === "") return;
+        probedUser = knownUser.trim();
+        sessionProbe.running = false;
+        sessionProbe.running = true;
+    }
+    Process {
+        id: sessionProbe
+        command: ["sh", "-c", 'u=$(id -u -- "$1" 2>/dev/null) && test -d "$2/$u"', "sh", root.probedUser, root.sessionsDir]
+        onExited: code => {
+            root.firstSignIn = code !== 0;
+            if (root.firstSignIn && root.info === "" && root.probedUser !== root.guest)   // the guest has no password
+                root.info = "Type your password - the first time after a restart, so your saved passwords unlock too";
+            else if (!root.firstSignIn && root.info.startsWith("Type your password - the first"))
+                root.info = "";
+            root.lookForFace();
+        }
+    }
+    Component.onCompleted: probeSession()   // then the face, when it may be used
     property bool faceTried: false         // once per user picked: not again after it fell to the password
     function lookForFace() {
-        if (face && !faceTried && !busy && knownUser.trim() !== "") {
+        if (face && !firstSignIn && !faceTried && !busy && knownUser.trim() !== "") {
             faceTried = true;
             info = "Looking for your face…";
             Greetd.createSession(knownUser.trim());
@@ -122,7 +148,7 @@ ShellRoot {
         }
     }
     function useFingerprint(user) {
-        if (!fingerprint || busy || user.trim() === "")
+        if (!fingerprint || firstSignIn || busy || user.trim() === "")
             return;
         error = "";
         pending = "";
@@ -136,7 +162,7 @@ ShellRoot {
         if (Greetd.state === GreetdState.Inactive) {
             if (user.trim() === "")
                 return;
-            if (answer === "" && fingerprint && user.trim() !== guest) {
+            if (answer === "" && fingerprint && !firstSignIn && user.trim() !== guest) {
                 useFingerprint(user);
                 return;
             }
@@ -470,7 +496,7 @@ ShellRoot {
 
                     Button {
                         Layout.alignment: Qt.AlignHCenter
-                        visible: root.fingerprint && !root.busy
+                        visible: root.fingerprint && !root.firstSignIn && !root.busy
                         text: "Use fingerprint"
                         onClicked: root.useFingerprint(userField.text)
                     }
