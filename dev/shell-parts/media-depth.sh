@@ -24,6 +24,14 @@ ipc mediaOpen "$M/film.mkv"
 waitfor "d['mediaResumedFrom'] >= 55 and d['mediaPosition'] >= 55" 10 && result media-resumes-where-left PASS "at $(q "['mediaPosition']") s" || result media-resumes-where-left FAIL "note $(q "['mediaResumedFrom']"), clock $(q "['mediaPosition']")"
 sleep 0.6; shot media-resumed 0.2
 
+# Showtime's "Take screenshot": the frame on screen saved as a picture
+rm -rf "$HOME/Pictures/Screenshots"
+ipc mediaSaveFrame
+waitfor "d['mediaFrameSaved'] != ''" 10
+f=$(q "['mediaFrameSaved']")
+[ -f "$f" ] && [ "$(magick identify -format '%wx%h' "$f" 2>&1)" = 320x240 ] && case "$f" in "$HOME/Pictures/Screenshots/film "*.png) true;; *) false;; esac \
+    && result media-save-frame PASS "$f" || result media-save-frame FAIL "$f $(magick identify -format '%wx%h' "$f" 2>&1)"
+
 # the mini player: small, floating, on every workspace
 ipc mediaMini true
 waitfor "d['mediaMini'] and d['mediaPinned'] >= 1" 6 && sleep 1 \

@@ -70,8 +70,14 @@ RUN pacman -Sy --noconfirm --needed ydotool && pacman -Scc --noconfirm
 RUN pacman -Sy --noconfirm --needed qt6-multimedia qt6-multimedia-ffmpeg ffmpeg desktop-file-utils && pacman -Scc --noconfirm
 
 # Authenticator (bridge/otp.py) keeps its secrets in the Secret Service: the
-# keyring daemon the image has (gnome-keyring), started unlocked by the suite
-RUN pacman -Sy --noconfirm --needed gnome-keyring libsecret && pacman -Scc --noconfirm
+# keyring daemon the image has (oo7, shani-desktop-niri's), started unlocked by the suite
+RUN pacman -Sy --noconfirm --needed oo7 libsecret && pacman -Scc --noconfirm
+
+# the Image Viewer's formats beyond Qt's own (shani-shell depends on these two)
+RUN pacman -Sy --noconfirm --needed qt6-imageformats kimageformats libheif libjxl libraw openexr libavif ghostscript && pacman -Scc --noconfirm
+# Files' locks and mounts: gpg (sealed files), gocryptfs (encrypted folders; needs
+# /dev/fuse to open one), sshfs, xz (packed disk images in the USB checks)
+RUN pacman -Sy --noconfirm --needed gnupg gocryptfs sshfs fuse3 xz && pacman -Scc --noconfirm
 
 # the icons the image uses (shani-desktop-niri's gschema override: Papirus-Dark),
 # so the suite's screenshots show what a person sees, not Adwaita's gaps

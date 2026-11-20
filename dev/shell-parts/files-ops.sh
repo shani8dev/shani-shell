@@ -13,6 +13,9 @@ ipc filesCopy "$R/a/note.txt"; sleep 0.4
 ipc filesPaste $R/b
 waitfor "'note.txt' in d['filesNames']" 5 && [ -f $R/a/note.txt ] && result files-paste-copies PASS || result files-paste-copies FAIL "$(names)"
 ipc filesPaste $R/b
+# the name is taken: asked once (TeraCopy's and Nautilus's question); Keep both
+waitfor "d['filesConflict'] == ['note.txt']" 5 && result files-paste-asks-on-a-taken-name PASS || result files-paste-asks-on-a-taken-name FAIL "$(q "['filesConflict']")"
+ipc filesConflictAnswer rename
 waitfor "'note (2).txt' in d['filesNames']" 5 && result files-paste-never-writes-over PASS || result files-paste-never-writes-over FAIL "$(names)"
 ipc filesUndo
 waitfor "'note (2).txt' not in d['filesNames']" 5 && result files-undo-paste PASS || result files-undo-paste FAIL "$(names)"

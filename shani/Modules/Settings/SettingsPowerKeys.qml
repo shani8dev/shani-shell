@@ -20,9 +20,56 @@ ColumnLayout {
     property string note: ""
     property int limit: -1                // the battery's charge limit; -1: it has none
     // the battery's health: Settings > Power > Battery (SettingsBattery)
-    onActiveChanged: if (active) read.running = true
+    onActiveChanged: if (active) { read.running = true; wakeRead.running = true; plRead.running = true; }
     // made already active (a Settings category is a Loader): load now too
-    Component.onCompleted: if (active) read.running = true
+    Component.onCompleted: if (active) { read.running = true; wakeRead.running = true; plRead.running = true; }
+
+    // A handheld's chip power limit (Ananta OS's Gaming > Handheld): where the
+    // kernel offers one (bridge/powerlimit.py), as steps across the firmware's
+    // own range; set through shani-admin.py power-limit.
+    property var powerLimit: null         // { method, min, max, current } or null
+    readonly property string powerLimitTool: Quickshell.env("SHANI_POWERLIMIT_TOOL") || "/usr/lib/shani-shell/powerlimit.py"
+    Process {
+        id: plRead
+        command: ["python3", page.powerLimitTool, "show"]
+        stdout: StdioCollector { onStreamFinished: { try { page.powerLimit = JSON.parse(text); } catch (e) { page.powerLimit = null; } } }
+    }
+    readonly property var powerLimitSteps: {
+        if (!powerLimit || powerLimit.max <= powerLimit.min) return [];
+        const s = [];
+        for (let i = 0; i < 5; i++) s.push(Math.round(powerLimit.min + (powerLimit.max - powerLimit.min) * i / 4));
+        if (s.indexOf(powerLimit.current) < 0 && powerLimit.current >= powerLimit.min && powerLimit.current <= powerLimit.max) s.push(powerLimit.current);
+        return s.filter((v, i) => s.indexOf(v) === i).sort((a, b) => a - b);
+    }
+    function savePowerLimit(watts) {
+        if (writer.running) return;
+        writer.requestedLimit = -1;
+        writer.payload = JSON.stringify({ watts: watts });
+        writer.command = adminCmd.concat(["power-limit"]);
+        writer.stdinEnabled = true;
+        writer.running = true;
+    }
+
+    // What can wake this computer from sleep (Ananta OS's "wake sources"): each
+    // device's own kernel switch, listed by bridge/wakeup.py (no password) and
+    // changed through shani-admin.py wakeup - now and at every boot.
+    property var wakers: []               // [{ path, name, kind, enabled }]
+    readonly property string wakeupTool: Quickshell.env("SHANI_WAKEUP_TOOL") || "/usr/lib/shani-shell/wakeup.py"
+    Process {
+        id: wakeRead
+        command: ["python3", page.wakeupTool, "list"]
+        stdout: StdioCollector {
+            onStreamFinished: { try { page.wakers = JSON.parse(text); } catch (e) { page.wakers = []; } }
+        }
+    }
+    function saveWake(path, on) {
+        if (writer.running) return;
+        writer.requestedLimit = -1;
+        writer.payload = JSON.stringify({ path: path, enabled: on });
+        writer.command = adminCmd.concat(["wakeup"]);
+        writer.stdinEnabled = true;
+        writer.running = true;
+    }
 
     Process {
         id: read
@@ -44,7 +91,7 @@ ColumnLayout {
         }
     }
     Process {
-        id: write
+        id: writer
         stdinEnabled: true
         property string payload: ""
         property int requestedLimit: -1
@@ -53,29 +100,31 @@ ColumnLayout {
                 let r;
                 try { r = JSON.parse(text); } catch (e) { r = { ok: false, error: text.trim() || "cancelled" }; }
                 page.note = r.ok ? "" : r.error;
-                if (r.ok && write.requestedLimit > 0) Settings.data.batteryLimit = write.requestedLimit;
-                write.requestedLimit = -1;
+                if (r.ok && writer.requestedLimit > 0) Settings.data.batteryLimit = writer.requestedLimit;
+                writer.requestedLimit = -1;
                 read.running = true;
+                wakeRead.running = true;
+                plRead.running = true;
             }
         }
         onStarted: { write(payload + "\n"); stdinEnabled = false; }
     }
     function saveLimit(pct) {
-        if (write.running) return;
-        write.requestedLimit = pct;
-        write.payload = JSON.stringify({ percent: pct });
-        write.command = adminCmd.concat(["battery-limit"]);
-        write.stdinEnabled = true;
-        write.running = true;
+        if (writer.running) return;
+        writer.requestedLimit = pct;
+        writer.payload = JSON.stringify({ percent: pct });
+        writer.command = adminCmd.concat(["battery-limit"]);
+        writer.stdinEnabled = true;
+        writer.running = true;
     }
     function save(patch) {
-        if (write.running) return;
-        write.requestedLimit = -1;
+        if (writer.running) return;
+        writer.requestedLimit = -1;
         const req = Object.assign({ lid: lid, lidOnPower: lidOnPower, powerKey: powerKey }, patch);
-        write.payload = JSON.stringify(req);
-        write.command = adminCmd.concat(["power-keys"]);
-        write.stdinEnabled = true;
-        write.running = true;
+        writer.payload = JSON.stringify(req);
+        writer.command = adminCmd.concat(["power-keys"]);
+        writer.stdinEnabled = true;
+        writer.running = true;
     }
 
     // "Sleep" sleeps the way chosen below (it may be sleep-then-hibernate); hibernate where it works
@@ -119,6 +168,27 @@ ColumnLayout {
         options: [{ label: "60 %", value: "60" }, { label: "80 %", value: "80" }, { label: "90 %", value: "90" }, { label: Tr.t("Full"), value: "100" }]
         current: String(page.limit)
         onPicked: v => page.saveLimit(parseInt(v))
+    }
+    Picks {
+        visible: page.powerLimitSteps.length > 1
+        label: Tr.t("Chip power limit - more watts, more speed in games; fewer, a cooler, quieter handheld that lasts longer")
+        options: page.powerLimitSteps.map(w => ({ label: w + " W", value: String(w) }))
+        current: page.powerLimit ? String(page.powerLimit.current) : ""
+        onPicked: v => page.savePowerLimit(parseInt(v))
+    }
+    SectionTitle { Layout.fillWidth: true; visible: page.wakers.length > 0; text: Tr.t("What can wake this computer") }
+    Repeater {
+        model: page.wakers
+        SwitchRow {
+            required property var modelData
+            Layout.fillWidth: true
+            text: modelData.name
+            hint: modelData.kind === "usb" ? Tr.t("A key or a click on it wakes the computer from sleep")
+                : modelData.kind === "lid" ? Tr.t("Opening the lid wakes the computer from sleep")
+                : Tr.t("A wake-up signal from another computer on the network wakes it")
+            checked: modelData.enabled
+            onToggled: on => page.saveWake(modelData.path, on)
+        }
     }
     Text {
         Layout.fillWidth: true

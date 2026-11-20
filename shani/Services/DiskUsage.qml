@@ -39,6 +39,7 @@ Singleton {
         history = [];
         marked = [];
         error = "";
+        view = "map";
         scan(scanRoot);
     }
     function close() { Ui.diskUsage = false; }
@@ -113,7 +114,32 @@ Singleton {
             root.entries = r.entries || [];
         }, 0, 60000);
     }
-    function refresh() { scan(current || scanRoot || homeDir()); }
+    function refresh() { if (view === "map") scan(current || scanRoot || homeDir()); else findMore(view); }
+
+    // ---- the other views: the biggest files, and duplicates (bridge/dupes.py), of
+    //      the folder on screen - marked and trashed the same way as the map's
+    readonly property string dupesTool: Quickshell.env("SHANI_DUPES_TOOL") || "/usr/lib/shani-shell/dupes.py"
+    property string view: "map"            // map | big | dupes
+    property var big: []                   // [{ path, size, mtime }]
+    property var dupes: []                 // [{ size, paths: [oldest first] }]
+    readonly property real wasted: dupes.reduce((s, g) => s + g.size * (g.paths.length - 1), 0)
+    function setView(v) {
+        view = v;
+        if (v !== "map") findMore(v);
+    }
+    function findMore(v) {
+        scanning = true;
+        error = "";
+        Proc.run("disktree-" + v, ["python3", dupesTool, v, current || scanRoot || homeDir()], (out, code) => {
+            root.scanning = false;
+            let r = [];
+            try { r = JSON.parse(out); } catch (e) { root.error = code === 124 ? "the scan took too long" : "bad output"; }
+            if (v === "big") root.big = r; else root.dupes = r;
+        }, 0, 300000);
+    }
+    // a group's copies all marked but the oldest (the one most likely the original)
+    function markExtras(g) { for (const p of g.paths.slice(1)) mark(p); }
+    function markAllExtras() { for (const g of dupes) markExtras(g); }
 
     // ---- navigation: walk into a directory, back out ------------------------
     function enter(path) {

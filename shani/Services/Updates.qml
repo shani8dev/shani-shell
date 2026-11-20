@@ -28,7 +28,7 @@ Singleton {
         onLoadFailed: root.firmwareTold = []
     }
     // Cassini's Firmware page owns this (fwupd's devices and what LVFS offers)
-    function openFirmware() { Quickshell.execDetached(["sh", "-c", "command -v shani-cassini >/dev/null && exec shani-cassini --section=firmware; exec gnome-firmware"]); }
+    function openFirmware() { Quickshell.execDetached(["shani-cassini", "--section=firmware"]); }   // gnome-firmware is not installed
     Process {
         id: fw
         command: ["sh", "-c", "command -v fwupdmgr >/dev/null && fwupdmgr get-updates --json --no-unreported-check 2>/dev/null"]

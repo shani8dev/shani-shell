@@ -21,6 +21,7 @@ import qs.Modules.Island
 import qs.Modules.ControlCenter
 import qs.Modules.Launcher
 import qs.Modules.Notifications
+import qs.Modules.Files
 import qs.Modules.Osd
 import qs.Modules.Lock
 import qs.Modules.Polkit
@@ -321,7 +322,9 @@ ShellRoot {
         // opening, not toggling: what a desktop entry (`shani app …`) and a dock pin ask for
         function processesOpen() { Ui.closeAll(); Ui.processes = true; }
         function logsOpen() { Ui.closeAll(); Ui.logs = true; }
-        function fontsOpen() { Ui.closeAll(); Ui.fonts = true; }
+        function fontsOpen() { Ui.closeAll(); Ui.fontFile = ""; Ui.fonts = true; }
+        // a font file (font-viewer parity): see it in its own type, then install it
+        function fontsOpenFile(path: string) { Ui.closeAll(); Ui.fontFile = path.replace(/^file:\/\//, ""); Ui.fonts = true; }
         function charactersOpen() { Ui.closeAll(); Ui.characters = true; }
         function processes() { const was = Ui.processes; Ui.closeAll(); Ui.processes = !was; }
         function toggleLogs() { const was = Ui.logs; Ui.closeAll(); Ui.logs = !was; }
@@ -375,6 +378,7 @@ ShellRoot {
         function mediaClose() { PlayQueue.close(); }
         function mediaMini(on: string) { PlayQueue.miniRequested(on === "true"); }
         function mediaPlayPause() { PlayQueue.toggleRequested(); }
+        function mediaSaveFrame() { PlayQueue.frameRequested(); }
         function mediaPlay() { PlayQueue.playRequested(); }
         function mediaPause() { PlayQueue.pauseRequested(); }
         function mediaSeek(seconds: string) { const v = parseFloat(seconds); if (isFinite(v)) PlayQueue.seekRequested(v); }
@@ -415,6 +419,8 @@ ShellRoot {
         function diskUsageMark(path: string) { DiskUsage.toggleMark(path); }
         function diskUsageClearMarks() { DiskUsage.clearMarks(); }
         function diskUsageTrashMarked() { DiskUsage.trashMarked(); }
+        function diskUsageView(view: string) { DiskUsage.setView(view); }
+        function diskUsageMarkExtras() { DiskUsage.markAllExtras(); }
         // Files: the file manager
         function filesOpen(path: string) { Files.show(path); }
         // Tidy and name (Files): sort a folder by kind, undo it; a name from Chronoa
@@ -561,10 +567,48 @@ ShellRoot {
         function filesCopy(paths: string) { Files.toClipboard("copy", paths ? paths.split("\n") : []); }
         function filesCut(paths: string) { Files.toClipboard("cut", paths ? paths.split("\n") : []); }
         function filesPaste(dest: string) { Files.pasteHere(dest); }
+        function filesCancelJob() { Files.cancelJob(); }
+        function filesStar(path: string, on: bool) { Files.setStar([path], on); }
+        function filesTerminal(dir: string) { Files.openTerminal(dir); }
+        function filesEject(name: string) { Files.ejectDevice(Files.devices.find(d => d.name === name)); }
+        function filesConnect(uri: string, user: string, password: string) { Files.connectServer(uri, user, password, ""); }
+        // what a drop does (the gesture itself needs a pointer): uris one per line
+        function filesDrop(dest: string, uris: string, mode: string): int { return Files.dropUrls(dest, uris.split("\n").filter(x => x), mode || "auto"); }
         function filesUndo() { Files.undo(); }
         function filesPutBack(paths: string) { Files.putBack(paths ? paths.split("\n") : []); }
         function filesEmptyTrash() { Files.emptyTrash(); }
         function filesProps(paths: string) { Files.showProps(paths ? paths.split("\n") : []); }
+        function filesCompare(a: string, b: string) { Files.compare(a, b); }
+        function filesCompareTake(row: int, toRight: bool) { Files.compareTake(row, toRight); }
+        function filesCompareSave(right: bool) { Files.compareSave(right); }
+        function filesUsb(mode: string, image: string) { Files.openUsb(mode, image); }
+        // the dialog's drive is picked by clicking; these finish what a click starts
+        function filesUsbBackupTo(folder: string) { const d = (Files.usb && Files.usb.drives || [])[0]; if (d) Files.usbBackup(d, folder); }
+        function filesUsbPassphrase(oldPw: string, newPw: string) { const d = (Files.usb && Files.usb.drives || [])[0]; if (d) Files.usbPassphrase(d, oldPw, newPw); }
+        function filesMountImage(path: string) { Files.mountImage(path); }
+        function filesUnlock(password: string) { Files.unlockDevice(password); }
+        function filesShare(path: string, on: bool) { Files.setShared(path, on); }
+        function filesServers() { Files.loadServers(); }
+        function filesAskLock(mode: string, path: string) { Files.askLock(mode, path); }
+        function filesServe(path: string, upload: bool) { Files.serveFolder(path, upload); }
+        function filesOpenAsAdmin(path: string, isDir: bool) { Files.openAsAdmin(path, isDir); }
+        function filesConflictAnswer(rule: string) { Files.answerConflict(rule); }
+        function filesJobPause() { Files.pauseJob(); }
+        function filesRetryFailed() { Files.retryFailed(); }
+        function filesVerify(on: bool) { Files.setVerify(on); }
+        function filesChecksums(paths: string) { Files.makeChecksums(paths.split("\n")); }
+        function filesCheckSums(path: string) { Files.checkChecksums(path); }
+        function filesCopyTo(mode: string, paths: string, dest: string) { Files.copyTo = { mode: mode, paths: paths.split("\n") }; Files.sendTo(mode, dest); }
+        function filesHistory() { Files.loadCopyHistory(); Files.historyShown = true; }
+        function filesWhenDone(what: string) { Files.whenDone = what; }
+        function filesRedo() { Files.redo(); }
+        function filesRunScript(name: string, paths: string) { const s = Files.scripts.find(x => x.name === name); if (s) Files.runScript(s, paths.split("\n")); }
+        function filesLoadScripts() { Files.loadScripts(); }
+        function filesDeleteNow(paths: string) { Files.deleteNow(paths.split("\n")); }
+        function filesServeStop() { Files.stopServing(); }
+        function filesCloudAdd(name: string, kind: string, url: string, user: string, password: string) { Files.addCloud(name, kind, url, user, password); }
+        function filesCloudOpen(name: string) { Files.openCloud(Files.clouds.find(c => c.name === name)); }
+        function filesLockWith(password: string, extra: string) { if (extra === "gpg") { Files.lockAsZip = false; extra = ""; } Files.doLock(password, extra === "trash" ? true : extra); }
         function filesBatchRename(pattern: string, paths: string) { Files.batchRename(pattern, paths.split("\n")); }
         function filesBookmark(path: string, on: bool) { Files.setBookmark(path, on); }
         function filesSearchDeep(on: bool) { Files.setSearchDeep(on); }
@@ -594,6 +638,9 @@ ShellRoot {
         function mapsPan(dxdy: string) { Ui.mapsAsked("pan", dxdy); }
         function mapsZoomBy(d: string) { Ui.mapsAsked("zoom", d); }
         function mapsDirections(profile: string) { Ui.mapsAsked("directions", profile); }
+        function mapsSave() { Ui.mapsAsked("save", ""); }
+        function mapsShare() { Ui.mapsAsked("share", ""); }
+        function mapsGoSaved(name: string) { Ui.mapsAsked("go-saved", name); }
         function mapsFrom(place: string) { Ui.mapsAsked("from", place); }
         function cameraClose() { Camera.closeCamera(); }
         function cameraShutter() { Camera.shutter(); }
@@ -629,6 +676,7 @@ ShellRoot {
             Phone.openRecentCalls();
         }
         function qr(title: string, text: string) { Ui.closeAll(); Qr.show(title, text); }
+        function qrClose() { Qr.close(); }
         function calculator() { const was = Calculator.shown; Ui.closeAll(); if (!was) Calculator.open(); }
         function calculatorOpen(expr: string) { Ui.closeAll(); if (expr) { Calculator.clear(); Calculator.display = expr; } Calculator.open(); }
         function calculatorPress(key: string) { Calculator.press(key); }
@@ -658,6 +706,16 @@ ShellRoot {
         function openViewer(path: string) { Ui.closeAll(); Viewer.open(path); }
         function closeViewer() { Viewer.close(); }
         function viewerNext() { Viewer.next(); }
+        function viewerEdit() { Viewer.startEdit(); }
+        function viewerCrop(x: real, y: real, w: real, h: real) { Viewer.setCrop(x, y, w, h); }
+        // points as "x y;x y" (qs ipc splits arguments at commas)
+        function viewerStroke(color: string, points: string) { Viewer.penColor = color; Viewer.addStroke(points.split(";").map(p => p.trim().split(/\s+/).map(Number))); }
+        function viewerSave(mode: string) { Viewer.saveEdit(mode || "copy"); }
+        function viewerResize(to: string) { Viewer.resizeTo = to; }
+        function viewerTool(tool: string) { Viewer.tool = tool; }
+        function viewerText(x: real, y: real, words: string) { Viewer.textAt = [x, y]; Viewer.addText(words); }
+        function viewerWallpaper() { Viewer.setWallpaper(); }
+        function wallpaperSet(path: string) { Settings.data.wallpaper = path; }
         function viewerPrev() { Viewer.prev(); }
         function viewerGoTo(index: int) { Viewer.goToIndex(index); }
         function viewerZoomIn() { Viewer.zoomIn(); }
@@ -677,6 +735,10 @@ ShellRoot {
         function viewerOpenWith(app: string) { Viewer.openWith(app); }
         function viewerTrash() { Viewer.trash(); }
         function openPdf(path: string) { Ui.closeAll(); PdfViewer.open(path); }
+        function pdfUnlock(password: string) { PdfViewer.unlockWith(password); }
+        function pdfNight(on: bool) { PdfViewer.setNight(on); }
+        function pdfInfo() { PdfViewer.showInfo(); }
+        function pdfCopyText(): bool { return PdfViewer.copyPageText(); }
         function closePdf() { PdfViewer.close(); }
         function pdfNext() { PdfViewer.nextPage(); }
         function pdfZoom(z: real) { PdfViewer.setZoom(z); }
@@ -883,12 +945,12 @@ ShellRoot {
                 calculatorHistory: Calculator.history.map(h => h.expr + "=" + h.value), calculatorMemory: Calculator.memory,
                 calculatorBase: Calculator.base, calculatorWidth: Calculator.width, calculatorFin: Calculator.finResult, calculatorProg: Calculator.progResult, calculatorBin: Calculator.progBin, calculatorOct: Calculator.progOct, calculatorDec: Calculator.progDec, calculatorHex: Calculator.progHex, calculatorTwos: Calculator.twosResult, calculatorChar: Calculator.charResult,
                 calendarShown: Ui.calendar, calendarEvents: Agenda.events.length, calendarSearch: Agenda.search,
-                viewerShown: Viewer.shown, viewer: Ui.viewer, viewerFile: Viewer.file, viewerZoom: Viewer.zoom, viewerRotation: Viewer.rotation,
+                fontFile: Ui.fontFile, fontFileFamily: Ui.fontFileFamily, fontFileDetails: Ui.fontFileDetails, fontFileInstalled: Ui.fontFileInstalled, viewerShown: Viewer.shown, viewerLoad: Viewer.loadStatus, viewerEditing: Viewer.editing, viewerSaved: Viewer.saved, viewer: Ui.viewer, viewerFile: Viewer.file, viewerZoom: Viewer.zoom, viewerRotation: Viewer.rotation,
                 viewerSlideshow: Viewer.slideshow, viewerGrid: Viewer.gridMode, viewerThumbs: Viewer.showThumbs, viewerCopied: Viewer.lastCopied,
-                viewerAction: Viewer.lastAction, viewerTrash: Viewer.trashLast, exifOrientation: Viewer.exifOrientation,
+                viewerAction: Viewer.lastAction, viewerFrames: Viewer.frames, wallpaperSetting: Settings.data.wallpaper || "", viewerTrash: Viewer.trashLast, exifOrientation: Viewer.exifOrientation,
                 pdfShown: PdfViewer.shown, pdfReader: Ui.pdfReader, pdfFile: PdfViewer.file, pdfPage: PdfViewer.page, pdfZoom: PdfViewer.zoom, pdfDpi: PdfViewer.dpi, pdfLoading: PdfViewer.loading, pdfPages: PdfViewer.pageCount,
                 pdfFit: PdfViewer.fitMode, pdfContinuous: PdfViewer.continuous, pdfSidebar: PdfViewer.showSidebar, pdfSearch: PdfViewer.searchText,
-                pdfSearchMatches: PdfViewer.searchMatches.length, pdfOutline: PdfViewer.outline.length, pdfError: PdfViewer.error, pdfCopy: PdfViewer.pdf, pdfFormFields: PdfViewer.formFields.length, pdfFormSaved: PdfViewer.formSaved, pdfFormError: PdfViewer.formError, pdfPrint: PdfViewer.printState,
+                pdfSearchMatches: PdfViewer.searchMatches.length, pdfOutline: PdfViewer.outline.length, pdfError: PdfViewer.error, pdfNeedsPassword: PdfViewer.needsPassword, pdfNightShown: PdfViewer.current.endsWith(".night.png"), pdfInfo: PdfViewer.info ? PdfViewer.info.map(r => r[0] + "=" + r[1]) : [], pdfPasswordError: PdfViewer.passwordError, pdfCopy: PdfViewer.pdf, pdfFormFields: PdfViewer.formFields.length, pdfFormSaved: PdfViewer.formSaved, pdfFormError: PdfViewer.formError, pdfPrint: PdfViewer.printState,
                 converted: Recorder.converted, converting: Recorder.converting,
                 cpuTemp: SysStats.temp,
                 gpus: Gpu.gpus.length,
@@ -900,7 +962,7 @@ ShellRoot {
                 automationsFired: Automations.fired,
                 language: Tr.lang, sampleWord: Tr.t("Notifications"),
                 minimised: Niri.minimised.map(w => w.id), visibleWorkspaces: Niri.workspacesOn(Niri.focusedOutput).length,
-                backupSummary: Ui.backupSummary, printersSeen: Ui.printersSeen,
+                backupSummary: Ui.backupSummary, printersSeen: Ui.printersSeen, printersFound: Ui.printersFound, printerOptions: Ui.printerOptions,
                 annotate: Ui.annotate, annotateStrokes: Ui.annotateStrokes,
                 shareTargets: Share.targets.map(t => t.label), shareDone: Share.done,
                 cameras: Camera.cameras.length, cameraPhase: Camera.phase, cameraLast: Camera.last,
@@ -993,11 +1055,11 @@ ShellRoot {
                 textEditorFile: TextDocs.current ? TextDocs.current.path : "", textEditorDocs: TextDocs.docs.length, textEditorUnsaved: TextDocs.unsaved, textEditorChars: TextDocs.current ? TextDocs.current.text.length : 0, textEditorSaved: TextDocs.lastSaved, textEditorError: TextDocs.error, textEditorReadOnly: TextDocs.current ? TextDocs.current.readOnly : false,
                 tasksShown: Ui.tasks, tasksOpen: Tasks.open.map(t => t.summary), tasksDone: Tasks.done.map(t => t.summary), tasksAvailable: Tasks.available, photosShown: Ui.photos, translateShown: Ui.translate, weatherShown: Ui.weather, cleanUpShown: Ui.settingsOpen && Ui.settingsCat === "storage", authenticatorShown: Ui.authenticator, converterShown: Ui.converter, nearbyShown: Ui.nearby, nearbyVisible: Nearby.visible_, nearbyDevices: Nearby.devices.map(d => d.alias), nearbyOffers: Nearby.offers.length, nearbyTransfers: Object.values(Nearby.transfers).map(t => t.direction + ":" + t.state), nearbyNote: Nearby.note, screenTimeShown: Ui.settingsOpen && Ui.settingsCat === "screentime", clocksShown: Ui.clocks, clocksTab: Ui.clocksTab,
                 archiveShown: Archive.shown, archiveFile: Archive.file, archiveEntries: Archive.entries.length, archiveSize: Archive.totalSize, archiveExtractedTo: Archive.extractedTo, archiveError: Archive.error, archiveReading: Archive.reading, archiveExtracting: Archive.extracting, archivePassword: Archive.needsPassword, archiveMade: Archive.made, archiveCreating: Archive.creating,
-                librarySongs: MusicLibrary.songs.length, libraryVideos: MusicLibrary.videos.length, libraryAlbums: MusicLibrary.albums.map(a => a.title), libraryScanning: MusicLibrary.scanning, mediaPage: PlayQueue.page, mediaShown: PlayQueue.shown, mediaFile: PlayQueue.current, mediaPlayerPlaying: PlayQueue.playing, mediaMini: PlayQueue.mini, mediaResumedFrom: PlayQueue.resumedFrom, mediaSubtitleFile: PlayQueue.subtitleFile, mediaCue: PlayQueue.cue, mediaAudioTracks: PlayQueue.audioTrackCount, mediaTagLine: PlayQueue.tagLine, mediaCover: PlayQueue.coverShown, mediaPinned: Niri.pinned.length, mediaPosition: Math.round(PlayQueue.position * 10) / 10, mediaDuration: Math.round(PlayQueue.duration * 10) / 10, mediaHasVideo: PlayQueue.hasVideo, mediaQueue: PlayQueue.queue.length, mediaIndex: PlayQueue.index, mediaError: PlayQueue.error, mediaVolume: PlayQueue.volume, mediaRate: PlayQueue.rate,
+                librarySongs: MusicLibrary.songs.length, libraryVideos: MusicLibrary.videos.length, libraryAlbums: MusicLibrary.albums.map(a => a.title), libraryScanning: MusicLibrary.scanning, mediaPage: PlayQueue.page, mediaShown: PlayQueue.shown, mediaFrameSaved: Ui.mediaFrameSaved, mediaFile: PlayQueue.current, mediaPlayerPlaying: PlayQueue.playing, mediaMini: PlayQueue.mini, mediaResumedFrom: PlayQueue.resumedFrom, mediaSubtitleFile: PlayQueue.subtitleFile, mediaCue: PlayQueue.cue, mediaAudioTracks: PlayQueue.audioTrackCount, mediaTagLine: PlayQueue.tagLine, mediaCover: PlayQueue.coverShown, mediaPinned: Niri.pinned.length, mediaPosition: Math.round(PlayQueue.position * 10) / 10, mediaDuration: Math.round(PlayQueue.duration * 10) / 10, mediaHasVideo: PlayQueue.hasVideo, mediaQueue: PlayQueue.queue.length, mediaIndex: PlayQueue.index, mediaError: PlayQueue.error, mediaVolume: PlayQueue.volume, mediaRate: PlayQueue.rate,
                 scanner: Ui.scanner, passwordGenerator: Ui.passwordGenerator, kundali: Ui.kundali,
                 pdfSigner: Ui.pdfSigner, pdfSignerFile: PdfSigner.file, pdfSignerName: PdfSigner.name, pdfSignerSignature: PdfSigner.signature, pdfSignerX: PdfSigner.x, pdfSignerY: PdfSigner.y, pdfSignerScale: PdfSigner.scale, pdfSignerText: PdfSigner.fillText, pdfSignerTextX: PdfSigner.textX, pdfSignerTextY: PdfSigner.textY, pdfSignerSaved: PdfSigner.pdfSignerFile, pdfSignerLastSaved: PdfSigner.lastSaved, pdfSignerSaving: PdfSigner.saving,
-                disktree: Ui.diskUsage, diskUsageRoot: DiskUsage.scanRoot, diskUsageCurrent: DiskUsage.current, diskUsageEntries: DiskUsage.entries.length, diskUsageMarked: DiskUsage.markedCount, diskUsageTotal: DiskUsage.totalSize, diskUsageScanning: DiskUsage.scanning, diskUsageLast: DiskUsage.last,
-                filesShown: Ui.files, filesPath: Files.path, filesSelected: Files.selected.length, filesView: Files.viewMode, filesError: Files.error, filesPlaces: Files.places.length, filesEntries: Files.entryCount, filesNote: Files.note, filesUndo: Files.undoLabel, filesProps: Files.props ? JSON.stringify(Files.props) : "", filesTrashNames: Object.keys(Files.trashItems), filesBookmarks: Files.places.filter(p => p.bookmark).map(p => p.path), filesNames: Files._paths.map(p => p.split("/").pop()),
+                disktree: Ui.diskUsage, diskUsageRoot: DiskUsage.scanRoot, diskUsageCurrent: DiskUsage.current, diskUsageEntries: DiskUsage.entries.length, diskUsageMarked: DiskUsage.markedCount, diskUsageTotal: DiskUsage.totalSize, diskUsageScanning: DiskUsage.scanning, diskUsageLast: DiskUsage.last, diskUsageView: DiskUsage.view, diskUsageDupes: DiskUsage.dupes.map(g => g.paths.length), diskUsageBig: DiskUsage.big.length, diskUsageMarkedPaths: DiskUsage.marked,
+                filesShown: Ui.files, filesPath: Files.path, filesTabs: Files.tabPaths, filesTabIndex: Files.tabIndex, filesZoom: Files.zoom, filesStarred: Files.starred, filesFree: Files.freeBytes, filesTemplates: Files.templates.map(x => x.name), filesSelectedNames: Files.selected.map(p => p.split("/").pop()), filesThumbs: Object.keys(Files.thumbs).map(p => p.split("/").pop()), filesDevices: Files.devices.map(d => d.name + (d.mounted ? ":open" : ":closed")), filesConnectError: Files.connectError, filesConnectLogin: Files.connectNeedsLogin, filesJobRunning: Files.jobRunning, filesJobTotal: Files.jobTotal, filesJobDone: Files.jobDone, filesSelected: Files.selected.length, filesView: Files.viewMode, filesError: Files.error, filesPlaces: Files.places.length, filesEntries: Files.entryCount, filesNote: Files.note, filesUndo: Files.undoLabel, filesProps: Files.props ? JSON.stringify(Files.props) : "", filesUsbDrives: Files.usb ? (Files.usb.drives || []).map(d => d.name) : [], filesUsbBusy: Files.usbBusy, filesUsbResult: Files.usbResult, filesImageMounted: Files.imageMounted, filesUnlockFor: Files.unlockFor ? Files.unlockFor.name : "", filesUnlockError: Files.unlockError, filesShares: Object.keys(Files.shares), filesServers: Files.servers.map(s => s.name), filesLocker: Files.locker ? Files.locker.mode : "", filesLockError: Files.lockError, filesLockResult: Files.lockResult, filesServedUrl: Files.servedUrl, filesServedGot: Files.servedGot, filesClouds: Files.clouds.map(c => c.name + ":" + c.type), filesCloudError: Files.cloudError, filesAsAdmin: Files.asAdmin, filesConflict: Files.conflictAsk ? Files.conflictAsk.names : [], filesJobPaused: Files.jobPaused, filesJobRate: Files.jobRate, filesJobFailed: Files.jobFailed.map(f => f.path.split("/").pop()), filesJobsWaiting: Files.jobsWaiting, filesLastCheck: Files.lastCheck ? JSON.stringify({ good: Files.lastCheck.good, bad: (Files.lastCheck.bad || []).length, missing: (Files.lastCheck.missing || []).length }) : "", filesCopyHistory: Files.copyHistory.length, filesRedo: Files.redoLabel, filesScripts: Files.scripts.map(s => s.name), filesCompare: Files.comparison ? JSON.stringify({ kind: Files.comparison.kind || "", changes: Files.comparison.changes || 0, same: !!Files.comparison.same, rows: (Files.comparison.rows || []).length, loading: !!Files.comparison.loading }) : "", filesTrashNames: Object.keys(Files.trashItems), filesBookmarks: Files.places.filter(p => p.bookmark).map(p => p.path), filesNames: Files._paths.map(p => p.split("/").pop()),
                 pickerShown: FilePicker.shown, pickerPath: FilePicker.path, pickerPicked: FilePicker.lastPicked.join(" "),
                 voiceRecorder: Ui.voiceRecorder, voiceRecording: VoiceRecorder.recording, voicePaused: VoiceRecorder.paused, voiceElapsed: VoiceRecorder.elapsed, voiceFiles: VoiceRecorder.recordings.length, voiceFile: VoiceRecorder.file, voiceLast: VoiceRecorder.last, voiceLevel: Math.round(VoiceRecorder.level * 100), voiceTrimFile: VoiceRecorder.trimFile, voiceTrimStart: VoiceRecorder.trimStart, voiceTrimEnd: VoiceRecorder.trimEnd, voiceTrimmed: VoiceRecorder.trimmedLast,
                 videoTrimmer: Ui.videoTrimmer, videoTrimmerInput: VideoTrimmer.input, videoTrimmerStart: VideoTrimmer.start, videoTrimmerEnd: VideoTrimmer.end, videoTrimmerDuration: VideoTrimmer.inputDuration, videoTrimmerResult: VideoTrimmer.result, videoTrimmerCutting: VideoTrimmer.cutting, videoTrimmerError: VideoTrimmer.error, videoTrimmerAvailable: VideoTrimmer.available, videoTrimmerResultDuration: VideoTrimmer.resultDuration,

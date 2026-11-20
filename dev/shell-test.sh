@@ -1994,6 +1994,27 @@ if [ -S /run/cups/cups.sock ]; then
     waitfor "any(':default:' in p for p in d['printersSeen'])" 3 \
         && result printers-shows-default PASS || result printers-shows-default FAIL "$(q "['printersSeen']")"
     cancel -a Office_Laser 2>/dev/null
+    # your defaults for it (system-config-printer's options): set, then shown as chosen
+    lpoptions -p Office_Laser -o media=Letter -o sides=two-sided-long-edge -o print-color-mode=monochrome >/dev/null
+    ipc closeAll; sleep 0.3; ipc settingsCategory printers
+    waitfor "'Office_Laser:Letter:two-sided-long-edge:monochrome' in d['printerOptions']" 6 && result printers-defaults-shown PASS || result printers-defaults-shown FAIL "$(q "['printerOptions']"); $(lpoptions -p Office_Laser 2>&1 | head -c 200)"
+    lpoptions -p Office_Laser -o media=A4 -o sides=one-sided -o print-color-mode=color >/dev/null
+    # Add a printer: what the network announces (ippfind stands in: a new one, and
+    # Office_Laser's own address, which is set up already and so not offered),
+    # added driverless through polkit (pkexec stands in, writing down what it ran)
+    A11Y=${A11Y:-/testbed/lib/a11y_client.py}
+    if [ -f "$A11Y" ]; then
+        printf '#!/bin/sh\nprintf "Hall Printer\\tipp://10.0.0.9/ipp/print\\nOffice Laser\\tfile:///tmp/printed.out\\nHall Printer\\tipps://10.0.0.9/ipp/print\\n"\n' > /usr/local/bin/ippfind
+        printf '#!/bin/sh\necho "$*" > /tmp/pkexec-ran\n' > /usr/local/bin/pkexec
+        chmod +x /usr/local/bin/ippfind /usr/local/bin/pkexec; rm -f /tmp/pkexec-ran
+        timeout 20 python3 "$A11Y" press "button:^Add a printer…$" >/dev/null 2>&1
+        waitfor "d['printersFound'] == ['Hall Printer']" 6 && result printers-found-on-network PASS || result printers-found-on-network FAIL "$(q "['printersFound']")"
+        shot printers-add 0.3
+        timeout 20 python3 "$A11Y" press "radio button:^Hall Printer$" >/dev/null 2>&1; sleep 1
+        [ "$(cat /tmp/pkexec-ran 2>/dev/null)" = "lpadmin -p Hall_Printer -E -v ipp://10.0.0.9/ipp/print -m everywhere" ] \
+            && result printers-add-driverless PASS || result printers-add-driverless FAIL "$(cat /tmp/pkexec-ran 2>&1)"
+        rm -f /usr/local/bin/ippfind /usr/local/bin/pkexec
+    fi
     ipc closeAll
 else
     result printers-listed SKIP "no cupsd in this image"

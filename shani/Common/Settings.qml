@@ -466,6 +466,12 @@ Singleton {
             // whether the hidden files and the preview are shown
             property string filesViewMode: "grid"
             property bool filesSearchDeep: false          // Files' search goes through the folders under this one too
+            property var filesRecentServers: []           // Files: servers connected to before, newest first (clicked, not typed again)
+            property var filesRecentDests: []             // Files: Copy to… / Move to… folders used lately, newest first
+            property bool pdfNight: false                 // Document Viewer: pages shown inverted (night mode)
+            property bool filesVerify: false              // Files: every copy read back and checked (TeraCopy's verify)
+            property var mapsSaved: []                    // Maps: places saved, [{ name, desc, lat, lon }]
+            property real filesZoom: 1                    // Files: how big the tiles and icons are (Ctrl+plus / minus / 0)
             property string filesSortKey: "name"
             property bool filesSortDesc: false
             property bool filesShowHidden: false

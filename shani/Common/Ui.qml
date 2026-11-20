@@ -23,6 +23,11 @@ Singleton {
     property bool logs: false                  // the Logs surface (Modules/Logs)
     property bool player: false  // the Player surface (Modules/Player): queue, seek, volume, lyrics
     property bool fonts: false  // the Fonts surface (Modules/Fonts): preview, size, install
+    property string fontFile: ""  // a font file opened in Fonts (a .ttf from Files): shown, then installable
+    property string mediaFrameSaved: ""     // the Media Player's last saved frame, for the tests
+    property string fontFileDetails: ""  // its style, version, maker... (fc-query), for the tests
+    property string fontFileFamily: ""   // what Fonts read from it ("!" when it is not a font it can read)
+    property bool fontFileInstalled: false
     property bool characters: false        // the Characters panel (Modules/Characters)
     property bool voiceRecorder: false     // the Voice Recorder panel (Modules/VoiceRecorder)
     property bool pdfSigner: false            // the Signed panel (Modules/PdfSigner): sign / fill a PDF
@@ -67,6 +72,8 @@ Singleton {
     property bool annotate: false                  // drawing on the screen
     property int annotateStrokes: 0
     property var printersSeen: []                  // Settings > Printers, for the tests
+    property var printerOptions: []                // Settings > Printers: name:media:sides:colour, for the tests
+    property var printersFound: []                 // Settings > Printers adding: what ippfind found, for the tests
     property string backupSummary: ""              // Settings > Backup, for the tests
     property string settingsCat: ""                // the settings category open
     property string settingsSection: ""            // a part of it to scroll to, once (openSettings)

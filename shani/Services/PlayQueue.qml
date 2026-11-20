@@ -88,6 +88,7 @@ Singleton {
     signal playRequested()
     signal pauseRequested()
     signal toggleRequested()
+    signal frameRequested()                 // save the frame on screen (the window does it)
     signal seekRequested(real seconds)
 
     readonly property var videoTypes: ["mp4", "mkv", "webm", "mov", "avi", "m4v", "mpg", "mpeg", "ogv", "wmv", "flv", "3gp", "ts"]

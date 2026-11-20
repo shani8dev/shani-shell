@@ -27,7 +27,7 @@ AppWindow {
     Item {
         anchors.fill: parent
         focus: win.visible
-        Keys.onEscapePressed: Viewer.close()
+        Keys.onEscapePressed: Viewer.textAt !== null ? Viewer.textAt = null : Viewer.editing ? Viewer.cancelEdit() : Viewer.close()
         Keys.onRightPressed: Viewer.next()
         Keys.onLeftPressed: Viewer.prev()
         Keys.onPressed: e => {
@@ -49,6 +49,7 @@ AppWindow {
             else if (e.key === Qt.Key_C) Viewer.copyPath();
             else if (e.key === Qt.Key_Delete || e.key === Qt.Key_Backspace) Viewer.trash();
             else if (e.key === Qt.Key_O) Viewer.openWith();
+            else if (e.key === Qt.Key_E) { if (Viewer.editing) Viewer.cancelEdit(); else Viewer.startEdit(); }
         }
     }
     Item {
@@ -85,18 +86,26 @@ AppWindow {
                 color: Theme.hover
                 clip: true
 
-                Image {
+                // an AnimatedImage is an Image that also plays (GIF, animated WebP, APNG -
+                // Loupe plays them); a still picture is one frame
+                AnimatedImage {
                     id: mainImage
+                    playing: Viewer.file !== "" && !Viewer.editing
                     visible: !Viewer.gridMode
                     width: parent.width
                     height: parent.height
                     x: Viewer.panX
                     y: Viewer.panY
-                    source: Viewer.file !== "" ? "file://" + Viewer.file : ""
+                    source: Viewer.shownFile !== "" ? "file://" + Viewer.shownFile : ""
                     fillMode: Image.PreserveAspectFit
                     smooth: true
                     cache: false
-                    scale: Viewer.zoom
+                    // turned a quarter, the fitted picture's sides swap: scaled down so it
+                    // still fits (it overflowed the box before)
+                    readonly property bool turned: Viewer.rotation % 180 !== 0
+                    readonly property real fitTurned: turned && paintedWidth > 0 && paintedHeight > 0
+                        ? Math.min(1, width / paintedHeight, height / paintedWidth) : 1
+                    scale: Viewer.zoom * fitTurned
                     rotation: Viewer.rotation
                     transformOrigin: Item.Center
                     transform: Scale {
@@ -107,6 +116,158 @@ AppWindow {
                     }
                     Accessible.role: Accessible.Graphic
                     Accessible.name: "Picture: " + Viewer.name
+                    Binding { target: Viewer; property: "frames"; value: mainImage.frameCount }
+                    Binding { target: Viewer; property: "loadStatus"; value: mainImage.status === Image.Ready ? "ready" : mainImage.status === Image.Error ? "error" : "loading" }
+                }
+                // editing: the crop over the picture as shown (turned: its sides swap)
+                Item {
+                    id: cropArea
+                    visible: Viewer.editing && !Viewer.gridMode
+                    readonly property bool turned: Viewer.rotation % 180 !== 0
+                    width: (turned ? mainImage.paintedHeight : mainImage.paintedWidth) * mainImage.fitTurned
+                    height: (turned ? mainImage.paintedWidth : mainImage.paintedHeight) * mainImage.fitTurned
+                    x: (parent.width - width) / 2
+                    y: (parent.height - height) / 2
+                    readonly property real shownRatio: height > 0 ? width / height : 1
+                    // fixed aspect: a corner moves the width, the height follows
+                    function wantRatio() {
+                        const a = Viewer.cropAspect;
+                        return a === "square" ? 1 : a === "4:3" ? 4 / 3 : a === "16:9" ? 16 / 9 : a === "original" ? shownRatio : 0;
+                    }
+                    // the dimmed outside
+                    Rectangle { x: 0; y: 0; width: parent.width; height: frame.y; color: "#99000000" }
+                    Rectangle { x: 0; y: frame.y + frame.height; width: parent.width; height: parent.height - y; color: "#99000000" }
+                    Rectangle { x: 0; y: frame.y; width: frame.x; height: frame.height; color: "#99000000" }
+                    Rectangle { x: frame.x + frame.width; y: frame.y; width: parent.width - x; height: frame.height; color: "#99000000" }
+                    Rectangle {
+                        id: frame
+                        x: Viewer.cropX * cropArea.width
+                        y: Viewer.cropY * cropArea.height
+                        width: Viewer.cropW * cropArea.width
+                        height: Viewer.cropH * cropArea.height
+                        color: "transparent"
+                        border.width: 2
+                        border.color: "white"
+                        Accessible.role: Accessible.Graphic
+                        Accessible.name: Tr.t("Crop")
+                        // the body moves it
+                        MouseArea {
+                            anchors.fill: parent
+                            anchors.margins: Theme.px(14)
+                            cursorShape: Qt.SizeAllCursor
+                            property point start
+                            property real sx: 0
+                            property real sy: 0
+                            onPressed: m => { start = mapToItem(cropArea, m.x, m.y); sx = Viewer.cropX; sy = Viewer.cropY; }
+                            onPositionChanged: m => {
+                                const p = mapToItem(cropArea, m.x, m.y);
+                                Viewer.setCrop(sx + (p.x - start.x) / cropArea.width, sy + (p.y - start.y) / cropArea.height, Viewer.cropW, Viewer.cropH);
+                            }
+                        }
+                        // the corners size it (the opposite corner stays put)
+                        Repeater {
+                            model: [[0, 0], [1, 0], [0, 1], [1, 1]]
+                            Rectangle {
+                                required property var modelData
+                                width: Theme.px(18); height: width; radius: width / 2
+                                color: "white"
+                                x: modelData[0] * frame.width - width / 2
+                                y: modelData[1] * frame.height - height / 2
+                                MouseArea {
+                                    anchors.fill: parent
+                                    anchors.margins: -Theme.px(6)
+                                    cursorShape: Qt.SizeFDiagCursor
+                                    onPositionChanged: m => {
+                                        const p = mapToItem(cropArea, m.x, m.y);
+                                        const fx = Math.max(0, Math.min(1, p.x / cropArea.width)), fy = Math.max(0, Math.min(1, p.y / cropArea.height));
+                                        // the fixed corner
+                                        const ox = parent.modelData[0] ? Viewer.cropX : Viewer.cropX + Viewer.cropW;
+                                        const oy = parent.modelData[1] ? Viewer.cropY : Viewer.cropY + Viewer.cropH;
+                                        let w = Math.abs(fx - ox), h = Math.abs(fy - oy);
+                                        const r = cropArea.wantRatio();
+                                        if (r > 0) h = w * cropArea.width / (cropArea.height * r);
+                                        const x = parent.modelData[0] ? ox : ox - w, y = parent.modelData[1] ? oy : oy - h;
+                                        Viewer.setCrop(x, y, w, h);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                // markup: the strokes so far, and a pen while Draw is on (over the crop)
+                Canvas {
+                    id: inkCanvas
+                    visible: Viewer.editing && !Viewer.gridMode
+                    x: cropArea.x; y: cropArea.y; width: cropArea.width; height: cropArea.height
+                    z: 2
+                    property var live: []                    // the stroke being drawn
+                    // each kind as imgedit.py will burn it in
+                    function mark(ctx, kind, color, size, pts, words) {
+                        if (!pts.length) return;
+                        const m = Math.min(width, height), w = Math.max(1, size * m);
+                        const P = pts.map(p => [p[0] * width, p[1] * height]);
+                        const a = P[0], b = P[P.length - 1];
+                        ctx.save();
+                        ctx.strokeStyle = color; ctx.fillStyle = color;
+                        ctx.lineWidth = w; ctx.lineCap = "round"; ctx.lineJoin = "round";
+                        if (kind === "blur") {
+                            ctx.fillStyle = Qt.rgba(0.5, 0.5, 0.5, 0.75);
+                            ctx.fillRect(Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]));
+                        } else if (kind === "box") {
+                            ctx.strokeRect(Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]));
+                        } else if (kind === "text") {
+                            ctx.font = Math.max(12, w * 5) + "px sans-serif";
+                            ctx.fillText(words || "", a[0], a[1]);
+                        } else {
+                            if (kind === "highlight") { ctx.globalAlpha = 0.4; ctx.lineWidth = w * 4; }
+                            ctx.beginPath();
+                            ctx.moveTo(a[0], a[1]);
+                            const pts2 = kind === "line" || kind === "arrow" ? [b] : P.slice(1);
+                            for (const p of pts2) ctx.lineTo(p[0], p[1]);
+                            if (P.length === 1) ctx.lineTo(a[0] + 0.1, a[1]);
+                            ctx.stroke();
+                            if (kind === "arrow") {
+                                const ang = Math.atan2(b[1] - a[1], b[0] - a[0]), L = Math.max(10, w * 5);
+                                ctx.beginPath(); ctx.moveTo(b[0], b[1]);
+                                ctx.lineTo(b[0] - L * Math.cos(ang - 0.45), b[1] - L * Math.sin(ang - 0.45));
+                                ctx.lineTo(b[0] - L * Math.cos(ang + 0.45), b[1] - L * Math.sin(ang + 0.45));
+                                ctx.closePath(); ctx.fill();
+                            }
+                        }
+                        ctx.restore();
+                    }
+                    onPaint: {
+                        const ctx = getContext("2d");
+                        ctx.clearRect(0, 0, width, height);
+                        for (const s of Viewer.strokes) mark(ctx, s.kind || "pen", s.color, s.size, s.points, s.text);
+                        mark(ctx, Viewer.tool, Viewer.penColor, Viewer.penSize, Viewer.twoPoint && live.length > 1 ? [live[0], live[live.length - 1]] : live, "");
+                    }
+                    Connections { target: Viewer; function onStrokesChanged() { inkCanvas.requestPaint(); } }
+                    onWidthChanged: requestPaint()
+                    onHeightChanged: requestPaint()
+                    // the words, typed where the text tool was clicked
+                    TextField {
+                        visible: Viewer.textAt !== null
+                        x: Viewer.textAt ? Math.min(Viewer.textAt[0] * parent.width, parent.width - width) : 0
+                        y: Viewer.textAt ? Math.max(0, Viewer.textAt[1] * parent.height - height) : 0
+                        z: 5
+                        width: Theme.px(220)
+                        placeholderText: Tr.t("Words, then Enter")
+                        onVisibleChanged: if (visible) { text = ""; input.forceActiveFocus(); }
+                        onAccepted: Viewer.addText(text)
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        enabled: Viewer.drawing && Viewer.textAt === null
+                        cursorShape: Qt.CrossCursor
+                        function at(m) { return [Math.max(0, Math.min(1, m.x / width)), Math.max(0, Math.min(1, m.y / height))]; }
+                        onPressed: m => {
+                            if (Viewer.tool === "text") { Viewer.textAt = at(m); return; }   // words typed where it was clicked
+                            inkCanvas.live = [at(m)]; inkCanvas.requestPaint();
+                        }
+                        onPositionChanged: m => { inkCanvas.live = inkCanvas.live.concat([at(m)]); inkCanvas.requestPaint(); }
+                        onReleased: { if (Viewer.tool !== "text") { Viewer.addStroke(inkCanvas.live); inkCanvas.live = []; } }
+                    }
                 }
                 Text {
                     visible: Viewer.file === ""
@@ -245,6 +406,56 @@ AppWindow {
                 IconButton { icon: "media-playback-start"; size: Theme.px(28); tip: Tr.t("Slideshow (S)"); on: Viewer.slideshow; onClicked: Viewer.toggleSlideshow() }
                 IconButton { icon: "view-grid"; size: Theme.px(28); tip: Tr.t("Grid (G)"); on: Viewer.gridMode; onClicked: Viewer.toggleGrid() }
                 IconButton { icon: "view-list"; size: Theme.px(28); tip: Tr.t("Thumbnails (T)"); on: Viewer.showThumbs; onClicked: Viewer.toggleThumbs() }
+                IconButton { icon: "preferences-desktop-wallpaper"; size: Theme.px(28); tip: Tr.t("Set as wallpaper"); onClicked: Viewer.setWallpaper() }
+                IconButton { icon: "document-edit"; size: Theme.px(28); tip: Tr.t("Crop, draw and save (E)"); on: Viewer.editing; onClicked: Viewer.editing ? Viewer.cancelEdit() : Viewer.startEdit() }
+            }
+            // editing: the crop's shape, and how it is kept - a copy, or in place
+            // (the original goes to the trash, where it can be put back)
+            RowLayout {
+                Layout.fillWidth: true
+                visible: Viewer.editing
+                spacing: Theme.px(6)
+                Repeater {
+                    model: Viewer.drawing ? [] : [["free", Tr.t("Free")], ["original", Tr.t("Original")], ["square", Tr.t("Square")], ["4:3", "4:3"], ["16:9", "16:9"]]
+                    Choice { required property var modelData; text: modelData[1]; selected: Viewer.cropAspect === modelData[0]; onClicked: Viewer.setAspect(modelData[0], cropArea.shownRatio) }
+                }
+                // markup: a pen in a few colours and sizes; Undo takes the last stroke
+                Choice { text: Tr.t("Draw"); selected: Viewer.drawing; onClicked: Viewer.drawing = !Viewer.drawing }
+                Repeater {
+                    model: Viewer.drawing ? [["pen", Tr.t("Pen")], ["highlight", Tr.t("Highlighter")], ["line", Tr.t("Line")], ["arrow", Tr.t("Arrow")],
+                                             ["box", Tr.t("Box")], ["text", Tr.t("Text")], ["blur", Tr.t("Blur")]] : []
+                    Choice { required property var modelData; text: modelData[1]; selected: Viewer.tool === modelData[0]; onClicked: Viewer.tool = modelData[0] }
+                }
+                Repeater {
+                    model: Viewer.drawing ? [["#e01b24", Tr.t("Red")], ["#f6d32d", Tr.t("Yellow")], ["#33d17a", Tr.t("Green")], ["#3584e4", Tr.t("Blue")], ["#ffffff", Tr.t("White")], ["#000000", Tr.t("Black")]] : []
+                    Rectangle {
+                        required property var modelData
+                        width: Theme.px(22); height: width; radius: width / 2
+                        color: modelData[0]
+                        border.width: Viewer.penColor === modelData[0] ? 3 : 1
+                        border.color: Viewer.penColor === modelData[0] ? Theme.accent : Theme.border
+                        Accessible.role: Accessible.RadioButton
+                        Accessible.name: modelData[1]
+                        Accessible.checked: Viewer.penColor === modelData[0]
+                        Accessible.onPressAction: Viewer.penColor = modelData[0]
+                        Accessible.onToggleAction: Viewer.penColor = modelData[0]
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Viewer.penColor = parent.modelData[0] }
+                    }
+                }
+                Repeater {
+                    model: Viewer.drawing ? [[0.004, Tr.t("Thin")], [0.008, Tr.t("Medium")], [0.02, Tr.t("Thick")]] : []
+                    Choice { required property var modelData; text: modelData[1]; selected: Math.abs(Viewer.penSize - modelData[0]) < 0.0001; onClicked: Viewer.penSize = modelData[0] }
+                }
+                // the size it is saved at (Loupe has no resize; Drawing and GIMP do)
+                Repeater {
+                    model: Viewer.drawing ? [] : [["", Tr.t("Full size")], ["50%", "50%"], ["1920x1920>", Tr.t("Max 1920")], ["1080x1080>", Tr.t("Max 1080")]]
+                    Choice { required property var modelData; text: modelData[1]; selected: Viewer.resizeTo === modelData[0]; onClicked: Viewer.resizeTo = modelData[0] }
+                }
+                IconButton { visible: Viewer.drawing; enabled: Viewer.strokes.length > 0; icon: "edit-undo"; size: Theme.px(26); tip: Tr.t("Undo the last stroke"); onClicked: Viewer.undoStroke() }
+                Item { Layout.fillWidth: true }
+                Button { text: Tr.t("Cancel"); flat: true; onClicked: Viewer.cancelEdit() }
+                Button { text: Tr.t("Replace"); flat: true; enabled: Viewer.edited && !Viewer.saving; onClicked: Viewer.saveEdit("replace") }
+                Button { text: Viewer.saving ? Tr.t("Saving…") : Tr.t("Save a copy"); enabled: Viewer.edited && !Viewer.saving; onClicked: Viewer.saveEdit("copy") }
             }
             RowLayout {
                 Layout.fillWidth: true

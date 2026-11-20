@@ -152,6 +152,122 @@ Singleton {
     function panBy(dx, dy) { panX += dx; panY += dy; }
 
     // ---- rotate + flip ------------------------------------------------------
+    // ---- editing (Loupe parity): crop, and the turn and flip on screen, saved --------
+    // The crop is fractions (0..1) of the picture as shown - after its EXIF turn, the
+    // rotation and the flips - so ImageMagick does the same steps in the same order:
+    // the flips (QML applies `transform` before `rotation`), the whole rotation, the
+    // orientation tag reset (it is in the pixels now), then the crop.
+    property string loadStatus: ""          // ready | error | loading: the picture on screen (Viewer.qml sets it)
+    // what Qt's own readers cannot read (an unusual TGA, a camera's RAW, PCD ...):
+    // ImageMagick makes a PNG of it in the cache, and that is what is shown; edits
+    // still read the original
+    property string shownFile: ""           // the file the picture on screen is drawn from
+    onFileChanged: shownFile = file
+    onLoadStatusChanged: {
+        if (loadStatus !== "error" || file === "" || shownFile !== file) return;
+        const out = (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") || "/tmp") + "/.cache") + "/shani-viewer/" + Qt.md5(file) + ".png";
+        fallback.command = ["sh", "-c", 'mkdir -p "${2%/*}" && { [ "$2" -nt "$1" ] || magick "$1[0]" -auto-orient "png:$2"; } && printf %s "$2"', "sh", file, out];
+        fallback.from = file;
+        fallback.running = true;
+    }
+    Process {
+        id: fallback
+        property string from: ""
+        stdout: StdioCollector { onStreamFinished: { const out = text.trim(); if (out && fallback.from === root.file) root.shownFile = out; } }
+    }
+    property bool editing: false
+    property real cropX: 0
+    property real cropY: 0
+    property real cropW: 1
+    property real cropH: 1
+    property string cropAspect: "free"      // free | original | square | 4:3 | 16:9
+    property bool saving: false
+    property string saved: ""               // the file the last edit wrote
+    property int frames: 0                  // the picture on screen's frames (2+: it plays)
+    property string resizeTo: ""            // "" | "50%" | "1920x1920>" ...: the size it is saved at
+    function setWallpaper() {
+        if (file === "") return;
+        Settings.data.wallpaper = file;
+        lastAction = "set as wallpaper";
+    }
+    readonly property bool edited: resizeTo !== "" || cropX > 0.001 || cropY > 0.001 || cropW < 0.999 || cropH < 0.999 || rotation !== exifRotation || flipH || flipV || strokes.length > 0
+    // markup (Drawing's job): pen strokes over the picture as shown, each
+    // { color, size: a fraction of its shorter side, points: [[x, y] in 0..1] },
+    // drawn into the pixels after the turn and before the crop - so where they were
+    // drawn on screen is where they land
+    property bool drawing: false
+    property var strokes: []
+    property string penColor: "#e01b24"
+    property real penSize: 0.008
+    // Drawing's tools: pen, highlight, line, arrow, box, text, blur (hides what is in it)
+    property string tool: "pen"
+    readonly property bool twoPoint: ["line", "arrow", "box", "blur"].indexOf(tool) >= 0
+    function addStroke(points) {
+        if (!points || !points.length) return;
+        if (twoPoint) points = [points[0], points[points.length - 1]];
+        strokes = strokes.concat([{ kind: tool, color: penColor, size: penSize, points: points.length > 1 ? points : [points[0], points[0]] }]);
+    }
+    property var textAt: null               // [x, y] where words are being typed
+    function addText(words) {
+        if (textAt && words && words.trim())
+            strokes = strokes.concat([{ kind: "text", color: penColor, size: penSize, points: [textAt], text: words.trim() }]);
+        textAt = null;
+    }
+    function undoStroke() { strokes = strokes.slice(0, -1); }
+    function startEdit() {
+        if (file === "") return;
+        editing = true;
+        zoom = 1.0; panX = 0; panY = 0; zoomMode = "fit";
+        cropX = 0; cropY = 0; cropW = 1; cropH = 1; cropAspect = "free";
+        strokes = []; drawing = false; resizeTo = "";
+    }
+    function cancelEdit() { editing = false; drawing = false; strokes = []; cropX = 0; cropY = 0; cropW = 1; cropH = 1; }
+    function setCrop(x, y, w, h) {
+        cropW = Math.max(0.05, Math.min(1, w)); cropH = Math.max(0.05, Math.min(1, h));
+        cropX = Math.max(0, Math.min(1 - cropW, x)); cropY = Math.max(0, Math.min(1 - cropH, y));
+    }
+    // the crop's aspect, in the picture's shown proportions (ratio: its width / height)
+    function setAspect(a, shownRatio) {
+        cropAspect = a;
+        if (a === "free") return;
+        const want = a === "square" ? 1 : a === "4:3" ? 4 / 3 : a === "16:9" ? 16 / 9 : shownRatio;
+        // the biggest rectangle of that shape inside the picture, centred
+        let w = 1, h = shownRatio / want;
+        if (h > 1) { h = 1; w = want / shownRatio; }
+        setCrop((1 - w) / 2, (1 - h) / 2, w, h);
+    }
+    function saveEdit(mode) {        // "copy": beside it, "name (edited)"; "replace": the original to the trash first
+        if (file === "" || saving) return;
+        saving = true;
+        // imgedit.py does it (turn, flips, markup, crop, resize): one ImageMagick run
+        // with an argument list, the original to the trash first for Replace
+        saveProc.payload = JSON.stringify({ flipH: flipH, flipV: flipV, rotation: rotation, crop: [cropX, cropY, cropW, cropH],
+                                            resize: resizeTo, marks: strokes });
+        saveProc.command = ["python3", root.imgeditTool, "save", file, mode];
+        saveProc.mode = mode;
+        saveProc.stdinEnabled = true;
+        saveProc.running = true;
+    }
+    readonly property string imgeditTool: Quickshell.env("SHANI_IMGEDIT_TOOL") || "/usr/lib/shani-shell/imgedit.py"
+    Process {
+        id: saveProc
+        property string mode: ""
+        property string payload: ""
+        stdinEnabled: true
+        onStarted: { write(payload + "\n"); stdinEnabled = false; }
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.saving = false;
+                const out = text.trim();
+                if (!out) { root.lastAction = "edit failed"; return; }
+                root.saved = out;
+                root.lastAction = saveProc.mode === "replace" ? "replaced (the original is in the trash)" : "saved a copy";
+                root.editing = false;
+                root.open(out);
+            }
+        }
+    }
+
     function rotate() { rotation = (rotation + 90) % 360; }
     function rotateCCW() { rotation = (rotation - 90 + 360) % 360; }
     function toggleFlipH() { flipH = !flipH; }

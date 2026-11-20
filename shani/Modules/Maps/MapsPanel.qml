@@ -42,6 +42,33 @@ AppWindow {
     property string placeName: ""
     property string placeDesc: ""
     property string placeType: ""
+    // a place's details from OpenStreetMap (Nominatim's extratags): GNOME Maps parity
+    property string placeHours: ""
+    property string placePhone: ""
+    property string placeWebsite: ""
+    // places saved (GNOME Maps' favourites): [{ name, desc, lat, lon }], a click each
+    readonly property var saved: Settings.data.mapsSaved || []
+    readonly property bool pinSaved: saved.some(p => Math.abs(p.lat - pinLat) < 1e-6 && Math.abs(p.lon - pinLon) < 1e-6)
+    function toggleSaved() {
+        if (pinLat === 0 && pinLon === 0) return;
+        Settings.data.mapsSaved = pinSaved
+            ? saved.filter(p => !(Math.abs(p.lat - pinLat) < 1e-6 && Math.abs(p.lon - pinLon) < 1e-6))
+            : saved.concat([{ name: placeName || Tr.t("Saved place"), desc: placeDesc, lat: pinLat, lon: pinLon }]);
+    }
+    // share a place (GNOME Maps' Share): its OpenStreetMap link copied, and shown as a
+    // QR code for a phone's camera
+    readonly property string shareUrl: pinLat === 0 && pinLon === 0 ? ""
+        : "https://www.openstreetmap.org/?mlat=" + pinLat.toFixed(6) + "&mlon=" + pinLon.toFixed(6) + "#map=17/" + pinLat.toFixed(6) + "/" + pinLon.toFixed(6)
+    function sharePlace() {
+        if (!shareUrl) return;
+        Quickshell.execDetached(["sh", "-c", 'printf "%s" "$1" | wl-copy', "sh", shareUrl]);
+        Qr.show(placeName || Tr.t("This place"), shareUrl);
+    }
+    function goSaved(p) {
+        mapLat = p.lat; mapLon = p.lon; pinLat = p.lat; pinLon = p.lon;
+        placeName = p.name; placeDesc = p.desc || ""; placeType = ""; placeHours = ""; placePhone = ""; placeWebsite = "";
+        clearRoute(); z = 16; Ui.mapsZoom = 16;
+    }
     property string searchError: ""
     property string searchField: ""
     property bool searching: false
@@ -132,7 +159,8 @@ AppWindow {
     readonly property var report: ({ lat: Math.round(mapLat * 1e4) / 1e4, lon: Math.round(mapLon * 1e4) / 1e4, zoom: z,
                                      route: route.length, distance: Math.round(routeDistance), steps: routeSteps.length,
                                      error: routeError || searchError, routing: routing,
-                                     tilesDrawn: tilesDrawn, tilesDistinct: tilesDistinct })
+                                     tilesDrawn: tilesDrawn, tilesDistinct: tilesDistinct,
+                                     hours: placeHours, phone: placePhone, website: placeWebsite, saved: saved.length, pinSaved: pinSaved, shareUrl: shareUrl })
     onReportChanged: Ui.mapsView = report
     Connections {
         target: Ui
@@ -141,6 +169,9 @@ AppWindow {
             else if (what === "zoom") win.zoomBy(Number(arg));
             else if (what === "directions") { win.routeProfile = arg || win.routeProfile; win.directions(); }
             else if (what === "from") win.directionsFrom(arg);
+            else if (what === "save") win.toggleSaved();
+            else if (what === "share") win.sharePlace();
+            else if (what === "go-saved") { const p = win.saved.find(s => s.name === arg); if (p) win.goSaved(p); }
         }
     }
     function clearRoute() { routeAsked = false; route = []; routeSteps = []; routeDistance = 0; routeError = ""; }
@@ -266,7 +297,7 @@ AppWindow {
         searching = true;
         searchField = q;
         // fields: display_name, lat, lon, type, class
-        const url = win.searchUrl + "?format=jsonv2&limit=1&accept-language=" + encodeURIComponent(Tr.lang || "en") + "&q=" + encodeURIComponent(q);
+        const url = win.searchUrl + "?format=jsonv2&limit=1&extratags=1&accept-language=" + encodeURIComponent(Tr.lang || "en") + "&q=" + encodeURIComponent(q);
         geoProc.command = ["curl", "-sf", "--max-time", "10", "-H", "User-Agent: " + win.userAgent, url];
         geoProc.running = true;
     }
@@ -320,6 +351,30 @@ AppWindow {
                 }
                 Button { text: win.searching ? "…" : "Search"; kind: "primary"; enabled: !win.searching && mapSearch.text.trim() !== ""; onClicked: { Ui.mapsQuery = mapSearch.text.trim(); win.geoCode(mapSearch.text.trim()); } }
                 Button { visible: win.pinLat !== 0 || win.pinLon !== 0; text: Tr.t("Directions"); kind: "outline"; onClicked: win.directions() }
+                IconButton {
+                    visible: win.pinLat !== 0 || win.pinLon !== 0
+                    icon: win.pinSaved ? "starred" : "non-starred"
+                    size: Theme.px(30); on: win.pinSaved
+                    tip: win.pinSaved ? Tr.t("Saved - click to forget it") : Tr.t("Save this place")
+                    onClicked: win.toggleSaved()
+                }
+                IconButton {
+                    visible: win.shareUrl !== ""
+                    icon: "emblem-shared"
+                    size: Theme.px(30)
+                    tip: Tr.t("Share: the link copied, and a code for a phone")
+                    onClicked: win.sharePlace()
+                }
+            }
+            // saved places: one click goes there
+            Flow {
+                Layout.fillWidth: true
+                visible: win.saved.length > 0
+                spacing: Theme.px(6)
+                Repeater {
+                    model: win.saved
+                    Choice { required property var modelData; text: modelData.name; onClicked: win.goSaved(modelData) }
+                }
             }
             Text {
                 visible: win.searchError !== ""
@@ -338,6 +393,16 @@ AppWindow {
                 font.family: Theme.font
                 font.pixelSize: Theme.px(12) * Theme.fontScale
                 wrapMode: Text.WordWrap
+            }
+            // what OpenStreetMap knows of it: open when, a phone, a website (a click opens it)
+            RowLayout {
+                Layout.fillWidth: true
+                visible: win.placeHours !== "" || win.placePhone !== "" || win.placeWebsite !== ""
+                spacing: Theme.px(12)
+                Text { visible: win.placeHours !== ""; text: Tr.t("Open: %1", win.placeHours); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Button { visible: win.placePhone !== ""; flat: true; text: win.placePhone; onClicked: Quickshell.execDetached(["xdg-open", "tel:" + win.placePhone.replace(/\s/g, "")]) }
+                Button { visible: win.placeWebsite !== ""; flat: true; text: Tr.t("Website"); onClicked: Quickshell.execDetached(["xdg-open", win.placeWebsite]) }
+                Item { Layout.fillWidth: true }
             }
 
             // ---- the map: as many tiles as fill it, dragged to pan, wheel or +/- to zoom ----
@@ -574,6 +639,10 @@ AppWindow {
                     win.placeName = name.split(",")[0] || name;
                     win.placeDesc = name;
                     win.placeType = String(r.type || r.class || "");
+                    const x = r.extratags || {};
+                    win.placeHours = String(x.opening_hours || "");
+                    win.placePhone = String(x.phone || x["contact:phone"] || "");
+                    win.placeWebsite = String(x.website || x["contact:website"] || "");
                     Ui.mapsQuery = win.searchField;
                     Ui.mapsPlace = name;
                     Ui.mapsLat = lat;

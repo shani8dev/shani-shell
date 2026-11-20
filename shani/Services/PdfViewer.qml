@@ -4,7 +4,7 @@ pragma Singleton
 // one cached page at a time, no PDF library in the shell. Papers/Evince
 // parity on top: page thumbnails sidebar, text search (pdftotext -bbox word
 // boxes highlighted over the page), outline/bookmarks (PyMuPDF), DjVu by
-// ddjvu, everything else not PDF made a PDF by PyMuPDF; fit-width / fit-page, continuous scroll option,
+// ddjvu, PostScript by Ghostscript, everything else not PDF made a PDF by PyMuPDF; fit-width / fit-page, continuous scroll option,
 // rotation, and print via `lp` (Printing.printFile backend). Shown by
 // Modules/PdfReader/PdfReader.qml until closed.
 import Quickshell
@@ -50,7 +50,7 @@ Singleton {
             }
         }
     }
-    readonly property var otherTypes: ["epub", "cbz", "cbr", "cb7", "cbt", "djvu", "djv", "xps", "oxps", "fb2", "mobi"]
+    readonly property var otherTypes: ["epub", "cbz", "cbr", "cb7", "cbt", "djvu", "djv", "xps", "oxps", "fb2", "mobi", "ps", "eps"]
     property var pages: []                  // rendered page PNGs, in order
     property int page: 0                    // which page is on screen (0-based)
     property bool loading: false            // pdftoppm is running
@@ -87,7 +87,53 @@ Singleton {
     readonly property bool shown: file !== ""
     readonly property string name: file === "" ? "" : file.split("/").pop()
     readonly property int pageCount: pages.length
-    readonly property string current: page >= 0 && page < pages.length ? pages[page] : ""
+    readonly property string current: page >= 0 && page < pages.length ? shownPage(pages[page]) : ""
+    // ---- Papers parity: night mode (the pages inverted - made once per page, beside
+    //      the rendered ones), the text to read and copy, the document's properties
+    property bool night: Settings.data.pdfNight === true
+    property var nightReady: ({})           // rendered page -> its inverted copy
+    function shownPage(p) { return root.night && root.nightReady[p] ? root.nightReady[p] : p; }
+    function setNight(on) {
+        Settings.data.pdfNight = on;
+        if (on) _makeNight();
+    }
+    onPagesChanged: { nightReady = ({}); if (night) _makeNight(); }
+    function _makeNight() {
+        if (!pages.length || nightProc.running) return;
+        nightProc.command = ["sh", "-c", 'for f; do o="${f%.png}.night.png"; [ -s "$o" ] || magick "$f" -channel RGB -negate +channel "$o" || continue; printf "%s\t%s\n" "$f" "$o"; done', "sh"].concat(pages);
+        nightProc.running = true;
+    }
+    Process {
+        id: nightProc
+        stdout: SplitParser { onRead: line => { const [a, b] = line.split("\t"); if (b) { const m = Object.assign({}, root.nightReady); m[a] = b; root.nightReady = m; } } }
+    }
+    property bool textMode: false           // the pages as text: selected and copied like any text
+    function copyPageText() {
+        const tx = root.pageTexts[root.page] || "";
+        if (!tx.trim()) return false;
+        Quickshell.execDetached(["sh", "-c", 'printf "%s" "$1" | wl-copy', "sh", tx]);
+        return true;
+    }
+    property var info: null                 // pdfinfo's answer while shown
+    function showInfo() {
+        if (!root.pdf) return;
+        infoProc.command = ["sh", "-c", 'pdfinfo -isodates -- "$1" 2>/dev/null', "sh", root.pdf];
+        infoProc.running = true;
+    }
+    Process {
+        id: infoProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const rows = [];
+                for (const l of text.split("\n")) {
+                    const m = /^([^:]+):\s+(.*)$/.exec(l);
+                    if (m && m[2].trim() && ["Title", "Subject", "Author", "Creator", "Producer", "CreationDate", "ModDate", "Pages", "Page size", "PDF version", "Encrypted", "Tagged", "Form", "File size"].indexOf(m[1]) >= 0)
+                        rows.push([m[1], m[2].trim()]);
+                }
+                root.info = rows;
+            }
+        }
+    }
     readonly property string label: pages.length > 0 ? (page + 1) + " / " + pages.length : ""
     readonly property string searchLabel: searchMatches.length
         ? (searchIndex + 1) + " / " + searchMatches.length
@@ -123,6 +169,7 @@ Singleton {
         formShown = false;
         formSaved = "";
         formError = "";
+        _dropUnlocked();
         loading = true;
         Ui.pdfReader = true;
         const ext = (pdf.split(".").pop() || "").toLowerCase();
@@ -137,6 +184,9 @@ Singleton {
             [ -s "$out" ] && [ "$out" -nt "$in" ] && { printf %s "$out"; exit 0; }
             case "$ext" in
             djvu|djv) command -v ddjvu >/dev/null || { echo "needs ddjvu (djvulibre)" >&2; exit 3; }; ddjvu -format=pdf "$in" "$out.part" ;;
+            ps|eps) command -v gs >/dev/null || { echo "needs gs, the Ghostscript package" >&2; exit 3; }
+                # PostScript (Papers parity): Ghostscript writes the PDF, sandboxed (-dSAFER)
+                gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite $( [ "$ext" = eps ] && printf %s -dEPSCrop ) -sOutputFile="$out.part" "$in" ;;
             cbr|cb7|cbt) t=$(mktemp -d); bsdtar -xf "$in" -C "$t" 2>/dev/null
                 find "$t" -type f | grep -iE "[.](jpe?g|png|webp|gif)$" | sort -V > "$t.list"
                 set --; while IFS= read -r f; do set -- "$@" "$f"; done < "$t.list"
@@ -145,6 +195,57 @@ Singleton {
             esac
             [ -s "$out.part" ] && mv "$out.part" "$out" && printf %s "$out"', "sh", pdf, ext, root.cacheDir, root.formTool];
         convertProc.running = true;
+    }
+    // ---- a PDF with a password: asked for, then a private unlocked copy (in this
+    //      cache, 0700) is what is drawn; it goes when the document is closed
+    readonly property string lockTool: Quickshell.env("SHANI_LOCK_TOOL") || "/usr/lib/shani-shell/lock.py"
+    property bool needsPassword: false
+    property string passwordError: ""
+    property string unlockedCopy: ""
+    Process {
+        id: lockCheck
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r = {};
+                try { r = JSON.parse(text); } catch (e) {}
+                root.loading = false;
+                if (r.locked) { root.needsPassword = true; root.error = ""; }
+                else root.error = Tr.t("This PDF could not be read");
+            }
+        }
+    }
+    function unlockWith(password) {
+        if (!root.needsPassword || !password || pdfUnlock.running) return;
+        root.passwordError = "";
+        const out = root.cacheDir + "/unlocked-" + Qt.md5(root.file) + ".pdf";
+        pdfUnlock.payload = password;
+        pdfUnlock.command = ["sh", "-c", 'umask 077; mkdir -p "$1" && chmod 700 "$1" && exec python3 "$2" open-pdf "$3" "$4"', "sh", root.cacheDir, root.lockTool, root.file, out];
+        pdfUnlock.running = true;
+    }
+    Process {
+        id: pdfUnlock
+        property string payload: ""
+        stdinEnabled: true
+        onStarted: { write(payload + "\n"); payload = ""; }
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r = {};
+                try { r = JSON.parse(text); } catch (e) {}
+                if (r.saved) {
+                    root.needsPassword = false;
+                    root.unlockedCopy = r.saved;
+                    root.pdf = r.saved;
+                    root.loading = true;
+                    root.renderPdf();
+                } else root.passwordError = r.wrongPassword ? Tr.t("That password did not open it") : (r.error || Tr.t("That did not work"));
+            }
+        }
+    }
+    function _dropUnlocked() {
+        if (root.unlockedCopy) Quickshell.execDetached(["rm", "-f", "--", root.unlockedCopy]);
+        root.unlockedCopy = "";
+        root.needsPassword = false;
+        root.passwordError = "";
     }
     function renderPdf() {
         render.command = ["sh", "-c", 'mkdir -p "$1" && rm -f "$1"/*.png && pdftoppm -png -r "$4" "$2" "$3"; ls -1 "$1"/*.png 2>/dev/null | sort', "sh", root.cacheDir, root.pdf, root.cacheDir + "/page", String(root.dpi)];
@@ -179,6 +280,7 @@ Singleton {
         pageTexts = [];
         searchText = "";
         searchIndex = -1;
+        _dropUnlocked();
         Ui.pdfReader = false;
     }
     function goTo(i) {
@@ -299,6 +401,13 @@ Singleton {
                 root.page = root.keepPage >= 0 ? Math.min(root.keepPage, Math.max(0, items.length - 1)) : 0;
                 const again = root.keepPage >= 0;
                 root.keepPage = -1;
+                // nothing drawn: a PDF with a password asks for it (pdftoppm's own
+                // failure is hidden behind the listing's exit status)
+                if (items.length === 0 && root.pdf === root.file && /\.pdf$/i.test(root.file)) {
+                    lockCheck.command = ["python3", root.lockTool, "status", root.file];
+                    lockCheck.running = true;
+                    return;
+                }
                 root.error = items.length === 0 ? Tr.t("This document could not be read") : "";
                 if (items.length > 0 && root.file !== "" && !again) {
                     root._fetchTexts();
@@ -312,8 +421,14 @@ Singleton {
             }
         }
         onExited: code => {
-            // pdftoppm failed and left nothing: say so instead of a blank page
+            // pdftoppm failed and left nothing: a PDF with a password asks for it;
+            // anything else is said instead of a blank page
             if (code !== 0 && root.pages.length === 0) {
+                if (root.pdf === root.file && /\.pdf$/i.test(root.file)) {
+                    lockCheck.command = ["python3", root.lockTool, "status", root.file];
+                    lockCheck.running = true;
+                    return;
+                }
                 root.loading = false;
                 root.error = Tr.t("This PDF could not be read");
             }

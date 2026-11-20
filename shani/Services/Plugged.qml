@@ -34,6 +34,7 @@ Singleton {
     property int controllerRev: 0
     property int keyRev: 0
     property int inputRev: 0              // a keyboard, touchscreen or switch came or went
+    property int storageRev: 0            // anything else came or went (a drive, a phone, a camera): Files' Devices
     signal controllerArrived()
 
     // UPower's battery for a controller: by its name, or the only one there is
@@ -55,6 +56,8 @@ Singleton {
         }
         if (e.kind === "security-key")
             keyRev++;
+        if (e.kind !== "controller" && e.kind !== "input" && e.kind !== "clicker" && e.kind !== "security-key")
+            storageRev++;
         if (e.kind === "input" || e.kind === "clicker") {
             inputRev++;
             if (e.kind === "input")

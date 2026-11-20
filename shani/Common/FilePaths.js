@@ -16,6 +16,11 @@ function normalize(path, home) {
     // the files opened lately (bridge/files.py lists them): a place, not a folder
     if (String(path || "").trim() === "recent:")
         return "recent:";
+    if (String(path || "").trim() === "starred:")
+        return "starred:";
+    // every picture, song, video, document or archive in your folders
+    if (/^kind:(pictures|music|videos|documents|archives)$/.test(String(path || "").trim()))
+        return String(path).trim();
     const absolute = expandTilde(String(path || "").trim(), home);
     if (absolute === "" || absolute.charAt(0) !== "/")
         return "";

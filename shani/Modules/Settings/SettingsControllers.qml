@@ -20,7 +20,47 @@ ColumnLayout {
     property var held: ({})               // button -> true while pressed
     property var axes: ({})               // axis -> -1 … 1
 
-    function refresh() { list.running = true; }
+    function refresh() { list.running = true; lightList.running = true; }
+
+    // Coloured lights (a controller's light bar, a handheld's stick rings): the
+    // kernel's multicolour LEDs, read by bridge/lighting.py (no password) and set
+    // through shani-admin.py lighting. Ananta OS's Display & Lighting, from the kernel.
+    readonly property string lightingTool: Quickshell.env("SHANI_LIGHTING_TOOL") || "/usr/lib/shani-shell/lighting.py"
+    readonly property var adminCmd: (Quickshell.env("SHANI_ADMIN_TOOL") || "pkexec /usr/lib/shani-shell/shani-admin.py").split(" ")
+    property var lights: []                // [{ led, label, color, level }]
+    property string lightNote: ""
+    readonly property var lightColours: [
+        { name: Tr.t("White"), value: "#ffffff" }, { name: Tr.t("Red"), value: "#ff3b30" },
+        { name: Tr.t("Orange"), value: "#ff9500" }, { name: Tr.t("Yellow"), value: "#ffcc00" },
+        { name: Tr.t("Green"), value: "#34c759" }, { name: Tr.t("Teal"), value: "#00c7be" },
+        { name: Tr.t("Blue"), value: "#007aff" }, { name: Tr.t("Purple"), value: "#af52de" },
+        { name: Tr.t("Pink"), value: "#ff2d55" }]
+    Process {
+        id: lightList
+        command: ["python3", page.lightingTool, "list"]
+        stdout: StdioCollector { onStreamFinished: { try { page.lights = JSON.parse(text); } catch (e) { page.lights = []; } } }
+    }
+    Process {
+        id: lightWriter                   // not "write": that would hide the Process's own write()
+        stdinEnabled: true
+        property string payload: ""
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r;
+                try { r = JSON.parse(text); } catch (e) { r = { ok: false, error: text.trim() || "cancelled" }; }
+                page.lightNote = r.ok ? "" : r.error;
+                lightList.running = true;
+            }
+        }
+        onStarted: { write(payload + "\n"); stdinEnabled = false; }
+    }
+    function setLight(led, color, level) {
+        if (lightWriter.running) return;
+        lightWriter.payload = JSON.stringify({ led: led, color: color, level: level });
+        lightWriter.command = adminCmd.concat(["lighting"]);
+        lightWriter.stdinEnabled = true;
+        lightWriter.running = true;
+    }
     onActiveChanged: { if (active) refresh(); else testing = ""; }
     Component.onCompleted: if (active) refresh()
     Connections { target: Plugged; function onControllerRevChanged() { if (page.active) page.refresh(); } }
@@ -130,6 +170,68 @@ ColumnLayout {
     }
 
     // ---- InputPlumber (shani-peripherals): what each controller plays as in games ----
+    SectionTitle { visible: page.lights.length > 0; Layout.fillWidth: true; Layout.topMargin: Theme.px(8); text: Tr.t("Lights") }
+    Repeater {
+        model: page.lights
+        ColumnLayout {
+            id: light
+            required property var modelData
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Text { text: light.modelData.label; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.px(8)
+                Repeater {
+                    model: page.lightColours
+                    Rectangle {
+                        required property var modelData
+                        readonly property bool chosen: light.modelData.color.toLowerCase() === modelData.value
+                        width: Theme.px(30); height: Theme.px(30); radius: Theme.px(15)
+                        color: modelData.value
+                        border.width: chosen ? 3 : 1
+                        border.color: chosen ? Theme.text : Theme.alpha(Theme.text, 0.25)
+                        function choose() { page.setLight(light.modelData.led, modelData.value, light.modelData.level > 0 ? light.modelData.level : 100); }
+                        Accessible.role: Accessible.RadioButton
+                        Accessible.name: light.modelData.label + ": " + modelData.name
+                        Accessible.checked: chosen
+                        Accessible.onPressAction: choose()
+                        Accessible.onToggleAction: choose()      // a radio button's first action is a toggle
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: parent.choose() }
+                        KeyFocus { onActivated: parent.choose() }
+                    }
+                }
+                // the light's colour now, when it is none of the above (set by its
+                // firmware or another tool): without this nothing would look chosen
+                Rectangle {
+                    visible: !page.lightColours.some(c => c.value === light.modelData.color.toLowerCase())
+                    width: Theme.px(30); height: Theme.px(30); radius: Theme.px(15)
+                    color: light.modelData.color
+                    border.width: 3
+                    border.color: Theme.text
+                    Accessible.role: Accessible.Indicator
+                    Accessible.name: light.modelData.label + ": " + Tr.t("its colour now")
+                }
+            }
+            Picks {
+                label: Tr.t("Brightness")
+                options: [{ label: Tr.t("Off"), value: "0" }, { label: Tr.t("Low"), value: "33" },
+                          { label: Tr.t("Medium"), value: "66" }, { label: Tr.t("High"), value: "100" }]
+                current: String([0, 33, 66, 100].reduce((a, b) => Math.abs(b - light.modelData.level) < Math.abs(a - light.modelData.level) ? b : a))
+                onPicked: v => page.setLight(light.modelData.led, light.modelData.color, parseInt(v))
+            }
+        }
+    }
+    Text {
+        Layout.fillWidth: true
+        visible: page.lightNote !== ""
+        text: page.lightNote
+        color: Theme.danger
+        wrapMode: Text.Wrap
+        font.family: Theme.font
+        font.pixelSize: Theme.px(11) * Theme.fontScale
+    }
+
     SectionTitle { objectName: "in-games"; visible: InputPlumber.running; Layout.fillWidth: true; Layout.topMargin: Theme.px(8); text: Tr.t("In games") }
     Text {
         visible: InputPlumber.running && InputPlumber.devices.length === 0

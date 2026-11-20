@@ -49,13 +49,80 @@ AppWindow {
                     font.pixelSize: Theme.px(15) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
+                Repeater {
+                    model: [["map", Tr.t("Map")], ["big", Tr.t("Biggest files")], ["dupes", Tr.t("Duplicates")]]
+                    Choice { required property var modelData; text: modelData[1]; selected: DiskUsage.view === modelData[0]; onClicked: DiskUsage.setView(modelData[0]) }
+                }
                 IconButton { icon: "go-previous"; size: Theme.px(28); tip: Tr.t("Back (Esc)"); enabled: DiskUsage.history.length > 0; onClicked: DiskUsage.back() }
                 IconButton { icon: "view-refresh"; size: Theme.px(28); tip: Tr.t("Rescan"); onClicked: DiskUsage.refresh() }
+            }
+
+            // the biggest files, or the duplicates: a list, each line marked with a click
+            ColumnLayout {
+                visible: DiskUsage.view !== "map"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                spacing: Theme.px(6)
+                RowLayout {
+                    Layout.fillWidth: true
+                    Text {
+                        Layout.fillWidth: true
+                        text: DiskUsage.scanning ? Tr.t("Looking…")
+                            : DiskUsage.view === "dupes" ? (DiskUsage.dupes.length ? Tr.t("%1 sets of identical files · %2 could be freed", DiskUsage.dupes.length, DiskUsage.humanSize(DiskUsage.wasted)) : Tr.t("No duplicates here"))
+                            : Tr.t("The biggest files in this folder and the ones in it")
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                    }
+                    Button { visible: DiskUsage.view === "dupes" && DiskUsage.dupes.length > 0; text: Tr.t("Mark every copy but the oldest"); kind: "outline"; onClicked: DiskUsage.markAllExtras() }
+                }
+                ListView {
+                    id: moreList
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+                    spacing: Theme.px(2)
+                    // one row per file; a duplicate set's rows follow its header
+                    model: DiskUsage.view === "big" ? DiskUsage.big.map(e => ({ path: e.path, size: e.size }))
+                         : [].concat(...DiskUsage.dupes.map((g, i) => [{ head: true, size: g.size, n: g.paths.length, g: i }]
+                                                              .concat(g.paths.map((p, j) => ({ path: p, size: g.size, first: j === 0 })))))
+                    delegate: Rectangle {
+                        required property var modelData
+                        width: moreList.width
+                        height: Theme.px(modelData.head ? 26 : 30)
+                        radius: Theme.px(6)
+                        color: !modelData.head && DiskUsage.isMarked(modelData.path) ? Qt.alpha(Theme.danger, 0.18) : (rowArea.containsMouse && !modelData.head ? Theme.hover : "transparent")
+                        MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; enabled: !parent.modelData.head; onClicked: DiskUsage.toggleMark(parent.modelData.path) }
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: Theme.px(modelData.head ? 4 : 16)
+                            anchors.rightMargin: Theme.px(6)
+                            spacing: Theme.px(8)
+                            Icon { visible: !modelData.head; name: DiskUsage.isMarked(modelData.path || "") ? "edit-delete" : "text-x-generic"; size: Theme.px(14); color: DiskUsage.isMarked(modelData.path || "") ? Theme.red : Theme.dim }
+                            Text {
+                                Layout.fillWidth: true
+                                text: modelData.head ? Tr.t("%1 copies of %2", modelData.n, DiskUsage.humanSize(modelData.size))
+                                    : (modelData.path || "").replace(Quickshell.env("HOME"), "~") + (modelData.first ? "  ·  " + Tr.t("oldest") : "")
+                                elide: Text.ElideMiddle
+                                color: modelData.head ? Theme.faint : Theme.text
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(modelData.head ? 11 : 12) * Theme.fontScale
+                            }
+                            Text { visible: !modelData.head && DiskUsage.view === "big"; text: DiskUsage.humanSize(modelData.size || 0); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        }
+                        Accessible.role: Accessible.CheckBox
+                        Accessible.name: modelData.path || ""
+                        Accessible.checked: !modelData.head && DiskUsage.isMarked(modelData.path)
+                        Accessible.onToggleAction: if (!modelData.head) DiskUsage.toggleMark(modelData.path)
+                        Accessible.onPressAction: if (!modelData.head) DiskUsage.toggleMark(modelData.path)
+                    }
+                }
             }
 
             // the treemap: area ~ size, weighted (DiskUsage.treemap)
             Rectangle {
                 id: treemapArea
+                visible: DiskUsage.view === "map"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 radius: Theme.radiusSmall

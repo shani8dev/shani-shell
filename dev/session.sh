@@ -51,8 +51,15 @@ export SHANI_PDFFORM_TOOL=/work/bridge/pdfform.py SHANI_TIDY_TOOL=/work/bridge/t
 # no sweep of the host's network from the test session; a stand-in firewall-cmd records what it is asked
 export SHANI_NEARBY_SUBNET=0 SHANI_NEARBY_PEERS=127.0.0.1:53399 SHANI_FIREWALL_CMD=/work/dev/fake-firewall-cmd.sh
 # the file manager's backend: the listing, the watch and the trash
-export SHANI_FILES_TOOL=/work/bridge/files.py
+export SHANI_FILES_TOOL=/work/bridge/files.py SHANI_FILES_JOB_DELAY_FILE=/tmp/files-job-delay
 export SHANI_REPORT_TOOL=/work/bridge/system-report.py SHANI_HEALTH_TOOL=/work/bridge/health-check.py
+# Settings > Power > what can wake this computer: the bridge reads a stand-in
+# /sys (dev/shell-parts/wake-sources.sh makes it), and the administrator
+# actions are recorded, not run (dev/fake-admin.sh; the real one: dev/admin-test.sh)
+export SHANI_WAKEUP_TOOL=/work/bridge/wakeup.py SHANI_SYSFS=/tmp/fake-sys
+# Settings > Controllers > lights: bridge/lighting.py reads SHANI_LEDS_DIR (below)
+export SHANI_LIGHTING_TOOL=/work/bridge/lighting.py SHANI_POWERLIMIT_TOOL=/work/bridge/powerlimit.py
+export SHANI_ADMIN_TOOL=/work/dev/fake-admin.sh
 # a keyboard's Caps Lock and Num Lock lights, where the kernel keeps them
 export SHANI_LEDS_DIR=/tmp/fake-leds
 for k in capslock numlock; do mkdir -p "/tmp/fake-leds/input3::$k"; echo 0 > "/tmp/fake-leds/input3::$k/brightness"; done
@@ -168,6 +175,11 @@ if [ "${SHANI_ONLINE:-}" != 1 ]; then
     python3 /work/dev/fake-osm.py 8797 >$L/fake-osm.log 2>&1 &
     export SHANI_MAP_TILES="http://127.0.0.1:8797/tiles/{key}.png" SHANI_MAP_SEARCH=http://127.0.0.1:8797/search SHANI_MAP_ROUTE=http://127.0.0.1:8797
 fi
+# udisks2 stood in for on the session bus (tests/fixtures/fake_udisks.py): a USB
+# stick and the computer's own disk; a write lands in /tmp/fake-udisks/sdb.img
+mkdir -p /tmp/fake-udisks
+FAKE_LUKS=1 FAKE_UDISKS_DIR=/tmp/fake-udisks python3 -W ignore /work/tests/fixtures/fake_udisks.py >$L/fake-udisks.log 2>&1 &
+export SHANI_UDISKS_BUS=session SHANI_DRIVES_TOOL=/work/bridge/drives.py SHANI_LOCK_TOOL=/work/bridge/lock.py SHANI_SERVE_TOOL=/work/bridge/serve.py SHANI_DUPES_TOOL=/work/bridge/dupes.py SHANI_IMGEDIT_TOOL=/work/bridge/imgedit.py SHANI_CLOUD_TOOL=/work/bridge/cloud.py
 python3 /work/bridge/chronoa-bridge.py >$L/bridge.log 2>&1 &
 sleep 0.5
 
@@ -208,9 +220,12 @@ export QS_ICON_THEME=${QS_ICON_THEME:-Papirus-Dark} QT_LINUX_ACCESSIBILITY_ALWAY
 # every frame the shell renders, per window, into qs.log: what shell-test's
 # perf-* checks count (a surface redrawing while nothing changes is GPU and battery)
 date +%s%N > /tmp/qs-started
-# the keyring, made and unlocked as pam_gnome_keyring does at sign-in (the
-# Authenticator keeps its secrets there; needs the container's IPC_LOCK)
-printf 'test' | gnome-keyring-daemon --unlock --components=secrets >$L/keyring.log 2>&1 || true
+# the keyring, made and unlocked with a password as pam_oo7 does at sign-in (the
+# Authenticator keeps its secrets there; needs the container's IPC_LOCK).
+# oo7-daemon stays in the foreground: started in the background, its readiness
+# is its name on the session bus.
+printf 'test' | /usr/lib/oo7-daemon --login >$L/keyring.log 2>&1 &
+i=0; until busctl --user status org.freedesktop.secrets >/dev/null 2>&1 || [ $i -ge 40 ]; do sleep 0.1; i=$((i+1)); done
 # as shani-shell.service: the shell's windows draw their own header (Common/AppWindow)
 export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
 QT_LOGGING_RULES="qt.scenegraph.time.renderloop=true" qs -p /work/shani >$L/qs.log 2>&1 &

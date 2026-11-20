@@ -31,7 +31,7 @@ waitfor "not d['quickLookShown']" 3 && result quicklook-closes PASS || result qu
 # Space in Files, on the file the keyboard is on; then Right walks to the next one
 ipc filesOpen "$Q"; sleep 1.5
 # Tab until the keyboard is on one of the files (the shell names what has focus)
-i=0; until q "['navFocus']" | grep -qE "^(blob|bundle|clip|code|doc|folder|picture|tone)" || [ $i -ge 25 ]; do wtype -k Tab; sleep 0.25; i=$((i+1)); done
+i=0; until q "['navFocus']" | grep -qE "^(blob|bundle|clip|code|doc|folder|picture|tone)" || [ $i -ge 60 ]; do wtype -k Tab; sleep 0.25; i=$((i+1)); done
 on=$(q "['navFocus']")
 wtype -k space; sleep 0.8
 if waitfor "d['quickLookShown']" 4; then

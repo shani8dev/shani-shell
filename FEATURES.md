@@ -24,6 +24,9 @@ in that nested session - not yet on an installed image - is listed in
 - **Security keys** (YubiKey and other FIDO keys) — register one, touch it to unlock
   or sign in.
 - **Your password always works too**, and is still asked for changes to the system.
+  The **first sign-in after a restart is the password** — the only thing that unlocks
+  your saved passwords (the keyring) — and the screen says so; after that a look, a
+  finger or a key is enough.
 - **Pick who's signing in** — your picture and name are already chosen; no user
   name to type. "Someone else" is one click away.
 - **An on-screen keyboard at sign-in, setup and lock**, opening by itself on
@@ -95,6 +98,63 @@ in that nested session - not yet on an installed image - is listed in
   ("Holiday #" makes Holiday 1, Holiday 2 … each keeping its extension, with a
   preview first) and **bookmarks** in the sidebar - GTK's own, so GTK apps'
   sidebars have them too.
+- **Copies the way TeraCopy does them** — speed and time left, **Pause** and Resume,
+  **Stop** (only the half-written one goes); **verify** (every copy read back and
+  checked, and a move removes a source only once its copy is proven); a name already
+  there is asked about **once per copy** (keep both, skip, replace the older ones,
+  replace where different, replace all - the replaced ones go to the trash); a
+  file that cannot be read is passed over, the rest still copied, and **Retry**
+  tries just those; copies wait in a **queue**; **then sleep or shut down** when all
+  is done; a **copy history**; **Copy to… / Move to…** with the folders used lately;
+  **checksums** made (.sha256) and tested. Browsing carries on meanwhile. **Drag and drop** — files between folders, panes, tabs and the sidebar,
+  and to or from other apps: a drop moves on the same drive and copies from another
+  (Ctrl copies), with Undo.
+- **Phones, drives and servers in the sidebar** — a phone, an iPhone, a camera or a
+  USB drive is listed the moment it is there and opens with a click (mounted first);
+  **eject** beside it; the computer's other drives below; an **encrypted drive** asks
+  for its password. **Connect to server…** (smb, sftp, ftp, WebDAV, NFS, and
+  **ssh:// through sshfs** for real paths) lists the servers **this network
+  announces**, so a click connects; it asks for a login only when the server does,
+  and remembers the servers used. FUSE mounts you made yourself (sshfs, rclone…)
+  show there too, with Unmount.
+- **Disk images and USB drives** — an ISO or squashfs **opens as a drive** (read-only);
+  **Write to a USB drive** puts an .iso or .img (packed .xz/.gz/.zst too) on a stick,
+  with progress and Stop; **Format a USB drive** as exFAT, FAT32, NTFS, ext4, Btrfs,
+  F2FS, XFS or UDF, optionally **locked with a password**; **back a drive up** into an
+  image file; **change a locked drive's password**; its health in Cassini. Only removable drives are
+  offered, and the drive's name is typed before anything is erased.
+- **Cloud drives** — Google Drive, OneDrive, Dropbox, Box, pCloud, Yandex Disk or a
+  Nextcloud, added with the provider's own sign-in and opened from the sidebar like a
+  drive (rclone). **All pictures, music, videos, documents and archives** — every one
+  in your folders, wherever it is. **Open from your phone** — a folder opened to the
+  phones on your Wi-Fi through their browser, behind a QR code and a link nobody can
+  guess, read-only unless you let them add files; it closes by itself after an hour
+  unused.
+- **Locked with a password** — a PDF gets a PDF password (every reader asks for it),
+  any other file or folder is sealed (gpg), and **encrypted folders** (gocryptfs) open
+  with their password and lock again when closed; the Document Viewer asks for a
+  locked PDF's password.
+- **Compare** two files side by side, line by line, with next/previous change, and
+  **merge**: a change copied to the other side, that side saved (its old version to
+  the trash); or two folders by what is only in one and what differs. **Share on the network** — a
+  folder from its right-click menu (Samba).
+- **Thumbnails** for videos, PDFs and office files, from the desktop's thumbnail cache
+  (the one GTK apps share). **Search inside files** — the search box finds files by
+  what they say too. **Tabs** (Ctrl+T, Ctrl+W, Ctrl+Tab), **Starred**, **type to find**,
+  **zoom** (Ctrl+plus / minus / 0), **turn the selection over** (Ctrl+Shift+I), free
+  space in the status line.
+- **Redo** (Ctrl+Shift+Z) after Undo; **Shift+Delete** deletes for good after asking
+  (only those leave the trash, the rest of it stays); **Nautilus scripts** in
+  ~/.local/share/nautilus/scripts appear in the menu and run as Nautilus runs them.
+- **A right-click menu everywhere** — on a file, and on the folder itself: new folder,
+  **new document** from ~/Templates, paste, **open in terminal**, select all. **Set as
+  wallpaper** on a picture; **Properties** changes who else can open a file and whether
+  it **runs as a program**, with Undo.
+- **Disk Usage** shows what fills the disk as a map, the **biggest files**, and
+  **duplicates** (byte for byte), marking every copy but the oldest in one click -
+  nothing goes until you review it, and then to the trash.
+- **Archives opens every archive** libarchive reads, a lone `.gz`, `.xz` or `.zst` file
+  too; Files, Archives and Disk Usage are the default apps for folders and archives.
 - **Choose a file in the shell, not in a portal** — the chooser is the shell's
   own: no waiting for the desktop portal, no another app's window.
 - **Picks go where you were** — choose an emoji or a clipboard entry and it's typed
@@ -147,7 +207,16 @@ in that nested session - not yet on an installed image - is listed in
   come back. Saving keeps the file's permissions and line endings.
 - **Document Viewer** — PDFs, and e-books (EPUB, FB2, MOBI), comics (CBZ, CBR,
   CB7), XPS and DjVu, each searchable like a PDF; a PDF's form can be filled in
-  and a filled copy saved beside it.
+  and a filled copy saved beside it; PostScript and EPS too; **night mode**, **read as
+  text** (select and copy), copy a page's text, **document properties**.
+- **Image Viewer** — every common format (and anything else ImageMagick reads);
+  **animated GIFs and WebPs play**; set as wallpaper; crop (free or to a shape), turn,
+  flip, **resize**, and **mark it up** - pen, highlighter, line, arrow, box, text, and
+  **blur** to hide a face or a number; saved as a copy beside it or in
+  place, the original kept in the trash. Fonts opens a font file to preview and
+  install it (with its version, maker and languages); Maps shows a place's hours,
+  phone and website, keeps saved places and **shares a place** (link and QR code); the
+  Media Player **saves the frame on screen** as a picture.
 - **Tidy and name** — Files' Tidy sorts a folder (Downloads, say) into folders by
   kind, shown first and undone in one click; "Suggest a name" asks Chronoa for a
   name from the file's own words (a scan's text, a PDF's first pages).
@@ -274,7 +343,10 @@ in that nested session - not yet on an installed image - is listed in
 - **Bluetooth** pairing with the code shown big and clear; a **low battery warning**
   for headphones, mice and watches right in the bar.
 - **Drives** — mount, eject, and unlock encrypted ones from Quick Settings.
-- **Printers** added automatically; print jobs shown as they run.
+- **Printers** added automatically; print jobs shown as they run. **Add a printer**
+  lists the ones the network announces, or takes an address, and sets it up without
+  a driver to pick (IPP Everywhere); your **paper, two-sided and colour** defaults per
+  printer; **share a printer** on the network.
 - **Your phone (Shani Link)** — calls on your phone, your landline or the laptop's
   own modem; texts; **one address book**; one call history; a dial pad that finds
   contacts as you type; phone links anywhere open the dial pad; use the phone's
@@ -305,6 +377,8 @@ in that nested session - not yet on an installed image - is listed in
   play as the kind a game expects (Xbox, DualSense, Steam Deck), picked in
   Settings; and the **guide button opens Quick Settings over a game**: the
   controller is lent to the desktop, the game sees no press until you close it.
+- **Lights** — a controller's light bar or a handheld's stick lights: a colour and a
+  brightness, from the kernel's own LED class (no OpenRGB).
 - **A UPS** (NUT) — a power cut is said the moment the UPS takes over, with its
   charge and minutes left; power coming back too; a low UPS battery is
   critical. Settings › Power shows it.
@@ -325,6 +399,10 @@ in that nested session - not yet on an installed image - is listed in
   **hybrid sleep** for a copy on disk. Offered only where your computer can.
 - **60 Hz on battery** for fast laptop screens, back up on the charger.
 - **Battery saver** at 20 %, a **charge limit** to keep the battery healthy.
+- **A handheld's power limit** — the chip's watts in steps across what its firmware
+  allows (ASUS handhelds, the Steam Deck and other AMD ones).
+- **What can wake this computer** — a USB keyboard or mouse, opening the lid, a
+  wake-up signal over the network: each on or off, kept after a restart.
 - **Power mode follows the charger** (Settings > Power, off by default): one
   mode on battery, another plugged in — battery saver and a game in
   fullscreen still come first, and your own pick holds until the next plug.
@@ -361,7 +439,11 @@ in that nested session - not yet on an installed image - is listed in
 - **A proxy for every app**, set once.
 - **Share folders** on your network and turn remote login on or off — with plain
   explanations.
-- **Several people, one computer** — add accounts, set who's an administrator.
+- **Several people, one computer** — add accounts, set who's an administrator;
+  removing one **with its files** needs its name typed.
+- **Home or public network** — every network is public (nothing unsolicited comes
+  in) unless you mark it as home, where your own devices may find this computer and
+  what it shares.
 
 ## An assistant that's part of the desktop
 

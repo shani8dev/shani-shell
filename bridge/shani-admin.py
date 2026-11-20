@@ -10,6 +10,9 @@ one on stdout ({"ok": true} or {"ok": false, "error": "..."}).
     shani-admin.py autologin       {"username"}            ("" turns it off)
     shani-admin.py power-keys      {"lid", "lidOnPower", "powerKey"}
     shani-admin.py battery-limit   {"percent"}             (100 = charge fully)
+    shani-admin.py wakeup          {"path", "enabled": bool}  (a device of bridge/wakeup.py's list)
+    shani-admin.py lighting        {"led", "color": "#rrggbb", "level": 0..100}  (bridge/lighting.py's)
+    shani-admin.py power-limit     {"watts"}               (bridge/powerlimit.py's range)
 
 polkit (shani-desktop-niri's 50-shani-admin.rules) asks a wheel member for an
 administrator's password for the user-* commands, and their own for the
@@ -53,6 +56,14 @@ AUTOLOGIN_DROPIN = Path("/etc/systemd/system/greetd.service.d/20-shani-autologin
 LOGIND_DROPIN = Path("/etc/systemd/logind.conf.d/50-shani-shell.conf")
 POWER_SUPPLY = Path("/sys/class/power_supply")
 BATTERY_TMPFILES = Path("/etc/tmpfiles.d/50-shani-battery.conf")
+SYSFS_DEVICES = Path("/sys/devices")
+WAKEUP_TMPFILES = Path("/etc/tmpfiles.d/50-shani-wakeup.conf")
+LEDS = Path("/sys/class/leds")
+LIGHTING_TMPFILES = Path("/etc/tmpfiles.d/50-shani-lighting.conf")
+LED_NAME = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
+COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
+SYSFS = Path("/sys")
+POWER_LIMIT_TMPFILES = Path("/etc/tmpfiles.d/50-shani-power-limit.conf")
 LID_ACTIONS = {"suspend", "hibernate", "hybrid-sleep", "suspend-then-hibernate", "lock", "ignore", "poweroff"}
 KEY_ACTIONS = {"poweroff", "suspend", "hibernate", "ignore", "lock", "reboot"}
 
@@ -241,6 +252,115 @@ def battery_limit(req: dict) -> dict:
     return {"batteries": len(files)}
 
 
+def wakeup(req: dict) -> dict:
+    """Whether a device may wake the computer from sleep: its sysfs
+    power/wakeup, now and - through tmpfiles.d - at every boot (the kernel
+    resets it to the driver's default). Only a device directory under
+    /sys/devices that has that switch; a USB device keeps its choice for the
+    port it is plugged into (its sysfs path is the port's)."""
+    path, on = req.get("path"), req.get("enabled")
+    if not isinstance(path, str) or not isinstance(on, bool):
+        raise Refused("a device path and enabled true or false")
+    dev = Path(path).resolve()
+    try:
+        dev.relative_to(SYSFS_DEVICES.resolve())
+    except ValueError:
+        raise Refused("not a device") from None
+    switch = dev / "power" / "wakeup"
+    if not switch.is_file():
+        raise Refused("this device cannot wake the computer")
+    state = "enabled" if on else "disabled"
+    switch.write_text(state + "\n")
+    lines = {}
+    if WAKEUP_TMPFILES.exists():
+        for line in WAKEUP_TMPFILES.read_text().splitlines():
+            f = line.split()
+            if len(f) == 7 and f[0] == "w":
+                lines[f[1]] = f[6]
+    lines[str(switch)] = state
+    WAKEUP_TMPFILES.parent.mkdir(parents=True, exist_ok=True)
+    WAKEUP_TMPFILES.write_text("# shani-shell: Settings > Power > what can wake this computer\n"
+                               + "".join(f"w {p} - - - - {s}\n" for p, s in sorted(lines.items())))
+    WAKEUP_TMPFILES.chmod(0o644)
+    return {}
+
+
+def lighting(req: dict) -> dict:
+    """A coloured light's colour and level: the kernel's multicolour LED class
+    (multi_intensity in multi_index's channel order, then brightness). A
+    built-in light (a handheld's stick rings) keeps it at every boot through
+    tmpfiles.d; a controller's light bar (an input<N>: light) is named anew
+    each time it connects, so it is set for now only."""
+    led, color, level = req.get("led"), req.get("color"), req.get("level")
+    if not isinstance(led, str) or not LED_NAME.match(led) or ".." in led:
+        raise Refused("not a light")
+    if not isinstance(color, str) or not COLOR.match(color):
+        raise Refused("a colour as #rrggbb")
+    if not isinstance(level, int) or isinstance(level, bool) or not 0 <= level <= 100:
+        raise Refused("a level between 0 and 100")
+    d = LEDS / led
+    try:
+        index = (d / "multi_index").read_text().split()
+        top = int((d / "max_brightness").read_text().strip() or 255) or 255
+    except (OSError, ValueError):
+        raise Refused("this light has no colour") from None
+    if sorted(index) != ["blue", "green", "red"]:
+        raise Refused("this light has no colour")
+    rgb = {"red": int(color[1:3], 16), "green": int(color[3:5], 16), "blue": int(color[5:7], 16)}
+    intensity = " ".join(str(round(rgb[c] * top / 255)) for c in index)
+    brightness = str(round(level * top / 100))
+    (d / "multi_intensity").write_text(intensity + "\n")
+    (d / "brightness").write_text(brightness + "\n")
+    if not led.startswith("input"):
+        lines = {}
+        if LIGHTING_TMPFILES.exists():
+            for line in LIGHTING_TMPFILES.read_text().splitlines():
+                f = line.split(maxsplit=6)
+                if len(f) == 7 and f[0] == "w":
+                    lines[f[1]] = f[6]
+        lines[str(d / "multi_intensity")] = intensity
+        lines[str(d / "brightness")] = brightness
+        LIGHTING_TMPFILES.parent.mkdir(parents=True, exist_ok=True)
+        # multi_intensity before brightness for the same light: tmpfiles applies in this order
+        LIGHTING_TMPFILES.write_text("# shani-shell: Settings > Controllers > lights\n" + "".join(
+            f"w {p} - - - - {v}\n" for p, v in sorted(lines.items(), key=lambda kv: (str(Path(kv[0]).parent), kv[0].endswith("brightness")))))
+        LIGHTING_TMPFILES.chmod(0o644)
+    return {}
+
+
+def power_limit(req: dict) -> dict:
+    """A handheld's chip power limit in watts, where the kernel offers one
+    (bridge/powerlimit.py: ASUS firmware attributes, or the AMD graphics
+    driver's power cap) - now and, through tmpfiles.d, at every boot. Within
+    the range the firmware or driver itself reports."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("powerlimit", Path(__file__).with_name("powerlimit.py"))
+    pl = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(pl)
+    watts = req.get("watts")
+    if not isinstance(watts, int) or isinstance(watts, bool):
+        raise Refused("a whole number of watts")
+    found, info = pl.find(SYSFS), pl.show(SYSFS)
+    if not found or not info:
+        raise Refused("this computer's power limit cannot be changed")
+    if not info["min"] <= watts <= info["max"]:
+        raise Refused(f"between {info['min']} and {info['max']} W")
+    method, d = found
+    if method == "asus":
+        files = [d / a / "current_value" for a in ("ppt_pl1_spl", "ppt_pl2_sppt", "ppt_fppt")
+                 if (d / a / "current_value").exists()]
+        value = str(watts)
+    else:
+        files, value = [d / "power1_cap"], str(watts * 1_000_000)
+    for f in files:
+        f.write_text(value + "\n")
+    POWER_LIMIT_TMPFILES.parent.mkdir(parents=True, exist_ok=True)
+    POWER_LIMIT_TMPFILES.write_text("# shani-shell: Settings > Power > power limit\n"
+                                    + "".join(f"w {f} - - - - {value}\n" for f in files))
+    POWER_LIMIT_TMPFILES.chmod(0o644)
+    return {"watts": watts}
+
+
 def guest(req: dict) -> dict:
     on = bool(req.get("on"))
     if on:
@@ -271,7 +391,7 @@ def guest(req: dict) -> dict:
     return {}
 
 
-COMMANDS = {"guest": guest, "user-add": user_add, "user-remove": user_remove, "user-admin": user_admin,
+COMMANDS = {"guest": guest, "wakeup": wakeup, "lighting": lighting, "power-limit": power_limit, "user-add": user_add, "user-remove": user_remove, "user-admin": user_admin,
             "user-password": user_password, "autologin": autologin, "power-keys": power_keys,
             "battery-limit": battery_limit}
 

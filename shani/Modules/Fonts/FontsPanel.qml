@@ -21,6 +21,7 @@ AppWindow {
     implicitHeight: Theme.px(600)
 
     property var fonts: []        // [{ family, style }]
+    property var familyNames: ({})  // every installed family name -> true
     property string preview: previewField.text ? previewField.text : Tr.t("The quick brown fox jumps over the lazy dog 1234567890")
     property int previewSize: 15  // 10..48 pt, the size slider
     property string installNote: ""
@@ -76,6 +77,11 @@ AppWindow {
                     out.push({ family: family, style: style });
                 }
                 out.sort((a, b) => a.family.toLowerCase().localeCompare(b.family.toLowerCase()));
+                // every family name there is (fc-list gives "Family,Family Regular"; the
+                // list below is cut to 400): what "Installed" is judged by
+                const names = {};
+                for (const f of out) for (const n of f.family.split(",")) names[n.trim()] = true;
+                win.familyNames = names;
                 win.fonts = out.slice(0, 400);
             }
         }
@@ -135,6 +141,97 @@ AppWindow {
                     size: Theme.px(28)
                     tip: Tr.t("Refresh")
                     onClicked: win.refresh()
+                }
+            }
+
+            // a font file opened from Files (GNOME Font Viewer parity): the font in its
+            // own type - its name, the letters, your words at four sizes - and Install
+            // when its family is not among the installed ones yet
+            Rectangle {
+                id: fileCard
+                objectName: "font-file"
+                Layout.fillWidth: true
+                visible: Ui.fontFile !== ""
+                implicitHeight: fileCol.implicitHeight + Theme.px(24)
+                radius: Theme.radiusSmall
+                color: Theme.surface1
+                border.width: 1
+                border.color: Theme.stroke
+                FontLoader { id: fileFont; source: Ui.fontFile !== "" ? "file://" + Ui.fontFile : "" }
+                readonly property bool ready: fileFont.status === FontLoader.Ready
+                readonly property bool installed: ready && win.familyNames[fileFont.name] === true
+                Binding { target: Ui; property: "fontFileFamily"; value: fileCard.ready ? fileFont.name : (fileFont.status === FontLoader.Error ? "!" : "") }
+                Binding { target: Ui; property: "fontFileInstalled"; value: fileCard.installed }
+                // what the file says of itself (fontconfig's fc-query, as GNOME Font Viewer's
+                // details): its style, version, maker, format, and how many languages it covers
+                property string details: ""
+                Process {
+                    id: fontInfo
+                    running: Ui.fontFile !== ""
+                    command: ["fc-query", "-i", "0", "-f", "%{style[0]}|%{fontversion}|%{foundry}|%{fontformat}|%{lang}", Ui.fontFile]
+                    stdout: StdioCollector {
+                        onStreamFinished: {
+                            const p = text.split("|");
+                            if (p.length < 5) { fileCard.details = ""; return; }
+                            const v = parseInt(p[1]) || 0, langs = p.slice(4).filter(x => x).length;
+                            fileCard.details = [p[0], v ? Tr.t("version %1", (v / 65536).toFixed(2).replace(/\.?0+$/, "")) : "",
+                                                p[2] && p[2] !== "unknown" ? Tr.t("by %1", p[2]) : "", p[3],
+                                                langs ? Tr.t("%1 languages", langs) : ""].filter(x => x).join(" · ");
+                            Ui.fontFileDetails = fileCard.details;
+                        }
+                    }
+                }
+                ColumnLayout {
+                    id: fileCol
+                    anchors.fill: parent
+                    anchors.margins: Theme.px(12)
+                    spacing: Theme.px(6)
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            Layout.fillWidth: true
+                            text: fileCard.ready ? fileFont.name : (fileFont.status === FontLoader.Error ? Tr.t("Not a font this can read") : Tr.t("Reading…"))
+                            color: Theme.text; font.family: Theme.font; font.weight: Font.DemiBold
+                            font.pixelSize: Theme.px(15) * Theme.fontScale
+                            elide: Text.ElideRight
+                        }
+                        Text {
+                            visible: fileCard.ready
+                            text: fileCard.installed ? Tr.t("Installed") : Tr.t("Not installed")
+                            color: fileCard.installed ? Theme.accent : Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                        }
+                        Button {
+                            visible: fileCard.ready && !fileCard.installed
+                            text: win.installing ? Tr.t("Installing…") : Tr.t("Install")
+                            enabled: !win.installing
+                            onClicked: win.installFont(Ui.fontFile)
+                        }
+                        IconButton { icon: "window-close"; size: Theme.px(26); tip: Tr.t("All fonts"); onClicked: Ui.fontFile = "" }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: fileCard.details !== ""
+                        text: fileCard.details
+                        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                        wrapMode: Text.Wrap
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: fileCard.ready
+                        text: "ABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz\n0123456789 .,;:!?&@()"
+                        font.family: fileFont.name; font.pixelSize: Theme.px(16)
+                        color: Theme.text; wrapMode: Text.Wrap
+                    }
+                    Repeater {
+                        model: fileCard.ready ? [14, 22, 32, 44] : []
+                        Text {
+                            required property int modelData
+                            Layout.fillWidth: true
+                            text: win.preview
+                            font.family: fileFont.name; font.pixelSize: Theme.px(modelData)
+                            color: Theme.text; elide: Text.ElideRight
+                        }
+                    }
                 }
             }
 

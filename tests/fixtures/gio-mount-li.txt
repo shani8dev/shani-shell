@@ -1,0 +1,52 @@
+Drive(0): KBG40ZNT512G TOSHIBA MEMORY
+  Type: GProxyDrive (GProxyVolumeMonitorUDisks2)
+  ids:
+   unix-device: '/dev/nvme0n1'
+  is_removable=0
+  can_eject=0
+  Volume(0): Windows
+    Type: GProxyVolume (GProxyVolumeMonitorUDisks2)
+    ids:
+     class: 'device'
+     unix-device: '/dev/nvme0n1p3'
+     label: 'Windows'
+    can_mount=1
+    can_eject=0
+Drive(1): SanDisk Cruzer Blade
+  Type: GProxyDrive (GProxyVolumeMonitorUDisks2)
+  ids:
+   unix-device: '/dev/sdb'
+  is_removable=1
+  can_eject=1
+  Volume(0): STICK
+    Type: GProxyVolume (GProxyVolumeMonitorUDisks2)
+    ids:
+     class: 'device'
+     unix-device: '/dev/sdb1'
+     label: 'STICK'
+    can_mount=1
+    can_eject=1
+    Mount(0): STICK -> file:///run/media/ann/STICK
+      Type: GProxyMount (GProxyVolumeMonitorUDisks2)
+      default_location=file:///run/media/ann/STICK
+      can_unmount=1
+      can_eject=1
+Volume(0): shani_root
+  Type: GProxyVolume (GProxyVolumeMonitorUDisks2)
+  ids:
+   class: 'loop'
+   unix-device: '/dev/loop36p2'
+  can_mount=1
+  can_eject=0
+Volume(1): Pixel 8
+  Type: GProxyVolume (GProxyVolumeMonitorMTP)
+  ids:
+   unix-device: '/dev/bus/usb/001/005'
+  activation_root=mtp://Google_Pixel_8_3A1B/
+  can_mount=1
+  can_eject=0
+Mount(0): share on nas -> smb://nas/share/
+  Type: GDaemonMount
+  default_location=smb://nas/share/
+  can_unmount=1
+  can_eject=0

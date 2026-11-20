@@ -33,3 +33,19 @@ waitfor "d['archiveMade'].endswith('s.7z')" 10 && bsdtar -tf "$(q "['archiveMade
     && result archive-compress-7z PASS || result archive-compress-7z FAIL "made '$(q "['archiveMade']")' error '$(q "['archiveError']")'"
 ls -a $R/src | grep -q "^.shani-archive" && result archive-no-temp-left FAIL || result archive-no-temp-left PASS
 ipc archiveClose; ipc closeAll
+
+# a lone compressed file (not a tar): shown as the one file inside, taken out
+# beside it with bsdcat, never over a file of the same name (bsdtar alone: "Unrecognized archive format")
+printf 'notes-content\n' > $R/notes.txt; xz -k $R/notes.txt; zstd -q $R/notes.txt -o $R/notes.txt.zst
+ipc archiveOpen "$R/notes.txt.xz"
+waitfor "d['archiveEntries'] == 1 and not d['archiveReading']" 6 && [ -z "$(q "['archiveError']")" ] \
+    && result archive-lone-compressed-listed PASS || result archive-lone-compressed-listed FAIL "entries $(q "['archiveEntries']") error '$(q "['archiveError']")'"
+ipc archiveExtract ""
+waitfor "d['archiveExtractedTo'].endswith('notes (2).txt')" 8 && [ "$(cat "$R/notes (2).txt")" = notes-content ] && [ "$(cat $R/notes.txt)" = notes-content ] \
+    && result archive-lone-compressed-extracts-beside PASS || result archive-lone-compressed-extracts-beside FAIL "to '$(q "['archiveExtractedTo']")' error '$(q "['archiveError']")'; $(ls $R | tr '\n' ' ')"
+ipc archiveOpen "$R/notes.txt.zst"
+waitfor "d['archiveEntries'] == 1" 6 && result archive-lone-zst-listed PASS || result archive-lone-zst-listed FAIL "error '$(q "['archiveError']")'"
+printf 'not compressed at all' > $R/fake.gz
+ipc archiveOpen "$R/fake.gz"
+waitfor "'Not an archive' in d['archiveError']" 6 && result archive-bad-lone-file-said PASS || result archive-bad-lone-file-said FAIL "entries $(q "['archiveEntries']") error '$(q "['archiveError']")'"
+ipc archiveClose

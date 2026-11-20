@@ -124,3 +124,107 @@ def test_removing_an_account_with_its_files_needs_its_name_typed():
     assert "enabled:" not in keep
     assert 'onConfirmChanged: typedName.text = ""' in t
     assert "visible: removeRow.visible && removeRow.confirm" in t
+
+
+def test_no_process_is_named_after_its_own_methods():
+    """A Process whose id is `write` (or another of its methods) hides that
+    method from its own handlers: `onStarted: write(payload)` then calls the
+    object, a TypeError, and the request never reaches the helper. Settings >
+    Power had it from the start - lid, power button and charge limit changes
+    never got to shani-admin.py (found 2026-11-19 by shell-parts/wake-sources)."""
+    bad = []
+    for p in SHANI.rglob("*.qml"):
+        t = p.read_text()
+        for m in re.finditer(r"\bProcess\s*\{\s*(?://[^\n]*\n\s*)*id:\s*(write|exec|signal|startDetached)\b", t):
+            bad.append(f"{p.relative_to(SHANI)}: id {m.group(1)}")
+    assert not bad, bad
+
+
+def test_files_tiles_and_rows_drag_and_folders_take_drops():
+    """Files: the grid's tiles, the list's rows and the other pane's tiles are each a
+    real drag source (Drag.Automatic, text/uri-list - other apps take it) moved by
+    their MouseArea; folders, the folder's background, the sidebar's places and the
+    other pane take drops (FileDropArea). The drop's work is held by
+    dev/shell-parts/files-dnd.sh; the gesture needs a pointer the suite cannot have."""
+    t = (SHANI / "Modules/Files/FilesPanel.qml").read_text()
+    for owner, area in (("cell", "cellArea"), ("row", "rowArea"), ("scell", "scellArea")):
+        drag = t[t.index(f"id: {owner}Drag"):]
+        drag = drag[:drag.index("}")]
+        assert "Drag.dragType: Drag.Automatic" in drag and '"text/uri-list"' in drag, owner
+        assert f"Drag.active: {area}.drag.active" in drag, owner
+        assert f"drag.target: {owner}Drag" in t, owner
+    assert t.count("FileDropArea {") >= 6
+    d = (SHANI / "Modules/Files/FileDropArea.qml").read_text()
+    assert 'keys: ["text/uri-list"]' in d and "Files.dropUrls(dest, drop.urls" in d
+
+
+def test_files_right_click_opens_the_menu():
+    """Files had no mouse menu at all - only the Menu key - though FEATURES says
+    "the right-click menu" (found 2026-11-19). Tiles, rows and the other pane's
+    tiles take the right button and open it; the background has its own (new
+    folder, templates, paste, terminal, select all, turn the selection over)."""
+    t = (SHANI / "Modules/Files/FilesPanel.qml").read_text()
+    for owner, area in (("cell", "cellArea"), ("row", "rowArea"), ("scell", "scellArea")):
+        a = t[t.index(f"id: {area}"):]
+        a = a[:a.index("onDoubleClicked")]
+        assert "acceptedButtons: Qt.LeftButton | Qt.RightButton" in a, owner
+        assert "mouse.button === Qt.RightButton" in a and "win.openMenu(" in a, owner
+    assert "background: true" in t and "if (e.background) {" in t
+    for label in ("New folder", "Open in terminal", "Turn the selection over", "Set as wallpaper", "Star"):
+        assert f'Tr.t("{label}")' in t, label
+
+
+def test_no_property_declared_twice_in_one_object():
+    """Two `property` declarations of one name in the same object stop the whole
+    shell loading ("Duplicate property name") - a Viewer `shown` added beside the
+    one it had did exactly that. Each object's own declarations, by brace depth."""
+    import re
+    decl = re.compile(r"^\s*(?:readonly\s+|required\s+|default\s+)*property\s+[\w.<>]+\s+(\w+)")
+    bad = []
+    for f in SHANI.rglob("*.qml"):
+        stack = [{}]
+        for n, line in enumerate(f.read_text(errors="replace").splitlines(), 1):
+            code = re.sub(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|//.*$', '""', line)
+            m = decl.match(code)
+            if m:
+                seen = stack[-1]
+                if m.group(1) in seen:
+                    bad.append(f"{f.relative_to(SHANI)}:{n} {m.group(1)} (also line {seen[m.group(1)]})")
+                seen.setdefault(m.group(1), n)
+            for ch in code:
+                if ch == "{":
+                    stack.append({})
+                elif ch == "}" and len(stack) > 1:
+                    stack.pop()
+    assert not bad, bad
+
+
+def test_no_property_set_twice_in_one_object():
+    """`kind: "danger"` and `kind: ...` in one Button: "Property value set multiple
+    times" - the shell does not load. Each object's own `name:` lines, by depth."""
+    import re
+    setter = re.compile(r"^\s*([a-z][\w]*(?:\.[a-z]\w*)*)\s*:\s*(?!\s*$)")
+    bad = []
+    for f in SHANI.rglob("*.qml"):
+        stack = [{}]
+        in_func = []                                    # depths where a JS function body began
+        for n, line in enumerate(f.read_text(errors="replace").splitlines(), 1):
+            code = re.sub(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|//.*$', '""', line)
+            depth = len(stack)
+            m = setter.match(code)
+            if m and not in_func and not re.match(r"^\s*(case|default)\b", code):
+                seen = stack[-1]
+                if m.group(1) in seen:
+                    bad.append(f"{f.relative_to(SHANI)}:{n} {m.group(1)} (also line {seen[m.group(1)]})")
+                seen.setdefault(m.group(1), n)
+            starts_js = bool(re.search(r"(function\b[^{]*|=>\s*|:\s*|\)\s*)\{\s*$", code)) and not re.match(r"^\s*[A-Z]\w*(\.\w+)*\s*\{", code)
+            for ch in code:
+                if ch == "{":
+                    stack.append({})
+                elif ch == "}" and len(stack) > 1:
+                    stack.pop()
+                    if in_func and len(stack) < in_func[-1]:
+                        in_func.pop()
+            if starts_js and len(stack) > depth:
+                in_func.append(len(stack))
+    assert not bad, bad[:10]

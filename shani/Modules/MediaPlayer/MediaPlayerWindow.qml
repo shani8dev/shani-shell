@@ -175,6 +175,24 @@ AppWindow {
     Process { id: coverOut; stdout: StdioCollector { onStreamFinished: win.fileCover = text.trim() } }
     readonly property string cover: win.song && win.song.cover ? win.song.cover : fileCover
 
+    // Showtime's "Take screenshot": the frame on screen, full size, into
+    // ~/Pictures/Screenshots as "<video> <h-mm-ss>.png" (ffmpeg seeks there and keeps one frame)
+    property string frameSaved: ""
+    function saveFrame() {
+        if (!player.hasVideo || PlayQueue.current === "") return;
+        const s = Math.max(0, player.position / 1000);
+        const stamp = Math.floor(s / 3600) + "-" + String(Math.floor(s % 3600 / 60)).padStart(2, "0") + "-" + String(Math.floor(s % 60)).padStart(2, "0");
+        const name = PlayQueue.current.split("/").pop().replace(/\.[^.]+$/, "");
+        frameProc.command = ["sh", "-c", 'd="${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots"; mkdir -p "$d"; o="$d/$2 $3.png"; i=2
+            while [ -e "$o" ]; do o="$d/$2 $3 ($i).png"; i=$((i+1)); done
+            ffmpeg -nostdin -loglevel error -ss "$4" -i "$1" -frames:v 1 "$o" && printf %s "$o"', "sh", PlayQueue.current, name, stamp, s.toFixed(3)];
+        frameProc.running = true;
+    }
+    Process {
+        id: frameProc
+        stdout: StdioCollector { onStreamFinished: { win.frameSaved = text.trim(); Ui.mediaFrameSaved = win.frameSaved } }
+    }
+
     MediaPlayer {
         id: player
         source: PlayQueue.current !== "" ? "file://" + PlayQueue.current.split("/").map(encodeURIComponent).join("/") : ""
@@ -204,6 +222,7 @@ AppWindow {
         function onPlayRequested() { PlayQueue.error = ""; player.play(); }
         function onPauseRequested() { player.pause(); }
         function onToggleRequested() { win.toggle(); }
+        function onFrameRequested() { win.saveFrame(); }
         function onSeekRequested(seconds) { player.position = Math.max(0, Math.min(player.duration, seconds * 1000)); }
     }
     // opened with a file already chosen
@@ -286,6 +305,7 @@ AppWindow {
                         IconButton { size: Theme.px(40); icon: "media-skip-backward"; tip: Tr.t("Previous"); onClicked: PlayQueue.previous() }
                         IconButton { size: Theme.px(52); on: true; icon: PlayQueue.playing ? "media-playback-pause" : "media-playback-start"; tip: Tr.t("Play or pause"); onClicked: win.toggle() }
                         IconButton { size: Theme.px(40); icon: "media-skip-forward"; tip: Tr.t("Next"); onClicked: PlayQueue.next() }
+                        IconButton { size: Theme.px(40); visible: player.hasVideo; icon: "camera-photo"; tip: Tr.t("Save this frame as a picture"); onClicked: win.saveFrame() }
                     }
                     IconButton {
                         z: 3

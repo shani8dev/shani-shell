@@ -19,10 +19,44 @@ AppWindow {
     implicitHeight: Theme.px(760)
     // blur behind the card, as on every shell surface (ext-background-effect)
 
+    // the document's properties (pdfinfo), over the page until closed
+    Glass {
+        id: infoBox
+        parent: win.contentItem
+        visible: PdfViewer.info !== null
+        z: 40
+        strong: true
+        solid: true
+        radius: Theme.px(12)
+        width: Math.min(parent.width - 40, Theme.px(440))
+        height: infoCol.implicitHeight + 28
+        anchors.centerIn: parent
+        ColumnLayout {
+            id: infoCol
+            anchors.fill: parent
+            anchors.margins: Theme.px(14)
+            spacing: Theme.px(4)
+            RowLayout {
+                Layout.fillWidth: true
+                Text { Layout.fillWidth: true; text: Tr.t("Document properties"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(14) * Theme.fontScale; font.weight: Font.DemiBold }
+                IconButton { icon: "window-close"; size: Theme.px(26); tip: Tr.t("Close"); onClicked: PdfViewer.info = null }
+            }
+            Repeater {
+                model: PdfViewer.info || []
+                RowLayout {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    Text { Layout.preferredWidth: Theme.px(120); text: Tr.t(modelData[0]); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                    Text { Layout.fillWidth: true; text: modelData[1]; wrapMode: Text.WrapAnywhere; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                }
+            }
+        }
+    }
+
     Item {
         anchors.fill: parent
         focus: win.visible
-        Keys.onEscapePressed: PdfViewer.close()
+        Keys.onEscapePressed: PdfViewer.info !== null ? PdfViewer.info = null : PdfViewer.close()
         Keys.onRightPressed: PdfViewer.nextPage()
         Keys.onLeftPressed: PdfViewer.prevPage()
         Keys.onPressed: e => {
@@ -64,6 +98,10 @@ AppWindow {
                 IconButton { icon: "go-next"; size: Theme.px(28); tip: Tr.t("Next page"); onClicked: PdfViewer.nextPage() }
                 IconButton { icon: "document-open"; size: Theme.px(28); tip: Tr.t("Toggle thumbnails"); on: PdfViewer.showSidebar; onClicked: PdfViewer.toggleSidebar() }
                 IconButton { icon: "printer"; size: Theme.px(28); tip: Tr.t("Print (P)"); onClicked: PdfViewer.printFile() }
+                IconButton { icon: "weather-clear-night"; size: Theme.px(28); tip: Tr.t("Night mode"); on: PdfViewer.night; onClicked: PdfViewer.setNight(!PdfViewer.night) }
+                IconButton { icon: "format-text-direction-ltr"; size: Theme.px(28); tip: Tr.t("Read as text (select and copy)"); on: PdfViewer.textMode; onClicked: PdfViewer.textMode = !PdfViewer.textMode }
+                IconButton { icon: "edit-copy"; size: Theme.px(28); tip: Tr.t("Copy this page's text"); onClicked: PdfViewer.copyPageText() }
+                IconButton { icon: "document-properties"; size: Theme.px(28); tip: Tr.t("Document properties"); onClicked: PdfViewer.showInfo() }
                 // a form: fill it in, save a filled copy
                 Button {
                     visible: PdfViewer.formFields.length > 0
@@ -248,6 +286,32 @@ AppWindow {
                             Item {
                                 width: pageFlick.contentWidth
                                 height: pageFlick.contentHeight
+                        // read as text: the page's words, to select and copy
+                        Flickable {
+                            visible: PdfViewer.textMode && PdfViewer.current !== ""
+                            anchors.fill: parent
+                            anchors.margins: Theme.px(12)
+                            z: 3
+                            clip: true
+                            contentWidth: width
+                            contentHeight: pageTextEdit.implicitHeight
+                            Rectangle { anchors.fill: parent; color: Theme.bg; z: -1 }
+                            TextEdit {
+                                id: pageTextEdit
+                                width: parent.width
+                                readOnly: true
+                                selectByMouse: true
+                                selectByKeyboard: true
+                                wrapMode: TextEdit.Wrap
+                                text: PdfViewer.pageTexts[PdfViewer.page] || Tr.t("This page has no text (a scan, perhaps).")
+                                color: Theme.text
+                                selectionColor: Theme.accent
+                                font.family: Theme.mono
+                                font.pixelSize: Theme.px(13) * Theme.fontScale
+                                Accessible.role: Accessible.EditableText
+                                Accessible.name: Tr.t("Page text")
+                            }
+                        }
                         Image {
                             id: pageImage
                             visible: PdfViewer.current !== ""
@@ -302,8 +366,32 @@ AppWindow {
                             font.family: Theme.font
                             font.pixelSize: Theme.px(13) * Theme.fontScale
                         }
+                        // a PDF with a password: asked for here
+                        ColumnLayout {
+                            visible: PdfViewer.needsPassword
+                            anchors.centerIn: parent
+                            width: Math.min(parent.width - 40, Theme.px(340))
+                            spacing: Theme.px(8)
+                            onVisibleChanged: if (visible) { pdfPass.text = ""; pdfPass.input.forceActiveFocus(); }
+                            Text {
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                horizontalAlignment: Text.AlignHCenter
+                                text: Tr.t("This PDF is locked. Its password opens it.")
+                                color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale
+                            }
+                            TextField { id: pdfPass; Layout.fillWidth: true; secret: true; placeholderText: Tr.t("Password"); onAccepted: PdfViewer.unlockWith(text) }
+                            Text {
+                                visible: PdfViewer.passwordError !== ""
+                                Layout.fillWidth: true
+                                horizontalAlignment: Text.AlignHCenter
+                                text: PdfViewer.passwordError
+                                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                            }
+                            Button { Layout.alignment: Qt.AlignHCenter; kind: "primary"; text: Tr.t("Unlock"); enabled: pdfPass.text !== ""; onClicked: PdfViewer.unlockWith(pdfPass.text) }
+                        }
                         Text {
-                            visible: !PdfViewer.loading && PdfViewer.current === ""
+                            visible: !PdfViewer.loading && PdfViewer.current === "" && !PdfViewer.needsPassword
                             anchors.centerIn: parent
                             text: PdfViewer.error !== "" ? PdfViewer.error : Tr.t("No pages yet")
                             color: Theme.dim
@@ -333,7 +421,7 @@ AppWindow {
                                     width: Theme.px(640)
                                     height: Theme.px(800)
                                     x: 8
-                                    source: "file://" + modelData
+                                    source: "file://" + PdfViewer.shownPage(modelData)
                                     fillMode: Image.PreserveAspectFit
                                     smooth: true
                                     cache: false

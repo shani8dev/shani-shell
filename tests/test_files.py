@@ -8,6 +8,7 @@ what the Files surface (Modules/Files/FilesPanel.qml) and the file chooser
 The two JS helpers are run in node, the way tests/test_fuzzy.py runs Fuzzy.js.
 """
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -248,6 +249,35 @@ def test_nothing_is_deleted_by_the_file_manager():
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name) \
                     and (node.func.value.id, node.func.attr) in (("os", "remove"), ("os", "unlink"), ("shutil", "rmtree"), ("os", "rmdir")):
                 deleting.setdefault(fn.name, []).append(node.func.attr)
+    # the copy engine (copyjob.py) deletes only: its own half-written ".shani-part"
+    # file (copy_file), what this item made when it is stopped (take_back: self.made),
+    # and, for a move, the sources whose copy is whole (finish_move: self.copied) -
+    # never a tree at once, and a replaced file goes to the trash (gio), not away
+    cj_src = (Path(__file__).resolve().parent.parent / "bridge" / "copyjob.py").read_text()
+    cj = ast.parse(cj_src)
+    assert "rmtree" not in cj_src
+    allowed = {"copy_file": ["remove"], "take_back": ["rmdir", "remove"], "finish_move": ["remove", "rmdir"], "_drop": ["remove"]}
+    for fn in ast.walk(cj):
+        if not isinstance(fn, ast.FunctionDef):
+            continue
+        dels = [n.func.attr for n in ast.walk(fn) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                and isinstance(n.func.value, ast.Name) and (n.func.value.id, n.func.attr) in (("os", "remove"), ("os", "unlink"), ("os", "rmdir"))]
+        if fn.name in allowed:
+            assert sorted(dels) == sorted(allowed[fn.name]), (fn.name, dels)
+        else:
+            assert not dels, (fn.name, dels)
+    seg = lambda name: ast.get_source_segment(cj_src, next(f for f in ast.walk(cj) if isinstance(f, ast.FunctionDef) and f.name == name))
+    assert "os.remove(part)" in seg("copy_file") and 'part = os.path.join(os.path.dirname(dst), ".%s.shani-part"' in seg("copy_file")
+    assert "for p in reversed(self.made)" in seg("take_back") and "for p in self.copied" in seg("finish_move")
+    assert "self._to_trash(dst)" in seg("copy_file")
+    deleting.pop("job", None); deleting.pop("remove", None)
+    # thumb_for removes only its own half-made temp file, in the thumbnail cache
+    th = ast.get_source_segment(bridge, next(f for f in ast.walk(tree) if isinstance(f, ast.FunctionDef) and f.name == "thumb_for"))
+    assert re.findall(r"os\.remove\((\w+)\)", th) == ["tmp"] and 'tmp = target + f".shani-' in th
+    deleting.pop("thumb_for", None)
+    # connect_sshfs takes back only the mount point it made, when sshfs failed - and
+    # rmdir removes an empty folder only
+    assert deleting.pop("connect_sshfs", None) in (None, ["rmdir"])
     assert set(deleting) <= {"empty_trash", "restore"}, f"deleting outside the trash: {deleting}"
     for name in deleting:
         src = ast.get_source_segment(bridge, next(f for f in ast.walk(tree) if isinstance(f, ast.FunctionDef) and f.name == name))

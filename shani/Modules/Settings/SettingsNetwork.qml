@@ -87,7 +87,7 @@ ColumnLayout {
     // ---- saved networks (Pantheon, Android): join on its own or not, and metered
     // - "limit background data", which NetworkManager tells apps (GNOME Software,
     // Flatpak and the updater hold back their downloads) - or forget it
-    property var saved: []                // [{ uuid, name, type, auto, metered }]
+    property var saved: []                // [{ uuid, name, type, auto, metered, zone }]
     function readSaved() { if (!listSaved.running) listSaved.running = true; }
     Process {
         id: listSaved
@@ -99,11 +99,12 @@ ColumnLayout {
                     apn=$(nmcli -g gsm.apn connection show "$u" 2>/dev/null)
                     home=$(nmcli -g gsm.home-only connection show "$u" 2>/dev/null)
                 fi
-                printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" "$u" "$t" "$a" "$(nmcli -g connection.metered connection show "$u" 2>/dev/null)" "$n" "$apn" "$home"; done']
+                printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" "$u" "$t" "$a" "$(nmcli -g connection.metered connection show "$u" 2>/dev/null)" "$(nmcli -g connection.zone connection show "$u" 2>/dev/null)" "$n" "$apn" "$home"; done']
         stdout: StdioCollector {
             onStreamFinished: page.saved = text.trim().split("\n").filter(x => x).map(l => {
                 const f = l.split("\t");
-                return { uuid: f[0], type: f[1], auto: f[2] === "yes", metered: f[3] === "yes", name: f.slice(4, -2).join("\t").replace(/\\:/g, ":"),
+                return { uuid: f[0], type: f[1], auto: f[2] === "yes", metered: f[3] === "yes", zone: (f[4] || "").toLowerCase(),
+                         name: f.slice(5, -2).join("\t").replace(/\\:/g, ":"),
                          apn: f[f.length - 2] || "", homeOnly: f[f.length - 1] || "" };
             })
         }
@@ -174,6 +175,19 @@ ColumnLayout {
                 hint: Tr.t("A metered connection: apps and updates hold back large downloads")
                 checked: net.modelData.metered
                 onToggled: on => page.modify(net.modelData.uuid, ["connection.metered", on ? "yes" : "unknown"])
+            }
+            // the firewall zone of this network (Ananta OS's "Shield", done by
+            // NetworkManager and firewalld): every network is public - nothing
+            // unsolicited comes in - unless marked as home, where your own
+            // devices may find this computer and reach what it shares
+            // (shani-settings' zones/home.xml). Takes effect at once.
+            SwitchRow {
+                Layout.fillWidth: true
+                visible: net.modelData.type === "802-11-wireless" || net.modelData.type === "802-3-ethernet"
+                text: Tr.t("Home network")
+                hint: Tr.t("Your own devices here may find this computer and use what it shares. Leave off in cafés, offices and other places.")
+                checked: net.modelData.zone === "home"
+                onToggled: on => page.modify(net.modelData.uuid, ["connection.zone", on ? "home" : ""])
             }
             // mobile (SIM) connections: the operator's APN and roaming
             ColumnLayout {

@@ -14,6 +14,11 @@ pragma Singleton
 // file), and archives are made too: Files' "Compress" (zip, tar.gz, tar.xz,
 // 7z), written as a temporary file and renamed when whole.
 //
+// A lone compressed file (notes.txt.gz, a .xz, .zst, .bz2, .lz, .lzma, .lz4 that
+// is not a tar) is no archive to bsdtar (it fails, measured); it is shown as
+// the one file inside it and taken out with
+// libarchive's bsdcat, which reads every one of those (measured).
+//
 // Extracting never writes over anything: the files go into a new folder
 // named after the archive ("photos.zip" -> "photos", or "photos (2)" when
 // that is taken). bsdtar refuses paths that climb out with ".." and absolute
@@ -43,6 +48,9 @@ Singleton {
     // never empty: bsdtar would ask on a terminal it does not have, forever
     readonly property string pass: passphrase || "\u0001no-password"
     readonly property bool available: tool.found
+    property bool single: false           // a lone compressed file, not an archive (bsdcat takes it out)
+    readonly property var singleExts: ["gz", "bz2", "xz", "zst", "lz", "lzma", "lz4", "Z"]
+    readonly property string singleExt: { const m = /\.([A-Za-z0-9]+)$/.exec(name); return m && singleExts.indexOf(m[1]) >= 0 ? m[1] : ""; }
     readonly property var types: ["zip", "tar", "gz", "tgz", "xz", "txz", "zst", "bz2", "tbz2", "7z", "iso", "rar", "cpio", "jar", "apk", "deb", "rpm", "cab", "lz4", "lzma"]
 
     function open(arg) {
@@ -61,6 +69,7 @@ Singleton {
         root.extractedTo = "";
         root.passphrase = "";
         root.needsPassword = false;
+        root.single = false;
         root.toCompress = [];
         list();
     }
@@ -110,11 +119,72 @@ Singleton {
                 root.extractWhenRead = false;
                 if (root.askPassword(listErr.text, "list"))
                     return;
+                // not by bsdtar's words: a lone .gz says "Unrecognized archive format", a lone
+                // .xz of text says "Missing type keyword in mtree specification" (it reads
+                // the text as an mtree list - measured). The probe's magic check decides.
+                if (root.singleExt !== "" && !/\.tar\.[A-Za-z0-9]+$/.test(root.name)) {
+                    root.single = true;
+                    root.reading = true;
+                    // bsdcat passes ANY bytes through (measured: plain text and random
+                    // data both exit 0), so the file must start with a compressor's magic
+                    singleSize.command = ["bash", "-c", 'set -o pipefail
+                        m=$(od -An -tx1 -N6 -- "$1" | tr -d " \n")
+                        case "$m" in 1f8b*|425a68*|fd377a585a00|28b52ffd*|4c5a4950*|04224d18*|5d0000*|1f9d*) ;; *) exit 2;; esac
+                        bsdcat -- "$1" | wc -c', "bash", root.file];
+                    singleSize.running = true;
+                    return;
+                }
                 root.error = Tr.t("Not an archive that can be read") + ": " + root.name;
             } else if (root.extractWhenRead) {
                 root.extractWhenRead = false;
                 root.extract("");
             }
+        }
+    }
+
+    // a lone compressed file: the one file inside, at its real size
+    Process {
+        id: singleSize
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const size = parseInt(text.trim()) || 0;
+                root.entries = [{ path: root.name.slice(0, -(root.singleExt.length + 1)), size: size, dir: false }];
+                root.totalSize = size;
+            }
+        }
+        onExited: code => {
+            root.reading = false;
+            if (code !== 0) {
+                root.single = false;
+                root.entries = [];
+                root.error = Tr.t("Not an archive that can be read") + ": " + root.name;
+            } else if (root.extractWhenRead) {
+                root.extractWhenRead = false;
+                root.extract("");
+            }
+        }
+    }
+    // the one file of a lone compressed file, into `dir` under a name not taken (never over a file)
+    function extractSingle(dir, done) {
+        root.error = "";
+        root.extractedTo = "";
+        root.extracting = true;
+        singleOut.command = ["sh", "-c", 'n=$3; case "$n" in *.*) b=${n%.*}; e=.${n##*.};; *) b=$n; e=;; esac
+            d="$1/$n"; i=2; while [ -e "$d" ]; do d="$1/$b ($i)$e"; i=$((i+1)); done
+            t=$(mktemp "$1/.shani-extract.XXXXXX") || exit 1
+            bsdcat -- "$2" > "$t" || { s=$?; rm -f "$t"; exit $s; }
+            mv -- "$t" "$d" && printf "%s" "$d"',
+            "sh", dir, root.file, root.entries.length ? root.entries[0].path : root.name];
+        singleOut.running = true;
+    }
+    Process {
+        id: singleOut
+        stdout: StdioCollector { id: singleMade }
+        stderr: StdioCollector { id: singleErr }
+        onExited: code => {
+            root.extracting = false;
+            if (code === 0) root.extractedTo = singleMade.text;
+            else root.error = Tr.t("Could not extract") + ": " + (singleErr.text.trim().split("\n").pop() || root.name);
         }
     }
 
@@ -140,6 +210,7 @@ Singleton {
     function extractOne(entry) {
         if (root.file === "" || root.extracting || !entry)
             return;
+        if (root.single) { extractSingle(root.file.substring(0, root.file.lastIndexOf("/")), ""); return; }
         root.error = "";
         root.extractedTo = "";
         root.extracting = true;
@@ -219,6 +290,7 @@ Singleton {
     function extract(where) {
         if (root.file === "" || root.extracting || root.entries.length === 0)
             return;
+        if (root.single) { extractSingle(where || root.file.substring(0, root.file.lastIndexOf("/")), ""); return; }
         root.error = "";
         root.extractedTo = "";
         root.extracting = true;

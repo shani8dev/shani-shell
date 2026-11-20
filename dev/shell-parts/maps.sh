@@ -28,3 +28,21 @@ waitfor "d['mapsView'].get('distance') == 2450 and d['mapsView'].get('steps') ==
     && result maps-directions PASS || result maps-directions FAIL "$(q "['mapsView']")"
 sleep 0.8; shot maps-route 0.3
 ipc closeAll
+
+# ---- a place's details and saved places (GNOME Maps parity) ----
+ipc mapsSearch "Shaniwar Wada"
+waitfor "d['mapsView'].get('hours') == 'Mo-Su 05:00-23:00' and d['mapsView'].get('phone') and d['mapsView'].get('website')" 8 \
+    && result maps-place-details PASS || result maps-place-details FAIL "$(q "['mapsView']")"
+ipc mapsSave
+waitfor "d['mapsView'].get('pinSaved') and d['mapsView'].get('saved') >= 1" 4 && result maps-place-saved PASS || result maps-place-saved FAIL "$(q "['mapsView']")"
+shot maps-saved 0.3
+ipc mapsPan "400,300"; sleep 0.5
+ipc mapsGoSaved "Shaniwar Wada"
+waitfor "abs(d['mapsView'].get('lat', 0) - 18.5195) < 0.001" 4 && result maps-saved-place-one-click PASS || result maps-saved-place-one-click FAIL "$(q "['mapsView']")"
+# share (GNOME Maps' Share): the link copied, a QR code for a phone
+ipc mapsShare; sleep 0.8
+wl-paste -n 2>/dev/null | grep -q 'openstreetmap.org/?mlat=18.519' && [ "$(q "['qrShown']")" = True ] \
+    && result maps-share-place PASS || result maps-share-place FAIL "$(wl-paste -n 2>&1 | head -c 120) qr $(q "['qrShown']")"
+ipc qrClose; sleep 0.2
+ipc mapsSave; sleep 0.3
+[ "$(q "['mapsView'].get('pinSaved')")" = False ] && result maps-place-forgotten PASS || result maps-place-forgotten FAIL "$(q "['mapsView']")"

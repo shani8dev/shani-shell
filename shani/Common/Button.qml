@@ -14,7 +14,7 @@ Rectangle {
 
     Accessible.role: Accessible.Button
     Accessible.name: root.text
-    Accessible.onPressAction: root.clicked()
+    Accessible.onPressAction: if (root.enabled) root.clicked()   // a disabled button is not pressed by a screen reader either
 
     implicitWidth: Math.max(label.implicitWidth + 28, Theme.touchTarget)
     implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)

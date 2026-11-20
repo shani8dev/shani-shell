@@ -42,7 +42,10 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/search":
             q = self.path.split("q=", 1)[-1].replace("+", " ").replace("%20", " ").lower()
             hit = next((v for k, v in PLACES.items() if k in q), None)
-            rows = [{"lat": hit[0], "lon": hit[1], "display_name": hit[2], "type": "station"}] if hit else []
+            rows = [{"lat": hit[0], "lon": hit[1], "display_name": hit[2], "type": "station",
+                     # Nominatim's extratags=1 answer
+                     **({"extratags": {"opening_hours": "Mo-Su 05:00-23:00", "phone": "+91 20 2612 6575",
+                                       "website": "https://example.org/station"}} if "extratags=1" in self.path else {})}] if hit else []
             self.send(json.dumps(rows).encode(), "application/json")
         elif path.startswith("/route/v1/"):
             coords = path.split("/")[-1].split(";")
