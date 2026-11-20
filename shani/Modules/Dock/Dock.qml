@@ -185,6 +185,7 @@ PanelWindow {
     Item { id: whole; anchors.fill: parent }
     // a click anywhere else closes the menu
     MouseArea {
+        objectName: "nav:pointer"          // a click outside closes the menu; Escape does with keys
         anchors.fill: parent
         visible: win.menuFor >= 0
         onClicked: win.menuFor = -1
@@ -491,6 +492,7 @@ PanelWindow {
                     name: cell.Accessible.name
                     radius: Theme.px(12)
                     onActivated: { win.activate(cell.modelData); Ui.dockFocus = false; }
+                    menuable: true
                     onMenu: { win.menuFor = cell.index; Ui.focusFirst(menuBox); }
                 }
                 // the right-click menu: what can be done with this app
@@ -772,7 +774,7 @@ PanelWindow {
             cursorShape: Qt.PointingHandCursor
             onClicked: tile.activated()
         }
-        KeyFocus { name: tile.Accessible.name; radius: width * 0.24; onActivated: tile.activated(); onMenu: tile.menuRequested() }
+        KeyFocus { name: tile.Accessible.name; radius: width * 0.24; menuable: true; onActivated: tile.activated(); onMenu: tile.menuRequested() }
         ToolTipText { visible: tileArea.containsMouse; text: tile.tip }
     }
 

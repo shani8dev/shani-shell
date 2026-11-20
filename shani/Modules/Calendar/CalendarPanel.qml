@@ -15,6 +15,8 @@ import qs.Services
 
 AppWindow {
     id: win
+    property bool addingAccount: false
+    property string accountKind: "other"
     appName: "Calendar"
     tools: [
         IconButton { size: Theme.px(30); icon: "view-refresh"; tip: Tr.t("Refresh"); onClicked: Agenda.refresh() }
@@ -93,6 +95,15 @@ AppWindow {
         const nm = new Date(today.getFullYear(), today.getMonth() + offset, 1);
         const maxDay = new Date(nm.getFullYear(), nm.getMonth() + 1, 0).getDate();
         selectedDate = new Date(nm.getFullYear(), nm.getMonth(), Math.min(selectedDate.getDate(), maxDay));
+    }
+    // an imported invitation: its day (its month first)
+    Connections {
+        target: Agenda
+        function onShowDay(when) {
+            const d = new Date(when);
+            win.offset = (d.getFullYear() - win.today.getFullYear()) * 12 + d.getMonth() - win.today.getMonth();
+            win.selectedDate = d;
+        }
     }
     function goToday() {
         offset = 0;
@@ -575,6 +586,80 @@ AppWindow {
                         onClicked: Agenda.setShown(modelData, !Agenda.isShown(modelData))
                     }
                 }
+            }
+            // ---- online accounts: a CalDAV server's calendars (GNOME Calendar's "Add calendar") ----
+            RowLayout {
+                visible: !win.editor
+                Layout.fillWidth: true
+                Text {
+                    Layout.fillWidth: true
+                    text: Tr.t("Online accounts")
+                    color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+                    Component.onCompleted: Agenda.loadAccounts()
+                }
+                IconButton { icon: "view-refresh"; size: Theme.px(22); tip: Tr.t("Read the accounts again"); onClicked: Agenda.loadAccounts() }
+            }
+            Repeater {
+                model: win.editor ? [] : Agenda.accounts
+                RowLayout {
+                    id: accRow
+                    required property var modelData
+                    Layout.fillWidth: true
+                    property bool confirm: false
+                    Text {
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        text: accRow.modelData.name + (accRow.modelData.calendars.length ? "  ·  " + accRow.modelData.calendars.join(", ") : "  ·  " + Tr.t("finding its calendars…"))
+                        color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                    }
+                    IconButton {
+                        icon: accRow.confirm ? "edit-delete" : "window-close"
+                        size: Theme.px(22)
+                        tip: accRow.confirm ? Tr.t("Click again: %1 is removed from this computer (nothing on the server changes)", accRow.modelData.name) : Tr.t("Remove %1", accRow.modelData.name)
+                        onClicked: { if (accRow.confirm) Agenda.removeAccount(accRow.modelData.uid); accRow.confirm = !accRow.confirm; }
+                    }
+                }
+            }
+            Choice { visible: !win.editor; text: win.addingAccount ? Tr.t("Cancel") : Tr.t("Add an online calendar…"); onClicked: win.addingAccount = !win.addingAccount }
+            ColumnLayout {
+                visible: !win.editor && win.addingAccount
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    Repeater {
+                        // where each provider keeps its CalDAV (the user name goes in by itself)
+                        model: [["nextcloud", "Nextcloud", "https://YOUR-SERVER/remote.php/dav"], ["fastmail", "Fastmail", "https://caldav.fastmail.com/"],
+                                ["icloud", "iCloud", "https://caldav.icloud.com/"], ["mailbox", "mailbox.org", "https://dav.mailbox.org/"],
+                                ["other", Tr.t("Other CalDAV"), "https://"]]
+                        Choice {
+                            required property var modelData
+                            text: modelData[1]
+                            selected: win.accountKind === modelData[0]
+                            onClicked: { win.accountKind = modelData[0]; accUrl.text = modelData[2]; accName.text = modelData[0] === "other" ? "" : modelData[1]; }
+                        }
+                    }
+                }
+                TextField { id: accName; Layout.fillWidth: true; placeholderText: Tr.t("Name, e.g. Work") }
+                TextField { id: accUrl; Layout.fillWidth: true; placeholderText: "https://…" }
+                TextField { id: accUser; Layout.fillWidth: true; placeholderText: Tr.t("User name") }
+                TextField { id: accPass; Layout.fillWidth: true; secret: true; placeholderText: win.accountKind === "icloud" ? Tr.t("An app password (appleid.apple.com)") : Tr.t("Password (an app password, where it has them)") }
+                Text {
+                    visible: Agenda.accountError !== ""
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: Agenda.accountError
+                    color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+                Button {
+                    kind: "primary"
+                    busy: Agenda.accountBusy
+                    text: Tr.t("Add")
+                    enabled: !Agenda.accountBusy && /^https?:\/\/[^\s\/]+/.test(accUrl.text.trim()) && accUrl.text.indexOf("YOUR-SERVER") < 0 && accUser.text.trim() !== "" && accPass.text !== ""
+                    onClicked: Agenda.addAccount(accName.text.trim(), accUrl.text.trim(), accUser.text.trim(), accPass.text)
+                }
+                Connections { target: Agenda; function onAccountBusyChanged() { if (!Agenda.accountBusy && Agenda.accountError === "") { win.addingAccount = false; accPass.text = ""; } } }
             }
             TextField {
                 id: searchField

@@ -159,8 +159,10 @@ ColumnLayout {
         options: [{ label: Tr.t("Power off"), value: "poweroff" }, { label: Tr.t("Sleep"), value: "suspend" }]
             .concat(Power.canHibernate ? [{ label: Tr.t("Hibernate"), value: "hibernate" }] : [])
             .concat([{ label: Tr.t("Lock"), value: "lock" }, { label: Tr.t("Nothing"), value: "ignore" }])
-        current: page.powerKey
-        onPicked: v => page.save({ powerKey: v })
+        // until a choice is made here niri has the button and sleeps (its default,
+        // logind's would power off); once made, niri lets logind have it (InputConfig)
+        current: Settings.data.powerKeyByLogind ? page.powerKey : "suspend"
+        onPicked: v => { Settings.data.powerKeyByLogind = true; Settings.touch("powerKeyByLogind"); page.save({ powerKey: v }); }
     }
     Picks {
         visible: page.limit > 0

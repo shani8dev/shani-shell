@@ -7,6 +7,7 @@ import qs.Common
 import qs.Services
 
 PanelWindow {
+    NavWindow {}     // known to the keys-and-controller reach check (Ui.navAuditAll)
     id: win
     visible: Share.file !== "" && !Lock.locked
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
@@ -22,7 +23,7 @@ PanelWindow {
 
     property int sel: 0
     onVisibleChanged: sel = 0
-    MouseArea { anchors.fill: parent; onClicked: Share.close() }
+    MouseArea { objectName: "nav:pointer"; anchors.fill: parent; onClicked: Share.close() }
     Item {
         anchors.fill: parent
         focus: win.visible

@@ -37,6 +37,7 @@ Variants {
         // one card: its surface (the whole screen, input only on the card), the
         // glass, the drag, the click
         component Card: PanelWindow {
+            NavWindow {}     // known to the keys-and-controller reach check (Ui.navAuditAll)
             id: cw
             required property string key
             property real defaultX: 24

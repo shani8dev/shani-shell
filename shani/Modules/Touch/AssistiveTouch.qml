@@ -8,6 +8,7 @@ import qs.Common
 import qs.Services
 
 PanelWindow {
+    NavWindow {}     // known to the keys-and-controller reach check (Ui.navAuditAll)
     id: win
     visible: Settings.data.assistiveTouch && !Lock.locked && !Ui.ring
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]

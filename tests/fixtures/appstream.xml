@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<components version="0.14" origin="flathub">
+  <component type="desktop-application">
+    <id>org.example.Notes</id>
+    <name>Notes</name>
+    <name xml:lang="fr">Notes FR</name>
+    <summary>Write down what matters</summary>
+    <description><p>A notes app.</p><ul><li>Fast</li><li>Private</li></ul><p xml:lang="de">Deutsch</p></description>
+    <developer id="org.example"><name>Example Org</name></developer>
+    <project_license>GPL-3.0-or-later</project_license>
+    <url type="homepage">https://example.org/notes</url>
+    <categories><category>Office</category><category>Utility</category></categories>
+    <keywords><keyword>memo</keyword></keywords>
+    <screenshots><screenshot type="default"><image type="source">https://example.org/s1.png</image></screenshot></screenshots>
+  </component>
+  <component type="desktop-application">
+    <id>org.example.Game.desktop</id>
+    <name>Space Notes Game</name>
+    <summary>A game about notes in space</summary>
+    <categories><category>Game</category></categories>
+  </component>
+  <component type="runtime"><id>org.freedesktop.Platform</id><name>Platform</name></component>
+</components>

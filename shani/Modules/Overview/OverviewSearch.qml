@@ -12,6 +12,7 @@ import qs.Common
 import qs.Services
 
 PanelWindow {
+    NavWindow {}     // known to the keys-and-controller reach check (Ui.navAuditAll)
     id: win
     visible: Niri.overviewOpen && !Ui.launcher
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]

@@ -11,6 +11,7 @@ Rectangle {
     property string tip: ""
     signal clicked()
     signal rightClicked()
+    property bool hasMenu: false           // a right-click does something: the Menu key (a pad's X) too
 
     // for screen readers: a button named after what it does
     Accessible.role: Accessible.Button
@@ -81,7 +82,7 @@ Rectangle {
         onClicked: e => e.button === Qt.RightButton ? root.rightClicked() : root.clicked()
     }
     // keyboard and controller: Enter / Space click, the Menu key right-clicks
-    KeyFocus { enabled: root.enabled && root.visible; onActivated: root.clicked(); onMenu: root.rightClicked() }
+    KeyFocus { enabled: root.enabled && root.visible; menuable: root.hasMenu; onActivated: root.clicked(); onMenu: root.rightClicked() }
     // what it is, on hover: the tip, else the name a screen reader says
     Hint { text: root.tip !== "" ? root.tip : root.Accessible.name }
 }

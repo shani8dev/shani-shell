@@ -48,7 +48,7 @@ Singleton {
         if (w.app_id !== "org.quickshell")
             return w;
         const id = ShellApps.idFor(w.title);
-        return id ? Object.assign({}, w, { app_id: id }) : w;
+        return Object.assign({}, w, { shell: true }, id ? { app_id: id } : {});
     }
     // the window of one of the shell's apps, to bring it forward when it is asked for again
     function appWindow(id) { return mru().find(w => w.app_id === id) || null; }
@@ -223,6 +223,32 @@ Singleton {
 
     function action(...args) {
         Quickshell.execDetached(["niri", "msg", "action", ...args.map(String)]);
+    }
+
+    // stop sharing the screen: every PipeWire screencast niri is making, ended
+    // (`niri msg casts` lists them, `stop-cast --session-id` ends one)
+    property var lastStoppedCasts: []     // for the tests
+    function stopCasts() { castLister.running = true; }
+    Process {
+        id: castLister
+        command: ["niri", "msg", "-j", "casts"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const ids = [];
+                const walk = v => {
+                    if (Array.isArray(v)) v.forEach(walk);
+                    else if (v && typeof v === "object")
+                        for (const k in v) {
+                            if (k === "session_id" && typeof v[k] === "number" && ids.indexOf(v[k]) < 0) ids.push(v[k]);
+                            else walk(v[k]);
+                        }
+                };
+                try { walk(JSON.parse(text)); } catch (e) {}
+                for (const id of ids)
+                    root.action("stop-cast", "--session-id", id);
+                root.lastStoppedCasts = ids;
+            }
+        }
     }
 
     function findWindow(q) {

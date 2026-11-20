@@ -69,7 +69,7 @@ PanelWindow {
         if (FocusTimer.running)
             return { icon: "alarm", text: "Focus · " + FocusTimer.label, color: Theme.accent, run: () => Ui.openClocks("timer") };
         if (Audio.screenShared)
-            return { icon: "screen-shared", text: Tr.t("Sharing your screen"), color: Theme.red, run: () => {} };
+            return { icon: "screen-shared", text: Tr.t("Sharing your screen — tap to stop"), color: Theme.red, run: () => Niri.stopCasts() };
         if (Backup.running)
             return { icon: "drive-harddisk", text: Tr.t("Backing up…"), color: Theme.accent, run: () => {} };
         if (player)
@@ -312,6 +312,8 @@ PanelWindow {
                     // left: the conversation; right: Lens — point at something and ask
                     onClicked: e => (Hold.swallowed(held) || e.button === Qt.RightButton) ? Lens.capture() : (Chronoa.open = !Chronoa.open)
                 }
+                // keys and a controller: Enter the conversation, the Menu key (a pad's X) Lens
+                KeyFocus { name: Tr.t("Chronoa"); menuable: true; onActivated: Chronoa.open = !Chronoa.open; onMenu: Lens.capture() }
             }
 
             // ---- the line / the question field ----------------------------
@@ -340,6 +342,14 @@ PanelWindow {
                             win.activity.run();
                             return;
                         }
+                        win.asking = true;
+                        askInput.forceActiveFocus();
+                    }
+                }
+                KeyFocus {
+                    name: parent.text
+                    onActivated: {
+                        if (win.mode === "rest" && win.activity) { win.activity.run(); return; }
                         win.asking = true;
                         askInput.forceActiveFocus();
                     }

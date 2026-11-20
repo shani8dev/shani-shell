@@ -102,7 +102,8 @@ def test_every_default_app_of_the_image_is_in_the_image(pkgdir):
     if not mimeapps.exists() or not flatpaks.exists():
         pytest.skip("no shani-desktop-niri or shani-install-media beside this repo")
     shipped = {line.strip() for line in flatpaks.read_text().splitlines() if line.strip() and not line.startswith("#")}
-    native = {"org.gnome.Nautilus", "org.gnome.FileRoller", "dev.shani.Link.Dial", "dev.shani.Link.App", "dev.shani.cassini"}
+    native = {"org.gnome.Nautilus", "org.gnome.FileRoller", "dev.shani.Link.Dial", "dev.shani.Link.App", "dev.shani.cassini",
+              "org.qbittorrent.qBittorrent"}
     ours = {p.stem: p.read_text() for p in (pkgdir / "usr/share/applications").glob("*.desktop")}
     missing, unhandled = set(), set()
     for line in mimeapps.read_text().splitlines():

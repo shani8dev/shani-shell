@@ -121,7 +121,7 @@ PanelWindow {
     }
 
     Item { id: whole; anchors.fill: parent }
-    MouseArea { anchors.fill: parent; visible: menu.visible || stack.visible; onClicked: { menu.visible = false; stack.visible = false; } }
+    MouseArea { objectName: "nav:pointer"; anchors.fill: parent; visible: menu.visible || stack.visible; onClicked: { menu.visible = false; stack.visible = false; } }
 
     // the icons' bounding box: the input mask
     Item {

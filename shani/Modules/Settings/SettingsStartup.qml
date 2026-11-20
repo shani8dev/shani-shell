@@ -97,7 +97,7 @@ ColumnLayout {
         Layout.fillWidth: true
         spacing: Theme.px(6)
         Repeater {
-            model: ["org.gnome.Nautilus", "com.vivaldi.Vivaldi", "org.mozilla.firefox", "org.telegram.desktop", "org.signal.Signal",
+            model: ["dev.shani.Files", "com.vivaldi.Vivaldi", "org.mozilla.firefox", "org.telegram.desktop", "org.signal.Signal",
                     "com.slack.Slack", "org.mozilla.Thunderbird", "com.spotify.Client", "org.localsend.localsend_app", "dev.shani.chronoa"]
                 .map(id => DesktopEntries.byId(id)).filter(a => a && !a.noDisplay).slice(0, 8)
             Choice {

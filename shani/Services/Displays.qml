@@ -74,6 +74,8 @@ Singleton {
     readonly property string kdl: {
         const all = Settings.data.displays || {};
         const names = Object.keys(all);
+        if (Settings.data.startupOutput && names.indexOf(Settings.data.startupOutput) < 0)
+            names.push(Settings.data.startupOutput);
         if (slowOnBattery)
             for (const o of outputs)
                 if (DisplayModes.internal(o.name) && names.indexOf(o.name) < 0)
@@ -84,7 +86,10 @@ Singleton {
             if (c.off)
                 l.push("    off");
             else {
-                if (slow || c.mode)
+                // a resolution of your own (WxH@Hz) the screen does not list: niri makes the mode
+                if (c.customMode && !slow)
+                    l.push("    mode custom=true \"" + String(c.customMode).replace(/[^0-9x@.]/g, "") + "\"");
+                else if (slow || c.mode)
                     l.push("    mode \"" + (slow || c.mode) + "\"");
                 if (c.scale)
                     l.push("    scale " + c.scale);
@@ -94,6 +99,15 @@ Singleton {
                     l.push("    position x=" + Math.round(c.x) + " y=" + Math.round(c.y));
                 if (c.vrr)
                     l.push("    variable-refresh-rate");
+                // colour depth: 10 bits a channel where the cable and screen take it (8: the safe one)
+                if (c.bpc)
+                    l.push("    max-bpc " + parseInt(c.bpc));
+                // a VR headset: lent whole to the VR runtime (SteamVR, Monado), not a desktop screen
+                if (c.vrLease)
+                    l.push("    drm-lease");
+                // the screen the session starts on
+                if (Settings.data.startupOutput === name)
+                    l.push("    focus-at-startup");
             }
             l.push("}");
             return l.join("\n");

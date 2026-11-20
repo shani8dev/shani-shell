@@ -1,36 +1,30 @@
 pragma Singleton
-// A convertible folded into a tablet: the kernel's SW_TABLET_MODE switch, read
-// from the switch device's evdev node by bridge/tablet-mode.py (blocking reads:
-// it wakes only when the switch moves). Entering tablet mode shows the screen
-// keyboard, leaving hides it (Settings > Keyboard & input, on by default); the
-// keyboard's floating button follows it too. Only runs on a computer whose udev
-// database has such a switch (InputKinds.tabletSwitch).
+// A convertible folded into a tablet, and a laptop's lid: niri's own switch events
+// (switch-events in the shell's shani-input.kdl, Services/InputConfig) call the
+// shell's IPC `switchEvent` - niri reads the kernel's switches through libinput, so
+// no reader of our own runs. Entering tablet mode shows the screen keyboard,
+// leaving hides it (Settings > Keyboard & input, on by default); the keyboard's
+// floating button follows it too. `lidClosed` is the lid, as niri saw it last.
 import Quickshell
-import Quickshell.Io
 import QtQuick
 import qs.Common
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_TABLET_MODE_TOOL") || "/usr/lib/shani-shell/tablet-mode.py"
     property bool known: false            // a switch said something
     property bool on: false
+    property bool lidClosed: false
     onOnChanged: {
         if (!known || !Settings.data.oskWithTabletMode)
             return;
         if (on !== Osk.shown)
             Osk.toggle();
     }
-    Process {
-        running: InputKinds.tabletSwitch
-        command: ["python3", root.tool]
-        stdout: SplitParser {
-            onRead: line => {
-                if (line === "tablet" || line === "laptop") {
-                    root.known = true;
-                    root.on = line === "tablet";
-                }
-            }
-        }
+    function event(what) {
+        if (what === "tablet-on" || what === "tablet-off") {
+            root.known = true;
+            root.on = what === "tablet-on";
+        } else if (what === "lid-close" || what === "lid-open")
+            root.lidClosed = what === "lid-close";
     }
 }

@@ -199,6 +199,40 @@ ColumnLayout {
             checked: page.sel ? page.sel.vrr : false
             onToggled: on => Displays.apply(page.selected, { vrr: on })
         }
+        // colour depth: 10 bits a channel where cable and screen take it (smoother gradients, HDR's way in)
+        Picks {
+            label: Tr.t("Colour depth")
+            options: [{ label: Tr.t("Automatic"), value: "" }, { label: Tr.t("8 bits"), value: "8" }, { label: Tr.t("10 bits"), value: "10" }]
+            current: String(((Settings.data.displays || {})[page.selected] || {}).bpc || "")
+            onPicked: v => Displays.apply(page.selected, { bpc: v === "" ? 0 : parseInt(v) })
+        }
+        // a resolution the screen does not offer (a projector, an old monitor): kept only if confirmed
+        Picks {
+            label: Tr.t("Resolution of your own")
+            options: [{ label: Tr.t("None"), value: "" }, { label: "1280×720", value: "1280x720@60" }, { label: "1600×900", value: "1600x900@60" },
+                      { label: "1920×1080", value: "1920x1080@60" }, { label: "2560×1440", value: "2560x1440@60" }, { label: "3840×2160", value: "3840x2160@30" }]
+            current: String(((Settings.data.displays || {})[page.selected] || {}).customMode || "")
+            onPicked: v => Displays.apply(page.selected, { customMode: v })
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            TextField { id: customMode; Layout.fillWidth: true; placeholderText: Tr.t("Other: width x height @ refresh, e.g. 1680x1050@60") }
+            Button { text: Tr.t("Try it"); enabled: /^\d{3,5}x\d{3,5}@\d{2,3}(\.\d+)?$/.test(customMode.text.trim()); onClicked: Displays.apply(page.selected, { customMode: customMode.text.trim() }) }
+        }
+        SwitchRow {
+            Layout.fillWidth: true
+            visible: Displays.outputs.length > 1
+            text: Tr.t("Start the session on this screen")
+            checked: Settings.data.startupOutput === page.selected
+            onToggled: on => { Settings.data.startupOutput = on ? page.selected : ""; Settings.touch("startupOutput"); }
+        }
+        SwitchRow {
+            Layout.fillWidth: true
+            text: Tr.t("This is a VR headset")
+            hint: Tr.t("lent whole to the VR app (SteamVR, Monado) instead of being a desktop screen")
+            checked: !!((Settings.data.displays || {})[page.selected] || {}).vrLease
+            onToggled: on => Displays.apply(page.selected, { vrLease: on })
+        }
         // external monitors' own brightness, over DDC/CI (a laptop's screen is the sidebar's slider)
         Repeater {
             model: Brightness.device !== "" ? Brightness.ddc : []

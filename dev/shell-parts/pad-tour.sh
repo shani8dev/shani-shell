@@ -39,6 +39,8 @@ pad $Y; waitfor "d['launcher'] and d['launcherSelected'] != ''" 3; t1=$(q "['lau
 pad $DOWN; t2=$(q "['launcherSelected']")
 [ "$(q "['launcher']")" = True ] && [ -n "$t2" ] && [ "$t1" != "$t2" ] && result pad-tour-launcher-moves PASS "$t1 > $t2" \
     || result pad-tour-launcher-moves FAIL "launcher $(q "['launcher']"): '$t1' > '$t2'"
+# its search field takes the keys by itself on opening: no screen keyboard over the results
+[ "$(q "['osk']")" = False ] && result pad-tour-launcher-no-keyboard PASS || result pad-tour-launcher-no-keyboard FAIL "the keyboard came up over the launcher"
 shot pad-tour-launcher 0.2
 [ "$(q "['launcher']")" = True ] && pad $B && waitfor "not d['launcher']" 3 && result pad-tour-launcher-b-closes PASS || result pad-tour-launcher-b-closes FAIL "open $(q "['launcher']")"
 
@@ -75,6 +77,41 @@ q "['navFocus']" | grep -q "Pad tour" && result pad-tour-reaches-a-notification 
     || result pad-tour-reaches-a-notification FAIL "not in $i presses:$seen"
 shot pad-tour-notification 0.2
 pad $B; waitfor "not d['controlCenter']" 3
+# ...and with Down alone, from the top: through every tile and the note to type in
+# (a few lines that must let the d-pad out at their edges), to the same card
+pad $START; waitfor "d['controlCenter'] and d['navFocus'] != ''" 3
+downs=0; until q "['navFocus']" | grep -q "Pad tour" || [ $downs -ge 70 ]; do pad $DOWN 0.12; downs=$((downs+1)); done
+q "['navFocus']" | grep -q "Pad tour" && result pad-tour-down-walks-all-of-quick-settings PASS "$downs presses" \
+    || result pad-tour-down-walks-all-of-quick-settings FAIL "stopped at '$(q "['navFocus']")' after $downs"
+pad $B; waitfor "not d['controlCenter']" 3 && result pad-tour-quick-settings-b-closes-anywhere PASS || result pad-tour-quick-settings-b-closes-anywhere FAIL "still open"
+
+# Guide: the assistant's conversation; Guide again closes it
+pad 0x13c; waitfor "d['chronoaOpen']" 3 && result pad-tour-guide-assistant PASS || result pad-tour-guide-assistant FAIL "open $(q "['chronoaOpen']")"
+[ "$(q "['chronoaOpen']")" = True ] && pad 0x13c && waitfor "not d['chronoaOpen']" 3
+
+# one of the shell's apps: X on something with no menu of its own opens the
+# window's menu (close, move...), B closes it; the d-pad onto a text field brings
+# the screen keyboard, driven by the pad; B hides it
+ipc passwordsOpen; waitfor "d['passwordsShown'] and d['focusedTitle'] == 'Passwords and Keys'" 4
+pad $X; waitfor "d['windowMenu']" 3 && result pad-tour-app-x-window-menu PASS || result pad-tour-app-x-window-menu FAIL "window '$(q "['focusedTitle']")', focus '$(q "['navFocus']")', menu $(q "['windowMenu']")"
+[ "$(q "['windowMenu']")" = True ] && pad $B && waitfor "not d['windowMenu']" 3
+sleep 0.4
+[ "$(q "['osk']")" = False ] && result pad-tour-no-keyboard-unasked PASS || result pad-tour-no-keyboard-unasked FAIL "the keyboard came up before a field was reached"
+seen=""; presses=0         # (not i: waitfor counts with that)
+until [ "$(q "['textFocus']")" = True ] || [ $presses -ge 8 ]; do pad $RIGHT 0.3; presses=$((presses+1)); seen="$seen > $(q "['navFocus']")"; done
+waitfor "d['osk'] and d['oskPadDriven'] and d['textByKeys']" 3 && result pad-tour-field-brings-keyboard PASS "$presses presses:$seen" \
+    || result pad-tour-field-brings-keyboard FAIL "field $(q "['textFocus']"), keyboard $(q "['osk']") pad $(q "['oskPadDriven']"):$seen"
+shot pad-tour-field-keyboard 0.2
+pad $B; waitfor "not d['osk']" 3 && result pad-tour-keyboard-b-hides PASS || result pad-tour-keyboard-b-hides FAIL "still shown"
+ipc closeAll
+
+# a document being edited: RB goes on to the next control, typing nothing into it
+# (a Tab keystroke would have put a tab character in the text)
+ipc textEditorNew; ipc textEditorSetText "abc"; waitfor "d['textEditor'] and d['focusedTitle'].endswith('Text Editor')" 4
+c1=$(q "['textEditorChars']"); pad $RB 0.5; c2=$(q "['textEditorChars']")
+[ "$c1" = "$c2" ] && [ -n "$(q "['navFocus']")" ] && result pad-tour-rb-leaves-a-document PASS "focus '$(q "['navFocus']")'" \
+    || result pad-tour-rb-leaves-a-document FAIL "'$c1' > '$c2', focus '$(q "['navFocus']")'"
+ipc closeAll
 
 # the lock screen: the d-pad reaches its buttons, and B does not leave it
 echo 'root:shani-test' | chpasswd     # the main script sets it; a solo run of this part has none

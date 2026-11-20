@@ -224,7 +224,7 @@ Singleton {
             // desktop-entry ids, in order; ones not installed are skipped
             // what the image ships: Files, Vivaldi (Flatpak), the terminal, Cassini, Chronoa, Text Editor (Flatpak)
             property string reopenApps: "ask"           // at sign-in, the apps open at the last one: ask | always | never
-            property list<string> dockPinned: ["org.gnome.Nautilus", "com.vivaldi.Vivaldi", "foot", "dev.shani.cassini", "shani-chronoa", "org.gnome.TextEditor"]
+            property list<string> dockPinned: ["dev.shani.Files", "com.vivaldi.Vivaldi", "foot", "dev.shani.cassini", "shani-chronoa", "dev.shani.TextEditor"]
             property string recordingsDir: ""   // "" -> $XDG_VIDEOS_DIR or ~/Videos/Recordings
 
             // idle stages, seconds; 0 turns a stage off. *Battery applies on battery.
@@ -337,6 +337,27 @@ Singleton {
             property bool tpMiddleEmulation: false   // both buttons together → middle click
             property bool tpDragLock: false          // keep dragging after the finger lifts
             property string tpTapButtonMap: "left-right-middle"    // left-right-middle | left-middle-right
+            property bool tpDrag: true               // tap, then slide: drags (off: a tap is only a click)
+            property bool tpDwtp: true               // the touchpad rests while the trackpoint is used
+            // a ThinkPad's red dot and a trackball (niri's trackpoint / trackball sections)
+            property real tpointSpeed: 0.0
+            property string tpointAccel: "flat"
+            property bool tpointNaturalScroll: false
+            property real tballSpeed: 0.0
+            property string tballAccel: "adaptive"
+            property bool tballNaturalScroll: false
+            property bool tballScrollButton: false   // scroll by rolling the ball while a button is held (one without a wheel)
+            property bool mouseScrollButton: false   // the same for a mouse: hold the middle button and move
+            property bool scrollButtonLock: false    // ...a click starts and a click stops it, no holding
+            property var tabletMatrix: []            // a drawing tablet's calibration (6 numbers; none: as the device says)
+            property var touchMatrix: []             // a touchscreen's
+            property bool kbPerWindow: false         // each window keeps the keyboard layout it was typed in
+            property bool cursorHideTyping: false     // the pointer hides while typing
+            property int cursorHideIdle: 0            // ...and after this many seconds still (0: never)
+            property bool warpMouseToFocus: false     // the pointer jumps to a window focused with keys
+            property bool wsBackAndForth: false       // the workspace's own key, pressed again, goes back
+            property string startupOutput: ""          // the screen focused when the session starts ("": niri's choice)
+            property bool powerKeyByLogind: false     // the power button's action was chosen in Settings (logind runs it, not niri)
             property bool dndEdgeViewScroll: true     // dragging a window to an edge scrolls the view
             property bool dndEdgeWorkspaceSwitch: true // dragging a window to an edge switches workspaces
             property string mouseAccel: "adaptive"
@@ -360,6 +381,13 @@ Singleton {
             property int winFocusRing: 2
             property real winDefaultWidth: 0.5
             property bool winFocusFollowsMouse: false   // click to focus, as on every other desktop (the Tiling layout turns it on)
+            property bool winTabbed: false              // new columns show their windows as tabs, one at a time
+            property bool winEmptyAbove: false          // an empty workspace above the first too
+            property int winStrutLeft: 0                // room kept free at the screen's edges (px)
+            property int winStrutRight: 0
+            property int winStrutTop: 0
+            property int winStrutBottom: 0
+            property real overviewZoom: 0.5             // how small the workspaces are in the overview
             property bool winAnimations: true
             // how windows look and move (Services/WindowLook -> niri's shani-look.kdl)
             property string winMotion: "glide"     // glide | pop | dissolve | plain (niri's own)
@@ -468,6 +496,7 @@ Singleton {
             property bool filesSearchDeep: false          // Files' search goes through the folders under this one too
             property var filesRecentServers: []           // Files: servers connected to before, newest first (clicked, not typed again)
             property var filesRecentDests: []             // Files: Copy to… / Move to… folders used lately, newest first
+            property var radioFavourites: []              // Media Player > Radio: stations kept, [{ uuid, name, url, favicon, tags, country, codec, bitrate }]
             property bool pdfNight: false                 // Document Viewer: pages shown inverted (night mode)
             property bool filesVerify: false              // Files: every copy read back and checked (TeraCopy's verify)
             property var mapsSaved: []                    // Maps: places saved, [{ name, desc, lat, lon }]

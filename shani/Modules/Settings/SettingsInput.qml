@@ -105,6 +105,14 @@ ColumnLayout {
         current: page.d.kbSwitch
         onPicked: v => page.d.kbSwitch = v
     }
+    SwitchRow {
+        Layout.fillWidth: true
+        visible: page.d.kbLayouts.length > 1
+        text: Tr.t("Each window keeps its own layout")
+        hint: Tr.t("switch to Marathi in a chat, and the editor stays in English")
+        checked: page.d.kbPerWindow
+        onToggled: on => page.d.kbPerWindow = on
+    }
     Button {
         visible: page.d.kbLayouts.length > 0
         text: Tr.t("Use for the login screen too")
@@ -162,7 +170,9 @@ ColumnLayout {
     }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Off while a mouse is plugged in"); checked: page.d.tpOffWithMouse; onToggled: on => page.d.tpOffWithMouse = on }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Middle click with both buttons"); hint: Tr.t("press left and right together"); checked: page.d.tpMiddleEmulation; onToggled: on => page.d.tpMiddleEmulation = on }
-    SwitchRow { Layout.fillWidth: true; text: Tr.t("Drag lock"); hint: Tr.t("keep dragging after the finger lifts"); checked: page.d.tpDragLock; onToggled: on => page.d.tpDragLock = on }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("Tap and slide to drag"); hint: Tr.t("off: a tap is only ever a click"); checked: page.d.tpDrag; onToggled: on => page.d.tpDrag = on }
+    SwitchRow { Layout.fillWidth: true; enabled: page.d.tpDrag; text: Tr.t("Drag lock"); hint: Tr.t("keep dragging after the finger lifts"); checked: page.d.tpDragLock; onToggled: on => page.d.tpDragLock = on }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("Off while the pointing stick is used"); hint: Tr.t("a ThinkPad's red dot: no stray touches from the hand on the pad"); checked: page.d.tpDwtp; onToggled: on => page.d.tpDwtp = on }
     Picks {
         label: Tr.t("Tap button order")
         options: [{ label: Tr.t("Left, right, middle"), value: "left-right-middle" }, { label: Tr.t("Left, middle, right"), value: "left-middle-right" }]
@@ -202,7 +212,55 @@ ColumnLayout {
         current: page.d.mouseScroll
         onPicked: v => page.d.mouseScroll = v
     }
-    SwitchRow { Layout.fillWidth: true; text: Tr.t("Middle-click pastes"); hint: Tr.t("the text last selected"); checked: page.d.middlePaste; onToggled: on => page.d.middlePaste = on }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("Middle-click pastes"); hint: Tr.t("the text last selected - in every app"); checked: page.d.middlePaste; onToggled: on => page.d.middlePaste = on }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("Scroll by holding the middle button"); hint: Tr.t("for a mouse without a wheel: hold it and move"); checked: page.d.mouseScrollButton; onToggled: on => page.d.mouseScrollButton = on }
+    SwitchRow {
+        Layout.fillWidth: true
+        visible: page.d.mouseScrollButton || page.d.tballScrollButton
+        text: Tr.t("Click to start and stop scrolling")
+        hint: Tr.t("no holding the button down")
+        checked: page.d.scrollButtonLock
+        onToggled: on => page.d.scrollButtonLock = on
+    }
+
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Pointing stick & trackball") }
+    Picks {
+        label: Tr.t("Pointing stick speed")
+        options: [{ label: Tr.t("Slow"), value: -0.4 }, { label: Tr.t("Normal"), value: 0 }, { label: Tr.t("Fast"), value: 0.4 }, { label: Tr.t("Fastest"), value: 0.8 }]
+        current: page.d.tpointSpeed
+        onPicked: v => page.d.tpointSpeed = v
+    }
+    Picks {
+        label: Tr.t("Pointing stick acceleration")
+        options: [{ label: Tr.t("Adaptive"), value: "adaptive" }, { label: Tr.t("Flat (the same at any speed)"), value: "flat" }]
+        current: page.d.tpointAccel
+        onPicked: v => page.d.tpointAccel = v
+    }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("Pointing stick: natural scrolling"); hint: Tr.t("with the middle button held"); checked: page.d.tpointNaturalScroll; onToggled: on => page.d.tpointNaturalScroll = on }
+    Picks {
+        label: Tr.t("Trackball speed")
+        options: [{ label: Tr.t("Slow"), value: -0.4 }, { label: Tr.t("Normal"), value: 0 }, { label: Tr.t("Fast"), value: 0.4 }, { label: Tr.t("Fastest"), value: 0.8 }]
+        current: page.d.tballSpeed
+        onPicked: v => page.d.tballSpeed = v
+    }
+    Picks {
+        label: Tr.t("Trackball acceleration")
+        options: [{ label: Tr.t("Adaptive"), value: "adaptive" }, { label: Tr.t("Flat (the same at any speed)"), value: "flat" }]
+        current: page.d.tballAccel
+        onPicked: v => page.d.tballAccel = v
+    }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("Trackball: natural scrolling"); checked: page.d.tballNaturalScroll; onToggled: on => page.d.tballNaturalScroll = on }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("Trackball: scroll by rolling with a button held"); hint: Tr.t("for a trackball without a wheel"); checked: page.d.tballScrollButton; onToggled: on => page.d.tballScrollButton = on }
+
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Pointer") }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("Hide the pointer while typing"); checked: page.d.cursorHideTyping; onToggled: on => page.d.cursorHideTyping = on }
+    Picks {
+        label: Tr.t("Hide the pointer when it is still")
+        options: [{ label: Tr.t("Never"), value: 0 }, { label: Tr.t("After 3 s"), value: 3 }, { label: Tr.t("After 5 s"), value: 5 }, { label: Tr.t("After 10 s"), value: 10 }]
+        current: page.d.cursorHideIdle
+        onPicked: v => page.d.cursorHideIdle = v
+    }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("The pointer goes to the window you switch to"); hint: Tr.t("with the keyboard: Alt+Tab, Mod+arrows"); checked: page.d.warpMouseToFocus; onToggled: on => page.d.warpMouseToFocus = on }
     Picks {
         label: Tr.t("Double-click speed")
         options: [{ label: Tr.t("Slow"), value: 600 }, { label: Tr.t("Normal"), value: 400 }, { label: Tr.t("Fast"), value: 250 }, { label: Tr.t("Fastest"), value: 150 }]
@@ -232,11 +290,12 @@ ColumnLayout {
                 spacing: Theme.px(6)
                 Repeater {
                     // a tablet can also follow the screen being worked on (niri's map-to-focused-output)
-                    model: [""].concat(Displays.outputs.map(o => o.name), mapRow.modelData.key === "tabletOutput" ? ["@focused"] : [])
+                    model: [""].concat(Displays.outputs.map(o => o.name), mapRow.modelData.key === "tabletOutput" ? ["@focused", "@window"] : [])
                     Choice {
                         required property string modelData
                         readonly property string key: mapRow.modelData.key
-                        text: modelData === "" ? Tr.t("Every screen") : modelData === "@focused" ? Tr.t("The screen I'm working on") : modelData
+                        text: modelData === "" ? Tr.t("Every screen") : modelData === "@focused" ? Tr.t("The screen I'm working on")
+                            : modelData === "@window" ? Tr.t("The window I'm drawing in") : modelData
                         selected: (page.d[key] || "") === modelData
                         onClicked: page.d[key] = modelData
                     }
@@ -245,6 +304,19 @@ ColumnLayout {
         }
     }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Left-handed tablet"); hint: Tr.t("the tablet turned around, buttons on the right"); checked: page.d.tabletLeftHanded; onToggled: on => page.d.tabletLeftHanded = on }
+    // a touch or the pen lands off from where it was put: four targets touched, and it is right
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.px(6)
+        Button { text: Tr.t("Calibrate the touchscreen…"); onClicked: Calibrate.start("touch") }
+        Button { text: Tr.t("Calibrate the pen…"); onClicked: Calibrate.start("tablet") }
+        Button {
+            visible: (page.d.touchMatrix || []).length === 6 || (page.d.tabletMatrix || []).length === 6
+            flat: true
+            text: Tr.t("Undo calibration")
+            onClicked: { page.d.touchMatrix = []; page.d.tabletMatrix = []; }
+        }
+    }
     // niri 26.04 passes the pen's buttons to the app untouched (its tablet settings
     // are the screen, left-handed and a calibration matrix): no remapping to offer here
     Text {

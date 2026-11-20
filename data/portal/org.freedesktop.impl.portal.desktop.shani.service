@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=org.freedesktop.impl.portal.desktop.shani
+Exec=/usr/bin/python3 /usr/lib/shani-shell/portal.py

@@ -7,6 +7,7 @@ import qs.Common
 import qs.Services
 
 PanelWindow {
+    NavWindow {}     // known to the keys-and-controller reach check (Ui.navAuditAll)
     id: win
     visible: Qr.shown && !Lock.locked
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
@@ -20,7 +21,7 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: (visible) && !Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    MouseArea { anchors.fill: parent; onClicked: Qr.close() }
+    MouseArea { objectName: "nav:pointer"; anchors.fill: parent; onClicked: Qr.close() }
     Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: Qr.close() }
     Glass {
         id: blurCard

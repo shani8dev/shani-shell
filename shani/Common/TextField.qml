@@ -46,6 +46,7 @@ Rectangle {
         // every field: an always-present labelledBy avoids the null warning.
         Accessible.labelledBy: a11yLabel
         clip: true
+        activeFocusOnTab: root.enabled && !root.readOnly   // in the tab chain: Tab, the arrows and a controller's d-pad reach it
         onAccepted: root.accepted()
         onActiveFocusChanged: Ui.trackTextInput(input, activeFocus && !readOnly)
         onReadOnlyChanged: Ui.trackTextInput(input, activeFocus && !readOnly)
@@ -55,8 +56,8 @@ Rectangle {
         Keys.onReturnPressed: e => { e.accepted = input.text === "" && !root.readOnly; if (e.accepted) Ui.typingRequested(); }
         Keys.onEnterPressed: e => { e.accepted = input.text === "" && !root.readOnly; if (e.accepted) Ui.typingRequested(); }
         // a field is one line: Down / Up go on to the next / previous control, as in a list
-        Keys.onDownPressed: { const n = input.nextItemInFocusChain(true); if (n) n.forceActiveFocus(Qt.TabFocusReason); }
-        Keys.onUpPressed: { const n = input.nextItemInFocusChain(false); if (n) n.forceActiveFocus(Qt.BacktabFocusReason); }
+        Keys.onDownPressed: { const n = input.nextItemInFocusChain(true); if (n) { Ui.keyMovedAt = Date.now(); n.forceActiveFocus(Qt.TabFocusReason); } }
+        Keys.onUpPressed: { const n = input.nextItemInFocusChain(false); if (n) { Ui.keyMovedAt = Date.now(); n.forceActiveFocus(Qt.BacktabFocusReason); } }
         Text {
             anchors.verticalCenter: parent.verticalCenter
             visible: input.text === ""

@@ -19,10 +19,11 @@ Singleton {
         Quickshell.execDetached(["lp", "--", path]);
         return true;
     }
+    // lpstat alone, its lines counted here (was sh + lpstat + grep: three programs a poll)
     Process {
         id: q
-        command: ["sh", "-c", '[ -S /run/cups/cups.sock ] || exit 0; lpstat -o 2>/dev/null | grep -c .']
-        stdout: StdioCollector { onStreamFinished: root.jobs = parseInt(text.trim()) || 0 }
+        command: ["lpstat", "-o"]
+        stdout: StdioCollector { onStreamFinished: root.jobs = text.split("\n").filter(l => l.trim()).length }
     }
     // every 3 s while a job is queued (the Island follows it), every 30 s
     // otherwise. This poll is the one that stays by design (measured: one

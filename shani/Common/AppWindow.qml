@@ -44,7 +44,15 @@ FloatingWindow {
     color: Settings.blurWanted ? Theme.alpha(Theme.bg, 0.86) : Theme.bg
     BackgroundEffect.blurRegion: Settings.blurWanted ? whole : null
     Region { id: whole; item: frame }
-    onVisibleChanged: if (!visible) win.gone()
+    onVisibleChanged: { if (!visible) win.gone(); register(); }
+    Component.onCompleted: register()
+    Component.onDestruction: { const r = Object.assign({}, Ui.navRoots); delete r[win.appName]; Ui.navRoots = r; }
+    // the content, by app, for Ui.navAudit (the tests' reach check)
+    function register() {
+        const r = Object.assign({}, Ui.navRoots);
+        if (visible) r[win.appName] = frame; else delete r[win.appName];
+        Ui.navRoots = r;
+    }
 
     function toggleMaximised() { win.maximized = !win.maximized; }
 
@@ -55,6 +63,24 @@ FloatingWindow {
         Keys.onPressed: e => {
             if (e.key === Qt.Key_F6) {
                 Ui.focusFirst(e.modifiers & Qt.ShiftModifier ? body : toolRow);
+                e.accepted = true;
+            }
+            // the Menu key (a controller's X) on something with no menu of its own:
+            // the window's menu - minimise, maximise, move, close - as a click in the header would
+            // an arrow or Tab with nothing focused yet (the window just opened): the first
+            // control takes it, so the d-pad starts somewhere instead of nowhere
+            else if ([Qt.Key_Up, Qt.Key_Down, Qt.Key_Left, Qt.Key_Right, Qt.Key_Tab, Qt.Key_Backtab].indexOf(e.key) >= 0
+                     && (!win.activeFocusItem || win.activeFocusItem === frame || win.activeFocusItem === body)) {
+                // only when nothing in the app has focus: a key a text field did
+                // not accept still reaches the window, and must not yank focus
+                // back to the first control (an arrow in a field moves within it)
+                Ui.keyMovedAt = Date.now();
+                Ui.focusFirst(body);
+                e.accepted = true;
+            }
+            else if (e.key === Qt.Key_Menu) {
+                Ui.windowMenuX = 200;
+                Ui.windowMenu = true;
                 e.accepted = true;
             }
         }

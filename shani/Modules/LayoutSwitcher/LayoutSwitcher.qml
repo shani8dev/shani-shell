@@ -206,7 +206,7 @@ PanelWindow {
         Keys.onRightPressed: root.tryOn((root.sel + 1) % root.presets.length)
         Keys.onUpPressed: root.tryOn((root.sel + root.presets.length - 3) % root.presets.length)
         Keys.onDownPressed: root.tryOn((root.sel + 3) % root.presets.length)
-        MouseArea { anchors.fill: parent; onClicked: root.cancel() }
+        MouseArea { objectName: "nav:pointer"; anchors.fill: parent; onClicked: root.cancel() }   // a click outside cancels; Escape does with keys
     }
 
     Glass {

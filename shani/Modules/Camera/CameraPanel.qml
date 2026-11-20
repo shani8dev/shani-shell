@@ -72,10 +72,14 @@ AppWindow {
                 Layout.preferredHeight: Theme.px(56)
                 radius: Theme.px(28)
                 color: Camera.phase === "recording" ? Theme.red : Theme.accent
+                Accessible.role: Accessible.Button
+                Accessible.name: shutterText.text
                 MouseArea { anchors.fill: parent; onClicked: Camera.shutter() }
+                KeyFocus { onActivated: Camera.shutter() }
                 Text {
+                    id: shutterText
                     anchors.centerIn: parent
-                    text: Camera.phase === "recording" ? "Stop" : Camera.mode === "video" ? "Record" : "Photo"
+                    text: Camera.phase === "recording" ? Tr.t("Stop") : Camera.mode === "video" ? Tr.t("Record") : Tr.t("Photo")
                     color: "white"
                     font.family: Theme.font
                     font.pixelSize: Theme.px(16) * Theme.fontScale

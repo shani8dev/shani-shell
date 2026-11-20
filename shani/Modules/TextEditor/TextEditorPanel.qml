@@ -355,6 +355,7 @@ AppWindow {
                     }
                     TextEdit {
                         id: edit
+                        activeFocusOnTab: true          // the d-pad and Tab reach it (a pad's LB / RB leave it: Ui.navJump)
                         width: win.wordWrap ? flick.width : Math.max(flick.width, implicitWidth + 8)
                         height: Math.max(flick.height, implicitHeight)
                         wrapMode: win.wordWrap ? TextEdit.Wrap : TextEdit.NoWrap

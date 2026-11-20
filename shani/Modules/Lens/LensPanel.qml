@@ -23,7 +23,7 @@ PanelWindow {
 
     onVisibleChanged: if (visible) question.input.forceActiveFocus()
 
-    MouseArea { anchors.fill: parent; onClicked: Lens.close() }
+    MouseArea { objectName: "nav:pointer"; anchors.fill: parent; onClicked: Lens.close() }
 
     Glass {
         id: card

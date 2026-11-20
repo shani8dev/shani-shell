@@ -94,18 +94,47 @@ Singleton {
 
     function places_(cb) { run(["places"], cb); }
 
+    // how long the last burst of requests took to be answered (opening Files asks for
+    // places, devices, stars, templates... at once), for the suite's perf check
+    property real lastBurstMs: 0
+    property int lastBurstCount: 0
+    property real _burstT0: 0
+    property int _burstN: 0
     function run(args, cb) {
+        if (root._queue.length === 0 && !root._waiting) { root._burstT0 = Date.now(); root._burstN = 0; }
+        root._burstN++;
         root._queue.push({ "args": args, "cb": cb || function () {} });
         root._next();
     }
 
+    // One files.py process for every request (files.py serve): an answer is a
+    // millisecond, not an interpreter's start (37 ms a call; opening Files made ~9).
+    // Still one at a time, in order; a request with no answer in 20 s ends the
+    // worker (a new one starts for the next) and is answered with an error.
+    property int _reqId: 0
+    property var _waiting: null              // the request sent, until its answer
+    property bool watchdogFired: false       // the current worker was killed for hanging
     function _next() {
-        if (runner.running || root._queue.length === 0)
+        if (root._waiting || root._queue.length === 0)
             return;
+        if (!worker.running) { worker.running = true; return; }      // onStarted sends it
         const job = root._queue[0];
-        runner.command = ["python3", root.tool].concat(job.args);
-        runner.running = true;
+        root._reqId++;
+        root._waiting = { id: root._reqId, job: job };
+        worker.write(JSON.stringify({ id: root._reqId, args: job.args }) + "\n");
         watchdog.restart();
+        workerIdle.restart();
+    }
+    function _answer(r) {
+        const w = root._waiting;
+        root._waiting = null;
+        root._queue.shift();
+        if (w) {
+            if (r.error) root.log.warn(r.error);
+            w.job.cb(r);
+        }
+        if (root._queue.length === 0) { root.lastBurstMs = Date.now() - root._burstT0; root.lastBurstCount = root._burstN; }
+        Qt.callLater(root._next);
     }
 
     // a command that hangs must not leave the surface waiting for it
@@ -113,37 +142,46 @@ Singleton {
         id: watchdog
         interval: 20000
         onTriggered: {
-            root._timedOut = true;
-            runner.running = false;
+            if (!root._waiting) return;
+            root.log.error("the file service did not answer:", root._waiting.job.args.join(" "));
+            // terminate() leaves `running` true until onExited: answering here
+            // would send the next request into a dying worker. Let onExited fail
+            // this one and start the next with a fresh process.
+            root.watchdogFired = true;
+            worker.running = false;
         }
     }
 
-    property bool _timedOut: false
-
+    // five minutes without a request: the worker goes (the next request starts one)
+    Timer {
+        id: workerIdle
+        interval: 300000
+        onTriggered: if (!root._waiting && root._queue.length === 0) worker.running = false
+    }
     Process {
-        id: runner
-        stdout: StdioCollector { id: out }
-        onExited: {
-            watchdog.stop();
-            const job = root._queue.shift();
-            if (job) {
-                if (root._timedOut) {
-                    root.log.error("the file service did not answer:", job.args.join(" "));
-                    job.cb({ "error": "the file service did not answer" });
-                } else {
-                    let r = {};
-                    try {
-                        r = JSON.parse(out.text);
-                    } catch (e) {
-                        r = { "error": String(out.text || "").trim() || "the file service said nothing useful" };
-                    }
-                    if (r.error)
-                        root.log.warn(r.error);
-                    job.cb(r);
-                }
+        id: worker
+        command: ["python3", root.tool, "serve"]
+        stdinEnabled: true
+        onStarted: { root.watchdogFired = false; Qt.callLater(root._next); }
+        stdout: SplitParser {
+            onRead: line => {
+                let m = null;
+                try { m = JSON.parse(line); } catch (e) { return; }
+                if (!root._waiting || m.id !== root._waiting.id) return;     // a late answer to one given up on
+                watchdog.stop();
+                let r = {};
+                try { r = JSON.parse(m.out); } catch (e) { r = { "error": String(m.out || "").trim() || "the file service said nothing useful" }; }
+                root._answer(r);
             }
-            root._timedOut = false;
-            Qt.callLater(root._next);
+        }
+        onExited: {
+            // ended under a request (a crash or a watchdog kill): that one fails,
+            // the rest go on with a new worker
+            if (root._waiting) {
+                watchdog.stop();
+                root._answer({ "error": root.watchdogFired ? "the file service did not answer" : "the file service stopped" });
+            }
+            root.watchdogFired = false;
         }
     }
 
@@ -751,7 +789,7 @@ Singleton {
     // what a drag carries: the selection when the dragged file is part of it, else that file
     function dragUris(p) {
         const ps = root.isSelected(p) ? root.selected.slice() : [p];
-        return ps.map(root.uriOf).join("\r\n") + "\r\n";
+        return ps.map(root.uriOf).filter(u => u !== "").join("\r\n") + "\r\n";
     }
     // a drop: local files only (a browser's link is not a file); "auto" moves on the
     // same drive and copies from another (files.py job decides, per item)
@@ -841,11 +879,12 @@ Singleton {
     // ---- copy, cut and paste: the desktop's file clipboard ------------------------
     // the formats GNOME Files and GTK apps read: a copy is text/uri-list, a cut is
     // x-special/gnome-copied-files ("cut" and the URIs), so files go both ways
-    function uriOf(p) { return "file://" + p.split("/").map(encodeURIComponent).join("/"); }
+    // (a path a listing being replaced no longer has: none, and left out by the callers)
+    function uriOf(p) { return typeof p === "string" && p !== "" ? "file://" + p.split("/").map(encodeURIComponent).join("/") : ""; }
     function toClipboard(mode, paths) {
         const ps = paths && paths.length ? paths : root.selected.slice();
         if (!ps.length) return;
-        const uris = ps.map(root.uriOf).join("\n");
+        const uris = ps.map(root.uriOf).filter(u => u !== "").join("\n");
         if (mode === "cut")
             Quickshell.execDetached(["wl-copy", "--type", "x-special/gnome-copied-files", "--", "cut\n" + uris]);
         else

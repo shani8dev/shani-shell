@@ -71,6 +71,7 @@ PanelWindow {
         }
     }
     MouseArea {
+        objectName: "nav:pointer"          // the lens follows the pointer: a pad's right stick
         anchors.fill: parent
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton

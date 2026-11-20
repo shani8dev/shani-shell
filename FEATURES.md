@@ -216,7 +216,27 @@ in that nested session - not yet on an installed image - is listed in
   place, the original kept in the trash. Fonts opens a font file to preview and
   install it (with its version, maker and languages); Maps shows a place's hours,
   phone and website, keeps saved places and **shares a place** (link and QR code); the
-  Media Player **saves the frame on screen** as a picture.
+  Media Player **saves the frame on screen** as a picture and plays **internet radio**
+  (search, popular, near you, by genre, favourites - radio-browser.info's stations).
+- **Software** — Flathub's apps by name or kind, each with its page (what it does, who
+  makes it, its licence, a screenshot), installed, updated and removed with progress;
+  a website's Install link (.flatpakref) opens in it; what removed apps left behind
+  in your home folder; **AppImages** added to the launcher. **Passwords and Keys** —
+  the passwords apps saved in the keyring, found, shown on request, copied (the
+  clipboard forgets them in 45 s), changed, added and deleted; your **GPG keys** made,
+  imported, exported and deleted. **Containers** — Distrobox toolboxes (a whole
+  Ubuntu, Fedora, Arch or Debian sharing your home folder) made from a chip, opened
+  in your terminal, their apps put in your menu, updated and removed; your rootless
+  Podman containers started, stopped, restarted, their logs read; unused images
+  pruned. Docker tools and IDE dev containers find Podman's Docker-compatible socket
+  on their own. **App permissions** - everything Flatseal shows
+  for a Flatpak (sharing, sockets, devices, features, folders, environment, D-Bus
+  names) and what the portals answer it (notifications, background, camera,
+  location), each change yours and undone by Reset.
+- **Calendar accounts** — a CalDAV server (Nextcloud, Fastmail, iCloud, mailbox.org,
+  any other) added with its password; its calendars come by themselves; an .ics
+  invitation opened is added to your calendar. **Open and Save dialogs** of sandboxed
+  apps are the shell's own file picker.
 - **Tidy and name** — Files' Tidy sorts a folder (Downloads, say) into folders by
   kind, shown first and undone in one click; "Suggest a name" asks Chronoa for a
   name from the file's own words (a scan's text, a PDF's first pages).
@@ -301,10 +321,14 @@ in that nested session - not yet on an installed image - is listed in
   and menu is reachable, with a clear focus ring. A controller drives the desktop
   (A selects, B goes back, Start opens Quick Settings) and steps aside for games.
   The right stick moves a pointer and the triggers click, for what arrows cannot
-  reach (a web page, a canvas).
-  With the screen keyboard open it types on it: the d-pad moves a highlighted key,
-  A types it, X deletes, Y is a space, Start is Enter, B hides it.
-  LB / RB jump between sections (Quick Settings' notifications are one press away).
+  reach (a web page, a canvas); with LB held it scrolls. Guide opens the assistant.
+  A text field reached with the controller brings up the screen keyboard, which it
+  then types on: the d-pad moves a highlighted key, A types it, X deletes, Y is a
+  space, Start is Enter, B hides it.
+  LB / RB jump between sections, in Quick Settings and in every app of the shell
+  (Quick Settings' notifications are one press away); X opens the menu of what is
+  focused, or the window's own. Every app is checked for anything only a click
+  reaches (dev/shell-parts/pad-reach.sh).
 - **A TV remote drives it, like an Android TV** - arrows, OK and Back for everything;
   Home opens the launcher, Menu the window menu, Back goes one level back (in an app,
   its own back). OK on an empty field - or Up to the launcher's search bar - brings a

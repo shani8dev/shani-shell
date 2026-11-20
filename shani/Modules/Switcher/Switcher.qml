@@ -13,6 +13,7 @@ import qs.Common
 import qs.Services
 
 PanelWindow {
+    NavWindow {}     // known to the keys-and-controller reach check (Ui.navAuditAll)
     id: win
     visible: Ui.switcher
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
@@ -81,7 +82,7 @@ PanelWindow {
         }
     }
 
-    MouseArea { anchors.fill: parent; onClicked: Ui.switcher = false }
+    MouseArea { objectName: "nav:pointer"; anchors.fill: parent; onClicked: Ui.switcher = false }
 
     Glass {
         id: card

@@ -62,6 +62,25 @@ Singleton {
     property var converterFiles: []          // files handed to it (the Media Player's Convert…)
     property bool nearby: false              // the Nearby app (Modules/Nearby): LocalSend
     property bool authenticator: false       // the Authenticator app (Modules/Authenticator)
+    property var passwordsItems: []          // for the tests: the saved passwords' labels
+    property var passwordsKeys: []           // ...the GPG keys' names
+    property string passwordsRevealed: ""    // ...the label of the one shown last
+    property bool containers: false          // Containers (Modules/Containers: Pods, BoxBuddy - Distrobox and Podman)
+    property var containersList: []          // for the tests: "box:name:state" / "name:state",
+    property var containersImages: []
+    property var containersApps: []          // ...a toolbox's apps listed,
+    property string containersDone: ""       // ...the last long job's "<what>:ok",
+    property string containersEntered: ""    // ...the toolbox opened in a terminal last,
+    property string containersExported: ""   // ...the app put in the menu last
+    property bool software: false            // Software (Modules/Software: GNOME Software, Warehouse, Gear Lever)
+    property var softwareResults: []         // for the tests: the ids listed,
+    property var softwareInstalled: []       // ...installed,
+    property string softwareApp: ""          // ...the one whose page is open,
+    property string softwareDone: ""         // ...the last job's "<id>:ok",
+    property var softwareLeftovers: []
+    property var softwareAppImages: []
+    property string softwareRef: ""          // a .flatpakref opened with Software: installed when the window is up
+    property bool passwords: false           // Passwords and Keys (Modules/Passwords: Seahorse parity)
     property bool clocks: false              // the Clocks app (Modules/Clocks): world, alarms, stopwatch, timer
     property string clocksTab: "world"
     property string textEditorOpenPath: ""   // a file a widget in Common hands to the Text Editor (which takes it and clears this)
@@ -72,6 +91,8 @@ Singleton {
     property bool annotate: false                  // drawing on the screen
     property int annotateStrokes: 0
     property var printersSeen: []                  // Settings > Printers, for the tests
+    property var appPermApps: []                   // Settings > App permissions: the Flatpaks listed, for the tests
+    property string appPermShown: ""               // ...and the open one's permissions (JSON)
     property var printerOptions: []                // Settings > Printers: name:media:sides:colour, for the tests
     property var printersFound: []                 // Settings > Printers adding: what ippfind found, for the tests
     property string backupSummary: ""              // Settings > Backup, for the tests
@@ -140,9 +161,15 @@ Singleton {
     // search): on a tablet or a phone the screen keyboard comes up for it
     property var textInput: null
     readonly property bool textFocus: textInput !== null && textInput.activeFocus && textInput.visible && !textInput.readOnly
+    // when keys (or a controller) last moved the focus (Common/KeyFocus), and whether the
+    // field that has it now was reached that way - not focused by a surface on opening
+    property real keyMovedAt: 0
+    property bool textByKeys: false
     function trackTextInput(input, focused) {
-        if (focused)
+        if (focused) {
+            textByKeys = Date.now() - keyMovedAt < 600;
             textInput = input;
+        }
         else if (textInput === input)
             textInput = null;
     }
@@ -230,6 +257,9 @@ Singleton {
         converter = false;
         nearby = false;
         authenticator = false;
+        passwords = false;
+        software = false;
+        containers = false;
         tasks = false;
         photos = false;
         translate = false;
@@ -308,5 +338,146 @@ Singleton {
             if (it)
                 it.forceActiveFocus(Qt.TabFocusReason);
         });
+    }
+
+    // A controller's LB / RB in a shell surface: on to the next (previous) section, as
+    // Tab would - but moved here, not typed, so a document being edited never gets a
+    // tab character. From a Common/KeyFocus its region's jump; from anything else (a
+    // field, a document) the next control. False: no shell window has the keys.
+    // a few lines to type in a panel (a note, a text to translate): Down on its last
+    // line and Up on its first go on to the next / previous control, as a one-line
+    // field's do - else the arrows and a d-pad walking a panel would stop there
+    function leaveAtEdge(edit, forward) {
+        const t = edit.text, c = edit.cursorPosition;
+        const edge = forward ? t.indexOf("\n", c) < 0 : t.lastIndexOf("\n", c - 1) < 0;
+        if (!edge) return false;
+        const n = edit.nextItemInFocusChain(forward);
+        if (!n || n === edit) return false;
+        keyMovedAt = Date.now();
+        n.forceActiveFocus(forward ? Qt.TabFocusReason : Qt.BacktabFocusReason);
+        return true;
+    }
+    function navJump(forward) {
+        for (const w of navWindows) {
+            let it = null;
+            try { if (!w.active) continue; it = w.activeFocusItem; } catch (e) { continue; }
+            if (!it) continue;
+            keyMovedAt = Date.now();
+            if (typeof it.jumpRegion === "function") { it.jumpRegion(forward); return true; }
+            const n = it.nextItemInFocusChain(forward);
+            if (n && n !== it) n.forceActiveFocus(forward ? Qt.TabFocusReason : Qt.BacktabFocusReason);
+            return true;
+        }
+        return false;
+    }
+
+    // ---- reach with keys and a controller, checked (the tests: dev/shell-parts/pad-reach.sh) ----
+    // The shell's app windows by name (Common/AppWindow registers its content)
+    property var navRoots: ({})
+    // What a click reaches that keys do not: every MouseArea taking a left click and
+    // every TapHandler, shown and enabled, with nothing focusable around it - not on
+    // itself, its parent or an ancestor up to three up, nor inside its parent (where
+    // Common/KeyFocus sits). Pointer-only by nature (a drag handle with keys of its
+    // own elsewhere, a backdrop that closes on a click outside, which Escape does):
+    // objectName "nav:pointer". Each found: [the names around it, its types].
+    function navAudit(root) {
+        const out = [];
+        const isMouse = o => String(o).indexOf("QQuickMouseArea") === 0;
+        const isTap = o => String(o).indexOf("QQuickTapHandler") === 0;
+        // in the tab chain (a TextInput is not by default: then the d-pad passes it by)
+        const focusable = it => it && it.activeFocusOnTab === true;
+        function inside(it, depth) {
+            if (!it || depth > 4 || !it.visible) return false;
+            if (focusable(it)) return true;
+            const ch = it.children || [];
+            for (let i = 0; i < ch.length; i++)
+                if (inside(ch[i], depth + 1)) return true;
+            return false;
+        }
+        // a part of a control that keys reach as a whole (a tile's chevron: its Menu
+        // key): a focusable child covering all of the control two up
+        function wholeFocus(c) {
+            const ch = c ? (c.children || []) : [];
+            for (let i = 0; i < ch.length; i++)
+                if (focusable(ch[i]) && ch[i].width >= c.width - 1 && ch[i].height >= c.height - 1) return true;
+            return false;
+        }
+        function reachable(it) {
+            for (let p = it, i = 0; p && i < 4; p = p.parent, i++)
+                if (focusable(p)) return true;
+            return inside(it.parent, 0) || (it.parent && wholeFocus(it.parent.parent));
+        }
+        function shown(it) {
+            for (let p = it; p; p = p.parent)
+                if (!p.visible || p.opacity === 0 || p.enabled === false) return false;
+            return it.width > 2 && it.height > 2;
+        }
+        function about(it) {
+            const names = [], types = [];
+            for (let p = it, i = 0; p && i < 9; p = p.parent, i++) {
+                const n = (p.Accessible && p.Accessible.name) || p.text || p.tip || p.label || p.name || "";
+                if (typeof n === "string" && n && names.indexOf(n) < 0) names.push(n);
+                types.push(String(p).replace(/\(0x[0-9a-f]+.*$/, "").replace(/_QML(TYPE)?_\d+$/, ""));
+            }
+            return names.slice(0, 2).join(" / ") + "  [" + types.join(" < ") + "]";
+        }
+        function walk(it) {
+            if (!it || !it.visible) return;
+            // "nav:pointer": pointer by nature; "nav:keys": the surface moves its own highlight with keys
+            if (String(it.objectName) === "nav:pointer" || String(it.objectName) === "nav:keys") return;
+            if (isMouse(it) && it.enabled && (it.acceptedButtons & Qt.LeftButton) && shown(it) && !reachable(it))
+                out.push(about(it));
+            // a field to type in that Tab and the d-pad pass by
+            const field = String(it).indexOf("QQuickTextInput") === 0 || String(it).indexOf("QQuickTextEdit") === 0;
+            if (field && !it.readOnly && it.enabled && shown(it) && !focusable(it))
+                out.push("(field) " + about(it));
+            const data = it.data || [];
+            for (let i = 0; i < data.length; i++) {
+                const d = data[i];
+                if (isTap(d) && d.enabled && shown(it) && !reachable(it))
+                    out.push(about(it));
+            }
+            const ch = it.children || [];
+            for (let i = 0; i < ch.length; i++) walk(ch[i]);
+        }
+        walk(root);
+        return out;
+    }
+    // ...and in every surface of the shell that is showing. QML cannot list the
+    // shell's windows, so each makes itself known: every Common/KeyFocus says which
+    // window it is in, and a surface without one has a Common/NavWindow.
+    property var navWindows: []                    // plain list: no bindings follow it
+    function navSeen(w) {
+        if (w && navWindows.indexOf(w) < 0)
+            navWindows.push(w);
+    }
+    property int navAuditWindows: 0          // how many showing windows the last navAuditAll looked into
+    function navAuditAll() {
+        navAuditWindows = 0;
+        const out = [], alive = [];
+        const kind = o => String(o).replace(/\(0x[0-9a-f]+.*$/, "").replace(/_QML(TYPE)?_\d+$/, "");
+        for (const w of navWindows) {
+            let item = null, shown = false;
+            try { item = w.contentItem; shown = w.visible; } catch (e) { continue; }    // gone (its loader let it go)
+            if (!item) continue;
+            alive.push(w);
+            if (!shown) continue;
+            navAuditWindows++;
+            // the window named by what it holds (Quickshell's windows all read "ProxiedWindow")
+            let top = item;                // Quickshell's own content item first: what it holds
+            while (top.children && top.children.length === 1 && String(top.children[0]).indexOf("ProxyWindowContentItem") === 0) top = top.children[0];
+            if (top.children && top.children.length && String(top.children[0]).indexOf("ProxyWindowContentItem") === 0) top = top.children[0];
+            const ch = top.children || [];
+            const what = [];
+            for (let i = 0; i < ch.length && what.length < 3; i++) what.push(kind(ch[i]));
+            for (const f of navAudit(item)) out.push("{" + what.join(",") + "}: " + f);
+        }
+        // the shell's app windows, by name (Common/AppWindow)
+        for (const name in navRoots)
+            for (const f of navAudit(navRoots[name])) out.push(name + ": " + f);
+        navWindows = alive;
+        const once = [];
+        for (const f of out) { const k = f.slice(f.indexOf(": ") + 2); if (!once.some(x => x.slice(x.indexOf(": ") + 2) === k)) once.push(f); }
+        return once;
     }
 }

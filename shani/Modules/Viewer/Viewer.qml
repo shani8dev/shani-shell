@@ -55,7 +55,7 @@ AppWindow {
     Item {
         id: blurCard
         anchors.fill: parent
-        MouseArea { anchors.fill: parent }       // clicks inside do not close it
+        MouseArea { anchors.fill: parent; objectName: "nav:pointer" }       // clicks inside do not close it
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: Theme.px(16)
@@ -324,6 +324,7 @@ AppWindow {
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: Viewer.goToIndex(index)
                                 }
+                                KeyFocus { name: String(modelData).split("/").pop(); onActivated: Viewer.goToIndex(index) }
                             }
                         }
                     }
@@ -342,6 +343,7 @@ AppWindow {
                     }
                 }
                 MouseArea {
+                    objectName: "nav:keys"          // the picture: zoom, turn, next with the window's keys and the toolbar
                     visible: !Viewer.gridMode
                     anchors.fill: parent
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
@@ -440,6 +442,7 @@ AppWindow {
                         Accessible.onPressAction: Viewer.penColor = modelData[0]
                         Accessible.onToggleAction: Viewer.penColor = modelData[0]
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Viewer.penColor = parent.modelData[0] }
+                        KeyFocus { onActivated: Viewer.penColor = parent.modelData[0] }
                     }
                 }
                 Repeater {
@@ -509,6 +512,7 @@ AppWindow {
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: Viewer.goToIndex(index)
                             }
+                            KeyFocus { name: String(modelData).split("/").pop(); onActivated: Viewer.goToIndex(index) }
                         }
                     }
                 }

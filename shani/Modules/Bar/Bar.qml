@@ -123,6 +123,7 @@ Variants {
                     hint: Tr.t("Apps, files and settings - right-click for the calculator")
                     hintKeys: "Super + Space"
                     onClicked: Ui.toggleLauncher()
+                    hasMenu: true
                     onRightClicked: Ui.toggleLauncher("=")
                 }
 
@@ -213,6 +214,7 @@ Variants {
                             KeyFocus {
                                 name: Tr.t("Workspace %1", parent.index + 1)
                                 onActivated: { Niri.focusWorkspace(parent.modelData); Ui.barFocus = false; }
+                                menuable: true
                                 onMenu: bar.renamingWs = parent.modelData.id
                             }
                             Hint { text: Tr.t("Workspace %1", parent.index + 1) + " - " + Tr.t("right-click to name it, Super + O shows them all"); keys: "Super + " + (parent.index + 1) }
@@ -310,6 +312,7 @@ Variants {
                     maxLabelWidth: 150
                     tint: Theme.dim
                     onClicked: bar.player.togglePlaying()
+                    hasMenu: true
                     onRightClicked: bar.player.next()
                     onMiddleClicked: bar.player.previous()
                     onScrolled: d => d > 0 ? bar.player.previous() : bar.player.next()
@@ -385,6 +388,8 @@ Variants {
                     icon: "screen-shared"
                     tint: Theme.red
                     label: Tr.t("Sharing")
+                    hint: Tr.t("Your screen is being shared - click to stop")
+                    onClicked: Niri.stopCasts()
                 }
                 Chip {
                     visible: Privacy.cameraInUse
@@ -442,7 +447,7 @@ Variants {
                                 else
                                     it.activate();
                             }
-                            KeyFocus { name: trayItem.modelData.tooltipTitle || trayItem.modelData.title || trayItem.modelData.id; onActivated: trayItem.press(Qt.LeftButton); onMenu: trayItem.press(Qt.RightButton) }
+                            KeyFocus { name: trayItem.modelData.tooltipTitle || trayItem.modelData.title || trayItem.modelData.id; menuable: true; onActivated: trayItem.press(Qt.LeftButton); onMenu: trayItem.press(Qt.RightButton) }
                         }
                     }
                 }
@@ -528,6 +533,7 @@ Variants {
                     hint: Notifs.dnd ? Tr.t("Do Not Disturb is on - right-click to turn it off") : Tr.t("Notifications - right-click for Do Not Disturb")
                     hintKeys: "Super + N"
                     onClicked: Ui.toggleControlCenter("notifications")
+                    hasMenu: true
                     onRightClicked: Notifs.setDnd(!Notifs.dnd)
                 }
                 // the clock: a chip like the others (it had no width of its own and drew nothing)

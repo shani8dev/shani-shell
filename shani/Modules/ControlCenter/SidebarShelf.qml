@@ -81,6 +81,7 @@ ColumnLayout {
                     KeyFocus {
                         name: shelfItem.modelData.name || shelfItem.modelData.path
                         onActivated: Qt.openUrlExternally("file://" + shelfItem.modelData.path)
+                        menuable: true
                         onMenu: { Ui.closeAll(); FileActions.offer([shelfItem.modelData.path]); }
                     }
                     Hint { text: Tr.t("Click to open, drag into an app - right-click to convert, shrink or share") }

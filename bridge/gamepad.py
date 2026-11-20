@@ -8,15 +8,18 @@
                             d-pad and left stick -> arrow keys (repeating while held),
                             A Return, B Escape (keys sent with wtype, as the screen
                             keyboard does); and one line per shell action on stdout:
-                            menu (X), launcher (Y, Guide), sidebar (Start),
+                            menu (X), launcher (Y), guide (Guide: the assistant), sidebar (Start),
                             overview (Select), workspace-prev / workspace-next (LB / RB),
-                            "used" once when a controller first drives the desktop.
+                            "used" once when a controller first drives the desktop,
+                            "active" at most every 5 s while one does.
                             While the screen keyboard is open (the shell writes
                             "osk on" / "osk off" to stdin) the pad drives its keys
                             instead, as lines: osk-up/down/left/right (repeating),
                             osk-press (A), osk-close (B), osk-backspace (X),
                             osk-space (Y), osk-enter (Start), osk-shift (Select).
-                            The right stick moves the pointer and the triggers click
+                            The right stick moves the pointer (with LB held: scrolls,
+                            LB's own action then on its release only if it did not)
+                            and the triggers click
                             (RT, or a click of the right stick: left; LT: right), for
                             whatever arrows cannot reach - a web page, a canvas - on
                             a virtual mouse made through /dev/uinput (game-devices-udev
@@ -128,7 +131,7 @@ def watch(node):
 
 # nav: what each button does on the desktop
 NAV_KEYS = {0x130: "Return", 0x131: "Escape"}
-NAV_ACTIONS = {0x134: "menu", 0x133: "launcher", 0x13c: "launcher", 0x13b: "sidebar", 0x13a: "overview",
+NAV_ACTIONS = {0x134: "menu", 0x133: "launcher", 0x13c: "guide", 0x13b: "sidebar", 0x13a: "overview",
                0x136: "workspace-prev", 0x137: "workspace-next"}
 # the screen keyboard open: its own meaning for the buttons (Steam's keyboard's, by position)
 OSK_BUTTONS = {0x130: "osk-press", 0x131: "osk-close", 0x134: "osk-backspace", 0x133: "osk-space",
@@ -153,6 +156,12 @@ class Nav:
         self.carry = [0.0, 0.0]           # sub-pixel motion not sent yet
         self.last_move = None
         self.clicks = {}                  # source -> the button it holds down
+        # LB held, the right stick scrolls instead (a web page, a long list): LB's own
+        # action waits for its release, and is dropped when it scrolled meanwhile
+        self.scroll_hold = False
+        self.scrolled = False
+        self.wheel_carry = [0.0, 0.0]
+        self.last_active = None
 
     def set_osk(self, on):
         self.osk = on
@@ -169,6 +178,11 @@ class Nav:
         if not self.used:
             self.used = True
             self.say("used")
+        # now and then while it is used (a field it reaches brings the screen keyboard)
+        t = self.now()
+        if self.last_active is None or t - self.last_active >= ACTIVE_EVERY:
+            self.last_active = t
+            self.say("active")
 
     def _hold(self, source, direction):
         old = self.sources.get(source)
@@ -227,6 +241,15 @@ class Nav:
             elif value == 1 and code in NAV_KEYS:
                 self._use()
                 self.key(NAV_KEYS[code])
+            elif code == SCROLL_BUTTON and self.pointer and not self.osk:
+                if value == 1:
+                    self.scroll_hold, self.scrolled = True, False
+                else:
+                    if self.scroll_hold and not self.scrolled:
+                        self._use()
+                        self.say(NAV_ACTIONS[code])
+                    self.scroll_hold = False
+                    self.wheel_carry = [0.0, 0.0]
             elif value == 1 and code in NAV_ACTIONS:
                 self._use()
                 self.say(NAV_ACTIONS[code])
@@ -255,13 +278,24 @@ class Nav:
         if self.pointer and any(abs(a) > DEAD for a in self.aim):
             dt = min(t - self.last_move, 0.1) if self.last_move is not None else FRAME
             self.last_move = t
-            for i in (0, 1):
-                self.carry[i] += stick_speed(self.aim[i]) * dt
-            dx, dy = int(self.carry[0]), int(self.carry[1])
-            if dx or dy:
-                self.carry[0] -= dx
-                self.carry[1] -= dy
-                self.pointer.move(dx, dy)
+            if self.scroll_hold:
+                # notches of the wheel: up on the stick scrolls up (the wheel's +), right scrolls right
+                self.scrolled = True
+                self.wheel_carry[0] += stick_speed(self.aim[0]) / TOP_SPEED * TOP_NOTCHES * dt
+                self.wheel_carry[1] -= stick_speed(self.aim[1]) / TOP_SPEED * TOP_NOTCHES * dt
+                h, v = int(self.wheel_carry[0]), int(self.wheel_carry[1])
+                if h or v:
+                    self.wheel_carry[0] -= h
+                    self.wheel_carry[1] -= v
+                    self.pointer.wheel(h, v)
+            else:
+                for i in (0, 1):
+                    self.carry[i] += stick_speed(self.aim[i]) * dt
+                dx, dy = int(self.carry[0]), int(self.carry[1])
+                if dx or dy:
+                    self.carry[0] -= dx
+                    self.carry[1] -= dy
+                    self.pointer.move(dx, dy)
             waits.append(FRAME)
         else:
             self.last_move = None
@@ -271,7 +305,7 @@ class Nav:
 
 # ---- the pointer: a virtual mouse through uinput (linux/uinput.h) ----
 EV_SYN, EV_REL = 0, 2
-REL_X, REL_Y = 0, 1
+REL_X, REL_Y, REL_HWHEEL, REL_WHEEL = 0, 1, 6, 8
 BTN_LEFT, BTN_RIGHT = 0x110, 0x111
 UI_SET_EVBIT, UI_SET_KEYBIT, UI_SET_RELBIT = 0x40045564, 0x40045565, 0x40045566
 UI_DEV_SETUP, UI_DEV_CREATE, UI_DEV_DESTROY = 0x405c5503, 0x5501, 0x5502   # struct uinput_setup: 92 bytes
@@ -288,7 +322,7 @@ class Pointer:
             ioctl(self.fd, UI_SET_EVBIT, EV_REL)
             for b in (BTN_LEFT, BTN_RIGHT):
                 ioctl(self.fd, UI_SET_KEYBIT, b)
-            for r in (REL_X, REL_Y):
+            for r in (REL_X, REL_Y, REL_HWHEEL, REL_WHEEL):
                 ioctl(self.fd, UI_SET_RELBIT, r)
             # struct input_id (bustype BUS_VIRTUAL, vendor, product, version), name[80], ff_effects_max
             ioctl(self.fd, UI_DEV_SETUP, struct.pack("4H80sI", 0x06, 0x5348, 0x0001, 1, POINTER_NAME, 0))
@@ -311,6 +345,9 @@ class Pointer:
     def button(self, code, down):
         self._emit([(EV_KEY, code, 1 if down else 0)])
 
+    def wheel(self, h, v):
+        self._emit([(EV_REL, c, n) for c, n in ((REL_HWHEEL, h), (REL_WHEEL, v)) if n])
+
     def close(self):
         try:
             self.ioctl(self.fd, UI_DEV_DESTROY)
@@ -322,6 +359,9 @@ class Pointer:
 # the right stick's travel past the dead zone -> pixels a second (squared: fine
 # aim near the centre, across a television at the edge)
 DEAD, TOP_SPEED, FRAME = 0.15, 1500.0, 1 / 60
+ACTIVE_EVERY = 5.0                        # "active" at most this often, seconds
+TOP_NOTCHES = 15.0                        # LB held: the wheel's notches a second, the stick all the way
+SCROLL_BUTTON = 0x136                     # LB
 
 
 def stick_speed(x):

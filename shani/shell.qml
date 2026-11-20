@@ -155,6 +155,10 @@ ShellRoot {
     LazyLoader { active: PlayQueue.shown; source: "Modules/MediaPlayer/MediaPlayerWindow.qml" }
     LazyLoader { active: Ui.clocks; source: "Modules/Clocks/ClocksWindow.qml" }
     LazyLoader { active: Ui.authenticator; source: "Modules/Authenticator/AuthenticatorWindow.qml" }
+    LazyLoader { active: Ui.passwords; source: "Modules/Passwords/PasswordsWindow.qml" }
+    LazyLoader { active: Ui.software; source: "Modules/Software/SoftwareWindow.qml" }
+    LazyLoader { active: Ui.containers; source: "Modules/Containers/ContainersWindow.qml" }
+    LazyLoader { active: Calibrate.kind !== ""; source: "Modules/Calibrate/CalibrateOverlay.qml" }
     LazyLoader { active: Ui.nearby; source: "Modules/Nearby/NearbyWindow.qml" }
     LazyLoader { active: Ui.converter; source: "Modules/Converter/ConverterWindow.qml" }
     LazyLoader { active: Ui.tasks; source: "Modules/Tasks/TasksWindow.qml" }
@@ -203,6 +207,26 @@ ShellRoot {
 
     // Services that hold no surface still have to be instantiated to run.
     readonly property var _services: [Idle, InputPlumber, Ups, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WindowLook, Terminal, SmartReplies, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, PdfSigner, DiskUsage, WallpaperStyle, VideoTrimmer]
+
+    // The test-only CalDAV hook reads a password from a file: keeping it out of
+    // an IPC argument keeps it out of `ps`. Declared at root, not in IpcHandler;
+    // reload() is needed when a second test reuses the path with a new password.
+    FileView {
+        id: accountPwFile
+        blockLoading: true
+        printErrors: false
+        property var pending: null
+        onLoaded: {
+            if (!pending) return;
+            const a = pending; pending = null;
+            Agenda.addAccount(a.name, a.url, a.user, String(text()).replace(/\r?\n$/, ""));
+        }
+        onLoadFailed: {
+            if (!pending) return;
+            const a = pending; pending = null;
+            Agenda.addAccount(a.name, a.url, a.user, "");   // fail with the server's own error
+        }
+    }
 
     IpcHandler {
         target: "shani"
@@ -352,6 +376,19 @@ ShellRoot {
         function nearbyAnswer(accept: string) { if (Nearby.offers.length) Nearby.answer(Nearby.offers[0].session, accept === "true"); }
         function nearbySendTo(alias: string) { const d = Nearby.devices.find(x => x.alias === alias); if (d) Nearby.sendTo(d.fingerprint); }
         function authenticatorOpen() { Ui.closeAll(); Ui.authenticator = true; }
+        function passwordsOpen() { Ui.closeAll(); Ui.passwords = true; }
+        // what a click reaches in an open app window that keys and a controller do not (JSON list)
+        function navAuditAll(): string { return JSON.stringify(Ui.navAuditAll()); }
+        function navAudit(app: string): string { const r = Ui.navRoots[app]; return r ? JSON.stringify(Ui.navAudit(r)) : "null"; }
+        // niri's switch events (InputConfig's switch-events): tablet-on / tablet-off / lid-close / lid-open
+        function switchEvent(what: string) { TabletMode.event(what); }
+        // calibration: start it, and touch a target (x y in fractions - the tests have no touchscreen)
+        function calibrateStart(kind: string) { Calibrate.start(kind); }
+        function calibrateTouch(x: real, y: real) { Calibrate.touched(x, y); }
+        function calibrateCancel() { Calibrate.cancel("cancelled"); }
+        function containersOpen() { Ui.closeAll(); Ui.containers = true; }
+        function softwareOpen() { Ui.closeAll(); Ui.software = true; }
+        function softwareInstallRef(path: string) { Ui.closeAll(); Ui.software = true; Ui.softwareRef = path; }
         function cleanUpOpen() { Ui.openSettings("storage"); }
         function weatherOpen() { Ui.closeAll(); Ui.weather = true; }
         function screenTimeOpen() { Ui.openSettings("screentime"); }
@@ -379,6 +416,9 @@ ShellRoot {
         function mediaMini(on: string) { PlayQueue.miniRequested(on === "true"); }
         function mediaPlayPause() { PlayQueue.toggleRequested(); }
         function mediaSaveFrame() { PlayQueue.frameRequested(); }
+        function radioShow(what: string) { PlayQueue.open(""); PlayQueue.page = "radio"; Radio.show(what); }
+        function radioPlay(name: string) { Radio.play(Radio.stations.find(s => s.name === name)); }
+        function radioFavourite(name: string) { Radio.toggleFavourite(Radio.stations.find(s => s.name === name)); }
         function mediaPlay() { PlayQueue.playRequested(); }
         function mediaPause() { PlayQueue.pauseRequested(); }
         function mediaSeek(seconds: string) { const v = parseFloat(seconds); if (isFinite(v)) PlayQueue.seekRequested(v); }
@@ -445,6 +485,12 @@ ShellRoot {
         function filePickerGo(path: string) { FilePicker.go(path); }
         function filePickerSelect(path: string) { FilePicker.select(path, "single"); }
         function filePickerAccept() { FilePicker.accept(); }
+        // the file-chooser portal (bridge/portal.py): a sandboxed app's Open / Save
+        // dialog is the shell's own picker. Asked with an id; the answer is fetched
+        // with portalResult(id) ("" while the person is still choosing)
+        function portalPick(id: string, opts: string) { Portal.pick(id, opts); }
+        function portalResult(id: string): string { return Portal.result(id); }
+        function portalCancel(id: string) { Portal.cancel(id); }
         function voiceRecorderTrim(path: string, start: string, end: string) {
             const s = parseFloat(start), e = parseFloat(end);
             if (!path || !isFinite(s) || !isFinite(e))
@@ -697,11 +743,21 @@ ShellRoot {
         function notesPrint(): string { return QuickNotes.printNote(); }
         function calendar() { const was = Ui.calendar; Ui.closeAll(); Ui.calendar = !was; }
         function calendarOpen() { Ui.closeAll(); Ui.calendar = true; }
+        function calendarImport(path: string) { Ui.closeAll(); Ui.calendar = true; Agenda.importFile(path); }
         function calendarRefresh() { Agenda.refresh(); }
         function calendarSearch(query: string) { Ui.closeAll(); Ui.calendar = true; Agenda.search = query; }
         function calendarAdd(summary: string, startSec: int, endSec: int, location: string, allDay: string) { Agenda.addEvent({ summary: summary, start: startSec, end: endSec, location: location, allDay: (allDay === "true" || allDay === "1") }); }
         function calendarEdit(uid: string, summary: string, startSec: int, endSec: int, location: string, allDay: string) { Agenda.editEvent({ uid: uid, summary: summary, start: startSec, end: endSec, location: location, allDay: (allDay === "true" || allDay === "1") }); }
         function calendarDelete(uid: string) { Agenda.deleteEvent({ uid: uid }); }
+        // A password in an IPC argument would show up in `ps` for any user on
+        // this machine. Test hooks hand over a file path instead; the real UI
+        // calls Agenda.addAccount directly, so no secret goes through IPC.
+        function calendarAccountAdd(name: string, url: string, user: string, passwordFile: string) {
+            accountPwFile.pending = { name: name, url: url, user: user };
+            accountPwFile.path = passwordFile;
+            accountPwFile.reload();
+        }
+        function calendarAccounts() { Agenda.loadAccounts(); }
         // image viewer (Loupe parity) + PDF reader (Papers/Evince parity)
         function openViewer(path: string) { Ui.closeAll(); Viewer.open(path); }
         function closeViewer() { Viewer.close(); }
@@ -962,7 +1018,7 @@ ShellRoot {
                 automationsFired: Automations.fired,
                 language: Tr.lang, sampleWord: Tr.t("Notifications"),
                 minimised: Niri.minimised.map(w => w.id), visibleWorkspaces: Niri.workspacesOn(Niri.focusedOutput).length,
-                backupSummary: Ui.backupSummary, printersSeen: Ui.printersSeen, printersFound: Ui.printersFound, printerOptions: Ui.printerOptions,
+                backupSummary: Ui.backupSummary, printersSeen: Ui.printersSeen, printersFound: Ui.printersFound, printerOptions: Ui.printerOptions, appPermApps: Ui.appPermApps, appPermShown: Ui.appPermShown,
                 annotate: Ui.annotate, annotateStrokes: Ui.annotateStrokes,
                 shareTargets: Share.targets.map(t => t.label), shareDone: Share.done,
                 cameras: Camera.cameras.length, cameraPhase: Camera.phase, cameraLast: Camera.last,
@@ -980,7 +1036,7 @@ ShellRoot {
                 oskRemote: Osk.remote, oskDraft: Osk.draft, oskCommitted: Osk.lastCommitted,
                 launcherSelected: Ui.launcherSelected, launcherText: Ui.launcherText,
                 formFactor: FormFactor.focused.profile, barEdge: FormFactor.focusedBarEdge, barNarrow: FormFactor.of(Niri.focusedOutput || "").profile === "phone", barOverlap: Hiding.overlap(Niri.focusedOutput || ""), launcherNarrow: launcherWin.narrow, launcherBottomGap: launcherWin.bottomGap, sidebarShade: sidebarWin.narrow, dockState: Docking.state, dockSwitches: Docking.switches, dockIcon: Settings.data.dockIconSize, tvHome: Ui.tvHome && FormFactor.tenFoot, tvSelected: Ui.tvSelected, quickPanel: Ui.quickPanel, quickSelected: Ui.quickSelected, edgeLast: EdgeSwipe.last, whiteboard: Ui.whiteboard, whiteboardStrokes: Ui.whiteboardStrokes, whiteboardPage: Ui.whiteboardPage, whiteboardSaved: Ui.whiteboardSaved, edgeStrips: EdgeSwipe.strips, textFocus: Ui.textFocus, netPortal: Net.portal, netLabel: Net.label, portalOpens: Net.portalOpens, floatingWorkspace: WorkspaceLayout.focusedFloating, aiAgent: Scratchpads.agent, panelsRestored: Displays.panelsRestored, uiScale: Theme.ui, formFactors: FormFactor.screens, windowMenuSel: Ui.windowMenuSel, launcherSearchBar: Ui.launcherSearchBar,
-                oskLastPad: Osk.lastPad,
+                oskLastPad: Osk.lastPad, oskPadDriven: Osk.padDriven, textByKeys: Ui.textByKeys,
                 ringDepth: Ui.ringDepth,
                 topResult: Ui.topResult, liveWallpaperWhy: LiveWallpaper.why, liveWallpaperPlaying: Ui.liveWallpaperPlaying, launcherFiles: Ui.launcherFiles, launcherMeaning: Ui.launcherMeaning,
                 locked: Lock.locked,
@@ -1023,7 +1079,7 @@ ShellRoot {
                 capsLock: LockKeys.caps, numLock: LockKeys.num,
                 screenSaver: ScreenSaver.active,
                 desktopIconsShown: Settings.data.desktopIcons,
-                mediaPlayer: Media.current ? Media.current.identity : '', notifEarlier: Notifs.earlier.length, dndUntil: Settings.data.dndUntil, oskWritten: Osk.lastWritten, shortcutsListed: Ui.shortcutsListed, plugGreeted: Plugged.greeted, navFocus: Ui.navFocus, osdLabel: Ui.osdLabel, presenting: Plugged.presenting ? Plugged.presenting.output : '', screenReader: Settings.data.screenReader, iphoneNoteDone: Settings.data.iphoneNoteDone, promptKeyboard: Ui.promptKeyboard, hasKeyboard: InputKinds.keyboard, tabletMode: TabletMode.on, gamepadNavRunning: GamepadNav.running, gamepadLast: GamepadNav.lastAction, dockFocus: Ui.dockFocus, ipRunning: InputPlumber.running, ipManageAll: InputPlumber.manageAll, ipDevices: InputPlumber.devices.map(d => d.name + " " + InputPlumber.playsAs(d) + " " + d.intercept), ipBorrowed: InputPlumber.borrowed !== "", ipLastEvent: InputPlumber.lastEvent, oskCtrl: Osk.ctrl, oskAlt: Osk.alt, upsPresent: Ups.present, upsOnBattery: Ups.onBattery, upsLow: Ups.low, upsCharge: Ups.info.charge === undefined ? -1 : Ups.info.charge, barFocus: Ui.barFocus, controllersListed: Ui.controllersListed, padTestRunning: Ui.padTestRunning, padTestLast: Ui.padTestLast, u2fRegistered: Ui.u2fRegistered, plugLast: Plugged.last, tabletOutput: Settings.data.tabletOutput, sleepVerb: Power.sleepVerb, compassHeading: Compass.heading, onlineWalls: OnlineWalls.results.length, onlineWallSaved: OnlineWalls.lastSaved, lyricsLines: Lyrics.lines.length, trashCount: Ui.trashCount, shotCountdown: Screenshots.countdown, shelfParked: Shelf.parked, shelfItems: Shelf.items.map(x => x.name),
+                mediaPlayer: Media.current ? Media.current.identity : '', notifEarlier: Notifs.earlier.length, dndUntil: Settings.data.dndUntil, oskWritten: Osk.lastWritten, shortcutsListed: Ui.shortcutsListed, plugGreeted: Plugged.greeted, navFocus: Ui.navFocus, navApps: Object.keys(Ui.navRoots), navAuditWindows: Ui.navAuditWindows, osdLabel: Ui.osdLabel, presenting: Plugged.presenting ? Plugged.presenting.output : '', screenReader: Settings.data.screenReader, iphoneNoteDone: Settings.data.iphoneNoteDone, promptKeyboard: Ui.promptKeyboard, hasKeyboard: InputKinds.keyboard, tabletMode: TabletMode.on, lidClosed: TabletMode.lidClosed, calibrating: Calibrate.kind, calibrateStep: Calibrate.step, calibrateResult: Calibrate.result, touchMatrix: Settings.data.touchMatrix, tabletMatrix: Settings.data.tabletMatrix, gamepadNavRunning: GamepadNav.running, gamepadLast: GamepadNav.lastAction, dockFocus: Ui.dockFocus, ipRunning: InputPlumber.running, ipManageAll: InputPlumber.manageAll, ipDevices: InputPlumber.devices.map(d => d.name + " " + InputPlumber.playsAs(d) + " " + d.intercept), ipBorrowed: InputPlumber.borrowed !== "", ipLastEvent: InputPlumber.lastEvent, oskCtrl: Osk.ctrl, oskAlt: Osk.alt, upsPresent: Ups.present, upsOnBattery: Ups.onBattery, upsLow: Ups.low, upsCharge: Ups.info.charge === undefined ? -1 : Ups.info.charge, barFocus: Ui.barFocus, controllersListed: Ui.controllersListed, padTestRunning: Ui.padTestRunning, padTestLast: Ui.padTestLast, u2fRegistered: Ui.u2fRegistered, plugLast: Plugged.last, tabletOutput: Settings.data.tabletOutput, sleepVerb: Power.sleepVerb, compassHeading: Compass.heading, onlineWalls: OnlineWalls.results.length, onlineWallSaved: OnlineWalls.lastSaved, lyricsLines: Lyrics.lines.length, trashCount: Ui.trashCount, shotCountdown: Screenshots.countdown, shelfParked: Shelf.parked, shelfItems: Shelf.items.map(x => x.name),
                 layoutSwitcher: Ui.layoutSwitcher, layoutTrying: Ui.layoutTrying, layoutPreset: Settings.data.layoutPreset, dockOn: Settings.data.dock, dockHides: Settings.data.dockVisibility === "hide", dockMode: Settings.data.dockVisibility, barMode: Settings.data.barVisibility, dockShown: Hiding.dockShown[Niri.focusedOutput] !== false, dockFits: Hiding.dockFits[Niri.focusedOutput] !== false, barShown: Hiding.barShown[Niri.focusedOutput] !== false, dockHintSeen: Settings.data.dockHintSeen, desktopIconsOn: Settings.data.desktopIcons, winWidth: Settings.data.winDefaultWidth, widgets: Array.from(Settings.data.desktopWidgets),
                 fileActions: FileActions.actions.map(x => x.id), fileActionLast: FileActions.last,
                 notifLastSound: Notifs.lastSound,
@@ -1053,13 +1109,13 @@ ShellRoot {
                 callFile: CallRecorder.file,
                 cameraShown: Camera.open, notes: Ui.notes, textEditor: Ui.textEditor,
                 textEditorFile: TextDocs.current ? TextDocs.current.path : "", textEditorDocs: TextDocs.docs.length, textEditorUnsaved: TextDocs.unsaved, textEditorChars: TextDocs.current ? TextDocs.current.text.length : 0, textEditorSaved: TextDocs.lastSaved, textEditorError: TextDocs.error, textEditorReadOnly: TextDocs.current ? TextDocs.current.readOnly : false,
-                tasksShown: Ui.tasks, tasksOpen: Tasks.open.map(t => t.summary), tasksDone: Tasks.done.map(t => t.summary), tasksAvailable: Tasks.available, photosShown: Ui.photos, translateShown: Ui.translate, weatherShown: Ui.weather, cleanUpShown: Ui.settingsOpen && Ui.settingsCat === "storage", authenticatorShown: Ui.authenticator, converterShown: Ui.converter, nearbyShown: Ui.nearby, nearbyVisible: Nearby.visible_, nearbyDevices: Nearby.devices.map(d => d.alias), nearbyOffers: Nearby.offers.length, nearbyTransfers: Object.values(Nearby.transfers).map(t => t.direction + ":" + t.state), nearbyNote: Nearby.note, screenTimeShown: Ui.settingsOpen && Ui.settingsCat === "screentime", clocksShown: Ui.clocks, clocksTab: Ui.clocksTab,
+                calendarAccounts: Agenda.accounts.map(a => a.name + ':' + a.calendars.join('|')), calendarAccountError: Agenda.accountError, calendarImported: Agenda.imported, calendarNames: Agenda.calendarNames, tasksShown: Ui.tasks, tasksOpen: Tasks.open.map(t => t.summary), tasksDone: Tasks.done.map(t => t.summary), tasksAvailable: Tasks.available, photosShown: Ui.photos, translateShown: Ui.translate, weatherShown: Ui.weather, cleanUpShown: Ui.settingsOpen && Ui.settingsCat === "storage", authenticatorShown: Ui.authenticator, passwordsShown: Ui.passwords, softwareShown: Ui.software, containersShown: Ui.containers, containersList: Ui.containersList, containersImages: Ui.containersImages, containersApps: Ui.containersApps, containersDone: Ui.containersDone, containersEntered: Ui.containersEntered, containersExported: Ui.containersExported, softwareResults: Ui.softwareResults, softwareInstalled: Ui.softwareInstalled, softwareApp: Ui.softwareApp, softwareDone: Ui.softwareDone, softwareLeftovers: Ui.softwareLeftovers, softwareAppImages: Ui.softwareAppImages, passwordsItems: Ui.passwordsItems, passwordsKeys: Ui.passwordsKeys, passwordsRevealed: Ui.passwordsRevealed, converterShown: Ui.converter, nearbyShown: Ui.nearby, nearbyVisible: Nearby.visible_, nearbyDevices: Nearby.devices.map(d => d.alias), nearbyOffers: Nearby.offers.length, nearbyTransfers: Object.values(Nearby.transfers).map(t => t.direction + ":" + t.state), nearbyNote: Nearby.note, screenTimeShown: Ui.settingsOpen && Ui.settingsCat === "screentime", clocksShown: Ui.clocks, clocksTab: Ui.clocksTab,
                 archiveShown: Archive.shown, archiveFile: Archive.file, archiveEntries: Archive.entries.length, archiveSize: Archive.totalSize, archiveExtractedTo: Archive.extractedTo, archiveError: Archive.error, archiveReading: Archive.reading, archiveExtracting: Archive.extracting, archivePassword: Archive.needsPassword, archiveMade: Archive.made, archiveCreating: Archive.creating,
-                librarySongs: MusicLibrary.songs.length, libraryVideos: MusicLibrary.videos.length, libraryAlbums: MusicLibrary.albums.map(a => a.title), libraryScanning: MusicLibrary.scanning, mediaPage: PlayQueue.page, mediaShown: PlayQueue.shown, mediaFrameSaved: Ui.mediaFrameSaved, mediaFile: PlayQueue.current, mediaPlayerPlaying: PlayQueue.playing, mediaMini: PlayQueue.mini, mediaResumedFrom: PlayQueue.resumedFrom, mediaSubtitleFile: PlayQueue.subtitleFile, mediaCue: PlayQueue.cue, mediaAudioTracks: PlayQueue.audioTrackCount, mediaTagLine: PlayQueue.tagLine, mediaCover: PlayQueue.coverShown, mediaPinned: Niri.pinned.length, mediaPosition: Math.round(PlayQueue.position * 10) / 10, mediaDuration: Math.round(PlayQueue.duration * 10) / 10, mediaHasVideo: PlayQueue.hasVideo, mediaQueue: PlayQueue.queue.length, mediaIndex: PlayQueue.index, mediaError: PlayQueue.error, mediaVolume: PlayQueue.volume, mediaRate: PlayQueue.rate,
+                librarySongs: MusicLibrary.songs.length, libraryVideos: MusicLibrary.videos.length, libraryAlbums: MusicLibrary.albums.map(a => a.title), libraryScanning: MusicLibrary.scanning, mediaPage: PlayQueue.page, mediaShown: PlayQueue.shown, radioStations: Radio.stations.map(s => s.name), radioShowing: Radio.showing, radioFavourites: Radio.favourites.map(s => s.name), mediaName: PlayQueue.name, mediaFrameSaved: Ui.mediaFrameSaved, mediaFile: PlayQueue.current, mediaPlayerPlaying: PlayQueue.playing, mediaMini: PlayQueue.mini, mediaResumedFrom: PlayQueue.resumedFrom, mediaSubtitleFile: PlayQueue.subtitleFile, mediaCue: PlayQueue.cue, mediaAudioTracks: PlayQueue.audioTrackCount, mediaTagLine: PlayQueue.tagLine, mediaCover: PlayQueue.coverShown, mediaPinned: Niri.pinned.length, mediaPosition: Math.round(PlayQueue.position * 10) / 10, mediaDuration: Math.round(PlayQueue.duration * 10) / 10, mediaHasVideo: PlayQueue.hasVideo, mediaQueue: PlayQueue.queue.length, mediaIndex: PlayQueue.index, mediaError: PlayQueue.error, mediaVolume: PlayQueue.volume, mediaRate: PlayQueue.rate,
                 scanner: Ui.scanner, passwordGenerator: Ui.passwordGenerator, kundali: Ui.kundali,
                 pdfSigner: Ui.pdfSigner, pdfSignerFile: PdfSigner.file, pdfSignerName: PdfSigner.name, pdfSignerSignature: PdfSigner.signature, pdfSignerX: PdfSigner.x, pdfSignerY: PdfSigner.y, pdfSignerScale: PdfSigner.scale, pdfSignerText: PdfSigner.fillText, pdfSignerTextX: PdfSigner.textX, pdfSignerTextY: PdfSigner.textY, pdfSignerSaved: PdfSigner.pdfSignerFile, pdfSignerLastSaved: PdfSigner.lastSaved, pdfSignerSaving: PdfSigner.saving,
                 disktree: Ui.diskUsage, diskUsageRoot: DiskUsage.scanRoot, diskUsageCurrent: DiskUsage.current, diskUsageEntries: DiskUsage.entries.length, diskUsageMarked: DiskUsage.markedCount, diskUsageTotal: DiskUsage.totalSize, diskUsageScanning: DiskUsage.scanning, diskUsageLast: DiskUsage.last, diskUsageView: DiskUsage.view, diskUsageDupes: DiskUsage.dupes.map(g => g.paths.length), diskUsageBig: DiskUsage.big.length, diskUsageMarkedPaths: DiskUsage.marked,
-                filesShown: Ui.files, filesPath: Files.path, filesTabs: Files.tabPaths, filesTabIndex: Files.tabIndex, filesZoom: Files.zoom, filesStarred: Files.starred, filesFree: Files.freeBytes, filesTemplates: Files.templates.map(x => x.name), filesSelectedNames: Files.selected.map(p => p.split("/").pop()), filesThumbs: Object.keys(Files.thumbs).map(p => p.split("/").pop()), filesDevices: Files.devices.map(d => d.name + (d.mounted ? ":open" : ":closed")), filesConnectError: Files.connectError, filesConnectLogin: Files.connectNeedsLogin, filesJobRunning: Files.jobRunning, filesJobTotal: Files.jobTotal, filesJobDone: Files.jobDone, filesSelected: Files.selected.length, filesView: Files.viewMode, filesError: Files.error, filesPlaces: Files.places.length, filesEntries: Files.entryCount, filesNote: Files.note, filesUndo: Files.undoLabel, filesProps: Files.props ? JSON.stringify(Files.props) : "", filesUsbDrives: Files.usb ? (Files.usb.drives || []).map(d => d.name) : [], filesUsbBusy: Files.usbBusy, filesUsbResult: Files.usbResult, filesImageMounted: Files.imageMounted, filesUnlockFor: Files.unlockFor ? Files.unlockFor.name : "", filesUnlockError: Files.unlockError, filesShares: Object.keys(Files.shares), filesServers: Files.servers.map(s => s.name), filesLocker: Files.locker ? Files.locker.mode : "", filesLockError: Files.lockError, filesLockResult: Files.lockResult, filesServedUrl: Files.servedUrl, filesServedGot: Files.servedGot, filesClouds: Files.clouds.map(c => c.name + ":" + c.type), filesCloudError: Files.cloudError, filesAsAdmin: Files.asAdmin, filesConflict: Files.conflictAsk ? Files.conflictAsk.names : [], filesJobPaused: Files.jobPaused, filesJobRate: Files.jobRate, filesJobFailed: Files.jobFailed.map(f => f.path.split("/").pop()), filesJobsWaiting: Files.jobsWaiting, filesLastCheck: Files.lastCheck ? JSON.stringify({ good: Files.lastCheck.good, bad: (Files.lastCheck.bad || []).length, missing: (Files.lastCheck.missing || []).length }) : "", filesCopyHistory: Files.copyHistory.length, filesRedo: Files.redoLabel, filesScripts: Files.scripts.map(s => s.name), filesCompare: Files.comparison ? JSON.stringify({ kind: Files.comparison.kind || "", changes: Files.comparison.changes || 0, same: !!Files.comparison.same, rows: (Files.comparison.rows || []).length, loading: !!Files.comparison.loading }) : "", filesTrashNames: Object.keys(Files.trashItems), filesBookmarks: Files.places.filter(p => p.bookmark).map(p => p.path), filesNames: Files._paths.map(p => p.split("/").pop()),
+                filesShown: Ui.files, filesPath: Files.path, filesTabs: Files.tabPaths, filesTabIndex: Files.tabIndex, filesZoom: Files.zoom, filesStarred: Files.starred, filesFree: Files.freeBytes, filesTemplates: Files.templates.map(x => x.name), filesSelectedNames: Files.selected.map(p => p.split("/").pop()), filesThumbs: Object.keys(Files.thumbs).map(p => p.split("/").pop()), filesDevices: Files.devices.map(d => d.name + (d.mounted ? ":open" : ":closed")), filesConnectError: Files.connectError, filesConnectLogin: Files.connectNeedsLogin, filesJobRunning: Files.jobRunning, filesJobTotal: Files.jobTotal, filesJobDone: Files.jobDone, filesSelected: Files.selected.length, filesView: Files.viewMode, filesError: Files.error, filesPlaces: Files.places.length, filesEntries: Files.entryCount, filesNote: Files.note, filesUndo: Files.undoLabel, filesProps: Files.props ? JSON.stringify(Files.props) : "", filesUsbDrives: Files.usb ? (Files.usb.drives || []).map(d => d.name) : [], filesUsbBusy: Files.usbBusy, filesUsbResult: Files.usbResult, filesImageMounted: Files.imageMounted, filesUnlockFor: Files.unlockFor ? Files.unlockFor.name : "", filesUnlockError: Files.unlockError, filesShares: Object.keys(Files.shares), filesServers: Files.servers.map(s => s.name), filesLocker: Files.locker ? Files.locker.mode : "", filesLockError: Files.lockError, filesLockResult: Files.lockResult, filesServedUrl: Files.servedUrl, filesServedGot: Files.servedGot, filesClouds: Files.clouds.map(c => c.name + ":" + c.type), filesCloudError: Files.cloudError, filesAsAdmin: Files.asAdmin, filesConflict: Files.conflictAsk ? Files.conflictAsk.names : [], filesJobPaused: Files.jobPaused, filesJobRate: Files.jobRate, filesJobFailed: Files.jobFailed.map(f => f.path.split("/").pop()), filesJobsWaiting: Files.jobsWaiting, filesLastCheck: Files.lastCheck ? JSON.stringify({ good: Files.lastCheck.good, bad: (Files.lastCheck.bad || []).length, missing: (Files.lastCheck.missing || []).length }) : "", filesCopyHistory: Files.copyHistory.length, filesBurst: Files.lastBurstCount + "/" + Math.round(Files.lastBurstMs), filesRedo: Files.redoLabel, filesScripts: Files.scripts.map(s => s.name), filesCompare: Files.comparison ? JSON.stringify({ kind: Files.comparison.kind || "", changes: Files.comparison.changes || 0, same: !!Files.comparison.same, rows: (Files.comparison.rows || []).length, loading: !!Files.comparison.loading }) : "", filesTrashNames: Object.keys(Files.trashItems), filesBookmarks: Files.places.filter(p => p.bookmark).map(p => p.path), filesNames: Files._paths.map(p => p.split("/").pop()),
                 pickerShown: FilePicker.shown, pickerPath: FilePicker.path, pickerPicked: FilePicker.lastPicked.join(" "),
                 voiceRecorder: Ui.voiceRecorder, voiceRecording: VoiceRecorder.recording, voicePaused: VoiceRecorder.paused, voiceElapsed: VoiceRecorder.elapsed, voiceFiles: VoiceRecorder.recordings.length, voiceFile: VoiceRecorder.file, voiceLast: VoiceRecorder.last, voiceLevel: Math.round(VoiceRecorder.level * 100), voiceTrimFile: VoiceRecorder.trimFile, voiceTrimStart: VoiceRecorder.trimStart, voiceTrimEnd: VoiceRecorder.trimEnd, voiceTrimmed: VoiceRecorder.trimmedLast,
                 videoTrimmer: Ui.videoTrimmer, videoTrimmerInput: VideoTrimmer.input, videoTrimmerStart: VideoTrimmer.start, videoTrimmerEnd: VideoTrimmer.end, videoTrimmerDuration: VideoTrimmer.inputDuration, videoTrimmerResult: VideoTrimmer.result, videoTrimmerCutting: VideoTrimmer.cutting, videoTrimmerError: VideoTrimmer.error, videoTrimmerAvailable: VideoTrimmer.available, videoTrimmerResultDuration: VideoTrimmer.resultDuration,

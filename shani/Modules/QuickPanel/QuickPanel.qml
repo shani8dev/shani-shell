@@ -12,6 +12,7 @@ import qs.Services
 import "../../Common/Gestures.js" as G
 
 PanelWindow {
+    NavWindow {}     // known to the keys-and-controller reach check (Ui.navAuditAll)
     id: win
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     visible: Ui.quickPanel && !Lock.locked

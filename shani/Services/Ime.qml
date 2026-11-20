@@ -6,6 +6,7 @@ pragma Singleton
 // protocol slot, so Osk hands it over and back.
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
 import QtQuick
 
 Singleton {
@@ -53,10 +54,19 @@ Singleton {
         onLoaded: { root.methods = (text().match(/^\[Groups\/\d+\/Items\/\d+\]/mg) || []).length; query.running = true; }
         onLoadFailed: root.methods = 0
     }
+    // ...but only while someone is typing: the method changes by a key (Ctrl+Space),
+    // so after 20 s with no input it cannot have changed, and the poll rests; the
+    // next key wakes it, asking at once. (ShaniOS ships two methods, English and
+    // Hindi phonetic: every install had a fcitx5-remote every 2 s, all day.)
+    IdleMonitor {
+        id: typing
+        timeout: 20
+        respectInhibitors: false
+    }
     Timer {
         id: poll
         interval: 2000
-        running: root.available && root.methods > 1
+        running: root.available && root.methods > 1 && !typing.isIdle
         repeat: true
         triggeredOnStart: true
         onTriggered: query.running = true

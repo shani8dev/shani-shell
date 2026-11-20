@@ -76,6 +76,8 @@ Variants {
 
         // right-click on the empty desktop: what people look for there
         MouseArea {
+            // the desktop: a right-click its menu - with keys the Menu key, a pad's X (Ui.desktopMenu)
+            objectName: "nav:pointer"
             anchors.fill: parent
             z: 10
             acceptedButtons: Qt.RightButton | Qt.LeftButton

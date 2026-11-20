@@ -43,7 +43,13 @@ Singleton {
     // what is still to come, today first
     readonly property var upcoming: events.filter(e => e.end * 1000 > Date.now()).slice(0, 6)
 
-    function refresh() { if (!read.running) read.running = true; if (!sources.running) sources.running = true; }
+    // asked while a read is running: read once more when it ends (a change - an
+    // import, an account's first sync - must not be lost to a read already under way)
+    property bool _readAgain: false
+    function refresh() {
+        if (read.running) root._readAgain = true; else read.running = true;
+        if (!sources.running) sources.running = true;
+    }
     Process {
         id: sources
         command: ["python3", root.tool, "calendars"]
@@ -51,6 +57,80 @@ Singleton {
             onStreamFinished: { try { root.calendars = JSON.parse(text); } catch (e) {} }
         }
     }
+    // online accounts (CalDAV: Nextcloud, Fastmail, iCloud, Radicale...): EDS finds
+    // their calendars; added with the password on stdin (agenda.py account-add)
+    property var accounts: []
+    property string accountError: ""
+    property bool accountBusy: false
+    function loadAccounts() { if (!accountList.running) accountList.running = true; }
+    Process {
+        id: accountList
+        command: ["python3", root.tool, "accounts"]
+        stdout: StdioCollector { onStreamFinished: { try { const r = JSON.parse(text); root.accounts = Array.isArray(r) ? r : []; } catch (e) { root.accounts = []; } } }
+    }
+    function addAccount(name, url, user, password) {
+        if (accountAdd.running) return;
+        root.accountError = "";
+        root.accountBusy = true;
+        accountAdd.payload = JSON.stringify({ name: name, url: url, user: user, password: password });
+        accountAdd.stdinEnabled = true;
+        accountAdd.running = true;
+    }
+    Process {
+        id: accountAdd
+        property string payload: ""
+        command: ["python3", root.tool, "account-add"]
+        onStarted: { write(payload); payload = ""; stdinEnabled = false; }
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r = {};
+                try { r = JSON.parse(text); } catch (e) { r = { error: text.trim() || Tr.t("That did not work") }; }
+                // set the error first: listeners that close the form when busy
+                // goes false must see the result, not the previous empty error
+                root.accountError = r.error || "";
+                root.accountBusy = false;
+                root.loadAccounts();
+                // EDS finds the calendars a moment after: asked again shortly
+                if (!r.error) { accountsAgain.restart(); }
+            }
+        }
+    }
+    // EDS finds the account's calendars, then fetches their events: read again at
+    // 3, 10 and 30 s after adding, so they show without waiting for the next refresh
+    property int _againStep: 0
+    Timer {
+        id: accountsAgain
+        interval: 3000
+        onTriggered: {
+            root.loadAccounts();
+            root.refresh();
+            root._againStep++;
+            if (root._againStep < 3) { interval = root._againStep === 1 ? 7000 : 20000; restart(); }
+            else { root._againStep = 0; interval = 3000; }
+        }
+    }
+    // an .ics opened with the Calendar (an invitation): its events added, its day shown
+    property string imported: ""             // what the last import said, for the tests
+    signal showDay(real when)
+    function importFile(path) {
+        importProc.command = ["python3", root.tool, "import", path];
+        importProc.running = true;
+    }
+    Process {
+        id: importProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r = {};
+                try { r = JSON.parse(text); } catch (e) { r = { error: text.trim() }; }
+                root.imported = r.error ? "error: " + r.error : Tr.t("%1 events added", r.added);
+                root.refresh();
+                if (r.first) root.showDay(r.first * 1000);
+            }
+        }
+    }
+    function removeAccount(uid) { accountRemove.command = ["python3", root.tool, "account-remove", uid]; accountRemove.running = true; }
+    Process { id: accountRemove; onExited: { root.loadAccounts(); root.refresh(); } }
+
     // the shell's own Calendar surface (the editor lives there), never
     // GNOME Calendar
     function openCalendar() {
@@ -109,7 +189,10 @@ Singleton {
                 try { root.allEvents = JSON.parse(text); root.available = true; } catch (e) {}
             }
         }
-        onExited: code => { if (code === 2) root.available = false; }
+        onExited: code => {
+            if (code === 2) root.available = false;
+            if (root._readAgain) { root._readAgain = false; Qt.callLater(() => { read.running = true; }); }
+        }
     }
     Process {
         id: writeProc

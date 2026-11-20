@@ -40,12 +40,25 @@ PanelWindow {
         { id: "float", sep: true, label: target.is_floating ? "Tile" : "Float", icon: "window-restore", run: () => Niri.action("toggle-window-floating", "--id", target.id) },
         { id: "maximize", label: Tr.t("Maximize column"), icon: "window-maximize", run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("maximize-column"); } },
         { id: "center", label: Tr.t("Center"), icon: "zoom-fit-best", run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("center-column"); } },
+        // fill the screen to its edges (no gaps, no bar's room), and fullscreen kept inside its tile
+        // (the app thinks it is fullscreen - a video's player - while the desktop stays around it)
+        { id: "edges", label: Tr.t("Fill the screen"), icon: "view-fullscreen", run: () => Niri.action("maximize-window-to-edges", "--id", target.id) },
+        { id: "windowedfs", label: Tr.t("Fullscreen inside its tile"), icon: "view-restore", run: () => Niri.action("toggle-windowed-fullscreen", "--id", target.id) },
+        { id: "expand", label: Tr.t("Take the free space"), icon: "zoom-fit-width", run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("expand-column-to-available-width"); } },
+        { id: "tabs", label: Tr.t("Show this column as tabs"), icon: "tab-new", run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("toggle-column-tabbed-display"); } },
+        { id: "swapleft", label: Tr.t("Swap with the window on the left"), icon: "go-previous", run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("swap-window-left"); } },
+        { id: "swapright", label: Tr.t("Swap with the window on the right"), icon: "go-next", run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("swap-window-right"); } },
         // snap layouts (after Windows): the column at a half, a third or two thirds of the screen
         { id: "half", label: Tr.t("Half the screen"), icon: "view-dual", run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("set-column-width", "50%"); } },
         { id: "third", label: Tr.t("A third"), icon: "view-dual", run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("set-column-width", "33.333%"); } },
         { id: "twothirds", label: Tr.t("Two thirds"), icon: "view-dual", run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("set-column-width", "66.667%"); } },
         ...(Displays.outputs.length > 1 ? [{ id: "monitor", sep: true, label: Tr.t("Move to the other monitor"), icon: "video-display",
             run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("move-column-to-monitor-next"); } }] : []),
+        // the whole workspace this window is on: up or down the list, or to the other screen
+        { id: "wsup", sep: true, label: Tr.t("Move this workspace up"), icon: "go-up", run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("move-workspace-up"); } },
+        { id: "wsdown", label: Tr.t("Move this workspace down"), icon: "go-down", run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("move-workspace-down"); } },
+        ...(Displays.outputs.length > 1 ? [{ id: "wsmonitor", label: Tr.t("Move this workspace to the other monitor"), icon: "video-display",
+            run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("move-workspace-to-monitor-next"); } }] : []),
         { id: "ws1", sep: Displays.outputs.length <= 1, label: Tr.t("Move to workspace 1"), icon: "go-next", run: () => Niri.action("move-window-to-workspace", "--window-id", target.id, "--focus", "false", "1") },
         { id: "ws2", label: Tr.t("Move to workspace 2"), icon: "go-next", run: () => Niri.action("move-window-to-workspace", "--window-id", target.id, "--focus", "false", "2") },
         { id: "ws3", label: Tr.t("Move to workspace 3"), icon: "go-next", run: () => Niri.action("move-window-to-workspace", "--window-id", target.id, "--focus", "false", "3") },
@@ -122,7 +135,7 @@ PanelWindow {
         Keys.onUpPressed: win.sel = Math.max(win.sel - 1, 0)
         Keys.onReturnPressed: win.run(win.entries[win.sel].id)
     }
-    MouseArea { anchors.fill: parent; onClicked: Ui.windowMenu = false }
+    MouseArea { objectName: "nav:pointer"; anchors.fill: parent; onClicked: Ui.windowMenu = false }   // a click outside closes; Escape does with keys
 
     Glass {
         id: menuCard

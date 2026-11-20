@@ -13,6 +13,7 @@ import qs.Services
 import "../../Common/Gestures.js" as Hold
 
 PanelWindow {
+    NavWindow {}     // known to the keys-and-controller reach check (Ui.navAuditAll)
     id: win
     visible: Ui.ring
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]

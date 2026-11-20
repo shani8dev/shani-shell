@@ -78,6 +78,7 @@ AppWindow {
     }
     tools: [
         Choice { text: Tr.t("Library"); selected: win.page === "library"; onClicked: win.page = "library" },
+        Choice { text: Tr.t("Radio"); selected: win.page === "radio"; onClicked: { win.page = "radio"; if (Radio.showing === "") Radio.show(Radio.favourites.length ? "favourites" : "popular"); } },
         Choice { text: Tr.t("Now playing"); selected: win.page === "playing"; enabled: PlayQueue.current !== ""; onClicked: win.page = "playing" }
     ]
     readonly property bool audioOnly: PlayQueue.current !== "" && !player.hasVideo
@@ -195,7 +196,8 @@ AppWindow {
 
     MediaPlayer {
         id: player
-        source: PlayQueue.current !== "" ? "file://" + PlayQueue.current.split("/").map(encodeURIComponent).join("/") : ""
+        source: PlayQueue.current === "" ? "" : PlayQueue.isStream ? PlayQueue.current
+                : "file://" + PlayQueue.current.split("/").map(encodeURIComponent).join("/")
         videoOutput: video
         audioOutput: AudioOutput { volume: PlayQueue.volume; muted: PlayQueue.muted }
         playbackRate: PlayQueue.rate
@@ -281,6 +283,11 @@ AppWindow {
                     Layout.fillHeight: true
                     visible: win.page === "library" && !win.mini
                 }
+                RadioView {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    visible: win.page === "radio" && !win.mini
+                }
                 // ---- the picture (or, for music, what is playing) ----
                 Rectangle {
                     Layout.fillWidth: true
@@ -290,6 +297,7 @@ AppWindow {
                     // the mini player's own controls, over the picture while the pointer is on it
                     HoverHandler { id: miniHover; enabled: win.mini }
                     MouseArea {
+                        objectName: "nav:pointer"          // the mini player moved by its picture (Mod+arrows move it with keys)
                         anchors.fill: parent
                         visible: win.mini
                         z: 2
@@ -383,6 +391,7 @@ AppWindow {
                     }
                     // a click plays or pauses, a double click is full screen
                     MouseArea {
+                        objectName: "nav:keys"          // Space / K and the Play button; F full screen
                         z: -1
                         anchors.fill: parent
                         enabled: PlayQueue.current !== ""
@@ -438,7 +447,7 @@ AppWindow {
                         color: Theme.alpha(Theme.bg, 0.94)
                         border.width: 1
                         border.color: Theme.border
-                        MouseArea { anchors.fill: parent }
+                        MouseArea { anchors.fill: parent; objectName: "nav:pointer" }   // swallows clicks on the card
                         ColumnLayout {
                             id: tracksCol
                             x: 12; y: 12
@@ -527,6 +536,8 @@ AppWindow {
                         onPositionChanged: m => place(m.x)
                         onReleased: player.position = at
                     }
+                    // keys and a controller: Left / Right 10 s back / on
+                    KeyFocus { enabled: seekArea.enabled; slider: true; onStep: dir => player.position = Math.max(0, Math.min(player.duration, player.position + dir * 10000)) }
                 }
 
                 // ---- the controls ----
@@ -590,6 +601,8 @@ AppWindow {
                             onPositionChanged: m => place(m.x)
                             onWheel: w => win.louder(w.angleDelta.y > 0 ? 0.05 : -0.05)
                         }
+                        // keys and a controller: Left / Right a step quieter / louder
+                        KeyFocus { slider: true; onStep: dir => win.louder(dir * 0.05) }
                     }
                     IconButton {
                         icon: "media-view-subtitles"
@@ -645,6 +658,7 @@ AppWindow {
                                 font.pixelSize: Theme.px(12) * Theme.fontScale
                             }
                             MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: PlayQueue.go(row.index) }
+                            KeyFocus { onActivated: PlayQueue.go(row.index) }   // keys and a controller: play this one
                         }
                     }
                 }

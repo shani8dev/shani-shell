@@ -44,6 +44,7 @@ PanelWindow {
 
     // click outside closes
     MouseArea {
+        objectName: "nav:pointer"          // a click outside closes it; Escape (a pad's B) does with keys
         anchors.fill: parent
         onClicked: Ui.closeAll()
     }
@@ -85,7 +86,7 @@ PanelWindow {
         // opened: the keyboard (or a controller) starts on the first control
         Connections { target: Ui; function onControlCenterChanged() { if (Ui.controlCenter) Ui.focusFirst(slide); } }
 
-        MouseArea { anchors.fill: parent }   // swallow clicks so they don't close
+        MouseArea { anchors.fill: parent; objectName: "nav:pointer" }   // swallow clicks so they don't close
         // A shade exits down; a desktop sidebar exits right. Keep vertical
         // dismissal on the shade's top handle so lists retain touch scrolling.
         Rectangle {

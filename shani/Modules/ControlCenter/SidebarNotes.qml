@@ -267,6 +267,10 @@ ColumnLayout {
             border.color: Theme.accentLine
             TextEdit {
                 id: notes
+                activeFocusOnTab: true          // the d-pad and Tab reach it (a pad's LB / RB leave it: Ui.navJump)
+                Keys.onDownPressed: e => e.accepted = Ui.leaveAtEdge(notes, true)
+                Keys.onUpPressed: e => e.accepted = Ui.leaveAtEdge(notes, false)
+                Keys.onEscapePressed: Ui.closeAll()   // as the panel's own Escape: the edit would keep it
                 Accessible.role: Accessible.EditableText
                 Accessible.name: Tr.t("Note text")
                 anchors.fill: parent

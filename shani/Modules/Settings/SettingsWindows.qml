@@ -31,6 +31,27 @@ ColumnLayout {
         onPicked: v => page.d.winFocusRing = v
     }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Focus follows the pointer"); hint: Tr.t("the window under the pointer takes the keyboard"); checked: page.d.winFocusFollowsMouse; onToggled: on => page.d.winFocusFollowsMouse = on }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("New windows open as tabs"); hint: Tr.t("a column shows one window at a time, with tabs at its side"); checked: page.d.winTabbed; onToggled: on => page.d.winTabbed = on }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("An empty workspace above the first"); hint: Tr.t("somewhere new is one step up, as well as down"); checked: page.d.winEmptyAbove; onToggled: on => page.d.winEmptyAbove = on }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("A workspace's key twice goes back"); hint: Tr.t("Mod+2 on workspace 2 returns to where you were"); checked: page.d.wsBackAndForth; onToggled: on => page.d.wsBackAndForth = on }
+    Picks {
+        label: Tr.t("The overview shows workspaces")
+        options: [{ label: Tr.t("Small"), value: 0.35 }, { label: Tr.t("Medium"), value: 0.5 }, { label: Tr.t("Large"), value: 0.7 }]
+        current: page.d.overviewZoom
+        onPicked: v => page.d.overviewZoom = v
+    }
+    // room windows leave free at each edge (a panel of your own, a notch, a screen's worn edge)
+    Repeater {
+        model: [{ key: "winStrutLeft", label: Tr.t("Room kept free on the left") }, { key: "winStrutRight", label: Tr.t("Room kept free on the right") },
+                { key: "winStrutTop", label: Tr.t("Room kept free at the top") }, { key: "winStrutBottom", label: Tr.t("Room kept free at the bottom") }]
+        Picks {
+            required property var modelData
+            label: modelData.label
+            options: [{ label: Tr.t("None"), value: 0 }, { label: Tr.t("A little"), value: 24 }, { label: Tr.t("Some"), value: 64 }, { label: Tr.t("A lot"), value: 128 }]
+            current: page.d[modelData.key]
+            onPicked: v => page.d[modelData.key] = v
+        }
+    }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Window animations"); hint: Tr.t("opening, closing and scrolling (Reduce motion turns the shell's own off)"); checked: page.d.winAnimations; onToggled: on => page.d.winAnimations = on }
 
     // ---- look and motion: Services/WindowLook writes niri's shani-look.kdl -------------

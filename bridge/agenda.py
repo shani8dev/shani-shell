@@ -8,6 +8,11 @@
     agenda.py add '<json>'              create an event (see below)
     agenda.py edit '<json>'             change summary/location of an event
     agenda.py delete '<json>'           delete an event
+    agenda.py import FILE [CALENDAR]    an .ics file's events added (an invitation, a timetable)
+    agenda.py accounts                  online accounts: [{"uid", "name", "url", "user", "calendars"}]
+    agenda.py account-add               {"name", "url", "user", "password"} on stdin: a CalDAV
+                                        account (EDS finds its calendars)
+    agenda.py account-remove UID        that account and its calendars, from this computer
     {"summary": "Standup", "start": 1761715800, "end": 1761719400,
      "location": "", "allDay": false, "calendar": "Personal", "uid": "..."}
 
@@ -41,6 +46,7 @@ import time
 
 def bindings():
     import gi
+
     try:
         gi.require_version("ECal", "2.0")
         gi.require_version("EDataServer", "1.2")
@@ -55,6 +61,7 @@ def bindings():
         except ValueError:
             continue
     from gi.repository import ECal, EDataServer, ICalGLib  # noqa: E402
+
     return ECal, EDataServer, ICalGLib
 
 
@@ -78,7 +85,9 @@ def _clients(timeout: int = 10):
         if not source.get_enabled():
             continue
         try:
-            client = ECal.Client.connect_sync(source, ECal.ClientSourceType.EVENTS, timeout, None)
+            client = ECal.Client.connect_sync(
+                source, ECal.ClientSourceType.EVENTS, timeout, None
+            )
         except Exception:  # noqa: BLE001 - one broken account must not hide the others
             continue
         out.append((source.get_display_name(), client))
@@ -96,23 +105,41 @@ def calendars() -> list[dict]:
             continue
         color = ""
         try:
-            color = source.get_extension(EDataServer.SOURCE_EXTENSION_CALENDAR).get_color() or ""
+            color = (
+                source.get_extension(EDataServer.SOURCE_EXTENSION_CALENDAR).get_color()
+                or ""
+            )
         except Exception:  # noqa: BLE001 - a source without the extension's colour
             pass
-        out.append({"name": source.get_display_name() or "", "uid": source.get_uid() or "", "color": color,
-                    "readOnly": not source.get_writable()})
+        out.append(
+            {
+                "name": source.get_display_name() or "",
+                "uid": source.get_uid() or "",
+                "color": color,
+                "readOnly": not source.get_writable(),
+            }
+        )
     return sorted(out, key=lambda c: c["name"].lower())
 
 
 def events(start: float, end: float, timeout: int = 10) -> list[dict]:
     out: list[dict] = []
     for name, client in _clients(timeout):
+
         def collect(icomp, istart, iend, *_args, _name=name):
-            out.append({"start": timet(istart), "end": timet(iend), "summary": icomp.get_summary() or "(no title)",
-                        "location": icomp.get_location() or "", "calendar": _name,
-                        "allDay": bool(getattr(istart, "is_date", lambda: False)()),
-                        "uid": icomp.get_uid() or ""})
+            out.append(
+                {
+                    "start": timet(istart),
+                    "end": timet(iend),
+                    "summary": icomp.get_summary() or "(no title)",
+                    "location": icomp.get_location() or "",
+                    "calendar": _name,
+                    "allDay": bool(getattr(istart, "is_date", lambda: False)()),
+                    "uid": icomp.get_uid() or "",
+                }
+            )
             return True
+
         try:
             client.generate_instances_sync(int(start), int(end), None, collect)
         except Exception:  # noqa: BLE001
@@ -135,8 +162,19 @@ def _ical_text(payload: dict) -> str:
         raise ValueError("an event needs a title")
     all_day = bool(payload.get("allDay", False))
     uid = payload.get("uid") or f"shani-{time.time_ns()}@shanios"
-    location = (payload.get("location") or "").replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
-    summary = summary.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
+    location = (
+        (payload.get("location") or "")
+        .replace("\\", "\\\\")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+        .replace("\n", "\\n")
+    )
+    summary = (
+        summary.replace("\\", "\\\\")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+        .replace("\n", "\\n")
+    )
     stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
     lines = [
         "BEGIN:VCALENDAR",
@@ -208,7 +246,176 @@ def write_event(action: str, payload: dict) -> dict:
     raise ValueError(f"unknown action {action}")
 
 
+# ---- online calendar accounts (what GNOME Calendar was kept for): a CalDAV server -
+#      Nextcloud, Fastmail, iCloud (app password), Radicale... - as an EDS WebDAV
+#      collection: EDS itself finds the account's calendars (and address books)
+#      and keeps them; the password is kept in the keyring by EDS's own call
+def accounts() -> list[dict]:
+    _, EDataServer, _ = bindings()
+    registry = EDataServer.SourceRegistry.new_sync(None)
+    out = []
+    for s in registry.list_sources(EDataServer.SOURCE_EXTENSION_COLLECTION):
+        col = s.get_extension(EDataServer.SOURCE_EXTENSION_COLLECTION)
+        kids = [
+            k.get_display_name()
+            for k in registry.list_sources(EDataServer.SOURCE_EXTENSION_CALENDAR)
+            if k.get_parent() == s.get_uid()
+        ]
+        out.append(
+            {
+                "uid": s.get_uid(),
+                "name": s.get_display_name(),
+                "backend": col.get_backend_name() or "",
+                "url": col.get_calendar_url() or "",
+                "user": col.get_identity() or "",
+                "calendars": kids,
+            }
+        )
+    return out
+
+
+def account_add(name: str, url: str, user: str, password: str) -> dict:
+    from urllib.parse import urlsplit
+
+    if not url.startswith(("https://", "http://")):
+        raise ValueError("the address starts with https://")
+    u = urlsplit(url)
+    _, EDataServer, _ = bindings()
+    registry = EDataServer.SourceRegistry.new_sync(None)
+    src = EDataServer.Source.new(None, None)
+    src.set_display_name(name or u.hostname or url)
+    col = src.get_extension(EDataServer.SOURCE_EXTENSION_COLLECTION)
+    col.set_backend_name("webdav")
+    col.set_calendar_url(url)
+    col.set_contacts_url(url)
+    col.set_identity(user)
+    col.set_calendar_enabled(True)
+    col.set_contacts_enabled(True)
+    auth = src.get_extension(EDataServer.SOURCE_EXTENSION_AUTHENTICATION)
+    auth.set_host(u.hostname or "")
+    auth.set_port(u.port or (443 if u.scheme == "https" else 80))
+    auth.set_user(user)
+    auth.set_method("plain/password")
+    if u.scheme == "https":
+        src.get_extension(EDataServer.SOURCE_EXTENSION_SECURITY).set_method("tls")
+    # what the server says first: a wrong address or password is said now, not later
+    if hasattr(EDataServer, "webdav_discover_sources_sync"):
+        creds = EDataServer.NamedParameters.new()
+        creds.set(EDataServer.SOURCE_CREDENTIAL_USERNAME, user)
+        creds.set(EDataServer.SOURCE_CREDENTIAL_PASSWORD, password)
+        try:
+            found = EDataServer.webdav_discover_sources_sync(
+                src, url, EDataServer.WebDAVDiscoverSupports.EVENTS, creds, None
+            )
+        except Exception as exc:  # noqa: BLE001 - the server's answer
+            raise ValueError("the server said no: %s" % exc) from exc
+        # PyGObject returns (ok, cert_pem, cert_errors, discovered_sources,
+        # user_addresses): index 1 is the certificate, not the calendars.
+        n = len(
+            found[3] if isinstance(found, tuple) and len(found) > 3 and found[3] else []
+        )
+    else:
+        n = -1
+    # the password first: committed before it is kept, EDS can start the account,
+    # find no password, and wait for a prompt nobody shows (seen: its calendars
+    # never came). Stored under the new source's own uid, then committed.
+    src.store_password_sync(password, True, None)
+    registry.commit_source_sync(src, None)
+    return {"ok": True, "uid": src.get_uid(), "found": n}
+
+
+def import_ics(path: str, calendar: str = "") -> dict:
+    """An .ics file's events (an invitation, a timetable) into a calendar - the one
+    named, else the first writable (Personal). Each VEVENT is added as it is."""
+    _, _, ICalGLib = bindings()
+    with open(path, encoding="utf-8", errors="replace") as f:
+        text = f.read()
+    comp = ICalGLib.Component.new_from_string(text)
+    if comp is None:
+        raise ValueError("not a calendar file")
+    events = []
+    if comp.isa() == ICalGLib.ComponentKind.VEVENT_COMPONENT:
+        events = [comp]
+    else:
+        sub = comp.get_first_component(ICalGLib.ComponentKind.VEVENT_COMPONENT)
+        while sub is not None:
+            events.append(sub)
+            sub = comp.get_next_component(ICalGLib.ComponentKind.VEVENT_COMPONENT)
+    if not events:
+        raise ValueError("no events in it")
+    # straight to the one it goes to - your own Personal calendar unless one is named
+    # (connecting to every calendar first cost seconds, and an offline account more)
+    ECal, EDataServer, _ = bindings()
+    registry = EDataServer.SourceRegistry.new_sync(None)
+    source = None
+    if calendar:
+        source = next(
+            (
+                s
+                for s in registry.list_sources(EDataServer.SOURCE_EXTENSION_CALENDAR)
+                if s.get_display_name() == calendar
+            ),
+            None,
+        )
+    if source is None:
+        source = registry.ref_builtin_calendar()
+    if source is None:
+        raise RuntimeError("no calendar to add them to")
+    client = ECal.Client.connect_sync(source, ECal.ClientSourceType.EVENTS, 10, None)
+    first = None
+    for ev in events:
+        client.create_object_sync(ev.clone() if hasattr(ev, "clone") else ev, 0, None)
+        start = ev.get_dtstart()
+        if start is not None and first is None:
+            first = timet(start)
+    return {"ok": True, "added": len(events), "first": first}
+
+
+def account_remove(uid: str) -> dict:
+    _, EDataServer, _ = bindings()
+    registry = EDataServer.SourceRegistry.new_sync(None)
+    s = registry.ref_source(uid)
+    if s is None or not s.has_extension(EDataServer.SOURCE_EXTENSION_COLLECTION):
+        raise ValueError("no such account")
+    s.remove_sync(None)
+    return {"ok": True}
+
+
 def main(argv: list[str]) -> int:
+    if len(argv) > 2 and argv[1] == "import":
+        try:
+            print(json.dumps(import_ics(argv[2], argv[3] if len(argv) > 3 else "")))
+            return 0
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"error": str(exc)}))
+            return 3
+        except Exception as exc:  # noqa: BLE001
+            print(json.dumps({"error": "no calendar service (%s)" % exc}))
+            return 2
+    if len(argv) > 1 and argv[1] in ("accounts", "account-add", "account-remove"):
+        try:
+            if argv[1] == "accounts":
+                r = accounts()
+            elif argv[1] == "account-add":
+                d = json.loads(
+                    sys.stdin.read() or "{}"
+                )  # the password on stdin, never a command line
+                r = account_add(
+                    d.get("name", ""),
+                    d.get("url", ""),
+                    d.get("user", ""),
+                    d.get("password", ""),
+                )
+            else:
+                r = account_remove(argv[2] if len(argv) > 2 else "")
+        except ValueError as exc:
+            print(json.dumps({"error": str(exc)}))
+            return 3
+        except Exception as exc:  # noqa: BLE001 - no bindings, or the registry did not answer
+            print(json.dumps({"error": "no calendar service (%s)" % exc}))
+            return 2
+        print(json.dumps(r))
+        return 0
     if len(argv) > 1 and argv[1] in ("add", "edit", "delete"):
         if len(argv) < 3:
             print("usage: agenda.py add|edit|delete '<json>'", file=sys.stderr)

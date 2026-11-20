@@ -33,7 +33,7 @@ def test_watch_reads_presses_and_sticks_and_ends_with_the_device(tmp_path):
     p = subprocess.Popen([sys.executable, str(BRIDGE), "watch", "event21"], stdout=subprocess.PIPE, text=True,
                          env=dict(os.environ, SHANI_INPUT_DIR=str(tmp_path)))
     lines = []
-    t = threading.Thread(target=lambda: [lines.append(x.strip()) for x in p.stdout], daemon=True)
+    t = threading.Thread(target=lambda: [lines.append(x.strip()) for x in p.stdout if x.strip() != "active"], daemon=True)
     t.start()
     with open(fifo, "wb") as w:
         w.write(EVENT.pack(0, 0, 1, 0x130, 1) + EVENT.pack(0, 0, 0, 0, 0))     # A down, SYN
@@ -64,7 +64,8 @@ class Clock:
 
 def nav_with_clock():
     keys, said, clock = [], [], Clock()
-    return gamepad.Nav(keys.append, said.append, clock), keys, said, clock
+    # "active" (now and then while used) has its own test; the rest compare the actions
+    return gamepad.Nav(keys.append, lambda s: s != "active" and said.append(s), clock), keys, said, clock
 
 
 def test_the_mapping():
@@ -73,7 +74,7 @@ def test_the_mapping():
         n.event(1, code, 1)
         n.event(1, code, 0)
     assert keys == ["Return", "Escape"]
-    assert said == ["used", "menu", "launcher", "sidebar", "overview", "launcher", "workspace-prev", "workspace-next"]
+    assert said == ["used", "menu", "launcher", "sidebar", "overview", "guide", "workspace-prev", "workspace-next"]
 
 
 def test_a_held_direction_repeats_and_stops_on_release():
@@ -123,6 +124,7 @@ def test_nav_reads_every_pad_and_sends_keys_with_wtype(tmp_path):
     os.write(w21, EVENT.pack(0, 0, 1, 0x130, 1) + EVENT.pack(0, 0, 1, 0x130, 0))   # A on one pad
     os.write(w23, EVENT.pack(0, 0, 1, 0x13b, 1))                                   # Start on the other
     assert p.stdout.readline().strip() == "used"
+    assert p.stdout.readline().strip() == "active"   # the pad is in use (a field it reaches: the keyboard)
     assert p.stdout.readline().strip() == "sidebar"
     os.close(w21); os.close(w23)
     assert p.wait(timeout=5) == 0                                                  # both gone: it ends
@@ -181,7 +183,7 @@ def test_nav_listens_for_the_keyboard_on_stdin(tmp_path):
     p.stdin.write("osk on\n"); p.stdin.flush()
     time.sleep(0.3)
     w.write(EVENT.pack(0, 0, 1, 0x130, 0) + EVENT.pack(0, 0, 1, 0x130, 1))     # A: a key on the keyboard
-    lines = [p.stdout.readline().strip() for _ in range(2)]
+    lines = [x for x in (p.stdout.readline().strip() for _ in range(3)) if x != "active"]
     w.close()
     p.wait(timeout=5)
     assert lines == ["used", "osk-press"]
@@ -192,7 +194,10 @@ def test_nav_listens_for_the_keyboard_on_stdin(tmp_path):
 
 class FakePointer:
     def __init__(self):
-        self.moves, self.buttons = [], []
+        self.moves, self.buttons, self.wheels = [], [], []
+
+    def wheel(self, h, v):
+        self.wheels.append((h, v))
 
     def move(self, dx, dy):
         self.moves.append((dx, dy))
@@ -276,3 +281,54 @@ def test_pointer_device_setup_is_what_the_kernel_expects(tmp_path):
     data = node.read_bytes()
     events = [EVENT.unpack_from(data, i)[2:] for i in range(0, len(data), EVENT.size)]
     assert events == [(2, 0, 3), (2, 1, -2), (0, 0, 0)]
+
+
+# ---- LB held: the right stick scrolls ----
+
+def test_lb_held_turns_the_right_stick_into_a_wheel():
+    n, keys, said, clock = nav_with_pointer()
+    n.event(1, 0x136, 1)                  # LB down: nothing yet
+    n.event(3, 0x04, -32768)              # right stick all the way up
+    for _ in range(60):                   # one second
+        clock.t += gamepad.FRAME
+        n.tick()
+    n.event(3, 0x04, 0)
+    n.event(1, 0x136, 0)                  # LB up: it scrolled, so no workspace change
+    up = sum(v for _, v in n.pointer.wheels)
+    assert 12 <= up <= 15 and all(h == 0 for h, _ in n.pointer.wheels)
+    assert n.pointer.moves == [] and "workspace-prev" not in said and keys == []
+
+
+def test_lb_alone_still_goes_back_a_section_on_release():
+    n, _, said, clock = nav_with_pointer()
+    n.event(1, 0x136, 1)
+    assert "workspace-prev" not in said   # waits for the release: it might become a scroll
+    n.event(1, 0x136, 0)
+    assert said[-1] == "workspace-prev"
+
+
+def test_scrolling_right_and_down():
+    n, _, _, clock = nav_with_pointer()
+    n.event(1, 0x136, 1)
+    n.event(3, 0x03, 32767)               # right
+    n.event(3, 0x04, 32767)               # down
+    for _ in range(30):
+        clock.t += gamepad.FRAME
+        n.tick()
+    h = sum(x for x, _ in n.pointer.wheels); v = sum(y for _, y in n.pointer.wheels)
+    assert h > 4 and v < -4               # right is the horizontal wheel's +, down the wheel's -
+
+
+def test_without_a_pointer_lb_acts_at_once():
+    n, _, said, _ = nav_with_clock()      # no uinput: no scrolling, nothing to wait for
+    n.event(1, 0x136, 1)
+    assert said[-1] == "workspace-prev"
+
+
+def test_active_now_and_then_while_used():
+    said, clock = [], Clock()
+    n = gamepad.Nav(lambda k: None, said.append, clock)
+    for _ in range(20):                   # a press every half second, for ten seconds
+        n.event(1, 0x221, 1); n.event(1, 0x221, 0)
+        clock.t += 0.5
+    assert said.count("active") == 2      # at 0 s and 5 s: not one per press

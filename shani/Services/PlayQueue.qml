@@ -19,7 +19,17 @@ Singleton {
     property var queue: []                // absolute paths
     property int index: -1
     readonly property string current: index >= 0 && index < queue.length ? queue[index] : ""
-    readonly property string name: current.split("/").pop()
+    readonly property string name: isStream ? (streamNames[current] || current) : current.split("/").pop()
+    // a radio station (Radio.qml): its address in the queue, its name and picture here
+    readonly property bool isStream: /^https?:\/\//.test(current)
+    property var streamNames: ({})
+    property string streamPicture: ""
+    function playStream(url, title, picture) {
+        const n = Object.assign({}, root.streamNames); n[url] = title || url; root.streamNames = n;
+        root.streamPicture = picture || "";
+        root.playList([url], 0);
+        root.opened();                        // the window goes to Now playing
+    }
     property bool repeatOne: false
     property bool shuffle: false
     // the window's readings
@@ -39,7 +49,7 @@ Singleton {
     property real resumedFrom: 0          // where the one playing was resumed from (0: from the start)
     property string resumedPath: ""       // which file that was: only another one clears it
     function remember(path, pos, dur) {
-        if (!path || dur < 120)
+        if (!path || dur < 120 || /^https?:/.test(path))     // a stream has no place to come back to
             return;
         const m = Object.assign({}, resumeAt);
         delete m[path];

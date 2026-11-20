@@ -200,6 +200,9 @@ AppWindow {
                                             cursorShape: Qt.PointingHandCursor
                                             onClicked: PdfViewer.goTo(index)
                                         }
+                                        Accessible.role: Accessible.Button
+                                        Accessible.name: Tr.t("Page %1", index + 1)
+                                        KeyFocus { onActivated: PdfViewer.goTo(index) }
                                     }
                                 }
                             }
@@ -237,6 +240,9 @@ AppWindow {
                                                 cursorShape: Qt.PointingHandCursor
                                                 onClicked: PdfViewer.goToOutline(index)
                                             }
+                                            Accessible.role: Accessible.Button
+                                            Accessible.name: modelData.title
+                                            KeyFocus { onActivated: PdfViewer.goToOutline(index) }
                                         }
                                     }
                                 }
@@ -340,6 +346,7 @@ AppWindow {
                             radius: 2
                         }
                         MouseArea {
+                            objectName: "nav:keys"          // the arrows and Page Up / Down turn pages (the window's Keys)
                             anchors.fill: parent
                             // Ctrl + wheel zooms; the wheel alone turns pages (scrolls, zoomed)
                             onWheel: w => {

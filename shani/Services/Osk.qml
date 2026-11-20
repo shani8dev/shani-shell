@@ -145,10 +145,13 @@ Singleton {
         interval: 200
         onTriggered: {
             const touchFirst = ["tablet", "phone"].indexOf(FormFactor.focused.profile) >= 0;
-            if (Ui.textFocus && touchFirst && !root.shown && !Lock.locked) {
-                root.shown = true; root.typed = ""; root.padDriven = false; root.remote = false;
+            // a text field reached with a game controller: there is no keyboard in the hand
+            // (moved onto it - a field a surface focuses by itself, the launcher's search, is not)
+            const padFirst = GamepadNav.recent() && Ui.textByKeys;
+            if (Ui.textFocus && (touchFirst || padFirst) && !root.shown && !Lock.locked) {
+                root.shown = true; root.typed = ""; root.padDriven = padFirst && !touchFirst; root.remote = false;
                 root.autoShown = true;
-            } else if ((!Ui.textFocus || !touchFirst) && root.autoShown) {
+            } else if ((!Ui.textFocus || !(touchFirst || padFirst)) && root.autoShown) {
                 root.shown = false; root.autoShown = false;
             }
         }

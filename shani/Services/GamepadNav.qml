@@ -1,13 +1,13 @@
 pragma Singleton
 // A game controller moves around the desktop: the d-pad and left stick are the
 // arrows, A is Enter, B is Escape (bridge/gamepad.py nav types them with wtype);
-// X opens the menu of what is focused (the Menu key) or the window menu, Y and
-// Guide the launcher, Start the sidebar, Select the overview, LB / RB the
+// X opens the menu of what is focused (the Menu key) or the window menu, Y the
+// launcher, Guide the assistant (Chronoa's conversation), Start the sidebar, Select the overview, LB / RB the
 // previous / next workspace (inside a shell surface: its previous / next
 // section, Tab). Every shell surface answers arrows and Enter
 // (Common/KeyFocus), so this is all it takes. For what arrows cannot reach (a web
-// page, a canvas) the right stick moves a pointer and the triggers click (RT left,
-// LT right) - a virtual mouse the reader makes through uinput, when it can.
+// page, a canvas) the right stick moves a pointer - with LB held it scrolls - and
+// the triggers click (RT left, LT right) - a virtual mouse the reader makes through uinput, when it can.
 // It runs only while the setting is on, a controller is connected and no window
 // is fullscreen (a game has the controller then). The reader is started and
 // stopped by controllers coming and going (Plugged's udev events), never polled;
@@ -29,6 +29,11 @@ Singleton {
     readonly property bool wanted: Settings.loaded && Settings.data.gamepadNav && controllers > 0 && !fullscreen && !InputPlumber.managing
     readonly property bool running: reader.running
     property string lastAction: ""        // for the tests
+    // a controller drove the desktop lately (the reader says "active" every few seconds
+    // of use; InputPlumber's events too): a text field it reaches brings the keyboard
+    property real lastActive: 0
+    function recent() { return Date.now() - lastActive < 30000; }
+    Connections { target: InputPlumber; function onLastEventChanged() { root.lastActive = Date.now(); } }
     property bool pointer: false          // the reader has its virtual mouse
 
     function count() { list.running = true; }
@@ -46,13 +51,20 @@ Singleton {
         stdout: StdioCollector { onStreamFinished: { try { root.controllers = JSON.parse(text).length; } catch (e) { root.controllers = 0; } } }
     }
 
-    // a shell surface with the keyboard: X is the Menu key there, else the window menu
+    // a shell surface with the keyboard - a panel, or one of the shell's own app
+    // windows (Files, Software...) - X is the Menu key there (an item with no menu
+    // passes it on: an app window opens its window menu), else the window menu
+    readonly property bool shellAppFocused: !!(Niri.focusedWindow && Niri.focusedWindow.shell)
     readonly property bool shellHasKeys: Ui.controlCenter || Ui.settingsOpen || Ui.dockFocus || Ui.barFocus || Ui.launcher || Ui.windowMenu
-        || Ui.quickPanel || (Ui.tvHome && FormFactor.tenFoot)
+        || Ui.quickPanel || (Ui.tvHome && FormFactor.tenFoot) || shellAppFocused
     function act(a) {
         lastAction = a;
         if (a.startsWith("osk-")) {
             Osk.pad(a.slice(4));
+            return;
+        }
+        if (a === "active") {
+            root.lastActive = Date.now();
             return;
         }
         if (a === "pointer") {
@@ -62,7 +74,7 @@ Singleton {
                 Settings.data.gamepadHintDone = true;
                 Quickshell.execDetached(["notify-send", "-a", Tr.t("Game controller"), "-i", "input-gaming",
                     Tr.t("Your controller moves around the desktop"),
-                    root.pointer ? Tr.t("A selects, B goes back, Start opens Quick Settings. The right stick moves the pointer; RT clicks.")
+                    root.pointer ? Tr.t("A selects, B goes back, Start opens Quick Settings, Guide the assistant. The right stick moves the pointer, RT clicks; hold LB to scroll with it.")
                                  : Tr.t("A selects, B goes back, Start opens Quick Settings.")]);
             }
         } else if (a === "menu") {
@@ -73,11 +85,16 @@ Singleton {
                 Ui.windowMenu = true;
             } else
                 Ui.desktopMenu = true;
-        } else if (a === "launcher") {
+        } else if (a === "launcher" || (a === "guide" && FormFactor.tenFoot)) {
             Ui.closeAll();
             // on a TV the Guide button is Home, as the remote's
             if (FormFactor.tenFoot) Ui.tvHome = true;
             else Ui.toggleLauncher("");
+        } else if (a === "guide") {
+            // Guide (the Xbox / PlayStation button): the assistant, as Steam's overlay is
+            // its own - the conversation opens, typed into from the screen keyboard
+            Ui.closeAll();
+            Chronoa.open = !Chronoa.open;
         } else if (a === "sidebar")
             Ui.toggleControlCenter();
         else if (a === "overview")
@@ -85,10 +102,13 @@ Singleton {
         // LB / RB: in a shell surface the previous / next section (Tab, which
         // a controller lacks - Quick Settings' notifications were 30-odd
         // presses of Down away); on the desktop the workspace above / below
-        else if (a === "workspace-prev")
-            root.shellHasKeys ? Quickshell.execDetached(["wtype", "-M", "shift", "-k", "Tab", "-m", "shift"]) : Niri.action("focus-workspace-up");
-        else if (a === "workspace-next")
-            root.shellHasKeys ? Quickshell.execDetached(["wtype", "-k", "Tab"]) : Niri.action("focus-workspace-down");
+        else if (a === "workspace-prev") {
+            if (!root.shellHasKeys) Niri.action("focus-workspace-up");
+            else if (!Ui.navJump(false)) Quickshell.execDetached(["wtype", "-M", "shift", "-k", "Tab", "-m", "shift"]);
+        } else if (a === "workspace-next") {
+            if (!root.shellHasKeys) Niri.action("focus-workspace-down");
+            else if (!Ui.navJump(true)) Quickshell.execDetached(["wtype", "-k", "Tab"]);
+        }
     }
     // the screen keyboard open: the reader sends the pad's presses here for its keys
     // instead of typing arrows into the app behind it (bridge/gamepad.py nav)

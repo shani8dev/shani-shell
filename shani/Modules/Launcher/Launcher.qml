@@ -446,7 +446,7 @@ PanelWindow {
         anchors.fill: parent
         // dense enough to read without blur (blur off, or a compositor without it)
         color: Theme.alpha(Theme.bg, Settings.blurWanted ? 0.78 : 0.94)
-        MouseArea { anchors.fill: parent; onClicked: Ui.closeAll(); hoverEnabled: !Settings.data.launcherIgnoreMouse; onPositionChanged: if (!Settings.data.launcherIgnoreMouse) win.hoverArmed = true }
+        MouseArea { objectName: "nav:pointer"; anchors.fill: parent; onClicked: Ui.closeAll(); hoverEnabled: !Settings.data.launcherIgnoreMouse; onPositionChanged: if (!Settings.data.launcherIgnoreMouse) win.hoverArmed = true }
     }
 
     // opens with a short fade and rise (instant with reduce motion)
@@ -486,7 +486,7 @@ PanelWindow {
                 border.width: win.searchBar ? 3 : 0
                 border.color: Theme.accent
             }
-            MouseArea { anchors.fill: parent }
+            MouseArea { anchors.fill: parent; objectName: "nav:pointer" }   // swallows clicks: they do not close it
             // a finger on the search bar swipes the launcher away, down; the
             // results below scroll as always
             DragHandler {
@@ -503,6 +503,7 @@ PanelWindow {
                 Icon { name: "system-search"; size: Theme.px(22); color: Theme.accent }
                 TextInput {
                     id: search
+                    activeFocusOnTab: true          // the d-pad and Tab reach it (a pad's LB / RB leave it: Ui.navJump)
                     Accessible.role: Accessible.EditableText
                     Accessible.name: Tr.t("Search apps, files, settings and the web")
                     Layout.fillWidth: true
@@ -640,6 +641,8 @@ PanelWindow {
 
                             // apps as a grid
                             GridLayout {
+                                // the arrows move the launcher's own highlight over these (launcherSelected)
+                                objectName: "nav:keys"
                                 visible: !!section.modelData.grid
                                 Layout.fillWidth: true
                                 columns: win.gridCols
@@ -780,7 +783,7 @@ PanelWindow {
                 Layout.preferredHeight: chronoaCol.implicitHeight + 36
                 strong: true
                 radius: Theme.radiusLarge
-                MouseArea { anchors.fill: parent }
+                MouseArea { anchors.fill: parent; objectName: "nav:pointer" }   // swallows clicks: they do not close it
                 ColumnLayout {
                     id: chronoaCol
                     anchors.fill: parent

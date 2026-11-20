@@ -682,6 +682,10 @@ AppWindow {
                                             cursorShape: Qt.PointingHandCursor
                                             onClicked: Files.open(modelData.path)
                                         }
+                                        // keys and a controller: a folder up the path, as the click
+                                        Accessible.role: Accessible.Button
+                                        Accessible.name: modelData.name
+                                        KeyFocus { onActivated: Files.open(modelData.path) }
                                     }
                                     Text {
                                         visible: index < win.crumbsModel.length - 1
@@ -851,6 +855,7 @@ AppWindow {
                                     peekable: true
                                     onPeek: QuickLook.open(cell.modelData.path, Files._paths)
                                     onActiveFocusChanged: if (activeFocus) Files.current = cell.modelData.path
+                                    menuable: true
                                     onMenu: win.openMenu(cell.modelData, cellArea.mapToItem(win, mouseX, mouseY))
                                 }
                                 Accessible.role: Accessible.Button
@@ -961,6 +966,7 @@ AppWindow {
                                     peekable: true
                                     onPeek: QuickLook.open(row.modelData.path, Files._paths)
                                     onActiveFocusChanged: if (activeFocus) Files.current = row.modelData.path
+                                    menuable: true
                                     onMenu: win.openMenu(row.modelData, rowArea.mapToItem(win, mouseX, mouseY))
                                 }
                                 Accessible.role: Accessible.Button
@@ -1047,6 +1053,9 @@ AppWindow {
                                             cursorShape: Qt.PointingHandCursor
                                             onClicked: { Files.splitPath = modelData.path; splitDir.reload(); }
                                         }
+                                        Accessible.role: Accessible.Button
+                                        Accessible.name: modelData.name
+                                        KeyFocus { onActivated: { Files.splitPath = modelData.path; splitDir.reload(); } }
                                     }
                                     Text {
                                         visible: index < win.splitCrumbsModel.length - 1
@@ -1123,7 +1132,7 @@ AppWindow {
                                         Drag.dragType: Drag.Automatic
                                         Drag.supportedActions: Qt.CopyAction | Qt.MoveAction
                                         Drag.proposedAction: Qt.MoveAction
-                                        Drag.mimeData: ({ "text/uri-list": (Files.isSplitSelected(scell.modelData.path) ? Files.splitSelected : [scell.modelData.path]).map(Files.uriOf).join("\r\n") + "\r\n" })
+                                        Drag.mimeData: ({ "text/uri-list": (Files.isSplitSelected(scell.modelData.path) ? Files.splitSelected : [scell.modelData.path]).map(Files.uriOf).filter(u => u !== "").join("\r\n") + "\r\n" })
                                     }
                                     FileDropArea {
                                         id: scellDrop

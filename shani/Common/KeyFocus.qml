@@ -30,9 +30,15 @@ Item {
     property bool peekable: false
     signal peek()
     signal menu()
+    // there is a menu behind the Menu key here (a right-click does something): without
+    // one the key goes on to the window (an app window: its window menu)
+    property bool menuable: false
     signal step(int dir)
     activeFocusOnTab: enabled
     Accessible.ignored: true                  // the parent already speaks for itself
+    // its window, for Ui.navAuditAll (known once it is in one: a loader's comes later)
+    readonly property var navWindow: Window.window
+    onNavWindowChanged: Ui.navSeen(navWindow)
 
     function region(item) {
         for (let p = item; p; p = p.parent)
@@ -41,6 +47,7 @@ Item {
         return null;
     }
     function move(n) {
+        Ui.keyMovedAt = Date.now();          // a field this lands on was reached with keys (Services/Osk)
         if (f.ordered) {
             const list = f.ordered();
             const i = list.indexOf(f);
@@ -63,6 +70,7 @@ Item {
     }
     // past the last (or before the first) of an ordered set: the chain beyond the whole set
     function moveOut(forward) {
+        Ui.keyMovedAt = Date.now();          // a field this lands on was reached with keys (Services/Osk)
         const set = f.ordered ? f.ordered() : [f];
         let it = f;
         for (let i = 0; i < 400; i++) {
@@ -76,6 +84,7 @@ Item {
         }
     }
     function jumpRegion(forward) {
+        Ui.keyMovedAt = Date.now();          // a field this lands on was reached with keys (Services/Osk)
         const mine = region(f);
         let it = f;
         for (let i = 0; i < 400; i++) {
@@ -102,7 +111,7 @@ Item {
             Qt.callLater(() => Ui.keysActivated = false);
             e.accepted = true;
         }
-        else if (k === Qt.Key_Menu || (k === Qt.Key_F10 && (e.modifiers & Qt.ShiftModifier))) { f.menu(); e.accepted = true; }
+        else if (k === Qt.Key_Menu || (k === Qt.Key_F10 && (e.modifiers & Qt.ShiftModifier))) { f.menu(); e.accepted = f.menuable; }
         else if (f.slider && (k === Qt.Key_Left || k === Qt.Key_Right)) { f.step(k === Qt.Key_Left ? -1 : 1); e.accepted = true; }
         else if (k === Qt.Key_Down) { f.move(f.columns || 1); e.accepted = true; }
         else if (k === Qt.Key_Up) { f.move(-(f.columns || 1)); e.accepted = true; }

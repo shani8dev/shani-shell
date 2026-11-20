@@ -174,6 +174,7 @@ Rectangle {
         ordered: () => root.parent ? Array.from(root.parent.children).filter(t => t.tid !== undefined && t.visible && t.focusItem)
             .sort((a, b) => a.y - b.y || a.x - b.x).map(t => t.focusItem) : [root.focusItem]
         onActivated: root.activate()
+        menuable: root.hasDetail
         onMenu: if (root.hasDetail) root.detail()
     }
     readonly property var focusItem: focusItem

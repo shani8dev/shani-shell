@@ -78,6 +78,8 @@ RUN pacman -Sy --noconfirm --needed qt6-imageformats kimageformats libheif libjx
 # Files' locks and mounts: gpg (sealed files), gocryptfs (encrypted folders; needs
 # /dev/fuse to open one), sshfs, xz (packed disk images in the USB checks)
 RUN pacman -Sy --noconfirm --needed gnupg gocryptfs sshfs fuse3 xz && pacman -Scc --noconfirm
+# a CalDAV server, for Calendar > Accounts (dev/shell-parts/calendar-accounts.sh)
+RUN pacman -Sy --noconfirm --needed radicale && pacman -Scc --noconfirm
 
 # the icons the image uses (shani-desktop-niri's gschema override: Papirus-Dark),
 # so the suite's screenshots show what a person sees, not Adwaita's gaps

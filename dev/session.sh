@@ -32,7 +32,7 @@ export SHANI_U2F_TOOL=/work/bridge/u2f.py SHANI_FIDO2_TOKEN=/work/dev/fake-fido2
 # the file for one without (and then says so with a udev event); tablet mode from
 # a FIFO standing in for the switch's node
 cp /work/dev/udev-db/laptop.txt /tmp/udev-db
-export SHANI_INPUT_KINDS_TOOL=/work/bridge/input-kinds.py SHANI_UDEV_DB=/tmp/udev-db SHANI_TABLET_MODE_TOOL=/work/bridge/tablet-mode.py
+export SHANI_INPUT_KINDS_TOOL=/work/bridge/input-kinds.py SHANI_UDEV_DB=/tmp/udev-db
 export SHANI_MOUNTS_TOOL=/work/bridge/mounts.py SHANI_GIO=/work/dev/fake-gio.sh
 export SHANI_UINPUT=/nonexistent/uinput SHANI_GAMEPAD_TOOL=/work/bridge/gamepad.py SHANI_INPUT_DEVICES=/tmp/input-devices SHANI_INPUT_DIR=/tmp/fake-input
 mkdir -p /tmp/fake-input /tmp/fake-bin && : > /tmp/input-devices
@@ -173,13 +173,21 @@ pactl set-default-sink speakers 2>/dev/null
 # SHANI_ONLINE=1 (dev/check.sh) the real ones (dev/shell-parts/maps-online.sh)
 if [ "${SHANI_ONLINE:-}" != 1 ]; then
     python3 /work/dev/fake-osm.py 8797 >$L/fake-osm.log 2>&1 &
+    python3 /work/dev/fake-radio.py 8798 >$L/fake-radio.log 2>&1 &
+    export SHANI_RADIO_API=http://127.0.0.1:8798
     export SHANI_MAP_TILES="http://127.0.0.1:8797/tiles/{key}.png" SHANI_MAP_SEARCH=http://127.0.0.1:8797/search SHANI_MAP_ROUTE=http://127.0.0.1:8797
 fi
+# Podman and Distrobox stood in for (dev/fake-podman.py, by the name it is run as):
+# the Containers window's listing and actions, with nothing pulled or started
+mkdir -p /tmp/fake-podman/bin
+ln -sf /work/dev/fake-podman.py /tmp/fake-podman/bin/podman
+ln -sf /work/dev/fake-podman.py /tmp/fake-podman/bin/distrobox
+export FAKE_PODMAN=/tmp/fake-podman SHANI_PODMAN=/tmp/fake-podman/bin/podman SHANI_DISTROBOX=/tmp/fake-podman/bin/distrobox
 # udisks2 stood in for on the session bus (tests/fixtures/fake_udisks.py): a USB
 # stick and the computer's own disk; a write lands in /tmp/fake-udisks/sdb.img
 mkdir -p /tmp/fake-udisks
 FAKE_LUKS=1 FAKE_UDISKS_DIR=/tmp/fake-udisks python3 -W ignore /work/tests/fixtures/fake_udisks.py >$L/fake-udisks.log 2>&1 &
-export SHANI_UDISKS_BUS=session SHANI_DRIVES_TOOL=/work/bridge/drives.py SHANI_LOCK_TOOL=/work/bridge/lock.py SHANI_SERVE_TOOL=/work/bridge/serve.py SHANI_DUPES_TOOL=/work/bridge/dupes.py SHANI_IMGEDIT_TOOL=/work/bridge/imgedit.py SHANI_CLOUD_TOOL=/work/bridge/cloud.py
+export SHANI_UDISKS_BUS=session SHANI_DRIVES_TOOL=/work/bridge/drives.py SHANI_LOCK_TOOL=/work/bridge/lock.py SHANI_SERVE_TOOL=/work/bridge/serve.py SHANI_DUPES_TOOL=/work/bridge/dupes.py SHANI_IMGEDIT_TOOL=/work/bridge/imgedit.py SHANI_CLOUD_TOOL=/work/bridge/cloud.py SHANI_FLATPERM_TOOL=/work/bridge/flatperm.py SHANI_PASSWORDS_TOOL=/work/bridge/passwords.py SHANI_APPSTORE_TOOL=/work/bridge/appstore.py SHANI_CONTAINERS_TOOL=/work/bridge/containers.py SHANI_APPSTREAM=/work/tests/fixtures/appstream.xml
 python3 /work/bridge/chronoa-bridge.py >$L/bridge.log 2>&1 &
 sleep 0.5
 
@@ -209,7 +217,7 @@ mkdir -p /usr/share/backgrounds/shani && cp /work/assets/shani-dark.jpg /work/as
 mkdir -p /usr/share/shani && cp /work/data/whats-new.md /usr/share/shani/ && printf '0.0.0-test\n' > /etc/shani-version
 # idle off from the start (the tests drive the shell over IPC, which is not input).
 # More for this run: SHANI_SETTINGS_EXTRA, JSON merged over it (python3, when here).
-printf '{"dimAfter": 0, "lockAfter": 0, "screenOffAfter": 0, "lockAfterBattery": 0, "screenOffAfterBattery": 0, "startHintsDone": true}' > "$SHANI_SHELL_SETTINGS"
+printf '{"dimAfter": 0, "lockAfter": 0, "screenOffAfter": 0, "lockAfterBattery": 0, "screenOffAfterBattery": 0, "startHintsDone": true, "dockPinned": ["org.gnome.Nautilus", "com.vivaldi.Vivaldi", "foot", "dev.shani.cassini", "shani-chronoa", "org.gnome.TextEditor"]}' > "$SHANI_SHELL_SETTINGS"
 if [ -n "${SHANI_SETTINGS_EXTRA:-}" ] && command -v python3 >/dev/null 2>&1; then
     python3 -c 'import json, sys; d = json.loads(sys.argv[1]); d.update(json.loads(sys.argv[2])); print(json.dumps(d))' \
         "$(cat "$SHANI_SHELL_SETTINGS")" "$SHANI_SETTINGS_EXTRA" > "$SHANI_SHELL_SETTINGS"

@@ -84,6 +84,9 @@ AppWindow {
                         clip: true
                         TextEdit {
                             id: input
+                            activeFocusOnTab: true          // the d-pad and Tab reach it (a pad's LB / RB leave it: Ui.navJump)
+                            Keys.onDownPressed: e => e.accepted = Ui.leaveAtEdge(input, true)
+                            Keys.onUpPressed: e => e.accepted = Ui.leaveAtEdge(input, false)
                             width: parent.width
                             wrapMode: TextEdit.Wrap
                             color: Theme.text

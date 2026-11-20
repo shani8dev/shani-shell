@@ -170,7 +170,7 @@ PanelWindow {
         }
     }
 
-    MouseArea { anchors.fill: parent; onClicked: Ui.player = false }
+    MouseArea { objectName: "nav:pointer"; anchors.fill: parent; onClicked: Ui.player = false }
     Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: Ui.player = false }
 
     Glass {
