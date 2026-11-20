@@ -23,7 +23,8 @@ printf '#!/bin/sh\ntest -e /tmp/fp-flag\n' > /usr/lib/shani-desktop-niri/greeter
 chmod +x /usr/lib/shani-desktop-niri/greeter-fingerprint
 # the real "has a session already" check (the password first after a restart)
 cp /desk/usr/lib/shani-desktop-niri/greeter-signed-in /usr/lib/shani-desktop-niri/
-[ -e $M/pam_gnome_keyring.so ] || cp $M/pam_permit.so $M/pam_gnome_keyring.so
+# the keyring module (oo7) is not what these checks are about: dev/keyring-test.sh is
+[ -e $M/pam_oo7.so ] || cp $M/pam_permit.so $M/pam_oo7.so
 id alice >/dev/null 2>&1 || useradd -m alice
 echo "alice:right-password" | chpasswd
 # alice has a session open (logind's /run/user/<uid>): the checks below are of a

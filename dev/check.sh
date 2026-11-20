@@ -14,12 +14,13 @@
 #   admin         shani-admin.py as pkexec runs it            (needs shani-desktop-niri)
 #   setup-polkit  first-boot's pkexec rule                    (needs shani-desktop-niri)
 #   pam           the lock screen's and greeter's PAM stacks through real libpam (needs shani-desktop-niri)
+#   keyring       a real sign-in unlocks the keyring (oo7), systemd-booted container (needs shani-desktop-niri)
 #   render[=mode] every surface to PNG in out/renders; mode shell|greeter|setup|all
 #                 (SHANI_FORM_FACTOR=tv sh dev/check.sh render: drawn as on a TV)
 #   showcase      restage the README's two pictures in docs/ (the rest: out/showcase)
 #   demo[=a,b]    record the README's GIFs into out/demos (CHRONOA=real for the AI scenes)
 #   montage       join out/demos' clips into out/demos/tour.mp4 (LinkedIn, the blog)
-#   all           unit shell greeter setup polkit admin setup-polkit pam
+#   all           unit shell greeter setup polkit admin setup-polkit pam keyring
 #
 # --build rebuilds shani-shell-dev first (it is built anyway when missing).
 # SHANI_ONLINE=1 sh dev/check.sh shell=maps-online: Maps against OpenStreetMap's real
@@ -57,7 +58,7 @@ build() { docker build -t $IMG -f "$REPO/dev/Containerfile" "$REPO/dev" || exit 
 docker image inspect $IMG >/dev/null 2>&1 || build
 own
 [ $# -eq 0 ] && set -- all
-[ "$*" = all ] && set -- unit shell greeter setup polkit admin setup-polkit pam
+[ "$*" = all ] && set -- unit shell greeter setup polkit admin setup-polkit pam keyring
 
 # a dev/ script in a plain container, the repo at /work
 box() {
@@ -91,6 +92,7 @@ run() {
         setup) box -v "$DESK":/desk:ro $IMG sh /work/dev/setup-test.sh /desk/etc/greetd/shani-niri-greeter.kdl ;;
         pam) box -v "$DESK":/desk:ro $IMG sh /work/dev/pam-test.sh /desk/etc/pam.d/shani-greetd ;;
         polkit) sh "$REPO/dev/polkit-run.sh" ;;
+        keyring) sh "$REPO/dev/keyring-run.sh" "$DESK" ;;
         admin) sh "$REPO/dev/admin-test.sh" "$DESK" ;;
         setup-polkit) sh "$REPO/dev/setup-polkit-test.sh" "$DESK" ;;
         showcase) box -v "$DESK":/desk:ro $IMG sh /work/dev/showcase.sh ;;
