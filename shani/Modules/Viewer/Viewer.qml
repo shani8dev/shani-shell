@@ -96,7 +96,7 @@ AppWindow {
                     height: parent.height
                     x: Viewer.panX
                     y: Viewer.panY
-                    source: Viewer.shownFile !== "" ? "file://" + Viewer.shownFile : ""
+                    source: Viewer.shownFile !== "" ? "file://" + Viewer.shownFile.split("/").map(encodeURIComponent).join("/") : ""
                     fillMode: Image.PreserveAspectFit
                     smooth: true
                     cache: false
@@ -305,10 +305,12 @@ AppWindow {
                                 Image {
                                     anchors.fill: parent
                                     anchors.margins: Theme.px(6)
-                                    source: "file://" + modelData
+                                    source: "file://" + modelData.split("/").map(encodeURIComponent).join("/")
                                     fillMode: Image.PreserveAspectFit
                                     smooth: true
                                     cache: true
+                                    asynchronous: true
+                                    sourceSize: Qt.size(300, 300)
                                 }
                                 Text {
                                     anchors.bottom: parent.bottom

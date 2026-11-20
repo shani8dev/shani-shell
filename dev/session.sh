@@ -177,6 +177,8 @@ if [ "${SHANI_ONLINE:-}" != 1 ]; then
     export SHANI_RADIO_API=http://127.0.0.1:8798
     export SHANI_MAP_TILES="http://127.0.0.1:8797/tiles/{key}.png" SHANI_MAP_SEARCH=http://127.0.0.1:8797/search SHANI_MAP_ROUTE=http://127.0.0.1:8797
 fi
+# Live TV: the shell's M3U reader, used by the Media Player > Live TV page
+export SHANI_LIVETV_TOOL=/work/bridge/live-tv.py
 # Podman and Distrobox stood in for (dev/fake-podman.py, by the name it is run as):
 # the Containers window's listing and actions, with nothing pulled or started
 mkdir -p /tmp/fake-podman/bin

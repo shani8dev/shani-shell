@@ -181,10 +181,12 @@ AppWindow {
                                         Image {
                                             anchors.fill: parent
                                             anchors.margins: Theme.px(5)
-                                            source: "file://" + modelData
+                                            source: "file://" + modelData.split("/").map(encodeURIComponent).join("/")
                                             fillMode: Image.PreserveAspectFit
                                             smooth: true
                                             cache: true
+                                            asynchronous: true
+                                            sourceSize: Qt.size(240, 300)
                                         }
                                         Text {
                                             anchors.bottom: parent.bottom
@@ -323,7 +325,7 @@ AppWindow {
                             visible: PdfViewer.current !== ""
                             anchors.fill: parent
                             anchors.margins: PdfViewer.fitMode === "width" ? 2 : 10
-                            source: PdfViewer.current !== "" ? "file://" + PdfViewer.current : ""
+                            source: PdfViewer.current !== "" ? "file://" + PdfViewer.current.split("/").map(encodeURIComponent).join("/") : ""
                             fillMode: PdfViewer.fitMode === "actual" ? Image.PreserveAspectFit : Image.PreserveAspectFit
                             smooth: true
                             cache: false
@@ -428,10 +430,12 @@ AppWindow {
                                     width: Theme.px(640)
                                     height: Theme.px(800)
                                     x: 8
-                                    source: "file://" + PdfViewer.shownPage(modelData)
+                                    source: "file://" + PdfViewer.shownPage(modelData).split("/").map(encodeURIComponent).join("/")
                                     fillMode: Image.PreserveAspectFit
                                     smooth: true
                                     cache: false
+                                    asynchronous: true
+                                    sourceSize: Qt.size(1280, 1600)
                                     rotation: PdfViewer.rotation
                                 }
                             }

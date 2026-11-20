@@ -97,9 +97,9 @@ Variants {
             // hidden, it slides out over the edge it sits on
             transform: Translate {
                 y: bar.shown ? 0 : (bar.edge === "bottom" ? 1 : -1) * (Theme.barHeight + 12)
-                Behavior on y { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                Behavior on y { NumberAnimation { duration: Theme.mot(200); easing.type: Easing.OutCubic } }
             }
-            Behavior on opacity { NumberAnimation { duration: 160 } }
+            Behavior on opacity { NumberAnimation { duration: Theme.mot(160) } }
             // click-through unused bar space (borrow from Noctalia)
             MouseArea {
                 anchors.fill: parent

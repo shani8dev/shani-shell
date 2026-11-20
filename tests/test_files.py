@@ -7,6 +7,7 @@ what the Files surface (Modules/Files/FilesPanel.qml) and the file chooser
 
 The two JS helpers are run in node, the way tests/test_fuzzy.py runs Fuzzy.js.
 """
+
 import json
 import re
 import shutil
@@ -35,7 +36,9 @@ gio_mark = pytest.mark.skipif(gio is None, reason="gio is not installed")
 
 def run(*args, **kw):
     """the backend's answer, as JSON"""
-    r = subprocess.run([sys.executable, str(BRIDGE), *args], capture_output=True, text=True, **kw)
+    r = subprocess.run(
+        [sys.executable, str(BRIDGE), *args], capture_output=True, text=True, **kw
+    )
     return json.loads(r.stdout)
 
 
@@ -44,6 +47,7 @@ def names(answer):
 
 
 # ---- the listing ----------------------------------------------------------------
+
 
 def test_a_listing_is_the_folders_first_then_the_files(tmp_path):
     (tmp_path / "b.txt").write_text("bee")
@@ -78,7 +82,10 @@ def test_the_sort_can_be_by_size_or_by_date(tmp_path):
     (tmp_path / "big.txt").write_text("x" * 100)
     by_size = names(run("list", str(tmp_path), "--sort=size"))
     assert by_size == ["small.txt", "big.txt"]
-    assert names(run("list", str(tmp_path), "--sort=size", "--desc")) == ["big.txt", "small.txt"]
+    assert names(run("list", str(tmp_path), "--sort=size", "--desc")) == [
+        "big.txt",
+        "small.txt",
+    ]
 
 
 def test_a_filter_keeps_only_the_extensions_given(tmp_path):
@@ -97,6 +104,7 @@ def test_a_folder_that_is_not_there_says_so(tmp_path):
 
 
 # ---- changing things --------------------------------------------------------------
+
 
 def test_a_new_folder_is_made_and_a_second_one_is_refused(tmp_path):
     answer = run("mkdir", str(tmp_path / "made"))
@@ -144,9 +152,12 @@ def test_trashing_moves_the_file_to_the_trash_and_keeps_it(tmp_path):
 
 # ---- the JS helpers ------------------------------------------------------------------
 
+
 @node_mark
 def test_the_path_helpers_tidy_what_was_typed():
-    prog = PATHS_JS.read_text().replace(".pragma library", "") + """
+    prog = (
+        PATHS_JS.read_text().replace(".pragma library", "")
+        + """
 const home = "/home/u";
 const out = {
     "tilde": expandTilde("~/Pictures", home),
@@ -160,7 +171,12 @@ const out = {
     "name": validName("a/b")
 };
 process.stdout.write(JSON.stringify(out));"""
-    out = json.loads(subprocess.run([node, "-e", prog], capture_output=True, text=True, check=True).stdout)
+    )
+    out = json.loads(
+        subprocess.run(
+            [node, "-e", prog], capture_output=True, text=True, check=True
+        ).stdout
+    )
     assert out["tilde"] == "/home/u/Pictures"
     assert out["parent"] == "/home/u"
     assert out["root"] == "/"
@@ -168,13 +184,15 @@ process.stdout.write(JSON.stringify(out));"""
     assert out["join"] == "/home/u/a.txt"
     assert out["rootJoin"] == "/etc"
     assert out["norm"] == "/home/u/Pictures"
-    assert out["relative"] == ""           # not absolute: nothing sensible can be made of it
-    assert out["name"] is False            # a name with a slash is not a name
+    assert out["relative"] == ""  # not absolute: nothing sensible can be made of it
+    assert out["name"] is False  # a name with a slash is not a name
 
 
 @node_mark
 def test_the_filter_matches_a_word_anywhere_or_a_pattern():
-    prog = FILTER_JS.read_text().replace(".pragma library", "") + """
+    prog = (
+        FILTER_JS.read_text().replace(".pragma library", "")
+        + """
 const plain = compile("port");
 const pattern = compile("*.jpg");
 const out = {
@@ -185,7 +203,12 @@ const out = {
     "question": compile("a?c").test("abc")
 };
 process.stdout.write(JSON.stringify(out));"""
-    out = json.loads(subprocess.run([node, "-e", prog], capture_output=True, text=True, check=True).stdout)
+    )
+    out = json.loads(
+        subprocess.run(
+            [node, "-e", prog], capture_output=True, text=True, check=True
+        ).stdout
+    )
     assert out["inside"] is True
     assert out["outside"] is False
     assert out["glob"] is True
@@ -195,6 +218,7 @@ process.stdout.write(JSON.stringify(out));"""
 
 # ---- the surface ---------------------------------------------------------------------
 
+
 def read(p):
     return Path(p).read_text(encoding="utf-8")
 
@@ -202,7 +226,9 @@ def read(p):
 def test_the_backend_answers_and_the_service_asks_it():
     assert BRIDGE.exists()
     service = read(SERVICE)
-    assert 'SHANI_FILES_TOOL' in service          # the tool can be pointed elsewhere (the tests do)
+    assert (
+        "SHANI_FILES_TOOL" in service
+    )  # the tool can be pointed elsewhere (the tests do)
     for method in ('"list"', '"stat"', '"mkdir"', '"rename"', '"trash"'):
         assert method in service, method
 
@@ -210,11 +236,17 @@ def test_the_backend_answers_and_the_service_asks_it():
 def test_the_surface_is_wired_into_the_shell():
     shell = read(SHELL)
     assert "import qs.Modules.Files" in shell
-    assert 'LazyLoader { active: Ui.files; source: "Modules/Files/FilesPanel.qml" }' in shell
+    assert (
+        'LazyLoader { active: Ui.files; source: "Modules/Files/FilesPanel.qml" }'
+        in shell
+    )
     assert "function filesOpen(path: string)" in shell
     assert "filesShown: Ui.files" in shell
     assert "import qs.Modules.FilePicker" in shell
-    assert 'LazyLoader { active: FilePicker.shown; source: "Modules/FilePicker/FilePickerPanel.qml" }' in shell
+    assert (
+        'LazyLoader { active: FilePicker.shown; source: "Modules/FilePicker/FilePickerPanel.qml" }'
+        in shell
+    )
 
 
 def test_the_chooser_replaces_the_native_dialog_that_held_the_shell():
@@ -238,6 +270,7 @@ def test_nothing_is_deleted_by_the_file_manager():
     # be undone; the only deleting is the trash's own - "Empty trash", and a
     # .trashinfo once its file is put back - and only of paths inside the trash
     import ast
+
     bridge = read(BRIDGE)
     assert "gio" in bridge
     tree = ast.parse(bridge)
@@ -246,50 +279,121 @@ def test_nothing_is_deleted_by_the_file_manager():
         if not isinstance(fn, ast.FunctionDef):
             continue
         for node in ast.walk(fn):
-            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name) \
-                    and (node.func.value.id, node.func.attr) in (("os", "remove"), ("os", "unlink"), ("shutil", "rmtree"), ("os", "rmdir")):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and (node.func.value.id, node.func.attr)
+                in (
+                    ("os", "remove"),
+                    ("os", "unlink"),
+                    ("shutil", "rmtree"),
+                    ("os", "rmdir"),
+                )
+            ):
                 deleting.setdefault(fn.name, []).append(node.func.attr)
     # the copy engine (copyjob.py) deletes only: its own half-written ".shani-part"
     # file (copy_file), what this item made when it is stopped (take_back: self.made),
     # and, for a move, the sources whose copy is whole (finish_move: self.copied) -
     # never a tree at once, and a replaced file goes to the trash (gio), not away
-    cj_src = (Path(__file__).resolve().parent.parent / "bridge" / "copyjob.py").read_text()
+    cj_src = (
+        Path(__file__).resolve().parent.parent / "bridge" / "copyjob.py"
+    ).read_text()
     cj = ast.parse(cj_src)
     assert "rmtree" not in cj_src
-    allowed = {"copy_file": ["remove"], "take_back": ["rmdir", "remove"], "finish_move": ["remove", "rmdir"], "_drop": ["remove"]}
+    allowed = {
+        "copy_file": ["remove"],
+        "take_back": ["rmdir", "remove"],
+        "finish_move": ["remove", "rmdir"],
+        "_drop": ["remove"],
+    }
     for fn in ast.walk(cj):
         if not isinstance(fn, ast.FunctionDef):
             continue
-        dels = [n.func.attr for n in ast.walk(fn) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-                and isinstance(n.func.value, ast.Name) and (n.func.value.id, n.func.attr) in (("os", "remove"), ("os", "unlink"), ("os", "rmdir"))]
+        dels = [
+            n.func.attr
+            for n in ast.walk(fn)
+            if isinstance(n, ast.Call)
+            and isinstance(n.func, ast.Attribute)
+            and isinstance(n.func.value, ast.Name)
+            and (n.func.value.id, n.func.attr)
+            in (("os", "remove"), ("os", "unlink"), ("os", "rmdir"))
+        ]
         if fn.name in allowed:
             assert sorted(dels) == sorted(allowed[fn.name]), (fn.name, dels)
         else:
             assert not dels, (fn.name, dels)
-    seg = lambda name: ast.get_source_segment(cj_src, next(f for f in ast.walk(cj) if isinstance(f, ast.FunctionDef) and f.name == name))
-    assert "os.remove(part)" in seg("copy_file") and 'part = os.path.join(os.path.dirname(dst), ".%s.shani-part"' in seg("copy_file")
-    assert "for p in reversed(self.made)" in seg("take_back") and "for p in self.copied" in seg("finish_move")
+    seg = lambda name: ast.get_source_segment(
+        cj_src,
+        next(
+            f for f in ast.walk(cj) if isinstance(f, ast.FunctionDef) and f.name == name
+        ),
+    )
+    assert "os.remove(part)" in seg(
+        "copy_file"
+    ) and 'part = os.path.join(os.path.dirname(dst), ".%s.shani-part"' in seg(
+        "copy_file"
+    )
+    assert "for p in reversed(self.made)" in seg(
+        "take_back"
+    ) and "for p in self.copied" in seg("finish_move")
     assert "self._to_trash(dst)" in seg("copy_file")
-    deleting.pop("job", None); deleting.pop("remove", None)
+    deleting.pop("job", None)
+    deleting.pop("remove", None)
     # thumb_for removes only its own half-made temp file, in the thumbnail cache
-    th = ast.get_source_segment(bridge, next(f for f in ast.walk(tree) if isinstance(f, ast.FunctionDef) and f.name == "thumb_for"))
-    assert re.findall(r"os\.remove\((\w+)\)", th) == ["tmp"] and 'tmp = target + f".shani-' in th
+    th = ast.get_source_segment(
+        bridge,
+        next(
+            f
+            for f in ast.walk(tree)
+            if isinstance(f, ast.FunctionDef) and f.name == "thumb_for"
+        ),
+    )
+    assert (
+        re.findall(r"os\.remove\((\w+)\)", th) == ["tmp"]
+        and 'tmp = target + f".shani-' in th
+    )
     deleting.pop("thumb_for", None)
+    # compare-save writes a temp file beside the target before trashing it: its
+    # finally clause removes only that temp file (mkstemp's own path)
+    main_seg = ast.get_source_segment(
+        bridge,
+        next(
+            f
+            for f in ast.walk(tree)
+            if isinstance(f, ast.FunctionDef) and f.name == "main"
+        ),
+    )
+    assert "mkstemp" in main_seg and "os.unlink(tmp)" in main_seg
+    deleting.pop("main", None)
     # connect_sshfs takes back only the mount point it made, when sshfs failed - and
     # rmdir removes an empty folder only
     assert deleting.pop("connect_sshfs", None) in (None, ["rmdir"])
-    assert set(deleting) <= {"empty_trash", "restore"}, f"deleting outside the trash: {deleting}"
+    assert set(deleting) <= {"empty_trash", "restore"}, (
+        f"deleting outside the trash: {deleting}"
+    )
     for name in deleting:
-        src = ast.get_source_segment(bridge, next(f for f in ast.walk(tree) if isinstance(f, ast.FunctionDef) and f.name == name))
+        src = ast.get_source_segment(
+            bridge,
+            next(
+                f
+                for f in ast.walk(tree)
+                if isinstance(f, ast.FunctionDef) and f.name == name
+            ),
+        )
         assert "trash_dir()" in src, f"{name} deletes, but not from the trash"
 
 
 def test_recent_files_are_the_ones_opened_lately_newest_first(tmp_path):
     import json, os, subprocess, sys
-    a = tmp_path / "a.txt"; a.write_text("a")
-    b = tmp_path / "b.pdf"; b.write_text("b")
+
+    a = tmp_path / "a.txt"
+    a.write_text("a")
+    b = tmp_path / "b.pdf"
+    b.write_text("b")
     gone = tmp_path / "gone.txt"
-    data = tmp_path / "data"; data.mkdir()
+    data = tmp_path / "data"
+    data.mkdir()
     (data / "recently-used.xbel").write_text(f"""<?xml version="1.0"?>
 <xbel version="1.0">
   <bookmark href="file://{a}" added="2026-01-01T00:00:00Z" modified="2026-01-01T00:00:00Z" visited="2026-01-01T00:00:00Z"/>
@@ -297,6 +401,25 @@ def test_recent_files_are_the_ones_opened_lately_newest_first(tmp_path):
   <bookmark href="file://{gone}" added="2026-03-01T00:00:00Z" modified="2026-03-01T00:00:00Z" visited="2026-03-01T00:00:00Z"/>
   <bookmark href="https://example.com/x" added="2026-03-01T00:00:00Z" modified="2026-03-01T00:00:00Z" visited="2026-03-01T00:00:00Z"/>
 </xbel>""")
-    out = subprocess.run([sys.executable, str(ROOT / "bridge/files.py"), "list", "recent:"], capture_output=True, text=True,
-                         env=dict(os.environ, XDG_DATA_HOME=str(data)), check=True).stdout
+    out = subprocess.run(
+        [sys.executable, str(ROOT / "bridge/files.py"), "list", "recent:"],
+        capture_output=True,
+        text=True,
+        env=dict(os.environ, XDG_DATA_HOME=str(data)),
+        check=True,
+    ).stdout
     assert [e["name"] for e in json.loads(out)["entries"]] == ["b.pdf", "a.txt"]
+
+
+def test_compare_save_keeps_the_old_version_in_the_trash(tmp_path):
+    target = tmp_path / "merged.txt"
+    target.write_text("the old text")
+    r = subprocess.run([sys.executable, str(BRIDGE), "compare-save", str(target)],
+                       input="the new text", capture_output=True, text=True, timeout=20)
+    out = json.loads(r.stdout)
+    assert not list(tmp_path.glob(".shani-compare-*"))  # no temp file left behind either way
+    if "error" in out:   # a container's /tmp has no trash: the original must stay
+        assert target.read_text() == "the old text"
+    else:
+        assert out["saved"] == str(target)
+        assert target.read_text() == "the new text"

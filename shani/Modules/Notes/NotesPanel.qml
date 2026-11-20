@@ -54,7 +54,7 @@ AppWindow {
                     // Search
                     TextField {
                         Layout.fillWidth: true
-                        placeholderText: "Filter notes…"
+                        placeholderText: Tr.t("Filter note names…")
                         text: win.filterText
                         onTextChanged: win.filterText = text
                     }
@@ -90,7 +90,7 @@ AppWindow {
                     // Search across note bodies
                     TextField {
                         Layout.fillWidth: true
-                        placeholderText: "Search in notes…"
+                        placeholderText: Tr.t("Search note text (Enter)…")
                         onAccepted: {
                             const results = Services.QuickNotes.searchBodies(text);
                             if (results.length > 0) Services.QuickNotes.open(results[0].name, results[0].notebook);
@@ -99,6 +99,8 @@ AppWindow {
 
                     // Notes list
                     ListView {
+                        reuseItems: true
+                        cacheBuffer: 400
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         clip: true
@@ -138,9 +140,9 @@ AppWindow {
                     anchors.margins: Theme.px(8)
 
                     Label { text: Services.QuickNotes.current || "No note selected"; font.bold: true; Layout.fillWidth: true }
-                    Button { text: "Export HTML"; onClicked: Services.QuickNotes.exportHtml() }
-                    Button { text: "Print"; onClicked: Services.QuickNotes.printNote() }
-                    Button { text: "Delete"; onClicked: { if (Services.QuickNotes.current !== "") Services.QuickNotes.remove(Services.QuickNotes.current, Services.QuickNotes.currentNotebook); } }
+                    Button { text: "Export HTML"; enabled: Services.QuickNotes.current !== ""; onClicked: Services.QuickNotes.exportHtml() }
+                    Button { text: "Print"; enabled: Services.QuickNotes.current !== ""; onClicked: Services.QuickNotes.printNote() }
+                    Button { text: "Delete"; enabled: Services.QuickNotes.current !== ""; onClicked: { if (Services.QuickNotes.current !== "") Services.QuickNotes.remove(Services.QuickNotes.current, Services.QuickNotes.currentNotebook); } }
                 }
 
                 // Text editor
@@ -155,7 +157,7 @@ AppWindow {
                             if (text !== Services.QuickNotes.text) Services.QuickNotes.text = text;
                         }
                         wrapMode: TextEdit.Wrap
-                        font.family: "monospace"
+                        font.family: Theme.mono
                         font.pixelSize: Theme.px(14)
                         // a task's box toggles where it is clicked, without a preview
                         TapHandler {

@@ -22,6 +22,7 @@ ColumnLayout {
         font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     Button {
+        kind: "outline"
         text: Tr.t("Chronoa's settings — model, voice, wake word, permissions")
         // its own window, through its GApplication action; started first if needed
         onClicked: {

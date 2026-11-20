@@ -263,6 +263,14 @@ ColumnLayout {
         text: page.arg
         Connections { target: typed3.input; function onTextChanged() { page.arg = typed3.text.trim(); } }
     }
+    Text {
+        Layout.fillWidth: true
+        visible: !page.is || (page.arg === "" && page.then !== "focus")
+        text: Tr.t("Choose a condition, then a result — most results need a value")
+        color: Theme.dim
+        font.family: Theme.font
+        font.pixelSize: Theme.px(11) * Theme.fontScale
+    }
     Button {
         text: Tr.t("Add")
         kind: "primary"

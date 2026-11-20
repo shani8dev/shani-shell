@@ -40,6 +40,16 @@ PanelWindow {
         strong: true
         radius: Theme.radiusLarge
         MouseArea { anchors.fill: parent }       // clicks inside do not close it
+        // an on-screen exit: Escape and click-outside are not discoverable,
+        // especially on touch
+        IconButton {
+            anchors { top: parent.top; right: parent.right; margins: Theme.px(10) }
+            icon: "window-close"
+            size: Theme.px(22)
+            tip: Tr.t("Cancel")
+            Accessible.name: Tr.t("Cancel")
+            onClicked: Share.close()
+        }
         ColumnLayout {
             id: col
             x: 16

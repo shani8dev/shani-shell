@@ -13,6 +13,7 @@ into the library and never onto a command line (where any user reads it in
 Extracting writes only inside <folder>: a name that climbs out (../, /) or a link
 is not written.
 """
+
 from __future__ import annotations
 
 import ctypes
@@ -32,23 +33,40 @@ def lib():
         L = ctypes.CDLL(name)
         vp, cp, i64 = ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int64
         sig = {
-            "archive_write_new": (vp, []), "archive_write_set_format_zip": (ctypes.c_int, [vp]),
-            "archive_write_set_options": (ctypes.c_int, [vp, cp]), "archive_write_set_passphrase": (ctypes.c_int, [vp, cp]),
-            "archive_write_open_filename": (ctypes.c_int, [vp, cp]), "archive_write_header": (ctypes.c_int, [vp, vp]),
-            "archive_write_data": (ctypes.c_ssize_t, [vp, ctypes.c_char_p, ctypes.c_size_t]),
-            "archive_write_close": (ctypes.c_int, [vp]), "archive_write_free": (ctypes.c_int, [vp]),
-            "archive_entry_new": (vp, []), "archive_entry_free": (None, [vp]),
-            "archive_entry_set_pathname_utf8": (None, [vp, cp]), "archive_entry_set_size": (None, [vp, i64]),
-            "archive_entry_set_filetype": (None, [vp, ctypes.c_uint]), "archive_entry_set_perm": (None, [vp, ctypes.c_uint]),
+            "archive_write_new": (vp, []),
+            "archive_write_set_format_zip": (ctypes.c_int, [vp]),
+            "archive_write_set_options": (ctypes.c_int, [vp, cp]),
+            "archive_write_set_passphrase": (ctypes.c_int, [vp, cp]),
+            "archive_write_open_filename": (ctypes.c_int, [vp, cp]),
+            "archive_write_header": (ctypes.c_int, [vp, vp]),
+            "archive_write_data": (
+                ctypes.c_ssize_t,
+                [vp, ctypes.c_char_p, ctypes.c_size_t],
+            ),
+            "archive_write_close": (ctypes.c_int, [vp]),
+            "archive_write_free": (ctypes.c_int, [vp]),
+            "archive_entry_new": (vp, []),
+            "archive_entry_free": (None, [vp]),
+            "archive_entry_set_pathname_utf8": (None, [vp, cp]),
+            "archive_entry_set_size": (None, [vp, i64]),
+            "archive_entry_set_filetype": (None, [vp, ctypes.c_uint]),
+            "archive_entry_set_perm": (None, [vp, ctypes.c_uint]),
             "archive_entry_set_mtime": (None, [vp, ctypes.c_long, ctypes.c_long]),
-            "archive_entry_pathname_utf8": (cp, [vp]), "archive_entry_filetype": (ctypes.c_uint, [vp]),
-            "archive_entry_is_encrypted": (ctypes.c_int, [vp]), "archive_entry_perm": (ctypes.c_uint, [vp]),
-            "archive_read_new": (vp, []), "archive_read_support_format_zip": (ctypes.c_int, [vp]),
+            "archive_entry_pathname_utf8": (cp, [vp]),
+            "archive_entry_filetype": (ctypes.c_uint, [vp]),
+            "archive_entry_is_encrypted": (ctypes.c_int, [vp]),
+            "archive_entry_perm": (ctypes.c_uint, [vp]),
+            "archive_read_new": (vp, []),
+            "archive_read_support_format_zip": (ctypes.c_int, [vp]),
             "archive_read_add_passphrase": (ctypes.c_int, [vp, cp]),
             "archive_read_open_filename": (ctypes.c_int, [vp, cp, ctypes.c_size_t]),
             "archive_read_next_header": (ctypes.c_int, [vp, ctypes.POINTER(vp)]),
-            "archive_read_data": (ctypes.c_ssize_t, [vp, ctypes.c_char_p, ctypes.c_size_t]),
-            "archive_read_data_skip": (ctypes.c_int, [vp]), "archive_read_free": (ctypes.c_int, [vp]),
+            "archive_read_data": (
+                ctypes.c_ssize_t,
+                [vp, ctypes.c_char_p, ctypes.c_size_t],
+            ),
+            "archive_read_data_skip": (ctypes.c_int, [vp]),
+            "archive_read_free": (ctypes.c_int, [vp]),
             "archive_error_string": (cp, [vp]),
         }
         for n, (res, args) in sig.items():
@@ -67,8 +85,12 @@ def make(out: str, paths: list[str], password: str) -> dict:
     L = lib()
     a = L.archive_write_new()
     try:
-        if (L.archive_write_set_format_zip(a) or L.archive_write_set_options(a, b"zip:encryption=aes256")
-                or L.archive_write_set_passphrase(a, password.encode()) or L.archive_write_open_filename(a, out.encode())):
+        if (
+            L.archive_write_set_format_zip(a)
+            or L.archive_write_set_options(a, b"zip:encryption=aes256")
+            or L.archive_write_set_passphrase(a, password.encode())
+            or L.archive_write_open_filename(a, out.encode())
+        ):
             return {"error": _err(a)}
         for top in paths:
             top = os.path.abspath(top.rstrip("/"))
@@ -76,18 +98,28 @@ def make(out: str, paths: list[str], password: str) -> dict:
             walk = [(top, [], [])] if not os.path.isdir(top) else os.walk(top)
             for d, dirs, files in walk:
                 dirs.sort()
-                items = [d] + [os.path.join(d, f) for f in sorted(files)] if os.path.isdir(top) else [top]
+                items = (
+                    [d] + [os.path.join(d, f) for f in sorted(files)]
+                    if os.path.isdir(top)
+                    else [top]
+                )
                 for p in items:
                     st = os.lstat(p)
                     if not (stat.S_ISREG(st.st_mode) or stat.S_ISDIR(st.st_mode)):
-                        continue                                  # links, devices: not carried
+                        continue  # links, devices: not carried
                     e = L.archive_entry_new()
                     try:
-                        L.archive_entry_set_pathname_utf8(e, os.path.relpath(p, base).encode() + (b"/" if stat.S_ISDIR(st.st_mode) else b""))
+                        L.archive_entry_set_pathname_utf8(
+                            e,
+                            os.path.relpath(p, base).encode()
+                            + (b"/" if stat.S_ISDIR(st.st_mode) else b""),
+                        )
                         L.archive_entry_set_filetype(e, stat.S_IFMT(st.st_mode))
                         L.archive_entry_set_perm(e, stat.S_IMODE(st.st_mode))
                         L.archive_entry_set_mtime(e, int(st.st_mtime), 0)
-                        L.archive_entry_set_size(e, st.st_size if stat.S_ISREG(st.st_mode) else 0)
+                        L.archive_entry_set_size(
+                            e, st.st_size if stat.S_ISREG(st.st_mode) else 0
+                        )
                         if L.archive_write_header(a, e) < -20:
                             return {"error": _err(a)}
                         if stat.S_ISREG(st.st_mode):
@@ -204,14 +236,24 @@ def _take_back(dest: str, made: list[str]) -> None:
 
 def main(argv: list[str]) -> int:
     cmd, args = (argv[1], argv[2:]) if len(argv) > 1 else ("", [])
-    if cmd == "encrypted" and len(args) == 1:
-        print(json.dumps({"encrypted": encrypted(args[0])}))
-        return 0
-    if cmd in ("make", "extract") and len(args) >= 2:
-        pw = sys.stdin.readline().rstrip("\n")
-        r = make(args[0], args[1:], pw) if cmd == "make" else extract(args[0], args[1], pw)
-        print(json.dumps(r))
-        return 0 if "saved" in r else 1
+    try:
+        if cmd == "encrypted" and len(args) == 1:
+            print(json.dumps({"encrypted": encrypted(args[0])}))
+            return 0
+        if cmd in ("make", "extract") and len(args) >= 2:
+            pw = sys.stdin.readline().rstrip("\n")
+            r = (
+                make(args[0], args[1:], pw)
+                if cmd == "make"
+                else extract(args[0], args[1], pw)
+            )
+            print(json.dumps(r))
+            return 0 if "saved" in r else 1
+    except (OSError, ValueError) as e:
+        # always one JSON line: a bad archive or a busy destination is an
+        # answer, not a traceback on stderr with the UI waiting forever
+        print(json.dumps({"error": str(e)}))
+        return 1
     print(__doc__.strip().split("\n\n")[1], file=sys.stderr)
     return 2
 

@@ -413,8 +413,8 @@ PanelWindow {
                     }
                     SequentialAnimation {
                         loops: Animation.Infinite
-                        NumberAnimation { target: idleOrb; property: "opacity"; from: 0.55; to: 0.95; duration: 2200; easing.type: Easing.InOutSine }
-                        NumberAnimation { target: idleOrb; property: "opacity"; from: 0.95; to: 0.55; duration: 2200; easing.type: Easing.InOutSine }
+                        NumberAnimation { target: idleOrb; property: "opacity"; from: 0.55; to: 0.95; duration: Theme.mot(2200); easing.type: Easing.InOutSine }
+                        NumberAnimation { target: idleOrb; property: "opacity"; from: 0.95; to: 0.55; duration: Theme.mot(2200); easing.type: Easing.InOutSine }
                     }
                     Layout.alignment: Qt.AlignHCenter
                 }
@@ -891,8 +891,8 @@ PanelWindow {
     SequentialAnimation {
         running: panel.state === "listening" || panel.state === "thinking" || panel.state === "speaking"
         loops: Animation.Infinite
-        NumberAnimation { target: halo; property: "opacity"; from: 0.0; to: 0.9; duration: 520 }
-        NumberAnimation { target: halo; property: "opacity"; from: 0.9; to: 0.0; duration: 520 }
+        NumberAnimation { target: halo; property: "opacity"; from: 0.0; to: 0.9; duration: Theme.mot(520) }
+        NumberAnimation { target: halo; property: "opacity"; from: 0.9; to: 0.0; duration: Theme.mot(520) }
     }
 
     onOpenChanged: {

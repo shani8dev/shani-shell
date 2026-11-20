@@ -153,7 +153,9 @@ Singleton {
             root.loaded = true;
         }
         onLoadFailed: root.loaded = true    // no file yet: defaults apply
-        onAdapterUpdated: root.save()
+        // loading the file is not a change: saving here once at startup can
+        // overwrite an edit made just after launch (measured in the shell suite)
+        onAdapterUpdated: if (root.loaded) root.save()
 
         JsonAdapter {
             id: adapter
@@ -497,6 +499,7 @@ Singleton {
             property var filesRecentServers: []           // Files: servers connected to before, newest first (clicked, not typed again)
             property var filesRecentDests: []             // Files: Copy to… / Move to… folders used lately, newest first
             property var radioFavourites: []              // Media Player > Radio: stations kept, [{ uuid, name, url, favicon, tags, country, codec, bitrate }]
+            property string liveTvSource: ""              // Media Player > Live TV: the M3U URL or file last loaded
             property bool pdfNight: false                 // Document Viewer: pages shown inverted (night mode)
             property bool filesVerify: false              // Files: every copy read back and checked (TeraCopy's verify)
             property var mapsSaved: []                    // Maps: places saved, [{ name, desc, lat, lon }]

@@ -78,11 +78,13 @@ Singleton {
     function checkAlarms() {
         if (!Settings.loaded) return;
         const now = Qt.formatTime(new Date(), "HH:mm");
-        const hit = Array.from(Settings.data.alarms || []).find(a => a.time === now);
-        if (!hit || now === lastFired) return;
+        if (now === lastFired) return;
+        const hits = (Settings.data.alarms || []).filter(a => a.time === now);
+        if (hits.length === 0) return;
         lastFired = now;
-        Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "Alarms", "-i", "alarm-symbolic", "-h", "string:sound-name:alarm-clock-elapsed",
-            "⏰ " + (hit.label || hit.time), "Alarm for " + now]);
+        for (const hit of hits)
+            Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "Alarms", "-i", "alarm-symbolic", "-h", "string:sound-name:alarm-clock-elapsed",
+                "⏰ " + (hit.label || hit.time), "Alarm for " + now]);
     }
     // minute-granular (“HH:MM”), so like Automations and Focus the wake is
     // the minute boundary itself, re-armed for the next one

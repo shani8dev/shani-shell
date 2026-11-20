@@ -42,7 +42,7 @@ PanelWindow {
             NumberAnimation { target: glow; property: "opacity"; to: 0.9; duration: Settings.data.reduceMotion ? 0 : 120 }
             NumberAnimation { target: glow; property: "opacity"; to: Settings.data.reduceMotion ? 0.9 : 0.15; duration: Settings.data.reduceMotion ? 900 : 220 }
             NumberAnimation { target: glow; property: "opacity"; to: 0.9; duration: Settings.data.reduceMotion ? 0 : 120 }
-            NumberAnimation { target: glow; property: "opacity"; to: 0; duration: 400 }
+            NumberAnimation { target: glow; property: "opacity"; to: 0; duration: Theme.mot(400) }
         }
     }
 }

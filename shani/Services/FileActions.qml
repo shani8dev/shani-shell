@@ -43,7 +43,7 @@ Singleton {
             add("half", Tr.t("Half the size"), "zoom-out", "magick");
             add("smaller", Tr.t("A smaller file"), "package-x-generic", "magick");
             add("fit", Tr.t("Fit under a size limit (forms)"), "document-save", "magick");
-            add("strip", Tr.t("Remove location and camera data"), "security-high", "magick");
+            add("strip", Tr.t("Strip location & camera data"), "security-high", "magick");
             add("ocr", Tr.t("Read the text in it"), "edit-select-all", "tesseract");
             if (files.length > 1) add("pdf", Tr.t("Put them in one PDF"), "x-office-document", "magick");
         } else if (k === "video") {

@@ -212,7 +212,7 @@ Scope {
         visible: root.shown && !Lock.locked
         screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
         anchors.bottom: true
-        margins.bottom: 110
+        margins.bottom: 180   // sit above the dock, not on it
         implicitWidth: pill.width
         implicitHeight: pill.height
         color: "transparent"
@@ -251,15 +251,15 @@ Scope {
                         height: parent.height
                         radius: Theme.px(3)
                         color: Theme.accent
-                        Behavior on width { NumberAnimation { duration: 90 } }
+                        Behavior on width { NumberAnimation { duration: Theme.mot(90) } }
                     }
                 }
 
                 // Percentage text (for sliders)
                 Text {
-                    visible: root.kind === "slider"
+                    visible: root.kind === "slider" && root.label !== "Muted"
                     text: Math.round(root.value * 100) + "%"
-                    color: Theme.dim
+                    color: Theme.text
                     font.family: Theme.font
                     font.pixelSize: Theme.px(12) * Theme.fontScale
                     Layout.preferredWidth: Theme.px(26)
@@ -280,13 +280,13 @@ Scope {
                         height: Theme.px(16)
                         radius: Theme.px(8)
                         color: Theme.text
-                        Behavior on x { NumberAnimation { duration: 120 } }
+                        Behavior on x { NumberAnimation { duration: Theme.mot(120) } }
                     }
                 }
 
                 // Label text (for labels and toggles)
                 Text {
-                    visible: root.kind === "label" || root.kind === "toggle"
+                    visible: root.kind === "label" || root.kind === "toggle" || (root.kind === "slider" && root.label !== "")
                     Layout.fillWidth: true
                     text: root.label
                     color: Theme.text

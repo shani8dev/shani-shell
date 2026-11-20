@@ -106,7 +106,7 @@ PanelWindow {
     Glass {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: Theme.px(40)
+        anchors.bottomMargin: Theme.px(100)   // clear the dock's step-aside hint
         width: hint.implicitWidth + 32
         height: Theme.px(34)
         strong: true

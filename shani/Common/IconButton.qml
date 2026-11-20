@@ -20,7 +20,7 @@ Rectangle {
         "window-close": "Close", "view-refresh": "Refresh", "list-remove": "Remove", "list-add": "Add", "edit-clear-all": "Clear all",
         "edit-delete": "Delete", "view-more": "More", "notifications-disabled": "Do Not Disturb", "preferences-system-notifications": "Do Not Disturb" })
     Accessible.name: root.tip !== "" ? root.tip : (plainNames[root.icon.replace(/-symbolic$/, "")] || root.icon.replace(/-symbolic$/, "").replace(/-/g, " "))
-    Accessible.checkable: root.on
+    Accessible.checkable: true
     Accessible.checked: root.on
     Accessible.onPressAction: root.clicked()
 
@@ -45,9 +45,9 @@ Rectangle {
         radius: width / 2
         color: Theme.text
         opacity: area.pressed ? 0.20 : 0
-        Behavior on width { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
-        Behavior on height { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
-        Behavior on opacity { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
+        Behavior on width { NumberAnimation { duration: Theme.mot(260); easing.type: Easing.OutCubic } }
+        Behavior on height { NumberAnimation { duration: Theme.mot(260); easing.type: Easing.OutCubic } }
+        Behavior on opacity { NumberAnimation { duration: Theme.mot(260); easing.type: Easing.OutCubic } }
         // centre on the press point (or the button when idle); grows outward
         x: (area.pressed ? area.mouseX : parent.width / 2) - width / 2
         y: (area.pressed ? area.mouseY : parent.height / 2) - height / 2
@@ -59,8 +59,8 @@ Rectangle {
         origin.y: area.pressed ? area.mouseY : height / 2
         xScale: area.pressed ? 0.94 : 1
         yScale: area.pressed ? 0.94 : 1
-        Behavior on xScale { NumberAnimation { duration: 120 } }
-        Behavior on yScale { NumberAnimation { duration: 120 } }
+        Behavior on xScale { NumberAnimation { duration: Theme.mot(120) } }
+        Behavior on yScale { NumberAnimation { duration: Theme.mot(120) } }
     }
 
     Icon {

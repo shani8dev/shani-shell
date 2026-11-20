@@ -14,6 +14,7 @@ import Quickshell.Bluetooth
 import Quickshell.Networking
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls
 import qs.Common
 import qs.Services
 import qs.Modules.Notifications
@@ -84,7 +85,9 @@ PanelWindow {
         focus: Ui.controlCenter
         Keys.onEscapePressed: Ui.closeAll()
         // opened: the keyboard (or a controller) starts on the first control
-        Connections { target: Ui; function onControlCenterChanged() { if (Ui.controlCenter) Ui.focusFirst(slide); } }
+        // focusFirst can scroll the first control into view and push the clock
+        // header off the top; always open at the top of the panel
+        Connections { target: Ui; function onControlCenterChanged() { if (Ui.controlCenter) { Ui.focusFirst(slide); flick.contentY = 0; } } }
 
         MouseArea { anchors.fill: parent; objectName: "nav:pointer" }   // swallow clicks so they don't close
         // A shade exits down; a desktop sidebar exits right. Keep vertical
@@ -125,6 +128,7 @@ PanelWindow {
             contentHeight: col.implicitHeight
             clip: true
             boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
             ColumnLayout {
                 id: col

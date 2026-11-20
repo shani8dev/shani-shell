@@ -165,7 +165,9 @@ ColumnLayout {
         visible: root.shown.length === 0 && QuickNotes.loaded
         icon: "accessories-text-editor"
         title: Tr.t("No notes yet")
-        subtitle: Tr.t("Make one with the + above — each is a Markdown file in Documents/Notes")
+        subtitle: Tr.t("Your notes are Markdown files in Documents/Notes")
+        actionText: Tr.t("New note")
+        onAction: QuickNotes.create("Untitled", "")
     }
 
     // the open note
@@ -236,13 +238,6 @@ ColumnLayout {
                 font.pixelSize: Theme.px(10) * Theme.fontScale
                 elide: Text.ElideLeft
             }
-        }
-        Text {
-            Layout.fillWidth: true
-            text: QuickNotes.syncState + " — " + Tr.t("sync coming later")
-            color: Theme.faint
-            font.family: Theme.font
-            font.pixelSize: Theme.px(10) * Theme.fontScale
         }
         RowLayout {
             id: renameRow

@@ -489,6 +489,11 @@ ColumnLayout {
         }
     }
 
+    SectionTitle {
+        visible: Ui.expanded === "timer"
+        Layout.fillWidth: true
+        text: Tr.t("Focus timer")
+    }
     RowLayout {
         visible: Ui.expanded === "timer"
         Layout.fillWidth: true

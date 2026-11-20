@@ -69,7 +69,7 @@ PanelWindow {
                 height: parent.height
                 radius: Theme.px(3)
                 color: m.fraction > 0.85 ? Theme.danger : Theme.accent
-                Behavior on width { NumberAnimation { duration: 300 } }
+                Behavior on width { NumberAnimation { duration: Theme.mot(300) } }
             }
         }
     }

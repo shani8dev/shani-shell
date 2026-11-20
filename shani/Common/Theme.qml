@@ -196,6 +196,8 @@ Singleton {
     // drawer, not a pop. All 0 with reduce motion.
     readonly property int animEnter: Settings.data.reduceMotion ? 0 : 420
     readonly property int animExit: Settings.data.reduceMotion ? 0 : 200
+    // Ad-hoc durations use this so every animation honours reduce motion.
+    function mot(ms) { return Settings.data.reduceMotion ? 0 : ms; }
     readonly property var emphasized: [0.05, 0.7, 0.1, 1.0, 1.0, 1.0]           // decelerate: arriving
     readonly property var emphasizedExit: [0.3, 0.0, 0.8, 0.15, 1.0, 1.0]       // accelerate: leaving
 

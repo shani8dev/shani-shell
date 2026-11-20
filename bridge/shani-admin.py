@@ -41,7 +41,17 @@ import sys
 from pathlib import Path
 
 USERNAME = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
-RESERVED = {"root", "greeter", "nobody", "admin", "daemon", "bin", "sys", "dbus", "guest"}
+RESERVED = {
+    "root",
+    "greeter",
+    "nobody",
+    "admin",
+    "daemon",
+    "bin",
+    "sys",
+    "dbus",
+    "guest",
+}
 # the guest account (a classroom board, a shared computer): no password, its home
 # wiped before and after every session by shani-desktop-niri's guest-reset - which
 # wipes only the account named in this file, the one this tool made
@@ -64,13 +74,22 @@ LED_NAME = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
 COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
 SYSFS = Path("/sys")
 POWER_LIMIT_TMPFILES = Path("/etc/tmpfiles.d/50-shani-power-limit.conf")
-LID_ACTIONS = {"suspend", "hibernate", "hybrid-sleep", "suspend-then-hibernate", "lock", "ignore", "poweroff"}
+LID_ACTIONS = {
+    "suspend",
+    "hibernate",
+    "hybrid-sleep",
+    "suspend-then-hibernate",
+    "lock",
+    "ignore",
+    "poweroff",
+}
 KEY_ACTIONS = {"poweroff", "suspend", "hibernate", "ignore", "lock", "reboot"}
 
 
 def extra_groups() -> list:
     """The groups every person's account joins when they exist on this system."""
     import grp
+
     out = []
     for g in ("sambashare",):
         try:
@@ -109,7 +128,11 @@ def admins() -> list[str]:
         members = set(grp.getgrnam(ADMIN_GROUP).gr_mem)
     except KeyError:
         return []
-    return sorted(n for n in members if n in {p.pw_name for p in pwd.getpwall() if FIRST_UID <= p.pw_uid < LAST_UID})
+    return sorted(
+        n
+        for n in members
+        if n in {p.pw_name for p in pwd.getpwall() if FIRST_UID <= p.pw_uid < LAST_UID}
+    )
 
 
 def caller() -> str:
@@ -128,7 +151,9 @@ def password_ok(pw) -> str:
 def user_add(req: dict) -> dict:
     name = req.get("username", "")
     if not isinstance(name, str) or not USERNAME.match(name) or name in RESERVED:
-        raise Refused("the user name must start with a letter and use only a–z, 0–9, '-' and '_'")
+        raise Refused(
+            "the user name must start with a letter and use only a–z, 0–9, '-' and '_'"
+        )
     try:
         pwd.getpwnam(name)
         raise Refused(f"the name {name} is taken")
@@ -187,7 +212,11 @@ def user_password(req: dict) -> dict:
 
 def autologin_user() -> str:
     try:
-        m = re.search(r'^\[initial_session\][^\[]*?^user\s*=\s*"([^"]*)"', AUTOLOGIN_CONFIG.read_text(), re.M | re.S)
+        m = re.search(
+            r'^\[initial_session\][^\[]*?^user\s*=\s*"([^"]*)"',
+            AUTOLOGIN_CONFIG.read_text(),
+            re.M | re.S,
+        )
         return m.group(1) if m and AUTOLOGIN_DROPIN.exists() else ""
     except OSError:
         return ""
@@ -201,11 +230,16 @@ def set_autologin(name: str) -> None:
         return
     base = GREETD_CONFIG.read_text()
     base = re.sub(r"(?ms)^\[initial_session\].*?(?=^\[|\Z)", "", base).rstrip() + "\n"
-    AUTOLOGIN_CONFIG.write_text(base + f'\n# shani-shell: Settings > Users > Automatic login\n[initial_session]\ncommand = "niri-session"\nuser = "{name}"\n')
+    AUTOLOGIN_CONFIG.write_text(
+        base
+        + f'\n# shani-shell: Settings > Users > Automatic login\n[initial_session]\ncommand = "niri-session"\nuser = "{name}"\n'
+    )
     AUTOLOGIN_CONFIG.chmod(0o644)
     AUTOLOGIN_DROPIN.parent.mkdir(parents=True, exist_ok=True)
-    AUTOLOGIN_DROPIN.write_text("# shani-shell: Settings > Users > Automatic login (delete to turn off)\n"
-                                f"[Service]\nExecStart=\nExecStart=/usr/bin/greetd --config {AUTOLOGIN_CONFIG}\n")
+    AUTOLOGIN_DROPIN.write_text(
+        "# shani-shell: Settings > Users > Automatic login (delete to turn off)\n"
+        f"[Service]\nExecStart=\nExecStart=/usr/bin/greetd --config {AUTOLOGIN_CONFIG}\n"
+    )
     run(["systemctl", "daemon-reload"])
 
 
@@ -218,15 +252,23 @@ def autologin(req: dict) -> dict:
 
 
 def power_keys(req: dict) -> dict:
-    lid, lid_ac, key = req.get("lid", "suspend"), req.get("lidOnPower", "suspend"), req.get("powerKey", "poweroff")
+    lid, lid_ac, key = (
+        req.get("lid", "suspend"),
+        req.get("lidOnPower", "suspend"),
+        req.get("powerKey", "poweroff"),
+    )
     if lid not in LID_ACTIONS or lid_ac not in LID_ACTIONS or key not in KEY_ACTIONS:
         raise Refused("unknown action")
     LOGIND_DROPIN.parent.mkdir(parents=True, exist_ok=True)
-    LOGIND_DROPIN.write_text("# shani-shell: Settings > Power (delete for the defaults)\n[Login]\n"
-                             f"HandleLidSwitch={lid}\nHandleLidSwitchExternalPower={lid_ac}\nHandlePowerKey={key}\n")
+    LOGIND_DROPIN.write_text(
+        "# shani-shell: Settings > Power (delete for the defaults)\n[Login]\n"
+        f"HandleLidSwitch={lid}\nHandleLidSwitchExternalPower={lid_ac}\nHandlePowerKey={key}\n"
+    )
     LOGIND_DROPIN.chmod(0o644)
     # logind rereads its configuration on reload; a failure is not fatal — it applies at boot
-    subprocess.run(["systemctl", "reload", "systemd-logind"], capture_output=True, timeout=20)
+    subprocess.run(
+        ["systemctl", "reload", "systemd-logind"], capture_output=True, timeout=20
+    )
     return {}
 
 
@@ -246,8 +288,10 @@ def battery_limit(req: dict) -> dict:
         BATTERY_TMPFILES.unlink(missing_ok=True)
     else:
         BATTERY_TMPFILES.parent.mkdir(parents=True, exist_ok=True)
-        BATTERY_TMPFILES.write_text("# shani-shell: Settings > Power > charge limit (delete to charge fully)\n"
-                                    + "".join(f"w {f} - - - - {pct}\n" for f in files))
+        BATTERY_TMPFILES.write_text(
+            "# shani-shell: Settings > Power > charge limit (delete to charge fully)\n"
+            + "".join(f"w {f} - - - - {pct}\n" for f in files)
+        )
         BATTERY_TMPFILES.chmod(0o644)
     return {"batteries": len(files)}
 
@@ -279,8 +323,10 @@ def wakeup(req: dict) -> dict:
                 lines[f[1]] = f[6]
     lines[str(switch)] = state
     WAKEUP_TMPFILES.parent.mkdir(parents=True, exist_ok=True)
-    WAKEUP_TMPFILES.write_text("# shani-shell: Settings > Power > what can wake this computer\n"
-                               + "".join(f"w {p} - - - - {s}\n" for p, s in sorted(lines.items())))
+    WAKEUP_TMPFILES.write_text(
+        "# shani-shell: Settings > Power > what can wake this computer\n"
+        + "".join(f"w {p} - - - - {s}\n" for p, s in sorted(lines.items()))
+    )
     WAKEUP_TMPFILES.chmod(0o644)
     return {}
 
@@ -306,7 +352,11 @@ def lighting(req: dict) -> dict:
         raise Refused("this light has no colour") from None
     if sorted(index) != ["blue", "green", "red"]:
         raise Refused("this light has no colour")
-    rgb = {"red": int(color[1:3], 16), "green": int(color[3:5], 16), "blue": int(color[5:7], 16)}
+    rgb = {
+        "red": int(color[1:3], 16),
+        "green": int(color[3:5], 16),
+        "blue": int(color[5:7], 16),
+    }
     intensity = " ".join(str(round(rgb[c] * top / 255)) for c in index)
     brightness = str(round(level * top / 100))
     (d / "multi_intensity").write_text(intensity + "\n")
@@ -322,8 +372,19 @@ def lighting(req: dict) -> dict:
         lines[str(d / "brightness")] = brightness
         LIGHTING_TMPFILES.parent.mkdir(parents=True, exist_ok=True)
         # multi_intensity before brightness for the same light: tmpfiles applies in this order
-        LIGHTING_TMPFILES.write_text("# shani-shell: Settings > Controllers > lights\n" + "".join(
-            f"w {p} - - - - {v}\n" for p, v in sorted(lines.items(), key=lambda kv: (str(Path(kv[0]).parent), kv[0].endswith("brightness")))))
+        LIGHTING_TMPFILES.write_text(
+            "# shani-shell: Settings > Controllers > lights\n"
+            + "".join(
+                f"w {p} - - - - {v}\n"
+                for p, v in sorted(
+                    lines.items(),
+                    key=lambda kv: (
+                        str(Path(kv[0]).parent),
+                        kv[0].endswith("brightness"),
+                    ),
+                )
+            )
+        )
         LIGHTING_TMPFILES.chmod(0o644)
     return {}
 
@@ -334,9 +395,16 @@ def power_limit(req: dict) -> dict:
     driver's power cap) - now and, through tmpfiles.d, at every boot. Within
     the range the firmware or driver itself reports."""
     import importlib.util
-    spec = importlib.util.spec_from_file_location("powerlimit", Path(__file__).with_name("powerlimit.py"))
-    pl = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(pl)
+
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "powerlimit", Path(__file__).with_name("powerlimit.py")
+        )
+        pl = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(pl)
+    except Exception as e:
+        # a broken backend must be one JSON error, not a traceback on stderr
+        raise Refused("the power-limit backend is not available") from e
     watts = req.get("watts")
     if not isinstance(watts, int) or isinstance(watts, bool):
         raise Refused("a whole number of watts")
@@ -347,28 +415,42 @@ def power_limit(req: dict) -> dict:
         raise Refused(f"between {info['min']} and {info['max']} W")
     method, d = found
     if method == "asus":
-        files = [d / a / "current_value" for a in ("ppt_pl1_spl", "ppt_pl2_sppt", "ppt_fppt")
-                 if (d / a / "current_value").exists()]
+        files = [
+            d / a / "current_value"
+            for a in ("ppt_pl1_spl", "ppt_pl2_sppt", "ppt_fppt")
+            if (d / a / "current_value").exists()
+        ]
         value = str(watts)
     else:
         files, value = [d / "power1_cap"], str(watts * 1_000_000)
     for f in files:
         f.write_text(value + "\n")
     POWER_LIMIT_TMPFILES.parent.mkdir(parents=True, exist_ok=True)
-    POWER_LIMIT_TMPFILES.write_text("# shani-shell: Settings > Power > power limit\n"
-                                    + "".join(f"w {f} - - - - {value}\n" for f in files))
+    POWER_LIMIT_TMPFILES.write_text(
+        "# shani-shell: Settings > Power > power limit\n"
+        + "".join(f"w {f} - - - - {value}\n" for f in files)
+    )
     POWER_LIMIT_TMPFILES.chmod(0o644)
     return {"watts": watts}
 
 
 def guest(req: dict) -> dict:
-    on = bool(req.get("on"))
+    # JSON gives a real bool, but callers also send the string "false": bool()
+    # would turn that into True and create the guest account by mistake
+    on = req.get("on") is True or str(req.get("on", "")).lower() in (
+        "true",
+        "1",
+        "yes",
+        "on",
+    )
     if on:
         try:
             pwd.getpwnam(GUEST)
             made = GUEST_MARKER.exists() and GUEST_MARKER.read_text().strip() == GUEST
             if not made:
-                raise Refused("an account named guest is someone's own; it is left as it is")
+                raise Refused(
+                    "an account named guest is someone's own; it is left as it is"
+                )
         except KeyError:
             run(["useradd", "-m", "-c", "Guest", "-s", "/bin/bash", GUEST])
         # no password: the greeter signs in on Enter (pam_unix nullok); never an admin
@@ -391,14 +473,28 @@ def guest(req: dict) -> dict:
     return {}
 
 
-COMMANDS = {"guest": guest, "wakeup": wakeup, "lighting": lighting, "power-limit": power_limit, "user-add": user_add, "user-remove": user_remove, "user-admin": user_admin,
-            "user-password": user_password, "autologin": autologin, "power-keys": power_keys,
-            "battery-limit": battery_limit}
+COMMANDS = {
+    "guest": guest,
+    "wakeup": wakeup,
+    "lighting": lighting,
+    "power-limit": power_limit,
+    "user-add": user_add,
+    "user-remove": user_remove,
+    "user-admin": user_admin,
+    "user-password": user_password,
+    "autologin": autologin,
+    "power-keys": power_keys,
+    "battery-limit": battery_limit,
+}
 
 
 def main(argv: list[str]) -> int:
     if len(argv) != 2 or argv[1] not in COMMANDS:
-        print(json.dumps({"ok": False, "error": "usage: shani-admin.py " + "|".join(COMMANDS)}))
+        print(
+            json.dumps(
+                {"ok": False, "error": "usage: shani-admin.py " + "|".join(COMMANDS)}
+            )
+        )
         return 2
     try:
         req = json.loads(sys.stdin.read(65536) or "{}")

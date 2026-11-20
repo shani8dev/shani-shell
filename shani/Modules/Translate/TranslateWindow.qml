@@ -19,7 +19,7 @@ AppWindow {
     readonly property string tool: Quickshell.env("SHANI_TRANSLATE_TOOL") || "/usr/lib/shani-shell/translate.py"
     property string target: Settings.data.translateTo || "en"
     readonly property var languages: [["en", "English"], ["hi", "हिन्दी"], ["mr", "मराठी"], ["bn", "বাংলা"], ["ta", "தமிழ்"], ["te", "తెలుగు"],
-        ["gu", "ગુજરાતી"], ["kn", "ಕನ್ನಡ"], ["de", "Deutsch"], ["es", "Español"], ["fr", "Français"], ["ja", "日本語"], ["zh", "中文"], ["ar", "العربية"]]
+        ["gu", "ગુજરાતી"], ["kn", "ಕನ್ನಡ"], ["de", "Deutsch"], ["es", "Español"], ["fr", "Français"], ["ja", "Japanese"], ["zh", "Chinese"], ["ar", "Arabic"]]
     property string result: ""
     property string error: ""
     property bool working: false
@@ -128,6 +128,14 @@ AppWindow {
                             font.pixelSize: Theme.px(15) * Theme.fontScale
                             Accessible.role: Accessible.StaticText
                             Accessible.name: Tr.t("Translation") + ": " + text
+                        }
+                        Text {
+                            anchors.centerIn: parent
+                            visible: win.result === "" && win.error === "" && !win.working
+                            text: Tr.t("Translation appears here")
+                            color: Theme.faint
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(13) * Theme.fontScale
                         }
                     }
                 }

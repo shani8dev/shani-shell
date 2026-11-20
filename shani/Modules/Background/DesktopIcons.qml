@@ -100,6 +100,21 @@ PanelWindow {
         return { x: 16 + Math.floor(i / rows) * win.cell, y: win.startY + (i % rows) * win.cell };
     }
     function posOf(key, i) { return (Settings.data.deskIconPos || {})[key] || slot(i); }
+    // The input-mask bounds come from the model positions, never from the
+    // children's actual geometry: children are placed relative to iconsArea,
+    // so deriving iconsArea from childrenRect would be a binding loop.
+    readonly property rect iconBounds: {
+        if (entries.length === 0) return Qt.rect(0, 0, 0, 0);
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (let i = 0; i < entries.length; i++) {
+            const p = win.posOf(entries[i].key, i);
+            minX = Math.min(minX, p.x);
+            minY = Math.min(minY, p.y);
+            maxX = Math.max(maxX, p.x + win.cell - 8);
+            maxY = Math.max(maxY, p.y + win.cell - 4);
+        }
+        return Qt.rect(minX, minY, maxX - minX, maxY - minY);
+    }
     function savePos(key, x, y) {
         const keep = JSON.parse(JSON.stringify(Settings.data.deskIconPos || {}));
         keep[key] = { x: Math.round(x / 8) * 8, y: Math.round(y / 8) * 8 };
@@ -126,10 +141,10 @@ PanelWindow {
     // the icons' bounding box: the input mask
     Item {
         id: iconsArea
-        x: childrenRect.x
-        y: childrenRect.y
-        width: childrenRect.width
-        height: childrenRect.height
+        x: win.iconBounds.x
+        y: win.iconBounds.y
+        width: win.iconBounds.width
+        height: win.iconBounds.height
         Repeater {
             model: win.entries
             Item {

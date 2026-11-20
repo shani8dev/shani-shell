@@ -117,3 +117,11 @@ def test_not_visible_means_no_one_can_send(tmp_path):
     assert lone.wait("scanned")["count"] == 0
     lone.close()
     shut.close()
+
+
+def test_share_sheet_offers_the_qr_folder_link():
+    from pathlib import Path
+    share = (Path(__file__).resolve().parent.parent / "shani/Services/Share.qml").read_text()
+    assert 'Tr.t("Share a folder by link (QR)")' in share
+    assert 'mode: "folder"' in share
+    assert "Files.serveFolder(paths[0], false)" in share

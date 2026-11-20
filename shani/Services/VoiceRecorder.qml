@@ -59,12 +59,17 @@ Singleton {
     function stop() {
         if (!recording)
             return;
+        const wasPaused = state === "paused";
         stopping = true;
         state = "idle";
         level = 0;
         analyser.running = false;
-        if (recPid > 0)
+        if (recPid > 0) {
+            // A SIGINT sent to a SIGSTOPped process stays pending forever.
+            if (wasPaused)
+                Quickshell.execDetached(["kill", "-CONT", String(recPid)]);
             Quickshell.execDetached(["kill", "-INT", String(recPid)]);
+        }
         else if (rec.running)
             rec.signal(2);
     }

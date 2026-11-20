@@ -82,12 +82,8 @@ AppWindow {
                     icon: "preferences-system-time"
                     title: Tr.t("No other cities yet")
                     subtitle: Tr.t("Add the places you keep time with")
-                }
-                Item { Layout.fillHeight: true }
-                Button {
-                    Layout.fillWidth: true
-                    text: Tr.t("Choose cities…")
-                    onClicked: Ui.openSettings("time")
+                    actionText: Tr.t("Choose cities…")
+                    onAction: Ui.openSettings("time")
                 }
             }
 
@@ -166,6 +162,8 @@ AppWindow {
                     Button { Layout.fillWidth: true; text: Tr.t("Reset"); onClicked: WorldClock.swReset() }
                 }
                 ListView {
+                    reuseItems: true
+                    cacheBuffer: 400
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     clip: true

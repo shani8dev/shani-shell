@@ -166,12 +166,12 @@ Item {
         SequentialAnimation on opacity {
             running: map.showMarker && !Settings.data.reduceMotion
             loops: Animation.Infinite
-            NumberAnimation { from: 0.75; to: 0; duration: 1800; easing.type: Easing.OutQuad }
+            NumberAnimation { from: 0.75; to: 0; duration: Theme.mot(1800); easing.type: Easing.OutQuad }
         }
         SequentialAnimation on scale {
             running: map.showMarker && !Settings.data.reduceMotion
             loops: Animation.Infinite
-            NumberAnimation { from: 0.55; to: 1.5; duration: 1800; easing.type: Easing.OutQuad }
+            NumberAnimation { from: 0.55; to: 1.5; duration: Theme.mot(1800); easing.type: Easing.OutQuad }
         }
     }
     Rectangle {

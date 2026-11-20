@@ -124,6 +124,7 @@ ColumnLayout {
     Repeater {
         model: Array.from(page.d.windowRules || [])
         ColumnLayout {
+            id: rule
             required property var modelData
             required property int index
             Layout.fillWidth: true
@@ -156,9 +157,8 @@ ColumnLayout {
                         model: ["", "1", "2", "3", "4", "5"]
                         Choice {
                             required property string modelData
-                            readonly property string ws: index === undefined ? "" : index
                             text: modelData === "" ? Tr.t("Default") : Tr.t("Workspace ") + modelData
-                            selected: (modelData.workspace || "") === modelData
+                            selected: (rule.modelData.workspace || "") === modelData
                             onClicked: page.setRule(index, { workspace: modelData })
                         }
                     }

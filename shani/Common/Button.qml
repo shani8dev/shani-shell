@@ -42,9 +42,9 @@ Rectangle {
         radius: width / 2
         color: kind === "primary" ? "white" : Theme.text
         opacity: area.pressed ? 0.25 : 0
-        Behavior on width { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
-        Behavior on height { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
-        Behavior on opacity { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
+        Behavior on width { NumberAnimation { duration: Theme.mot(260); easing.type: Easing.OutCubic } }
+        Behavior on height { NumberAnimation { duration: Theme.mot(260); easing.type: Easing.OutCubic } }
+        Behavior on opacity { NumberAnimation { duration: Theme.mot(260); easing.type: Easing.OutCubic } }
         // centre on the press point (or the button when idle); grows outward
         x: (area.pressed ? area.mouseX : parent.width / 2) - width / 2
         y: (area.pressed ? area.mouseY : parent.height / 2) - height / 2
@@ -56,8 +56,8 @@ Rectangle {
         origin.y: area.pressed ? area.mouseY : height / 2
         xScale: area.pressed ? 0.97 : 1
         yScale: area.pressed ? 0.97 : 1
-        Behavior on xScale { NumberAnimation { duration: 120 } }
-        Behavior on yScale { NumberAnimation { duration: 120 } }
+        Behavior on xScale { NumberAnimation { duration: Theme.mot(120) } }
+        Behavior on yScale { NumberAnimation { duration: Theme.mot(120) } }
     }
 
     Text {

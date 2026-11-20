@@ -29,6 +29,7 @@ Sending: the device's certificate must hash to the fingerprint it announced,
 or nothing is sent. The certificate is our own, made once with openssl
 (~/.local/share/shani-shell/nearby).
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -53,9 +54,18 @@ from urllib.parse import parse_qs, urlparse
 GROUP = "224.0.0.167"
 PORT = int(os.environ.get("SHANI_NEARBY_PORT", "53317"))
 API = "/api/localsend/v2"
-DATA = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share") / "shani-shell" / "nearby"
+DATA = (
+    Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share")
+    / "shani-shell"
+    / "nearby"
+)
 # where received files go: ~/Downloads/Nearby (SHANI_NEARBY_DIR for the tests)
-INBOX = Path(os.environ.get("SHANI_NEARBY_DIR") or (Path(os.environ.get("XDG_DOWNLOAD_DIR") or Path.home() / "Downloads") / "Nearby"))
+INBOX = Path(
+    os.environ.get("SHANI_NEARBY_DIR")
+    or (
+        Path(os.environ.get("XDG_DOWNLOAD_DIR") or Path.home() / "Downloads") / "Nearby"
+    )
+)
 # where to look besides multicast: "ip:port,…" (the tests; a device on another subnet)
 EXTRA = [x for x in os.environ.get("SHANI_NEARBY_PEERS", "").split(",") if x]
 OFFER_TIMEOUT = float(os.environ.get("SHANI_NEARBY_OFFER_TIMEOUT", "60"))
@@ -74,8 +84,26 @@ def certificate() -> tuple[Path, Path, str]:
     DATA.mkdir(parents=True, exist_ok=True)
     cert, key = DATA / "cert.pem", DATA / "key.pem"
     if not (cert.exists() and key.exists()):
-        subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "3650", "-subj", "/CN=LocalSend User",
-                        "-keyout", str(key), "-out", str(cert)], check=True, capture_output=True)
+        subprocess.run(
+            [
+                "openssl",
+                "req",
+                "-x509",
+                "-newkey",
+                "rsa:2048",
+                "-nodes",
+                "-days",
+                "3650",
+                "-subj",
+                "/CN=LocalSend User",
+                "-keyout",
+                str(key),
+                "-out",
+                str(cert),
+            ],
+            check=True,
+            capture_output=True,
+        )
         os.chmod(key, 0o600)
     der = ssl.PEM_cert_to_DER_cert(cert.read_text())
     return cert, key, hashlib.sha256(der).hexdigest().upper()
@@ -86,7 +114,7 @@ def alias() -> str:
     if name:
         return name
     try:
-        full = (Path("/etc/passwd").read_text().split("\n"))
+        full = Path("/etc/passwd").read_text().split("\n")
         user = os.environ.get("USER", "")
         for line in full:
             parts = line.split(":")
@@ -103,8 +131,16 @@ class Me:
         self.alias = alias()
 
     def info(self, announce: bool | None = None) -> dict:
-        d = {"alias": self.alias, "version": "2.1", "deviceModel": "ShaniOS", "deviceType": "desktop",
-             "fingerprint": self.fingerprint, "port": PORT, "protocol": "https", "download": False}
+        d = {
+            "alias": self.alias,
+            "version": "2.1",
+            "deviceModel": "ShaniOS",
+            "deviceType": "desktop",
+            "fingerprint": self.fingerprint,
+            "port": PORT,
+            "protocol": "https",
+            "download": False,
+        }
         if announce is not None:
             d["announce"] = announce
         return d
@@ -120,10 +156,21 @@ def client_context() -> ssl.SSLContext:
     return ctx
 
 
-def request(ip: str, port: int, method: str, path: str, body: bytes | None = None, fingerprint: str = "",
-            timeout: float = 5.0, protocol: str = "https") -> tuple[int, bytes]:
+def request(
+    ip: str,
+    port: int,
+    method: str,
+    path: str,
+    body: bytes | None = None,
+    fingerprint: str = "",
+    timeout: float = 5.0,
+    protocol: str = "https",
+    stream_path: str = "",
+) -> tuple[int, bytes]:
     if protocol == "https":
-        conn = http.client.HTTPSConnection(ip, port, timeout=timeout, context=client_context())
+        conn = http.client.HTTPSConnection(
+            ip, port, timeout=timeout, context=client_context()
+        )
     else:
         conn = http.client.HTTPConnection(ip, port, timeout=timeout)
     try:
@@ -131,8 +178,26 @@ def request(ip: str, port: int, method: str, path: str, body: bytes | None = Non
         if protocol == "https" and fingerprint:
             der = conn.sock.getpeercert(binary_form=True)
             if hashlib.sha256(der).hexdigest().upper() != fingerprint.upper():
-                raise ConnectionError("that device's certificate is not the one it announced")
-        conn.request(method, path, body=body, headers={"Content-Type": "application/json" if body and body[:1] in (b"{", b"[") else "application/octet-stream"})
+                raise ConnectionError(
+                    "that device's certificate is not the one it announced"
+                )
+        headers = {
+            "Content-Type": "application/json"
+            if body and body[:1] in (b"{", b"[")
+            else "application/octet-stream"
+        }
+        if stream_path:
+            # a multi-gigabyte file must not be read into memory: send it in chunks
+            headers["Content-Length"] = str(os.path.getsize(stream_path))
+            conn.putrequest(method, path)
+            for k, v in headers.items():
+                conn.putheader(k, v)
+            conn.endheaders()
+            with open(stream_path, "rb") as fh:
+                while chunk := fh.read(1 << 20):
+                    conn.send(chunk)
+        else:
+            conn.request(method, path, body=body, headers=headers)
         r = conn.getresponse()
         return r.status, r.read()
     finally:
@@ -148,9 +213,15 @@ class Devices:
         fp = str(info.get("fingerprint", ""))
         if not fp or fp == self.me.fingerprint:
             return
-        dev = {"alias": str(info.get("alias", ""))[:80], "fingerprint": fp, "deviceModel": str(info.get("deviceModel") or "")[:60],
-               "deviceType": str(info.get("deviceType") or "")[:20], "ip": ip, "port": int(info.get("port") or PORT),
-               "protocol": "http" if info.get("protocol") == "http" else "https"}
+        dev = {
+            "alias": str(info.get("alias", ""))[:80],
+            "fingerprint": fp,
+            "deviceModel": str(info.get("deviceModel") or "")[:60],
+            "deviceType": str(info.get("deviceType") or "")[:20],
+            "ip": ip,
+            "port": int(info.get("port") or PORT),
+            "protocol": "http" if info.get("protocol") == "http" else "https",
+        }
         if self.known.get(fp) != dev:
             self.known[fp] = dev
             emit(dict(dev, event="device"))
@@ -160,7 +231,15 @@ class Devices:
     def ask(self, ip: str, port: int) -> None:
         for proto in ("https", "http"):
             try:
-                status, body = request(ip, port, "POST", API + "/register", json.dumps(self.me.info()).encode(), timeout=1.2, protocol=proto)
+                status, body = request(
+                    ip,
+                    port,
+                    "POST",
+                    API + "/register",
+                    json.dumps(self.me.info()).encode(),
+                    timeout=1.2,
+                    protocol=proto,
+                )
             except (OSError, ConnectionError, ssl.SSLError, http.client.HTTPException):
                 continue
             if status == 200:
@@ -176,13 +255,23 @@ class Devices:
     def scan(self) -> None:
         targets = [(h.rsplit(":", 1)[0], int(h.rsplit(":", 1)[1])) for h in EXTRA]
         # SHANI_NEARBY_SUBNET=0: only the named peers (the tests; no sweep of a real network)
-        for net in (local_networks() if os.environ.get("SHANI_NEARBY_SUBNET", "1") != "0" else []):
+        for net in (
+            local_networks()
+            if os.environ.get("SHANI_NEARBY_SUBNET", "1") != "0"
+            else []
+        ):
             targets += [(str(h), PORT) for h in net.hosts()][:254]
         announce(self.me)
         before = len(self.known)
         with ThreadPoolExecutor(max_workers=64) as pool:
             list(pool.map(lambda t: self.ask(*t), targets))
-        emit({"event": "scanned", "count": len(self.known), "new": len(self.known) - before})
+        emit(
+            {
+                "event": "scanned",
+                "count": len(self.known),
+                "new": len(self.known) - before,
+            }
+        )
 
 
 def local_networks() -> list:
@@ -190,13 +279,19 @@ def local_networks() -> list:
     not containers' bridges); the subnet scan stays small and local."""
     nets = []
     try:
-        out = subprocess.run(["ip", "-j", "-4", "addr"], capture_output=True, text=True).stdout
+        out = subprocess.run(
+            ["ip", "-j", "-4", "addr"], capture_output=True, text=True
+        ).stdout
         for link in json.loads(out or "[]"):
             name = link.get("ifname", "")
-            if name == "lo" or name.startswith(("docker", "br-", "veth", "virbr", "podman", "lxc")):
+            if name == "lo" or name.startswith(
+                ("docker", "br-", "veth", "virbr", "podman", "lxc")
+            ):
                 continue
             for a in link.get("addr_info", []):
-                ip = ipaddress.ip_interface(f"{a['local']}/{max(24, a.get('prefixlen', 24))}")
+                ip = ipaddress.ip_interface(
+                    f"{a['local']}/{max(24, a.get('prefixlen', 24))}"
+                )
                 if ip.ip.is_private:
                     nets.append(ip.network)
     except (OSError, ValueError, json.JSONDecodeError):
@@ -220,7 +315,11 @@ def listen_multicast(devices: Devices, stop: threading.Event) -> None:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind(("", PORT))
-        s.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, struct.pack("4sl", socket.inet_aton(GROUP), socket.INADDR_ANY))
+        s.setsockopt(
+            socket.IPPROTO_IP,
+            socket.IP_ADD_MEMBERSHIP,
+            struct.pack("4sl", socket.inet_aton(GROUP), socket.INADDR_ANY),
+        )
         s.settimeout(1.0)
     except OSError:
         return
@@ -237,7 +336,11 @@ def listen_multicast(devices: Devices, stop: threading.Event) -> None:
             continue
         devices.saw(info, ip)
         if info.get("announce") and info.get("fingerprint") != devices.me.fingerprint:
-            threading.Thread(target=devices.ask, args=(ip, int(info.get("port") or PORT)), daemon=True).start()
+            threading.Thread(
+                target=devices.ask,
+                args=(ip, int(info.get("port") or PORT)),
+                daemon=True,
+            ).start()
     s.close()
 
 
@@ -248,45 +351,141 @@ def send(me: Me, dev: dict, paths: list[str]) -> None:
     for p in paths:
         path = Path(p)
         if not path.is_file():
-            emit({"event": "failed", "session": session, "direction": "send", "error": f"not a file: {path.name}"})
+            emit(
+                {
+                    "event": "failed",
+                    "session": session,
+                    "direction": "send",
+                    "error": f"not a file: {path.name}",
+                }
+            )
             return
         fid = secrets.token_hex(6)
         ids[fid] = path
-        files[fid] = {"id": fid, "fileName": path.name, "size": path.stat().st_size, "fileType": "application/octet-stream"}
+        files[fid] = {
+            "id": fid,
+            "fileName": path.name,
+            "size": path.stat().st_size,
+            "fileType": "application/octet-stream",
+        }
     total = sum(f["size"] for f in files.values())
-    emit({"event": "progress", "session": session, "done": 0, "total": total, "direction": "send", "to": dev["alias"], "waiting": True})
+    emit(
+        {
+            "event": "progress",
+            "session": session,
+            "done": 0,
+            "total": total,
+            "direction": "send",
+            "to": dev["alias"],
+            "waiting": True,
+        }
+    )
     try:
-        status, body = request(dev["ip"], dev["port"], "POST", API + "/prepare-upload", json.dumps({"info": me.info(), "files": files}).encode(),
-                               fingerprint=dev["fingerprint"], timeout=OFFER_TIMEOUT + 5, protocol=dev["protocol"])
+        status, body = request(
+            dev["ip"],
+            dev["port"],
+            "POST",
+            API + "/prepare-upload",
+            json.dumps({"info": me.info(), "files": files}).encode(),
+            fingerprint=dev["fingerprint"],
+            timeout=OFFER_TIMEOUT + 5,
+            protocol=dev["protocol"],
+        )
         if status == 204:
-            emit({"event": "finished", "session": session, "direction": "send", "files": paths})
+            emit(
+                {
+                    "event": "finished",
+                    "session": session,
+                    "direction": "send",
+                    "files": paths,
+                }
+            )
             return
         if status != 200:
-            why = {403: "they declined", 401: "it asks for a PIN", 409: "it is busy with another transfer", 429: "too many requests"}.get(status, f"refused ({status})")
-            emit({"event": "failed", "session": session, "direction": "send", "error": why})
+            why = {
+                403: "they declined",
+                401: "it asks for a PIN",
+                409: "it is busy with another transfer",
+                429: "too many requests",
+            }.get(status, f"refused ({status})")
+            emit(
+                {
+                    "event": "failed",
+                    "session": session,
+                    "direction": "send",
+                    "error": why,
+                }
+            )
             return
         prep = json.loads(body)
         sid, tokens = prep["sessionId"], prep.get("files", {})
         done = 0
         for fid, path in ids.items():
             if fid not in tokens:
-                continue              # the device left that file out
+                continue  # the device left that file out
             q = f"sessionId={sid}&fileId={fid}&token={tokens[fid]}"
-            status, _ = request(dev["ip"], dev["port"], "POST", API + "/upload?" + q, path.read_bytes(),
-                                fingerprint=dev["fingerprint"], timeout=120, protocol=dev["protocol"])
+            status, _ = request(
+                dev["ip"],
+                dev["port"],
+                "POST",
+                API + "/upload?" + q,
+                fingerprint=dev["fingerprint"],
+                timeout=120,
+                protocol=dev["protocol"],
+                stream_path=str(path),
+            )
             if status != 200:
-                emit({"event": "failed", "session": session, "direction": "send", "error": f"{path.name} was refused ({status})"})
+                emit(
+                    {
+                        "event": "failed",
+                        "session": session,
+                        "direction": "send",
+                        "error": f"{path.name} was refused ({status})",
+                    }
+                )
                 return
             done += files[fid]["size"]
-            emit({"event": "progress", "session": session, "done": done, "total": total, "direction": "send", "to": dev["alias"]})
-        emit({"event": "finished", "session": session, "direction": "send", "files": paths})
-    except (OSError, ConnectionError, ssl.SSLError, http.client.HTTPException, json.JSONDecodeError, KeyError) as exc:
-        emit({"event": "failed", "session": session, "direction": "send", "error": str(exc) or exc.__class__.__name__})
+            emit(
+                {
+                    "event": "progress",
+                    "session": session,
+                    "done": done,
+                    "total": total,
+                    "direction": "send",
+                    "to": dev["alias"],
+                }
+            )
+        emit(
+            {
+                "event": "finished",
+                "session": session,
+                "direction": "send",
+                "files": paths,
+            }
+        )
+    except (
+        OSError,
+        ConnectionError,
+        ssl.SSLError,
+        http.client.HTTPException,
+        json.JSONDecodeError,
+        KeyError,
+    ) as exc:
+        emit(
+            {
+                "event": "failed",
+                "session": session,
+                "direction": "send",
+                "error": str(exc) or exc.__class__.__name__,
+            }
+        )
 
 
 # ---- receiving ------------------------------------------------------------------------------
 def safe_name(name: str) -> str:
-    base = re.sub(r"[\x00-\x1f/\\]", "_", Path(str(name).replace("\\", "/")).name).strip(" .")
+    base = re.sub(
+        r"[\x00-\x1f/\\]", "_", Path(str(name).replace("\\", "/")).name
+    ).strip(" .")
     return base[:200] or "file"
 
 
@@ -348,7 +547,9 @@ class Receiver:
                         receiver.devices.saw(info, self.client_address[0])
                         return self.reply(200, receiver.me.info())
                     if u.path == API + "/prepare-upload":
-                        return receiver.prepare(self, json.loads(self.body(1024 * 1024)))
+                        return receiver.prepare(
+                            self, json.loads(self.body(1024 * 1024))
+                        )
                     if u.path == API + "/upload":
                         return receiver.upload(self, q)
                     if u.path == API + "/cancel":
@@ -361,7 +562,14 @@ class Receiver:
         try:
             srv = ThreadingHTTPServer(("", PORT), Handler)
         except OSError as exc:
-            emit({"event": "failed", "session": "", "direction": "receive", "error": f"port {PORT}: {exc.strerror}"})
+            emit(
+                {
+                    "event": "failed",
+                    "session": "",
+                    "direction": "receive",
+                    "error": f"port {PORT}: {exc.strerror}",
+                }
+            )
             return False
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         ctx.load_cert_chain(str(self.me.cert), str(self.me.key))
@@ -370,7 +578,9 @@ class Receiver:
         self.server = srv
         threading.Thread(target=srv.serve_forever, daemon=True).start()
         self.stop.clear()
-        threading.Thread(target=listen_multicast, args=(self.devices, self.stop), daemon=True).start()
+        threading.Thread(
+            target=listen_multicast, args=(self.devices, self.stop), daemon=True
+        ).start()
         announce(self.me)
         return True
 
@@ -391,20 +601,45 @@ class Receiver:
         if not isinstance(files, dict) or not files or len(files) > 1000:
             return h.reply(400, {"message": "no files"})
         sid = secrets.token_hex(8)
-        listed = [{"id": str(fid), "name": safe_name(f.get("fileName", "")), "size": int(f.get("size") or 0)} for fid, f in files.items()]
+        listed = [
+            {
+                "id": str(fid),
+                "name": safe_name(f.get("fileName", "")),
+                "size": int(f.get("size") or 0),
+            }
+            for fid, f in files.items()
+        ]
         ev = threading.Event()
         self.answers[sid] = ev
-        emit({"event": "offer", "session": sid, "from": str(info.get("alias", h.client_address[0]))[:80],
-              "files": [{"name": f["name"], "size": f["size"]} for f in listed]})
+        emit(
+            {
+                "event": "offer",
+                "session": sid,
+                "from": str(info.get("alias", h.client_address[0]))[:80],
+                "files": [{"name": f["name"], "size": f["size"]} for f in listed],
+            }
+        )
         # the person answers in the window (or the notification); no answer is a no
         ev.wait(OFFER_TIMEOUT)
         if not self.accepted.pop(sid, False) or not self.server:
             self.answers.pop(sid, None)
-            emit({"event": "failed", "session": sid, "direction": "receive", "error": "declined"})
+            emit(
+                {
+                    "event": "failed",
+                    "session": sid,
+                    "direction": "receive",
+                    "error": "declined",
+                }
+            )
             return h.reply(403, {"message": "declined"})
         tokens = {f["id"]: secrets.token_hex(8) for f in listed}
-        self.sessions[sid] = {"active": True, "files": {f["id"]: dict(f, token=tokens[f["id"]]) for f in listed}, "saved": [],
-                              "total": sum(f["size"] for f in listed), "done": 0}
+        self.sessions[sid] = {
+            "active": True,
+            "files": {f["id"]: dict(f, token=tokens[f["id"]]) for f in listed},
+            "saved": [],
+            "total": sum(f["size"] for f in listed),
+            "done": 0,
+        }
         h.reply(200, {"sessionId": sid, "files": tokens})
 
     def upload(self, h, q: dict) -> None:
@@ -427,7 +662,15 @@ class Receiver:
                 out.write(chunk)
                 left -= len(chunk)
                 s["done"] += len(chunk)
-                emit({"event": "progress", "session": q["sessionId"], "done": s["done"], "total": s["total"], "direction": "receive"})
+                emit(
+                    {
+                        "event": "progress",
+                        "session": q["sessionId"],
+                        "done": s["done"],
+                        "total": s["total"],
+                        "direction": "receive",
+                    }
+                )
         if left:
             part.unlink(missing_ok=True)
             return h.reply(400, {"message": "cut short"})
@@ -437,7 +680,14 @@ class Receiver:
         h.reply(200)
         if all(x.get("written") for x in s["files"].values()):
             s["active"] = False
-            emit({"event": "finished", "session": q["sessionId"], "direction": "receive", "files": s["saved"]})
+            emit(
+                {
+                    "event": "finished",
+                    "session": q["sessionId"],
+                    "direction": "receive",
+                    "files": s["saved"],
+                }
+            )
 
     def answer(self, sid: str, accept: bool) -> None:
         self.accepted[sid] = bool(accept)
@@ -450,7 +700,14 @@ def main() -> int:
     me = Me()
     devices = Devices(me)
     receiver = Receiver(me, devices)
-    emit({"event": "ready", "alias": me.alias, "fingerprint": me.fingerprint, "port": PORT})
+    emit(
+        {
+            "event": "ready",
+            "alias": me.alias,
+            "fingerprint": me.fingerprint,
+            "port": PORT,
+        }
+    )
     for line in sys.stdin:
         try:
             cmd = json.loads(line)
@@ -462,9 +719,20 @@ def main() -> int:
         elif op == "send":
             dev = devices.known.get(cmd.get("to", ""))
             if not dev:
-                emit({"event": "failed", "session": "", "direction": "send", "error": "that device is not here any more"})
+                emit(
+                    {
+                        "event": "failed",
+                        "session": "",
+                        "direction": "send",
+                        "error": "that device is not here any more",
+                    }
+                )
             else:
-                threading.Thread(target=send, args=(me, dev, list(cmd.get("files") or [])), daemon=True).start()
+                threading.Thread(
+                    target=send,
+                    args=(me, dev, list(cmd.get("files") or [])),
+                    daemon=True,
+                ).start()
         elif op == "visible":
             on = bool(cmd.get("on")) and receiver.start()
             if not cmd.get("on"):

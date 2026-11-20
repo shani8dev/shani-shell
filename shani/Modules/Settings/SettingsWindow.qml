@@ -8,6 +8,7 @@ import Quickshell
 import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls
 import qs.Common
 import qs.Services
 import "SettingsIndex.js" as SettingsIndex
@@ -66,17 +67,29 @@ AppWindow {
                 SettingsMatchList {
                     Layout.fillWidth: true
                     visible: page.settingsMatches.length > 0
+                    needle: page.query
                     matches: page.settingsMatches
                     icons: page.catIcons
                     onActivated: e => page.openSetting(e)
                 }
+                EmptyState {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    visible: page.query.trim() !== "" && !page.settingsMatches.length && !page.shownCats.length
+                    icon: "edit-find"
+                    title: Tr.t("No setting matches")
+                    subtitle: Tr.t("Try “proxy”, “fonts” or “lid”")
+                }
                 ListView {
+                    reuseItems: true
+                    cacheBuffer: 400
                     id: list
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     clip: true
                     spacing: 2
                     boundsBehavior: Flickable.StopAtBounds
+                    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AlwaysOn }
                     model: page.shownCats
                     delegate: Rectangle {
                         id: row
@@ -145,7 +158,11 @@ AppWindow {
                             Layout.fillWidth: true
                             spacing: Theme.px(6)
                             Text {
+                                id: changedLabel
                                 text: Tr.t(SettingsIndex.labelOf(changedRow.modelData))
+                                ToolTip.text: text
+                                ToolTip.visible: changedLabel.truncated && changedLabel.hovered
+                                ToolTip.delay: 400
                                 font.family: Theme.font
                                 font.pixelSize: Theme.px(11) * Theme.fontScale
                                 color: Theme.dim
@@ -181,6 +198,7 @@ AppWindow {
             contentHeight: body.implicitHeight + 40
             clip: true
             boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AlwaysOn }
             ColumnLayout {
                 id: body
                 width: Math.min(content.width, 720)

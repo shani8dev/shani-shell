@@ -3,6 +3,7 @@
 import Quickshell
 import Quickshell.Wayland
 import QtQuick
+import qs.Common
 import qs.Services
 
 Variants {
@@ -23,7 +24,7 @@ Variants {
             anchors.fill: parent
             color: "black"
             opacity: Idle.dimmed ? 0.55 : 0
-            Behavior on opacity { NumberAnimation { duration: 1200 } }
+            Behavior on opacity { NumberAnimation { duration: Theme.mot(1200) } }
         }
     }
 }

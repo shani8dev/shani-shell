@@ -27,6 +27,7 @@ Only drives udisks calls removable (a USB stick, an SD card) are listed or
 accepted: the computer's own disk is never offered. SIGTERM stops a write.
 SHANI_UDISKS_BUS=session (tests): udisks looked for on the session bus.
 """
+
 from __future__ import annotations
 
 import json
@@ -42,12 +43,24 @@ from gi.repository import Gio, GLib  # noqa: E402
 NAME = "org.freedesktop.UDisks2"
 ROOT = "/org/freedesktop/UDisks2"
 # what udisks formats with (mkfs from shani-storage), and the MBR type each wants
-FS = {"exfat": "0x07", "vfat": "0x0c", "ntfs": "0x07", "ext4": "0x83", "btrfs": "0x83",
-      "f2fs": "0x83", "xfs": "0x83", "udf": "0x07"}
+FS = {
+    "exfat": "0x07",
+    "vfat": "0x0c",
+    "ntfs": "0x07",
+    "ext4": "0x83",
+    "btrfs": "0x83",
+    "f2fs": "0x83",
+    "xfs": "0x83",
+    "udf": "0x07",
+}
 
 
 def bus() -> Gio.DBusConnection:
-    kind = Gio.BusType.SESSION if os.environ.get("SHANI_UDISKS_BUS") == "session" else Gio.BusType.SYSTEM
+    kind = (
+        Gio.BusType.SESSION
+        if os.environ.get("SHANI_UDISKS_BUS") == "session"
+        else Gio.BusType.SYSTEM
+    )
     return Gio.bus_get_sync(kind, None)
 
 
@@ -56,8 +69,17 @@ def _bytes(v) -> str:
 
 
 def objects(c: Gio.DBusConnection) -> dict:
-    r = c.call_sync(NAME, ROOT, "org.freedesktop.DBus.ObjectManager", "GetManagedObjects",
-                    None, GLib.VariantType("(a{oa{sa{sv}}})"), Gio.DBusCallFlags.NONE, -1, None)
+    r = c.call_sync(
+        NAME,
+        ROOT,
+        "org.freedesktop.DBus.ObjectManager",
+        "GetManagedObjects",
+        None,
+        GLib.VariantType("(a{oa{sa{sv}}})"),
+        Gio.DBusCallFlags.NONE,
+        600000,
+        None,
+    )
     return r.unpack()[0]
 
 
@@ -66,7 +88,11 @@ def drives(objs: dict) -> list[dict]:
     out = []
     for path, ifs in sorted(objs.items()):
         d = ifs.get("org.freedesktop.UDisks2.Drive")
-        if not d or not (d.get("Removable") or d.get("MediaRemovable") or d.get("ConnectionBus") == "usb"):
+        if not d or not (
+            d.get("Removable")
+            or d.get("MediaRemovable")
+            or d.get("ConnectionBus") == "usb"
+        ):
             continue
         if not d.get("MediaAvailable", True) or d.get("Size", 0) == 0:
             continue
@@ -78,15 +104,37 @@ def drives(objs: dict) -> list[dict]:
             dev = _bytes(b.get("PreferredDevice") or b.get("Device"))
             if "org.freedesktop.UDisks2.Partition" in bifs:
                 fs = bifs.get("org.freedesktop.UDisks2.Filesystem")
-                parts.append({"device": dev, "label": b.get("IdLabel", ""), "fs": b.get("IdType", ""),
-                              "mounted": [_bytes(m) for m in (fs or {}).get("MountPoints", [])]})
+                parts.append(
+                    {
+                        "device": dev,
+                        "label": b.get("IdLabel", ""),
+                        "fs": b.get("IdType", ""),
+                        "mounted": [
+                            _bytes(m) for m in (fs or {}).get("MountPoints", [])
+                        ],
+                    }
+                )
             else:
                 whole = {"object": bp, "device": dev}
         if not whole:
             continue
-        name = " ".join(x for x in (d.get("Vendor", "").strip(), d.get("Model", "").strip()) if x) or whole["device"]
-        out.append({"block": whole["object"], "device": whole["device"], "name": name,
-                    "size": d.get("Size", 0), "parts": sorted(parts, key=lambda p: p["device"])})
+        name = (
+            " ".join(
+                x
+                for x in (d.get("Vendor", "").strip(), d.get("Model", "").strip())
+                if x
+            )
+            or whole["device"]
+        )
+        out.append(
+            {
+                "block": whole["object"],
+                "device": whole["device"],
+                "name": name,
+                "size": d.get("Size", 0),
+                "parts": sorted(parts, key=lambda p: p["device"]),
+            }
+        )
     return out
 
 
@@ -100,7 +148,9 @@ def _removable(c, block: str) -> dict:
 def _opts(**kw) -> dict:
     v = {"auth.no_user_interaction": GLib.Variant("b", False)}
     for k, x in kw.items():
-        v[k.replace("encrypt_", "encrypt.").replace("_", "-")] = GLib.Variant("s", x) if isinstance(x, str) else GLib.Variant("b", x)
+        v[k.replace("encrypt_", "encrypt.").replace("_", "-")] = (
+            GLib.Variant("s", x) if isinstance(x, str) else GLib.Variant("b", x)
+        )
     return v
 
 
@@ -108,9 +158,24 @@ def _unmount_all(c, d: dict, objs: dict) -> None:
     for bp, bifs in objs.items():
         b = bifs.get("org.freedesktop.UDisks2.Block")
         fs = bifs.get("org.freedesktop.UDisks2.Filesystem")
-        if b and fs and fs.get("MountPoints") and _bytes(b.get("PreferredDevice") or b.get("Device")) in [p["device"] for p in d["parts"]]:
-            c.call_sync(NAME, bp, "org.freedesktop.UDisks2.Filesystem", "Unmount",
-                        GLib.Variant("(a{sv})", (_opts(),)), None, Gio.DBusCallFlags.ALLOW_INTERACTIVE_AUTHORIZATION, -1, None)
+        if (
+            b
+            and fs
+            and fs.get("MountPoints")
+            and _bytes(b.get("PreferredDevice") or b.get("Device"))
+            in [p["device"] for p in d["parts"]]
+        ):
+            c.call_sync(
+                NAME,
+                bp,
+                "org.freedesktop.UDisks2.Filesystem",
+                "Unmount",
+                GLib.Variant("(a{sv})", (_opts(),)),
+                None,
+                Gio.DBusCallFlags.ALLOW_INTERACTIVE_AUTHORIZATION,
+                600000,
+                None,
+            )
 
 
 def format_drive(block: str, fs: str, label: str, passphrase: str = "") -> dict:
@@ -123,14 +188,33 @@ def format_drive(block: str, fs: str, label: str, passphrase: str = "") -> dict:
     flags = Gio.DBusCallFlags.ALLOW_INTERACTIVE_AUTHORIZATION
     # a fresh MBR table (what every camera, TV and car stereo reads), then one
     # partition over all of it, formatted
-    c.call_sync(NAME, d["block"], "org.freedesktop.UDisks2.Block", "Format",
-                GLib.Variant("(sa{sv})", ("dos", _opts())), None, flags, 600000, None)
+    c.call_sync(
+        NAME,
+        d["block"],
+        "org.freedesktop.UDisks2.Block",
+        "Format",
+        GLib.Variant("(sa{sv})", ("dos", _opts())),
+        None,
+        flags,
+        600000,
+        None,
+    )
     fsopts = {"label": label[:11] if fs == "vfat" else label} if label else {}
     if passphrase:
         fsopts.update({"encrypt_passphrase": passphrase, "encrypt_type": "luks2"})
-    r = c.call_sync(NAME, d["block"], "org.freedesktop.UDisks2.PartitionTable", "CreatePartitionAndFormat",
-                    GLib.Variant("(ttssa{sv}sa{sv})", (1 << 20, 0, FS[fs], "", _opts(), fs, _opts(**fsopts))),
-                    GLib.VariantType("(o)"), flags, 600000, None)
+    r = c.call_sync(
+        NAME,
+        d["block"],
+        "org.freedesktop.UDisks2.PartitionTable",
+        "CreatePartitionAndFormat",
+        GLib.Variant(
+            "(ttssa{sv}sa{sv})", (1 << 20, 0, FS[fs], "", _opts(), fs, _opts(**fsopts))
+        ),
+        GLib.VariantType("(o)"),
+        flags,
+        600000,
+        None,
+    )
     return {"ok": True, "partition": r.unpack()[0]}
 
 
@@ -141,16 +225,22 @@ def _reader(path: str):
     low = path.lower()
     if low.endswith(".xz"):
         import lzma
+
         return lzma.open(raw, "rb"), raw
     if low.endswith(".gz"):
         import gzip
+
         return gzip.open(raw, "rb"), raw
     if low.endswith(".bz2"):
         import bz2
+
         return bz2.open(raw, "rb"), raw
     if low.endswith(".zst"):
         import subprocess
-        return subprocess.Popen(["zstd", "-dc"], stdin=raw, stdout=subprocess.PIPE).stdout, raw
+
+        return subprocess.Popen(
+            ["zstd", "-dc"], stdin=raw, stdout=subprocess.PIPE
+        ).stdout, raw
     return raw, raw
 
 
@@ -161,12 +251,28 @@ def write_image(image: str, block: str) -> int:
     d = _removable(c, block)
     raw = not image.lower().endswith((".xz", ".gz", ".bz2", ".zst"))
     if raw and total > d["size"]:
-        print(json.dumps({"error": "the image (%d bytes) is bigger than the drive (%d)" % (total, d["size"])}))
+        print(
+            json.dumps(
+                {
+                    "error": "the image (%d bytes) is bigger than the drive (%d)"
+                    % (total, d["size"])
+                }
+            )
+        )
         return 1
     _unmount_all(c, d, objs)
-    r, fds = c.call_with_unix_fd_list_sync(NAME, d["block"], "org.freedesktop.UDisks2.Block", "OpenForRestore",
-                                           GLib.Variant("(a{sv})", (_opts(),)), GLib.VariantType("(h)"),
-                                           Gio.DBusCallFlags.ALLOW_INTERACTIVE_AUTHORIZATION, -1, None, None)
+    r, fds = c.call_with_unix_fd_list_sync(
+        NAME,
+        d["block"],
+        "org.freedesktop.UDisks2.Block",
+        "OpenForRestore",
+        GLib.Variant("(a{sv})", (_opts(),)),
+        GLib.VariantType("(h)"),
+        Gio.DBusCallFlags.ALLOW_INTERACTIVE_AUTHORIZATION,
+        600000,
+        None,
+        None,
+    )
     out = os.fdopen(fds.get(r.unpack()[0]), "wb", buffering=0)
     stop = []
     signal.signal(signal.SIGTERM, lambda *_: stop.append(1))
@@ -178,7 +284,10 @@ def write_image(image: str, block: str) -> int:
             if not chunk:
                 break
             if done + len(chunk) > d["size"]:
-                print(json.dumps({"error": "the image is bigger than the drive"}), flush=True)
+                print(
+                    json.dumps({"error": "the image is bigger than the drive"}),
+                    flush=True,
+                )
                 return 1
             out.write(chunk)
             done += len(chunk)
@@ -189,7 +298,14 @@ def write_image(image: str, block: str) -> int:
                 print(json.dumps({"done": min(at, total), "total": total}), flush=True)
         os.fsync(out.fileno())
     if stop:
-        print(json.dumps({"error": "stopped; the drive holds part of the image, format it to use it again"}), flush=True)
+        print(
+            json.dumps(
+                {
+                    "error": "stopped; the drive holds part of the image, format it to use it again"
+                }
+            ),
+            flush=True,
+        )
         return 1
     print(json.dumps({"ok": True, "written": done}), flush=True)
     return 0
@@ -200,42 +316,84 @@ def mount_image(image: str) -> dict:
     device goes when its last file system is unmounted), then each file system on it
     - the image itself (an ISO) or its partitions (a disk's image) - mounted."""
     import time
+
     c = bus()
     flags = Gio.DBusCallFlags.ALLOW_INTERACTIVE_AUTHORIZATION
     fd = os.open(image, os.O_RDONLY)
     fds = Gio.UnixFDList.new()
     fds.append(fd)
     os.close(fd)
-    r, _ = c.call_with_unix_fd_list_sync(NAME, ROOT + "/Manager", "org.freedesktop.UDisks2.Manager", "LoopSetup",
-                                         GLib.Variant("(ha{sv})", (0, _opts(read_only=True))), GLib.VariantType("(o)"),
-                                         flags, -1, fds, None)
+    r, _ = c.call_with_unix_fd_list_sync(
+        NAME,
+        ROOT + "/Manager",
+        "org.freedesktop.UDisks2.Manager",
+        "LoopSetup",
+        GLib.Variant("(ha{sv})", (0, _opts(read_only=True))),
+        GLib.VariantType("(o)"),
+        flags,
+        600000,
+        fds,
+        None,
+    )
     loop = r.unpack()[0]
     try:
-        c.call_sync(NAME, loop, "org.freedesktop.UDisks2.Loop", "SetAutoclear",
-                    GLib.Variant("(ba{sv})", (True, _opts())), None, flags, -1, None)
+        c.call_sync(
+            NAME,
+            loop,
+            "org.freedesktop.UDisks2.Loop",
+            "SetAutoclear",
+            GLib.Variant("(ba{sv})", (True, _opts())),
+            None,
+            flags,
+            600000,
+            None,
+        )
     except GLib.Error:
         pass
     # the partitions of an image show up a moment after the loop device itself
     paths, device = [], ""
     for _ in range(20):
         objs = objects(c)
-        device = _bytes(objs.get(loop, {}).get("org.freedesktop.UDisks2.Block", {}).get("Device"))
-        targets = [p for p, ifs in sorted(objs.items()) if "org.freedesktop.UDisks2.Filesystem" in ifs
-                   and (p == loop or ifs.get("org.freedesktop.UDisks2.Partition", {}).get("Table") == loop)]
+        device = _bytes(
+            objs.get(loop, {}).get("org.freedesktop.UDisks2.Block", {}).get("Device")
+        )
+        targets = [
+            p
+            for p, ifs in sorted(objs.items())
+            if "org.freedesktop.UDisks2.Filesystem" in ifs
+            and (
+                p == loop
+                or ifs.get("org.freedesktop.UDisks2.Partition", {}).get("Table") == loop
+            )
+        ]
         if targets:
             break
         time.sleep(0.25)
     for p in targets:
-        mounted = [_bytes(m) for m in objs[p]["org.freedesktop.UDisks2.Filesystem"].get("MountPoints", [])]
+        mounted = [
+            _bytes(m)
+            for m in objs[p]["org.freedesktop.UDisks2.Filesystem"].get(
+                "MountPoints", []
+            )
+        ]
         if mounted:
             paths += mounted
             continue
         try:
-            r = c.call_sync(NAME, p, "org.freedesktop.UDisks2.Filesystem", "Mount", GLib.Variant("(a{sv})", (_opts(),)),
-                            GLib.VariantType("(s)"), flags, -1, None)
+            r = c.call_sync(
+                NAME,
+                p,
+                "org.freedesktop.UDisks2.Filesystem",
+                "Mount",
+                GLib.Variant("(a{sv})", (_opts(),)),
+                GLib.VariantType("(s)"),
+                flags,
+                600000,
+                None,
+            )
             paths.append(r.unpack()[0])
         except GLib.Error:
-            pass                                       # a swap or unknown partition: not a place
+            pass  # a swap or unknown partition: not a place
     if not paths:
         return {"error": "nothing on this image can be opened", "device": device}
     return {"paths": paths, "device": device}
@@ -247,11 +405,23 @@ def backup(block: str, out: str) -> int:
     c = bus()
     d = _removable(c, block)
     if os.path.lexists(out):
-        print(json.dumps({"error": "%s is there already" % os.path.basename(out)}), flush=True)
+        print(
+            json.dumps({"error": "%s is there already" % os.path.basename(out)}),
+            flush=True,
+        )
         return 1
-    r, fds = c.call_with_unix_fd_list_sync(NAME, d["block"], "org.freedesktop.UDisks2.Block", "OpenForBackup",
-                                           GLib.Variant("(a{sv})", (_opts(),)), GLib.VariantType("(h)"),
-                                           Gio.DBusCallFlags.ALLOW_INTERACTIVE_AUTHORIZATION, -1, None, None)
+    r, fds = c.call_with_unix_fd_list_sync(
+        NAME,
+        d["block"],
+        "org.freedesktop.UDisks2.Block",
+        "OpenForBackup",
+        GLib.Variant("(a{sv})", (_opts(),)),
+        GLib.VariantType("(h)"),
+        Gio.DBusCallFlags.ALLOW_INTERACTIVE_AUTHORIZATION,
+        600000,
+        None,
+        None,
+    )
     src = os.fdopen(fds.get(r.unpack()[0]), "rb", buffering=0)
     stop = []
     signal.signal(signal.SIGTERM, lambda *_: stop.append(1))
@@ -268,7 +438,7 @@ def backup(block: str, out: str) -> int:
                 last = pct
                 print(json.dumps({"done": done, "total": total}), flush=True)
     if stop:
-        os.remove(out)                                   # the half-made image only
+        os.remove(out)  # the half-made image only
         print(json.dumps({"error": "stopped"}), flush=True)
         return 1
     print(json.dumps({"ok": True, "written": done, "path": out}), flush=True)
@@ -286,9 +456,22 @@ def passphrase(block: str, old: str, new: str) -> dict:
     devs = {d["device"]} | {p["device"] for p in d["parts"]}
     for bp, bifs in objs.items():
         b = bifs.get("org.freedesktop.UDisks2.Block")
-        if b and "org.freedesktop.UDisks2.Encrypted" in bifs and _bytes(b.get("PreferredDevice") or b.get("Device")) in devs:
-            c.call_sync(NAME, bp, "org.freedesktop.UDisks2.Encrypted", "ChangePassphrase",
-                        GLib.Variant("(ssa{sv})", (old, new, _opts())), None, Gio.DBusCallFlags.ALLOW_INTERACTIVE_AUTHORIZATION, -1, None)
+        if (
+            b
+            and "org.freedesktop.UDisks2.Encrypted" in bifs
+            and _bytes(b.get("PreferredDevice") or b.get("Device")) in devs
+        ):
+            c.call_sync(
+                NAME,
+                bp,
+                "org.freedesktop.UDisks2.Encrypted",
+                "ChangePassphrase",
+                GLib.Variant("(ssa{sv})", (old, new, _opts())),
+                None,
+                Gio.DBusCallFlags.ALLOW_INTERACTIVE_AUTHORIZATION,
+                600000,
+                None,
+            )
             return {"ok": True}
     return {"error": "this drive is not locked with a password"}
 
@@ -328,7 +511,11 @@ def main(argv: list[str]) -> int:
         return 1
     except GLib.Error as e:
         msg = e.message
-        if "Failed to activate" in msg or "No key available" in msg or "passphrase" in msg.lower():
+        if (
+            "Failed to activate" in msg
+            or "No key available" in msg
+            or "passphrase" in msg.lower()
+        ):
             msg = "the old password is not right"
         elif "NotAuthorized" in msg or "dismissed" in msg.lower():
             msg = "not allowed (the administrator's password was not given)"

@@ -117,7 +117,16 @@ for s in "$@"; do
     own; rc=$(cat "$log.rc"); rm -f "$log.rc"
     pass=$(grep -c "^RESULT .* PASS" "$log"); fail=$(grep -c "^RESULT .* FAIL" "$log")
     [ "$s" = unit ] && pass=$(grep -oE "[0-9]+ passed" "$log" | grep -oE "[0-9]+" || echo 0) && fail=$(grep -oE "[0-9]+ failed" "$log" | grep -oE "[0-9]+" || echo 0)
-    [ "$rc" = 0 ] && [ "${fail:-0}" = 0 ] && v=ok || { v=FAILED; bad=1; }
+    # A shell suite that ran no checks is not a pass: a typo in `shell=<part>`
+    # used to source nothing, print unrelated PASS lines and come back green.
+    # Render modes write pictures instead of RESULT lines, so they need no PASS.
+    need_pass=1; case "$s" in render*) need_pass=0 ;; esac
+    if [ "$rc" = 0 ] && [ "${fail:-0}" = 0 ] && { [ "$need_pass" = 0 ] || [ "${pass:-0}" -gt 0 ]; }; then
+        v=ok
+    else
+        v=FAILED; bad=1
+        [ "${pass:-0}" = 0 ] && echo "                 no checks ran (wrong suite name?)" >> "$summary"
+    fi
     printf "%-14s %-7s %4s pass %4s fail   out/logs/%s\n" "$s" "$v" "${pass:-0}" "${fail:-0}" "${log##*/}" >> "$summary"
     grep "^RESULT .* FAIL" "$log" | sed 's/^/                 /' >> "$summary"
 done

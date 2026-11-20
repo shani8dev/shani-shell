@@ -77,6 +77,8 @@ AppWindow {
                     Button { visible: DiskUsage.view === "dupes" && DiskUsage.dupes.length > 0; text: Tr.t("Mark every copy but the oldest"); kind: "outline"; onClicked: DiskUsage.markAllExtras() }
                 }
                 ListView {
+                    reuseItems: true
+                    cacheBuffer: 400
                     id: moreList
                     Layout.fillWidth: true
                     Layout.fillHeight: true
@@ -236,6 +238,8 @@ AppWindow {
                 text: Tr.t("Marked for removal (%1)").arg(DiskUsage.markedCount)
             }
             ListView {
+                reuseItems: true
+                cacheBuffer: 400
                 id: markedList
                 Layout.fillWidth: true
                 Layout.preferredHeight: Math.min(132, Math.max(36, DiskUsage.markedCount * 32))

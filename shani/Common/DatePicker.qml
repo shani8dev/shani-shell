@@ -97,7 +97,7 @@ ColumnLayout {
                         root.picked(d);
                     }
                 }
-                KeyFocus { onActivated: { const d = root.format(parent.day); root.value = d; root.picked(d); } }
+                KeyFocus { enabled: parent.day > 0; onActivated: { const d = root.format(parent.day); root.value = d; root.picked(d); } }
             }
         }
     }

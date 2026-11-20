@@ -444,8 +444,9 @@ PanelWindow {
     Rectangle {
         id: backdrop
         anchors.fill: parent
-        // dense enough to read without blur (blur off, or a compositor without it)
-        color: Theme.alpha(Theme.bg, Settings.blurWanted ? 0.78 : 0.94)
+        // dense even with blur: live windows behind the list must not read
+        // through the results (a compositor may not blur at all)
+        color: Theme.alpha(Theme.bg, 0.94)
         MouseArea { objectName: "nav:pointer"; anchors.fill: parent; onClicked: Ui.closeAll(); hoverEnabled: !Settings.data.launcherIgnoreMouse; onPositionChanged: if (!Settings.data.launcherIgnoreMouse) win.hoverArmed = true }
     }
 
@@ -645,7 +646,8 @@ PanelWindow {
                                 objectName: "nav:keys"
                                 visible: !!section.modelData.grid
                                 Layout.fillWidth: true
-                                columns: win.gridCols
+                                // one frequent app must not stretch across all columns
+                                columns: section.modelData.grid ? Math.min(win.gridCols, Math.max(1, section.modelData.items.length)) : win.gridCols
                                 columnSpacing: Theme.px(8)
                                 rowSpacing: Theme.px(8)
                                 Repeater {
@@ -752,10 +754,10 @@ PanelWindow {
                                             font.pixelSize: Theme.px(14) * Theme.fontScale
                                         }
                                         Text {
-                                            Layout.maximumWidth: list.width * 0.4
+                                            Layout.maximumWidth: list.width * 0.55
                                             text: row.modelData.subtitle
                                             color: Theme.dim
-                                            elide: Text.ElideMiddle
+                                            elide: Text.ElideRight
                                             font.family: Theme.font
                                             font.pixelSize: Theme.px(11) * Theme.fontScale
                                         }

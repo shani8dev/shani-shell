@@ -27,12 +27,48 @@ import wave
 
 # xkb names languages in ISO 639-2/3; whisper wants ISO 639-1
 ISO1 = {
-    "eng": "en", "mar": "mr", "hin": "hi", "tam": "ta", "tel": "te", "ben": "bn", "guj": "gu",
-    "kan": "kn", "mal": "ml", "pan": "pa", "ori": "or", "ory": "or", "san": "sa", "nep": "ne",
-    "urd": "ur", "asm": "as", "rus": "ru", "ukr": "uk", "ara": "ar", "fas": "fa", "per": "fa",
-    "heb": "he", "ell": "el", "gre": "el", "tha": "th", "fra": "fr", "fre": "fr", "deu": "de",
-    "ger": "de", "spa": "es", "ita": "it", "por": "pt", "nld": "nl", "dut": "nl", "pol": "pl",
-    "tur": "tr", "jpn": "ja", "kor": "ko", "zho": "zh", "chi": "zh", "vie": "vi", "ind": "id",
+    "eng": "en",
+    "mar": "mr",
+    "hin": "hi",
+    "tam": "ta",
+    "tel": "te",
+    "ben": "bn",
+    "guj": "gu",
+    "kan": "kn",
+    "mal": "ml",
+    "pan": "pa",
+    "ori": "or",
+    "ory": "or",
+    "san": "sa",
+    "nep": "ne",
+    "urd": "ur",
+    "asm": "as",
+    "rus": "ru",
+    "ukr": "uk",
+    "ara": "ar",
+    "fas": "fa",
+    "per": "fa",
+    "heb": "he",
+    "ell": "el",
+    "gre": "el",
+    "tha": "th",
+    "fra": "fr",
+    "fre": "fr",
+    "deu": "de",
+    "ger": "de",
+    "spa": "es",
+    "ita": "it",
+    "por": "pt",
+    "nld": "nl",
+    "dut": "nl",
+    "pol": "pl",
+    "tur": "tr",
+    "jpn": "ja",
+    "kor": "ko",
+    "zho": "zh",
+    "chi": "zh",
+    "vie": "vi",
+    "ind": "id",
 }
 CHRONOA_LIB = "/usr/lib/shani-chronoa"
 MODEL_GLOBS = [
@@ -58,7 +94,10 @@ def _settings() -> dict:
     from pathlib import Path
 
     path = os.environ.get("SHANI_SHELL_SETTINGS") or str(
-        Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "shani-shell" / "settings.json")
+        Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+        / "shani-shell"
+        / "settings.json"
+    )
     try:
         d = json.loads(Path(path).read_text())
         return d if isinstance(d, dict) else {}
@@ -68,11 +107,17 @@ def _settings() -> dict:
 
 def _stt_backend() -> str:
     # the environment wins (the suites, dev/session.sh), else the Settings choice
-    return os.environ.get("SHANI_DICTATE_ENGINE") or _settings().get("sttBackend") or "chronoa"
+    return (
+        os.environ.get("SHANI_DICTATE_ENGINE")
+        or _settings().get("sttBackend")
+        or "chronoa"
+    )
 
 
 def _whisper_model() -> str:
-    return os.environ.get("SHANI_WHISPER_MODEL") or _settings().get("whisperModel") or ""
+    return (
+        os.environ.get("SHANI_WHISPER_MODEL") or _settings().get("whisperModel") or ""
+    )
 
 
 def is_silent(wav: str) -> bool:
@@ -81,7 +126,10 @@ def is_silent(wav: str) -> bool:
         with wave.open(wav) as w:
             if w.getsampwidth() != 2:
                 return False
-            samples = array.array("h", w.readframes(w.getnframes()))
+            # a stuck recorder must not fill memory: 10 MB of 16-bit samples
+            samples = array.array(
+                "h", w.readframes(min(w.getnframes(), 5 * 1024 * 1024))
+            )
     except (OSError, EOFError, wave.Error):
         return False
     if sys.byteorder == "big":
@@ -89,8 +137,12 @@ def is_silent(wav: str) -> bool:
     if not samples:
         return True
     step = max(1, w.getframerate() * w.getnchannels() // 10)
-    loudest = max(math.sqrt(sum(x * x for x in samples[i:i + step]) / len(samples[i:i + step]))
-                  for i in range(0, len(samples), step))
+    loudest = max(
+        math.sqrt(
+            sum(x * x for x in samples[i : i + step]) / len(samples[i : i + step])
+        )
+        for i in range(0, len(samples), step)
+    )
     return loudest < SILENCE_RMS
 
 
@@ -121,7 +173,9 @@ def with_chronoa(lang: str, wav: str) -> str | None:
     except Exception:  # noqa: BLE001 - a broken install falls back, it does not fail dictation
         return None
     config = ChronoaConfig()
-    model = config.whisper_model or stt.installed_model(HardwareProfile().get_whisper_model())
+    model = config.whisper_model or stt.installed_model(
+        HardwareProfile().get_whisper_model()
+    )
     engine = stt.build_stt(model=model, language=lang, backend=config.stt_backend)
     if not engine.is_available():
         return None
@@ -131,11 +185,18 @@ def with_chronoa(lang: str, wav: str) -> str | None:
 def with_whisper_cli(lang: str, wav: str) -> str:
     cli = shutil.which("whisper-cli")
     model = _whisper_model() or next(
-        (m for g in MODEL_GLOBS for m in sorted(glob.glob(g))), "")
+        (m for g in MODEL_GLOBS for m in sorted(glob.glob(g))), ""
+    )
     if not cli or not model:
-        raise SystemExit("no speech model: install shani-chronoa (or whisper-cpp and a ggml model)")
-    out = subprocess.run([cli, "-m", model, "-l", lang, "-nt", "-np", "-f", wav],
-                         capture_output=True, text=True, timeout=300)
+        raise SystemExit(
+            "no speech model: install shani-chronoa (or whisper-cpp and a ggml model)"
+        )
+    out = subprocess.run(
+        [cli, "-m", model, "-l", lang, "-nt", "-np", "-f", wav],
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
     if out.returncode != 0:
         raise SystemExit(out.stderr.strip()[-300:] or "whisper-cli failed")
     return out.stdout

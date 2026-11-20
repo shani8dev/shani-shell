@@ -150,15 +150,6 @@ Singleton {
         put(root.configFile, _configToml());
         put(root.tplDir + "/colors.json.tpl", tplColors);   // Theme's own, out of scope of b
         for (const id in b) put(root.tplDir + "/" + _meta[id].tpl, b[id]);
-        // adoption: wire the generated file into GTK's own config, but only when
-        // GTK is actually on this system (its files exist)
-        if (on.indexOf("gtk") >= 0) {
-            for (const g of ["gtk-3.0", "gtk-4.0"]) {
-                s += "g='" + home + "/.config/" + g + "/gtk.css'; if [ -d '" + home + "/.config/" + g
-                   + "' ] && ! grep -q colors.css \"$g\" 2>/dev/null; "
-                   + "then printf '%b' \"$im\" >> \"$g\"; fi; ";
-            }
-        }
         put(root.tplDir + "/gtk-reload.sh", _gtkScript);
         s += "chmod +x '" + root.tplDir + "/gtk-reload.sh'; ";
         // adoption: wire the generated file into the app's own config, but only

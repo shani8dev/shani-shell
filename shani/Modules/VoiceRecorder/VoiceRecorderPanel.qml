@@ -20,7 +20,7 @@ AppWindow {
     onGone: Ui.voiceRecorder = false
     margins: 0
     implicitWidth: Theme.px(560)
-    implicitHeight: Math.max(320, Math.min(900, col.implicitHeight + 40))
+    implicitHeight: Math.max(320, Math.min(900, col.implicitHeight + 80))
 
     property string renaming: ""        // path being renamed, "" when none
 
@@ -72,7 +72,7 @@ AppWindow {
                     height: parent.height
                     radius: Theme.px(4)
                     color: VoiceRecorder.level > 0.9 ? Theme.red : Theme.accent
-                    Behavior on width { NumberAnimation { duration: 90 } }
+                    Behavior on width { NumberAnimation { duration: Theme.mot(90) } }
                 }
             }
 
@@ -148,6 +148,8 @@ AppWindow {
             }
 
             ListView {
+                reuseItems: true
+                cacheBuffer: 400
                 id: list
                 Layout.fillWidth: true
                 Layout.preferredHeight: Math.min(240, Math.max(44, VoiceRecorder.recordings.length * 48))

@@ -176,6 +176,8 @@ PanelWindow {
                     clip: true
 
                     ListView {
+                        reuseItems: true
+                        cacheBuffer: 400
                         id: list
                         anchors.fill: parent
                         anchors.margins: Theme.px(4)

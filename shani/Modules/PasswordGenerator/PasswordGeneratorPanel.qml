@@ -151,6 +151,8 @@ while True:
                 IconButton { size: Theme.px(28); icon: "view-refresh"; tip: Tr.t("Read again"); onClicked: win.refreshKeys() }
             }
             ListView {
+                reuseItems: true
+                cacheBuffer: 400
                 id: keyList
                 Layout.fillWidth: true
                 Layout.fillHeight: true

@@ -96,10 +96,10 @@ Item {
         visible: root.highlighted
         z: 10
         SequentialAnimation on opacity {
-            running: root.highlighted
+            running: root.highlighted && !Settings.data.reduceMotion
             loops: Animation.Infinite
-            NumberAnimation { from: 0.35; to: 1; duration: 420; easing.type: Easing.InOutSine }
-            NumberAnimation { from: 1; to: 0.35; duration: 420; easing.type: Easing.InOutSine }
+            NumberAnimation { from: 0.35; to: 1; duration: Theme.mot(420); easing.type: Easing.InOutSine }
+            NumberAnimation { from: 1; to: 0.35; duration: Theme.mot(420); easing.type: Easing.InOutSine }
         }
     }
 }

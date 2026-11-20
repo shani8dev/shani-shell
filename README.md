@@ -230,8 +230,8 @@ The Tour app shows every shortcut.
   calls — are tested against stand-ins only; two (casting to a TV, drives) have no
   check yet. [docs/GAPS.md](docs/GAPS.md) lists every one.
 - **Translations are partial**: Marathi and Hindi are translated for the shell's main surfaces
-  (1527 of 2347 strings; the newer app windows and settings still show in English); German, Spanish
-  and French cover first setup only.
+  (about 1525 of 2924 strings; the newer app windows and settings still show in English); German,
+  Spanish and French cover first setup only.
 - **What niri cannot give yet**: remote desktop through the portal, colour management, always on top,
   sticky/slow keys in the compositor.
 - **Not built**: online accounts, a session chooser at sign-in; a browser and an office suite stay Flatpaks.

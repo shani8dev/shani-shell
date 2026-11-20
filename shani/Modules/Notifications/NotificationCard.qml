@@ -24,6 +24,12 @@ Glass {
     property bool more: false            // Snooze and Ask Chronoa shown ("⋯" pressed)
     readonly property bool critical: notification && notification.urgency === NotificationUrgency.Critical
     readonly property string appName: notification ? (notification.appName || "Notification") : ""
+    // Notification bodies come from arbitrary apps. StyledText can load remote
+    // images through <img src>, so strip those tags before rendering.
+    function safeBody(body) { return String(body || "").replace(/<\s*img\b[^>]*>/gi, ""); }
+    function openLink(link) {
+        if (/^(https?:\/\/|mailto:)/i.test(link)) Qt.openUrlExternally(link);
+    }
     readonly property string appIcon: {
         const n = notification;
         if (!n)
@@ -50,7 +56,7 @@ Glass {
     signal done()
 
     radius: Theme.radiusLarge
-    implicitHeight: body.implicitHeight + 28
+    implicitHeight: body.implicitHeight + 34   // room for three wrapped body lines
     border.color: critical ? Theme.alpha(Theme.red, 0.6) : Theme.stroke
     strong: popup
 
@@ -240,6 +246,7 @@ Glass {
                 Text {
                     Layout.fillWidth: true
                     text: root.hideContent ? Tr.t("Notification") : (root.notification ? root.notification.summary : "")
+                    textFormat: Text.PlainText
                     color: root.hideContent ? Theme.dim : Theme.text
                     wrapMode: Text.Wrap
                     maximumLineCount: 2
@@ -252,7 +259,7 @@ Glass {
                 Text {
                     Layout.fillWidth: true
                     visible: !root.hideContent && text !== ""
-                    text: root.notification ? root.notification.body : ""
+                    text: root.hideContent ? "" : root.safeBody(root.notification ? root.notification.body : "")
                     textFormat: Text.StyledText
                     color: Theme.dim
                     linkColor: Theme.accent
@@ -262,7 +269,7 @@ Glass {
                     lineHeight: 1.1
                     font.family: Theme.font
                     font.pixelSize: Theme.px(12.5) * Theme.fontScale
-                    onLinkActivated: link => Qt.openUrlExternally(link)
+                    onLinkActivated: link => root.openLink(link)
                 }
             }
         }
@@ -331,13 +338,19 @@ Glass {
                         Layout.fillWidth: !modelData.narrow
                         Layout.preferredWidth: modelData.narrow ? 44 : -1
                         Layout.fillHeight: true
-                        color: pill.pressed ? Theme.pressed : pill.containsMouse ? Theme.alpha(Theme.accent, 0.22) : (index === 0 && root.actions.length > 0 ? Theme.accentSoft : Theme.hover)
+                        // a critical notification (an incoming call) needs an
+                        // unmissable primary action, not a soft-accent hint
+                        color: pill.pressed ? Theme.pressed
+                             : index === 0 && root.actions.length > 0 && root.critical ? Theme.accent
+                             : pill.containsMouse ? Theme.alpha(Theme.accent, 0.22)
+                             : index === 0 && root.actions.length > 0 ? Theme.accentSoft : Theme.hover
                         Text {
                             anchors.centerIn: parent
                             width: parent.width - 12
                             horizontalAlignment: Text.AlignHCenter
                             text: parent.modelData.text
-                            color: index === 0 && root.actions.length > 0 ? Theme.accent : Theme.text
+                            color: index === 0 && root.actions.length > 0 && root.critical ? Theme.accentInk
+                                 : index === 0 && root.actions.length > 0 ? Theme.accent : Theme.text
                             elide: Text.ElideRight
                             font.family: Theme.font
                             font.pixelSize: Theme.px(12) * Theme.fontScale

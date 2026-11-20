@@ -29,7 +29,7 @@ ColumnLayout {
         Layout.rightMargin: Theme.px(10)
         spacing: Theme.px(6)
         Repeater {
-            model: [["favourites", Tr.t("Favourites")], ["popular", Tr.t("Popular")], ["near", Tr.t("Near you")],
+            model: [["featured", Tr.t("Free picks")], ["favourites", Tr.t("Favourites")], ["popular", Tr.t("Popular")], ["near", Tr.t("Near you")],
                     ["genre:news", Tr.t("News")], ["genre:pop", Tr.t("Pop")], ["genre:rock", Tr.t("Rock")], ["genre:jazz", Tr.t("Jazz")],
                     ["genre:classical", Tr.t("Classical")], ["genre:bollywood", Tr.t("Bollywood")], ["genre:devotional", Tr.t("Devotional")],
                     ["genre:talk", Tr.t("Talk")], ["genre:electronic", Tr.t("Electronic")]]
@@ -48,6 +48,8 @@ ColumnLayout {
         font.pixelSize: Theme.px(12) * Theme.fontScale
     }
     ListView {
+        reuseItems: true
+        cacheBuffer: 400
         id: list
         Layout.fillWidth: true
         Layout.fillHeight: true

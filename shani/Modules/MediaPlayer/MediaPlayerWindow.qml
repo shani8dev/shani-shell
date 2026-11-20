@@ -4,7 +4,8 @@
 // volume, speed, repeat, shuffle, full screen. QtMultimedia plays (FFmpeg).
 //
 // Space plays and pauses; Left/Right 5 s, Shift for 30; Up/Down the volume;
-// N and P the next and the one before; M mutes; F full screen; O opens a file.
+// N and P the next and the one before; M mutes; F full screen; O opens a file;
+// R Radio, T Live TV, L the queue, I the mini player.
 // The image's default for video and audio files (dev.shani.MediaPlayer.desktop).
 import Quickshell
 import Quickshell.Io
@@ -78,7 +79,8 @@ AppWindow {
     }
     tools: [
         Choice { text: Tr.t("Library"); selected: win.page === "library"; onClicked: win.page = "library" },
-        Choice { text: Tr.t("Radio"); selected: win.page === "radio"; onClicked: { win.page = "radio"; if (Radio.showing === "") Radio.show(Radio.favourites.length ? "favourites" : "popular"); } },
+        Choice { text: Tr.t("Radio"); selected: win.page === "radio"; onClicked: { win.page = "radio"; if (Radio.showing === "") Radio.show(Radio.favourites.length ? "favourites" : "featured"); } },
+        Choice { text: Tr.t("Live TV"); selected: win.page === "live"; onClicked: { win.page = "live"; if (LiveTv.channels.length === 0) { if (LiveTv.source) LiveTv.load(LiveTv.source); else LiveTv.loadDefaults(); } } },
         Choice { text: Tr.t("Now playing"); selected: win.page === "playing"; enabled: PlayQueue.current !== ""; onClicked: win.page = "playing" }
     ]
     readonly property bool audioOnly: PlayQueue.current !== "" && !player.hasVideo
@@ -258,6 +260,8 @@ AppWindow {
         else if (e.key === Qt.Key_F) Niri.action("fullscreen-window");
         else if (e.key === Qt.Key_O) win.pick();
         else if (e.key === Qt.Key_L) win.listShown = !win.listShown;
+        else if (e.key === Qt.Key_R) { win.page = "radio"; if (Radio.showing === "") Radio.show(Radio.favourites.length ? "favourites" : "featured"); }
+        else if (e.key === Qt.Key_T) { win.page = "live"; if (!LiveTv.channels.length) { if (LiveTv.source) LiveTv.load(LiveTv.source); else LiveTv.loadDefaults(); } }
         else if (e.key === Qt.Key_I) win.setMini(!win.mini);
         else if (e.key === Qt.Key_Escape && win.mini) win.setMini(false);
         else return false;
@@ -287,6 +291,11 @@ AppWindow {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     visible: win.page === "radio" && !win.mini
+                }
+                LiveTvView {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    visible: win.page === "live" && !win.mini
                 }
                 // ---- the picture (or, for music, what is playing) ----
                 Rectangle {
@@ -631,6 +640,8 @@ AppWindow {
                     spacing: Theme.px(6)
                     SectionTitle { Layout.fillWidth: true; text: Tr.t("Queue") + "  ·  " + PlayQueue.queue.length }
                     ListView {
+                        reuseItems: true
+                        cacheBuffer: 400
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         clip: true

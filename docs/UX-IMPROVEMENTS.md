@@ -4,6 +4,13 @@ Gathered from a scan of `shani-shell` settings and surfaces plus standard
 discoverability/picker guidance. Items are ordered by impact; none require
 changing the IPC contract or settings schema.
 
+**Done since this list was written**: search-term highlighting, empty states,
+the recently-changed rail and per-setting reset, natural-language times and
+Today/Tomorrow date chips, the Settings toast with Undo, skeleton rows, the
+privacy dashboard, the nearest-city time map, and the settings search scroll.
+Still open: the "3 changed settings" variant of What's New, a global toast
+service, bottom sheets, widget resize, and a full colour picker.
+
 ## 1. Discoverability
 
 - **Highlight the matched term in settings search results** (SettingsIndex
@@ -384,7 +391,8 @@ are Adwaita symbolic.
   what would let plugin widgets place themselves.
 - **Hold-to-confirm power menu** — dux's `PowerMenuContent.qml` (427) and
   `DCommon/Session/LockPowerMenu.qml` (885) use a progress ring; our lock
-  screen uses "press twice".
+  screen now has a two-second hold with a ring, with press-twice kept as a
+  keyboard and screen-reader fallback (done).
 - **A system monitor with history** — CPU/mem/net graphs, plus dux's drive
   health tree (`Services/Drives.qml` lists drives only).
 

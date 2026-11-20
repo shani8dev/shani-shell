@@ -18,6 +18,7 @@ Formats by kind (what makes sense, not every codec there is):
     audio -> mp3, m4a (AAC), ogg (Vorbis), opus, flac, wav
     image -> jpg, png, webp, avif, pdf
 """
+
 from __future__ import annotations
 
 import json
@@ -30,18 +31,63 @@ from pathlib import Path
 
 FFMPEG = os.environ.get("SHANI_FFMPEG", "ffmpeg")
 FFPROBE = os.environ.get("SHANI_FFPROBE", "ffprobe")
-MAGICK = os.environ.get("SHANI_MAGICK") or ("magick" if shutil.which("magick") else "convert")
+MAGICK = os.environ.get("SHANI_MAGICK") or (
+    "magick" if shutil.which("magick") else "convert"
+)
 
-VIDEO_IN = {".mp4", ".mkv", ".webm", ".mov", ".avi", ".m4v", ".mpg", ".mpeg", ".ogv", ".wmv", ".flv", ".3gp", ".ts"}
-AUDIO_IN = {".mp3", ".flac", ".ogg", ".oga", ".opus", ".m4a", ".aac", ".wav", ".wma", ".aiff", ".aif", ".mka"}
-IMAGE_IN = {".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif", ".bmp", ".tif", ".tiff", ".heic", ".heif"}
+VIDEO_IN = {
+    ".mp4",
+    ".mkv",
+    ".webm",
+    ".mov",
+    ".avi",
+    ".m4v",
+    ".mpg",
+    ".mpeg",
+    ".ogv",
+    ".wmv",
+    ".flv",
+    ".3gp",
+    ".ts",
+}
+AUDIO_IN = {
+    ".mp3",
+    ".flac",
+    ".ogg",
+    ".oga",
+    ".opus",
+    ".m4a",
+    ".aac",
+    ".wav",
+    ".wma",
+    ".aiff",
+    ".aif",
+    ".mka",
+}
+IMAGE_IN = {
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".avif",
+    ".gif",
+    ".bmp",
+    ".tif",
+    ".tiff",
+    ".heic",
+    ".heif",
+}
 FORMATS = {
     "video": ["mp4", "webm", "mkv", "gif", "mp3", "m4a", "ogg"],
     "audio": ["mp3", "m4a", "ogg", "opus", "flac", "wav"],
     "image": ["jpg", "png", "webp", "avif", "pdf"],
 }
 # quality: (video crf for x264, vp9 crf, audio bitrate kbit/s, image quality)
-QUALITY = {"small": (28, 40, 96, 70), "balanced": (23, 33, 160, 85), "best": (18, 24, 256, 95)}
+QUALITY = {
+    "small": (28, 40, 96, 70),
+    "balanced": (23, 33, 160, 85),
+    "best": (18, 24, 256, 95),
+}
 
 
 def emit(obj: dict) -> None:
@@ -72,8 +118,21 @@ def free_name(src: Path, fmt: str) -> Path:
 
 def duration(src: Path) -> float:
     try:
-        out = subprocess.run([FFPROBE, "-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", str(src)],
-                             capture_output=True, text=True, timeout=30).stdout.strip()
+        out = subprocess.run(
+            [
+                FFPROBE,
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=nw=1:nk=1",
+                str(src),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        ).stdout.strip()
         return float(out)
     except (OSError, ValueError, subprocess.TimeoutExpired):
         return 0.0
@@ -81,20 +140,68 @@ def duration(src: Path) -> float:
 
 def ffmpeg_args(kind: str, fmt: str, q: str) -> list[str]:
     crf264, crfvp9, abr, _ = QUALITY[q]
-    audio_only = {"mp3": ["-vn", "-c:a", "libmp3lame", "-b:a", f"{abr}k"], "m4a": ["-vn", "-c:a", "aac", "-b:a", f"{abr}k"],
-                  "ogg": ["-vn", "-c:a", "libvorbis", "-b:a", f"{abr}k"], "opus": ["-vn", "-c:a", "libopus", "-b:a", f"{min(abr, 192)}k"],
-                  "flac": ["-vn", "-c:a", "flac"], "wav": ["-vn", "-c:a", "pcm_s16le"]}
+    audio_only = {
+        "mp3": ["-vn", "-c:a", "libmp3lame", "-b:a", f"{abr}k"],
+        "m4a": ["-vn", "-c:a", "aac", "-b:a", f"{abr}k"],
+        "ogg": ["-vn", "-c:a", "libvorbis", "-b:a", f"{abr}k"],
+        "opus": ["-vn", "-c:a", "libopus", "-b:a", f"{min(abr, 192)}k"],
+        "flac": ["-vn", "-c:a", "flac"],
+        "wav": ["-vn", "-c:a", "pcm_s16le"],
+    }
     if fmt in audio_only:
         return audio_only[fmt]
     if fmt == "mp4":
-        return ["-c:v", "libx264", "-preset", "medium", "-crf", str(crf264), "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", f"{abr}k", "-movflags", "+faststart"]
+        return [
+            "-c:v",
+            "libx264",
+            "-preset",
+            "medium",
+            "-crf",
+            str(crf264),
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-b:a",
+            f"{abr}k",
+            "-movflags",
+            "+faststart",
+        ]
     if fmt == "webm":
-        return ["-c:v", "libvpx-vp9", "-crf", str(crfvp9), "-b:v", "0", "-row-mt", "1", "-c:a", "libopus", "-b:a", f"{min(abr, 192)}k"]
+        return [
+            "-c:v",
+            "libvpx-vp9",
+            "-crf",
+            str(crfvp9),
+            "-b:v",
+            "0",
+            "-row-mt",
+            "1",
+            "-c:a",
+            "libopus",
+            "-b:a",
+            f"{min(abr, 192)}k",
+        ]
     if fmt == "mkv":
-        return ["-c:v", "libx264", "-preset", "medium", "-crf", str(crf264), "-c:a", "aac", "-b:a", f"{abr}k"]
+        return [
+            "-c:v",
+            "libx264",
+            "-preset",
+            "medium",
+            "-crf",
+            str(crf264),
+            "-c:a",
+            "aac",
+            "-b:a",
+            f"{abr}k",
+        ]
     if fmt == "gif":
         width = {"small": 360, "balanced": 480, "best": 720}[q]
-        return ["-vf", f"fps=12,scale={width}:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse", "-an"]
+        return [
+            "-vf",
+            f"fps=12,scale={width}:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse",
+            "-an",
+        ]
     raise ValueError(f"cannot make {fmt} from a {kind}")
 
 
@@ -123,7 +230,7 @@ def _afilters(o: "Options", seconds: float) -> list:
     out = []
     if o.speed != 1.0:
         tempo = o.speed
-        while tempo > 2.0:                     # atempo takes 0.5 to 2.0
+        while tempo > 2.0:  # atempo takes 0.5 to 2.0
             out.append("atempo=2.0")
             tempo /= 2.0
         while tempo < 0.5:
@@ -131,7 +238,7 @@ def _afilters(o: "Options", seconds: float) -> list:
             tempo /= 0.5
         out.append(f"atempo={tempo:.4f}")
     if o.volume != 100:
-        out.append(f"volume={o.volume / 100:.3f}")   # a fraction, not "50%"
+        out.append(f"volume={o.volume / 100:.3f}")  # a fraction, not "50%"
     if o.fade:
         out.append(f"afade=t=in:st=0:d={o.fade}")
         if seconds > o.fade:
@@ -169,17 +276,38 @@ def run(src: Path, fmt: str, q: str, options: "Optional[Options]" = None) -> int
             quality = QUALITY[q][3]
             # one page of a multi-frame picture (a gif's first frame) unless the target keeps frames
             source = f"{src}[0]" if fmt in ("jpg", "png", "avif", "pdf") else str(src)
-            cmd = [MAGICK, source, "-auto-orient", "-quality", str(quality), f"{fmt}:{part}"]
+            cmd = [
+                MAGICK,
+                source,
+                "-auto-orient",
+                "-quality",
+                str(quality),
+                f"{fmt}:{part}",
+            ]
             r = subprocess.run(cmd, capture_output=True, text=True)
             if r.returncode != 0:
-                raise RuntimeError(r.stderr.strip().split("\n")[-1] or "ImageMagick refused it")
+                raise RuntimeError(
+                    r.stderr.strip().split("\n")[-1] or "ImageMagick refused it"
+                )
         else:
             total = duration(src)
             o = options or Options()
             span = max(0.0, (o.end or total) - o.start) if (o.start or o.end) else total
-            container = {"mp3": "mp3", "m4a": "ipod", "ogg": "ogg", "opus": "opus", "flac": "flac", "wav": "wav",
-                         "mp4": "mp4", "webm": "webm", "mkv": "matroska", "gif": "gif"}[fmt]
-            cmd = [FFMPEG, "-hide_banner", "-nostdin", "-y"]
+            container = {
+                "mp3": "mp3",
+                "m4a": "ipod",
+                "ogg": "ogg",
+                "opus": "opus",
+                "flac": "flac",
+                "wav": "wav",
+                "mp4": "mp4",
+                "webm": "webm",
+                "mkv": "matroska",
+                "gif": "gif",
+            }[fmt]
+            # -loglevel error keeps stderr small: reading stdout first while a
+            # chatty ffmpeg fills stderr would deadlock on a corrupt input
+            cmd = [FFMPEG, "-hide_banner", "-nostdin", "-y", "-loglevel", "error"]
             if o.start or o.end:
                 # `-to` is an output option; before -i ffmpeg refuses it, so the
                 # length is what goes in (start is the input seek)
@@ -197,7 +325,9 @@ def run(src: Path, fmt: str, q: str, options: "Optional[Options]" = None) -> int
                 if value:
                     cmd += ["-metadata", f"{key}={value}"]
             cmd += ["-progress", "pipe:1", "-nostats", "-f", container, str(part)]
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            proc = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            )
             last = -1.0
             for line in proc.stdout:
                 m = re.match(r"out_time_us=(\d+)", line)
@@ -208,7 +338,9 @@ def run(src: Path, fmt: str, q: str, options: "Optional[Options]" = None) -> int
                         emit({"progress": round(p, 3)})
             err = proc.stderr.read()
             if proc.wait() != 0:
-                raise RuntimeError(err.strip().split("\n")[-1] if err.strip() else "ffmpeg stopped")
+                raise RuntimeError(
+                    err.strip().split("\n")[-1] if err.strip() else "ffmpeg stopped"
+                )
         part.rename(target)
     except (OSError, RuntimeError, ValueError) as exc:
         part.unlink(missing_ok=True)
@@ -234,8 +366,13 @@ def main(argv: list[str]) -> int:
                 i += 2
             else:
                 i += 1
-        return run(Path(argv[2]).expanduser(), argv[3].lower().lstrip("."), q, Options(**flags))
-    print("usage: convert.py formats FILE | run FILE FORMAT [small|balanced|best]", file=sys.stderr)
+        return run(
+            Path(argv[2]).expanduser(), argv[3].lower().lstrip("."), q, Options(**flags)
+        )
+    print(
+        "usage: convert.py formats FILE | run FILE FORMAT [small|balanced|best]",
+        file=sys.stderr,
+    )
     return 3
 
 

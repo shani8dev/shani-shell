@@ -10,9 +10,9 @@ Item {
     default property alias content: col.data
 
     Glass {
+        anchors.fill: parent
         radius: Theme.radius
         strong: false
-        Layout.fillWidth: true
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: Theme.px(12)

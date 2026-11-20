@@ -20,6 +20,7 @@ import Quickshell.Networking
 import Quickshell.Services.Greetd
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls
 import qs.Common
 import "strings.js" as Strings
 
@@ -412,7 +413,13 @@ ShellRoot {
                 onHideRequested: root.kb = false
             }
 
+            // the strong card is a thin material; blur the wallpaper behind it
+            // so field labels stay legible over the bright artwork
+            BackgroundEffect.blurRegion: Theme.blurred && win.primary ? cardRegion : null
+            Region { id: cardRegion; item: card; radius: Theme.radiusLarge }
+
             Glass {
+                id: card
                 visible: win.primary
                 anchors.centerIn: parent
                 anchors.verticalCenterOffset: root.kb ? -150 : 0
@@ -617,6 +624,7 @@ ShellRoot {
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
                                     clip: true
+                                    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AlwaysOn }
                                     spacing: 2
                                     function revealSelected() {
                                         if (langSearch.text.trim() !== "")
@@ -722,7 +730,24 @@ ShellRoot {
                                 readonly property bool online: Networking.connectivity === NetworkConnectivity.Full
                                 property string pending: ""
                                 property bool showPass: false
-                                onVisibleChanged: if (wifi) wifi.scannerEnabled = visible
+                                property bool autoTried: false
+                                // join the first open network in range once, so a
+                                // person on a public network is online before they
+                                // have to touch anything; secured ones still need a password
+                                function tryAuto() {
+                                    if (root.pageId !== "network" || !wifi || online || autoTried)
+                                        return;
+                                    const open = Array.from(wifi.networks.values).find(n =>
+                                        n.security === WifiSecurityType.Open && !n.connected && !n.stateChanging);
+                                    if (!open) return;
+                                    autoTried = true;
+                                    open.connect();
+                                }
+                                Connections { target: netPage.wifi; function onNetworksChanged() { netPage.tryAuto(); } }
+                                onVisibleChanged: {
+                                    if (wifi) wifi.scannerEnabled = visible;
+                                    if (visible) netPage.tryAuto();
+                                }
                                 onPendingChanged: showPass = false
                                 Timer {
                                     id: rescan
@@ -744,6 +769,10 @@ ShellRoot {
                                         wrapMode: Text.Wrap
                                         font.family: Theme.font
                                         font.pixelSize: 12 * Theme.fontScale
+                                    }
+                                    Spinner {
+                                        visible: netPage.wifi && Array.from(netPage.wifi.networks.values).some(n => n.stateChanging)
+                                        size: Theme.px(16)
                                     }
                                     Button {
                                         visible: netPage.wifi !== null && !netPage.online
@@ -1005,7 +1034,14 @@ ShellRoot {
                                     font.pixelSize: 11 * Theme.fontScale
                                 }
                                 FieldLabel { text: root.t("passwordAgain") }
-                                TextField { Layout.fillWidth: true; placeholder: root.t("passwordAgain"); secret: !root.showPassword; onTextChanged: root.password2 = text; onAccepted: root.next() }
+                                TextField {
+                                    Layout.fillWidth: true
+                                    placeholder: root.t("passwordAgain")
+                                    secret: !root.showPassword
+                                    error: root.accountProblem === root.t("mismatch") ? root.accountProblem : ""
+                                    onTextChanged: root.password2 = text
+                                    onAccepted: root.next()
+                                }
                                 FieldLabel { text: root.t("computerName") }
                                 RowLayout {
                                     Layout.fillWidth: true
@@ -1079,10 +1115,25 @@ ShellRoot {
 
                             // done
                             ColumnLayout {
+                                property int countdown: 3
                                 anchors.centerIn: parent
                                 visible: root.pageId === "done"
                                 spacing: 10
-                                Icon { Layout.alignment: Qt.AlignHCenter; name: "object-select-symbolic"; size: 56; color: Theme.accent }
+                                Timer {
+                                    interval: 1000
+                                    repeat: true
+                                    running: parent.visible && parent.countdown > 0
+                                    onTriggered: parent.countdown--
+                                }
+                                Item {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    implicitWidth: Theme.px(72); implicitHeight: Theme.px(72)
+                                    Avatar { anchors.fill: parent; user: root.username; home: "/home/" + root.username; size: parent.width }
+                                    Icon {
+                                        anchors { right: parent.right; bottom: parent.bottom }
+                                        name: "object-select-symbolic"; size: Theme.px(24); color: Theme.accent
+                                    }
+                                }
                                 Text {
                                     Layout.alignment: Qt.AlignHCenter
                                     visible: root.fullname.trim() !== ""
@@ -1091,6 +1142,14 @@ ShellRoot {
                                     font.family: Theme.font
                                     font.pixelSize: 20 * Theme.fontScale
                                     font.weight: Font.DemiBold
+                                }
+                                Text {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    visible: parent.countdown > 0
+                                    text: root.t("signingIn") + " " + parent.countdown + "…"
+                                    color: Theme.accent
+                                    font.family: Theme.font
+                                    font.pixelSize: 12 * Theme.fontScale
                                 }
                                 Text {
                                     Layout.alignment: Qt.AlignHCenter
@@ -1125,6 +1184,7 @@ ShellRoot {
                             Item { Layout.fillWidth: true }
                             Button { visible: root.pageId === "network"; kind: "outline"; text: root.t("continueOffline"); onClicked: root.next() }
                             Button {
+                                visible: root.pageId !== "network" || !netPage.online
                                 kind: "primary"
                                 text: root.pageId === "account" ? (root.status === "working" ? root.t("working") : root.t("start")) : root.t("next")
                                 enabled: (root.pageId !== "account" || (root.accountProblem === "" && root.status !== "working"))

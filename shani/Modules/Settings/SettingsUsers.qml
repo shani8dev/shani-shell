@@ -212,7 +212,14 @@ ColumnLayout {
         SwitchRow { id: newAdmin; Layout.fillWidth: true; text: Tr.t("Administrator"); checked: false }
         RowLayout {
             spacing: Theme.px(6)
-            Button { text: Tr.t("Cancel"); onClicked: page.adding = false }
+            Button {
+                text: Tr.t("Cancel")
+                onClicked: {
+                    page.adding = false;
+                    addForm.user = ""; addForm.userEdited = false;
+                    newName.text = ""; newPw.text = ""; newAdmin.checked = false;
+                }
+            }
             Button {
                 kind: "primary"
                 text: Tr.t("Add")

@@ -306,12 +306,6 @@ AppWindow {
             Quickshell.execDetached(["xdg-open", routeUrl]);
     }
 
-    function tileXY(cxp, cyp) {
-        const tx = Math.floor((cxp - (grid.width / 2 - 0)) / tile) + Math.floor(win.px / tile);
-        const ty = Math.floor(cyp / tile) + Math.floor(win.py / tile);
-        return { x: Math.round(win.px / tile + (cxp - grid.width / 2) / tile), y: Math.round(win.py / tile + (cyp - grid.height / 2) / tile) };
-    }
-
     Item {
         id: blurCard
         anchors.fill: parent
@@ -591,6 +585,8 @@ AppWindow {
                     Button { text: Tr.t("Go"); onClicked: win.directionsFrom(fromField.text) }
                 }
                 ListView {
+                    reuseItems: true
+                    cacheBuffer: 400
                     Layout.fillWidth: true
                     Layout.preferredHeight: Math.min(150, contentHeight)
                     clip: true

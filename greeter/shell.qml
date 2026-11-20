@@ -365,6 +365,11 @@ ShellRoot {
                 }
             }
 
+            // glassStrong is a thin material: blur what is behind it so the
+            // wallpaper cannot fight the text (the other shell surfaces do this)
+            BackgroundEffect.blurRegion: Theme.blurred && card.visible ? cardRegion : null
+            Region { id: cardRegion; item: card; radius: 22 }
+
             Rectangle {
                 id: card
                 visible: win.primary
@@ -456,6 +461,16 @@ ShellRoot {
                         onAccepted: { passField.input.forceActiveFocus(); root.faceTried = false; root.lookForFace(); }
                     }
 
+                    Text {
+                        Layout.fillWidth: true
+                        visible: root.asked && root.prompt !== "" && root.prompt !== "Password"
+                        text: "Enter the code from your authenticator, or the one sent to you."
+                        color: root.dimColor
+                        wrapMode: Text.Wrap
+                        font.family: Theme.font
+                        font.pixelSize: 12 * Theme.fontScale
+                    }
+
                     Field {
                         id: passField
                         Layout.fillWidth: true
@@ -467,6 +482,19 @@ ShellRoot {
                             root.submit(userField.text, text);
                             text = "";
                         }
+                    }
+
+                    // feedback belongs beside the field that caused it, not at
+                    // the bottom of the card where it reads as an afterthought
+                    Text {
+                        Layout.fillWidth: true
+                        visible: text !== ""
+                        text: root.error !== "" ? root.error : root.info
+                        color: root.error !== "" ? root.errColor : root.dimColor
+                        wrapMode: Text.Wrap
+                        font.family: Theme.font
+                        font.pixelSize: 13 * Theme.fontScale
+                        font.weight: root.error !== "" ? Font.DemiBold : Font.Normal
                     }
 
                     RowLayout {
@@ -496,20 +524,20 @@ ShellRoot {
 
                     Button {
                         Layout.alignment: Qt.AlignHCenter
+                        kind: "primary"
+                        visible: Greetd.state !== GreetdState.ReadyToLaunch
+                        enabled: root.asked || userField.text !== ""
+                        text: "Sign in"
+                        onClicked: { root.submit(userField.text, passField.text); passField.text = ""; }
+                    }
+
+                    Button {
+                        Layout.alignment: Qt.AlignHCenter
                         visible: root.fingerprint && !root.firstSignIn && !root.busy
                         text: "Use fingerprint"
                         onClicked: root.useFingerprint(userField.text)
                     }
 
-                    Text {
-                        Layout.fillWidth: true
-                        visible: text !== ""
-                        text: root.error !== "" ? root.error : root.info
-                        color: root.error !== "" ? root.errColor : root.dimColor
-                        wrapMode: Text.Wrap
-                        font.family: Theme.font
-                        font.pixelSize: 13 * Theme.fontScale
-                    }
                 }
 
                 Component.onCompleted: (userField.text === "" ? userField : passField).input.forceActiveFocus()

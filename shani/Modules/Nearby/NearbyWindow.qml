@@ -91,6 +91,8 @@ AppWindow {
                 IconButton { size: Theme.px(28); icon: "view-refresh"; tip: Tr.t("Look again"); enabled: !Nearby.scanning; onClicked: Nearby.scan() }
             }
             ListView {
+                reuseItems: true
+                cacheBuffer: 400
                 id: devList
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -112,7 +114,8 @@ AppWindow {
                     visible: devList.count === 0 && !Nearby.scanning
                     icon: "network-wireless"
                     title: Tr.t("No one nearby yet")
-                    subtitle: Tr.t("Open LocalSend on the phone or computer, on the same Wi-Fi")
+                    subtitle: !Nearby.visible_ ? Tr.t("Turn on “Visible to devices nearby” below so others can find you")
+                                              : Tr.t("Open LocalSend on the phone or computer, on the same Wi-Fi")
                 }
             }
 

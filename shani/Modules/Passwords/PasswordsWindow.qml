@@ -165,6 +165,8 @@ AppWindow {
             color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
         }
         ListView {
+            reuseItems: true
+            cacheBuffer: 400
             id: plist
             visible: win.tab === "passwords"
             Layout.fillWidth: true
@@ -243,6 +245,8 @@ AppWindow {
             }
         }
         ListView {
+            reuseItems: true
+            cacheBuffer: 400
             id: klist
             visible: win.tab === "gpg"
             Layout.fillWidth: true

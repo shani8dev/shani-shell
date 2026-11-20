@@ -16,6 +16,7 @@ with fusermount3 like sshfs. Files that are changed are written through a local
 cache (--vfs-cache-mode writes), so any app can save into them. The sign-ins
 stay in rclone's own config (~/.config/rclone/rclone.conf), as rclone keeps them.
 """
+
 from __future__ import annotations
 
 import json
@@ -25,12 +26,24 @@ import shutil
 import subprocess
 import sys
 
-TYPES = {"drive": "Google Drive", "onedrive": "OneDrive", "dropbox": "Dropbox", "box": "Box",
-         "pcloud": "pCloud", "yandex": "Yandex Disk", "webdav": "Nextcloud / WebDAV"}
+TYPES = {
+    "drive": "Google Drive",
+    "onedrive": "OneDrive",
+    "dropbox": "Dropbox",
+    "box": "Box",
+    "pcloud": "pCloud",
+    "yandex": "Yandex Disk",
+    "webdav": "Nextcloud / WebDAV",
+}
 
 
 def _rclone(*args, **kw):
-    return subprocess.run([shutil.which("rclone") or "rclone", *args], capture_output=True, text=True, **kw)
+    return subprocess.run(
+        [shutil.which("rclone") or "rclone", *args],
+        capture_output=True,
+        text=True,
+        **kw,
+    )
 
 
 def point(name: str) -> str:
@@ -54,7 +67,15 @@ def remotes() -> list[dict]:
             continue
         name, kind = m.groups()
         p = point(name)
-        out.append({"name": name, "type": kind, "label": TYPES.get(kind, kind), "path": p, "mounted": _mounted(p)})
+        out.append(
+            {
+                "name": name,
+                "type": kind,
+                "label": TYPES.get(kind, kind),
+                "path": p,
+                "mounted": _mounted(p),
+            }
+        )
     return out
 
 
@@ -66,12 +87,26 @@ def add(name: str, kind: str, answers: dict) -> dict:
     if any(x["name"] == name for x in remotes()):
         return {"error": "%s is there already" % name}
     if kind == "webdav":
-        url, user, pw = answers.get("url", ""), answers.get("user", ""), answers.get("password", "")
+        url, user, pw = (
+            answers.get("url", ""),
+            answers.get("user", ""),
+            answers.get("password", ""),
+        )
         if not url.startswith(("https://", "http://")):
             return {"error": "the address starts with https://"}
-        ob = _rclone("obscure", "-", input=pw).stdout.strip() if pw else ""     # never the password itself on a command line
-        args = ["config", "create", name, "webdav", "url=" + url, "vendor=" + ("nextcloud" if "nextcloud" in url or "/remote.php/" in url else "other"),
-                "user=" + user] + (["pass=" + ob] if ob else [])
+        ob = (
+            _rclone("obscure", "-", input=pw).stdout.strip() if pw else ""
+        )  # never the password itself on a command line
+        args = [
+            "config",
+            "create",
+            name,
+            "webdav",
+            "url=" + url,
+            "vendor="
+            + ("nextcloud" if "nextcloud" in url or "/remote.php/" in url else "other"),
+            "user=" + user,
+        ] + (["pass=" + ob] if ob else [])
         r = _rclone(*args, timeout=60)
     else:
         # rclone opens the provider's sign-in in the browser and waits for its answer
@@ -79,37 +114,65 @@ def add(name: str, kind: str, answers: dict) -> dict:
         r = _rclone("config", "create", name, kind, "config_is_local=true", timeout=600)
     if r.returncode != 0:
         _rclone("config", "delete", name)
-        return {"error": (r.stderr.strip().splitlines() or ["the sign-in did not finish"])[-1]}
+        return {
+            "error": (r.stderr.strip().splitlines() or ["the sign-in did not finish"])[
+                -1
+            ]
+        }
     return {"ok": True, "name": name}
 
 
 def mount(name: str) -> dict:
+    if not re.match(r"^[A-Za-z0-9][A-Za-z0-9 _-]{0,40}$", name or ""):
+        return {"error": "bad cloud name"}
     if not any(x["name"] == name for x in remotes()):
         return {"error": "no cloud drive called %s" % name}
     p = point(name)
     if _mounted(p):
         return {"path": p}
     os.makedirs(p, exist_ok=True)
-    r = _rclone("mount", name + ":", p, "--vfs-cache-mode", "writes", "--daemon", "--daemon-wait", "30s", timeout=60)
+    r = _rclone(
+        "mount",
+        name + ":",
+        p,
+        "--vfs-cache-mode",
+        "writes",
+        "--daemon",
+        "--daemon-wait",
+        "30s",
+        timeout=60,
+    )
     if r.returncode != 0:
         try:
             os.rmdir(p)
         except OSError:
             pass
-        return {"error": (r.stderr.strip().splitlines() or ["it could not be opened"])[-1]}
+        return {
+            "error": (r.stderr.strip().splitlines() or ["it could not be opened"])[-1]
+        }
     return {"path": p}
 
 
 def remove(name: str) -> dict:
+    # the same validation add() uses: a name with ".." must never rmdir outside
+    # the cloud folder
+    if not re.match(r"^[A-Za-z0-9][A-Za-z0-9 _-]{0,40}$", name or ""):
+        return {"error": "bad cloud name"}
     p = point(name)
     if _mounted(p):
-        subprocess.run([shutil.which("fusermount3") or "fusermount3", "-u", p], capture_output=True)
+        subprocess.run(
+            [shutil.which("fusermount3") or "fusermount3", "-u", p], capture_output=True
+        )
     try:
         os.rmdir(p)
     except OSError:
         pass
     r = _rclone("config", "delete", name)
-    return {"ok": r.returncode == 0} if r.returncode == 0 else {"error": r.stderr.strip() or "it could not be removed"}
+    return (
+        {"ok": r.returncode == 0}
+        if r.returncode == 0
+        else {"error": r.stderr.strip() or "it could not be removed"}
+    )
 
 
 def main(argv: list[str]) -> int:

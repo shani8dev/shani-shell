@@ -175,7 +175,7 @@ PanelWindow {
                 const want = Math.max(0, Math.min(contentHeight - height, s.y - Theme.px(12)));
                 contentY = want;
             }
-            Behavior on contentY { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+            Behavior on contentY { NumberAnimation { duration: Theme.mot(180); easing.type: Easing.OutCubic } }
             Column {
                 id: column
                 width: list.width
@@ -198,6 +198,8 @@ PanelWindow {
                             font.weight: Font.DemiBold
                         }
                         ListView {
+                            reuseItems: true
+                            cacheBuffer: 400
                             id: cards
                             width: parent.width
                             height: (shelf.modelData.big ? Theme.px(150) : Theme.px(124)) + Theme.px(16)
@@ -225,7 +227,7 @@ PanelWindow {
                                 border.width: here ? Theme.px(3) : 1
                                 border.color: here ? Theme.accent : Theme.border
                                 scale: here ? 1.06 : 1.0
-                                Behavior on scale { NumberAnimation { duration: 120 } }
+                                Behavior on scale { NumberAnimation { duration: Theme.mot(120) } }
                                 Accessible.role: Accessible.Button
                                 Accessible.name: modelData.label
                                 Column {

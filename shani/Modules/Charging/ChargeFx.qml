@@ -36,7 +36,7 @@ PanelWindow {
     }
     Timer { interval: 4000; running: true; onTriggered: win.armed = true }
     Timer { id: away; interval: 2600; onTriggered: win.shown = false }
-    NumberAnimation { id: fill; target: win; property: "level"; from: 0; to: Math.max(0.02, Power.percent); duration: 1100; easing.type: Easing.OutCubic }
+    NumberAnimation { id: fill; target: win; property: "level"; from: 0; to: Math.max(0.02, Power.percent); duration: Theme.mot(1100); easing.type: Easing.OutCubic }
     Connections {
         target: Power
         function onOnBatteryChanged() { if (win.armed && Power.hasBattery && !Power.onBattery) win.play(); }

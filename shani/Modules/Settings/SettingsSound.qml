@@ -113,6 +113,8 @@ ColumnLayout {
 
     Flow {
         Layout.fillWidth: true
+        enabled: page.d.fxEnabled
+        opacity: enabled ? 1 : 0.5
         spacing: Theme.px(6)
         Repeater {
             model: Object.keys(SoundFx.presets)
@@ -128,6 +130,8 @@ ColumnLayout {
     // the equaliser: drag a bar up or down, ±12 dB
     RowLayout {
         Layout.fillWidth: true
+        enabled: page.d.fxEnabled
+        opacity: enabled ? 1 : 0.5
         Layout.preferredHeight: Theme.px(150)
         spacing: Theme.px(4)
         Repeater {

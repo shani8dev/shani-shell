@@ -74,7 +74,14 @@ fi
 # on a fresh session - for working on one feature without the half hour. The whole
 # suite runs every part too, at the end.
 case "${SHELL_TEST_ONLY:-}" in part:*)
-    . "/work/dev/shell-parts/${SHELL_TEST_ONLY#part:}.sh"
+    # an empty or misspelled part must fail: the three checks above still PASS
+    # on an empty file, which used to make a typo look green
+    part="/work/dev/shell-parts/${SHELL_TEST_ONLY#part:}.sh"
+    if [ ! -s "$part" ]; then
+        echo "no shell part with that name: $part"
+        exit 2
+    fi
+    . "$part"
     bad=$(qml_bad); [ -z "$bad" ] && result shell-ends-clean PASS || { result shell-ends-clean FAIL; echo "$bad"; }
     exit $fail ;;
 esac
@@ -1696,7 +1703,7 @@ settings '{"tpAccel": "flat", "tpClick": "button-areas", "tpScrollMethod": "edge
 sleep 1.5
 f=/root/.config/niri/shani-input.kdl
 grep -q 'click-method "button-areas"' $f && grep -q 'scroll-method "edge"' $f && grep -q 'disabled-on-external-mouse' $f && ! grep -q '^ *numlock$' $f \
-    && [ "$(grep -c 'accel-profile "flat"' $f)" = 2 ] && niri validate -c /work/dev/niri/session.kdl >/dev/null 2>&1 && [ "$(g gtk-enable-primary-paste)" = false ] \
+    && [ "$(grep -c 'accel-profile "flat"' $f)" = 3 ] && niri validate -c /work/dev/niri/session.kdl >/dev/null 2>&1 && [ "$(g gtk-enable-primary-paste)" = false ] \
     && result pointer-details-reach-niri PASS || result pointer-details-reach-niri FAIL "$(niri validate -c /work/dev/niri/session.kdl 2>&1 | tail -1)"
 
 # ---- a drawing tablet and a touchscreen on one screen ------------------------------------

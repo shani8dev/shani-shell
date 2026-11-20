@@ -82,6 +82,8 @@ AppWindow {
             // ---- the next hours ----
             SectionTitle { Layout.fillWidth: true; visible: Weather.hourly.length > 0; text: Tr.t("Next hours") }
             ListView {
+                reuseItems: true
+                cacheBuffer: 400
                 Layout.fillWidth: true
                 Layout.preferredHeight: Theme.px(92)
                 visible: Weather.hourly.length > 0

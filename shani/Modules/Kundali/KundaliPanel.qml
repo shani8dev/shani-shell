@@ -88,8 +88,9 @@ AppWindow {
                 Layout.fillHeight: true
                 TextArea {
                     text: win.result
+                    placeholderText: Tr.t("Enter a date, then Calculate — tithi or the birth chart appears here")
                     readOnly: true
-                    font.family: "monospace"
+                    font.family: Theme.mono
                     font.pixelSize: Theme.px(12)
                     wrapMode: TextEdit.Wrap
                 }

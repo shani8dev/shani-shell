@@ -19,6 +19,7 @@ and your GPG keys.
 
 A secret is only ever printed for `reveal`, and read from stdin to be stored.
 """
+
 from __future__ import annotations
 
 import json
@@ -41,18 +42,43 @@ def _bus():
 
 
 def _call(c, path, iface, method, args=None, sig=None):
-    return c.call_sync(BUS, path, S + iface if not iface.startswith("org.") else iface, method, args,
-                       GLib.VariantType(sig) if sig else None, Gio.DBusCallFlags.NONE, 20000, None)
+    return c.call_sync(
+        BUS,
+        path,
+        S + iface if not iface.startswith("org.") else iface,
+        method,
+        args,
+        GLib.VariantType(sig) if sig else None,
+        Gio.DBusCallFlags.NONE,
+        20000,
+        None,
+    )
 
 
 def _prop(c, path, iface, name):
-    r = c.call_sync(BUS, path, "org.freedesktop.DBus.Properties", "Get", GLib.Variant("(ss)", (S + iface, name)),
-                    GLib.VariantType("(v)"), Gio.DBusCallFlags.NONE, 20000, None)
+    r = c.call_sync(
+        BUS,
+        path,
+        "org.freedesktop.DBus.Properties",
+        "Get",
+        GLib.Variant("(ss)", (S + iface, name)),
+        GLib.VariantType("(v)"),
+        Gio.DBusCallFlags.NONE,
+        20000,
+        None,
+    )
     return r.unpack()[0]
 
 
 def _session(c):
-    r = _call(c, ROOT, "Service", "OpenSession", GLib.Variant("(sv)", ("plain", GLib.Variant("s", ""))), "(vo)")
+    r = _call(
+        c,
+        ROOT,
+        "Service",
+        "OpenSession",
+        GLib.Variant("(sv)", ("plain", GLib.Variant("s", ""))),
+        "(vo)",
+    )
     return r.unpack()[1]
 
 
@@ -67,21 +93,35 @@ def list_all() -> dict:
             ips = _prop(c, cp, "Collection", "Items")
         except GLib.Error:
             continue
-        cols.append({"path": cp, "label": label or os.path.basename(cp), "locked": bool(locked)})
+        cols.append(
+            {"path": cp, "label": label or os.path.basename(cp), "locked": bool(locked)}
+        )
         for ip in ips:
             try:
-                items.append({"path": ip, "collection": cp, "label": _prop(c, ip, "Item", "Label"),
-                              "attributes": dict(_prop(c, ip, "Item", "Attributes")),
-                              "created": int(_prop(c, ip, "Item", "Created")), "modified": int(_prop(c, ip, "Item", "Modified"))})
+                items.append(
+                    {
+                        "path": ip,
+                        "collection": cp,
+                        "label": _prop(c, ip, "Item", "Label"),
+                        "attributes": dict(_prop(c, ip, "Item", "Attributes")),
+                        "created": int(_prop(c, ip, "Item", "Created")),
+                        "modified": int(_prop(c, ip, "Item", "Modified")),
+                    }
+                )
             except GLib.Error:
                 pass
     items.sort(key=lambda i: i["label"].lower())
-    try:                                                 # where a new one goes: the "default" keyring
-        default = _call(c, ROOT, "Service", "ReadAlias", GLib.Variant("(s)", ("default",)), "(o)").unpack()[0]
+    try:  # where a new one goes: the "default" keyring
+        default = _call(
+            c, ROOT, "Service", "ReadAlias", GLib.Variant("(s)", ("default",)), "(o)"
+        ).unpack()[0]
     except GLib.Error:
         default = "/"
     if default == "/":
-        default = next((x["path"] for x in cols if not x["path"].endswith("/session")), cols[0]["path"] if cols else "")
+        default = next(
+            (x["path"] for x in cols if not x["path"].endswith("/session")),
+            cols[0]["path"] if cols else "",
+        )
     return {"collections": cols, "items": items, "default": default}
 
 
@@ -100,16 +140,29 @@ def _secret(sess, text):
 def set_secret(item: str, text: str) -> dict:
     c = _bus()
     sess = _session(c)
-    _call(c, item, "Item", "SetSecret", GLib.Variant("((oayays))", (_secret(sess, text),)))
+    _call(
+        c, item, "Item", "SetSecret", GLib.Variant("((oayays))", (_secret(sess, text),))
+    )
     return {"ok": True}
 
 
 def add(collection: str, label: str, attributes: dict, text: str) -> dict:
     c = _bus()
     sess = _session(c)
-    props = {S + "Item.Label": GLib.Variant("s", label),
-             S + "Item.Attributes": GLib.Variant("a{ss}", {str(k): str(v) for k, v in attributes.items()})}
-    r = _call(c, collection, "Collection", "CreateItem", GLib.Variant("(a{sv}(oayays)b)", (props, _secret(sess, text), True)), "(oo)")
+    props = {
+        S + "Item.Label": GLib.Variant("s", label),
+        S + "Item.Attributes": GLib.Variant(
+            "a{ss}", {str(k): str(v) for k, v in attributes.items()}
+        ),
+    }
+    r = _call(
+        c,
+        collection,
+        "Collection",
+        "CreateItem",
+        GLib.Variant("(a{sv}(oayays)b)", (props, _secret(sess, text), True)),
+        "(oo)",
+    )
     return {"ok": True, "path": r.unpack()[0]}
 
 
@@ -120,14 +173,31 @@ def delete(item: str) -> dict:
 
 # ---- GPG keys --------------------------------------------------------------------
 def gpg_list() -> list[dict]:
-    r = subprocess.run(["gpg", "--batch", "--with-colons", "--list-keys"], capture_output=True, text=True)
-    sec = subprocess.run(["gpg", "--batch", "--with-colons", "--list-secret-keys"], capture_output=True, text=True).stdout
+    r = subprocess.run(
+        ["gpg", "--batch", "--with-colons", "--list-keys"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    sec = subprocess.run(
+        ["gpg", "--batch", "--with-colons", "--list-secret-keys"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    ).stdout
     secret_ids = {l.split(":")[4] for l in sec.splitlines() if l.startswith("sec:")}
     out, cur = [], None
     for line in r.stdout.splitlines():
         f = line.split(":")
         if f[0] == "pub":
-            cur = {"id": f[4], "uid": "", "created": int(f[5] or 0), "expires": int(f[6] or 0), "secret": f[4] in secret_ids, "fingerprint": ""}
+            cur = {
+                "id": f[4],
+                "uid": "",
+                "created": int(f[5] or 0),
+                "expires": int(f[6] or 0),
+                "secret": f[4] in secret_ids,
+                "fingerprint": "",
+            }
             out.append(cur)
         elif f[0] == "fpr" and cur is not None and not cur["fingerprint"]:
             cur["fingerprint"] = f[9]
@@ -141,8 +211,22 @@ def _gpg_pw(args, password):
     os.write(w, password.encode() + b"\n")
     os.close(w)
     try:
-        return subprocess.run(["gpg", "--batch", "--yes", "--pinentry-mode", "loopback", "--passphrase-fd", str(r)] + args,
-                              pass_fds=(r,), capture_output=True, text=True, timeout=120)
+        return subprocess.run(
+            [
+                "gpg",
+                "--batch",
+                "--yes",
+                "--pinentry-mode",
+                "loopback",
+                "--passphrase-fd",
+                str(r),
+            ]
+            + args,
+            pass_fds=(r,),
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
     finally:
         os.close(r)
 
@@ -153,14 +237,20 @@ def gpg_new(name: str, email: str, password: str) -> dict:
     uid = "%s <%s>" % (name.strip(), email.strip())
     r = _gpg_pw(["--quick-generate-key", uid, "default", "default", "3y"], password)
     if r.returncode != 0:
-        return {"error": (r.stderr.strip().splitlines() or ["the key could not be made"])[-1]}
+        return {
+            "error": (r.stderr.strip().splitlines() or ["the key could not be made"])[
+                -1
+            ]
+        }
     return {"ok": True}
 
 
 def gpg_export(key: str, out: str) -> dict:
     if os.path.lexists(out):
         return {"error": "%s is there already" % os.path.basename(out)}
-    r = subprocess.run(["gpg", "--batch", "--armor", "--export", key], capture_output=True)
+    r = subprocess.run(
+        ["gpg", "--batch", "--armor", "--export", key], capture_output=True, timeout=60
+    )
     if r.returncode != 0 or not r.stdout:
         return {"error": "nothing to export for %s" % key}
     with open(out, "xb") as f:
@@ -169,16 +259,38 @@ def gpg_export(key: str, out: str) -> dict:
 
 
 def gpg_import(path: str) -> dict:
-    r = subprocess.run(["gpg", "--batch", "--import", path], capture_output=True, text=True)
-    return {"ok": True} if r.returncode == 0 else {"error": (r.stderr.strip().splitlines() or ["not imported"])[-1]}
+    r = subprocess.run(
+        ["gpg", "--batch", "--import", path], capture_output=True, text=True, timeout=60
+    )
+    return (
+        {"ok": True}
+        if r.returncode == 0
+        else {"error": (r.stderr.strip().splitlines() or ["not imported"])[-1]}
+    )
 
 
 def gpg_delete(key: str) -> dict:
-    fpr = next((k["fingerprint"] for k in gpg_list() if k["id"] == key or k["fingerprint"] == key), "")
+    fpr = next(
+        (
+            k["fingerprint"]
+            for k in gpg_list()
+            if k["id"] == key or k["fingerprint"] == key
+        ),
+        "",
+    )
     if not fpr:
         return {"error": "no such key"}
-    r = subprocess.run(["gpg", "--batch", "--yes", "--delete-secret-and-public-key", fpr], capture_output=True, text=True)
-    return {"ok": True} if r.returncode == 0 else {"error": (r.stderr.strip().splitlines() or ["not deleted"])[-1]}
+    r = subprocess.run(
+        ["gpg", "--batch", "--yes", "--delete-secret-and-public-key", fpr],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    return (
+        {"ok": True}
+        if r.returncode == 0
+        else {"error": (r.stderr.strip().splitlines() or ["not deleted"])[-1]}
+    )
 
 
 def main(argv: list[str]) -> int:

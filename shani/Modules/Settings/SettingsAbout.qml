@@ -120,8 +120,11 @@ ColumnLayout {
     }
     TextField {
         Layout.fillWidth: true
+        id: hostnameField
         placeholder: Tr.t("Or another name - letters, digits and '-'")
+        error: page.renameError
         onAccepted: {
+            page.renameError = "";
             const n = text.trim();
             if (!/^[A-Za-z0-9][A-Za-z0-9-]{0,62}$/.test(n)) {
                 page.renameError = "letters, digits and '-' only, up to 63";
@@ -131,15 +134,6 @@ ColumnLayout {
             rename.running = true;
             text = "";
         }
-    }
-    Text {
-        Layout.fillWidth: true
-        visible: page.renameError !== ""
-        text: page.renameError
-        color: Theme.danger
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
     GridLayout {
         Layout.fillWidth: true

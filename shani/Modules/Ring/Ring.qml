@@ -207,9 +207,9 @@ PanelWindow {
         border.width: 1
         border.color: Theme.stroke
         scale: win.visible ? 1 : 0.6
-        Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutBack } }
-        Behavior on x { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
-        Behavior on y { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+        Behavior on scale { NumberAnimation { duration: Theme.mot(140); easing.type: Easing.OutBack } }
+        Behavior on x { NumberAnimation { duration: Theme.mot(160); easing.type: Easing.OutCubic } }
+        Behavior on y { NumberAnimation { duration: Theme.mot(160); easing.type: Easing.OutCubic } }
 
         // the centre: what the highlighted slice is
         Rectangle {
@@ -227,9 +227,9 @@ PanelWindow {
                 wrapMode: Text.Wrap
                 // nothing pointed at yet: say how it works, not an empty hole
                 text: win.hot >= 0 && win.items[win.hot] ? win.items[win.hot].label : (win.stack.length > 0 ? Tr.t("Back") : Tr.t("Point at one to see what it does · Esc closes"))
-                color: win.hot >= 0 ? Theme.text : Theme.faint
+                color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: (win.hot >= 0 || win.stack.length > 0 ? 12 : 10) * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
                 font.weight: win.hot >= 0 ? Font.DemiBold : Font.Normal
             }
         }
@@ -251,9 +251,9 @@ PanelWindow {
             color: isHot ? Theme.accent : Theme.hover
             border.width: modelData.children ? 1 : 0
             border.color: isHot ? Theme.accentInk : Theme.accentLine
-            Behavior on width { NumberAnimation { duration: 110 } }
-            Behavior on x { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
-            Behavior on y { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+            Behavior on width { NumberAnimation { duration: Theme.mot(110) } }
+            Behavior on x { NumberAnimation { duration: Theme.mot(160); easing.type: Easing.OutCubic } }
+            Behavior on y { NumberAnimation { duration: Theme.mot(160); easing.type: Easing.OutCubic } }
 
             Icon {
                 visible: !slice.modelData.app

@@ -44,7 +44,7 @@ RowLayout {
                 height: parent.height
                 radius: Theme.px(4)
                 color: Theme.alpha(Theme.accent, 0.35)
-                Behavior on width { NumberAnimation { duration: 60 } }
+                Behavior on width { NumberAnimation { duration: Theme.mot(60) } }
             }
             Rectangle {
                 width: Math.max(height, parent.width * Math.max(0, Math.min(1, root.value)))

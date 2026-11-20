@@ -36,7 +36,7 @@ Singleton {
     property bool playing: false
     property bool hasVideo: false
     property real position: 0             // seconds
-    property real duration: 0
+    property real duration: Theme.mot(0)
     property string error: ""
     property real volume: 1
     property bool muted: false

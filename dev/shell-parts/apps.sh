@@ -241,7 +241,7 @@ ipc closeAll
 app translate; waitfor "d['translateShown']" 5
 # ---- Authenticator: a code from the keyring -------------------------------------------------------
 python3 /work/bin/shani app authenticator >/dev/null 2>&1; waitfor "d['authenticatorShown']" 5
-python3 /work/bridge/otp.py add 'otpauth://totp/Example:alice@example.com?secret=JBSWY3DPEHPK3PXP&issuer=Example' >/dev/null 2>&1
+printf '%s' 'otpauth://totp/Example:alice@example.com?secret=JBSWY3DPEHPK3PXP&issuer=Example' | python3 /work/bridge/otp.py add >/dev/null 2>&1
 code=$(python3 /work/bridge/otp.py list 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin)[0]['code'])" 2>/dev/null)
 [ "${#code}" = 6 ] && result authenticator-keyring-gives-a-code PASS || result authenticator-keyring-gives-a-code FAIL "$(python3 /work/bridge/otp.py list 2>&1 | tail -1 | cut -c1-160)"
 ipc closeAll; python3 /work/bin/shani app authenticator >/dev/null 2>&1; sleep 1.5; shot app-authenticator-codes 0.2

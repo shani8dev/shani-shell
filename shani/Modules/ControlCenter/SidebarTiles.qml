@@ -157,7 +157,9 @@ ColumnLayout {
             expanded: Ui.expanded === "vpn"
             onToggled: {
                 const a = Net.vpns.find(v => v.active);
-                a ? Net.setVpn(a.name, false) : Net.setVpn(Net.vpns[0].name, true);
+                if (a) Net.setVpn(a.name, false);
+                else if (Net.vpns.length > 0) Net.setVpn(Net.vpns[0].name, true);
+                else if (Net.hasTailscale) Net.setTailscale(!Net.tailscaleUp);
             }
             onDetail: Ui.expanded = Ui.expanded === "vpn" ? "" : "vpn"
         }
@@ -572,7 +574,7 @@ ColumnLayout {
             tid: "characters"
             icon: "preferences-desktop-font"
             title: Tr.t("Characters")
-            subtitle: Tr.t("Symbols, arrows, math, scripts")
+            subtitle: Tr.t("Symbols & scripts")
             onToggled: {
                 Ui.closeAll();
                 Ui.characters = true;

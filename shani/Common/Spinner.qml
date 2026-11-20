@@ -36,7 +36,7 @@ Item {
         running: spinner.visible && !Settings.data.reduceMotion
         from: 0
         to: 360
-        duration: 900
+        duration: Theme.mot(900)
         loops: Animation.Infinite
     }
 

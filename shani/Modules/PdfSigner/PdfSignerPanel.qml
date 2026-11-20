@@ -162,6 +162,13 @@ AppWindow {
                         text: PdfSigner.signature
                         onAccepted: PdfSigner.setSignature(text)
                     }
+                    Text {
+                        Layout.fillWidth: true
+                        text: Tr.t("X  ·  Y  ·  SCALE")
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                    }
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Theme.px(6)
@@ -206,6 +213,13 @@ AppWindow {
                         label: Tr.t("Fill text")
                         text: PdfSigner.fillText
                         onAccepted: PdfSigner.setFillText(text)
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: Tr.t("X  ·  Y")
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
                     }
                     RowLayout {
                         Layout.fillWidth: true

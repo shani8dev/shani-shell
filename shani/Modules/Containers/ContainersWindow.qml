@@ -192,6 +192,8 @@ AppWindow {
             color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
         }
         ListView {
+            reuseItems: true
+            cacheBuffer: 400
             id: blist
             visible: win.tab === "boxes"
             Layout.fillWidth: true
@@ -268,6 +270,8 @@ AppWindow {
             color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
         }
         ListView {
+            reuseItems: true
+            cacheBuffer: 400
             id: clist
             visible: win.tab === "containers"
             Layout.fillWidth: true
@@ -346,6 +350,8 @@ AppWindow {
             }
         }
         ListView {
+            reuseItems: true
+            cacheBuffer: 400
             id: ilist
             visible: win.tab === "images"
             Layout.fillWidth: true

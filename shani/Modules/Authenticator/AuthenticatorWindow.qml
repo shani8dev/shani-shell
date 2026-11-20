@@ -27,7 +27,13 @@ AppWindow {
     property string copied: ""
 
     function refresh() { if (!lister.running) lister.running = true; }
-    function run(args) { writer.command = ["python3", win.tool].concat(args); writer.running = true; }
+    function run(args) {
+        // `add` carries the shared secret: hand it over on stdin, never in argv
+        writer.stdinEnabled = true;
+        writer.payload = args[0] === "add" && args.length > 1 ? args[1] : "";
+        writer.command = ["python3", win.tool].concat(writer.payload ? [args[0]] : args);
+        writer.running = true;
+    }
     onVisibleChanged: if (visible) refresh()
     Component.onCompleted: refresh()
     // the codes turn over every period: read again on the turn (and once a second, the time left)
@@ -41,6 +47,9 @@ AppWindow {
     }
     Process {
         id: writer
+        property string payload: ""
+        stdinEnabled: true
+        onStarted: { if (payload) { write(payload + "\n"); payload = ""; stdinEnabled = false; } }
         stdout: StdioCollector { id: wrote }
         stderr: StdioCollector { id: wroteErr }
         onExited: code => {
@@ -128,6 +137,8 @@ AppWindow {
             }
 
             ListView {
+                reuseItems: true
+                cacheBuffer: 400
                 id: list
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -161,9 +172,11 @@ AppWindow {
                                       : row.modelData.code.replace(/^(\d{3})(\d+)$/, "$1 $2")
                                 color: row.secondsLeft <= 5 ? Theme.danger : Theme.text
                                 font.family: Theme.mono
-                                font.pixelSize: Theme.px(26) * Theme.fontScale
+                                // "Touch your key" is a prompt, not a code —
+                                // code-size type swamps the row
+                                font.pixelSize: (row.modelData.touch || row.modelData.locked ? Theme.px(15) : Theme.px(26)) * Theme.fontScale
                                 font.weight: Font.DemiBold
-                                font.letterSpacing: 2
+                                font.letterSpacing: row.modelData.touch || row.modelData.locked ? 0 : 2
                             }
                             Text { visible: !!row.modelData.issuer && !!row.modelData.account; text: row.modelData.account; color: Theme.faint; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                         }

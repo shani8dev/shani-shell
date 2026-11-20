@@ -1,8 +1,8 @@
 pragma Singleton
 // One "Share…" for a file (after the share sheets of macOS and Windows): the
 // phone (KDE Connect), a paired Bluetooth device, a device on the Wi-Fi with LocalSend (nearby devices of
-// any kind — the image's AirDrop), email, or the clipboard — as the file
-// itself (text/uri-list, so it pastes into Files or a chat) or its path.
+// any kind — the image's AirDrop), a folder opened as a QR link on this network, email, or the clipboard —
+// as the file itself (text/uri-list, so it pastes into Files or a chat) or its path.
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -21,6 +21,14 @@ Singleton {
         ...(Phone.reachable ? [{ icon: "phone", label: "Send to " + Phone.name, run: () => Phone.send(root.file) }] : []),
         ...BtSend.devices.map(d => ({ icon: d.icon || "bluetooth-active", label: "Bluetooth: " + (d.name || d.address), run: () => { BtSend.pick(root.file); BtSend.sendTo(d); } })),
         { icon: "network-wireless", label: Tr.t("Nearby devices (LocalSend)"), run: () => { Nearby.pending = [root.file]; Ui.closeAll(); Ui.nearby = true; } },
+        // The QR link lives in Files; bring it here so every way of handing a
+        // file over is on one sheet. A folder is picked explicitly, so sharing
+        // never silently exposes the rest of the file's folder.
+        { icon: "network-workgroup", label: Tr.t("Share a folder by link (QR)"), run: () => {
+            Ui.closeAll();
+            FilePicker.open({ mode: "folder", title: Tr.t("A folder to share on this Wi-Fi"),
+                              onPicked: paths => { if (paths.length) { Files.serveFolder(paths[0], false); Files.show(paths[0]); } } });
+        } },
         { icon: "mail-send", label: Tr.t("Email"), run: () => Quickshell.execDetached(["xdg-email", "--attach", root.file]) },
         { icon: "edit-copy", label: Tr.t("Copy the file"), run: () => { copyFile.command = ["sh", "-c", 'printf "file://%s\\r\\n" "$1" | wl-copy --type text/uri-list', "sh", root.file]; copyFile.running = true; } },
         { icon: "edit-copy", label: Tr.t("Copy its path"), run: () => Quickshell.clipboardText = root.file },

@@ -16,6 +16,21 @@ ColumnLayout {
     readonly property string hour: value.split(":")[0] || "19"
     readonly property string minute: value.split(":")[1] || "00"
 
+    // HH:MM or a spoken time: "9am", "9:30 pm", "21:00". Returns [hour, minute]
+    // or null when it is not a time; no date is stored by this picker.
+    function parseTime(text) {
+        const s = String(text || "").trim().toLowerCase().replace(/\s+/g, "");
+        let m = /^(\d{1,2})(?::(\d{2}))?(am|pm)$/.exec(s);
+        if (!m) m = /^(\d{1,2}):(\d{2})$/.exec(s);
+        if (!m) return null;
+        let h = parseInt(m[1], 10), mi = m[2] ? parseInt(m[2], 10) : 0;
+        if (m[3]) {
+            if (h < 1 || h > 12) return null;
+            h = (h % 12) + (m[3] === "pm" ? 12 : 0);
+        }
+        return h <= 23 && mi <= 59 ? [h, mi] : null;
+    }
+
     function set(h, m) {
         const time = String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
         root.value = time;
@@ -87,17 +102,12 @@ ColumnLayout {
         TextField {
             id: customField
             Layout.fillWidth: true
-            placeholder: Tr.t("Custom — HH:MM, e.g. 23:45")
+            placeholder: Tr.t("Custom — HH:MM or 9am")
             onAccepted: {
-                const t = customField.text.trim();
-                if (/^\d\d?:\d\d$/.test(t)) {
-                    const parts = t.split(":");
-                    const h = parseInt(parts[0], 10);
-                    const m = parseInt(parts[1], 10);
-                    if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
-                        root.set(h, m);
-                        customField.text = "";
-                    }
+                const parsed = root.parseTime(customField.text);
+                if (parsed) {
+                    root.set(parsed[0], parsed[1]);
+                    customField.text = "";
                 }
             }
         }

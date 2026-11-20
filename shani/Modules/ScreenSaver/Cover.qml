@@ -32,7 +32,7 @@ Variants {
             anchors.fill: parent
             opacity: 0
             // in, slowly - never a jump to black
-            NumberAnimation on opacity { id: fadeIn; running: false; from: 0; to: 1; duration: 900; easing.type: Easing.OutCubic }
+            NumberAnimation on opacity { id: fadeIn; running: false; from: 0; to: 1; duration: Theme.mot(900); easing.type: Easing.OutCubic }
             Connections { target: cover; function onVisibleChanged() { if (cover.visible) { stage.opacity = 0; fadeIn.restart(); cover.drift(); } } }
             Component.onCompleted: if (cover.visible) { stage.opacity = 0; fadeIn.restart(); cover.drift(); }   // made on first use, already visible
 
@@ -48,8 +48,8 @@ Variants {
                 SequentialAnimation on scale {
                     running: cover.visible && !cover.photos && !PowerState.onBattery && !Settings.data.reduceMotion
                     loops: Animation.Infinite
-                    NumberAnimation { from: 1; to: 1.08; duration: 90000; easing.type: Easing.InOutSine }
-                    NumberAnimation { from: 1.08; to: 1; duration: 90000; easing.type: Easing.InOutSine }
+                    NumberAnimation { from: 1; to: 1.08; duration: Theme.mot(90000); easing.type: Easing.InOutSine }
+                    NumberAnimation { from: 1.08; to: 1; duration: Theme.mot(90000); easing.type: Easing.InOutSine }
                 }
             }
 
@@ -68,8 +68,8 @@ Variants {
                 onA = !onA;
             }
             Timer { interval: 12000; repeat: true; running: cover.visible && cover.photos; triggeredOnStart: true; onTriggered: stage.nextPhoto() }
-            Image { id: a; visible: cover.photos; anchors.fill: parent; fillMode: Image.PreserveAspectCrop; asynchronous: true; sourceSize: Qt.size(parent.width, parent.height); opacity: stage.onA ? 0 : 1; Behavior on opacity { NumberAnimation { duration: 2000 } } }
-            Image { id: b; visible: cover.photos; anchors.fill: parent; fillMode: Image.PreserveAspectCrop; asynchronous: true; sourceSize: Qt.size(parent.width, parent.height); opacity: stage.onA ? 1 : 0; Behavior on opacity { NumberAnimation { duration: 2000 } } }
+            Image { id: a; visible: cover.photos; anchors.fill: parent; fillMode: Image.PreserveAspectCrop; asynchronous: true; sourceSize: Qt.size(parent.width, parent.height); opacity: stage.onA ? 0 : 1; Behavior on opacity { NumberAnimation { duration: Theme.mot(2000) } } }
+            Image { id: b; visible: cover.photos; anchors.fill: parent; fillMode: Image.PreserveAspectCrop; asynchronous: true; sourceSize: Qt.size(parent.width, parent.height); opacity: stage.onA ? 1 : 0; Behavior on opacity { NumberAnimation { duration: Theme.mot(2000) } } }
             Rectangle { visible: cover.photos; anchors.fill: parent; gradient: Gradient { GradientStop { position: 0.6; color: "transparent" } GradientStop { position: 1; color: Qt.rgba(0, 0, 0, 0.55) } } }
 
             // ---- the clock: large, or small in a corner over photos; it moves
@@ -78,8 +78,8 @@ Variants {
                 spacing: Theme.px(6)
                 x: (cover.width - width) / 2 + cover.dx
                 y: cover.photos ? cover.height - height - 48 : (cover.height - height) / 2 + cover.dy
-                Behavior on x { NumberAnimation { duration: 2500; easing.type: Easing.InOutSine } }
-                Behavior on y { NumberAnimation { duration: 2500; easing.type: Easing.InOutSine } }
+                Behavior on x { NumberAnimation { duration: Theme.mot(2500); easing.type: Easing.InOutSine } }
+                Behavior on y { NumberAnimation { duration: Theme.mot(2500); easing.type: Easing.InOutSine } }
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: Qt.formatTime(clock.date, Settings.data.use24h ? "HH:mm" : "h:mm")

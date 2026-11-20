@@ -116,7 +116,7 @@ AppWindow {
         if (view === "week")
             offset += delta;
         else
-            offset += delta;
+            stepMonth(delta);   // keep the selected day inside the shown month
     }
     // the week on screen: seven days from its first, which follows "week starts on"
     readonly property date weekStart: new Date(weekAnchor.getFullYear(), weekAnchor.getMonth(),
@@ -250,6 +250,12 @@ AppWindow {
                 }
                 Item { Layout.fillWidth: true }
                 Choice { text: Tr.t("Today"); onClicked: win.goToday() }
+                Button {
+                    visible: !win.editor
+                    text: Tr.t("New event")
+                    kind: "primary"
+                    onClicked: win.openEditor(null)
+                }
             }
 
             RowLayout {
@@ -785,14 +791,6 @@ AppWindow {
                     Button { Layout.fillWidth: true; text: Tr.t("Cancel"); onClicked: win.closeEditor() }
                     Button { visible: win.editingEvent !== null; text: Tr.t("Delete"); kind: "danger"; onClicked: win.deleteEditor() }
                 }
-            }
-
-            Button {
-                visible: !win.editor
-                Layout.fillWidth: true
-                text: Tr.t("New event")
-                kind: "primary"
-                onClicked: win.openEditor(null)
             }
 
             Text {

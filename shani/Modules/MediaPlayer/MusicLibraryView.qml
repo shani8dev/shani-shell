@@ -104,6 +104,8 @@ Rectangle {
 
         // ---- artists ----
         ListView {
+            reuseItems: true
+            cacheBuffer: 400
             id: artistList
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -151,6 +153,8 @@ Rectangle {
 
         // ---- songs: an album's, or every one ----
         ListView {
+            reuseItems: true
+            cacheBuffer: 400
             id: songList
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -190,6 +194,8 @@ Rectangle {
 
         // ---- videos: by folder (a series' episodes together), each with a frame of it ----
         ListView {
+            reuseItems: true
+            cacheBuffer: 400
             id: videoList
             Layout.fillWidth: true
             Layout.fillHeight: true

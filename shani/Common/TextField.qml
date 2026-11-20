@@ -16,13 +16,16 @@ Rectangle {
     // Ananta's PasswordField: a long secret is impossible to check for typos
     // when it is always masked, so a secret field carries a show/hide eye.
     property bool revealed: false
+    // a one-line reason shown under the field, in red, when the value is wrong
+    property string error: ""
     signal accepted()
 
-    implicitHeight: Math.max(Theme.px(38), Theme.touchTarget)
+    implicitHeight: Math.max(Theme.px(38), Theme.touchTarget) + (root.error !== "" ? Theme.px(16) : 0)
     radius: Theme.radiusSmall
     color: Theme.surface1
     border.width: 1
-    border.color: input.activeFocus ? Theme.accent : Theme.stroke
+    border.color: root.error !== "" ? Theme.danger : (input.activeFocus ? Theme.accent : Theme.stroke)
+    Accessible.description: root.error
 
     Text { id: a11yLabel; text: root.label || root.placeholder; opacity: 0; width: 0; height: 0; Accessible.name: text }
     TextInput {
@@ -30,6 +33,7 @@ Rectangle {
         anchors.fill: parent
         anchors.leftMargin: Theme.px(12)
         anchors.rightMargin: Theme.px(12) + (root.secret ? Theme.px(34) : 0)
+        anchors.bottomMargin: root.error !== "" ? Theme.px(16) : 0
         verticalAlignment: TextInput.AlignVCenter
         color: Theme.text
         selectionColor: Theme.accent
@@ -89,5 +93,21 @@ Rectangle {
         Accessible.name: root.revealed ? Tr.t("Hide secret") : Tr.t("Show secret")
         Accessible.onPressAction: root.revealed = !root.revealed
         KeyFocus { onActivated: root.revealed = !root.revealed }
+    }
+
+    Rectangle {
+        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+        height: Theme.px(2)
+        visible: root.error !== ""
+        color: Theme.danger
+    }
+    Text {
+        anchors { left: parent.left; right: parent.right; top: parent.bottom; topMargin: Theme.px(2) }
+        visible: root.error !== ""
+        text: root.error
+        color: Theme.danger
+        wrapMode: Text.Wrap
+        font.family: Theme.font
+        font.pixelSize: Theme.px(10) * Theme.fontScale
     }
 }

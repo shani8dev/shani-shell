@@ -99,7 +99,7 @@ Variants {
                 anchors.margins: Theme.px(14)
                 spacing: Theme.px(6)
                 Label { text: Tr.t("Coming up"); color: Theme.dim; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold }
-                Label { visible: Agenda.upcoming.length === 0; text: Agenda.available ? Tr.t("Nothing in the calendar") : Tr.t("Add a calendar in Settings > Your account"); color: Theme.faint }
+                Label { visible: Agenda.upcoming.length === 0; text: Agenda.available ? Tr.t("Nothing in the calendar") : Tr.t("Add a calendar in Settings > Your account"); color: Theme.dim }
                 Repeater {
                     model: Agenda.upcoming.slice(0, 4)
                     Column {
@@ -185,7 +185,7 @@ Variants {
                 anchors.margins: Theme.px(14)
                 spacing: Theme.px(4)
                 Label { text: Tr.t("World clocks"); color: Theme.dim; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold }
-                Label { visible: WorldClock.clocks.length === 0; text: Tr.t("Pick cities under the calendar"); color: Theme.faint }
+                Label { visible: WorldClock.clocks.length === 0; text: Tr.t("Pick cities under the calendar"); color: Theme.dim }
                 Repeater {
                     model: WorldClock.clocks
                     Row {

@@ -90,6 +90,8 @@ AppWindow {
             }
 
             ListView {
+                reuseItems: true
+                cacheBuffer: 400
                 id: monthList
                 Layout.fillWidth: true
                 Layout.fillHeight: true

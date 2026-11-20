@@ -866,6 +866,8 @@ AppWindow {
 
                         // the list: a row per file
                         ListView {
+                            reuseItems: true
+                            cacheBuffer: 400
                             id: list
                             anchors.fill: parent
                             anchors.margins: Theme.px(4)
@@ -1605,6 +1607,8 @@ AppWindow {
                 IconButton { icon: "window-close"; size: Theme.px(26); tip: Tr.t("Close"); onClicked: Files.comparison = null }
             }
             ListView {
+                reuseItems: true
+                cacheBuffer: 400
                 id: compareList
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -2037,6 +2041,8 @@ AppWindow {
             }
             Text { visible: !Files.copyHistory.length; text: Tr.t("No copies yet"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
             ListView {
+                reuseItems: true
+                cacheBuffer: 400
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true

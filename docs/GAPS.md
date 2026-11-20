@@ -41,13 +41,14 @@ centre, and against what a session needs before any app runs.
 
 ## Not built — yet
 
-- **Headphone virtual surround.** Implemented via the matrix_spatialiser LADSPA plugin (shipped in ladspa) as a "Stereo widening" toggle in Settings › Sound effects, behind `SoundFx.canSpatial`. The convolver-based virtual surround (KEMAR/Hesuvi HRIR) still needs HRIR wav files that no package ships; stereo widening is what is available.
+- **Headphone virtual surround (stereo widening is done).** Implemented via the matrix_spatialiser LADSPA plugin (shipped in ladspa) as a "Stereo widening" toggle in Settings › Sound effects, behind `SoundFx.canSpatial`. The convolver-based virtual surround (KEMAR/Hesuvi HRIR) still needs HRIR wav files that no package ships; stereo widening is what is available.
 - **More setup-wizard languages** than English, मराठी, हिन्दी, Deutsch, Español,
   Français (strings.js).
-- **Translations**: 1527 of 2347 strings are translated into Marathi and Hindi
-  (the bar, control centre, Settings and its pages, launcher, notifications, lock
-  screen, overview, dock, window menu). The 820 still missing are the newer app
-  windows and settings (Files, Archives, Quick Look, the viewers, the terminal);
+- **Translations**: about 1525 of 2924 catalog strings are translated into
+  Marathi and Hindi (the bar, control centre, Settings and its pages, launcher,
+  notifications, lock screen, overview, dock, window menu). The rest are the
+  newer app windows and settings (Files, Archives, Quick Look, the viewers, the
+  terminal);
   German, Spanish and French have setup only. The untranslated strings show in
   English, or - opt-in - are translated by Chronoa's local model, which got about
   a third of short labels wrong when measured with Qwen3-8B. Strings built by
@@ -124,10 +125,10 @@ been used on a real screen and nothing below is in the way.
 - **Files**: offered for folders; Nautilus stays the default and is the
   portal's file chooser. Has copy / cut / paste (with other apps), undo, the
   trash's put back and empty, search through folders, Properties, batch rename
-  and bookmarks (dev/shell-parts/files-ops.sh). Not yet: tabs, dragging files
-  out to other apps, network places (SMB, SFTP), finding duplicates, cloud
-  folders (rclone), a progress bar for a long copy (it runs in one call),
-  conflicts asked about rather than always "name (2)".
+  and bookmarks (dev/shell-parts/files-ops.sh). Also: tabs, network places
+  (SMB, SFTP), cloud folders (rclone), long-copy progress with stop, and asked
+  conflicts. Still missing: dragging files out to other apps and finding
+  duplicates.
 - **Maps**: drag, zoom, search, directions (OSRM's public server: fine for a
   person, not for heavy use). No offline maps, no transit, no live traffic.
   GNOME Maps stays.
@@ -188,7 +189,8 @@ Each needs real hardware or shani-testbed:
   and connect in silence; phones over Bluetooth (Chronoa) carry sound.
 
 ## Improved (Nov 2026)
-- Translations: 1527/2347 Marathi/Hindi strings done; the remaining 820 (newer app windows and settings) are documented above.
+- Translations: ~1525/2924 Marathi/Hindi strings done; the rest (newer app windows and settings) are documented above.
+- Live TV, free radio picks, a QR folder-link share target, health check and problem report are now in the shell (Media Player / Share / About).
 - Real-hardware runs: nested niri only; shani-testbed boot needed for Wi-Fi BT multi-screen recording.
 # Improvements applied (Nov 2026)
 - Scratchpads: plugin manifest + full settings schema + service lifecycle
@@ -237,5 +239,6 @@ Each needs real hardware or shani-testbed:
 ## Input & accessibility (Nov 2026)
 - Keyboard backlight: auto/on/off + sidebar tile + brightnessctl wiring (ThinkPad-style `tpacpi::kbd_backlight`).
 - Touchpad: middle-emulation, drag-lock, tap-button-map added to InputConfig.kdl; niri 26.04 does not expose per-gesture toggles (3-finger swipe etc. are built in) — left as niri's.
+- niri options that are only in git main ("next release"): tablet mapping to the focused window, per-output `max-bpc` and `drm-lease`. Arch's `extra/niri` is 26.04; the config guard puts the old file back if a setting writes one of these, with a warning. `track-layout "window"` *is* in 26.04.
 - Recording: video codec choice (auto/H.264/HEVC/VP9/AV1) via wf-recorder -c; screenshot auto-copy to clipboard.
 - Snooze length (5/10/30/60 min) and media controls on the lock screen are now settings.

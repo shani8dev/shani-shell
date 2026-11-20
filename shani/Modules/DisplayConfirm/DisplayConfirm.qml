@@ -54,6 +54,18 @@ Variants {
                     font.family: Theme.font
                     font.pixelSize: Theme.px(12) * Theme.fontScale
                 }
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: Theme.px(3)
+                    radius: Theme.px(2)
+                    color: Theme.surface3
+                    Rectangle {
+                        width: parent.width * Math.min(1, Math.max(0, Displays.countdown / 15))
+                        height: parent.height
+                        radius: parent.radius
+                        color: Theme.amber
+                    }
+                }
                 RowLayout {
                     Layout.alignment: Qt.AlignRight
                     spacing: Theme.px(8)

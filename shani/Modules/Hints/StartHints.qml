@@ -55,7 +55,7 @@ PanelWindow {
                         color: Theme.alpha(Theme.text, 0.09)
                         Text { anchors.centerIn: parent; text: parent.parent.modelData.keys; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.Medium }
                     }
-                    Text { anchors.verticalCenter: parent.verticalCenter; text: parent.modelData.what; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                    Text { anchors.verticalCenter: parent.verticalCenter; text: parent.modelData.what; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
                 }
             }
         }

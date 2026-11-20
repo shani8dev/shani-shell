@@ -139,8 +139,8 @@ PanelWindow {
         border.width: 1
         border.color: win.mode === "approval" ? Theme.alpha(Theme.red, 0.45) : win.working ? Theme.alpha(Chronoa.color, 0.45) : Theme.stroke
         clip: true
-        Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-        Behavior on height { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+        Behavior on width { NumberAnimation { duration: Theme.mot(220); easing.type: Easing.OutCubic } }
+        Behavior on height { NumberAnimation { duration: Theme.mot(220); easing.type: Easing.OutCubic } }
         // fade so mode changes feel like a shape, not a jump
         Behavior on opacity { NumberAnimation { duration: Theme.anim; easing.type: Easing.OutCubic } }
         onWidthChanged: reportTimer.restart()
@@ -164,10 +164,10 @@ PanelWindow {
                 autoPaddingEnabled: true
             }
             SequentialAnimation {
-                running: win.working && Chronoa.state !== "offline"
+                running: win.working && Chronoa.state !== "offline" && !Settings.data.reduceMotion
                 loops: Animation.Infinite
-                NumberAnimation { target: breathGlow; property: "opacity"; from: 0.35; to: 0.85; duration: 1100; easing.type: Easing.InOutSine }
-                NumberAnimation { target: breathGlow; property: "opacity"; from: 0.85; to: 0.35; duration: 1100; easing.type: Easing.InOutSine }
+                NumberAnimation { target: breathGlow; property: "opacity"; from: 0.35; to: 0.85; duration: Theme.mot(1100); easing.type: Easing.InOutSine }
+                NumberAnimation { target: breathGlow; property: "opacity"; from: 0.85; to: 0.35; duration: Theme.mot(1100); easing.type: Easing.InOutSine }
             }
         }
 
@@ -184,7 +184,7 @@ PanelWindow {
                 implicitWidth: Theme.px(30)
                 implicitHeight: Theme.px(30)
                 scale: win.mascotScale
-                Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+                Behavior on scale { NumberAnimation { duration: Theme.mot(160); easing.type: Easing.OutCubic } }
 
                 // happy jump: the mascot leaps when a task finishes
                 transform: Translate {
@@ -216,12 +216,12 @@ PanelWindow {
                     opacity: win.working ? 0.9 : 0.35
                     // with a voice, the level drives it; otherwise it breathes
                     scale: win.level > 0 ? 1 + win.level * 0.35 : 1
-                    Behavior on scale { enabled: win.level > 0; NumberAnimation { duration: 60 } }
+                    Behavior on scale { enabled: win.level > 0; NumberAnimation { duration: Theme.mot(60) } }
                     SequentialAnimation on scale {
-                        running: win.working && win.level === 0
+                        running: win.working && win.level === 0 && !Settings.data.reduceMotion
                         loops: Animation.Infinite
-                        NumberAnimation { from: 1.0; to: 1.12; duration: 700; easing.type: Easing.InOutSine }
-                        NumberAnimation { from: 1.12; to: 1.0; duration: 700; easing.type: Easing.InOutSine }
+                        NumberAnimation { from: 1.0; to: 1.12; duration: Theme.mot(700); easing.type: Easing.InOutSine }
+                        NumberAnimation { from: 1.12; to: 1.0; duration: Theme.mot(700); easing.type: Easing.InOutSine }
                     }
                 }
 
@@ -278,8 +278,8 @@ PanelWindow {
                             height: orb.blink || Chronoa.state === "offline" ? 1 : 6
                             radius: 2
                             color: Theme.accentInk
-                            Behavior on height { NumberAnimation { duration: 120 } }
-                            Behavior on x { NumberAnimation { duration: 120 } }
+                            Behavior on height { NumberAnimation { duration: Theme.mot(120) } }
+                            Behavior on x { NumberAnimation { duration: Theme.mot(120) } }
                         }
                     }
                     // blinks while someone is there - 20 s without a key or the
@@ -418,12 +418,10 @@ PanelWindow {
                 Layout.fillWidth: true
                 visible: text !== ""
                 text: Chronoa.approval ? Chronoa.approval.detail : ""
-                color: Theme.dim
+                color: Theme.text
                 wrapMode: Text.Wrap
-                maximumLineCount: 4
-                elide: Text.ElideRight
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.px(14) * Theme.fontScale
             }
             Flow {
                 Layout.fillWidth: true
@@ -512,19 +510,19 @@ PanelWindow {
     }
     SequentialAnimation {
         running: win.happyJump
-        NumberAnimation { target: jump; property: "y"; to: -14; duration: 120 }
-        NumberAnimation { target: jump; property: "y"; to: 8; duration: 120 }
-        NumberAnimation { target: jump; property: "y"; to: 0; duration: 180; easing.type: Easing.OutBounce }
+        NumberAnimation { target: jump; property: "y"; to: -14; duration: Theme.mot(120) }
+        NumberAnimation { target: jump; property: "y"; to: 8; duration: Theme.mot(120) }
+        NumberAnimation { target: jump; property: "y"; to: 0; duration: Theme.mot(180); easing.type: Easing.OutBounce }
         onRunningChanged: if (!running) win.happyJump = false
     }
 
     // wave animation: mascot bobs side to side when Chronoa greets
     SequentialAnimation {
         running: win.wave
-        NumberAnimation { target: mascot; property: "x"; to: 5; duration: 110 }
-        NumberAnimation { target: mascot; property: "x"; to: -5; duration: 110 }
-        NumberAnimation { target: mascot; property: "x"; to: 5; duration: 110 }
-        NumberAnimation { target: mascot; property: "x"; to: 0; duration: 110 }
+        NumberAnimation { target: mascot; property: "x"; to: 5; duration: Theme.mot(110) }
+        NumberAnimation { target: mascot; property: "x"; to: -5; duration: Theme.mot(110) }
+        NumberAnimation { target: mascot; property: "x"; to: 5; duration: Theme.mot(110) }
+        NumberAnimation { target: mascot; property: "x"; to: 0; duration: Theme.mot(110) }
         onRunningChanged: if (!running) win.wave = false
     }
 }

@@ -3,8 +3,9 @@
 secrets in the keyring.
 
     otp.py list                  [{"id", "issuer", "account", "code", "period", "digits", "remaining"}]
-    otp.py add 'otpauth://totp/Issuer:me@example.com?secret=…&issuer=…'
-    otp.py add '{"issuer": …, "account": …, "secret": "BASE32", "digits": 6, "period": 30, "algorithm": "SHA1"}'
+    printf '%s' 'otpauth://totp/Issuer:me@example.com?secret=…&issuer=…' | otp.py add
+    printf '%s' '{"issuer": …, "account": …, "secret": "BASE32"}' | otp.py add
+    (the setup key is a secret: it is read on stdin, never from argv)
     otp.py remove ID
     otp.py key-code NAME          a code kept on a YubiKey that wants a touch: waits for
                                  it, prints {"code"}; codes on a connected key that need
@@ -22,6 +23,7 @@ input (a URI that is not a TOTP one, a secret that is not base32).
 This is for the person's accounts on websites and apps. One-time codes for
 signing in to this computer (pam_oath) are Cassini's (Security > TOTP).
 """
+
 from __future__ import annotations
 
 import base64
@@ -55,12 +57,14 @@ def b32decode(secret: str) -> bytes:
     return key
 
 
-def totp(key: bytes, at: float, period: int = 30, digits: int = 6, algorithm: str = "SHA1") -> str:
+def totp(
+    key: bytes, at: float, period: int = 30, digits: int = 6, algorithm: str = "SHA1"
+) -> str:
     counter = int(at // period)
     mac = hmac.new(key, struct.pack(">Q", counter), ALGORITHMS[algorithm]).digest()
     offset = mac[-1] & 0x0F
-    number = struct.unpack(">I", mac[offset:offset + 4])[0] & 0x7FFFFFFF
-    return str(number % (10 ** digits)).zfill(digits)
+    number = struct.unpack(">I", mac[offset : offset + 4])[0] & 0x7FFFFFFF
+    return str(number % (10**digits)).zfill(digits)
 
 
 def parse(text: str) -> dict:
@@ -73,8 +77,14 @@ def parse(text: str) -> dict:
         q = {k: v[0] for k, v in parse_qs(u.query).items()}
         label = unquote(u.path.lstrip("/"))
         issuer, _, account = label.partition(":") if ":" in label else ("", "", label)
-        entry = {"issuer": q.get("issuer") or issuer.strip(), "account": account.strip(), "secret": q.get("secret", ""),
-                 "digits": int(q.get("digits", 6)), "period": int(q.get("period", 30)), "algorithm": q.get("algorithm", "SHA1").upper()}
+        entry = {
+            "issuer": q.get("issuer") or issuer.strip(),
+            "account": account.strip(),
+            "secret": q.get("secret", ""),
+            "digits": int(q.get("digits", 6)),
+            "period": int(q.get("period", 30)),
+            "algorithm": q.get("algorithm", "SHA1").upper(),
+        }
     else:
         try:
             entry = json.loads(text)
@@ -82,14 +92,19 @@ def parse(text: str) -> dict:
             raise ValueError("not an otpauth:// address") from exc
         if not isinstance(entry, dict):
             raise ValueError("not an otpauth:// address")
-        entry = {"issuer": str(entry.get("issuer", "")).strip(), "account": str(entry.get("account", "")).strip(),
-                 "secret": str(entry.get("secret", "")), "digits": int(entry.get("digits", 6)),
-                 "period": int(entry.get("period", 30)), "algorithm": str(entry.get("algorithm", "SHA1")).upper()}
+        entry = {
+            "issuer": str(entry.get("issuer", "")).strip(),
+            "account": str(entry.get("account", "")).strip(),
+            "secret": str(entry.get("secret", "")),
+            "digits": int(entry.get("digits", 6)),
+            "period": int(entry.get("period", 30)),
+            "algorithm": str(entry.get("algorithm", "SHA1")).upper(),
+        }
     if entry["algorithm"] not in ALGORITHMS:
         raise ValueError(f"unknown algorithm {entry['algorithm']}")
     if entry["digits"] not in (6, 7, 8) or not 10 <= entry["period"] <= 300:
         raise ValueError("digits must be 6 to 8 and the period 10 to 300 seconds")
-    b32decode(entry["secret"])                     # refuses a secret that is not base32
+    b32decode(entry["secret"])  # refuses a secret that is not base32
     if not entry["issuer"] and not entry["account"]:
         raise ValueError("the code needs a name (an issuer or an account)")
     entry["secret"] = entry["secret"].replace(" ", "").upper()
@@ -99,17 +114,32 @@ def parse(text: str) -> dict:
 # ---- the keyring -----------------------------------------------------------------
 def secret_api():
     import gi
+
     gi.require_version("Secret", "1")
     from gi.repository import Secret
-    schema = Secret.Schema.new(SCHEMA_NAME, Secret.SchemaFlags.NONE,
-                               {"id": Secret.SchemaAttributeType.STRING, "issuer": Secret.SchemaAttributeType.STRING,
-                                "account": Secret.SchemaAttributeType.STRING})
+
+    schema = Secret.Schema.new(
+        SCHEMA_NAME,
+        Secret.SchemaFlags.NONE,
+        {
+            "id": Secret.SchemaAttributeType.STRING,
+            "issuer": Secret.SchemaAttributeType.STRING,
+            "account": Secret.SchemaAttributeType.STRING,
+        },
+    )
     return Secret, schema
 
 
 def items():
     Secret, schema = secret_api()
-    found = Secret.password_search_sync(schema, {}, Secret.SearchFlags.ALL | Secret.SearchFlags.UNLOCK | Secret.SearchFlags.LOAD_SECRETS, None)
+    found = Secret.password_search_sync(
+        schema,
+        {},
+        Secret.SearchFlags.ALL
+        | Secret.SearchFlags.UNLOCK
+        | Secret.SearchFlags.LOAD_SECRETS,
+        None,
+    )
     out = []
     for item in found or []:
         attrs = item.get_attributes()
@@ -125,9 +155,17 @@ def items():
 def add(entry: dict) -> str:
     Secret, schema = secret_api()
     ident = uuid.uuid4().hex[:12]
-    label = "Two-factor code: " + " ".join(x for x in (entry["issuer"], entry["account"]) if x)
-    Secret.password_store_sync(schema, {"id": ident, "issuer": entry["issuer"], "account": entry["account"]},
-                               Secret.COLLECTION_DEFAULT, label, json.dumps(entry), None)
+    label = "Two-factor code: " + " ".join(
+        x for x in (entry["issuer"], entry["account"]) if x
+    )
+    Secret.password_store_sync(
+        schema,
+        {"id": ident, "issuer": entry["issuer"], "account": entry["account"]},
+        Secret.COLLECTION_DEFAULT,
+        label,
+        json.dumps(entry),
+        None,
+    )
     return ident
 
 
@@ -141,12 +179,27 @@ def listing(now: float | None = None) -> list[dict]:
     out = []
     for ident, e in items():
         try:
-            code = totp(b32decode(e["secret"]), now, e.get("period", 30), e.get("digits", 6), e.get("algorithm", "SHA1"))
+            code = totp(
+                b32decode(e["secret"]),
+                now,
+                e.get("period", 30),
+                e.get("digits", 6),
+                e.get("algorithm", "SHA1"),
+            )
         except (ValueError, KeyError):
             code = ""
         period = int(e.get("period", 30))
-        out.append({"id": ident, "issuer": e.get("issuer", ""), "account": e.get("account", ""), "code": code,
-                    "period": period, "digits": int(e.get("digits", 6)), "remaining": period - int(now % period)})
+        out.append(
+            {
+                "id": ident,
+                "issuer": e.get("issuer", ""),
+                "account": e.get("account", ""),
+                "code": code,
+                "period": period,
+                "digits": int(e.get("digits", 6)),
+                "remaining": period - int(now % period),
+            }
+        )
     return sorted(out, key=lambda x: (x["issuer"].lower(), x["account"].lower()))
 
 
@@ -158,7 +211,9 @@ def scan_screen() -> str:
     shot = subprocess.run(["grim", "-g", pick.stdout.strip(), "-"], capture_output=True)
     if shot.returncode != 0:
         raise ValueError("the screen could not be read")
-    read = subprocess.run(["zbarimg", "--quiet", "--raw", "-"], input=shot.stdout, capture_output=True)
+    read = subprocess.run(
+        ["zbarimg", "--quiet", "--raw", "-"], input=shot.stdout, capture_output=True
+    )
     text = read.stdout.decode(errors="replace").strip()
     if not text:
         raise ValueError("no QR code there")
@@ -175,15 +230,34 @@ def key_codes() -> list:
         return []
     try:
         # stdin empty: a key with a password asks for it, and must not wait here
-        out = subprocess.run([YKMAN, "oath", "accounts", "code"], capture_output=True, text=True, timeout=8, input="")
+        out = subprocess.run(
+            [YKMAN, "oath", "accounts", "code"],
+            capture_output=True,
+            text=True,
+            timeout=8,
+            input="",
+        )
     except (OSError, subprocess.TimeoutExpired):
         return []
     if out.returncode != 0:
         said = (out.stdout + out.stderr).lower()
         if "password" in said or "authenticat" in said:
             # its codes are locked: one row that says so (the window offers to unlock it)
-            return [{"id": "key:locked", "issuer": "", "account": "", "name": "", "code": "", "touch": False,
-                     "locked": True, "fromKey": True, "period": 30, "digits": 6, "remaining": 30}]
+            return [
+                {
+                    "id": "key:locked",
+                    "issuer": "",
+                    "account": "",
+                    "name": "",
+                    "code": "",
+                    "touch": False,
+                    "locked": True,
+                    "fromKey": True,
+                    "period": 30,
+                    "digits": 6,
+                    "remaining": 30,
+                }
+            ]
         return []
     now = int(time.time())
     rows = []
@@ -195,18 +269,36 @@ def key_codes() -> list:
         issuer, _, account = name.partition(":") if ":" in name else ("", "", name)
         touch = code == "[Requires Touch]"
         if code == "[HOTP Account]":
-            continue                      # a counter, not a clock: pressed for on the key itself
-        rows.append({"id": "key:" + name, "issuer": issuer, "account": account, "name": name,
-                     "code": "" if touch else code, "touch": touch, "fromKey": True,
-                     "period": 30, "digits": len(code) if not touch else 6, "remaining": 30 - now % 30})
+            continue  # a counter, not a clock: pressed for on the key itself
+        rows.append(
+            {
+                "id": "key:" + name,
+                "issuer": issuer,
+                "account": account,
+                "name": name,
+                "code": "" if touch else code,
+                "touch": touch,
+                "fromKey": True,
+                "period": 30,
+                "digits": len(code) if not touch else 6,
+                "remaining": 30 - now % 30,
+            }
+        )
     return rows
 
 
 def key_code(name: str) -> dict:
-    out = subprocess.run([YKMAN, "oath", "accounts", "code", "--single", name], capture_output=True, text=True, timeout=30)
+    out = subprocess.run(
+        [YKMAN, "oath", "accounts", "code", "--single", name],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
     code = out.stdout.strip().split()[-1] if out.stdout.strip() else ""
     if out.returncode != 0 or not code.isdigit():
-        raise ValueError((out.stderr.strip().splitlines() or ["the key gave no code"])[-1])
+        raise ValueError(
+            (out.stderr.strip().splitlines() or ["the key gave no code"])[-1]
+        )
     return {"code": code}
 
 
@@ -218,13 +310,27 @@ def main(argv: list[str]) -> int:
         elif cmd == "key-code" and len(argv) > 2:
             print(json.dumps(key_code(argv[2])))
         elif cmd in ("add", "scan-screen"):
-            text = scan_screen() if cmd == "scan-screen" else (argv[2] if len(argv) > 2 else sys.stdin.read())
+            # the setup key is a shared secret: never take it from argv, where
+            # any local user can read /proc/<pid>/cmdline while we run
+            text = scan_screen() if cmd == "scan-screen" else sys.stdin.read()
             entry = parse(text)
-            print(json.dumps({"ok": True, "id": add(entry), "issuer": entry["issuer"], "account": entry["account"]}))
+            print(
+                json.dumps(
+                    {
+                        "ok": True,
+                        "id": add(entry),
+                        "issuer": entry["issuer"],
+                        "account": entry["account"],
+                    }
+                )
+            )
         elif cmd == "remove" and len(argv) > 2:
             print(json.dumps({"ok": remove(argv[2])}))
         else:
-            print("usage: otp.py list | add URI | remove ID | scan-screen", file=sys.stderr)
+            print(
+                "usage: otp.py list | add (JSON on stdin) | remove ID | scan-screen",
+                file=sys.stderr,
+            )
             return 3
     except ValueError as exc:
         print(f"otp: {exc}", file=sys.stderr)

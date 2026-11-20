@@ -73,22 +73,17 @@ Singleton {
         stdout: StdioCollector { onStreamFinished: root.canAnnotate = text.trim() === "yes" }
     }
     Process {
+        id: sattyProbe
         running: true
         command: ["sh", "-c", "command -v satty >/dev/null 2>&1 && echo yes || echo no"]
         stdout: StdioCollector { onStreamFinished: root.canSatty = text.trim() === "yes" }
-    }
-    Timer {
-        id: check
-        interval: 100
-        running: true
-        repeat: false
-        onTriggered: check.running = false
+        onCommandChanged: running = true
     }
     Connections {
         target: Niri
         function onScreenshotSaved(path) { root.offer(path); }
     }
-    onAnnToolChanged: check.restart()
+
     function annotate() {
         // swappy edits PNG pictures only; a JPEG picture falls back to satty if available
         if (root.annTool === "swappy" && !root.last.endsWith(".png") && root.canSatty) {

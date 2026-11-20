@@ -32,8 +32,12 @@ import subprocess
 import sys
 from pathlib import Path
 
-NVIDIA_OFFLOAD = {"__NV_PRIME_RENDER_OFFLOAD": "1", "__GLX_VENDOR_LIBRARY_NAME": "nvidia",
-                  "__VK_LAYER_NV_optimus": "NVIDIA_only", "__NV_PRIME_RENDER_OFFLOAD_PROVIDER": "NVIDIA-G0"}
+NVIDIA_OFFLOAD = {
+    "__NV_PRIME_RENDER_OFFLOAD": "1",
+    "__GLX_VENDOR_LIBRARY_NAME": "nvidia",
+    "__VK_LAYER_NV_optimus": "NVIDIA_only",
+    "__NV_PRIME_RENDER_OFFLOAD_PROVIDER": "NVIDIA-G0",
+}
 
 
 def switcheroo_other() -> dict | None:
@@ -42,7 +46,9 @@ def switcheroo_other() -> dict | None:
     if not tool:
         return None
     try:
-        out = subprocess.run([tool, "list"], capture_output=True, text=True, timeout=5).stdout
+        out = subprocess.run(
+            [tool, "list"], capture_output=True, text=True, timeout=5
+        ).stdout
     except (OSError, subprocess.SubprocessError):
         return None
     cards, cur = [], None
@@ -67,7 +73,9 @@ def discrete_env() -> tuple[dict, str]:
     env = switcheroo_other()
     if env:
         return env, "switcheroo-control"
-    if Path(os.environ.get("SHANI_NVIDIA_PROC", "/proc/driver/nvidia/version")).exists():
+    if Path(
+        os.environ.get("SHANI_NVIDIA_PROC", "/proc/driver/nvidia/version")
+    ).exists():
         return dict(NVIDIA_OFFLOAD), "nvidia-prime"
     render = list(Path(os.environ.get("SHANI_DRI_DIR", "/dev/dri")).glob("renderD*"))
     if len(render) > 1:
@@ -93,20 +101,43 @@ def main(argv: list[str]) -> int:
     # in a scope of its own (app-<id>-<n>.scope, as GNOME does): an app launched from
     # the shell lives in the shell's service otherwise, and dies when the shell restarts
     rt = os.environ.get("XDG_RUNTIME_DIR", "")
-    if (not os.environ.get("SHANI_LAUNCH_SCOPED") and shutil.which("systemd-run")
-            and rt and os.path.exists(os.path.join(rt, "systemd", "private"))):
-        unit = "app-shani-%s-%d" % ("".join(c if c.isalnum() else "_" for c in app_id.removesuffix(".desktop"))[:60], os.getpid())
+    if (
+        not os.environ.get("SHANI_LAUNCH_SCOPED")
+        and shutil.which("systemd-run")
+        and rt
+        and os.path.exists(os.path.join(rt, "systemd", "private"))
+    ):
+        unit = "app-shani-%s-%d" % (
+            "".join(c if c.isalnum() else "_" for c in app_id.removesuffix(".desktop"))[
+                :60
+            ],
+            os.getpid(),
+        )
         os.environ["SHANI_LAUNCH_SCOPED"] = "1"
         try:
-            os.execvp("systemd-run", ["systemd-run", "--user", "--scope", "--collect", "--quiet",
-                                      "--unit=" + unit,
-                                      sys.executable, os.path.abspath(__file__)] + argv[1:])
+            os.execvp(
+                "systemd-run",
+                [
+                    "systemd-run",
+                    "--user",
+                    "--scope",
+                    "--collect",
+                    "--quiet",
+                    "--unit=" + unit,
+                    sys.executable,
+                    os.path.abspath(__file__),
+                ]
+                + argv[1:],
+            )
         except OSError:
             pass
     action, gpu, extra_env, extra_args, files = "", "auto", {}, [], []
     i = 0
     while i < len(rest):
         a = rest[i]
+        # a trailing option with no value must not raise IndexError
+        if a in ("--action", "--gpu", "--env", "--args") and i + 1 >= len(rest):
+            break
         if a == "--action":
             action, i = rest[i + 1], i + 2
         elif a == "--gpu":
@@ -123,24 +154,31 @@ def main(argv: list[str]) -> int:
             i += 1
 
     import gi
+
     gi.require_version("Gio", "2.0")
     from gi.repository import Gio, GLib
-    try:                # GLib 2.86 moved it to GioUnix; Gio's is the deprecated alias
+
+    try:  # GLib 2.86 moved it to GioUnix; Gio's is the deprecated alias
         gi.require_version("GioUnix", "2.0")
         from gi.repository import GioUnix
+
         AppInfo = GioUnix.DesktopAppInfo
     except (ValueError, ImportError):
         AppInfo = Gio.DesktopAppInfo
 
     try:
-        info = AppInfo.new(app_id if app_id.endswith(".desktop") else app_id + ".desktop")
-    except TypeError:                    # newer PyGObject raises for an unknown id
+        info = AppInfo.new(
+            app_id if app_id.endswith(".desktop") else app_id + ".desktop"
+        )
+    except TypeError:  # newer PyGObject raises for an unknown id
         info = None
     if info is None:
         print(json.dumps({"ok": False, "error": f"no app {app_id}"}))
         return 1
 
-    prefers = info.get_boolean("PrefersNonDefaultGPU") or info.get_boolean("X-KDE-RunOnDiscreteGpu")
+    prefers = info.get_boolean("PrefersNonDefaultGPU") or info.get_boolean(
+        "X-KDE-RunOnDiscreteGpu"
+    )
     env, how = {}, "default card"
     if gpu == "discrete" or (gpu == "auto" and prefers):
         env, how = discrete_env()
@@ -155,13 +193,21 @@ def main(argv: list[str]) -> int:
         if info.get_boolean("Terminal") or extra_args:
             # the command line ourselves: a terminal around it, or the person's own arguments
             cmd = info.get_commandline() or ""
-            parts = [p for p in shlex.split(cmd) if not (len(p) == 2 and p.startswith("%"))]
+            parts = [
+                p for p in shlex.split(cmd) if not (len(p) == 2 and p.startswith("%"))
+            ]
             parts += extra_args + files
             if info.get_boolean("Terminal"):
                 parts = terminal_argv() + parts
             wd = info.get_string("Path") or None
-            subprocess.Popen(parts, env={**os.environ, **env}, cwd=wd, start_new_session=True,
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.Popen(
+                parts,
+                env={**os.environ, **env},
+                cwd=wd,
+                start_new_session=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
             how_launched = "terminal" if info.get_boolean("Terminal") else "command"
         elif action:
             info.launch_action(action, ctx)

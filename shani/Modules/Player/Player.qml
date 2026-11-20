@@ -525,6 +525,8 @@ PanelWindow {
                 }
             }
             ListView {
+                reuseItems: true
+                cacheBuffer: 400
                 id: queueList
                 Layout.fillWidth: true
                 Layout.preferredHeight: Theme.px(130)
@@ -568,7 +570,7 @@ PanelWindow {
                     ListRow {
                         required property var modelData
                         Layout.fillWidth: true
-                        icon: modelData.isPlaying ? "media-playback-start" : "media-playback-start"
+                        icon: modelData.isPlaying ? "media-playback-pause" : "media-playback-start"
                         title: modelData.identity || modelData.name || Tr.t("Player")
                         subtitle: modelData.trackTitle || ""
                         selected: win.player === modelData

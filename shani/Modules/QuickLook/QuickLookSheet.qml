@@ -163,6 +163,8 @@ PanelWindow {
 
                 // a text file in the editor's colours; an archive's or folder's list
                 ListView {
+                    reuseItems: true
+                    cacheBuffer: 400
                     anchors.fill: parent
                     anchors.margins: Theme.px(12)
                     visible: (QuickLook.kind === "archive" || QuickLook.kind === "folder") && QuickLook.text !== ""

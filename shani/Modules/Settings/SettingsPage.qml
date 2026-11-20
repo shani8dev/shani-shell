@@ -409,13 +409,18 @@ ColumnLayout {
     property var toastUndo: undefined
     // the window shows the toast (a layout child cannot float over the page)
     function undoToast() {
-        if (toastUndo !== undefined && typeof toastUndo === "object" && toastUndo.key !== undefined)
+        if (toastUndo !== undefined && typeof toastUndo === "object" && toastUndo.key in d)
             d[toastUndo.key] = toastUndo.value;
         toastUndo = undefined;
         toastMsg = "";
     }
     property var _prevValue: undefined
-    function showToast(msg, prevVal, key) { _prevValue = prevVal; toastUndo = { msg: msg, value: prevVal, key: key || msg }; toastMsg = msg; toastTimer.restart(); }
+    function showToast(msg, prevVal, key) {
+        _prevValue = prevVal;
+        // Undo is only meaningful when a real setting key and previous value exist.
+        toastUndo = (key && prevVal !== undefined) ? { msg: msg, value: prevVal, key: key } : undefined;
+        toastMsg = msg; toastTimer.restart();
+    }
     Timer { id: toastTimer; interval: 400; onTriggered: if (toastMsg !== "") toastShow.start(); }
     Timer { id: toastShow; interval: 5000; onTriggered: toastMsg = ""; }
 
@@ -701,9 +706,10 @@ ColumnLayout {
                         color: Theme.accent
                         border.width: 3
                         border.color: Theme.text
-                        Accessible.role: Accessible.RadioButton
+                        // a picture of the current accent, not a control: the real
+                        // toggle is the SwitchRow below
+                        Accessible.role: Accessible.StaticText
                         Accessible.name: Tr.t("Accent from wallpaper")
-                        Accessible.checked: true
                     }
                 }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Accent from wallpaper"); hint: Tr.t("the wallpaper's most vivid colour, made to read on this style"); checked: page.d.accentFromWallpaper; defaultValue: true; onToggled: on => { page.d.accentFromWallpaper = on; Settings.touch("accentFromWallpaper"); } onReset: page.d.accentFromWallpaper = true }

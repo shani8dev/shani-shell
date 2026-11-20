@@ -222,8 +222,8 @@ PanelWindow {
         radius: height * 0.32
         anchors.horizontalCenter: parent.horizontalCenter
         y: win.shown ? parent.height - height - 10 : parent.height + 4
-        Behavior on y { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-        Behavior on width { NumberAnimation { duration: 90 } }
+        Behavior on y { NumberAnimation { duration: Theme.mot(200); easing.type: Easing.OutCubic } }
+        Behavior on width { NumberAnimation { duration: Theme.mot(90) } }
     }
 
     MouseArea {
@@ -339,7 +339,7 @@ PanelWindow {
                 readonly property real size: win.sizeAt(restCenter)
                 width: size
                 height: size
-                Behavior on width { NumberAnimation { duration: 70 } }
+                Behavior on width { NumberAnimation { duration: Theme.mot(70) } }
 
                 AppIcon {
                     id: icon
@@ -354,8 +354,8 @@ PanelWindow {
                     SequentialAnimation {
                         id: bounce
                         loops: 2
-                        NumberAnimation { target: lift; property: "y"; to: -18; duration: 220; easing.type: Easing.OutQuad }
-                        NumberAnimation { target: lift; property: "y"; to: 0; duration: 260; easing.type: Easing.OutBounce }
+                        NumberAnimation { target: lift; property: "y"; to: -18; duration: Theme.mot(220); easing.type: Easing.OutQuad }
+                        NumberAnimation { target: lift; property: "y"; to: 0; duration: Theme.mot(260); easing.type: Easing.OutBounce }
                     }
                 }
                 // a download's or a copy's progress, as the app reports it
@@ -528,7 +528,7 @@ PanelWindow {
                                 { label: cell.modelData.pinned ? "Unpin from dock" : "Pin to dock", show: !!cell.modelData.entry, run: () => win.togglePin(cell.modelData) },
                                 { label: Tr.t("Move left"), show: cell.modelData.pinned && cell.index > 0, run: () => win.movePin(cell.modelData, -1) },
                                 { label: Tr.t("Move right"), show: cell.modelData.pinned && cell.index < Settings.data.dockPinned.length - 1, run: () => win.movePin(cell.modelData, 1) },
-                                { label: cell.modelData.windows.length > 1 ? "Close " + cell.modelData.windows.length + " windows" : "Close window", show: cell.modelData.windows.length > 0, run: () => win.closeAll(cell.modelData) }
+                                { label: cell.modelData.windows.length > 1 ? "Close " + cell.modelData.windows.length + " windows" : "Close window", sep: true, danger: true, show: cell.modelData.windows.length > 0, run: () => win.closeAll(cell.modelData) }
                             ].filter(x => x.show)
                             Rectangle {
                                 required property var modelData
@@ -551,7 +551,7 @@ PanelWindow {
                                     text: parent.modelData.label
                                     width: parent.width - 20
                                     elide: Text.ElideRight
-                                    color: Theme.text
+                                    color: !!parent.modelData.danger ? Theme.danger : Theme.text
                                     font.family: Theme.font
                                     font.pixelSize: Theme.px(12) * Theme.fontScale
                                 }

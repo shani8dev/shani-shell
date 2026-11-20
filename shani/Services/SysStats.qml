@@ -16,6 +16,12 @@ Singleton {
     property var last: null
     property real rxRate: 0         // bytes/s, summed over real interfaces
     property real txRate: 0
+    // short histories for the System Monitor's sparklines: the sampling timer
+    // below already runs while a stats surface is open, so this costs no poller
+    property var cpuHistory: []
+    property var memHistory: []
+    property var netHistory: []     // [{ rx, tx }]
+    function push(arr, v) { const a = arr.concat([v]); return a.length > 60 ? a.slice(-60) : a; }
     property real temp: -1          // °C, the CPU package's; -1 without a sensor
     property string tempPath: ""
     property var lastNet: null
@@ -76,6 +82,7 @@ Singleton {
             if (root.last) {
                 const dt = total - root.last.total;
                 root.cpu = dt > 0 ? 1 - (idle - root.last.idle) / dt : 0;
+                root.cpuHistory = root.push(root.cpuHistory, root.cpu);
             }
             root.last = { idle: idle, total: total };
             // per-core bars: cpuN lines
@@ -116,6 +123,7 @@ Singleton {
             const total = Number((t.match(/MemTotal:\s+(\d+)/) || [0, 0])[1]);
             const avail = Number((t.match(/MemAvailable:\s+(\d+)/) || [0, 0])[1]);
             root.mem = total > 0 ? (total - avail) / total : 0;
+            root.memHistory = root.push(root.memHistory, root.mem);
             root.memTotalGb = total / 1048576;
         }
     }
@@ -143,6 +151,7 @@ Singleton {
                 if (dt > 0) {
                     root.rxRate = Math.max(0, (rx - root.lastNet.rx) / dt);
                     root.txRate = Math.max(0, (tx - root.lastNet.tx) / dt);
+                    root.netHistory = root.push(root.netHistory, { rx: root.rxRate, tx: root.txRate });
                 }
             }
             root.lastNet = { rx: rx, tx: tx, t: now };

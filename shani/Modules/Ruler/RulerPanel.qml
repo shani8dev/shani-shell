@@ -168,7 +168,7 @@ PanelWindow {
     // hint line at top
     Text {
         anchors.top: parent.top
-        anchors.topMargin: Theme.px(16)
+        anchors.topMargin: Theme.px(56)   // clear the top-centre Island
         anchors.horizontalCenter: parent.horizontalCenter
         text: "Drag to measure  ·  Shift: straight line  ·  Right-click: clear  ·  Esc: close  ·  Ctrl+C: copy"
         color: "#ffffff"

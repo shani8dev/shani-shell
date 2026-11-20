@@ -123,6 +123,7 @@ AppWindow {
 
             RowLayout {
                 Layout.fillWidth: true
+                visible: win.jobs.length > 0
                 spacing: Theme.px(6)
                 Text { text: Tr.t("From"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                 TextField { id: fromField; Layout.preferredWidth: Theme.px(64); placeholderText: "0"; Accessible.name: Tr.t("Start, in seconds") }
@@ -135,6 +136,8 @@ AppWindow {
             }
 
             ListView {
+                reuseItems: true
+                cacheBuffer: 400
                 id: list
                 Layout.fillWidth: true
                 Layout.fillHeight: true

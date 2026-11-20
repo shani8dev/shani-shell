@@ -134,6 +134,7 @@ Variants {
                 }
                 Accessible.role: Accessible.Button
                 Accessible.name: "Clock, opens the control centre"
+                Accessible.onPressAction: Ui.openClocks("")
             }
         }
 
@@ -276,6 +277,7 @@ Variants {
                 }
                 Accessible.role: Accessible.Button
                 Accessible.name: "Now playing, opens the control centre"
+                Accessible.onPressAction: Ui.toggleControlCenter()
             }
         }
 
@@ -317,10 +319,10 @@ Variants {
                 Text {
                     visible: !Weather.enabled
                     anchors.centerIn: parent
-                    text: Tr.t("Weather — set a city")
-                    color: Theme.faint
+                    text: Tr.t("Weather — set a city →")
+                    color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
                 }
                 Row {
                     visible: Weather.enabled
@@ -364,6 +366,7 @@ Variants {
                 }
                 Accessible.role: Accessible.Button
                 Accessible.name: "Weather, opens personalisation settings"
+                Accessible.onPressAction: Weather.enabled ? Ui.openWeather() : Ui.openSettings("personal")
             }
         }
 
@@ -455,6 +458,7 @@ Variants {
                 }
                 Accessible.role: Accessible.Button
                 Accessible.name: "System monitor, opens processes"
+                Accessible.onPressAction: { const was = Ui.processes; Ui.closeAll(); Ui.processes = !was; }
             }
         }
     }

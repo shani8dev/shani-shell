@@ -75,6 +75,30 @@ AppWindow {
                 Layout.margins: Theme.px(4)
                 text: "CPU " + Math.round(SysStats.cpu * 100) + " %  ·  " + Tr.t("memory") + " " + Math.round(SysStats.mem * 100) + "%"
             }
+            // the last minute, from the samples SysStats already takes while
+            // this window is open — no extra poller, and nothing draws at idle
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(8)
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(2)
+                    Text { text: Tr.t("CPU"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    Sparkline { Layout.fillWidth: true; values: SysStats.cpuHistory; color: Theme.accent }
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(2)
+                    Text { text: Tr.t("Memory"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    Sparkline { Layout.fillWidth: true; values: SysStats.memHistory; color: Theme.blue }
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(2)
+                    Text { text: Tr.t("Network"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    Sparkline { Layout.fillWidth: true; values: SysStats.netHistory.map(x => x.rx + x.tx); color: Theme.amber }
+                }
+            }
             // --- system ---------------------------------------------------
             Rectangle {
                 Layout.fillWidth: true
@@ -158,6 +182,8 @@ AppWindow {
             // the processes, a row each, in a list that scrolls: as a Repeater of
             // heightless Items every row was drawn on top of the one before
             ListView {
+                reuseItems: true
+                cacheBuffer: 400
                 id: procList
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -171,6 +197,8 @@ AppWindow {
                     required property var modelData
                     readonly property int indent: modelData.indent
                     readonly property var p: modelData.p
+                    property bool confirming: false
+                    Timer { interval: 3000; running: procRow.confirming; onTriggered: procRow.confirming = false }
                     width: procList.width
                     height: Theme.px(28)
                     spacing: Theme.px(6)
@@ -200,10 +228,14 @@ AppWindow {
                         Layout.preferredWidth: Theme.px(96)
                     }
                     Button {
-                        text: Tr.t("End")
+                        text: procRow.confirming ? Tr.t("Tap again") : Tr.t("End")
+                        kind: procRow.confirming ? "danger" : "plain"
                         flat: true
                         Accessible.name: Tr.t("End") + " " + procRow.p.name
-                        onClicked: TopProcesses.end(procRow.p.pid)
+                        onClicked: {
+                            if (procRow.confirming) TopProcesses.end(procRow.p.pid);
+                            procRow.confirming = !procRow.confirming;
+                        }
                     }
                 }
             }

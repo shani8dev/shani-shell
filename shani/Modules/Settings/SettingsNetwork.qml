@@ -155,13 +155,17 @@ ColumnLayout {
                 Icon { name: net.modelData.type === "802-11-wireless" ? "network-wireless" : net.modelData.type === "gsm" ? "network-cellular" : net.modelData.type === "bluetooth" ? "bluetooth-active" : "network-wired"; size: Theme.px(18); color: Theme.dim }
                 Text {
                     Layout.fillWidth: true
-                    text: net.modelData.name
+                    text: net.modelData.name || net.modelData.type || net.modelData.uuid
                     color: Theme.text
                     elide: Text.ElideRight
                     font.family: Theme.font
                     font.pixelSize: Theme.px(13) * Theme.fontScale
                 }
-                Button { text: Tr.t("Forget"); onClicked: page.modify(net.modelData.uuid, ["delete"]) }
+                Button {
+                    text: Tr.t("Forget")
+                    Accessible.name: Tr.t("Forget") + " " + (net.modelData.name || net.modelData.type || net.modelData.uuid)
+                    onClicked: page.modify(net.modelData.uuid, ["delete"])
+                }
             }
             SwitchRow {
                 Layout.fillWidth: true

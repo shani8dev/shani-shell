@@ -53,6 +53,15 @@ Singleton {
         id: syncProc
     }
 
+    // Quote a value as a single shell word so no $(), backticks or quotes in
+    // data from Settings/IPC can be interpreted by bash -c.
+    function shQ(v) { return "'" + String(v).replace(/'/g, "'\\''") + "'"; }
+    // A URL embedded in a desktop Exec= line must contain no shell-special or
+    // desktop-quote characters: encode them as percent escapes.
+    function urlForExec(v) {
+        return encodeURI(String(v || "")).replace(/['"$`\\]/g, c => "%" + c.charCodeAt(0).toString(16).toUpperCase());
+    }
+
     function script() {
         const apps = (Settings.data.webApps) || []
         let lines = []
@@ -63,7 +72,7 @@ Singleton {
         lines.push('  keep=0')
         for (let i = 0; i < apps.length; i++) {
             const name = apps[i].name || apps[i].id || ("app" + i)
-            lines.push('  [ "$name" = "' + name.replace(/"/g, '\\"') + '" ] && keep=1')
+            lines.push('  [ "$name" = ' + shQ(name) + ' ] && keep=1')
         }
         lines.push('  [ $keep -eq 0 ] && rm -f "$f"')
         lines.push('done')
@@ -74,14 +83,13 @@ Singleton {
             const title = app.title || name
             const url = app.url || ""
             const icon = app.icon || ""
-            const safeUrl = url.replace(/"/g, '\\"')
             const safeName = name.replace(/[^a-zA-Z0-9_-]/g, '_')
             const wmclass = prefix + name.replace(/[^a-zA-Z0-9]/g, '-')
             const iconLine = icon ? 'Icon=' + icon.replace(/"/g, '\\"') : ''
             let desktop = "[Desktop Entry]\n"
             desktop += "Name=" + title.replace(/\n/g, ' ') + "\n"
             desktop += "Comment=Web App\n"
-            desktop += "Exec=sh -c 'for b in chromium google-chrome google-chrome-stable brave-browser brave microsoft-edge vivaldi opera firefox; do if command -v $b >/dev/null 2>&1; then case $b in firefox) exec $b --new-window \"" + safeUrl + "\" ;; *) exec $b --app=\"" + safeUrl + "\" --class=" + wmclass + " --name=" + wmclass + " ;; esac; fi; done; xdg-open \"" + safeUrl + "\"'\n"
+            desktop += "Exec=sh -c 'for b in chromium google-chrome google-chrome-stable brave-browser brave microsoft-edge vivaldi opera firefox; do if command -v $b >/dev/null 2>&1; then case $b in firefox) exec $b --new-window \"" + urlForExec(url) + "\" ;; *) exec $b --app=\"" + urlForExec(url) + "\" --class=" + wmclass + " --name=" + wmclass + " ;; esac; fi; done; xdg-open \"" + safeUrl + "\"'\n"
             desktop += "Type=Application\n"
             desktop += "Terminal=false\n"
             desktop += "Categories=Network;WebBrowser;\n"

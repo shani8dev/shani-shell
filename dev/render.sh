@@ -56,11 +56,11 @@
 # the on-screen keyboard, captions, the launcher (six ways), the Settings window
 # and every category in it, settings search, assistive touch, flash alerts, the
 # share sheet, EVERY app in bin/shani's table (bin/shani is the list, so it
-# cannot drift), and the surfaces that are not apps: writing tools, Quick Look,
-# the wallpaper style, What's new and the screensaver. Overlay (layer-shell)
-# surfaces - Files, the file chooser, the disk treemap - are not rendered: the
-# nested niri draws no Overlay layer, so a photograph of one is a photograph of
-# the wallpaper. The suite drives those instead.
+# cannot drift), the Media Player's library/playing/Radio/Live TV pages and the
+# Clocks tabs, and the surfaces that are not apps: writing tools, Quick Look,
+# the wallpaper style, What's new and the screensaver. Files and Disk Usage are
+# normal AppWindows now, so they are photographed too. Only true layer-shell
+# overlays (the file picker) stay out: the nested niri draws no Overlay layer.
 set -eu
 
 MODE="shell"
@@ -364,12 +364,23 @@ render_shell() {
         name="$1"; cmd="$2"; delay="${3:-1.5}"; want="${4:-}"
         close_all
         last_bad=""
-        if [ -n "$cmd" ]; then ipc "$cmd"; fi
-        check_want "$name" "$want"
+        if ! open_surface "$name" "$cmd" "$want"; then
+            failed=$((failed+1)); last_bad="$name"
+            log "FAIL: $name — the shell's state never said: $want"
+        fi
         sleep "$delay"
         n=$((n+1)); grim "$OUTDIR/$(printf '%02d' "$n")-$name.png"
         echo "[$n] $name"
         result "$name"
+    }
+    # An IPC can be lost to a busy shell (the full run fires hundreds back to
+    # back); reissue it once before calling the surface a failure.
+    open_surface() {
+        [ -z "$3" ] && return 0          # no expectation: nothing to wait for
+        [ -n "$2" ] && ipc "$2"
+        waitfor "$3" 20 && return 0
+        [ -n "$2" ] && { ipc "$2"; sleep 1; }
+        waitfor "$3" 20
     }
     # capture what is already on screen (the surface was opened by the caller;
     # closeAll must NOT run first — it would dismiss what is being photographed)
@@ -383,7 +394,7 @@ render_shell() {
         result "$name"
     }
     check_want() {
-        if [ -n "$2" ] && ! waitfor "$2" 20; then
+        if [ -n "$2" ] && ! waitfor "$2" 40; then
             failed=$((failed+1)); last_bad="$1"
             log "FAIL: $1 — the shell's state never said: $2"
         fi
@@ -476,7 +487,7 @@ render_shell() {
     foot -a shani-demo -T "Win two" sh -c 'printf "\033[36m~\033[0m $ systemctl --user status shani-shell\n\n  Active: active (running)\n  Main PID: 912 (qs)\n  Memory: 84.2M\n\n\033[36m~\033[0m $ "; sleep 600' >/dev/null 2>&1 &
     sleep 1.5
     ipc dockMenu foot; sleep 1
-    capture_current dock-menu 0.5
+    capture_current dock-menu 0.5 "d['dockMenu'] != ''"
     ipc "dockMenu ''"; sleep 0.5
     close_all
 
@@ -508,7 +519,12 @@ render_shell() {
     # has to have moved the value. The null sink starts at maximum, so the volume
     # is lowered first - raising a volume already at 100 % changes nothing and
     # draws no OSD at all.
-    ipc volumeDown;      sleep 0.4; capture_current osd-volume-down 0.6 "d['volume'] < 100"
+    # the null sink starts late in a fresh boot; wait for a real volume before
+    # asking it to move, and reissue once if the first IPC was lost
+    waitfor "d['volume'] is not None" 40 || log "warn: no audio sink in this render"
+    ipc volumeDown; sleep 0.6
+    waitfor "d['volume'] < 100" 10 || { ipc volumeDown; sleep 0.6; }
+    capture_current osd-volume-down 0.6 "d['volume'] < 100"
     ipc volumeUp;        sleep 0.4; capture_current osd-volume 0.6 "d['volume'] == 100"
     ipc volumeMute;      sleep 0.4; capture_current osd-mute 0.6 "d['muted']"
     ipc volumeMute;      sleep 0.5
@@ -519,14 +535,17 @@ render_shell() {
     brightnessctl set 50% >/dev/null 2>&1 || true
 
     # ---- notifications -------------------------------------------------------------
+    # the daemon starts lazily and can drop the very first message: warm it up
+    notify-send -a Warmup "render warmup" "ignored" >/dev/null 2>&1 || true
+    sleep 1.5
     notify-send -a Mail "Lunch at 1?" "Priya: the usual place, I'll book a table."
-    sleep 1; capture_current notification-popup 0.5 "d['popups'] > 0"
+    sleep 2; capture_current notification-popup 0.5 "d['popups'] > 0"
     # notify-send -A waits for the action to be picked, so it would block the
     # render forever; background it and stop it after the shot (the daemon keeps
     # the notification on screen, actions and all)
     notify-send -a Messages -A reply=Reply -A call=Call "Asha" "Are we still on for 6?" &
     actions_pid=$!
-    sleep 1; capture_current notification-actions 0.5 "d['popups'] > 0"  # inline actions on the popup
+    sleep 2; capture_current notification-actions 0.5 "d['popups'] > 0"  # inline actions on the popup
     kill "$actions_pid" 2>/dev/null || true
     notify-send -u critical -a Power "Battery low" "5% left"
     sleep 1; capture_current notification-critical 0.5 "d['popups'] > 0"
@@ -553,7 +572,7 @@ render_shell() {
     echo '{"call": {"path": "/c/1", "number": "+919844444444", "state": "terminated", "incoming": true}}' > /tmp/modem-ask
     sleep 1
     ipc textMessage +919822222222; sleep 1.2
-    capture_current modem-sms-composer 0.5
+    capture_current modem-sms-composer 0.5 "d['smsTo'] != ''"
     close_all
 
     # ---- chronoa panel ------------------------------------------------------------
@@ -609,7 +628,7 @@ render_shell() {
     close_all
     capture tour "tour" 1.5 "d['tour']"
     close_all
-    capture ruler "ruler" 1.5
+    capture ruler "ruler" 1.5 "d['rulerShown']"
     close_all
 
     # ---- lens (frozen selection, read offline) -----------------------------------------
@@ -645,7 +664,9 @@ render_shell() {
     ipc launcher dark;       sleep 1.5; capture_current launcher-actions 0.5 "d['launcher']"
     ipc "launcher ''";         sleep 1.5; capture_current launcher-full 0.5 "d['launcher']"
     wl-copy "render clipboard probe"; sleep 0.5
-    ipc "launcher 'c probe'";  sleep 1.5; capture_current launcher-clipboard 0.5 "d['launcher']"
+    ipc "launcher 'c probe'";  sleep 1.5
+    waitfor "d['launcher']" 10 || { ipc "launcher 'c probe'"; sleep 1.5; }
+    capture_current launcher-clipboard 0.5 "d['launcher']"
     close_all
 
     # ---- settings window: main + every category (incl. printers and account) -----------
@@ -745,10 +766,9 @@ PY
 import importlib.machinery, importlib.util
 loader = importlib.machinery.SourceFileLoader("shani_cli", "/work/bin/shani")
 m = importlib.util.module_from_spec(importlib.util.spec_from_loader("shani_cli", loader)); loader.exec_module(m)
-# overlay (layer-shell) surfaces: the nested niri shows no Overlay layer, so a
-# photograph of them is a photograph of the wallpaper (see docs/GAPS.md) - they
-# are driven by the test suite instead, not rendered here
-OVERLAYS = {"files", "disk-usage"}
+# Files and Disk Usage are AppWindows now; only the picker is a layer-shell
+# overlay that the nested niri cannot photograph (driven by the test suite)
+OVERLAYS = set()
 for name, s in m.APPS.items():
     if s[8] is None or name in OVERLAYS:
         continue
@@ -756,22 +776,44 @@ for name, s in m.APPS.items():
 PY
     ); do
         name=${spec%%:*}; key=${spec#*:}
-        ipc closeAll; sleep 0.6
         case "$name" in
-            text-editor)     python3 /work/bin/shani app "$name" "$F/note.txt" >/dev/null 2>&1 || true ;;
-            image-viewer)    python3 /work/bin/shani app "$name" "$F/photo.jpg" >/dev/null 2>&1 || true ;;
-            document-viewer) python3 /work/bin/shani app "$name" "$F/one.pdf" >/dev/null 2>&1 || true ;;
-            archive-manager) python3 /work/bin/shani app "$name" "$F/pack.zip" >/dev/null 2>&1 || true ;;
-            pdf-signer)      python3 /work/bin/shani app "$name" "$F/one.pdf" >/dev/null 2>&1 || true ;;
+            text-editor)     set -- "$name" "$F/note.txt" ;;
+            image-viewer)    set -- "$name" "$F/photo.jpg" ;;
+            document-viewer) set -- "$name" "$F/one.pdf" ;;
+            archive-manager) set -- "$name" "$F/pack.zip" ;;
+            pdf-signer)      set -- "$name" "$F/one.pdf" ;;
             media-player|video-trimmer)
-                             if [ -f "$F/clip.mp4" ]; then
-                                 python3 /work/bin/shani app "$name" "$F/clip.mp4" >/dev/null 2>&1 || true
-                             fi ;;
-            *)               python3 /work/bin/shani app "$name" >/dev/null 2>&1 || true ;;
+                             if [ -f "$F/clip.mp4" ]; then set -- "$name" "$F/clip.mp4"; else set -- "$name"; fi ;;
+            *)               set -- "$name" ;;
         esac
+        ipc closeAll; sleep 0.6
+        python3 /work/bin/shani app "$@" >/dev/null 2>&1 || true
+        # the CLI's IPC can be dropped under the load of 100+ prior shots
+        waitfor "d.get('$key')" 10 || { ipc closeAll; sleep 0.6; python3 /work/bin/shani app "$@" >/dev/null 2>&1 || true; }
         capture_current "app-$name" 1.0 "d.get('$key')"
     done
     ipc closeAll; sleep 0.5
+    close_all
+
+    # ---- the Media Player's pages, each with real content behind it ----
+    capture media-radio "radioShow featured" 1.5 "len(d['radioStations']) > 0"
+    close_all
+    capture media-live-tv "liveTvOpen" 3 "len(d['liveTvChannels']) >= 100"
+    close_all
+    # the library and now-playing views need the player open first, so two IPCs
+    ipc "mediaOpen ''"; sleep 1; ipc "mediaPage library"; sleep 1
+    capture_current media-library 1.0 "d['mediaShown'] and d['mediaPage'] == 'library'"
+    close_all
+    if [ -f "$F/clip.mp4" ]; then
+        ipc "mediaOpen '$F/clip.mp4'"; sleep 1.5
+        capture_current media-playing 1.0 "d['mediaShown'] and d['mediaPage'] == 'playing'"
+        close_all
+    fi
+
+    # ---- the Clocks tabs, each a distinct view behind the same window ----
+    for tab in alarms stopwatch timer; do
+        capture "clocks-$tab" "clocksOpen $tab" 1.2 "d['clocksShown'] and d['clocksTab'] == '$tab'"
+    done
     close_all
 
     # ---- the surfaces that are not apps (they open from an IPC, not a window id) ----
@@ -779,8 +821,8 @@ PY
     wl-copy "The quick brown fox jumps over the lazy dog."
     capture writing-tools "writingTools" 1.2 "d['writingShown']"
     close_all
-    # the file chooser is an overlay (layer-shell), like Files: not photographable
-    # in the nested niri, so it is not rendered - the suite drives it instead
+    # the file chooser alone is still a layer-shell overlay, which the nested
+    # niri cannot photograph; the suite drives it instead
     capture quick-look "quickLook '$F/note.txt'" 1.5 "d['quickLookShown']"
     close_all
     capture wallpaper-style "wallpaperStyleOpen '$F/photo.jpg'" 1.5 "d['wallpaperStyleShown']"

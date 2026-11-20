@@ -281,6 +281,8 @@ AppWindow {
             Button { visible: win.updates > 0; kind: "primary"; text: Tr.t("Update all"); enabled: !jobProc.running; onClicked: win.runJob(["update-all"], "all") }
         }
         ListView {
+            reuseItems: true
+            cacheBuffer: 400
             id: ilist
             visible: win.tab === "installed"
             Layout.fillWidth: true
@@ -314,6 +316,8 @@ AppWindow {
             color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
         }
         ListView {
+            reuseItems: true
+            cacheBuffer: 400
             id: llist
             visible: win.tab === "leftovers"
             Layout.fillWidth: true
@@ -337,6 +341,8 @@ AppWindow {
             Button { text: Tr.t("Add an AppImage…"); onClicked: FilePicker.open({ mode: "open", title: Tr.t("An AppImage"), onPicked: paths => { if (paths.length) win.ask(["appimage-add", paths[0]], () => win.loadAppImages()); } }) }
         }
         ListView {
+            reuseItems: true
+            cacheBuffer: 400
             id: alist
             visible: win.tab === "appimages"
             Layout.fillWidth: true

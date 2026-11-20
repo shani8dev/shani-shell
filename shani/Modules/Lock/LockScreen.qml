@@ -283,6 +283,8 @@ Scope {
                         id: powerKey
                         required property var modelData
                         property bool armed: false
+                        property real hold: 0
+                        property bool didHold: false
                         function press() { if (armed) modelData.run(); else armed = true; }
                         strong: true
                         width: armed ? sure.implicitWidth + 64 : 48
@@ -290,10 +292,35 @@ Scope {
                         radius: Theme.px(24)
                         Behavior on width { NumberAnimation { duration: Theme.anim } }
                         Timer { running: powerKey.armed; interval: 4000; onTriggered: powerKey.armed = false }
+                        // hold for two seconds to act; letting go early cancels.
+                        // Press-twice below stays for keys, the controller and AT-SPI.
+                        Timer {
+                            interval: 40
+                            repeat: true
+                            running: tap.pressed
+                            onTriggered: {
+                                powerKey.hold = Math.min(1, powerKey.hold + 0.02);
+                                if (powerKey.hold >= 1) {
+                                    powerKey.hold = 0;
+                                    powerKey.armed = false;
+                                    powerKey.didHold = true;   // the release is not a second press
+                                    modelData.run();
+                                }
+                            }
+                        }
+                        StatusRing {
+                            anchors.centerIn: parent
+                            visible: powerKey.hold > 0
+                            value: powerKey.hold
+                            size: Math.min(parent.width, parent.height) - Theme.px(4)
+                            thickness: Theme.px(3)
+                            color: Theme.danger
+                            label: powerKey.modelData.name
+                        }
                         Row {
                             anchors.centerIn: parent
                             spacing: Theme.px(6)
-                            Icon { anchors.verticalCenter: parent.verticalCenter; name: powerKey.modelData.icon; size: Theme.px(22); color: powerKey.armed ? Theme.danger : Theme.text }
+                            Icon { anchors.verticalCenter: parent.verticalCenter; name: powerKey.modelData.icon; size: Theme.px(22); color: powerKey.armed || powerKey.hold > 0 ? Theme.danger : Theme.text }
                             Text {
                                 id: sure
                                 visible: powerKey.armed
@@ -311,7 +338,9 @@ Scope {
                             id: tap
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: powerKey.press()
+                            onPressed: { powerKey.hold = 0; powerKey.didHold = false; }
+                            onReleased: powerKey.hold = 0
+                            onClicked: { if (powerKey.didHold) powerKey.didHold = false; else powerKey.press(); }
                         }
                         KeyFocus { onActivated: powerKey.press() }
                     }

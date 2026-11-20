@@ -32,7 +32,10 @@ in that nested session - not yet on an installed image - is listed in
 - **An on-screen keyboard at sign-in, setup and lock**, opening by itself on
   touchscreens. Plus a **Caps Lock warning** and **Show password**.
 - **A lock screen you can use** — notifications, now playing, a camera button,
-  restart and power off (each asks twice).
+  restart and power off (hold for two seconds; press-twice also works).
+- **Settings › About** shows a read-only health score and a problem report you
+  can read and edit before saving — nothing is sent. **System Monitor** draws
+  CPU, memory and network history from the samples it already takes.
 
 ## A desktop that stays out of your way
 
@@ -216,8 +219,12 @@ in that nested session - not yet on an installed image - is listed in
   place, the original kept in the trash. Fonts opens a font file to preview and
   install it (with its version, maker and languages); Maps shows a place's hours,
   phone and website, keeps saved places and **shares a place** (link and QR code); the
-  Media Player **saves the frame on screen** as a picture and plays **internet radio**
-  (search, popular, near you, by genre, favourites - radio-browser.info's stations).
+  Media Player **saves the frame on screen** as a picture, plays **internet radio**
+  (search, popular, near you, by genre, favourites - radio-browser.info's stations) and has a
+  **Live TV** page (the Hypnotix idea): load your own M3U URL or file, browse channels by group,
+  search them and watch a channel in the player. It opens with free public broadcaster streams
+  (Indian and world news), and Radio opens with dozens of free stations; the full community
+  Free-TV playlist is one click away. Nothing is sent anywhere and no streams are hosted here.
 - **Software** — Flathub's apps by name or kind, each with its page (what it does, who
   makes it, its licence, a screenshot), installed, updated and removed with progress;
   a website's Install link (.flatpakref) opens in it; what removed apps left behind
@@ -353,7 +360,8 @@ in that nested session - not yet on an installed image - is listed in
 - **Screen ruler, colour picker, QR codes** from the clipboard, **file actions**
   (convert a picture, shrink a file to a form's size limit, read the text in it).
 - **Share sheet** for any file — to your phone, a Bluetooth device, nearby devices
-  with LocalSend, email, or the clipboard.
+  with LocalSend, a folder opened to this network as a QR link, email, or the clipboard.
+  The QR link's Stop control lives in Files; sharing a folder asks for it explicitly.
 - **Cast your screen** to a TV or Chromecast.
 - **Call recording** for any call app, mixing your microphone and the other side —
   with a reminder to tell them.
@@ -432,7 +440,8 @@ in that nested session - not yet on an installed image - is listed in
   fullscreen still come first, and your own pick holds until the next plug.
 - **Caffeine** to stay awake (it doesn't survive a reboot by accident).
 - **Displays** — arrange, scale, rotate, mirror, set the refresh rate; every change
-  is **confirmed or undone in 15 seconds**.
+  is **confirmed or undone in 15 seconds**. Typed fields show why a value is wrong
+  under the field, in red, and say it to a screen reader.
 
 ## Make it yours, without hunting
 
@@ -448,7 +457,9 @@ in that nested session - not yet on an installed image - is listed in
   battery unless you allow it (Settings › Personalisation).
 - **Light and dark** that follow the time of day.
 - **First setup in six short steps**, in six languages, with a screen keyboard and
-  accessibility options from the first screen.
+  accessibility options from the first screen. The network step joins the first
+  open network in range on its own; secured networks still ask for a password.
+  The last step shows your new avatar and counts down into the session.
 - **A friendly tour** of the essentials on first login.
 
 ## Safe, private and family-friendly

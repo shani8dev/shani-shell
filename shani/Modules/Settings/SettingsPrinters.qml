@@ -147,6 +147,8 @@ ColumnLayout {
             required property var modelData
             Layout.fillWidth: true
             spacing: Theme.px(4)
+            property bool confirming: false
+            Timer { interval: 3000; running: pr.confirming; onTriggered: pr.confirming = false }
             readonly property bool isDefault: modelData.name === page.defaultName
             RowLayout {
                 spacing: Theme.px(10)
@@ -169,7 +171,13 @@ ColumnLayout {
                 Choice { text: Tr.t("Print a test page"); onClicked: page.run(["lp", "-d", pr.modelData.name, "/usr/share/cups/data/testprint"], Tr.t("Test page sent")) }
                 Choice { visible: pr.modelData.jobs > 0; text: Tr.t("Cancel my jobs"); onClicked: page.run(["cancel", "-u", Quickshell.env("USER") || "", pr.modelData.name], Tr.t("Your jobs were cancelled")) }
                 Choice { text: Tr.t("Queue"); onClicked: { Ui.closeAll(); Printing.openQueue(); } }
-                Choice { text: Tr.t("Remove…"); onClicked: page.run(["pkexec", "lpadmin", "-x", pr.modelData.name], Tr.t("%1 removed", pr.modelData.name)) }
+                Choice {
+                    text: pr.confirming ? Tr.t("Tap again to remove") : Tr.t("Remove…")
+                    onClicked: {
+                        if (pr.confirming) page.run(["pkexec", "lpadmin", "-x", pr.modelData.name], Tr.t("%1 removed", pr.modelData.name));
+                        pr.confirming = !pr.confirming;
+                    }
+                }
             }
             // your defaults for it: paper, two-sided, colour; and whether others on the network may use it
             Flow {

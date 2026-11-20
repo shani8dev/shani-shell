@@ -154,7 +154,7 @@ Item {
                 border.width: 1
                 border.color: pad.on(modelData.label) ? Theme.accent : pad.partLine
                 scale: pad.on(modelData.label) ? 0.92 : 1.0
-                Behavior on scale { NumberAnimation { duration: 60 } }
+                Behavior on scale { NumberAnimation { duration: Theme.mot(60) } }
                 Text {
                     anchors.centerIn: parent
                     text: pad.faceLabels[parent.modelData.key]

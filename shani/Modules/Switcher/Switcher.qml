@@ -89,7 +89,7 @@ PanelWindow {
         strong: true
         anchors.centerIn: parent
         width: Math.min(parent.width - 80, Math.max(320, row.implicitWidth + 32))
-        height: Theme.px(176)
+        height: Theme.px(200)
         radius: Theme.radiusLarge
 
         Text {
@@ -102,9 +102,12 @@ PanelWindow {
         }
 
         ListView {
+            reuseItems: true
+            cacheBuffer: 400
             id: row
             anchors.fill: parent
             anchors.margins: Theme.px(16)
+            anchors.bottomMargin: Theme.px(40)
             orientation: ListView.Horizontal
             spacing: Theme.px(10)
             clip: true
@@ -120,7 +123,7 @@ PanelWindow {
                 height: Theme.px(144)
                 radius: Theme.px(16)
                 color: index === win.sel ? Theme.accentSoft : (cellArea.containsMouse ? Theme.hover : "transparent")
-                border.width: index === win.sel ? 1 : 0
+                border.width: index === win.sel ? 2 : 0
                 border.color: Theme.accentLine
                 ColumnLayout {
                     anchors.fill: parent
@@ -161,6 +164,14 @@ PanelWindow {
                     onClicked: win.commit()
                 }
             }
+        }
+
+        Text {
+            anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: Theme.px(8) }
+            text: Tr.t("Tab move · Enter switch · Esc cancel · Q close")
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
         }
     }
 }

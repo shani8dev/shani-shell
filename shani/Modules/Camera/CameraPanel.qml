@@ -124,7 +124,7 @@ AppWindow {
                     RowLayout {
                         spacing: Theme.px(6)
                         Choice { text: "Open folder"; onClicked: Qt.openUrlExternally("file://" + (Camera.last ? Camera.last.substring(0, Camera.last.lastIndexOf("/")) : Camera.photosDir)); }
-                        Choice { text: "Copy path"; onClicked: Quickshell.clipboardText = Camera.last; }
+                        Choice { text: "Copy path"; enabled: Camera.last !== ""; onClicked: Quickshell.clipboardText = Camera.last; }
                         Choice { text: "Trim video"; visible: Camera.last.endsWith(".webm"); onClicked: { const p = Camera.last; Camera.closeCamera(); VideoTrimmer.open(p); } }
                     }
                 }
@@ -137,6 +137,8 @@ AppWindow {
                 font.pixelSize: Theme.px(11) * Theme.fontScale
             }
             ListView {
+                reuseItems: true
+                cacheBuffer: 400
                 Layout.fillWidth: true
                 Layout.preferredHeight: Math.min(180, count * 44)
                 model: Camera.gallery
