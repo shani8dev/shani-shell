@@ -71,11 +71,13 @@ AppWindow {
         target: PlayQueue
         // a file opened from outside (a double click, `shani app`) is shown; one
         // picked in the Library leaves the Library where it is
-        function onOpened() { PlayQueue.page = "playing"; }
+        // an explicit Radio/Live TV choice wins over an auto-switch: a video
+        // still loaded from an earlier file must not hijack the chosen page
+        function onOpened() { if (PlayQueue.page !== "radio" && PlayQueue.page !== "live") PlayQueue.page = "playing"; }
     }
     Connections {
         target: player
-        function onHasVideoChanged() { if (player.hasVideo) PlayQueue.page = "playing"; }
+        function onHasVideoChanged() { if (player.hasVideo && PlayQueue.page !== "radio" && PlayQueue.page !== "live") PlayQueue.page = "playing"; }
     }
     tools: [
         Choice { text: Tr.t("Library"); selected: win.page === "library"; onClicked: win.page = "library" },
@@ -83,7 +85,6 @@ AppWindow {
         Choice { text: Tr.t("Live TV"); selected: win.page === "live"; onClicked: { win.page = "live"; if (LiveTv.channels.length === 0) { if (LiveTv.source) LiveTv.load(LiveTv.source); else LiveTv.loadDefaults(); } } },
         Choice { text: Tr.t("Now playing"); selected: win.page === "playing"; enabled: PlayQueue.current !== ""; onClicked: win.page = "playing" }
     ]
-    readonly property bool audioOnly: PlayQueue.current !== "" && !player.hasVideo
 
     // where it is, every few seconds while it plays, for next time
     Timer {
@@ -93,6 +94,7 @@ AppWindow {
         onTriggered: PlayQueue.remember(PlayQueue.current, player.position / 1000, player.duration / 1000)
     }
     Timer { id: resumeNote; interval: 8000 }
+    Timer { id: frameSavedNote; interval: 3000 }
     property real pendingResume: 0
     function resumeNow() {
         if (pendingResume <= 0 || !player.seekable || player.playbackState !== MediaPlayer.PlayingState || player.position <= 0)
@@ -193,7 +195,7 @@ AppWindow {
     }
     Process {
         id: frameProc
-        stdout: StdioCollector { onStreamFinished: { win.frameSaved = text.trim(); Ui.mediaFrameSaved = win.frameSaved } }
+        stdout: StdioCollector { onStreamFinished: { win.frameSaved = text.trim(); Ui.mediaFrameSaved = win.frameSaved; frameSavedNote.restart(); } }
     }
 
     MediaPlayer {
@@ -363,7 +365,7 @@ AppWindow {
                         Text {
                             Layout.fillWidth: true
                             horizontalAlignment: Text.AlignHCenter
-                            text: PlayQueue.error !== "" ? PlayQueue.error : PlayQueue.current === "" ? Tr.t("Nothing playing") : win.song ? win.song.title : (win.tagTitle || PlayQueue.name)
+                            text: PlayQueue.error !== "" ? PlayQueue.error : PlayQueue.current === "" ? Tr.t("Nothing playing") : win.song ? win.song.title : (win.tagTitle || (win.PlayQueue.name ? win.PlayQueue.name.split("/").pop() : ""))
                             color: PlayQueue.error !== "" ? Theme.danger : "white"
                             wrapMode: Text.Wrap
                             font.family: Theme.font
@@ -444,6 +446,22 @@ AppWindow {
                             spacing: Theme.px(10)
                             Text { text: Tr.t("Resumed at %1", PlayQueue.clock(PlayQueue.resumedFrom)); color: "white"; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                             Button { text: Tr.t("Start over"); flat: true; onClicked: { player.position = 0; PlayQueue.resumedFrom = 0; resumeNote.stop(); } }
+                        }
+                    }
+                    // "Saved picture.png" for a few seconds
+                    Rectangle {
+                        anchors { top: parent.top; left: parent.left; margins: Theme.px(14) }
+                        visible: frameSavedNote.running && win.frameSaved !== ""
+                        implicitWidth: frameSavedRow.implicitWidth + 20
+                        implicitHeight: Theme.px(36)
+                        radius: Theme.px(18)
+                        color: Qt.rgba(0, 0, 0, 0.66)
+                        RowLayout {
+                            id: frameSavedRow
+                            anchors.centerIn: parent
+                            spacing: Theme.px(10)
+                            Text { text: Tr.t("Saved %1", win.frameSaved); color: "white"; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                            Button { text: Tr.t("Open"); flat: true; onClicked: Qt.openUrlExternally(win.frameSaved); frameSavedNote.stop(); }
                         }
                     }
                     // sound and subtitle tracks
@@ -575,6 +593,13 @@ AppWindow {
                     }
                     Item { Layout.fillWidth: true }
                     // speed: a pick, not a number to type
+                    Text {
+                        Layout.fillWidth: true
+                        text: Tr.t("Speed")
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                    }
                     Repeater {
                         model: [0.5, 1, 1.25, 1.5, 2]
                         Choice {
@@ -621,7 +646,7 @@ AppWindow {
                         onClicked: win.tracksShown = !win.tracksShown
                     }
                     IconButton { icon: "view-list"; tip: Tr.t("Queue") + " (L)"; on: win.listShown; onClicked: win.listShown = !win.listShown }
-                    IconButton { icon: "document-save-as"; tip: Tr.t("Convert…"); enabled: PlayQueue.current !== ""; onClicked: { Ui.converterFiles = [PlayQueue.current]; Ui.converter = true; } }
+                    IconButton { icon: "document-save-as"; tip: Tr.t("Convert this file…"); enabled: PlayQueue.current !== ""; onClicked: { Ui.converterFiles = [PlayQueue.current]; Ui.converter = true; } }
                     IconButton { icon: "document-open"; tip: Tr.t("Open") + " (O)"; onClicked: win.pick() }
                     IconButton { icon: "view-restore"; tip: Tr.t("Mini player") + " (I)"; enabled: PlayQueue.current !== ""; onClicked: win.setMini(true) }
                     IconButton { icon: "view-fullscreen"; tip: Tr.t("Full screen") + " (F)"; onClicked: Niri.action("fullscreen-window") }

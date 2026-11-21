@@ -14,18 +14,20 @@ Rectangle {
     property bool on: false
     property bool hasDetail: false
     property bool expanded: false
+    property bool interactive: true     // a tile that only reads out a value (the compass)
+    readonly property bool actionable: interactive || editing
     signal toggled()
     signal detail()
 
     // arranging (the grid's edit mode): a tap shows or hides it, a drag moves it
     readonly property bool editing: !!parent && parent.editing === true
     readonly property bool hiddenNow: Settings.data.hiddenTiles.indexOf(tid) >= 0
-    function activate() { if (editing) parent.toggleHidden(tid); else toggled(); }
+    function activate() { if (!actionable) return; if (editing) parent.toggleHidden(tid); else toggled(); }
 
-    Accessible.role: Accessible.CheckBox
+    Accessible.role: actionable ? Accessible.CheckBox : Accessible.StaticText
     Accessible.name: editing ? root.title + ", " + (hiddenNow ? Tr.t("hidden") : Tr.t("shown")) : root.title
     Accessible.description: editing ? Tr.t("Press to show or hide; drag to move") : root.subtitle
-    Accessible.checkable: true
+    Accessible.checkable: actionable
     Accessible.checked: editing ? !hiddenNow : root.on
     Accessible.onPressAction: root.activate()
     Accessible.onToggleAction: root.activate()
@@ -99,8 +101,9 @@ Rectangle {
     MouseArea {
         id: area
         anchors.fill: parent
+        enabled: root.actionable
         hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
+        cursorShape: root.actionable ? Qt.PointingHandCursor : Qt.ArrowCursor
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         // a finger has no right button: a long press opens the tile's detail
         property var held: Hold.state()

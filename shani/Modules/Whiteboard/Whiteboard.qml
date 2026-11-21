@@ -264,7 +264,7 @@ PanelWindow {
                         border.width: !win.erasing && String(win.ink) === Qt.color(modelData).toString() ? Theme.px(4) : Theme.px(1)
                         border.color: Theme.accent
                         Accessible.role: Accessible.Button
-                        Accessible.name: Tr.t("Ink %1", win.inkNames[index]) + (!win.erasing && String(win.ink) === Qt.color(modelData).toString() ? " " + Tr.t("selected") : "")
+                        Accessible.name: Tr.t("Ink %1", win.inkNames[win.inks.indexOf(modelData)]) + (!win.erasing && String(win.ink) === Qt.color(modelData).toString() ? " " + Tr.t("selected") : "")
                         MouseArea { anchors.fill: parent; onClicked: { win.ink = parent.modelData; win.erasing = false; } }
                     }
                 }

@@ -318,7 +318,7 @@ PanelWindow {
                 spacing: Theme.px(6)
                 Key { Layout.preferredWidth: Theme.px(130); Layout.fillHeight: true; label: Osk.page !== "letters" ? "abc" : (Osk.lang === "mr" ? "?१२३" : "?123"); onTapped: Osk.page = Osk.page !== "letters" ? "letters" : "symbols" }
                 // write by hand; Ctrl and Alt, sticky (one tap: the next key; two: held)
-                Key { Layout.preferredWidth: Theme.px(80); Layout.fillHeight: true; label: "✍"; accent: Osk.page === "write"; onTapped: Osk.page = Osk.page === "write" ? "letters" : "write"; Accessible.name: Tr.t("Write by hand") }
+                Key { Layout.preferredWidth: Theme.px(80); Layout.fillHeight: true; label: "WRITE"; accent: Osk.page === "write"; onTapped: Osk.page = Osk.page === "write" ? "letters" : "write"; accessibleName: Tr.t("Write by hand") }
                 Key { Layout.preferredWidth: Theme.px(80); Layout.fillHeight: true; label: Osk.ctrl === 2 ? "Ctrl ●" : "Ctrl"; accent: Osk.ctrl > 0; onTapped: Osk.tapMod("ctrl") }
                 Key { Layout.preferredWidth: Theme.px(80); Layout.fillHeight: true; label: Osk.alt === 2 ? "Alt ●" : "Alt"; accent: Osk.alt > 0; onTapped: Osk.tapMod("alt") }
                 Key { Layout.preferredWidth: Theme.px(90); Layout.fillHeight: true; label: "⇧"; visible: Osk.isXkb; accent: Osk.shift; onTapped: Osk.shift = !Osk.shift }
@@ -328,8 +328,8 @@ PanelWindow {
                     id: globe
                     Layout.preferredWidth: Theme.px(110)
                     Layout.fillHeight: true
-                    label: Osk.languages.length > 1 ? "🌐 " + win.nextSample : "🌐"
-                    Accessible.name: Tr.t("Keyboard language")
+                    label: Osk.languages.length > 1 ? "LANG " + win.nextSample : "LANG"
+                    accessibleName: Tr.t("Keyboard language")
                     holdable: true
                     onTapped: Osk.languages.length > 1 ? Osk.nextLanguage() : (win.langMenu = !win.langMenu)
                     onHeld: win.langMenu = true
@@ -365,7 +365,9 @@ PanelWindow {
         property bool holdable: false      // has something to show when held: waits for the release
 
         Accessible.role: Accessible.Button
-        Accessible.name: key.icon !== "" ? "microphone" : key.label
+        property string accessibleName: ""
+        // instances may name themselves; the icon default must not overwrite it
+        Accessible.name: key.accessibleName !== "" ? key.accessibleName : (key.icon !== "" ? Tr.t("Microphone") : key.label)
         Accessible.onPressAction: key.tapped()
         radius: Theme.px(10)
         color: key.danger ? Theme.red : key.accent ? Theme.accent : (area.pressed ? Theme.pressed : Theme.hover)

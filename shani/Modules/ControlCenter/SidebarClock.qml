@@ -127,7 +127,7 @@ ColumnLayout {
                 icon: "alarm"
                 title: Tr.t("Lap %1").arg(index + 1)
                 trailing: modelData
-                onClicked: {}
+                interactive: false
             }
         }
     }

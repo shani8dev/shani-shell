@@ -36,16 +36,19 @@ ColumnLayout {
         color: Theme.hover
         clip: true
         Image {
+            id: preview
             anchors.fill: parent
-            source: WallpaperStyle.image ? "file://" + WallpaperStyle.image : ""
+            source: WallpaperStyle.image ? "file://" + WallpaperStyle.image.split("/").map(encodeURIComponent).join("/") : ""
             fillMode: Image.PreserveAspectFit
             Accessible.role: Accessible.Graphic
             Accessible.name: Tr.t("Picture being themed")
         }
         Text {
-            visible: WallpaperStyle.image === ""
+            visible: preview.status !== Image.Ready
             anchors.centerIn: parent
-            text: Tr.t("No picture yet — pick one, type a path, or use the last wallpaper")
+            text: WallpaperStyle.image === ""
+                ? Tr.t("No picture yet — pick one, type a path, or use the last wallpaper")
+                : (preview.status === Image.Error ? Tr.t("Could not load that picture") : Tr.t("Loading…"))
             color: Theme.dim
             font.family: Theme.font
             font.pixelSize: Theme.px(12) * Theme.fontScale
@@ -89,8 +92,12 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         spacing: Theme.px(6)
-        Button { text: Tr.t("Extract palette"); onClicked: WallpaperStyle.extract() }
-        Button { text: Tr.t("Apply as wallpaper + colours"); kind: "primary"; onClicked: WallpaperStyle.apply() }
+        Button { text: Tr.t("Extract palette"); enabled: Matugen.available !== false; onClicked: WallpaperStyle.extract() }
+        Button {
+            text: Matugen.available === false ? Tr.t("Apply as wallpaper") : Tr.t("Apply as wallpaper + colours")
+            kind: "primary"
+            onClicked: WallpaperStyle.apply()
+        }
     }
 
     Text {

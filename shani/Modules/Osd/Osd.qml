@@ -259,7 +259,7 @@ Scope {
 
                 // Percentage text (for sliders)
                 Text {
-                    visible: root.kind === "slider" && root.label !== "Muted"
+                    visible: root.kind === "slider" && root.label !== "Muted" && !root.label.startsWith("Microphone")
                     text: Math.round(root.value * 100) + "%"
                     color: Theme.text
                     font.family: Theme.font
@@ -272,7 +272,7 @@ Scope {
                 Rectangle {
                     visible: root.kind === "toggle"
                     Layout.preferredWidth: Theme.px(36)
-                    height: Theme.px(20)
+                    Layout.preferredHeight: Theme.px(20)
                     radius: Theme.px(10)
                     color: root.label.indexOf(" on") >= 0 ? Theme.accent : Theme.hover
                     Rectangle {

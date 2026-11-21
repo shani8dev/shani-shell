@@ -195,6 +195,8 @@ ColumnLayout {
             }
             // mobile (SIM) connections: the operator's APN and roaming
             ColumnLayout {
+                id: gsmSection
+                property bool customApn: false
                 visible: net.modelData.type === "gsm"
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
@@ -229,13 +231,13 @@ ColumnLayout {
                     }
                     Choice {
                         text: Tr.t("Other…")
-                        selected: ["", "internet", "jionet", "airtelgprs.com", "vi-internet"].indexOf(net.modelData.apn || "") < 0
-                        onClicked: { }
+                        selected: gsmSection.customApn || ["", "internet", "jionet", "airtelgprs.com", "vi-internet"].indexOf(net.modelData.apn || "") < 0
+                        onClicked: gsmSection.customApn = true
                     }
                 }
                 TextField {
                     Layout.fillWidth: true
-                    visible: ["", "internet", "jionet", "airtelgprs.com", "vi-internet"].indexOf(net.modelData.apn || "") < 0
+                    visible: gsmSection.customApn || ["", "internet", "jionet", "airtelgprs.com", "vi-internet"].indexOf(net.modelData.apn || "") < 0
                     text: net.modelData.apn
                     placeholder: Tr.t("Type your APN")
                     onAccepted: page.modify(net.modelData.uuid, ["gsm.apn", text.trim()])
@@ -438,6 +440,8 @@ ColumnLayout {
             }
         }
         ColumnLayout {
+            id: proxySection
+            property bool customProxy: false
             visible: page.d.proxyMode === "manual"
             Layout.fillWidth: true
             spacing: Theme.px(12)
@@ -447,11 +451,11 @@ ColumnLayout {
                 spacing: Theme.px(6)
                 Choice { text: Tr.t("Automatic (Tor)"); selected: page.d.proxyHttp === "127.0.0.1:9050"; onClicked: page.d.proxyHttp = "127.0.0.1:9050" }
                 Choice { text: Tr.t("Corporate (ask IT)"); selected: page.d.proxyHttp === "proxy.company.local:8080"; onClicked: page.d.proxyHttp = "proxy.company.local:8080" }
-                Choice { text: Tr.t("Other…"); selected: !["127.0.0.1:9050", "proxy.company.local:8080", ""].includes(page.d.proxyHttp || ""); onClicked: {} }
+                Choice { text: Tr.t("Other…"); selected: proxySection.customProxy || !["127.0.0.1:9050", "proxy.company.local:8080", ""].includes(page.d.proxyHttp || ""); onClicked: proxySection.customProxy = true }
             }
             TextField {
                 Layout.fillWidth: true
-                visible: !["127.0.0.1:9050", "proxy.company.local:8080", ""].includes(page.d.proxyHttp || "")
+                visible: proxySection.customProxy || !["127.0.0.1:9050", "proxy.company.local:8080", ""].includes(page.d.proxyHttp || "")
                 placeholder: page.d.proxyHttp || "host:port — e.g. proxy.example.com:8080"
                 onAccepted: { page.d.proxyHttp = text.trim(); text = ""; }
             }

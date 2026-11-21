@@ -57,6 +57,9 @@ build() { docker build -t $IMG -f "$REPO/dev/Containerfile" "$REPO/dev" || exit 
 [ "${1:-}" = --build ] && { shift; build; }
 docker image inspect $IMG >/dev/null 2>&1 || build
 own
+# every suite writes into the same out/shots; clear it once per invocation so
+# a review cannot mistake last week's screenshots for this run's
+rm -f "$REPO"/out/shots/*.png
 [ $# -eq 0 ] && set -- all
 [ "$*" = all ] && set -- unit shell greeter setup polkit admin setup-polkit pam keyring
 
@@ -101,7 +104,13 @@ run() {
                      box -v "$DESK":/desk:ro $IMG sh /work/dev/demo.sh $sc ;;
         # the clips joined into one MP4 (out/demos/tour.mp4), for where a GIF does not play
         montage) box $IMG sh /work/dev/montage.sh ;;
-        render|render=*) box $IMG sh /work/dev/render.sh "${1#render=}" ;;
+        render|render=*)
+            mode=${1#render=}
+            case "$mode" in
+                ""|shell|greeter|setup|all) ;;
+                *) echo "unknown render mode: $mode (shell|greeter|setup|all)"; return 2 ;;
+            esac
+            box $IMG sh /work/dev/render.sh "$mode" ;;
         *) echo "unknown suite: $1 (see the top of dev/check.sh)"; return 2 ;;
     esac
 }

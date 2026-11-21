@@ -262,12 +262,14 @@ AppWindow {
                 SliderRow {
                     Layout.fillWidth: true
                     icon: "go-previous"
+                    onIconClicked: () => VoiceRecorder.setTrimStart(VoiceRecorder.trimStart - 1)
                     value: VoiceRecorder.trimDuration > 0 ? VoiceRecorder.trimStart / VoiceRecorder.trimDuration : 0
                     onMoved: v => VoiceRecorder.setTrimStart(v * (VoiceRecorder.trimDuration > 0 ? VoiceRecorder.trimDuration : 60))
                 }
                 SliderRow {
                     Layout.fillWidth: true
                     icon: "go-next"
+                    onIconClicked: () => VoiceRecorder.setTrimEnd(VoiceRecorder.trimEnd + 1)
                     value: VoiceRecorder.trimDuration > 0 ? (VoiceRecorder.trimEnd > 0 ? VoiceRecorder.trimEnd : VoiceRecorder.trimDuration) / VoiceRecorder.trimDuration : 0
                     onMoved: v => VoiceRecorder.setTrimEnd(v * (VoiceRecorder.trimDuration > 0 ? VoiceRecorder.trimDuration : 60))
                 }
@@ -289,10 +291,14 @@ AppWindow {
                 }
                 Button {
                     Layout.alignment: Qt.AlignHCenter
-                    text: Tr.t("Save trimmed copy")
+                    text: VideoTrimmer.cutting ? Tr.t("Saving…") : Tr.t("Save trimmed copy")
                     kind: "primary"
                     enabled: VoiceRecorder.trimFile !== "" && !VideoTrimmer.cutting
                     onClicked: VoiceRecorder.saveTrimmedCopy()
+                }
+                Spinner {
+                    Layout.alignment: Qt.AlignHCenter
+                    visible: VideoTrimmer.cutting
                 }
                 Text {
                     Layout.fillWidth: true

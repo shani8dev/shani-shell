@@ -109,6 +109,8 @@ AppWindow {
         anchors.fill: parent
         anchors.margins: Theme.px(14)
         spacing: Theme.px(8)
+        focus: true
+        Keys.onEscapePressed: win.visible = false
         RowLayout {
             Layout.fillWidth: true
             spacing: Theme.px(6)

@@ -26,6 +26,8 @@ AppWindow {
     property int previewSize: 15  // 10..48 pt, the size slider
     property string installNote: ""
     property bool installing: false
+    property bool truncated: false   // more fonts than the list shows
+    property int totalFonts: 0
 
     function refresh() {
         fonts = [];
@@ -83,6 +85,8 @@ AppWindow {
                 for (const f of out) for (const n of f.family.split(",")) names[n.trim()] = true;
                 win.familyNames = names;
                 win.fonts = out.slice(0, 400);
+                win.truncated = out.length > 400;
+                win.totalFonts = out.length;
             }
         }
     }
@@ -304,7 +308,7 @@ AppWindow {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
                 Button {
-                    text: Tr.t("Install a font…")
+                    text: win.installing ? Tr.t("Installing…") : Tr.t("Install a font…")
                     enabled: !win.installing
                     onClicked: fontFileDlg.open()
                 }
@@ -386,7 +390,24 @@ AppWindow {
                 subtitle: Tr.t("fc-list found nothing — is fontconfig installed?")
             }
 
+            EmptyState {
+                Layout.fillWidth: true
+                visible: listFonts.running
+                icon: "preferences-desktop-font"
+                title: Tr.t("Reading installed fonts…")
+                subtitle: ""
+            }
+
             Item { Layout.fillWidth: true }
+            Text {
+                Layout.fillWidth: true
+                visible: win.truncated
+                text: Tr.t("Showing the first %1 of %2 styles").arg(win.fonts.length).arg(win.totalFonts)
+                color: Theme.dim
+                horizontalAlignment: Text.AlignHCenter
+                font.family: Theme.font
+                font.pixelSize: Theme.px(10) * Theme.fontScale
+            }
             Text {
                 Layout.fillWidth: true
                 text: Tr.t("Click a font to copy its family name · Esc closes")

@@ -28,6 +28,7 @@ AppWindow {
     property var leftovers: []
     property var appimages: []
     property bool busy: false
+    Timer { id: removeTimer; interval: 4000; onTriggered: win.removing = "" }
     property string job: ""                   // the app a job runs for
     property real progress: -1
     property string jobLine: ""
@@ -121,6 +122,9 @@ AppWindow {
         anchors.fill: parent
         anchors.margins: Theme.px(14)
         spacing: Theme.px(8)
+        focus: true
+        // Escape goes back to the list first, then closes the window: never traps
+        Keys.onEscapePressed: { if (win.app !== null) win.app = null; else win.visible = false; }
         RowLayout {
             Layout.fillWidth: true
             spacing: Theme.px(6)
@@ -145,7 +149,8 @@ AppWindow {
             Text { Layout.fillWidth: true; elide: Text.ElideRight; text: win.jobLine || Tr.t("Working…"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
             Rectangle {
                 Layout.fillWidth: true
-                height: Theme.px(4); radius: Theme.px(2)
+                Layout.preferredHeight: Theme.px(4)
+                radius: Theme.px(2)
                 color: Theme.alpha(Theme.text, 0.15)
                 Accessible.role: Accessible.ProgressBar
                 Rectangle { width: parent.width * Math.max(0, win.progress) / 100; height: parent.height; radius: parent.radius; color: Theme.accent }
@@ -155,7 +160,12 @@ AppWindow {
             visible: win.error !== ""
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
-            text: win.error
+            // bridge stderr is not user-facing copy: map the common failure
+            text: /flatpak/.test(win.error) && /No such file|not found/.test(win.error)
+                ? Tr.t("Flatpak isn't installed — install it to browse apps.")
+                : /flatpak/.test(win.error) && /permission.*denied/i.test(win.error)
+                ? Tr.t("Permission denied. Try running the software manager as Administrator.")
+                : win.error
             color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
         }
 
@@ -180,6 +190,19 @@ AppWindow {
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
             text: Tr.t("Nothing here yet. If this is the first time, fetch Flathub's list with the refresh button.")
+            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+        }
+        EmptyState {
+            Layout.fillWidth: true
+            visible: win.tab === "explore" && !win.app && win.results.length === 0 && asker.running
+            icon: "preferences-system"
+            title: Tr.t("Working…")
+            subtitle: ""
+        }
+        Text {
+            Layout.fillWidth: true
+            visible: win.tab === "explore" && !win.app && win.results.length === 0 && !asker.running && win.showing.startsWith("search:")
+            text: Tr.t("No matches for %1", win.showing.slice(7))
             color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
         }
         GridView {
@@ -243,11 +266,10 @@ AppWindow {
                     }
                     Button { visible: !!appCol.a.installed; text: Tr.t("Open"); onClicked: Quickshell.execDetached(["flatpak", "run", appCol.a.id]) }
                     Button {
-                        visible: !!appCol.a.installed
                         kind: "danger"
                         text: win.removing === appCol.a.id ? Tr.t("Click again to remove") : Tr.t("Remove")
                         enabled: !jobProc.running
-                        onClicked: { if (win.removing === appCol.a.id) { win.removing = ""; win.runJob(["remove", appCol.a.id], appCol.a.id); } else win.removing = appCol.a.id; }
+                        onClicked: { if (win.removing === appCol.a.id) { win.removing = ""; removeTimer.stop(); win.runJob(["remove", appCol.a.id], appCol.a.id); } else { win.removing = appCol.a.id; removeTimer.restart(); } }
                     }
                     Button { visible: !appCol.a.installed; kind: "primary"; text: jobProc.running && win.job === appCol.a.id ? Tr.t("Installing…") : Tr.t("Install"); enabled: !jobProc.running; onClicked: win.runJob(["install", appCol.a.id], appCol.a.id) }
                 }
@@ -329,7 +351,11 @@ AppWindow {
                 required property var modelData
                 width: llist.width
                 Text { Layout.fillWidth: true; elide: Text.ElideMiddle; text: lrow.modelData.id + "  ·  " + win.human(lrow.modelData.size); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                Button { text: Tr.t("Move to the trash"); onClicked: win.ask(["leftover-remove", lrow.modelData.id], () => win.loadLeftovers()) }
+                Button {
+                    visible: win.removingLeftover === lrow.modelData.id ? Tr.t("Click again to remove") : Tr.t("Move to the trash")
+                    enabled: !jobProc.running
+                    onClicked: { if (win.removingLeftover === lrow.modelData.id) { win.removingLeftover = ""; win.ask(["leftover-remove", lrow.modelData.id], () => win.loadLeftovers()); } else win.removingLeftover = lrow.modelData.id; }
+                }
             }
         }
 
@@ -358,7 +384,7 @@ AppWindow {
                 Button {
                     kind: "danger"
                     text: win.removing === arow.modelData.path ? Tr.t("Click again to remove") : Tr.t("Remove")
-                    onClicked: { if (win.removing === arow.modelData.path) { win.removing = ""; win.ask(["appimage-remove", arow.modelData.path], () => win.loadAppImages()); } else win.removing = arow.modelData.path; }
+                    onClicked: { if (win.removing === arow.modelData.path) { win.removing = ""; removeTimer.stop(); win.ask(["appimage-remove", arow.modelData.path], () => win.loadAppImages()); } else { win.removing = arow.modelData.path; removeTimer.restart(); } }
                 }
             }
         }

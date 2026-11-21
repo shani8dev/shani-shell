@@ -268,22 +268,6 @@ ColumnLayout {
             }
         }
     }
-    // recently changed rail: last settings you touched, so you can undo quickly
-    RowLayout {
-        Layout.fillWidth: true
-        visible: Settings.recentlyChanged.length > 0 && page.cat === "" && !page.inWindow
-        spacing: Theme.px(6)
-        Text { text: Tr.t("Just changed:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        Repeater {
-            model: Settings.recentlyChanged
-            Choice {
-                required property string modelData
-                text: modelData
-                onClicked: page.openSetting(modelData)
-                Accessible.name: Tr.t("Open %1 setting", modelData)
-            }
-        }
-    }
     // this section differs from the shipped defaults — bring only it back
     RowLayout {
         Layout.fillWidth: true
@@ -572,11 +556,19 @@ ColumnLayout {
                             color: Theme.hover
                             clip: true
                             Image {
+                                id: thumb
                                 anchors.fill: parent
                                 anchors.margins: 2
                                 source: parent.modelData.thumb
                                 fillMode: Image.PreserveAspectCrop
                                 asynchronous: true
+                                visible: status === Image.Ready
+                            }
+                            Text {
+                                visible: thumb.status === Image.Error
+                                anchors.centerIn: parent
+                                text: "⚠"
+                                color: Theme.dim
                             }
                             Accessible.role: Accessible.Button
                             Accessible.name: Tr.t("Use wallpaper %1 (%2)").arg(modelData.id).arg(modelData.size)
@@ -737,27 +729,6 @@ ColumnLayout {
                     }
                 }
                 Text { visible: page.d.adaptivePalette && Matugen.available; text: Tr.t("GTK apps (gnome-software, nautilus, etc.) adopt the palette via a colour-scheme flip-flop; the shell's own surfaces follow via Theme."); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; wrapMode: Text.Wrap; Layout.fillWidth: true }
-                // Theme palette preview strip: show active palette colors
-                Rectangle {
-                    visible: page.d.adaptivePalette && Matugen.available
-                    Layout.fillWidth: true; height: Theme.px(12); radius: Theme.px(6); Layout.margins: Theme.px(4)
-                    color: Theme.surface2; border.color: Theme.stroke; border.width: 1
-                    gradient: Gradient {
-                        GradientStop { position: 0.0; color: Theme.surface1 }
-                        GradientStop { position: 1.0; color: Theme.surface3 }
-                    }
-                    RowLayout {
-                        anchors.fill: parent; spacing: 1; anchors.margins: 1
-                        Repeater {
-                            model: ["primary", "secondary", "tertiary", "surface", "surface_high", "on_surface"]
-                            Rectangle {
-                                required property string modelData
-                                Layout.fillWidth: true; height: parent.height
-                                color: Matugen.ready ? (Matugen.palette[modelData] || Theme.accent) : Theme.accent
-                            }
-                        }
-                    }
-                }
                 // Theme palette preview strip: show active palette colors
                 Rectangle {
                     visible: page.d.adaptivePalette && Matugen.available

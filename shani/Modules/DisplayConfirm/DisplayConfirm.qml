@@ -49,7 +49,7 @@ Variants {
                 }
                 Text {
                     Layout.fillWidth: true
-                    text: "Going back to the previous ones in " + Displays.countdown + " s."
+                    text: Tr.t("Going back to the previous ones in %1 s.").arg(Displays.countdown)
                     color: Theme.dim
                     font.family: Theme.font
                     font.pixelSize: Theme.px(12) * Theme.fontScale

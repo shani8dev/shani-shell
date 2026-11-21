@@ -23,6 +23,7 @@ AppWindow {
     property int dragStartY: 0
     property real dragPanX: 0
     property real dragPanY: 0
+    Timer { id: trashConfirmTimer; interval: 4000; onTriggered: win.trashConfirm = "" }
 
     Item {
         anchors.fill: parent
@@ -467,7 +468,7 @@ AppWindow {
                 spacing: Theme.px(4)
                 IconButton { icon: "edit-copy"; size: Theme.px(28); tip: Tr.t("Copy path (C)"); onClicked: Viewer.copyPath() }
                 IconButton { icon: "document-open"; size: Theme.px(28); tip: Tr.t("Open with… (O)"); onClicked: Viewer.openWith() }
-                IconButton { icon: "edit-delete"; size: Theme.px(28); tip: Tr.t("Move to trash (Del)"); onClicked: Viewer.trash() }
+                IconButton { icon: "edit-delete"; size: Theme.px(28); tip: win.trashConfirm ? Tr.t("Tap again to trash") : Tr.t("Move to trash (Del)"); onClicked: { if (win.trashConfirm) { Viewer.trash(); win.trashConfirm = ""; } else { win.trashConfirm = "trash"; trashConfirmTimer.restart(); } } }
                 Text {
                     Layout.fillWidth: true
                     text: Tr.t("← → to browse · wheel to zoom · R to turn · Esc closes")

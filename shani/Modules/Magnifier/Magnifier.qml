@@ -113,7 +113,7 @@ PanelWindow {
         Text {
             id: hint
             anchors.centerIn: parent
-            text: "Magnifier " + win.zoom.toFixed(1) + "×  ·  scroll to zoom  ·  right-click: fresh frame  ·  Esc to close"
+            text: Tr.t("Magnifier %1×  ·  scroll to zoom  ·  right-click: fresh frame  ·  Esc to close").arg(win.zoom.toFixed(1))
             color: Theme.text
             font.family: Theme.font
             font.pixelSize: Theme.px(12) * Theme.fontScale

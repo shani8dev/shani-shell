@@ -17,7 +17,12 @@ import QtQuick
 
 Singleton {
     id: root
+    // Ref-counted: several surfaces (overview, process list, power section) may
+    // need samples at once. Each takes a token; the timer runs while any holds.
     property bool watching: false
+    property int _watchers: 0
+    function requestWatch() { if (++root._watchers > 0) root.watching = true; }
+    function releaseWatch() { if (--root._watchers <= 0) { root._watchers = 0; root.watching = false; } }
     property var list: []                // [{ pid, name, cpu, mem, threads, ticks }]
     property real totalTicks: 0
     property int nCpus: 1

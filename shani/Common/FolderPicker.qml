@@ -111,7 +111,7 @@ ColumnLayout {
         Choice {
             text: Tr.t("Other…")
             selected: root.value !== "" && [homeDir, homeDir + "/Documents", homeDir + "/Downloads", homeDir + "/Pictures", homeDir + "/Pictures/Wallpapers", homeDir + "/Pictures/Screenshots", homeDir + "/Videos", homeDir + "/Videos/Recordings", homeDir + "/Desktop", homeDir + "/Public"].indexOf(root.value) < 0
-            onClicked: { }
+            onClicked: customPath.forceActiveFocus()
         }
     }
 

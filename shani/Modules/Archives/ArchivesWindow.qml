@@ -33,6 +33,7 @@ AppWindow {
         Keys.onPressed: e => {
             if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_O) { win.pick(); e.accepted = true; }
             else if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_E) { Archive.extract(""); e.accepted = true; }
+            else if (e.key === Qt.Key_Escape) { Archive.close(); e.accepted = true; }
         }
 
         ColumnLayout {

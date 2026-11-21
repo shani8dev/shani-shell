@@ -128,7 +128,6 @@ ColumnLayout {
     }
 
     // "Sleep" sleeps the way chosen below (it may be sleep-then-hibernate); hibernate where it works
-    readonly property bool sleepish: ["suspend", "suspend-then-hibernate", "hybrid-sleep"].indexOf(lid) >= 0
     readonly property var lidOptions: [{ label: Tr.t("Sleep"), value: Power.sleepVerb }]
         .concat(Power.canHibernate ? [{ label: Tr.t("Hibernate"), value: "hibernate" }] : [])
         .concat([{ label: Tr.t("Lock"), value: "lock" }, { label: Tr.t("Nothing"), value: "ignore" }, { label: Tr.t("Power off"), value: "poweroff" }])

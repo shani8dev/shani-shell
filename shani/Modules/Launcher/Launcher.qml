@@ -267,7 +267,12 @@ PanelWindow {
         const ql = q.toLowerCase();
         const out = [];
         const used = a => win.usage[a.id] || 0;
-        const appItem = a => ({ kind: "app", app: a.icon, title: a.name, subtitle: a.genericName || a.comment || "", run: () => win.launch(a) });
+        // two apps can share a display name: show the desktop id to tell them apart
+        const nameCount = {};
+        win.apps.forEach(a => { nameCount[a.name] = (nameCount[a.name] || 0) + 1; });
+        const appItem = a => ({ kind: "app", app: a.icon, title: a.name,
+            subtitle: (a.genericName || a.comment || "") + (nameCount[a.name] > 1 ? " · " + a.id : ""),
+            run: () => win.launch(a) });
         const fileItem = p => ({ kind: "file", icon: win.fileIcon(p), path: p, title: p.split("/").pop(), subtitle: p.replace(Quickshell.env("HOME"), "~"), run: () => Qt.openUrlExternally("file://" + p) });
 
         if (q === "") {
@@ -444,9 +449,9 @@ PanelWindow {
     Rectangle {
         id: backdrop
         anchors.fill: parent
-        // dense even with blur: live windows behind the list must not read
-        // through the results (a compositor may not blur at all)
-        color: Theme.alpha(Theme.bg, 0.94)
+        // glass over a blur of what is behind: the shell's material language
+        // (opaque when blur is off, so text still reads on a plain compositor)
+        color: Theme.alpha(Theme.bg, Settings.blurWanted ? 0.78 : 0.94)
         MouseArea { objectName: "nav:pointer"; anchors.fill: parent; onClicked: Ui.closeAll(); hoverEnabled: !Settings.data.launcherIgnoreMouse; onPositionChanged: if (!Settings.data.launcherIgnoreMouse) win.hoverArmed = true }
     }
 
@@ -677,6 +682,8 @@ PanelWindow {
                                                 horizontalAlignment: Text.AlignHCenter
                                                 text: tile.modelData.title
                                                 color: Theme.text
+                                                wrapMode: Text.Wrap
+                                                maximumLineCount: 2
                                                 elide: Text.ElideRight
                                                 font.family: Theme.font
                                                 font.pixelSize: Theme.px(12) * Theme.fontScale

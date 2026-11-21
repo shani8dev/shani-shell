@@ -105,7 +105,7 @@ AppWindow {
                     width: devList.width
                     icon: win.icon(modelData.deviceType)
                     title: modelData.alias
-                    subtitle: [modelData.deviceModel, modelData.ip].filter(x => x).join("  ·  ")
+                    subtitle: Nearby.pending.length ? Tr.t("Click to choose files first") : [modelData.deviceModel, modelData.ip].filter(x => x).join("  ·  ")
                     trailing: Nearby.pending.length ? Tr.t("Send") : ""
                     onClicked: Nearby.pending.length ? Nearby.sendTo(modelData.fingerprint) : win.pick()
                 }
@@ -114,7 +114,7 @@ AppWindow {
                     visible: devList.count === 0 && !Nearby.scanning
                     icon: "network-wireless"
                     title: Tr.t("No one nearby yet")
-                    subtitle: !Nearby.visible_ ? Tr.t("Turn on “Visible to devices nearby” below so others can find you")
+                    subtitle: !Nearby.visible_ ? Tr.t("Turn on \"Visible to devices nearby\" below so others can find you")
                                               : Tr.t("Open LocalSend on the phone or computer, on the same Wi-Fi")
                 }
             }
@@ -132,7 +132,7 @@ AppWindow {
                         Layout.fillWidth: true
                         text: tr.modelData.state === "failed" ? Tr.t("Not sent: %1").arg(tr.modelData.error)
                             : tr.modelData.state === "done" ? (tr.modelData.direction === "send" ? Tr.t("Sent") : Tr.t("Received into Downloads/Nearby"))
-                            : (tr.modelData.total ? Math.round(100 * tr.modelData.done / tr.modelData.total) + " %" : Tr.t("Waiting for them to accept…"))
+                            : (tr.modelData.total ? Tr.t("Sending to %1: %2%").arg(tr.modelData.alias || "").arg(Math.round(100 * tr.modelData.done / tr.modelData.total)) : Tr.t("Waiting for them to accept…"))
                         color: tr.modelData.state === "failed" ? Theme.danger : Theme.dim
                         elide: Text.ElideRight
                         font.family: Theme.font
@@ -151,7 +151,7 @@ AppWindow {
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.border }
             SwitchRow {
                 Layout.fillWidth: true
-                text: Tr.t("Visible to devices nearby") + (Nearby.me ? " — " + Nearby.me : "")
+                text: Tr.t("Visible to devices nearby as %1", Nearby.me || "")
                 hint: Tr.t("Lets them send to this computer; each transfer is asked. Until you turn it off or restart.")
                 checked: Nearby.visible_
                 onToggled: on => Nearby.setVisible(on)

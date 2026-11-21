@@ -296,7 +296,7 @@ ColumnLayout {
             tid: "screenshot"
             icon: "applets-screenshooter"
             title: Tr.t("Screenshot")
-            subtitle: Tr.t("Select or window")
+            subtitle: Tr.t("Region or window")
             hasDetail: true
             expanded: Ui.expanded === "screenshot"
             onToggled: {
@@ -466,7 +466,7 @@ ColumnLayout {
             title: Tr.t("Compass")
             subtitle: Compass.text
             on: false
-            onToggled: {}
+            interactive: false      // a readout, not a switch
             // an arrow to north, turned against the heading; "N" on it
             Item {
                 anchors.right: parent.right

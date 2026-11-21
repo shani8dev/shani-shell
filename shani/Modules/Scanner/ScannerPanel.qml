@@ -58,7 +58,7 @@ AppWindow {
         onExited: code => {
             win.scanning = false;
             if (code === 0) win.lastScan = scanProc.target;
-            else win.error = scanErr.text.trim().split("\n").pop() || Tr.t("The scanner did not answer");
+            else win.error = Tr.t("The scanner reported a problem");
         }
     }
     Component.onCompleted: refreshDevices()
@@ -104,7 +104,7 @@ AppWindow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
                 Repeater {
-                    model: [[150, Tr.t("Text · 150 dpi")], [300, Tr.t("Documents · 300")], [600, Tr.t("Photos · 600")]]
+                    model: [[150, Tr.t("Text · 150 dpi")], [300, Tr.t("Documents · 300 dpi")], [600, Tr.t("Photos · 600 dpi")]]
                     Choice {
                         required property var modelData
                         text: modelData[1]

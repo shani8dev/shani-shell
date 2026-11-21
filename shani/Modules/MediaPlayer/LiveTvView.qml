@@ -77,9 +77,11 @@ ColumnLayout {
     }
     Flow {
         Layout.fillWidth: true
+        Layout.maximumWidth: Math.max(Theme.px(120), view.width - Theme.px(20))
         Layout.leftMargin: Theme.px(10)
         Layout.rightMargin: Theme.px(10)
         spacing: Theme.px(6)
+        clip: true
         visible: LiveTv.groups.length > 1
         Choice {
             text: Tr.t("All")

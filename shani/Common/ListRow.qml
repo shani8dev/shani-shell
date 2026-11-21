@@ -8,21 +8,22 @@ Rectangle {
     property string title
     property string subtitle: ""
     property bool selected: false
+    property bool interactive: true      // a row that only shows a value, not one that opens something
     property string trailing: ""
     default property alias extra: tail.data
     signal clicked()
     // flashed after a search lands here (see Ui.flashSetting)
     readonly property bool highlighted: Ui.settingsFlash.length > 0 && String(root.title).toLowerCase().indexOf(Ui.settingsFlash) >= 0
 
-    Accessible.role: Accessible.ListItem
+    Accessible.role: interactive ? Accessible.ListItem : Accessible.StaticText
     Accessible.name: root.title
     Accessible.description: root.subtitle
     Accessible.selected: root.selected
-    Accessible.onPressAction: root.clicked()
+    Accessible.onPressAction: if (root.interactive) root.clicked()
 
     implicitHeight: Math.max(Theme.px(40), Theme.touchTarget)
     radius: Theme.radiusSmall
-    color: selected ? Theme.accentSoft : (area.containsMouse ? Theme.hover : "transparent")
+    color: selected ? Theme.accentSoft : (interactive && area.containsMouse ? Theme.hover : "transparent")
 
     Icon {
         id: ic
@@ -60,17 +61,25 @@ Rectangle {
     MouseArea {
         id: area
         anchors.fill: parent
+        enabled: root.interactive
         hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
+        cursorShape: root.interactive ? Qt.PointingHandCursor : Qt.ArrowCursor
         onClicked: root.clicked()
     }
-    KeyFocus { onActivated: root.clicked() }
+    KeyFocus { enabled: root.interactive; onActivated: root.clicked() }
     Row {
         id: tail
         anchors.right: parent.right
         anchors.rightMargin: Theme.px(8)
         anchors.verticalCenter: parent.verticalCenter
         spacing: Theme.px(6)
+        Icon {
+            visible: root.selected
+            name: "object-select-symbolic"
+            size: Theme.px(14)
+            color: Theme.accent
+            anchors.verticalCenter: parent.verticalCenter
+        }
         Text {
             visible: root.trailing !== ""
             text: root.trailing

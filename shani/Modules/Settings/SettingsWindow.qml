@@ -160,8 +160,10 @@ AppWindow {
                             Text {
                                 id: changedLabel
                                 text: Tr.t(SettingsIndex.labelOf(changedRow.modelData))
+                                // Text has no `hovered`; a HoverHandler supplies it
+                                HoverHandler { id: changedHover }
                                 ToolTip.text: text
-                                ToolTip.visible: changedLabel.truncated && changedLabel.hovered
+                                ToolTip.visible: changedLabel.truncated && changedHover.hovered
                                 ToolTip.delay: 400
                                 font.family: Theme.font
                                 font.pixelSize: Theme.px(11) * Theme.fontScale
@@ -261,7 +263,6 @@ AppWindow {
         z: 20
         message: page.toastMsg
         showUndo: page.toastUndo !== undefined
-        visible: page.toastMsg !== ""
         onUndo: page.undoToast()
     }
 }

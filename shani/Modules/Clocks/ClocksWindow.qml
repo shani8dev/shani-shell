@@ -4,6 +4,7 @@
 import Quickshell
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls
 import qs.Common
 import qs.Services
 
@@ -20,6 +21,9 @@ AppWindow {
     property string alarmTime: Qt.formatTime(new Date(Date.now() + 3600000), "HH:mm")
     property string alarmLabel: ""
     readonly property var alarms: Array.from(WorldClock.alarms || [])
+    // a row asks before it removes an alarm: two taps, the second within 4 s
+    property int confirmAlarm: -1
+    Timer { id: alarmTimer; interval: 4000; onTriggered: win.confirmAlarm = -1 }
 
     Item {
         anchors.fill: parent
@@ -74,7 +78,7 @@ AppWindow {
                         title: modelData.city
                         subtitle: modelData.zone
                         trailing: modelData.time
-                        onClicked: {}
+                        interactive: false
                     }
                 }
                 EmptyState {
@@ -88,11 +92,20 @@ AppWindow {
             }
 
             // ---- alarms ----
-            ColumnLayout {
+            Flickable {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 visible: win.tab === "alarms"
-                spacing: Theme.px(6)
+                // the time picker is tall: the Add button must stay reachable
+                contentWidth: width
+                contentHeight: alarmsCol.implicitHeight
+                boundsBehavior: Flickable.StopAtBounds
+                clip: true
+                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                ColumnLayout {
+                    id: alarmsCol
+                    width: parent.width
+                    spacing: Theme.px(6)
                 Repeater {
                     model: win.alarms
                     ListRow {
@@ -102,8 +115,12 @@ AppWindow {
                         icon: "alarm"
                         title: modelData.time + (modelData.label ? " — " + modelData.label : "")
                         subtitle: Tr.t("Daily · rings once at this time")
-                        trailing: Tr.t("Remove")
-                        onClicked: WorldClock.removeAlarm(index)
+                        // tapping the row asks first: a stray click must not lose an alarm
+                        trailing: win.confirmAlarm === index ? Tr.t("Tap again to remove") : Tr.t("Remove")
+                        onClicked: {
+                            if (win.confirmAlarm === index) { WorldClock.removeAlarm(index); win.confirmAlarm = -1; alarmTimer.restart(); }
+                            else { win.confirmAlarm = index; alarmTimer.restart(); }
+                        }
                     }
                 }
                 EmptyState {
@@ -136,6 +153,7 @@ AppWindow {
                         text: Tr.t("Add alarm at %1").arg(win.alarmTime)
                         onClicked: { if (WorldClock.addAlarm(win.alarmTime, win.alarmLabel)) labelField.text = ""; }
                     }
+                }
                 }
             }
 
@@ -176,7 +194,7 @@ AppWindow {
                         icon: "alarm"
                         title: Tr.t("Lap %1").arg(index + 1)
                         trailing: modelData
-                        onClicked: {}
+                        interactive: false
                     }
                 }
             }
@@ -198,7 +216,7 @@ AppWindow {
                 }
                 Rectangle {
                     Layout.fillWidth: true
-                    height: Theme.px(6)
+                    Layout.preferredHeight: Theme.px(6)
                     radius: Theme.px(3)
                     color: Theme.surface3
                     visible: FocusTimer.running

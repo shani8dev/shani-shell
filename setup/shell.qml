@@ -413,8 +413,7 @@ ShellRoot {
                 onHideRequested: root.kb = false
             }
 
-            // the strong card is a thin material; blur the wallpaper behind it
-            // so field labels stay legible over the bright artwork
+            // glass over a blurred wallpaper is the shell's visual language
             BackgroundEffect.blurRegion: Theme.blurred && win.primary ? cardRegion : null
             Region { id: cardRegion; item: card; radius: Theme.radiusLarge }
 
@@ -941,39 +940,33 @@ ShellRoot {
                             // account: who you are, a password with a strength
                             // bar and a show toggle, the computer's name, and a
                             // summary of what the wizard will apply
-                            ColumnLayout {
+                            Flickable {
+                                id: acctPage
                                 anchors.fill: parent
                                 visible: root.pageId === "account"
-                                // tighter than the other pages: with the strength
-                                // bar, its line and the admin note all shown, this
-                                // page is the tallest in the wizard — at 8 the
-                                // summary ran onto the error line below it
-                                spacing: 6
+                                clip: true
+                                contentHeight: acctCol.implicitHeight
+                                boundsBehavior: Flickable.StopAtBounds
+                                ScrollBar.vertical: ScrollBar { policy: root.kb ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded }
+                                ColumnLayout {
+                                    id: acctCol
+                                    width: acctPage.width
+                                    // tighter than the other pages: with the strength
+                                    // bar, its line and the admin note all shown, this
+                                    // page is the tallest in the wizard — at 8 the
+                                    // summary ran onto the error line below it
+                                    spacing: 6
 
                                 RowLayout {
                                     Layout.fillWidth: true
                                     spacing: 10
-                                    Rectangle {
-                                        width: 44; height: 44; radius: 22
-                                        color: Theme.accentSoft
-                                        border.width: 1
-                                        border.color: Theme.accentLine
-                                        Text {
-                                            anchors.centerIn: parent
-                                            text: root.initials(root.fullname)
-                                            color: Theme.accent
-                                            font.family: Theme.font
-                                            font.pixelSize: 17 * Theme.fontScale
-                                            font.weight: Font.DemiBold
-                                        }
-                                    }
                                     ColumnLayout {
-                                        spacing: 0
+                                        spacing: 2
                                         Text {
                                             text: root.fullname.trim() !== "" ? root.fullname : root.t("fullName")
                                             color: Theme.text
                                             font.family: Theme.font
-                                            font.pixelSize: 13 * Theme.fontScale
+                                            font.pixelSize: 15 * Theme.fontScale
                                             font.weight: Font.DemiBold
                                         }
                                         Text {
@@ -984,6 +977,20 @@ ShellRoot {
                                         }
                                     }
                                     Item { Layout.fillWidth: true }
+                                    Rectangle {
+                                        width: 40; height: 40; radius: 20
+                                        color: Theme.accentSoft
+                                        border.width: 1
+                                        border.color: Theme.accentLine
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: root.initials(root.fullname)
+                                            color: Theme.accent
+                                            font.family: Theme.font
+                                            font.pixelSize: 15 * Theme.fontScale
+                                            font.weight: Font.DemiBold
+                                        }
+                                    }
                                 }
 
                                 FieldLabel { text: root.t("fullName") }
@@ -1094,7 +1101,14 @@ ShellRoot {
                                             Layout.fillWidth: true
                                             wrapMode: Text.Wrap
                                             text: root.t("language") + ": " + (root.locale ? root.niceLocale(root.locale) : "—")
-                                                + "   ·   " + root.t("layouts") + ": " + root.keymap.map(root.layoutName).join(", ")
+                                            color: Theme.text
+                                            font.family: Theme.font
+                                            font.pixelSize: 10 * Theme.fontScale
+                                        }
+                                        Text {
+                                            Layout.fillWidth: true
+                                            wrapMode: Text.Wrap
+                                            text: root.t("layouts") + ": " + root.keymap.map(root.layoutName).join(", ")
                                             color: Theme.text
                                             font.family: Theme.font
                                             font.pixelSize: 10 * Theme.fontScale
@@ -1103,7 +1117,14 @@ ShellRoot {
                                             Layout.fillWidth: true
                                             wrapMode: Text.Wrap
                                             text: root.t("zone") + ": " + root.timezone.replace(/_/g, " ")
-                                                + "   ·   " + root.t("computer") + ": " + (root.hostname || "—")
+                                            color: Theme.text
+                                            font.family: Theme.font
+                                            font.pixelSize: 10 * Theme.fontScale
+                                        }
+                                        Text {
+                                            Layout.fillWidth: true
+                                            wrapMode: Text.Wrap
+                                            text: root.t("computer") + ": " + (root.hostname || "—")
                                             color: Theme.text
                                             font.family: Theme.font
                                             font.pixelSize: 10 * Theme.fontScale
@@ -1111,6 +1132,7 @@ ShellRoot {
                                     }
                                 }
                                 Item { Layout.fillHeight: true }
+                                }
                             }
 
                             // done
@@ -1169,11 +1191,12 @@ ShellRoot {
                             Layout.fillWidth: true
                             visible: text !== ""
                             text: root.status.startsWith("error: ") ? root.status.slice(7)
-                                : root.pageId === "account" && root.fullname !== "" ? root.accountProblem : ""
+                                : root.pageId === "account" ? root.accountProblem : ""
                             color: root.status.startsWith("error") ? Theme.danger : Theme.dim
                             wrapMode: Text.Wrap
                             font.family: Theme.font
-                            font.pixelSize: 11 * Theme.fontScale
+                            font.pixelSize: 12 * Theme.fontScale
+                            font.weight: root.status.startsWith("error") || root.accountProblem !== "" ? Font.DemiBold : Font.Normal
                         }
 
                         RowLayout {
@@ -1182,9 +1205,9 @@ ShellRoot {
                             spacing: 8
                             Button { visible: root.page > 0; kind: "outline"; text: root.t("back"); onClicked: root.back() }
                             Item { Layout.fillWidth: true }
-                            Button { visible: root.pageId === "network"; kind: "outline"; text: root.t("continueOffline"); onClicked: root.next() }
+                            Button { visible: root.pageId === "network" && !netPage.online; kind: "outline"; text: root.t("continueOffline"); onClicked: root.next() }
                             Button {
-                                visible: root.pageId !== "network" || !netPage.online
+                                visible: root.pageId !== "network" || netPage.online
                                 kind: "primary"
                                 text: root.pageId === "account" ? (root.status === "working" ? root.t("working") : root.t("start")) : root.t("next")
                                 enabled: (root.pageId !== "account" || (root.accountProblem === "" && root.status !== "working"))

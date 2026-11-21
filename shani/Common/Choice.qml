@@ -6,6 +6,7 @@ Rectangle {
     id: root
     property string text
     property bool selected: false
+    property bool danger: false      // destructive one-shot action, not a choice
     signal clicked()
     // flashed after a search lands here (see Ui.flashSetting)
     readonly property bool highlighted: Ui.settingsFlash.length > 0 && String(root.text).toLowerCase().indexOf(Ui.settingsFlash) >= 0
@@ -20,12 +21,16 @@ Rectangle {
     // a disabled chip must not look enabled (WCAG: state is not colour-only)
     opacity: root.enabled ? 1 : 0.45
     radius: Theme.px(9)
-    color: selected ? Theme.accent : (area.containsMouse ? Theme.pressed : Theme.hover)
+    color: root.danger ? Theme.alpha(Theme.danger, 0.18) : (selected ? Theme.accent : (area.containsMouse ? Theme.pressed : Theme.hover))
+    border.width: root.danger ? 1 : 0
+    border.color: Theme.danger
     Text {
         id: label
         anchors.centerIn: parent
         text: root.text
-        color: root.selected ? Theme.accentInk : Theme.text
+        color: root.danger ? Theme.danger : (root.selected ? Theme.accentInk : Theme.text)
+        // weight is a second cue: selection must not be colour-only (WCAG 1.4.1)
+        font.weight: root.selected ? Font.DemiBold : Font.Normal
         font.family: Theme.font
         font.pixelSize: Theme.px(11) * Theme.fontScale
     }

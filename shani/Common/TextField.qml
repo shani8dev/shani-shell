@@ -39,6 +39,9 @@ Rectangle {
         selectionColor: Theme.accent
         font.family: Theme.font
         font.pixelSize: Theme.px(13) * Theme.fontScale
+        // Inter's bullet is wider than its advance, so a masked value renders as
+        // one solid bar; tracking separates the dots again
+        font.letterSpacing: input.echoMode === TextInput.Password && input.text !== "" ? 1.5 : 0
         echoMode: root.secret && !root.revealed ? TextInput.Password : TextInput.Normal
         passwordCharacter: "•"
         inputMethodHints: root.secret ? (Qt.ImhSensitiveData | Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase) : Qt.ImhNone

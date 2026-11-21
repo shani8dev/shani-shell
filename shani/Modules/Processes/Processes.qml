@@ -20,10 +20,11 @@ AppWindow {
     margins: 0
     implicitWidth: Theme.px(520)
     implicitHeight: Theme.px(720)
-    onVisibleChanged: TopProcesses.watching = visible
+    property bool _watching: false
+    onVisibleChanged: { if (visible && !_watching) { TopProcesses.requestWatch(); _watching = true; } else if (!visible && _watching) { TopProcesses.releaseWatch(); _watching = false; } }
     // made when opened and gone when closed (shell.qml's LazyLoader)
-    Component.onCompleted: { TopProcesses.watching = visible; treeList = buildTree(); }
-    Component.onDestruction: TopProcesses.watching = false
+    Component.onCompleted: { if (visible) { TopProcesses.requestWatch(); _watching = true; } treeList = buildTree(); }
+    Component.onDestruction: if (_watching) TopProcesses.releaseWatch()
 
     // ---- build a flat tree list with indent levels -------------------------
     // root processes (ppid <= 1 or ppid not among listed pids) are top-level;
@@ -203,7 +204,7 @@ AppWindow {
                     // over to the different process this delegate now shows
                     ListView.onReused: procRow.confirming = false
                     width: procList.width
-                    height: Theme.px(28)
+                    height: Math.max(Theme.px(36), Theme.touchTarget)
                     spacing: Theme.px(6)
                     Item { implicitWidth: procRow.indent * 14; implicitHeight: 1 }
                     Text {
@@ -234,6 +235,8 @@ AppWindow {
                         text: procRow.confirming ? Tr.t("Tap again") : Tr.t("End")
                         kind: procRow.confirming ? "danger" : "plain"
                         flat: true
+                        // ending the compositor or the shell takes the session down
+                        enabled: !/^(niri|qs|quickshell|systemd|init)$/.test(procRow.p.name)
                         Accessible.name: Tr.t("End") + " " + procRow.p.name
                         onClicked: {
                             if (procRow.confirming) TopProcesses.end(procRow.p.pid);

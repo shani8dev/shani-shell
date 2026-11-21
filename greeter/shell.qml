@@ -365,8 +365,8 @@ ShellRoot {
                 }
             }
 
-            // glassStrong is a thin material: blur what is behind it so the
-            // wallpaper cannot fight the text (the other shell surfaces do this)
+            // the glass material is the design language: blur the wallpaper
+            // behind the card so it reads as a floating layer, not a hole
             BackgroundEffect.blurRegion: Theme.blurred && card.visible ? cardRegion : null
             Region { id: cardRegion; item: card; radius: 22 }
 
@@ -374,7 +374,9 @@ ShellRoot {
                 id: card
                 visible: win.primary
                 anchors.centerIn: parent
-                anchors.verticalCenterOffset: parent.height * 0.08
+                // when the screen keyboard is up, the card sits above it rather
+                // than behind it — the form is centred in the space left over
+                anchors.verticalCenterOffset: root.kb && win.primary ? -parent.height * 0.22 : parent.height * 0.08
                 width: 380
                 height: form.implicitHeight + 48
                 radius: 22
@@ -510,9 +512,16 @@ ShellRoot {
                         }
                         Item { Layout.fillWidth: true; visible: !root.caps }
                         Choice {
-                            visible: form.picked && !root.busy
+                            visible: form.picked && !root.busy && !root.asked
                             text: "Someone else"
                             onClicked: { root.otherUser = true; userField.text = ""; userField.input.forceActiveFocus(); }
+                        }
+                        // without the code there must still be a way out of
+                        // a prompt that named an account not in the list
+                        Choice {
+                            visible: root.asked
+                            text: "Cancel — use another account"
+                            onClicked: { Greetd.cancelSession(); root.reset(""); }
                         }
                         Choice {
                             visible: !root.echo

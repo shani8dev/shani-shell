@@ -174,6 +174,13 @@ ColumnLayout {
         Layout.fillWidth: true
         spacing: 2
         SectionTitle { text: Tr.t("VPN") }
+        EmptyState {
+            Layout.fillWidth: true
+            visible: !Net.hasTailscale
+            icon: "network-vpn"
+            title: Tr.t("No VPN configured")
+            subtitle: Tr.t("Add one in Settings → Network")
+        }
         ListRow {
             Layout.fillWidth: true
             visible: Net.hasTailscale
@@ -277,7 +284,7 @@ ColumnLayout {
         visible: Ui.expanded === "btsend" && BtSend.file !== ""
         Layout.fillWidth: true
         spacing: 2
-        SectionTitle { text: "Send " + BtSend.file.split("/").pop() + " to" }
+        SectionTitle { text: Tr.t("Send %1 to").arg(BtSend.file.split("/").pop()) }
         Repeater {
             model: BtSend.devices
             ListRow {

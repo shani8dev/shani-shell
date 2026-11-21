@@ -21,8 +21,9 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: (visible) && !Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    property int sel: 0
-    onVisibleChanged: sel = 0
+    // nothing preselected: a stray Enter must not share over the network
+    property int sel: -1
+    onVisibleChanged: sel = -1
     MouseArea { objectName: "nav:pointer"; anchors.fill: parent; onClicked: Share.close() }
     Item {
         anchors.fill: parent
@@ -30,7 +31,7 @@ PanelWindow {
         Keys.onEscapePressed: Share.close()
         Keys.onDownPressed: win.sel = Math.min(win.sel + 1, Share.targets.length - 1)
         Keys.onUpPressed: win.sel = Math.max(win.sel - 1, 0)
-        Keys.onReturnPressed: Share.choose(win.sel)
+        Keys.onReturnPressed: if (win.sel >= 0) Share.choose(win.sel)
     }
     Glass {
         id: blurCard
@@ -58,7 +59,7 @@ PanelWindow {
             spacing: Theme.px(4)
             Text {
                 Layout.fillWidth: true
-                text: "Share “" + Share.name + "”"
+                text: Tr.t("Share %1").arg(Share.name)
                 color: Theme.text
                 elide: Text.ElideMiddle
                 font.family: Theme.font

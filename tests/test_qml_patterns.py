@@ -386,7 +386,7 @@ def test_round2_hig_fixes_are_wired():
     root = Path(__file__).resolve().parent.parent
     checks = {
         "shani/Modules/Launcher/Launcher.qml": [
-            "color: Theme.alpha(Theme.bg, 0.94)",
+            "Settings.blurWanted ? 0.78 : 0.94",
             "elide: Text.ElideRight",
         ],
         "shani/Modules/ControlCenter/Sidebar.qml": [
@@ -413,7 +413,11 @@ def test_round2_hig_fixes_are_wired():
         "shani/Modules/Nearby/NearbyWindow.qml": ["Visible to devices nearby"],
         "shani/Modules/Share/ShareSheet.qml": ["window-close"],
         "shani/Services/FileActions.qml": ["Strip location & camera data"],
-        "greeter/shell.qml": ["BackgroundEffect.blurRegion"],
+        "greeter/shell.qml": [
+            "color: Theme.glassStrong",
+            "BackgroundEffect.blurRegion",
+            "Cancel — use another account",
+        ],
         "setup/shell.qml": ["BackgroundEffect.blurRegion"],
     }
     for rel, needles in checks.items():
@@ -444,3 +448,82 @@ def test_round3_accessibility_and_harness_fixes_are_wired():
     assert (
         render.count('rm -f "$_out"/*.png') == 3
     )  # stale shots cleared in all three phases
+
+
+def test_round4_image_recheck_fixes_are_wired():
+    """Guards for the skeptical recheck of all 160 current renders."""
+    root = Path(__file__).resolve().parent.parent
+    checks = {
+        "shani/Modules/Clocks/ClocksWindow.qml": [
+            "contentHeight: alarmsCol.implicitHeight",
+            "ScrollBar.vertical",
+        ],
+        "shani/Modules/MediaPlayer/MediaPlayerWindow.qml": [
+            'PlayQueue.page !== "radio" && PlayQueue.page !== "live"'
+        ],
+        "shani/Modules/Annotate/Annotate.qml": ["MouseArea", "edit-undo"],
+        "shani/Modules/Island/Island.qml": ['kind: "plain"'],
+        "shani/Modules/Share/ShareSheet.qml": ["property int sel: -1"],
+        "shani/Modules/Osd/Osd.qml": ['root.label.startsWith("Microphone")'],
+        "shani/Modules/Chronoa/ChronoaPanel.qml": ["Theme.px(12) * Theme.fontScale"],
+        "shani/Common/Choice.qml": [
+            "font.weight: root.selected ? Font.DemiBold : Font.Normal"
+        ],
+        "shani/Modules/Software/SoftwareWindow.qml": ["Flatpak isn't installed"],
+        "shani/Modules/ControlCenter/Sidebar.qml": ["ScrollBar.AlwaysOn"],
+    }
+    for rel, needles in checks.items():
+        text = (root / rel).read_text()
+        for needle in needles:
+            assert needle in text, (rel, needle)
+
+
+def test_no_deferrals_round5_are_wired():
+    """Guards for the final pass: every review finding, nothing deferred."""
+    root = Path(__file__).resolve().parent.parent
+    checks = {
+        "shani/Modules/Files/FilesPanel.qml": ["Layout.minimumWidth: Theme.px(190)"],
+        "shani/Modules/Kundali/KundaliPanel.qml": [
+            'Text { text: Tr.t("Latitude")',
+            'Text { text: Tr.t("Longitude")',
+        ],
+        "shani/Modules/ControlCenter/SidebarDetails.qml": ["No VPN configured"],
+        "shani/Modules/ControlCenter/SidebarTiles.qml": ["Region or window"],
+        "setup/shell.qml": [
+            'root.pageId === "network" && !netPage.online',
+            'root.pageId !== "network" || netPage.online',
+        ],
+        "shani/Common/Choice.qml": [
+            "property bool danger: false",
+            "font.weight: root.selected ? Font.DemiBold : Font.Normal",
+        ],
+        "shani/Modules/Settings/SettingsPrinters.qml": ["danger: true"],
+        "shani/Modules/Osk/Keyboard.qml": [
+            'label: "WRITE"',
+            'label: Osk.languages.length > 1 ? "LANG "',
+            "property string accessibleName",
+        ],
+        "shani/Modules/QrView/QrView.qml": ["Copy details"],
+        "shani/Services/Recorder.qml": ["Couldn't record"],
+        "shani/Modules/MediaPlayer/LiveTvView.qml": ["Layout.maximumWidth"],
+        "shani/Modules/Launcher/Launcher.qml": [
+            "nameCount[a.name] > 1",
+            "maximumLineCount: 2",
+        ],
+        "shani/Modules/Chronoa/ChronoaPanel.qml": ["panel.lastAsks", "Yes, set it up"],
+        "shani/Common/Theme.qml": ['"phone", "tablet", "handheld", "board"'],
+        "shani/Modules/Processes/Processes.qml": [
+            "/^(niri|qs|quickshell|systemd|init)$/"
+        ],
+        "shani/Modules/Characters/CharactersPanel.qml": ["maximumLineCount: 2"],
+        "shani/Modules/Settings/SettingsWallpaperStyle.qml": ["Apply as wallpaper"],
+        "shani/Modules/Touch/AssistiveTouch.qml": ["three dots say"],
+        "shani/Modules/Notifications/NotificationCard.qml": [
+            "Theme.alpha(Theme.red, 0.10)"
+        ],
+        "shani/Services/Terminal.qml": ["initial-color-theme=", "[csd]"],
+    }
+    for rel, needles in checks.items():
+        text = (root / rel).read_text()
+        for needle in needles:
+            assert needle in text, (rel, needle)

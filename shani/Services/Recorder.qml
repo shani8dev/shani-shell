@@ -136,7 +136,8 @@ Singleton {
             if (code === 3)               // the region selection was cancelled: nothing to say
                 return;
             if (code !== 0) {
-                Quickshell.execDetached(["notify-send", "-a", "Screen recorder", "-i", "media-record", "Recording failed", root.file]);
+                // a raw path is not an explanation (and failures stack as duplicates)
+                Quickshell.execDetached(["notify-send", "-a", "Screen recorder", "-i", "media-record", "Couldn't record — try again", Tr.t("No file was saved.")]);
                 return;
             }
             saved.command = ["notify-send", "-a", "Screen recorder", "-i", "media-record", "-A", "open=Open", "-A", "trim=Trim", "-A", "gif=Make a GIF",

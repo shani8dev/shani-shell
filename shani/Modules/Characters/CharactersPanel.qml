@@ -99,7 +99,9 @@ AppWindow {
                             Layout.fillWidth: true
                             horizontalAlignment: Text.AlignHCenter
                             text: cell.modelData.name
-                            color: Theme.faint
+                            color: Theme.dim
+                            wrapMode: Text.Wrap
+                            maximumLineCount: 2
                             elide: Text.ElideRight
                             font.family: Theme.font
                             font.pixelSize: Theme.px(9) * Theme.fontScale

@@ -13,6 +13,16 @@ PanelWindow {
     id: panel
 
     property var model
+    // the last assistant turn ended in a question: offer the obvious follow-up
+    // as a chip instead of making the person type "yes"
+    readonly property bool lastAsks: {
+        if (!model || !model.count) return false;
+        for (let i = model.count - 1; i >= 0; --i) {
+            const it = model.get(i);
+            if (it.kind === "assistant") return /\?\s*$/.test(String(it.text || "").trim());
+        }
+        return false;
+    }
     property bool open: false
     property bool busy: false
     property string state: "idle"
@@ -281,8 +291,8 @@ PanelWindow {
                 spacing: Theme.px(10)
 
                 Item {
-                    width: Theme.px(20)
-                    height: Theme.px(20)
+                    Layout.preferredWidth: Theme.px(20)
+                    Layout.preferredHeight: Theme.px(20)
 
                     Rectangle {
                         anchors.centerIn: parent
@@ -338,8 +348,8 @@ PanelWindow {
                 Item { Layout.fillWidth: true }
 
                 Rectangle {
-                    width: modelChip.implicitWidth + 16
-                    height: Theme.px(22)
+                    Layout.preferredWidth: modelChip.implicitWidth + 16
+                    Layout.preferredHeight: Theme.px(22)
                     radius: Theme.px(11)
                     color: Theme.alpha(Theme.text, 0.05)
                     border.width: 1
@@ -356,8 +366,8 @@ PanelWindow {
                 }
 
                 Rectangle {
-                    width: Theme.px(26)
-                    height: Theme.px(26)
+                    Layout.preferredWidth: Theme.px(26)
+                    Layout.preferredHeight: Theme.px(26)
                     radius: Theme.px(13)
                     color: closeArea.containsMouse ? Theme.alpha(Theme.text, 0.10) : "transparent"
 
@@ -379,7 +389,7 @@ PanelWindow {
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 1
+                Layout.preferredHeight: 1
                 color: Theme.alpha(Theme.text, 0.07)
             }
 
@@ -396,7 +406,7 @@ PanelWindow {
                 // feels like the same companion waiting, not an empty box
                 Rectangle {
                     id: idleOrb
-                    width: Theme.px(64); height: Theme.px(64)
+                    Layout.preferredWidth: Theme.px(64); Layout.preferredHeight: Theme.px(64)
                     radius: Theme.px(32)
                     gradient: Gradient {
                         GradientStop { position: 0.0; color: Theme.alpha(Theme.accent, 0.18) }
@@ -412,6 +422,7 @@ PanelWindow {
                         autoPaddingEnabled: true
                     }
                     SequentialAnimation {
+                        running: idleOrb.visible && !Settings.data.reduceMotion
                         loops: Animation.Infinite
                         NumberAnimation { target: idleOrb; property: "opacity"; from: 0.55; to: 0.95; duration: Theme.mot(2200); easing.type: Easing.InOutSine }
                         NumberAnimation { target: idleOrb; property: "opacity"; from: 0.95; to: 0.55; duration: Theme.mot(2200); easing.type: Easing.InOutSine }
@@ -729,12 +740,12 @@ PanelWindow {
                 visible: !panel.busy
 
                 Repeater {
-                    model: [
+                    model: (panel.lastAsks ? [{ label: Tr.t("Yes, set it up"), prompt: "Yes, set that up as a rule" }] : []).concat([
                         { label: Tr.t("Battery"), prompt: "What's eating my battery?" },
                         { label: Tr.t("Summarise screen"), prompt: "Summarise what's on my screen." },
                         { label: Tr.t("Tidy desktop"), prompt: "Tidy my desktop." },
                         { label: Tr.t("Dictate"), prompt: "", action: "dictate" }
-                    ]
+                    ])
 
                     Rectangle {
                         required property var modelData
@@ -774,7 +785,7 @@ PanelWindow {
             // ---- composer ------------------------------------------------
             Rectangle {
                 Layout.fillWidth: true
-                height: Theme.px(48)
+                Layout.preferredHeight: Theme.px(48)
                 radius: Theme.px(14)
                 color: Theme.alpha(Theme.text, 0.05)
                 border.width: 1
@@ -800,20 +811,22 @@ PanelWindow {
                         Keys.onEscapePressed: panel.dismiss()
                         Keys.onReturnPressed: panel.submit()
                         Keys.onEnterPressed: panel.submit()
-                    }
 
-                    Text {
-                        visible: input.text === ""
-                        text: Tr.t("Ask Chronoa, or describe a task…")
-                        color: Theme.alpha(Theme.dim, 0.75)
-                        font.family: Theme.font
-                        font.pixelSize: Theme.px(14) * Theme.fontScale
-                        Layout.fillWidth: true
+                        // inside the field: a sibling in the RowLayout would take a column of its own
+                        Text {
+                            visible: input.text === ""
+                            text: Tr.t("Ask Chronoa, or describe a task…")
+                            color: Theme.alpha(Theme.dim, 0.75)
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(14) * Theme.fontScale
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
                     }
 
                     Rectangle {
-                        width: Theme.px(32)
-                        height: Theme.px(32)
+                        Layout.preferredWidth: Theme.px(32)
+                        Layout.preferredHeight: Theme.px(32)
                         radius: Theme.px(9)
                         color: micArea.containsMouse ? Theme.alpha(Theme.accent, 0.18) : Theme.alpha(Theme.text, 0.05)
                         visible: panel.state !== "listening"
@@ -835,8 +848,8 @@ PanelWindow {
                     }
 
                     Rectangle {
-                        width: Theme.px(32)
-                        height: Theme.px(32)
+                        Layout.preferredWidth: Theme.px(32)
+                        Layout.preferredHeight: Theme.px(32)
                         radius: Theme.px(9)
                         visible: panel.state === "listening"
                         color: panel.accent
@@ -855,8 +868,8 @@ PanelWindow {
                     }
 
                     Rectangle {
-                        width: Theme.px(34)
-                        height: Theme.px(32)
+                        Layout.preferredWidth: Theme.px(34)
+                        Layout.preferredHeight: Theme.px(32)
                         radius: Theme.px(9)
                         color: input.text.trim() === "" ? Theme.alpha(Theme.text, 0.04) : Theme.alpha(Theme.accent, 0.30)
                         border.width: 1
@@ -880,16 +893,16 @@ PanelWindow {
             Text {
                 Layout.fillWidth: true
                 text: Tr.t("↵ send    esc close    ·    tools ask before they change anything")
-                color: Theme.alpha(Theme.dim, 0.65)
+                color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
         }
     }
 
     // pulsing halo while Chronoa is working
     SequentialAnimation {
-        running: panel.state === "listening" || panel.state === "thinking" || panel.state === "speaking"
+        running: (panel.state === "listening" || panel.state === "thinking" || panel.state === "speaking") && !Settings.data.reduceMotion
         loops: Animation.Infinite
         NumberAnimation { target: halo; property: "opacity"; from: 0.0; to: 0.9; duration: Theme.mot(520) }
         NumberAnimation { target: halo; property: "opacity"; from: 0.9; to: 0.0; duration: Theme.mot(520) }

@@ -129,6 +129,13 @@ Glass {
         Keys.onDeletePressed: root.done()
     }
 
+    // critical: a tint as well as the red edge, so it reads as urgent at a glance
+    Rectangle {
+        anchors.fill: parent
+        radius: Theme.radiusLarge
+        visible: root.critical
+        color: Theme.alpha(Theme.red, 0.10)
+    }
     // critical: a red edge down the left
     Rectangle {
         visible: root.critical

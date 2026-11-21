@@ -62,8 +62,8 @@ AppWindow {
                     }
                 }
                 Item { Layout.fillWidth: true }
-                Choice { text: "Photo"; selected: Camera.mode === "photo"; onClicked: Camera.mode = "photo" }
-                Choice { text: "Video"; selected: Camera.mode === "video"; onClicked: Camera.mode = "video" }
+                Choice { text: Tr.t("Photo"); selected: Camera.mode === "photo"; onClicked: Camera.mode = "photo" }
+                Choice { text: Tr.t("Video"); selected: Camera.mode === "video"; onClicked: Camera.mode = "video" }
             }
 
             Rectangle {
@@ -123,15 +123,15 @@ AppWindow {
                     }
                     RowLayout {
                         spacing: Theme.px(6)
-                        Choice { text: "Open folder"; onClicked: Qt.openUrlExternally("file://" + (Camera.last ? Camera.last.substring(0, Camera.last.lastIndexOf("/")) : Camera.photosDir)); }
-                        Choice { text: "Copy path"; enabled: Camera.last !== ""; onClicked: Quickshell.clipboardText = Camera.last; }
-                        Choice { text: "Trim video"; visible: Camera.last.endsWith(".webm"); onClicked: { const p = Camera.last; Camera.closeCamera(); VideoTrimmer.open(p); } }
+                        Choice { text: Tr.t("Open folder"); onClicked: Qt.openUrlExternally("file://" + (Camera.last ? Camera.last.substring(0, Camera.last.lastIndexOf("/")) : Camera.photosDir)); }
+                        Choice { text: Tr.t("Copy path"); enabled: Camera.last !== ""; onClicked: Quickshell.clipboardText = Camera.last; }
+                        Choice { text: Tr.t("Trim video"); visible: Camera.last.endsWith(".webm"); onClicked: { const p = Camera.last; Camera.closeCamera(); VideoTrimmer.open(p); } }
                     }
                 }
             }
 
             Text {
-                text: "Gallery"
+                text: Tr.t("Gallery")
                 color: Theme.dim
                 font.family: Theme.font
                 font.pixelSize: Theme.px(11) * Theme.fontScale

@@ -49,6 +49,8 @@ AppWindow {
     Item {
         id: card
         anchors.fill: parent
+        focus: win.visible
+        Keys.onEscapePressed: Ui.kundali = false
 
         ColumnLayout {
             anchors.fill: parent
@@ -58,27 +60,37 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
-                Button { text: "Panchang"; checked: win.mode === "panchang"; onClicked: win.mode = "panchang" }
-                Button { text: "Kundali"; checked: win.mode === "kundali"; onClicked: win.mode = "kundali" }
+                Button { text: Tr.t("Panchang"); checked: win.mode === "panchang"; onClicked: win.mode = "panchang" }
+                Button { text: Tr.t("Kundali"); checked: win.mode === "kundali"; onClicked: win.mode = "kundali" }
             }
 
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
-                TextField { Layout.fillWidth: true; placeholderText: "Date (YYYY-MM-DD)"; text: win.dateInput; onTextChanged: win.dateInput = text }
-                TextField { Layout.preferredWidth: Theme.px(80); placeholderText: "Time (HH:MM)"; text: win.timeInput; onTextChanged: win.timeInput = text }
+                TextField { Layout.fillWidth: true; placeholderText: Tr.t("Date, e.g. 1990-01-01"); text: win.dateInput; onTextChanged: win.dateInput = text }
+                TextField { Layout.preferredWidth: Theme.px(80); visible: win.mode === "kundali"; placeholderText: Tr.t("Time"); text: win.timeInput; onTextChanged: win.timeInput = text }
             }
 
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
-                TextField { Layout.fillWidth: true; placeholderText: "Latitude"; text: win.latInput; onTextChanged: win.latInput = text }
-                TextField { Layout.fillWidth: true; placeholderText: "Longitude"; text: win.lonInput; onTextChanged: win.lonInput = text }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(2)
+                    Text { text: Tr.t("Latitude"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                    TextField { Layout.fillWidth: true; placeholderText: "28.6139"; text: win.latInput; onTextChanged: win.latInput = text }
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(2)
+                    Text { text: Tr.t("Longitude"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                    TextField { Layout.fillWidth: true; placeholderText: "77.2090"; text: win.lonInput; onTextChanged: win.lonInput = text }
+                }
             }
 
             Button {
                 Layout.fillWidth: true
-                text: win.loading ? "Computing..." : "Calculate"
+                text: win.loading ? Tr.t("Computing…") : Tr.t("Calculate")
                 enabled: !win.loading && win.dateInput !== ""
                 onClicked: win.calculate()
             }
@@ -104,36 +116,40 @@ AppWindow {
     Process {
         id: kundaliProc
         running: false
+        onExited: code => {
+            if (code !== 0) {
+                win.loading = false;
+                win.result = Tr.t("The calculation failed — is the Kundali helper installed?");
+            }
+        }
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
                     const data = JSON.parse(text);
                     if (data.error) {
-                        win.result = "Error: " + data.error;
+                        win.result = Tr.t("Could not compute: %1").arg(data.error);
                     } else if (win.mode === "panchang") {
-                        win.result = "Tithi: " + data.tithi + "\n" +
-                                    "Vara: " + data.vara + "\n" +
-                                    "Nakshatra: " + data.nakshatra + "\n" +
-                                    "Yoga: " + data.yoga + "\n" +
-                                    "Karana: " + data.karana;
+                        win.result = Tr.t("Tithi: %1").arg(data.tithi) + "\n" +
+                                    Tr.t("Vara: %1").arg(data.vara) + "\n" +
+                                    Tr.t("Nakshatra: %1").arg(data.nakshatra) + "\n" +
+                                    Tr.t("Yoga: %1").arg(data.yoga) + "\n" +
+                                    Tr.t("Karana: %1").arg(data.karana);
                     } else {
-                        let r = "Kundali (Sidereal, Lahiri)\n\nPlanets:\n";
+                        let r = Tr.t("Kundali (Sidereal, Lahiri)") + "\n\n" + Tr.t("Planets:") + "\n";
                         for (const p of data.planets) {
-                            r += "  " + p.name + ": " + p.sign + " " + p.degree + "°" + String(p.minute).padStart(2, '0') + "'" + (p.retrograde ? " (R)" : "") + "\n";
+                            r += "  " + p.name + ": " + p.sign + " " + p.degree + "°" + String(p.minute).padStart(2, '0') + "'" + (p.retrograde ? " " + Tr.t("(R)") : "") + "\n";
                         }
-                        r += "\nHouses:\n";
+                        r += "\n" + Tr.t("Houses:") + "\n";
                         for (const h of data.houses) {
-                            r += "  House " + h.number + ": " + h.sign + " " + h.degree + "°" + String(h.minute).padStart(2, '0') + "'\n";
+                            r += "  " + Tr.t("House %1", h.number) + ": " + h.sign + " " + h.degree + "°" + String(h.minute).padStart(2, '0') + "'\n";
                         }
                         win.result = r;
                     }
                 } catch (e) {
-                    win.result = "Parse error: " + e.message + "\nRaw: " + text;
+                    win.result = Tr.t("The result could not be read");
                 }
                 win.loading = false;
             }
         }
     }
-
-    Keys.onEscapePressed: Ui.kundali = false
 }

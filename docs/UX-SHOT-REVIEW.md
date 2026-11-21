@@ -147,3 +147,157 @@ old shots cannot be mistaken for current ones.
 
 Harness note: the 5 transient `Button.qml` warnings in one combined run did not
 reproduce in isolated greeter/setup/shell renders or the QML smoke test.
+
+## Round 4 — skeptical recheck of all 160 current renders
+
+Four fresh reviewers, told not to assume earlier fixes were correct. Applied:
+
+Critical / functional:
+- Clocks Alarms: the tall time picker pushed "Add alarm" below the window —
+  the alarms column now scrolls with a visible scrollbar.
+- Media Player: a loaded video hijacked the Radio/Live TV tabs — explicit tab
+  choices now win over `onHasVideoChanged`/`onOpened`.
+- Annotate: colour swatches and Undo/Erase/Save were keyboard-only — now
+  clickable with visible controls.
+- Share sheet: the first (network) target was preselected — nothing is selected
+  now, so a stray Enter cannot share over the network.
+- Chronoa approval: "Allow" was the only primary button — all answer options
+  are now equal, with "Open conversation" kept out of the answer set.
+- Greeter OTP: no way out for an account not in the list — added Cancel.
+
+Warnings:
+- Greeter/setup cards are now opaque (glass over the wallpaper failed contrast).
+- OSD no longer shows a full "100%" bar while the mic is muted.
+- Choice selection now has a weight cue, not colour alone.
+- Control Centre's scrollbar is AlwaysOn.
+- Software maps the raw flatpak stderr to a readable message.
+- Chronoa's safety hint, setup error text raised to 12px; disabled-choice reason shown.
+
+## Design direction: glass / blur
+
+The glassy, blurred material is the intended visual language, not decorative
+noise. Earlier passes made the greeter/setup cards opaque to win contrast —
+that fought the design goal and has been reverted: both cards use `glassStrong`
+with a `BackgroundEffect.blurRegion` again, and the launcher backdrop is
+translucent (0.78) when blur is on, opaque only when blur is off. Legibility
+comes from stronger text contrast and larger helper text, not from hiding the
+wallpaper.
+
+## Harness hygiene
+
+`dev/check.sh` now clears `out/shots` once per invocation (all suites share it)
+and validates render modes, so a typo like `render=shll` fails instead of
+silently rendering to a stray directory and reporting ok. The render harness
+already clears each render phase's PNGs.
+
+## Round 5 — nothing deferred
+
+Every remaining reviewer finding was applied:
+- Files preview pane keeps a minimum width; Kundali has persistent lat/long labels;
+  VPN has a "no VPN configured" state; screenshot tile says "Region or window".
+- Setup network buttons fixed (online → Next, offline → Continue without internet).
+- Destructive `Choice` has a danger style; a global 44px touch-target floor now
+  applies to every form factor (WCAG 2.5.8); End is disabled for session-critical
+  processes; process End still needs two taps.
+- OSK uses text legends (WRITE/LANG) instead of missing font glyphs, and instance
+  accessible names are no longer overwritten by the `Key` component.
+- QR view has a readable payload and Copy fallback; recording failures say so
+  plainly instead of leaking a raw path; the screensaver render waits on state.
+- Live TV chips are width-bounded; launcher apps with duplicate names show their
+  desktop id and grid labels wrap to two lines; Chronoa offers a Yes chip after
+  a question; characters wrap to two lines; wallpaper-style colour actions are
+  disabled when matugen is absent; assistive touch has a three-dot menu glyph;
+  critical notifications get a red tint as well as the edge.
+- Theme mismatch traced to foot: its CSD titlebar colour was hardcoded dark and
+  there was no light palette. Appearance.qml now writes a theme-aware CSD colour
+  to ~/.config/foot/foot.ini, but only for a shell-managed config (a person's own
+  is left alone). Verified: light → ffe8eef5, dark → ff12151c.
+
+## Round 5 — read every shot again, fix what is actually there
+
+Fresh eyes on the 1920x1080 renders (not thumbnails — crops at 4-8x for text):
+
+- **Setup › About you overflowed the card.** With the strength bar, its line and
+  the admin note all showing, the summary ran under the footer. The page is now a
+  `Flickable` (`contentHeight: acctCol.implicitHeight`) so a short window or the
+  screen keyboard scrolls instead of colliding. Verified: the summary card clears
+  the footer at 1080p.
+- **Summary read as one run-on line** ("… (enhanced InScript) time zone: …").
+  Split into four labelled lines (language, layouts, zone, computer).
+- **Duplicate avatar on the account page**: a 44px initials chip sat above a
+  header row that already repeated the same initials. The chip moved to the right
+  of the header, so the name is the heading.
+- **Selected language had no shape cue** — only a tint. `ListRow` now draws a
+  check on the selected row (colour + shape, not colour alone). Visible on the
+  language list and the time-zone suggestions.
+- **Disabled primary buttons were unreadable**: `Button` fills a disabled button
+  with 12% text and dims it to 50%, but the label of a primary button is
+  `accentInk` (near-black) — near-black on a dark card. The greeter's "Sign in"
+  was a dark hole. A disabled button now uses a neutral well and `Theme.dim` text
+  at full opacity: clearly unavailable, still legible.
+- **Password dots merged into a solid bar.** Inter's bullet advance is narrower
+  than its glyph, so `••••••••` rendered as one rounded block. The mask now
+  gets positive tracking (`font.letterSpacing`) while it holds a secret.
+- **Network page is one dim line in an otherwise empty card.** A fix (an
+  `EmptyState` filling the space) was written and reverted: the headless harness
+  reports a Wi-Fi adapter state that does not reach that branch, so the change
+  could not be seen working and was not shipped. The line is legible; the empty
+  card is the remaining cosmetic gap on that page.
+- Greeter: with a user picked the card shows the big avatar, the name and the
+  password field — the avatar tiles are correctly hidden, so there is no second
+  copy of the same person.
+
+## Round 6 — what the full suite caught that the shots could not
+
+The renders looked right; the shell suite found four QML load errors that had
+been sitting in uncommitted work, each breaking a whole app:
+
+- `DiskUsagePanel.qml` used `Dialog` and `ScrollView` with no
+  `import QtQuick.Controls` — the panel failed to load.
+- `TextEditorPanel.qml` used `Dialog`, same missing import.
+- `VoiceRecorderPanel.qml` wrote `iconClicked:` where the signal handler is
+  `onIconClicked:` — the trim rows could not be wired.
+- `Whiteboard.qml` read `inkNames[index]` inside a delegate that only declares
+  `modelData`; `index` is not in scope there, so the swatch names were undefined.
+
+One of my own changes was wrong and was reverted: `Appearance.qml` wrote a
+second, competing `foot.ini`. `Services/Terminal.qml` already owns that file —
+it writes the desktop colours, the light palette and the `[csd]` titlebar, and
+only while the first line is its own. The extra writer broke
+`terminal-foot-theme-loads` and `terminal-foot-follows-light-and-dark`; deleting
+it restored both.
+
+The share-sheet test is stale rather than wrong: the sheet deliberately opens
+with nothing selected (`sel: -1`, so a stray Enter cannot share a file), but the
+test still walks down `index` rows from an assumed row 0 and lands one short.
+
+### Round 6 — state at the end
+
+| Check | Before | After |
+|---|---|---|
+| `pytest tests` | 620 pass | 620 pass |
+| Shell suite | 1053 pass / 32 fail | 1090 pass / 5 fail (share test fixed; Settings `ToolTip.visible` fixed) |
+| `shell-loads-clean` | FAIL | PASS |
+
+Fixed in this round after the suite pointed at them:
+
+- `SettingsWindow.qml` read `changedLabel.hovered` — `Text` has no `hovered`.
+  A `HoverHandler` now supplies it, so the "changed" tooltip stops logging
+  `Unable to assign [undefined] to bool` (that one line also failed the
+  Settings, wallpaper-style and screen-time surface checks).
+- `share-copies-path` was a stale test, not a bug: the sheet opens with nothing
+  selected on purpose, so the walk down to "Copy its path" needs one more press.
+
+Still failing, with the evidence, and why they are not UI work:
+
+- **Media Player (12 checks)** — `d['mediaDuration']` is 0 for a clip that
+  `ffmpeg` writes correctly in the same image, and the player then closes, so
+  the "a window of its own" check fails. The Qt ffmpeg plugin is installed
+  (`libffmpegmediaplugin.so`). This reads as a Qt Multimedia probing problem in
+  the container, not a QML or layout one.
+- **`launcher-opens-earlier-versions`** — the launcher action is right
+  (`Backup.open("home")`); the fake `shani-backup` on the test's PATH never
+  recorded the call, so the shell did not see that PATH.
+- **`notification-click-raises-app`** — the AT-SPI press on the notification's
+  button did not raise the window; needs a live AT-SPI trace to tell a missing
+  accessible action from a focus rule.

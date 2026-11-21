@@ -107,19 +107,27 @@ PanelWindow {
         Row {
             id: row
             anchors.centerIn: parent
-            spacing: Theme.px(8)
+            spacing: Theme.px(14)
             Repeater {
                 model: win.colours
                 Rectangle {
                     required property string modelData
                     required property int index
                     anchors.verticalCenter: parent.verticalCenter
-                    width: Theme.px(14); height: Theme.px(14); radius: Theme.px(7)
+                    width: Theme.px(26); height: Theme.px(26); radius: Theme.px(13)
                     color: modelData
                     border.width: index === win.colour ? 2 : 0
                     border.color: Theme.text
+                    // colours were keyboard-only: a pointer user could not pick one
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: win.colour = parent.index
+                    }
                 }
             }
+            IconButton { icon: "edit-undo"; tip: Tr.t("Undo") + " (Z)"; onClicked: win.undo() }
+            IconButton { icon: "draw-eraser"; tip: Tr.t("Erase") + " (E)"; onClicked: win.clear() }
+            IconButton { icon: "document-save"; tip: Tr.t("Save") + " (S)"; onClicked: win.save() }
             Text {
                 text: Tr.t("  Shift: straight line  ·  Z undo  ·  E erase  ·  S save  ·  Esc close")
                 color: Theme.text

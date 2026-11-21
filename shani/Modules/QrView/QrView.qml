@@ -67,9 +67,25 @@ PanelWindow {
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
                 text: Tr.t("Point a phone's camera at it · Esc closes")
-                color: Theme.dim
+                color: Theme.text
                 font.family: Theme.font
+                font.pixelSize: Theme.px(12) * Theme.fontScale
+            }
+            // if scanning fails, the encoded details are still readable here
+            Text {
+                Layout.fillWidth: true
+                visible: Qr.text !== ""
+                text: Qr.text
+                color: Theme.dim
+                wrapMode: Text.Wrap
+                font.family: Theme.mono
                 font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+            Button {
+                Layout.alignment: Qt.AlignHCenter
+                visible: Qr.text !== ""
+                text: Tr.t("Copy details")
+                onClicked: Quickshell.clipboardText = Qr.text
             }
         }
     }

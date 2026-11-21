@@ -128,7 +128,7 @@ PanelWindow {
             contentHeight: col.implicitHeight
             clip: true
             boundsBehavior: Flickable.StopAtBounds
-            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AlwaysOn }
 
             ColumnLayout {
                 id: col

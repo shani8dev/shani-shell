@@ -80,11 +80,23 @@ ColumnLayout {
                 spacing: Theme.px(6)
                 Repeater {
                     model: Object.keys(page.permCounts)
-                    Choice {
+                    Rectangle {
                         required property string modelData
-                        text: (page.names[modelData + "/" + page.grants.find(g => g.table === modelData).id] || modelData) + " · " + page.permCounts[modelData]
-                        selected: false
-                        onClicked: { }
+                        readonly property string label: (page.names[modelData + "/" + page.grants.find(g => g.table === modelData).id] || modelData) + " · " + page.permCounts[modelData]
+                        implicitWidth: chipText.implicitWidth + Theme.px(12)
+                        implicitHeight: chipText.implicitHeight + Theme.px(8)
+                        radius: Theme.radiusSmall
+                        color: Theme.surface1
+                        Text {
+                            id: chipText
+                            anchors.centerIn: parent
+                            text: parent.label
+                            color: Theme.text
+                            font.family: Theme.font
+                            font.pixelSize: Theme.fontSmall * Theme.fontScale
+                        }
+                        Accessible.role: Accessible.StaticText
+                        Accessible.name: label
                     }
                 }
             }

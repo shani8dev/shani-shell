@@ -10,12 +10,24 @@ Rectangle {
     property var undoValue: null     // the previous value to restore
     signal undo()
 
-    visible: root.message !== ""
+    // Stay visible through the exit animation; hiding on message-clear would
+    // cut the fade short because Qt Quick does not render invisible items.
+    property bool _live: false
+    visible: _live
     opacity: 0
-    Behavior on opacity { NumberAnimation { duration: Theme.anim * 2; easing.type: Easing.InOutQuad } }
+    Behavior on opacity {
+        NumberAnimation {
+            duration: Theme.anim * 2
+            easing.type: Easing.InOutQuad
+            onFinished: if (root.opacity === 0) root._live = false
+        }
+    }
 
-    onVisibleChanged: if (visible) opacity = 1; else opacity = 0
-    Component.onCompleted: if (visible) opacity = 1
+    onMessageChanged: {
+        if (message !== "") { _live = true; opacity = 1; dismiss.restart(); }
+        else opacity = 0;
+    }
+    Component.onCompleted: if (message !== "") { _live = true; opacity = 1; dismiss.restart(); }
 
     anchors.bottom: parent ? parent.bottom : undefined
     anchors.horizontalCenter: parent ? parent.horizontalCenter : undefined
@@ -49,7 +61,7 @@ Rectangle {
         }
     }
     Timer {
-        running: root.visible
+        id: dismiss
         interval: 5000
         onTriggered: root.message = ""
     }

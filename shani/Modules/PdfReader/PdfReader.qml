@@ -411,6 +411,7 @@ AppWindow {
 
                     // continuous scroll: every rendered page, one under the other
                     Flickable {
+                        id: contFlick
                         visible: PdfViewer.continuous
                         anchors.fill: parent
                         clip: true
@@ -420,8 +421,8 @@ AppWindow {
                         Column {
                             id: contCol
                             spacing: Theme.px(8)
-                            anchors.leftMargin: Theme.px(8)
-                            anchors.rightMargin: Theme.px(8)
+                            x: Theme.px(8)
+                            width: Math.max(contFlick.width - Theme.px(16), 0)
                             Repeater {
                                 model: PdfViewer.pages
                                 Image {

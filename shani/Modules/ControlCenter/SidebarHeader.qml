@@ -14,6 +14,7 @@ import qs.Services
 import qs.Modules.Notifications
 
 ColumnLayout {
+    id: header
     required property var sidebar
     required property var sidebarClock
     spacing: Theme.px(14)
@@ -230,7 +231,13 @@ ColumnLayout {
 
     // on battery: what is using the most power now (Pantheon's power indicator),
     // by processor use; a click opens the process list, where one can be ended
-    Binding { target: TopProcesses; property: "watching"; value: true; when: Ui.expanded === "power" && Power.onBattery }
+    property bool powerWatching: false
+    onPowerWatchingChanged: {
+        if (powerWatching) TopProcesses.requestWatch();
+        else TopProcesses.releaseWatch();
+    }
+    Binding { target: header; property: "powerWatching"; value: Ui.expanded === "power" && Power.onBattery }
+    Component.onDestruction: if (powerWatching) TopProcesses.releaseWatch()
     ColumnLayout {
         readonly property var heavy: TopProcesses.list.filter(p => p.cpu >= 5).slice(0, 3)
         visible: Ui.expanded === "power" && Power.onBattery && heavy.length > 0

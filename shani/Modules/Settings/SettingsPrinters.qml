@@ -172,6 +172,7 @@ ColumnLayout {
                 Choice { visible: pr.modelData.jobs > 0; text: Tr.t("Cancel my jobs"); onClicked: page.run(["cancel", "-u", Quickshell.env("USER") || "", pr.modelData.name], Tr.t("Your jobs were cancelled")) }
                 Choice { text: Tr.t("Queue"); onClicked: { Ui.closeAll(); Printing.openQueue(); } }
                 Choice {
+                    danger: true
                     text: pr.confirming ? Tr.t("Tap again to remove") : Tr.t("Remove…")
                     onClicked: {
                         if (pr.confirming) page.run(["pkexec", "lpadmin", "-x", pr.modelData.name], Tr.t("%1 removed", pr.modelData.name));

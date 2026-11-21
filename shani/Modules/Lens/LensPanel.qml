@@ -45,14 +45,14 @@ PanelWindow {
                 Icon { name: "system-search"; size: Theme.px(20); color: Theme.accent }
                 Text {
                     Layout.fillWidth: true
-                    text: Lens.phase === "reading" ? "Lens · reading…" : "Lens"
+                    text: Lens.phase === "reading" ? Tr.t("Lens · reading…") : Tr.t("Lens")
                     color: Theme.text
                     font.family: Theme.font
                     font.pixelSize: Theme.px(15) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
-                IconButton { icon: "view-refresh"; size: Theme.px(28); onClicked: Lens.capture() }
-                IconButton { icon: "window-close"; size: Theme.px(28); onClicked: Lens.close() }
+                IconButton { icon: "view-refresh"; size: Theme.px(28); tip: Tr.t("Read the selection again"); onClicked: Lens.capture() }
+                IconButton { icon: "window-close"; size: Theme.px(28); tip: Tr.t("Close"); onClicked: Lens.close() }
             }
 
             Rectangle {
@@ -80,7 +80,7 @@ PanelWindow {
                     Layout.fillWidth: true
                     icon: /^https?:\/\//.test(modelData) ? "web-browser" : "edit-paste"
                     title: modelData
-                    subtitle: /^https?:\/\//.test(modelData) ? "QR code · open link" : "Code · copy"
+                    subtitle: /^https?:\/\//.test(modelData) ? Tr.t("QR code · open link") : Tr.t("Code · copy")
                     onClicked: /^https?:\/\//.test(modelData) ? Qt.openUrlExternally(modelData) : (Quickshell.clipboardText = modelData)
                 }
             }
@@ -100,7 +100,7 @@ PanelWindow {
                     readOnly: true
                     selectByMouse: true
                     wrapMode: TextEdit.Wrap
-                    text: Lens.phase === "reading" ? "" : (Lens.error || Lens.text || "No text found in the selection.")
+                    text: Lens.phase === "reading" ? "" : (Lens.error || Lens.text || Tr.t("No text found in the selection."))
                     color: Lens.text ? Theme.text : Theme.dim
                     selectionColor: Theme.accent
                     selectedTextColor: Theme.accentInk

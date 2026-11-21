@@ -29,9 +29,10 @@ PanelWindow {
 
     readonly property var windows: Object.values(Niri.windows)
     property bool confirming: false
-    onVisibleChanged: { confirming = false; TopProcesses.watching = visible; }
-    Component.onCompleted: TopProcesses.watching = visible     // made on first use, already visible
-    Component.onDestruction: TopProcesses.watching = false
+    property bool _watching: false
+    onVisibleChanged: { confirming = false; if (visible && !_watching) { TopProcesses.requestWatch(); _watching = true; } else if (!visible && _watching) { TopProcesses.releaseWatch(); _watching = false; } }
+    Component.onCompleted: { if (visible) { TopProcesses.requestWatch(); _watching = true; } }  // made on first use, already visible
+    Component.onDestruction: if (_watching) TopProcesses.releaseWatch()
     Timer { id: unconfirm; interval: 4000; onTriggered: win.confirming = false }
     function closeAll() {
         if (!confirming) { confirming = true; unconfirm.restart(); return; }

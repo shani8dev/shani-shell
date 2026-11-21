@@ -28,6 +28,7 @@ Singleton {
     readonly property bool shown: Ui.diskUsage
     readonly property int markedCount: marked.length
     readonly property int totalSize: entries.reduce((s, e) => s + (e.size || 0), 0)
+    readonly property var markedPaths: marked   // paths marked for removal
 
     function homeDir() { return Quickshell.env("HOME") || "/tmp"; }
 

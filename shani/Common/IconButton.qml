@@ -18,7 +18,10 @@ Rectangle {
     readonly property var plainNames: ({ "go-previous": "Previous", "go-next": "Next", "go-up": "Move up", "go-down": "Move down",
         "media-skip-backward": "Previous track", "media-skip-forward": "Next track", "media-playback-start": "Play", "media-playback-pause": "Pause",
         "window-close": "Close", "view-refresh": "Refresh", "list-remove": "Remove", "list-add": "Add", "edit-clear-all": "Clear all",
-        "edit-delete": "Delete", "view-more": "More", "notifications-disabled": "Do Not Disturb", "preferences-system-notifications": "Do Not Disturb" })
+        "edit-delete": "Delete", "view-more": "More", "notifications-disabled": "Do Not Disturb", "preferences-system-notifications": "Do Not Disturb",
+        "media-eject": "Eject", "folder-publicshare": "Share", "chat-message-new": "Summarise", "draw-eraser": "Eraser",
+        "edit-undo": "Undo", "document-new": "New", "document-save": "Save", "view-paged": "QR code", "preferences-system": "Settings",
+        "window-new": "Open", "insert-image-symbolic": "Insert image" })
     Accessible.name: root.tip !== "" ? root.tip : (plainNames[root.icon.replace(/-symbolic$/, "")] || root.icon.replace(/-symbolic$/, "").replace(/-/g, " "))
     Accessible.checkable: true
     Accessible.checked: root.on

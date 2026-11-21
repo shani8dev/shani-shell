@@ -1966,7 +1966,9 @@ waitfor "'Copy its path' in d['shareTargets'] and 'Nearby devices (LocalSend)' i
     && result share-sheet-targets PASS || result share-sheet-targets FAIL "$(q "['shareTargets']")"
 shot 70-share-sheet 0.4
 n=$(q "['shareTargets'].index('Copy its path')")
-for i in $(seq 1 "$n"); do wtype -k Down; sleep 0.1; done
+# the sheet opens with nothing selected (a stray Enter must not share), so the
+# first Down lands on row 0: reach row n with n + 1 presses
+for i in $(seq 1 "$((n + 1))"); do wtype -k Down; sleep 0.1; done
 wtype -k Return
 waitfor "d['shareDone'] == 'Copy its path' and d['shareTargets'] == []" 3 && [ "$(wl-paste -n)" = /tmp/share-me.txt ] \
     && result share-copies-path PASS || result share-copies-path FAIL "$(q "['shareDone']") / $(wl-paste -n)"

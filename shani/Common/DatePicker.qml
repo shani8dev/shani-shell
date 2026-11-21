@@ -143,7 +143,7 @@ ColumnLayout {
         Choice {
             text: Tr.t("Other…")
             selected: root.value !== Qt.formatDate(new Date(), "yyyy-MM-dd") && root.value !== Qt.formatDate(new Date(Date.now() + 86400000), "yyyy-MM-dd")
-            onClicked: { }
+            onClicked: customDate.forceActiveFocus()
         }
     }
 

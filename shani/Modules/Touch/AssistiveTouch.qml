@@ -33,7 +33,17 @@ PanelWindow {
         color: Theme.alpha(Theme.bg, 0.55)
         border.width: 2
         border.color: Theme.alpha(Theme.accent, 0.8)
-        Rectangle { anchors.centerIn: parent; width: Theme.px(26); height: Theme.px(26); radius: Theme.px(13); color: Theme.alpha(Theme.accent, 0.85) }
+        Rectangle {
+            anchors.centerIn: parent; width: Theme.px(26); height: Theme.px(26); radius: Theme.px(13)
+            color: Theme.alpha(Theme.accent, 0.85)
+            // three dots say "menu" without depending on a font glyph
+            Row {
+                anchors.centerIn: parent; spacing: Theme.px(3)
+                Rectangle { width: Theme.px(4); height: width; radius: width / 2; color: Theme.accentInk }
+                Rectangle { width: Theme.px(4); height: width; radius: width / 2; color: Theme.accentInk }
+                Rectangle { width: Theme.px(4); height: width; radius: width / 2; color: Theme.accentInk }
+            }
+        }
         Accessible.role: Accessible.Button
         Accessible.name: Tr.t("Smart touch: open the Ring")
     }

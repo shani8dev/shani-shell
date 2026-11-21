@@ -40,7 +40,7 @@ AppWindow {
         onExited: code => {
             win.working = false;
             if (code === 0) win.result = out.text.trim();
-            else win.error = code === 2 ? Tr.t("The local model is not running — Chronoa starts it") : (err.text.trim().split("\n").pop() || Tr.t("Could not translate"));
+            else win.error = code === 2 ? Tr.t("The local model is not running — Chronoa starts it") : Tr.t("Could not translate");
         }
     }
 
@@ -96,6 +96,7 @@ AppWindow {
                             Accessible.role: Accessible.EditableText
                             Accessible.name: Tr.t("Text to translate")
                             Keys.onPressed: e => { if ((e.modifiers & Qt.ControlModifier) && (e.key === Qt.Key_Return || e.key === Qt.Key_Enter)) { win.go(); e.accepted = true; } }
+                            onTextChanged: { if (win.result !== "") win.result = ""; }
                             Text {
                                 visible: input.text === ""
                                 text: Tr.t("Type or paste text — Ctrl+Enter translates")

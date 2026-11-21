@@ -837,7 +837,7 @@ PY
     capture_current whats-new 0.5 "d['whatsNewShown'] != ''"
     close_all
     # the screensaver's cover, previewed (its state key is the idle saver, not the preview)
-    capture screensaver "screenSaverPreview" 1.5
+    capture screensaver "screenSaverPreview" 1.5 "d['screenSaverPreview']"
     close_all
     rm -rf "$F"
 

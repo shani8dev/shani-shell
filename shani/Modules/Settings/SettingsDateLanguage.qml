@@ -119,7 +119,7 @@ ColumnLayout {
     }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("24-hour clock"); checked: page.d.use24h; onToggled: on => page.d.use24h = on }
     Text {
-        text: "Time zone: " + (page.zone || "unknown")
+        text: Tr.t("Time zone: %1").arg(page.zone || Tr.t("unknown"))
         color: Theme.text
         font.family: Theme.font
         font.pixelSize: Theme.fontBody * Theme.fontScale
@@ -251,7 +251,7 @@ ColumnLayout {
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Language & region") }
     Text {
         Layout.fillWidth: true
-        text: "Language: " + page.niceLocale(page.lang) + "\nFormats: " + (page.formats ? page.niceLocale(page.formats) : "as the language") + "\n" + page.preview
+        text: Tr.t("Language: %1\nFormats: %2\n%3").arg(page.niceLocale(page.lang)).arg(page.formats ? page.niceLocale(page.formats) : Tr.t("as the language")).arg(page.preview)
         color: Theme.text
         wrapMode: Text.Wrap
         lineHeight: 1.2

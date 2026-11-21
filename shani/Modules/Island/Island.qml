@@ -432,13 +432,15 @@ PanelWindow {
                         required property string modelData
                         required property int index
                         text: modelData
-                        // denying is the safe answer: a plain button, not a red one
-                        kind: index === 0 ? "primary" : "plain"
+                        // do not make "Allow" the default: a permission choice
+                        // must be deliberate, and options can vary by request
+                        kind: "plain"
                         onClicked: Chronoa.approve(Chronoa.approval.id, modelData)
                     }
                 }
                 Button {
                     text: Tr.t("Open conversation")
+                    kind: "outline"
                     onClicked: Chronoa.open = true
                 }
             }

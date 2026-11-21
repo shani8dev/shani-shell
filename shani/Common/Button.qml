@@ -33,7 +33,6 @@ Rectangle {
     }
     border.width: flat ? 0 : (kind === "outline" ? 1 : (kind === "plain" && !area.containsMouse && !checked ? 0 : 1))
     border.color: kind === "outline" ? Theme.stroke : (kind === "plain" ? (checked ? Theme.accentLine : Theme.stroke) : (area.pressed ? Theme.accentPressed : Theme.accentLine))
-    opacity: root.busy || enabled ? 1 : 0.5   // a busy button is working, not disabled
 
     // ---- ripple on press ---------------------------------------------------
     Rectangle {
@@ -65,7 +64,13 @@ Rectangle {
         anchors.centerIn: parent
         visible: !root.busy
         text: root.text
-        color: root.kind === "primary" ? Theme.accentInk : root.kind === "danger" ? Theme.danger : root.checked ? Theme.accent : Theme.text
+        // a disabled button keeps its shape but loses its colour: accentInk is
+        // near-black on the amber accent, so a dimmed primary read as a hole
+        color: !root.enabled ? Theme.dim
+             : root.kind === "primary" ? Theme.accentInk
+             : root.kind === "danger" ? Theme.danger
+             : root.checked ? Theme.accent
+             : Theme.text
         font.family: Theme.font
         font.pixelSize: Theme.px(12) * Theme.fontScale
         font.weight: Font.DemiBold

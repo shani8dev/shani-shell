@@ -120,12 +120,4 @@ ColumnLayout {
             onClicked: page.add(modelData)
         }
     }
-
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Screenshots") }
-    FolderPicker {
-        label: Tr.t("Screenshots folder")
-        placeholder: Tr.t("Empty: Pictures/Screenshots")
-        value: page.d.screenshotDir
-        onPicked: p => page.d.screenshotDir = p
-    }
 }

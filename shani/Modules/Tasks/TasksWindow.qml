@@ -18,6 +18,9 @@ AppWindow {
 
     property real dueChoice: 0        // seconds; 0 = no date
     property bool showDone: false
+    // delete asks first: two taps, the second within 4 s
+    property int confirmTask: -1
+    Timer { id: taskTimer; interval: 4000; onTriggered: win.confirmTask = -1 }
     onVisibleChanged: if (visible) Tasks.refresh()
 
     function at(days, hour) { const d = new Date(); d.setDate(d.getDate() + days); d.setHours(hour, 0, 0, 0); return Math.floor(d.getTime() / 1000); }
@@ -134,6 +137,7 @@ AppWindow {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 0
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Tasks.setDone(row.modelData, !row.modelData.done) }
                             Text {
                                 Layout.fillWidth: true
                                 text: row.modelData.summary
@@ -151,7 +155,17 @@ AppWindow {
                                 font.pixelSize: Theme.px(11) * Theme.fontScale
                             }
                         }
-                        IconButton { size: Theme.px(28); icon: "user-trash"; tip: Tr.t("Delete") + " " + row.modelData.summary; onClicked: Tasks.remove(row.modelData) }
+                        IconButton {
+                            size: Theme.px(28)
+                            icon: "user-trash"
+                            tip: win.confirmTask === row.index
+                                ? Tr.t("Tap again to delete this task")
+                                : (Tr.t("Delete") + " " + row.modelData.summary)
+                            onClicked: {
+                                if (win.confirmTask === row.index) { Tasks.remove(row.modelData); win.confirmTask = -1; }
+                                else { win.confirmTask = row.index; taskTimer.restart(); }
+                            }
+                        }
                     }
                 }
                 EmptyState {

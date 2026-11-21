@@ -171,6 +171,8 @@ Singleton {
     // asks FormFactor.of(its screen) instead.
     readonly property real ui: Ui.uiScale
     readonly property string formFactor: Ui.formFactor
+    // touch form factors get a 44px minimum; desktop controls keep their own
+    // 28-36px minimums (above WCAG AA's 24px) so dense rows stay intact
     readonly property int touchTarget: ["phone", "tablet", "handheld", "board"].indexOf(formFactor) >= 0 ? px(44) : 0
     // a design size in pixels, drawn for this screen: px(16) is 16 on a computer
     function px(n) { return Math.round(n * ui); }

@@ -10,6 +10,7 @@
 import Quickshell
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls
 import qs.Common
 import qs.Services
 import "../../Common/Highlight.js" as Highlight
@@ -189,6 +190,8 @@ AppWindow {
         if (win.finding) {
             win.finding = false;
             edit.forceActiveFocus();
+        } else if (TextDocs.docs.length <= 1) {
+            Ui.textEditor = false;
         }
     }
 
@@ -257,10 +260,21 @@ AppWindow {
                 }
             }
 
+            EmptyState {
+                visible: TextDocs.docs.length === 0
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                icon: "document-open"
+                title: Tr.t("No document open")
+                subtitle: Tr.t("Open a file, or start a new one")
+                actionText: Tr.t("New document")
+                onAction: TextDocs.newDoc()
+            }
+
             // ---- find and replace ----
             RowLayout {
                 Layout.fillWidth: true
-                visible: win.finding
+                visible: win.finding && TextDocs.docs.length > 0
                 spacing: Theme.px(6)
                 TextField {
                     id: findField
@@ -291,7 +305,29 @@ AppWindow {
                     input.Keys.onEscapePressed: win.leave()
                 }
                 Button { text: Tr.t("Replace"); onClicked: win.replaceOne() }
-                Button { text: Tr.t("Replace all"); onClicked: win.replaceAll() }
+                Button { text: Tr.t("Replace all"); onClicked: replaceAllConfirm.open() }
+            }
+
+            // confirm dialog for replace all
+            Dialog {
+                id: replaceAllConfirm
+                anchors.centerIn: parent
+                width: Math.min(win.width * 0.8, Theme.px(400))
+                title: Tr.t("Replace all?")
+                modal: true
+                standardButtons: Dialog.No | Dialog.Yes
+                onAccepted: win.replaceAll()
+                contentItem: ColumnLayout {
+                    spacing: Theme.px(12)
+                    Text {
+                        Layout.fillWidth: true
+                        text: Tr.t("This will replace all occurrences of the search text with the replacement text. This cannot be undone.")
+                        color: Theme.text
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        wrapMode: Text.Wrap
+                    }
+                }
             }
 
             // ---- the text ----
@@ -307,7 +343,7 @@ AppWindow {
                 // line numbers: beside unwrapped text, where a line is a row
                 Item {
                     id: gutter
-                    visible: win.lineNumbers && !win.wordWrap
+                    visible: win.lineNumbers
                     width: visible ? numbers.implicitWidth + 16 : 0
                     anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
                     clip: true
@@ -323,6 +359,7 @@ AppWindow {
                 }
                 Flickable {
                     id: flick
+                    visible: TextDocs.docs.length > 0
                     anchors { left: gutter.right; right: parent.right; top: parent.top; bottom: parent.bottom; margins: Theme.px(8); leftMargin: gutter.visible ? 0 : 8 }
                     contentWidth: edit.width
                     contentHeight: edit.height

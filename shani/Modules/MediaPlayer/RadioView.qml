@@ -25,9 +25,11 @@ ColumnLayout {
     }
     Flow {
         Layout.fillWidth: true
+        Layout.maximumWidth: Math.max(Theme.px(120), view.width - Theme.px(20))
         Layout.leftMargin: Theme.px(10)
         Layout.rightMargin: Theme.px(10)
         spacing: Theme.px(6)
+        clip: true
         Repeater {
             model: [["featured", Tr.t("Free picks")], ["favourites", Tr.t("Favourites")], ["popular", Tr.t("Popular")], ["near", Tr.t("Near you")],
                     ["genre:news", Tr.t("News")], ["genre:pop", Tr.t("Pop")], ["genre:rock", Tr.t("Rock")], ["genre:jazz", Tr.t("Jazz")],

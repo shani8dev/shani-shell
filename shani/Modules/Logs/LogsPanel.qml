@@ -176,7 +176,7 @@ AppWindow {
             EmptyState {
                 Layout.fillWidth: true
                 visible: win.entries.length === 0
-                icon: "dialog-warning-symbolic"
+                icon: "dialog-warning"
                 title: Tr.t("No logs available")
                 subtitle: win.journalError === "empty" ? Tr.t("The journal is empty right now — entries appear as the system logs them")
                     : win.journalError !== "" ? Tr.t("The journal could not be read: %1").arg(win.journalError)
@@ -204,7 +204,7 @@ AppWindow {
                             Layout.fillWidth: true
                             icon: modelData.pri === "0" || modelData.pri === "1" || modelData.pri === "2" ? "dialog-error"
                                 : modelData.pri === "3" ? "dialog-warning" : "log-viewer"
-                            title: modelData.time + "  " + (modelData.id || modelData.unit || "—") + "  " + win.priLabel(modelData.pri)
+                            title: modelData.time + " · " + (modelData.id || modelData.unit || "—") + " · " + win.priLabel(modelData.pri)
                             subtitle: String(modelData.msg || "").slice(0, 140)
                             selected: win.selected && win.selected.cursor === modelData.cursor
                             onClicked: win.selected = modelData
@@ -246,6 +246,7 @@ AppWindow {
                     }
                     Text {
                         width: parent.width
+                        visible: win.selected && win.selected.raw !== undefined
                         text: win.selected ? JSON.stringify(win.selected.raw || {}) : ""
                         color: Theme.dim
                         font.family: Theme.mono
@@ -253,7 +254,7 @@ AppWindow {
                         wrapMode: Text.Wrap
                     }
                     Button {
-                        text: Tr.t("Close details")
+                        text: win.selected ? Tr.t("Show raw entry") : Tr.t("Close details")
                         kind: "plain"
                         onClicked: win.selected = null
                     }
@@ -263,7 +264,7 @@ AppWindow {
             Text {
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
-                text: Tr.t("%1 shown · Esc closes").arg(win.shown.length)
+                text: Tr.t("%1 shown · Esc closes").arg(win.shown.length) + (win.shown.length > 100 ? " · newest 100" : "")
                 color: Theme.dim
                 font.family: Theme.font
                 font.pixelSize: Theme.px(11) * Theme.fontScale

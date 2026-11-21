@@ -328,8 +328,8 @@ AppWindow {
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }
-                IconButton { icon: "mark-location"; size: Theme.px(28); tip: "Recenter"; onClicked: win.recenter(); }
-                IconButton { icon: "view-refresh"; size: Theme.px(28); onClicked: Location.refresh(); }
+                IconButton { icon: "mark-location"; size: Theme.px(28); tip: Tr.t("Recenter"); onClicked: win.recenter(); }
+                IconButton { icon: "view-refresh"; size: Theme.px(28); tip: Tr.t("Find my location"); onClicked: Location.refresh(); }
             }
 
             RowLayout {
@@ -338,12 +338,12 @@ AppWindow {
                 TextField {
                     id: mapSearch
                     Layout.fillWidth: true
-                    placeholder: "Search city or place"
-                    label: "Search city or place"
+                    placeholder: Tr.t("Search city or place")
+                    label: Tr.t("Search city or place")
                     text: win.searchField || Ui.mapsQuery || ""
                     onAccepted: { Ui.mapsQuery = text; win.geoCode(text); }
                 }
-                Button { text: win.searching ? "…" : "Search"; kind: "primary"; enabled: !win.searching && mapSearch.text.trim() !== ""; onClicked: { Ui.mapsQuery = mapSearch.text.trim(); win.geoCode(mapSearch.text.trim()); } }
+                Button { text: win.searching ? "…" : Tr.t("Search"); kind: "primary"; enabled: !win.searching && mapSearch.text.trim() !== ""; onClicked: { Ui.mapsQuery = mapSearch.text.trim(); win.geoCode(mapSearch.text.trim()); } }
                 Button { visible: win.pinLat !== 0 || win.pinLon !== 0; text: Tr.t("Directions"); kind: "outline"; onClicked: win.directions() }
                 IconButton {
                     visible: win.pinLat !== 0 || win.pinLon !== 0
@@ -613,14 +613,14 @@ AppWindow {
                 try {
                     const arr = JSON.parse(text);
                     if (!Array.isArray(arr) || arr.length === 0) {
-                        win.searchError = "No place found for that search";
+                        win.searchError = Tr.t("No place found for that search");
                         return;
                     }
                     const r = arr[0];
                     const lat = parseFloat(r.lat);
                     const lon = parseFloat(r.lon);
                     if (!isFinite(lat) || !isFinite(lon)) {
-                        win.searchError = "No place found for that search";
+                        win.searchError = Tr.t("No place found for that search");
                         return;
                     }
                     // Nominatim fields: display_name, lat, lon, type, class
@@ -644,14 +644,14 @@ AppWindow {
                     Ui.mapsLat = lat;
                     Ui.mapsLon = lon;
                 } catch (e) {
-                    win.searchError = "Search failed — check the network and try again";
+                    win.searchError = Tr.t("Search failed — check the network and try again");
                 }
             }
         }
         onExited: code => {
             if (code !== 0 && win.searching) {
                 win.searching = false;
-                win.searchError = "Search failed — check the network and try again";
+                win.searchError = Tr.t("Search failed — check the network and try again");
             }
         }
     }

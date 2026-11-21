@@ -22,6 +22,7 @@ import "../../Common/FilePaths.js" as FilePaths
 
 AppWindow {
     id: win
+    property var openWithPaths: []
     appName: "Files"
     visible: Ui.files
     onGone: Files.hide()
@@ -246,17 +247,35 @@ AppWindow {
         Files.setSplitEntries(entries);
     }
 
-    // ---- split-pane service functions ----------------------------------------
-    function setSplitPaths(paths) {
-        Files._splitPaths = paths || [];
+    // ---- "Open with…" app picker ---------------------------------------------
+    LazyLoader {
+        active: win.openWithPaths.length > 0
+        PopupWindow {
+            visible: true
+            implicitWidth: Theme.px(380)
+            implicitHeight: Theme.px(520)
+            color: Theme.glassStrong
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.px(12)
+                spacing: Theme.px(8)
+                AppPicker {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    label: Tr.t("Open %1 with…").arg(win.openWithPaths.length)
+                    onPicked: id => {
+                        Files.openWith(id, win.openWithPaths);
+                        win.openWithPaths = [];
+                    }
+                }
+                Button {
+                    Layout.alignment: Qt.AlignRight
+                    text: Tr.t("Cancel")
+                    onClicked: win.openWithPaths = []
+                }
+            }
+        }
     }
-    function setSplitEntries(entries) {
-        const map = {};
-        for (const e of entries || [])
-            map[e.path] = e;
-        Files._splitEntries = map;
-    }
-
 
     Item {
         id: blurCard
@@ -1198,6 +1217,7 @@ AppWindow {
                 Rectangle {
                     id: preview
                     Layout.preferredWidth: Theme.px(230)
+                    Layout.minimumWidth: Theme.px(190)   // keep the empty state readable
                     Layout.fillHeight: true
                     visible: Files.showPreview && !Files.splitActive
                     radius: Theme.radiusSmall
@@ -2440,7 +2460,8 @@ AppWindow {
             Rectangle {
                 visible: Files.usbBusy && Files.usbTotal > 0
                 Layout.fillWidth: true
-                height: Theme.px(4); radius: Theme.px(2)
+                Layout.preferredHeight: Theme.px(4)
+                radius: Theme.px(2)
                 color: Theme.alpha(Theme.text, 0.15)
                 Accessible.role: Accessible.ProgressBar
                 Accessible.name: Tr.t("Writing")
@@ -2515,7 +2536,8 @@ AppWindow {
                 }
                 Rectangle {
                     Layout.fillWidth: true
-                    height: Theme.px(4); radius: Theme.px(2)
+                    Layout.preferredHeight: Theme.px(4)
+                    radius: Theme.px(2)
                     color: Theme.alpha(Theme.text, 0.15)
                     Accessible.role: Accessible.ProgressBar
                     Accessible.name: Tr.t("Copy progress")
@@ -2664,7 +2686,7 @@ AppWindow {
             items.push({ label: Tr.t("Open"), icon: "folder-open", danger: false, run: () => Files.open(e.path) });
         else
             items.push({ label: Tr.t("Open"), icon: "document-open", danger: false, run: () => Files.openEntry(e.path) });
-        items.push({ label: Tr.t("Open with…"), icon: "view-app-grid", danger: false, run: () => { /* handled by Ui.openFilesWith */ } });
+        items.push({ label: Tr.t("Open with…"), icon: "view-app-grid", danger: false, run: () => { win.openWithPaths = chosen.slice(); } });
         items.push({ label: Tr.t("Rename"), icon: "document-edit", danger: false, run: () => beginRename(e.path) });
         if (!e.isDir)
             items.push({ label: Tr.t("Suggest a name"), icon: "tools-check-spelling", danger: false,

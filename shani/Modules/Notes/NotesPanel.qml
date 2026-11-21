@@ -29,6 +29,11 @@ AppWindow {
 
     property string filterText: ""
     property string selectedNotebook: ""
+    // delete asks first: a note is a file on disk, and there is no undo
+    property bool confirmDelete: false
+    property bool confirmNotebook: false
+    Timer { id: deleteTimer; interval: 4000; onTriggered: win.confirmDelete = false }
+    Timer { id: notebookTimer; interval: 4000; onTriggered: win.confirmNotebook = false }
 
 
     Item {
@@ -82,8 +87,13 @@ AppWindow {
                             size: Theme.px(28)
                             visible: win.selectedNotebook !== ""
                             icon: "list-remove"
-                            tip: Tr.t("Remove the notebook %1").arg(win.selectedNotebook)
-                            onClicked: { Services.QuickNotes.deleteNotebook(win.selectedNotebook); win.selectedNotebook = ""; }
+                            tip: win.confirmNotebook
+                                ? Tr.t("Tap again to delete the notebook and its notes")
+                                : Tr.t("Remove the notebook %1").arg(win.selectedNotebook)
+                            onClicked: {
+                                if (win.confirmNotebook) { Services.QuickNotes.deleteNotebook(win.selectedNotebook); win.selectedNotebook = ""; win.confirmNotebook = false; }
+                                else { win.confirmNotebook = true; notebookTimer.restart(); }
+                            }
                         }
                     }
 
@@ -99,6 +109,7 @@ AppWindow {
 
                     // Notes list
                     ListView {
+                        id: noteList
                         reuseItems: true
                         cacheBuffer: 400
                         Layout.fillWidth: true
@@ -106,7 +117,7 @@ AppWindow {
                         clip: true
                         model: Services.QuickNotes.notes.filter(n => (win.selectedNotebook === "" || n.notebook === win.selectedNotebook) && (win.filterText === "" || n.name.toLowerCase().indexOf(win.filterText.toLowerCase()) >= 0))
                         delegate: ItemDelegate {
-                            width: parent.width
+                            width: ListView.view.width
                             text: modelData.name
                             highlighted: modelData.id === Services.QuickNotes.current
                             onClicked: {
@@ -116,12 +127,26 @@ AppWindow {
                             }
                         }
                     }
+                    // nothing here: say why, and offer the thing that fills it
+                    EmptyState {
+                        visible: noteList.count === 0
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        icon: win.filterText !== "" ? "edit-find" : "text-x-generic"
+                        title: win.filterText !== "" ? Tr.t("No note matches") : Tr.t("No notes yet")
+                        subtitle: win.filterText !== ""
+                            ? Tr.t("Try another word, or clear the filter")
+                            : Tr.t("Notes save as you type — start one below")
+                        actionText: win.filterText !== "" ? Tr.t("Clear the filter") : ""
+                        onAction: win.filterText = ""
+                    }
 
                     // New note button
                     Button {
                         Layout.fillWidth: true
-                        text: "+ New note"
-                        onClicked: Services.QuickNotes.create("Untitled", win.selectedNotebook)
+                        text: Tr.t("New note")
+                        kind: "primary"
+                        onClicked: Services.QuickNotes.create(Tr.t("Untitled"), win.selectedNotebook)
                     }
                 }
             }
@@ -137,12 +162,27 @@ AppWindow {
                     Layout.fillWidth: true
                     Layout.preferredHeight: Theme.px(40)
                     spacing: Theme.px(4)
-                    anchors.margins: Theme.px(8)
+                    Layout.margins: Theme.px(8)
 
-                    Label { text: Services.QuickNotes.current || "No note selected"; font.bold: true; Layout.fillWidth: true }
-                    Button { text: "Export HTML"; enabled: Services.QuickNotes.current !== ""; onClicked: Services.QuickNotes.exportHtml() }
-                    Button { text: "Print"; enabled: Services.QuickNotes.current !== ""; onClicked: Services.QuickNotes.printNote() }
-                    Button { text: "Delete"; enabled: Services.QuickNotes.current !== ""; onClicked: { if (Services.QuickNotes.current !== "") Services.QuickNotes.remove(Services.QuickNotes.current, Services.QuickNotes.currentNotebook); } }
+                    Label { text: Services.QuickNotes.current || Tr.t("No note selected"); font.bold: true; Layout.fillWidth: true }
+                    Button { text: Tr.t("Export HTML"); enabled: Services.QuickNotes.current !== ""; onClicked: Services.QuickNotes.exportHtml() }
+                    Button { text: Tr.t("Print"); enabled: Services.QuickNotes.current !== ""; onClicked: Services.QuickNotes.printNote() }
+                    // the note is a file on disk: ask before it goes
+                    Button {
+                        text: win.confirmDelete ? Tr.t("Tap again to delete") : Tr.t("Delete")
+                        kind: "danger"
+                        enabled: Services.QuickNotes.current !== ""
+                        onClicked: {
+                            if (Services.QuickNotes.current === "") return;
+                            if (win.confirmDelete) {
+                                Services.QuickNotes.remove(Services.QuickNotes.current, Services.QuickNotes.currentNotebook);
+                                win.confirmDelete = false;
+                            } else {
+                                win.confirmDelete = true;
+                                deleteTimer.restart();
+                            }
+                        }
+                    }
                 }
 
                 // Text editor

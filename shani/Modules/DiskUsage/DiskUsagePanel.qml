@@ -7,6 +7,7 @@
 import Quickshell
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls
 import qs.Common
 import qs.Services
 
@@ -110,7 +111,7 @@ AppWindow {
                                 font.family: Theme.font
                                 font.pixelSize: Theme.px(modelData.head ? 11 : 12) * Theme.fontScale
                             }
-                            Text { visible: !modelData.head && DiskUsage.view === "big"; text: DiskUsage.humanSize(modelData.size || 0); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                            Text { visible: !modelData.head; text: DiskUsage.humanSize(modelData.size || 0); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                         }
                         Accessible.role: Accessible.CheckBox
                         Accessible.name: modelData.path || ""
@@ -298,6 +299,7 @@ AppWindow {
                 Button {
                     text: Tr.t("Clear marks")
                     kind: "outline"
+                    visible: DiskUsage.markedCount > 0
                     enabled: DiskUsage.markedCount > 0
                     onClicked: DiskUsage.clearMarks()
                 }
@@ -314,7 +316,7 @@ AppWindow {
                     text: Tr.t("Move marked to trash (%1)").arg(DiskUsage.markedCount)
                     kind: "danger"
                     enabled: DiskUsage.markedCount > 0
-                    onClicked: DiskUsage.trashMarked()
+                    onClicked: trashConfirm.open()
                 }
             }
 
@@ -325,6 +327,46 @@ AppWindow {
                 color: Theme.faint
                 font.family: Theme.font
                 font.pixelSize: Theme.px(10) * Theme.fontScale
+            }
+        }
+    }
+
+    // confirm dialog for moving marked files to trash
+    Dialog {
+        id: trashConfirm
+        anchors.centerIn: parent
+        width: Math.min(win.width * 0.8, Theme.px(500))
+        title: Tr.t("Move %1 marked items to trash?", DiskUsage.markedCount)
+        modal: true
+        standardButtons: Dialog.No | Dialog.Yes
+        onAccepted: {
+            DiskUsage.trashMarked();
+            trashConfirm.close();
+        }
+        contentItem: ColumnLayout {
+            spacing: Theme.px(12)
+            Text {
+                Layout.fillWidth: true
+                text: Tr.t("This will move %1 item(s) to your trash. They will stay there until you empty the trash manually.", DiskUsage.markedCount)
+                color: Theme.text
+                font.family: Theme.font
+                font.pixelSize: Theme.px(12) * Theme.fontScale
+                wrapMode: Text.Wrap
+            }
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(200, Math.max(100, DiskUsage.markedPaths.length * 18))
+                ScrollBar.vertical.policy: ScrollBar.AlwaysOn
+                ListView {
+                    model: DiskUsage.markedPaths
+                    delegate: Text {
+                        width: ListView.view.width
+                        text: modelData
+                        color: Theme.dim
+                        font.family: Theme.mono
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                    }
+                }
             }
         }
     }
