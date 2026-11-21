@@ -164,6 +164,7 @@ fi
 render_greeter() {
     _out="$OUTDIR/greeter"
     mkdir -p "$_out"
+    rm -f "$_out"/*.png   # no stale shots from an earlier run
     export XDG_RUNTIME_DIR=/run/user/0
     mkdir -p "$XDG_RUNTIME_DIR" /work/out/logs
     chmod 700 "$XDG_RUNTIME_DIR"
@@ -255,6 +256,7 @@ render_setup() {
     fi
     _out="$OUTDIR/setup"
     mkdir -p "$_out"
+    rm -f "$_out"/*.png
     export XDG_RUNTIME_DIR=/run/user/0
     mkdir -p "$XDG_RUNTIME_DIR" /work/out/logs
     chmod 700 "$XDG_RUNTIME_DIR"
@@ -333,6 +335,7 @@ KDL
 render_shell() {
     _out="$OUTDIR/shell"
     mkdir -p "$_out"
+    rm -f "$_out"/*.png
     OUTDIR="$_out"
     . /work/dev/session.sh
     # `shani app` (below) speaks to the shell through qs: without this it looks

@@ -17,6 +17,8 @@ Rectangle {
     Accessible.onToggleAction: root.clicked()      // a radio button's action is Toggle
     implicitWidth: Math.max(label.implicitWidth + 20, Theme.touchTarget)
     implicitHeight: Math.max(Theme.px(28), Theme.touchTarget)
+    // a disabled chip must not look enabled (WCAG: state is not colour-only)
+    opacity: root.enabled ? 1 : 0.45
     radius: Theme.px(9)
     color: selected ? Theme.accent : (area.containsMouse ? Theme.pressed : Theme.hover)
     Text {

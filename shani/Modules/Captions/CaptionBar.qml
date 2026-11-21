@@ -33,7 +33,7 @@ PanelWindow {
             y: 12
             spacing: Theme.px(8)
             Rectangle { width: Theme.px(8); height: Theme.px(8); radius: Theme.px(4); color: Theme.red; anchors.verticalCenter: parent.verticalCenter }
-            Text { text: Captions.source === "mic" ? "Live transcribe · saved to Documents/Transcripts" : "Live captions"; color: "#c8d0da"; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+            Text { text: Captions.source === "mic" ? "Live transcribe · saved to Documents/Transcripts" : "Live captions"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
         }
         Text {
             anchors.fill: parent
@@ -42,7 +42,7 @@ PanelWindow {
             anchors.topMargin: Theme.px(30)
             anchors.bottomMargin: Theme.px(10)
             text: Captions.text || (Captions.source === "mic" ? "Listening to the room…" : "Listening to what is playing…")
-            color: Captions.text ? "#ffffff" : "#8a94a3"
+            color: Captions.text ? Theme.text : Theme.dim
             wrapMode: Text.Wrap
             maximumLineCount: 2
             elide: Text.ElideLeft

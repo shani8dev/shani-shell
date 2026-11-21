@@ -169,7 +169,7 @@ PanelWindow {
         Text {
             anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: Theme.px(8) }
             text: Tr.t("Tab move · Enter switch · Esc cancel · Q close")
-            color: Theme.dim
+            color: Theme.text
             font.family: Theme.font
             font.pixelSize: Theme.px(11) * Theme.fontScale
         }

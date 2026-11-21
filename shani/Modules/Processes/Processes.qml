@@ -199,6 +199,9 @@ AppWindow {
                     readonly property var p: modelData.p
                     property bool confirming: false
                     Timer { interval: 3000; running: procRow.confirming; onTriggered: procRow.confirming = false }
+                    // reuseItems recycles rows: a pending confirm must not carry
+                    // over to the different process this delegate now shows
+                    ListView.onReused: procRow.confirming = false
                     width: procList.width
                     height: Theme.px(28)
                     spacing: Theme.px(6)

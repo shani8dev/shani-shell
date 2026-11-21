@@ -217,6 +217,8 @@ Scope {
         implicitHeight: pill.height
         color: "transparent"
         exclusionMode: ExclusionMode.Ignore
+        // purely informational: let clicks through to the desktop below
+        mask: Region {}
         WlrLayershell.namespace: "shani-osd"
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None

@@ -108,3 +108,42 @@ Apps / media:
 Deferred (need new state/models): Chronoa contextual Yes chip, app-grid duplicate-name
 disambiguation. Skipped after code check: mini-player controls (already hidden in mini
 mode), window-menu/whiteboard/quick-panel/TV-home (photographed by the shell suite).
+
+## Round 3 — all skills reloaded (Qt/QML + HIG + WCAG)
+
+Reloaded apple-design, ui-design, qt-ui-design, qt-qml and qt-qml-review and
+re-audited both the images and the source with the Qt-specific rules:
+
+- **Input blocking (fixed):** the OSD pill is informational-only but had no
+  empty input mask, so it swallowed desktop clicks — added `mask: Region {}`.
+- **Delegate state (fixed):** the two-tap Process End confirm lives in a
+  recycled delegate — reset `confirming` on `ListView.onReused` so a recycled
+  row cannot show "Tap again" for a different process.
+- **Verified safe, no change:** notification bodies are sanitized (`safeBody`
+  strips `<img>`, `openLink` checks the URL scheme); Smart's `openUrlExternally`
+  only fires on validated `http(s)`; no fixed-duration animations bypass
+  `reduceMotion`; informational overlays elsewhere are interactive or already
+  use `ExclusionMode.Ignore`.
+- **Deferred:** 719 codebase-wide `property var` declarations (a type-safety
+  refactor, not a UX change).
+
+Harness checks: `a11y` 36/37 (AT-SPI walks all pass), `perf` 9/10. Both failures
+were budget-boundary noise: `perf-no-leak` flipped from +31 MB to −26 MB on
+re-run, and `perf-idle-memory` flipped from 542 MB PASS to 571 MB FAIL with
+identical code (the test documents ±30 MB swings).
+
+### Round 3 agent findings (all skills reloaded)
+
+Verification pass confirmed all prior fixes are visible in the fresh renders.
+Two regressions were found and fixed:
+- The inline TextField error message sat below the field, overlapping the next
+  label — anchored it inside the field's reserved 16px strip.
+- A disabled `Choice` looked identical to an enabled one — dimmed it to 0.45.
+
+Also fixed from the a11y audit: whiteboard swatches now name their colour and
+selected state for screen readers; caption text uses Theme tokens; the switcher
+key legend uses Theme.text; stale PNGs are cleared before each render phase so
+old shots cannot be mistaken for current ones.
+
+Harness note: the 5 transient `Button.qml` warnings in one combined run did not
+reproduce in isolated greeter/setup/shell renders or the QML smoke test.

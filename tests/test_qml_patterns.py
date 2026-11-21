@@ -420,3 +420,27 @@ def test_round2_hig_fixes_are_wired():
         text = (root / rel).read_text()
         for needle in needles:
             assert needle in text, (rel, needle)
+
+
+def test_round3_accessibility_and_harness_fixes_are_wired():
+    """Guards for the all-skills-reloaded pass."""
+    root = Path(__file__).resolve().parent.parent
+    checks = {
+        "shani/Modules/Osd/Osd.qml": ["mask: Region {}"],
+        "shani/Modules/Processes/Processes.qml": [
+            "ListView.onReused: procRow.confirming = false"
+        ],
+        "shani/Modules/Whiteboard/Whiteboard.qml": ["inkNames", "Line width %1 px"],
+        "shani/Modules/Captions/CaptionBar.qml": ["Theme.text : Theme.dim"],
+        "shani/Common/TextField.qml": ["top: input.bottom"],
+        "shani/Common/Choice.qml": ["opacity: root.enabled ? 1 : 0.45"],
+        "shani/Modules/Switcher/Switcher.qml": ["color: Theme.text"],
+    }
+    for rel, needles in checks.items():
+        text = (root / rel).read_text()
+        for needle in needles:
+            assert needle in text, (rel, needle)
+    render = (root / "dev/render.sh").read_text()
+    assert (
+        render.count('rm -f "$_out"/*.png') == 3
+    )  # stale shots cleared in all three phases

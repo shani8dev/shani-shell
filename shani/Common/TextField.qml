@@ -102,7 +102,9 @@ Rectangle {
         color: Theme.danger
     }
     Text {
-        anchors { left: parent.left; right: parent.right; top: parent.bottom; topMargin: Theme.px(2) }
+        // the field reserves a 16px strip by lifting `input`; put the message
+        // in that strip, not below the field where it overlaps the next label
+        anchors { left: parent.left; right: parent.right; top: input.bottom; topMargin: Theme.px(2) }
         visible: root.error !== ""
         text: root.error
         color: Theme.danger

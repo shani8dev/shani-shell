@@ -29,6 +29,7 @@ PanelWindow {
     property real thickness: Theme.px(4)
     property bool erasing: false
     readonly property var inks: ["#1f2328", "#d1242f", "#0969da", "#1a7f37", "#bf8700", "#8250df"]
+    readonly property var inkNames: ["Black", "Red", "Blue", "Green", "Amber", "Purple"]
     readonly property color paper: Settings.data.whiteboardDark ? "#1d2a24" : "#fbfbf8"
     property int saves: 0                 // the tests
     property string savedTo: ""
@@ -263,7 +264,7 @@ PanelWindow {
                         border.width: !win.erasing && String(win.ink) === Qt.color(modelData).toString() ? Theme.px(4) : Theme.px(1)
                         border.color: Theme.accent
                         Accessible.role: Accessible.Button
-                        Accessible.name: Tr.t("Ink")
+                        Accessible.name: Tr.t("Ink %1", win.inkNames[index]) + (!win.erasing && String(win.ink) === Qt.color(modelData).toString() ? " " + Tr.t("selected") : "")
                         MouseArea { anchors.fill: parent; onClicked: { win.ink = parent.modelData; win.erasing = false; } }
                     }
                 }
@@ -277,7 +278,7 @@ PanelWindow {
                         color: Math.abs(win.thickness - Theme.px(modelData)) < 0.5 ? Theme.accentSoft : "transparent"
                         Rectangle { anchors.centerIn: parent; width: Theme.px(parent.modelData) + 2; height: width; radius: width / 2; color: Theme.text }
                         Accessible.role: Accessible.Button
-                        Accessible.name: Tr.t("Line width")
+                        Accessible.name: Tr.t("Line width %1 px", modelData) + (Math.abs(win.thickness - Theme.px(modelData)) < 0.5 ? " " + Tr.t("selected") : "")
                         MouseArea { anchors.fill: parent; onClicked: win.thickness = Theme.px(parent.modelData) }
                     }
                 }
