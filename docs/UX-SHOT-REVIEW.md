@@ -301,3 +301,24 @@ Still failing, with the evidence, and why they are not UI work:
 - **`notification-click-raises-app`** — the AT-SPI press on the notification's
   button did not raise the window; needs a live AT-SPI trace to tell a missing
   accessible action from a focus rule.
+
+## Round 6 — the Media Player bug, isolated
+
+Seventeen checks fail on one cause, and it is not the codecs.
+
+- Qt Multimedia decodes the test clip in this image: a standalone `MediaPlayer`
+  on the same `clip1.webm` reports `duration=8003 err=0 state=1`.
+- `PlayQueue.open()` runs: the state dump says `mediaShown=True` and
+  `mediaFile=/tmp/…/clip1.webm`, but `mediaPage` stays `library`,
+  `mediaDuration` stays 0, and `niri msg -j windows` returns `[]`.
+- Notes and Files, opened the same way in the same session, both map a window
+  (`['Notes']`, `['Files']`). Media Player maps none.
+- Forcing the loader to `active: true` creates the component but still maps no
+  window, and no QML warning or error is written at any point.
+
+So: the window object exists, its `visible: PlayQueue.shown` flag is true, and
+nothing appears. That points at window creation/mapping for this one component
+rather than playback, the queue, or the codecs. The likely next step is to trace
+`AppWindow`/`FloatingWindow` for this instance (it is the only LazyLoader window
+whose `visible` starts false and flips later while the loader is already
+created), and to check `register()` and the window's implicit size at creation.
