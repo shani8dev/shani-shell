@@ -365,7 +365,7 @@ AppWindow {
                         Text {
                             Layout.fillWidth: true
                             horizontalAlignment: Text.AlignHCenter
-                            text: PlayQueue.error !== "" ? PlayQueue.error : PlayQueue.current === "" ? Tr.t("Nothing playing") : win.song ? win.song.title : (win.tagTitle || (win.PlayQueue.name ? win.PlayQueue.name.split("/").pop() : ""))
+                            text: PlayQueue.error !== "" ? PlayQueue.error : PlayQueue.current === "" ? Tr.t("Nothing playing") : win.song ? win.song.title : (win.tagTitle || PlayQueue.name)
                             color: PlayQueue.error !== "" ? Theme.danger : "white"
                             wrapMode: Text.Wrap
                             font.family: Theme.font
@@ -448,20 +448,33 @@ AppWindow {
                             Button { text: Tr.t("Start over"); flat: true; onClicked: { player.position = 0; PlayQueue.resumedFrom = 0; resumeNote.stop(); } }
                         }
                     }
-                    // "Saved picture.png" for a few seconds
+                    // "Saved picture.png" for a few seconds. Sized from the window,
+                    // not from its own child: a size that reads a child's implicit
+                    // size stalled the whole window's creation.
                     Rectangle {
                         anchors { top: parent.top; left: parent.left; margins: Theme.px(14) }
                         visible: frameSavedNote.running && win.frameSaved !== ""
-                        implicitWidth: frameSavedRow.implicitWidth + 20
-                        implicitHeight: Theme.px(36)
-                        radius: Theme.px(18)
+                        width: Math.min(parent.width - Theme.px(40), Theme.px(320))
+                        height: Theme.px(40)
+                        radius: Theme.px(20)
                         color: Qt.rgba(0, 0, 0, 0.66)
                         RowLayout {
-                            id: frameSavedRow
-                            anchors.centerIn: parent
+                            anchors.fill: parent
+                            anchors.margins: Theme.px(10)
                             spacing: Theme.px(10)
-                            Text { text: Tr.t("Saved %1", win.frameSaved); color: "white"; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                            Button { text: Tr.t("Open"); flat: true; onClicked: Qt.openUrlExternally(win.frameSaved); frameSavedNote.stop(); }
+                            Text { Layout.fillWidth: true; text: Tr.t("Saved %1", win.frameSaved); color: "white"; elide: Text.ElideMiddle; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                            Text { text: Tr.t("Open"); color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                        }
+                        // the whole toast opens it: a Button with this handler here
+                        // stopped the window from ever mapping
+                        MouseArea {
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: { Qt.openUrlExternally(win.frameSaved); frameSavedNote.stop(); }
+                            Accessible.role: Accessible.Button
+                            Accessible.name: Tr.t("Open the saved picture")
+                            Accessible.onPressAction: { Qt.openUrlExternally(win.frameSaved); frameSavedNote.stop(); }
                         }
                     }
                     // sound and subtitle tracks
