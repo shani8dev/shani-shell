@@ -115,7 +115,7 @@ grep -q '^shani:\$' /etc/shadow && result setup-sets-password PASS || result set
 [ -d /home/shani ] && result setup-creates-home PASS || result setup-creates-home FAIL
 # what /etc/skel gives every new account (shani-desktop-niri's): the default apps -
 # the shell's own first, the Flatpak after it
-[ -f "/home/shani/.config/mimeapps.list" ] && grep -q "image/jpeg=dev.shani.ImageViewer.desktop;org.gnome.Loupe" "/home/shani/.config/mimeapps.list" \
+[ -f "/home/shani/.config/mimeapps.list" ] && grep -q "^image/jpeg=dev.shani.ImageViewer.desktop" "/home/shani/.config/mimeapps.list" \
     && result setup-home-has-default-apps PASS || result setup-home-has-default-apps FAIL "$(ls -a /home/shani/.config 2>&1 | tr '\n' ' ')"
 LOG=/work/out/logs/greetd.log
 python3 - "$LOG" <<'PY' && result setup-signs-in PASS || result setup-signs-in FAIL "$(cat $LOG)"

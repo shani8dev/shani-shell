@@ -33,7 +33,10 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "shani-sidebar"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: Ui.controlCenter ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    // while it is open it owns the keyboard: OnDemand let the arrows reach the
+    // window behind the shade, so the d-pad walked out of the grid and B
+    // (Escape) closed nothing
+    WlrLayershell.keyboardFocus: Ui.controlCenter ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     BackgroundEffect.blurRegion: Settings.blurWanted && Ui.controlCenter ? sideRegion : null
     Region { id: sideRegion; item: slide; radius: Theme.radiusLarge }
 
