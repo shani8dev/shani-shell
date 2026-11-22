@@ -23,15 +23,36 @@ Singleton {
     // scrolling capture: capture a long page by stitching multiple screenshots
     // uses grim + slop for region selection, then stitches with ImageMagick
     function scrollingCapture() {
-        // Select area with slop, capture to /tmp, then scroll and capture again.
-        // Usesgrim + slop to capture successive regions and magick to stitch.
-        const d = Quickshell.env("XDG_SCREENSHOTS_DIR") || (Quickshell.env("HOME") + "/Pictures/Screenshots");
-        Quickshell.execDetached(["sh", "-c",
-            'mkdir -p "$1"; notify-send -a Screenshot "Select the scroll area with slop, then capture" 2>/dev/null || true'
-        , "sh", d]);
-        // Complex interactive capture that requires custom scripting and timing.
-        // Given remaining scope, we document the need.
+        // Select a region, capture a series of parts while scrolling, and stitch
+        // them into one tall image. bridge/scroll-capture.py handles slop/grim/
+        // ydotool/PIL. The result is announced like any screenshot.
+        const tool = Quickshell.env("SHANI_SCROLL_CAPTURE_TOOL") || "/usr/lib/shani-shell/scroll-capture.py";
+        scrollSelect.command = ["python3", tool, "select"];
+        scrollSelect.running = true;
     }
+    Process {
+        id: scrollSelect
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const geom = text.trim().split(/\s+/);
+                if (geom.length !== 4) { return; }  // user cancelled
+                const tool = Quickshell.env("SHANI_SCROLL_CAPTURE_TOOL") || "/usr/lib/shani-shell/scroll-capture.py";
+                scrollCap.command = ["python3", tool, "capture", geom[0], geom[1], geom[2], geom[3], "8"];
+                scrollCap.running = true;
+            }
+        }
+    }
+    Process {
+        id: scrollCap
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const p = text.trim();
+                if (p !== "") root.offer(p);
+            }
+        }
+        onExited: code => { if (code !== 0) notifyFail.running = true; }
+    }
+    Process { id: notifyFail; command: ["notify-send", "-a", "Screenshot", "Scrolling capture failed — is grim, slop, ydotool and PIL installed?"] }
     // encrypted history: optionally encrypt the screenshots folder with age/gpg
     readonly property bool encryptedHistory: Settings.data.screenshotEncrypted === true
     function setEncryptedHistory(on) {

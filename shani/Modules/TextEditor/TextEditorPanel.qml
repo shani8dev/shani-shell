@@ -41,7 +41,9 @@ AppWindow {
     property real fontSize: Settings.data.textEditorFontSize || 13
     property bool finding: false
     property bool replacing: false
-    // Built-in snippets: type the trigger + Tab to expand.
+    property int confirmClose: -1         // the tab asked to close with changes: a second click closes it
+    property bool loading: false          // the editor is being filled, not typed in
+    // ---- snippets: type a trigger, press Tab to expand ----
     readonly property var snippets: [
         { trigger: "if", body: "if () {\n    \n}" },
         { trigger: "for", body: "for () {\n    \n}" },
@@ -51,37 +53,16 @@ AppWindow {
         { trigger: "while", body: "while () {\n    \n}" },
         { trigger: "print", body: "console.log()" },
     ]
-    property int confirmClose: -1         // the tab asked to close with changes: a second click closes it
-    property bool loading: false          // the editor is being filled, not typed in
-
-    // ---- snippets ----
-    // Column selection state
-    property real colSelectX1: -1
-    property real colSelectX2: -1
-    property int colSelectY1: -1
-    property int colSelectY2: -1
-    function enableColSelect() {
-        // Enter column select mode: remember current position
-        colSelectX1 = edit.cursorRectangle.x
-        colSelectY1 = edit.cursorRectangle.y
-        colSelectX2 = colSelectX1
-        colSelectY2 = colSelectY1
-    }
-    function disableColSelect() { colSelectX1 = -1; colSelectY1 = -1; colSelectX2 = -1; colSelectY2 = -1; }
-    // expand a typed trigger (if/for/fn…) into its snippet body; true if one fired
     function trySnippet() {
         const before = edit.text.substring(0, edit.cursorPosition);
-        const triggers = ["if", "for", "fn", "fun", "func", "class", "main", "while", "fn("];
-        // Match the last word before cursor
         const m = before.match(/([\w()]+)$/);
         if (m) {
             const trigger = m[1];
-            const match = win.snippets.find(s => s.trigger === trigger);
-            if (match) {
-                // Replace the trigger word with the snippet body
+            const snip = win.snippets.find(s => s.trigger === trigger);
+            if (snip) {
                 edit.remove(edit.cursorPosition - trigger.length, edit.cursorPosition);
-                edit.insert(edit.cursorPosition, match.body);
-                edit.cursorPosition += match.body.length;
+                edit.insert(edit.cursorPosition - trigger.length, snip.body);
+                edit.cursorPosition = edit.cursorPosition - trigger.length + snip.body.length;
                 edit.forceActiveFocus();
                 return true;
             }
@@ -89,6 +70,100 @@ AppWindow {
         return false;
     }
 
+    // ---- multiple cursors / column selection ----------------------------------
+    // Qt's TextEdit has one cursor. We keep extra cursors as character offsets
+    // and apply every edit at all positions, drawing the extras as overlays.
+    // Alt+Shift+Down/Up adds a cursor on the line below/above at the same column
+    // (column selection), mirroring VS Code's shortcut.
+    property var extraCursors: []          // sorted ascending character offsets
+    readonly property bool multiCursor: extraCursors.length > 0
+    property bool computingRects: false    // guard: rectAt() moves the real cursor temporarily
+
+    // the screen rect of any character offset (temporarily move the real cursor)
+    function rectAt(pos) {
+        if (pos < 0 || pos > edit.length) return Qt.rect(0, 0, 0, 0);
+        const saved = edit.cursorPosition;
+        const ss = edit.selectionStart, se = edit.selectionEnd;
+        computingRects = true;
+        edit.cursorPosition = pos;
+        const r = Qt.rect(edit.cursorRectangle.x, edit.cursorRectangle.y,
+                          Math.max(2, edit.cursorRectangle.width), edit.cursorRectangle.height);
+        edit.cursorPosition = saved;
+        if (se > ss) edit.select(ss, se);
+        computingRects = false;
+        return r;
+    }
+
+    // line and column of a character offset
+    function lineCol(pos) {
+        const before = edit.text.substring(0, Math.max(0, pos));
+        const cut = before.lastIndexOf("\n");
+        return { line: (before.match(/\n/g) || []).length, col: before.length - cut - 1 };
+    }
+    // offset of (line, col)
+    function posAt(line, col) {
+        const lines = edit.text.split("\n");
+        if (line < 0 || line >= lines.length) return -1;
+        let p = 0;
+        for (let i = 0; i < line; i++) p += lines[i].length + 1;
+        return p + Math.min(col, lines[line].length);
+    }
+    function addCursorVertical(delta) {
+        const lc = lineCol(edit.cursorPosition);
+        const p = posAt(lc.line + delta, lc.col);
+        if (p < 0 || extraCursors.indexOf(p) >= 0 || p === edit.cursorPosition) return;
+        extraCursors = extraCursors.concat([p]).sort((a, b) => a - b);
+    }
+    function clearExtraCursors() { if (extraCursors.length) extraCursors = []; }
+
+    // insert `str` at the primary cursor and every extra cursor at once
+    function insertAtCursors(str) {
+        if (!multiCursor || str === "") return false;
+        const all = Array.from(new Set([edit.cursorPosition].concat(extraCursors))).sort((a, b) => a - b);
+        let t = edit.text;
+        for (let i = all.length - 1; i >= 0; i--) {
+            const p = all[i];
+            t = t.substring(0, p) + str + t.substring(p);
+        }
+        const primaryNew = edit.cursorPosition + all.filter(p => p <= edit.cursorPosition).length * str.length;
+        const newExtras = extraCursors.map(p => p + all.filter(up => up <= p).length * str.length);
+        win.loading = true;
+        edit.text = t;
+        edit.cursorPosition = primaryNew;
+        extraCursors = newExtras;
+        win.loading = false;
+        TextDocs.setText(t);
+        repaint.restart();
+        return true;
+    }
+
+    // backspace at the primary cursor and every extra cursor at once
+    function backspaceAtCursors() {
+        if (!multiCursor) return false;
+        const all = Array.from(new Set([edit.cursorPosition].concat(extraCursors))).sort((a, b) => a - b);
+        const del = all.map(p => p - 1).filter(p => p >= 0);
+        if (del.length === 0) return false;
+        const uniqDel = Array.from(new Set(del)).sort((a, b) => a - b);
+        let t = edit.text;
+        for (let i = uniqDel.length - 1; i >= 0; i--) {
+            const p = uniqDel[i];
+            t = t.substring(0, p) + t.substring(p + 1);
+        }
+        const primaryNew = Math.max(0, edit.cursorPosition - uniqDel.filter(p => p < edit.cursorPosition).length);
+        const newExtras = extraCursors.map(p => Math.max(0, p - uniqDel.filter(d => d < p).length));
+        win.loading = true;
+        edit.text = t;
+        edit.cursorPosition = primaryNew;
+        extraCursors = newExtras;
+        win.loading = false;
+        TextDocs.setText(t);
+        repaint.restart();
+        return true;
+    }
+
+    Component.onCompleted: {
+        if (TextDocs) TextDocs.onActiveChanged.connect(() => win.clearExtraCursors());
+    }
     onFontSizeChanged: Settings.data.textEditorFontSize = fontSize
 
     // ---- syntax colours ----------------------------------------------------------
@@ -101,8 +176,14 @@ AppWindow {
         ? ({ comment: "#8a93a0", string: "#8fd18a", number: "#f2a65a", keyword: "#6cb6ff", heading: "#ffd166", added: "#8fd18a", removed: "#ff8f8f" })
         : ({ comment: "#6a737d", string: "#1b7f3b", number: "#b35900", keyword: "#0550ae", heading: "#8a4b00", added: "#1b7f3b", removed: "#b3261e" })
     function recolour() {
-        if (win.coloured)
+        if (!win.coloured) return;
+        const ext = TextDocs.current ? (TextDocs.current.path || "").split(".").pop() : "";
+        const tm = TextMate.highlight(edit.text, ext);
+        if (tm !== "") {
+            paint.text = '<pre style="margin:0; white-space:pre-wrap;">' + tm + "</pre>";
+        } else {
             paint.text = '<pre style="margin:0; white-space:pre-wrap;">' + Highlight.html(edit.text, win.lang, win.tints) + "</pre>";
+        }
     }
     onColouredChanged: recolour()
     onLangChanged: recolour()
@@ -462,12 +543,36 @@ AppWindow {
                         onTextChanged: { if (!win.loading) TextDocs.setText(text); repaint.restart(); }
                         onCursorRectangleChanged: flick.follow(cursorRectangle)
                         Keys.onPressed: e => {
+                            // multiple cursors / column selection
+                            if ((e.modifiers & Qt.ShiftModifier) && (e.modifiers & Qt.AltModifier)) {
+                                if (e.key === Qt.Key_Down) { win.addCursorVertical(1); e.accepted = true; return; }
+                                if (e.key === Qt.Key_Up)   { win.addCursorVertical(-1); e.accepted = true; return; }
+                            }
+                            if (win.multiCursor) {
+                                if (e.key === Qt.Key_Escape) { win.clearExtraCursors(); e.accepted = true; return; }
+                                if (e.key === Qt.Key_Backspace) { if (win.backspaceAtCursors()) { e.accepted = true; return; } }
+                                if (e.text !== "" && !(e.modifiers & Qt.ControlModifier) && !(e.modifiers & Qt.AltModifier)) {
+                                    if (win.insertAtCursors(e.text)) { e.accepted = true; return; }
+                                }
+                            }
                             if (e.key === Qt.Key_Tab && !(e.modifiers & Qt.ShiftModifier) && !(e.modifiers & Qt.ControlModifier)) {
-                                if (win.expandSnippet()) { e.accepted = true; return; }
+                                if (win.trySnippet()) { e.accepted = true; return; }
                             }
                             if (win.shortcut(e)) e.accepted = true;
                         }
                         Keys.onEscapePressed: win.leave()
+                        onCursorPositionChanged: { if (win.multiCursor && !win.loading && !win.computingRects) win.clearExtraCursors() }
+                    }
+                    // draw the extra cursors (column selection) as thin overlays
+                    Repeater {
+                        model: win.extraCursors
+                        delegate: Rectangle {
+                            property rect r: win.rectAt(modelData)
+                            x: r.x; y: r.y; width: Math.max(2, r.width); height: r.height
+                            color: Theme.accent
+                            visible: edit.activeFocus
+                            z: 5
+                        }
                     }
                 }
             }
@@ -493,8 +598,8 @@ AppWindow {
                         return [line, before.length - before.lastIndexOf("\n")];
                     }
                     text: Tr.t("Line") + " " + at[0] + ", " + Tr.t("column") + " " + at[1] + "  ·  " + edit.lineCount + " " + Tr.t("lines")
-                        + (TextDocs.current && TextDocs.current.eol === "\r\n" ? "  ·  CRLF" : "")
                         + (win.lang !== "text" ? "  ·  " + win.lang : "")
+                        + (win.multiCursor ? "  ·  " + (win.extraCursors.length + 1) + " " + Tr.t("cursors") : "")
                     color: Theme.dim
                     font.family: Theme.font
                     font.pixelSize: Theme.px(11) * Theme.fontScale

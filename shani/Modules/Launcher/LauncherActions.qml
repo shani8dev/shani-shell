@@ -22,6 +22,7 @@ QtObject {
         { title: Tr.t("Whiteboard"), words: "whiteboard board draw write class lesson teach chalk pen", icon: "draw-freehand", run: () => { Ui.closeAll(); Ui.whiteboard = true; } },
         { title: Tr.t("Screenshot"), words: "screenshot capture print", icon: "applets-screenshooter", run: () => Niri.action("screenshot") },
         { title: Tr.t("Pin last screenshot"), words: "pin screenshot capture keep visible float above", icon: "view-pin", run: () => Screenshots.togglePin(Screenshots.last), state: () => Screenshots.pinned },
+        { title: Tr.t("Scrolling screenshot"), words: "scrolling screenshot capture long page full webpage stitched", icon: "view-paged", run: () => Screenshots.scrollingCapture() },
         { title: Tr.t("Screen record"), words: "record video capture", icon: "media-record", run: () => Recorder.toggle(), state: () => Recorder.recording },
         { title: Tr.t("Lens"), words: "lens ocr read text scan qr", icon: "system-search", run: () => Lens.capture() },
         { title: Tr.t("Color picker"), words: "color colour pick hex", icon: "color-select", run: () => Quickshell.execDetached(["sh", "-c", "c=$(niri msg pick-color | sed -n 's/^Hex: //p'); [ -n \"$c\" ] && printf %s \"$c\" | wl-copy"]) },

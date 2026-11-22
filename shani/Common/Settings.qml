@@ -315,6 +315,7 @@ Singleton {
             property var floatingWorkspaces: []         // "output:index" of the workspaces whose windows float
             property string aiConsoleAgent: ""          // the AI console's agent command; "": the first one installed
             property var aiProviders: []               // connected AI providers (Services/AIProviders)
+            property bool textmateEnabled: true         // use TextMate grammars when available (Services/TextMate)
             property string chronoaPreferredModel: ""   // the model Chronoa uses (Services/Models)
             property bool chronoaEnabled: true            // start Chronoa at login (SettingsChronoa)
             // missing Noctalia adapter entries with existing QML bindings (subagent finding #1)
