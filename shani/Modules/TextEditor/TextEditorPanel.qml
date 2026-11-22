@@ -161,9 +161,6 @@ AppWindow {
         return true;
     }
 
-    Component.onCompleted: {
-        if (TextDocs) TextDocs.onActiveChanged.connect(() => win.clearExtraCursors());
-    }
     onFontSizeChanged: Settings.data.textEditorFontSize = fontSize
 
     // ---- syntax colours ----------------------------------------------------------
@@ -227,6 +224,7 @@ AppWindow {
         function onTextEditorOpenPathChanged() { win.take(); }
     }
     Component.onCompleted: {
+        if (TextDocs) TextDocs.onActiveChanged.connect(() => win.clearExtraCursors());
         if (TextDocs.docs.length === 0)
             TextDocs.newDoc();
         else
