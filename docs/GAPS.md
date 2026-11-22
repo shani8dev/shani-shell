@@ -14,13 +14,16 @@ centre, and against what a session needs before any app runs.
   Plasma and GNOME images have their own greeters.
 - **Switch user from the lock screen.** greetd runs one session; there is no greeter to switch back to (loginctl has no such command).
 - **Online accounts.** GNOME Online Accounts needs GNOME's own settings app.
-- **Remote desktop through the portal.** niri 26.04 has screencasting
-  (org.gnome.Mutter.ScreenCast) but no org.gnome.Mutter.RemoteDesktop, so
-  GNOME Remote Desktop, RustDesk and FreeRDP's shadow server cannot capture or
-  control it (niri issue #390; PR #1966 is open, not merged). What works is
-  Sunshine + Moonlight (KMS capture, discussion #680): Settings > Sharing
-  switches Sunshine's user service when it is installed (it needs
-  `cap_sys_admin`; LizardByte's repo / AUR, not in the image).
+- **Remote desktop through the portal.** ScreenCast now has a backend: niri
+  26.04 speaks ext-background-effect and `zwlr_screencopy`, and
+  `xdg-desktop-portal-wlr` is named for ScreenCast in niri-portals.conf, so a
+  browser's Share… can capture the screen. **RemoteDesktop still has none** —
+  portal-wlr 0.8.4 implements only Screenshot and ScreenCast — so GNOME Remote
+  Desktop, RustDesk and FreeRDP's shadow server cannot *control* it (niri issue
+  #390; PR #1966 is open, not merged). What works is Sunshine + Moonlight (KMS
+  capture, discussion #680): Settings > Sharing switches Sunshine's user service
+  when it is installed (it needs `cap_sys_admin`; LizardByte's repo / AUR, not in
+  the image).
 - **ICC colour profiles.** niri has no colour management yet.
 - **Location services.** Implemented via GeoClue2 (shani-peripherals ships it): `Services/Location.qml` queries `/usr/lib/geoclue-2.0/demos/where-am-i` (or a D-Bus client fallback) and fills `weatherLat`/`weatherLon` so Weather + NightLight stop needing a typed city. Off by default (`Settings.data.useLocation`); the person opts in. Real-hardware only — geoclue is not in the dev container, so it degrades to "location unavailable" there.
 - **What Windows, macOS and Pantheon have that niri cannot give.** Always on
@@ -111,9 +114,10 @@ been used on a real screen and nothing below is in the way.
   it): other formats are read through a PDF copy (PyMuPDF, ddjvu), so an
   e-book's pages are fixed, not reflowed to the window; forms fill through
   PyMuPDF into a copy (no signing fields, no JavaScript forms).
-- **Text Editor**: colours for ~20 languages by one regular expression each
-  (not a parser); a file over 2 MB is refused, over 200 000 characters is
-  shown without colours.
+- **Text Editor**: colours from TextMate grammars (`.tmLanguage` in the bundle
+  dirs, `.tmTheme` themes) when one matches the file type, falling back to the
+  built-in regex highlighter; a file over 2 MB is refused, over 200 000
+  characters is shown without colours.
 - **Archive Manager** (default for zip, tar.*, 7z, ISO; File Roller behind it):
   creates (zip, tar.gz, tar.xz, 7z), extracts all or one item, opens
   password-protected archives (the password is passed as bsdtar's
@@ -253,10 +257,29 @@ Each needs real hardware or shani-testbed:
 - **Firewall** (Settings > Firewall, Services/Firewall.qml) — firewalld through
   firewall-cmd: on/off, the default zone, and the ports and services let into
   the zone being edited.
+- **Weather advisories** — rain, wind and heat read out of the forecast the
+  shell already fetches; open-meteo has no warning feed, and these say so.
+- **Mail** (Modules/Mail, bridge/mail.py) — IMAP and SMTP for a real account,
+  or MailHog's API and SMTP for development. It reads plain text only: no HTML
+  bodies, no attachments, no search.
+- **Feeds** (Modules/Feeds, bridge/feeds.py) — RSS 2.0, RSS 1.0 and Atom over
+  the standard library, with a cache and per-feed read state. No OPML
+  import/export and no refresh scheduling.
+- **Firewall** (Settings > Firewall, Services/Firewall.qml) — firewalld through
+  firewall-cmd: on/off, the default zone, and the ports and services let into
+  the zone being edited. No rich rules and no zone list beyond the default.
+- **Tablet readout** — Settings > Keyboard & input names the connected drawing
+  tablet from libwacom-list-local-devices. Read-only: niri 26.04 has no pen
+  button remapping, and the page says so.
+- **Printing from Files** — the file-actions card offers Print… for PDFs,
+  images and text when a printer is there (CUPS `lp`).
+- **Media Player codec line** — size, codec and bitrate under the title, from
+  mediainfo (an optdepend; absent, the line is not shown).
+- **Photo metadata** — camera and date taken in the Files preview, from exiv2.
 - **ScreenCast portal** — `xdg-desktop-portal-wlr` is now in
   shani-desktop-niri and named for ScreenCast and Screenshot in
   niri-portals.conf, so a browser's Share… has a backend under niri.
-  **RemoteDesktop still has none** (portal-wlr 0.8.4 implements only
+  **RemoteDesktop has no backend** (portal-wlr 0.8.4 implements only
   Screenshot and ScreenCast), so the remote-desktop line above stands.
 - **Printing from Files** — the file-actions card offers Print… for PDFs,
   images and text when a printer is there (CUPS `lp`).

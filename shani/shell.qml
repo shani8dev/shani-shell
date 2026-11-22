@@ -23,7 +23,6 @@ import qs.Modules.ControlCenter
 import qs.Modules.Launcher
 import qs.Modules.Notifications
 import qs.Modules.Screenshots
-import qs.Modules.Files
 import qs.Modules.Terminal
 import qs.Modules.Osd
 import qs.Modules.Lock

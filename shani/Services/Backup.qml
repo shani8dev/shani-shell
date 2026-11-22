@@ -30,9 +30,12 @@ Singleton {
         job.running = true;
     }
 
-    // list snapshots via shani-backup home list --json
+    // Restore from a snapshot. shani-backup's CLI has no `home restore`
+    // subcommand — the reliable restore path is its GUI (home page: browse
+    // earlier versions, restore one file / a folder / the whole tree). Open
+    // it at the right page; `what` is kept for the launcher/test contract.
     function restoreFromSnapshot(name, what) {
-        Quickshell.execDetached([root.tool, "home", "restore", name, what || "all"]);
+        root.open(what === "files" ? "home" : "home");
         restoring = "";
     }
 
