@@ -39,8 +39,13 @@ function calc(expr) {
     if (names.some(n => allowed.indexOf(n.toLowerCase()) < 0))
         return null;
     // names are case-insensitive, JS is not (nPr → npr, PI → Math.PI)
-    const js = src.replace(/\bln\(/gi, "log(").replace(/\bpi\b/gi, "PI").replace(/\be\b/g, "E")
-        .replace(/\b(sqrt|sin|cos|tan|asin|acos|atan|log|exp|abs|round|floor|ceil|pow|min|max)\b/gi, m => "Math." + m.toLowerCase())
+    // log is base 10 and ln is natural, as on every calculator. Math.log is the
+    // natural one, so after the names are prefixed: log becomes log10 and the
+    // ln that became Math.ln becomes the natural Math.log.
+    const js = src.replace(/\bpi\b/gi, "PI").replace(/\be\b/gi, "E")
+        .replace(/\b(sqrt|sin|cos|tan|asin|acos|atan|log|ln|exp|abs|round|floor|ceil|pow|min|max)\b/gi, m => "Math." + m.toLowerCase())
+        .replace(/Math\.log\(/g, "Math.log10(")
+        .replace(/Math\.ln\(/g, "Math.log(")
         .replace(/\bPI\b/g, "Math.PI").replace(/\bE\b/g, "Math.E")
         .replace(/\bnpr\b/gi, "npr").replace(/\bncr\b/gi, "ncr").replace(/\bfact\b/gi, "fact");
     try {

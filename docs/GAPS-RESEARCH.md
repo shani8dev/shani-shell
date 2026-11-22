@@ -770,3 +770,143 @@ Highest value × ease: #1, #2, #4, #5, #6, #13. Risk: nothing hardware-verified;
 ## Additional fix from this pass
 
 - Switcher.qml open() now sets `grouped = buildGroups().length > 1` so Alt+Tab with a single app still cycles that app's windows instead of showing one dead tile (auto-disable grouping when there is nothing to group).
+
+---
+
+# Ninth pass — full reports
+
+## Crash handling, diagnostics and self-recovery (agent ses_dfb9fb005ffeca9334i6SnhxBL)
+
+Read both docs (2,657 lines) first. Skipped prior-pass topics (niri crash recovery, session lifecycle, audit trail, problem reports, logs panel, shani-doctor, health checks). Static analysis.
+
+1. Mid-conversation bridge death spins forever. Services/Chronoa.qml:135-139 onConnectedChanged sets only state="offline"; busy/step/approval never cleared, no turn timeout. Island.qml:30,80,152 keys spinner off Chronoa.busy. Sketch: on disconnect clear busy/step, emit system("Chronoa stopped responding"), open panel; 60s turn watchdog.
+2. Bridge never detects Chronoa D-Bus death. bridge/chronoa-bridge.py:389-412 subscribes to Agent.Event but no NameOwnerChanged watch, no turn timeout; turn_filter waits for done that never arrives. Sketch: watch AGENT_NAME owner loss, broadcast error event, per-turn timeout.
+3. Persistent QML bridges die silently. Services/Plugged.qml:248-255, InputPlumber.qml:122-126, Modem.qml:46-50, Thunderbolt.qml:28-31 are running:true Processes with no onExited restart — Quickshell does not auto-restart. Only LauncherEntries.qml:39-41 retries (blindly), Files.qml:150-195 has a real watchdog. Sketch: one shared bridge wrapper with retry+backoff.
+4. No watchdog for a hung shell. data/systemd/shani-shell.service:21-22 Restart=on-failure only; no WatchdogSec/sd_notify. Frozen event loop = dead desktop systemd never touches. Sketch: WatchdogSec=30 + QML keepalive.
+5. Crash loop ends in failed unit with no UX. RestartSec=2 + default StartLimitBurst=5/10s trips after ~5 crashes; no StartLimitAction, no notice.
+6. No user notification for any bridge restart. Bridge.qml:37-42 reconnects silently; LauncherEntries.qml:39-41 retries silently. Sketch: notify after 3 rapid restarts, name service, offer Retry/Report.
+7. No failure counting/self-diagnosis. Zero NRestarts/RestartCount reads; health-check.py:43-97 has only space/failed-units/writable/tools. Sketch: systemctl show -p NRestarts.
+8. Unsaved editor content lost on crash. TextDocs.qml:42-86 persists only open paths in text-editor-session.json; buffers memory-only. Sketch: autosave dirty buffers to XDG state every 30s.
+9. No "desktop restarted" signal. Nothing records abnormal previous exit. Sketch: clean-shutdown marker, toast + diagnostics if absent.
+10. No crash dumps. No coredump config; Quickshell segfault leaves no backtrace. Sketch: enable systemd-coredump.
+11. Problem report lacks crash specifics. system-report.py:100-140 has journald errors and failed units but no per-bridge logs, restart counts, coredumps.
+12. No automated or crash-triggered reporting. Report is manual button in SettingsAbout.qml:59-75.
+13. Half-dead bridge invisible. Bridge implements ping (chronoa-bridge.py:206-207) but Bridge.qml never sends one. Sketch: 30s ping/pong.
+14. Almost no diagnostic logging. Common/Log.qml:46 is tree's only console.log; Log.scoped appears only twice (Files.qml:27, Proc.qml:24). Silent catch(e){} at Bridge.qml:32, Plugged.qml:253, chronoa-bridge.py:395.
+15. Unbounded dev logs/unconfigured journald. dev/session.sh:107,116-241 redirects every daemon to $L/*.log with no rotation; no journald.conf ships.
+16. Socket unlink race on restart. chronoa-bridge.py:419-423 unconditionally unlinks socket; fast systemd restart with lingering old process can remove live socket.
+Comparison: GNOME feeds crashes to ABRT/gnome-abrt; KDE DrKonqi shows backtrace dialog; Windows Reliability Monitor timeline; macOS Crash Reporter .ips. Shani has restart-on-failure, manual text report, none of dialog/timeline/backtrace/consented sending.
+
+## Multi-monitor and display hotplug edge cases (agent ses_dfb9f8624ffeD6FLTgTL3R5qRi)
+
+Skipped listed items (per-monitor wallpaper/scale, EDID, hotplug workspace restore, arrangement profiles, named targets, swap-monitors, fractional scaling) and Ruler/Magnifier multi-monitor already in GAPS.
+
+1. [S] Window previews use logical geometry for physical-pixel capture. WindowPreview.qml:27-34 derives grim -g rect from Displays.outputs x/y/width/height (logical pixels, Displays.qml:241-243) but grim expects physical. On 1x+2x rect is half-size/wrong origin. Dock.qml:530 passes Niri.focusedOutput not window's own output. Sketch: multiply by output scale, pass window's output.
+2. [S] Ruler pixel ratio from arbitrary monitor. Ruler.qml:37-41 sets ratio once from Displays.outputs[0].scale (sorted by connector); grim captures composite of all outputs, RulerPanel fits into focused screen. Mixed scale/portrait+landscape wrong. Sketch: grim -o <focusedOutput>, ratio from same output.
+3. [S] Monitor greeted while locked never greeted after unlock. Plugged.qml:72 drops greetings when Lock.locked before marking seen; onArrived fires once, Displays.known contains output, no replay. Sketch: queue arrivals while locked, flush on unlock.
+4. [S] Presenting survives unplugging its source. Plugged.qml:164-171 only ends presentation when target output departs; unplugging mirrored-from monitor leaves dead wl-mirror source, DND/caffeine on.
+5. [S] Focus-following single surfaces teleport between monitors. ~30 surfaces bind screen: find(name===Niri.focusedOutput)||screens[0] (Island.qml:26, Osd.qml:213, Launcher.qml:32, WindowMenu.qml:18, shell.qml:203). Approval card/launcher/control centre on monitor A jumps to B on focus change; unplugged focused output falls back to screens[0]. Sketch: sticky output per open surface.
+6. [S] Lid close produces no shell behaviour. InputConfig.qml:137-138 forwards lid events; TabletMode.qml:27-28 sets lidClosed, read only by state dump. With HandleLidSwitchExternalPower=ignore, closing lid on external monitor leaves internal panel on. Sketch: on lid-close with external outputs, turn off internal, focus external, re-arm idle.
+7. [S] "minimised" is one global workspace name across all outputs. Niri.qml:92-94 finds first workspace named minimised; minimise() moves windows there by name. With 2+ outputs minimising on non-first monitor moves windows to other monitor's hidden workspace. Sketch: per-output hidden workspace minimised:<output>.
+8. [S] "Extend" assumes landscape right-hand neighbour. Plugged.qml:180-181 sets x=max(right edge), y=0 unconditionally; portrait beside landscape top-aligned not centred; no left/above choice.
+9. [S] Dock layout swaps behind lock, only two states. Docking.qml:25-29,41 follows hotplug with no Lock.locked guard; 3+ monitors collapse to "docked". Sketch: defer follow() until unlock; key layout by output-set.
+10. [S] Per-monitor wallpaper dropped on lock/overview. LockScreen.qml:205 and Wallpaper.qml:38 use global Theme.wallpaper; live background honours wallpapersByMonitor. Sketch: use same wanted resolver with surface output name.
+11. [S] Magnifier shows stale frame after focus moves. Magnifier.qml:18 rebinds screen to focused output but grab() only on open/right-click. Sketch: onScreenChanged: grab().
+12. [S] Quickshell.screens and Displays.outputs desync during hotplug. Per-output layers built from Quickshell.screens (Bar.qml:21, Wallpaper.qml:20) but geometry from Displays.outputs (Bar.qml:211-212,296) which lags rescan. New output briefly gets width-0 bar. Sketch: guard geometry bindings.
+N1-N4 niri/portal-level: mirror is fullscreen wl-mirror not cloned output; no audio routing for presentation; idle screen-off all-or-nothing; per-output refresh/VRR/scale config-only with polling.
+Risk: S1/S2 need real 1x+2x setup; if niri reports physical pixels in tile_pos_in_workspace_view only the origin term is wrong.
+
+## Network protocol depth (agent ses_dfb9f5aeaffeAXXJHr27cq9Ho1)
+
+Shell-fixable:
+S1. SMTP uses implicit TLS on STARTTLS port 587. mail.py:631 defaults port 587, :645-648 defaults ssl:true → SMTP_SSL (465-style) on submission port. [FIXED this pass: derive TLS from port]
+S2. STARTTLS optional → credentials in clear. mail.py:653-661 logins even without STARTTLS; :381-386 opens plain IMAP4 and LOGINs with no STARTTLS. [FIXED this pass: refuse cleartext to remote hosts]
+S3. UID/sequence mix makes search results unclickable. imap_search:462,466 returns UIDs via box.uid(), but imap_read:493, imap_flag:524, imap_move:538, imap_delete:605, imap_source:553, imap_attachment_data:567 treat ID as sequence via box.fetch/store. Acting on a hit can flag wrong message. Sketch: use box.uid() everywhere.
+S4. Feeds never send conditional GET. feeds.py:140-149 no If-None-Match/If-Modified-Since; refresh_one:254-260 stores no ETag/Last-Modified, so every refresh re-downloads full bodies.
+S5. No OAuth2/XOAUTH2 anywhere. password():81-96 only plaintext; Google/Microsoft/modern iCloud need app passwords.
+S6. No DKIM/SPF/DMARC shown. imap_read:503-512 and mh_read:321-330 discard Authentication-Results/Received-SPF.
+S7. RSS content:encoded and full Atom content lost. parse_feed:180-186 never checks http://purl.org/rss/1.0/modules/content/.
+S8. No S/MIME or PGP handling. bodies_of:164-179 only text/plain and text/html; signed/encrypted parts ignored.
+S9. Folder LIST parsing assumes / delimiter and unescaped names. imap_folders:397 splits on literal ' "/" '.
+S10. Full-message refetch on every list; no cache/UIDVALIDITY/CONDSTORE. imap_list:425 BODY.PEEK[] last 100 messages per folder each open.
+S11. No attendee RSVP roundtrip. events:151-152 hardcodes organizer=""; _ical_text emits REQUEST/ATTENDEE but nothing reads PARTSTAT/RSVP or emits iTIP REPLY; edits never bump SEQUENCE.
+S12. Webcal subscriptions unsupported. account_add:551-598 only http(s) WebDAV.
+S13. SFTP host-key trust-on-first-use. connect_sshfs:1402-1427 uses StrictHostKeyChecking=accept-new (MITM on first connect), no identity-file picker.
+S14. Proxy bypass list hardcoded. Proxy.qml:24 no_proxy=localhost,127.0.0.1,::1; no user-editable list.
+S15. Radio stations from directory played without scheme validation/metadata. Radio.qml:95,119.
+Needs server/daemon: D1 OAuth2 token acquisition/refresh; D2 CalDAV sync conflict resolution; D3 Files network protocol depth (nfs:// accepted though gvfs has no backend, no SMB dialect); D4 rclone backend config/encryption; D5 per-app proxy.
+
+## Audio routing and PipeWire graph depth (agent ses_dfb9f305affev15wH3aLLU6GxU)
+
+Corrections (brief was stale — do NOT re-file): 10-band EQ, bass boost, compressor, loudness (EBU R128), stereo width/mono, crossfeed, spatialiser, AutoEq, impulse response ALL BUILT (SettingsSound.qml:105-263, SoundFx.qml:83-160). Device switching on plug-in/BT-connect delegated to WirePlumber and OSD-reported (Audio.qml:137-161). Per-app volume mixer AND per-app output routing helper exist (SidebarSliders.qml:73-93, Audio.moveStream() via pw-metadata target.object Audio.qml:95-103). RNNoise mic suppression (SoundFx.qml:232-291). Wake word/TTS voice still noted only.
+
+Shell-fixable:
+1. Per-app output picker absent from mixer (moveStream exists but app rows only volume/mute). Sketch: sink dropdown per app row.
+2. Echo cancellation is detection-only. echo_cancel_active() never enables (shani_link/audio.py:66-81). Sketch: mirror RNNoise filter-chain pattern.
+3. No separate mic monitoring level. Mic slider capture gain only.
+4. Lock-screen media controls shallow — prev/play/next and art only (LockScreen.qml:416-445); sidebar has switching+seek. Sketch: reuse sidebar card.
+5. Media keys follow sticky preferred player. Media.current = preferred||playing||first (Media.qml:13-15).
+6. No limiter/true-peak ceiling. 150% over-amplification distorts; only compressor.
+7. No notification/media ducking. No duck reference.
+8. Recording no latency compensation or live monitoring.
+9. Channel remap/swap not exposed; only L/R balance.
+10. Album-art fallback missing — raw trackArtUrl, blank tile for empty/embedded art.
+11. Wake word is a label, not a control.
+PipeWire/daemon-level: 12 A2DP↔HFP auto-switch (needs WirePlumber Lua policy); 13 beamforming (hardware-specific); 14 virtual sink/source/device-combining UI; 15 graph viewer/patching; 16 per-app recording; 17 TTS voice selection.
+Highest value × ease: #1, #2, #3, #4.
+
+## Developer tooling experience (agent ses_dfb9f07fcffecUNq9sFDtvq07u)
+
+Hot reload: 1. No QML reload — dev/session.sh:241 starts qs once; dev/render.sh:124-132 pkill + re-source. Only settings data reloads (Settings.qml:1-4). Sketch: dev-only reloadUi IPC.
+Debugging: 2. No IPC tracer — 519 functions (shell.qml:258) none logs invocation. 3. Log.qml effectively unused — SHANI_LOG filtering exists but Log.scoped appears only twice; console.log/warn total 4. 4. No in-shell view of shell diagnostics — LogsPanel reads journalctl not qs.log; QML output to out/logs/qs.log only readable by leaving GUI. 5. No programmatic IPC discovery beyond fixed state() blob; no listIpc/help/describe.
+Scaffold: 6. No scaffold command for new app/module/service/bridge (only tools/i18n.py). 7. Adding one IPC call means three manual edits (shell.qml, bin/shani GROUPS + _register, test). 8. Shell "app" has no single registry (APPS dict + Ui bool + IpcHandler + state line + launcher modules).
+API docs: 9. ~60 Common + ~60 Services files have no contract docs beyond prose layout list. 10. Bridge contracts only per-file docstrings; no aggregate, no version marker in ~70 bridges.
+Testing: 11. No QML unit-test harness — tests pytest only; no qmltestrunner/TestCase/SignalSpy. 12. No per-component test template. 13. Dev loop container-only — no documented host-native path.
+Packaging: 14. Dev install only symlinks QML; bridges installed by PKGBUILD, no dev install of modified bridges. 15. PKGBUILD pinned to git commit — no local-checkout build. 16. No checklist of files a feature must touch.
+Versioning: 17. No API version for IPC or bridges — no SHANI_IPC_VERSION, bridge --version, deprecation field.
+
+## Config migration and versioning (agent ses_dfb9ede4bffewuDDlzHg3c9EJw)
+
+1. No schema version in any state file — only release-notification marker (WhatsNew.qml:20-34). Settings.qml:1-6, feeds.py:45-77, mail.py:44-56, music-library.py:124-130 bare dicts.
+2. Existing users never receive changed defaults — "created on first change" misleading; writeAdapter() writes all ~300 keys at once (dev/shell-test.sh:266-267); applyOutside prefers file value over defaults[k], so changed defaults invisible to anyone who toggled anything. Sketch: touched[] set, re-apply new defaults to untouched keys on schema bump.
+3. Renamed/removed keys neither migrated nor cleaned — only one-off dockAutoHide→dockVisibility (Settings.qml:98-100); resetAll loops defaults only, stale keys survive.
+4. Corrupted settings.json only file with safety net (copies to .unreadable-ts + notify). ~14 other QML sites and 4 bridges silently reset: ScreenTime, Launcher, Shelf, PlayQueue, Clipboard, Notifs, Reopen, Weather, VoiceRecorder, TextDocs, Updates, Tr, feeds.py, mail.py, music-library.py, PhotosWindow.qml.
+5. Most state files written non-atomically — only Settings.qml:137, Updates.qml:33, Notifs.qml:208 set atomicWrites:true. Others plain writes; crash mid-write → permanent loss.
+6. Corrupt feeds.json/mail.json destroy subscriptions/account config irrecoverably.
+7. No downgrade migration across blue-green rollback — /home separate subvolume outlives both slots; settings written by new version read verbatim by old.
+8. Pre-deploy home snapshots not version-labelled, only two kept (shani-backup/home.py:131,229-244).
+9. Factory reset preserves all per-user shell config/state (shani-reset.sh:21-27).
+10. Dev session doesn't isolate bridge state — bridges derive paths from HOME, XDG_STATE_HOME unset; tests write real /root/.config.
+11. No settings import from GNOME/KDE/COSMIC editions.
+12. Wrong-but-valid JSON passes silently (.get on any type, Object.values on any type).
+13. No migration tests exist.
+14. State lives in four roots with four corruption stories.
+15. Two different version files — /etc/shani-version vs /etc/shani/version (shani-deploy.sh:1547 vs shani-upgrade-adviser.sh:44-49).
+Risk: pre-deploy snapshots cover only two updates, so a third makes older configs unrecoverable.
+
+## External-app interoperability (agent ses_dfb9eb030ffe3MXcIwtwWCXisT)
+
+Skipped parent's list and items already filed (mailto/geo handlers, share-into-apps, plain-text copy path now text/uri-list at Files.qml:922, grouped notifs, urgency-2 DND bypass, FileChooser-only portal, window thumbnails).
+
+Shell-fixable:
+1. Per-app rules cannot target a named workspace — SettingsWindows.qml:186 hardcodes ["","1".."5"], writer emits any name (WindowRules.qml:49).
+2. Window-rule UI covers ~6 of niri's ~25 properties — WindowRules.qml:40-55 emits mode/workspace/output/size only; border, focus-ring, opacity, background-effect, geometry-corner-radius, block-out-from, dynamic is-focused missing.
+3. No "screenshot this window" for external app — Screenshots.qml:112 only screenshot-screen; WindowMenu has no capture action.
+4. Inbound drag accepts file URIs only — FileDropArea.qml:14 keys ["text/uri-list"], DropZone.qml:86-89 hasUrls only. X11 apps offer UTF8_STRING/text/plain, GTK/GIMP/Firefox offer image/png; no target accepts either.
+5. DropZone trusts any URL scheme — forwards http:// drags as bogus local paths.
+6. Mail is a dead row in Default Apps — SettingsDefaultApps.qml:23 queries mailto but no installed entry declares it (bin/shani:528 mail mimes []).
+7. No scheme handlers on desktop entries — bin/shani:598-606 writes only MimeType; skel registers magnet/dht/tel/ftp to third parties but nothing for mailto/geo/message/rfc822/web+*.
+8. Minimise/restore forgets original workspace — Niri.qml:117-122 restores to currently focused workspace; external app comes back on wrong workspace after Show Desktop.
+9. Flatpak portal notifications bypass rule engine — no org.freedesktop.portal.Notification reference; niri-portals.conf delegates Notification=gtk; NotifsRules.qml matches appName/summary/body only.
+10. Snoozed notifications lose identity and actions — Notifs.qml:143-163 re-posts with notify-send dropping desktopEntry hint and all actions.
+11. X11 PRIMARY selection unsynced — config.kdl:100 wl-clip-persist --clipboard regular only, no --primary.
+12. XWayland input-method env incomplete — config.kdl:84-94 sets XMODIFIERS/QT_IM_MODULE but no GTK_IM_MODULE; fcitx5-gtk ships.
+13. Share sheet shells out instead of portal Mail/Share — Share.qml:32 xdg-email, bridge/portal.py only FileChooser.
+N14-N16 niri/portal-level: sharing one window exposes whole monitor (portal-wlr captures outputs only); no compositor session manager; XWayland per-app scaling compositor-owned.
+Risk: niri action names and screenshot-window availability not verified against installed binary.
+
+## Fixes applied this pass
+
+- Duplicate desktop ID: ShellApps.js "Password Generator" pointed to dev.shani.Passwords (same as Passwords and Keys) — corrected to dev.shani.PasswordGenerator; tests/test_app_registry.py (523 checks) caught it.
+- SMTP STARTTLS bug and IMAP cleartext login in bridge/mail.py corrected (security).
+- Two new agent test files added: tests/test_app_registry.py, tests/test_cli_ipc.py (608 checks).
