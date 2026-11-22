@@ -782,7 +782,7 @@ AppWindow {
                         Layout.preferredWidth: Theme.px(90)
                         placeholder: "mm:ss"
                         label: Tr.t("Go to time")
-                        font.features: { "tnum": 1 }
+                        input.font.features: { "tnum": 1 }
                         onAccepted: if (!win.goToTime(text)) win.goError = true; else win.goError = false
                     }
                     Button { text: Tr.t("Go"); flat: true; enabled: PlayQueue.current !== ""; onClicked: { if (!win.goToTime(goField.text)) win.goError = true; else win.goError = false; } }

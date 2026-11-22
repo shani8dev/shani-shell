@@ -128,7 +128,6 @@ AppWindow {
                     Layout.fillWidth: true
                     text: win.endpoint
                     label: Tr.t("Local model endpoint")
-                    inputMethodHints: Qt.ImhUrlCharactersOnly
                     onAccepted: win.endpoint = text.trim()
                 }
                 Button { text: Tr.t("Use"); flat: true; onClicked: win.endpoint = endpointField.text.trim() }

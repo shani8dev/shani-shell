@@ -224,9 +224,11 @@ Singleton {
             }
         }
         onExited: code => { if (code !== 0) root.error = Tr.t("Could not read the address book"); }
-        // a changed sort choice must re-read, not just re-sort a cached list
-        Connections { target: root; function onSortByChanged() { if (!reader.running) reader.running = true; } }
     }
+    // a changed sort choice must re-read, not just re-sort a cached list. It
+    // belongs beside the Process, not inside it: a Process has no default
+    // property to take an object, and the whole surface failed to load.
+    Connections { target: root; function onSortByChanged() { if (!reader.running) reader.running = true; } }
 
     Process {
         id: writer

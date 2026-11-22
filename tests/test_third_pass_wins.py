@@ -58,5 +58,5 @@ def test_accessibility_wins():
     shell = read("shani/shell.qml")
     assert "Qt.accessibleAnnounce(message" in toast
     assert "Accessible.role: Accessible.Slider" in slider
-    assert "Accessible.value: Math.round(root.value * 100)" in slider
+    assert "Accessible.name: root.icon" in slider
     assert 'sequences: ["Meta+Alt+S"]' in shell

@@ -17,6 +17,12 @@ RowLayout {
     signal iconClicked()
     signal detail()
 
+    // The slider's semantics live on the row, not on the track: Qt reads the
+    // value off this object's own `value` property (there is no Accessible.value
+    // to set - assigning one is an error), so Orca can name and read it.
+    Accessible.role: Accessible.Slider
+    Accessible.name: root.icon
+
     spacing: Theme.px(8)
 
     IconButton {
@@ -29,11 +35,6 @@ RowLayout {
     Item {
         Layout.fillWidth: true
         implicitHeight: Theme.px(28)
-        // KeyFocus stays ignored (the MouseArea drives it); expose semantics
-        // to the accessibility tree so Orca can name and read the value.
-        Accessible.role: Accessible.Slider
-        Accessible.name: root.icon
-        Accessible.value: Math.round(root.value * 100)
 
         Rectangle {
             id: track

@@ -579,7 +579,7 @@ AppWindow {
                     id: gotoField
                     Layout.fillWidth: true
                     placeholder: "Line number"
-                    validator: IntValidator { bottom: 1; top: 1000000 }
+                    input.validator: IntValidator { bottom: 1; top: 1000000 }
                     onAccepted: win.submitGoto()
                     input.Keys.onEscapePressed: { win.gotoOpen = false; edit.forceActiveFocus(); }
                 }

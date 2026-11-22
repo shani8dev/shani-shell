@@ -510,7 +510,7 @@ AppWindow {
                         Layout.fillWidth: true
                         placeholderText: Tr.t("Tags (comma separated)")
                         text: win.tagsOf(win.detailPath)
-                        onEditingFinished: win.setTags(win.detailPath, text)
+                        onAccepted: win.setTags(win.detailPath, text)
                     }
                     Item { Layout.fillHeight: true }
                 }

@@ -536,7 +536,11 @@ Singleton {
             "sh", src, root.historyDir, dest, key];
         snapshotProc.running = true;
     }
-    Process { id: snapshotProc; stdout: StdioCollector {}; stderr: StdioCollector {} }
+    Process {
+        id: snapshotProc
+        stdout: StdioCollector {}
+        stderr: StdioCollector {}
+    }
     function history(id) {
         const key = String(id || root.current || "").replace("/", "__");
         histProc.command = ["sh", "-c",

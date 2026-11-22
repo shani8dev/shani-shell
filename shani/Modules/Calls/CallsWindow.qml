@@ -55,7 +55,6 @@ AppWindow {
             placeholder: Tr.t("A number")
             onAccepted: win.call()
             // Enter is Call; typing must not dial on its own
-            inputMethodHints: Qt.ImhDialableCharactersOnly
         }
 
         // the line to call on, when there is more than one
