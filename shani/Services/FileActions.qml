@@ -63,6 +63,10 @@ Singleton {
             add("text", Tr.t("Its text"), "text-x-generic", "pdftotext");
         }
         add("zip", files.length > 1 ? Tr.t("Zip them together") : Tr.t("Zip it"), "package-x-generic", "bsdtar");
+        // printing: CUPS' lp takes PDFs, images and text; an office document
+        // needs a converter, so it is not offered
+        if (Printing.hasPrinters && (k === "pdf" || k === "image" || k === "other"))
+            add("print", Tr.t("Print…"), "printer", "");
         // Edits in Chronoa's editor surface (wiring only: Chronoa.ask fallback,
         // see Services/Chronoa.openEditor — there is no direct surface-open).
         add("edit", Tr.t("Edit…"), "accessories-text-editor", "");
@@ -150,6 +154,7 @@ Singleton {
         if (id === "share") { Share.open(fs[0]); return; }
         if (id === "edit") { Chronoa.openEditor(fs[0]); return; }
         if (id === "ask") { Chronoa.ask("Here are some files for context: " + fs.join(", ")); return; }
+        if (id === "print") { Printing.printFile(fs[0]); return; }
         const sc = id === "smaller" ? smallerScript() : scripts[id];
         if (!sc) return;
         const src = fs[0], ext = sc[0] || (src.split(".").pop());
