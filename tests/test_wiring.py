@@ -233,6 +233,20 @@ def test_services_are_reached_the_way_they_are_imported():
     assert wrong == {}
 
 
+def test_every_settings_category_has_a_page():
+    """A category in SettingsPage's `cats` list with no Loader behind it is a dead
+    menu row: the sidebar shows it, and opening it shows an empty page. Firewall
+    was added to the list without one; this keeps the two in step."""
+    page = (SHANI / "Modules/Settings/SettingsPage.qml").read_text()
+    # the cats property only: other lists in the file use `{ id: … }` too
+    block = re.search(r"readonly property var cats: (\[.*?\])\n", page, re.S)
+    assert block, "the cats list no longer parses"
+    cats = re.findall(r'\{ id: "([a-z]+)"', block.group(1))
+    assert len(cats) >= 20, "the cats list no longer parses"
+    missing = [c for c in cats if f'page.cat === "{c}"' not in page]
+    assert not missing, f"categories with no page: {missing}"
+
+
 def test_every_surface_read_on_first_open_is_there():
     """A `source:` loader names a file; a renamed or moved one is found only
     when a person opens that surface (nothing compiles it at load)."""
