@@ -209,12 +209,16 @@ AppWindow {
                 // the message as it was sent: Qt's TextDocument renders a subset
                 // of HTML, and the bridge has already taken out everything that
                 // reaches outside the message (scripts, remote images, handlers)
-                TextDocument {
+                // Qt's Text renders the subset of HTML TextDocument does, and
+                // unlike TextDocument it is a normal item - the bridge has
+                // already stripped everything that reaches outside the message
+                Text {
                     Layout.fillWidth: true
                     visible: Mail.showHtml && Mail.html !== ""
-                    textFormat: TextEdit.RichText
+                    textFormat: Text.RichText
                     text: Mail.html
                     color: Theme.text
+                    wrapMode: Text.Wrap
                     font.family: Theme.font
                     font.pixelSize: Theme.px(14) * Theme.fontScale
                 }

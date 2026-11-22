@@ -19,7 +19,7 @@ AppWindow {
     property string accountKind: "other"
     appName: "Calendar"
     tools: [
-        IconButton { size: Theme.px(30); icon: "view-refresh"; tip: Tr.t("Refresh"); onClicked: Agenda.refresh() }
+        IconButton { size: Theme.px(30); icon: "view-refresh"; tip: Tr.t("Refresh"); onClicked: Agenda.refresh() },
         IconButton {
             size: Theme.px(30); icon: "document-import"; tip: Tr.t("Import an .ics file")
             onClicked: FilePicker.open({ mode: "open", title: Tr.t("An invitation or calendar file"),
@@ -1253,7 +1253,7 @@ AppWindow {
                         placeholder: "minutes"
                         label: "Reminder (minutes before)"
                         text: String(win.fAlarm)
-                        validator: IntValidator { bottom: 0; top: 1440 }
+                        input.validator: IntValidator { bottom: 0; top: 1440 }
                         onTextChanged: { const n = parseInt(text, 10); win.fAlarm = isNaN(n) ? 0 : n; }
                     }
                 }

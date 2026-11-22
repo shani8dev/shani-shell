@@ -3832,3 +3832,267 @@ Risk: Converter job-keeps-running inference rests on AppWindow only hiding and w
 16. [M×M] Launching from dock doesn't target that dock's monitor (Dock.qml:143-147,510-514; Launch.qml:23-32).
 Niri-impossible: N1 no primary output in niri; N2 no pointer cross-monitor drag event; N3 per-invocation output placement needs niri window rules.
 Risk: #1/#5/#14 depend on niri reporting window output via workspace — needs real 2-monitor IPC readback.
+
+---
+
+# Eighteenth pass — VERBATIM agent reports
+
+## VERBATIM: Notification gestures & swipe actions
+
+I've read both gap docs and the notification, sidebar, lock-screen, and service code. Skip list honoured (grouping, progress, resident, DND, snooze, sounds, escalation, coalescing, cooldown, lock-screen inertness, overflow, action icons, mark-all-read, feedback, dock badge, swipe-back snap, hover-pause, flash, volume). Note: notification long-press was explicitly *skipped* by the 12th-pass context-menu audit (GAPS-RESEARCH.md:2161), so that area is genuinely unaudited. Static only.
+
+## Notification gestures & swipe actions — ranked gaps
+
+1. **Swipe-dismiss has no undo.** `NotificationCard.qml:107-109` calls `notification.dismiss()` immediately; `Notifs.qml:179-183,192-197` removes it from tracked + the history snapshot. One accidental flick is permanent. *Sketch: push dismissed id into a `Common/Toast.qml` undo list and re-announce.* (H×easy)
+2. **No long-press or right-click context menu on cards.** `NotificationCard.qml:97-123` has only `HoverHandler`, `DragHandler`, `MouseArea` (left-click); grep finds zero `onPressAndHold`/`RightButton` in Modules/Notifications. *Sketch: `onPressAndHold`/right-click → menu with Copy text, Mute app, Open app settings.* (H×easy — never audited)
+3. **Swipe shows no visual cue or revealed action.** `:103` only sets `slide.x = translation.x`; no background strip, icon, or threshold marker is exposed, so users can't discover what a swipe does. *Sketch: colored trash strip behind the card, opacity = `Math.abs(slide.x)/width`.* (H×easy)
+4. **No drag-out payload from a notification.** `:98-114` `DragHandler` has `target: null` and no `Drag.mimeData`; the shell already has this pattern (`FilesPanel.qml:863-869` `text/uri-list`, `Launcher.qml:784` `text/plain`, `Common/DropZone.qml:83-86`). Can't drag a text notification into Notes/Editor. *Sketch: `Drag.mimeData: {"text/plain": summary+"\n"+body}` + a drag handle.* (H×med)
+5. **Dismiss affordances disagree.** X button and swipe call `notification.dismiss(); done()` (`:108-109,247-250`), but keyboard Delete calls only `done()` (`:129`). On a sidebar card `done()` is unconnected (no `onDone` there) so Delete is a no-op; on a popup it removes the popup but leaves the notification in history. *Sketch: one `dismissCard()` helper used by all three.* (H×trivial)
+6. **The "⋯" more menu omits the obvious management actions.** `:233-240` toggles `more`; `:331-341` offers only Snooze / No pop-ups / Ask Chronoa — no Copy text, Mute app, or Open app settings. *Sketch: add model entries writing clipboard + launching `desktopEntry` settings.* (M×easy)
+7. **Group headers have no long-press/group-level actions.** Popups' header `Glass` has click + KeyFocus only (Popups.qml:122-182, MouseArea 169-173); sidebar group header is a label + bare Clear button (SidebarNotifications.qml:85-100). *Sketch: hold header → Clear group / Snooze all / Mute app / App settings.* (M×easy)
+8. **Swipe direction carries no meaning.** `:107` uses `Math.abs(slide.x)` — left and right both dismiss. iOS/Android convention (right = reply, left = archive/dismiss/snooze) is absent. *Sketch: branch on `slide.x` sign; reveal a different icon per side.* (M×easy)
+9. **Fixed threshold, no flick/velocity support.** `:107` is a hardcoded `width/3`; a fast short flick snaps back (the snap bug is already filed). *Sketch: use `DragHandler` translation velocity to lower threshold on flicks.* (M×easy)
+10. **Swipe doesn't work on stacks.** Group headers (Popups.qml:122-182, SidebarNotifications.qml:85-100) have no `DragHandler`, so a whole app group can't be swiped away. *Sketch: same DragHandler on header → new `Notifs.clearGroup(key)`.* (M×med)
+11. **Hover-gated controls break touch parity.** `more`/close `IconButton`s sit at opacity 0.55 unless `hover.hovered` (`:237,245`); touch has no hover, so controls stay dim forever. *Sketch: force opacity 1 when `FormFactor.focused.profile === "phone"`.* (M×trivial)
+12. **No right-click/long-press equivalence for any notification gesture.** All interactions are left-click, drag, or hover (`NotificationCard.qml:97-123`, Popups.qml:169-181, SidebarNotifications.qml:96-99): mouse users get no menu, touch users no hold. *Sketch: one shared handler mapping both inputs to the #2 menu.* (M×easy)
+13. **Card DragHandler likely steals drags from interactive children.** `:98-114` grabs horizontal drags across the whole card, including the inline `TextField` (`:304-315`) and action pills (`:370-382`), which have no grab rejection — text selection/reply dragging can turn into a card slide. *Sketch: restrict the handler's grab to outside those children.* (M×med)
+14. **Avatar/app icon is not a distinct click target.** `:164-216` is pure visuals; the only click is the whole-card `MouseArea` (`:115-123`) = activate. No separate "open app" / "app info" gesture. *Sketch: add an icon MouseArea → open app or app settings.* (L×easy)
+15. **Popup group expand/collapse is click-only.** `toggleGroup` + chevron (Popups.qml:69-73,163-173) responds to tap/KeyFocus only; no vertical swipe on the stack header. *Sketch: vertical DragHandler on header → toggleGroup + chevron rotation.* (L×easy)
+16. **Notification centre has no drop target.** Only Island/Dock/Files accept drops (`Island.qml:197`, `Dock.qml:448,637,761`, `FileDropArea.qml:10`); the sidebar notification section accepts nothing, so "drop here to snooze/pin" is impossible. *Sketch: wrap section in `Common/DropZone` accepting `text/plain`.* (L×med)
+17. **"Earlier" rows have no gesture beyond tap-to-clear.** `SidebarNotifications.qml:128-140` is a `ListRow` whose click forgets the entry — no swipe-dismiss, no hold, no copy. *Sketch: reuse the card swipe/long-press handlers on these rows.* (L×easy)
+18. **No keyboard/controller path for the swipe/dismiss action set.** `:124-130` offers only Enter (activate) and Delete (broken per #5); once directional actions exist (#8) there's no accessible mapping. *Sketch: open the #2 menu on the KeyFocus Menu key.* (L×med)
+
+**Highest value × ease:** #1, #2, #3, #5, #6, #7, #11.
+
+**Skipped / not checked:** lock-screen notification gestures (covered by the filed "inert Text" gap) and all already-filed items above; no QML runtime, so #13 and the exact grab arbitration are static inferences. **Risk:** #2/#7 menus must not fight the existing `DragHandler` (pass `Hold.state`/grab permissions) or they will never fire on a swipe-start.
+
+## VERBATIM: Terminal output handling & shell features
+
+# Terminal output handling & shell features — deep gap report (18th pass, static only)
+
+**Scope read first:** `GAPS.md`, `GAPS-RESEARCH.md` (17 passes), `Services/Terminal.qml`, `bridge/launch-app.py`, `Services/TerminalApp.qml`, `Modules/Terminal/TerminalAppWindow.qml`, `Services/Files.qml`, `Services/Launch.qml`, `dev/shell-parts/terminal.sh`, `tests/test_terminal.py`, `tests/test_gap_terminal.py`, `shani-settings/usr/share/shani/shell/{terminal.zsh,terminal.bash,common.sh,shani.fish}`, `shani-pkgbuilds/.../foot.ini`, `docs/FINDINGS.md:1119-1147`.
+
+**Framing (answer to Q1/Q4):** "Terminal" is an SSH manager, not an emulator. The shell controls only three things: (a) the default emulator via `~/.config/niri-xdg-terminals.list` (`Terminal.qml:28,53`; `Launch.qml:35-45`), (b) foot's config (`Terminal.qml:70-95`), and (c) bytes printed into the PTY by the shell integrations (OSC 7/133/title). **Scrollback, copy-on-select, OSC 8 URL hyperlinks, output search, tabs and split panes are entirely emulator-owned** — the shipped foot has *none* of search/tabs/splits, and `foot.ini` configures only font, cursor, colours and the two Chronoa pipes (`foot.ini:3-55`). So gaps there are "shell could expose a setting/keybinding", not "shell must draw a pane".
+
+## Ranked gaps (value × ease)
+
+| # | Gap | V×E | Evidence | One-line sketch |
+|---|---|---|---|---|
+| 1 | **No "command finished" notification.** OSC 133 `D` is emitted but only foot consumes it (prompt jump / pipe); no duration timer, no freedesktop notification, no Island chip. | H×H | `terminal.zsh:35`; `terminal.bash:19-24`; `foot.ini:54-55` | In `terminal.zsh/.bash`, time `preexec→precmd` and call `shani notify`/`notify-send` when elapsed > N sec. |
+| 2 | **No fish shell integration.** OSC 7/133/title are sourced only for `zsh`/`bash`; `shani.fish` (the shell Konsole/Yakuake defaults to on Plasma) has none. | H×M | `common.sh:141-146`; `shani.fish:1-end`; `config.fish:9-14`; shani-pkgbuilds AGENTS: `Command=/usr/bin/fish` | Add `terminal.fish` (`function fish_prompt --on-event fish_prompt` etc.) and source it from `shani.fish`. |
+| 3 | **OSC 133 D carries no exit status.** Emitted as bare `133;D`, so a failed command is indistinguishable from a successful one. | M×H | `terminal.zsh:35`, `terminal.bash:20` | Emit `\e]133;D;$?\e\\` (kitty's convention); let notification/pipe act on non-zero. |
+| 4 | **"Open in terminal" works by inherited cwd, not OSC 7.** Breaks for server-based emulators (gnome-terminal, kitty, footclient via a remote server) that don't inherit the caller's cwd. | M×H | `Files.qml:685-690` (`cd "$1" && exec xdg-terminal-exec`); `Terminal.qml:34-45` | Pass `--dir/--working-directory` when the chosen terminal supports it; verify with a stand-in `xdg-terminal-exec`. |
+| 5 | **Shell apps cannot read a terminal's cwd.** OSC 7 is written *to* the terminal; no bridge returns "current terminal directory". | M×M | `terminal.zsh:16-24`; no cwd bridge in `bridge/` | Have `terminal.zsh` mirror PWD to `$XDG_RUNTIME_DIR/shani-cwd/<tty>`; add Files/Launcher "Open Files here". |
+| 6 | **Terminal-launched processes aren't tracked or closable.** `connect()` is fire-and-forget `execDetached` (no PID), SSH sessions survive shell restart, shell can't list/focus/close them. | M×M | `TerminalApp.qml:82-91`; no `Process`/PID for connect (contrast tunnels: `:117,127`) | Wrap connect in `systemd-run --user --scope` (as `launch-app.py:123-153`) and map unit→`Niri.windows` app_id for a Close action. |
+| 7 | **No tmux integration / session restore.** tmux ships in the image but nothing wires new/attach/detach or "restore my session after reboot". | M×M | GAPS-RESEARCH:3425 (`tmux` installed); grep finds no tmux call in shell | Add a Terminal "Sessions" tab (`tmux list-sessions`) + launch `foot -e tmux attach -t`; offer a sign-in restore. |
+| 8 | **Scrollback size is unconfigurable.** No `[main] scrollback=` in either foot.ini and no Settings row. | M×H | `foot.ini:1-55`, `Terminal.qml:70-95`, `SettingsIndex.js:201` (only `terminalThemed`) | Add a scrollback-lines setting written alongside the other foot keys. |
+| 9 | **No output-search affordance.** foot has no built-in search; shell binds only `pipe-command-output`/`pipe-selected`; no "find in terminal" action anywhere. | M×M | `foot.ini:50-55`; `TerminalAppWindow.qml` has no output UI | Wire `pipe-selected` to a small search/highlight bridge, or document the emulator's own search in Settings. |
+| 10 | **"Copy last command output" only goes to Chronoa.** `pipe-command-output` → `shani chronoa explain -`; no path into Clipboard history or a shell action. | M×M | `foot.ini:54`; `tests/test_terminal.py:39-47` | Add a pipe target that writes to `Clipboard`/cliphist and show a toast. |
+| 11 | **Chronoa-explain ignores success/failure and always opens.** Every Ctrl+Shift+A pipes output regardless of command result. | M×M | `foot.ini:54`; `terminal.zsh:35` (no status) | Gate the pipe on OSC 133 `D;0` vs `D;<n>` (needs #3). |
+| 12 | **Tabs/splits promised by the picker but undeliverable with the default.** Entry notes Ghostty "tabs, splits"; default footclient supports neither, and the shell has no pane API. | M×H | `Terminal.qml:36-37`, `:52` (default `footclient`) | Either add a shell-level multi-window grouping for foot, or drop the note / recommend Ghostty for panes. |
+| 13 | **URL hyperlinks: only a colour is set.** `urls=` is themed but no keybinding to *open* an OSC 8 link and foot's link support is limited. | M×H | `Terminal.qml:67`, `foot.ini:21`; no link keybinding | Add a foot `url-command=[xdg-open ${url}]` binding; state the feature honestly per emulator. |
+| 14 | **Copy-on-select not configured or surfaced.** No `selection-override`/copy-on-release key in either foot.ini; no Settings explanation. | M×H | `foot.ini:1-55`, `Terminal.qml:65-66` | Set copy behaviour explicitly and add a one-line help label in Settings › Terminal. |
+| 15 | **Terminal windows not surfaced in shell UI.** No per-connection focus/close; only `Niri.windows` `app_id=footclient` exists. | M×M | `Terminal.qml:122`, `TerminalApp.qml:82-91` | On connect, record the new foot window id and add "Focus/Close" actions to the host row. |
+| 16 | **`SHANI_TERMINAL_INTEGRATION=0` has no Settings toggle** — opt-out requires editing a dotfile. | L×H | `common.sh:143`, `terminal.zsh:3-4` | Add a Settings switch writing `environment.d` / `config.fish`. |
+| 17 | **Double-mark detection only recognises Starship.** Other prompt frameworks that emit OSC 133 will double-mark prompts/output. | L×H | `terminal.zsh:37` (checks `starship_precmd` only) | Generalise the probe to any `*_precmd` containing `133;`. |
+| 18 | **Terminal=true launches discard errors.** `launch-app.py` sends stdout/stderr to DEVNULL, so a failing terminal app gives no shell-visible failure. | L×M | `launch-app.py:225-233` | Capture stderr into a log/JSON field like the other launch paths. |
+
+**Highest value × ease:** #1–#4, #8. #2 is the single largest correctness hole (a whole default shell silently loses cwd/prompt/title marks). #1 is the clearest user-visible feature made possible by marks that already exist.
+
+**Skipped / not checked (per the 17-pass skip-list and my brief):** all SSH host/tunnel/key/snippet items, TTY-less connect, theming (colours/transparency/font), terminal-picker internals, and any runtime/hardware verification (foot Ctrl+Shift+A piping, fish in Konsole, server-based emulator cwd) — all findings are static. **Risk:** #4 and #13 are emulator-specific (foot 1.28 vs Ghostty/kitty) and need one live check before shipping; #1/#2 are cross-repo (`shani-settings` + a shell notification bridge), so a change in `shani-shell` alone cannot deliver them.
+
+## VERBATIM: Calendar grid rendering & interactions
+
+# Calendar grid rendering & interactions — first audit (18th pass, read-only)
+
+Files: `shani/Modules/Calendar/CalendarPanel.qml` (CP), `shani/Services/Agenda.qml` (AG), `bridge/agenda.py` (PY). All static; nothing edited. Skips respected (day/week/month/year views as *features*, natural language, invitations, description, popover, repeat, alarms, location, ICS, current-time line, drag, etc.). Findings are the **grid-craft** layer never before audited.
+
+## Ranked gaps (value × ease)
+
+**1. Only 7 days of events are ever loaded — all navigation off the current week is empty.** AG:195 `read.command = ["python3", root.tool, "7"]`; PY:720-724 `events(today, today+7*86400)`. Every grid filter draws from this one pool (CP:140-145,209-212). Page to next week (`offset=1`, days 7–13), any other month, a past day or a future year → blank grids. This makes `stepView`, Today, year view, and jump-to-date cosmetic. *Sketch: bridge accepts `start,end` args; Agenda exposes `loadRange(from,to)` called by CP on view/offset change; render from a date-keyed cache.* **Highest value; medium ease.**
+
+**2. Events are placed by *local* hour but labelled in the chosen zone — wrong rows off "local".** `weekEventsForHour`/`dayEventsForHour` bucket with `new Date(...).getHours()` (CP:215,217), `isNowHour` uses `getHours()` (CP:79-82), while displayed times use `zoneTime()` (CP:64-76,793,884). Switch zone to Tokyo and every timed event stays in its local hour but prints Tokyo time → grid contradicts itself. DST: PY:724's `+days*86400` fixed-seconds window also drifts an hour across a transition. *Sketch: derive bucket hour/minute from the same zone-aware parts `zoneTime` computes; have bridge return zoned wall-clock start/end fields.* **High value, high ease.**
+
+**3. Week/day grids silently drop all but two events per hour.** CP:785 `model: hourCell._evs.slice(0,2)`; cell height still sized for all (`Math.max(20,_evs.length*16+2)`, :768) → 3rd+ events invisible with no "more" marker. *Sketch: render all with column offsets, or show 2 + a "+N more" chip that opens the day list.* **High value, high ease.**
+
+**4. Every event uses one colour; calendar colour is computed but never applied to events.** Delegates hardcode `color: Theme.accentSoft` (CP:712,791,882); `Agenda.colorOf()` (AG:40) is used only as a "●" text prefix on the chip (CP:1035), not as a colour. Overlapping same-hour events are indistinguishable by calendar. *Sketch: `color: Theme.alpha(Agenda.colorOf(modelData.calendar)||Theme.accent, 0.7)` on each delegate + a left colour bar.* **High value, high ease.**
+
+**5. No keyboard navigation of the grid.** Cells expose `KeyFocus { onActivated }` (Enter only: CP:619-622,668-674,981-984); no `KeyNavigation`, no arrow/`leftPressed`/`rightPressed`/`upPressed`/`downPressed` handlers anywhere (grep: none). Arrow keys cannot move between days/weeks — a core grid interaction and an a11y gap. *Sketch: `KeyNavigation.right/left/down/up` on each cell mapping to `selectDay(±1)/selectWeekDay(±1)/±7` and `stepView` at edges.* **High value, medium ease.**
+
+**6. No double-click-to-create on any empty cell.** Only `onClicked: selectDay(...)` (CP:612-618); week/hour cells (763-809) and day cells (855-900) have no click handling at all. GNOME Calendar creates on double-click in a slot. *Sketch: `MouseArea.onDoubleClicked: openEditorAt(day,hour)` seeding `fDateA/fTimeA` from the cell.* **High value, medium ease.**
+
+**7. No jump-to-date UI.** `Agenda.showDay(when)` signal (AG:114) is wired only to the import path (CP:154-161). `Common/DatePicker.qml` exists but is unused here. No way to reach an arbitrary date except clicking through months. *Sketch: make the view title/date label open `DatePicker`, emit `Agenda.showDay` on pick.* **Medium-high value, medium ease.**
+
+**8. Multi-day events appear on their start day only.** `eventsOn(col)` and `allDayForDay` filter by `isSameDay(start, weekDays[col])` (CP:213-215); a 3-day trip renders as one chip on day 1, nothing on days 2–3. No spanning bar. *Sketch: expand each event across `[start,end]` into per-day segments and flag first/middle/last for rounded ends.* **Medium value, medium ease.**
+
+**9. No duration or end-time indication in grid cells.** Week cells show only `modelData.summary` (CP:797); day cells show start only (CP:888). A 09:00–17:00 all-day-ish meeting looks identical to 15 minutes; nothing visible about length. *Sketch: append `zoneTime(start)+"–"+zoneTime(end)` or a proportional-height block sized by `end-start`.* **Medium value, high ease.**
+
+**10. All-day row exists in week view but not day view.** Week has an "All-day" band (CP:692-732); day view's `dayEventsForHour` filters `!e.allDay` (CP:217) and has no band → all-day events vanish entirely in Day view. *Sketch: reuse the week all-day `Repeater` above the day Flickable, bound to `shownEvents.filter(allDay)`.* **Medium value, high ease.**
+
+**11. Hover is enabled but does nothing; no preview/tooltip.** `hoverEnabled: true` on day cells (CP:615), day headers (670), all-day chips (725), hour events (804), day events (895) — no `hovered` state or ToolTip. No way to see truncated title/location in-grid. *Sketch: `ToolTip.text = summary+" · "+zoneTime(start)+" · "+location` when `containsMouse`, or a subtle hovered highlight.* **Medium value, high ease.**
+
+**12. Search filters only the day view, not week/month grids.** `dayEventsForHour` uses `shownEvents` (search-filtered, CP:141,217) but `weekEvents`/`monthEvents` use `Agenda.events` directly (CP:142,209). Search box (1116-1124) appears global yet leaves matching events in week/month unfiltered. *Sketch: apply `Agenda.search` inside `eventsOn`/`monthEvents` too.* **Medium value, high ease.**
+
+**13. Month cells show a single boolean dot, no chips or count.** CP:602-611 renders one 5px dot if `hasEvents(day)` regardless of 1 or 12 events; no titles, no count. Month view gives no at-a-glance density. *Sketch: render up to 3 truncated title chips + "+N", coloured by `Agenda.colorOf`.* **Medium value, medium ease.**
+
+**14. No selected-event state and no multi-select.** Clicking an event opens the view sheet (CP:804,895,1147) but no delegate tracks a selected id; nothing for batch actions or consistent highlight. *Sketch: `property var selectedUid`, set on click, tint the selected delegate.* **Medium value, high ease.**
+
+**15. No "more events" affordance when hour cell overflows (distinct from #3).** Even where `_evs.length` exceeds what fits, there is no clickable continuation to the day list. *Sketch: a `+N more` Text with `MouseArea` → `selectWeekDay(col); win.view="day"`.* **Medium value, high ease.**
+
+**16. Grid is eager, unvirtualized, and refilters events O(cells×N).** Week view builds `24×7=168` Rectangles via `Repeater` (CP:743-810) with no `reuseItems`/`cacheBuffer`; each calls `weekEventsForHour` → `eventsOn` → `weekEvents` filter over all events; the 60s `today` tick (CP:78) can re-evaluate these. With hundreds of events this is thousands of filter ops per rebuild. *Sketch: precompute one `hour→[events]` map per view change; use `GridView` with reuse for hour rows.* **Medium value, medium ease.**
+
+**17. Zone list is a fixed 7-entry whitelist and unknown zones silently show local.** CP:51-59,73-75; `zoneTime` falls back to local on any zone not in `Intl`'s set, with only a footer label (524-531) — a wrong time with no warning. *Sketch: try any IANA zone via `Intl` and show "zone unavailable — showing local" inline.* **Low-medium value, high ease.**
+
+**18. DST transitions untested/unhandled in grid placement.** Python `time.mktime`/`localtime` and `+86400` arithmetic (PY:721-724) plus JS `new Date(y,m,d+i)` (CP:207) disagree across a 23/25-hour day; the 7-day window can start/end an hour off. *Sketch: compute window boundaries from calendar days, not fixed seconds; add a DST-boundary fixture test.* **Low-medium value, medium ease.**
+
+**19. Year view highlights today but never the selected day.** CP:959-984 only `todayCell`; `selectedDate` has no highlight, so clicking a day switches to Day view with no persistent year marker. *Sketch: add `selectedCell` like the month cell's `isSelected`.* **Low value, high ease.**
+
+**20. Week numbers appear only in month view.** `weekNumbers` column and `isoWeek` (CP:93-100,115-117,556-566) are absent from the week timetable header (632-677) and year mini-months. *Sketch: show `isoWeek(weekDays[0])` in the week header's leading cell.* **Low value, high ease.**
+
+## Notes
+
+- Root cause to fix first: **#1**. Until the bridge returns a wider/requested range, all navigation gaps are cosmetic — fixing grid polish without it yields panels that are still empty.
+- No tests found driving these grid delegates; none of #1–#20 is verified at runtime (static only).
+- Skipped as already listed: ISO week-rule correctness, per-event timezone editing, recurrence, drag create/move, current-time line styling, ICS import flow, week/day/year view existence, description/popover.
+- Read-only pass: **no files were edited or checked**. Risk: line numbers are static against the current tree; if the seven-day fetch in `agenda.py` is changed elsewhere concurrently, #1's severity drops.
+
+## VERBATIM: Files selection & batch-operation UX
+
+Read both gap docs (all 17 passes) and skipped every listed item — matching wildcard, star metadata, batch-rename numbering-only, compare/sync, undo/redo, trash semantics, Photos multi-select, selection-wiped-on-navigation, Files menu focus/Escape/AT-SPI, multi-file Share, drag-out, FilePicker. Static only; no runtime/AT-SPI verification.
+
+## Files selection & batch-operation UX — 19 new gaps
+
+### Highest value × ease
+
+1. **Multi-select "Move to trash" trashes only the anchor.** `FilesPanel.qml:3115` uses `[e.path]` while `chosen` is already computed at `:3040` and used by every neighbouring batch action; Delete key (`:172-175`) and "Delete for good" (`:3116`) use all selected. Right-clicking a selected group silently leaves the rest in place. *Sketch: `Files.trashEntries(chosen)`.*
+2. **No way to deselect all.** `Files.clearSelection()` exists (`Files.qml:312-314`) but has **zero callers in the panel**; background MouseArea accepts only RightButton (`FilesPanel.qml:793-798`), left-click on empty space does nothing, Escape navigates up/hides (`:38-66`). *Sketch: left-click empty area → `clearSelection()`, plus Ctrl+Shift+A and a "Deselect all" menu row.*
+3. **Selection never pruned after a re-list.** `FileDirectory.qml:118-119` rebuilds `entries` wholesale → `win.sync()` → `setPaths` (`FilesPanel.qml:213,237-249`), but `setPaths` (`Files.qml:325-335`) never filters `Files.selected`. Files deleted/moved externally or hidden by a search keep counting in the status line and feeding batch ops with dead paths. *Sketch: `selected = selected.filter(p => _paths.indexOf(p) >= 0)` in `setPaths`.*
+4. **No total size for a selection.** Status shows only `%1 selected` (`FilesPanel.qml:1063-1080`); the aggregate size already exists in `files.py:1549-1583`/`props()` and per-entry `size` is in `_entries`. *Sketch: sum `entryFor(p).size` → "%1 selected · 12.4 MB".*
+5. **Shift+click range in split pane is really a toggle.** `Files.qml:474-480` duplicates the toggle branch verbatim; `_splitPaths` is an unordered array with no anchor/`current`, though the delegate passes `"range"` (`FilesPanel.qml:1223-1224`). *Sketch: add `_splitAnchor` and slice lo..hi exactly as `select()` does at `Files.qml:294-302`.*
+
+### Value × moderate ease
+
+6. **Keyboard has no way to select the focused item.** Arrows only move focus (`KeyFocus.qml:116-119`), Enter activates, Space opens Quick Look (`FilesPanel.qml:177-186`; `KeyFocus.qml:107`) — `Files.current` is recorded at `:911,1030` but never selectable. Ctrl+A is the sole keyboard selection. *Sketch: Ctrl+Space (or Shift+Space) → `Files.select(current, "toggle")`; move peek to another key.*
+7. **Shift+arrows don't extend selection.** `KeyFocus.qml:105-121` ignores all modifiers on arrow branches; `select(...,"range")` is reachable only by mouse (`FilesPanel.qml:898,1020`). *Sketch: on Shift+arrow, move focus then `Files.select(focusedPath, "range")`.*
+8. **Ctrl+A / Ctrl+Shift+I / Select Matching always hit the main pane.** `FilesPanel.qml:83-99` is a window-global key handler; `selectAll`/`invertSelection`/`selectMatching` (`Files.qml:99-103,308-315,713-715`) all read `_paths`, never `_splitPaths`. With split focus, Ctrl+A selects the *other* pane. *Sketch: dispatch to the focused pane; add split variants.*
+9. **Multi-selection context menu keeps single-file actions unguarded.** With N selected: Rename (`:3056`), Suggest a name (`:3059`), Unlock/Lock (`:3067-3070`), Open as drive / Write to USB (`:3071-3074`), Duplicate (`:3100`), Copy path (`:3101`), wallpaper (`:3108`), Share (`:3109`) all use `e.path`. *Sketch: gate on `chosen.length===1`, else use `chosen`/batch equivalents.*
+10. **No bulk permissions from selection.** Backend `chmod-pairs` is batch (`files.py:821`, `Files.qml:733-739`) but the Properties editor is gated by `p.path` (`FilesPanel.qml:2067-2092`), set only when `len(paths)==1` (`files.py:1584`). No "Permissions…" context action exists. *Sketch: add a menu action building `[[path, mode], …]` from `chosen`.*
+11. **"Columns" view is a dead end.** Toggle cycles grid→list→columns (`FilesPanel.qml:341-347`, persisted `Files.qml:407-410`) but only two delegates exist (`:805` grid, `:932` list); in columns mode no delegate is visible → blank pane, selection invisible. *Sketch: implement a column delegate or remove columns from the cycle.*
+12. **Preview pane goes blank above one selection.** `FilesPanel.qml:1274` sets `entry` only when `selected.length === 1`; otherwise `:1336-1343` renders "Nothing chosen". *Sketch: show "N files · total size" + a few stacked icons; reuse the props aggregate.*
+13. **Weak selected-state feedback; no checkbox mode.** Grid uses accentSoft fill + 1 px border (`:831-834`), list the same (`:946-948`). No per-item checkbox, so "what am I about to batch-delete" is hard to scan. *Sketch: toolbar "Selection mode" toggle drawing a check box in each delegate.*
+14. **No rubber-band selection.** Background MouseArea takes only RightButton (`:793-798`); grid/list MouseAreas are per-item (`:880,1017`). *Sketch: left-drag a Rectangle on the background, test cell geometry, `Files.select(p,"toggle")` on intersections.*
+15. **Drag of a selection gives no count.** `FilesPanel.qml:860-868` drags a 1×1 transparent Item; URIs for the whole selection are correct (`Files.qml:821-824`) but there is no thumbnail stack or "N items" badge. *Sketch: attach a multi-file drag image with the count.*
+16. **Drop/move leaves stale selection.** `dropUrls` starts the job (`Files.qml:827-833`) without `clearSelection()`, unlike `moveToSplit`/`copyToSplit` (`:488,496`); moved paths stay selected. *Sketch: prune dropped paths from `selected` on job completion (overlaps #3).*
+17. **Select Matching replaces rather than extends.** `Files.qml:99-103` assigns `selected = matches` unconditionally; no "add to selection" option in the match box. *Sketch: checkbox "Add to current selection" → concat instead of assign.*
+18. **Batch-rename preview caps at three with no overflow hint.** `FilesPanel.qml:3134-3141` maps `slice(0,3)`. *Sketch: append "+N more" row.*
+19. **Delete-for-good confirm shows a count, never the names.** `FilesPanel.qml:2197-2198` interpolates only `Files.deleteAsk.length` and a single basename. *Sketch: list up to 5 basenames in the modal.*
+
+**Skipped / risk:** static reading only — no QML runtime, visual, or AT-SPI checks; "columns" dead-end assumed from absent delegates (a Loader elsewhere could supply one). Highest-risk fix is #3: pruning `selected` in `setPaths` must not drop paths during in-flight copy/move jobs whose source folder re-lists mid-operation.
+
+## VERBATIM: Media playback queue & playlist UX
+
+I've read both gap docs and all four target files (plus `MusicLibrary.qml`, `MusicLibraryView.qml`, and `music-library.py` for supporting evidence). Static findings only; nothing changed. Skip-list items (chapters, A→B, go-to-time, recent media, network stream, m3u, Stop, HasTrackList, scrobbling, recommendations, mini player, lyrics, EQ) are not repeated.
+
+# Media Playback Queue & Playlist UX — 18 new gaps
+
+Ranked by value × ease. `PQ` = `Services/PlayQueue.qml`, `MPW` = `Modules/MediaPlayer/MediaPlayerWindow.qml`, `MLV` = `Modules/MediaPlayer/MusicLibraryView.qml`, `ML` = `Services/MusicLibrary.qml`.
+
+## Queue UI
+
+1. **[H/E] No drag-to-reorder.** Queue is a plain JS array (`PQ:19`); the delegate has only `onClicked → go()` (`MPW:876-898`), no `Drag`/move. *Sketch:* add `move(from,to)` to PlayQueue and a drag handle that calls `listView.move`.
+2. **[H/E] No remove-one / clear queue.** No `remove(i)` or `clear()` exists in PlayQueue; the header is a read-only count (`MPW:866`). *Sketch:* × on each row + "Clear" button in the Queue header.
+3. **[H/M] No append/enqueue primitive.** `playList()` replaces the whole queue (`PQ:205`); the Open dialog can multi-select but uses only `paths[0]` and calls `open()` which also replaces (`MPW:292`, `PQ:168`). *Sketch:* add `enqueue(paths, afterCurrent)`; wire a multi-select "Add to queue" in `pick()`. (Library-row menus are already filed at GAPS-RESEARCH:2189; this is the missing service primitive + Open-dialog half.)
+4. **[M/M] Queue never scrolls to the playing row.** `ListView` at `MPW:867-875` has no `positionViewAtIndex`; a shuffle/random jump leaves the highlight off-screen. *Sketch:* `onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)`.
+5. **[M/E] Queue rows are bare filenames** (`MPW:890`) — no duration, track no., artist/title or cover, even for library songs the Now-playing page resolves via `MusicLibrary.songs` (`MPW:69`). *Sketch:* reuse that lookup in the queue delegate.
+6. **[L/E] Queue panel visibility not remembered.** `listShown` (`MPW:61`) resets each launch. *Sketch:* persist one boolean in Settings.
+
+## Repeat / shuffle / history
+
+7. **[H/E] No repeat-all (loop-playlist) mode.** `repeatOne` is a bool (`PQ:33`), `ended()` simply stops at the last track (`PQ:233-235`), and MPRIS `LoopStatus="Playlist"` is collapsed to off (`PQ:285`, `PQ:251`). *Sketch:* a 3-state `repeat` (off/all/one) and map MPRIS `Playlist` to all.
+8. **[H/M] Shuffle has no played-order bag.** `next()` picks uniformly at random and can replay the current track (`PQ:218`); no "each track once before repeating." *Sketch:* build a shuffled index array, advance a cursor, reshuffle when exhausted.
+9. **[H/E] Previous does not retrace shuffle.** `previous()` steps `index-1` (`PQ:226`) regardless of what actually played, so Back after a shuffle jump lands on an unrelated track. *Sketch:* push each played index onto a `history` stack; Back pops it.
+10. **[M/E] Player settings are not persisted.** Only `resumeAt` is written to disk (`PQ:66-72`); shuffle, repeatOne, volume, muted and rate all reset on shell restart (`shell.qml:517-519` sets them but nothing saves them). *Sketch:* store them alongside `media-resume.json`.
+11. **[M/E] Toggling shuffle mid-queue is stateless** — `PQ:34` flips a bool without rebuilding an order or pinning the current track. *Sketch:* reshuffle around the current index on toggle.
+
+## Library navigation
+
+12. **[M/E] No sort control.** Albums are scan/insertion order (`ML:17-29`); songs are sorted once by the bridge (`music-library.py:173`) with no UI choice. *Sketch:* a sort Choice (title / artist / year) feeding the `albumsShown`/`songsShown` filters in `MLV:22-24`.
+13. **[M/E] Search is a substring over title/artist/album only** (`MLV:21`) and is hidden while an album is open (`MLV:52`); no genre or year. *Sketch:* extend `hit()` to the extra tags and keep the field visible in album view.
+14. **[M/M] No folder browse or configurable library roots.** The scanner walks a fixed `~/Music`/`~/Videos` (`music-library.py`); files outside can only be opened by replacing the queue. *Sketch:* folder picker + roots list passed to the bridge.
+15. **[M/E] No genre tag read at all** (`music-library.py:9-10,90-93`) — no genre view or genre-based rules. *Sketch:* read ffprobe `genre` into each song and add a group.
+
+## Playback controls
+
+16. **[M/E] Rate picker tops out at 2×** (`MPW:802`) while MPRIS advertises 4× (`mpris-player.py:121`) and PlayQueue clamps to 4 (`PQ:284`) — MPRIS-set rates above 2× are unselectable in the UI. *Sketch:* extend the choices to 4× or lower `MaximumRate`.
+17. **[M/E] Coarse seek granularity** — keys step 5 s (Shift 30 s) at `MPW:297-298`, slider step is 10 s (`MPW:751`), no frame step. *Sketch:* add a 1 s fine step and frame-forward/back actions.
+18. **[M/M] Audio-track choice is not remembered per file** — `activeAudioTrack` is set at `MPW:559`, but only `subtitleShift` is per-file (`PQ:108`). *Sketch:* save a path→track map like `resumeAt`.
+
+## Collections / playlists
+
+19. **[H/M] No in-app playlist collection.** No create/rename/delete/add-to-list store exists in PlayQueue or MusicLibrary; "playlists of its own" is only noted in passing (`GAPS.md:177`) and m3u load/save is on the skip list. *Sketch:* `playlists.json` mapping names to path lists + a Library tab with add/remove rows.
+20. **[M/E] No favourites, rating or play-count for music.** Radio has favourites (`Radio.qml`) but songs/albums have none, and `recent` is derived only from resume points (`PQ:75`). *Sketch:* add `favorite`/`plays` to `library.json` and filter chips in `MLV`.
+21. **[L/M] No smart playlists** — with no genre (#15), rating or play-count (#20) or date-added field, rules like "most played" or "added this month" cannot exist. *Sketch:* add once #15/#20 land.
+
+Highest value × ease: **#1, #2, #7, #9, #10** (small, self-contained service changes with an obvious UI hook). Needs design: #8, #14, #19.
+
+Skipped: the explicit 13-item list and the already-filed library-row-menu / lock-screen-media gaps. Not checked: any runtime/QML behaviour or real MPRIS client — all findings are static reads of the four files plus their helpers. Risk: the queue is a plain JS array with no model API, so reorder/remove/enqueue all require new PlayQueue functions rather than a ListView-only change.
+
+## VERBATIM: Settings navigation & organization UX
+
+# Settings navigation & organization UX — 18th-pass findings (static, read-only)
+
+Scope: `Modules/Settings/{SettingsPage,SettingsWindow,SettingsMatchList,SettingsIndex.js}`, `Common/{Settings,SwitchRow,Choice,SliderRow,TextField,Picks,SectionTitle,Ui}.qml`. Skips honoured: search ranking/English-only/typos, jump flashes-not-focuses, Advanced underused, recently-changed rail, undo snapshot, per-type default apps, 24 categories.
+
+## Ranked gaps (value × ease)
+
+1. **Search jump has no visual feedback on most control types.** Flash ring exists only in `SwitchRow.qml:19,87-104` and `Choice.qml:12,46-63`; `SliderRow.qml` (1 use: `SettingsDisplays.qml:245`), `TextField.qml`, `Picks.qml` have no `highlighted` property — jumping to those lands silently. Sketch: lift the ring into one shared row wrapper or add the property to the other four controls.
+2. **Search covers 17 of 24 categories.** `SettingsIndex.js:8-262` has zero `cat:` entries for `printers`, `sharing`, `firewall`, `backup`, `account`, `users`, `storage` — all seven are sidebar tiles (`SettingsPage.qml:215`), so settings there are unfindable. Sketch: generate stub entries from `groups` (`SettingsIndex.js:266-289`) from each control's `text`.
+3. **Deep-link anchors are effectively dead.** `Ui.qml:143-150` supports `section:<objectName>`, but only `SettingsWallpaperStyle.qml:14` sets one and only `WallpaperStyle.qml:39` calls it. Everything else uses `label:` fuzzy matching of any descendant's `Accessible.name` (`SettingsWindow.qml:236-253`), which can land on a plain label rather than a section. Sketch: give every `SectionTitle` `objectName: "section:"+text` and emit that from search results.
+4. **The scroll-to-section timer fires once and gives up.** `SettingsWindow.qml:231-255` waits a fixed 300 ms, then clears `Ui.settingsSection` at :253 even when `find()` returned null; a slow `Loader` page loses the jump entirely. Sketch: retry on `body.implicitHeightChanged` until found (cap ~1 s).
+5. **Search focus is lost after closing and reopening Settings.** `SettingsWindow.qml:64` focuses the field in `Component.onCompleted` only (fires once per window instance); the control-centre twin correctly uses `onVisibleChanged` (`SettingsPage.qml:229`). Sketch: focus on `visibleChanged`/`onGone`.
+6. **No back stack, breadcrumb, or history.** Escape closes the whole window (`SettingsWindow.qml:41`); the compact back button is a bare `← Categories` (`:209-213`); `openSettings()` overwrites `settingsCat` (`Ui.qml:144-150`), and nested drill-ins like the screen-time `ListRow` (`SettingsPage.qml:1953`) update no trail. Sketch: push/pop a category stack, Alt+Left, and a `Settings › Personalisation › …` header crumb.
+7. **No URL/deep-link surface.** `openSettings()` accepts bare internal ids only (`Ui.qml:144`); no `settings:` URI handler or CLI route exists (`shell.qml:693` is IPC-only). Sketch: accept `shani://settings/<cat>/<section>` in `bin/shani` and forward to `settingsAt`.
+8. **Quick-operation toasts are rendered nowhere in the control centre.** Chips at `SettingsPage.qml:177-210` call `showToast`, but the only `Toast` is `SettingsWindow.qml:259-267`; `SettingsPage.qml:398` admits it ("the window shows the toast"). Sketch: host a floating Toast in the control-centre parent or inline the result.
+9. **Per-setting reset/changed indicator exists only for switches.** `SwitchRow.qml:15,79-84` has `defaultValue`+reset icon; `Choice.qml`, `SliderRow.qml`, `Picks.qml`, `TextField.qml` have none. Section-level dots (`SettingsPage.qml:320-328`) tell you *a* setting changed, not which or how to undo one choice. Sketch: add `defaultValue`/`onReset` + reset icon to `Choice` and `Picks`.
+10. **Disabled controls don't look disabled.** `Choice.qml:22` dims to 0.45 when `!enabled`; `SwitchRow.qml:14-84` has no opacity cue, so e.g. Adaptive palette (`SettingsPage.qml:712`) and Dark style now (`:831`) look live, and `Accessible.description` carries only the hint, not why it's off. Sketch: bind `opacity` and a `disabledReason` into the AT description.
+11. **No sticky headers or in-page table of contents.** `SectionTitle.qml:5-19` is plain uppercase Text; Personalisation alone spans `SettingsPage.qml:466-1141`. Long pages can only be linear-flicked; section anchors don't exist (see #3). Sketch: make `SectionTitle` a named anchor with a jump strip at the page top.
+12. **Compact/phone layout has no back gesture and drops search inside a page.** `SettingsWindow.qml:47` hides the sidebar (and its search field) whenever `showingPage`; the sole escape is a Button (`:209-213`). Sketch: swipe-right / Alt+Left to pop, plus a search action in the page header.
+13. **No export/import of settings.** About only prints the JSON path and Reset-all (`SettingsPage.qml:368-391`); `Settings.path` (`Common/Settings.qml:14-15`) is never offered as a shareable file. Sketch: Export/Import buttons with `FileDialog` copying that file.
+14. **No advanced/simple mode.** Every one of the 24 categories and all power rows (bar commands `SettingsPage.qml:941-991`, hooks/automations, custom binds) are always visible; the prior pass noted "no simple/essential mode" but no `advancedMode` gate exists either. Sketch: one `Settings.data.advancedMode` key gating opt-in rows.
+15. **Search results are not announced.** `SettingsMatchList.qml:36-38` gives each row `Accessible.Button`+name, but results change silently as you type — no live region, no result count exposed. Sketch: expose `Ui.settingsMatchCount` as an accessible live status ("N settings found").
+16. **Slider controls have machine names for screen readers.** `SliderRow.qml:23-25` sets `Accessible.name: root.icon` (e.g. `audio-volume-high`); the human name exists only in `KeyFocus.name` (`:90-96`) for keyboard/controller. Sketch: add a `label` property used by both.
+17. **Two search implementations drift.** `SettingsPage.qml:224-244` and `SettingsWindow.qml:55-74` independently own `query`/`settingsMatches` and use different placeholders ("…proxy, fonts, lid…" vs "Search settings"); the window one has no `label`. Sketch: extract one `SettingsSearch.qml`.
+18. **"Found:" banner promises a reset it doesn't provide.** `SettingsPage.qml:252-274` comments "offer the section back to defaults" but renders only text; the reset row (`:275-301`) is a separate, conditional control. Sketch: put a Reset button in the Found banner.
+
+**Skipped / unchecked:** no runtime or accessibility-API verification (all static); no review of the 20+ child `Settings*.qml` pages beyond their call sites, and no check of the parked/pre-window variant. **Risk:** the flash/anchor/reset gaps are UI polish — low data risk; the only user-visible regression risk would be adding a back stack that changes Escape's current "close Settings" behaviour.
+
+## VERBATIM: Search/filter UX controls within each app
+
+I've read both gap docs, confirmed the skip list, and audited the search/filter controls in all 11 apps. Findings are static (source only).
+
+## New gaps — ranked by value × ease
+
+| # | Gap | Evidence | One-line sketch |
+|---|-----|----------|-----------------|
+| 1 | **No clear button on any search field.** The shared `TextField` has only a *secret* eye; every app's search box makes you select-all/Backspace. Launcher's raw `TextInput` has none either. | `Common/TextField.qml:1-118`; `Launcher.qml:619-632` | Add optional `clear:` button to `Common/TextField.qml` (opt-in flag so non-search fields stay unchanged). |
+| 2 | **Escape never clears a query.** It closes the window (Settings, Photos, Launcher) or unwinds modes (Contacts), so a typed query is never discarded from the control. | `SettingsWindow.qml:41`; `Launcher.qml:632`; `ContactsWindow.qml:79-84`; no `Keys` in `MailWindow.qml`/`FeedsWindow.qml` | `Keys.onEscapePressed` on the field: clear text first, accept, then let the window handler run. |
+| 3 | **Mail search is silently lost on folder switch** — the box still shows the query but `open()` re-lists the folder unfiltered. | `Services/Mail.qml:44,63`; `MailWindow.qml:77-83` | `open()` should re-run `search(root.query)` when query is non-empty; show a "searching in <folder>" chip. |
+| 4 | **Zero search hits are labeled as an empty folder.** Files says "This folder is empty / Nothing to show here"; Mail says "Nothing in this folder" even during a search. | `FilesPanel.qml:1045-1051`; `MailWindow.qml:145-152` | Gate `EmptyState` title/subtitle on `searchText !== ""` → "No matches for …". |
+| 5 | **Calendar search is scoped to the selected day, title-only, but says only "Search events by title."** Other days' events are silently unreachable. | `CalendarPanel.qml:8,141,1120,1140` | Placeholder "Search this day by title" + a "This day / All events" scope chip driving the model. |
+| 6 | **Mail search scope is hidden.** `search()` targets the current folder; the placeholder "Search the mail…" implies all mail. | `Services/Mail.qml:63` (`[q, root.folder]`); `MailWindow.qml:80` | Scope chip "In <folder>" beside the field; "Search all folders" toggle. |
+| 7 | **No result count in any search UI except TextEditor.** Files shows generic "%1 items"; Feeds shows a "Search results" header; Mail/Feeds/Contacts/Notes show none. | `FilesPanel.qml:1067`; `FeedsWindow.qml:184-194`; `TextEditorPanel.qml:409,553` | Bind a "N matches" label to each result model (one line per app). |
+| 8 | **No Ctrl+F to focus search in 7 apps.** Only Text Editor and Files implement it; Mail/Feeds/Contacts/Calendar/Notes/Photos/Settings have visible fields but no shortcut. | grep `Key_F`: `TextEditorPanel.qml:440`, `FilesPanel.qml:152` only | Add a `Keys.onPressed` Ctrl+F → `field.forceActiveFocus()` in each window. |
+| 9 | **Live body search spawns a grep process per keystroke, undebounced.** Sidebar Notes and Launcher both call `searchBodies()` on every change, unlike Files' 400 ms timer and Launcher's own 250 ms file debounce. | `SidebarNotes.qml:143`; `Launcher.qml:515`; `QuickNotes.qml:474-501`; contrast `FilesPanel.qml:205`, `Launcher.qml:194-195` | Route through a 300 ms `Timer`; cancel prior `grepBodies` run. |
+| 10 | **Hits don't jump to the matched text.** Notes' body results open the note but don't scroll to the hit; Mail/Feeds/Contacts lists don't highlight the term either. | `NotesPanel.qml:117-128`; `MailWindow.qml:139-140`; `FeedsWindow.qml:221-223` | Pass the query to `QuickNotes.open()` and select the first match; wrap result titles with `HighlightText`/`needle` (already used in `SettingsMatchList`). |
+| 11 | **Tasks has no text search at all** — only smart-list chips and a show-done toggle. | `TasksWindow.qml:137-163` | Add a live `TextField` filtering `Tasks.tasks` by title/notes, reusing the list delegate. |
+| 12 | **Notes shows two adjacent search boxes with conflicting interaction models** — "Filter note names…" filters live, "Search note text (Enter)…" needs Enter, with no label distinguishing them. | `NotesPanel.qml:66-71` vs `:107-114` | Make both live (debounced) or add explicit labels ("Filter names" / "Search bodies") and a single unified field. |
+| 13 | **Settings has two duplicate search fields and loses the query on reopen.** Rail field (`SettingsWindow`) and page field (`SettingsPage`) both index the same corpus; `onVisibleChanged` clears the page field. | `SettingsWindow.qml:55-66`; `SettingsPage.qml:225-236,229` | One shared `Settings.query`; don't clear on visible, restore on open. |
+| 14 | **No per-app recent-query history.** Grep for `searchHistory`/`recentSearch` across `shani/` returns zero. | (tree-wide grep) | Dropdown of last 5 queries under each search field, backed by `Settings.data`. |
+| 15 | **No filter chips attached to the search control** (date range, type, unread/starred, invert). Adjacent filters exist but aren't scoped to the query: Files' deep toggle, Feeds' show-read, Contacts' groups, Tasks' smart lists. | `FilesPanel.qml:333-339`; `FeedsWindow.qml:202-206`; `ContactsWindow.qml:350-362` | A compact filter popover per app bound to the same `query` state (not separate controls). |
+| 16 | **No next/previous result navigation or search-within-results in list apps.** Only Text Editor has next/previous match buttons. | `TextEditorPanel.qml:558-559`; grep found no other `go-down` result navigation | Add F3/Shift+F3 stepping through the current result model + a "Search within results" toggle. |
+
+**Already good (not gaps):** Settings search auto-focuses and is live; Launcher restores its query and has a 250 ms file debounce; Files persists both query and deep-search scope; Feeds has a "Search results" header and distinct no-match state; Text Editor has live highlighting, match count, next/previous and Escape-to-leave.
+
+**Skipped / not checked:** all listed skip items (ranking, operators, regex toggles, launcher highlighting, saved searches, content-search folders, settings ranking); Photos' absent text search was already filed as ranking item #16 and is not re-listed. No runtime/QML verification — debounce and focus behavior are inferred from source.
+
+**Risk:** #1 and #2 touch the shared `TextField`, so an opt-in flag is needed to avoid changing secret/password fields.
