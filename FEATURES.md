@@ -207,6 +207,16 @@ in that nested session - not yet on an installed image - is listed in
   Clipboard has upper/lower/title/plain/trim buttons and history encrypted at
   rest; Screenshots can pin a capture above your work, take a scrolling one,
   annotate in the Viewer and encrypt history.
+- **Editor and organiser details** — Text Editor has Ctrl+Z / Ctrl+Shift+Z
+  undo and redo with a bounded per-document history; editing a contact keeps
+  the birthday, address, organisation, notes and URLs the form doesn't show,
+  and editing a calendar event keeps its repeat rule, description, guests and
+  alarms. Weather shows what the forecast already sends — feels-like, humidity,
+  wind, pressure, visibility, sunrise and sunset, and rain chances per hour.
+  Terminal can test a host and import an SSH key from the UI; Mail has Reply,
+  Forward and dated message lists; Feeds previews article summaries; Photos'
+  Camera and Screenshots chips really filter; Processes finds a process by name
+  and Software searches Flathub as you type.
 - **The app's menus in the bar** — File, Edit … inline, macOS style, read over
   D-Bus from Qt, GTK and XWayland apps that register with the shell's registrar,
   or from the accessibility tree as a fallback. Native Wayland Qt 6 and Chromium

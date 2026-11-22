@@ -16,6 +16,11 @@ a glance away, and when you are not using it, it costs almost nothing.
 
 ## A desktop that stays out of your way
 
+- **New in the apps** — undo and redo in Text Editor; contacts and calendar
+  edits that keep the fields you can't see; a fuller Weather report; host
+  testing and key import in Terminal; Reply and Forward in Mail; live app
+  search in Software; and working Photos filters.
+
 - **Bar, dock and Island** — workspaces, the focused window, now playing,
   status at a glance. The middle of the bar (the Island) shows what is
   happening — a recording, a call, a timer — and a click acts on it.
