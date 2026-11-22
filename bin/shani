@@ -519,6 +519,8 @@ APPS: dict[str, tuple] = {
                      [], ["terminalAppOpen"], None, "terminalAppShown"),
     "backup": ("dev.shani.Backup", "Shani Backup", "Restore your home from a snapshot", "document-save", "System;Utility;",
                [], ["backupOpen"], None, "backupShown"),
+    "feeds": ("dev.shani.Feeds", "Feeds", "Read RSS and Atom feeds", "mail-unread", "Network;News;Utility;",
+              [], ["feedsOpen"], None, "feedsShown"),
     "photos": ("dev.shani.Photos", "Photos", "Every picture in Pictures, by month", "shotwell", "Graphics;Photography;",
                [], ["photosOpen"], None, "photosShown"),
     "translate": ("dev.shani.Translate", "Translate", "Translate text, on this computer", "translator", "Utility;Office;",

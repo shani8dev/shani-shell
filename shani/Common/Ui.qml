@@ -91,6 +91,7 @@ Singleton {
     property string clocksTab: "world"
     property string textEditorOpenPath: ""   // a file a widget in Common hands to the Text Editor (which takes it and clears this)
     property bool notes: false               // the Notes surface (Modules/Notes): notebooks + wiki links
+    property bool feeds: false               // the Feeds reader (Modules/Feeds)
     property string calculatorTab: "standard" // the Calculator tab (Modules/Calculator): standard | scientific | financial | programming | converter
     property string notesNotebook: ""         // the notes notebook filter (SidebarNotes): "" = all notebooks, else a notebook name
     property bool annotate: false                  // drawing on the screen
