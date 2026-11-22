@@ -89,6 +89,8 @@ Singleton {
     function refresh() {
         // a watch on a file that is not there yet never fires: read it again each time
         originFile.reload();
+        // restart the process: setting running=true when it is already true is a no-op
+        list.running = false;
         list.running = true;
     }
     // the keys that paste in the window being typed into: terminals take
