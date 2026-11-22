@@ -1281,3 +1281,53 @@ A new static a11y test (tests/test_qml_a11y.py) found ~84 IconButtons with no ti
 ## Fixes applied this pass
 
 - WebApps settings row no longer deletes the app on click; row opens via new WebApps.open(name), explicit remove button.
+
+---
+
+# Thirteenth pass — full reports
+
+## Undo/redo consistency (agent ses_dfb773400ffeh2qv8kyZPupP8c)
+
+Destructive single-click zero undo: 1 Photos Move to trash bypasses Files undo stack (PhotosWindow.qml:418-421 → Viewer.trash() gio trash directly, no pushUndo) — highest value; 2 Mail delete one click, no confirm/undo, hits IMAP; 3 Calendar event delete one click writes EDS; 4 Feed subscription Remove no confirm/undo; 5 SSH host delete no confirm/undo; 6 Web-app remove no confirm/undo.
+Two-tap but no undo: 7 Contact delete (4s); 8 Authenticator key remove unrecoverable; 9 App uninstall/AppImage remove; 10 Container/image remove + unconfirmed prune; 11 Process KILL no undo; 12 Clipboard wipe irreversible; 13 Notification Clear all; 14 Automation rule removal immediate.
+Multi-step: 15 Folder sync no undo/backup-dir; 16 PDF merge no undo; 17 Trimmer segments no undo; 18 Settings Undo resets to sign-in snapshot not previous state, vanishes after restart, no Ctrl+Z.
+Cross-cutting: 19 Undo affordances inconsistent (Files Ctrl+Z/Shift+Z/Y, TextEditor full, Whiteboard Ctrl+Z no redo, Annotate bare Z, WindowLayouts undo-only, Settings button-only; timers 3s/4s/7s); 20 Toast Undo fragile/inaccessible (5s, no KeyFocus/Accessible name, Files undo bar 7s no announce, all in-memory, cross-app undo impossible, none survives restart).
+
+## External service integrations (agent ses_dfb7708bcffed74iiwTMJZ6A1N)
+
+What exists: shell is standard freedesktop Notifications daemon; only HTTP listener is bridge/serve.py folder share; only true webhook is shani-chronoa channel_bridge.py (Telegram/WhatsApp); no MQTT/HA/GitHub/GitLab/Slack/Discord/Matrix refs.
+Shell-fixable: 1 no shani notify TITLE BODY CLI (scripts/phones must use raw gdbus/notify-send); 2 no authenticated inbound webhook (serve.py GET/PUT only); 3 no remote ICS subscription; 4 Mail no new-message alert (no IMAP IDLE); 5 Share can't upload/POST to cloud; 6 no machine-readable shell event stream (battery only notify-send, hooks 6 closed events); 7 no generic secret/token home for integrations; 8 Feeds can't accept WebSub push.
+Needs service/account: 9 no Home Assistant/MQTT; 10 no GitHub/GitLab; 11 no CI status surface; 12 messaging only Telegram/WhatsApp; 13 no ntfy/Gotify/Pushover subscriber; 14 Mail OAuth2; 15 no public HTTPS endpoint; 16 cloud share links need account; 17 no cross-device clipboard push bridge.
+Risk: #2/#9 turn external input into shell action — ship HMAC/auth + loopback binding first or an open webhook becomes unauthenticated sh -c via Hooks/Automations.
+
+## Macro/scripting automation depth (agent ses_dfb76d2c2ffeRap0DVYJaxBngW)
+
+What exists: 3 authoring surfaces all producing raw sh -c strings in settings.json (rule engine, 5 hook fields, keybinds KDL) + hidden Nautilus scripts loader; execDetached fire-and-forget; no recorder/runtime/event object/visual builder.
+1 No macro recorder/replay; 2 no named/addressable macro; 3 hook event object empty/inconsistent (only wallpaper gets args, $2 screen always "", others no context); 4 no scripting language/SDK (29 .js files static QML imports); 5 no GUI macro builder; 6 rich shell state no documented script API (state() volatile test dump); 7 colorGeneration hook orphaned from GUI; 8 Nautilus Scripts hidden/undocumented (the only true event object via NAUTILUS_SCRIPT_* env); 9 execDetached prevents sequencing; 10 no shell-state write contract; 11 no IPC discovery; 12 IPC arg-splitting breaks structured data; 13 hook cascade unbounded (dark→wallpaper hook, only rules have edge guard); 14 scheduler rule-only daily-minute; 15 inline scripts no file-backed hook directory; 16 no keystroke/click replay; 17 no macro test format.
+Risk: any recorder/SDK widens already-unpermissioned sh -c path; sequencing + reentrancy should land first.
+
+## Default apps / associations (agent ses_dfb769a7dffehNLWaCjBxIAmvE)
+
+Direct answers: 25 claimed MIME types have no default; common types with no default include text/vcard, application/ics, x-yaml/toml/css/javascript/x-desktop, message/rfc822, OPML/m3u, rar, x-eps, cb7, fb2, XPS; core-type defaults exist for Text Editor/Image Viewer/Media Player/Document Viewer/Archives but NOT Photos/Feeds/Mail/Calendar/Contacts/Fonts (Photos/Feeds/Mail claim zero MIME types); Settings changes per-user partial and xdg-open paths may bypass; per-user only no reset; 8+6 kinds vs KDE full per-MIME.
+1 25 claimed types no default (generate from APPS); 2 text/csv default OnlyOffice not our Text Editor; 3 Settings updates only 1-4 of a type's siblings (skel sets 22/28/~70/~80/11); 4 refresh() reads only types[0]; 5 Settings changes may not reach xdg-open paths (xdg-utils 1.2.1 unreliable per shell's own comment); 6 no reset/system default/CLI; 7 no Settings row for most types (Archives/Contacts/Calendar/ebook/font/torrent/OPML/Office/schemes); 8 six removable-media rows dead UI; 9 ISO skel defaults media to Amberol/Celluloid not installed; 10 only niri skel validated; 11 Photos/Feeds/Mail not image/OPML/rfc822 handlers; 12 playlists no handler/default on niri; 13 application/x-desktop no default; 14 no per-type Open With persistence; 15 stale torrent comment; 16 choose() no failure feedback.
+Risk: fix #3/#5 together — expanding type lists without fixing xdg-open resolver makes Settings correct while some launch paths still open old app.
+
+## Offline-first per app (agent ses_dfb76734dffeekyW96B2WMBa0t)
+
+Per-app matrix given for 19 apps. Already good: Feeds cache-first reader; Contacts/Photos/Camera/VoiceRecorder/Backup fully local; Software AppStream cache; shani-link cached threads.
+Ranked gaps: 1 Mail loses offline mail entirely (no cache, compose clears on Send); 2 Weather blank on cold offline start (forecast memory-only); 3 Radio wipes list on any fetch error; 4 LiveTV re-fetches playlist every open, no channel cache; 5 Calendar writes can vanish (EDS failure → Chronoa ask → toast); 6 Chronoa prompts dropped offline; 7 shani-link texts dropped when device unreachable; 8 Models can't distinguish ollama missing from none installed; 9 Software ratings lie offline (ODRS [] → 0 stars); 10 Updates failure indistinguishable from up-to-date; 11 Maps retries failed tiles no backoff; 12 Nearby send no devices silent no-op; 13 Feeds no cache age shown; 14 Chronoa/Translate no offline dictionary fallback.
+
+## Inclusive design depth (agent ses_dfb764876ffeas3T6i5EhHcjXh)
+
+16 new gaps (tone/terminology from pass 8 skipped): 1 Undo-capable Toast used in exactly one window (Common/Toast.qml built, only SettingsWindow uses) — highest value/ease; 2 destructive IconButtons visually identical (no danger property); 3 Erase danger vs Format neutral inconsistency; 4 Calendar identity color-only; 5 SMART raw mono dump no plain-language summary; 6 tooltips leak kernel internals; 7 urgent windows red rectangle only; 8 delete glyph inconsistency in Notes; 9 edit-clear-all means four things; 10 Advanced progressive-disclosure barely used; 11 treemap small tiles color-only; 12 silent success on Mail/Feeds state changes; 13 Kundali "(R)" unexplained; 14 dead-end playback error; 15 "e.g." inconsistency; 16 untranslated destructive labels.
+
+## Test infrastructure & CI (agent ses_dfb761c0dffezhYY3NrJNjwhEv)
+
+Counts: 152 pytest files / 953 test functions, 46 parametrize; ~88 pure source-string (58%), ~18 bridge behavior, ~34 mixed, ~12 other; full-shell IPC ~1067 result call sites, 17 SKIP; 7 perf budgets; 49 render captures / 261 surfaces; a11y ~20 surfaces conditionally skipped; 50/152 files silent skip guards. Fakes cover all 32 external tools.
+1 CI runs zero shell tests (no .github/workflows in shani-shell; reusable test.yml never called); 2 skips count as green (check.sh greps passed/failed only); 3 unit suite runs on host outside test image; 4 perf budgets excluded from default all; 5 a11y checks silently skip without shani-testbed (static test found ~84 unnamed IconButtons); 6 real network dependency with SKIP fallback (open-meteo, no fake); 7 Color Picker has no test at all; 8 four apps only opens-no-error checks; 9 Backup create/restore no behavioral test; 10 permission boundaries untested (suite runs as root); 11 sibling-repo tests skip silently, missing /desk mount unchecked; 12 timing-dominated shell suite (379 waitfor + 447 + 325 sleeps); 13 real D-Bus/process races in pytest; 14 no positive controls for ~88 string checks; 15 render checks never gate CI; 16 flaky fixed-duration media waits.
+Strengths: trash/destructive paths well covered; all external tools have fakes; render coverage source-derived and IPC-guarded.
+Risk: 88/18/34/12 split is heuristic grep classification.
+
+## Fixes applied this pass
+
+None (research only). A new untracked static a11y test (tests/test_qml_a11y.py) found ~84 unnamed IconButtons; left untracked because it would break CI until those labels are added.
