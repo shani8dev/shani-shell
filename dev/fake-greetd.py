@@ -5,7 +5,8 @@ Speaks greetd's IPC (u32 native-endian length + JSON, one request -> one
 response) on $GREETD_SOCK, and prints every request it receives as one JSON line
 so a test can assert the exact conversation. It authenticates one account:
 
-  user "shani", password "shani"   -> success, start_session accepted
+  user "shani", password "shani-test" -> success, start_session accepted
+  (eight characters: the setup wizard's own minimum)
   user "guest"                     -> the guest account: an empty password
   user "otp"                       -> password, then a second visible prompt
                                       ("Code:"), answer "123456"
@@ -60,7 +61,7 @@ def serve(conn: socket.socket) -> None:
             if user == "shani" and os.environ.get("FAKE_FACE") == "match":
                 send(conn, {"type": "success"})   # the face module said yes: no prompt at all
                 continue
-            prompts = [("secret", "Password:", {"shani": "shani", "guest": ""}.get(user, "otp"))]
+            prompts = [("secret", "Password:", {"shani": "shani-test", "guest": ""}.get(user, "otp"))]
             if user == "otp":
                 prompts.append(("visible", "Code:", "123456"))
             send(conn, {"type": "auth_message", "auth_message_type": prompts[0][0],

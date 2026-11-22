@@ -106,7 +106,10 @@ sleep 0.5
 getent passwd shani >/dev/null && result setup-waits-for-a-valid-form FAIL || result setup-waits-for-a-valid-form PASS
 call set password2 shani-test
 shot 84-setup-account 0.5
+call next            # account -> chronoa
+# the Chronoa page is last: its Next is finish(), which writes the account
 call next
+shot 85-setup-chronoa 0.5
 # the wizard quits once the session is launched; niri then ends
 i=0; while kill -0 "$NIRI_PID" 2>/dev/null && [ "$i" -lt 60 ]; do sleep 0.25; i=$((i + 1)); done
 
@@ -124,7 +127,7 @@ import json, sys
 msgs = [json.loads(l) for l in open(sys.argv[1]) if l.strip()][1:]
 types = [m["type"] for m in msgs]
 ok = types[:2] == ["create_session", "post_auth_message_response"] and msgs[0].get("username") == "shani" \
-     and msgs[1].get("response") == "shani" and types[-1] == "start_session" and msgs[-1]["cmd"] == ["niri-session"]
+     and msgs[1].get("response") == "shani-test" and types[-1] == "start_session" and msgs[-1]["cmd"] == ["niri-session"]
 sys.exit(0 if ok else 1)
 PY
 
