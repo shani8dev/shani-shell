@@ -38,7 +38,12 @@ def providers():
     for d in DIRS:
         for ini in sorted(glob.glob(os.path.join(d, "*.ini"))):
             c = configparser.ConfigParser()
-            c.read(ini)
+            # a malformed .ini is one broken app, not a broken search: an
+            # unreadable file must not take the rest of the list with it
+            try:
+                c.read(ini)
+            except configparser.Error:
+                continue
             s = (
                 c["Shell Search Provider"]
                 if c.has_section("Shell Search Provider")
