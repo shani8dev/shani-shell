@@ -217,6 +217,12 @@ in that nested session - not yet on an installed image - is listed in
   Forward and dated message lists; Feeds previews article summaries; Photos'
   Camera and Screenshots chips really filter; Processes finds a process by name
   and Software searches Flathub as you type.
+  A second pass added: word and character counts in the editor; Notes' "Lock…"
+  really encrypts; contacts keep every phone and email when duplicates merge;
+  Calendar quick-add ("lunch Friday at noon") and a button to import an .ics
+  invitation; a microphone toggle for video; notification progress bars;
+  a choice of signal when ending a process; named workspaces in the window
+  menu; and trimmer cuts that keep the earlier cut instead of overwriting it.
 - **The app's menus in the bar** — File, Edit … inline, macOS style, read over
   D-Bus from Qt, GTK and XWayland apps that register with the shell's registrar,
   or from the accessibility tree as a fallback. Native Wayland Qt 6 and Chromium

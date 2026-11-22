@@ -25,6 +25,7 @@ Singleton {
     property bool open: false               // the Camera surface (Modules/Camera)
     property int selected: -1               // camera index; -1 = first
     property string mode: "photo"           // photo | video
+    property bool withAudio: true           // record the microphone with video
     property var gallery: []                // [{ path, name, when }] newest-first
 
     function shutter() {
@@ -98,7 +99,7 @@ chunk = lambda t, b: struct.pack(">I", len(b)) + t + b + struct.pack(">I", zlib.
 open(sys.argv[2], "wb").write(b"\\x89PNG\\r\\n\\x1a\\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
                               + chunk(b"IDAT", zlib.compress(raw, 6)) + chunk(b"IEND", b""))
 PY
-                rm -rf "$d"', "sh", root.tool, String(root.cameras[0].index), root.last];
+                rm -rf "$d"', "sh", root.tool, String(root.selected >= 0 ? root.selected : (root.cameras[0] ? root.cameras[0].index : 0)), root.last];
             still.running = true;
         }
     }
@@ -141,7 +142,8 @@ PY
         if (phase !== "idle" || !available || !Privacy.cameraEnabled)
             return;
         last = videosDir + "/Video " + stamp() + ".webm";
-        rec.command = ["sh", "-c", 'mkdir -p "${1%/*}" && exec gst-launch-1.0 -e $2 ! videoconvert ! queue ! vp8enc deadline=1 cpu-used=8 ! webmmux name=mux ! filesink location="$1" $3 ! audioconvert ! opusenc ! queue ! mux.', "sh", last, videoSource, audioSource];
+        const mic = withAudio ? " $3 ! audioconvert ! opusenc ! queue ! mux." : "";
+        rec.command = ["sh", "-c", 'mkdir -p "${1%/*}" && exec gst-launch-1.0 -e $2 ! videoconvert ! queue ! vp8enc deadline=1 cpu-used=8 ! webmmux name=mux ! filesink location="$1"' + mic, "sh", last, videoSource, audioSource];
         seconds = 0;
         phase = "recording";
         rec.running = true;

@@ -455,6 +455,48 @@ def _make(
     }
 
 
+def _from_payload(payload: dict, name: str) -> dict:
+    """Build a contact from a UI payload, honouring typed phones/emails arrays.
+
+    The old path read only the `phone`/`email` strings, so a duplicate merge
+    (which sends arrays) silently saved a card with no phone or email at all.
+    """
+    phones = payload.get("phones")
+    emails = payload.get("emails")
+    if not isinstance(phones, list):
+        phones = (
+            [{"type": "cell", "number": str(payload.get("phone", "")).strip()}]
+            if str(payload.get("phone", "")).strip()
+            else []
+        )
+    if not isinstance(emails, list):
+        emails = (
+            [{"type": "home", "address": str(payload.get("email", "")).strip()}]
+            if str(payload.get("email", "")).strip()
+            else []
+        )
+    return {
+        "uid": str(payload.get("uid", "")),
+        "name": name.strip(),
+        "given": str(payload.get("given", "")),
+        "family": str(payload.get("family", "")),
+        "phones": [
+            {"type": p.get("type", "cell"), "number": str(p.get("number", ""))}
+            for p in phones
+            if isinstance(p, dict) and str(p.get("number", "")).strip()
+        ],
+        "emails": [
+            {"type": e.get("type", "home"), "address": str(e.get("address", ""))}
+            for e in emails
+            if isinstance(e, dict) and str(e.get("address", "")).strip()
+        ],
+        "groups": [
+            str(g).strip() for g in (payload.get("groups") or []) if str(g).strip()
+        ],
+        "self": bool(payload.get("self", False)),
+    }
+
+
 def main(argv: list[str]) -> int:
     if len(argv) < 2:
         print(
@@ -510,15 +552,7 @@ def main(argv: list[str]) -> int:
             if not name:
                 print("Invalid argument: a contact needs a name", file=sys.stderr)
                 return 3
-            saved = save(
-                _make(
-                    name,
-                    str(payload.get("phone", "")),
-                    str(payload.get("email", "")),
-                    groups=payload.get("groups"),
-                    is_self=bool(payload.get("self")),
-                )
-            )
+            saved = save(_from_payload(payload, name))
             print(json.dumps({"ok": True, "uid": saved["uid"]}))
             return 0
         if command == "edit":
@@ -531,18 +565,12 @@ def main(argv: list[str]) -> int:
             if existing is None:
                 print(f"Invalid argument: no contact with uid {uid!r}", file=sys.stderr)
                 return 3
-            edited = _make(
-                name,
-                str(payload.get("phone", "")),
-                str(payload.get("email", "")),
-                uid,
-                groups=payload["groups"]
-                if "groups" in payload
-                else existing.get("groups"),
-                is_self=bool(payload["self"])
-                if "self" in payload
-                else bool(existing.get("self")),
-            )
+            edited = _from_payload(payload, name)
+            edited["uid"] = uid
+            if "groups" not in payload:
+                edited["groups"] = list(existing.get("groups") or [])
+            if "self" not in payload:
+                edited["self"] = bool(existing.get("self"))
             # Editing only the fields the UI owns must not drop vCard fields we
             # don't expose (birthday, address, org, notes, URLs, …).
             edited["extras"] = existing.get("extras", [])

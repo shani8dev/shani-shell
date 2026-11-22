@@ -64,6 +64,7 @@ AppWindow {
                 Item { Layout.fillWidth: true }
                 Choice { text: Tr.t("Photo"); selected: Camera.mode === "photo"; onClicked: Camera.mode = "photo" }
                 Choice { text: Tr.t("Video"); selected: Camera.mode === "video"; onClicked: Camera.mode = "video" }
+                Choice { text: Tr.t("Mic"); selected: Camera.withAudio; onClicked: Camera.withAudio = !Camera.withAudio }
             }
 
             Rectangle {

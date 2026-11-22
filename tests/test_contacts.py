@@ -81,6 +81,42 @@ def test_import_then_edit_preserves_unknown_vcard_fields(tmp_path):
     assert "ada@new.example" in saved
 
 
+def test_edit_keeps_multiple_typed_phones_and_emails(tmp_path):
+    out = json.loads(
+        run(
+            ["add", json.dumps({"name": "Grace Hopper", "phone": "+1 555 0101"})],
+            tmp_path,
+        ).stdout
+    )
+    uid = out["uid"]
+    merged = json.loads(
+        run(
+            [
+                "edit",
+                json.dumps(
+                    {
+                        "uid": uid,
+                        "name": "Grace Hopper",
+                        "phones": [
+                            {"type": "cell", "number": "+1 555 0101"},
+                            {"type": "work", "number": "+1 555 0102"},
+                        ],
+                        "emails": [
+                            {"type": "home", "address": "grace@home.example"},
+                            {"type": "work", "address": "grace@navy.example"},
+                        ],
+                    }
+                ),
+            ],
+            tmp_path,
+        ).stdout
+    )
+    assert merged["ok"]
+    card = (tmp_path / f"{uid}.vcf").read_text()
+    assert "+1 555 0101" in card and "+1 555 0102" in card
+    assert "grace@home.example" in card and "grace@navy.example" in card
+
+
 def test_plain_add_still_works(tmp_path):
     out = json.loads(
         run(

@@ -6,6 +6,10 @@
                                   removes any plaintext file beside it.
     note-crypto.py decrypt PATH   stdin: {"passphrase": "..."}
                                   prints the plaintext to stdout.
+    note-crypto.py lock PLAINPATH LOCKEDPATH
+                                  stdin: {"passphrase": "...", "text": "..."}
+                                  encrypt the text to LOCKEDPATH and remove
+                                  PLAINPATH (what the Notes "Lock…" button calls)
     note-crypto.py seal PATH PASSPHRASE
                                   (convenience: encrypt a plaintext file)
 
@@ -128,6 +132,18 @@ def main(argv: list[str]) -> int:
         r = {"error": err} if err else {"ok": True}
     elif cmd == "decrypt":
         r = decrypt(argv[2], passphrase)
+    elif cmd == "lock":
+        if len(argv) < 4:
+            print("usage: note-crypto.py lock PLAINPATH LOCKEDPATH", file=sys.stderr)
+            return 2
+        err = encrypt(argv[3], passphrase, str(payload.get("text", "") or ""))
+        if err:
+            r = {"error": err}
+        else:
+            plain = Path(argv[2])
+            if plain.is_file() and plain.resolve() != Path(argv[3]).resolve():
+                plain.unlink()
+            r = {"ok": True}
     else:
         return 2
     print(json.dumps(r))

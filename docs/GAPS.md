@@ -47,7 +47,7 @@ centre, and against what a session needs before any app runs.
 - **Headphone virtual surround (stereo widening is done).** Implemented via the matrix_spatialiser LADSPA plugin (shipped in ladspa) as a "Stereo widening" toggle in Settings › Sound effects, behind `SoundFx.canSpatial`. The convolver-based virtual surround (KEMAR/Hesuvi HRIR) still needs HRIR wav files that no package ships; stereo widening is what is available.
 - **More setup-wizard languages** than English, मराठी, हिन्दी, Deutsch, Español,
   Français (strings.js).
-- **Translations**: about 1525 of 3431 catalog strings are translated into
+- **Translations**: about 1525 of 3438 catalog strings are translated into
   Marathi and Hindi (the bar, control centre, Settings and its pages, launcher,
   notifications, lock screen, overview, dock, window menu). The rest are the
   newer app windows and settings (Files, Archives, Quick Look, the viewers, the
@@ -215,7 +215,7 @@ Each needs real hardware or shani-testbed:
   and connect in silence; phones over Bluetooth (Chronoa) carry sound.
 
 ## Improved (Nov 2026)
-- Translations: ~1525/3431 Marathi/Hindi strings done; the rest (newer app windows and settings) are documented above.
+- Translations: ~1525/3438 Marathi/Hindi strings done; the rest (newer app windows and settings) are documented above.
 - Live TV, free radio picks, a QR folder-link share target, health check and problem report are now in the shell (Media Player / Share / About).
 - Real-hardware runs: nested niri only; shani-testbed boot needed for Wi-Fi BT multi-screen recording.
 # Improvements applied (Nov 2026)
@@ -561,3 +561,260 @@ in shani-docs; and wrong workflow profile / timeout / secret / notification
 claims in shani-builder, shani-install-media and shani-pkgbuilds. The release
 promotion failure (run `44967348298`) was traced to a missing dated output
 directory before `curl --output` and fixed in `promote-stable.sh`.
+
+## Second-pass deep audit (Nov 2026) — corrections, new gaps, shell and infra
+
+Six parallel agents re-read the full implementations — services, bridges,
+`Common/` helpers and tests, not just the module QML — and compared them with
+the upstream sources and changelogs. This corrects the first list, adds gaps
+it missed, and widens the scope to the shell surface and the infrastructure.
+Legend: **[fixed]** built in this pass with a test; **[was wrong]** the first
+pass called it missing but code already has it (or it is out of scope); **[open]**
+still missing; **[bug]** a real defect found while verifying.
+
+### Corrections to the first list (don't go build these)
+
+- **[was wrong] Files undo/redo** — already implemented (`Files.qml:825-871`,
+  `files.py:16-19`, tests in `test_files_ops.py`).
+- **[was wrong] Notes previews** — `preview()` is used in `SidebarNotes.qml:158`
+  and `Launcher.qml:417`; only the NotesPanel delegate lacks a subtitle.
+- **[was wrong] Notes body search** — `SidebarNotes.qml:31-37` already merges
+  `QuickNotes.contentHits`; only NotesPanel opens `results[0]`.
+- **[was wrong] Weather details** — now built; the first pass's other weather
+  items stand (locations, graph, dayparts).
+- **[was wrong] Settings fractional scaling** — `SettingsDisplays.qml:166-171`
+  offers 100/125/150/175/200 % per output.
+- **[was wrong] Settings per-monitor wallpaper / scale** — `SettingsPage.qml:32-45`
+  and `Common/Settings.qml:481-482`.
+- **[was wrong] Settings WWAN** — APN presets and custom APN
+  (`SettingsNetwork.qml:196-245`), roaming (`:246-253`), SIM PIN
+  (`ModemDialog.qml:46`), metered flag (`:179-181`) all exist. Only a GB data
+  cap and primary-SIM slot are absent.
+- **[was wrong] Disks image tools / unlock / passphrase change** — implemented
+  in the Files surface (`Files.qml:1398,1438,1459,1468`, `FilesPanel.qml:2521-2629`,
+  tested in `test_drives.py`), not in DisksWindow. Expose them there instead.
+- **[was wrong] Disks partition "missing"** — `drives.py format` already builds
+  a table and one partition; create/delete/resize/move/flags are still absent.
+- **[was wrong] Terminal remote shell integration** — kitty's ssh-kitten is an
+  emulator feature; our Terminal is an SSH manager that delegates to foot.
+- **[was wrong] Software apt/dpkg/Snap** — OS updates deliberately go to Cassini.
+- **[was wrong] Online accounts / ICC profiles / Wacom button remap / firmware
+  in Settings** — GOA daemon, niri colour management and niri input-stack work;
+  out of scope or blocked by the compositor, not by our UI.
+
+### Real bugs found while verifying (all fixed)
+
+- **[bug→fixed] Process tree was flat** — `TopProcesses.qml:94` emitted rows
+  without `ppid`, so `Processes.qml` saw no parents and indented everything at
+  0. Added `ppid` to the row object.
+- **[bug→fixed] Contacts duplicate merge destroyed phone and email** —
+  `Contacts.qml:145` sends `phones`/`emails` arrays but `contacts.py:_make()`
+  read only the single `phone`/`email` strings. `bridge/contacts.py` now has
+  `_from_payload()` honouring arrays; add/edit use it too.
+- **[bug→fixed] Notes "Lock…" called a command the bridge never had** —
+  `QuickNotes.qml:597` called `note-crypto.py lock`, which only implemented
+  `encrypt`/`decrypt`/`probe`, so it exited 2 and showed a false "Encryption
+  failed". Added the `lock` command (encrypt + remove plaintext) with a test.
+- **[bug→fixed] Video Trimmer overwrote the previous cut** — a fixed
+  `.trimmed.mp4` / `.trimmed.opus` plus `ffmpeg -y` silently destroyed an
+  earlier cut. Output names now carry a timestamp.
+- **[bug] `Contacts.qml:setGroups()` / `setSelf()` still drop array fields** —
+  `bridge/contacts.py` honours arrays on add/edit, but those two service calls
+  send only scalars; a groups or self change can still flatten multi-phone
+  data. **[open]**
+- **[bug] Camera picker was cosmetic** — capture used `cameras[0].index`
+  regardless of `Camera.selected`; fixed (one line). **[fixed]**
+
+### Cheap verified wins built in this pass
+
+- **[fixed]** Notification progress bars — `NotificationCard.qml` now renders
+  a bar for the freedesktop `progress` hint (0–1; -1 hides it).
+- **[fixed]** Alt/workspace menu — `WindowMenu.qml` now lists every workspace
+  from `Niri.workspacesOn()` instead of hard-coding 1–3.
+- **[fixed]** Feed Mark-all-read — `feeds.py markall` + `Feeds.markAll()` +
+  header button.
+- **[fixed]** Photos tile actions — slideshow from a tile and move-to-trash,
+  both reusing existing Viewer/Files calls.
+- **[fixed]** Process end-signal choice — TERM/KILL/INT/HUP/STOP/CONT, validated
+  against a fixed set in `TopProcesses.end()` before reaching `kill`.
+- **[fixed]** Software screenshot gallery — all four bridge screenshots render
+  in a horizontal list instead of only `[0]`.
+- **[fixed]** Camera microphone toggle for video.
+- **[fixed]** Weather wind in hourly tiles + a temperature Sparkline using the
+  existing `Common/Sparkline.qml`.
+- **[fixed]** Text Editor word and character count in the status bar.
+- **[fixed]** Calendar `.ics` import button (`Agenda.importFile`) and a
+  quick-add field using the existing `_parseNaturalDateTime()`.
+
+### Text Editor / Notes / Calendar / Contacts — still open
+
+- **[open]** Editor: smart indent + bracket/quote auto-close; regex / case /
+  whole-word search with live highlights (`Common/HighlightText.qml` is an
+  unused helper); MRU / quick-open; current-line and matching-brace highlight;
+  Ctrl+B bookmarks; Ctrl+G go-to-line UI (only `+LINE` IPC exists); split view;
+  TextMate theme chooser and `textmateEnabled` toggle; session restore on
+  startup (`TextDocs.docs` is memory-only).
+- **[open]** Notes: Markdown preview; trash/restore; version history;
+  formatting toolbar; tags; due dates on checkboxes; sort control and a
+  subtitle in the NotesPanel list; body-search results in NotesPanel; import
+  of Markdown / Obsidian vaults; backlinks graph, writing stats, spellcheck;
+  a "Go To Anything" quick switcher.
+- **[open]** Calendar: description field and readback in `agenda.py`; a
+  click-to-view detail popover before editing; per-event timezone (zone chips
+  are display-only); repeat / end-repeat UI; per-event VALARMs (one hard-coded
+  10-minute notice today); drag to create / move events; current-time line;
+  local-calendar create / rename / colour (bridge only reads EDS calendars);
+  drag-and-drop `.ics` import with a preview; read-only-calendar banner in the
+  editor (`readOnly` is exposed by `agenda.py:122`).
+- **[open]** Contacts: multiple typed phones/emails in the form (backend and
+  arrays exist); read-only detail sheet with `tel:` / `mailto:` / map rows;
+  QR export (`Qr.show()` is ready, needs a `vcard` bridge command); avatars;
+  favorites (the star means "This is me"); given/family sort chooser;
+  unlink for auto-merged duplicates; export all / export selected; multi-select
+  for batch link/delete.
+
+### Files / Photos / PDF / Mail / Feeds — still open
+
+- **[open]** Files: search-filter popover (type/date/size; bridge only has
+  `--sort/--filter/--limit/--offset`); breadcrumb dropdowns; visible-column
+  chooser and clickable headers; "Select Items Matching…" (the matcher in
+  `Common/FileFilter.js` exists, just no action); symlink creation; grid
+  caption settings; sort by Type / Date Created.
+- **[open]** Photos: multi-select batch ops; sort order (`scan()` is `sort -rn`);
+  EXIF panel (bound to Files' selection today); ratings and tags; date-subfolder
+  import with delete-from-source.
+- **[open]** Viewer/PDF: user bookmarks; clickable PDF links (`get_links()`);
+  embedded attachments; history and First/Last page; two-page layout;
+  annotations *list* (we create flattened annotations but never read them);
+  case/whole-word/wrap search; print range and copies; form radio widgets
+  (`pdfform.py` emits `radio`, the reader handles only text/checkbox/choice);
+  a UI for the existing `merge()` / `split()`.
+- **[open]** Mail: Cc/Bcc; save attachments (names only — payload discarded);
+  mark unread / star / move / archive (`imap_flag()` exists, only `markread`
+  is exposed); view source; opt-in remote images; multiple accounts;
+  conversation threading (`In-Reply-To`/`References` unused); IMAP labels.
+- **[open]** Feeds: next-unread navigation; tags/categories; search/filter;
+  save article for later; show-read toggle; feed auto-discovery; podcast
+  enclosures; query feeds (`query:<name>:<filter>`).
+
+### Terminal / Disks / Software / Processes / Settings — still open
+
+- **[open]** Terminal: remote (`-R`) and dynamic (`-D`) tunnels; import/export
+  the hosts JSON; advanced per-host options (ProxyJump, agent forwarding,
+  X11, compression, `-o`); recents / connection status; host export.
+- **[open]** Disks: proportional space-allocation bar; detailed SMART attribute
+  table and self-tests; partition create/delete/resize/move/type/flags;
+  job progress and cancel in the Disks surface (the Files surface has it);
+  mount options; benchmark; take-ownership and detach-loop actions.
+- **[open]** Software: ODRS ratings/reviews; featured/editorial discovery;
+  version history / changelog; EOL/age warning; screenshot gallery is fixed,
+  repository enable/disable and add-ons/extensions remain.
+- **[open]** Processes: click-to-sort; load-average / swap / PSI meters;
+  process details dialog; renice and CPU affinity; Users view; configurable
+  columns/meters; saved views. Signal choice and search are fixed.
+- **[open]** Settings: WWAN GB data cap and primary-SIM slot; removable-media
+  defaults (`x-content/*` in `SettingsDefaultApps.qml`); DNS search domains;
+  a text-size slider (there is only a "Large text" toggle).
+
+### Media / Camera / Voice / Trimmer / Translate / Weather — still open
+
+- **[open]** Media Player: 10-band EQ and effects; go-to-time and chapters;
+  A→B loop; video effects (crop/rotate/deinterlace); recent-media UI (resume
+  points are persisted, just not listed); generic "open network stream" field
+  (`PlayQueue.playStream()` exists); save `.m3u`; Stop control (MPRIS stop maps
+  to pause+seek(0)); MPRIS `HasTrackList` is `False`.
+- **[open]** Camera: live QR/barcode scan mode (post-capture Lens path exists);
+  self-timer choice (`countdown` is fixed); composition grid; shutter sound;
+  H.264/MP4 and hardware encoding; picture format choice; in-window gallery;
+  delete from gallery.
+- **[open]** Voice Recorder: seekable waveform (live level bar exists, peaks
+  are discarded); format / mono-stereo choice; export; skip back/forward;
+  sequential names and per-row duration; cancel/discard; in-app playback;
+  persistent peaks; name-on-save.
+- **[open]** Video Trimmer: thumbnail timeline; multi-segment merge; I/O/S
+  shortcuts; scene/black/silence detection; keyframe snapping; capture frame;
+  speed/mute/volume; remux and track selection; cancel/progress on a cut.
+- **[open]** Translate: source language pick, auto-detect and swap; file/HTML
+  translation; model endpoint UI (hard-wired env default); model/package
+  status. Pivot and history are out of scope (direct LLM, Argos keeps none).
+- **[open]** Weather: multiple saved locations / in-app search; daily/weekly
+  temperature graph (the hourly sparkline is now there); morning/afternoon/
+  evening/night breakdown; more than 7 days (`forecast_days=7`).
+
+### Shell surface (new — never audited before)
+
+Compared with GNOME Shell, KDE Plasma, macOS and open-source shells. None of
+these needs a compositor-level feature. **[fixed]** items above are from this
+pass; the rest are **[open]**.
+
+1. **[open]** Grouped notification stacks — `Popups.qml:47-66` is a flat list;
+   `Notifs.qml:30` already computes per-app keys.
+2. **[open]** Tray overflow drawer — `Bar.qml:638-688` renders every
+   `SystemTray.items` inline.
+3. **[fixed]** Notification progress bars.
+4. **[open]** Alt+Tab grouping by app — `Switcher.qml:34` uses a flat MRU list.
+5. **[open]** Drag a window in the workspace map to move workspaces —
+   `Bar.qml:215-234` is click-only; `Niri.moveWindowTo` exists (`shell.qml:924`).
+6. **[open]** Drag an app from launcher to dock to pin — `Dock.qml:436-455`
+   has a drop pattern; `Launcher.qml` has none.
+7. **[open]** OSK predictive word suggestions — `Keyboard.qml` has layouts,
+   handwriting and voice typing but no candidates.
+8. **[open]** Dock on left/right/top — `Dock.qml:24` hardcodes `anchors.bottom`
+   and the parabolic zoom assumes a horizontal row.
+9. **[fixed]** Move to any named workspace in the window menu.
+10. **[open]** Full app menu in the bar — `Bar.qml:440` takes `menus.slice(0, 5)`.
+11. **[open]** "Run as administrator" from the launcher — `> cmd` and
+    Shift-for-terminal exist, no pkexec path; `Polkit` / `shani-admin.rules`
+    are already in place.
+12. **[open]** Per-app attribution on privacy chips — `Bar.qml:615-633`
+    shows generic glyphs; `Privacy.qml` has no client field.
+13. **[open]** Alt+Tab "close all windows of this app" — `Switcher.qml:72-76`
+    closes only the selected window.
+
+Still impossible in a QML layer-shell client: true always-on-top, arbitrary
+window PiP, drag-to-edge snapping, global shortcuts niri grabs, window
+thumbnails in Alt+Tab, colour filters / HDR, gamma, "find my pointer", and
+Sticky / Slow / Bounce Keys. Rechecked "by choice" items: a **session chooser
+on the greeter is now feasible** (`greeter/shell.qml:30-31,231` already keeps
+the session command in a variable); switch-user remains impossible (no
+`loginctl` switch command and a `WlSessionLock` forbids a second surface);
+the live camera viewfinder remains blocked (no PipeWire-video QML element).
+
+### Infrastructure / installer / updates (new — never audited before)
+
+Ranked; evidence is in the named repos under the workspace root.
+
+1. **[open, big]** No dual-boot / install-alongside / OEM path —
+   `os-installer-config/config.yaml:57` `partition_ok: no`; whole-disk only.
+2. **[open, easy]** No generated release notes per promotion — no workflow
+   calls `gh release` or `generate_release_notes`.
+3. **[open, easy–medium]** No user-facing update schedule, maintenance window
+   or bandwidth cap — fixed 2 h agent timer, disabled prefetch timer,
+   `AUTO_REBOOT=no`, no `--limit-rate` in the downloader.
+4. **[open, needs server]** Delta updates effectively off — zsync2 skips
+   seeds > 2 GB (`shani-deploy.sh:3920-3925`) while images are multi-GB.
+5. **[open, easy–medium]** No "verify this medium" boot path in the ISO —
+   boot entries are only normal/nomodeset.
+6. **[open, easy]** Only niri is auto-promoted — the schedule matrix is
+   hard-coded to `["niri"]` (`promote-stable.yml:57`).
+7. **[open, medium]** Images are not reproducible — no `SOURCE_DATE_EPOCH`;
+   the AMI builder floats `latest.txt`.
+8. **[out of scope]** No measured boot / remote attestation — needs hardware
+   and a key server.
+9. **[open, needs virtualization]** Hard-failure boot fallback unverified —
+   the repo itself says automated rollback on hard failure is unproven.
+10. **[open, needs privileged runner]** No end-to-end CI for `shani-deploy` —
+    verification is manual.
+11. **[open, medium]** No reboot auto-apply / staged-update UX.
+12. **[open, needs server]** Torrents generated but no seeder / torrent-based
+    updates.
+13. **[open, medium]** No separate recovery environment — recovery is slot
+    rollback plus manual USB repair instructions.
+14. **[open, very easy]** `min_password_length: 1`
+    (`os-installer-config/config.yaml:95`); mainstream distros require 8+.
+15. **[open, easy]** No release-engineering troubleshooting page (stale
+    `stable.txt`, failed gate, CDN drift, signature mismatch at install).
+
+Risk: items 8 and 9 are security / correctness claims that remain unverified.
+The `[fixed]` labels in this section come from static tests and code reading —
+no QML runtime or hardware was available in this environment.

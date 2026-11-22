@@ -20,6 +20,12 @@ AppWindow {
     appName: "Calendar"
     tools: [
         IconButton { size: Theme.px(30); icon: "view-refresh"; tip: Tr.t("Refresh"); onClicked: Agenda.refresh() }
+        IconButton {
+            size: Theme.px(30); icon: "document-import"; tip: Tr.t("Import an .ics file")
+            onClicked: FilePicker.open({ mode: "open", title: Tr.t("An invitation or calendar file"),
+                filters: ["ics", "vcs"],
+                onPicked: paths => { if (paths.length) Agenda.importFile(paths[0]); } })
+        }
     ]
     visible: Ui.calendar
     onGone: Ui.calendar = false
@@ -385,6 +391,23 @@ AppWindow {
             anchors.margins: Theme.px(16)
             spacing: Theme.px(12)
 
+            // Quick add: "lunch Friday at noon" -> one-hour event. The full
+            // form below is still there for location, guests and calendars.
+            TextField {
+                Layout.fillWidth: true
+                visible: !win.editor
+                placeholder: Tr.t("Quick add — “lunch Friday at noon”, Enter to save")
+                onAccepted: {
+                    const entry = String(text).trim();
+                    const start = _parseNaturalDateTime(entry);
+                    if (entry !== "" && !isNaN(start)) {
+                        Agenda.addEvent({ summary: entry, start: start, end: start + 3600,
+                            location: "", attendees: [], allDay: false,
+                            calendar: Agenda.selectedCalendar || "", uid: "" });
+                        clear();
+                    }
+                }
+            }
 
             RowLayout {
                 Layout.fillWidth: true

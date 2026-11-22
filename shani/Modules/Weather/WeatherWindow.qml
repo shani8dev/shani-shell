@@ -19,6 +19,15 @@ AppWindow {
 
     onVisibleChanged: if (visible) Weather.fetch()
 
+    // Sparkline wants non-negative numbers: shift the hourly temps so the
+    // coldest is 1, keeping the shape of the curve for below-zero weather too.
+    readonly property var tempCurve: {
+        const t = Weather.hourly.map(h => h.temp);
+        if (!t.length) return [];
+        const lo = Math.min.apply(null, t);
+        return t.map(v => v - lo + 1);
+    }
+
     Item {
         anchors.fill: parent
         focus: true
@@ -130,6 +139,12 @@ AppWindow {
 
             // ---- the next hours ----
             SectionTitle { Layout.fillWidth: true; visible: Weather.hourly.length > 0; text: Tr.t("Next hours") }
+            Sparkline {
+                Layout.fillWidth: true
+                visible: Weather.hourly.length > 1
+                values: win.tempCurve
+                color: Theme.accent
+            }
             ListView {
                 reuseItems: true
                 cacheBuffer: 400
@@ -159,6 +174,14 @@ AppWindow {
                             color: Theme.accent
                             font.family: Theme.font
                             font.pixelSize: Theme.px(10) * Theme.fontScale
+                        }
+                        Text {
+                            Layout.alignment: Qt.AlignHCenter
+                            visible: (modelData.wind || 0) > 0
+                            text: Math.round(modelData.wind) + " km/h"
+                            color: Theme.dim
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(9) * Theme.fontScale
                         }
                     }
                 }

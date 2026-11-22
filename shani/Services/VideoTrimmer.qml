@@ -51,10 +51,11 @@ Singleton {
     function outputFor(p) {
         if (!p)
             return "";
-        // *.trimmed.opus beside the original for takes, *.trimmed.mp4 for video
-        if (isAudio(p))
-            return p.replace(/\.opus$/i, "") + ".trimmed.opus";
-        return p.replace(/\.[^.\/]+$/, "") + ".trimmed.mp4";
+        // A timestamp keeps a second cut from overwriting the first: ffmpeg
+        // runs with -y, and an earlier `.trimmed` file was silent data loss.
+        const stamp = Qt.formatDateTime(new Date(), "yyyyMMdd-hhmmss");
+        const base = isAudio(p) ? p.replace(/\.opus$/i, "") : p.replace(/\.[^.\/]+$/, "");
+        return isAudio(p) ? base + ".trimmed-" + stamp + ".opus" : base + ".trimmed-" + stamp + ".mp4";
     }
     function videosDir() {
         return (Quickshell.env("XDG_VIDEOS_DIR") || (Quickshell.env("HOME") || "/tmp") + "/Videos") + "/Camera";

@@ -10,6 +10,7 @@
   maps onto functions that really exist in shell.qml, and the Voice
   Recorder panel carries the in-panel take trim (two sliders + save).
 """
+
 import importlib.machinery
 import importlib.util
 import re
@@ -41,27 +42,68 @@ def load_cli():
 
 def probe_duration(path):
     r = subprocess.run(
-        [ffprobe, "-v", "error", "-show_entries", "format=duration",
-         "-of", "csv=p=0", "--", str(path)],
-        capture_output=True, text=True)
+        [
+            ffprobe,
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "csv=p=0",
+            "--",
+            str(path),
+        ],
+        capture_output=True,
+        text=True,
+    )
     assert r.returncode == 0, r.stderr
     return float(r.stdout.strip().splitlines()[0])
 
 
 # ---- the backend contract, for real ----------------------------------------
 
+
 @needs_ffmpeg
 def test_video_cut_stream_copy(tmp_path):
     src = tmp_path / "in.mp4"
     subprocess.run(
-        [ffmpeg, "-y", "-loglevel", "error", "-f", "lavfi",
-         "-i", "color=blue:s=160x90:r=10:d=6",
-         "-c:v", "libx264", "-pix_fmt", "yuv420p", str(src)], check=True)
+        [
+            ffmpeg,
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=blue:s=160x90:r=10:d=6",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            str(src),
+        ],
+        check=True,
+    )
     out = tmp_path / "in.trimmed.mp4"
     r = subprocess.run(
-        [ffmpeg, "-y", "-loglevel", "error", "-ss", "1", "-to", "4",
-         "-i", str(src), "-c", "copy", str(out)],
-        capture_output=True, text=True)
+        [
+            ffmpeg,
+            "-y",
+            "-loglevel",
+            "error",
+            "-ss",
+            "1",
+            "-to",
+            "4",
+            "-i",
+            str(src),
+            "-c",
+            "copy",
+            str(out),
+        ],
+        capture_output=True,
+        text=True,
+    )
     assert r.returncode == 0, r.stderr
     assert out.exists()
     if ffprobe:
@@ -73,15 +115,51 @@ def test_video_cut_stream_copy(tmp_path):
 def test_video_cut_fallback_reencode_source(tmp_path):
     src = tmp_path / "in.mp4"
     subprocess.run(
-        [ffmpeg, "-y", "-loglevel", "error", "-f", "lavfi",
-         "-i", "color=green:s=160x90:r=10:d=3",
-         "-c:v", "libx264", "-pix_fmt", "yuv420p", str(src)], check=True)
+        [
+            ffmpeg,
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=green:s=160x90:r=10:d=3",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            str(src),
+        ],
+        check=True,
+    )
     out = tmp_path / "in.trimmed.mp4"
     r = subprocess.run(
-        [ffmpeg, "-y", "-loglevel", "error", "-ss", "0.5", "-to", "2.5",
-         "-i", str(src), "-c:v", "libx264", "-crf", "23",
-         "-preset", "medium", "-c:a", "aac", "-movflags", "+faststart", str(out)],
-        capture_output=True, text=True)
+        [
+            ffmpeg,
+            "-y",
+            "-loglevel",
+            "error",
+            "-ss",
+            "0.5",
+            "-to",
+            "2.5",
+            "-i",
+            str(src),
+            "-c:v",
+            "libx264",
+            "-crf",
+            "23",
+            "-preset",
+            "medium",
+            "-c:a",
+            "aac",
+            "-movflags",
+            "+faststart",
+            str(out),
+        ],
+        capture_output=True,
+        text=True,
+    )
     assert r.returncode == 0, r.stderr
     assert out.exists()
 
@@ -90,14 +168,43 @@ def test_video_cut_fallback_reencode_source(tmp_path):
 def test_audio_trim_reencodes_libopus(tmp_path):
     src = tmp_path / "take.opus"
     subprocess.run(
-        [ffmpeg, "-y", "-loglevel", "error", "-f", "lavfi",
-         "-i", "anullsrc=r=48000:cl=mono", "-t", "5",
-         "-c:a", "libopus", str(src)], check=True)
+        [
+            ffmpeg,
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "anullsrc=r=48000:cl=mono",
+            "-t",
+            "5",
+            "-c:a",
+            "libopus",
+            str(src),
+        ],
+        check=True,
+    )
     out = tmp_path / "take.trimmed.opus"
     r = subprocess.run(
-        [ffmpeg, "-y", "-loglevel", "error", "-ss", "1", "-to", "3",
-         "-i", str(src), "-c:a", "libopus", str(out)],
-        capture_output=True, text=True)
+        [
+            ffmpeg,
+            "-y",
+            "-loglevel",
+            "error",
+            "-ss",
+            "1",
+            "-to",
+            "3",
+            "-i",
+            str(src),
+            "-c:a",
+            "libopus",
+            str(out),
+        ],
+        capture_output=True,
+        text=True,
+    )
     assert r.returncode == 0, r.stderr
     assert out.exists() and out.stat().st_size > 0
     assert out.read_bytes()[:4] == b"OggS"
@@ -108,11 +215,12 @@ def test_audio_trim_reencodes_libopus(tmp_path):
 
 # ---- the service -------------------------------------------------------------
 
+
 def test_service_cut_command_and_fallback():
     t = SVC.read_text()
     assert '"ffmpeg"' in t and '"-ss"' in t and '"-to"' in t and '"-i"' in t
     assert '"-c", "copy"' in t or '"-c", "copy"' in t
-    assert ".trimmed.mp4" in t               # OUT.mp4 beside the input
+    assert ".trimmed-" in t and "mp4" in t  # timestamped, never overwrites the last cut
     # fallback re-encode on failure
     assert "libx264" in t and "aac" in t
     assert "fellBack" in t
@@ -124,7 +232,7 @@ def test_service_audio_branch_reencodes_libopus():
     assert ".trimmed.opus" in t
     assert "isAudio" in t or "audio" in t.lower()
     # no -c copy on the opus path
-    tail = t[t.index("libopus"):]
+    tail = t[t.index("libopus") :]
     assert "libopus" in tail
     assert "function trimAudio(" in t
     assert "function cut(" in t
@@ -136,7 +244,7 @@ def test_service_probes_with_ffprobe_and_picks_folder_last():
     assert "format=duration" in t
     assert "command -v ffmpeg" in t and "command -v ffprobe" in t
     assert "pickFrom(" in t and "videosDir()" in t
-    assert "ls -t" in t               # newest file in the folder
+    assert "ls -t" in t  # newest file in the folder
     assert "function open(" in t and "function setInput(" in t
     assert "function setStart(" in t and "function setEnd(" in t
     assert "function nudgeStart(" in t and "function nudgeEnd(" in t
@@ -151,26 +259,30 @@ def test_service_result_actions():
 
 # ---- the panel ---------------------------------------------------------------
 
+
 def test_panel_follows_the_qrview_pattern():
     t = PANEL.read_text()
-    assert "AppWindow {" in t and "appName:" in t and "onGone:" in t   # a window of its own (Common/AppWindow)
+    assert (
+        "AppWindow {" in t and "appName:" in t and "onGone:" in t
+    )  # a window of its own (Common/AppWindow)
     assert "visible: Ui.videoTrimmer" in t
     assert "Keys.onEscapePressed: Ui.videoTrimmer = false" in t
 
 
 def test_panel_has_offsets_duration_cut_and_result():
     t = PANEL.read_text()
-    assert "VideoTrimmer.cut()" in t                              # the Cut button
-    assert "VideoTrimmer.inputDuration" in t                       # duration preview
+    assert "VideoTrimmer.cut()" in t  # the Cut button
+    assert "VideoTrimmer.inputDuration" in t  # duration preview
     assert "VideoTrimmer.result" in t and "VideoTrimmer.resultDuration" in t
     assert "VideoTrimmer.openResult()" in t and "VideoTrimmer.trashResult()" in t
-    assert '"-1s"' in t and '"+1s"' in t                  # +/- 1s keys
+    assert '"-1s"' in t and '"+1s"' in t  # +/- 1s keys
     assert "VideoTrimmer.nudgeStart(-1)" in t and "VideoTrimmer.nudgeEnd(1)" in t
-    assert "TextField" in t and "FileDialog" in t        # fields + picker
+    assert "TextField" in t and "FileDialog" in t  # fields + picker
     assert "SliderRow" in t
 
 
 # ---- the voice take trim -------------------------------------------------------
+
 
 def test_voice_recorder_reuses_trim_service_for_takes():
     t = (SHANI / "Services/VoiceRecorder.qml").read_text()
@@ -193,23 +305,38 @@ def test_voice_panel_has_two_sliders_and_save():
 
 # ---- registration -------------------------------------------------------------
 
+
 def test_ui_flag_and_close_all():
     t = (SHANI / "Common/Ui.qml").read_text()
     assert "property bool videoTrimmer: false" in t
-    close_all = t[t.index("function closeApps()"):]
+    close_all = t[t.index("function closeApps()") :]
     assert "videoTrimmer = false" in close_all.split("}")[0]
 
 
 def test_shell_lazy_loads_panel_and_exposes_ipc():
     t = (SHANI / "shell.qml").read_text()
-    assert 'LazyLoader { active: Ui.videoTrimmer; source: "Modules/VideoTrimmer/VideoTrimmerPanel.qml" }' in t
+    assert (
+        'LazyLoader { active: Ui.videoTrimmer; source: "Modules/VideoTrimmer/VideoTrimmerPanel.qml" }'
+        in t
+    )
     assert "import qs.Modules.VideoTrimmer" in t
     assert "Trim" in t.split("_services")[1].split("]")[0]
-    for fn in ("videoTrimmerOpen", "videoTrimmerClose", "videoTrimmerToggle", "videoTrimmerCut",
-               "voiceRecorderTrim"):
+    for fn in (
+        "videoTrimmerOpen",
+        "videoTrimmerClose",
+        "videoTrimmerToggle",
+        "videoTrimmerCut",
+        "voiceRecorderTrim",
+    ):
         assert f"function {fn}(" in t, fn
-    for key in ("videoTrimmer", "videoTrimmerInput", "videoTrimmerResult", "videoTrimmerStart", "videoTrimmerEnd",
-                "videoTrimmerDuration"):
+    for key in (
+        "videoTrimmer",
+        "videoTrimmerInput",
+        "videoTrimmerResult",
+        "videoTrimmerStart",
+        "videoTrimmerEnd",
+        "videoTrimmerDuration",
+    ):
         assert key in t, key
 
 

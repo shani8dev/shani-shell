@@ -616,6 +616,8 @@ AppWindow {
                         return [line, before.length - before.lastIndexOf("\n")];
                     }
                     text: Tr.t("Line") + " " + at[0] + ", " + Tr.t("column") + " " + at[1] + "  ·  " + edit.lineCount + " " + Tr.t("lines")
+                          + "  ·  " + edit.text.split(/\s+/).filter(w => w.length > 0).length + " " + Tr.t("words")
+                          + "  ·  " + edit.text.length + " " + Tr.t("characters")
                         + (win.lang !== "text" ? "  ·  " + win.lang : "")
                         + (win.multiCursor ? "  ·  " + (win.extraCursors.length + 1) + " " + Tr.t("cursors") : "")
                     color: Theme.dim
