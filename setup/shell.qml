@@ -236,7 +236,7 @@ ShellRoot {
     readonly property string accountProblem: {
         if (fullname.trim() === "") return root.t("needName");
         if (!/^[a-z_][a-z0-9_-]{0,31}$/.test(username)) return root.t("badUser");
-        if (password.length < 1) return root.t("needPassword");
+        if (password.length < 8) return root.t("needPassword");
         if (password !== password2) return root.t("mismatch");
         if (hostname && !/^[A-Za-z0-9][A-Za-z0-9-]{0,62}$/.test(hostname)) return root.t("badHost");
         return "";

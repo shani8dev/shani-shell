@@ -30,11 +30,13 @@ Singleton {
 
     function executeWallpaperHook(wallpaperPath, screenName) {
         const script = _script("wallpaperChange");
-        if (!script) return;
-        let cmd = script.replace(/\$1/g, wallpaperPath || "");
-        cmd = cmd.replace(/\$2/g, screenName || "");
-        cmd = cmd.replace(/\$3/g, Settings.data.darkMode ? "dark" : "light");
-        _exec(cmd);
+        if (!script || !_enabled()) return;
+        // Keep $1/$2/$3 working by passing them as positional parameters to
+        // the user's shell script, not by substituting untrusted text.
+        try {
+            Quickshell.execDetached(["sh", "-c", script, "sh", wallpaperPath || "", screenName || "",
+                Settings.data.darkMode ? "dark" : "light"]);
+        } catch (e) { console.warn("Hooks: failed to run", e); }
     }
 
     function executeDarkModeHook(isDarkMode) {

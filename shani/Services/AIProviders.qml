@@ -79,9 +79,10 @@ Singleton {
         syncKeyToChronoa(id, "");   // clear Chronoa's copy too
     }
 
-    // get the API key for a provider (from Passwords)
-    function getKey(id) {
-        return Passwords.getKey("ai-provider-" + id) || "";
+    // get the API key for a provider (from the keyring, by attribute).
+    // Keyring.get is asynchronous (a Process), so callers pass a callback.
+    function getKey(id, cb) {
+        return Keyring.get("ai-provider-" + id, cb || (() => {}));
     }
 
     // the default provider for Chronoa (local first, then cloud)

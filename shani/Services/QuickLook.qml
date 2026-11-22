@@ -117,7 +117,9 @@ Singleton {
         else if (kind === "folder")
             cmd = ['ls -1Ap --group-directories-first -- "$1" | head -n 400', path];
         else if (kind === "pdf")
-            cmd = ['d=${XDG_CACHE_HOME:-$HOME/.cache}/shani-shell/quicklook; mkdir -p "$d"; o="$d/$(printf %s "$1" | md5sum | cut -c1-16)"; [ -f "$o.png" ] || pdftoppm -png -r 90 -f 1 -l 1 -singlefile -- "$1" "$o" || exit 3; echo "$o.png"', path];
+            // Include mtime in the key: a changed PDF at the same path must not
+            // show the first page cached from the old file forever.
+            cmd = ['d=${XDG_CACHE_HOME:-$HOME/.cache}/shani-shell/quicklook; mkdir -p "$d"; o="$d/$(printf %s "$1" | md5sum | cut -c1-16)-$(stat -c %Y -- "$1" 2>/dev/null || echo 0)"; [ -f "$o.png" ] || pdftoppm -png -r 90 -f 1 -l 1 -singlefile -- "$1" "$o" || exit 3; echo "$o.png"', path];
         if (!cmd)
             return;
         reader.target = path;

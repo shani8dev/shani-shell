@@ -400,6 +400,82 @@ def main(argv: list[str]) -> int:
             r = list_all()
         elif cmd == "reveal" and len(args) == 1:
             r = reveal(args[0])
+        elif cmd == "put" and len(args) == 1:
+            # Store a secret under a caller-chosen id (an attribute, not an
+            # object path) so Keyring.set() actually works. Replaces an older
+            # item with the same id rather than accumulating duplicates.
+            d = json.loads(sys.stdin.read() or "{}")
+            ident = args[0]
+            val = str(d.get("secret", ""))
+            for item in list_all().get("items", []):
+                if item.get("attributes", {}).get("shani-id") == ident:
+                    delete(item["path"])
+            r = add(list_all().get("default", ""), ident, {"shani-id": ident}, val)
+        elif cmd == "audit":
+            # Opt-in: reveal secrets in-process and return only counts/labels,
+            # never the secrets themselves. The UI's item list has no `secret`
+            # field, so computing the audit there always reported zero issues.
+            common = {
+                "password",
+                "123456",
+                "12345678",
+                "qwerty",
+                "abc123",
+                "letmein",
+                "admin",
+                "welcome",
+                "monkey",
+                "dragon",
+                "master",
+                "sunshine",
+                "princess",
+                "football",
+                "shadow",
+                "superman",
+                "michael",
+                "trustno1",
+            }
+            labels: dict[str, list[str]] = {}
+            weak = []
+            total = 0
+            for item in list_all().get("items", []):
+                try:
+                    secret = reveal(item["path"]).get("secret", "")
+                except Exception:  # noqa: BLE001 - locked or inaccessible item
+                    continue
+                total += 1
+                labels.setdefault(secret, []).append(item.get("label", ""))
+                if len(secret) < 8 or secret.lower() in common or secret.isdigit():
+                    weak.append(
+                        {
+                            "label": item.get("label", ""),
+                            "reason": "short" if len(secret) < 8 else "common",
+                        }
+                    )
+            r = {
+                "weak": weak,
+                "reused": [
+                    {"count": len(names), "items": names}
+                    for names in labels.values()
+                    if len(names) > 1
+                ],
+                "total": total,
+            }
+        elif cmd == "drop" and len(args) == 1:
+            n = 0
+            for item in list_all().get("items", []):
+                if item.get("attributes", {}).get("shani-id") == args[0]:
+                    delete(item["path"])
+                    n += 1
+            r = {"ok": True, "deleted": n}
+        elif cmd == "lookup" and len(args) == 1:
+            # Find an item by a shani-id attribute (Keyring.set), then reveal it.
+            found = None
+            for item in list_all().get("items", []):
+                if item.get("attributes", {}).get("shani-id") == args[0]:
+                    found = item
+                    break
+            r = reveal(found["path"]) if found else {"error": "not found"}
         elif cmd == "set" and len(args) == 1:
             r = set_secret(args[0], sys.stdin.read().rstrip("\n"))
         elif cmd == "add" and len(args) == 2:

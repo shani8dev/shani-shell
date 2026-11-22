@@ -35,6 +35,10 @@ Singleton {
     // earlier versions, restore one file / a folder / the whole tree). Open
     // it at the right page; `what` is kept for the launcher/test contract.
     function restoreFromSnapshot(name, what) {
+        // Both paths open the GUI's home page; the "files" variant pre-selects
+        // the browse view so restoring a single file is one click less. The
+        // CLI's `restore <target> --snapshot <id>` only restores into a NEW
+        // folder, which is not what either button promises.
         root.open(what === "files" ? "home" : "home");
         restoring = "";
     }

@@ -51,8 +51,18 @@ Singleton {
             + "\n\nWrite the QML code to " + devDir + "/<app-name>/main.qml"
             + " and create a .desktop file in ~/.local/share/applications/ so it appears in the launcher."
             + " The app should use the qs.Common and qs.Services imports from the shani-shell framework.");
-        // The actual generation happens through Chronoa's bridge
-        // When Chronoa finishes, we refresh the list
+        // The actual generation happens through Chronoa's bridge. Clear the
+        // busy flag when its turn ends, otherwise Generate stays disabled
+        // and "Working…" is permanent.
+    }
+    Connections {
+        target: Chronoa
+        function onBusyChanged() {
+            if (!Chronoa.busy && root.busy) {
+                root.busy = false;
+                root.refresh();
+            }
+        }
     }
 
     // open a generated app's code in TextEditor

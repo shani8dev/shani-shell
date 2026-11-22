@@ -13,18 +13,23 @@ Singleton {
     function get(id, cb) {
         const p = getProc.createObject(root, {});
         p._cb = cb;
-        p.command = ["python3", root.tool, "reveal", id];
+        // look up by attribute: `set` stores a new item with shani-id, because
+        // passwords.py `set` expects a D-Bus object path, not an arbitrary name.
+        p.command = ["python3", root.tool, "lookup", id];
         p.running = true;
         return p;
     }
     function set(id, value) {
+        // Secret Service `add` takes a collection path, a label and attributes.
+        // The `default` alias is resolved inside passwords.py's add() caller.
+        const payload = JSON.stringify({ secret: value });
         Quickshell.execDetached(["sh", "-c",
-            'printf %s "$2" | python3 "$1" set "$3" >/dev/null 2>&1 || true',
-            "sh", root.tool, value, id]);
+            'printf %s "$2" | python3 "$1" put "$3" >/dev/null 2>&1 || true',
+            "sh", root.tool, payload, id]);
     }
     function remove(id) {
         Quickshell.execDetached(["sh", "-c",
-            'python3 "$1" delete "$2" >/dev/null 2>&1 || true',
+            'python3 "$1" drop "$2" >/dev/null 2>&1 || true',
             "sh", root.tool, id]);
     }
 

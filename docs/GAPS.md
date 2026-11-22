@@ -47,7 +47,7 @@ centre, and against what a session needs before any app runs.
 - **Headphone virtual surround (stereo widening is done).** Implemented via the matrix_spatialiser LADSPA plugin (shipped in ladspa) as a "Stereo widening" toggle in Settings › Sound effects, behind `SoundFx.canSpatial`. The convolver-based virtual surround (KEMAR/Hesuvi HRIR) still needs HRIR wav files that no package ships; stereo widening is what is available.
 - **More setup-wizard languages** than English, मराठी, हिन्दी, Deutsch, Español,
   Français (strings.js).
-- **Translations**: about 1525 of 3438 catalog strings are translated into
+- **Translations**: about 1525 of 3446 catalog strings are translated into
   Marathi and Hindi (the bar, control centre, Settings and its pages, launcher,
   notifications, lock screen, overview, dock, window menu). The rest are the
   newer app windows and settings (Files, Archives, Quick Look, the viewers, the
@@ -215,7 +215,7 @@ Each needs real hardware or shani-testbed:
   and connect in silence; phones over Bluetooth (Chronoa) carry sound.
 
 ## Improved (Nov 2026)
-- Translations: ~1525/3438 Marathi/Hindi strings done; the rest (newer app windows and settings) are documented above.
+- Translations: ~1525/3446 Marathi/Hindi strings done; the rest (newer app windows and settings) are documented above.
 - Live TV, free radio picks, a QR folder-link share target, health check and problem report are now in the shell (Media Player / Share / About).
 - Real-hardware runs: nested niri only; shani-testbed boot needed for Wi-Fi BT multi-screen recording.
 # Improvements applied (Nov 2026)
@@ -1096,3 +1096,145 @@ verified with real accessibility tools" is not supported by code or tests.
 
 Static verdicts only: no Orca session, qmllint or per-app walk of all 45
 windows was possible in this container.
+
+### Capture and screen tools
+
+- **[bug→fixed] Color Picker promised to copy the picked colour but never did** —
+  `Color.qml` updated recents and fired a signal nobody listened to; now copies
+  the hex with `wl-copy`. Its `picked` signal still has no listener and the
+  `code !== 0` branch is dead because the command ends in `|| true`.
+- **[bug→fixed] Live Captions used `hh-mm` (12-hour) in transcript filenames** —
+  AM and PM sessions appended to one file; now `HH-mm`. Still **[open]**:
+  out-of-order captions from background subshells, the mic-source flag needs
+  runtime verification, no history/scrollback, pause/resume, timestamps,
+  font/position/opacity settings, named save or a language picker in the bar.
+- **[bug→fixed] Quick Look's PDF cache key was `md5(path)` only** — a changed
+  PDF at the same path showed a stale first page forever; mtime is now part of
+  the key. Still **[open]**: PDF page navigation/zoom, metadata, extract-one
+  from archives, video seek/volume, share/open-with, image zoom/pan, and
+  Viewer redo for strokes / fullscreen / copying pixels rather than a path.
+- **[bug→fixed] Ruler's `ratio` was never assigned** — it multiplied by 1.0,
+  so "real pixels" was false on scaled outputs. Derived from the output scale.
+  Still **[open]**: diagonal length and angle, ticks/origin guides, saved
+  measurements, px/cm/in units, arrow-key nudge, a loupe, multi-monitor
+  coordinate alignment (grim captures all outputs), and temp-PNG cleanup.
+- **[wrong claim] `PinCapture.qml:3` says the pin can be moved and resized** —
+  there is no drag or resize handler; it is a fixed 480×360 window. **[open]**
+- **[wrong claim] `scroll-capture.py:6` documents a manual mode** that does not
+  exist; `stitch` is unwired. **[open]**
+- **[open]** Screenshot: region/window capture (slurp is already used elsewhere),
+  all-monitors capture, a history browser (encrypted captures are written but
+  never listed or decrypted by any UI), OCR preview, configurable directory
+  and pin zoom/fit.
+- **[open]** Recorder: pointer show/hide, pre-start delay, single-window capture,
+  WebM/MKV container choice, cancel/discard, max-duration auto-stop, a mic
+  level meter.
+- **[open]** Color Picker: no picker *window* at all (only a headless singleton
+  and a sidebar tile), recents stored but never rendered, colour wheel and
+  palette generation, copy-as CSS/Qt/int, sample from an image, favourites.
+- **[open]** Lens: QR actions for `WIFI:`/`mailto:`/`geo:`/`tel:`, OCR language
+  choice, editable OCR text, TSV structure, history, keyboard-driven region.
+  **Bugs:** `save()` hardcodes `.png` for jpg sources, `openImage()` does not
+  encode spaces, and the language probe regex assumes codes `^[a-z_]{3,}$`.
+- **[open]** Magnifier: auto-refresh, full-screen zoom mode, colour inversion,
+  resizable/persisted loupe, arrow-key pan, reset key, cross-monitor follow.
+- **[open]** Tour: five card bodies are raw literals (English-only) — wrap in
+  `Tr.t()`; `Settings.data.tourEnabled` is checked in `shell.qml` but never in
+  `Tour.qml`; no spotlight, capture-tools card, try-it steps, replay/reset or
+  visible Back button.
+
+### Backup, Models, Studio, Firewall, Passwords, Greeter, Setup, Lock
+
+- **[bug] Backup's two restore buttons are identical** — both resolve to
+  `open("home")`; `what` and `restoring` are dead. The CLI `restore <target>
+  --snapshot <id>` restores into a *new* folder with no file filter, so it does
+  not yet implement the "files only" promise. **[open]** Also: no progress or
+  cancel for `backupNow`, swallowed JSON errors, no restore-verification badge
+  (the bridge already computes one), no retention/schedule read-out, exclusions,
+  off-site status or snapshot diff.
+- **[bug→fixed] AI-provider keys were never stored** — `Keyring.set()` called
+  `passwords.py set <id>`, but `set_secret()` expects a D-Bus object path, so it
+  failed silently behind `|| true`; `getKey()` called a nonexistent `Passwords`
+  singleton. Added `passwords.py put/lookup/drop` by `shani-id` attribute and
+  rewired `Keyring`/`AIProviders`. **Note:** keys are still mirrored to
+  plaintext dconf for Chronoa — **[open]** to remove that and rely on the
+  keyring. Also **[open]**: `download()` uses `;` so it announces success even
+  when `ollama pull` fails and sends one notify per output line; the preferred
+  model is set before download succeeds; "Installed" claims GGUF but only
+  `ollama list` runs; VRAM is read but unused in the fit check; no live model
+  registry, per-provider models, test-connection or in-window errors.
+- **[bug→fixed] Studio's `busy` was never cleared** — Generate stayed disabled
+  and "Working…" permanent. Now cleared when Chronoa's turn ends. Still
+  **[open]**: the `find` expression can never match a `.desktop` under
+  `~/Developer`, so `desktopPath` is always empty and `gio launch` plus
+  desktop cleanup are dead; no code preview before adding to the launcher,
+  revision/version history, syntax check, export, or privilege warning.
+- **[bug] Firewall zone create/delete use `--permanent` without `--reload`** —
+  the new zone is absent from runtime until reload, despite the comment claiming
+  otherwise. **[open]** Also: `parseZones` drops hyphenated keys (`forward-ports`,
+  `source-addresses`); interfaces and target are parsed but never displayed;
+  presets are hardcoded English; no success confirmation; no panic mode,
+  logging/MASQUERADE, rule-validation preview or translated presets.
+- **[bug→fixed] The password audit never ran** — it read `item.secret` from a
+  list that deliberately omits secrets, so weak/reused always reported zero and
+  the banner never appeared. Added a bridge `audit` command that reveals
+  secrets in-process and returns only counts/labels. **[open]**: the passkey
+  copy action copies the random local `id`, not the displayed `cred_id`;
+  `passkey-add` reports success even when saving fails; the FIDO2 promises have
+  no create/assert commands; locked collections cannot be unlocked; attribute
+  editing, GPG expiry/type choice, keyring import/export and generator→keyring
+  handoff are missing.
+- **[bug→fixed] The greeter kept a typed password when another user's avatar
+  was picked**, so it could be submitted for the wrong account. **[open]**: no
+  `Tr.t()` at all (login screen is English-only), no IME/fcitx, caps probe needs
+  a keyboard LED sysfs node, no network/auth status, last-layout restore,
+  user dconf a11y settings, PIN-only path or retry countdown.
+- **[bug→fixed] Setup accepted a 1-character password**; now requires 8.
+  **[open]**: `finish()` writes `chronoa-enabled` from the `greeter` user's
+  gsettings, so the setting never reaches the new account; `tryAuto()` joins the
+  first open network without asking; `onAuthMessage` answers every prompt with
+  password/username, so a real second-factor prompt would get the password;
+  no hidden/enterprise Wi-Fi, proxy, restore-from-backup, disk/encryption
+  choice, USB settings import or license/telemetry page.
+- **[open]** Lock screen: wrong-password strings are raw English; `lockPhotos`
+  accumulates but only the newest is shown; biometric PAM can call
+  `unlocked()` independently of the password conversation with only three
+  retries; `queued` is discarded on success; `tests/test_lock.py` tests the
+  file bridge, not the lock surface.
+
+### Security, i18n and developer ecosystem
+
+- **[bug→fixed] Command injection through hook placeholders** —
+  `Hooks.qml` text-substituted a wallpaper path into a shell string, so a file
+  named `x;touch ~/.config/autostart/x` executed on wallpaper change. Hook
+  arguments are now positional parameters (`sh -c "$script" sh "$1" "$2" "$3"`).
+- **[bug→fixed] The clipboard QR tile wrote a predictable world-readable
+  `/tmp/shani-qr.png`** via a shell pipeline; now calls `Qr.show()`, which uses
+  `XDG_RUNTIME_DIR` and argv.
+- **[bug→fixed] WebApps referenced undeclared `safeUrl`** in `script()`, so
+  `sync()` threw before writing any desktop entry. **[open]**: stale
+  `*.desktop` files are never removed (the glob is quoted).
+- **[bug] Permission Undo follows symlinks** — `files.py:797-802` reads mode
+  with `lstat` but changes with `chmod()` (which follows the link). **[open]**
+- **[bug→fixed] Three Settings quick-op chips were fake** — "Backup now" and
+  "Update check" only `echo`ed to `/tmp/quick-op.log`, and "System info" showed
+  hardcoded `Memory: 477 MB · CPU: 54 ms/s`. They now call the real Backup and
+  Cassini services and read `SysStats`.
+- **[open, i18n]** The greeter and setup wizard have no translation path —
+  two disconnected catalog systems (`setup/strings.js` vs `shani/i18n/`), and
+  `tools/i18n.py` scans only `shani/**/*.qml`. English plural suffixes are
+  smuggled through `%2` (`Tr.t("Copying %1 photo%2…", n, n === 1 ? "" : "s")`),
+  which Marathi/Hindi cannot express; there is no plural API or placeholder
+  parity validation (`%1` can be dropped by a translation unnoticed), 83
+  unwrapped literals remain, and `Tr.t("%1 items").arg(n)` breaks translator
+  reordering in three files.
+- **[open, ecosystem]** No CONTRIBUTING.md, issue templates or code of conduct;
+  ~515 IPC functions with six documented examples and no version/deprecation
+  contract; no man page or shell completion for the `shani` CLI; the
+  `com.canonical.Unity.LauncherEntry` D-Bus API is undocumented; Settings
+  pages cannot be added without editing the hardcoded `cats` array; no
+  user theme-pack API; no CI config in this repo (all verification is manual
+  via `dev/check.sh`).
+
+All third-pass verdicts are static — no QML runtime, hardware, PAM, polkit or
+live keyring was available in this container.

@@ -31,6 +31,15 @@ Singleton {
     property int screenW: 0
     property int screenH: 0
 
+    // grim captures real pixels while the frozen image is shown in logical
+    // coordinates: derive the ratio from the output we are drawing on instead
+    // of leaving it at 1.0 (which made "real pixels" false on scaled screens).
+    readonly property real outputScale: {
+        const o = Displays.outputs[0];
+        return o && o.scale > 0 ? o.scale : 1.0;
+    }
+    Component.onCompleted: { root.ratio = root.outputScale; }
+
     // the measured size, in screenshot pixels
     readonly property int measuredW: hasStart && endX !== startX ? Math.round(Math.abs(endX - startX) * ratio) : 0
     readonly property int measuredH: hasStart && endY !== startY ? Math.round(Math.abs(endY - startY) * ratio) : 0

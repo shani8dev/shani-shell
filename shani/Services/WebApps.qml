@@ -89,7 +89,7 @@ Singleton {
             let desktop = "[Desktop Entry]\n"
             desktop += "Name=" + title.replace(/\n/g, ' ') + "\n"
             desktop += "Comment=Web App\n"
-            desktop += "Exec=sh -c 'for b in chromium google-chrome google-chrome-stable brave-browser brave microsoft-edge vivaldi opera firefox; do if command -v $b >/dev/null 2>&1; then case $b in firefox) exec $b --new-window \"" + urlForExec(url) + "\" ;; *) exec $b --app=\"" + urlForExec(url) + "\" --class=" + wmclass + " --name=" + wmclass + " ;; esac; fi; done; xdg-open \"" + safeUrl + "\"'\n"
+            desktop += "Exec=sh -c 'for b in chromium google-chrome google-chrome-stable brave-browser brave microsoft-edge vivaldi opera firefox; do if command -v $b >/dev/null 2>&1; then case $b in firefox) exec $b --new-window \"" + urlForExec(url) + "\" ;; *) exec $b --app=\"" + urlForExec(url) + "\" --class=" + wmclass + " --name=" + wmclass + " ;; esac; fi; done; xdg-open \"" + urlForExec(url) + "\"'\n"
             desktop += "Type=Application\n"
             desktop += "Terminal=false\n"
             desktop += "Categories=Network;WebBrowser;\n"

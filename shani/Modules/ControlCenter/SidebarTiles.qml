@@ -441,12 +441,11 @@ ColumnLayout {
             subtitle: Tr.t("Make QR from clipboard")
             onToggled: {
                 Ui.closeAll();
-                Quickshell.execDetached(["sh", "-c",
-                    "text=$(wl-paste 2>/dev/null); " +
-                    "command -v qrencode >/dev/null 2>&1 && [ -n \"$text\" ] && " +
-                    "qrencode -o /tmp/shani-qr.png - <<< \"$text\" && " +
-                    "notify-send -a 'QR code' 'Saved to /tmp/shani-qr.png' || " +
-                    "notify-send -a 'QR code' 'qrencode not installed or clipboard empty'"])
+                // Qr.show writes under XDG_RUNTIME_DIR (not world-readable
+                // /tmp) and passes the text as argv, never through a shell.
+                const text = Quickshell.clipboardText || "";
+                if (text) Qr.show(Tr.t("QR code"), text);
+                else Quickshell.execDetached(["notify-send", "-a", Tr.t("QR code"), Tr.t("Clipboard is empty")]);
             }
         }
         Tile {

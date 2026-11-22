@@ -159,6 +159,9 @@ Singleton {
         };
         root.addRecent(color.hex);
         root.lastPicked = color;
+        // The header promises the pick is copied; without this it only sat in
+        // the recents list with no way to use it.
+        Quickshell.execDetached(["sh", "-c", "printf '%s' \"$1\" | wl-copy", "sh", color.hex]);
         root.picked(color);
     }
     function pick() {

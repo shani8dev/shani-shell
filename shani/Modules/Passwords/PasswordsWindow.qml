@@ -35,37 +35,27 @@ AppWindow {
     property string changing: ""              // the item whose secret is being changed
     property bool adding: false
     property bool newKey: false
-    // password audit: weak (short, common) and reused passwords
-    readonly property var auditResults: {
-        const secrets = {};
-        const counts = {};
-        const weak = [];
-        const common = ["password", "123456", "12345678", "qwerty", "abc123", "letmein", "admin", "welcome", "monkey", "dragon", "master", "sunshine", "princess", "football", "shadow", "superman", "michael", "trustno1"];
-        for (const item of win.items) {
-            const secret = item.secret || "";
-            if (secret.length < 4) continue;
-            // count usage
-            counts[secret] = (counts[secret] || 0) + 1;
-            // check weak
-            if (secret.length < 8 || common.indexOf(secret.toLowerCase()) >= 0 || /^\d+$/.test(secret)) {
-                weak.push({ label: item.label, reason: secret.length < 8 ? Tr.t("Too short") : Tr.t("Common password") });
-            }
-        }
-        const reused = [];
-        for (const [secret, count] of Object.entries(counts)) {
-            if (count > 1) {
-                const items = win.items.filter(i => (i.secret || "") === secret).map(i => i.label);
-                reused.push({ count: count, items: items });
-            }
-        }
-        return { weak: weak, reused: reused, total: win.items.length };
-    }
+    // password audit: computed in the bridge (which can reveal secrets) and
+    // returned as counts/labels only. Computing it here from `items` always
+    // reported zero because the list deliberately has no `secret` field.
+    property var auditResults: ({ weak: [], reused: [], total: 0 })
     readonly property int weakCount: auditResults.weak.length
     readonly property int reusedCount: auditResults.reused.length
     readonly property bool hasIssues: weakCount > 0 || reusedCount > 0
-    readonly property var visibleItems: items.filter(i => !search.text.trim() || (i.label + " " + JSON.stringify(i.attributes)).toLowerCase().indexOf(search.text.trim().toLowerCase()) >= 0)
-
-    function refresh() { lister.running = true; keyLister.running = true; passkeyLister.running = true; }
+    function runAudit() { auditProc.running = true; }
+    Process {
+        id: auditProc
+        command: ["python3", win.tool, "audit"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const r = JSON.parse(text);
+                    win.auditResults = r.weak ? r : { weak: [], reused: [], total: 0 };
+                } catch (e) { win.auditResults = { weak: [], reused: [], total: 0 }; }
+            }
+        }
+    }
+    function refresh() { lister.running = true; keyLister.running = true; passkeyLister.running = true; runAudit(); }
     onVisibleChanged: if (visible) refresh()
     Component.onCompleted: refresh()
 

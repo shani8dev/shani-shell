@@ -183,7 +183,11 @@ ColumnLayout {
             text: Tr.t("Backup now")
             kind: "outline"
             implicitHeight: Theme.px(32)
-            onClicked: { Quickshell.execDetached(["sh", "-c", "echo 'Backup started' >> /tmp/quick-op.log"]); page.showToast("Backup started", true, "backup"); }
+            onClicked: {
+                if (!Backup.available || !Backup.driveSetUp) { page.showToast(Tr.t("Set up a backup drive in Backups first"), false, "backup"); return; }
+                Backup.backupNow();
+                page.showToast(Tr.t("Backup started"), true, "backup");
+            }
         }
         Button {
             text: Tr.t("Network status")
@@ -195,13 +199,13 @@ ColumnLayout {
             text: Tr.t("Update check")
             kind: "outline"
             implicitHeight: Theme.px(32)
-            onClicked: { Quickshell.execDetached(["sh", "-c", "echo 'Update check' >> /tmp/quick-op.log"]); page.showToast("Update check started", false, ""); }
+            onClicked: { Ui.closeAll(); Quickshell.execDetached(["shani-cassini", "--section=updates"]); }
         }
         Button {
             text: Tr.t("System info")
             kind: "outline"
             implicitHeight: Theme.px(32)
-            onClicked: { page.showToast("Memory: 477 MB  ·  CPU: 54 ms/s", false, ""); }
+            onClicked: { page.showToast(Tr.t("Memory: %1%%  ·  CPU: %2%%", Math.round(SysStats.mem * 100), Math.round(SysStats.cpu * 100)), false, ""); }
         }
     }
 

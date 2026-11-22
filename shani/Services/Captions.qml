@@ -16,7 +16,7 @@ Singleton {
     // Android) of the room — a conversation, a lecture — kept as a text file
     property string source: "speakers"
     readonly property string transcript: source === "mic"
-        ? Quickshell.env("HOME") + "/Documents/Transcripts/" + Qt.formatDateTime(started, "yyyy-MM-dd hh-mm") + ".txt" : ""
+        ? Quickshell.env("HOME") + "/Documents/Transcripts/" + Qt.formatDateTime(started, "yyyy-MM-dd HH-mm") + ".txt" : ""
     property date started: new Date()
     property var lines: []               // the last few captions
     readonly property string text: lines.join(" ")
