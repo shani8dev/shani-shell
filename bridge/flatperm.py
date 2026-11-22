@@ -19,6 +19,7 @@ asked for stays; the change is yours, and Reset takes it back).
 permission store's answers for it ({"notifications": "yes", ...}).
 SHANI_FLATPAK (tests): the flatpak to run.
 """
+
 from __future__ import annotations
 
 import json
@@ -29,19 +30,34 @@ import subprocess
 import sys
 
 FLATPAK = shlex.split(os.environ.get("SHANI_FLATPAK", "flatpak"))
-LISTS = {"shared": "shared", "sockets": "sockets", "devices": "devices", "features": "features",
-         "filesystems": "filesystems", "persistent": "persistent"}
+LISTS = {
+    "shared": "shared",
+    "sockets": "sockets",
+    "devices": "devices",
+    "features": "features",
+    "filesystems": "filesystems",
+    "persistent": "persistent",
+}
 # the portals Flatseal shows, as the permission store files them: name -> (table, id)
-PORTALS = {"notifications": ("notifications", "notification"), "background": ("background", "background"),
-           "camera": ("devices", "camera"), "location": ("location", "location"),
-           "screenshot": ("screenshot", "screenshot")}
+PORTALS = {
+    "notifications": ("notifications", "notification"),
+    "background": ("background", "background"),
+    "camera": ("devices", "camera"),
+    "microphone": ("devices", "microphone"),
+    "location": ("location", "location"),
+    "screenshot": ("screenshot", "screenshot"),
+}
 # what may be passed to `flatpak override`: its own flags, nothing else
-FLAG = re.compile(r"^--(no)?(share|unshare|socket|nosocket|device|nodevice|allow|disallow|filesystem|nofilesystem|persist|"
-                  r"env|unset-env|talk-name|no-talk-name|own-name|system-talk-name|system-no-talk-name|system-own-name)(=\S.*)?$")
+FLAG = re.compile(
+    r"^--(no)?(share|unshare|socket|nosocket|device|nodevice|allow|disallow|filesystem|nofilesystem|persist|"
+    r"env|unset-env|talk-name|no-talk-name|own-name|system-talk-name|system-no-talk-name|system-own-name)(=\S.*)?$"
+)
 
 
 def _run(*args, check=False):
-    return subprocess.run(FLATPAK + list(args), capture_output=True, text=True, timeout=60)
+    return subprocess.run(
+        FLATPAK + list(args), capture_output=True, text=True, timeout=60
+    )
 
 
 def parse_keyfile(text: str) -> dict:
@@ -64,7 +80,10 @@ def parse_keyfile(text: str) -> dict:
 
 def as_perms(kf: dict) -> dict:
     ctx = kf.get("Context", {})
-    p = {name: [x for x in ctx.get(key, "").split(";") if x] for name, key in LISTS.items()}
+    p = {
+        name: [x for x in ctx.get(key, "").split(";") if x]
+        for name, key in LISTS.items()
+    }
     p["env"] = dict(kf.get("Environment", {}))
     p["session"] = dict(kf.get("Session Bus Policy", {}))
     p["system"] = dict(kf.get("System Bus Policy", {}))
@@ -99,7 +118,11 @@ def show(app: str) -> dict:
     eff = as_perms(parse_keyfile(_run("info", "--show-permissions", app).stdout))
     mine = as_perms(parse_keyfile(_run("override", "--user", "--show", app).stdout))
     # a name in an override list means you changed it ("!x" there means turned off)
-    changed = {k: sorted({x.lstrip("!") for x in v}) for k, v in mine.items() if isinstance(v, list) and v}
+    changed = {
+        k: sorted({x.lstrip("!") for x in v})
+        for k, v in mine.items()
+        if isinstance(v, list) and v
+    }
     for k in ("env", "session", "system"):
         if mine[k]:
             changed[k] = sorted(mine[k])
@@ -114,7 +137,9 @@ def set_flags(app: str, flags: list[str]) -> dict:
         return {"error": "not a permission: %s" % bad[0]}
     r = _run("override", "--user", *flags, app)
     if r.returncode != 0:
-        return {"error": (r.stderr.strip().splitlines() or ["flatpak override failed"])[-1]}
+        return {
+            "error": (r.stderr.strip().splitlines() or ["flatpak override failed"])[-1]
+        }
     return show(app)
 
 
@@ -122,9 +147,17 @@ def portal(app: str, name: str, value: str) -> dict:
     if name not in PORTALS or value not in ("yes", "no", "reset"):
         return {"error": "not a portal answer: %s %s" % (name, value)}
     table, obj = PORTALS[name]
-    r = _run("permission-remove", table, obj, app) if value == "reset" else _run("permission-set", table, obj, app, value)
+    r = (
+        _run("permission-remove", table, obj, app)
+        if value == "reset"
+        else _run("permission-set", table, obj, app, value)
+    )
     if r.returncode != 0:
-        return {"error": (r.stderr.strip().splitlines() or ["flatpak permission failed"])[-1]}
+        return {
+            "error": (r.stderr.strip().splitlines() or ["flatpak permission failed"])[
+                -1
+            ]
+        }
     return show(app)
 
 
@@ -141,7 +174,11 @@ def main(argv: list[str]) -> int:
             r = portal(*args)
         elif cmd == "reset" and len(args) == 1:
             res = _run("override", "--user", "--reset", args[0])
-            r = show(args[0]) if res.returncode == 0 else {"error": res.stderr.strip() or "reset failed"}
+            r = (
+                show(args[0])
+                if res.returncode == 0
+                else {"error": res.stderr.strip() or "reset failed"}
+            )
         else:
             print(__doc__.strip().split("\n\n")[1], file=sys.stderr)
             return 2

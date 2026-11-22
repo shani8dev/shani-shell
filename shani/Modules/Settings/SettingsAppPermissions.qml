@@ -206,7 +206,8 @@ ColumnLayout {
                 Text { visible: arow.isOpen; text: Tr.t("Asks through the desktop"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; Layout.topMargin: Theme.px(8) }
                 Repeater {
                     model: arow.isOpen ? [["notifications", Tr.t("Notifications")], ["background", Tr.t("Running in the background")],
-                                          ["camera", Tr.t("Camera")], ["location", Tr.t("Your location")], ["screenshot", Tr.t("Screenshots")]] : []
+                                          ["camera", Tr.t("Camera")], ["microphone", Tr.t("Microphone")],
+                                          ["location", Tr.t("Your location")], ["screenshot", Tr.t("Screenshots")]] : []
                     RowLayout {
                         id: prow
                         required property var modelData

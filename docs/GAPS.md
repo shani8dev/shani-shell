@@ -1,5 +1,10 @@
 # Known gaps
 
+> **Complete agent reports:** this file is the curated, deduplicated list. The
+> full verbatim reports from all seven research passes (hundreds of findings,
+> including items that were later fixed or deduplicated) are in
+> [GAPS-RESEARCH.md](GAPS-RESEARCH.md).
+
 What the ShaniOS niri desktop does not do yet, or does without proof, surface
 by surface. An item leaves this file when it is built *and* a test runs it.
 Compared against GNOME Settings, KDE System Settings, Deepin's dde-control-center,
@@ -1733,3 +1738,148 @@ static (no QML runtime, hardware, PAM/polkit, TPM/MOK or network capture).
 
 All sixth-pass verdicts are static — no runtime, hardware, PAM/polkit, TPM/MOK,
 printer, gamescope or live deploy verification was possible.
+
+## Seventh-pass research (Nov 2026) — formats, locales, a11y by disability, web, sandbox, help
+
+Seven more read-only audits. All findings are **[open]** unless marked, all
+static (no QML runtime, hardware, real browser/Flatpak, braille/Orca or live
+format samples).
+
+### Regional and locale formats (beyond translated words)
+
+**Core finding:** `Common/Tr.qml` follows `locale.conf` live for *words*, but no
+`QLocale.setDefault` and no locale argument to `Qt.formatDate`/`Qt.formatTime`
+exists anywhere in the tree. The locale preview in Settings promises grouped,
+locale-ordered output no app actually renders.
+
+- **[high]** Dates ignore QLocale across Files, Feeds, Mail, Calendar, Backup and
+  QuickLook; the `use24h` setting is honoured in only 3 of 12 surfaces; hardcoded
+  English weekday/month arrays in Weather, DatePicker and both calendars; fixed
+  day-first order where en-US expects month-first.
+- **[high]** File sizes divide by 1024 but print KB/MB/GB (should be KiB/MiB/GiB);
+  no number grouping, Indian digit grouping (`१,०००` / `1,00,000`) or Devanagari
+  numerals; AM/PM missing entirely in three clocks, so 12-hour time is ambiguous.
+- **[med]** First day of week is monday|sunday only, not locale-derived; ISO week
+  numbering hardcoded; Weather's imperial toggle changes temperature only
+  (wind stays km/h, distance km); Maps distance always metric; no real currency
+  conversion (the `100 USD in INR` case is handed to the LLM); collation is
+  codepoint/lowercase, wrong for Indic/accented names; locale formats written to
+  LC_* at setup are never consumed by QML; first-boot sets LANG only; no
+  alternate calendars (Vikram Samvat/Hijri); percent spacing hardcoded.
+
+### File-format compatibility matrix
+
+**Core finding:** the real format matrix is three dependencies (`kimageformats`,
+`qt6-multimedia-ffmpeg`, `pymupdf`+`libarchive`) wrapped in a 130-entry MIME list
+that is asserted, never measured.
+
+- **[high]** Text Editor ships zero `.tmLanguage` grammars (all files fall back to
+  the regex highlighter); UTF-16/32 files are classified "binary" by `grep -qI`
+  before the BOM-aware reader can see them.
+- **[high]** Viewer's next/prev list accepts only 13 image extensions while the
+  app claims JXL/PSD/TGA/EXR/etc. that `kimageformats` can decode; Photos grid
+  omits HEIC/raw though its importer accepts HEIC; QuickLook's format table lags
+  every app; RPM is offered in the Archive picker but has no reader.
+- **[med]** OPML round-trip destroys feed categories (tags are first-class but
+  export only writes `text`/`title`/`xmlUrl`); Office documents have no shell path
+  (OnlyOffice Flatpak); Mail cannot open local `.eml`/mbox/Maildir/MSG; Media
+  Player claims ~130 MIME types with no capability probe; Converter's input and
+  output codecs are much narrower than the player's (no HEVC/AV1/10-bit); DjVu/PS
+  defaults depend on optional tools; Calendar imports only VEVENT, dropping
+  VTODO/VJOURNAL; multipage TIFF shows only page one; e-book conversion has no
+  test; QuickLook treats any small extensionless file as text; Archive creates
+  only 4 formats while reading 20.
+- **Cheapest systemic fix:** one startup capability probe filtering `MimeType=`
+  claims against what installed decoders actually report. Flatpak fallbacks exist
+  for most items.
+
+### Accessibility by disability group
+
+**Correction:** Flatseal-style per-app permission editing *is* built
+(`SettingsAppPermissions.qml`, `bridge/flatperm.py`) — do not re-file that gap.
+- **[high]** High contrast stops at the shell (GTK apps stay on `adw-gtk3`);
+  flash alerts die at the lock screen, so a deaf user gets no call visual; the
+  braille stack (`brltty`/`espeakup`) is installed but no service is enabled;
+  TTS has no voice/language/pitch choice; voice typing transcribes but cannot
+  act as voice control; no switch access (gamepad navigation is the closest).
+- **[med]** Orca is fire-and-forget (no AT-SPI env assertion or preferences
+  entry); captions have no call source or speaker labels; non-visual
+  notifications speak title only and are inert; magnifier follows the pointer
+  only, not keyboard focus; no simple/essential mode, reading assistance,
+  dictation language picker, AD-track identification, distraction-free beyond
+  notifications, or global "always show labels".
+- **[out of scope]** colour filters/HDR/gamma (niri), dwell/eye-pointer (no
+  pointer position for layer-shell), Sticky/Slow/Bounce Keys (compositor), and
+  native Wayland Qt 6/Chromium AT-SPI menus (no appmenu protocol).
+
+### Browser and web integration
+
+**Consistent:** skel `mimeapps.list` maps all web types to Vivaldi; Settings can
+change the browser. The edges are broken:
+- **[high]** Web Apps never open in app mode — `WebApps.qml:92` generates `Exec`
+  lines looking for host browser binaries (`chromium`, `vivaldi`, …), but the
+  image has none (Vivaldi is Flatpak-only), so every entry falls to `xdg-open`
+  and loses `--app=`/`--class`/`--name`; changing the default browser in Settings
+  updates only 3 types while ~15 other web types stay Vivaldi; XF86WWW uses
+  `xdg-settings` (unreliable per the shell's own comment) while Settings uses
+  `gio mime`.
+- **[med]** No favicon fetch for web apps; "Open containing folder" has no
+  `org.freedesktop.FileManager1` implementor (niri ships no Nautilus); web apps
+  cannot be URL handlers/share targets; no password/autofill bridge; no tab
+  handoff to the phone; no download layer (XDG dir, notifications, meter scan);
+  no isolated per-app profile; no `x-www-browser` provider.
+- **[browser-level]** no image-wide Vivaldi privacy policy, independent password
+  store, and no shell page for browser version/permissions.
+
+### App permissions and sandboxing
+
+- **[fixable, security-relevant]** Microphone grant cannot be edited —
+  `flatperm.py:35-37` PORTALS map omits microphone although `SettingsPrivacy.qml`
+  knows it. Software's app page is read-only and never links to the permission
+  editor. `--user` Flatpak overrides are applied to `--system`-installed apps
+  (needs real-system verification). Parental blocking is checked in the UI only
+  (`Launcher`/`Dock`/`TvHome`), not in `bridge/launch-app.py`, so terminal and
+  autostart can run blocked apps. Persistent (AppData) folders and D-Bus
+  *own-name* are parsed but not exposed; the `devel` toggle has no warning; no
+  developer-mode gate for sideloading; no restart prompt after a permission
+  change.
+- **[needs daemon/AppArmor]** no confinement for shell-launched apps or bridges
+  (`systemd-run --scope` is cgroup lifetime only); one shell app can read
+  another's data (Notes plaintext, Contacts vCards, Calendar EDS); AppImages run
+  with full privilege; Studio-generated apps are unconfined; first-use prompts
+  are entirely external; USB permission is one coarse switch; firewall is not
+  per-application.
+
+### Onboarding, tutorials and in-app help
+
+- **[high]** No per-app Help/"?" button in any of the 52 apps (`AppWindow` has
+  only tools + window controls; no F1 handler); no link from the shell to the
+  docs site (`docs.shani.dev`); `SwitchRow`'s "explain why" `info` property is
+  set on exactly 1 of 28 uses and is hover-only (no AT-SPI/keyboard path).
+- **[med]** Shortcut list cannot be printed/exported or grouped by scope;
+  existing niri shortcuts cannot be rebound from the shell; a bare `?` in the
+  launcher means "ask Chronoa", not help; no progressive onboarding checklist
+  (only three first-use flags); empty states often give no next step; no app
+  "What is this?" mode; tooltips say WHAT not WHY; setup has no help path;
+  capture tools have no in-place key list; the static niri hotkey overlay
+  bypasses the shell's own searchable shortcut list; launcher help actions are
+  never contextual.
+
+### Other desktops and OS migration
+
+- **[feasible]** Unity-style HUD over app-menu actions; named panel profiles;
+  desktop right-click menu; A–Z app-grid scrubber; launcher "Today" service
+  cards; "make it look like Windows/macOS" presets; interactive shortcut cheat
+  sheet; auto workspace-per-app; multiple independent panels; ten-foot mode.
+- **[feasible migration]** browser bookmark import (HTML/`places.sqlite`),
+  password import (Chrome CSV/KeePass/Bitwarden), mail import (mbox/maildir;
+  PST via libpst), a first-run migration step in Setup, guided Windows-drive
+  import with ownership fixups, BitLocker status/recovery-key UI, Android
+  restore via ADB, macOS shortcut muscle-memory mode, in-shell "what replaces
+  Photoshop/Excel/Outlook?" helper.
+- **[out of scope]** APFS/Time Machine and iMessage/WhatsApp backup restore
+  (proprietary/encrypted), HarmonyOS handoff (server), always-on ambient
+  cards (hardware).
+
+All seventh-pass verdicts are static — no runtime, hardware, real browser/Flatpak,
+braille/Orca, installed image or live format samples were available.

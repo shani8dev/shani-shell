@@ -93,11 +93,33 @@ def terminal_argv() -> list[str]:
     return ["foot", "-e"]
 
 
+def blocked_by_parental_controls(app_id: str) -> bool:
+    """Parental blocking is checked in the launcher/dock too, but a terminal,
+    autostart or Flatpak can bypass those. Ask malcontent here as the last gate.
+    Fail open (allow) when the appfilter bridge is missing or errors: a broken
+    optional bridge must not lock the person out of their own apps."""
+    tool = os.environ.get("SHANI_APPFILTER_TOOL")
+    if not tool:
+        return False
+    bare = app_id.removesuffix(".desktop")
+    try:
+        r = subprocess.run(
+            [sys.executable, tool], capture_output=True, text=True, timeout=5
+        )
+        data = json.loads(r.stdout)
+        return bool(data.get("available")) and bare in (data.get("blocked") or [])
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return False
+
+
 def main(argv: list[str]) -> int:
     if len(argv) < 2:
         print(__doc__, file=sys.stderr)
         return 64
     app_id, rest = argv[1], argv[2:]
+    if blocked_by_parental_controls(app_id):
+        print(json.dumps({"ok": False, "error": "blocked by parental controls"}))
+        return 3
     # in a scope of its own (app-<id>-<n>.scope, as GNOME does): an app launched from
     # the shell lives in the shell's service otherwise, and dies when the shell restarts
     rt = os.environ.get("XDG_RUNTIME_DIR", "")
