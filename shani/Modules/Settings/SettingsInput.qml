@@ -275,6 +275,19 @@ ColumnLayout {
     Connections { target: page.d; function onDoubleClickSpeedChanged() { dblClick.running = true; } }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Drawing tablet & touchscreen") }
+    // which one is plugged in: the settings below apply to the tablet, and with
+    // two of them it helps to see which one the system found
+    Text {
+        Layout.fillWidth: true
+        text: !Tablet.available ? Tr.t("libwacom is not installed on this computer")
+            : Tablet.devices.length === 0 ? Tr.t("No drawing tablet connected")
+            : Tablet.devices.length === 1 ? Tr.t("Connected: %1", Tablet.devices[0])
+            : Tr.t("Connected: %1", Tablet.devices.join(", "))
+        color: Tablet.devices.length ? Theme.text : Theme.faint
+        wrapMode: Text.Wrap
+        font.family: Theme.font
+        font.pixelSize: Theme.px(12) * Theme.fontScale
+    }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Keyboard button when hidden"); hint: Tr.t("on a touchscreen, or with no keyboard: a small button brings the screen keyboard back"); checked: page.d.oskButton; onToggled: on => page.d.oskButton = on }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Screen keyboard in tablet mode"); hint: Tr.t("folded into a tablet it comes up, unfolded it goes"); checked: page.d.oskWithTabletMode; onToggled: on => page.d.oskWithTabletMode = on }
     Repeater {

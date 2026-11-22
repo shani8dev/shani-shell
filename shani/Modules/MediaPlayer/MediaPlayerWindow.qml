@@ -385,6 +385,16 @@ AppWindow {
                         Text {
                             Layout.fillWidth: true
                             horizontalAlignment: Text.AlignHCenter
+                            visible: MediaInfo.line !== ""
+                            text: MediaInfo.line
+                            color: "#a0ffffff"
+                            elide: Text.ElideRight
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            horizontalAlignment: Text.AlignHCenter
                             visible: PlayQueue.current === ""
                             text: Tr.t("Open a video or a song, or drop one on this window")
                             color: "#b0ffffff"
