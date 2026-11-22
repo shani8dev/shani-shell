@@ -310,3 +310,16 @@ Each needs real hardware or shani-testbed:
   images and text when a printer is there (CUPS `lp`).
 - **Weather advisories** — rain, wind and heat read out of the forecast the
   shell already fetches; open-meteo has no warning feed, and these say so.
+
+## New apps and shell features (Nov 2026)
+
+Built since the pass above, each with the limit that still applies:
+- **Contacts** — vCard files, groups, your own card. No CardDAV in the shell; sync is whatever you already use (a cloud folder, vdirsyncer).
+- **Disks** — erase, format, encrypt, health and install-stick, with two-click confirmation and polkit.
+- **Models** — ollama discovery and download, what fits in RAM, cloud providers whose keys live in Passwords. "Fits" is a RAM estimate, not a benchmark.
+- **Studio** — describes an app, Chronoa writes QML into ~/Developer. The generated code is a starting point, not a finished app.
+- **Terminal** — SSH hosts, keys, tunnels and snippets. Not a terminal emulator of its own; it opens the terminal chosen in Settings.
+- **Backup** — a timeline of snapshots to restore all or just files from; needs shani-backup and a backup drive.
+- **Mail, Feeds, Firewall** — Mail reads by folder and sends, with no user-facing flag button yet (only read/unread state); Feeds does RSS/Atom with OPML and one refresh timer, not per-feed times; Firewall drives firewalld but has no zone policies, ipset or direct rules.
+- **Notes, Reminders, Calendar, Photos** — gpg-locked notes, checklists, attachments and cloud-folder sync; smart lists and repeat rules; day/year views, time zones, natural-language dates and invitations; day/month/year grouping, import from phone or camera and adjust in Viewer. Adding an online calendar account is still GNOME Online Accounts'.
+- **Text Editor, Preview, Passwords, Clipboard, Screenshots** — multiple carets, snippets and TextMate bundles; seven PDF tools flattened into a copy plus merge/split/export; passkey entries that are a keyring-backed metadata registry, not real credentials, and a weak/reused audit over saved secrets; text transforms and gpg-encrypted history; pin, scrolling capture (grim+slop+ydotool+PIL), Viewer annotation and encrypted history. Scrolling capture needs those tools installed.

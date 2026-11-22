@@ -51,3 +51,17 @@ a glance away, and when you are not using it, it costs almost nothing.
   keyboard and accessibility options from the first screen.
 - **Keyboard and game controller** drive every surface: arrows in reading
   order, Enter to press, Escape to go back.
+
+## New apps and tools
+
+- **Contacts** — an address book of vCard files, with groups and your own card.
+- **Disks** — erase, format, encrypt or check a drive, and write an install stick.
+- **Models** — find and download models that fit your computer, and connect cloud AI providers.
+- **Studio** — describe an app and Chronoa builds it for you.
+- **Terminal** — keep your SSH hosts, keys, tunnels and snippets in one place.
+- **Backup** — a timeline of snapshots; restore everything or just your files.
+- **Mail and Feeds** — read and send mail by folder, and follow RSS and Atom feeds.
+- **Global menu and layouts** — the app's menus sit in the bar; hold the zoom button for window layouts, Super+Alt+Arrow snaps to an edge, and hovering previews a window or file.
+- **Notes, Reminders, Calendar, Photos** — locked notes with gpg, checklists and attachments; smart lists and repeat rules; day and year views, time zones and invitations; photos by day, month or year with import and adjust.
+- **Text Editor, Preview, Screenshots** — multiple carets and snippets; annotate a PDF with seven tools; pin a capture, take a scrolling one, and keep history encrypted.
+- **Passwords and Clipboard** — passkey references and a weak/reused password audit; text transforms and encrypted history.

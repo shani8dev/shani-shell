@@ -177,7 +177,8 @@ in that nested session - not yet on an installed image - is listed in
   Viewer, Document Viewer, Photos, Archive Manager, Calculator, Calendar, Tasks,
   Clocks, Weather, Notes, Translate, Camera, Voice Recorder, Characters, Fonts,
   Maps, Disk Usage, Document Scanner, System Monitor, Logs, Password Generator,
-  Authenticator, Nearby Share, Converter, PDF Signer, Video Trimmer, Kundali and
+  Authenticator, Nearby Share, Converter, PDF Signer, Video Trimmer, Kundali,
+  Contacts, Disks, Models, Studio, Terminal, Backup, Mail, Feeds and
   Settings (screen time, storage and colours from a picture live there, as on
   other desktops); and the tools
   Screenshot, Screen Recorder, Color Picker, Screen Ruler, Lens, Magnifier, Live
@@ -185,6 +186,34 @@ in that nested session - not yet on an installed image - is listed in
   be pinned to the dock, and open from a terminal with `shani app <name>`.
   How the set compares with GNOME, KDE, Deepin, Kylin, Cinnamon, macOS,
   Windows and Android: `docs/ECOSYSTEM.md`.
+- **New apps** — **Contacts** keeps vCard files with groups and your own card;
+  **Disks** erases, formats, encrypts, checks health and writes an install stick;
+  **Models** finds and downloads models that fit in RAM and connects cloud
+  providers (keys kept in Passwords); **Studio** builds a QML app from your
+  description; **Terminal** keeps SSH hosts, keys, tunnels and snippets;
+  **Backup** shows a timeline of snapshots to restore all or just files from;
+  **Mail** reads by folder and sends messages; **Feeds** follows RSS and Atom;
+  **Firewall** settings drive firewalld.
+- **More in the apps you know** — Text Editor has multiple carets
+  (Alt+Shift+Down for a column), Tab-expanded snippets and TextMate bundles;
+  the Document Viewer annotates a PDF with seven tools flattened into a copy
+  and merges, splits and exports; Calendar has day and year views, time zones,
+  natural-language dates and invitations with guests and RSVP; Notes has
+  gpg-locked notes, checklists, attachments and sync to a cloud folder;
+  Reminders has smart lists and repeat rules; Photos groups by day, month or
+  year, imports from a phone or camera and adjusts in the Viewer; Passwords
+  holds passkey references in the keyring and audits weak and reused ones;
+  Clipboard has upper/lower/title/plain/trim buttons and history encrypted at
+  rest; Screenshots can pin a capture above your work, take a scrolling one,
+  annotate in the Viewer and encrypt history.
+- **The app's menus in the bar** — File, Edit … inline, macOS style, read over
+  D-Bus from Qt, GTK and XWayland apps that register with the shell's registrar,
+  or from the accessibility tree as a fallback. Native Wayland Qt 6 and Chromium
+  need XWayland for their menus.
+- **Window layouts** — hold the bar's maximise button for the layout palette,
+  Super+Alt+Arrow snaps to an edge, arrange-all with Ctrl+Z undo. The bar carries
+  a workspace map and a ribbon showing the part you can see; hovering a dock
+  icon or a path previews a window or file.
 - **Notes you can tick and paste into** — a task's box flips where you click it,
   and an image on the clipboard becomes a file beside the notes, pointed at by
   the note. **The Converter** takes a trim (from/to), a volume, fades, a title

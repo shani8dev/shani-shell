@@ -82,8 +82,8 @@ Maintenance cleans the *system*; shani-link spoke KDE Connect but its file
 sending had never worked against the protocol. Each new one hands over to
 the existing one where they meet.
 
-Left, by choice: **mail** - no client in the niri image; one is a Software
-install away.
+**Mail** now has a shell client (`Modules/Mail`, IMAP + SMTP with a MailHog
+development mode), so the desktop is covered without a separate install.
 
 Not proven on real hardware yet (the nested session cannot): LocalSend and
 KDE Connect against real phones, and the firewall prompt through polkit.

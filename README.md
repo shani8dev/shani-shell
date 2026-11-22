@@ -145,7 +145,7 @@ Each of these is a real screen of the shell — the gaps the clips above leave.
 <tr>
 <td align="center" width="33%"><img src="docs/more/overview.jpg" alt="The overview"><br><b>Overview</b> — every workspace and window, live</td>
 <td align="center" width="33%"><img src="docs/more/switcher.jpg" alt="Alt+Tab"><br><b>Alt+Tab</b> — the last window preselected</td>
-<td align="center" width="33%"><img src="docs/more/app-menus.jpg" alt="The window menu with the app's menus"><br><b>The app's own menus</b> — from the bar, read from its accessibility tree</td>
+<td align="center" width="33%"><img src="docs/more/app-menus.jpg" alt="The window menu with the app's menus"><br><b>The app's own menus</b> — inline in the bar, read over D-Bus or the accessibility tree</td>
 </tr>
 <tr>
 <td align="center"><img src="docs/more/launcher-answer.jpg" alt="The launcher answering a conversion"><br><b>Answers in the launcher</b> — sums, units, money, Chronoa one key away</td>
