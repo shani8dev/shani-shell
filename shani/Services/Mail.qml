@@ -20,6 +20,10 @@ Singleton {
     property string subject: ""
     property string from: ""
     property string body: ""
+    property string html: ""          // the same message as it was sent, made safe (bridge)
+    property var attachments: []      // [{ name, type, size }] - named, not fetched
+    property bool showHtml: false     // render the original formatting instead of the text
+    property string query: ""         // what the search box is looking for
     property bool busy: false
     property string note: ""
 
@@ -30,11 +34,26 @@ Singleton {
     function markRead(uid) { if (uid) run("markread", [uid, root.folder], false) }
     function remove(uid) { if (uid) run("delete", [uid, root.folder]) }
     function send(to, subject, body) { run("send", [to, subject, body]) }
+    // a word in the sender, the subject or the body: the server looks (IMAP
+    // SEARCH), or the reader does when the server cannot
+    function search(q) { root.query = q; run("search", q ? [q, root.folder] : [root.folder]) }
+
+    // 412 -> "412 B", ivar 12345 -> "12.3 kB": the same units the archive and
+    // disk usage views use, so an attachment reads like a file
+    function size(bytes) {
+        const units = ["B", "kB", "MB", "GB"];
+        let v = bytes, i = 0;
+        while (v >= 1000 && i < units.length - 1) { v /= 1000; i++; }
+        return (i === 0 ? v : v.toFixed(v < 10 ? 1 : 0)) + " " + units[i];
+    }
 
     // one Process, reused: `what` says which answer this is, and is the
     // subcommand the bridge takes
     function run(what, args, redraw) {
-        if (job.running) { root.pending = { what: what, args: args, redraw: redraw !== false }; return; }
+        if (job.running) {
+            root.pending = root.pending.concat([{ what: what, args: args, redraw: redraw !== false }]);
+            return;
+        }
         start(what, args, redraw);
     }
 
@@ -46,7 +65,7 @@ Singleton {
         job.running = true;
     }
 
-    property var pending: null
+    property var pending: []          // what to run next: a queue, not one slot
 
     function finished(what, text, code) {
         busy = false;
@@ -70,7 +89,13 @@ Singleton {
             root.from = (data && data.from) || "";
             root.subject = (data && data.subject) || "";
             root.body = (data && data.text) || "";
+            root.html = (data && data.html) || "";
+            root.attachments = Array.isArray(data && data.attachments) ? data.attachments : [];
+            root.showHtml = root.html !== "";
             root.markRead(root.openUid);
+        } else if (what === "search") {
+            root.messages = Array.isArray(data) ? data : [];
+            if (root.messages.length) root.read(root.messages[0].uid);
         } else if (what === "delete") {
             root.refresh();
         } else if (what === "send") {
@@ -85,9 +110,9 @@ Singleton {
         stdout: StdioCollector { id: out }
         onExited: code => {
             root.finished(job.what, out.text, code);
-            if (root.pending) {
-                const next = root.pending;
-                root.pending = null;
+            if (root.pending.length) {
+                const next = root.pending[0];
+                root.pending = root.pending.slice(1);
                 root.start(next.what, next.args, next.redraw);
             }
         }

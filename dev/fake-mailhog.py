@@ -31,7 +31,10 @@ MESSAGES = [
             },
             "Body": "Thanks for installing ShaniOS.",
             "Text": "Thanks for installing ShaniOS.\n\nReply to this message to say hello.",
-            "HTML": "<p>Thanks for installing ShaniOS.</p>",
+            "HTML": '<p>Thanks for installing <b>ShaniOS</b>.</p><p><img src="http://tracker.example/p.gif"></p>',
+            "Attachments": [
+                {"Name": "readme.txt", "Content-Type": "text/plain", "Size": 412}
+            ],
         },
     },
     {

@@ -102,8 +102,33 @@ def part_text(part):
         return payload.decode(part.get_content_charset() or "utf-8", "replace")
 
 
-def body_of(message):
-    """The readable body: text/plain first, else the HTML stripped."""
+def safe_html(markup):
+    """An HTML mail body, made safe to hand to a text renderer.
+
+    Qt's TextDocument renders a subset of HTML - no JavaScript, no plugins -
+    but it will happily load an <img src="http://…">, which is how a sender
+    learns that the message was opened. Everything that reaches outside the
+    message goes: scripts, styles, frames, objects, event handlers, and remote
+    images (replaced by a word, so the layout does not pretend). Links keep
+    their text; only the href is dropped for a javascript: or data: one.
+    """
+    s = markup or ""
+    s = re.sub(r"<(script|style|iframe|object|embed|link|meta)\b.*?</\1>", " ", s, flags=re.S | re.I)
+    s = re.sub(r"<(script|style|iframe|object|embed|link|meta)\b[^>]*/?>", " ", s, flags=re.I)
+    s = re.sub(r"\son[a-z]+\s*=\s*\"[^\"]*\"", " ", s, flags=re.I)
+    s = re.sub(r"\son[a-z]+\s*=\s*'[^']*'", " ", s, flags=re.I)
+    s = re.sub(r"\son[a-z]+\s*=\s*[^ >]+", " ", s, flags=re.I)
+    s = re.sub(r"<img\b[^>]*>", " [image] ", s, flags=re.I)
+    # href/src that is not http, https, mailto or a fragment
+    s = re.sub(r"(href|src)\s*=\s*\"\s*(?!https?:|mailto:|#|/)[^\"]*\"", "", s, flags=re.I)
+    s = re.sub(r"(href|src)\s*=\s*'\s*(?!https?:|mailto:|#|/)[^']*'", "", s, flags=re.I)
+    return s
+
+
+def bodies_of(message):
+    """(text, html) - both as they came. A message with an HTML part and a text
+    part has both; one with only HTML gets the HTML shown as text as well, so a
+    reader that cannot render it still has something to say."""
     text, html_part = "", ""
     if message.is_multipart():
         for part in message.walk():
@@ -115,7 +140,34 @@ def body_of(message):
         html_part = part_text(message)
     else:
         text = part_text(message)
+    return (text.strip(), html_part.strip())
+
+
+def body_of(message):
+    """The readable body: text/plain first, else the HTML stripped."""
+    text, html_part = bodies_of(message)
     return (text or strip_html(html_part)).strip()
+
+
+def attachments_of(message):
+    """What came with it: [{name, type, size}] - nothing is fetched here, the
+    reader names what it could save."""
+    out = []
+    for part in message.walk():
+        if part.get_content_maintype() == "multipart":
+            continue
+        name = part.get_filename()
+        if not name:
+            continue
+        payload = part.get_payload(decode=True) or b""
+        out.append(
+            {
+                "name": decoded(name),
+                "type": part.get_content_type(),
+                "size": len(payload),
+            }
+        )
+    return out
 
 
 def address(value):
@@ -173,6 +225,21 @@ def mh_messages(url, folder):
     return out
 
 
+def mh_search(url, query):
+    """MailHog has no search of its own, and its API hands over the messages
+    anyway: look through sender, subject and the body here."""
+    q = (query or "").strip().lower()
+    if not q:
+        return mh_messages(url, "INBOX")
+    return [
+        m
+        for m in mh_messages(url, "INBOX")
+        if q in m["from"].lower()
+        or q in m["subject"].lower()
+        or q in (m.get("snippet") or "").lower()
+    ]
+
+
 def mh_read(url, uid):
     """MailHog's list already carries the content, and its single-message path
     does not accept every ID (a Message-ID with '=' and '@' 404s), so find the
@@ -187,15 +254,28 @@ def mh_read(url, uid):
                 continue
             content = raw.get("Content") or {}
             headers = content.get("Headers") or {}
-            body = content.get("Text") or strip_html(
-                content.get("HTML") or content.get("Body") or ""
-            )
+            text = content.get("Text") or ""
+            html = content.get("HTML") or ""
+            if not text and html:
+                text = strip_html(html)
+            atts = []
+            for name in content.get("Attachments") or []:
+                meta = name if isinstance(name, dict) else {}
+                atts.append(
+                    {
+                        "name": decoded(meta.get("Name") or meta.get("Filename") or ""),
+                        "type": meta.get("Content-Type") or "",
+                        "size": int(meta.get("Size") or 0),
+                    }
+                )
             return {
                 "from": sender((headers.get("From") or [""])[0]),
                 "to": ", ".join(address(x) for x in headers.get("To") or []),
                 "subject": decoded((headers.get("Subject") or [""])[0]),
                 "date": (headers.get("Date") or [""])[0],
-                "text": body,
+                "text": text,
+                "html": safe_html(html),
+                "attachments": atts,
             }
     return {"error": "no such message"}
 
@@ -279,6 +359,42 @@ def imap_list(c, folder):
             pass
 
 
+def imap_search(c, query, folder="INBOX"):
+    """IMAP's own SEARCH (TEXT), so the server does the looking - the reader is
+    not asked to fetch a whole mailbox to find one word."""
+    q = (query or "").strip()
+    if not q:
+        return imap_list(c, folder)
+    box = imap_connect(c)
+    try:
+        box.select(folder)
+        typ, data = box.uid("SEARCH", "CHARSET", "UTF-8", "TEXT", q)
+        uids = (data[0] or b"").split() if data else []
+        out = []
+        for uid in uids[-100:]:
+            typ, msg = box.uid(
+                "FETCH", uid, "(BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])"
+            )
+            raw = msg[0][1] if msg and isinstance(msg[0], tuple) else b""
+            m = email.message_from_bytes(raw)
+            out.append(
+                {
+                    "uid": uid.decode(),
+                    "from": sender(m.get("From", "")),
+                    "subject": decoded(m.get("Subject", "")) or "(no subject)",
+                    "date": m.get("Date", ""),
+                    "snippet": q,
+                    "unread": False,
+                }
+            )
+        return out
+    finally:
+        try:
+            box.logout()
+        except Exception:
+            pass
+
+
 def imap_read(c, uid, folder="INBOX"):
     box = imap_connect(c)
     try:
@@ -286,12 +402,15 @@ def imap_read(c, uid, folder="INBOX"):
         typ, msg = box.fetch(uid.encode(), "(BODY.PEEK[])")
         raw = msg[0][1] if msg and isinstance(msg[0], tuple) else b""
         m = email.message_from_bytes(raw, policy=email.policy.default)
+        text, html = bodies_of(m)
         return {
             "from": sender(m.get("From", "")),
             "to": address(decoded(m.get("To", ""))),
             "subject": decoded(m.get("Subject", "")),
             "date": m.get("Date", ""),
-            "text": body_of(m),
+            "text": text or strip_html(html),
+            "html": safe_html(html),
+            "attachments": attachments_of(m),
         }
     finally:
         try:
@@ -388,6 +507,9 @@ def main():
         if cmd == "read":
             print(json.dumps(mh_read(url, args[0]), ensure_ascii=False))
             return 0
+        if cmd == "search":
+            print(json.dumps(mh_search(url, args[0] if args else ""), ensure_ascii=False))
+            return 0
         if cmd in ("markread", "delete"):
             print(json.dumps({"ok": True}))
             return 0
@@ -427,6 +549,9 @@ def main():
         return 0
     if cmd == "read":
         print(json.dumps(imap_read(c, args[0], args[1] if len(args) > 1 else "INBOX"), ensure_ascii=False))
+        return 0
+    if cmd == "search":
+        print(json.dumps(imap_search(c, args[0], args[1] if len(args) > 1 else "INBOX"), ensure_ascii=False))
         return 0
     if cmd == "markread":
         print(json.dumps(imap_flag(c, args[0], "\\Seen", True, args[1] if len(args) > 1 else "INBOX")))

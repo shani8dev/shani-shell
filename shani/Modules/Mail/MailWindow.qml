@@ -63,6 +63,13 @@ AppWindow {
                     }
                     Button { text: Tr.t("Write"); enabled: toField.text.trim() !== ""; onClicked: { compose.visible = true; compose.to = toField.text.trim(); toField.text = "" } }
                 }
+                TextField {
+                    id: searchField
+                    Layout.fillWidth: true
+                    placeholder: Tr.t("Search the mail…")
+                    onAccepted: Mail.search(text.trim())
+                    onTextChanged: if (text.trim() === "" && Mail.query !== "") Mail.search("")
+                }
                 ListView {
                     id: folderList
                     Layout.fillWidth: true
@@ -180,13 +187,59 @@ AppWindow {
                 }
                 Text {
                     Layout.fillWidth: true
-                    visible: Mail.body !== ""
+                    visible: Mail.body !== "" && !Mail.showHtml
                     text: Mail.body
                     color: Theme.text
                     wrapMode: Text.Wrap
                     textFormat: Text.PlainText
                     font.family: Theme.font
                     font.pixelSize: Theme.px(14) * Theme.fontScale
+                }
+                // the message as it was sent: Qt's TextDocument renders a subset
+                // of HTML, and the bridge has already taken out everything that
+                // reaches outside the message (scripts, remote images, handlers)
+                TextDocument {
+                    Layout.fillWidth: true
+                    visible: Mail.showHtml && Mail.html !== ""
+                    textFormat: TextEdit.RichText
+                    text: Mail.html
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(14) * Theme.fontScale
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: Mail.html !== ""
+                    spacing: Theme.px(6)
+                    Button {
+                        text: Tr.t("Plain text")
+                        flat: true
+                        visible: Mail.showHtml
+                        onClicked: Mail.showHtml = false
+                    }
+                    Button {
+                        text: Tr.t("Original formatting")
+                        flat: true
+                        visible: !Mail.showHtml
+                        onClicked: Mail.showHtml = true
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    visible: Mail.attachments.length > 0
+                    spacing: Theme.px(2)
+                    Repeater {
+                        model: Mail.attachments
+                        ListRow {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            icon: "mail-attachment"
+                            title: modelData.name || Tr.t("attachment")
+                            subtitle: modelData.size > 0 ? Mail.size(modelData.size) : (modelData.type || "")
+                            interactive: false
+                        }
+                    }
                 }
                 RowLayout {
                     Layout.fillWidth: true
