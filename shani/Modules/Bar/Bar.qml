@@ -58,6 +58,14 @@ Variants {
         Connections { target: barHover; function onHoveredChanged() { if (!barHover.hovered) bar.revealed = false; } }
         Timer { interval: 250; running: barEdgeHover.hovered && !bar.revealed; onTriggered: bar.revealed = true }
         onShownChanged: Hiding.setBarShown(output, shown)
+        // workspace suggestion (floating windows that this window could sit beside)
+        readonly property var otherFloating: Object.values(Niri.windows).filter(w => w.is_floating && w !== Niri.focusedWindow)
+        readonly property string suggestion: otherFloating.length ? Tr.t("Put this window beside %1", otherFloating[0].title || otherFloating[0].app_id) : ""
+        function openAppMenu() {
+            AppMenu.load(Niri.focusedWindow);
+            Ui.closeAll();
+            Ui.windowMenu = true;
+        }
         Component.onCompleted: { Hiding.setBarShown(output, shown); Hiding.setBarOverlap(output, bar.overlap) }
         onOverlapChanged: Hiding.setBarOverlap(output, overlap)
         HoverHandler { id: barHover }
@@ -247,6 +255,11 @@ Variants {
                         anchors.leftMargin: Theme.px(10)
                         anchors.rightMargin: Theme.px(10)
                         anchors.verticalCenter: parent.verticalCenter
+                        MouseArea {
+                            anchors.fill: parent
+                            acceptedButtons: Qt.RightButton
+                            onClicked: acceptedButtons & Qt.RightButton ? win.openAppMenu() : Qt.NoButton
+                        }
                         IconImage {
                             implicitSize: 16
                             anchors.verticalCenter: parent.verticalCenter
@@ -266,6 +279,17 @@ Variants {
                             font.weight: Font.Medium
                             anchors.verticalCenter: parent.verticalCenter
                         }
+                        // Layout suggestion when hovering the title
+                        Text {
+                            text: bar.suggestion
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            color: bar.suggestion !== "" ? Theme.accent : Theme.dim
+                            anchors.verticalCenter: parent.verticalCenter
+                            Layout.leftMargin: Theme.px(6)
+                            horizontalAlignment: Text.AlignRight
+                            Layout.fillWidth: true
+                        }
                         // minimise, maximise, close: dim at rest, plain on hover
                         Row {
                             anchors.verticalCenter: parent.verticalCenter
@@ -275,7 +299,13 @@ Variants {
                             // by the focused id, not the window looked up from it: the lookup can be
                             // empty for a moment while niri reports a layout change (seen under load)
                             IconButton { size: Theme.px(22); icon: "window-minimize-symbolic"; tip: Tr.t("Minimise (Super+M)"); onClicked: if (Niri.focusedWindowId !== null) Niri.minimise(Niri.focusedWindowId) }
-                            IconButton { size: Theme.px(22); icon: "window-maximize-symbolic"; tip: Tr.t("Maximise"); onClicked: Niri.action("maximize-column") }
+                            IconButton {
+                                size: Theme.px(22)
+                                icon: "window-maximize-symbolic"
+                                tip: Tr.t("Hold for window layout · Click to maximise")
+                                onClicked: Niri.action("maximize-column")
+                                onPressAndHold: Ui.toggleWindowLayouts()
+                            }
                             IconButton { size: Theme.px(22); icon: "window-close-symbolic"; tip: Tr.t("Close (Super+Q)"); onClicked: Niri.focusedWindowId !== null ? Niri.action("close-window", "--id", String(Niri.focusedWindowId)) : Niri.action("close-window") }
                         }
                     }

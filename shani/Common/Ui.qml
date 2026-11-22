@@ -11,6 +11,7 @@ Singleton {
     property bool controlCenter: false
     property bool ring: false
     property bool layoutSwitcher: false
+    property bool windowLayouts: false      // the window layout palette (Services/WindowLayouts)
     // which layout the switcher is showing on screen right now (its id), so a
     // check can ask what is displayed instead of counting keystrokes that a
     // niri config reload can swallow - see Modules/LayoutSwitcher
@@ -32,6 +33,7 @@ Singleton {
     property bool voiceRecorder: false     // the Voice Recorder panel (Modules/VoiceRecorder)
     property bool pdfSigner: false            // the Signed panel (Modules/PdfSigner): sign / fill a PDF
     property bool diskUsage: false          // the DiskUsage panel (Modules/DiskUsage): disk treemap
+    property bool disks: false              // the Disks app (Modules/Disks): erase, format, encrypt, health
     property bool files: false             // the Files surface (Modules/Files): the file manager
     property bool videoTrimmer: false              // the Video Trimmer (Modules/VideoTrimmer)
     property bool magnifier: false
@@ -50,12 +52,16 @@ Singleton {
     property var mapsView: ({})             // { lat, lon, zoom, tiles, route, distance, steps, error }
     signal mapsAsked(string what, string arg)
     property bool textEditor: false         // the TextEditor surface (Modules/TextEditor)
+    property bool terminalApp: false          // the Terminal app (Modules/Terminal)
     property bool scanner: false           // the Scanner surface (Modules/Scanner)
     property bool passwordGenerator: false           // the Secrets surface (Modules/PasswordGenerator)
     property bool kundali: false          // the Kundali/Panchang surface (Modules/Kundali)
+    property bool models: false            // the Models app (Modules/Models): AI model discovery/download
+    property bool studio: false            // the Studio app (Modules/Studio): AI app builder
     property string kundaliDate: ""       // the day the calendar asked about (YYYY-MM-DD)
     property bool weather: false             // the Weather app (Modules/Weather)
     property bool tasks: false               // the Tasks app (Modules/Tasks)
+    property bool contacts: false            // the Contacts app (Modules/Contacts)
     property bool photos: false              // the Photos app (Modules/Photos)
     property bool translate: false           // the Translate app (Modules/Translate)
     property bool converter: false           // the Converter app (Modules/Converter)
@@ -85,7 +91,6 @@ Singleton {
     property string clocksTab: "world"
     property string textEditorOpenPath: ""   // a file a widget in Common hands to the Text Editor (which takes it and clears this)
     property bool notes: false               // the Notes surface (Modules/Notes): notebooks + wiki links
-    property bool contacts: false            // the Contacts surface (Modules/Contacts)
     property string calculatorTab: "standard" // the Calculator tab (Modules/Calculator): standard | scientific | financial | programming | converter
     property string notesNotebook: ""         // the notes notebook filter (SidebarNotes): "" = all notebooks, else a notebook name
     property bool annotate: false                  // drawing on the screen
@@ -96,6 +101,7 @@ Singleton {
     property var printerOptions: []                // Settings > Printers: name:media:sides:colour, for the tests
     property var printersFound: []                 // Settings > Printers adding: what ippfind found, for the tests
     property string backupSummary: ""              // Settings > Backup, for the tests
+    property bool backup: false                    // the Backup panel (Modules/Backup/BackupPanel)
     property string settingsCat: ""                // the settings category open
     property string settingsSection: ""            // a part of it to scroll to, once (openSettings)
     property bool settingsOpen: false              // the Settings window (Modules/Settings)
@@ -253,6 +259,7 @@ Singleton {
     function openWeather() { closeAll(); weather = true; }
     function openScreenTime() { openSettings("screentime"); }
     function openNotes() { closeAll(); notes = true; }
+    function openContacts() { closeAll(); Contacts.refresh(); contacts = true; }
     function closeApps() {
         converter = false;
         nearby = false;
@@ -261,6 +268,7 @@ Singleton {
         software = false;
         containers = false;
         tasks = false;
+        contacts = false;
         photos = false;
         translate = false;
         weather = false;
@@ -273,13 +281,17 @@ Singleton {
         voiceRecorder = false;
         pdfSigner = false;
         diskUsage = false;
+        disks = false;
         files = false;
         videoTrimmer = false;
         calendar = false;
         maps = false;
+        terminalApp = false;
         scanner = false;
         passwordGenerator = false;
         kundali = false;
+        models = false;
+        studio = false;
         notes = false;
         closedApps();
     }
@@ -295,6 +307,7 @@ Singleton {
         annotate = false;
         controlCenter = false;
         layoutSwitcher = false;
+        windowLayouts = false;
         expanded = "";
         dockFocus = false;
         barFocus = false;
@@ -322,6 +335,11 @@ Singleton {
         const was = layoutSwitcher;
         closeAll();
         layoutSwitcher = !was;
+    }
+    function toggleWindowLayouts() {
+        const was = windowLayouts;
+        closeAll();
+        windowLayouts = !was;
     }
     function toggleControlCenter(section) {
         const was = controlCenter && (section === undefined || expanded === section);

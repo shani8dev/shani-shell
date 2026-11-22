@@ -11,6 +11,7 @@ Rectangle {
     property string tip: ""
     signal clicked()
     signal rightClicked()
+    signal pressAndHold()               // a long press: the window-layout picker on the bar's maximise
     property bool hasMenu: false           // a right-click does something: the Menu key (a pad's X) too
 
     // for screen readers: a button named after what it does
@@ -80,10 +81,12 @@ Rectangle {
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         cursorShape: Qt.PointingHandCursor
         enabled: root.enabled
-        onPressed: { ripple.width = root.width * 2.4; ripple.height = ripple.width }
-        onReleased: { ripple.width = 0; ripple.height = 0 }
+        onPressed: { ripple.width = root.width * 2.4; ripple.height = ripple.width; pressTimer.restart() }
+        onReleased: { ripple.width = 0; ripple.height = 0; pressTimer.stop() }
         onClicked: e => e.button === Qt.RightButton ? root.rightClicked() : root.clicked()
     }
+    // a long press fires pressAndHold once; releasing before it fires is a click
+    Timer { id: pressTimer; interval: 500; onTriggered: root.pressAndHold() }
     // keyboard and controller: Enter / Space click, the Menu key right-clicks
     KeyFocus { enabled: root.enabled && root.visible; menuable: root.hasMenu; onActivated: root.clicked(); onMenu: root.rightClicked() }
     // what it is, on hover: the tip, else the name a screen reader says
