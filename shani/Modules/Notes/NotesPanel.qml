@@ -34,6 +34,10 @@ AppWindow {
     // delete asks first: a note is a file on disk, and there is no undo
     property bool confirmDelete: false
     property bool confirmNotebook: false
+    property string bodyQuery: ""
+    property string tagFilter: ""
+    property bool showTrash: false
+    property bool showHistory: false
     Timer { id: deleteTimer; interval: 4000; onTriggered: win.confirmDelete = false }
     Timer { id: notebookTimer; interval: 4000; onTriggered: win.confirmNotebook = false }
 
@@ -104,8 +108,23 @@ AppWindow {
                         Layout.fillWidth: true
                         placeholderText: Tr.t("Search note text (Enter)…")
                         onAccepted: {
-                            const results = Services.QuickNotes.searchBodies(text);
-                            if (results.length > 0) Services.QuickNotes.open(results[0].name, results[0].notebook);
+                            win.bodyQuery = String(text).trim();
+                            Services.QuickNotes.searchBodies(win.bodyQuery);
+                        }
+                    }
+
+                    // every body-search hit, not only the first one
+                    ListView {
+                        visible: win.bodyQuery !== ""
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Math.min(Theme.px(120), contentHeight)
+                        clip: true
+                        model: Services.QuickNotes.bodyResults
+                        delegate: ItemDelegate {
+                            required property var modelData
+                            width: ListView.view.width
+                            text: modelData.name + (modelData.notebook ? "  ·  " + modelData.notebook : "")
+                            onClicked: Services.QuickNotes.open(modelData.name, modelData.notebook)
                         }
                     }
 
@@ -117,15 +136,50 @@ AppWindow {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         clip: true
-                        model: Services.QuickNotes.notes.filter(n => (win.selectedNotebook === "" || n.notebook === win.selectedNotebook) && (win.filterText === "" || n.name.toLowerCase().indexOf(win.filterText.toLowerCase()) >= 0))
-                        delegate: ItemDelegate {
-                            width: ListView.view.width
-                            text: modelData.name
-                            highlighted: modelData.id === Services.QuickNotes.current
-                            onClicked: {
-                                const slash = modelData.id.indexOf("/");
-                                if (slash >= 0) Services.QuickNotes.open(modelData.id.slice(slash + 1), modelData.id.slice(0, slash));
-                                else Services.QuickNotes.open(modelData.name, "");
+                        model: Services.QuickNotes.sortedNotes(Services.QuickNotes.notes.filter(n =>
+                            (win.selectedNotebook === "" || n.notebook === win.selectedNotebook)
+                            && (win.filterText === "" || n.name.toLowerCase().indexOf(win.filterText.toLowerCase()) >= 0)
+                            && (win.tagFilter === "" || Services.QuickNotes.contentHits.indexOf(n.id) >= 0)))
+                        delegate: Rectangle {
+                            required property var modelData
+                            width: noteList.width
+                            implicitHeight: noteText.implicitHeight + prevText.implicitHeight + Theme.px(10)
+                            radius: Theme.radiusSmall
+                            color: modelData.id === Services.QuickNotes.current ? Theme.accentSoft
+                                : rowMouse.containsMouse ? Theme.hover : "transparent"
+                            ColumnLayout {
+                                anchors { fill: parent; margins: Theme.px(4) }
+                                spacing: 0
+                                Text {
+                                    id: noteText
+                                    Layout.fillWidth: true
+                                    text: modelData.name + (modelData.notebook ? "  ·  " + modelData.notebook : "")
+                                    color: Theme.text
+                                    font.family: Theme.font
+                                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                                    elide: Text.ElideRight
+                                }
+                                Text {
+                                    id: prevText
+                                    Layout.fillWidth: true
+                                    text: Services.QuickNotes.preview(modelData.name, modelData.notebook)
+                                    color: Theme.dim
+                                    font.family: Theme.font
+                                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                                    elide: Text.ElideRight
+                                    maximumLineCount: 1
+                                }
+                            }
+                            MouseArea {
+                                id: rowMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    const slash = modelData.id.indexOf("/");
+                                    if (slash >= 0) Services.QuickNotes.open(modelData.id.slice(slash + 1), modelData.id.slice(0, slash));
+                                    else Services.QuickNotes.open(modelData.name, "");
+                                }
                             }
                         }
                     }
@@ -141,6 +195,35 @@ AppWindow {
                             : Tr.t("Notes save as you type — start one below")
                         actionText: win.filterText !== "" ? Tr.t("Clear the filter") : ""
                         onAction: win.filterText = ""
+                    }
+
+                    // sort order and #tags
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: Theme.px(4)
+                        Repeater {
+                            model: [["updated", "Updated"], ["created", "Created"], ["title", "Title"]]
+                            Choice {
+                                required property var modelData
+                                text: modelData[1]
+                                selected: Services.QuickNotes.sortBy === modelData[0]
+                                onClicked: { Services.QuickNotes.sortBy = modelData[0]; Settings.data.notesSortBy = modelData[0]; Settings.save(); }
+                            }
+                        }
+                    }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: Theme.px(4)
+                        Choice { text: "All tags"; selected: win.tagFilter === ""; onClicked: win.tagFilter = "" }
+                        Repeater {
+                            model: Services.QuickNotes.tags()
+                            Choice {
+                                required property string modelData
+                                text: modelData
+                                selected: win.tagFilter === modelData
+                                onClicked: { win.tagFilter = modelData; Services.QuickNotes.searchBodies("#" + modelData.replace(/^#/, "")); }
+                            }
+                        }
                     }
 
                     // New note button
@@ -167,7 +250,14 @@ AppWindow {
                     Layout.margins: Theme.px(8)
 
                     Label { text: Services.QuickNotes.current || Tr.t("No note selected"); font.bold: true; Layout.fillWidth: true }
+                    Button { text: "B"; enabled: editor.enabled; onClicked: win.wrapSelection("**", "**") }
+                    Button { text: "I"; enabled: editor.enabled; onClicked: win.wrapSelection("*", "*") }
+                    Button { text: "H"; enabled: editor.enabled; onClicked: win.prefixLine("# ") }
+                    Button { text: "Link"; enabled: editor.enabled; onClicked: win.wrapSelection("[", "](https://)") }
+                    Button { text: "Code"; enabled: editor.enabled; onClicked: win.wrapSelection("`", "`") }
                     Button { text: Tr.t("Checklist"); enabled: Services.QuickNotes.current !== "" && editor.enabled; onClicked: win.insertChecklist() }
+                    Button { text: "Earlier versions"; enabled: Services.QuickNotes.current !== ""; onClicked: win.openHistory() }
+                    Button { text: "Trash…"; enabled: true; onClicked: { win.showTrash = !win.showTrash; Services.QuickNotes.trashList.running = true; } }
                     Button { text: Tr.t("Attach…"); enabled: Services.QuickNotes.current !== "" && editor.enabled; onClicked: Services.QuickNotes.attachFile() }
                     Button {
                         text: Services.QuickNotes.locked
@@ -295,11 +385,121 @@ AppWindow {
                         }
                     }
                 }
+
+                // due dates on open tasks, and a field to add one to this line
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: Services.QuickNotes.dueDates().length > 0
+                    spacing: Theme.px(4)
+                    Repeater {
+                        model: Services.QuickNotes.dueDates()
+                        Choice {
+                            required property var modelData
+                            text: modelData.due + "  " + modelData.text
+                            selected: false
+                            onClicked: { editor.cursorPosition = Services.QuickNotes.posForLine ? Services.QuickNotes.posForLine(modelData.line) : editor.cursorPosition; }
+                        }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(4)
+                    TextField {
+                        id: dueField
+                        Layout.fillWidth: true
+                        placeholder: "Due date YYYY-MM-DD on this task"
+                        onAccepted: win.addDue(text)
+                    }
+                    Button { text: "Set due"; enabled: dueField.text !== ""; onClicked: win.addDue(dueField.text) }
+                }
+
+                // version history and trash are small collapsible drawers
+                Rectangle {
+                    visible: win.showHistory
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Theme.px(120)
+                    radius: Theme.radiusSmall
+                    color: Theme.surface1
+                    ColumnLayout {
+                        anchors { fill: parent; margins: Theme.px(4) }
+                        Text { text: "Earlier versions"; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        ListView {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            clip: true
+                            model: Services.QuickNotes.historyList
+                            delegate: ItemDelegate {
+                                required property string modelData
+                                width: ListView.view.width
+                                text: modelData.split("/").pop()
+                                onClicked: { Services.QuickNotes.restoreVersion(modelData); win.showHistory = false; }
+                            }
+                        }
+                    }
+                }
+                Rectangle {
+                    visible: win.showTrash
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Theme.px(120)
+                    radius: Theme.radiusSmall
+                    color: Theme.surface1
+                    ColumnLayout {
+                        anchors { fill: parent; margins: Theme.px(4) }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text { Layout.fillWidth: true; text: "Trash"; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                            Button { text: "Empty the trash"; flat: true; enabled: Services.QuickNotes.trashed.length > 0; onClicked: Services.QuickNotes.emptyTrash() }
+                        }
+                        ListView {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            clip: true
+                            model: Services.QuickNotes.trashed
+                            delegate: ItemDelegate {
+                                required property string modelData
+                                width: ListView.view.width
+                                text: modelData
+                                onClicked: { Services.QuickNotes.restore(modelData); win.showTrash = false; }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 
     Keys.onEscapePressed: Ui.notes = false
+
+    /// Wrap the selection in a Markdown marker, keeping the selection after it.
+    function wrapSelection(prefix, suffix) {
+        const t = editor.text;
+        const a = editor.selectionStart, b = editor.selectionEnd;
+        const mid = t.slice(a, b);
+        Services.QuickNotes.set(t.slice(0, a) + prefix + mid + suffix + t.slice(b));
+        editor.select(a + prefix.length, a + prefix.length + mid.length);
+        editor.forceActiveFocus();
+    }
+    /// Turn the current line into a heading.
+    function prefixLine(prefix) {
+        const t = editor.text;
+        const a = t.lastIndexOf("\n", editor.cursorPosition - 1) + 1;
+        Services.QuickNotes.set(t.slice(0, a) + prefix + t.slice(a));
+        editor.cursorPosition = editor.cursorPosition + prefix.length;
+        editor.forceActiveFocus();
+    }
+    function openHistory() {
+        win.showHistory = !win.showHistory;
+        if (win.showHistory) Services.QuickNotes.history(Services.QuickNotes.noteId(Services.QuickNotes.current, Services.QuickNotes.currentNotebook));
+    }
+    /// Adds (or clears) @due(YYYY-MM-DD) on the task line the cursor is on.
+    function addDue(date) {
+        const before = editor.text.slice(0, editor.cursorPosition);
+        const line = before.split("\n").length - 1;
+        if (!Services.QuickNotes.setDueDate(line, String(date || "").trim())) return false;
+        dueField.text = "";
+        editor.forceActiveFocus();
+        return true;
+    }
 
     /// Flip a task's [ ] to [x] (or back) when its box is clicked.
     function toggleTask(point) {

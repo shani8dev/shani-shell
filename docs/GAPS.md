@@ -49,7 +49,7 @@ and against what a session needs before any app runs.
 - **Headphone virtual surround (stereo widening is done).** Implemented via the matrix_spatialiser LADSPA plugin (shipped in ladspa) as a "Stereo widening" toggle in Settings › Sound effects, behind `SoundFx.canSpatial`. The convolver-based virtual surround (KEMAR/Hesuvi HRIR) still needs HRIR wav files that no package ships; stereo widening is what is available.
 - **More setup-wizard languages** than English, मराठी, हिन्दी, Deutsch, Español,
   Français (strings.js).
-- **Translations**: about 1525 of 3446 catalog strings are translated into
+- **Translations**: about 1525 of 3684 catalog strings are translated into
   Marathi and Hindi (the bar, control centre, Settings and its pages, launcher,
   notifications, lock screen, overview, dock, window menu). The rest are the
   newer app windows and settings (Files, Archives, Quick Look, the viewers, the
@@ -255,7 +255,7 @@ Each needs real hardware or shani-testbed:
   and connect in silence; phones over Bluetooth (Chronoa) carry sound.
 
 ## Improved (Nov 2026)
-- Translations: ~1525/3446 Marathi/Hindi strings done; the rest (newer app windows and settings) are documented above.
+- Translations: ~1525/3684 Marathi/Hindi strings done; the rest (newer app windows and settings) are documented above.
 - Live TV, free radio picks, a QR folder-link share target, health check and problem report are now in the shell (Media Player / Share / About).
 - Real-hardware runs: nested niri only; shani-testbed boot needed for Wi-Fi BT multi-screen recording.
 # Improvements applied (Nov 2026)
@@ -1278,3 +1278,135 @@ windows was possible in this container.
 
 All third-pass verdicts are static — no QML runtime, hardware, PAM, polkit or
 live keyring was available in this container.
+
+## Gap-closing pass + fourth-pass research (Nov 2026)
+
+### Mass gap-closing pass — what is now BUILT
+
+Six parallel implementation agents closed the largest feasible slice of the
+open list above. Each added assert-based tests; the full suite is now
+**829 passed, 3 skipped**. Everything below in this subsection is **[built]**
+with a test. Previously-open items not named here are still open.
+
+- **Shell surface**: grouped notification stacks with expand; tray overflow
+  drawer; Alt+Tab app grouping (`G` toggles flat MRU, `Shift+Q` closes an app's
+  windows); window-drag onto workspace-map targets; launcher→dock pin drag;
+  app-menu `⋯` overflow; "Run as administrator" from the launcher.
+- **Feeds**: next-unread; tags/categories; article search; save/bookmark;
+  show-read toggle; feed auto-discovery; podcast enclosures.
+- **Mail**: Cc/Bcc; save attachments; mark unread / star / move-archive;
+  view source; opt-in remote images. Also fixed a latent `imap_flag` bug.
+- **Files**: symlink creation; select-items-matching; breadcrumb dropdowns;
+  sort by type and date-created.
+- **Photos**: sort order; multi-select batch trash/album; EXIF details panel;
+  ratings/tags.
+- **Viewer/PDF**: per-document bookmarks; clickable links; attachments;
+  annotation list; navigation history + first/last; case/whole-word/wrap
+  search; radio form widgets; merge/split UI.
+- **Editor**: smart indent and bracket/quote auto-close; case/whole-word/regex
+  find with live highlights and replace-all; bookmarks Ctrl+B; go-to-line UI;
+  cross-restart session restore; current-line/matching-brace overlays;
+  TextMate theme chooser.
+- **Notes**: trash/restore; dated version history; Markdown formatting toolbar;
+  tags; sort/previews; browseable body search; `@due(...)` checklist dates.
+- **Calendar**: description read/write; detail popover; repeat/end-repeat;
+  per-event alarms and timezones; current-time lines; read-only banner.
+- **Contacts**: typed/repeating phones and emails; read-only detail sheet with
+  call/mail/map/QR actions; `vcard` + `export-all`; avatars and favorites;
+  given/family sort chooser; `setGroups`/`setSelf` array fix.
+- **Media Player**: go-to-time; recent-media list; network-stream field; A→B
+  loop; Stop; chapters via ffprobe.
+- **Camera**: self-timer choice; shutter sound; WebM/H.264-MP4 choice; JPG/PNG
+  picture choice; gallery delete.
+- **Voice Recorder**: Opus/FLAC + mono/stereo; sequential names and durations;
+  cancel/discard; export; in-app playback.
+- **Video Trimmer**: frame-step and I/O/S shortcuts; capture frame; progress
+  and cancel; multi-segment cut-and-join.
+- **Translate**: source language + swap; endpoint status; file/HTML; batch mode.
+- **Weather**: multiple locations + search; dayparts; 7/10/14/16-day forecasts.
+- **Settings**: removable-media defaults; DNS search domains; WWAN GB cap.
+- **Processes**: click-to-sort; load/swap/PSI meters; details dialog + renice;
+  Users view.
+- **Software**: ODRS ratings/reviews; featured picks; version history; EOL
+  warning; add-ons; repository management.
+- **Terminal**: `-L/-R/-D` tunnels; hosts import/export; advanced options;
+  recents/status.
+- **Disks**: allocation bar; detailed SMART + self-tests; job progress/cancel;
+  mount options; benchmark; take-ownership.
+- Integration fixes from this pass: declared new programs (`picocom`,
+  `chown`, `renice`) in the dependency map and PKGBUILD, declared three new
+  settings keys, and gave the tray-overflow row a keyboard path.
+
+### Fourth-pass research — new gaps (all **[open]** unless marked)
+
+Four new audits covered ground no earlier pass touched. Static verdicts only.
+
+#### Cross-app integration and data portability
+
+- **[open]** `mailto:` has no handler: `dev.shani.Mail.desktop` has an empty
+  MIME list (`bin/shani:524-525`) and the niri skel sets no default, so XF86Mail
+  falls to a browser. Register `x-scheme-handler/mailto` + `message/rfc822`.
+- **[open]** The share sheet (`Services/Share.qml:20-35`) has no targets into
+  our own apps; Photos has no share action at all. Add Notes/Photos/Editor
+  targets and a Photos context action.
+- **[open]** "Copy path" copies plain text, not `text/uri-list`
+  (`Viewer.qml:287`, `TerminalAppWindow.qml:328`), so it cannot be pasted as a
+  file. Mail compose, Text Editor and Photos have no inbound drop targets
+  (`Common/DropZone.qml` and `Modules/Files/FileDropArea.qml` are reusable).
+- **[open]** Our apps never write to `recently-used.xbel`; Launcher recents are
+  one-way from GTK apps. Calendar has ICS import but no export. Notes `.md`
+  and Contacts `.vcf` have no default associations in the niri image.
+- **[open]** `geo:`, `web+*`, `obsidian://` and `file://` have no registration
+  or dispatch policy. Desktop entries emit no `Actions=`, so right-click
+  desktop actions cannot exist.
+- **[open]** No portable data bundle ("take my data to another OS"): Backup is
+  local snapshots, and Photos/Mail/Passwords have no export UI.
+- **[open]** Mail cannot attach a file — `send()` takes no file list and
+  Share's "Email" target shells out to `xdg-email`, bypassing our Mail.
+- **[open]** Our portal backend implements only FileChooser; Email/Share/
+  SendFiles intents from Flatpaks bypass the shell. Rich-text and file-URI
+  clipboard formats are dropped on history replay.
+- **[open]** No notification→file affordance (`x-file` hints); portal/share
+  handoffs call `Ui.closeAll()` and discard the person's surface; Files
+  bookmarks have no import/export; no shared cross-app session document
+  registry; skel default-app lists drift across editions.
+- **[stale]** "Files can't drag files out to other apps" in the first list is
+  false — `FilesPanel.qml:863,985,1197` does drag out.
+
+#### Multi-user, family, guest and enterprise/MDM
+
+- **[already built]** per-user settings and screen-time data, app blocking via
+  malcontent, guest on/off, usershares, a current-grants privacy dashboard,
+  and a fleet agent with inventory and signed remote exec.
+- **[open]** Screen time is advisory only — no enforced per-app or daily caps;
+  no bedtime/downtime schedule; no weekly/monthly report or export; the
+  parental filter is set outside the shell; no approval/ask-a-parent flow; no
+  per-user web/content filtering; no privacy access *timeline*; no bulk
+  revoke or app-data deletion; no "why does this app need X?" rationale; no
+  simplified/caregiver mode; guest has no rules; no kiosk/single-app mode; no
+  settings-profile copy between accounts; no child-visible weekly digest.
+- **[needs server/daemon]** MDM enrolment and policy plane, remote
+  wipe/lock, signed configuration profiles, per-user certificate/identity
+  management, enforced (signed) settings, a trustworthy access log,
+  cross-account parental supervision, guided access/switch control, a family
+  account layer (CalDAV/CardDAV/IMAP services), and an enterprise inventory
+  surface in Settings › About.
+
+#### Hardware and peripheral depth
+
+- **[open]** Bluetooth codec choice (LDAC/aptX/AAC/SBC) — no
+  `org.bluez.MediaTransport1` reference exists; USB device blocking (no
+  usbguard); general key remapping/layers (only xkb options today); camera
+  hardware privacy switch state (currently inferred from a kernel module);
+  camera focus/exposure/zoom controls; microphone AGC/gain; audio loopback;
+  per-app power profiles; thermal sensor depth; EDID/panel info; extended
+  printer options; Thunderbolt enrolled-device management; UPS depth (one UPS,
+  six variables, no graceful shutdown); per-sink audio delay; sound-theme
+  choice; named multi-monitor arrangement profiles.
+- **[partly out of scope]** per-app camera/mic permission for native apps
+  needs a PipeWire policy hook. **[out of scope]** virtual displays,
+  overscan, libinput accel threshold, fan curves, USB gadget modes, and
+  per-output HDR/gamma/colour filters are compositor, kernel or firmware work.
+
+All fourth-pass verdicts are static — no QML runtime, hardware, Flatpak portal,
+BlueZ/bolt/usbguard daemons or real disks were available in this container.

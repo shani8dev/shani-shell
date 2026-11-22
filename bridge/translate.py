@@ -6,9 +6,14 @@
       them into ~/.cache/shani-shell/i18n/LANG.json (Common/Tr.qml reads it
       after the reviewed catalog, which always wins). A string already in the
       cache is not asked again. Prints how many were added.
-  translate.py text LANG < "any text"
+  translate.py text LANG [SOURCE] < "any text"
       one translation, for the launcher's "Translate" on copied text; prints
-      the translation.
+      the translation. SOURCE (a code, or "auto") is optional: older callers
+      with just LANG keep working.
+  translate.py file LANG [SOURCE] [--html] < "file contents"
+      translate a whole file; --html strips tags and entities first.
+  translate.py status
+      print the endpoint and "ok" when the local model answers, exit 2 if not.
 
 Only the local model is used: llama.cpp's llama-server, which Chronoa runs on
 127.0.0.1:8765 and which speaks the OpenAI API (SHANI_TRANSLATE_URL replaces
@@ -22,16 +27,38 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
 
 URL = os.environ.get("SHANI_TRANSLATE_URL", "http://127.0.0.1:8765/v1/chat/completions")
-NAMES = {"mr": "Marathi", "hi": "Hindi", "de": "German", "es": "Spanish", "fr": "French", "bn": "Bengali",
-         "ta": "Tamil", "te": "Telugu", "kn": "Kannada", "ml": "Malayalam", "gu": "Gujarati", "pa": "Punjabi",
-         "ur": "Urdu", "it": "Italian", "pt": "Portuguese", "ru": "Russian", "ja": "Japanese", "zh": "Chinese",
-         "ar": "Arabic", "nl": "Dutch", "pl": "Polish", "tr": "Turkish", "en": "English"}
+NAMES = {
+    "mr": "Marathi",
+    "hi": "Hindi",
+    "de": "German",
+    "es": "Spanish",
+    "fr": "French",
+    "bn": "Bengali",
+    "ta": "Tamil",
+    "te": "Telugu",
+    "kn": "Kannada",
+    "ml": "Malayalam",
+    "gu": "Gujarati",
+    "pa": "Punjabi",
+    "ur": "Urdu",
+    "it": "Italian",
+    "pt": "Portuguese",
+    "ru": "Russian",
+    "ja": "Japanese",
+    "zh": "Chinese",
+    "ar": "Arabic",
+    "nl": "Dutch",
+    "pl": "Polish",
+    "tr": "Turkish",
+    "en": "English",
+}
 KEEP = "Chronoa, Cassini, ShaniOS, Wi-Fi, Bluetooth, VPN, QR, USB, KDE Connect, Tailscale, UEFI, Miracast"
 BATCH = 25
 
@@ -42,8 +69,14 @@ def cache_file(lang: str) -> Path:
 
 
 def ask(prompt: str, timeout: float = 300) -> str:
-    body = {"messages": [{"role": "user", "content": prompt + " /no_think"}], "temperature": 0.1, "max_tokens": 3000}
-    req = urllib.request.Request(URL, json.dumps(body).encode(), {"Content-Type": "application/json"})
+    body = {
+        "messages": [{"role": "user", "content": prompt + " /no_think"}],
+        "temperature": 0.1,
+        "max_tokens": 3000,
+    }
+    req = urllib.request.Request(
+        URL, json.dumps(body).encode(), {"Content-Type": "application/json"}
+    )
     with urllib.request.urlopen(req, timeout=timeout) as r:
         out = json.load(r)["choices"][0]["message"]["content"]
     # a thinking model may still wrap its answer
@@ -55,7 +88,7 @@ def _json_object(text: str) -> dict:
     if start < 0 or end <= start:
         return {}
     try:
-        got = json.loads(text[start:end + 1])
+        got = json.loads(text[start : end + 1])
     except ValueError:
         return {}
     return got if isinstance(got, dict) else {}
@@ -65,12 +98,14 @@ def translate_strings(lang: str, strings: list[str]) -> dict:
     name = NAMES.get(lang, lang)
     out = {}
     for i in range(0, len(strings), BATCH):
-        chunk = strings[i:i + BATCH]
-        prompt = (f"Translate these labels from a computer desktop's menus and settings into {name}. "
-                  f"Use the short, natural wording a phone or computer in {name} would show. "
-                  f"Keep these names as they are: {KEEP}. Keep %1, %2 and any symbols. "
-                  "Answer with only a JSON object mapping each English label to its translation.\n\n"
-                  + json.dumps(chunk, ensure_ascii=False))
+        chunk = strings[i : i + BATCH]
+        prompt = (
+            f"Translate these labels from a computer desktop's menus and settings into {name}. "
+            f"Use the short, natural wording a phone or computer in {name} would show. "
+            f"Keep these names as they are: {KEEP}. Keep %1, %2 and any symbols. "
+            "Answer with only a JSON object mapping each English label to its translation.\n\n"
+            + json.dumps(chunk, ensure_ascii=False)
+        )
         got = _json_object(ask(prompt))
         for k in chunk:
             v = got.get(k)
@@ -83,17 +118,58 @@ def translate_strings(lang: str, strings: list[str]) -> dict:
     return out
 
 
+def prompt_for(text: str, lang: str, source: str = "") -> str:
+    """Name a source language when asked; 'auto' and old callers just say 'into'."""
+    name = NAMES.get(lang, lang)
+    if source and source != "auto":
+        return (
+            f"Translate this from {NAMES.get(source, source)} into {name}. "
+            f"Answer with only the translation.\n\n{text}"
+        )
+    return f"Translate this into {name}. Answer with only the translation.\n\n{text}"
+
+
+def strip_html(text: str) -> str:
+    """Visible text only: drop scripts, styles and tags, unescape entities."""
+    import html as html_mod
+
+    text = re.sub(r"(?is)<(script|style)[^>]*>.*?</\1>", " ", text)
+    text = re.sub(r"(?s)<[^>]+>", " ", text)
+    return re.sub(r"[ \t]+", " ", html_mod.unescape(text)).strip()
+
+
+def status() -> int:
+    """Is the local model endpoint answering? Never contacts anything else."""
+    print(URL)
+    try:
+        with urllib.request.urlopen(
+            URL.replace("/chat/completions", "/models"), timeout=3
+        ) as r:
+            r.read(64)
+        print("ok")
+        return 0
+    except (urllib.error.URLError, OSError, TimeoutError) as e:
+        print(f"not running: {getattr(e, 'reason', e)}")
+        return 2
+
+
 def main(argv: list[str]) -> int:
-    if len(argv) < 3 or argv[1] not in ("strings", "text"):
+    if len(argv) >= 2 and argv[1] == "status":
+        return status()
+    if len(argv) < 3 or argv[1] not in ("strings", "text", "file"):
         print(__doc__, file=sys.stderr)
         return 64
     mode, lang = argv[1], argv[2]
     try:
-        if mode == "text":
+        if mode in ("text", "file"):
             text = sys.stdin.read().strip()
             if not text:
                 return 64
-            print(ask(f"Translate this into {NAMES.get(lang, lang)}. Answer with only the translation.\n\n{text}"))
+            flags = argv[3:]
+            if mode == "file" and "--html" in flags:
+                text = strip_html(text)
+            source = next((a for a in flags if a != "--html"), "")
+            print(ask(prompt_for(text, lang, source)))
             return 0
         wanted = [s for s in json.load(sys.stdin) if isinstance(s, str) and s.strip()]
         path = cache_file(lang)
@@ -107,13 +183,17 @@ def main(argv: list[str]) -> int:
             path.parent.mkdir(parents=True, exist_ok=True)
             merged = {**have, **new}
             tmp = path.with_suffix(".tmp")
-            tmp.write_text(json.dumps(dict(sorted(merged.items())), ensure_ascii=False, indent=1))
+            tmp.write_text(
+                json.dumps(dict(sorted(merged.items())), ensure_ascii=False, indent=1)
+            )
             tmp.replace(path)
         print(len(new))
         return 0
     except (urllib.error.URLError, OSError, TimeoutError) as e:
-        print(f"translate: the local model did not answer ({getattr(e, 'reason', e)}); nothing was sent elsewhere",
-              file=sys.stderr)
+        print(
+            f"translate: the local model did not answer ({getattr(e, 'reason', e)}); nothing was sent elsewhere",
+            file=sys.stderr,
+        )
         return 2
     except (KeyError, ValueError) as e:
         print(f"translate: the model's answer could not be read: {e}", file=sys.stderr)

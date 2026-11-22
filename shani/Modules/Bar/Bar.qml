@@ -69,6 +69,17 @@ Variants {
             Ui.windowMenu = true;
         }
 
+        // ---- system tray: a few inline, the rest in a drawer -------------------
+        readonly property int trayCap: 6
+        readonly property var trayShown: Array.from(SystemTray.items || []).slice(0, bar.trayCap)
+        readonly property var trayOverflow: Array.from(SystemTray.items || []).slice(bar.trayCap)
+        property bool trayOpen: false
+        onTrayOverflowChanged: if (bar.trayOverflow.length === 0) bar.trayOpen = false
+
+        // the inline app menu shows five; anything beyond that lives in the "⋯" submenu
+        readonly property int overflowMenuIndex: 9999
+        readonly property var overflowMenus: AppMenu.menus.slice(5)
+
         // ---- inline app menu bar (macOS style) --------------------------------
         // AppMenu is read on open; here it is also read when focus changes,
         // debounced so focus churn does not spawn a process per window.
@@ -222,8 +233,16 @@ Variants {
                                 color: modelData.focused ? Theme.accent : (modelData.window.is_urgent ? Theme.danger : Theme.stroke)
                                 border.width: modelData.window.id === Niri.focusedWindowId ? 1 : 0
                                 border.color: Theme.accentInk
+                                // drag this window onto a workspace button below to move it there
+                                Item { id: mapDragProxy; width: 1; height: 1; z: -1 }
+                                Drag.active: mapDragArea.drag.active
+                                Drag.dragType: Drag.Automatic
+                                Drag.mimeData: ({ "text/plain": String(modelData.window.id) })
                                 MouseArea {
+                                    id: mapDragArea
                                     anchors.fill: parent
+                                    drag.target: mapDragProxy
+                                    drag.threshold: 6
                                     onClicked: Niri.action("focus-window", "--id", modelData.window.id)
                                 }
                                 KeyFocus {
@@ -242,8 +261,15 @@ Variants {
                                 color: modelData.focused ? Theme.accent : Theme.alpha(Theme.stroke, 0.7)
                                 border.width: 1
                                 border.color: modelData.focused ? Theme.accentInk : Theme.stroke
+                                Item { id: floatDragProxy; width: 1; height: 1; z: -1 }
+                                Drag.active: floatDragArea.drag.active
+                                Drag.dragType: Drag.Automatic
+                                Drag.mimeData: ({ "text/plain": String(modelData.window.id) })
                                 MouseArea {
+                                    id: floatDragArea
                                     anchors.fill: parent
+                                    drag.target: floatDragProxy
+                                    drag.threshold: 6
                                     onClicked: Niri.action("focus-window", "--id", modelData.window.id)
                                 }
                                 KeyFocus {
@@ -325,6 +351,8 @@ Variants {
                             required property int index
                             readonly property bool occupied: modelData.active_window_id !== null
                             readonly property bool renaming: bar.renamingWs === modelData.id
+                            // drop a window from the map here: a name, else its number
+                            readonly property string moveTarget: modelData.name || String((modelData.idx || 0) + 1)
                             implicitWidth: renaming ? 110 : modelData.is_active ? Math.max(28, wsLabel.implicitWidth + 14) : Math.max(20, wsLabel.implicitWidth + 10)
                             implicitHeight: Theme.px(20)
                             radius: Theme.px(10)
@@ -383,6 +411,17 @@ Variants {
                                         bar.renamingWs = parent.modelData.id;
                                     else
                                         Niri.focusWorkspace(parent.modelData);
+                                }
+                            }
+                            DropArea {
+                                anchors.fill: parent
+                                keys: ["text/plain"]
+                                onEntered: d => d.accept(Qt.MoveAction)
+                                onDropped: d => {
+                                    const id = Number(String(d.getData("text/plain") || "").trim());
+                                    if (Number.isFinite(id) && id > 0)
+                                        Niri.moveWindowTo(Niri.windows[id] || { id: id }, parent.moveTarget);
+                                    d.acceptProposedAction();
                                 }
                             }
                             KeyFocus {
@@ -474,6 +513,37 @@ Variants {
                                 Accessible.role: Accessible.Button
                                 Accessible.name: menuLabel.modelData.label || ""
                             }
+                        }
+                        // the menus past the first five, unfolded in the same popup
+                        Rectangle {
+                            visible: AppMenu.menus.length > 5
+                            implicitWidth: Theme.px(24)
+                            implicitHeight: Theme.px(20)
+                            radius: Theme.px(5)
+                            color: bar.inlineMenu === bar.overflowMenuIndex ? Theme.accent : (moreMenuMouse.containsMouse ? Theme.hover : "transparent")
+                            Text {
+                                anchors.centerIn: parent
+                                text: "⋯"
+                                color: bar.inlineMenu === bar.overflowMenuIndex ? Theme.accentInk : Theme.dim
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(13) * Theme.fontScale
+                            }
+                            MouseArea {
+                                id: moreMenuMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    bar.inlineExpanded = ({});
+                                    bar.inlineMenu = bar.inlineMenu === bar.overflowMenuIndex ? -1 : bar.overflowMenuIndex;
+                                }
+                            }
+                            KeyFocus {
+                                name: Tr.t("More menus")
+                                onActivated: { bar.inlineExpanded = ({}); bar.inlineMenu = bar.inlineMenu === bar.overflowMenuIndex ? -1 : bar.overflowMenuIndex; }
+                            }
+                            Accessible.role: Accessible.Button
+                            Accessible.name: Tr.t("More menus")
                         }
                         Text {
                             Layout.preferredWidth: Math.min(implicitWidth, titleChip.Layout.maximumWidth - 124)
@@ -632,58 +702,43 @@ Variants {
                     tint: Theme.amber
                 }
 
-                // system tray
+                // system tray: the first few inline, the rest in a drawer
                 Row {
                     spacing: 2
                     Repeater {
-                        model: SystemTray.items
+                        model: bar.trayShown
+                        delegate: TrayButton { }
+                    }
+                    Item {
+                        id: trayMore
+                        visible: bar.trayOverflow.length > 0
+                        implicitWidth: Theme.px(26)
+                        implicitHeight: Theme.px(26)
                         Rectangle {
-                            id: trayItem
-                            required property var modelData
-                            implicitWidth: Theme.px(26)
-                            implicitHeight: Theme.px(26)
+                            anchors.fill: parent
                             radius: Theme.px(8)
-                            color: trayArea.containsMouse ? Theme.hover : "transparent"
-                            IconImage {
-                                id: trayIcon
-                                anchors.centerIn: parent
-                                implicitSize: 16
-                                source: trayItem.modelData.icon
-                            }
-                            // an icon the theme cannot resolve (fcitx5's, often) still shows something
-                            Icon {
-                                anchors.centerIn: parent
-                                visible: trayIcon.status !== Image.Ready
-                                name: "application-x-executable"
-                                size: Theme.px(16)
-                                color: Theme.dim
-                            }
-                            QsMenuAnchor {
-                                id: trayMenu
-                                menu: trayItem.modelData.menu
-                                anchor.item: trayItem
-                                anchor.edges: Edges.Bottom
-                                anchor.gravity: Edges.Bottom
-                            }
-                            MouseArea {
-                                id: trayArea
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-                                onClicked: e => trayItem.press(e.button)
-                                onWheel: w => trayItem.modelData.scroll(w.angleDelta.y, false)
-                            }
-                            function press(button) {
-                                const it = trayItem.modelData;
-                                if (button === Qt.MiddleButton)
-                                    it.secondaryActivate();
-                                else if (button === Qt.RightButton || it.onlyMenu)
-                                    it.hasMenu && trayMenu.open();
-                                else
-                                    it.activate();
-                            }
-                            KeyFocus { name: trayItem.modelData.tooltipTitle || trayItem.modelData.title || trayItem.modelData.id; menuable: true; onActivated: trayItem.press(Qt.LeftButton); onMenu: trayItem.press(Qt.RightButton) }
+                            color: trayMoreArea.containsMouse || bar.trayOpen ? Theme.hover : "transparent"
                         }
+                        Icon {
+                            anchors.centerIn: parent
+                            name: "view-more"
+                            size: Theme.px(16)
+                            color: Theme.dim
+                        }
+                        MouseArea {
+                            id: trayMoreArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: bar.trayOpen = !bar.trayOpen
+                        }
+                        Accessible.role: Accessible.Button
+                        Accessible.name: Tr.t("More system tray icons")
+                        Accessible.onPressAction: bar.trayOpen = !bar.trayOpen
+                        KeyFocus {
+                            name: Tr.t("More system tray icons")
+                            onActivated: bar.trayOpen = !bar.trayOpen
+                        }
+                        Hint { text: Tr.t("More system tray icons"); keys: Tr.t("click") }
                     }
                 }
 
@@ -825,7 +880,8 @@ Variants {
         // never clips it; clicking one activates it through AppMenu
         PopupWindow {
             id: appMenuPopup
-            visible: bar.inlineMenu >= 0 && AppMenu.menus[bar.inlineMenu] !== undefined
+            visible: bar.inlineMenu >= 0 && (bar.inlineMenu === bar.overflowMenuIndex
+                ? bar.overflowMenus.length > 0 : AppMenu.menus[bar.inlineMenu] !== undefined)
             anchor.item: titleChip
             anchor.rect.x: Theme.px(10)
             anchor.rect.y: titleChip.height + 4
@@ -834,7 +890,9 @@ Variants {
             implicitWidth: Theme.px(250)
             implicitHeight: appMenuCol.implicitHeight + 12
             color: Theme.glassStrong
-            readonly property var items: bar.inlineFlatten(AppMenu.menus[bar.inlineMenu] ? AppMenu.menus[bar.inlineMenu].items : [], 0)
+            readonly property var items: bar.inlineFlatten(bar.inlineMenu === bar.overflowMenuIndex
+                ? bar.overflowMenus
+                : (AppMenu.menus[bar.inlineMenu] ? AppMenu.menus[bar.inlineMenu].items : []), 0)
             MouseArea { anchors.fill: parent; onClicked: bar.inlineMenu = -1 }   // click outside the items closes
             KeyFocus { name: Tr.t("Close menu"); onActivated: bar.inlineMenu = -1 }
             ColumnLayout {
@@ -895,6 +953,118 @@ Variants {
                             KeyFocus {
                                 name: appMi.modelData.label || ""
                                 onActivated: bar.inlinePress(appMi.modelData)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // one tray icon, used both inline and in the overflow drawer
+        component TrayButton: Item {
+            id: trayBtn
+            required property var modelData
+            property bool inDrawer: false
+            implicitWidth: Theme.px(26)
+            implicitHeight: Theme.px(26)
+            Rectangle {
+                anchors.fill: parent
+                radius: Theme.px(8)
+                color: trayBtnArea.containsMouse ? Theme.hover : "transparent"
+            }
+            IconImage {
+                id: trayIcon
+                anchors.centerIn: parent
+                implicitSize: 16
+                source: trayBtn.modelData.icon
+            }
+            // an icon the theme cannot resolve (fcitx5's, often) still shows something
+            Icon {
+                anchors.centerIn: parent
+                visible: trayIcon.status !== Image.Ready
+                name: "application-x-executable"
+                size: Theme.px(16)
+                color: Theme.dim
+            }
+            QsMenuAnchor {
+                id: trayMenu
+                menu: trayBtn.modelData.menu
+                anchor.item: trayBtn
+                anchor.edges: Edges.Bottom
+                anchor.gravity: Edges.Bottom
+            }
+            MouseArea {
+                id: trayBtnArea
+                anchors.fill: parent
+                hoverEnabled: true
+                acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+                onClicked: e => trayBtn.press(e.button)
+                onWheel: w => trayBtn.modelData.scroll(w.angleDelta.y, false)
+            }
+            function press(button) {
+                const it = trayBtn.modelData;
+                if (button === Qt.MiddleButton) {
+                    it.secondaryActivate();
+                    if (trayBtn.inDrawer) bar.trayOpen = false;
+                } else if (button === Qt.RightButton || it.onlyMenu) {
+                    it.hasMenu && trayMenu.open();     // keep the drawer up while its menu is open
+                } else {
+                    it.activate();
+                    if (trayBtn.inDrawer) bar.trayOpen = false;
+                }
+            }
+            KeyFocus {
+                name: trayBtn.modelData.tooltipTitle || trayBtn.modelData.title || trayBtn.modelData.id
+                menuable: true
+                onActivated: trayBtn.press(Qt.LeftButton)
+                onMenu: trayBtn.press(Qt.RightButton)
+            }
+        }
+
+        // the icons that did not fit inline
+        PopupWindow {
+            id: trayDrawer
+            visible: bar.trayOpen && bar.trayOverflow.length > 0
+            anchor.item: trayMore
+            anchor.edges: Edges.Bottom
+            anchor.gravity: Edges.Bottom
+            implicitWidth: Theme.px(230)
+            implicitHeight: trayDrawerCol.implicitHeight + Theme.px(12)
+            color: Theme.glassStrong
+            KeyFocus { name: Tr.t("Close tray icons"); onActivated: bar.trayOpen = false }
+            ColumnLayout {
+                id: trayDrawerCol
+                anchors.fill: parent
+                anchors.margins: Theme.px(6)
+                spacing: 1
+                Repeater {
+                    model: bar.trayOverflow
+                    delegate: Rectangle {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        implicitHeight: Theme.px(30)
+                        radius: Theme.radiusSmall
+                        color: trayRowMouse.containsMouse ? Theme.hover : "transparent"
+                        MouseArea {
+                            id: trayRowMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: bar.trayOpen = false
+                        }
+                        KeyFocus { name: Tr.t("Close tray"); onActivated: bar.trayOpen = false }
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: Theme.px(4)
+                            anchors.rightMargin: Theme.px(6)
+                            spacing: Theme.px(8)
+                            TrayButton { modelData: parent.modelData; inDrawer: true }
+                            Text {
+                                Layout.fillWidth: true
+                                text: parent.modelData.tooltipTitle || parent.modelData.title || parent.modelData.id
+                                color: Theme.text
+                                elide: Text.ElideRight
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(11) * Theme.fontScale
                             }
                         }
                     }

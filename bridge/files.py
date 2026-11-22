@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """files — the file manager's backend: list a directory, watch it, and change it.
 
-  files.py list <path> [--hidden] [--sort name|size|mtime] [--desc]
+  files.py list <path> [--hidden] [--sort name|size|mtime|btime|type] [--desc]
                     [--filter ext,ext] [--limit N] [--offset N]
   files.py watch <path>            # one JSON object per change, until killed
   files.py stat <path>
   files.py mkdir <path>
   files.py rename <path> <name>
+  files.py symlink <target> <link-path>       # Create Link (Ctrl+M): a link to target
   files.py trash <path> [<path>...]
   files.py places                  # home, the XDG folders, the mounted drives, bookmarks
   files.py paste <dest> copy|move <path>...   # into dest, never over anything: "name (2)"
@@ -98,12 +99,16 @@ IMAGE_EXTS = {
 
 def entry_of(name, path, st, is_dir):
     ext = os.path.splitext(name)[1].lower()
+    # Linux often has no st_birthtime: ctime is the closest the platform gives
+    # for "date created" (inode change time) and is always present.
+    birth = getattr(st, "st_birthtime", None) or st.st_ctime
     return {
         "name": name,
         "path": path,
         "isDir": is_dir,
         "size": 0 if is_dir else int(st.st_size),
         "mtime": int(st.st_mtime * 1000),
+        "btime": int(birth * 1000),
         "ext": ext,
         "image": ext in IMAGE_EXTS,
     }
@@ -335,6 +340,12 @@ def sort_entries(entries, sort_key="name", desc=False, filters=(), limit=0, offs
         entries.sort(key=lambda e: (not e["isDir"], e["size"], e["name"].lower()))
     elif sort_key == "mtime":
         entries.sort(key=lambda e: (not e["isDir"], -e["mtime"], e["name"].lower()))
+    elif sort_key == "btime":
+        entries.sort(
+            key=lambda e: (not e["isDir"], -e.get("btime", 0), e["name"].lower())
+        )
+    elif sort_key == "type":
+        entries.sort(key=lambda e: (not e["isDir"], e["ext"], natural_key(e["name"])))
     else:
         entries.sort(key=lambda e: (not e["isDir"], natural_key(e["name"])))
     if desc:
@@ -536,6 +547,21 @@ def rename(path, name):
     except OSError as e:
         return {"error": e.strerror or str(e), "code": errno_name(e.errno)}
     return {"path": target}
+
+
+def symlink(target, linkpath):
+    """Create a symbolic link at linkpath pointing at target. Both arrive as
+    argv slots, never inside a shell string, so spaces and quotes are safe."""
+    if not linkpath:
+        return {"error": "that is not a name", "code": "EINVAL"}
+    if os.path.lexists(linkpath):
+        return {"error": "already exists", "code": "EEXIST"}
+    target = os.path.abspath(target)
+    try:
+        os.symlink(target, linkpath)
+    except OSError as e:
+        return {"error": e.strerror or str(e), "code": errno_name(e.errno)}
+    return {"path": linkpath, "target": target}
 
 
 def trash_dir():
@@ -1842,6 +1868,9 @@ def main(argv):
                 rename(args[0] if args else "", args[1] if len(args) > 1 else "")
             )
         )
+        return 0
+    if cmd == "symlink" and len(args) >= 2:
+        print(json.dumps(symlink(args[0], args[1])))
         return 0
     if cmd == "trash":
         print(json.dumps(trash([a for a in args if a])))

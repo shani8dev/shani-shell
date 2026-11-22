@@ -38,6 +38,46 @@ Singleton {
         Quickshell.execDetached(["kill", "-" + sig, String(pid)]);
         refresh.restart();
     }
+
+    // Renice: lower priority is free, asking for a higher one needs the
+    // administrator's password (the renice tool reports that itself). Validate
+    // the number here so nothing but an integer in -20..19 reaches argv.
+    function renice(pid, nice) {
+        const n = Number(nice);
+        if (!Number.isInteger(n) || n < -20 || n > 19 || !Number.isInteger(pid) || pid <= 0) return false;
+        Quickshell.execDetached(["renice", "-n", String(n), "-p", String(pid)]);
+        refresh.restart();
+        return true;
+    }
+
+    // Details for one process: command line, user, state, threads, open files
+    // and a short environment, read in the background from /proc. The helper
+    // takes the pid as argv, never as text in a shell string.
+    property var details: null
+    function showDetails(pid) {
+        if (!Number.isInteger(pid) || pid <= 0) return;
+        detailsProc.command = ["python3", "-c",
+            "import os, json, pwd, sys\n" +
+            "pid=int(sys.argv[1])\n" +
+            "d={'pid':pid,'cmdline':'','user':'','state':'','threads':0,'files':0,'env':[]}\n" +
+            "try:\n" +
+            "    d['cmdline']=open('/proc/%d/cmdline'%pid,'rb').read().replace(b'\\x00',b' ').decode('utf-8','replace').strip()\n" +
+            "    for l in open('/proc/%d/status'%pid):\n" +
+            "        if l.startswith('Uid:'):\n" +
+            "            try: d['user']=pwd.getpwuid(int(l.split()[1])).pw_name\n" +
+            "            except Exception: d['user']=l.split()[1]\n" +
+            "        if l.startswith('State:'): d['state']=l.split('(',1)[1].strip() if '(' in l else l.split()[1]\n" +
+            "        if l.startswith('Threads:'): d['threads']=int(l.split()[1])\n" +
+            "    d['files']=len(os.listdir('/proc/%d/fd'%pid))\n" +
+            "    d['env']=[x for x in open('/proc/%d/environ'%pid,'rb').read().replace(b'\\x00',b'\\n').decode('utf-8','replace').split('\\n') if x][:20]\n" +
+            "except Exception: pass\n" +
+            "print(json.dumps(d))", String(pid)];
+        detailsProc.running = true;
+    }
+    Process {
+        id: detailsProc
+        stdout: StdioCollector { onStreamFinished: { try { root.details = JSON.parse(text); } catch (e) {} } }
+    }
     Timer {
         id: refresh
         interval: 2000
@@ -49,7 +89,7 @@ Singleton {
     Process {
         id: ps
         command: ["python3", "-c",
-            "import os, json, shutil\n" +
+            "import os, json, shutil, pwd\n" +
             "def total():\n" +
             "    try:\n" +
             "        f=open('/proc/stat').readline().split()[1:]\n" +
@@ -71,11 +111,14 @@ Singleton {
             "        st=open('/proc/'+pid+'/stat').read().split(') ',1)[1].split()\n" +
             "        ticks=int(st[11])+int(st[12])\n" +
             "        name=open('/proc/'+pid+'/comm').read().strip()\n" +
-            "        rss=0; threads=0\n" +
+            "        rss=0; threads=0; user=''\n" +
             "        for l in open('/proc/'+pid+'/status'):\n" +
             "            if l.startswith('VmRSS:'): rss=int(l.split()[1])\n" +
             "            if l.startswith('Threads:'): threads=int(l.split()[1])\n" +
-            "        out.append({'pid':int(pid),'ppid':int(st[2]),'name':name,'ticks':ticks,'rss':rss,'threads':threads})\n" +
+            "            if l.startswith('Uid:'):\n" +
+            "                try: user=pwd.getpwuid(int(l.split()[1])).pw_name\n" +
+            "                except Exception: user=l.split()[1]\n" +
+            "        out.append({'pid':int(pid),'ppid':int(st[2]),'name':name,'ticks':ticks,'rss':rss,'threads':threads,'user':user})\n" +
             "    except Exception: pass\n" +
             "print(json.dumps({'total':total(),'cpus':cpus(),'memtotal':mt,'nethogs':shutil.which('nethogs') is not None,'procs':out}))\n"]
         stdout: StdioCollector {
@@ -94,7 +137,7 @@ Singleton {
                             : 0;
                         const mem = mt > 0 ? (p.rss / mt) * 100 : 0;
                         next[p.pid] = p.ticks;
-                        return { pid: p.pid, ppid: p.ppid, name: p.name, cpu: cpu, mem: mem, threads: p.threads || 0, ticks: p.ticks };
+                        return { pid: p.pid, ppid: p.ppid, name: p.name, cpu: cpu, mem: mem, threads: p.threads || 0, ticks: p.ticks, user: p.user || "" };
                     });
                     // all processes, sorted by CPU then memory — tree view
                     // builds parent->children from ppid

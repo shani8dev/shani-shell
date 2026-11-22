@@ -35,6 +35,16 @@ Singleton {
     property bool available: false         // ffmpeg is in the image
     property bool ffprobeAvailable: false
 
+    // ---- frame stepping, a playhead and multiple segments ------------------
+    readonly property real frameStep: 1 / 30
+    property real playhead: 0              // where I / O / S act
+    property var segments: []              // [{ start, end }] to join on export
+    property real progress: 0              // 0..1, fed by ffmpeg's -progress
+    property bool cancelled: false
+    property string frameCaptured: ""      // the snapshot written by captureFrame
+    property string captureError: ""
+    readonly property string convertTool: Quickshell.env("SHANI_CONVERT_TOOL") || "/usr/lib/shani-shell/convert.py"
+
     signal trimmed(string path)
 
     function fmt(s) {
@@ -169,7 +179,81 @@ Singleton {
     function nudgeStart(d) { setStart(start + d); }
     function nudgeEnd(d) { setEnd(end + d); }
 
+    // ---- the playhead: I marks in, O marks out, S splits at it --------------
+    function setPlayhead(v) {
+        v = parseFloat(v);
+        if (!isFinite(v)) return;
+        v = Math.max(0, v);
+        if (inputDuration > 0) v = Math.min(v, inputDuration);
+        playhead = v;
+    }
+    function nudgePlayhead(d) { setPlayhead(playhead + d); }
+    function markIn() { setStart(playhead); }
+    function markOut() { setEnd(playhead); }
+    function addSegment(s, e) {
+        s = parseFloat(s); e = parseFloat(e);
+        if (!isFinite(s) || !isFinite(e) || e <= s) return false;
+        if (inputDuration > 0) { s = Math.max(0, s); e = Math.min(e, inputDuration); }
+        if (e <= s) return false;
+        const m = segments.slice();
+        m.push({ start: s, end: e });
+        segments = m;
+        return true;
+    }
+    function removeSegment(i) {
+        if (i < 0 || i >= segments.length) return;
+        const m = segments.slice();
+        m.splice(i, 1);
+        segments = m;
+    }
+    function clearSegments() { segments = []; }
+    // S: with no segments yet, split the whole clip at the playhead; otherwise
+    // split the last segment in two.
+    function splitAtPlayhead() {
+        if (inputDuration <= 0 || playhead <= 0 || playhead >= inputDuration) return;
+        if (segments.length === 0) {
+            addSegment(0, playhead);
+            addSegment(playhead, inputDuration);
+            return;
+        }
+        const last = segments[segments.length - 1];
+        if (playhead <= last.start + 0.1 || playhead >= last.end - 0.1) return;
+        const m = segments.slice();
+        m.pop();
+        m.push({ start: last.start, end: playhead }, { start: playhead, end: last.end });
+        segments = m;
+    }
+    // a still of the frame at the playhead, into ~/Pictures/Camera
+    function captureFrame(at) {
+        const t = at === undefined ? playhead : parseFloat(at);
+        if (!input || !isFinite(t)) return;
+        const dir = (Quickshell.env("XDG_PICTURES_DIR") || (Quickshell.env("HOME") || "/tmp") + "/Pictures") + "/Camera";
+        const name = input.split("/").pop().replace(/\.[^.]+$/, "");
+        const out = dir + "/" + name + " " + Qt.formatDateTime(new Date(), "yyyy-MM-dd hh-mm-ss") + ".png";
+        capProc.command = ["sh", "-c", 'mkdir -p "${1%/*}" && ffmpeg -nostdin -loglevel error -ss "$2" -i "$3" -frames:v 1 "$1" && printf %s "$1"',
+                           "sh", out, Math.max(0, t).toFixed(3), input];
+        capProc.running = true;
+    }
+    Process {
+        id: capProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const p = text.trim();
+                if (p) { root.frameCaptured = p; root.captureError = ""; }
+            }
+        }
+        onExited: code => { if (code !== 0) root.captureError = Tr.t("Could not capture the frame"); }
+    }
+
     // ---- the cut ------------------------------------------------------------
+    // cancel a running cut (or a segment join): drop the half-written file
+    function cancelCut() {
+        if (!cutting) return;
+        cancelled = true;
+        progress = 0;
+        if (segProc.running) segProc.signal(2);
+        else cutProc.signal(2);
+    }
     function cut() {
         if (!input || cutting)
             return;
@@ -189,12 +273,13 @@ Singleton {
         cutProc.out = out;
         cutProc.audio = audio;
         cutProc.fellBack = false;
+        progress = 0;
         if (audio) {
             // no -c copy for opus seek: re-encode libopus
-            cutProc.command = ["ffmpeg", "-y", "-loglevel", "error", "-ss", String(start), "-to", String(end), "-i", input, "-c:a", "libopus", out];
+            cutProc.command = ["ffmpeg", "-y", "-loglevel", "error", "-ss", String(start), "-to", String(end), "-i", input, "-c:a", "libopus", "-progress", "pipe:1", "-nostats", out];
         } else {
             // the cut: stream copy, out.mp4
-            cutProc.command = ["ffmpeg", "-y", "-loglevel", "error", "-ss", String(start), "-to", String(end), "-i", input, "-c", "copy", out];
+            cutProc.command = ["ffmpeg", "-y", "-loglevel", "error", "-ss", String(start), "-to", String(end), "-i", input, "-c", "copy", "-progress", "pipe:1", "-nostats", out];
         }
         cutProc.running = true;
     }
@@ -216,7 +301,23 @@ Singleton {
         property string out: ""
         property bool audio: false
         property bool fellBack: false
+        stdout: SplitParser {
+            onRead: line => {
+                const m = /out_time_us=(\d+)/.exec(line);
+                if (m && root.inputDuration > 0)
+                    root.progress = Math.min(1, parseInt(m[1]) / 1e6 / root.inputDuration);
+            }
+        }
         onExited: code => {
+            if (root.cancelled) {
+                root.cancelled = false;
+                root.cutting = false;
+                root.progress = 0;
+                root.error = Tr.t("Cut cancelled");
+                if (root.cutProc.out)
+                    Quickshell.execDetached(["rm", "-f", "--", root.cutProc.out]);
+                return;
+            }
             if (code === 0) {
                 root.cutting = false;
                 root.result = root.cutProc.out;
@@ -239,6 +340,62 @@ Singleton {
                 root.cutting = false;
                 root.error = Tr.t("Could not cut the video");
                 Quickshell.execDetached(["notify-send", "-a", "Trim", "-i", "media-record", "Could not cut the video", root.input]);
+            }
+        }
+    }
+
+    // ---- multiple segments: cut each one and join them via convert.py -------
+    function cutSegments() {
+        if (cutting || segments.length < 2)
+            return;
+        const stamp = Qt.formatDateTime(new Date(), "yyyyMMdd-hhmmss");
+        const base = input.replace(/\.[^.\/]+$/, "");
+        const out = base + ".segments-" + stamp + ".mp4";
+        const args = [];
+        for (const s of segments)
+            args.push(String(s.start), String(s.end));
+        segProc.command = ["python3", convertTool, "segments", input, out].concat(args);
+        segProc.out = out;
+        error = "";
+        result = "";
+        progress = 0;
+        cancelled = false;
+        cutting = true;
+        segProc.running = true;
+    }
+    Process {
+        id: segProc
+        property string out: ""
+        stdout: SplitParser {
+            onRead: line => {
+                let c = null;
+                try { c = JSON.parse(line); } catch (e) { return; }
+                if (c.progress !== undefined)
+                    root.progress = c.progress;
+                else if (c.done) {
+                    root.result = c.done;
+                    root.videoResult = c.done;
+                    root.cutting = false;
+                    root.progress = 1;
+                    root.probe(c.done, "result");
+                    root.trimmed(c.done);
+                } else if (c.error) {
+                    root.cutting = false;
+                    root.error = c.error;
+                }
+            }
+        }
+        onExited: code => {
+            if (root.cancelled) {
+                root.cancelled = false;
+                root.cutting = false;
+                root.progress = 0;
+                root.error = Tr.t("Cut cancelled");
+                if (root.segProc.out)
+                    Quickshell.execDetached(["rm", "-f", "--", root.segProc.out]);
+            } else if (code !== 0 && !root.result) {
+                root.cutting = false;
+                root.error = Tr.t("Could not join the segments");
             }
         }
     }

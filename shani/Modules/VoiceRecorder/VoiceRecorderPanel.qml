@@ -7,6 +7,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
+import QtMultimedia
 import qs.Common
 import qs.Services
 
@@ -23,6 +24,33 @@ AppWindow {
     implicitHeight: Math.max(320, Math.min(900, col.implicitHeight + 80))
 
     property string renaming: ""        // path being renamed, "" when none
+    property string inlinePlay: ""      // take playing in the panel itself
+
+    // in-app playback, instead of always handing the file to another app
+    MediaPlayer {
+        id: playback
+        audioOutput: AudioOutput {}
+    }
+    function playInline(path) {
+        if (!path) return;
+        if (win.inlinePlay === path && playback.playbackState === MediaPlayer.PlayingState) {
+            playback.pause();
+            return;
+        }
+        playback.stop();
+        playback.source = "file://" + encodeURI(path);
+        win.inlinePlay = path;
+        playback.play();
+    }
+    function exportDialog(path) {
+        FilePicker.open({
+            mode: "save",
+            defaultName: (path || "recording").split("/").pop().replace(/\.(opus|flac)$/i, "") + ".opus",
+            filters: ["opus", "flac", "wav"],
+            title: Tr.t("Export recording…"),
+            onPicked: paths => { if (paths.length) VoiceRecorder.exportTo(paths[0], path); }
+        });
+    }
 
     onVisibleChanged: { if (visible) VoiceRecorder.refresh(); }
 
@@ -60,6 +88,19 @@ AppWindow {
                 font.pixelSize: Theme.px(12) * Theme.fontScale
             }
 
+            // codec and channels, chosen before the next take
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignHCenter
+                spacing: Theme.px(8)
+                Text { text: Tr.t("Format"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Choice { text: "Opus"; selected: VoiceRecorder.format === "opus"; onClicked: VoiceRecorder.format = "opus" }
+                Choice { text: "FLAC"; selected: VoiceRecorder.format === "flac"; onClicked: VoiceRecorder.format = "flac" }
+                Text { text: Tr.t("Channels"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Choice { text: Tr.t("Mono"); selected: VoiceRecorder.channels === 1; onClicked: VoiceRecorder.channels = 1 }
+                Choice { text: Tr.t("Stereo"); selected: VoiceRecorder.channels === 2; onClicked: VoiceRecorder.channels = 2 }
+            }
+
             // input level: a thin bar, peak of the last 100 ms of capture
             Rectangle {
                 Layout.fillWidth: true
@@ -86,6 +127,14 @@ AppWindow {
                     tip: VoiceRecorder.paused ? Tr.t("Resume") : Tr.t("Pause")
                     visible: VoiceRecorder.recording
                     onClicked: VoiceRecorder.togglePause()
+                }
+                IconButton {
+                    icon: "edit-delete"
+                    size: Theme.px(36)
+                    tip: Tr.t("Discard take")
+                    Accessible.name: Tr.t("Discard take")
+                    visible: VoiceRecorder.recording
+                    onClicked: VoiceRecorder.cancel()
                 }
                 Rectangle {
                     Layout.preferredWidth: Theme.px(88)
@@ -188,7 +237,7 @@ AppWindow {
                             }
                             Text {
                                 Layout.fillWidth: true
-                                text: row.modelData.when
+                                text: (row.modelData.when || Tr.t("Recording")) + (row.modelData.duration > 0 ? "  ·  " + VideoTrimmer.fmt(row.modelData.duration) : "")
                                 color: Theme.dim
                                 elide: Text.ElideRight
                                 font.family: Theme.font
@@ -207,10 +256,18 @@ AppWindow {
                             }
                         }
                         IconButton {
-                            icon: "media-playback-start"
+                            icon: win.inlinePlay === row.modelData.path && playback.playbackState === MediaPlayer.PlayingState ? "media-playback-pause" : "media-playback-start"
                             size: Theme.px(30)
-                            tip: Tr.t("Play")
-                            onClicked: VoiceRecorder.play(row.modelData.path)
+                            tip: Tr.t("Play here")
+                            Accessible.name: Tr.t("Play in the recorder")
+                            onClicked: win.playInline(row.modelData.path)
+                        }
+                        IconButton {
+                            icon: "document-save-as"
+                            size: Theme.px(30)
+                            tip: Tr.t("Export…")
+                            Accessible.name: Tr.t("Export recording")
+                            onClicked: win.exportDialog(row.modelData.path)
                         }
                         IconButton {
                             icon: "document-edit"
@@ -319,6 +376,22 @@ AppWindow {
                     font.pixelSize: Theme.px(10) * Theme.fontScale
                 }
             }
+
+            // in-app playback bar and export feedback
+            RowLayout {
+                Layout.fillWidth: true
+                visible: win.inlinePlay !== ""
+                spacing: Theme.px(8)
+                IconButton {
+                    icon: playback.playbackState === MediaPlayer.PlayingState ? "media-playback-pause" : "media-playback-start"
+                    size: Theme.px(28)
+                    onClicked: win.playInline(win.inlinePlay)
+                }
+                Text { Layout.fillWidth: true; text: win.inlinePlay.split("/").pop(); color: Theme.text; elide: Text.ElideMiddle; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Button { text: Tr.t("Stop"); flat: true; onClicked: { playback.stop(); win.inlinePlay = ""; } }
+            }
+            Text { Layout.fillWidth: true; visible: VoiceRecorder.exported !== ""; text: Tr.t("Exported") + " " + VoiceRecorder.exported; color: Theme.text; elide: Text.ElideMiddle; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale }
+            Text { Layout.fillWidth: true; visible: VoiceRecorder.exportError !== ""; text: VoiceRecorder.exportError; color: Theme.red; horizontalAlignment: Text.AlignHCenter; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
 
             Text {
                 Layout.fillWidth: true

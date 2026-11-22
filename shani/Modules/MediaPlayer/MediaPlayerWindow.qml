@@ -223,7 +223,12 @@ AppWindow {
         audioOutput: AudioOutput { volume: PlayQueue.volume; muted: PlayQueue.muted }
         playbackRate: PlayQueue.rate
         onPlaybackStateChanged: PlayQueue.playing = playbackState === MediaPlayer.PlayingState
-        onPositionChanged: { PlayQueue.position = player.position / 1000; win.resumeNow(); }
+        onPositionChanged: {
+            PlayQueue.position = player.position / 1000;
+            win.resumeNow();
+            const jump = PlayQueue.loopJump(PlayQueue.position);
+            if (jump >= 0) player.position = jump * 1000;
+        }
         onDurationChanged: {
             PlayQueue.duration = player.duration / 1000;
             // where it was left last time (PlayQueue.resumeAt), once its length is known
@@ -259,6 +264,26 @@ AppWindow {
             player.play();
     }
     function skip(seconds) { player.position = Math.max(0, Math.min(player.duration, player.position + seconds * 1000)); }
+    // go to a typed time: "mm:ss" or "hh:mm:ss"; rejects anything else
+    function goToTime(s) {
+        const parts = String(s || "").trim().split(":");
+        if (parts.length < 1 || parts.length > 3 || parts.some(p => !/^\d+$/.test(p)))
+            return false;
+        const sec = parts.reduce((acc, p) => acc * 60 + parseInt(p, 10), 0);
+        if (!isFinite(sec) || sec < 0)
+            return false;
+        player.position = Math.min(player.duration, sec * 1000);
+        return true;
+    }
+    function playStreamUrl(u) {
+        const url = String(u || "").trim();
+        if (/^https?:\/\//.test(url)) { PlayQueue.playStream(url); win.streamShown = false; return true; }
+        return false;
+    }
+    property bool streamShown: false
+    property bool recentShown: false
+    property bool goError: false
+    property bool streamError: false
     function louder(by) { PlayQueue.muted = false; PlayQueue.volume = Math.max(0, Math.min(1, PlayQueue.volume + by)); }
     function pick() {
         FilePicker.open({ mode: "open", title: Tr.t("Open a video or a song"),
@@ -579,6 +604,104 @@ AppWindow {
                                     onClicked: { PlayQueue.setSubtitleShift(0); win.subShift = 0; }
                                 }
                             }
+                            // chapters, read from the file by ffprobe: jump to one
+                            SectionTitle { Layout.fillWidth: true; visible: PlayQueue.chapters.length > 0; text: Tr.t("Chapters") }
+                            Flow {
+                                Layout.fillWidth: true
+                                visible: PlayQueue.chapters.length > 0
+                                spacing: Theme.px(6)
+                                Repeater {
+                                    model: PlayQueue.chapters
+                                    Choice {
+                                        required property var modelData
+                                        text: modelData.title || PlayQueue.clock(modelData.at)
+                                        selected: false
+                                        onClicked: player.position = modelData.at * 1000
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // ---- open a network stream (http/https) ----
+                    Rectangle {
+                        anchors { top: parent.top; right: parent.right; margins: Theme.px(12) }
+                        visible: win.streamShown
+                        width: Theme.px(320)
+                        implicitHeight: streamCol.implicitHeight + 24
+                        radius: Theme.radiusSmall
+                        color: Theme.alpha(Theme.bg, 0.96)
+                        border.width: 1
+                        border.color: Theme.border
+                        MouseArea { anchors.fill: parent; objectName: "nav:pointer" }
+                        ColumnLayout {
+                            id: streamCol
+                            x: 12; y: 12
+                            width: parent.width - 24
+                            spacing: Theme.px(6)
+                            SectionTitle { Layout.fillWidth: true; text: Tr.t("Network stream") }
+                            TextField {
+                                id: streamField
+                                Layout.fillWidth: true
+                                placeholder: "https://…"
+                                label: Tr.t("Stream address")
+                                inputMethodHints: Qt.ImhUrlCharactersOnly
+                                onAccepted: { win.streamError = !win.playStreamUrl(text); }
+                            }
+                            Text { visible: win.streamError; text: Tr.t("Enter an http(s) address"); color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Item { Layout.fillWidth: true }
+                                Button { text: Tr.t("Play stream"); kind: "primary"; onClicked: { win.streamError = !win.playStreamUrl(streamField.text); } }
+                            }
+                        }
+                    }
+
+                    // ---- recent media: files with a saved resume point ----
+                    Rectangle {
+                        anchors { top: parent.top; right: parent.right; margins: Theme.px(12) }
+                        visible: win.recentShown
+                        width: Theme.px(320)
+                        implicitHeight: Math.min(360, recentCol.implicitHeight + 24)
+                        radius: Theme.radiusSmall
+                        color: Theme.alpha(Theme.bg, 0.96)
+                        border.width: 1
+                        border.color: Theme.border
+                        MouseArea { anchors.fill: parent; objectName: "nav:pointer" }
+                        ColumnLayout {
+                            id: recentCol
+                            x: 12; y: 12
+                            width: parent.width - 24
+                            spacing: Theme.px(6)
+                            SectionTitle { Layout.fillWidth: true; text: Tr.t("Recent media") }
+                            ListView {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                clip: true
+                                model: PlayQueue.recent
+                                delegate: Rectangle {
+                                    required property string modelData
+                                    width: ListView.view.width
+                                    height: Theme.px(34)
+                                    radius: Theme.radiusSmall
+                                    color: recentArea.containsMouse ? Theme.hover : "transparent"
+                                    Text {
+                                        anchors { left: parent.left; right: parent.right; margins: Theme.px(8); verticalCenter: parent.verticalCenter }
+                                        text: modelData.split("/").pop() + "  ·  " + PlayQueue.clock(PlayQueue.resumePoint(modelData))
+                                        color: Theme.text
+                                        elide: Text.ElideMiddle
+                                        font.family: Theme.font
+                                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    }
+                                    MouseArea {
+                                        id: recentArea
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: { PlayQueue.playRecent(modelData); win.recentShown = false; }
+                                    }
+                                }
+                            }
+                            Text { visible: PlayQueue.recent.length === 0; text: Tr.t("Nothing watched yet"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                         }
                     }
                 }
@@ -645,6 +768,7 @@ AppWindow {
                         onClicked: win.toggle()
                     }
                     IconButton { icon: "media-skip-forward"; tip: Tr.t("Next") + " (N)"; enabled: PlayQueue.queue.length > 1; onClicked: PlayQueue.next() }
+                    IconButton { icon: "media-playback-stop"; tip: Tr.t("Stop"); enabled: PlayQueue.current !== ""; onClicked: PlayQueue.stop() }
                     Text {
                         Layout.leftMargin: Theme.px(8)
                         text: PlayQueue.clock(seekArea.pressed ? seekArea.at / 1000 : PlayQueue.position) + " / " + PlayQueue.clock(PlayQueue.duration)
@@ -653,7 +777,20 @@ AppWindow {
                         font.pixelSize: Theme.px(12) * Theme.fontScale
                         font.features: { "tnum": 1 }
                     }
+                    TextField {
+                        id: goField
+                        Layout.preferredWidth: Theme.px(90)
+                        placeholder: "mm:ss"
+                        label: Tr.t("Go to time")
+                        font.features: { "tnum": 1 }
+                        onAccepted: if (!win.goToTime(text)) win.goError = true; else win.goError = false
+                    }
+                    Button { text: Tr.t("Go"); flat: true; enabled: PlayQueue.current !== ""; onClicked: { if (!win.goToTime(goField.text)) win.goError = true; else win.goError = false; } }
+                    Text { visible: win.goError; text: Tr.t("Bad time"); color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
                     Item { Layout.fillWidth: true }
+                    Button { text: "A"; flat: true; checked: PlayQueue.loopA >= 0; onClicked: PlayQueue.setLoopA(PlayQueue.position); Accessible.name: Tr.t("Set loop start") }
+                    Button { text: "B"; flat: true; checked: PlayQueue.loopB > PlayQueue.loopA; onClicked: PlayQueue.setLoopB(PlayQueue.position); Accessible.name: Tr.t("Set loop end") }
+                    Button { text: Tr.t("Loop off"); flat: true; visible: PlayQueue.loopActive; onClicked: PlayQueue.clearLoop() }
                     // speed: a pick, not a number to type
                     Text {
                         Layout.fillWidth: true
@@ -708,6 +845,8 @@ AppWindow {
                         onClicked: win.tracksShown = !win.tracksShown
                     }
                     IconButton { icon: "view-list"; tip: Tr.t("Queue") + " (L)"; on: win.listShown; onClicked: win.listShown = !win.listShown }
+                    IconButton { icon: "document-open-recent"; tip: Tr.t("Recent media"); on: win.recentShown; onClicked: { win.recentShown = !win.recentShown; if (win.recentShown) win.streamShown = false; } }
+                    IconButton { icon: "network-workgroup"; tip: Tr.t("Open network stream"); on: win.streamShown; onClicked: { win.streamShown = !win.streamShown; if (win.streamShown) win.recentShown = false; } }
                     IconButton { icon: "document-save-as"; tip: Tr.t("Convert this file…"); enabled: PlayQueue.current !== ""; onClicked: { Ui.converterFiles = [PlayQueue.current]; Ui.converter = true; } }
                     IconButton { icon: "document-open"; tip: Tr.t("Open") + " (O)"; onClicked: win.pick() }
                     IconButton { icon: "view-restore"; tip: Tr.t("Mini player") + " (I)"; enabled: PlayQueue.current !== ""; onClicked: win.setMini(true) }

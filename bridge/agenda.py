@@ -6,7 +6,7 @@
     agenda.py calendars                 the calendars there are:
                                         [{"name", "uid", "color", "readOnly"}]
     agenda.py add '<json>'              create an event (see below)
-    agenda.py edit '<json>'             change summary/location of an event
+    agenda.py edit '<json>'             change summary/location/description of an event
     agenda.py delete '<json>'           delete an event
     agenda.py import FILE [CALENDAR]    an .ics file's events added (an invitation, a timetable)
     agenda.py accounts                  online accounts: [{"uid", "name", "url", "user", "calendars"}]
@@ -14,7 +14,9 @@
                                         account (EDS finds its calendars)
     agenda.py account-remove UID        that account and its calendars, from this computer
     {"summary": "Standup", "start": 1761715800, "end": 1761719400,
-     "location": "", "allDay": false, "calendar": "Personal", "uid": "..."}
+     "location": "", "allDay": false, "calendar": "Personal", "uid": "...",
+     "description": "agenda notes", "rrule": "FREQ=WEEKLY;BYDAY=MO",
+     "alarm": 10, "timezone": "Europe/London"}
 
 The first form prints a list like
     [{"start": 1761715800, "end": 1761719400, "summary": "Standup",
@@ -45,6 +47,12 @@ import re
 import subprocess
 import sys
 import time
+from datetime import datetime
+
+try:  # Python 3.9+; on older runtimes the chosen zone falls back to local
+    from zoneinfo import ZoneInfo
+except ImportError:  # pragma: no cover
+    ZoneInfo = None
 
 
 def bindings():
@@ -130,6 +138,7 @@ def events(start: float, end: float, timeout: int = 10) -> list[dict]:
     for name, client in _clients(timeout):
 
         def collect(icomp, istart, iend, *_args, _name=name):
+            extras = _event_extras(icomp)
             out.append(
                 {
                     "start": timet(istart),
@@ -141,6 +150,10 @@ def events(start: float, end: float, timeout: int = 10) -> list[dict]:
                     "uid": icomp.get_uid() or "",
                     "organizer": "",  # filled when libical exposes attendee data
                     "needsAction": False,
+                    "description": extras["description"],
+                    "rrule": extras["rrule"],
+                    "alarm": extras["alarm"],
+                    "timezone": extras["timezone"],
                 }
             )
             return True
@@ -167,9 +180,131 @@ def _ical_escape(value: str) -> str:
     )
 
 
+def _unfold_lines(text: str) -> list[str]:
+    """Unfold iCalendar continuation lines, normalise newlines."""
+    flat = text.replace("\r\n", "\n").replace("\r", "\n")
+    return re.sub(r"\n[ \t]", "", flat).split("\n")
+
+
+def _unescape_ical(value: str) -> str:
+    return re.sub(
+        r"\\([nN,;\\])",
+        lambda m: "\n" if m.group(1) in "nN" else m.group(1),
+        value,
+    )
+
+
+def _prop(text: str, name: str) -> str:
+    """First property of this name in an iCalendar text, unescaped."""
+    for line in _unfold_lines(text):
+        key = line.split(";", 1)[0].split(":", 1)[0].strip().upper()
+        if key == name:
+            return _unescape_ical(line.partition(":")[2])
+    return ""
+
+
+def _event_extras(icomp) -> dict:
+    """Read the fields the editor does not own, so a detail view can show
+    them and an edit can keep them. String parsing keeps this independent of
+    which ICalGLib getters a given version happens to expose."""
+    out = {"description": "", "rrule": "", "alarm": 0, "timezone": ""}
+    try:
+        _, _, ICalGLib = bindings()
+        text = ICalGLib.component_as_ical_string(icomp) or ""
+    except Exception:  # noqa: BLE001 - extras are best-effort
+        return out
+    out["description"] = _prop(text, "DESCRIPTION")
+    out["rrule"] = _prop(text, "RRULE")
+    trigger = _prop(text, "TRIGGER").strip()
+    m = re.fullmatch(r"-PT(?:(\d+)H)?(?:(\d+)M)?", trigger)
+    if m:
+        out["alarm"] = int(m.group(1) or 0) * 60 + int(m.group(2) or 0)
+    for line in _unfold_lines(text):
+        head = line.partition(":")[0]
+        if head.upper().startswith("DTSTART"):
+            z = re.search(r"TZID=([^;:]+)", head, re.I)
+            if z:
+                out["timezone"] = z.group(1).strip('"')
+                break
+    return out
+
+
+def _safe_zone(value) -> str:
+    zone = str(value or "").strip()
+    return zone if len(zone) <= 64 and re.fullmatch(r"[A-Za-z0-9_+\-/]+", zone) else ""
+
+
+def _safe_rrule(value) -> str:
+    rule = str(value or "").strip().upper()
+    if not re.fullmatch(r"[A-Z0-9,;=]+", rule) or len(rule) > 200:
+        return ""
+    return rule if rule.startswith("FREQ=") else ""
+
+
+def _safe_alarm(value) -> int:
+    try:
+        return max(0, min(1440, int(value)))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _fmt_in_zone(ts: float, all_day: bool, zone: str) -> str:
+    """Wall-clock time in the event's own zone; local when it has none."""
+    if zone and ZoneInfo is not None and not all_day:
+        try:
+            return datetime.fromtimestamp(int(ts), ZoneInfo(zone)).strftime(
+                "%Y%m%d" if all_day else "%Y%m%dT%H%M%S"
+            )
+        except Exception:  # noqa: BLE001 - unknown zone falls back to local
+            pass
+    return _fmt_local(ts, all_day)
+
+
+def _valarm_lines(minutes: int, summary: str) -> list[str]:
+    if minutes <= 0:
+        return []
+    if minutes % 60 == 0:
+        trigger = "-PT%dH" % (minutes // 60)
+    else:
+        trigger = "-PT%dM" % minutes
+    return [
+        "BEGIN:VALARM",
+        "TRIGGER:" + trigger,
+        "ACTION:DISPLAY",
+        "DESCRIPTION:" + _ical_escape(summary or "Event reminder"),
+        "END:VALARM",
+    ]
+
+
+def _strip_valarms(lines: list[str]) -> list[str]:
+    out: list[str] = []
+    depth = 0
+    for line in lines:
+        head = line.strip().upper()
+        if head.startswith("BEGIN:VALARM"):
+            depth += 1
+            continue
+        if head.startswith("END:VALARM"):
+            depth = max(0, depth - 1)
+            continue
+        if depth == 0:
+            out.append(line)
+    return out
+
+
+def _insert_before_end(lines: list[str], new_lines: list[str]) -> None:
+    idx = next(
+        (i for i, line in enumerate(lines) if line.upper().startswith("END:VEVENT")),
+        len(lines),
+    )
+    lines[idx:idx] = new_lines
+
+
 def _replace_event_fields(text: str, payload: dict) -> str:
     """Change only the fields the editor owns, keeping RRULE, DESCRIPTION,
-    attendees, alarms and every other line of an existing VEVENT intact."""
+    attendees, alarms and every other line of an existing VEVENT intact.
+    A field is touched only when its key is in the payload: an edit that does
+    not offer it must not erase it."""
     start = int(payload["start"])
     end = int(payload["end"])
     if start >= end:
@@ -180,31 +315,53 @@ def _replace_event_fields(text: str, payload: dict) -> str:
     all_day = bool(payload.get("allDay", False))
     value = "DATE" if all_day else "DATE-TIME"
     location = (payload.get("location") or "").strip()
+    zone = _safe_zone(payload.get("timezone"))
+    tz_param = f";TZID={zone}" if zone and not all_day else ""
+
+    def dt(kind: str) -> str:
+        return (
+            f"{kind};VALUE={value}{tz_param}:"
+            + _fmt_in_zone(start if kind == "DTSTART" else end, all_day, zone)
+        )
+
     replacements = {
-        "DTSTART": f"DTSTART;VALUE={value}:{_fmt_local(start, all_day)}",
-        "DTEND": f"DTEND;VALUE={value}:{_fmt_local(end, all_day)}",
+        "DTSTART": dt("DTSTART"),
+        "DTEND": dt("DTEND"),
         "SUMMARY": f"SUMMARY:{_ical_escape(summary)}",
         "LOCATION": f"LOCATION:{_ical_escape(location)}",
     }
-    unfolded = text.replace("\r\n", "\n").replace("\r", "\n")
-    unfolded = re.sub(r"\n[ \t]", "", unfolded)
+    if "description" in payload:
+        desc = str(payload.get("description") or "").strip()
+        replacements["DESCRIPTION"] = ("DESCRIPTION:" + _ical_escape(desc)) if desc else ""
+    if "rrule" in payload:
+        rule = _safe_rrule(payload.get("rrule"))
+        replacements["RRULE"] = ("RRULE:" + rule) if rule else ""
+    # editing the alarm rewrites just the VALARM blocks, never RRULE/attendees
+    alarms = None
+    if "alarm" in payload:
+        alarms = _valarm_lines(_safe_alarm(payload.get("alarm")), summary)
+
+    lines = _unfold_lines(text)
+    if alarms is not None:
+        lines = _strip_valarms(lines)
     out: list[str] = []
     seen: set[str] = set()
-    for line in unfolded.split("\n"):
+    for line in lines:
         key = line.split(";", 1)[0].split(":", 1)[0].strip().upper()
         if key in replacements:
-            if key not in seen and (key != "LOCATION" or location):
-                out.append(replacements[key])
+            rep = replacements[key]
+            if key not in seen and rep and (key != "LOCATION" or location):
+                out.append(rep)
             seen.add(key)
         else:
             out.append(line)
     out = [line for line in out if line.strip()]
-    if "LOCATION" not in seen and location:
-        idx = next(
-            (i for i, line in enumerate(out) if line.upper().startswith("END:VEVENT")),
-            len(out),
-        )
-        out.insert(idx, replacements["LOCATION"])
+    if alarms is not None and alarms:
+        _insert_before_end(out, alarms)
+    for key in ("LOCATION", "DESCRIPTION"):
+        rep = replacements.get(key, "")
+        if key not in seen and rep:
+            _insert_before_end(out, [rep])
     return "\r\n".join(out) + "\r\n"
 
 
@@ -218,19 +375,10 @@ def _ical_text(payload: dict) -> str:
         raise ValueError("an event needs a title")
     all_day = bool(payload.get("allDay", False))
     uid = payload.get("uid") or f"shani-{time.time_ns()}@shanios"
-    location = (
-        (payload.get("location") or "")
-        .replace("\\", "\\\\")
-        .replace(";", "\\;")
-        .replace(",", "\\,")
-        .replace("\n", "\\n")
-    )
-    summary = (
-        summary.replace("\\", "\\\\")
-        .replace(";", "\\;")
-        .replace(",", "\\,")
-        .replace("\n", "\\n")
-    )
+    location = (payload.get("location") or "").strip()
+    description = str(payload.get("description") or "").strip()
+    zone = _safe_zone(payload.get("timezone"))
+    tz_param = f";TZID={zone}" if zone and not all_day else ""
     stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
     attendees = [
         str(a).strip() for a in (payload.get("attendees") or []) if str(a).strip()
@@ -242,16 +390,16 @@ def _ical_text(payload: dict) -> str:
     ]
     if attendees:
         # METHOD:REQUEST + ORGANIZER + ATTENDEE lines: EDS/Evolution's iTIP
-        # delivery reads these. Escaping like SUMMARY above.
+        # delivery reads these.
         lines.append("METHOD:REQUEST")
     lines += [
         "BEGIN:VEVENT",
         f"UID:{uid}",
         f"SEQUENCE:{int(payload.get('sequence', 0))}",
         f"DTSTAMP:{stamp}",
-        f"DTSTART;VALUE={'DATE' if all_day else 'DATE-TIME'}:{_fmt_local(start, all_day)}",
-        f"DTEND;VALUE={'DATE' if all_day else 'DATE-TIME'}:{_fmt_local(end, all_day)}",
-        f"SUMMARY:{summary}",
+        f"DTSTART;VALUE={'DATE' if all_day else 'DATE-TIME'}{tz_param}:{_fmt_in_zone(start, all_day, zone)}",
+        f"DTEND;VALUE={'DATE' if all_day else 'DATE-TIME'}{tz_param}:{_fmt_in_zone(end, all_day, zone)}",
+        f"SUMMARY:{_ical_escape(summary)}",
     ]
     if attendees:
         try:
@@ -259,19 +407,25 @@ def _ical_text(payload: dict) -> str:
             name, addr = ECal.util_get_default_name_and_address()
         except Exception:  # noqa: BLE001
             name, addr = "", ""
-        org = (";CN=" + name.replace(";", "\\;")) if name else ""
+        org = (";CN=" + _ical_escape(name)) if name else ""
         lines.append(
             f"ORGANIZER{org}:mailto:{addr}"
             if addr
             else f"ORGANIZER:mailto:shani@localhost"
         )
         for a in attendees:
-            esc = a.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,")
+            esc = _ical_escape(a)
             lines.append(
                 f"ATTENDEE;CN={esc};ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:{a}"
             )
     if location:
-        lines.append(f"LOCATION:{location}")
+        lines.append(f"LOCATION:{_ical_escape(location)}")
+    if description:
+        lines.append(f"DESCRIPTION:{_ical_escape(description)}")
+    rule = _safe_rrule(payload.get("rrule"))
+    if rule:
+        lines.append(f"RRULE:{rule}")
+    lines += _valarm_lines(_safe_alarm(payload.get("alarm")), summary)
     lines += ["END:VEVENT", "END:VCALENDAR"]
     return "\r\n".join(lines) + "\r\n"
 
@@ -289,10 +443,10 @@ def _pick_client(payload: dict):
 
 
 def write_event(action: str, payload: dict) -> dict:
-    """add / edit / delete over EDS. Edit re-composes the whole event from
-    the payload (start/end, summary, location) and modifies by UID (a
-    recurring series is replaced as a series). Raises RuntimeError without
-    EDS."""
+    """add / edit / delete over EDS. Edit replaces only the fields the
+    editor owns (start/end, summary, location and, when supplied,
+    description, repeat, alarm and timezone) and keeps the rest of the
+    VEVENT, by UID. Raises RuntimeError without EDS."""
     _, _, ICalGLib = bindings()
     client = _pick_client(payload)
     if action == "add":

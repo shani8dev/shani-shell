@@ -13,12 +13,14 @@ Singleton {
     id: root
     readonly property string tool: Quickshell.env("SHANI_FEEDS_TOOL") || "/usr/lib/shani-shell/feeds.py"
 
-    property var feeds: []          // [{ title, url, items, unread }]
+    property var feeds: []          // [{ title, url, items, unread, tags }]
     property string current: ""     // the feed being read
-    property var items: []          // its items: [{ id, title, link, date, summary, read }]
+    property var items: []          // its items: [{ id, title, link, date, summary, read, saved, enclosure }]
     property string article: ""     // the open article's text
     property string articleTitle: ""
     property string articleLink: ""
+    property string articleEnclosure: ""   // a podcast episode's audio URL
+    property bool articleSaved: false
     property string openId: ""       // the article being read, for the read flag
     property bool busy: false
     property string note: ""
@@ -27,16 +29,40 @@ Singleton {
     property string pendingExport: ""   // where "Export…" is writing
     property string exportPath: ""   // the same, for the writer's command
 
+    // the extra views a reader needs: a saved pile, a word search and a tag
+    property bool showRead: true
+    property string query: ""
+    property var searchResults: []
+    property var saved: []
+    property var tags: []
+    property string pendingArticle: ""  // an article to show once its feed's items arrive
+    property bool autoShow: true        // select the first article after opening a feed
+
     function refresh() { run("list", []) }
-    function open(url) { current = url; article = ""; run("items", [url]) }
+    function open(url) { current = url; article = ""; pendingArticle = ""; autoShow = true; run("items", [url]) }
+    function openArticleAt(url, id) { current = url; article = ""; pendingArticle = id; autoShow = false; run("items", [url]) }
     function show(url, id) { openId = id; run("article", [url, id]) }
     function markRead(url, id) { if (id) run("markread", [url, id], false) }
+    function markUnread(url, id) { if (id) run("markunread", [url, id], false) }
+    function nextUnread() { if (current) run("nextunread", [current, openId]) }
     function markAll() { run("markall", current ? [current] : [], false) }
     function add(url, title) { run("add", title ? [url, title] : [url]) }
     function remove(url) { run("remove", [url]) }
     function update() { busy = true; run("refresh", []) }
     function check() { run("status", []) }
     function setInterval(n) { run("interval", [String(n)]) }
+    function discover(url) { run("discover", [url]) }
+
+    // ---- searching, saving and tagging ------------------------------------
+    function search(q) {
+        root.query = q;
+        if (q) run("search", [q]);
+        else root.searchResults = [];
+    }
+    function savedArticles() { run("saved", []) }
+    function toggleSave(url, id) { if (id) run("save", [url, id], false) }
+    function setTags(url, tags) { if (url) run("settags", [url, tags]) }
+    function loadTags() { run("tags", []) }
 
     // ---- moving the subscription list -------------------------------------
     // OPML 2.0, the one format every other reader reads: out to a file the
@@ -124,11 +150,20 @@ Singleton {
             if (!root.current && root.feeds.length) root.open(root.feeds[0].url);
         } else if (what === "items") {
             root.items = Array.isArray(data) ? data : [];
-            if (root.items.length) root.show(root.current, root.items[0].id);
+            if (root.pendingArticle) {
+                const id = root.pendingArticle;
+                root.pendingArticle = "";
+                root.show(root.current, id);
+            } else if (root.autoShow && root.items.length) {
+                root.show(root.current, root.items[0].id);
+            }
+            root.autoShow = true;
         } else if (what === "article") {
             root.articleTitle = (data && data.title) || "";
             root.articleLink = (data && data.link) || "";
             root.article = (data && data.text) || "";
+            root.articleSaved = !!(data && data.saved);
+            root.articleEnclosure = (data && data.enclosure && data.enclosure.url) || "";
             root.markRead(root.current, root.openId);
         } else if (what === "add" || what === "refresh" || what === "remove") {
             root.refresh();
@@ -145,6 +180,42 @@ Singleton {
                 ? Tr.t("Added %1 feeds", added)
                 : Tr.t("Every feed in that file is already here");
             root.refresh();
+        } else if (what === "nextunread") {
+            if (data && data.ok && data.id) root.show(root.current, data.id);
+            else root.note = Tr.t("No unread articles left");
+        } else if (what === "markall") {
+            root.refresh();
+            if (root.current) { root.autoShow = false; run("items", [root.current]) }
+        } else if (what === "markunread") {
+            if (data && data.id) root.items = root.items.map(i =>
+                i.id === data.id ? Object.assign({}, i, { read: false }) : i);
+            root.refresh();
+        } else if (what === "save") {
+            if (data && data.id) {
+                root.items = root.items.map(i =>
+                    i.id === data.id ? Object.assign({}, i, { saved: !!data.saved }) : i);
+                if (root.openId === data.id) root.articleSaved = !!data.saved;
+            }
+            root.note = data && data.saved ? Tr.t("Saved for later") : Tr.t("Removed from saved");
+            root.savedArticles();
+        } else if (what === "saved") {
+            root.saved = Array.isArray(data) ? data : [];
+        } else if (what === "search") {
+            root.searchResults = Array.isArray(data) ? data : [];
+        } else if (what === "settags") {
+            root.note = data && data.ok ? Tr.t("Tags updated") : Tr.t("Could not set tags");
+            root.refresh();
+            root.loadTags();
+        } else if (what === "tags") {
+            root.tags = Array.isArray(data) ? data : [];
+        } else if (what === "discover") {
+            const found = Array.isArray(data) ? data : [];
+            if (found.length) {
+                root.note = Tr.t("Found %1 feeds", found.length);
+                found.forEach(f => root.add(f.href, f.title));
+            } else {
+                root.note = data && data.error ? data.error : Tr.t("No feeds found at that address");
+            }
         }
     }
 
@@ -171,5 +242,5 @@ Singleton {
         }
     }
 
-    Component.onCompleted: { refresh(); check() }
+    Component.onCompleted: { refresh(); check(); loadTags(); savedArticles() }
 }

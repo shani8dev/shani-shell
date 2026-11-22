@@ -45,6 +45,13 @@ Singleton {
     property bool locked: false        // the open note is a .locked.md
     property bool unlocked: false      // its passphrase was accepted this session
     property string lockError: ""      // why the last lock/unlock failed
+    // trash, version history, sort and tags (the note is still a plain .md)
+    readonly property string trashDir: root.dir + "/.trash"
+    readonly property string historyDir: root.dir + "/.history"
+    property var trashed: []
+    property var historyList: []
+    property string sortBy: Settings.data.notesSortBy || "updated"
+    property var previews: ({})
 
     // ---- export / print / sync (Gnote parity) ------------------------------
     property string lastExported: ""   // last .html written by exportHtml(), for `state`
@@ -70,15 +77,17 @@ Singleton {
     // ---- listing ------------------------------------------------------------
     Process {
         id: list
-        command: ["sh", "-c", 'd="$1"; mkdir -p "$d"; { for f in "$d"/*.md; do [ -e "$f" ] && basename "${f%.md}"; done; for sub in "$d"/*/; do [ -d "$sub" ] || continue; nb=$(basename "$sub"); for f in "$sub"*.md; do [ -e "$f" ] && printf "%s/%s\\n" "$nb" "$(basename "${f%.md}")"; done; done; } | sort', "sh", root.dir]
+        command: ["sh", "-c", 'd="$1"; mkdir -p "$d"; { for f in "$d"/*.md; do [ -e "$f" ] && printf "%s\\t%s\\n" "$(stat -c %Y "$f")" "$(basename "${f%.md}")"; done; for sub in "$d"/*/; do [ -d "$sub" ] || continue; nb=$(basename "$sub"); for f in "$sub"*.md; do [ -e "$f" ] && printf "%s\\t%s/%s\\n" "$(stat -c %Y "$f")" "$nb" "$(basename "${f%.md}")"; done; done; } | sort -rn', "sh", root.dir]
         stdout: StdioCollector {
             onStreamFinished: {
                 const lines = text.trim().split("\n").filter(s => s !== "");
                 const all = lines.map(line => {
-                    const slash = line.indexOf("/");
-                    const nb = slash >= 0 ? line.slice(0, slash) : "";
-                    const name = slash >= 0 ? line.slice(slash + 1) : line;
-                    return { name: name, path: nb === "" ? root.dir + "/" + name + ".md" : root.dir + "/" + nb + "/" + name + ".md", notebook: nb, id: nb === "" ? name : nb + "/" + name };
+                    const bits = line.split("\t");
+                    const id = bits.length > 1 ? bits[1] : line;
+                    const slash = id.indexOf("/");
+                    const nb = slash >= 0 ? id.slice(0, slash) : "";
+                    const name = slash >= 0 ? id.slice(slash + 1) : id;
+                    return { name: name, path: nb === "" ? root.dir + "/" + name + ".md" : root.dir + "/" + nb + "/" + name + ".md", notebook: nb, id: id, mtime: Number(bits[0]) || 0 };
                 });
                 root.notes = all;
                 root.exists = all.length > 0;
@@ -102,6 +111,22 @@ Singleton {
     function refresh() {
         list.running = true;
         nbList.running = true;
+        trashList.running = true;
+        previewProc.running = true;
+    }
+    Process {
+        id: previewProc
+        command: ["sh", "-c", 'd="$1"; for f in "$d"/*.md "$d"/*/*.md; do [ -e "$f" ] || continue; p=$(grep -m1 -v "^[[:space:]]*$" -- "$f" 2>/dev/null | head -c 120); rel=${f#"$d"/}; printf "%s\\t%s\\n" "${rel%.md}" "$p"; done', "sh", root.dir]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const map = {};
+                text.trim().split("\n").forEach(line => {
+                    const i = line.indexOf("\t");
+                    if (i > 0) map[line.slice(0, i)] = line.slice(i + 1);
+                });
+                root.previews = map;
+            }
+        }
     }
     Component.onCompleted: { refresh(); cryptoProbe.running = true; if (root.syncPath) root.syncNotes() }
 
@@ -206,6 +231,7 @@ Singleton {
             }
             const dirPath = root.currentNotebook === "" ? root.dir : root.dir + "/" + root.currentNotebook;
             Quickshell.execDetached(["mkdir", "-p", dirPath]);
+            root.snapshot();   // keep the previous body before overwriting it
             file.setText(root.text);
             root.syncTimer.restart();   // local-first, then mirror to the cloud mount
         }
@@ -264,36 +290,62 @@ Singleton {
         }
         refresh();
     }
+    // Deleting a note moves its file to .trash instead of rm: a second tap
+    // in the UI is still needed, but a deletion can now be put back.
     function remove(name, notebook) {
-        if (!name)
-            return;
+        if (!name) return;
         let raw = String(name);
         let nb = notebook;
         if (nb === undefined) {
             const slash = raw.indexOf("/");
-            if (slash >= 0) {
-                nb = raw.slice(0, slash);
-                raw = raw.slice(slash + 1);
-            } else {
+            if (slash >= 0) { nb = raw.slice(0, slash); raw = raw.slice(slash + 1); }
+            else {
                 const found = notes.filter(x => x.name === valid(raw))[0];
                 nb = found ? found.notebook : root.currentNotebook;
             }
         }
         nb = validNotebook(nb);
         const n = valid(raw);
-        if (n === "")
-            return;
-        Quickshell.execDetached(["sh", "-c", 'rm -f -- "$1"', "sh", notePath(n, nb)]);
+        if (n === "") return;
+        // shortcut: notebook/name is flattened with "__"; a name containing
+        // "__" is ambiguous, use a notebook-free note name for those
+        const key = (nb ? nb + "__" : "") + n;
+        save.stop();
+        Quickshell.execDetached(["sh", "-c", 'mkdir -p "$1" && mv -f -- "$2" "$3"', "sh",
+            root.trashDir, notePath(n, nb), root.trashDir + "/" + key + ".md"]);
         if (root.current === n && root.currentNotebook === nb) {
             root.current = "";
             root.currentNotebook = "";
             const rest = notes.filter(x => !(x.name === n && x.notebook === nb));
-            if (rest.length > 0)
-                root.open(rest[0].name, rest[0].notebook);
-            else
-                root.loaded = true;
+            if (rest.length > 0) root.open(rest[0].name, rest[0].notebook);
+            else root.loaded = true;
         }
         refresh();
+        trashList.running = true;
+    }
+    // put a trashed note back where it came from
+    function restore(key) {
+        const k = String(key || "");
+        if (k === "") return;
+        const i = k.indexOf("__");
+        const nb = i >= 0 ? k.slice(0, i) : "";
+        const n = i >= 0 ? k.slice(i + 2) : k;
+        const folder = nb === "" ? root.dir : root.dir + "/" + nb;
+        Quickshell.execDetached(["sh", "-c", 'mkdir -p "$1" && mv -f -- "$2" "$3"', "sh",
+            folder, root.trashDir + "/" + k + ".md", notePath(n, nb)]);
+        trashList.running = true;
+        refresh();
+    }
+    function emptyTrash() {
+        Quickshell.execDetached(["sh", "-c", 'rm -f -- "$1"/*.md', "sh", root.trashDir]);
+        root.trashed = [];
+    }
+    Process {
+        id: trashList
+        command: ["sh", "-c", 'd="$1"; mkdir -p "$d"; for f in "$d"/*.md; do [ -e "$f" ] && basename "${f%.md}"; done | sort', "sh", root.trashDir]
+        stdout: StdioCollector {
+            onStreamFinished: root.trashed = text.trim().split("\n").filter(s => s !== "");
+        }
     }
 
     // ---- notebooks (Gnote parity: folders = notebooks) ------------------------
@@ -418,25 +470,40 @@ Singleton {
     // the other notes' bodies, searched on disk (the open one is `search`
     // already): contentHits holds ids ("note" or "notebook/note")
     property var contentHits: []
+    property var bodyResults: []
     Process {
         id: grepBodies
         property string query: ""
         command: ["sh", "-c", 'd="$1"; q="$2"; [ "$q" = "" ] && exit 0; grep -liF -- "$q" "$d"/*.md "$d"/*/*.md 2>/dev/null | while read -r f; do rel=${f#"$d"/}; printf "%s\\n" "${rel%.md}"; done', "sh", root.dir, query]
         stdout: StdioCollector {
-            onStreamFinished: root.contentHits = text.trim().split("\n").filter(s => s !== "");
+            onStreamFinished: {
+                const hits = text.trim().split("\n").filter(s => s !== "");
+                root.contentHits = hits;
+                // browseable results, not just results[0]
+                root.bodyResults = hits.map(id => {
+                    const slash = id.indexOf("/");
+                    return { id: id, name: slash >= 0 ? id.slice(slash + 1) : id,
+                             notebook: slash >= 0 ? id.slice(0, slash) : "" };
+                });
+            }
         }
     }
     function searchBodies(q) {
         // a query that changes leaves the last answer behind unless it is
         // dropped first: the launcher would show "found in content" for a word
         // nobody typed any more
-        if (grepBodies.query !== String(q || "").trim())
+        if (grepBodies.query !== String(q || "").trim()) {
             root.contentHits = [];
+            root.bodyResults = [];
+        }
         grepBodies.query = String(q || "").trim();
         if (grepBodies.query !== "")
             grepBodies.running = true;
-        else
+        else {
             root.contentHits = [];
+            root.bodyResults = [];
+        }
+        return root.bodyResults;
     }
     // every note's first non-empty line, for a preview in the list
     function preview(name, notebook) {
@@ -449,11 +516,94 @@ Singleton {
         }
         if (nb !== undefined)
             nb = validNotebook(nb);
-        if (raw !== root.current)
-            return "";
-        if (nb !== undefined && nb !== root.currentNotebook)
-            return "";
-        return root.text.split("\n").find(l => l.trim() !== "") || "";
+        const key = noteId(raw, nb === undefined ? root.currentNotebook : nb);
+        if (raw === root.current && (nb === undefined || nb === root.currentNotebook))
+            return root.text.split("\n").find(l => l.trim() !== "") || "";
+        return root.previews[key] || "";
+    }
+
+    // ---- version history ------------------------------------------------------
+    // one dated copy per autosave, capped at 20, so "Earlier versions" really
+    // has something to show. Locked notes are skipped: their file is ciphertext.
+    function snapshot() {
+        if (root.current === "" || isLocked(root.current)) return;
+        const src = root.path;
+        const key = noteId(root.current, root.currentNotebook).replace("/", "__");
+        const stamp = Qt.formatDateTime(new Date(), "yyyyMMdd-HHmmss-zzz");
+        const dest = root.historyDir + "/" + key + "-" + stamp + ".md";
+        snapshotProc.command = ["sh", "-c",
+            '[ -f "$1" ] || exit 0; mkdir -p "$2" && cp -p -- "$1" "$3"; ls -1t "$2"/"$4"-*.md 2>/dev/null | tail -n +21 | while read -r old; do rm -f -- "$old"; done',
+            "sh", src, root.historyDir, dest, key];
+        snapshotProc.running = true;
+    }
+    Process { id: snapshotProc; stdout: StdioCollector {}; stderr: StdioCollector {} }
+    function history(id) {
+        const key = String(id || root.current || "").replace("/", "__");
+        histProc.command = ["sh", "-c",
+            'd="$1/.history"; [ -d "$d" ] || exit 0; ls -1t "$d"/"$2"-*.md 2>/dev/null | head -20',
+            "sh", root.dir, key];
+        histProc.running = true;
+    }
+    Process {
+        id: histProc
+        stdout: StdioCollector {
+            onStreamFinished: root.historyList = text.trim().split("\n").filter(s => s !== "");
+        }
+    }
+    function restoreVersion(path) {
+        if (!path) return;
+        Quickshell.execDetached(["sh", "-c", 'mkdir -p "$1" && cp -f -- "$2" "$3"', "sh",
+            root.dir + "/" + root.currentNotebook, path, root.path]);
+        file.reload();
+        refresh();
+    }
+
+    // ---- tags and due dates ---------------------------------------------------
+    // #tags in the body, and @due(YYYY-MM-DD) on a Markdown task line
+    function tags() {
+        const out = [];
+        const re = /#[A-Za-z0-9_-]+/g;
+        let m;
+        while ((m = re.exec(String(root.text || ""))) !== null)
+            if (out.indexOf(m[0]) < 0) out.push(m[0]);
+        return out.sort();
+    }
+    function notesWithTag(tag) {
+        searchBodies(tag);
+        return root.bodyResults;
+    }
+    function setDueDate(lineIndex, due) {
+        const lines = String(root.text).split("\n");
+        const i = Number(lineIndex);
+        if (!(i >= 0) || i >= lines.length) return false;
+        const m = /^(\s*[-*+]\s+\[[ xX]\][^\n]*)$/.exec(lines[i]);
+        if (!m) return false;
+        let line = m[1].replace(/\s*@due\([^)]*\)\s*$/, "");
+        if (String(due || "").trim() !== "") line += " @due(" + String(due).trim() + ")";
+        lines[i] = line;
+        set(lines.join("\n"));
+        return true;
+    }
+    function dueDates() {
+        const out = [];
+        String(root.text || "").split("\n").forEach((line, i) => {
+            const task = /^\s*[-*+]\s+\[([ xX])\]/.exec(line);
+            if (!task || task[1] !== " ") return;
+            const d = /@due\(([^)]+)\)/.exec(line);
+            if (d) out.push({ line: i, due: d[1].trim(),
+                              text: line.replace(/@due\([^)]*\)/, "").trim() });
+        });
+        return out.sort((a, b) => String(a.due).localeCompare(String(b.due)));
+    }
+
+    // ---- sorting --------------------------------------------------------------
+    function sortedNotes(list) {
+        const arr = (list || root.notes).slice();
+        if (root.sortBy === "title")
+            return arr.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+        if (root.sortBy === "created")
+            return arr.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+        return arr.sort((a, b) => b.mtime - a.mtime);   // updated: newest first
     }
 
     // ---- checklists -----------------------------------------------------------

@@ -319,6 +319,9 @@ Singleton {
             property var aiProviders: []               // connected AI providers (Services/AIProviders)
             property bool textmateEnabled: true         // use TextMate grammars when available (Services/TextMate)
             property string chronoaPreferredModel: ""   // the model Chronoa uses (Services/Models)
+            property string textmateTheme: ""           // chosen TextMate colour theme (TextEditorPanel)
+            property string notesSortBy: "updated"      // Notes list order: updated | created | title
+            property string contactsSortBy: "name"      // Contacts list order: name | given | family
             property bool chronoaEnabled: true            // start Chronoa at login (SettingsChronoa)
             // missing Noctalia adapter entries with existing QML bindings (subagent finding #1)
             property bool showCalendarEvents: true     // SidebarCalendar.qml line 40

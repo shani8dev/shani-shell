@@ -22,11 +22,13 @@ Formats by kind (what makes sense, not every codec there is):
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 FFMPEG = os.environ.get("SHANI_FFMPEG", "ffmpeg")
@@ -351,7 +353,124 @@ def run(src: Path, fmt: str, q: str, options: "Optional[Options]" = None) -> int
     return 0
 
 
+def segments(src: Path, out: Path, pairs: list[tuple[str, str]]) -> int:
+    """Cut several [start, end] windows from one video and join them into out.
+
+    Every argument reaches ffmpeg as its own argv slot — no shell, and no
+    filename is ever pasted into a command string. Segments are cut to a temp
+    dir with stream copy (re-encoding when the keyframes refuse a copy), then
+    joined through ffmpeg's concat demuxer. A list file is written with one
+    absolute path per line so spaces and quotes in names are safe.
+    """
+    if not src.is_file():
+        emit({"error": f"there is no file at {src}"})
+        return 3
+    if len(pairs) < 2:
+        emit({"error": "need at least two segments to join"})
+        return 3
+    cleaned: list[tuple[float, float]] = []
+    try:
+        for a, b in pairs:
+            s, e = float(a), float(b)
+            if not (math.isfinite(s) and math.isfinite(e)) or e <= s:
+                emit({"error": "each segment needs a start before its end"})
+                return 3
+            cleaned.append((s, e))
+    except (TypeError, ValueError):
+        emit({"error": "segment offsets must be numbers"})
+        return 3
+    tmp = Path(tempfile.mkdtemp(prefix="shani-segments-"))
+    try:
+        parts: list[Path] = []
+        for i, (s, e) in enumerate(cleaned):
+            part = tmp / f"seg{i}.mp4"
+            base = [
+                FFMPEG,
+                "-hide_banner",
+                "-nostdin",
+                "-y",
+                "-loglevel",
+                "error",
+                "-ss",
+                f"{s:.3f}",
+                "-to",
+                f"{e:.3f}",
+                "-i",
+                str(src),
+            ]
+            r = subprocess.run(
+                base + ["-c", "copy", str(part)], capture_output=True, text=True
+            )
+            if r.returncode != 0:
+                r = subprocess.run(
+                    base
+                    + [
+                        "-c:v",
+                        "libx264",
+                        "-crf",
+                        "23",
+                        "-preset",
+                        "medium",
+                        "-c:a",
+                        "aac",
+                        "-movflags",
+                        "+faststart",
+                        str(part),
+                    ],
+                    capture_output=True,
+                    text=True,
+                )
+            if r.returncode != 0:
+                raise RuntimeError(
+                    r.stderr.strip().split("\n")[-1] or "ffmpeg refused a segment"
+                )
+            parts.append(part)
+            emit({"progress": round((i + 1) / len(cleaned) * 0.9, 3)})
+        listfile = tmp / "list.txt"
+        listfile.write_text("".join(f"file '{p}'\n" for p in parts))
+        r = subprocess.run(
+            [
+                FFMPEG,
+                "-hide_banner",
+                "-nostdin",
+                "-y",
+                "-loglevel",
+                "error",
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                str(listfile),
+                "-c",
+                "copy",
+                str(out),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        if r.returncode != 0:
+            raise RuntimeError(
+                r.stderr.strip().split("\n")[-1] or "ffmpeg could not join the segments"
+            )
+    except (OSError, RuntimeError, ValueError) as exc:
+        emit({"error": str(exc)})
+        return 1
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    emit({"progress": 1.0})
+    emit({"done": str(out)})
+    return 0
+
+
 def main(argv: list[str]) -> int:
+    if len(argv) >= 4 and argv[1] == "segments":
+        rest = argv[4:]
+        if len(rest) < 4 or len(rest) % 2:
+            emit({"error": "usage: segments SRC OUT START END [START END ...]"})
+            return 3
+        pairs = [(rest[i], rest[i + 1]) for i in range(0, len(rest), 2)]
+        return segments(Path(argv[2]).expanduser(), Path(argv[3]).expanduser(), pairs)
     if len(argv) >= 3 and argv[1] == "formats":
         kind = kind_of(Path(argv[2]))
         print(json.dumps({"kind": kind, "formats": FORMATS.get(kind, [])}))
@@ -370,7 +489,8 @@ def main(argv: list[str]) -> int:
             Path(argv[2]).expanduser(), argv[3].lower().lstrip("."), q, Options(**flags)
         )
     print(
-        "usage: convert.py formats FILE | run FILE FORMAT [small|balanced|best]",
+        "usage: convert.py formats FILE | run FILE FORMAT [small|balanced|best]\n"
+        "       convert.py segments SRC OUT START END [START END ...]",
         file=sys.stderr,
     )
     return 3

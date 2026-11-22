@@ -28,6 +28,16 @@ ColumnLayout {
         { id: "music", label: Tr.t("Music"), icon: "audio-x-generic", types: ["audio/mpeg", "audio/flac", "audio/ogg"] },
         { id: "pdf", label: Tr.t("PDF"), icon: "x-office-document", types: ["application/pdf"] }
     ]
+    // Removable media: GNOME's x-content/* types — what opens when a disc, a
+    // camera card or a music player is plugged in. Same gio mime path as above.
+    readonly property var mediaKinds: [
+        { id: "cd-audio", label: Tr.t("Audio CD"), icon: "media-optical-audio", types: ["x-content/audio-cdda"] },
+        { id: "dvd-video", label: Tr.t("DVD video"), icon: "media-optical-video", types: ["x-content/video-dvd"] },
+        { id: "music-player", label: Tr.t("Music player"), icon: "audio-x-generic", types: ["x-content/audio-player"] },
+        { id: "camera", label: Tr.t("Camera"), icon: "camera-photo", types: ["x-content/image-dcf"] },
+        { id: "software", label: Tr.t("Software disc"), icon: "media-optical", types: ["x-content/unix-software"] },
+        { id: "pictures", label: Tr.t("Photos"), icon: "image-x-generic", types: ["x-content/image-picturecf"] }
+    ]
     property var found: ({})              // id → { current, candidates: [] }
     property string open: ""              // the kind whose list is shown
 
@@ -43,7 +53,7 @@ ColumnLayout {
         query.command = ["sh", "-c", 'for k in "$@"; do id=${k%%=*}; m=${k#*=}; out=$(LC_ALL=C gio mime "$m" 2>/dev/null)
             cur=$(printf "%s\\n" "$out" | sed -n "s/^Default application for .*: //p")
             c=$(printf "%s\\n" "$out" | sed -n "/^Registered applications:/,/^[A-Z]/p" | sed -n "s/^\\t//p" | tr "\\n" ",")
-            printf "%s\\t%s\\t%s\\n" "$id" "$cur" "$c"; done', "sh"].concat(kinds.map(k => k.id + "=" + k.types[0]));
+            printf "%s\\t%s\\t%s\\n" "$id" "$cur" "$c"; done', "sh"].concat(kinds.concat(mediaKinds).map(k => k.id + "=" + k.types[0]));
         query.running = true;
     }
     onActiveChanged: if (active) refresh()
@@ -98,6 +108,47 @@ ColumnLayout {
                     title: page.nameOf(modelData)
                     selected: modelData === kindRow.info.current
                     onClicked: page.choose(kindRow.modelData, modelData)
+                }
+            }
+        }
+    }
+
+    // ---- removable media (x-content/*): what opens on inserting a disc/card ----
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Removable media") }
+    Text {
+        Layout.fillWidth: true
+        wrapMode: Text.Wrap
+        text: Tr.t("What opens when you insert a disc, a camera card or a music player.")
+        color: Theme.dim
+        font.family: Theme.font
+        font.pixelSize: Theme.px(11) * Theme.fontScale
+    }
+    Repeater {
+        model: page.mediaKinds
+        ColumnLayout {
+            id: mediaRow
+            required property var modelData
+            readonly property var info: page.found[modelData.id] || { current: "", candidates: [] }
+            Layout.fillWidth: true
+            spacing: 2
+            ListRow {
+                Layout.fillWidth: true
+                icon: mediaRow.modelData.icon
+                title: mediaRow.modelData.label
+                subtitle: mediaRow.info.current ? page.nameOf(mediaRow.info.current) : (mediaRow.info.candidates.length ? "Not set — choose one" : "No app installed for this")
+                trailing: mediaRow.info.candidates.length > 1 ? "›" : ""
+                onClicked: page.open = page.open === mediaRow.modelData.id ? "" : mediaRow.modelData.id
+            }
+            Repeater {
+                model: page.open === mediaRow.modelData.id ? mediaRow.info.candidates : []
+                ListRow {
+                    required property string modelData
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.px(28)
+                    icon: { const e = page.entry(modelData); return e && e.icon ? e.icon : "application-x-executable"; }
+                    title: page.nameOf(modelData)
+                    selected: modelData === mediaRow.info.current
+                    onClicked: page.choose(mediaRow.modelData, modelData)
                 }
             }
         }

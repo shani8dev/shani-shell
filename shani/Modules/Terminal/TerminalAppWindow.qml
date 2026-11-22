@@ -26,6 +26,34 @@ AppWindow {
     property string snippetNote: ""
     property string hostQuery: ""
     property string hostNote: ""
+    property string tunnelMode: "L"
+    // advanced per-host ssh options, kept with the host in hosts JSON
+    property string newHostProxyJump: ""
+    property string newHostExtraOpts: ""
+    property bool newHostForwardAgent: false
+    property bool newHostX11: false
+    property bool newHostCompression: false
+    function hostOpts() {
+        return { proxyJump: win.newHostProxyJump.trim(), forwardAgent: win.newHostForwardAgent,
+                 x11: win.newHostX11, compression: win.newHostCompression,
+                 extraOpts: win.newHostExtraOpts.split(",").map(s => s.trim()).filter(s => s) };
+    }
+    function editHost(h) {
+        win.tab = "add";
+        win.newHostName = h.name; win.newHostAddr = h.host; win.newHostUser = h.user || "";
+        win.newHostPort = String(h.port || 22); win.newHostKey = h.key || "";
+        win.newHostProxyJump = h.proxyJump || ""; win.newHostExtraOpts = (h.extraOpts || []).join(", ");
+        win.newHostForwardAgent = !!h.forwardAgent; win.newHostX11 = !!h.x11; win.newHostCompression = !!h.compression;
+        win.editId = h.id;
+    }
+    function relativeTime(ms) {
+        if (!ms) return "";
+        const s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+        if (s < 60) return Tr.t("just now");
+        if (s < 3600) return Tr.t("%1 min ago", Math.floor(s / 60));
+        if (s < 86400) return Tr.t("%1 h ago", Math.floor(s / 3600));
+        return Tr.t("%1 d ago", Math.floor(s / 86400));
+    }
 
     onVisibleChanged: if (visible) TerminalApp.refresh()
 
@@ -52,6 +80,14 @@ AppWindow {
             }
             Item { Layout.fillWidth: true }
             Button { text: Tr.t("Refresh"); flat: true; onClicked: TerminalApp.refresh() }
+            Button {
+                text: Tr.t("Import hosts…"); flat: true
+                onClicked: FilePicker.open({ mode: "open", title: Tr.t("Hosts JSON"), onPicked: paths => { if (paths.length) TerminalApp.importHosts(paths[0]); } })
+            }
+            Button {
+                text: Tr.t("Export hosts…"); flat: true
+                onClicked: FilePicker.open({ mode: "save", title: Tr.t("Hosts JSON"), defaultName: "shani-terminal-hosts.json", onPicked: paths => { if (paths.length) TerminalApp.exportHosts(paths[0]); } })
+            }
             Repeater {
                 model: [["hosts", Tr.t("Hosts")], ["keys", Tr.t("Keys")], ["tunnels", Tr.t("Tunnels")], ["snippets", Tr.t("Snippets")]]
                 Choice {
@@ -92,7 +128,7 @@ AppWindow {
                         Button { text: Tr.t("Connect"); kind: "primary"; onClicked: TerminalApp.connect(modelData) }
                         Button { text: Tr.t("Test"); enabled: !TerminalApp.busy && modelData.type !== "serial"; onClicked: TerminalApp.testConnection(modelData, (ok, msg) => win.hostNote = (ok === "ok" ? Tr.t("Connected to %1", modelData.name) : Tr.t("Test failed: %1", msg))) }
                         IconButton { icon: "folder-remote"; size: Theme.px(26); tip: Tr.t("Browse files on this host"); onClicked: Files.connectServer("ssh://" + modelData.user + "@" + modelData.host + ":" + modelData.port + "/", "", "", "") }
-                        IconButton { icon: "go-previous"; tip: Tr.t("Edit"); onClicked: { win.tab = "add"; win.newHostName = modelData.name; win.newHostAddr = modelData.host; win.newHostUser = modelData.user; win.newHostPort = String(modelData.port); win.newHostKey = modelData.key || ""; win.editId = modelData.id; } }
+                        IconButton { icon: "go-previous"; tip: Tr.t("Edit"); onClicked: win.editHost(modelData) }
                     }
                     MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
                 }
@@ -134,13 +170,13 @@ AppWindow {
                             Layout.fillWidth: true
                             spacing: 0
                             Text { text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; elide: Text.ElideRight; Layout.fillWidth: true }
-                            Text { text: modelData.user + "@" + modelData.host + (modelData.port !== 22 ? ":" + modelData.port : "") + (modelData.key ? " · " + Tr.t("key") : ""); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; elide: Text.ElideRight; Layout.fillWidth: true }
+                            Text { text: modelData.user + "@" + modelData.host + (modelData.port !== 22 ? ":" + modelData.port : "") + (modelData.key ? " · " + Tr.t("key") : "") + (modelData.lastConnected ? " · " + Tr.t("Used %1", win.relativeTime(modelData.lastConnected)) : "") + (modelData.status === "failed" ? " · " + Tr.t("Unreachable") : modelData.status === "ok" ? " · " + Tr.t("Reachable") : ""); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; elide: Text.ElideRight; Layout.fillWidth: true }
                         }
                         Button { text: Tr.t("Connect"); kind: "outline"; onClicked: TerminalApp.connect(modelData) }
                         Button { text: Tr.t("Test"); enabled: !TerminalApp.busy && modelData.type !== "serial"; onClicked: TerminalApp.testConnection(modelData, (ok, msg) => win.hostNote = (ok === "ok" ? Tr.t("Connected to %1", modelData.name) : Tr.t("Test failed: %1", msg))) }
                         IconButton { icon: "folder-remote"; size: Theme.px(26); tip: Tr.t("Browse files on this host"); onClicked: Files.connectServer("ssh://" + modelData.user + "@" + modelData.host + ":" + modelData.port + "/", "", "", "") }
                         IconButton { icon: "object-select"; size: Theme.px(26); tip: modelData.pinned ? Tr.t("Unpin") : Tr.t("Pin"); onClicked: TerminalApp.togglePin(modelData.id) }
-                        IconButton { icon: "go-previous"; size: Theme.px(26); tip: Tr.t("Edit"); onClicked: { win.tab = "add"; win.newHostName = modelData.name; win.newHostAddr = modelData.host; win.newHostUser = modelData.user; win.newHostPort = String(modelData.port); win.newHostKey = modelData.key || ""; win.editId = modelData.id; } }
+                        IconButton { icon: "go-previous"; size: Theme.px(26); tip: Tr.t("Edit"); onClicked: win.editHost(modelData) }
                         IconButton { icon: "edit-clear-all"; size: Theme.px(26); tip: Tr.t("Delete"); onClicked: TerminalApp.deleteHost(modelData.id) }
                     }
                     MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
@@ -198,6 +234,26 @@ AppWindow {
                         text: win.newHostKey
                         onTextChanged: win.newHostKey = text
                     }
+                    // advanced ssh options (ProxyJump, forwarding, X11, …)
+                    TextField {
+                        Layout.fillWidth: true
+                        placeholder: Tr.t("ProxyJump (e.g. bastion.example.com)")
+                        text: win.newHostProxyJump
+                        onTextChanged: win.newHostProxyJump = text
+                    }
+                    TextField {
+                        Layout.fillWidth: true
+                        placeholder: Tr.t("Extra -o options, comma separated (e.g. ServerAliveInterval=15)")
+                        text: win.newHostExtraOpts
+                        onTextChanged: win.newHostExtraOpts = text
+                    }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: Theme.px(6)
+                        Choice { text: Tr.t("Forward agent"); selected: win.newHostForwardAgent; onClicked: win.newHostForwardAgent = !win.newHostForwardAgent }
+                        Choice { text: "X11"; selected: win.newHostX11; onClicked: win.newHostX11 = !win.newHostX11 }
+                        Choice { text: Tr.t("Compression"); selected: win.newHostCompression; onClicked: win.newHostCompression = !win.newHostCompression }
+                    }
                 }
                 Button {
                     text: win.newHostName === "" && win.editId === "" ? Tr.t("Add host") : Tr.t("Save")
@@ -205,13 +261,16 @@ AppWindow {
                     enabled: win.newHostAddr.trim() !== ""
                     onClicked: {
                         if (win.newHostName === "") win.newHostName = win.newHostAddr;
+                        const o = win.hostOpts();
                         if (win.editId) {
-                            TerminalApp.updateHost(win.editId, { name: win.newHostName, host: win.newHostAddr, port: parseInt(win.newHostPort) || 22, user: win.newHostUser, key: win.newHostKey });
+                            TerminalApp.updateHost(win.editId, { name: win.newHostName, host: win.newHostAddr, port: parseInt(win.newHostPort) || 22, user: win.newHostUser, key: win.newHostKey,
+                                proxyJump: o.proxyJump, forwardAgent: o.forwardAgent, x11: o.x11, compression: o.compression, extraOpts: o.extraOpts });
                             win.editId = "";
                         } else {
-                            TerminalApp.addHost(win.newHostName, win.newHostAddr, parseInt(win.newHostPort) || 22, win.newHostUser, win.newHostKey);
+                            TerminalApp.addHost(win.newHostName, win.newHostAddr, parseInt(win.newHostPort) || 22, win.newHostUser, win.newHostKey, "ssh", o);
                         }
                         win.newHostName = ""; win.newHostAddr = ""; win.newHostUser = ""; win.newHostPort = ""; win.newHostKey = "";
+                        win.newHostProxyJump = ""; win.newHostExtraOpts = ""; win.newHostForwardAgent = false; win.newHostX11 = false; win.newHostCompression = false;
                         win.tab = "hosts";
                     }
                 }
@@ -290,10 +349,23 @@ AppWindow {
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
-                text: Tr.t("Forward a local port to a host reachable from an SSH server. The tunnel runs in the background until you stop it.")
+                text: Tr.t("Forward a port through an SSH server: local (-L), remote (-R), or a dynamic SOCKS proxy (-D). It runs in the background until stopped.")
                 color: Theme.dim
                 font.family: Theme.font
                 font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Repeater {
+                    model: [["L", Tr.t("Local (-L)")], ["R", Tr.t("Remote (-R)")], ["D", Tr.t("SOCKS (-D)")]]
+                    Choice {
+                        required property var modelData
+                        text: modelData[1]
+                        selected: win.tunnelMode === modelData[0]
+                        onClicked: win.tunnelMode = modelData[0]
+                    }
+                }
             }
             Flow {
                 Layout.fillWidth: true
@@ -311,16 +383,17 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
-                TextField { id: tunLocal; Layout.preferredWidth: Theme.px(90); placeholder: Tr.t("Local port") }
-                TextField { id: tunRemoteHost; Layout.fillWidth: true; placeholder: Tr.t("Remote host") }
-                TextField { id: tunRemotePort; Layout.preferredWidth: Theme.px(90); placeholder: Tr.t("Remote port") }
+                TextField { id: tunLocal; Layout.preferredWidth: Theme.px(90); placeholder: win.tunnelMode === "R" ? Tr.t("Port on server") : Tr.t("Local port") }
+                TextField { id: tunRemoteHost; Layout.fillWidth: true; visible: win.tunnelMode !== "D"; placeholder: Tr.t("Destination host") }
+                TextField { id: tunRemotePort; Layout.preferredWidth: Theme.px(90); visible: win.tunnelMode !== "D"; placeholder: Tr.t("Destination port") }
                 Button {
                     text: Tr.t("Start tunnel")
                     kind: "primary"
-                    enabled: TerminalApp.hosts.length > 0 && tunLocal.text.trim() !== "" && tunRemoteHost.text.trim() !== "" && tunRemotePort.text.trim() !== ""
+                    enabled: TerminalApp.hosts.length > 0 && tunLocal.text.trim() !== ""
+                        && (win.tunnelMode === "D" || (tunRemoteHost.text.trim() !== "" && tunRemotePort.text.trim() !== ""))
                     onClicked: {
                         const h = TerminalApp.hosts.find(x => x.id === win.tunnelHostId) || TerminalApp.hosts[0];
-                        TerminalApp.tunnel(h, tunLocal.text.trim(), tunRemoteHost.text.trim(), tunRemotePort.text.trim());
+                        TerminalApp.tunnel(h, tunLocal.text.trim(), tunRemoteHost.text.trim(), tunRemotePort.text.trim(), win.tunnelMode);
                         tunLocal.text = ""; tunRemoteHost.text = ""; tunRemotePort.text = "";
                     }
                 }

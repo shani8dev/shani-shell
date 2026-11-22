@@ -11,6 +11,11 @@
                                     LUKS format + open + mkfs inside
     disks.py install-stick DEVICE ISO
                                     write an ISO to a USB drive (dd)
+    disks.py smart DEVICE            full SMART attribute table + self-test log
+    disks.py smart-test DEVICE short|long|conveyance
+                                    start a SMART self-test
+    disks.py benchmark DEVICE        read-only sequential read speed
+    disks.py take-ownership DEVICE   chown the mounted filesystem to the user
 
 All write operations need root (pkexec). The caller (Services/Disks.qml)
 runs this through pkexec, so this script runs as root.
@@ -26,6 +31,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 
 def run(cmd: list[str], **kw) -> subprocess.CompletedProcess:
@@ -181,6 +187,150 @@ def install_stick(device: str, iso: str) -> int:
     return 0
 
 
+# ---- detailed SMART and self-tests -------------------------------------------------
+def smart_details(device: str) -> int:
+    """The full smartctl report, reduced to what a details dialog can show."""
+    if not shutil.which("smartctl"):
+        print(json.dumps({"error": "smartctl is not installed (smartmontools)"}))
+        return 1
+    r = run(["smartctl", "-a", "-j", device])
+    try:
+        data = json.loads(r.stdout)
+    except json.JSONDecodeError:
+        print(json.dumps({"error": "could not parse smartctl output"}))
+        return 1
+    attrs = []
+    for a in data.get("ata_smart_attributes", {}).get("table", []):
+        attrs.append(
+            {
+                "id": a.get("id"),
+                "name": a.get("name", ""),
+                "value": a.get("value"),
+                "worst": a.get("worst"),
+                "thresh": a.get("thresh"),
+                "raw": (a.get("raw") or {}).get("value", ""),
+            }
+        )
+    tests = []
+    log = data.get("ata_smart_self_test_log", {}).get("standard", {})
+    for t in log.get("table", [])[:8]:
+        tests.append(
+            {
+                "type": t.get("test_type", ""),
+                "status": t.get("status", {}).get("string", ""),
+                "hours": t.get("when", {}).get("hours", ""),
+                "remaining": t.get("progress", {}).get("remaining", "")
+                if isinstance(t.get("progress"), dict)
+                else "",
+            }
+        )
+    out = {
+        "error": None,
+        "overall": data.get("smart_status", {}).get("passed", "unknown"),
+        "model": data.get("model_name", ""),
+        "serial": data.get("serial_number", ""),
+        "temp": data.get("temperature", {}).get("current", 0),
+        "hours": data.get("power_on_time", {}).get("hours", 0),
+        "attributes": attrs,
+        "tests": tests,
+        "capacity": data.get("user_capacity", {}).get("bytes", 0),
+        "selfTest": bool(
+            data.get("ata_smart_features", {}).get("self_tests", {}).get("supported")
+        ),
+    }
+    print(json.dumps(out))
+    return 0
+
+
+def smart_test(device: str, kind: str) -> int:
+    """Start a short, extended/long or conveyance SMART self-test."""
+    kinds = {
+        "short": "short",
+        "long": "long",
+        "extended": "long",
+        "conveyance": "conveyance",
+    }
+    if kind not in kinds:
+        print(json.dumps({"error": "unknown self-test: %s" % kind}))
+        return 1
+    if not shutil.which("smartctl"):
+        print(json.dumps({"error": "smartctl is not installed (smartmontools)"}))
+        return 1
+    r = run(["smartctl", "-t", kinds[kind], device])
+    if r.returncode != 0:
+        print(
+            json.dumps(
+                {
+                    "error": (
+                        r.stderr.strip().splitlines()
+                        or r.stdout.strip().splitlines()
+                        or ["self-test failed"]
+                    )[-1]
+                }
+            )
+        )
+        return 1
+    print(json.dumps({"ok": True, "test": kinds[kind]}))
+    return 0
+
+
+def benchmark(device: str) -> int:
+    """Read-only sequential read speed over the first 64 MiB (no writes)."""
+    if not device.startswith("/dev/"):
+        print(json.dumps({"error": "not a device path"}))
+        return 1
+    block = 1024 * 1024
+    limit = 64 * block
+    total = 0
+    started = time.monotonic()
+    try:
+        with open(device, "rb", buffering=0) as f:
+            while total < limit:
+                data = f.read(block)
+                if not data:
+                    break
+                total += len(data)
+    except OSError as e:
+        print(json.dumps({"error": str(e)}))
+        return 1
+    seconds = max(0.001, time.monotonic() - started)
+    print(
+        json.dumps(
+            {
+                "bytes": total,
+                "seconds": round(seconds, 2),
+                "mbps": round(total / block / seconds, 1),
+            }
+        )
+    )
+    return 0
+
+
+def take_ownership(device: str) -> int:
+    """Give the mounted filesystem of a removable disk to the signed-in user."""
+    r = run(["lsblk", "-no", "MOUNTPOINTS", device])
+    points = [p for p in r.stdout.splitlines() if p.strip()]
+    if not points:
+        print(json.dumps({"error": "the device is not mounted"}))
+        return 1
+    uid = os.environ.get("SUDO_UID") or str(os.getuid())
+    gid = os.environ.get("SUDO_GID") or str(os.getgid())
+    r = run(["chown", "-R", uid + ":" + gid, points[0]])
+    if r.returncode != 0:
+        print(
+            json.dumps(
+                {
+                    "error": (
+                        r.stderr.strip().splitlines() or ["could not take ownership"]
+                    )[-1]
+                }
+            )
+        )
+        return 1
+    print(json.dumps({"ok": True, "path": points[0]}))
+    return 0
+
+
 def main(argv: list[str]) -> int:
     if len(argv) < 2:
         print(
@@ -231,6 +381,30 @@ def main(argv: list[str]) -> int:
             print("install-stick needs a device and ISO path", file=sys.stderr)
             return 2
         return install_stick(argv[2], argv[3])
+
+    if cmd == "smart":
+        if len(argv) < 3:
+            print("smart needs a device", file=sys.stderr)
+            return 2
+        return smart_details(argv[2])
+
+    if cmd == "smart-test":
+        if len(argv) < 4:
+            print("smart-test needs a device and a test type", file=sys.stderr)
+            return 2
+        return smart_test(argv[2], argv[3])
+
+    if cmd == "benchmark":
+        if len(argv) < 3:
+            print("benchmark needs a device", file=sys.stderr)
+            return 2
+        return benchmark(argv[2])
+
+    if cmd == "take-ownership":
+        if len(argv) < 3:
+            print("take-ownership needs a device", file=sys.stderr)
+            return 2
+        return take_ownership(argv[2])
 
     print(f"unknown command: {cmd}", file=sys.stderr)
     return 2

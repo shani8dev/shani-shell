@@ -35,6 +35,16 @@ Singleton {
     property int threads: 0             // total threads (/proc/loadavg)
     property int fileHandles: 0         // allocated handles (/proc/sys/fs/file-nr)
     property string clockSpeed: ""      // from /proc/cpuinfo "cpu MHz" (lscpu's number)
+    // pressure & capacity meters for the System Monitor: load averages, swap and
+    // the kernel's PSI "some avg10" stall percentages (all from /proc).
+    property real load1: 0
+    property real load5: 0
+    property real load15: 0
+    property real swapTotalMb: 0
+    property real swapUsedMb: 0
+    property real psiCpu: 0              // % of time tasks stalled on CPU (avg10)
+    property real psiMem: 0              // % stalled on memory
+    property real psiIo: 0               // % stalled on I/O
     readonly property string uptimeStr: {
         const s = Math.floor(root.uptimeSec);
         const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
@@ -68,6 +78,9 @@ Singleton {
             loadavg.reload();
             fileNr.reload();
             cpuinfo.reload();
+            psiCpuFile.reload();
+            psiMemFile.reload();
+            psiIoFile.reload();
             if (root.tempPath)
                 tempFile.reload();
         }
@@ -125,6 +138,10 @@ Singleton {
             root.mem = total > 0 ? (total - avail) / total : 0;
             root.memHistory = root.push(root.memHistory, root.mem);
             root.memTotalGb = total / 1048576;
+            const st = Number((t.match(/SwapTotal:\s+(\d+)/) || [0, 0])[1]);
+            const sf = Number((t.match(/SwapFree:\s+(\d+)/) || [0, 0])[1]);
+            root.swapTotalMb = st / 1024;
+            root.swapUsedMb = (st - sf) / 1024;
         }
     }
     FileView {
@@ -186,8 +203,17 @@ Singleton {
             const parts = String(text()).trim().split(/\s+/);
             const total = parts[3] ? Number(String(parts[3]).split("/")[1]) : NaN;
             root.threads = isNaN(total) ? 0 : total;
+            root.load1 = Number(parts[0]) || 0;
+            root.load5 = Number(parts[1]) || 0;
+            root.load15 = Number(parts[2]) || 0;
         }
     }
+    // PSI: "some avg10=0.12 avg60=... avg300=... total=..." — avg10 is the
+    // percentage of the last 10s that at least one task was stalled.
+    function psi(text) { const m = String(text).match(/some\s+avg10=([\d.]+)/); return m ? parseFloat(m[1]) : 0; }
+    FileView { id: psiCpuFile; path: "/proc/pressure/cpu"; printErrors: false; onLoaded: { root.psiCpu = psi(text()); } }
+    FileView { id: psiMemFile; path: "/proc/pressure/memory"; printErrors: false; onLoaded: { root.psiMem = psi(text()); } }
+    FileView { id: psiIoFile; path: "/proc/pressure/io"; printErrors: false; onLoaded: { root.psiIo = psi(text()); } }
     FileView {
         id: fileNr
         path: "/proc/sys/fs/file-nr"

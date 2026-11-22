@@ -14,6 +14,37 @@ AppWindow {
     id: win
     appName: "Document Viewer"
     property string note: ""
+    // one extras panel at a time: bookmarks, links, attachments, annotations
+    property string extraPanel: ""
+    property bool mergeSplitShown: false
+    function toggleExtra(name) { extraPanel = extraPanel === name ? "" : name; }
+    function saveAttachment(index, name) {
+        FilePicker.open({
+            mode: "save",
+            title: Tr.t("Save embedded file"),
+            defaultName: name || "attachment",
+            onPicked: paths => { if (paths && paths.length) PdfViewer.saveAttachment(index, paths[0]); }
+        });
+    }
+    // merge / split: the service already has merge() and split(); this is the
+    // UI that fills their arguments. Paths arrive from FilePicker, never from
+    // a string typed into a command line.
+    property var mergePaths: []
+    property string mergeOut: ""
+    property string splitPrefix: (Quickshell.env("HOME") || "") + "/Pages/page"
+    property string splitRange: ""
+    function doMerge() {
+        PdfViewer.mergeFiles = win.mergePaths.slice();
+        PdfViewer.mergeOutput = win.mergeOut;
+        PdfViewer.merge();
+        win.mergeSplitShown = false;
+        win.note = Tr.t("Merging %1 PDFs…", win.mergePaths.length);
+    }
+    function doSplit() {
+        PdfViewer.split(PdfViewer.file, win.splitPrefix, win.splitRange);
+        win.mergeSplitShown = false;
+        win.note = Tr.t("Splitting…");
+    }
     // status line for annotation saves and errors
     Rectangle {
         anchors { top: parent.top; right: parent.right; margins: Theme.px(12) }
@@ -82,6 +113,80 @@ AppWindow {
     }
     // blur behind the card, as on every shell surface (ext-background-effect)
 
+    // ---- merge / split ---------------------------------------------------------
+    Glass {
+        id: mergeBox
+        parent: win.contentItem
+        visible: win.mergeSplitShown
+        z: 41
+        strong: true
+        solid: true
+        radius: Theme.px(12)
+        width: Math.min(parent.width - 40, Theme.px(460))
+        height: mergeCol.implicitHeight + 28
+        anchors.centerIn: parent
+        ColumnLayout {
+            id: mergeCol
+            anchors.fill: parent
+            anchors.margins: Theme.px(14)
+            spacing: Theme.px(8)
+            RowLayout {
+                Layout.fillWidth: true
+                Text { Layout.fillWidth: true; text: Tr.t("Merge / Split PDFs"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(14) * Theme.fontScale; font.weight: Font.DemiBold }
+                IconButton { icon: "window-close"; size: Theme.px(24); tip: Tr.t("Close"); onClicked: win.mergeSplitShown = false }
+            }
+            SectionTitle { Layout.fillWidth: true; text: Tr.t("Merge") }
+            Text {
+                Layout.fillWidth: true
+                text: win.mergePaths.length ? Tr.t("%1 PDFs chosen", win.mergePaths.length) : Tr.t("Choose two or more PDFs")
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Button {
+                    text: Tr.t("Choose PDFs…")
+                    flat: true
+                    onClicked: FilePicker.open({ mode: "open", multiple: true, filters: ["pdf"], title: Tr.t("PDFs to merge"),
+                        onPicked: paths => { if (paths && paths.length) win.mergePaths = paths; } })
+                }
+                Button {
+                    text: win.mergeOut ? Tr.t("Saving to %1", win.mergeOut.split("/").pop()) : Tr.t("Save as…")
+                    flat: true
+                    onClicked: FilePicker.open({ mode: "save", title: Tr.t("Merged PDF"), defaultName: "merged.pdf",
+                        onPicked: paths => { if (paths && paths.length) win.mergeOut = paths[0]; } })
+                }
+                Item { Layout.fillWidth: true }
+                Button { kind: "primary"; text: Tr.t("Merge"); enabled: win.mergePaths.length >= 2 && win.mergeOut !== ""; onClicked: win.doMerge() }
+            }
+            SectionTitle { Layout.fillWidth: true; text: Tr.t("Split") }
+            Text {
+                Layout.fillWidth: true
+                text: PdfViewer.name ? Tr.t("Split %1", PdfViewer.name) : Tr.t("Open a PDF to split it")
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+                elide: Text.ElideMiddle
+            }
+            TextField {
+                Layout.fillWidth: true
+                placeholder: Tr.t("Output prefix (e.g. ~/Pages/page)")
+                label: Tr.t("Output prefix")
+                text: win.splitPrefix
+                onTextChanged: win.splitPrefix = text
+            }
+            TextField {
+                Layout.fillWidth: true
+                placeholder: Tr.t("Page range (e.g. 1-5), or all")
+                label: Tr.t("Page range")
+                text: win.splitRange
+                onTextChanged: win.splitRange = text
+            }
+            Button { Layout.fillWidth: true; kind: "primary"; text: Tr.t("Split into pages"); enabled: PdfViewer.file !== ""; onClicked: win.doSplit() }
+        }
+    }
+
     // the document's properties (pdfinfo), over the page until closed
     Glass {
         id: infoBox
@@ -147,7 +252,10 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
+                IconButton { icon: "go-first"; size: Theme.px(28); tip: Tr.t("First page"); onClicked: PdfViewer.firstPage() }
                 IconButton { icon: "go-previous"; size: Theme.px(28); tip: Tr.t("Previous page"); onClicked: PdfViewer.prevPage() }
+                IconButton { icon: "edit-undo"; size: Theme.px(28); tip: Tr.t("Back"); enabled: PdfViewer.canNavBack; onClicked: PdfViewer.navBack() }
+                IconButton { icon: "edit-redo"; size: Theme.px(28); tip: Tr.t("Forward"); enabled: PdfViewer.canNavForward; onClicked: PdfViewer.navForward() }
                 Text {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
@@ -159,6 +267,7 @@ AppWindow {
                     font.weight: Font.DemiBold
                 }
                 IconButton { icon: "go-next"; size: Theme.px(28); tip: Tr.t("Next page"); onClicked: PdfViewer.nextPage() }
+                IconButton { icon: "go-last"; size: Theme.px(28); tip: Tr.t("Last page"); onClicked: PdfViewer.lastPage() }
                 IconButton { icon: "document-open"; size: Theme.px(28); tip: Tr.t("Toggle thumbnails"); on: PdfViewer.showSidebar; onClicked: PdfViewer.toggleSidebar() }
                 IconButton { icon: "printer"; size: Theme.px(28); tip: Tr.t("Print (P)"); onClicked: PdfViewer.printFile() }
                 IconButton { icon: "draw-freehand"; size: Theme.px(28); tip: Tr.t("Mark up this page"); on: win.pdfAnnoMode; onClicked: { win.pdfAnnoMode = !win.pdfAnnoMode; } }
@@ -173,6 +282,11 @@ AppWindow {
                     kind: PdfViewer.formShown ? "primary" : ""
                     onClicked: PdfViewer.formShown = !PdfViewer.formShown
                 }
+                IconButton { icon: "user-bookmarks"; size: Theme.px(28); tip: Tr.t("Your bookmarks"); on: win.extraPanel === "bookmarks"; onClicked: win.toggleExtra("bookmarks") }
+                IconButton { icon: "insert-link"; size: Theme.px(28); tip: Tr.t("Links in this PDF"); on: win.extraPanel === "links"; onClicked: win.toggleExtra("links") }
+                IconButton { icon: "mail-attachment"; size: Theme.px(28); tip: Tr.t("Embedded attachments"); on: win.extraPanel === "attachments"; onClicked: win.toggleExtra("attachments") }
+                IconButton { icon: "view-list"; size: Theme.px(28); tip: Tr.t("Annotations"); on: win.extraPanel === "annotations"; onClicked: win.toggleExtra("annotations") }
+                Button { text: Tr.t("Merge / Split…"); flat: true; onClicked: win.mergeSplitShown = true }
             }
 
             // search bar: find text (pdftotext -bbox) + jump-to-page box
@@ -188,6 +302,21 @@ AppWindow {
                 }
                 IconButton { icon: "go-up"; size: Theme.px(28); tip: Tr.t("Find previous"); onClicked: PdfViewer.findPrev() }
                 IconButton { icon: "go-down"; size: Theme.px(28); tip: Tr.t("Find next"); onClicked: PdfViewer.findNext() }
+                Choice {
+                    text: Tr.t("Case")
+                    selected: PdfViewer.caseSensitive
+                    onClicked: { PdfViewer.caseSensitive = !PdfViewer.caseSensitive; if (PdfViewer.searchText) PdfViewer.search(PdfViewer.searchText); }
+                }
+                Choice {
+                    text: Tr.t("Word")
+                    selected: PdfViewer.wholeWord
+                    onClicked: { PdfViewer.wholeWord = !PdfViewer.wholeWord; if (PdfViewer.searchText) PdfViewer.search(PdfViewer.searchText); }
+                }
+                Choice {
+                    text: Tr.t("Wrap")
+                    selected: PdfViewer.wrapSearch
+                    onClicked: PdfViewer.wrapSearch = !PdfViewer.wrapSearch
+                }
                 Text {
                     text: PdfViewer.searchLabel !== "" ? PdfViewer.searchLabel : (PdfViewer.searchState !== "" ? PdfViewer.searchState : PdfViewer.label)
                     color: Theme.dim
@@ -726,6 +855,22 @@ AppWindow {
                                             }
                                         }
                                     }
+                                    // radio groups: many widgets, one field name;
+                                    // pdfform.py exposes the states as options
+                                    Flow {
+                                        Layout.fillWidth: true
+                                        visible: modelData.type === "radio" && modelData.options.length > 0
+                                        spacing: Theme.px(6)
+                                        Repeater {
+                                            model: modelData.options
+                                            Choice {
+                                                required property string modelData
+                                                text: modelData
+                                                selected: PdfViewer.fieldValue(parent.parent.modelData) === modelData
+                                                onClicked: PdfViewer.setField(parent.parent.modelData.name, modelData)
+                                            }
+                                        }
+                                    }
                                 }
                             }
                             Button { Layout.fillWidth: true; kind: "primary"; text: Tr.t("Save a filled copy"); onClicked: PdfViewer.saveForm() }
@@ -739,6 +884,183 @@ AppWindow {
                                 font.pixelSize: Theme.px(11) * Theme.fontScale
                             }
                             Button { visible: PdfViewer.formSaved !== ""; flat: true; text: Tr.t("Open the filled copy"); onClicked: PdfViewer.open(PdfViewer.formSaved) }
+                        }
+                    }
+                }
+
+                // ---- bookmarks / links / attachments / annotations -----------------
+                Rectangle {
+                    visible: win.extraPanel !== ""
+                    Layout.preferredWidth: Theme.px(280)
+                    Layout.fillHeight: true
+                    radius: Theme.radiusSmall
+                    color: Theme.surface1
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: Theme.px(10)
+                        spacing: Theme.px(6)
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text {
+                                Layout.fillWidth: true
+                                text: win.extraPanel === "bookmarks" ? Tr.t("Your bookmarks")
+                                    : win.extraPanel === "links" ? Tr.t("Links")
+                                    : win.extraPanel === "attachments" ? Tr.t("Attachments") : Tr.t("Annotations")
+                                color: Theme.text
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                font.weight: Font.DemiBold
+                            }
+                            IconButton { icon: "window-close"; size: Theme.px(22); tip: Tr.t("Close"); onClicked: win.extraPanel = "" }
+                        }
+                        Flickable {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            clip: true
+                            contentHeight: extrasCol.implicitHeight
+                            ColumnLayout {
+                                id: extrasCol
+                                width: parent.width
+                                spacing: Theme.px(6)
+
+                                // the reader's own bookmarks, kept by document md5
+                                ColumnLayout {
+                                    visible: win.extraPanel === "bookmarks"
+                                    Layout.fillWidth: true
+                                    spacing: Theme.px(6)
+                                    TextField {
+                                        id: bookmarkTitle
+                                        Layout.fillWidth: true
+                                        placeholder: Tr.t("Bookmark name")
+                                        label: Tr.t("Bookmark name")
+                                        text: PdfViewer.label || Tr.t("Page %1", PdfViewer.page + 1)
+                                    }
+                                    Button {
+                                        Layout.fillWidth: true
+                                        text: Tr.t("Bookmark page %1", PdfViewer.page + 1)
+                                        onClicked: PdfViewer.addBookmark(PdfViewer.page, bookmarkTitle.text)
+                                    }
+                                    Repeater {
+                                        model: PdfViewer.userBookmarks
+                                        RowLayout {
+                                            required property var modelData
+                                            Layout.fillWidth: true
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: modelData.title + "  ·  " + (modelData.page + 1)
+                                                color: Theme.text
+                                                font.family: Theme.font
+                                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                                elide: Text.ElideRight
+                                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: PdfViewer.goTo(modelData.page) }
+                                            }
+                                            IconButton { icon: "list-remove"; size: Theme.px(20); tip: Tr.t("Remove bookmark"); onClicked: PdfViewer.removeBookmark(modelData.page) }
+                                        }
+                                    }
+                                }
+
+                                // links from the PDF itself
+                                Repeater {
+                                    model: win.extraPanel === "links" ? PdfViewer.pdfLinks : []
+                                    Rectangle {
+                                        required property var modelData
+                                        Layout.fillWidth: true
+                                        implicitHeight: Theme.px(30)
+                                        radius: Theme.px(8)
+                                        color: linkArea.containsMouse ? Theme.hover : "transparent"
+                                        Text {
+                                            anchors.fill: parent
+                                            anchors.margins: Theme.px(6)
+                                            text: modelData.kind === "uri" ? modelData.uri
+                                                : modelData.kind === "goto" ? Tr.t("Page %1", modelData.target) : modelData.name
+                                            color: Theme.text
+                                            font.family: Theme.font
+                                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                                            elide: Text.ElideMiddle
+                                        }
+                                        MouseArea { id: linkArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: PdfViewer.followLink(modelData) }
+                                    }
+                                }
+
+                                // embedded files
+                                Repeater {
+                                    model: win.extraPanel === "attachments" ? PdfViewer.attachments : []
+                                    RowLayout {
+                                        required property var modelData
+                                        Layout.fillWidth: true
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: modelData.name + "  ·  " + modelData.size
+                                            color: Theme.text
+                                            font.family: Theme.font
+                                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                                            elide: Text.ElideMiddle
+                                        }
+                                        Button { flat: true; text: Tr.t("Save"); onClicked: win.saveAttachment(modelData.index, modelData.name) }
+                                    }
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    visible: win.extraPanel === "attachments" && PdfViewer.attachmentNote !== ""
+                                    text: PdfViewer.attachmentNote
+                                    color: Theme.dim
+                                    font.family: Theme.font
+                                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                                    wrapMode: Text.Wrap
+                                }
+
+                                // existing markup, read back from the PDF
+                                Repeater {
+                                    model: win.extraPanel === "annotations" ? PdfViewer.annotations : []
+                                    Rectangle {
+                                        required property var modelData
+                                        Layout.fillWidth: true
+                                        implicitHeight: annText.implicitHeight + Theme.px(12)
+                                        radius: Theme.px(8)
+                                        color: Theme.surface2
+                                        Column {
+                                            anchors.fill: parent
+                                            anchors.margins: Theme.px(6)
+                                            Text {
+                                                id: annText
+                                                width: parent.width
+                                                text: modelData.type + "  ·  " + Tr.t("page %1", modelData.page + 1)
+                                                    + (modelData.title ? "  ·  " + modelData.title : "")
+                                                    + (modelData.content ? "\n" + modelData.content : "")
+                                                color: Theme.text
+                                                font.family: Theme.font
+                                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                                wrapMode: Text.Wrap
+                                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: PdfViewer.goTo(modelData.page) }
+                                            }
+                                        }
+                                    }
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    visible: win.extraPanel === "links" && PdfViewer.pdfLinks.length === 0
+                                    text: Tr.t("No links in this document")
+                                    color: Theme.dim
+                                    font.family: Theme.font
+                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    visible: win.extraPanel === "attachments" && PdfViewer.attachments.length === 0
+                                    text: Tr.t("No embedded files")
+                                    color: Theme.dim
+                                    font.family: Theme.font
+                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    visible: win.extraPanel === "annotations" && PdfViewer.annotations.length === 0
+                                    text: Tr.t("No annotations yet — mark up a page to add one")
+                                    color: Theme.dim
+                                    font.family: Theme.font
+                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                }
+                            }
                         }
                     }
                 }

@@ -30,6 +30,10 @@ AppWindow {
         Button { text: Tr.t("Save"); kind: TextDocs.current && TextDocs.current.modified ? "primary" : "plain"; enabled: TextDocs.current !== null && !TextDocs.saving; onClicked: win.save() },
         Button { text: Tr.t("Save as…"); flat: true; onClicked: win.saveAs() },
         IconButton { size: Theme.px(30); icon: "edit-find"; tip: Tr.t("Find") + " (Ctrl+F)"; on: win.finding; onClicked: { win.finding = !win.finding; if (win.finding) findField.input.forceActiveFocus(); } },
+        IconButton { size: Theme.px(30); icon: "bookmark-new"; tip: "Toggle bookmark (Ctrl+B)"; onClicked: win.toggleBookmark() },
+        IconButton { size: Theme.px(30); icon: "go-jump"; tip: "Go to line (Ctrl+G)"; onClicked: win.openGoto() },
+        IconButton { size: Theme.px(30); icon: "applications-graphics"; tip: "TextMate theme"; onClicked: themeDialog.open() },
+        IconButton { size: Theme.px(30); icon: "preferences-desktop-theme"; tip: "TextMate colours"; on: TextMate.enabled; onClicked: { TextMate.enabled = !TextMate.enabled; Settings.data.textmateEnabled = TextMate.enabled; Settings.save(); win.recolour(); } },
         IconButton { size: Theme.px(30); icon: "format-justify-left"; tip: Tr.t("Wrap long lines"); on: win.wordWrap; onClicked: win.wordWrap = !win.wordWrap },
         IconButton { size: Theme.px(30); icon: "view-list"; tip: Tr.t("Line numbers"); on: win.lineNumbers; onClicked: win.lineNumbers = !win.lineNumbers },
         IconButton { size: Theme.px(30); icon: "applications-graphics"; tip: Tr.t("Syntax colours"); on: win.colours; onClicked: { win.colours = !win.colours; Settings.data.textEditorColours = win.colours; } },
@@ -44,6 +48,14 @@ AppWindow {
     property real fontSize: Settings.data.textEditorFontSize || 13
     property bool finding: false
     property bool replacing: false
+    // find options
+    property bool caseSensitive: false
+    property bool wholeWord: false
+    property bool useRegex: false
+    property int matchIndex: -1
+    // go-to-line and TextMate theme chooser
+    property bool gotoOpen: false
+    property string themeChoice: ""
     property int confirmClose: -1         // the tab asked to close with changes: a second click closes it
     property bool loading: false          // the editor is being filled, not typed in
     // ---- snippets: type a trigger, press Tab to expand ----
@@ -70,6 +82,43 @@ AppWindow {
                 edit.forceActiveFocus();
                 return true;
             }
+        }
+        return false;
+    }
+
+    // ---- typing helpers: auto-close brackets/quotes and smart indent ----------
+    function closeOf(ch) { return ch === "(" ? ")" : ch === "[" ? "]" : ch === "{" ? "}" : ch; }
+    function handleAutoclose(e) {
+        const t = edit.text, p = edit.cursorPosition, c = e.text;
+        if (c.length === 1 && "([{\"'".indexOf(c) >= 0) {
+            edit.insert(p, c + closeOf(c));
+            edit.cursorPosition = p + 1;
+            e.accepted = true;
+            return true;
+        }
+        if (e.key === Qt.Key_Backspace && p > 0 && p < t.length) {
+            const o = t.charAt(p - 1);
+            if (closeOf(o) === t.charAt(p) && "([{\"'".indexOf(o) >= 0) {
+                edit.remove(p - 1, 2);
+                e.accepted = true;
+                return true;
+            }
+        }
+        if (e.key === Qt.Key_Return && !(e.modifiers & Qt.ControlModifier) && !(e.modifiers & Qt.ShiftModifier)) {
+            const lineStart = t.lastIndexOf("\n", p - 1) + 1;
+            const line = t.slice(lineStart, p);
+            const indent = (line.match(/^[ \t]*/) || [""])[0];
+            const extra = /[\{\[\(]\s*$/.test(line) ? "    " : "";
+            const next = t.charAt(p);
+            if (extra && (next === "}" || next === "]" || next === ")")) {
+                edit.insert(p, "\n" + indent + extra + "\n" + indent);
+                edit.cursorPosition = p + 1 + indent.length + extra.length;
+            } else {
+                edit.insert(p, "\n" + indent + extra);
+                edit.cursorPosition = p + 1 + indent.length + extra.length;
+            }
+            e.accepted = true;
+            return true;
         }
         return false;
     }
@@ -242,6 +291,7 @@ AppWindow {
         function onTextEditorOpenPathChanged() { win.take(); }
     }
     Component.onCompleted: {
+        if (Settings.data.textmateTheme) TextMate.themePath = Settings.data.textmateTheme;
         if (TextDocs) TextDocs.onActiveChanged.connect(() => win.clearExtraCursors());
         if (TextDocs.docs.length === 0)
             TextDocs.newDoc();
@@ -277,25 +327,87 @@ AppWindow {
     Timer { id: confirmTimer; interval: 4000; onTriggered: win.confirmClose = -1 }
 
     // ---- find and replace -------------------------------------------------------
+    // one matcher for search, live highlights and replace-all, so all three
+    // agree on case, whole-word and regular-expression options
+    function searchRegex(q) {
+        if (!q) return null;
+        try {
+            if (win.useRegex)
+                return new RegExp(q, (win.caseSensitive ? "" : "i") + "g");
+            let esc = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            if (win.wholeWord) esc = "\\b" + esc + "\\b";
+            return new RegExp(esc, (win.caseSensitive ? "" : "i") + "g");
+        } catch (e) { return null; }
+    }
+    function findMatches(hay, q) {
+        const re = win.searchRegex(q);
+        if (!re) return [];
+        const out = [];
+        let m, guard = 0;
+        while ((m = re.exec(hay)) !== null && guard++ < 500) {
+            out.push(m.index);
+            if (m[0].length === 0) re.lastIndex++;
+        }
+        return out;
+    }
+    readonly property var matchOffsets: win.finding && findField.text !== "" ? win.findMatches(edit.text, findField.text) : []
+    function toggleBookmark() {
+        const lc = win.lineCol(edit.cursorPosition);
+        TextDocs.toggleBookmark(lc.line);
+    }
+    function openGoto() {
+        win.gotoOpen = true;
+        gotoField.text = String(win.lineCol(edit.cursorPosition).line + 1);
+        gotoField.input.forceActiveFocus();
+    }
+    function submitGoto() {
+        const n = parseInt(gotoField.text, 10);
+        if (!isNaN(n)) win.goToLine(n);
+        win.gotoOpen = false;
+        edit.forceActiveFocus();
+    }
+    // matching bracket next to the cursor (or just after it), if there is one
+    function matchBrace(pos) {
+        const t = edit.text;
+        const pairs = { ")": "(", "]": "[", "}": "{", "(": ")", "[": "]", "{": "}" };
+        const ch = t.charAt(pos), prev = t.charAt(pos - 1);
+        let at = -1;
+        if (pairs[ch]) at = pos;
+        else if (pairs[prev]) at = pos - 1;
+        else return -1;
+        const c = t.charAt(at);
+        const opening = "([{".indexOf(c) >= 0;
+        const want = pairs[c];
+        const dir = opening ? 1 : -1;
+        let depth = 0;
+        for (let i = at + dir; i >= 0 && i < t.length; i += dir) {
+            const x = t.charAt(i);
+            if (x === c) depth++;
+            else if (x === want) { depth--; if (depth === 0) return i; }
+        }
+        return -1;
+    }
     function find(forward) {
-        const q = findField.text;
-        if (q === "")
-            return;
-        const hay = edit.text.toLowerCase(), needle = q.toLowerCase();
-        let at = forward ? hay.indexOf(needle, edit.selectionEnd) : hay.lastIndexOf(needle, edit.selectionStart - 1);
-        if (at < 0)       // wrap around
-            at = forward ? hay.indexOf(needle) : hay.lastIndexOf(needle);
-        if (at >= 0)
-            edit.select(at, at + q.length);
+        const offsets = win.matchOffsets;
+        if (offsets.length === 0) { win.matchIndex = -1; return; }
+        let i;
+        if (forward)
+            i = offsets.find(o => o >= edit.selectionEnd);
+        else {
+            i = -1;
+            for (let k = offsets.length - 1; k >= 0; k--)
+                if (offsets[k] < edit.selectionStart) { i = offsets[k]; break; }
+        }
+        if (i === undefined || i === -1)
+            i = forward ? offsets[0] : offsets[offsets.length - 1];
+        win.matchIndex = offsets.indexOf(i);
+        const len = win.useRegex ? (win.searchRegex(findField.text).exec(edit.text.slice(i)) || [""])[0].length : findField.text.length;
+        edit.select(i, i + Math.max(1, len));
     }
-    readonly property int matches: {
-        const q = findField.text.toLowerCase();
-        if (!win.finding || q === "")
-            return 0;
-        return edit.text.toLowerCase().split(q).length - 1;
-    }
+    readonly property int matches: win.matchOffsets.length
     function replaceOne() {
-        if (edit.selectedText.toLowerCase() === findField.text.toLowerCase() && edit.selectedText !== "") {
+        const re = win.searchRegex(findField.text);
+        if (re && re.test(edit.selectedText)) {
             const at = edit.selectionStart;
             edit.remove(edit.selectionStart, edit.selectionEnd);
             edit.insert(at, replaceField.text);
@@ -304,11 +416,13 @@ AppWindow {
         win.find(true);
     }
     function replaceAll() {
-        const q = findField.text;
-        if (q === "")
-            return;
-        const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+        const re = win.searchRegex(findField.text);
+        if (!re) return;
+        win.loading = true;
         edit.text = edit.text.replace(re, () => replaceField.text);
+        win.loading = false;
+        TextDocs.setText(edit.text);
+        repaint.restart();
     }
 
     function shortcut(e) {
@@ -323,6 +437,8 @@ AppWindow {
         else if (e.key === Qt.Key_W) win.closeTab(TextDocs.active);
         else if (e.key === Qt.Key_F) { win.finding = true; win.replacing = false; findField.input.forceActiveFocus(); }
         else if (e.key === Qt.Key_H) { win.finding = true; win.replacing = true; findField.input.forceActiveFocus(); }
+        else if (e.key === Qt.Key_B) win.toggleBookmark();
+        else if (e.key === Qt.Key_G) win.openGoto();
         else if (e.key === Qt.Key_Plus || e.key === Qt.Key_Equal) win.fontSize = Math.min(28, win.fontSize + 1);
         else if (e.key === Qt.Key_Minus) win.fontSize = Math.max(8, win.fontSize - 1);
         else if (e.key === Qt.Key_0) win.fontSize = 13;
@@ -425,8 +541,12 @@ AppWindow {
                     Layout.fillWidth: true
                     placeholder: Tr.t("Find")
                     onAccepted: win.find(true)
+                    onTextChanged: win.matchIndex = -1
                     input.Keys.onEscapePressed: win.leave()
                 }
+                CheckBox { text: "Aa"; checked: win.caseSensitive; onCheckedChanged: win.caseSensitive = checked; ToolTip.text: "Match case" }
+                CheckBox { text: "W"; checked: win.wholeWord; onCheckedChanged: win.wholeWord = checked; ToolTip.text: "Whole word" }
+                CheckBox { text: ".*"; checked: win.useRegex; onCheckedChanged: win.useRegex = checked; ToolTip.text: "Regular expression" }
                 Text {
                     text: findField.text === "" ? "" : win.matches === 0 ? Tr.t("Not found") : win.matches + " " + Tr.t("found")
                     color: win.matches === 0 && findField.text !== "" ? Theme.danger : Theme.dim
@@ -450,6 +570,21 @@ AppWindow {
                 }
                 Button { text: Tr.t("Replace"); onClicked: win.replaceOne() }
                 Button { text: Tr.t("Replace all"); onClicked: replaceAllConfirm.open() }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                visible: win.gotoOpen
+                spacing: Theme.px(6)
+                TextField {
+                    id: gotoField
+                    Layout.fillWidth: true
+                    placeholder: "Line number"
+                    validator: IntValidator { bottom: 1; top: 1000000 }
+                    onAccepted: win.submitGoto()
+                    input.Keys.onEscapePressed: { win.gotoOpen = false; edit.forceActiveFocus(); }
+                }
+                Button { text: "Go"; onClicked: win.submitGoto() }
+                Button { text: Tr.t("Cancel"); flat: true; onClicked: { win.gotoOpen = false; edit.forceActiveFocus(); } }
             }
 
             // confirm dialog for replace all
@@ -500,6 +635,16 @@ AppWindow {
                         horizontalAlignment: Text.AlignRight
                         font: edit.font
                     }
+                    Repeater {
+                        model: TextDocs.bookmarks()
+                        Rectangle {
+                            x: 2
+                            y: 8 + modelData * (edit.font.pixelSize * 1.6) - flick.contentY
+                            width: 4; height: 4; radius: 2
+                            color: Theme.accent
+                            visible: y > 0 && y < gutter.height
+                        }
+                    }
                 }
                 Flickable {
                     id: flick
@@ -514,6 +659,37 @@ AppWindow {
                         else if (contentY + height < r.y + r.height) contentY = r.y + r.height - height;
                         if (contentX > r.x) contentX = r.x;
                         else if (contentX + width < r.x + r.width + 8) contentX = r.x + r.width + 8 - width;
+                    }
+                    // current line, matching bracket and every live search hit,
+                    // drawn beneath the (see-through) editor text
+                    Rectangle {
+                        visible: TextDocs.docs.length > 0 && edit.activeFocus
+                        x: 0; y: edit.cursorRectangle.y
+                        width: edit.width; height: Math.max(edit.cursorRectangle.height, Theme.px(16))
+                        color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.08)
+                        z: 0
+                    }
+                    Rectangle {
+                        property int bracePos: win.matchBrace(edit.cursorPosition)
+                        property rect r: bracePos >= 0 ? win.rectAt(bracePos) : Qt.rect(0, 0, 0, 0)
+                        x: r.x; y: r.y; width: r.width; height: r.height
+                        radius: 2
+                        border.width: 1
+                        border.color: Theme.accent
+                        color: "transparent"
+                        visible: bracePos >= 0 && r.width > 0
+                        z: 1
+                    }
+                    Repeater {
+                        model: win.matchOffsets.slice(0, 200)
+                        Rectangle {
+                            property rect r: win.rectAt(modelData)
+                            x: r.x; y: r.y; width: r.width; height: r.height
+                            radius: 2
+                            color: Qt.rgba(1, 0.75, 0.15, 0.32)
+                            visible: win.finding && r.width > 0
+                            z: 1
+                        }
                     }
                     // the colours: the same text, drawn underneath with its comments,
                     // strings, numbers and keywords tinted (Common/Highlight.js), while
@@ -559,7 +735,7 @@ AppWindow {
                         Accessible.role: Accessible.EditableText
                         Accessible.name: Tr.t("Text") + ": " + (TextDocs.current ? TextDocs.current.name : "")
                         onTextChanged: { if (!win.loading) TextDocs.setText(text); repaint.restart(); }
-                        onCursorRectangleChanged: flick.follow(cursorRectangle)
+                        onCursorRectangleChanged: { if (!win.computingRects) flick.follow(cursorRectangle); }
                         Keys.onPressed: e => {
                             // multiple cursors / column selection
                             if ((e.modifiers & Qt.ShiftModifier) && (e.modifiers & Qt.AltModifier)) {
@@ -573,6 +749,8 @@ AppWindow {
                                     if (win.insertAtCursors(e.text)) { e.accepted = true; return; }
                                 }
                             }
+                            if (!win.multiCursor && !(e.modifiers & Qt.ControlModifier) && !(e.modifiers & Qt.AltModifier)
+                                    && win.handleAutoclose(e)) return;
                             if (e.key === Qt.Key_Tab && !(e.modifiers & Qt.ShiftModifier) && !(e.modifiers & Qt.ControlModifier)) {
                                 if (win.trySnippet()) { e.accepted = true; return; }
                             }
@@ -625,6 +803,48 @@ AppWindow {
                     font.pixelSize: Theme.px(11) * Theme.fontScale
                     font.features: { "tnum": 1 }
                 }
+            }
+        }
+    }
+
+    Dialog {
+        id: themeDialog
+        anchors.centerIn: parent
+        width: Math.min(win.width * 0.7, Theme.px(420))
+        title: "TextMate theme"
+        modal: true
+        standardButtons: Dialog.Close
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: Theme.px(6)
+            Choice {
+                text: "Built-in highlighter"
+                selected: !TextMate.enabled
+                onClicked: { TextMate.enabled = false; Settings.data.textmateEnabled = false; Settings.save(); themeDialog.close(); win.recolour(); }
+            }
+            Repeater {
+                model: TextMate.themes
+                Choice {
+                    required property var modelData
+                    text: modelData.name || "Theme"
+                    selected: TextMate.enabled && TextMate.themePath === modelData.path
+                    onClicked: {
+                        TextMate.enabled = true;
+                        Settings.data.textmateEnabled = true;
+                        Settings.data.textmateTheme = modelData.path;
+                        Settings.save();
+                        TextMate.themePath = modelData.path;
+                        win.recolour();
+                    }
+                }
+            }
+            Text {
+                visible: TextMate.themes.length === 0
+                text: "Install .tmTheme bundles in Share/shani-textmate to see themes here."
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+                wrapMode: Text.Wrap
             }
         }
     }

@@ -18,6 +18,9 @@ Singleton {
     property string error: ""
     property bool busy: false
     property var selected: null          // the contact being viewed/edited
+    // "name" (default), "given" or "family": passed to contacts.py list
+    property string sortBy: Settings.data.contactsSortBy || "name"
+    readonly property var favoriteContacts: contacts.filter(c => c.favorite)
 
     // "your own card": uid kept in Settings, flag written to the vCard as
     // X-SHANI-SELF:1 by bridge/contacts.py
@@ -41,14 +44,34 @@ Singleton {
     function setGroups(uid, groups) {
         const c = contacts.find(x => x.uid === uid);
         if (!c) return;
-        run(["edit", JSON.stringify({ uid: uid, name: c.name, phone: c.phone || "",
-            email: c.email || "", groups: groups })]);
+        run(["edit", JSON.stringify({ uid: uid, name: c.name, given: c.given || "",
+            family: c.family || "", phones: c.phones || [], emails: c.emails || [],
+            groups: groups, self: !!c.self, favorite: !!c.favorite, avatar: c.avatar || "" })]);
     }
     function setSelf(uid, on) {
         const c = contacts.find(x => x.uid === uid);
         if (!c) return;
-        run(["edit", JSON.stringify({ uid: uid, name: c.name, phone: c.phone || "",
-            email: c.email || "", groups: c.groups || [], self: on })]);
+        run(["edit", JSON.stringify({ uid: uid, name: c.name, given: c.given || "",
+            family: c.family || "", phones: c.phones || [], emails: c.emails || [],
+            groups: c.groups || [], self: on, favorite: !!c.favorite,
+            avatar: c.avatar || "" })]);
+    }
+    // the star is "This is me"; a favourite is a separate, ordinary flag
+    function toggleFavorite(uid) {
+        const c = contacts.find(x => x.uid === uid);
+        if (!c) return;
+        run(["edit", JSON.stringify({ uid: uid, name: c.name, given: c.given || "",
+            family: c.family || "", phones: c.phones || [], emails: c.emails || [],
+            groups: c.groups || [], self: !!c.self, favorite: !c.favorite,
+            avatar: c.avatar || "" })]);
+    }
+    function setAvatar(uid, path) {
+        const c = contacts.find(x => x.uid === uid);
+        if (!c) return;
+        run(["edit", JSON.stringify({ uid: uid, name: c.name, given: c.given || "",
+            family: c.family || "", phones: c.phones || [], emails: c.emails || [],
+            groups: c.groups || [], self: !!c.self, favorite: !!c.favorite,
+            avatar: String(path || "") })]);
     }
     function toggleMe(uid) {
         const becoming = myUid !== uid;
@@ -74,13 +97,59 @@ Singleton {
         writer.running = true;
     }
 
-    function add(name, phone, email, groups) {
-        run(["add", JSON.stringify({ name: String(name || "").trim(), phone: String(phone || "").trim(), email: String(email || "").trim(), groups: groups || [] })]);
+    function add(name, phone, email, groups, detail) {
+        const d = detail || {};
+        run(["add", JSON.stringify({ name: String(name || "").trim(), phone: String(phone || "").trim(), email: String(email || "").trim(),
+            phones: d.phones || [], emails: d.emails || [], groups: groups || [],
+            given: d.given || "", family: d.family || "", favorite: !!d.favorite, avatar: d.avatar || "" })]);
     }
-    function edit(uid, name, phone, email, groups) {
-        run(["edit", JSON.stringify({ uid: uid, name: String(name || "").trim(), phone: String(phone || "").trim(), email: String(email || "").trim(), groups: groups || [] })]);
+    function edit(uid, name, phone, email, groups, detail) {
+        const d = detail || {};
+        run(["edit", JSON.stringify({ uid: uid, name: String(name || "").trim(), phone: String(phone || "").trim(), email: String(email || "").trim(),
+            phones: d.phones || [], emails: d.emails || [], groups: groups || [],
+            given: d.given || "", family: d.family || "", favorite: !!d.favorite, avatar: d.avatar || "" })]);
     }
     function remove(uid) { run(["delete", JSON.stringify({ uid: uid })]); }
+
+    // raw vCard for a QR code (Qr.show takes arbitrary text)
+    property string vcardText: ""
+    signal vcardReady(string text, string name)
+    function vcard(uid, name) {
+        vcardProc.uid = uid || "";
+        vcardProc.who = name || "";
+        vcardProc.command = ["python3", root.tool, "vcard", uid];
+        vcardProc.running = true;
+    }
+    Process {
+        id: vcardProc
+        property string uid: ""
+        property string who: ""
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.vcardText = text;
+                if (text.trim() !== "") root.vcardReady(text, vcardProc.who);
+            }
+        }
+    }
+    // export all cards as one .vcf, written through FileView (no shell quoting)
+    property string exportPath: ""
+    function exportAll(path) {
+        if (!path) return;
+        root.exportPath = path;
+        exportProc.command = ["python3", root.tool, "export-all"];
+        exportProc.running = true;
+    }
+    Process {
+        id: exportProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (text.trim() === "") return;
+                exportView.path = root.exportPath;
+                exportView.setText(text);
+            }
+        }
+    }
+    FileView { id: exportView; path: ""; printErrors: false }
 
     // import a .vcf file (drag onto the window, or a file picker)
     function importFile(path) {
@@ -148,13 +217,15 @@ Singleton {
 
     Process {
         id: reader
-        command: ["python3", root.tool, "list", root.query]
+        command: ["python3", root.tool, "list", root.query, root.sortBy]
         stdout: StdioCollector {
             onStreamFinished: {
                 try { root.contacts = JSON.parse(text) || []; } catch (e) { root.contacts = []; }
             }
         }
         onExited: code => { if (code !== 0) root.error = Tr.t("Could not read the address book"); }
+        // a changed sort choice must re-read, not just re-sort a cached list
+        Connections { target: root; function onSortByChanged() { if (!reader.running) reader.running = true; } }
     }
 
     Process {

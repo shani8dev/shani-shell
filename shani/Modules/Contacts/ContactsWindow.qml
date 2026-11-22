@@ -25,6 +25,12 @@ AppWindow {
     property string editEmail: ""
     property string editUid: ""
     property string editGroups: ""
+    // typed phone/email rows in the editor (the bridge already stores arrays)
+    property var editPhones: []
+    property var editEmails: []
+    property string avatarPath: ""
+    property string detailUid: ""
+    property bool showDetail: false
     property bool showGroupField: false
     property string groupFilter: Tr.t("All")
 
@@ -36,6 +42,24 @@ AppWindow {
     property bool showDuplicates: false
 
     onVisibleChanged: if (visible) Contacts.refresh()
+    Connections {
+        target: Contacts
+        function onVcardReady(text, name) { Qr.show(name || "Contact", text); }
+    }
+    function setPhone(i, key, value) {
+        const rows = win.editPhones.map(x => Object.assign({}, x));
+        rows[i][key] = value; win.editPhones = rows;
+    }
+    function setEmail(i, key, value) {
+        const rows = win.editEmails.map(x => Object.assign({}, x));
+        rows[i][key] = value; win.editEmails = rows;
+    }
+    function showContact(c) {
+        if (!c) return;
+        win.detailUid = c.uid;
+        win.showDetail = true;
+    }
+    function openExternal(url) { Quickshell.execDetached(["xdg-open", url]); }
 
     function pickImport() {
         FilePicker.open({
@@ -53,7 +77,8 @@ AppWindow {
         anchors.fill: parent
         focus: win.visible
         Keys.onEscapePressed: {
-            if (win.mode !== "list") win.mode = "list";
+            if (win.showDetail) win.showDetail = false;
+            else if (win.mode !== "list") win.mode = "list";
             else if (win.showDuplicates) win.showDuplicates = false;
             else Ui.contacts = false;
         }
@@ -93,9 +118,17 @@ AppWindow {
             }
             Button {
                 visible: win.mode === "list" && !win.showDuplicates
+                text: "Export all…"
+                flat: true
+                enabled: Contacts.contacts.length > 0
+                onClicked: FilePicker.open({ mode: "save", title: "Export contacts", defaultName: "contacts.vcf",
+                    filters: ["vcf"], onPicked: paths => { if (paths.length) Contacts.exportAll(paths[0]); } })
+            }
+            Button {
+                visible: win.mode === "list" && !win.showDuplicates
                 text: Tr.t("New contact")
                 kind: "primary"
-                onClicked: { win.mode = "add"; win.editName = ""; win.editPhone = ""; win.editEmail = ""; win.editUid = ""; win.editGroups = ""; win.showGroupField = false; }
+                onClicked: { win.mode = "add"; win.editName = ""; win.editPhone = ""; win.editEmail = ""; win.editUid = ""; win.editGroups = ""; win.editPhones = []; win.editEmails = []; win.avatarPath = ""; win.showGroupField = false; }
             }
             Button {
                 visible: win.mode !== "list"
@@ -110,8 +143,12 @@ AppWindow {
                 enabled: win.editName.trim() !== ""
                 onClicked: {
                     const groups = win.editGroups.split(",").map(s => s.trim()).filter(s => s);
-                    if (win.mode === "add") Contacts.add(win.editName, win.editPhone, win.editEmail, groups);
-                    else Contacts.edit(win.editUid, win.editName, win.editPhone, win.editEmail, groups);
+                    const c = Contacts.contacts.find(x => x.uid === win.editUid) || {};
+                    const detail = { phones: win.editPhones, emails: win.editEmails,
+                        given: c.given || "", family: c.family || "",
+                        favorite: !!c.favorite, avatar: win.avatarPath || c.avatar || "" };
+                    if (win.mode === "add") Contacts.add(win.editName, win.editPhone, win.editEmail, groups, detail);
+                    else Contacts.edit(win.editUid, win.editName, win.editPhone, win.editEmail, groups, detail);
                     win.mode = "list";
                 }
             }
@@ -130,19 +167,67 @@ AppWindow {
                 text: win.editName
                 onTextChanged: win.editName = text
             }
-            TextField {
-                Layout.fillWidth: true
-                placeholder: Tr.t("Phone number")
-                label: Tr.t("Phone number")
-                text: win.editPhone
-                onTextChanged: win.editPhone = text
+            Text { text: "Phone numbers"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Repeater {
+                model: win.editPhones
+                RowLayout {
+                    required property int index
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: Theme.px(4)
+                    TextField {
+                        Layout.preferredWidth: Theme.px(96)
+                        text: modelData.type || "cell"
+                        placeholder: "cell / home / work"
+                        onTextChanged: win.setPhone(index, "type", text)
+                    }
+                    TextField {
+                        Layout.fillWidth: true
+                        text: modelData.number || ""
+                        placeholder: Tr.t("Phone number")
+                        onTextChanged: win.setPhone(index, "number", text)
+                    }
+                    IconButton { size: Theme.px(24); icon: "list-remove"; tip: "Remove"; onClicked: { const rows = win.editPhones.slice(); rows.splice(index, 1); win.editPhones = rows; } }
+                }
             }
-            TextField {
-                Layout.fillWidth: true
-                placeholder: Tr.t("Email address")
-                label: Tr.t("Email address")
-                text: win.editEmail
-                onTextChanged: win.editEmail = text
+            Button { text: "Add phone"; flat: true; onClicked: win.editPhones = win.editPhones.concat([{ type: "cell", number: "" }]) }
+            Text { text: "Email addresses"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Repeater {
+                model: win.editEmails
+                RowLayout {
+                    required property int index
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: Theme.px(4)
+                    TextField {
+                        Layout.preferredWidth: Theme.px(96)
+                        text: modelData.type || "home"
+                        placeholder: "home / work"
+                        onTextChanged: win.setEmail(index, "type", text)
+                    }
+                    TextField {
+                        Layout.fillWidth: true
+                        text: modelData.address || ""
+                        placeholder: Tr.t("Email address")
+                        onTextChanged: win.setEmail(index, "address", text)
+                    }
+                    IconButton { size: Theme.px(24); icon: "list-remove"; tip: "Remove"; onClicked: { const rows = win.editEmails.slice(); rows.splice(index, 1); win.editEmails = rows; } }
+                }
+            }
+            Button { text: "Add email"; flat: true; onClicked: win.editEmails = win.editEmails.concat([{ type: "home", address: "" }]) }
+            Button {
+                text: "Set photo…"
+                flat: true
+                onClicked: FilePicker.open({ mode: "open", title: "Contact photo", filters: ["png", "jpg", "jpeg", "webp"],
+                    onPicked: paths => { if (paths.length) win.avatarPath = paths[0]; } })
+            }
+            Text {
+                visible: win.avatarPath !== ""
+                text: "Photo: " + win.avatarPath
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(10) * Theme.fontScale
+                elide: Text.ElideMiddle
             }
             Button {
                 text: win.showGroupField ? Tr.t("Hide groups") : Tr.t("Group…")
@@ -253,6 +338,20 @@ AppWindow {
             Layout.fillWidth: true
             spacing: Theme.px(6)
             Repeater {
+                model: [["name", "Name"], ["given", "Given"], ["family", "Family"]]
+                Choice {
+                    required property var modelData
+                    text: modelData[1]
+                    selected: Contacts.sortBy === modelData[0]
+                    onClicked: { Contacts.sortBy = modelData[0]; Settings.data.contactsSortBy = modelData[0]; Settings.save(); }
+                }
+            }
+        }
+        Flow {
+            visible: win.mode === "list" && !win.showDuplicates
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Repeater {
                 model: Contacts.allGroups
                 Choice {
                     required property string modelData
@@ -283,12 +382,33 @@ AppWindow {
                     anchors.leftMargin: Theme.px(8)
                     anchors.rightMargin: Theme.px(6)
                     spacing: Theme.px(10)
-                    Icon { name: "contact-new"; size: Theme.px(22); color: Theme.dim }
+                    Rectangle {
+                        width: Theme.px(30); height: Theme.px(30)
+                        radius: width / 2
+                        color: Theme.accentSoft
+                        border.width: 1
+                        border.color: Theme.border
+                        clip: true
+                        Image {
+                            anchors.fill: parent
+                            visible: !!modelData.avatar
+                            source: modelData.avatar ? ("file://" + modelData.avatar) : ""
+                            fillMode: Image.PreserveAspectCrop
+                        }
+                        Text {
+                            anchors.centerIn: parent
+                            visible: !modelData.avatar
+                            text: ((modelData.name || "?").charAt(0) || "?").toUpperCase()
+                            color: Theme.text
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(13) * Theme.fontScale
+                        }
+                    }
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 0
                         Text {
-                            text: (modelData.name || Tr.t("Unnamed")) + (modelData.uid === Contacts.myUid ? "  ·  " + Tr.t("You") : "")
+                            text: (modelData.name || Tr.t("Unnamed")) + (modelData.uid === Contacts.myUid ? "  ·  " + Tr.t("You") : "") + (modelData.favorite ? "  ★" : "")
                             color: Theme.text
                             font.family: Theme.font
                             font.pixelSize: Theme.px(13) * Theme.fontScale
@@ -304,6 +424,12 @@ AppWindow {
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                         }
+                    }
+                    IconButton {
+                        size: Theme.px(28)
+                        icon: modelData.favorite ? "starred" : "non-starred"
+                        tip: modelData.favorite ? "Remove from favourites" : "Add to favourites"
+                        onClicked: Contacts.toggleFavorite(modelData.uid)
                     }
                     IconButton {
                         size: Theme.px(28)
@@ -333,15 +459,7 @@ AppWindow {
                     anchors.fill: parent
                     z: 1
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        win.mode = "edit";
-                        win.editUid = modelData.uid;
-                        win.editName = modelData.name || "";
-                        win.editPhone = modelData.phone || "";
-                        win.editEmail = modelData.email || "";
-                        win.editGroups = (modelData.groups || []).join(", ");
-                        win.showGroupField = (modelData.groups || []).length > 0;
-                    }
+                    onClicked: win.showContact(modelData)
                 }
             }
             EmptyState {
@@ -362,6 +480,119 @@ AppWindow {
             color: Theme.faint
             font.family: Theme.font
             font.pixelSize: Theme.px(10) * Theme.fontScale
+        }
+    }
+
+    // ---- read-only detail sheet: call, mail, map, QR, then edit --------------
+    Rectangle {
+        visible: win.showDetail
+        anchors.fill: parent
+        z: 10
+        color: Qt.rgba(0, 0, 0, 0.5)
+        MouseArea { anchors.fill: parent; onClicked: win.showDetail = false }
+        Rectangle {
+            anchors.centerIn: parent
+            width: Math.min(parent.width - Theme.px(32), Theme.px(440))
+            implicitHeight: detailCol.implicitHeight + Theme.px(24)
+            radius: Theme.radiusLarge
+            color: Theme.surface1
+            border.width: 1
+            border.color: Theme.border
+            ColumnLayout {
+                id: detailCol
+                anchors { fill: parent; margins: Theme.px(12) }
+                spacing: Theme.px(6)
+                property var c: Contacts.contacts.find(x => x.uid === win.detailUid) || {}
+                RowLayout {
+                    Layout.fillWidth: true
+                    Rectangle {
+                        width: Theme.px(44); height: Theme.px(44)
+                        radius: width / 2
+                        color: Theme.accentSoft
+                        clip: true
+                        Image {
+                            anchors.fill: parent
+                            visible: !!detailCol.c.avatar
+                            source: detailCol.c.avatar ? ("file://" + detailCol.c.avatar) : ""
+                            fillMode: Image.PreserveAspectCrop
+                        }
+                        Text {
+                            anchors.centerIn: parent
+                            visible: !detailCol.c.avatar
+                            text: ((detailCol.c.name || "?").charAt(0) || "?").toUpperCase()
+                            color: Theme.text
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(19) * Theme.fontScale
+                        }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: detailCol.c.name || ""
+                        color: Theme.text
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(15) * Theme.fontScale
+                        font.weight: Font.DemiBold
+                        wrapMode: Text.Wrap
+                    }
+                }
+                Repeater {
+                    model: detailCol.c.phones || []
+                    RowLayout {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        Icon { name: "call-start"; size: Theme.px(18); color: Theme.dim }
+                        Text { Layout.fillWidth: true; text: (modelData.type || "cell") + ": " + (modelData.number || ""); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; elide: Text.ElideRight }
+                        Button { text: "Call"; flat: true; onClicked: win.openExternal("tel:" + (modelData.number || "")) }
+                    }
+                }
+                Repeater {
+                    model: detailCol.c.emails || []
+                    RowLayout {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        Icon { name: "mail-unread"; size: Theme.px(18); color: Theme.dim }
+                        Text { Layout.fillWidth: true; text: (modelData.type || "home") + ": " + (modelData.address || ""); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; elide: Text.ElideRight }
+                        Button { text: "Mail"; flat: true; onClicked: win.openExternal("mailto:" + (modelData.address || "")) }
+                    }
+                }
+                Button {
+                    text: "Open in Maps"
+                    flat: true
+                    enabled: !!((detailCol.c.name || ""))
+                    onClicked: win.openExternal("https://www.openstreetmap.org/search?query=" + encodeURIComponent(detailCol.c.name || ""))
+                }
+                Text {
+                    visible: !!((detailCol.c.favorite))
+                    text: "★ Favourite"
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    Button { text: "QR code"; flat: true; onClicked: Contacts.vcard(win.detailUid, detailCol.c.name || "Contact") }
+                    Button { Layout.fillWidth: true; text: Tr.t("Close"); onClicked: win.showDetail = false }
+                    Button {
+                        Layout.fillWidth: true; text: Tr.t("Edit"); kind: "primary"
+                        enabled: !!(detailCol.c.uid)
+                        onClicked: {
+                            const c = detailCol.c;
+                            win.showDetail = false;
+                            win.mode = "edit";
+                            win.editUid = c.uid || "";
+                            win.editName = c.name || "";
+                            win.editPhone = c.phone || "";
+                            win.editEmail = c.email || "";
+                            win.editGroups = (c.groups || []).join(", ");
+                            win.editPhones = (c.phones || []).map(x => Object.assign({}, x));
+                            win.editEmails = (c.emails || []).map(x => Object.assign({}, x));
+                            win.avatarPath = c.avatar || "";
+                            win.showGroupField = (c.groups || []).length > 0;
+                        }
+                    }
+                }
+            }
         }
     }
 }

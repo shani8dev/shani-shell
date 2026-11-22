@@ -3,6 +3,7 @@
 // encrypt, install stick) need two-click confirmation and polkit authorisation.
 import Quickshell
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
@@ -24,6 +25,17 @@ AppWindow {
     property string formLabel: ""
     property string formPassphrase: ""
     property string formIso: ""
+    property bool showLoops: false
+    property string mountOptions: ""
+    property string smartTestKind: "short"
+    function human(n) {
+        n = Number(n) || 0;
+        if (n >= 1e12) return (n / 1e12).toFixed(1) + " TB";
+        if (n >= 1e9) return (n / 1e9).toFixed(1) + " GB";
+        if (n >= 1e6) return (n / 1e6).toFixed(1) + " MB";
+        if (n >= 1e3) return (n / 1e3).toFixed(1) + " KB";
+        return n + " B";
+    }
 
     // two-click confirm for destructive ops
     property string confirmAction: ""
@@ -57,11 +69,19 @@ AppWindow {
                 font.weight: Font.DemiBold
             }
             Item { Layout.fillWidth: true }
+            Choice { text: Tr.t("Loop devices"); selected: win.showLoops; onClicked: win.showLoops = !win.showLoops }
             Button {
                 text: Tr.t("Refresh")
                 flat: true
                 enabled: !Disks.busy
                 onClicked: Disks.refresh()
+            }
+            Button {
+                visible: Disks.busy
+                text: Tr.t("Cancel job")
+                kind: "danger"
+                flat: true
+                onClicked: Disks.cancelJob()
             }
             Button {
                 visible: win.opMode === ""
@@ -74,6 +94,26 @@ AppWindow {
                 text: Tr.t("Cancel")
                 flat: true
                 onClicked: { win.opMode = ""; win.confirmAction = ""; }
+            }
+        }
+
+        // ---- job progress (write operations stream their progress) -------------
+        ColumnLayout {
+            visible: Disks.busy
+            Layout.fillWidth: true
+            spacing: Theme.px(2)
+            Text {
+                Layout.fillWidth: true
+                text: Disks.jobLabel || Tr.t("Working…")
+                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Theme.px(5)
+                radius: Theme.px(2)
+                color: Theme.alpha(Theme.text, 0.15)
+                Accessible.role: Accessible.ProgressBar
+                Rectangle { width: parent.width * Math.max(0, Disks.jobProgress) / 100; height: parent.height; radius: parent.radius; color: Theme.accent }
             }
         }
 
@@ -272,8 +312,9 @@ AppWindow {
             clip: true
             reuseItems: true
             cacheBuffer: 400
-            model: Disks.disks.filter(d => d.type === "disk")
+            model: Disks.disks.filter(d => d.type === "disk" || (win.showLoops && d.type === "loop"))
             delegate: Rectangle {
+                id: diskRow
                 required property var modelData
                 width: list.width
                 height: Theme.px(72)
@@ -342,6 +383,40 @@ AppWindow {
                         Item { Layout.fillWidth: true }
                     }
 
+                    // proportional space-allocation bar: each partition's width
+                    // is its share of the disk, with unallocated space left dark
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        visible: (modelData.children || []).length > 0 && modelData.bytes > 0
+                        spacing: Theme.px(2)
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: Theme.px(10)
+                            radius: Theme.px(5)
+                            color: Theme.pressed
+                            clip: true
+                            Row {
+                                anchors.fill: parent
+                                Repeater {
+                                    model: modelData.children || []
+                                    Rectangle {
+                                        required property var modelData
+                                        height: parent.height
+                                        width: parent.width * Math.min(1, (Number(modelData.size) || 0) / Math.max(1, diskRow.modelData.bytes || 1))
+                                        color: Theme.alpha(Theme.accent, 0.75)
+                                        border.width: 1
+                                        border.color: Theme.surface1
+                                    }
+                                }
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: (modelData.children || []).map(c => (c.label || c.fstype || c.name) + " " + win.human(c.bytes || 0)).join("  ·  ")
+                            color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(9) * Theme.fontScale; elide: Text.ElideRight
+                        }
+                    }
+
                     // actions (shown when selected)
                     RowLayout {
                         visible: win.selectedDisk === modelData
@@ -355,6 +430,28 @@ AppWindow {
                         Button { text: Tr.t("Format…"); kind: "outline"; flat: true; onClicked: { win.opMode = "format"; win.formFsType = "ext4"; win.formLabel = ""; } }
                         Button { text: Tr.t("Encrypt…"); kind: "outline"; flat: true; onClicked: { win.opMode = "encrypt"; win.formFsType = "ext4"; win.formPassphrase = ""; } }
                         Button { text: Tr.t("Install stick…"); kind: "outline"; flat: true; visible: modelData.removable; onClicked: { win.opMode = "install"; win.formIso = ""; } }
+                    }
+                    RowLayout {
+                        visible: win.selectedDisk === modelData
+                        Layout.fillWidth: true
+                        spacing: Theme.px(6)
+                        Button { text: Tr.t("SMART details…"); flat: true; onClicked: { Disks.smartDetails(modelData.path); smartDialog.open(); } }
+                        Button {
+                            text: Tr.t("Mount options…"); flat: true
+                            visible: !(modelData.mountpoints && modelData.mountpoints.length > 0)
+                            onClicked: { win.mountOptions = ""; mountDialog.open(); }
+                        }
+                        Button { text: Tr.t("Benchmark"); flat: true; enabled: !Disks.busy; onClicked: Disks.benchmark(modelData.path) }
+                        Button {
+                            text: win.confirmAction === "own-" + modelData.path ? Tr.t("Tap again to confirm") : Tr.t("Take ownership")
+                            kind: "danger"; flat: true
+                            visible: modelData.removable
+                            onClicked: {
+                                if (win.confirmAction === "own-" + modelData.path) { Disks.takeOwnership(modelData.path); win.confirmAction = ""; }
+                                else { win.confirmAction = "own-" + modelData.path; confirmTimer.restart(); }
+                            }
+                        }
+                        Button { text: Tr.t("Detach loop"); flat: true; visible: modelData.type === "loop"; onClicked: Disks.detachLoop(modelData.path) }
                     }
                 }
                 MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
@@ -395,6 +492,12 @@ AppWindow {
                 font.family: Theme.font
                 font.pixelSize: Theme.px(11) * Theme.fontScale
             }
+            Text {
+                Layout.fillWidth: true
+                visible: Disks.benchmarkResult !== null && Disks.benchmarkResult.mbps !== undefined
+                text: Tr.t("Read %1 in %2 s · %3 MB/s", win.human(Disks.benchmarkResult ? Disks.benchmarkResult.bytes : 0), Disks.benchmarkResult ? Disks.benchmarkResult.seconds : 0, Disks.benchmarkResult ? Disks.benchmarkResult.mbps : 0)
+                color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
         }
 
         // ---- footer ----
@@ -405,6 +508,77 @@ AppWindow {
             color: Theme.faint
             font.family: Theme.font
             font.pixelSize: Theme.px(10) * Theme.fontScale
+        }
+
+        // ---- detailed SMART dialog + self-tests ----------------------------------
+        Dialog {
+            id: smartDialog
+            anchors.centerIn: parent
+            width: Math.min(win.width * 0.9, Theme.px(520))
+            height: Math.min(win.height * 0.85, Theme.px(560))
+            title: Tr.t("SMART details · %1", win.selectedDisk ? win.selectedDisk.model || win.selectedDisk.path : "")
+            modal: true
+            standardButtons: Dialog.Close
+            contentItem: Flickable {
+                clip: true
+                contentHeight: smartCol.implicitHeight
+                ScrollBar.vertical: ScrollBar {}
+                ColumnLayout {
+                    id: smartCol
+                    width: parent.width
+                    spacing: Theme.px(4)
+                    readonly property var info: Disks.smart || ({})
+                    Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: Tr.t("%1 · %2 · %3°C · %4 hours powered on").arg(info.model || "").arg(info.serial || "").arg(info.temp || 0).arg(info.hours || 0); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                    Text { Layout.fillWidth: true; text: Tr.t("Overall: %1", info.overall === true || info.overall === "passed" ? Tr.t("PASSED") : Tr.t("FAILED")); color: info.overall === true || info.overall === "passed" ? Theme.accent : Theme.red; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                    Text { Layout.fillWidth: true; text: Tr.t("Attributes (ID · name · value · worst · threshold · raw)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    Repeater {
+                        model: info.attributes || []
+                        Text { required property var modelData; Layout.fillWidth: true; text: [modelData.id, modelData.name, modelData.value, modelData.worst, modelData.thresh, modelData.raw].join(" · "); color: Theme.faint; font.family: Theme.mono; font.pixelSize: Theme.px(9) * Theme.fontScale }
+                    }
+                    Text { Layout.fillWidth: true; text: Tr.t("Self-test log"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    Repeater {
+                        model: info.tests || []
+                        Text { required property var modelData; Layout.fillWidth: true; text: modelData.type + " · " + modelData.status + " · " + modelData.hours + " h"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(9) * Theme.fontScale }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.px(6)
+                        Repeater {
+                            model: [["short", Tr.t("Short")], ["long", Tr.t("Extended")], ["conveyance", Tr.t("Conveyance")]]
+                            Choice { required property var modelData; text: modelData[1]; selected: win.smartTestKind === modelData[0]; onClicked: win.smartTestKind = modelData[0] }
+                        }
+                        Button {
+                            text: Tr.t("Start self-test"); kind: "outline"
+                            enabled: win.selectedDisk && !Disks.busy
+                            onClicked: Disks.smartTest(win.selectedDisk.path, win.smartTestKind)
+                        }
+                    }
+                }
+            }
+        }
+
+        // ---- mount options (noauto / ro / uid / gid) ------------------------------
+        Dialog {
+            id: mountDialog
+            anchors.centerIn: parent
+            width: Math.min(win.width * 0.8, Theme.px(420))
+            title: Tr.t("Mount options")
+            modal: true
+            standardButtons: Dialog.Ok | Dialog.Cancel
+            visible: false
+            onAccepted: {
+                if (win.selectedDisk) Disks.mountWithOptions(win.selectedDisk.path, win.mountOptions);
+            }
+            contentItem: ColumnLayout {
+                spacing: Theme.px(6)
+                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: Tr.t("Comma-separated udisks options, e.g. ro,noauto,uid=1000,gid=1000."); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                TextField {
+                    Layout.fillWidth: true
+                    placeholder: "ro,noauto,uid=1000,gid=1000"
+                    text: win.mountOptions
+                    onTextChanged: win.mountOptions = text
+                }
+            }
         }
     }
 }

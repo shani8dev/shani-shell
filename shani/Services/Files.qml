@@ -17,6 +17,7 @@ import QtQuick
 import qs.Common
 import "../Common/FilePaths.js" as FilePaths
 import "../Common/FileIcons.js" as FileIcons
+import "../Common/FileFilter.js" as FileFilter
 
 Singleton {
     id: root
@@ -89,6 +90,17 @@ Singleton {
     function mkdir(path, cb) { run(["mkdir", path], cb); }
 
     function rename(path, name, cb) { run(["rename", path, name], cb); }
+
+    // Create Link (Ctrl+M): the target is the selection, the link is named here.
+    function symlink(target, linkpath, cb) { run(["symlink", target, linkpath], cb); }
+
+    // Select Items Matching…: the wildcard matcher in Common/FileFilter.js,
+    // over the names of the entries on screen.
+    function selectMatching(pattern) {
+        const matcher = FileFilter.compile(pattern || "");
+        root.selected = root._paths.filter(p => matcher.test(FilePaths.baseName(p)));
+        return root.selected.length;
+    }
 
     function trash(paths, cb) { run(["trash"].concat(paths || []), cb); }
 

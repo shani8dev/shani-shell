@@ -15,6 +15,10 @@ Singleton {
     id: root
     property var disks: []            // [{ name, path, model, size, type, mountpoints, fstype, label, children, removable, hotplug, ro, majmin }]
     property var health: ({})         // { "/dev/sda": { overall, temp, hours, ... } }
+    property var smart: ({})          // the full report for the SMART dialog
+    property var benchmarkResult: null // { mbps, seconds, bytes }
+    property real jobProgress: -1
+    property string jobLabel: ""
     property string error: ""
     property bool busy: false
 
@@ -55,9 +59,24 @@ Singleton {
         run(["install-stick", device, iso]);
     }
 
-    // ---- SMART health -----------------------------------------------------------
+    // ---- SMART health, details and self-tests -----------------------------------
     function checkHealth(device) {
         run(["health", device]);
+    }
+    function smartDetails(device) {
+        run(["smart", device]);
+    }
+    // short / long / conveyance: a fixed set, never a typed command string
+    function smartTest(device, kind) {
+        if (["short", "long", "extended", "conveyance"].indexOf(kind) < 0) return;
+        run(["smart-test", device, kind]);
+    }
+    function benchmark(device) {
+        run(["benchmark", device]);
+    }
+    // chown the mounted filesystem to the signed-in user (two-click confirm in UI)
+    function takeOwnership(device) {
+        run(["take-ownership", device]);
     }
 
     // ---- mount / unmount / power-off --------------------------------------------
@@ -73,14 +92,42 @@ Singleton {
         Quickshell.execDetached(["udisksctl", "power-off", "-b", device]);
         Qt.callLater(root.refresh);
     }
+    // mount options: only a conservative charset reaches udisksctl, as argv
+    function mountWithOptions(device, options) {
+        const opts = String(options || "").trim();
+        if (!/^[\w=,.-]*$/.test(opts)) return false;
+        const cmd = ["udisksctl", "mount", "-b", device];
+        if (opts) cmd.push("-o", opts);
+        Quickshell.execDetached(cmd);
+        Qt.callLater(root.refresh);
+        return true;
+    }
+    // detach a loop device created for a disk image
+    function detachLoop(device) {
+        Quickshell.execDetached(["udisksctl", "loop-delete", "-b", device]);
+        Qt.callLater(root.refresh);
+    }
+    // stop a running job: the pkexec helper is cancelled and the queue cleared
+    function cancelJob() {
+        writer.running = false;
+        root._queue = [];
+        root.busy = false;
+        root.jobProgress = -1;
+        root.jobLabel = "";
+        root.error = Tr.t("Operation cancelled");
+    }
 
     // ---- internal: one write at a time ------------------------------------------
     property var _queue: []
+    property var currentArgs: []
     function run(args) { _queue = _queue.concat([args]); next(); }
     function next() {
         if (writer.running || _queue.length === 0)
             return;
         busy = true;
+        root.currentArgs = _queue[0];
+        root.jobLabel = String(_queue[0][0] || "").replace("-", " ");
+        root.jobProgress = -1;
         writer.command = ["pkexec", root.tool].concat(_queue[0]);
         _queue = _queue.slice(1);
         writer.running = true;
@@ -89,7 +136,7 @@ Singleton {
     // ---- listing ----------------------------------------------------------------
     Process {
         id: lister
-        command: ["lsblk", "-J", "-p", "-o", "NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS,LABEL,MODEL,RM,HOTPLUG,RO"]
+        command: ["lsblk", "-J", "-b", "-p", "-o", "NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS,LABEL,MODEL,RM,HOTPLUG,RO"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -98,7 +145,8 @@ Singleton {
                         name: d.name || "",
                         path: d.path || ("/dev/" + d.name),
                         model: d.model || "",
-                        size: root.humanSize(d.size || ""),
+                        size: root.humanSize(d.size || 0),
+                        bytes: Number(d.size) || 0,
                         type: d.type || "disk",       // disk, part, loop, rom
                         fstype: d.fstype || "",
                         label: d.label || "",
@@ -121,23 +169,36 @@ Singleton {
     Process {
         id: writer
         stderr: StdioCollector { id: writeErr }
-        stdout: StdioCollector {
-            onStreamFinished: {
-                // health check returns JSON
-                if (text.trim().startsWith("{")) {
-                    try {
-                        const h = JSON.parse(text);
-                        const nh = Object.assign({}, root.health);
-                        // find the device this is for
-                        const dev = _queue.length > 0 ? _queue[0][1] : "";
-                        if (dev) nh[dev] = h;
-                        root.health = nh;
-                    } catch (e) {}
+        // each helper line is JSON: either {"progress", "line"} or the final
+        // result object (health / smart / benchmark).
+        stdout: SplitParser {
+            onRead: line => {
+                const t = String(line).trim();
+                if (!t.startsWith("{")) return;
+                let r;
+                try { r = JSON.parse(t); } catch (e) { return; }
+                if (r.progress !== undefined && r.progress !== null) {
+                    root.jobProgress = Number(r.progress) || 0;
+                    if (r.line) root.jobLabel = String(r.line).slice(0, 120);
+                    return;
+                }
+                const cmd = String(root.currentArgs[0] || "");
+                const dev = String(root.currentArgs[1] || "");
+                if (cmd === "health" || cmd === "smart") {
+                    const nh = Object.assign({}, root.health);
+                    if (dev) nh[dev] = r;
+                    root.health = nh;
+                    if (cmd === "smart") root.smart = r;
+                } else if (cmd === "benchmark") {
+                    root.benchmarkResult = r;
                 }
             }
         }
         onExited: code => {
             root.busy = false;
+            root.jobProgress = -1;
+            root.jobLabel = "";
+            root.currentArgs = [];
             if (code !== 0 && code !== 1)   // 1 = polkit dismissed, not an error
                 root.error = writeErr.text.trim().split("\n").pop() || Tr.t("The operation failed");
             else

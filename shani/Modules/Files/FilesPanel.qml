@@ -85,6 +85,12 @@ AppWindow {
                 event.accepted = true;
                 return;
             }
+            // Ctrl+M: Create Link to the one selected file or folder
+            if (control && event.key === Qt.Key_M && Files.selected.length === 1) {
+                win.askSymlink(Files.selected[0]);
+                event.accepted = true;
+                return;
+            }
             // Ctrl+Shift+I: the selection turned over
             if (control && (event.modifiers & Qt.ShiftModifier) && event.key === Qt.Key_I) {
                 Files.invertSelection();
@@ -344,7 +350,10 @@ AppWindow {
                     icon: "view-sort-descending"
                     size: Theme.px(30)
                     tip: Tr.t("Sort by %1").arg(win.sortLabel())
-                    onClicked: Files.setSort(Files.sortKey === "name" ? "size" : Files.sortKey === "size" ? "mtime" : "name")
+                    onClicked: {
+                        const order = ["name", "size", "mtime", "btime", "type"];
+                        Files.setSort(order[(order.indexOf(Files.sortKey) + 1) % order.length]);
+                    }
                 }
                 IconButton {
                     icon: Files.showHidden ? "view-reveal" : "view-conceal"
@@ -712,6 +721,19 @@ AppWindow {
                                         Accessible.role: Accessible.Button
                                         Accessible.name: modelData.name
                                         KeyFocus { onActivated: Files.open(modelData.path) }
+                                    }
+                                    // the little arrow lists this folder's siblings
+                                    Text {
+                                        text: "▾"
+                                        color: Theme.dim
+                                        font.family: Theme.font
+                                        font.pixelSize: Theme.px(9) * Theme.fontScale
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: win.openCrumbMenu(modelData.path, mapToItem(win, 0, 0))
+                                        }
                                     }
                                     Text {
                                         visible: index < win.crumbsModel.length - 1
@@ -1379,6 +1401,165 @@ AppWindow {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // ---- the breadcrumb sibling list ---------------------------------------------
+    Glass {
+        id: crumbBox
+        parent: win.contentItem
+        visible: win.crumbMenuFor !== ""
+        z: 21
+        strong: true
+        radius: Theme.px(12)
+        width: Theme.px(230)
+        height: Math.min(crumbCol.implicitHeight + 12, Theme.px(360))
+        x: Math.min(Math.max(8, win.crumbMenuX), win.width - width - 8)
+        y: Math.min(Math.max(8, win.crumbMenuY + Theme.px(16)), win.height - height - 8)
+        Flickable {
+            anchors.fill: parent
+            anchors.margins: 6
+            clip: true
+            contentHeight: crumbCol.implicitHeight
+            Column {
+                id: crumbCol
+                width: parent.width
+                Repeater {
+                    model: win.crumbMenuItems
+                    delegate: Rectangle {
+                        required property var modelData
+                        width: crumbCol.width
+                        height: Theme.px(30)
+                        radius: Theme.px(8)
+                        color: crumbArea.containsMouse ? Theme.hover : "transparent"
+                        Row {
+                            anchors.fill: parent
+                            anchors.leftMargin: Theme.px(8)
+                            spacing: Theme.px(8)
+                            Icon { name: "folder"; size: Theme.px(15); color: Theme.dim }
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: modelData.name
+                                color: Theme.text
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                elide: Text.ElideMiddle
+                            }
+                        }
+                        MouseArea {
+                            id: crumbArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: { Files.open(modelData.path); win.closeCrumbMenu(); }
+                        }
+                        KeyFocus {
+                            name: modelData.name
+                            onActivated: { Files.open(modelData.path); win.closeCrumbMenu(); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ---- Select Items Matching… --------------------------------------------------
+    Glass {
+        id: matchBox
+        parent: win.contentItem
+        visible: false
+        z: 32
+        strong: true
+        solid: true
+        radius: Theme.px(12)
+        width: Theme.px(420)
+        height: matchCol.implicitHeight + 28
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.verticalCenter: parent.verticalCenter
+        ColumnLayout {
+            id: matchCol
+            anchors.fill: parent
+            anchors.margins: Theme.px(14)
+            spacing: Theme.px(10)
+            Text {
+                text: Tr.t("Select Items Matching…")
+                color: Theme.text
+                font.family: Theme.font
+                font.pixelSize: Theme.px(14) * Theme.fontScale
+                font.weight: Font.DemiBold
+            }
+            Text {
+                Layout.fillWidth: true
+                text: Tr.t("A name, or a pattern with * and ?")
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+            TextField {
+                id: matchField
+                Layout.fillWidth: true
+                placeholderText: "*.pdf"
+                text: win.matchPattern
+                onTextChanged: win.matchPattern = text
+                onAccepted: win.applyMatch()
+                Keys.onEscapePressed: matchBox.visible = false
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                Button { text: Tr.t("Cancel"); flat: true; onClicked: matchBox.visible = false }
+                Button { text: Tr.t("Select"); onClicked: win.applyMatch() }
+            }
+        }
+    }
+
+    // ---- Create Link --------------------------------------------------------------
+    Glass {
+        id: linkBox
+        parent: win.contentItem
+        visible: false
+        z: 32
+        strong: true
+        solid: true
+        radius: Theme.px(12)
+        width: Theme.px(420)
+        height: linkCol.implicitHeight + 28
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.verticalCenter: parent.verticalCenter
+        ColumnLayout {
+            id: linkCol
+            anchors.fill: parent
+            anchors.margins: Theme.px(14)
+            spacing: Theme.px(10)
+            Text {
+                text: Tr.t("Create Link")
+                color: Theme.text
+                font.family: Theme.font
+                font.pixelSize: Theme.px(14) * Theme.fontScale
+                font.weight: Font.DemiBold
+            }
+            Text {
+                Layout.fillWidth: true
+                text: Tr.t("To %1", win.symlinkTarget.split("/").pop())
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+                elide: Text.ElideMiddle
+            }
+            TextField {
+                id: linkField
+                Layout.fillWidth: true
+                placeholderText: Tr.t("Link name")
+                text: win.symlinkName
+                onTextChanged: win.symlinkName = text
+                onAccepted: win.applySymlink()
+                Keys.onEscapePressed: linkBox.visible = false
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                Button { text: Tr.t("Cancel"); flat: true; onClicked: linkBox.visible = false }
+                Button { text: Tr.t("Create"); onClicked: win.applySymlink() }
             }
         }
     }
@@ -2766,11 +2947,58 @@ AppWindow {
         return out;
     }
 
+    // ---- breadcrumb dropdowns: a crumb's sibling folders --------------------------
+    property string crumbMenuFor: ""
+    property var crumbMenuItems: []
+    property real crumbMenuX: 0
+    property real crumbMenuY: 0
+    function openCrumbMenu(path, point) {
+        crumbMenuFor = path;
+        crumbMenuItems = [];
+        crumbMenuX = point.x;
+        crumbMenuY = point.y;
+        // the siblings of a crumb live in its parent folder
+        const parent = path === "/" ? "/" : (path.substring(0, path.lastIndexOf("/")) || "/");
+        Files.list(parent, {}, r => {
+            if (crumbMenuFor !== path) return;             // a newer click won
+            crumbMenuItems = (r.entries || []).filter(e => e.isDir).map(e => ({ name: e.name, path: e.path }));
+        });
+    }
+    function closeCrumbMenu() { crumbMenuFor = ""; crumbMenuItems = []; }
+
+    // ---- Select Items Matching… and Create Link ----------------------------------
+    property string matchPattern: ""
+    function openMatch() { matchPattern = ""; matchBox.visible = true; matchField.forceActiveFocus(); }
+    function applyMatch() {
+        const n = Files.selectMatching(matchPattern);
+        Files.note = Tr.t("%1 item%2 selected", n, n === 1 ? "" : "s");
+        matchBox.visible = false;
+    }
+    property string symlinkTarget: ""
+    property string symlinkName: ""
+    function askSymlink(path) {
+        symlinkTarget = path;
+        symlinkName = Tr.t("Link to %1", FilePaths.baseName(path));
+        linkBox.visible = true;
+        linkField.forceActiveFocus();
+    }
+    function applySymlink() {
+        const name = symlinkName.trim();
+        if (!name || !symlinkTarget) { linkBox.visible = false; return; }
+        if (name.indexOf("/") >= 0) { Files.error = Tr.t("That is not a name"); return; }
+        const link = Files.path.replace(/\/$/, "") + "/" + name;
+        Files.symlink(symlinkTarget, link, r => {
+            linkBox.visible = false;
+            if (r.error) Files.error = r.error;
+            else { Files.error = ""; Files.note = Tr.t("Link created"); Files.list(Files.path, { sortKey: Files.sortKey, sortDesc: Files.sortDesc, includeHidden: Files.showHidden, filters: Files.activeFilters || [] }, () => {}); }
+        });
+    }
+
     function sortLabel() {
-        if (Files.sortKey === "size")
-            return Tr.t("size");
-        if (Files.sortKey === "mtime")
-            return Tr.t("date");
+        if (Files.sortKey === "size") return Tr.t("size");
+        if (Files.sortKey === "mtime") return Tr.t("date");
+        if (Files.sortKey === "btime") return Tr.t("date created");
+        if (Files.sortKey === "type") return Tr.t("type");
         return Tr.t("name");
     }
 
@@ -2801,6 +3029,7 @@ AppWindow {
                 items.push({ label: Tr.t("Open as administrator"), icon: "security-high", danger: false, run: () => Files.openAsAdmin(e.path, true) });
             items.push({ label: Tr.t("Select all"), icon: "edit-select-all", danger: false, run: () => Files.selectAll() });
             items.push({ label: Tr.t("Turn the selection over"), icon: "edit-select-invert", danger: false, run: () => Files.invertSelection() });
+            items.push({ label: Tr.t("Select Items Matching…"), icon: "edit-find", danger: false, run: () => win.openMatch() });
             items.push({ label: Tr.t("Properties"), icon: "document-properties", danger: false, run: () => Files.showProps([e.path]) });
             return items;
         }
@@ -2826,6 +3055,8 @@ AppWindow {
                          run: () => { Files.select(e.path, "single"); win.suggesting = true; beginRename(e.path); Tidy.suggestName(e.path); } });
         items.push({ label: Tr.t("Copy"), icon: "edit-copy", danger: false, run: () => Files.toClipboard("copy", chosen) });
         items.push({ label: Tr.t("Cut"), icon: "edit-cut", danger: false, run: () => Files.toClipboard("cut", chosen) });
+        if (chosen.length === 1 && Files.path.startsWith("/"))
+            items.push({ label: Tr.t("Create Link"), icon: "insert-link", danger: false, run: () => win.askSymlink(chosen[0]) });
         if (e.isDir)
             items.push({ label: Tr.t("Paste into this folder"), icon: "edit-paste", danger: false, run: () => Files.pasteHere(e.path) });
         // a password: on a PDF (a PDF password), any other file or folder (gpg)

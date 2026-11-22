@@ -16,6 +16,14 @@ Commands, one JSON answer on stdout:
   remove <url>          {"ok": true}
   refresh               {"ok": true, "feeds": N, "items": N}
   markread <url> <id>   {"ok": true}
+  markunread <url> <id> {"ok": true}
+  nextunread <url> [id] {"ok": true, "id": "...", "title": "..."} or {"ok": false}
+  search <query>        [{url, feed, id, title, summary, date, read}]
+  settags <url> <a,b>   {"ok": true, "tags": [...]}
+  tags                  ["tech", "news", ...]
+  save <url> <id>       {"ok": true, "saved": true|false, "id": "...", "url": "..."}
+  saved                 [{url, id, title, feed, date, summary, read, enclosure}]
+  discover <url>        [{href, type, title}]  feed links a site advertises
 
 Read state is kept per feed+id in the cache, so "unread" survives a restart
 and a refresh does not bring an article back as unread.
@@ -32,6 +40,7 @@ import json
 import os
 import re
 import sys
+import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
@@ -192,6 +201,24 @@ def parse_feed(data, url):
             if el is not None and el.text:
                 ident = el.text.strip()
                 break
+        # RSS puts a podcast episode in <enclosure>; Atom in a rel=enclosure
+        # link. Keep it with the item so the reader can offer the audio file.
+        enclosure = {}
+        for el in it.iter():
+            tag = el.tag.split("}")[-1]
+            if tag == "enclosure":
+                enc_url = el.get("url") or ""
+                enc_type = el.get("type") or ""
+                enc_len = el.get("length") or ""
+            elif tag == "link" and (el.get("rel") or "") == "enclosure":
+                enc_url = el.get("href") or ""
+                enc_type = el.get("type") or ""
+                enc_len = el.get("length") or ""
+            else:
+                continue
+            if enc_url:
+                enclosure = {"url": enc_url, "type": enc_type, "length": enc_len}
+                break
         items.append(
             {
                 "id": ident or link,
@@ -199,6 +226,7 @@ def parse_feed(data, url):
                 "link": link,
                 "date": published,
                 "summary": strip_html(summary)[:400],
+                "enclosure": enclosure,
             }
         )
     return title, items
@@ -242,6 +270,14 @@ def unread_count(c, url):
     )
 
 
+def _tags(feed):
+    """Tags are stored on the subscription, as a list or a comma string."""
+    value = feed.get("tags") or []
+    if isinstance(value, str):
+        value = [t.strip() for t in value.split(",") if t.strip()]
+    return value
+
+
 def cmd_list():
     c = cache()
     out = []
@@ -253,8 +289,170 @@ def cmd_list():
                 "url": f["url"],
                 "items": len(e.get("items", [])),
                 "unread": unread_count(c, f["url"]),
+                "tags": _tags(f),
             }
         )
+    return out
+
+
+def cmd_next_unread(c, url, current=""):
+    """The next unread article after `current`, wrapping round the feed."""
+    items = c["feeds"].get(url, {}).get("items", [])
+    read = c.get("read", {})
+    if not items:
+        return {"ok": False}
+    start = 0
+    for idx, i in enumerate(items):
+        if i["id"] == current:
+            start = idx + 1
+            break
+    for k in range(len(items)):
+        i = items[(start + k) % len(items)]
+        if i["id"] == current:  # never land back on the article we are in
+            continue
+        if (url + "|" + i["id"]) not in read:
+            return {"ok": True, "id": i["id"], "title": i.get("title", "")}
+    return {"ok": False}
+
+
+def cmd_search(c, query):
+    """One flat result list from every cached feed, newest first."""
+    q = (query or "").strip().lower()
+    if not q:
+        return []
+    known = {f["url"]: f for f in subs()}
+    read = c.get("read", {})
+    out = []
+    for url, e in c.get("feeds", {}).items():
+        feed = known.get(url, {})
+        title = e.get("title") or feed.get("title") or url
+        for i in e.get("items", []):
+            hay = " ".join(
+                (i.get("title", ""), i.get("summary", ""), i.get("text", ""))
+            ).lower()
+            if q not in hay:
+                continue
+            row = dict(i)
+            row.update(
+                {
+                    "url": url,
+                    "feed": title,
+                    "read": (url + "|" + i["id"]) in read,
+                }
+            )
+            out.append(row)
+    out.sort(key=lambda r: r.get("date") or "", reverse=True)
+    return out
+
+
+def cmd_settags(url, raw):
+    tags = [t.strip() for t in re.split(r"[,;]+", raw or "") if t.strip()]
+    feeds = subs()
+    for f in feeds:
+        if f["url"] == url:
+            f["tags"] = tags
+            break
+    else:
+        return {"ok": False, "error": "no such feed"}
+    d = conf()
+    d["feeds"] = feeds
+    _save(CONF, d)
+    return {"ok": True, "tags": tags}
+
+
+def cmd_taglist():
+    return sorted({t for f in subs() for t in _tags(f)})
+
+
+def _attr(tag, name):
+    m = re.search(
+        r"\b%s\s*=\s*(?:\"([^\"]*)\"|'([^']*)'|([^\s>]+))" % re.escape(name),
+        tag,
+        re.I,
+    )
+    return (m.group(1) or m.group(2) or m.group(3) or "") if m else ""
+
+
+def discover(url, data=None):
+    """The feed links a site advertises, made absolute against that site."""
+    if data is None:
+        data = fetch(url)
+    markup = data.decode("utf-8", "replace") if isinstance(data, bytes) else str(data)
+    out, seen = [], set()
+    for m in re.finditer(r"<link\b[^>]*>", markup, re.I):
+        tag = m.group(0)
+        href = _attr(tag, "href")
+        typ = _attr(tag, "type").lower()
+        rel = _attr(tag, "rel").lower()
+        if not href:
+            continue
+        if not (
+            "rss" in typ
+            or "atom" in typ
+            or "xml" in typ
+            or "feed" in rel
+            or "alternate" in rel
+        ):
+            continue
+        full = urllib.parse.urljoin(url, href)
+        if full in seen:
+            continue
+        seen.add(full)
+        out.append({"href": full, "type": typ, "title": _attr(tag, "title")})
+    return out
+
+
+def resolve_feed(url, title=""):
+    """A site URL becomes the feed it advertises; a feed URL stays as it is."""
+    try:
+        data = fetch(url)
+    except Exception:
+        return url, title
+    try:
+        _, items = parse_feed(data, url)
+        if items:
+            return url, title
+    except Exception:
+        pass
+    try:
+        found = discover(url, data)
+    except Exception:
+        found = []
+    if found:
+        return found[0]["href"], title or found[0].get("title", "")
+    return url, title
+
+
+def cmd_save(c, url, ident):
+    key = url + "|" + ident
+    saved = c.setdefault("saved", {})
+    on = not bool(saved.get(key))
+    if on:
+        saved[key] = True
+    else:
+        saved.pop(key, None)
+    save_cache(c)
+    return {"ok": True, "saved": on, "id": ident, "url": url}
+
+
+def cmd_saved(c):
+    read = c.get("read", {})
+    kept = c.get("saved", {})
+    out = []
+    for url, e in c.get("feeds", {}).items():
+        for i in e.get("items", []):
+            if not kept.get(url + "|" + i["id"]):
+                continue
+            row = dict(i)
+            row.update(
+                {
+                    "url": url,
+                    "feed": e.get("title") or url,
+                    "read": (url + "|" + i["id"]) in read,
+                }
+            )
+            out.append(row)
+    out.sort(key=lambda r: r.get("date") or "", reverse=True)
     return out
 
 
@@ -400,9 +598,11 @@ def main():
         url = sys.argv[2]
         read = c.get("read", {})
         items = []
+        saved = c.get("saved", {})
         for i in c["feeds"].get(url, {}).get("items", []):
             j = dict(i)
             j["read"] = (url + "|" + i["id"]) in read
+            j["saved"] = (url + "|" + i["id"]) in saved
             items.append(j)
         print(json.dumps(items, ensure_ascii=False))
     elif cmd == "article":
@@ -416,6 +616,8 @@ def main():
                             "link": i["link"],
                             "date": i["date"],
                             "text": i.get("summary", ""),
+                            "saved": (url + "|" + i["id"]) in c.get("saved", {}),
+                            "enclosure": i.get("enclosure", {}),
                         },
                         ensure_ascii=False,
                     )
@@ -426,6 +628,8 @@ def main():
     elif cmd == "add":
         url = sys.argv[2].strip()
         title = sys.argv[3] if len(sys.argv) > 3 else ""
+        # a site address becomes the feed it advertises (RSS/Atom discovery)
+        url, title = resolve_feed(url, title)
         feeds = subs()
         if not any(f["url"] == url for f in feeds):
             feeds.append({"title": title, "url": url})
@@ -462,6 +666,54 @@ def main():
         c.setdefault("read", {})[url + "|" + ident] = True
         save_cache(c)
         print(json.dumps({"ok": True}))
+    elif cmd == "markunread":
+        if len(sys.argv) < 4:
+            print(json.dumps({"error": "markunread needs a feed and an id"}))
+            return 2
+        url, ident = sys.argv[2], sys.argv[3]
+        c.get("read", {}).pop(url + "|" + ident, None)
+        save_cache(c)
+        print(json.dumps({"ok": True, "id": ident, "url": url}))
+    elif cmd == "nextunread":
+        if len(sys.argv) < 3:
+            print(json.dumps({"error": "nextunread needs a feed"}))
+            return 2
+        print(
+            json.dumps(
+                cmd_next_unread(
+                    c, sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else ""
+                )
+            )
+        )
+    elif cmd == "search":
+        print(
+            json.dumps(
+                cmd_search(c, sys.argv[2] if len(sys.argv) > 2 else ""),
+                ensure_ascii=False,
+            )
+        )
+    elif cmd == "settags":
+        if len(sys.argv) < 4:
+            print(json.dumps({"error": "settags needs a feed and tags"}))
+            return 2
+        print(json.dumps(cmd_settags(sys.argv[2], sys.argv[3])))
+    elif cmd == "tags":
+        print(json.dumps(cmd_taglist(), ensure_ascii=False))
+    elif cmd == "save":
+        if len(sys.argv) < 4:
+            print(json.dumps({"error": "save needs a feed and an id"}))
+            return 2
+        print(json.dumps(cmd_save(c, sys.argv[2], sys.argv[3])))
+    elif cmd == "saved":
+        print(json.dumps(cmd_saved(c), ensure_ascii=False))
+    elif cmd == "discover":
+        if len(sys.argv) < 3:
+            print(json.dumps({"error": "discover needs an address"}))
+            return 2
+        try:
+            print(json.dumps(discover(sys.argv[2]), ensure_ascii=False))
+        except Exception as exc:
+            print(json.dumps({"error": str(exc)[:120]}))
     elif cmd == "markall":
         # Mark every cached article read; with a url, only that feed's items.
         url = sys.argv[2] if len(sys.argv) > 2 else ""

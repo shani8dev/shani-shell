@@ -23,6 +23,59 @@ AppWindow {
     property string result: ""
     property string error: ""
     property bool working: false
+    // source language, mode and the local model's endpoint
+    property string source: "auto"
+    property string mode: "text"            // text | batch | file
+    property string endpoint: Quickshell.env("SHANI_TRANSLATE_URL") || "http://127.0.0.1:8765/v1/chat/completions"
+    property string statusText: ""
+    property bool statusOk: false
+    property string batchCount: ""
+    property string filePath: ""
+
+    function swap() {
+        if (source === "auto")
+            return;
+        const old = source;
+        source = target;
+        target = old;
+        Settings.data.translateTo = target;
+        if (input.text.trim() !== "") win.go();
+    }
+    function checkEndpoint() {
+        statusText = Tr.t("Checking…");
+        statusProc.command = ["sh", "-c", 'SHANI_TRANSLATE_URL="$1" python3 "$2" status', "sh", win.endpoint, win.tool];
+        statusProc.running = true;
+    }
+    Process {
+        id: statusProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                win.statusOk = text.indexOf("ok") >= 0;
+                win.statusText = win.statusOk ? Tr.t("Local model ready") : Tr.t("Local model not running");
+            }
+        }
+    }
+    // a file is read as-is; the bridge strips HTML when the file mode asks
+    Process {
+        id: fileProc
+        stdout: StdioCollector {
+            onStreamFinished: { input.text = text.trim(); win.go(); }
+        }
+    }
+    function openFile() {
+        FilePicker.open({
+            mode: "open",
+            filters: ["txt", "text", "html", "htm", "md"],
+            title: Tr.t("A file to translate"),
+            onPicked: paths => {
+                if (!paths.length) return;
+                win.filePath = paths[0];
+                win.mode = /\.(html?|htm)$/i.test(paths[0]) ? "file" : "text";
+                fileProc.command = ["cat", paths[0]];
+                fileProc.running = true;
+            }
+        });
+    }
 
     function go() {
         const t = input.text.trim();
@@ -30,7 +83,15 @@ AppWindow {
             return;
         working = true;
         error = "";
-        runner.command = ["sh", "-c", 'printf "%s" "$1" | python3 "$2" text "$3"', "sh", t, win.tool, win.target];
+        result = "";
+        if (win.mode === "batch") {
+            const lines = t.split("\n").map(s => s.trim()).filter(s => s !== "");
+            runner.command = ["sh", "-c", 'printf "%s" "$1" | python3 "$2" strings "$3"', "sh", JSON.stringify(lines), win.tool, win.target];
+        } else {
+            const cmd = win.mode === "file" ? "file" : "text";
+            runner.command = ["sh", "-c", 'printf "%s" "$1" | python3 "$2" "$3" "$4" "$5" "$6"',
+                              "sh", t, win.tool, cmd, win.target, win.source, win.mode === "file" ? "--html" : ""];
+        }
         runner.running = true;
     }
     Process {
@@ -39,8 +100,13 @@ AppWindow {
         stderr: StdioCollector { id: err }
         onExited: code => {
             win.working = false;
-            if (code === 0) win.result = out.text.trim();
-            else win.error = code === 2 ? Tr.t("The local model is not running — Chronoa starts it") : Tr.t("Could not translate");
+            if (code === 0) {
+                if (win.mode === "batch") {
+                    win.batchCount = out.text.trim();
+                    win.result = Tr.t("Added %1 translations", win.batchCount);
+                } else win.result = out.text.trim();
+                win.error = "";
+            } else win.error = code === 2 ? Tr.t("The local model is not running — Chronoa starts it") : Tr.t("Could not translate");
         }
     }
 
@@ -52,6 +118,69 @@ AppWindow {
         ColumnLayout {
             anchors.fill: parent
             spacing: Theme.px(10)
+            // ---- the local model endpoint and its status -----------------------
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(8)
+                Text { text: Tr.t("Model"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                TextField {
+                    id: endpointField
+                    Layout.fillWidth: true
+                    text: win.endpoint
+                    label: Tr.t("Local model endpoint")
+                    inputMethodHints: Qt.ImhUrlCharactersOnly
+                    onAccepted: win.endpoint = text.trim()
+                }
+                Button { text: Tr.t("Use"); flat: true; onClicked: win.endpoint = endpointField.text.trim() }
+                Button { text: Tr.t("Check"); flat: true; onClicked: win.checkEndpoint() }
+                Text {
+                    text: win.statusText
+                    color: win.statusOk ? Theme.accent : Theme.danger
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                }
+            }
+
+            // ---- what kind of translation -------------------------------------
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(8)
+                Choice { text: Tr.t("Text"); selected: win.mode === "text"; onClicked: win.mode = "text" }
+                Choice { text: Tr.t("Batch"); selected: win.mode === "batch"; onClicked: win.mode = "batch" }
+                Choice { text: Tr.t("File / HTML"); selected: win.mode === "file"; onClicked: win.mode = "file" }
+                Button { text: Tr.t("Open file…"); flat: true; onClicked: win.openFile() }
+                Text { Layout.fillWidth: true; text: win.filePath.split("/").pop(); color: Theme.faint; elide: Text.ElideMiddle; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale }
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: win.mode === "batch"
+                text: Tr.t("One string per line — cached translations are added to this computer")
+                color: Theme.faint
+                font.family: Theme.font
+                font.pixelSize: Theme.px(10) * Theme.fontScale
+            }
+
+            // ---- source language and swap --------------------------------------
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(8)
+                Text { text: Tr.t("From"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    Repeater {
+                        model: [["auto", Tr.t("Auto")]].concat(win.languages)
+                        Choice {
+                            required property var modelData
+                            text: modelData[1]
+                            selected: win.source === modelData[0]
+                            onClicked: { win.source = modelData[0]; if (input.text.trim() !== "") win.go(); }
+                        }
+                    }
+                }
+                IconButton { icon: "exchange-positions"; size: Theme.px(28); tip: Tr.t("Swap languages"); enabled: win.source !== "auto"; onClicked: win.swap() }
+            }
+
             Text { text: Tr.t("Into"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
             Flow {
                 Layout.fillWidth: true
@@ -99,7 +228,7 @@ AppWindow {
                             onTextChanged: { if (win.result !== "") win.result = ""; }
                             Text {
                                 visible: input.text === ""
-                                text: Tr.t("Type or paste text — Ctrl+Enter translates")
+                                text: win.mode === "batch" ? Tr.t("One string per line — Ctrl+Enter translates") : Tr.t("Type or paste text — Ctrl+Enter translates")
                                 color: Theme.faint
                                 font: input.font
                             }

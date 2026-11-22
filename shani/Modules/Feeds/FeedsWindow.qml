@@ -15,6 +15,9 @@ AppWindow {
     implicitWidth: Theme.px(1000)
     implicitHeight: Theme.px(660)
 
+    property string tagFilter: ""   // the category the feed list is narrowed to
+    property bool savedShown: false // show the saved pile instead of a feed
+
     RowLayout {
         anchors.fill: parent
         anchors.margins: Theme.px(10)
@@ -39,8 +42,30 @@ AppWindow {
                     spacing: Theme.px(6)
                     Text { text: Tr.t("Feeds"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(14) * Theme.fontScale; font.weight: Font.DemiBold }
                     Item { Layout.fillWidth: true }
+                    IconButton { icon: "go-next"; tip: Tr.t("Next unread"); size: Theme.px(26); enabled: Feeds.feeds.some(f => f.unread > 0); onClicked: Feeds.nextUnread() }
                     IconButton { icon: "mail-mark-read"; tip: Tr.t("Mark all read"); size: Theme.px(26); enabled: Feeds.items.length > 0; onClicked: Feeds.markAll() }
                     IconButton { icon: "view-refresh"; tip: Tr.t("Refresh"); size: Theme.px(26); on: Feeds.busy; onClicked: Feeds.update() }
+                }
+
+                // tags double as categories: pick one to narrow the list
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    visible: Feeds.tags.length > 0
+                    Choice {
+                        text: Tr.t("All")
+                        selected: win.tagFilter === ""
+                        onClicked: win.tagFilter = ""
+                    }
+                    Repeater {
+                        model: Feeds.tags
+                        Choice {
+                            required property var modelData
+                            text: modelData
+                            selected: win.tagFilter === modelData
+                            onClicked: win.tagFilter = modelData
+                        }
+                    }
                 }
 
                 ListView {
@@ -49,13 +74,14 @@ AppWindow {
                     Layout.fillHeight: true
                     clip: true
                     spacing: 2
-                    model: Feeds.feeds
+                    model: Feeds.feeds.filter(f => win.tagFilter === "" || (f.tags || []).indexOf(win.tagFilter) >= 0)
                     delegate: ListRow {
                         required property var modelData
                         width: ListView.view.width
                         icon: "mail-unread"
                         title: modelData.title
-                        subtitle: modelData.unread > 0 ? Tr.t("%1 unread", modelData.unread) : ""
+                        subtitle: (modelData.tags && modelData.tags.length ? modelData.tags.join(", ") + "  ·  " : "")
+                                  + (modelData.unread > 0 ? Tr.t("%1 unread", modelData.unread) : "")
                         selected: Feeds.current === modelData.url
                         onClicked: Feeds.open(modelData.url)
                     }
@@ -75,6 +101,12 @@ AppWindow {
                         enabled: addField.text.trim() !== ""
                         onClicked: { Feeds.add(addField.text.trim()); addField.text = "" }
                     }
+                    Button {
+                        text: Tr.t("Discover")
+                        flat: true
+                        enabled: addField.text.trim() !== ""
+                        onClicked: { Feeds.discover(addField.text.trim()); addField.text = "" }
+                    }
                     Item { Layout.fillWidth: true }
                     Button {
                         text: Tr.t("Remove")
@@ -83,6 +115,13 @@ AppWindow {
                         onClicked: Feeds.remove(Feeds.current)
                     }
                 }
+                TextField {
+                    id: tagField
+                    Layout.fillWidth: true
+                    placeholder: Tr.t("Tags for this feed…")
+                    enabled: Feeds.current !== ""
+                    onAccepted: { if (Feeds.current) Feeds.setTags(Feeds.current, text); text = "" }
+                }
                 // the subscription list in and out (OPML), and how often it
                 // fetches on its own
                 RowLayout {
@@ -90,6 +129,12 @@ AppWindow {
                     spacing: Theme.px(6)
                     Button { text: Tr.t("Import…"); flat: true; onClicked: Feeds.importDialog() }
                     Button { text: Tr.t("Export…"); flat: true; enabled: Feeds.feeds.length > 0; onClicked: Feeds.exportDialog() }
+                    Button {
+                        text: Tr.t("Saved")
+                        flat: true
+                        checked: win.savedShown
+                        onClicked: { win.savedShown = !win.savedShown; if (win.savedShown) Feeds.savedArticles() }
+                    }
                 }
                 Text { text: Tr.t("Refresh"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                 Flow {
@@ -138,12 +183,26 @@ AppWindow {
 
             Text {
                 Layout.fillWidth: true
-                text: (Feeds.feeds.filter(f => f.url === Feeds.current)[0] || {}).title || Tr.t("Articles")
+                text: Feeds.query !== "" ? Tr.t("Search results")
+                    : win.savedShown ? Tr.t("Saved articles")
+                    : (Feeds.feeds.filter(f => f.url === Feeds.current)[0] || {}).title || Tr.t("Articles")
                 color: Theme.text
                 font.family: Theme.font
                 font.pixelSize: Theme.px(13) * Theme.fontScale
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
+            }
+            TextField {
+                id: articleSearch
+                Layout.fillWidth: true
+                placeholder: Tr.t("Search all articles…")
+                onAccepted: Feeds.search(text.trim())
+                onTextChanged: if (text.trim() === "" && Feeds.query !== "") Feeds.search("")
+            }
+            Choice {
+                text: Tr.t("Show read")
+                selected: Feeds.showRead
+                onClicked: Feeds.showRead = !Feeds.showRead
             }
             ListView {
                 id: itemList
@@ -151,23 +210,32 @@ AppWindow {
                 Layout.fillHeight: true
                 clip: true
                 spacing: 2
-                model: Feeds.items
+                model: Feeds.query !== "" ? Feeds.searchResults
+                    : win.savedShown ? Feeds.saved
+                    : Feeds.items.filter(i => Feeds.showRead || !i.read)
                 ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                 delegate: ListRow {
                     required property var modelData
                     width: ListView.view.width
-                    icon: modelData.read ? "mail-read" : "mail-unread"
+                    icon: modelData.saved ? "user-bookmarks" : (modelData.read ? "mail-read" : "mail-unread")
                     title: modelData.title
-                    subtitle: Feeds.when(modelData.date) + (modelData.summary ? "  ·  " + modelData.summary : "")
+                    subtitle: (modelData.feed ? modelData.feed + "  ·  " : "")
+                              + Feeds.when(modelData.date) + (modelData.summary ? "  ·  " + modelData.summary : "")
                     selected: Feeds.articleTitle === modelData.title
-                    onClicked: { Feeds.show(Feeds.current, modelData.id) }
+                    onClicked: {
+                        if (Feeds.query !== "" || win.savedShown) Feeds.openArticleAt(modelData.url, modelData.id);
+                        else Feeds.show(Feeds.current, modelData.id);
+                    }
                 }
             }
             Text {
                 Layout.fillWidth: true
-                visible: Feeds.items.length === 0
-                text: Tr.t("Nothing in this feed yet")
+                visible: itemList.count === 0
+                text: Feeds.query !== "" ? Tr.t("No articles match that search")
+                    : win.savedShown ? Tr.t("Nothing saved yet")
+                    : Tr.t("Nothing in this feed yet")
                 color: Theme.dim
+                wrapMode: Text.Wrap
                 font.family: Theme.font
                 font.pixelSize: Theme.px(11) * Theme.fontScale
             }
@@ -219,11 +287,34 @@ AppWindow {
                     font.family: Theme.font
                     font.pixelSize: Theme.px(14) * Theme.fontScale
                 }
-                Button {
-                    visible: Feeds.articleLink !== ""
-                    text: Tr.t("Open in a browser")
-                    kind: "outline"
-                    onClicked: Qt.openUrlExternally(Feeds.articleLink)
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    visible: Feeds.openId !== ""
+                    Button {
+                        visible: Feeds.articleLink !== ""
+                        text: Tr.t("Open in a browser")
+                        kind: "outline"
+                        onClicked: Qt.openUrlExternally(Feeds.articleLink)
+                    }
+                    Button {
+                        text: Feeds.articleSaved ? Tr.t("Saved") : Tr.t("Save for later")
+                        flat: true
+                        checked: Feeds.articleSaved
+                        onClicked: Feeds.toggleSave(Feeds.current, Feeds.openId)
+                    }
+                    Button {
+                        text: Tr.t("Mark unread")
+                        flat: true
+                        onClicked: Feeds.markUnread(Feeds.current, Feeds.openId)
+                    }
+                    Button {
+                        visible: Feeds.articleEnclosure !== ""
+                        text: Tr.t("Open episode")
+                        kind: "outline"
+                        onClicked: Qt.openUrlExternally(Feeds.articleEnclosure)
+                    }
+                    Item { Layout.fillWidth: true }
                 }
                 Item { Layout.preferredHeight: 20 }
             }

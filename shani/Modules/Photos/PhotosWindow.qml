@@ -22,31 +22,99 @@ AppWindow {
     property bool scanning: false
     property string filter: "all"     // all | camera | screenshots
     property string groupBy: "month"  // day | month | year
+    property string sortOrder: "newest"  // newest | oldest | name
     property bool importBusy: false
     property string importNote: ""
+    property var selected: []         // multi-select: batch trash / album add
+    property string detailPath: ""    // the photo the details panel describes
+    property bool detailsShown: false
+    property var meta: ({})           // path -> { rating, tags }, kept in shani-photos/meta.json
     readonly property var shown: photos.filter(p =>
         (filter === "all" || (filter === "camera" ? /\/Camera\/|\/DCIM\/|\/camera\//i.test(p.path) : /\/Screenshot/i.test(p.path))) &&
         (activeAlbum === "" || activeAlbum === "all" || albums.find(a => a.name === activeAlbum)?.members?.includes(p.path)))
-    // [{ key, items: [...] }], newest first — the key is a day, a month or a year
+    // [{ key, items: [...] }] — the key is a day, a month or a year. The sort
+    // order is applied here (not in scan's `sort -rn`) so it works for every
+    // grouping; same-key groups are merged so a name sort cannot split a month.
     readonly property var groups: {
         const fmt = win.groupBy === "day" ? "d MMM yyyy" : win.groupBy === "year" ? "yyyy" : "MMMM yyyy";
+        let list = shown;
+        if (win.sortOrder === "oldest") list = list.slice().sort((a, b) => a.time - b.time);
+        else if (win.sortOrder === "name") list = list.slice().sort((a, b) =>
+            a.path.split("/").pop().localeCompare(b.path.split("/").pop()));
         const out = [];
-        for (const p of shown) {
+        for (const p of list) {
             const key = Qt.formatDate(new Date(p.time * 1000), fmt);
-            if (!out.length || out[out.length - 1].key !== key)
-                out.push({ key: key, items: [] });
-            out[out.length - 1].items.push(p);
+            let group = out.find(g => g.key === key);
+            if (!group) { group = { key: key, items: [] }; out.push(group); }
+            group.items.push(p);
         }
         return out;
     }
+
+    // ---- per-photo ratings and tags (path-keyed, beside the albums) --------------
+    readonly property string metaFile: (Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") + "/.local/share")) + "/shani-photos/meta.json"
+    readonly property string metaWriteCode: 'import json,sys,os\np=sys.argv[1]\nos.makedirs(os.path.dirname(p),exist_ok=True)\nopen(p,"w").write(json.dumps(json.loads(sys.argv[2])))'
+    function loadMeta() { metaLister.running = true; }
+    function saveMeta() {
+        metaWrite.command = ["python3", "-c", win.metaWriteCode, win.metaFile, JSON.stringify(win.meta)];
+        metaWrite.running = true;
+    }
+    function ratingOf(path) { return (win.meta[path] && win.meta[path].rating) || 0; }
+    function tagsOf(path) { return (win.meta[path] && win.meta[path].tags) || ""; }
+    function setRating(path, stars) {
+        if (!path) return;
+        const m = Object.assign({}, win.meta);
+        m[path] = Object.assign({ tags: "" }, m[path], { rating: stars });
+        win.meta = m;
+        saveMeta();
+    }
+    function setTags(path, tags) {
+        if (!path) return;
+        const m = Object.assign({}, win.meta);
+        m[path] = Object.assign({ rating: 0 }, m[path], { tags: tags });
+        win.meta = m;
+        saveMeta();
+    }
+    Process {
+        id: metaLister
+        command: ["sh", "-c", 'cat "$1" 2>/dev/null || echo "{}"', "sh", win.metaFile]
+        stdout: StdioCollector {
+            onStreamFinished: { try { win.meta = JSON.parse(text) || {}; } catch (e) { win.meta = {}; } }
+        }
+    }
+    Process { id: metaWrite }
+
+    // ---- multi-select ------------------------------------------------------------
+    function toggleSelect(path) {
+        win.selected = win.selected.indexOf(path) < 0 ? win.selected.concat([path]) : win.selected.filter(p => p !== path);
+    }
+    function clearSelect() { win.selected = []; }
+    function trashSelected() {
+        if (!win.selected.length) return;
+        const paths = win.selected.slice();
+        Files.trash(paths, r => {
+            if (r && r.error) win.importNote = Tr.t("Could not move to trash: %1", r.error);
+            win.selected = [];
+            win.scan();
+        });
+    }
+    function albumSelected() {
+        if (!win.selected.length) return;
+        const name = (win.newAlbumName || "").trim() || Tr.t("Selection");
+        Photos.createAlbum(name, win.selected.slice());
+        win.newAlbumName = "";
+        win.selected = [];
+        win.albumLister.running = true;
+    }
+    onDetailPathChanged: if (win.detailPath) PhotoMeta.read(win.detailPath)
 
     function scan() {
         scanning = true;
         lister.command = ["sh", "-c", 'find "$1" -maxdepth 4 -type f \\( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.webp" -o -iname "*.gif" -o -iname "*.avif" -o -iname "*.bmp" \\) -not -path "*/.*" -printf "%T@ %p\\n" 2>/dev/null | sort -rn | head -5000', "sh", pictures];
         lister.running = true;
     }
-    Component.onCompleted: scan()
-    onVisibleChanged: if (visible) { scan(); albumLister.running = true; }
+    Component.onCompleted: { scan(); loadMeta(); }
+    onVisibleChanged: if (visible) { scan(); albumLister.running = true; loadMeta(); }
 
     // the Viewer's edit mode is its crop / rotate / markup mode
     function adjust(path) {
@@ -156,6 +224,16 @@ AppWindow {
                         onClicked: win.groupBy = modelData[0]
                     }
                 }
+                // sort order: newest (the scan default), oldest or by file name
+                Repeater {
+                    model: [["newest", Tr.t("Newest")], ["oldest", Tr.t("Oldest")], ["name", Tr.t("Name")]]
+                    Choice {
+                        required property var modelData
+                        text: modelData[1]
+                        selected: win.sortOrder === modelData[0]
+                        onClicked: win.sortOrder = modelData[0]
+                    }
+                }
                 Item { Layout.fillWidth: true }
                 // ---- albums ----
                 Flow {
@@ -216,6 +294,30 @@ AppWindow {
                 }
                 IconButton { size: Theme.px(30); icon: "view-refresh"; tip: Tr.t("Look again"); onClicked: win.scan() }
                 IconButton { size: Theme.px(30); icon: "folder-pictures"; tip: Tr.t("Open Pictures in Files"); onClicked: Files.show(win.pictures) }
+                IconButton { size: Theme.px(30); icon: "document-properties"; tip: Tr.t("Details"); on: win.detailsShown; onClicked: win.detailsShown = !win.detailsShown }
+            }
+            // batch operations on the multi-selection (Ctrl/Shift-click tiles)
+            RowLayout {
+                Layout.fillWidth: true
+                visible: win.selected.length > 0
+                spacing: Theme.px(6)
+                Text {
+                    text: Tr.t("%1 selected", win.selected.length)
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                }
+                TextField {
+                    id: albumField
+                    Layout.preferredWidth: Theme.px(140)
+                    placeholderText: Tr.t("Album name")
+                    text: win.newAlbumName
+                    onTextChanged: win.newAlbumName = text
+                }
+                Button { text: Tr.t("Add to album"); flat: true; onClicked: win.albumSelected() }
+                Button { text: Tr.t("Move to trash"); flat: true; onClicked: win.trashSelected() }
+                Button { text: Tr.t("Clear"); flat: true; onClicked: win.clearSelect() }
+                Item { Layout.fillWidth: true }
             }
             Text {
                 visible: win.importNote !== ""
@@ -227,6 +329,10 @@ AppWindow {
                 elide: Text.ElideRight
             }
 
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                spacing: Theme.px(8)
             ListView {
                 reuseItems: true
                 cacheBuffer: 400
@@ -276,12 +382,27 @@ AppWindow {
                                         sourceSize: Qt.size(300, 300)
                                         source: "file://" + tile.modelData.path.split("/").map(encodeURIComponent).join("/")
                                     }
-                                    Rectangle { anchors.fill: parent; color: "transparent"; radius: parent.radius; border.width: tileArea.containsMouse ? 2 : 0; border.color: Theme.accent }
+                                    Rectangle { anchors.fill: parent; color: "transparent"; radius: parent.radius; border.width: win.selected.indexOf(tile.modelData.path) >= 0 ? 3 : (tileArea.containsMouse ? 2 : 0); border.color: Theme.accent }
                                 }
                                 Accessible.role: Accessible.Graphic
                                 Accessible.name: tile.modelData.path.split("/").pop()
                                 Accessible.onPressAction: Viewer.open(tile.modelData.path)
-                                MouseArea { id: tileArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Viewer.open(tile.modelData.path) }
+                                MouseArea {
+                                    id: tileArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: mouse => {
+                                        const p = tile.modelData.path;
+                                        if (mouse.modifiers & (Qt.ControlModifier | Qt.ShiftModifier)) {
+                                            win.toggleSelect(p);
+                                            return;
+                                        }
+                                        if (win.selected.length) { win.clearSelect(); return; }
+                                        win.detailPath = p;
+                                        Viewer.open(p);
+                                    }
+                                }
                                 RowLayout {
                                     anchors { right: parent.right; bottom: parent.bottom; margins: Theme.px(4) }
                                     spacing: Theme.px(2)
@@ -320,6 +441,81 @@ AppWindow {
                     subtitle: Tr.t("Pictures in %1 show here — the camera's and the screenshots too").arg(win.pictures.replace(Quickshell.env("HOME"), "~"))
                 }
             }
-        }
-    }
-}
+            // ---- EXIF, rating and tags for the last-clicked photo ------------------
+            Rectangle {
+                visible: win.detailsShown
+                Layout.preferredWidth: Theme.px(260)
+                Layout.minimumWidth: Theme.px(200)
+                Layout.fillHeight: true
+                radius: Theme.radiusSmall
+                color: Theme.surface1
+                border.width: 1
+                border.color: Theme.stroke
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: Theme.px(10)
+                    spacing: Theme.px(8)
+                    Text {
+                        Layout.fillWidth: true
+                        text: win.detailPath ? win.detailPath.split("/").pop() : Tr.t("No photo selected")
+                        color: Theme.text
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(13) * Theme.fontScale
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideMiddle
+                    }
+                    Repeater {
+                        model: PhotoMeta.details
+                        RowLayout {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            Text {
+                                text: modelData.label
+                                color: Theme.dim
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: modelData.value
+                                color: Theme.text
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                elide: Text.ElideRight
+                            }
+                        }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: Tr.t("Rating")
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                    }
+                    Row {
+                        spacing: Theme.px(2)
+                        Repeater {
+                            model: 5
+                            Text {
+                                required property int index
+                                text: (index + 1) <= win.ratingOf(win.detailPath) ? "★" : "☆"
+                                color: Theme.accent
+                                font.pixelSize: Theme.px(18) * Theme.fontScale
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.setRating(win.detailPath, index + 1) }
+                            }
+                        }
+                    }
+                    TextField {
+                        id: tagsField
+                        Layout.fillWidth: true
+                        placeholderText: Tr.t("Tags (comma separated)")
+                        text: win.tagsOf(win.detailPath)
+                        onEditingFinished: win.setTags(win.detailPath, text)
+                    }
+                    Item { Layout.fillHeight: true }
+                }
+            }
+            }  // RowLayout
+        }      // main ColumnLayout
+    }          // Item
+}              // AppWindow

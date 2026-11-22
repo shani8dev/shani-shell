@@ -180,6 +180,18 @@ PanelWindow {
             list.push(it.entry.id);
         Settings.data.dockPinned = list;
     }
+    // an app dragged from the launcher carries its desktop id as shani-app:<id>
+    function dropAppId(d) {
+        const t = String(d.text || "");
+        return t.indexOf("shani-app:") === 0 ? t.slice("shani-app:".length) : "";
+    }
+    function pinApp(id) {
+        if (!id || !win.entryOf(id) || !AppFilter.allowed(id))
+            return;
+        const list = Array.from(Settings.data.dockPinned);
+        if (list.indexOf(id) < 0)
+            Settings.data.dockPinned = list.concat([id]);
+    }
 
     HoverHandler { id: hover }
     Item { id: whole; anchors.fill: parent }
@@ -436,17 +448,30 @@ PanelWindow {
                 DropArea {
                     id: drop
                     anchors.fill: parent
-                    onEntered: d => { win.dropsIn++; d.accept(d.hasUrls && cell.modelData.entry ? Qt.CopyAction : Qt.IgnoreAction); }
-                    onExited: { win.dropsIn = Math.max(0, win.dropsIn - 1); dragOff.restart(); }
+                    property bool pinDrag: false
+                    onEntered: d => {
+                        win.dropsIn++;
+                        drop.pinDrag = !!win.dropAppId(d);
+                        d.accept((drop.pinDrag || (d.hasUrls && cell.modelData.entry)) ? Qt.CopyAction : Qt.IgnoreAction);
+                    }
+                    onExited: { win.dropsIn = Math.max(0, win.dropsIn - 1); drop.pinDrag = false; dragOff.restart(); }
                     // held there: its windows come forward one by one, to drop into one of them
                     Timer {
                         interval: 700
                         repeat: true
-                        running: drop.containsDrag && cell.modelData.windows.length > 0
+                        running: drop.containsDrag && !drop.pinDrag && cell.modelData.windows.length > 0
                         onTriggered: win.activate(cell.modelData)
                     }
                     onDropped: d => {
                         win.dropsIn = 0; win.dragging = false;
+                        const appId = win.dropAppId(d);
+                        if (appId) {
+                            win.pinApp(appId);
+                            drop.pinDrag = false;
+                            bounce.restart();
+                            return;
+                        }
+                        drop.pinDrag = false;
                         if (!cell.modelData.entry)
                             return;
                         const files = d.urls.map(u => decodeURIComponent(String(u).replace(/^file:\/\//, "")));

@@ -8,6 +8,7 @@
 // and end a whole family at once.
 import Quickshell
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
@@ -32,6 +33,46 @@ AppWindow {
     property var treeList: []
     property string procQuery: ""
     property string endSignal: "TERM"
+
+    // ---- click-to-sort (htop style): a header tap picks a key, tapping it
+    // again flips the direction. The tree keeps parents above their children;
+    // only siblings at the same indent are compared.
+    property string sortKey: "cpu"
+    property bool sortDesc: true
+    function setSort(key) {
+        if (win.sortKey === key) win.sortDesc = !win.sortDesc;
+        else { win.sortKey = key; win.sortDesc = key !== "pid" && key !== "name"; }
+        win.treeList = win.buildTree();
+    }
+    function metric(p, key) {
+        if (key === "pid") return p.pid;
+        if (key === "name") return String(p.name || "");
+        if (key === "mem") return p.mem;
+        if (key === "disk") return TopProcesses.diskIo[p.pid] || 0;
+        return p.cpu;
+    }
+    function sortRows(rows) {
+        const key = win.sortKey, dir = win.sortDesc ? -1 : 1;
+        return rows.slice().sort((a, b) => {
+            const x = win.metric(a, key), y = win.metric(b, key);
+            if (typeof x === "string" || typeof y === "string")
+                return String(x).localeCompare(String(y)) * dir;
+            return (x - y) * dir;
+        });
+    }
+
+    // ---- Users view: the same samples added up per user ------------------------
+    property bool byUser: false
+    readonly property var userList: {
+        const m = {};
+        for (const p of TopProcesses.list) {
+            const u = p.user || "?";
+            const r = m[u] || (m[u] = { user: u, count: 0, cpu: 0, mem: 0, disk: 0 });
+            r.count += 1; r.cpu += p.cpu; r.mem += p.mem;
+            r.disk += TopProcesses.diskIo[p.pid] || 0;
+        }
+        return Object.values(m).sort((a, b) => b.cpu - a.cpu);
+    }
     readonly property var shownList: win.procQuery
         ? win.treeList.filter(x => String(x.p.name || "").toLowerCase().includes(win.procQuery.toLowerCase()))
         : win.treeList
@@ -48,15 +89,14 @@ AppWindow {
         const out = [];
         function walk(parentIndent, ppid) {
             const children = kids[ppid] || [];
-            children.sort((a, b) => b.cpu - a.cpu || b.mem - a.mem);
-            for (const p of children) {
+            const ordered = win.sortRows(children);
+            for (const p of ordered) {
                 out.push({ p: p, indent: parentIndent });
                 walk(parentIndent + 1, p.pid);
             }
         }
         // roots: ppid <= 1 (init/systemd) or ppid not in our list
-        const roots = procs.filter(p => p.ppid <= 1 || !byPid[p.ppid]);
-        roots.sort((a, b) => b.cpu - a.cpu || b.mem - a.mem);
+        const roots = win.sortRows(procs.filter(p => p.ppid <= 1 || !byPid[p.ppid]));
         for (const p of roots) {
             out.push({ p: p, indent: 0 });
             walk(1, p.pid);
@@ -66,7 +106,10 @@ AppWindow {
     Connections {
         target: TopProcesses
         function onListChanged() { treeList = buildTree(); }
+        function onDiskIoChanged() { if (win.sortKey === "disk") treeList = buildTree(); }
     }
+    property int detailPid: -1
+    function openDetails(pid) { win.detailPid = pid; TopProcesses.showDetails(pid); }
 
     // total bytes read + written, as a short number for the Disk column
     function diskText(b) {
@@ -145,6 +188,33 @@ AppWindow {
                         font.pixelSize: Theme.px(10) * Theme.fontScale
                         wrapMode: Text.Wrap
                     }
+                    // load, swap and the kernel's PSI stall meters
+                    Text {
+                        width: parent.width
+                        text: Tr.t("Load %1 / %2 / %3 · swap %4 / %5 MB").arg(SysStats.load1.toFixed(2)).arg(SysStats.load5.toFixed(2)).arg(SysStats.load15.toFixed(2)).arg(Math.round(SysStats.swapUsedMb)).arg(Math.round(SysStats.swapTotalMb))
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        wrapMode: Text.Wrap
+                    }
+                    Row {
+                        spacing: Theme.px(8)
+                        Repeater {
+                            model: [
+                                { label: Tr.t("CPU"), value: SysStats.psiCpu },
+                                { label: Tr.t("Memory"), value: SysStats.psiMem },
+                                { label: Tr.t("I/O"), value: SysStats.psiIo }
+                            ]
+                            Row {
+                                spacing: Theme.px(4)
+                                Text { text: modelData.label + " PSI " + modelData.value.toFixed(1) + "%"; color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(9) * Theme.fontScale; anchors.verticalCenter: parent.verticalCenter }
+                                Rectangle {
+                                    width: Theme.px(48); height: Theme.px(6); radius: Theme.px(3); color: Theme.pressed; anchors.verticalCenter: parent.verticalCenter
+                                    Rectangle { width: parent.width * Math.min(1, Math.max(0, modelData.value / 100)); height: parent.height; radius: parent.radius; color: Theme.amber }
+                                }
+                            }
+                        }
+                    }
                     // per-core bars
                     Row {
                         spacing: Theme.px(4)
@@ -203,6 +273,14 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
+                Text { text: Tr.t("View:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Choice { text: Tr.t("Processes"); selected: !win.byUser; onClicked: win.byUser = false }
+                Choice { text: Tr.t("Users"); selected: win.byUser; onClicked: win.byUser = true }
+                Item { Layout.fillWidth: true }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
                 Text { text: Tr.t("End with signal:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                 Repeater {
                     model: ["TERM", "KILL", "INT", "HUP", "STOP", "CONT"]
@@ -214,12 +292,42 @@ AppWindow {
                     }
                 }
             }
+            // clickable column headers: tap to sort, tap again to reverse
+            RowLayout {
+                visible: !win.byUser
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.px(20)
+                spacing: Theme.px(6)
+                Repeater {
+                    model: [
+                        { key: "name", label: Tr.t("Name"), width: -1 },
+                        { key: "pid", label: "PID", width: 60 },
+                        { key: "cpu", label: "CPU", width: 70 },
+                        { key: "mem", label: Tr.t("Memory"), width: 70 },
+                        { key: "disk", label: Tr.t("Disk"), width: 64 }
+                    ]
+                    Text {
+                        required property var modelData
+                        text: modelData.label + (win.sortKey === modelData.key ? (win.sortDesc ? " ↓" : " ↑") : "")
+                        color: win.sortKey === modelData.key ? Theme.accent : Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.weight: win.sortKey === modelData.key ? Font.DemiBold : Font.Normal
+                        Layout.fillWidth: modelData.width < 0
+                        Layout.preferredWidth: modelData.width < 0 ? 0 : modelData.width
+                        Accessible.role: Accessible.Button
+                        Accessible.name: Tr.t("Sort by %1", modelData.label)
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.setSort(modelData.key) }
+                    }
+                }
+            }
             // the processes, a row each, in a list that scrolls: as a Repeater of
             // heightless Items every row was drawn on top of the one before
             ListView {
                 reuseItems: true
                 cacheBuffer: 400
                 id: procList
+                visible: !win.byUser
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.minimumHeight: Theme.px(160)
@@ -290,6 +398,12 @@ AppWindow {
                         Hint { text: Tr.t("Estimate from CPU use — not measured") }
                     }
                     Button {
+                        text: Tr.t("Details")
+                        flat: true
+                        Accessible.name: Tr.t("Details for") + " " + procRow.p.name
+                        onClicked: win.openDetails(procRow.p.pid)
+                    }
+                    Button {
                         text: procRow.confirming ? Tr.t("Tap again") : Tr.t("End")
                         kind: procRow.confirming ? "danger" : "plain"
                         flat: true
@@ -301,6 +415,27 @@ AppWindow {
                             procRow.confirming = !procRow.confirming;
                         }
                     }
+                }
+            }
+            // Users view: per-user totals from the same samples, read-only
+            ListView {
+                id: userList
+                visible: win.byUser
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.minimumHeight: Theme.px(160)
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                model: win.userList
+                delegate: RowLayout {
+                    required property var modelData
+                    width: userList.width
+                    spacing: Theme.px(8)
+                    Text { text: modelData.user; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.fillWidth: true; elide: Text.ElideRight }
+                    Text { text: modelData.count + " " + Tr.t("processes"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; Layout.preferredWidth: Theme.px(90) }
+                    Text { text: modelData.cpu.toFixed(0) + "% CPU"; color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; Layout.preferredWidth: Theme.px(70) }
+                    Text { text: modelData.mem.toFixed(1) + "% mem"; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; Layout.preferredWidth: Theme.px(70) }
+                    Text { text: win.diskText(modelData.disk); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; Layout.preferredWidth: Theme.px(70) }
                 }
             }
             Text {
@@ -320,6 +455,33 @@ AppWindow {
                 font.family: Theme.font
                 font.pixelSize: Theme.px(9) * Theme.fontScale
                 wrapMode: Text.Wrap
+            }
+        }
+
+        // ---- process details + renice ---------------------------------------------
+        Dialog {
+            id: detailsDialog
+            anchors.centerIn: parent
+            width: Math.min(win.width * 0.85, Theme.px(460))
+            title: Tr.t("Process details · %1", win.detailPid)
+            modal: true
+            standardButtons: Dialog.Close
+            visible: win.detailPid > 0 && TopProcesses.details !== null
+            onClosed: { win.detailPid = -1; TopProcesses.details = null; }
+            contentItem: ColumnLayout {
+                spacing: Theme.px(6)
+                readonly property var det: TopProcesses.details || ({})
+                Text { Layout.fillWidth: true; text: det.cmdline || Tr.t("(no command line)"); color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale; wrapMode: Text.Wrap }
+                Text { Layout.fillWidth: true; text: Tr.t("User %1 · state %2 · %3 threads · %4 open files").arg(det.user || "?").arg(det.state || "?").arg(det.threads || 0).arg(det.files || 0); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; wrapMode: Text.Wrap }
+                Text { Layout.fillWidth: true; text: Tr.t("Environment"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                Text { Layout.fillWidth: true; text: (det.env || []).join("\n"); color: Theme.faint; font.family: Theme.mono; font.pixelSize: Theme.px(9) * Theme.fontScale; wrapMode: Text.Wrap; maximumLineCount: 8; elide: Text.ElideRight }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    Text { text: Tr.t("Nice value (−20 = first, 19 = last)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    TextField { id: niceField; Layout.preferredWidth: Theme.px(60); placeholder: "-20…19" }
+                    Button { text: Tr.t("Apply nice"); enabled: /^-?\d+$/.test(niceField.text); onClicked: { TopProcesses.renice(win.detailPid, parseInt(niceField.text, 10)); niceField.text = ""; } }
+                }
             }
         }
     }

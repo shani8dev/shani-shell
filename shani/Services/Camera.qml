@@ -26,6 +26,9 @@ Singleton {
     property int selected: -1               // camera index; -1 = first
     property string mode: "photo"           // photo | video
     property bool withAudio: true           // record the microphone with video
+    property int selfTimer: 3               // seconds before a photo; 0 = shoot now
+    property string photoFormat: "png"      // png | jpg
+    property string videoFormat: "webm"     // webm (.vp8) | mp4 (.h264)
     property var gallery: []                // [{ path, name, when }] newest-first
 
     function shutter() {
@@ -51,9 +54,18 @@ Singleton {
         }
     }
     function isoOf(path) {
-        try { return Qt.formatDateTime(new Date(path.split("/").pop().replace(/.png$|.webm$/,"")), "yyyy-MM-dd hh:mm:ss"); }
+        try { return Qt.formatDateTime(new Date(path.split("/").pop().replace(/\.(png|jpg|webm|mp4)$/,"")), "yyyy-MM-dd hh:mm:ss"); }
         catch (e) { return ""; }
     }
+    // delete a capture from the in-window gallery (gio trash, so it can come back)
+    function trash(path) {
+        if (!path)
+            return;
+        trashProc.command = ["gio", "trash", "--", path];
+        trashProc.running = true;
+        if (last === path) last = "";
+    }
+    Process { id: trashProc; onExited: root.scanGallery() }
 
     function refresh() { list.running = true; }
     function stamp() { return Qt.formatDateTime(new Date(), "yyyy-MM-dd hh-mm-ss"); }
@@ -61,22 +73,18 @@ Singleton {
     function photo() {
         if (phase !== "idle" || !available || !Privacy.cameraEnabled)
             return;
-        countdown = 3;
+        countdown = selfTimer > 0 ? selfTimer : 0;
+        if (countdown <= 0) { captureStill(); return; }   // timer off: shoot now
         phase = "counting";
         tick.restart();
     }
-    Timer {
-        id: tick
-        interval: 1000
-        repeat: true
-        onTriggered: {
-            root.countdown--;
-            if (root.countdown > 0)
-                return;
-            stop();
-            root.phase = "capturing";
-            root.last = root.photosDir + "/Photo " + root.stamp() + ".png";
-            still.command = ["sh", "-c", 'd="${XDG_RUNTIME_DIR:-/tmp}/shani-cam"; rm -rf "$d"; mkdir -p "$d" "${3%/*}" &&
+    // capture the still; png first, converted to jpg afterwards if asked for
+    function captureStill() {
+        tick.stop();
+        root.phase = "capturing";
+        root.last = root.photosDir + "/Photo " + root.stamp() + ".png";
+        SystemSounds.play("camera-shutter");
+        still.command = ["sh", "-c", 'd="${XDG_RUNTIME_DIR:-/tmp}/shani-cam"; rm -rf "$d"; mkdir -p "$d" "${3%/*}" &&
                 "$1" -c "$2" -C 8 -s role=still,pixelformat=RGB888 -F "$d/f#.ppm" >/dev/null 2>&1
                 f=$(ls "$d"/*.ppm 2>/dev/null | sort | tail -1); [ -n "$f" ] || exit 3
                 python3 - "$f" "$3" <<"PY"
@@ -101,6 +109,17 @@ open(sys.argv[2], "wb").write(b"\\x89PNG\\r\\n\\x1a\\n" + chunk(b"IHDR", struct.
 PY
                 rm -rf "$d"', "sh", root.tool, String(root.selected >= 0 ? root.selected : (root.cameras[0] ? root.cameras[0].index : 0)), root.last];
             still.running = true;
+    }
+    // the countdown before a photo; with the timer off captureStill() runs directly
+    Timer {
+        id: tick
+        interval: 1000
+        repeat: true
+        onTriggered: {
+            root.countdown--;
+            if (root.countdown > 0)
+                return;
+            root.captureStill();
         }
     }
     Process {
@@ -111,9 +130,31 @@ PY
                 Quickshell.execDetached(["notify-send", "-a", "Camera", "-i", "camera-photo", "No photo taken", "The camera did not give a picture."]);
                 return;
             }
-            offer.command = ["notify-send", "-a", "Camera", "-i", root.last, "-A", "open=Open", "-A", "lens=Read with Lens", "Photo taken", root.last.split("/").pop()];
-            offer.running = true;
+            if (root.photoFormat === "jpg") {
+                const jpg = root.last.replace(/\.png$/, ".jpg");
+                conv.command = ["ffmpeg", "-y", "-loglevel", "error", "-i", root.last, "-q:v", "2", jpg];
+                conv.out = jpg;
+                conv.running = true;
+                return;
+            }
+            finishPhoto();
         }
+    }
+    // png -> jpg conversion for the picture-format choice
+    Process {
+        id: conv
+        property string out: ""
+        onExited: code => {
+            if (code === 0 && root.out) {
+                Quickshell.execDetached(["rm", "-f", "--", root.last]);   // drop the png, keep the jpg
+                root.last = root.out;
+            }
+            finishPhoto();
+        }
+    }
+    function finishPhoto() {
+        offer.command = ["notify-send", "-a", "Camera", "-i", root.last, "-A", "open=Open", "-A", "lens=Read with Lens", "Photo taken", root.last.split("/").pop()];
+        offer.running = true;
     }
     // the photo's notification: open it, or read text and codes in it
     Process {
@@ -141,9 +182,17 @@ PY
         }
         if (phase !== "idle" || !available || !Privacy.cameraEnabled)
             return;
-        last = videosDir + "/Video " + stamp() + ".webm";
-        const mic = withAudio ? " $3 ! audioconvert ! opusenc ! queue ! mux." : "";
-        rec.command = ["sh", "-c", 'mkdir -p "${1%/*}" && exec gst-launch-1.0 -e $2 ! videoconvert ! queue ! vp8enc deadline=1 cpu-used=8 ! webmmux name=mux ! filesink location="$1"' + mic, "sh", last, videoSource, audioSource];
+        const mp4 = videoFormat === "mp4";
+        last = videosDir + "/Video " + stamp() + (mp4 ? ".mp4" : ".webm");
+        // H.264/AAC in MP4 when asked for; otherwise VP8/Opus in WebM.
+        // Encoders and sources are argv slots, never interpolated into the shell string.
+        const venc = mp4 ? "x264enc tune=zerolatency" : "vp8enc deadline=1 cpu-used=8";
+        const muxer = mp4 ? "mp4mux" : "webmmux";
+        const aenc = mp4 ? "avenc_aac" : "opusenc";
+        const mic = withAudio ? " $5 ! audioconvert ! $6 ! queue ! mux." : "";
+        rec.command = ["sh", "-c", 'mkdir -p "${1%/*}" && exec gst-launch-1.0 -e $2 ! videoconvert ! queue ! $3 ! $4 name=mux ! filesink location="$1"' + mic,
+                       "sh", last, videoSource, venc, muxer, audioSource, aenc];
+        SystemSounds.play("camera-shutter");
         seconds = 0;
         phase = "recording";
         rec.running = true;

@@ -22,7 +22,18 @@ AppWindow {
     property string manualPath: ""
     readonly property real span: VideoTrimmer.inputDuration > 0 ? VideoTrimmer.inputDuration : 60
 
-    Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: Ui.videoTrimmer = false }
+    Item {
+        anchors.fill: parent
+        focus: win.visible
+        Keys.onEscapePressed: Ui.videoTrimmer = false
+        Keys.onPressed: e => {
+            if (e.key === Qt.Key_I) { VideoTrimmer.markIn(); e.accepted = true; }
+            else if (e.key === Qt.Key_O) { VideoTrimmer.markOut(); e.accepted = true; }
+            else if (e.key === Qt.Key_S) { VideoTrimmer.splitAtPlayhead(); e.accepted = true; }
+            else if (e.key === Qt.Key_Left) { VideoTrimmer.nudgePlayhead(-VideoTrimmer.frameStep); e.accepted = true; }
+            else if (e.key === Qt.Key_Right) { VideoTrimmer.nudgePlayhead(VideoTrimmer.frameStep); e.accepted = true; }
+        }
+    }
 
     // made on first use: a native dialog is the desktop portal's, and made
     // with every picker it held the whole shell while D-Bus waited for it
@@ -188,6 +199,80 @@ AppWindow {
                     label: Tr.t("End offset (seconds)")
                     onAccepted: VideoTrimmer.setEnd(parseFloat(endField.text))
                 }
+            }
+
+            // ---- playhead: frame stepping and I / O / S shortcuts ------------
+            SectionTitle { Layout.fillWidth: true; text: Tr.t("Playhead") + "  ·  " + VideoTrimmer.fmt(VideoTrimmer.playhead) }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(8)
+                Button { text: "◀"; flat: true; enabled: false; Accessible.name: Tr.t("One frame back"); onClicked: VideoTrimmer.nudgePlayhead(-VideoTrimmer.frameStep) }
+                SliderRow {
+                    Layout.fillWidth: true
+                    icon: "go-next"
+                    value: VideoTrimmer.inputDuration > 0 ? VideoTrimmer.playhead / VideoTrimmer.inputDuration : 0
+                    onMoved: v => VideoTrimmer.setPlayhead(v * win.span)
+                }
+                Button { text: "▶"; flat: true; enabled: false; Accessible.name: Tr.t("One frame forward"); onClicked: VideoTrimmer.nudgePlayhead(VideoTrimmer.frameStep) }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(8)
+                Button { text: Tr.t("In (I)"); onClicked: VideoTrimmer.markIn() }
+                Button { text: Tr.t("Out (O)"); onClicked: VideoTrimmer.markOut() }
+                Button { text: Tr.t("Split (S)"); onClicked: VideoTrimmer.splitAtPlayhead() }
+                Button { text: Tr.t("Capture frame"); onClicked: VideoTrimmer.captureFrame() }
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: VideoTrimmer.frameCaptured !== "" || VideoTrimmer.captureError !== ""
+                text: VideoTrimmer.captureError !== "" ? VideoTrimmer.captureError : Tr.t("Saved") + " " + VideoTrimmer.frameCaptured
+                color: VideoTrimmer.captureError !== "" ? Theme.red : Theme.text
+                elide: Text.ElideMiddle
+                font.family: Theme.mono
+                font.pixelSize: Theme.px(10) * Theme.fontScale
+            }
+
+            // ---- multiple segments to join on export -------------------------
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(8)
+                SectionTitle { Layout.fillWidth: true; text: Tr.t("Segments") + "  ·  " + VideoTrimmer.segments.length }
+                Button { text: Tr.t("Add selection"); enabled: VideoTrimmer.end > VideoTrimmer.start; onClicked: VideoTrimmer.addSegment(VideoTrimmer.start, VideoTrimmer.end) }
+                Button { text: Tr.t("Clear"); flat: true; enabled: VideoTrimmer.segments.length > 0; onClicked: VideoTrimmer.clearSegments() }
+            }
+            Repeater {
+                model: VideoTrimmer.segments
+                RowLayout {
+                    required property var modelData
+                    required property int index
+                    Layout.fillWidth: true
+                    spacing: Theme.px(8)
+                    Text { Layout.fillWidth: true; text: Tr.t("Segment %1").arg(index + 1) + "  ·  " + VideoTrimmer.fmt(modelData.start) + " – " + VideoTrimmer.fmt(modelData.end); color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                    IconButton { icon: "list-remove"; size: Theme.px(24); Accessible.name: Tr.t("Remove segment"); onClicked: VideoTrimmer.removeSegment(index) }
+                }
+            }
+            Button {
+                Layout.alignment: Qt.AlignHCenter
+                text: VideoTrimmer.cutting ? Tr.t("Joining…") : Tr.t("Cut and join segments")
+                enabled: !VideoTrimmer.cutting && VideoTrimmer.segments.length >= 2 && VideoTrimmer.available
+                onClicked: VideoTrimmer.cutSegments()
+            }
+
+            // ---- progress and cancel for a running cut -----------------------
+            RowLayout {
+                Layout.fillWidth: true
+                visible: VideoTrimmer.cutting
+                spacing: Theme.px(8)
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Theme.px(8)
+                    radius: Theme.px(4)
+                    color: Theme.surface3
+                    Rectangle { width: parent.width * VideoTrimmer.progress; height: parent.height; radius: Theme.px(4); color: Theme.accent }
+                }
+                Text { text: Math.round(VideoTrimmer.progress * 100) + "%"; color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Button { text: Tr.t("Cancel"); kind: "danger"; onClicked: VideoTrimmer.cancelCut() }
             }
 
             Button {

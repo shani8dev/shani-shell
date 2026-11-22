@@ -50,6 +50,81 @@ Singleton {
             }
         }
     }
+
+    // ---- the reader's bookmarks, links, attachments and annotations -------------
+    // All four come from pdfform.py (PyMuPDF). The user's own bookmarks are
+    // keyed by the document's md5, so a rename keeps them; the others are read
+    // from the PDF itself. A converted e-book has none of them, so only a real
+    // PDF is asked.
+    property var userBookmarks: []         // [{ page (0-based), title }]
+    property var pdfLinks: []              // [{ page, kind, uri|target|name }]
+    property var attachments: []           // [{ index, name, size }]
+    property var annotations: []           // [{ page, type, content, title }]
+    property string attachmentNote: ""
+    function loadExtras() {
+        userBookmarks = []; pdfLinks = []; attachments = []; annotations = [];
+        if (!file) return;
+        bmRead.command = ["python3", formTool, "bookmarks", file]; bmRead.running = true;
+        if (root.pdf !== file) return;      // a PDF copy of an e-book has none of these
+        linkRead.command = ["python3", formTool, "links", file]; linkRead.running = true;
+        attRead.command = ["python3", formTool, "attachments", file]; attRead.running = true;
+        annRead.command = ["python3", formTool, "annotations", file]; annRead.running = true;
+    }
+    function addBookmark(pageNo, title) {
+        if (!file) return;
+        bmWrite.command = ["python3", formTool, "bookmark-add", file, String(pageNo), title || ""];
+        bmWrite.running = true;
+    }
+    function removeBookmark(pageNo) {
+        if (!file) return;
+        bmWrite.command = ["python3", formTool, "bookmark-remove", file, String(pageNo)];
+        bmWrite.running = true;
+    }
+    function saveAttachment(index, out) {
+        if (!file) return;
+        attachmentNote = "";
+        attSave.command = ["python3", formTool, "attachment-save", file, String(index), out];
+        attSave.running = true;
+    }
+    Process {
+        id: bmRead
+        stdout: StdioCollector {
+            onStreamFinished: { try { const r = JSON.parse(text); root.userBookmarks = r.bookmarks || []; } catch (e) { root.userBookmarks = []; } }
+        }
+    }
+    Process {
+        id: bmWrite
+        stdout: StdioCollector {
+            onStreamFinished: { try { const r = JSON.parse(text); root.userBookmarks = r.bookmarks || []; } catch (e) {} }
+        }
+    }
+    Process {
+        id: linkRead
+        stdout: StdioCollector {
+            onStreamFinished: { try { const r = JSON.parse(text); root.pdfLinks = r.links || []; } catch (e) { root.pdfLinks = []; } }
+        }
+    }
+    Process {
+        id: attRead
+        stdout: StdioCollector {
+            onStreamFinished: { try { const r = JSON.parse(text); root.attachments = r.attachments || []; } catch (e) { root.attachments = []; } }
+        }
+    }
+    Process {
+        id: annRead
+        stdout: StdioCollector {
+            onStreamFinished: { try { const r = JSON.parse(text); root.annotations = r.annotations || []; } catch (e) { root.annotations = []; } }
+        }
+    }
+    Process {
+        id: attSave
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { const r = JSON.parse(text); root.attachmentNote = r.saved ? Tr.t("Saved %1", r.saved.split("/").pop()) : (r.error || Tr.t("Could not save")); }
+                catch (e) { root.attachmentNote = Tr.t("Could not save"); }
+            }
+        }
+    }
     readonly property var otherTypes: ["epub", "cbz", "cbr", "cb7", "cbt", "djvu", "djv", "xps", "oxps", "fb2", "mobi", "ps", "eps"]
     property var pages: []                  // rendered page PNGs, in order
     property int page: 0                    // which page is on screen (0-based)
@@ -83,6 +158,26 @@ Singleton {
     property var pageTexts: []              // per-page plain text (pdftotext -layout), for the fallback
     property string printState: ""          // last print result (via lp)
     property string searchState: ""         // last search status, for the tests
+    // search options (Evince/_okular parity): off by default, as before
+    property bool caseSensitive: false
+    property bool wholeWord: false
+    property bool wrapSearch: true
+    function _hits(haystack, needle) {
+        let text = String(haystack || "");
+        let find = String(needle || "");
+        if (!caseSensitive) { text = text.toLowerCase(); find = find.toLowerCase(); }
+        if (!find) return false;
+        if (!wholeWord) return text.indexOf(find) >= 0;
+        const word = c => /[A-Za-z0-9_]/.test(c);
+        let at = text.indexOf(find);
+        while (at >= 0) {
+            const before = at > 0 ? text[at - 1] : "";
+            const after = at + find.length < text.length ? text[at + find.length] : "";
+            if (!word(before) && !word(after)) return true;
+            at = text.indexOf(find, at + 1);
+        }
+        return false;
+    }
 
     readonly property bool shown: file !== ""
     readonly property string name: file === "" ? "" : file.split("/").pop()
@@ -162,6 +257,13 @@ Singleton {
         highlight = null;
         outline = [];
         pageTexts = [];
+        navHistory = [];
+        navIndex = -1;
+        userBookmarks = [];
+        pdfLinks = [];
+        attachments = [];
+        annotations = [];
+        attachmentNote = "";
         printState = "";
         searchState = "";
         formFields = [];
@@ -278,18 +380,50 @@ Singleton {
         highlight = null;
         outline = [];
         pageTexts = [];
+        navHistory = [];
+        navIndex = -1;
+        userBookmarks = [];
+        pdfLinks = [];
+        attachments = [];
+        annotations = [];
         searchText = "";
         searchIndex = -1;
         _dropUnlocked();
         Ui.pdfReader = false;
     }
+    // ---- where we have been in this document ------------------------------------
+    property var navHistory: []
+    property int navIndex: -1
+    readonly property bool canNavBack: navIndex > 0
+    readonly property bool canNavForward: navIndex >= 0 && navIndex < navHistory.length - 1
     function goTo(i) {
         if (!pages.length)
             return;
-        page = Math.max(0, Math.min(pages.length - 1, i));
+        const n = Math.max(0, Math.min(pages.length - 1, i));
+        if (n !== page) {
+            if (navIndex < navHistory.length - 1) navHistory = navHistory.slice(0, navIndex + 1);
+            navHistory = navHistory.concat([n]);
+            if (navHistory.length > 50) navHistory = navHistory.slice(1);
+            navIndex = navHistory.length - 1;
+        }
+        page = n;
     }
     function nextPage() { goTo(page + 1); }
     function prevPage() { goTo(page - 1); }
+    function navBack() { if (canNavBack) { navIndex--; page = navHistory[navIndex]; } }
+    function navForward() { if (canNavForward) { navIndex++; page = navHistory[navIndex]; } }
+    function firstPage() { goTo(0); }
+    function lastPage() { goTo(pages.length - 1); }
+    // a click on a PDF link: internal GoTo jumps, a URI opens in the browser
+    function followLink(l) {
+        if (!l) return;
+        if (l.kind === "goto" && typeof l.target === "number") goTo(l.target - 1);
+        else if (l.kind === "named" && l.name && outline.length) {
+            const i = outline.findIndex(o => o.title === l.name);
+            if (i >= 0) goToOutline(i);
+        } else if (l.kind === "uri" && l.uri)
+            Qt.openUrlExternally(l.uri);
+    }
     // jump-to-page box (1-based, as printed on the page)
     function jumpTo(n) { goTo((parseInt(n) || 1) - 1); }
     function goToPage(n) { jumpTo(n); }
@@ -322,10 +456,10 @@ Singleton {
             clearSearch();
             return;
         }
-        const needle = query.toLowerCase();
+        const needle = query;
         const hits = [];
         for (const w of searchWords) {
-            if (String(w.text || w.word || "").toLowerCase().indexOf(needle) >= 0)
+            if (root._hits(w.text || w.word || "", needle))
                 hits.push(w);
         }
         searchMatches = hits;
@@ -338,7 +472,7 @@ Singleton {
             // fallback: jump through the pages whose -layout text holds the term
             const pagesWith = [];
             for (let p = 0; p < pageTexts.length; p++)
-                if (String(pageTexts[p] || "").toLowerCase().indexOf(needle) >= 0)
+                if (root._hits(pageTexts[p], needle))
                     pagesWith.push(p);
             searchMatches = pagesWith.map(p => ({ page: p, x0: 0, y0: 0, x1: 0, y1: 0, pageW: 100, pageH: 100, word: query }));
             searchIndex = 0;
@@ -359,6 +493,10 @@ Singleton {
     function findNext() {
         if (!searchMatches.length)
             return;
+        if (!wrapSearch && searchIndex >= searchMatches.length - 1) {
+            searchState = Tr.t("End of document");
+            return;
+        }
         searchIndex = (searchIndex + 1) % searchMatches.length;
         highlight = searchMatches[searchIndex];
         page = highlight.page;
@@ -366,6 +504,10 @@ Singleton {
     function findPrev() {
         if (!searchMatches.length)
             return;
+        if (!wrapSearch && searchIndex <= 0) {
+            searchState = Tr.t("Start of document");
+            return;
+        }
         searchIndex = (searchIndex - 1 + searchMatches.length) % searchMatches.length;
         highlight = searchMatches[searchIndex];
         page = highlight.page;
@@ -430,6 +572,7 @@ Singleton {
                 if (items.length > 0 && root.file !== "" && !again) {
                     root._fetchTexts();
                     root._fetchOutline();
+                    root.loadExtras();
                     // a real PDF may have a form (a copy made from an e-book has none)
                     if (root.pdf === root.file) {
                         formRead.command = ["python3", root.formTool, "fields", root.file];

@@ -9,7 +9,100 @@ import qs.Common
 
 Singleton {
     id: root
-    readonly property bool enabled: Settings.data.weatherCity !== "" || (Settings.data.useLocation && (Settings.data.weatherLat !== 0 || Settings.data.weatherLon !== 0))
+    readonly property bool enabled: places.length > 0 || Settings.data.weatherCity !== "" || (Settings.data.useLocation && (Settings.data.weatherLat !== 0 || Settings.data.weatherLon !== 0))
+
+    // ---- saved locations: several places, searched and picked in the window --
+    property var places: []                // [{ name, lat, lon }]
+    property int activePlace: 0
+    property var searchResults: []         // [{ name, lat, lon, country }]
+    property string searchError: ""
+    property int forecastDays: 7           // open-meteo allows up to 16
+    property var dayparts: []              // morning / afternoon / evening / night
+
+    FileView {
+        id: placesStore
+        path: Quickshell.statePath("weather-places.json")
+        printErrors: false
+        onLoaded: {
+            try {
+                const o = JSON.parse(text()) || {};
+                root.places = o.places || [];
+                root.activePlace = o.active || 0;
+            } catch (e) {}
+        }
+    }
+    Timer { id: placesSave; interval: 800; onTriggered: placesStore.setText(JSON.stringify({ places: root.places, active: root.activePlace })) }
+    function currentLat() { return places.length > activePlace ? Number(places[activePlace].lat) : Settings.data.weatherLat; }
+    function currentLon() { return places.length > activePlace ? Number(places[activePlace].lon) : Settings.data.weatherLon; }
+    function currentName() { return places.length > activePlace ? places[activePlace].name : Settings.data.weatherCity; }
+    function placeName() { return places.length > activePlace ? places[activePlace].name : (zoneCity || Settings.data.weatherCity); }
+    function selectPlace(i) {
+        if (i < 0 || i >= places.length) return;
+        activePlace = i;
+        placesSave.restart();
+        fetch();
+    }
+    function addPlace(r) {
+        if (!r) return;
+        const m = places.slice();
+        m.push({ name: String(r.name || ""), lat: Number(r.lat) || 0, lon: Number(r.lon) || 0 });
+        places = m;
+        activePlace = m.length - 1;
+        searchResults = [];
+        searchError = "";
+        placesSave.restart();
+        fetch();
+    }
+    function removePlace(i) {
+        if (i < 0 || i >= places.length) return;
+        const m = places.slice();
+        m.splice(i, 1);
+        places = m;
+        if (activePlace >= m.length) activePlace = Math.max(0, m.length - 1);
+        placesSave.restart();
+        fetch();
+    }
+    function searchCity(q) {
+        const query = String(q || "").trim();
+        if (query === "") { searchResults = []; searchError = Tr.t("Type a city name"); return; }
+        searchError = "";
+        geoSearch.command = ["curl", "-sf", "--max-time", "8", "https://geocoding-api.open-meteo.com/v1/search?count=5&name=" + encodeURIComponent(query)];
+        geoSearch.running = true;
+    }
+    Process {
+        id: geoSearch
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const rs = (JSON.parse(text) || {}).results || [];
+                    root.searchResults = rs.map(r => ({ name: r.name, lat: r.latitude, lon: r.longitude, country: r.country || "" }));
+                    root.searchError = root.searchResults.length ? "" : Tr.t("No city found");
+                } catch (e) { root.searchError = Tr.t("City search failed"); }
+            }
+        }
+    }
+
+    // four parts of today, from the hourly points already fetched
+    function buildDayparts(h) {
+        if (!h || !h.time || !h.temperature_2m) return [];
+        const out = [
+            { part: "morning", label: Tr.t("Morning"), hi: -Infinity, lo: Infinity, code: -1 },
+            { part: "afternoon", label: Tr.t("Afternoon"), hi: -Infinity, lo: Infinity, code: -1 },
+            { part: "evening", label: Tr.t("Evening"), hi: -Infinity, lo: Infinity, code: -1 },
+            { part: "night", label: Tr.t("Night"), hi: -Infinity, lo: Infinity, code: -1 }
+        ];
+        for (let i = 0; i < h.time.length; i++) {
+            const hh = parseInt(String(h.time[i]).slice(11, 13), 10);
+            if (!isFinite(hh)) continue;
+            const hour = hh < 5 ? hh + 24 : hh;      // night wraps past midnight
+            const g = hour >= 21 ? out[3] : hour >= 17 ? out[2] : hour >= 12 ? out[1] : out[0];
+            const t = h.temperature_2m[i];
+            if (t > g.hi) { g.hi = t; g.code = (h.weather_code || [])[i]; }
+            if (t < g.lo) g.lo = t;
+        }
+        return out.filter(g => isFinite(g.hi));
+    }
+
     // the time zone's city (Asia/Kolkata -> Kolkata): offered in the sidebar, so
     // weather is one click away without typing anything or sharing a location
     property string zoneCity: ""
@@ -76,20 +169,21 @@ Singleton {
     function lookUp() {
         if (!enabled)
             return;
-        geo.command = ["curl", "-sf", "--max-time", "8", "https://geocoding-api.open-meteo.com/v1/search?count=1&name=" + encodeURIComponent(Settings.data.weatherCity)];
+        geo.command = ["curl", "-sf", "--max-time", "8", "https://geocoding-api.open-meteo.com/v1/search?count=1&name=" + encodeURIComponent(currentName())];
         geo.running = true;
     }
     function fetch() {
-        if (!enabled || (Settings.data.weatherLat === 0 && Settings.data.weatherLon === 0))
+        const lat = currentLat(), lon = currentLon();
+        if (!enabled || (!lat && !lon))
             return;
         now.command = ["curl", "-sf", "--max-time", "8", "https://api.open-meteo.com/v1/forecast?current=temperature_2m,weather_code,apparent_temperature,relative_humidity_2m,wind_speed_10m,surface_pressure,visibility"
             + "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset"
             + "&hourly=temperature_2m,weather_code,precipitation_probability,wind_speed_10m"
-            + "&past_days=0&forecast_days=7"
+            + "&past_days=0&forecast_days=" + forecastDays
             + "&temperature_unit=" + (fahrenheit ? "fahrenheit" : "celsius")
             + "&timezone=auto"
-            + "&latitude=" + Settings.data.weatherLat
-            + "&longitude=" + Settings.data.weatherLon];
+            + "&latitude=" + lat
+            + "&longitude=" + lon];
         now.running = true;
     }
     Connections {
@@ -132,7 +226,7 @@ Singleton {
                     }
                     if (d && d.time) {
                         const days = [];
-                        const n = Math.min(d.time.length, 7);
+                        const n = Math.min(d.time.length, root.forecastDays);
                         for (let i = 0; i < n; i++) {
                             days.push({ day: root.dayName(d.time[i]),
                                         hi: d.temperature_2m_max[i],
@@ -168,6 +262,7 @@ Singleton {
                             }
                         }
                         root.hourly = hours;
+                        root.dayparts = root.buildDayparts(h);
                     }
                 } catch (e) {}
             }
@@ -178,6 +273,6 @@ Singleton {
         running: root.enabled
         repeat: true
         triggeredOnStart: true
-        onTriggered: Settings.data.weatherLat === 0 && Settings.data.weatherLon === 0 ? root.lookUp() : root.fetch()
+        onTriggered: currentLat() === 0 && currentLon() === 0 ? root.lookUp() : root.fetch()
     }
 }

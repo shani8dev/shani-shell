@@ -15,6 +15,17 @@ AppWindow {
     implicitWidth: Theme.px(1080)
     implicitHeight: Theme.px(680)
 
+    property bool starred: (Mail.messages.find(m => m.uid === Mail.openUid) || {}).starred || false
+
+    function saveAttachment(index, name) {
+        FilePicker.open({
+            mode: "save",
+            title: Tr.t("Save attachment"),
+            defaultName: name || "attachment",
+            onPicked: paths => { if (paths && paths.length) Mail.saveAttachment(Mail.openUid, index, paths[0]); }
+        });
+    }
+
     // status note (send result, server errors)
     Text {
         anchors { top: parent.top; right: parent.right; margins: Theme.px(12) }
@@ -223,6 +234,11 @@ AppWindow {
                         visible: !Mail.showHtml
                         onClicked: Mail.showHtml = true
                     }
+                    Choice {
+                        text: Tr.t("Load images")
+                        selected: Mail.remoteImages
+                        onClicked: Mail.setRemoteImages(!Mail.remoteImages)
+                    }
                     Item { Layout.fillWidth: true }
                 }
                 ColumnLayout {
@@ -238,6 +254,12 @@ AppWindow {
                             title: modelData.name || Tr.t("attachment")
                             subtitle: modelData.size > 0 ? Mail.size(modelData.size) : (modelData.type || "")
                             interactive: false
+                            IconButton {
+                                icon: "document-save"
+                                size: Theme.px(22)
+                                tip: Tr.t("Save attachment")
+                                onClicked: win.saveAttachment(index, modelData.name)
+                            }
                         }
                     }
                 }
@@ -258,6 +280,27 @@ AppWindow {
                             "\n\n---------- Forwarded message ----------\nFrom: " + Mail.from + "\nSubject: " + Mail.subject + "\n\n" + Mail.body)
                     }
                     Button {
+                        text: Tr.t("Unread")
+                        flat: true
+                        onClicked: Mail.markUnread(Mail.openUid)
+                    }
+                    Button {
+                        text: win.starred ? Tr.t("Unstar") : Tr.t("Star")
+                        flat: true
+                        checked: win.starred
+                        onClicked: Mail.flag(Mail.openUid, "\\Flagged", !win.starred)
+                    }
+                    Button {
+                        text: Tr.t("Archive")
+                        flat: true
+                        onClicked: Mail.archive(Mail.openUid)
+                    }
+                    Button {
+                        text: Tr.t("View source")
+                        flat: true
+                        onClicked: Mail.viewSource(Mail.openUid)
+                    }
+                    Button {
                         text: Tr.t("Delete")
                         kind: "danger"
                         flat: true
@@ -275,6 +318,8 @@ AppWindow {
         compose.visible = true;
         compose.to = to;
         toBox.text = to;
+        ccBox.text = "";
+        bccBox.text = "";
         subBox.text = subject;
         bodyBox.text = body;
         toBox.forceActiveFocus();
@@ -306,6 +351,8 @@ AppWindow {
 
             Text { text: Tr.t("New message"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(16) * Theme.fontScale; font.weight: Font.DemiBold }
             TextField { id: toBox; Layout.fillWidth: true; placeholder: Tr.t("To…"); text: compose.to }
+            TextField { id: ccBox; Layout.fillWidth: true; placeholder: Tr.t("Cc…") }
+            TextField { id: bccBox; Layout.fillWidth: true; placeholder: Tr.t("Bcc…") }
             TextField { id: subBox; Layout.fillWidth: true; placeholder: Tr.t("Subject…") }
             ScrollView {
                 Layout.fillWidth: true
@@ -315,9 +362,62 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
-                Button { text: Tr.t("Send"); kind: "primary"; enabled: toBox.text.trim() !== "" && subBox.text.trim() !== ""; onClicked: { Mail.send(toBox.text.trim(), subBox.text, bodyBox.text); compose.visible = false; compose.to = ""; subBox.text = ""; bodyBox.text = "" } }
+                Button {
+                    text: Tr.t("Send")
+                    kind: "primary"
+                    enabled: toBox.text.trim() !== "" && subBox.text.trim() !== ""
+                    onClicked: {
+                        Mail.send(toBox.text.trim(), subBox.text, bodyBox.text,
+                                  ccBox.text.trim(), bccBox.text.trim());
+                        compose.visible = false; compose.to = "";
+                        ccBox.text = ""; bccBox.text = ""; subBox.text = ""; bodyBox.text = "";
+                    }
+                }
                 Item { Layout.fillWidth: true }
-                Button { text: Tr.t("Cancel"); flat: true; onClicked: { compose.visible = false; compose.to = "" } }
+                Button { text: Tr.t("Cancel"); flat: true; onClicked: { compose.visible = false; compose.to = ""; ccBox.text = ""; bccBox.text = "" } }
+            }
+        }
+    }
+
+    // ---- the message as it arrived -----------------------------------------
+    Rectangle {
+        id: sourceView
+        visible: Mail.source !== ""
+        z: 30
+        anchors.centerIn: parent
+        width: Math.min(parent.width - 80, Theme.px(760))
+        height: Math.min(parent.height - 80, Theme.px(520))
+        radius: Theme.radiusLarge
+        color: Theme.glassStrong
+        border.width: 1
+        border.color: Theme.stroke
+
+        ColumnLayout {
+            anchors { fill: parent; margins: Theme.px(16) }
+            spacing: Theme.px(8)
+            RowLayout {
+                Layout.fillWidth: true
+                Text {
+                    text: Tr.t("Message source")
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(14) * Theme.fontScale
+                    font.weight: Font.DemiBold
+                }
+                Item { Layout.fillWidth: true }
+                IconButton { icon: "window-close"; tip: Tr.t("Close"); size: Theme.px(24); onClicked: Mail.source = "" }
+            }
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                TextArea {
+                    readOnly: true
+                    text: Mail.source
+                    wrapMode: TextArea.Wrap
+                    textFormat: Text.PlainText
+                    font.family: Theme.mono
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
             }
         }
     }

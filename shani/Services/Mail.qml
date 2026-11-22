@@ -24,6 +24,8 @@ Singleton {
     property string html: ""          // the same message as it was sent, made safe (bridge)
     property var attachments: []      // [{ name, type, size }] - named, not fetched
     property bool showHtml: false     // render the original formatting instead of the text
+    property bool remoteImages: false // opted in to images that reach outside the message
+    property string source: ""        // the raw message, for "View source"
     property string query: ""         // what the search box is looking for
     property bool busy: false
     property string note: ""
@@ -43,7 +45,19 @@ Singleton {
     function read(uid) { if (uid) { openUid = uid; run("read", [uid, root.folder]) } }
     function markRead(uid) { if (uid) run("markread", [uid, root.folder], false) }
     function remove(uid) { if (uid) run("delete", [uid, root.folder]) }
-    function send(to, subject, body) { run("send", [to, subject, body]) }
+    function markUnread(uid) { if (uid) run("markunread", [uid, root.folder]) }
+    function flag(uid, name, on) { if (uid) run("flag", [uid, name, on ? "1" : "0", root.folder]) }
+    function archive(uid) { if (uid) run("move", [uid, "Archive", root.folder]) }
+    function viewSource(uid) { if (uid) run("source", [uid, root.folder]) }
+    function saveAttachment(uid, index, path) { if (uid && path) run("saveattachment", [uid, String(index), path, root.folder]) }
+    function setRemoteImages(on) { run("setremote", [on ? "1" : "0"]) }
+    // cc and bcc are optional argv slots, never part of a shell string
+    function send(to, subject, body, cc, bcc) {
+        let args = [to, subject, body];
+        if (cc || bcc) args.push(cc || "");
+        if (bcc) args.push(bcc);
+        run("send", args);
+    }
     // a word in the sender, the subject or the body: the server looks (IMAP
     // SEARCH), or the reader does when the server cannot
     function search(q) { root.query = q; run("search", q ? [q, root.folder] : [root.folder]) }
@@ -85,6 +99,7 @@ Singleton {
         if (what === "state") {
             root.kind = (data && data.kind) || "";
             root.account = (data && data.account) || ({});
+            root.remoteImages = !!(data && data.remoteImages);
         } else if (what === "folders") {
             root.folders = Array.isArray(data) ? data : [];
             if (root.folders.length && !root.folders.some(f => f.name === root.folder))
@@ -96,6 +111,7 @@ Singleton {
             else { root.openUid = ""; root.subject = ""; root.from = ""; }
         } else if (what === "read") {
             if (data && data.error) { root.note = data.error; return; }
+            root.source = "";
             root.from = (data && data.from) || "";
             root.subject = (data && data.subject) || "";
             root.date = (data && data.date) || "";
@@ -109,6 +125,16 @@ Singleton {
             if (root.messages.length) root.read(root.messages[0].uid);
         } else if (what === "delete") {
             root.refresh();
+        } else if (what === "markunread" || what === "flag" || what === "move") {
+            root.note = what === "move" ? Tr.t("Message moved to Archive") : Tr.t("Message updated");
+            root.refresh();
+        } else if (what === "source") {
+            root.source = (data && data.source) || (data && data.error) || "";
+        } else if (what === "saveattachment") {
+            root.note = data && data.error ? data.error : Tr.t("Attachment saved");
+        } else if (what === "setremote") {
+            root.remoteImages = !!(data && data.remote);
+            if (root.openUid) root.read(root.openUid);
         } else if (what === "send") {
             root.note = data && data.error ? data.error : Tr.t("Message sent");
         }

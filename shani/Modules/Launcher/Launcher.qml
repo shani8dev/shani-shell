@@ -112,6 +112,9 @@ PanelWindow {
         usageFile.setText(JSON.stringify(u));
         Launch.app(a.id, action ? { action: action } : undefined);
     }
+    // "> cmd" can also be run through pkexec: the shell's polkit agent asks.
+    // The command is one argv element to sh, never pasted into a shell string.
+    function runAdmin(cmd) { Quickshell.execDetached(["pkexec", "sh", "-c", cmd]); }
     FileView {
         id: usageFile
         path: Quickshell.statePath("app-usage.json")
@@ -270,7 +273,7 @@ PanelWindow {
         // two apps can share a display name: show the desktop id to tell them apart
         const nameCount = {};
         win.apps.forEach(a => { nameCount[a.name] = (nameCount[a.name] || 0) + 1; });
-        const appItem = a => ({ kind: "app", app: a.icon, title: a.name,
+        const appItem = a => ({ kind: "app", app: a.icon, did: a.id, title: a.name,
             subtitle: (a.genericName || a.comment || "") + (nameCount[a.name] > 1 ? " · " + a.id : ""),
             run: () => win.launch(a) });
         const fileItem = p => ({ kind: "file", icon: win.fileIcon(p), path: p, title: p.split("/").pop(), subtitle: p.replace(Quickshell.env("HOME"), "~"), run: () => Qt.openUrlExternally("file://" + p) });
@@ -292,8 +295,13 @@ PanelWindow {
         }
         if (q.startsWith(">")) {
             const cmd = q.slice(1).trim();
-            return [{ title: Tr.t("Run"), items: [{ kind: "run", icon: "utilities-terminal", title: cmd ? "Run: " + cmd : "Run a command…", subtitle: "Shift+Enter: in " + Settings.data.terminal,
-                     run: shift => cmd && Quickshell.execDetached(shift ? [Settings.data.terminal, "-e", "sh", "-c", cmd + "; exec $SHELL"] : ["sh", "-c", cmd]) }] }];
+            return [{ title: Tr.t("Run"), items: [
+                { kind: "run", icon: "utilities-terminal", title: cmd ? "Run: " + cmd : "Run a command…", subtitle: "Shift+Enter: in " + Settings.data.terminal,
+                  run: shift => cmd && Quickshell.execDetached(shift ? [Settings.data.terminal, "-e", "sh", "-c", cmd + "; exec $SHELL"] : ["sh", "-c", cmd]) },
+                { kind: "run", icon: "dialog-password", title: cmd ? "Run as administrator: " + cmd : "Run as administrator…",
+                  subtitle: Tr.t("pkexec · your password is asked in the shell"),
+                  run: () => cmd && win.runAdmin(cmd) }
+            ] }];
         }
         if (q.startsWith(":")) {
             const f = q.slice(1).trim().toLowerCase();
@@ -767,6 +775,11 @@ PanelWindow {
                                         color: isSel ? Theme.accentSoft : (win.hoverArmed && tileArea.containsMouse ? Theme.hover : "transparent")
                                         border.width: isSel ? 1 : 0
                                         border.color: Theme.accentLine
+                                        // drag an app onto the dock to pin it (the dock reads shani-app:<desktop id>)
+                                        Item { id: appDragProxy; width: 1; height: 1; z: -1 }
+                                        Drag.active: tileArea.drag.active
+                                        Drag.dragType: Drag.Automatic
+                                        Drag.mimeData: ({ "text/plain": "shani-app:" + (tile.modelData.did || "") })
                                         ColumnLayout {
                                             anchors.centerIn: parent
                                             width: parent.width - 16
@@ -792,6 +805,8 @@ PanelWindow {
                                             id: tileArea
                                             anchors.fill: parent
                                             hoverEnabled: true
+                                            drag.target: appDragProxy
+                                            drag.threshold: 8
                                             onEntered: if (win.hoverArmed) win.sel = section.base + tile.index
                                             onClicked: win.activate(section.base + tile.index, false)
                                         }

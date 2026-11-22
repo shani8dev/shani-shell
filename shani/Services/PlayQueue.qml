@@ -71,6 +71,35 @@ Singleton {
     }
     Timer { id: resumeSave; interval: 1500; onTriggered: resumeStore.setText(JSON.stringify(root.resumeAt)) }
 
+    // ---- recent media: files with resume points, most recently played first ----
+    readonly property var recent: Object.keys(resumeAt).sort((a, b) => resumeAt[b] - resumeAt[a])
+    function playRecent(path) { if (path) open(path); }
+
+    // ---- A→B loop: jump back to A when the playhead passes B ----
+    property real loopA: -1
+    property real loopB: -1
+    readonly property bool loopActive: loopA >= 0 && loopB > loopA
+    function setLoopA(at) { loopA = Math.max(0, Number(at) || 0); if (loopB <= loopA) loopB = -1; }
+    function setLoopB(at) { if (loopA < 0) return; const v = Number(at) || 0; if (v > loopA) loopB = v; }
+    function clearLoop() { loopA = -1; loopB = -1; }
+    // the position to seek to when the playhead passes B, else -1 (the window owns the player)
+    function loopJump(pos) { return loopActive && pos >= loopB ? loopA : -1; }
+
+    // ---- chapters, from ffprobe when it is present ----
+    property var chapters: []
+    Process {
+        id: chapterProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const cs = (JSON.parse(text) || {}).chapters || [];
+                    root.chapters = cs.map(c => ({ at: parseFloat(c.start_time) || 0,
+                                                   title: (c.tags && c.tags.title) || "" }));
+                } catch (e) { root.chapters = []; }
+            }
+        }
+    }
+
     // a subtitle file beside the video: "film.mkv" -> "film.srt" (or .vtt, or "film.en.srt")
     property string subtitleFile: ""
     // how far the subtitle track is moved from what the file says, in seconds.
@@ -82,9 +111,14 @@ Singleton {
         tellMpris();
         if (current !== resumedPath) { resumedFrom = 0; resumedPath = ""; }
         subtitleFile = "";
+        root.chapters = [];
         if (current && kind(current) === "video") {
             subFinder.command = ["sh", "-c", 'b=${1%.*}; for f in "$b.srt" "$b.vtt" "$b".*.srt "$b".*.vtt; do [ -f "$f" ] && { printf "%s" "$f"; exit 0; }; done; exit 0', "sh", current];
             subFinder.running = true;
+            if (!isStream) {
+                chapterProc.command = ["ffprobe", "-v", "error", "-show_chapters", "-of", "json", "--", current];
+                chapterProc.running = true;
+            }
         }
     }
     Process {
@@ -199,6 +233,8 @@ Singleton {
         } else if (shuffle || index < queue.length - 1)
             next();
     }
+    // Stop: pause and rewind (what MPRIS stop means); the file stays queued
+    function stop() { pauseRequested(); seekRequested(0); playing = false; position = 0; }
     function close() {
         shown = false;
         page = current === "" ? "library" : page;

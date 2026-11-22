@@ -29,6 +29,8 @@ AppWindow {
     property var installedApps: []
     property var leftovers: []
     property var appimages: []
+    property var featured: []
+    property var remotes: []
     property bool busy: false
     Timer { id: removeTimer; interval: 4000; onTriggered: win.removing = "" }
     property string job: ""                   // the app a job runs for
@@ -57,6 +59,13 @@ AppWindow {
         Qt.callLater(win.takeRef);
         ask(["installed"], r => { win.installedApps = Array.isArray(r) ? r : []; Ui.softwareInstalled = win.installedApps.map(a => a.id); });
         if (!win.results.length) showCategory("Utility");
+        win.loadFeatured();
+    }
+    // editorial picks (a fixed shortlist, plus catalogue fillers if absent)
+    function loadFeatured() { ask(["featured"], r => { win.featured = Array.isArray(r) ? r : []; }); }
+    function loadRemotes() { ask(["remotes"], r => { win.remotes = Array.isArray(r) ? r : []; }); }
+    function toggleRemote(name, on) {
+        win.ask(["remote-toggle", name, on ? "on" : "off"], () => win.loadRemotes());
     }
     // one question at a time (answers are JSON); a job streams its progress instead
     property var _queue: []
@@ -159,12 +168,13 @@ AppWindow {
             spacing: Theme.px(6)
             Repeater {
                 model: [["explore", Tr.t("Explore")], ["installed", win.updates ? Tr.t("Installed · %1 updates", win.updates) : Tr.t("Installed")],
-                        ["leftovers", Tr.t("Leftovers")], ["appimages", Tr.t("AppImages")]]
+                        ["leftovers", Tr.t("Leftovers")], ["appimages", Tr.t("AppImages")],
+                        ["repositories", Tr.t("Repositories")]]
                 Choice {
                     required property var modelData
                     text: modelData[1]
                     selected: win.tab === modelData[0]
-                    onClicked: { win.tab = modelData[0]; win.app = null; if (modelData[0] === "leftovers") win.loadLeftovers(); if (modelData[0] === "appimages") win.loadAppImages(); }
+                    onClicked: { win.tab = modelData[0]; win.app = null; if (modelData[0] === "leftovers") win.loadLeftovers(); if (modelData[0] === "appimages") win.loadAppImages(); if (modelData[0] === "repositories") win.loadRemotes(); }
                 }
             }
             Item { Layout.fillWidth: true }
@@ -205,6 +215,29 @@ AppWindow {
             Layout.fillWidth: true
             TextField { id: q; Layout.fillWidth: true; placeholderText: Tr.t("Find apps on Flathub"); onTextChanged: liveSearch.restart(); onAccepted: if (text.trim()) { liveSearch.stop(); win.search(text.trim()) } }
             Button { text: Tr.t("Find"); enabled: q.text.trim() !== ""; onClicked: win.search(q.text.trim()) }
+        }
+        // ---- featured / editorial picks --------------------------------------------
+        Text {
+            visible: win.tab === "explore" && !win.app && win.featured.length > 0
+            Layout.fillWidth: true
+            text: Tr.t("Featured")
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.weight: Font.DemiBold
+        }
+        Flow {
+            visible: win.tab === "explore" && !win.app && win.featured.length > 0
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Repeater {
+                model: win.featured
+                Choice {
+                    required property var modelData
+                    text: modelData.name
+                    onClicked: win.openApp(modelData.id)
+                }
+            }
         }
         Flow {
             visible: win.tab === "explore" && !win.app
@@ -325,6 +358,62 @@ AppWindow {
                     wrapMode: Text.WordWrap
                     text: appCol.a.description || ""
                     color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                }
+                // ODRS community rating (empty when there are no reviews)
+                Text {
+                    Layout.fillWidth: true
+                    visible: (appCol.a.ratingCount || 0) > 0
+                    text: "★ " + (appCol.a.rating || 0).toFixed(1) + " · " + Tr.t("%1 ratings", appCol.a.ratingCount)
+                    color: Theme.amber; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                }
+                Repeater {
+                    model: (appCol.a.reviews || []).slice(0, 3)
+                    ColumnLayout {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        spacing: 0
+                        Text { Layout.fillWidth: true; text: "★".repeat(Math.max(1, Math.round(modelData.rating || 3))) + "  " + (modelData.summary || ""); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold; elide: Text.ElideRight }
+                        Text { Layout.fillWidth: true; text: modelData.review || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight }
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: appCol.a.ageDays > 730
+                    text: Tr.t("No new release in %1 days — this app may no longer be maintained.", appCol.a.ageDays)
+                    color: Theme.amber; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; wrapMode: Text.Wrap
+                }
+                // version history / per-release changelog
+                Text {
+                    Layout.fillWidth: true
+                    visible: (appCol.a.releases || []).length > 0
+                    text: Tr.t("Version history")
+                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.DemiBold
+                }
+                Repeater {
+                    model: (appCol.a.releases || []).slice(0, 5)
+                    ColumnLayout {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        spacing: 0
+                        Text { Layout.fillWidth: true; text: (modelData.version || "?") + (modelData.timestamp ? "  ·  " + modelData.timestamp.slice(0, 10) : ""); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold }
+                        Text { Layout.fillWidth: true; visible: !!modelData.notes; text: modelData.notes || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; wrapMode: Text.WordWrap; maximumLineCount: 5; elide: Text.ElideRight }
+                    }
+                }
+                // add-ons / extensions that extend this app
+                Text {
+                    Layout.fillWidth: true
+                    visible: (appCol.a.addons || []).length > 0
+                    text: Tr.t("Add-ons")
+                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.DemiBold
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    visible: (appCol.a.addons || []).length > 0
+                    spacing: Theme.px(6)
+                    Repeater {
+                        model: appCol.a.addons || []
+                        Choice { required property var modelData; text: modelData.name; onClicked: win.openApp(modelData.id) }
+                    }
                 }
                 Text {
                     visible: !!appCol.a.homepage
@@ -452,6 +541,42 @@ AppWindow {
                     text: win.removing === arow.modelData.path ? Tr.t("Click again to remove") : Tr.t("Remove")
                     onClicked: { if (win.removing === arow.modelData.path) { win.removing = ""; removeTimer.stop(); win.ask(["appimage-remove", arow.modelData.path], () => win.loadAppImages()); } else { win.removing = arow.modelData.path; removeTimer.restart(); } }
                 }
+            }
+        }
+
+        // ---- Repositories (Flatpak remotes) -----------------------------------------
+        Text {
+            visible: win.tab === "repositories"
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+            text: Tr.t("A disabled repository is kept but its apps are not offered or updated.")
+            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+        }
+        ListView {
+            id: remoteList
+            visible: win.tab === "repositories"
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            clip: true
+            model: win.remotes
+            delegate: RowLayout {
+                required property var modelData
+                width: remoteList.width
+                spacing: Theme.px(8)
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                    Text { Layout.fillWidth: true; elide: Text.ElideMiddle; text: modelData.url; color: Theme.faint; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                }
+                Button { text: modelData.disabled ? Tr.t("Enable") : Tr.t("Disable"); flat: true; onClicked: win.toggleRemote(modelData.name, modelData.disabled) }
+            }
+            EmptyState {
+                anchors.centerIn: parent
+                visible: remoteList.count === 0
+                icon: "network-server"
+                title: Tr.t("No repositories")
+                subtitle: Tr.t("Flatpak has no remotes configured")
             }
         }
     }

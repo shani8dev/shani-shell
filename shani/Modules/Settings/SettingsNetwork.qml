@@ -20,11 +20,36 @@ ColumnLayout {
     property string conn: ""              // the active connection's UUID
     property string connName: ""
     property string dns: ""               // its own DNS servers ("" = from the network)
+    property string dnsSearch: ""         // DNS search suffixes of this connection
     property string note: ""
 
-    onActiveChanged: if (active) { readConn.running = true; readSaved(); readVpnAuto(); }
+    onActiveChanged: if (active) { readConn.running = true; readSaved(); readVpnAuto(); readCaps(); }
     // made already active (a Settings category is a Loader): load now too
-    Component.onCompleted: if (active) { readConn.running = true; readSaved(); readVpnAuto(); }
+    Component.onCompleted: if (active) { readConn.running = true; readSaved(); readVpnAuto(); readCaps(); }
+
+    // ---- WWAN data cap (per SIM connection) ----------------------------------------
+    // NetworkManager has no cap property, so the number is kept next to the
+    // shell's settings; it is a reminder against the monthly usage read above.
+    readonly property string capsFile: Settings.path.replace(/settings\.json$/, "wwan-caps.json")
+    property var dataCaps: ({})              // connection UUID → GB per month
+    function readCaps() { capsRead.running = true; }
+    Process {
+        id: capsRead
+        command: ["sh", "-c", 'cat "$1" 2>/dev/null || echo "{}"', "sh", page.capsFile]
+        stdout: StdioCollector {
+            onStreamFinished: { try { const o = JSON.parse(text); page.dataCaps = (o && typeof o === "object" && !Array.isArray(o)) ? o : {}; } catch (e) { page.dataCaps = {}; } }
+        }
+    }
+    function setCap(uuid, gb) {
+        const o = Object.assign({}, page.dataCaps);
+        const n = parseFloat(gb);
+        if (isNaN(n) || n <= 0) delete o[uuid]; else o[uuid] = n;
+        page.dataCaps = o;
+        capsWrite.command = ["sh", "-c", 'mkdir -p "$1"; printf "%s" "$3" > "$2"', "sh",
+            page.capsFile.substring(0, page.capsFile.lastIndexOf("/")), page.capsFile, JSON.stringify(o)];
+        capsWrite.running = true;
+    }
+    Process { id: capsWrite }
 
     // ---- proxy (applied by the Proxy service) ----------------------------------
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Data used"); visible: page.usage !== "" }
@@ -40,13 +65,15 @@ ColumnLayout {
     Process {
         id: readConn
         command: ["sh", "-c", 'l=$(nmcli -t -f UUID,TYPE,NAME connection show --active 2>/dev/null | grep -E ":(802-11-wireless|802-3-ethernet):" | head -1)
-            [ -n "$l" ] || exit 0; u=${l%%:*}; echo "$u"; echo "${l#*:*:}"; nmcli -g ipv4.dns connection show "$u"']
+            [ -n "$l" ] || exit 0; u=${l%%:*}; echo "$u"; echo "${l#*:*:}"; nmcli -g ipv4.dns connection show "$u"; echo "--"; nmcli -g ipv4.dns-search connection show "$u"']
         stdout: StdioCollector {
             onStreamFinished: {
                 const l = text.split("\n");
+                const dash = l.indexOf("--");
                 page.conn = l[0] || "";
                 page.connName = l[1] || "";
-                page.dns = (l[2] || "").replace(/,/g, " ").trim();
+                page.dns = (l.slice(2, dash < 0 ? undefined : dash).join("\n") || "").replace(/,/g, " ").trim();
+                page.dnsSearch = (dash >= 0 ? l.slice(dash + 1).join("\n") : "").replace(/,/g, " ").trim();
             }
         }
     }
@@ -63,6 +90,13 @@ ColumnLayout {
         setDns.command = ["sh", "-c", 'u="$1"; a="$2"; b="$3"
             if [ -n "$a$b" ]; then nmcli connection modify "$u" ipv4.dns "$a" ipv4.ignore-auto-dns yes ipv6.dns "$b" ipv6.ignore-auto-dns yes
             else nmcli connection modify "$u" ipv4.dns "" ipv4.ignore-auto-dns no ipv6.dns "" ipv6.ignore-auto-dns no; fi && nmcli connection up "$u" >/dev/null', "sh", conn, v4, v6];
+        setDns.running = true;
+    }
+    // DNS search domains: unqualified names are tried inside these suffixes
+    // (NetworkManager's ipv4/ipv6.dns-search; "" clears them).
+    function useDnsSearch(domains) {
+        const v = String(domains || "").trim();
+        setDns.command = ["sh", "-c", 'u="$1"; d="$2"; nmcli connection modify "$u" ipv4.dns-search "$d" ipv6.dns-search "$d" && nmcli connection up "$u" >/dev/null', "sh", conn, v];
         setDns.running = true;
     }
     property string usage: ""
@@ -250,6 +284,17 @@ ColumnLayout {
                 hint: Tr.t("no mobile data while roaming")
                 checked: net.modelData.homeOnly === "yes"
                 onToggled: on => page.modify(net.modelData.uuid, ["gsm.home-only", on ? "yes" : "no"])
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                visible: net.modelData.type === "gsm"
+                spacing: Theme.px(6)
+                Text { text: Tr.t("Monthly data cap (GB)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; Layout.preferredWidth: Theme.px(170) }
+                TextField {
+                    Layout.fillWidth: true
+                    placeholder: page.dataCaps[net.modelData.uuid] ? String(page.dataCaps[net.modelData.uuid]) : Tr.t("No cap (Enter to keep, 0 to clear)")
+                    onAccepted: { page.setCap(net.modelData.uuid, text.trim()); text = ""; }
+                }
             }
         }
     }
@@ -520,6 +565,23 @@ ColumnLayout {
             visible: page.conn !== ""
             placeholder: Tr.t("Or your own servers - e.g. 192.168.1.1 (Enter to use)")
             onAccepted: if (/^[\d.:a-fA-F\s]+$/.test(text.trim())) { page.useDns(text.trim()); text = ""; }
+        }
+        Text {
+            Layout.fillWidth: true
+            visible: page.conn !== ""
+            text: Tr.t("Search domains: unqualified names are looked up inside these suffixes (e.g. home.arpa).")
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: Theme.px(10) * Theme.fontScale
+            wrapMode: Text.Wrap
+        }
+        TextField {
+            Layout.fillWidth: true
+            visible: page.conn !== ""
+            placeholder: page.dnsSearch || Tr.t("Search domains, space separated (Enter to use)")
+            text: page.dnsSearch
+            onTextChanged: if (text !== page.dnsSearch) page.dnsSearch = text
+            onAccepted: if (/^[\w.\-\s]+$/.test(text.trim())) { page.useDnsSearch(text.trim()); text = ""; }
         }
         Text {
             Layout.fillWidth: true

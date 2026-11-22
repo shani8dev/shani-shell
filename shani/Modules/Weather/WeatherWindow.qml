@@ -11,11 +11,12 @@ import qs.Services
 AppWindow {
     id: win
     appName: "Weather"
-    doc: Settings.data.weatherCity
+    doc: Weather.placeName()
     visible: Ui.weather
     onGone: Ui.weather = false
     implicitWidth: Theme.px(640)
-    implicitHeight: Theme.px(600)
+    implicitHeight: Theme.px(640)
+    property bool locShown: false
 
     onVisibleChanged: if (visible) Weather.fetch()
 
@@ -83,6 +84,58 @@ AppWindow {
                 Choice { text: "°C"; selected: !Weather.fahrenheit; onClicked: Settings.data.weatherUnits = "celsius" }
                 Choice { text: "°F"; selected: Weather.fahrenheit; onClicked: Settings.data.weatherUnits = "fahrenheit" }
                 IconButton { icon: "view-refresh"; size: Theme.px(30); tip: Tr.t("Refresh"); onClicked: Weather.fetch() }
+                IconButton { icon: "view-list"; size: Theme.px(30); tip: Tr.t("Locations"); on: win.locShown; onClicked: win.locShown = !win.locShown }
+            }
+
+            // ---- saved locations and in-app city search -----------------------
+            Rectangle {
+                Layout.fillWidth: true
+                visible: win.locShown
+                implicitHeight: locCol.implicitHeight + 20
+                radius: Theme.radiusSmall
+                color: Theme.surface1
+                border.width: 1
+                border.color: Theme.border
+                ColumnLayout {
+                    id: locCol
+                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
+                    spacing: Theme.px(6)
+                    RowLayout {
+                        Layout.fillWidth: true
+                        TextField {
+                            id: citySearch
+                            Layout.fillWidth: true
+                            placeholder: Tr.t("Search for a city…")
+                            label: Tr.t("Add a location")
+                            onAccepted: Weather.searchCity(text)
+                        }
+                        Button { text: Tr.t("Search"); flat: true; onClicked: Weather.searchCity(citySearch.text) }
+                    }
+                    Text { Layout.fillWidth: true; visible: Weather.searchError !== ""; text: Weather.searchError; color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    Repeater {
+                        model: Weather.searchResults
+                        RowLayout {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            Text { Layout.fillWidth: true; text: modelData.name + (modelData.country ? ", " + modelData.country : ""); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                            Button { text: Tr.t("Add"); flat: true; onClicked: Weather.addPlace(modelData) }
+                        }
+                    }
+                    SectionTitle { Layout.fillWidth: true; text: Tr.t("Saved locations") }
+                    Repeater {
+                        model: Weather.places
+                        RowLayout {
+                            required property var modelData
+                            required property int index
+                            Layout.fillWidth: true
+                            Button { text: modelData.name; flat: true; checked: Weather.activePlace === index; onClicked: Weather.selectPlace(index) }
+                            Item { Layout.fillWidth: true }
+                            IconButton { icon: "edit-delete"; size: Theme.px(24); Accessible.name: Tr.t("Remove location"); onClicked: Weather.removePlace(index) }
+                        }
+                    }
+                    Text { Layout.fillWidth: true; visible: Weather.places.length === 0; text: Tr.t("No saved locations yet"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    Button { text: Tr.t("Save the current city"); flat: true; enabled: Settings.data.weatherCity !== ""; onClicked: Weather.addPlace({ name: Settings.data.weatherCity, lat: Settings.data.weatherLat, lon: Settings.data.weatherLon }) }
+                }
             }
 
             EmptyState {
@@ -137,6 +190,31 @@ AppWindow {
                 ].filter(s => s !== "").join("   ·   ")
             }
 
+            // ---- the four parts of today -------------------------------------
+            RowLayout {
+                Layout.fillWidth: true
+                visible: Weather.dayparts.length > 0
+                spacing: Theme.px(8)
+                Repeater {
+                    model: Weather.dayparts
+                    Rectangle {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        implicitHeight: dpCol.implicitHeight + 16
+                        radius: Theme.radiusSmall
+                        color: Theme.surface1
+                        ColumnLayout {
+                            id: dpCol
+                            anchors.centerIn: parent
+                            spacing: Theme.px(2)
+                            Text { Layout.alignment: Qt.AlignHCenter; text: modelData.label; color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                            Icon { Layout.alignment: Qt.AlignHCenter; name: Weather.iconFor(modelData.code); size: Theme.px(20); color: Theme.text }
+                            Text { Layout.alignment: Qt.AlignHCenter; text: Math.round(modelData.hi) + "° / " + Math.round(modelData.lo) + "°"; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        }
+                    }
+                }
+            }
+
             // ---- the next hours ----
             SectionTitle { Layout.fillWidth: true; visible: Weather.hourly.length > 0; text: Tr.t("Next hours") }
             Sparkline {
@@ -189,6 +267,21 @@ AppWindow {
 
             // ---- the week ----
             SectionTitle { Layout.fillWidth: true; visible: Weather.forecast.length > 0; text: Tr.t("This week") }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Text { text: Tr.t("Days"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                Repeater {
+                    model: [7, 10, 14, 16]
+                    Choice {
+                        required property int modelData
+                        text: String(modelData)
+                        selected: Weather.forecastDays === modelData
+                        onClicked: { Weather.forecastDays = modelData; Weather.fetch(); }
+                    }
+                }
+                Item { Layout.fillWidth: true }
+            }
             ColumnLayout {
                 Layout.fillWidth: true
                 visible: Weather.forecast.length > 0

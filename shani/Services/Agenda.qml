@@ -153,7 +153,11 @@ Singleton {
             allDay: !!payload.allDay,
             calendar: payload.calendar || "",
             uid: payload.uid || "",
-            attendees: Array.isArray(payload.attendees) ? payload.attendees : (payload.attendees ? String(payload.attendees).split(/[,;]\s*/).map(s => s.trim()).filter(s => s) : [])
+            attendees: Array.isArray(payload.attendees) ? payload.attendees : (payload.attendees ? String(payload.attendees).split(/[,;]\s*/).map(s => s.trim()).filter(s => s) : []),
+            description: String(payload.description || ""),
+            rrule: String(payload.rrule || ""),
+            alarm: Number(payload.alarm || 0),
+            timezone: String(payload.timezone || "")
         };
         // delete/edit by uid only: fill the rest from the last read
         if (p.uid !== "" && (p.start === 0 || p.summary === "")) {
@@ -164,6 +168,10 @@ Singleton {
                 if (p.summary === "") p.summary = found.summary;
                 if (p.location === "") p.location = found.location || "";
                 if (p.calendar === "") p.calendar = found.calendar || "";
+                if (p.description === "") p.description = found.description || "";
+                if (p.rrule === "") p.rrule = found.rrule || "";
+                if (p.alarm === 0) p.alarm = Number(found.alarm || 0);
+                if (p.timezone === "") p.timezone = found.timezone || "";
                 p.allDay = !!found.allDay;
             }
         }
@@ -223,7 +231,9 @@ Singleton {
             const now = Date.now() / 1000;
             for (const e of root.events) {
                 const key = e.summary + "@" + e.start;
-                if (!e.allDay && e.start - now <= 600 && e.start - now > 0 && !root.told[key]) {
+                // the event's own VALARM lead time, not one notice for every event
+                const lead = Number(e.alarm || 0) > 0 ? Number(e.alarm) * 60 : 600;
+                if (!e.allDay && e.start - now <= lead && e.start - now > 0 && !root.told[key]) {
                     root.told[key] = true;
                     Quickshell.execDetached(["notify-send", "-a", "Calendar", "-i", "x-office-calendar",
                         e.summary + " in " + Math.max(1, Math.round((e.start - now) / 60)) + " min",

@@ -33,12 +33,39 @@ Singleton {
     property bool available: false
     property int recPid: 0
     property bool stopping: false
+    // choices: codec and channel count, a persisted sequential counter,
+    // per-file durations (ffprobe) and the export/discard results
+    property string format: "opus"          // opus | flac
+    property int channels: 1                // 1 = mono, 2 = stereo
+    property int nextNumber: 1
+    property var durations: ({})            // path -> seconds
+    property string lastScan: ""
+    property bool discarding: false
+    property string discardFile: ""
+    property string exported: ""
+    property string exportError: ""
+
+    // the counter survives restarts so names stay sequential, not reused
+    FileView {
+        id: numberStore
+        path: Quickshell.statePath("voice-recorder-number.json")
+        printErrors: false
+        onLoaded: { try { root.nextNumber = JSON.parse(text()).n || 1; } catch (e) {} }
+    }
+    Timer { id: numberSave; interval: 800; onTriggered: numberStore.setText(JSON.stringify({ n: root.nextNumber })) }
 
     function dir() {
         const music = Quickshell.env("XDG_MUSIC_DIR") || ((Quickshell.env("HOME") || "/tmp") + "/Music");
         return music + "/Voice Recorder";
     }
     function stamp() { return Qt.formatDateTime(new Date(), "yyyy-MM-dd hh-mm-ss"); }
+    // the documented default command is kept verbatim; other codec/channel
+    // choices are built from the same argv slots (never shell interpolation).
+    function recordScript() {
+        if (format === "opus" && channels === 1)
+            return 'mkdir -p "$1" || exit 1; pw-record --rate 48000 --channels 1 --format opus "$2" 2>/dev/null & rp=$!; echo "pid $rp"; wait $rp';
+        return 'mkdir -p "$1" || exit 1; pw-record --rate 48000 --channels ' + channels + ' --format ' + format + ' "$2" 2>/dev/null & rp=$!; echo "pid $rp"; wait $rp';
+    }
 
     function start() {
         if (recording || !available)
@@ -47,11 +74,15 @@ Singleton {
         stopping = false;
         seconds = 0;
         level = 0;
-        file = dir() + "/Voice Recorder " + stamp() + ".opus";
+        const ext = root.format === "flac" ? "flac" : "opus";
+        // friendly sequential name, with the timestamp kept for whenOf()/sorting
+        file = dir() + "/Recording " + nextNumber + " " + stamp() + "." + ext;
+        nextNumber++;
+        numberSave.restart();
         // pw-record in the background of a shell that only waits: the pid
         // is printed first so pause/resume/stop can signal pw-record
         // itself (SIGSTOP freezes the capture, SIGINT finalises the file)
-        rec.command = ["sh", "-c", 'mkdir -p "$1" || exit 1; pw-record --rate 48000 --channels 1 --format opus "$2" 2>/dev/null & rp=$!; echo "pid $rp"; wait $rp', "sh", dir(), file];
+        rec.command = ["sh", "-c", recordScript(), "sh", dir(), file];
         state = "recording";
         rec.running = true;
         analyser.running = true;
@@ -72,6 +103,15 @@ Singleton {
         }
         else if (rec.running)
             rec.signal(2);
+    }
+    // discard a take: stop it, then trash the file instead of keeping it
+    function cancel() {
+        if (!recording)
+            return;
+        discardFile = file;
+        discarding = true;
+        last = "";
+        stop();
     }
     function pause() {
         if (state !== "recording" || recPid <= 0)
@@ -105,6 +145,15 @@ Singleton {
             analyser.running = false;
             if (root.state !== "idle")
                 root.state = "idle";
+            if (root.discarding) {
+                root.discarding = false;
+                const doomed = root.discardFile;
+                root.discardFile = "";
+                if (doomed)
+                    Quickshell.execDetached(["gio", "trash", "--", doomed]);
+                root.refresh();
+                return;
+            }
             root.refresh();
             if (wasStopping) {
                 root.last = root.file;
@@ -159,18 +208,45 @@ while True:
     function refresh() { scan.running = true; }
     function whenOf(path) {
         try {
-            const m = /(\d{4}-\d{2}-\d{2}) (\d{2}-\d{2}-\d{2})\.opus$/.exec(path.split("/").pop() || "");
+            const m = /(\d{4}-\d{2}-\d{2}) (\d{2}-\d{2}-\d{2})\.(opus|flac)$/.exec(path.split("/").pop() || "");
             return m ? m[1] + " " + m[2].replace(/-/g, ":") : "";
         } catch (e) { return ""; }
     }
+    // each row carries its own duration, filled in by ffprobe below
+    function buildRows() {
+        const out = [];
+        root.lastScan.split("\n").forEach(p => { if (p.trim()) out.push({ path: p, name: p.split("/").pop(), when: root.whenOf(p), duration: root.durations[p] || 0 }); });
+        root.recordings = out;
+    }
     Process {
         id: scan
-        command: ["sh", "-c", 'd="$1"; [ -d "$d" ] || exit 0; ls -t "$d"/*.opus 2>/dev/null | head -100', "sh", root.dir()]
+        command: ["sh", "-c", 'd="$1"; [ -d "$d" ] || exit 0; { ls -t "$d"/*.opus "$d"/*.flac 2>/dev/null; } | head -100', "sh", root.dir()]
+        stdout: StdioCollector {
+            onStreamFinished: { root.lastScan = text; root.buildRows(); root.probeDurations(); }
+        }
+    }
+    // one ffprobe process for all takes; durations are keyed by path
+    function probeDurations() {
+        if (!root.recordings.length)
+            return;
+        probeList.command = ["sh", "-c",
+            'for f in "$@"; do d=$(ffprobe -v error -show_entries format=duration -of csv=p=0 -- "$f" 2>/dev/null); printf "%s|%s\\n" "$f" "$d"; done',
+            "sh"].concat(root.recordings.map(r => r.path));
+        probeList.running = true;
+    }
+    Process {
+        id: probeList
         stdout: StdioCollector {
             onStreamFinished: {
-                const out = [];
-                text.split("\n").forEach(p => { if (p.trim()) out.push({ path: p, name: p.split("/").pop(), when: root.whenOf(p) }); });
-                root.recordings = out;
+                const m = {};
+                text.split("\n").forEach(l => {
+                    const i = l.lastIndexOf("|");
+                    if (i < 0) return;
+                    const v = parseFloat(l.slice(i + 1));
+                    m[l.slice(0, i)] = isFinite(v) ? v : 0;
+                });
+                root.durations = m;
+                root.buildRows();
             }
         }
     }
@@ -180,7 +256,7 @@ while True:
         let n = String(name || "").trim().replace(/\//g, "");
         if (!n)
             return "";
-        return /\.opus$/i.test(n) ? n : n + ".opus";
+        return /\.(opus|flac)$/i.test(n) ? n : n + "." + (root.format === "flac" ? "flac" : "opus");
     }
     function rename(path, name) {
         const to = cleanName(name);
@@ -202,6 +278,24 @@ while True:
             last = "";
     }
     Process { id: trashProc; onExited: root.refresh() }
+
+    // ---- export a take to a path the person chose (argv slots, no shell) ----
+    function exportTo(path, source) {
+        if (!path || !source)
+            return;
+        exportError = "";
+        exported = "";
+        const ext = String(path).split(".").pop().toLowerCase();
+        const codec = ext === "flac" ? "flac" : ext === "wav" ? "pcm_s16le" : "libopus";
+        exp.command = ["ffmpeg", "-y", "-loglevel", "error", "-i", source, "-c:a", codec, path];
+        exp.out = path;
+        exp.running = true;
+    }
+    Process {
+        id: exp
+        property string out: ""
+        onExited: code => { if (code === 0) exported = out; else exportError = Tr.t("Export failed"); }
+    }
 
     function play(path) {
         if (!path)

@@ -39,24 +39,74 @@ Singleton {
     // bumped when the text on screen has to be taken again from `current`
     // (another tab, a file read, a save-as): the panel reloads its editor
     property int revision: 0
+    // last session's open files, kept in XDG state so the editor reopens them
+    readonly property string sessionFile: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/shani/text-editor-session.json"
+    property bool restoring: false
 
     // TextArea is not made for big files; past this the editor says so
     readonly property int maxBytes: 2 * 1024 * 1024
 
     function nameOf(path) { return path === "" ? Tr.t("Untitled") : String(path).split("/").pop(); }
     function indexOf(path) { return root.docs.findIndex(d => d.path !== "" && d.path === path); }
-    function touch() { root.docs = root.docs.slice(); }
+    function touch() {
+        root.docs = root.docs.slice();
+        if (!root.restoring) saveSession();
+    }
     function syncHistory() {
         const d = root.current;
         root.undoCount = d && d.history ? d.history.length : 0;
         root.redoCount = d && d.future ? d.future.length : 0;
     }
+    // line bookmarks are per document, stored with it (0-based line numbers)
+    function bookmarks() { const d = root.current; return d && d.bookmarks ? d.bookmarks.slice() : []; }
+    function toggleBookmark(line) {
+        const d = root.current;
+        if (!d) return;
+        if (!d.bookmarks) d.bookmarks = [];
+        const i = d.bookmarks.indexOf(line);
+        if (i >= 0) d.bookmarks.splice(i, 1);
+        else { d.bookmarks.push(line); d.bookmarks.sort((a, b) => a - b); }
+        root.touch();
+    }
+    function nextBookmark(from, delta) {
+        const list = root.bookmarks();
+        if (list.length === 0) return from;
+        if (delta > 0) return list.find(l => l > from) !== undefined ? list.find(l => l > from) : list[0];
+        for (let i = list.length - 1; i >= 0; i--) if (list[i] < from) return list[i];
+        return list[list.length - 1];
+    }
+
+    function saveSession() {
+        if (root.restoring || sessionView.path === "") return;
+        const paths = root.docs.filter(d => d.path !== "").map(d => d.path);
+        sessionView.setText(JSON.stringify({ paths: paths, active: root.active }));
+    }
+    function restoreSession() {
+        root.restoring = true;
+        if (sessionView.path === root.sessionFile) sessionView.reload();
+        else sessionView.path = root.sessionFile;
+    }
+    FileView {
+        id: sessionView
+        path: ""
+        printErrors: false
+        onLoaded: {
+            let data = {};
+            try { data = JSON.parse(text()); } catch (e) { data = {}; }
+            const paths = Array.isArray(data.paths) ? data.paths : [];
+            paths.forEach(p => root.open(p));
+            root.restoring = false;
+        }
+        onLoadFailed: root.restoring = false
+    }
+
     function show(i) {
         if (i < 0 || i >= root.docs.length)
             return;
         root.active = i;
         root.syncHistory();
         root.revision++;
+        saveSession();
     }
 
     function newDoc() {
@@ -258,5 +308,12 @@ Singleton {
             newDoc();
         else
             show(Math.min(root.active > i ? root.active - 1 : root.active, list.length - 1));
+        saveSession();
     }
+    Process {
+        id: sessionDir
+        command: ["mkdir", "-p", root.sessionFile.substring(0, root.sessionFile.lastIndexOf("/"))]
+        onExited: root.restoreSession()
+    }
+    Component.onCompleted: sessionDir.running = true
 }

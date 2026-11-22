@@ -74,6 +74,16 @@ AppWindow {
             return Qt.formatTime(d, "HH:mm");   // unsupported zone/Intl: local time
         }
     }
+    // a minute tick keeps the current-time line honest (and the today marker)
+    Timer { interval: 60000; running: true; repeat: true; onTriggered: win.today = new Date() }
+    function isNowHour(h) {
+        return win.offset === 0 && win.isSameDay(new Date(), win.selectedDate)
+            && new Date().getHours() === h;
+    }
+    function nowFraction() {
+        const n = new Date();
+        return (n.getMinutes() + n.getSeconds() / 60) / 60;
+    }
     readonly property date month: new Date(today.getFullYear(), today.getMonth() + offset, 1)
     readonly property date weekAnchor: new Date(today.getFullYear(), today.getMonth(), today.getDate() + (offset * 7))
     readonly property bool sundayFirst: Settings.data.weekStartsOn === "sunday"
@@ -211,6 +221,45 @@ AppWindow {
     property var editingEvent: null     // the event being edited, null = new
     property bool fAllDay: false
     property string formError: ""
+    // click to view first; the edit form is a deliberate second step
+    property bool viewing: false
+    property var viewingEvent: null
+    // repeat / end-repeat and this event's own reminder and zone
+    property string fRepeat: "NONE"     // NONE | DAILY | WEEKLY | MONTHLY | YEARLY
+    property string fRepeatUntil: ""    // yyyy-MM-dd
+    property int fAlarm: 0              // minutes before; 0 = no alarm
+    property string fZone: "local"
+    readonly property bool readOnlyEvent: !!(
+        (win.editingEvent || win.viewingEvent) &&
+        Agenda.calendars.find(c => c.name === ((win.editingEvent || win.viewingEvent) || {}).calendar && c.readOnly)
+    )
+
+    function viewEvent(e) {
+        if (!e) return;
+        win.viewingEvent = e;
+        win.viewing = true;
+        win.editor = false;
+    }
+    function editViewed() {
+        const e = win.viewingEvent;
+        win.viewing = false;
+        win.viewingEvent = null;
+        win.openEditor(e);
+    }
+    function ruleFromForm() {
+        if (win.fRepeat === "NONE") return "";
+        let r = "FREQ=" + win.fRepeat;
+        if (win.fRepeatUntil !== "")
+            r += ";UNTIL=" + win.fRepeatUntil.replace(/-/g, "") + "T235959";
+        return r;
+    }
+    function formFromRule(rule) {
+        const r = String(rule || "").toUpperCase();
+        const f = r.match(/FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/);
+        win.fRepeat = f ? f[1] : "NONE";
+        const u = r.match(/UNTIL=(\d{8})/);
+        win.fRepeatUntil = u ? u[1].slice(0, 4) + "-" + u[1].slice(4, 6) + "-" + u[1].slice(6, 8) : "";
+    }
 
     function _fmtDate(d) { return Qt.formatDate(d, "yyyy-MM-dd"); }
     function _fmtTime(d) { return Qt.formatTime(d, "HH:mm"); }
@@ -222,6 +271,10 @@ AppWindow {
             fTitle.text = e.summary || "";
             fLocation.text = e.location || "";
             fAttendees.text = (e.attendees || []).join(", ");
+            fDescription.text = e.description || "";
+            formFromRule(e.rrule);
+            fAlarm = Number(e.alarm || 0);
+            fZone = e.timezone || "local";
             fDateA.text = _fmtDate(s);
             fTimeA.text = _fmtTime(s);
             fDateB.text = _fmtDate(en);
@@ -233,6 +286,10 @@ AppWindow {
             fTitle.text = "";
             fLocation.text = "";
             fAttendees.text = "";
+            fDescription.text = "";
+            formFromRule("");
+            fAlarm = 0;
+            fZone = "local";
             fDateA.text = _fmtDate(s);
             fTimeA.text = _fmtTime(s);
             fDateB.text = _fmtDate(en);
@@ -341,6 +398,10 @@ AppWindow {
         return Math.floor(d.getTime() / 1000);
     }
     function saveEditor() {
+        if (win.readOnlyEvent) {
+            formError = Tr.t("Calendar: %1").arg((win.editingEvent || {}).calendar || "") + " — " + "read-only";
+            return;
+        }
         const title = fTitle.text.trim();
         if (title === "") {
             formError = Tr.t("An event needs a title");
@@ -360,6 +421,10 @@ AppWindow {
             start: natStart,
             end: natEnd,
             location: fLocation.text.trim(),
+            description: fDescription.text.trim(),
+            rrule: win.ruleFromForm(),
+            alarm: win.fAlarm,
+            timezone: win.fZone === "local" ? "" : win.fZone,
             attendees: fAttendees.text.split(",").map(s => s.trim()).filter(s => s !== ""),
             allDay: fAllDay,
             calendar: editingEvent && editingEvent.calendar ? editingEvent.calendar : Agenda.selectedCalendar,
@@ -651,8 +716,8 @@ AppWindow {
                                             font.family: Theme.font
                                             font.pixelSize: Theme.px(9) * Theme.fontScale
                                         }
-                                        MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.openEditor(modelData) }
-                                        KeyFocus { onActivated: win.openEditor(modelData) }
+                                        MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.viewEvent(modelData) }
+                                        KeyFocus { onActivated: win.viewEvent(modelData) }
                                     }
                                 }
                             }
@@ -699,6 +764,13 @@ AppWindow {
                                         color: "transparent"
                                         border.width: 1
                                         border.color: Theme.stroke
+                                        Rectangle {
+                                            visible: win.view === "week" && win.isNowHour(hourRow.hour)
+                                            anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: parent.height * win.nowFraction() }
+                                            height: 2
+                                            color: Theme.red
+                                            z: 4
+                                        }
                                         ColumnLayout {
                                             anchors.fill: parent
                                             anchors.margins: 1
@@ -723,8 +795,8 @@ AppWindow {
                                                         font.family: Theme.font
                                                         font.pixelSize: Theme.px(9) * Theme.fontScale
                                                     }
-                                                    MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.openEditor(modelData) }
-                                                    KeyFocus { onActivated: win.openEditor(modelData) }
+                                                    MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.viewEvent(modelData) }
+                                                    KeyFocus { onActivated: win.viewEvent(modelData) }
                                                 }
                                             }
                                         }
@@ -783,6 +855,13 @@ AppWindow {
                                 color: "transparent"
                                 border.width: 1
                                 border.color: Theme.stroke
+                                Rectangle {
+                                    visible: win.view === "day" && win.isNowHour(hour)
+                                    anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: parent.height * win.nowFraction() }
+                                    height: 2
+                                    color: Theme.red
+                                    z: 4
+                                }
                                 ColumnLayout {
                                     anchors.fill: parent
                                     anchors.margins: 1
@@ -807,8 +886,8 @@ AppWindow {
                                                 font.family: Theme.font
                                                 font.pixelSize: Theme.px(9) * Theme.fontScale
                                             }
-                                            MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.openEditor(modelData) }
-                                            KeyFocus { onActivated: win.openEditor(modelData) }
+                                            MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.viewEvent(modelData) }
+                                            KeyFocus { onActivated: win.viewEvent(modelData) }
                                         }
                                     }
                                 }
@@ -1059,7 +1138,7 @@ AppWindow {
                             icon: "x-office-calendar"
                             title: modelData.summary
                             subtitle: Agenda.when(modelData) + (modelData.location ? " · " + modelData.location : "") + (modelData.calendar ? " · " + modelData.calendar : "")
-                            onClicked: win.openEditor(modelData)
+                            onClicked: win.viewEvent(modelData)
                         }
                     }
                     EmptyState {
@@ -1086,6 +1165,24 @@ AppWindow {
                     font.pixelSize: Theme.px(13) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
+                Rectangle {
+                    visible: win.readOnlyEvent
+                    Layout.fillWidth: true
+                    implicitHeight: bannerText.implicitHeight + Theme.px(10)
+                    radius: Theme.radiusSmall
+                    color: Theme.surface1
+                    border.width: 1
+                    border.color: Theme.danger
+                    Text {
+                        id: bannerText
+                        anchors { fill: parent; margins: Theme.px(5) }
+                        wrapMode: Text.Wrap
+                        text: "This calendar is read-only — this event cannot be changed here."
+                        color: Theme.danger
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                    }
+                }
                 TextField {
                     id: fTitle
                     Layout.fillWidth: true
@@ -1098,6 +1195,12 @@ AppWindow {
                     Layout.fillWidth: true
                     placeholder: Tr.t("Location")
                     label: Tr.t("Location")
+                }
+                TextField {
+                    id: fDescription
+                    Layout.fillWidth: true
+                    placeholder: "Description / notes"
+                    label: "Description"
                 }
                 TextField {
                     id: fAttendees
@@ -1113,6 +1216,54 @@ AppWindow {
                     font.family: Theme.font
                     font.pixelSize: Theme.px(10) * Theme.fontScale
                     wrapMode: Text.Wrap
+                }
+                Text { text: "Repeat"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(4)
+                    Repeater {
+                        model: [["NONE", "None"], ["DAILY", "Daily"], ["WEEKLY", "Weekly"], ["MONTHLY", "Monthly"], ["YEARLY", "Yearly"]]
+                        Choice {
+                            required property var modelData
+                            text: modelData[1]
+                            selected: win.fRepeat === modelData[0]
+                            onClicked: win.fRepeat = modelData[0]
+                        }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    TextField {
+                        Layout.preferredWidth: Theme.px(150)
+                        placeholder: "End repeat yyyy-MM-dd"
+                        label: "End repeat"
+                        text: win.fRepeatUntil
+                        enabled: win.fRepeat !== "NONE"
+                        onTextChanged: win.fRepeatUntil = text
+                    }
+                    TextField {
+                        Layout.preferredWidth: Theme.px(90)
+                        placeholder: "minutes"
+                        label: "Reminder (minutes before)"
+                        text: String(win.fAlarm)
+                        validator: IntValidator { bottom: 0; top: 1440 }
+                        onTextChanged: { const n = parseInt(text, 10); win.fAlarm = isNaN(n) ? 0 : n; }
+                    }
+                }
+                Text { text: "Time zone"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(4)
+                    Repeater {
+                        model: win.zones
+                        Choice {
+                            required property var modelData
+                            text: modelData[1]
+                            selected: win.fZone === modelData[0]
+                            onClicked: win.fZone = modelData[0]
+                        }
+                    }
                 }
                 // the calendar this event belongs to: fixed when editing,
                 // chosen (Agenda.selectedCalendar) when new
@@ -1163,7 +1314,7 @@ AppWindow {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(8)
-                    Button { Layout.fillWidth: true; text: Tr.t("Save"); kind: "primary"; onClicked: win.saveEditor() }
+                    Button { Layout.fillWidth: true; text: Tr.t("Save"); kind: "primary"; enabled: !win.readOnlyEvent; onClicked: win.saveEditor() }
                     Button { Layout.fillWidth: true; text: Tr.t("Cancel"); onClicked: win.closeEditor() }
                     Button { visible: win.editingEvent !== null; text: Tr.t("Delete"); kind: "danger"; onClicked: win.deleteEditor() }
                 }
@@ -1178,8 +1329,99 @@ AppWindow {
                 font.pixelSize: Theme.px(11) * Theme.fontScale
             }
         }
+
+        // ---- click-to-view detail sheet (edit is a second, deliberate step) ----
+        Rectangle {
+            visible: win.viewing
+            anchors.fill: parent
+            z: 10
+            color: Qt.rgba(0, 0, 0, 0.5)
+            MouseArea { anchors.fill: parent; onClicked: { win.viewing = false; win.viewingEvent = null; } }
+            Rectangle {
+                anchors.centerIn: parent
+                width: Math.min(parent.width - Theme.px(48), Theme.px(460))
+                implicitHeight: detailCol.implicitHeight + Theme.px(24)
+                radius: Theme.radiusLarge
+                color: Theme.surface1
+                border.width: 1
+                border.color: Theme.border
+                ColumnLayout {
+                    id: detailCol
+                    anchors { fill: parent; margins: Theme.px(12) }
+                    spacing: Theme.px(6)
+                    Text {
+                        Layout.fillWidth: true
+                        text: (win.viewingEvent || {}).summary || ""
+                        color: Theme.text
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(15) * Theme.fontScale
+                        font.weight: Font.DemiBold
+                        wrapMode: Text.Wrap
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: (win.viewingEvent || {}).allDay ? Tr.t("Today")
+                            : Qt.formatDate(new Date((win.viewingEvent || {}).start * 1000), "ddd d MMM yyyy") + " · " + win.zoneTime((win.viewingEvent || {}).start || 0)
+                              + " – " + win.zoneTime((win.viewingEvent || {}).end || 0)
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: !!((win.viewingEvent || {}).location)
+                        text: (win.viewingEvent || {}).location || ""
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        wrapMode: Text.Wrap
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: !!((win.viewingEvent || {}).calendar)
+                        text: Tr.t("Calendar: %1").arg((win.viewingEvent || {}).calendar || "")
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                    }
+                    Rectangle {
+                        visible: win.readOnlyEvent
+                        Layout.fillWidth: true
+                        implicitHeight: roText.implicitHeight + Theme.px(8)
+                        radius: Theme.radiusSmall
+                        color: Theme.surface1
+                        border.width: 1
+                        border.color: Theme.danger
+                        Text {
+                            id: roText
+                            anchors { fill: parent; margins: Theme.px(4) }
+                            wrapMode: Text.Wrap
+                            text: "This calendar is read-only."
+                            color: Theme.danger
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                        }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: !!((win.viewingEvent || {}).description)
+                        text: (win.viewingEvent || {}).description || ""
+                        color: Theme.text
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        wrapMode: Text.Wrap
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.px(8)
+                        Button { Layout.fillWidth: true; text: Tr.t("Close"); onClicked: { win.viewing = false; win.viewingEvent = null; } }
+                        Button { Layout.fillWidth: true; text: Tr.t("Edit"); kind: "primary"; onClicked: win.editViewed() }
+                    }
+                }
+            }
+        }
     }
 
-    Shortcut { sequence: "Escape"; onActivated: { if (win.editor) win.closeEditor(); else Ui.calendar = false; } }
+    Shortcut { sequence: "Escape"; onActivated: { if (win.viewing) { win.viewing = false; win.viewingEvent = null; } else if (win.editor) win.closeEditor(); else Ui.calendar = false; } }
     Shortcut { sequence: "Ctrl+R"; onActivated: Agenda.refresh() }
 }

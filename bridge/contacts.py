@@ -8,6 +8,9 @@
     contacts.py delete '<json>'     {"uid": "…"} (a bare uid string is also read)
     contacts.py import '<path>'     a .vcf path, or '{"path": "…"}' (same contract)
     contacts.py get '<uid>'         one contact as JSON
+    contacts.py vcard '<uid>'       one contact's raw vCard (for a QR code)
+    contacts.py export-all          every card concatenated, as .vcf text
+    contacts.py list [QUERY] [sort] sort: name (default), given or family
 
 List prints a JSON array; writes print {"ok": true, "uid": "…"} (import prints
 {"ok": true, "count": N}). Exit 3 is bad input (malformed JSON, no name, no uid,
@@ -124,7 +127,11 @@ def matches(contact: dict, query: str) -> bool:
     return False
 
 
-def sort_key(contact: dict) -> tuple[str, str]:
+def sort_key(contact: dict, sort_by: str = "name") -> tuple[str, str]:
+    if sort_by == "family":
+        return (fold_text(contact.get("family", "")), fold_text(_display(contact)))
+    if sort_by == "given":
+        return (fold_text(contact.get("given", "")), fold_text(_display(contact)))
     shown = _display(contact)
     return (fold_text(shown), fold_text(shown))
 
@@ -180,6 +187,8 @@ def parse(text: str) -> list[dict]:
                 "emails": [],
                 "groups": [],
                 "self": False,
+                "favorite": False,
+                "avatar": "",
                 "extras": [],
             }
             continue
@@ -197,6 +206,8 @@ def parse(text: str) -> list[dict]:
             "EMAIL",
             "CATEGORIES",
             "X-SHANI-SELF",
+            "X-SHANI-FAVORITE",
+            "PHOTO",
             "END",
         ):
             current["extras"].append(line)
@@ -235,6 +246,10 @@ def parse(text: str) -> list[dict]:
                     current["groups"].append(group)
         elif name == "X-SHANI-SELF":
             current["self"] = value.strip().lower() in ("1", "true", "yes")
+        elif name == "X-SHANI-FAVORITE":
+            current["favorite"] = value.strip().lower() in ("1", "true", "yes")
+        elif name == "PHOTO":
+            current["avatar"] = _unescape(value.strip())
     for c in found:
         if not c["name"]:
             joined = " ".join(p for p in (c.get("given", ""), c.get("family", "")) if p)
@@ -314,6 +329,10 @@ def serialize(contact: dict) -> str:
         lines.append("CATEGORIES:" + ",".join(_escape(g) for g in groups))
     if contact.get("self"):
         lines.append("X-SHANI-SELF:1")
+    if contact.get("favorite"):
+        lines.append("X-SHANI-FAVORITE:1")
+    if contact.get("avatar"):
+        lines.append("PHOTO;VALUE=URI:" + _escape(str(contact["avatar"])))
     for extra in contact.get("extras") or []:
         if ":" in extra and extra not in lines:
             lines.append(extra)
@@ -367,6 +386,8 @@ def _to_json(contact: dict) -> dict:
         "emails": emails,
         "groups": list(contact.get("groups") or []),
         "self": bool(contact.get("self", False)),
+        "favorite": bool(contact.get("favorite", False)),
+        "avatar": str(contact.get("avatar", "") or ""),
     }
 
 
@@ -386,9 +407,9 @@ def all_contacts() -> list[dict]:
     return found
 
 
-def list_contacts(query: str = "") -> list[dict]:
+def list_contacts(query: str = "", sort_by: str = "name") -> list[dict]:
     contacts = [c for c in all_contacts() if matches(c, query)]
-    contacts.sort(key=sort_key)
+    contacts.sort(key=lambda c: sort_key(c, sort_by))
     return [_to_json(c) for c in contacts]
 
 
@@ -452,6 +473,8 @@ def _make(
         else [],
         "groups": [str(g).strip() for g in (groups or []) if str(g).strip()],
         "self": bool(is_self),
+        "favorite": False,
+        "avatar": "",
     }
 
 
@@ -494,6 +517,8 @@ def _from_payload(payload: dict, name: str) -> dict:
             str(g).strip() for g in (payload.get("groups") or []) if str(g).strip()
         ],
         "self": bool(payload.get("self", False)),
+        "favorite": bool(payload.get("favorite", False)),
+        "avatar": str(payload.get("avatar", "") or ""),
     }
 
 
@@ -507,13 +532,17 @@ def main(argv: list[str]) -> int:
     command = argv[1]
     if command in ("list", "search"):
         query = argv[2] if len(argv) > 2 else ""
-        print(json.dumps(list_contacts(query), ensure_ascii=False))
+        sort_by = argv[3] if len(argv) > 3 else "name"
+        if sort_by not in ("name", "given", "family"):
+            print("Invalid argument: sort must be name, given or family", file=sys.stderr)
+            return 3
+        print(json.dumps(list_contacts(query, sort_by), ensure_ascii=False))
         return 0
-    if command in ("add", "edit", "delete", "import", "get"):
-        if len(argv) < 3:
+    if command in ("add", "edit", "delete", "import", "get", "vcard", "export-all"):
+        if len(argv) < 3 and command != "export-all":
             print(f"Invalid argument: {command} needs a value", file=sys.stderr)
             return 3
-        raw = argv[2]
+        raw = argv[2] if len(argv) > 2 else ""
         if command == "import":
             path = raw
             if raw.lstrip().startswith("{"):
@@ -527,6 +556,19 @@ def main(argv: list[str]) -> int:
                 return 3
             added = import_file(path)
             print(json.dumps({"ok": True, "count": len(added)}))
+            return 0
+        if command == "vcard":
+            found = get_contact(raw)
+            if found is None:
+                print(f"Invalid argument: no contact with uid {raw!r}", file=sys.stderr)
+                return 3
+            print(_file(raw).read_text(encoding="utf-8", errors="replace"), end="")
+            return 0
+        if command == "export-all":
+            for card in all_contacts():
+                source = _file(card["uid"])
+                if source.is_file():
+                    print(source.read_text(encoding="utf-8", errors="replace"), end="")
             return 0
         if command == "get":
             found = get_contact(raw)
@@ -571,6 +613,10 @@ def main(argv: list[str]) -> int:
                 edited["groups"] = list(existing.get("groups") or [])
             if "self" not in payload:
                 edited["self"] = bool(existing.get("self"))
+            if "favorite" not in payload:
+                edited["favorite"] = bool(existing.get("favorite"))
+            if "avatar" not in payload:
+                edited["avatar"] = str(existing.get("avatar", "") or "")
             # Editing only the fields the UI owns must not drop vCard fields we
             # don't expose (birthday, address, org, notes, URLs, …).
             edited["extras"] = existing.get("extras", [])
