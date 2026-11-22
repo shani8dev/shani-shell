@@ -1382,3 +1382,1031 @@ Out of scope: visionOS gaze, SteamOS controller layouts/fan curves, Tizen bezel/
 ## Test/verification note
 
 A new static a11y test (tests/test_qml_a11y.py) found ~84 unnamed IconButtons; an agent has begun adding tips/labels to affected files (DatePicker, CameraPanel, ControlCenter, Settings, etc.). Outcomes pending.
+
+---
+
+# Fourteenth pass — VERBATIM agent reports
+
+The section above condensed these. What follows is the complete original text of each agent report, unabridged.
+
+## VERBATIM: Power / suspend / hibernate hardware depth
+
+# Fourteenth-pass research: power / suspend / hibernate hardware depth
+
+Read `GAPS.md` and `GAPS-RESEARCH.md` first; skipped all listed items and the suspend session-lifecycle findings (GAPS-RESEARCH:604-612). Static only — no edits, no runtime. Everything below is new at the hardware-behaviour level.
+
+## Shell-fixable — ranked by value × ease
+
+1. **Hibernate delay is never configured.** `shani/Services/Power.qml:182-194` and `Modules/Settings/SettingsPowerKeys.qml:141-143` offer "sleep, then hibernate", but `HibernateDelaySec` exists nowhere in shani-settings/install-media/deploy — only `shani-blog/posts/shani-os-power-management.md:90-94` tells users to hand-edit `/etc/systemd/sleep.conf`, contradicting `shani-docs/docs/system/power.md:56-58` ("nothing to configure manually"). Sketch: ship `/etc/systemd/sleep.conf.d/50-shani.conf` with `HibernateDelaySec=1800`.
+2. **No critical-battery action tied to suspend.** `Power.qml:97-115` warns at 15 %/7 % and auto-locks, but "hibernates when the battery runs low" (comment at `Power.qml:182-184`) is left entirely to logind defaults; nothing sets the critical threshold or a fallback shutdown. Sketch: expose "at 7 %: hibernate if possible, else power off" via the same drop-in as #1.
+3. **Hibernate/resume is untested end-to-end.** `GAPS.md:242` defers it to real hardware; shani-testbed has zero hibernate/suspend/resume probes; the only shell assertion is the fallback check at `dev/shell-test.sh:2257-2260`. `power.md:65` tells the user to verify the cycle themselves. Sketch: boot-probe that plants a marker, hibernates and resumes, asserting the marker survives and `resume_offset` matches.
+4. **Two unsynchronised Wake-on-LAN controls.** `bridge/wakeup.py:61-63` labels sysfs `power/wakeup` as "Wake-on-LAN (ethX)", persisted by `bridge/shani-admin.py:299-331`; `Services/Net.qml:90-95` separately toggles NM's `802-3-ethernet.wake-on-lan=magic`. The Power-page row never programs magic-packet filtering; the Network-page toggle never sets device wakeup. Sketch: route the network row through `Net.setWakeOnLan()` / one source of truth.
+5. **WoL changes never reach the live link.** `Net.qml:92` only runs `nmcli connection modify` — NM applies `wake-on-lan` on device activation. Sketch: `nmcli device reapply` (or reconnect) after modifying.
+6. **No RTC wake alarms / wake-to-alarm.** `rtcwake` appears nowhere in the shell. Calendar alarms (`Modules/Calendar/CalendarPanel.qml:231,282,432`) and Chronoa timers only fire while awake; a suspended machine misses them. Sketch: arm `/sys/class/rtc/rtc0/wakealarm` for the next alarm, cancel on edit, add a "wake for alarms" toggle (GNOME Clocks / Windows have this).
+7. **No pre-suspend / post-resume hardware hooks.** `Services/Hooks.qml:17-19` fires only wallpaper, dark-mode, lock, unlock, startup, colour-generation. Sketch: add `preSuspend`/`postResume` scripts fed by the logind `PrepareForSleep` bridge (`bridge/logind.py:66-72`) to stop recorders/radios and re-attach devices. *(Distinct from the already-filed "shell jobs don't inhibit idle suspend" — this is hardware prep, not inhibition.)*
+8. **Secondary internal batteries ignored.** `Power.qml:15-16` takes percent/time from `UPower.displayDevice` alone, and the peripheral filter at `:23` excludes every `powerSupply` device — a second internal battery is neither aggregated nor shown, unlike GNOME/KDE. Sketch: sum all `isLaptopBattery` devices and add per-battery rows.
+9. **Hibernate is the only unconfirmed power action.** `Modules/ControlCenter/SidebarHeader.qml:219-220` skips confirmation for both suspend and hibernate. Sketch: confirm hibernate too (slow write; a failed resume drops the session).
+10. **Hibernate capability is checked once.** `Power.qml:196-222` queries `CanHibernate`/`CanSuspendThenHibernate` with `running: true` at startup; enabling swap or resume later leaves the UI stale until shell restart. Sketch: re-query when the power menu opens.
+11. **Power menu mislabels the sleep style.** `SidebarHeader.qml:207` always says "Suspend" even when `Power.sleepVerb` is `suspend-then-hibernate` or `hybrid-sleep`. Sketch: bind the label to `Power.sleepVerb`.
+12. **Docs name a logind key that does not exist.** `shani-docs/docs/system/power.md:92,120` say `HandleLidSwitchExternalMemory`; the real key is `HandleLidSwitchExternalPower` (which `shani-admin.py:265` writes). Sketch: fix both lines; add the docked action to `power_keys()` (`:263-266` writes only three keys).
+
+## Firmware / kernel / install-level
+
+13. **Swap can be smaller than RAM by design.** `os-installer-config/scripts/install.sh:772-783` warns hibernation "may not be available"; `shani-deploy/scripts/shani-deploy.sh:3733-3782` can shrink `/swap/swapfile` for updates, invalidating the `resume_offset` baked into the UKI (`gen-efi.sh:670-688`) until the next deploy. `shani-health.sh:3905` detects a stale offset but nothing regenerates immediately. Sketch: regenerate the cmdline/UKI after a shrink, or refuse hibernate while stale.
+14. **Cloud images cannot hibernate, silently.** `shani-install-media/packer/scripts/01-configure-aws.sh:227` caps swap at 4 GiB, while `configure.sh:965-973` still appends `resume=`. On >4 GiB VMs `CanHibernate` is false with no user-facing explanation. Sketch: skip `resume=` when swap < RAM; report "hibernation unsupported" in health.
+15. **Sleep state left to firmware/manual tmpfiles.** `power.md:116-127` instructs users to hand-write `/sys/power/mem_sleep` and a tmpfiles entry; no shipped `deep` default or UI, so s2idle's much higher drain is the silent default on many laptops. Sketch: ship a `deep` tmpfiles drop-in where supported + a toggle.
+16. **Power-button long press / double tap unsupported.** `SettingsPowerKeys.qml:156-165` writes a single `HandlePowerKey` action; `Services/InputConfig.qml:92-93` hands the key to niri until configured. Short vs long press is firmware territory and is undocumented. Sketch: document the boundary; expose double-tap via udev/logind only where firmware allows.
+
+## Comparison in one line
+GNOME/KDE cover the basic action set and critical-battery policy but also lack a HibernateDelaySec UI; macOS/Windows add scheduled RTC wake and explicit modern-standby/lid timing — Shani's real deficits are #1–7, not the presence of Suspend/Hibernate buttons.
+
+Skipped: suspend-session lifecycle, kill switch, charge limit/threshold, power profiles, thermal sensors, PPD, idle inhibitors, dim overlay, UPS, lid-close behaviour, peripheral-battery warnings (all already filed). Risk: all findings are static; the hibernate/resume and RTC-wake claims in particular need a real S4-capable machine to confirm.
+
+## VERBATIM: Btrfs snapshot management UI depth
+
+Read-only, static pass. I read both GAPS files and skipped every listed item (buttons identical, verification badge, retention, exclusions, off-site, snapshot diff, reinstall/manual btrfs, predeploy home snapshots, notifications, restic). The `pre-deploy` skip refers to `predeploy-*` **home** snapshots; the gaps below about `@slot_backup_*` **system** backups are a different subsystem.
+
+## Ranked gaps (value × ease)
+
+| # | Gap | Evidence | Sketch |
+|---|-----|----------|--------|
+| 1 | Docs teach CLI verbs that do not exist: `home create` / `home delete` are actually `home snapshot` / `home remove`. | `shani-docs/docs/system/backup.md:60`; `cli.py:170,178`; mirrored in `llms-full.txt:55909` and `doc/system/backup/index.html:253` | Fix two verbs in the Markdown, regenerate stubs/llms. |
+| 2 | Shell restore footer promises **"Changed files are overwritten"** — false and dangerous: restore only opens the GTK page, which copies to a dated sibling and never overwrites. | `BackupPanel.qml:131`; `Backup.qml:37-44`; `home_page.py:64-76,79-86` | Change footer to "opens the restore view; a dated copy is placed beside the original". |
+| 3 | Find a File silently skips every dot-directory, so `.config`, `.local`, `.ssh` — where app settings live — can never be found. | `home_page.py:324` (`dirs[:] = [d for d in dirs if not d.startswith(".")]`) | Add an "include hidden" toggle; default on for this search only. |
+| 4 | No unified snapshot timeline: shell shows home snapshots, Cassini Backup shows arbitrary raw btrfs subvolumes, Boot & Recovery shows slot backups — three disjoint views. | `Backup.qml:20-21,69-86`; `backup.py:122-128`; `boot_recovery.py:365-366,704-724` | Merge `home list --json` + `--list-backups --json` into one tagged timeline in `Backup.qml`. |
+| 5 | Manual snapshots cannot be named or labelled; `_name()` hardcodes `kind-timestamp` and the Take Now button passes no name. | `home.py:127-131`; `home_page.py:144-146,293-294`; `cli.py:170` | Optional `--name` on `home snapshot` + an EntryRow next to "Take Now". |
+| 6 | Per-snapshot size absent: JSON has only `(name, path, whole)`; GTK rows show date and subtitle but no size. (Shell's zero-size is already logged; the contract and GTK page still lack it.) | `home.py:67-70`; `cli.py:60`; `home_page.py:227-252` | Add `size` to `list_for` (`du -sh`/qgroup cache) and render in the row subtitle. |
+| 7 | Slot backups are listing-only — no "restore this backup", so a generic rollback cannot target an older backup than the newest. | `boot_recovery.py:704-724`, `ABOUT_NOTE :132-136`; `updates.py:162-167,479-507` | Add per-backup action calling a deploy `--restore-backup=<name>` flag, or at minimum state which backup the generic rollback will use. |
+| 8 | No in-app snapshot file browser: every "Browse" hands off to an external `Gtk.FileLauncher`. | `home_page.py:242-246,262-263` | Embed a read-only tree over `s.path` with per-file "Restore". |
+| 9 | No per-snapshot pin: pruning deletes oldest by name with no way to protect one valuable snapshot (per-snapshot, not a retention-policy UI). | `home.py:194-209`; `home_page.py:247-251` (only manual removable) | `home pin <name>` marker; `_prune` skips pinned names. |
+| 10 | Snapshot validity never checked: `list_for` trusts directory names and the Cassini list only `stat`s the path; a partial/corrupt subvolume looks healthy and is offered for restore. | `home.py:268-296`; `backup.py:283-284` | Cheap `btrfs subvolume show` probe per row → "Unreadable" badge + Remove action. |
+| 11 | Boot count / tries (`+3-0`, `triesLeft/triesDone`) is never shown anywhere in the UI, despite being the mechanism updates rely on. | `boot_recovery.py:100-115` (no tries field); `boot_entries.py:265-289` (efibootmgr only) | Read `bootctl list --json=short`; add a "Boot attempts left" row per slot. |
+| 12 | No true revert: restore always creates `name (date).ext`, so undoing a change means manually renaming files. | `home_page.py:64-76,384-394` | Offer "Replace original (keep a copy of today's file)". |
+| 13 | Two competing snapshot models in one OS: Cassini "Take a snapshot" makes a timestamped sibling subvolume at an arbitrary path, invisible to the home timeline. | `backup.py:134-142,317-319`; `cli.py:135-165`; `home.py:39-45` | Point Cassini's button at `home snapshot`, or label that group "Advanced: raw btrfs" and hide it from Backup. |
+| 14 | Shell restore has no confirmation and closes its window before opening the GUI — no chance to reconsider. | `BackupPanel.qml:103-121`; `Backup.qml:37-44` | One `Adw.AlertDialog` naming the snapshot before `restoreFromSnapshot`. |
+| 15 | A whole-`/home` snapshot is presented to each user as "Taken by hand" with no hint it contains every account (ACLs keep files private, but scope is undisclosed). | `home.py:158-175,279-295`; `home_page.py:232-241` | Subtitle "Snapshot of all homes — other users' files stay private". |
+| 16 | Slot rows are raw `blue`/`green` + version; no friendly label or active/inactive tint in the history list. | `boot_recovery.py:711-716` | Per-slot alias in config, shown beside version. |
+| 17 | `shani-snapshot-home.sh`'s own comment names the wrong opt-out key (`deploy_home_snapshot`); the config key is `home_snapshot` under `[deploy]`. | `shani-snapshot-home.sh:16`; `shani-deploy.sh:171,202`; `backup.md:56` | Fix the comment; keep the docs' `home_snapshot`. |
+
+**Skipped / not checked:** snapshot delta/diff, Files "previous versions", all skip-list items (already in GAPS), and no runtime/UI verification — static source and docs only. **Risk:** items 7 and 11 need backend work (`shani-deploy` has no single-backup restore flag and no boot-count JSON), so their ease is UI-only; the rest are UI/docs-only.
+
+## VERBATIM: Boot / splash / first-boot UX
+
+# Fourteenth-pass research: BOOT / SPLASH / FIRST-BOOT UX
+
+Read-only, static. Skipped prior items: safe-mode boot entry, verify-media boot, boot-failure fallback logic, TPM/MOK, setup password/encryption/import, first-boot migration, session chooser. GAPS files are 3,218 lines, not 8,300+ — all thirteen passes were checked.
+
+## What actually exists
+
+- **Splash:** Plymouth theme `bgrt` (`iso_profiles/shared/airootfs/etc/plymouth/plymouthd.conf:2`, `os-installer-config/scripts/configure.sh:656-658`). It is the two-step theme using the firmware BGRT logo plus `spinner` assets (`bgrt.plymouth:50,56`). Boot cmdline is `quiet loglevel=3 splash udev.log_level=3` (`iso_profiles/shared/efiboot/loader/entries/*.conf:4`; installed cmdline `configure.sh:900`).
+- **First boot:** no account is created at install (`config.yaml:107-108` `skip_user/skip_region: yes`). Vendor wizards create it (plasma-setup / gnome-initial-setup / cosmic-initial-setup — `shani-deploy/scripts/shani-first-boot.sh:14-15,242-246`); niri instead runs the ShaniOS wizard (`shani-shell/setup/shell.qml:1-6`, pages `welcome,keyboard,network,time,account,chronoa,done` at `:36`).
+- **Recovery:** automatic slot rollback plus dracut hooks; no graphical recovery UI.
+
+## Shell-fixable (ranked by value × ease)
+
+1. **Update entry point is a raw terminal, not a progress UI.** `shani/Services/Updates.qml:69-82` hands off to `pkexec shani-deploy` in a terminal with "Press Enter to close". No progress bar, no ETA, no phase text, nothing answering "why is this taking so long". *Sketch:* stream `--status --json` phase into an in-shell progress panel with a "usually 10–15 min, do not power off" line.
+2. **Account creation shows one undifferentiated "working" state.** `setup/shell.qml:75,320,1307`; `bridge/first-account.py:105-140` actually does 6 sequential steps (useradd, chpasswd, locale, keymap, timezone, hostname), each up to 60 s. *Sketch:* emit step names over IPC and show "Creating account (2 of 6)".
+3. **No "welcome" page on GNOME/Plasma/COSMIC.** Only niri gets the ShaniOS wizard (`setup/shell.qml:1-6`); the other profiles get vendor wizards with no Shani branding, privacy or Chronoa offer. *Sketch:* offer `shani-setup` as the first-login session on all profiles, or at minimum a branded first-run card in the shell.
+4. **Orphaned-home warning is console text only.** `shani-first-boot.sh:247-249` tells users to reuse the *same* username or they will not see their files; this goes to journal/kmsg, never to the screen. *Sketch:* detect the orphaned-home condition in the shell and show a one-time dialog after first login.
+5. **"Signing you in…" is a bare status.** `setup/shell.qml:301,599`. *Sketch:* "Creating your desktop — first login can take a minute" with a spinner.
+6. **No boot-time readout for users.** shani-health measures boot time (`shani-docs/docs/updates/shani-health.md:93`) but nothing surfaces it. *Sketch:* show last boot time on Settings › About.
+
+## Installer / firmware / docs-level (ranked)
+
+7. **No progress of any kind during normal boot.** `bgrt.plymouth:74-76` defines no `UseProgressBar` for `[boot-up]`; progress bars exist only for updates/system-upgrade/system-reset (`:86-112`). Combined with `quiet splash`, a slow boot is a static logo indistinguishable from a hang. *Sketch:* enable a boot-up progress bar/percentage, or drop `quiet`.
+8. **Impossible black-screen instruction in the docs.** `shani-docs/docs/install/first-boot.md:83` says "Remove `splash` from kernel cmdline in boot menu", but the cmdline is embedded in the signed UKI and the boot-menu editor is disabled (`docs/arch/boot.md:40,84`; `config.yaml` Secure Boot note). A user staring at a black screen cannot follow this. *Sketch:* replace with "reboot once; if it persists, select the other slot from the boot menu."
+9. **Recovery messages are invisible under the splash.** `shanios-recover-default.service:41-42` writes `journal+console`; the boot-failure hook only calls `warn()` (`shanios-boot-failure-hook.sh`). With Plymouth owning the VT, neither reaches the glass. *Sketch:* `plymouth display-message` before the emergency shell and on the post-recovery boot.
+10. **Slot-switch notice is hidden by design.** `shanios-boot-success-clear.sh:46-51,63` — "visible only via Plymouth's Escape-key details view; bgrt has no message area of its own" — so an update applying or rolling back is silent. *Sketch:* a 2-second "Now running the new version" overlay on the first boot after a switch.
+11. **First-boot script claims console output it never writes.** `shani-first-boot.sh:55-57` says it writes to "journal, the console, and /dev/kmsg", but `log()`/`warn()` at `:63-68` write only stderr + `/dev/kmsg`, never `/dev/console`. *Sketch:* add `printf … > /dev/console` for the "no account exists" warning.
+12. **No disk-unlock recovery-key UX at the prompt.** Docs promise "Plymouth presents the passphrase prompt" (`first-boot.md:13`; `arch/boot.md:164-168`) but give no retry count,Caps-Lock indicator, or recovery-key guidance at boot; recovery is a USB + `cryptsetup open` command dump (`arch/boot.md:168`). *Sketch:* add a one-line "Recover with your 48-digit key / backup keyfile" hint in the two-step dialog.
+13. **No hardware detection or driver prompt at first boot.** Nothing in `shani-first-boot.sh` probes hardware; docs simply assert everything works (`docs/faq.md:21`). A machine needing a driver/firmware has no first-run signal. *Sketch:* run a passive `fwupdmgr get-devices` / driver probe and show "Everything looks good" or a settings link.
+14. **Plymouth's "Do not turn off your computer" mode is never used.** `bgrt.plymouth:86-91` defines an update progress mode, but `shani-deploy` applies updates in the running OS, so the splash never shows an apply-progress screen. *Sketch:* call `plymouth change-mode --updates` before the deployment reboot.
+
+## Comparison (one line each)
+
+- **Windows:** WinRE graphical recovery + BitLocker 48-digit key prompt with escrow; Shani has docs-only recovery and no escrow.
+- **macOS:** Cmd-R graphical Recovery + progress bar; Shani's splash is a static vendor logo with no progress.
+- **Ubuntu:** plymouth text progress + a "recovery mode" boot entry; Shani suppresses all boot text and has no recovery entry (separate gap already listed).
+- **SteamOS:** comparable sealed A/B design, but ships a branded boot animation; Shani's bgrt shows only the OEM firmware logo and the spinner watermark, so on many machines it looks like an unbranded BIOS.
+
+**Skipped / unchecked:** no runtime, VM, hardware, Plymouth-theme or live-deploy verification; no changes made. Risk: items 7–14 need a real UEFI boot to confirm what the splash actually renders — the bgrt theme file inspected was a generated cache artifact.
+
+## VERBATIM: D-Bus shell surface as third-party API
+
+# Fourteenth pass — the shell's D-Bus surface as a third-party API
+
+**Architecture found.** Two distinct planes, never audited together: (a) the shell's *own* API is Quickshell's `IpcHandler` (`shani/shell.qml:258-1218`, 521 functions; `setup/shell.qml:340`), reached only by `qs ipc call shani …` over Quickshell's private IPC socket (`bin/shani:394-406`, `_run_call` :733). (b) *Actual D-Bus names* are owned only by Python bridges, because "Quickshell cannot export a D-Bus object" (`bridge/screensaver.py:4`). There is **no `org.shani.Shell` / `com.shani.Shell` interface at all** (grep: zero hits). Everything below is new vs. the thirteen prior passes.
+
+Ranked by value × ease (top = do first). Static only.
+
+| # | Gap | Evidence | One-line sketch |
+|---|-----|----------|-----------------|
+| 1 | **Any session process can drive every shell function, no polkit/peer check.** `lock`, `poweroff`, settings, file actions all reachable via one unauthenticated socket. | `bin/shani:394-406`; `shani/shell.qml:258,998`; no `get_sender`/`polkit` in IPC path | Add a restricted D-Bus facade with polkit `auth_admin` for privileged functions; keep `qs ipc` for trusted callers. |
+| 2 | **Agent approval bus-wide — a malicious app can approve its own tool calls.** `dev.shani.chronoa.Agent` exposes `Turn/Approve/Write/FindFiles` to any client; `Approve(id,decision)` is literally the user-consent gate. | `bridge/turn_filter.py:3`; `bridge/agent_contract.py:17-44` | Gate `Approve`/`Write` on the shell UI's sender (or a one-time token minted by the panel). |
+| 3 | **UI spoofing via Chronoa D-Bus.** Any process can call `Mascot.Show/Scale` and `Windows.Cue(text,hold)` → arbitrary text/noise drawn in the shell's Island. | `bridge/chronoa-bridge.py:67-98,327-387,444-446` | Check `sender` against the known shell/agent peers before broadcasting. |
+| 4 | **Any process can lock/reset idle/prevent locking.** `SetActive(true)`→shell lock; `SimulateUserActivity`; `Inhibit` → no auth. | `bridge/screensaver.py:82-94,70` | Restrict `SetActive`/`Inhibit` to known callers; keep `GetActive` open. |
+| 5 | **`dev.shani.Link` exposes contacts, call history, dial, notifications, location to any bus client.** `Search/Lookup`, `RecentCalls`, `Dial`, `Notifications`, `Location`, `SipAccount*`, `DeleteCall`. | `bridge/shani_link/service.py:38-140,227-239,484` (handlers take `_sender`, ignore it) | Sender-allowlist (shell + Link app); split read-only vs privileged interfaces. |
+| 6 | **Portal `OpenFile` returns user-chosen paths to any caller.** Impl-portal is normally reached via `xdg-desktop-portal` (which does checks); direct callers bypass that and harvest a path. | `bridge/portal.py:100-120,160-175,212` | Verify sender is `org.freedesktop.portal.Desktop` before serving. |
+| 7 | **No D-Bus Properties for shell state.** Current workspace, focused window, volume, dark mode exist only as a 200-key JSON blob from `state()` — pull-only, no `PropertiesChanged`, nothing bindable. | `shani/shell.qml:998-1218`; no `org.shani.Shell` anywhere | Export a small `org.shani.Shell` object with read-only properties + `PropertiesChanged`. |
+| 8 | **No D-Bus signals for shell events** (workspace change, notification, settings change, app open). The only emitted signals are compat-interface ones (Mascot/Windows, ScreenSaver `ActiveChanged`, MPRIS `Seeked`, Link `CallLogged`/`DeviceEvent`, appmenu `WindowRegistered`). External apps must poll. | `grep emit_signal bridge/*.py`: `screensaver.py:79`, `mpris-player.py:158,171`, `appmenu-registrar.py:59-63`, `shani_link/service.py:227,347,391` | Add `WorkspaceChanged`, `NotificationAdded`, `SettingsChanged`, `AppOpened` on the same facade as #7. |
+| 9 | **No service activation for most owned names.** Only the portal has a D-Bus `.service` file; `org.freedesktop.ScreenSaver`, `com.canonical.AppMenu.Registrar`, `dev.shani.Link`, `org.shani.Chronoa.*` are started ad-hoc by shell/process, so a client calling them cold gets `NameHasNoOwner`. | `find data -name '*.service'`: 3 files, only `data/portal/org.freedesktop.impl.portal.desktop.shani.service`; `data/systemd/shani-chronoa-bridge.service:4-10` | Ship `.service` files in `data/dbus/` for each owned name. |
+| 10 | **Bus names/paths not documented as a stable API.** Names are strewn through bridge docstrings with no central table; no version property except portal's `version=3`. | `bridge/appmenu-registrar.py:23`, `screensaver.py:30-31`, `mpris-player.py:27-28`, `chronoa-bridge.py:50-63`, `service.py:38`, `portal.py:32`; README only shows CLI examples `README.md:332-345` | Publish one `docs/dbus-api.md` table: name / path / interface / methods / since-version. |
+| 11 | **No versioning or deprecation policy on D-Bus interfaces.** Contrast the CLI/IPC version gap already filed — the *D-Bus* surface has no `SHANI_DBUS_VERSION`, no `Version` property, no ABI contract. | XML definitions in `portal.py:24-30`, `screensaver.py:36-53`, `chronoa-bridge.py:65-98`, `service.py:56-140` all lack version | Add a `Version` property (u) to each interface + a documented deprecation rule. |
+| 12 | **All bridges open names with `BusNameOwnerFlags.NONE`, no queue/replace policy for graceful handover.** | `portal.py:212`, `screensaver.py:70`, `chronoa-bridge.py:415,444,446`, `shani_link/service.py:484`, `mpris-player.py:182` | Use `ALLOW_REPLACEMENT|REPLACE_EXISTING` on upgrade paths with an owner-change watch. |
+| 13 | **Flatpak reachability of shell D-Bus names is undefined.** `flatperm.py` accepts `talk-name` flags and the UI exposes only that toggle; none of the shell's own names are declared/documented as needing a grant, so integrators can't know what to request. | `bridge/flatperm.py:39-40`; `docs/GAPS-RESEARCH.md:118` (ownership UI gap already filed — *this* is the missing name manifest) | Ship a `shani-shell` Flatpak permissions manifest listing each owned name. |
+| 14 | **No introspection-level docs for the relay contracts.** `org.shani.Chronoa.Mascot/Windows` are described only in a bridge docstring; the tool-call pill protocol (`Cue`) has no payload schema for third parties. | `bridge/chronoa-bridge.py:4-16,100-110` | Document payloads + emit standard introspection XML (already registered at :435-437 — just publish). |
+| 15 | **Portal is `FileChooser`-only as a public API** — Email/Share/Send and `org.freedesktop.FileManager1.ShowItems` are absent, so apps that target those freedesktop APIs can't integrate with the shell at all. | `data/portal/shani.portal:3` (`Interfaces=…FileChooser;`); `docs/GAPS-RESEARCH.md:96,404` (filed as feature gaps, not API surface) | Extend `shani.portal` Interfaces and implement the methods on `portal.py`. |
+| 16 | **No "caller identity" exposure for compat interfaces** — `appmenu-registrar` records `sender` but only to hand menu paths back; no consumer can ask "who owns this shell action?" | `bridge/appmenu-registrar.py:33-56` | Add an `Owner` property/introspection annotation on owned menu/window objects. |
+
+**Comparison (context, not new gaps):** GNOME Shell deliberately removed Eval but still publishes documented `org.gnome.Shell` / Shell-Extension D-Bus; KDE ships versioned `org.kde.*` interfaces with introspection; sway publishes a documented, versioned IPC socket protocol. Shani has a large *private, unversioned* `qs ipc` socket plus undocumented compat D-Bus names — closest to sway's socket in mechanism but with neither sway's protocol doc nor KDE's versioning.
+
+**Ranking note:** #1–#6 are security (high value, low effort — mostly one `sender` check each); #7–#12 are the API-design core; #13–#16 are documentation polish.
+
+End notes: I did not runtime-verify D-Bus sender credentials or Quickshell socket file modes (no bus/Flatpak in this container) — all security claims are static. Risk: #2/#5 may be intentional bus-wide design; confirm with the Chronoa/Link owners before hardening so legitimate peers aren't locked out.
+
+## VERBATIM: Chronoa backend under-exposure
+
+# Fourteenth-pass deep gap research — shani-chronoa backend under-exposure in the shell
+
+Static only. Read both GAPS files and skipped the listed Chronoa gaps (conversation history, cloud visibility, tool-choice/selection, prompts, window context, model switch, markdown replies, translations, voice/wake/PTT controls, approvals, privacy/memory, streaming cancel, backend items 15–22, LSP/etc.). Ranked by value × ease.
+
+## High value / low ease-to-high value (do first)
+
+**1. Structured tool arguments are thrown away.**
+Backend emits `tool` / `tool_done` with `tool` and `args` fields, not just prose (`agent_service.py:190-198`). Both shell handlers read only `e.text` (`ChronoaSurface.qml:33-36`, `Chronoa.qml:79-85`). Sketch: pass `e.tool`/`e.args` into `panel.addTool()` and render an expandable "ran <tool>(<args>)" row — the shell's tool pill currently cannot say *what* ran.
+
+**2. Compaction events are silently dropped.**
+`on_compaction` fires once per turn when history is elided (`agent_service.py:209-210`); neither `Chronoa.qml:72-105` nor `ChronoaSurface.qml:32-50` has a case. Sketch: add a dim "Earlier turns were trimmed to fit" line so "it forgot what I said" is distinguishable from a full window.
+
+**3. Turn-id broadcasts are ignored.**
+Bridge emits `{"type":"turn","id":...}` for each `Agent.Turn` reply (`chronoa-bridge.py:232-235`); `Chronoa.qml:119-149` has no `e.type === "turn"` branch. Sketch: keep the id in `Chronoa` so approvals/cards can be keyed to a turn without re-parsing prose.
+
+**4. The shell exposes only 4 of ~36 Chronoa GActions.**
+Backend registers 36 actions in `_create_actions()` (`application.py:1688-2095`); shell QML names only `toggle-listening`, `dictate`, `stop-speaking` plus the `page:` path through `Services/Chronoa.qml:51-53`. Sketch: add a bridge `op:"gaction"` allow-list (name + optional variant) and wire the high-value ones below rather than hard-coding each.
+
+**5. Project folder / Build mode is unreachable from the shell.**
+`choose-project` and `clear-project` exist (`application.py:1912-1917`) and `buildmode.set_project()` feeds skills/prompt; shell has no project control. Sketch: expose through #4 and show current project in the Island pill.
+
+**6. MCP server state is invisible.**
+Backend ships a real stdio MCP server exposing all skills (`mcp.py`); `reload-mcp` exists (`application.py:1921-1924`) but the shell cannot list configured servers or tool count. Sketch: bridge op returning `mcp-servers` setting + discovered tool count, shown in Settings > Chronoa. (Distinct from listed item 18, which is about *registering* tools.)
+
+**7. Inbound channel bridges have no shell face.**
+`gateway.py` (Registry, `Submit`, rate limits) and `channel_bridge.py` (Telegram/WhatsApp) plus `lan_bridge` are fully built; `chronoa-bridge.py:191-222` has no gateway op and `SettingsChronoa.qml:1-56` has no row. Sketch: read `gateway.Registry.names()` over D-Bus, show "Listening for: …" + a start command for the bridge, mirroring Chronoa's own Privacy row.
+
+**8. Chronoa's entire Settings window is behind an external process launch.**
+`SettingsChronoa.qml:40-48` shells out `gapplication action dev.shani.chronoa open-settings`; the schema has ~225 keys and `settings_window/` has five sections, while the shell surfaces only enable/kill + one Island toggle (`:24-43`). Sketch: expose a short list of machine-wide switches (auto-start, start-hidden, debug, ambient rules) directly in the shell page and leave deep tuning to Chronoa.
+
+**9. Mascot settings are declared and read but have no shell control.**
+`mascot-enabled`, `-corner`, `-sounds`, `-sounds-volume` are schema keys read by the app; the shell receives `Status/Show/Art` over `org.shani.Chronoa.Mascot` (`chronoa-bridge.py:4-8,50-52,327-377`) but cannot flip any of them. Sketch: add a "Desktop companion" row group under #8.
+
+**10. Learned tool priors never reach shell suggestions.**
+`learning.evaluate_bandit`, `experience_summary`, `organ_status` are computed but only displayed in Chronoa's own Learning panel; `Smart.qml:15-38` and `SmartReplies.qml:20-35` are fixed regex/instruction logic. Sketch: ask Agent for a ranked skill hint (one `Write` call) and order the clipboard chips by it. (Distinct from listed "static suggested prompts", which is about the *panel* chips.)
+
+**11. Search provider runs on a separate bus name the shell ignores.**
+Backend `search_provider.py` exports GNOME Shell SearchProvider2 / KRunner `org.kde.krunner1` independently; the shell launcher uses its own index. Sketch: expose a bridge op that forwards launcher queries to the backend provider so both surfaces rank the same corpus.
+
+**12. Usage/cost telemetry has no shell surface.**
+`usage.py` / `dashboard.py` track tokens and provider cost; the shell's Island and panel show no per-turn or per-day total. Sketch: extend the bridge `event` stream with a compact usage record and show a small footer in the panel.
+
+## Lower value / still concrete
+
+**13. `answer-question` action cannot be driven from the shell.** Registered at `application.py:1992-1994` for notification-originated questions; the shell's notifications module only offers `Chronoa.ask()`. Sketch: add a notification action that calls it with the answer string.
+
+**14. `setup` / `setup-page` are only reachable by spawning the app.** Registered at `application.py:2065-2080`; shell cannot open a specific setup page (ears/voice/memory) when a model is missing. Sketch: reuse `page:` prefix in `Services/Chronoa.qml:51-53` for `setup:<tag>`.
+
+**15. Voice-clone reference-clip health is not visible.** Backend `voice_clone.clip_problem()` reports missing/oversize recordings; shell has no row for it. Sketch: add to a voice status card fed through the bridge (avoids the listed voice-*control* gap — this is file health, not switches).
+
+**16. Cloud speech recognition is unavailable to shell dictation.** `cloud_voice.CloudSTT` exists with its own consent switches; `bridge/dictate.py:165-213` only builds local `stt.build_stt`. Sketch: add a fallback branch when no local model is provisioned, gated on the existing `cloud-stt-enabled`.
+
+**17. `transcribe-file` action is unreachable.** Registered at `application.py:2087-2090`; the shell's recorder saves files but cannot hand one to transcription. Sketch: add "Transcribe" to the recording card's action row via #4.
+
+**18. `find-in-conversation` / `show-body` / rail/sidebar toggles are app-only.** Registered at `application.py:1817-1841`; the shell panel has its own transcript and no bridge to these. Sketch: map them to panel-local actions instead of D-Bus where the widget exists.
+
+## Method risk
+All conclusions are static; no QML runtime, D-Bus introspection of a live session, or backend execution was performed. Items 4–9 assume bridge actions can be dispatched generically; an allow-list is required because `ActivateAction` (`chronoa-bridge.py:296-300`) currently passes no parameters and several backend actions need string variants. Items 10–12 need new Agent events — the bridge only forwards the fixed event set in `agent_service.py:18-28`.
+
+## VERBATIM: Niche/commercial desktop comparisons
+
+Read all 13 passes plus the three context docs. Below are features from OSes/desktops the earlier passes never compared (elementary 8, Mint/Cinnamon, Garuda, Batocera/LibreELEC/Kodi, tvOS/Tizen/webOS, ChromeOS, Clear Linux, postmarketOS, etc.). I excluded every idea already filed in the seven earlier "other desktops" tables and the 15 "latest releases" items. All verdicts are static — no runtime, hardware or TV remote was available.
+
+## New findings — QML shell + bridges can deliver
+
+**1. Cinnamon-style Panel Edit Mode + applet manager (Linux Mint)**
+Other: right-click panel → Applets, add/remove/reorder applets by drag, manage multiple panels. Today: bar widgets can be toggled but not reordered; one bar + one dock. Feasibility: High (bar is a Repeater; Docking profiles already persist layouts). Sketch: Settings › Bar › "Customize…" enters a drag/remove mode over bar delegates, persisting order via `Settings.data`.
+
+**2. Taskbar-style window list in the bar (Cinnamon/webOS shelf)**
+Other: every open window is a labeled button — click to focus, right-click to close, active one marked. Today: app menus, tray and dock with running dots, but no per-window buttons. Feasibility: High — `Niri.windows()` already exposes titles/ids. Sketch: a "Window list" bar applet of focus/close chips, gated for TvHome and narrow screens.
+
+**3. App-grid Edit Mode — reorder, hide, folders (tvOS/Tizen/webOS home)**
+Other: hold a tile → jiggle mode, drag to reorder, hide apps, group into folders. Today: ranked launcher + category chips; no persistent user order or hide. Feasibility: High. Sketch: a "Customize apps" toggle in Launcher → drag reorder, hide, create folder; persist an order array and hidden set.
+
+**4. tvOS "Top Shelf" focused-app hero preview**
+Other: focusing a tile swaps a large banner above the grid for that app's art plus two or three contextual actions. Today: TvHome is a flat app grid. Feasibility: High. Sketch: header delegate bound to TvHome's focused index, showing art + deep links from the app's `.desktop` `Actions=`.
+
+**5. LibreELEC/Kodi "Continue Watching" row**
+Other: home row of in-progress films/episodes with progress bars and Resume. Today: Media Player has a recent-media list and persisted resume points, but TvHome does not surface them. Feasibility: High. Sketch: TvHome section fed by `PlayQueue` resume entries, each tile with a progress bar and "Resume".
+
+**6. Batocera/EmulationStation game library**
+Other: per-system grids with box art and metadata (genre, players, rating), favorites, last played. Today: games are Flatpak-only; the gamescope console has settings tiles, no library. Feasibility: Med — scrape installed game `.desktop` files and a Steam library for art. Sketch: a Games app/TvHome section with art tiles, favorites, last-played and a launch button.
+
+**7. Garuda Network Assistant — guided troubleshooter**
+Other: a wizard walks cable/Wi-Fi → IP → DNS → gateway → internet, showing pass/fail and a Fix button per step. Today: captive-portal detection and a NetworkManager settings page, no guided diagnosis. Feasibility: Med-high (`nmcli`/`ping`/`dig` already used). Sketch: a "Fix connection" card stepping through those checks with one-click remedies.
+
+**8. Garuda upgrade-adviser "needs attention" card**
+Other: after an update, a hook lists orphaned packages, stale AUR packages and `.pacnew` files, with a critical notification. Today: Updates shows failures/history; Cassini Maintenance cleans caches; nothing flags post-update review. Feasibility: High. Sketch: after an update, a card listing unused Flatpak runtimes, outdated Flatpaks and changed config files, each with an action.
+
+**9. Unresponsive-app watchdog — Wait / Force Quit (elementary/GNOME)**
+Other: a frozen app dims and offers Wait or Force Quit. Today: no freeze detection; the window menu force-kills only the focused window. Feasibility: Med — niri exposes no freeze event, but System Monitor already polls `/proc`; map D-state/stalled pids to windows over niri IPC. Sketch: a watchdog card naming the app, with Wait / Force Quit behind the existing two-click confirm.
+
+**10. ChromeOS clock → combined calendar + notifications tray**
+Other: clicking the clock opens one panel with a month calendar, upcoming events and notifications. Today: Calendar, the notification centre and the clock are three separate surfaces. Feasibility: High. Sketch: the bar clock opens a right tray embedding the existing Agenda day list and notification cards.
+
+**11. ChromeOS lock-screen accessibility dock**
+Other: a persistent lock-screen button opens magnifier, screen reader, high contrast and captions. Today: the lock surface has camera/power/media only; `Super+Alt+S` is the sole toggle. Feasibility: High. Sketch: a small a11y chip on the lock surface applying the existing `Access.qml` toggles without unlocking.
+
+**12. Kodi profiles on a shared TV**
+Other: switch profiles; each has its own watched state, favorites and settings, PIN-gated. Today: per-user settings exist, but Media Player/TvHome hold one library state. Feasibility: Med. Sketch: an Island profile switcher with per-profile watched/favorites stores and a Keyring PIN.
+
+**13. Clear Linux "Verify & Repair" (`swupd verify --fix`)**
+Other: verify installed file integrity and repair corrupt files with one command. Today: health check and problem report are read-only — "no remediation actions" is already an open gap. Feasibility: Med — `pacman -Qkk`/Flatpak checks over the active slot, fix via polkit. Sketch: Settings › About › "Verify system files" → list of changed/missing files + Repair.
+
+**14. Starred files virtual folder (Pantheon Files)**
+Other: star a file; a "Starred" sidebar folder shows favorites across folders. Today: Files has bookmarks and tags/ratings in Photos, but no favorite files. Feasibility: High. Sketch: a star action in the file list/Quick Look plus a "Starred" sidebar entry backed by a JSON path list.
+
+**15. External media drive → "index / play" prompt (Kodi)**
+Other: inserting a drive with media offers to add it to the library. Today: removable-media defaults choose an opener, but nothing offers to index. Feasibility: Med (udisks + an ffprobe/mediainfo scan). Sketch: on mount, a card offering "Add to library", "Open in Media Player" or "Ignore this drive".
+
+**16. Screenshot / Screen record in the power menu (ChromeOS)**
+Other: the power/status menu has direct Capture and Record entries. Today: Screenshot and Screen Recorder exist as apps and capture tools have no in-place key list; the power menu only has Shut down/Restart/Suspend/Log out/Lock. Feasibility: High. Sketch: two power-menu rows invoking the existing capture services with their current settings.
+
+## Explicitly out of scope (hardware / server / compositor)
+
+visionOS gaze-and-pinch windows and Mac Virtual Display; SteamOS community controller-layout downloads (server) and fan curves (firmware); Tizen bezel rotation and HDMI-CEC (Batocera/LibreELEC); webOS Magic Remote pointer; postmarketOS/Mobian charging profiles, phosh orientation lock and emergency call (modem); Manjaro kernel/GPU-driver switching and NixOS generations boot entries (privileged/installer); Garuda cloud-save sync and retroachievements (server); Tizen Multi-view and true PiP (niri has no arbitrary PiP).
+
+**Skipped / risk:** I did not verify any of these against a QML runtime, hardware or a TV remote — feasibility is inferred from existing bridges/`Niri` IPC calls, so item 9 (no compositor freeze event) is the least certain. Items 12 and 15 assume per-profile state and drive-scanning that would need a small new data store.
+
+## VERBATIM: Shani Link GTK app features not surfaced in shell
+
+# Fourteenth-pass gaps — shani-link GTK app features the QML shell never surfaces
+
+Scanned `shani-link/{README.md,shani_link/app/*,shani_link/{service,settings,android,fm_radio,nfc,ir_remote,moyoung}.py}` against `shani-shell/{shani/Services/Link.qml,Phone.qml,CallsWindow.qml,MessagesWindow.qml,bridge/link.py}`. Ranked by value × ease. Static only.
+
+**1. Five of seven GTK pages have no shell entry point — [high × trivial].** GTK has Phone, Watch, Devices, Radio, NFC, Remote, Background (`shani-link/shani_link/app/window.py:90-98`) with `--page=`/alias deep links (`:102-110`), but the shell only ever execs `--page=phone` and `--page=contacts` (`shani-shell/shani/Services/Phone.qml:41-58`; `Island.qml:51`). Watch/Radio/NFC/Remote/Background/Screen are invisible from the shell. *Sketch:* Shell launcher/menu tiles calling `shani-link-app --page=<id>`.
+
+**2. No Link settings UI — [high × easy].** GTK's Background page exposes 14 named switches with explanations (`shani-link/shani_link/settings.py:22-37`, `app/switches.py:24-70`, `app/background.py:40-60`); the shell has zero way to view or set any of them. *Sketch:* `link.py settings [key] [on]` via D-Bus `Settings`/`SetSetting` (`service.py:49-50,350-357`) + a Link Settings panel.
+
+**3. Screen mirroring has no shell controls — [high × medium].** GTK Screen page offers Check / Start / Share a window / Stop, an off-by-default Touch switch, a full last-action report, and names the phone-side sound/mic/camera buttons (`app/screen_share.py:78-145,161-274`). Shell has no equivalent (its Radio/Screenshot services are unrelated). *Sketch:* `link.py screen <status|start|start-window|stop>` + a tile with a Touch toggle and full report label.
+
+**4. Watch dashboard is entirely GTK-only — [high × medium].** Steps-vs-goal ring, 3-day bars, sleep stages, stress sparkline, on-demand heart rate / SpO₂ / blood pressure, workouts, Find, Sync time, watch Settings and "Send to watch" (`app/wearables.py:617-650`; `app/watch_dashboard.py:137-372`). `bridge/link.py:42-45` imports no watch module. *Sketch:* `bridge/watch.py` over `moyoung.health_summary()/measure()/find()`; QML cards with Theme styling.
+
+**5. Android USB tools are reduced to one "share" call — [high × medium].** GTK exposes battery/storage, screenshot, send file, list apps, paste-and-open link (`app/android.py:302-398`), but the engine also has screen recording, launch app, brightness, pull, plus notifications, screen time, telephony line, Wi-Fi, thermal, location and display reads (`shani_link/android.py:34-35,135-300`). *Sketch:* `link.py android <verb> [serial]`, show as a Devices tab.
+
+**6. Phone diagnostics reads never reach the shell — [medium-high × easy].** D-Bus `Phone` offers `Notifications`, `Usage`, `Line`, `Wifi`, `Thermal`, `Location`, `Display` (`service.py:105-111,323-329`); `bridge/link.py` uses none. *Sketch:* seven one-line bridge commands + a "Phone" status tile.
+
+**7. Live in-call controls missing from Calls — [high × medium].** GTK has a call timer, mute, audio-output picker, DTMF keypad, hold/swap/merge, call-status refresh, two-sided recording and a video surface (`app/phone.py:776-806,926-1026,1469-1579`). Shell `CallsWindow.qml:41-160` is a pad + history only; `Link.hangup()` is unused there. *Sketch:* `link.py callctl <action>` and an in-call card bound to `Link` state.
+
+**8. SIP account manager has no shell surface — [medium × medium-high].** GTK add/edit/remove with UDP/TCP/TLS, preset ports, password kept server-side, Undo (`app/sip_accounts_view.py:26-120`; `sip_accounts.py:1-40`). Shell has no VoIP settings and `Link.lines` only shows landline/modem ids (`bridge/link.py:cmd_state`). *Sketch:* bridge wrapper over `app/sip_client.py` + a small settings page.
+
+**9. Phone music control not in Media Player — [medium × easy].** GTK Music tab shows current track with Previous/Play-or-pause/Next/Refresh over MPRIS (`app/phone.py:1914-1949`). Shell's Media Player has no phone source. *Sketch:* `link.py media <action>` and a "Phone" source row.
+
+**10. Received-files list and receive switch missing — [medium × easy].** GTK Files tab lists the 40 newest files in `Downloads()` with sizes and toggles "Receive files from your phone" in place (`app/phone.py:1950-2027`). Shell only does one-way `share()` (`Link.qml:51`). *Sketch:* `link.py received` + a Files section in Link.
+
+**11. Shell always picks the first device — [medium × medium].** GTK keeps one card per adb serial (`app/android.py:410-490`), per watch (`app/wearables.py:617-650`), and passes device ids everywhere; shell hardcodes `_first_device()` (`bridge/link.py:88,238,251,294`) and `phone` = first paired/reachable (`Link.qml:33`). *Sketch:* add device ids to `Link.devices` and a picker used by send/dial/share.
+
+**12. Generic BLE/GATT inspector — [low-medium × medium].** GTK shows friendly UUID names, stored values, and a 10-second `Listen` for notify-only characteristics (heart rate etc.) on every paired LE device, plus iPhone-on-USB detection (`app/wearables.py:352-415,510-593`; `app/devices.py:320-340`). *Sketch:* read-only `link.py gatt <mac>` list.
+
+**13. Live FM/SDR radio is absent from shell Radio — [medium × medium, hardware-gated].** GTK has 14 frequency presets, Tune/Stop/Volume/Play recording/Find stations/Bands (`app/tools_pages.py:307-344`; `fm_radio.py:677-773`). Shell `Services/Radio.qml` is internet radio only. *Sketch:* thin `bridge/fm.py` + a "USB radio" section in RadioView.
+
+**14. NFC read/write UI — [low × medium].** GTK reader detection and Read (6/15/30 s) / Write link actions with explicit empty state (`app/tools_pages.py:346-371`; `nfc.py:376-410`). Shell has no NFC surface. *Sketch:* reuse the GTK action-page shape in a QML panel.
+
+**15. Infrared remote learn/send — [low × medium].** GTK learns a button, picks a remote/key from `irsend`'s own lists, or sends a raw NEC/RC-6 code, with send-capability gating (`app/tools_pages.py:373-435`; `ir_remote.py`). Shell has nothing. *Sketch:* `bridge/ir.py <receive|remotes|keys|send>` + panel.
+
+**16. Pairing wizard's QR/passkey flow is unreachable from shell — [medium × easy].** GTK shows an adb Wi-Fi QR code, pairing-code entry and mDNS discovery (`app/connect_device.py:526-560`), Bluetooth confirm/passkey prompts (`:369-406`), and LAN pairing with Accept/Cancel (`:616-703`). Shell has only `kdeconnect-cli pair/unpair/ping` (`Phone.qml:21-28`). *Sketch:* one "Connect a phone" tile launching `shani-link-app --connect=android|bluetooth|kdeconnect`.
+
+*Skipped as instructed:* Messages/Calls/Phone comparison, Link engines, device management mechanics, clipboard share, kdeconnect, PBAP/MAP, tethering. Not checked: whether bridge import of `moyoung`/`android` is safe when shani-link is absent (the existing `_module()` helper suggests yes); hardware-dependent items 13–15 are untestable in the dev container.
+
+---
+
+# Thirteenth pass — VERBATIM agent reports
+
+## VERBATIM: Undo/redo consistency
+
+# THIRTEENTH-PASS — UNDO/REDO CONSISTENCY (static, read-only)
+
+Method: grepped all 351 QML modules + Services for `undo`/`redo`/`pushUndo`/`trash`/`remove`/`confirm`/`Key_Z`, read the undo primitives (`Common/Toast.qml`, `Services/Files.qml:836-880`, `Common/Settings.qml:72-90`, `Services/TextDocs.qml`, `Services/WindowLayouts.qml`). Skip-list items excluded (editor, Files, WindowLayouts, TextFields, Notes, RRULE, PDF history). "Undo" below means a reversible user action, not a trash backend.
+
+## A. Destructive, single-click, zero undo (highest value × ease — reuse the existing two-tap pattern)
+
+1. **Photos "Move to trash" bypasses the Files undo stack entirely.** `PhotosWindow.qml:418-421` → `Viewer.trash()` (`Viewer.qml:300-309`) calls `gio trash` directly and "optimistically drops it from the folder" — no `Files.pushUndo`, so no Undo bar anywhere. **Sketch:** route through `Files.trash(paths, cb)` (as `PhotosWindow.qml:92-96` already does for batch). Highest-value gap in this pass.
+
+2. **Mail delete is one click, no confirm, no undo — hits IMAP.** `MailWindow.qml:304-307` → `Mail.remove()` (`Services/Mail.qml:47`, `126`) → server delete. **Sketch:** two-tap confirm (pattern at `ContactsWindow.qml:37-39`) before `Mail.remove`.
+
+3. **Calendar event delete is one click, no confirm, no undo — writes EDS.** `CalendarPanel.qml:1325` → `deleteEditor()` at `:446-449` → `Agenda.deleteEvent()` (`Services/Agenda.qml:145`). **Sketch:** two-tap, or capture payload and offer "Undo" toast before the EDS write.
+
+4. **Feed subscription "Remove" is one click, no confirm, no undo.** `FeedsWindow.qml:112-115` → `Feeds.remove()` (`Services/Feeds.qml:50`) → bridge `remove`. **Sketch:** two-tap + keep `(url,title)` for an Undo that re-adds.
+
+5. **SSH host delete is one click, no confirm, no undo.** `TerminalAppWindow.qml:180` → `TerminalApp.deleteHost()` (`Services/TerminalApp.qml:41`) rewrites the config. **Sketch:** two-tap; Undo re-inserts the saved entry.
+
+6. **Web-app remove is one click, no confirm, no undo.** `SettingsWebApps.qml:23-25` → `WebApps.removeApp()` (`Services/WebApps.qml:42`) deletes the .desktop + icon dir. **Sketch:** two-tap + stash the descriptor for re-add.
+
+## B. Two-tap confirmation exists, but there is still no undo (medium value, trivial ease)
+
+7. **Contact delete** — `ContactsWindow.qml:443-452` (4 s timer `:39`), `Contacts.qml:112`. Two taps protect against slips, not regret; no restore. **Sketch:** on delete, toast "Contact deleted · Undo" re-writing the VCF.
+
+8. **Authenticator key remove** — `AuthenticatorWindow.qml:26,94,195-199` (4 s), `Keyring.qml:30`. Removing a TOTP secret is unrecoverable and locks the user out of a site. **Sketch:** keep the secret in memory for the toast window; Undo re-writes it.
+
+9. **App uninstall / leftover / AppImage remove** — `SoftwareWindow.qml:35,333-335,510-512,541-542` (4 s), no undo. **Sketch:** Undo re-runs install / moves leftover back from trash.
+
+10. **Container / image remove, box remove, and unconfirmed prune** — `ContainersWindow.qml:233-236,308-311,381-384`; `prune` at `:349-351` has **no confirm at all**. **Sketch:** two-tap prune; record `id` for a re-pull/re-create Undo.
+
+11. **Process end — KILL has no undo** — `Processes.qml:343-415` (3 s two-tap) → `TopProcesses.qml:36-38` `kill -KILL`; no way to restore a killed process's state. **Sketch:** label "End (cannot be undone)" for KILL, prefer TERM by default.
+
+12. **Clipboard wipe is irreversible** — `Clipboard.qml:160-166` `wipe()` blanks primary + history in one call, no confirm/undo. **Sketch:** move entries to a one-deep "recently wiped" stash exposed as Undo.
+
+13. **Notification "Clear"/"Clear all"** — `Notifs.qml:179-182` dismisses every tracked notification, no undo (also `NotificationCard.qml:129` Delete key). **Sketch:** keep dismissed ids in a toast-undo list and re-announce.
+
+14. **Automation rule removal/toggle writes immediately** — `SettingsAutomations.qml:60-62` (`setRules`) and `:59`. No confirm, no undo, and a removed rule's text is gone. **Sketch:** stash the previous rules array; Undo restores it.
+
+## C. Multi-step operations — batch is atomic in one place, not elsewhere
+
+15. **Folder sync (`rsync`) has no undo** — `Services/Files.qml:1295-1309` writes "Folders synced" with no `pushUndo`, unlike copy/move at `:664-670`. A sync can overwrite many files. **Sketch:** preview + `--backup-dir` and push one inverse undo entry.
+
+16. **PDF merge has no undo** — `PdfReader.qml:36-41` → `PdfViewer.merge()`; result is a new file with no removal/undo path. **Sketch:** Undo = trash the output, keep source list.
+
+17. **Video trimmer segments have no undo** — `Services/VideoTrimmer.qml:198-224` `addSegment/removeSegment/clearSegments` mutate an array with no history; `S` split and `clearSegments()` (`:209`) wipe multi-segment work in one key. **Sketch:** one `undo` restoring the previous `segments` array; add `Ctrl+Z` in `VideoTrimmerPanel.qml:29-34`.
+
+18. **Settings "Undo" is not a true undo** — `Common/Settings.qml:72-90`: `undo(key)`/`undoAll()` reset to the **sign-in snapshot** (`loadedValues`, taken at `onLoadedChanged:47`), so A→B→C undoes straight to A, not B, and after a shell restart the snapshot *is* C so Undo silently vanishes. UI is a rail button only (`SettingsWindow.qml:178,185`), no `Ctrl+Z`. **Sketch:** push per-change old values onto a small stack; persist or document "back to sign-in".
+
+## D. Cross-cutting (systemic, never audited as a discipline)
+
+19. **Undo affordances are inconsistent and mostly unreachable.** Undo keybindings: Files `Ctrl+Z`/`Ctrl+Shift+Z`/`Ctrl+Y` (`FilesPanel.qml:142-148`); TextEditor full (`TextEditorPanel.qml:435-436`); Whiteboard `Ctrl+Z` **no redo** (`Whiteboard.qml:120`); Annotate **bare `Z`** and bare `E` clear that is unrecoverable (`Annotate.qml:92-94`); WindowLayouts undo-only; Settings button-only; most destructive apps **no shortcut at all**. The 2-tap windows use three different timers (3 s `Processes.qml:344`, 4 s Contacts/Authenticator/Software/Disks, 7 s Files note `:2893`). **Sketch:** one shared "last destructive action" Undo action bound to `Ctrl+Z` + a single confirm-timer helper.
+
+20. **Toast Undo is fragile and inaccessible.** `Common/Toast.qml` is the *only* QML with `Qt.accessibleAnnounce` (`:29`), auto-dismisses in **5 s** (`:67`), and its Undo `Button` (`:57-63`) has no KeyFocus/shortcut — unusable by keyboard or screen reader. Files' much more common undo bar (`FilesPanel.qml:2872-2894`) has **no announce and no Accessible name**, lasts **7 s** (`:2893`), lives inside the Files window, so an undo triggered from another app has no visible surface (cross-app undo cannot be surfaced), and none of it survives a shell restart (all undo stacks are in-memory properties: `Files.qml:837`, `Settings.qml:44`, `WindowLayouts.qml:42`). **Sketch:** give Undo buttons `KeyFocus`/`Accessible.name`, unify duration to ~10 s, and rehome the bar in a shell-level layer so any app's undo can be shown.
+
+**Skipped:** no runtime verification (static only); did not re-audit the seven listed items or re-test the prior research items I extended (only added consistency framing). **Risk:** #1 is a one-line call-site change but must confirm `Files.trash` callback refreshes Photos' own `list` — `Viewer.trash` currently mutates it directly at `:305-309`.
+
+## VERBATIM: External service integrations
+
+# 13th-pass audit — external service integrations & webhook/API surface (read-only, static)
+
+**Skipped (already in GAPS files):** webhook server (Chronoa's WhatsApp HMAC adapter), no log upload, shani-insights, remote desktop, IFTTT-style automation actions, CalDAV accounts, missing CardDAV, rclone mounts, GOA/Online Accounts, portal Notification/Email/Share, share-sheet→own-apps, shani-link SMS/calls.
+
+**What exists (so the gaps are precise):** inbound notifications come only from the shell being a standard `org.freedesktop.Notifications` daemon (`shani/Services/Notifs.qml:1-2`; `notify-send`/`gdbus` work, `docs/voltkit-alignment.md:33`). The only HTTP listener in the tree is a folder share (`bridge/serve.py:1-16,32-34,218-223`); the only true webhook is in shani-chronoa (`usr/lib/shani-chronoa/shani_chronoa/channel_bridge.py:209-266`, feeds `Submit` D-Bus — Telegram/WhatsApp only, `ARCHITECTURE-TARGET.md:471`). Outward: `Services/Automations.qml:6-11,32-53` = 5 triggers / 6 actions (`run` is `sh -c`); `Services/Hooks.qml:3-5,17-19` = 6 local events. `bridge/cloud.py:2-18,29-37` mounts rclone drives only. No MQTT/Home Assistant/GitHub/GitLab/Slack/Discord/Matrix reference exists anywhere in shani-shell.
+
+### Shell-fixable — ranked by value × ease
+
+1. **[high × trivial] No `shani notify TITLE BODY`.** `bin/shani:34-384` defines 39 command groups, none `notify`; a script/cron/phone must know raw `gdbus`/`notify-send` (`README.md:378` shows it only as a harness tool). *Sketch:* add a `notify` group that calls the D-Bus `Notify` method with `--urgency/--app/--hint`, and document it as the phone→desktop push path.
+2. **[high × med] No authenticated inbound webhook.** `bridge/serve.py` serves GET/PUT files only; nothing maps an HTTP POST to a notification. *Sketch:* `bridge/webhook.py` loopback/LAN endpoint, per-token HMAC (mirror Chronoa's `channel_bridge.py:249-266`), JSON→D-Bus `Notify`; bind loopback by default and document a tunnel for remote callers.
+3. **[med × easy] No remote ICS calendar subscription.** `bridge/agenda.py:11-13,602` only imports a local `.ics` or adds a CalDAV account (`agenda.py:551-582`). *Sketch:* `agenda.py subscribe URL` polls a read-only ICS into a local EDS calendar — covers team-leave and ticket-milestone feeds.
+4. **[med × med] Mail never pushes a new-message alert.** `bridge/mail.py:376-404` opens IMAP on demand with no `IDLE`; `Services/Mail.qml:43,158` refreshes only on open/action. *Sketch:* a small IMAP `IDLE` watcher in `mail.py` emitting one notification per new message (reuse #1).
+5. **[med × med] Share can't upload to a cloud or POST a file.** `Services/Share.qml:20-35` offers phone/BT/LocalSend/QR/email/copy/open; `bridge/cloud.py` has `add/mount/remove` but no upload or link command. *Sketch:* `cloud.py upload NAME FILE` and `link NAME FILE` (rclone `copyto`/`link`) plus two Share targets.
+6. **[med × med] No machine-readable shell event stream.** Battery-low exists but only calls `notify-send` (`Services/Power.qml:97-113,120-130`); hooks are 6 closed local events (`Hooks.qml:17-19`), automations 5 internal triggers. *Sketch:* emit a D-Bus signal/JSON-lines feed for notification, battery, download-complete and calendar-start that external daemons can subscribe to — distinct from adding more IFTTT actions.
+7. **[med × med] No generic secret/token home for integrations.** Mail password is env/keyring (`bridge/mail.py:17`); rclone tokens live in `rclone.conf` (`bridge/cloud.py:112-114`); no third-party token store. *Sketch:* a `bridge/tokens.py` front end to GNOME Secret Service so webhooks/services never keep bearer tokens in plain settings.
+8. **[low × easy] Feeds can't accept push.** `bridge/feeds.py:140-148` fetches by polling; no WebSub (`GAPS.md:333-338` documents one refresh timer). *Sketch:* on feed add, send a WebSub subscribe carrying the #2 webhook URL as callback.
+
+### Needs a service / account
+
+9. **[high × med] No Home Assistant / MQTT at all.** No `mqtt`, `hassio`, presence or sensor reference in the tree. *Sketch:* `bridge/mqtt.py` subscribes `home/presence`, `home/sensors/#` → notifications/Island card and publishes shell events (#6) back — needs a broker/HA instance and credentials.
+10. **[high × med] No GitHub/GitLab integration.** `bridge/appstore.py:260-262` is HTTP only for Flathub; nothing reads notifications/PR reviews/issues. *Sketch:* `bridge/devcloud.py` polls the REST notification endpoint → Notifs, plus "issues due today" as an #3 subscription; needs a token.
+11. **[high × med] No CI status surface.** Updates/Software are OS-only; no Actions/GitLab CI reader. *Sketch:* poll a repo's latest workflow run into a bar chip + Island card + notification on failure; token needed.
+12. **[high × med] Messaging bridges cover only Telegram/WhatsApp.** Chronoa's `channel_bridge.py` (and `ARCHITECTURE-TARGET.md:471`) has exactly those two adapters; `Services/Phone.qml:41-59` is SMS/calls. *Sketch:* add Matrix/Slack/Discord adapters behind the same Chronoa `Submit` D-Bus — needs a homeserver/bot token per service.
+13. **[med × easy] No ntfy/Gotify/Pushover subscriber.** *Sketch:* `bridge/push.py` long-polls an ntfy topic and calls #1 — the practical inbound path when the desktop has no public port; needs an account/topic.
+14. **[med × med] Mail OAuth2 for Gmail/Outlook.** `bridge/mail.py:17` only reads a password from env/secret service. *Sketch:* add an XOAUTH2 bearer flow using #7; needs provider registration.
+15. **[med × med] No public HTTPS endpoint for external callers.** `bridge/serve.py:218-223` binds `0.0.0.0:53318` on plain HTTP with a URL token; Tailscale is only a VPN list entry (`GAPS.md:259`). *Sketch:* document/ship a Tailscale or tunnel-based receive mode — or prefer the outbound-poll model of #13.
+16. **[med × med] Cloud share links need an account to be real.** `bridge/cloud.py:29-37` supports Drive/OneDrive/Dropbox/Box/pCloud/Yandex/WebDAV FUSE mounts, but no per-file link or selective-sync/conflict UI. *Sketch:* after #5, add `cloud.py status` showing queued conflicts; needs the drive authorized.
+17. **[low × med] No cross-device clipboard/URL push bridge.** Clipboard is local (`Clipboard.qml`); the GAPS research already notes opt-in phone clipboard push as a risk. *Sketch:* reuse #2/#13 with confirm + 45 s clear; needs a paired endpoint.
+
+**Risk to flag:** #2 and #9 turn external input into shell action; ship HMAC/auth and loopback binding first (#2, #7), and keep #6 read-only, or an open webhook becomes unauthenticated `sh -c` execution via Hooks/Automations.
+
+**Not checked:** no runtime, network, real broker/account, or QML session was available; all lines are static. I did not re-audit the explicitly noted items above.
+
+## VERBATIM: Macro/scripting automation depth
+
+## User-defined macros & scripting — 13th-pass gap research (read-only)
+
+All paths below are relative to `shani-shell/`. Context docs read first; I skipped every item already in GAPS/GAPS-RESEARCH (five systems, basic vocab, templates/import-export, dry-run, unpermissioned hooks, phrase-only routines, no variables/if-else/wait/subroutines).
+
+**What actually exists.** Three authoring surfaces, all producing raw `sh -c` strings stored inline in `settings.json`: rule engine (`shani/Services/Automations.qml:43-55`), 5 hook text fields (`shani/Modules/Settings/SettingsAutomations.qml:76-92`), key→command binds written into niri KDL (`shani/Services/InputConfig.qml:145-147`), plus a hidden Nautilus-scripts loader (`shani/Services/Files.qml:898-908`, `bridge/files.py:1983-2003`). Execution is `execDetached` fire-and-forget. No recorder, no runtime language, no event object, no visual builder.
+
+### Ranked gaps (value × ease)
+
+1. **No macro recorder/replay** (H×M): nothing logs ipc calls/keystrokes; `shani/Services/Clipboard.qml:116-123,147` can *type* via `wtype`, `shani/shell.qml:258+` exposes ~100 callable IPC functions, but none records. Sketch: `ipc macroStart/macroStop/macroPlay <file>` logging calls to JSONL.
+2. **No named/addressable macro** (H×H): binds (`SettingsShortcuts.qml:167`) and rules (`Automations.qml:43`) store anonymous commands; nothing can invoke them except the physical key. Sketch: give each a slug + `qs ipc call shani run <slug>`.
+3. **Hook event object is empty and inconsistent** (H×H): only wallpaper gets args (`Hooks.qml:37-38`), and `$2` screen name is always `""` (`Hooks.qml:87`); dark/color use string-replace `$1` (`:45,64`); lock/unlock/startup get no context (`:49-72`). No window id, app, notification body, file. Sketch: documented `SHANI_EVENT` JSON on stdin/env + `$SHANI_WINDOW`.
+4. **No scripting language/SDK** (H×M): the ~29 `.js` files (e.g. `Modules/Launcher/Fuzzy.js`, `Modules/Settings/NiriBinds.js`) are static QML imports; no runtime JS/Lua/Python loader. Sketch: sandboxed runner exposing a `shani` module (state/notify/set/clipboard).
+5. **No GUI macro builder** (M-H×M): authoring is only text fields/chips (`SettingsAutomations.qml:87-90,258-264`, `SettingsShortcuts.qml:155-160`). Sketch: block editor emitting the existing `{when,is,then,arg}` JSON.
+6. **Rich shell state has no documented script API** (H×M): `shell.qml:998,1056-1064,1154` `state()` returns focus/media/notifs/wallpaper but as a volatile test dump with no schema/version. Sketch: publish versioned `shani state --json` + `shani get <field>`.
+7. **`colorGeneration` hook orphaned from GUI** (L-M×trivial): declared `shani/Common/Settings.qml:261`, fired `Hooks.qml:61-66`, but missing from the 5-row model at `SettingsAutomations.qml:77-79` — hand-edit only. Sketch: add the sixth row.
+8. **Nautilus Scripts surface is hidden and undocumented** (M×H): exec-bit scripts in `~/.local/share/nautilus/scripts` get `NAUTILUS_SCRIPT_*` env (`files.py:1983-2003`, `Files.qml:904-906`) — the only true "event object" — but no GUI to install/list/bind them. Sketch: surface in Settings > Automations, allow key/rule binding.
+9. **`execDetached` prevents sequencing** (H×M): `Hooks.qml:27`, `Automations.qml:51` return no PID/exit/stdout; `shani/Common/Proc.qml:41,79` already has timeout/debounce. Sketch: synchronous macro step returning exit+stdout.
+10. **No shell-state write contract** (M×H): `setting` IPC exists (`dev/shell-parts/hooks-sticky.sh:7,21` uses `ipc setting darkMode false`) but is undocumented, so scripts poke `settings.json` directly. Sketch: document a `shani set <key> <value>` command.
+11. **No IPC discovery** (M×H): `shell.qml:258+` has dozens of functions, no `ipc list`; only typed signatures live in `docs/FINDINGS.md:36`. Sketch: `ipc list` returning names+arg types.
+12. **IPC arg-splitting breaks structured macro data** (M×M): `qs ipc` splits JSON/list args (`docs/FINDINGS.md:1171`, `docs/GAPS-RESEARCH.md:862`, `shell.qml:901`). Sketch: `--json`/base64 arg convention for macros.
+13. **Hook cascade unbounded across systems** (M×H): a dark-mode hook can change wallpaper (`hooks-sticky.sh:11`) firing the wallpaper hook; only rules have an edge guard (`Automations.qml:24,56-65`). Sketch: shared reentrancy token for hooks+rules.
+14. **Scheduler is rule-only and daily-minute** (M×M): `Automations.qml:86-105` is the single clock; hooks/binds cannot be scheduled; no interval/relative/cron/`at`. Sketch: shared scheduler targeting any named macro.
+15. **Inline scripts, no file-backed hook directory** (M×H): bodies live in JSON (`Common/Settings.qml:261,459`) vs Nautilus' directory model (`files.py:1983`). Sketch: discover `~/.config/shani/hooks/*.sh`.
+16. **No keystroke/click replay action** (H×M): `Clipboard.qml:116-123` types text only; no key-combo or mouse action exists. Sketch: `ipc sendKeys <seq>` / `click <x> <y>` via `wtype`/`ydotool`.
+17. **No macro test format** (L×H): `hooks-sticky.sh:6-23` mutates settings.json for one ad-hoc hook run; no persisted fixtures. Sketch: `shani macro test <file>` asserting payload+effects.
+
+**Skipped / risk:** read-only — no files edited; I did not run the shell or verify the `wtype`/`ydotool` availability these sketches assume. Biggest caveat: any recorder or script SDK widens the already-unpermissioned `sh -c` path, so items 9/13 (sequencing + reentrancy) should land before 1/16.
+
+## VERBATIM: Default apps / associations
+
+# Default apps / file-association coverage audit (13th pass)
+
+**Scope:** `shani-shell/shani/Modules/Settings/SettingsDefaultApps.qml`, `bin/shani` `APPS` (lines 425–588), the four desktop `skel/.config/mimeapps.list` files, `shani-install-media/iso_profiles/shared/airootfs/.../mimeapps.list`, portal/share launch paths. Static only; skipped all twelve previously listed items. Authoritative image file = `shani-pkgbuilds/shani-desktop-niri/etc/skel/.config/mimeapps.list` (per GAPS-RESEARCH:742).
+
+**Direct answers:** (1) 25 claimed MIME types have no default; no default names an app that doesn't claim its type except `text/csv`. (2) Common types with no default: `text/vcard`, `application/ics`, `application/x-yaml|toml|css|javascript|x-desktop`, `message/rfc822`, OPML/m3u/xspf, `application/vnd.rar`, `application/x-bzip2-compressed-tar`, `application/x-eps`, `application/x-cb7|x-cbt`, `application/x-fictionbook+xml`, `application/vnd.ms-xpsdocument`, `text/directory`, `x-content/*`. (3) Text Editor/Image Viewer/Media Player/Document Viewer/Archives **are** defaults for their core types; **Photos, Feeds, Mail, Calendar, Contacts, Fonts are not** (Photos/Feeds/Mail claim zero MIME types). (4) No — writes are per-user and partial; `xdg-open` paths use a resolver the shell itself calls unreliable. (5) Per-user only, no reset, no "remember for this type" in Open-with pickers. (6) Settings exposes 8+6 kinds vs KDE's full per-MIME File Associations and GNOME's Default Apps + per-file Open With.
+
+## Ranked gaps
+
+1. **[high×easy] 25 types our apps claim but no default exists.** `bin/shani:427-433,441-445,478-488,514-515,550-551,563-565` vs skel: no lines. Includes `application/ics` (Calendar claims it; skel sets only `text/calendar`, `x-vcalendar`, `x-extension-ics` at :43-45), `text/vcard`/`text/directory` (Contacts at :514-515; skel's Contacts section :48-51 is empty), `application/x-yaml`/`toml`/`css`/`javascript`/`x-desktop`/`x-qml`/`x-log`/`x-readme`/`x-c++src`/`x-script.python` (Text Editor), `application/vnd.rar`/`vnd.debian.binary-package`/`x-bzip2-compressed-tar`/`java-archive` (Archives), `x-eps`/`image/x-eps`/`x-cb7`/`x-cbt`/`x-fictionbook+xml`/`vnd.ms-xpsdocument` (Viewer). Sketch: generate default lines from `APPS` mimes, not by hand.
+2. **[high×easy] `text/csv` default is OnlyOffice, not our Text Editor.** skel:341; Text Editor claims it (`bin/shani:427`). A plain CSV opens the OnlyOffice Flatpak while every other text type opens our editor. Sketch: change one line to `dev.shani.TextEditor.desktop`.
+3. **[high×easy] Changing a default in Settings updates only 1–4 of the type's siblings.** `SettingsDefaultApps.qml:22-30,79` writes 1 text type of 34, 4 images of 28, 3 video of 125, 3 audio of 125, 1 PDF of 18; skel sets 22/28/~70/~80/11 respectively. Every untouched sibling keeps the old app. (Browser subset already filed; this is every other row.) Sketch: expand each `kind.types` from the skel's default keys for that app.
+4. **[high×easy] Settings `refresh()` reads only `types[0]`.** `SettingsDefaultApps.qml:56` queries the first type but `:97,138` display that as the row's value, so a split (or an external tool changing one sibling) is invisible; selecting a new app makes *all* rows look correct. Sketch: query/compare every type in `kind.types`.
+5. **[high×med] Settings changes may not reach the shell's own `xdg-open` paths.** `shell.qml:613`, `Files.qml:394,1092-1095`, `DesktopIcons.qml:126,288,310`, `Screenshots.qml:136`, `VoiceRecorder.qml:309`, `VideoTrimmer.qml:412` call `xdg-open`/`Qt.openUrlExternally`; `SettingsDefaultApps.qml:4-5` records that xdg-mime 1.2.1 "reads mimeapps.list and then answers from the system's defaults anyway" and exits 0 on write failure. Sketch: route file opens through `Launch`/`gio open` (as Viewer does at `Viewer.qml:291-299`) or fix the xdg-utils wrapper.
+6. **[high×med] No reset, no system-level default, no CLI.** Only `SettingsDefaultApps.qml:79` writes anything (`gio mime` → `~/.config/mimeapps.list`); no `/etc/xdg/mimeapps.list` or `/usr/share/applications/mimeapps.list` ships, skel is copied only at account creation, and `bin/shani` has no default-app group. Existing users can never restore image defaults, and agents cannot change them. Sketch: ship system defaults in `/usr/share/applications/mimeapps.list` + `shani default-app get|set|reset`.
+7. **[high×easy] Settings has no row for most association types.** Only 8 `kinds` + 6 `mediaKinds` (`SettingsDefaultApps.qml:21-40`): no Archives, Contacts, Calendar, e-book, font, torrent, OPML/playlist, Office or URL-scheme (`magnet`, `tel`) row, so the skel's 72 OnlyOffice/19 Vivaldi/3 torrent defaults are unchangeable in the UI. KDE exposes every MIME with add/remove/reorder; GNOME has per-file Open With. Sketch: generate rows from the default MIME set instead of a fixed array.
+8. **[med×easy] Six removable-media rows are dead UI.** `SettingsDefaultApps.qml:33-40` queries `x-content/*`; none of the four skels sets any `x-content/*` default and no `APPS` entry claims those types. Rows will read "No app installed for this". Sketch: hide them unless a candidate exists, or register gvfs/autorun handlers.
+9. **[med×easy] ISO skel points media to apps that are not installed.** `shani-install-media/iso_profiles/shared/airootfs/etc/skel/.config/mimeapps.list:1-45` defaults audio to `io.bassi.Amberol`, video to `io.github.celluloid_player.Celluloid`; neither appears in any profile's package/Flatpak list (repo-wide grep), and the built live user's file is identical (`cache/temp/niri/x86_64/airootfs/home/shani/.config/mimeapps.list`). Sketch: replace with `dev.shani.MediaPlayer` or drop the file.
+10. **[med×easy] Only the niri skel is validated.** `shani-shell/tests/test_packaging.py:95-128` hardcodes `shani-desktop-niri`; the GNOME, COSMIC, Plasma and ISO skel files have no equivalent check that their defaults name installed apps and that our apps declare what they're defaulted for. Sketch: loop over all `shani-desktop-*/etc/skel` + ISO skel.
+11. **[med×easy] Photos is not an image handler.** `bin/shani:530-531` claims zero MIME types, so it never appears in `gio mime image/png` candidates or the Settings "Pictures" list; opening a photo cannot reach Photos. Same for Feeds (`bin/shani:526-527`) with OPML and Mail (`bin/shani:528-529`) with `message/rfc822`. Sketch: register `image/*` variants on Photos, `text/x-opml` on Feeds, `message/rfc822` on Mail, and add defaults.
+12. **[med×easy] Playlists have no handler or default on niri.** `bin/shani:451-452` explicitly excludes `.m3u/.pls/.xspf`; niri skel has no playlist lines, while GNOME/COSMIC/Plasma skels assign them to their players. Sketch: add playlist MIME types to Media Player (QtMultimedia/FFmpeg can read them) or map to the chosen player.
+13. **[med×easy] `application/x-desktop` has no default despite Text Editor claiming it** (`bin/shani:431`, skel absent). `.desktop` files open nowhere from Files/desktop icons. Sketch: one line.
+14. **[med×med] No-per-type "Open with" persistence.** `Ui.qml:248-253`, `Viewer.qml:291-299`, `Files.qml:397` use `gio launch` on a chosen desktop id without writing `Default Applications` or an "only this type" preference; GNOME/KDE offer "Set as default"/"Remember for this type". (Adjacent to the already-listed "open-with can't set default".) Sketch: add a "use always for <type>" action calling `SettingsDefaultApps.choose`.
+15. **[low×easy] Stale torrent comment.** skel:87 says "Default: Fragments" but :91-93 set qBittorrent; qBittorrent is native (`shani-desktop-niri/PKGBUILD:77-79`), so behaviour is fine — the comment misleads the next auditor. Sketch: fix the comment.
+16. **[low×easy] `choose()` has no failure feedback.** `SettingsDefaultApps.qml:77-82` refreshes on `onExited` whether `gio mime` succeeded or not; a failed write leaves the row silently unchanged. Sketch: check exit status and show an error.
+
+**Skipped / not checked:** runtime verification of `gio mime` vs `xdg-open` resolution (static only), and whether Flatpak-exported candidate ids resolve in Quickshell's `DesktopEntries`. **Risk to flag:** fix #3/#5 together — expanding the type lists without fixing the `xdg-open` resolver would make Settings more correct while some launch paths still open the old app.
+
+## VERBATIM: Offline-first per app
+
+Research complete. Both gap docs read (1885 + 1283 lines); skipped the listed cross-cutting items. All findings static, from source at the current tree.
+
+## Per-app offline matrix
+
+| App | Cached data that survives offline | UI when offline | Queued writes? | Edit offline? | Offline badge? |
+|---|---|---|---|---|---|
+| **Weather** | Only saved places (`weather-places.json`, Weather.qml:22-34). Forecast/hourly are memory-only (:114-130). | Stale in-memory values with no age; cold start → "Getting the weather… / It needs the internet" (WeatherWindow.qml:141-148). | n/a (places saved locally) | Places yes; forecast no | None |
+| **Feeds** | Subs + article bodies + read/saved/tags in `~/.cache/shani-shell/feeds.json` (feeds.py:51-52; Services/Feeds.qml:1-6). | Full cached reader; generic "could not answer" note on refresh, never blank. | Local marks/tags apply at once (no server) | Yes | None |
+| **Mail** | Account config only (`mail.json`:53); **no message store**. | Cold offline → "No mail yet"/"Nothing in this folder" (MailWindow.qml:103,148); failure note 5 s. | **None** — compose clears on Send (MailWindow.qml:365-374) | Compose works, send silently fails | None |
+| **Maps** | Downloaded tiles in `~/.cache/shani-shell/map-tiles`, saved places (MapsPanel.qml:21,204-228). | Cached tiles render; uncovered areas blank grid, no message; "Directions failed — check the network" (:242). | Saved places local | Yes (pin/save/share) | None |
+| **Translate** | n/a — local model only. | "The local model is not running" (:109); needs no internet. | n/a | Yes | n/a |
+| **Software** | Flathub AppStream index in `~/.cache/shani-shell/appstore-index.json` (appstore.py:23,202-214). | Browse/search/installed work offline; ODRS ratings become 0 (:256-268). Installs need net. | Job restarts only manually | Local ops yes | None |
+| **Models** | `ollama list` output only in memory; "available" list hardcoded (Models.qml:17-25,49-75). | "No models installed" whether ollama is missing or none downloaded (:133-138). | Download is detached `ollama pull`, no retry | n/a | None |
+| **AIProviders/Chronoa** | Keys in keyring + dconf; transcript in memory only (Chronoa.qml:35-49). | "Chronoa is offline" = **local daemon down**, not network (Island.qml:82). | **None** — offline ask logs to transcript and is lost | n/a | **Only app with a badge** |
+| **Photos** | Entirely local scan + exiv2 (PhotoMeta.qml). No geotag/GPS read. | Works offline. | Local edits only | Yes | n/a |
+| **Camera** | Files on disk; gallery rescans local (Camera.qml:44-55). | Works offline. | n/a | Yes | n/a |
+| **Nearby** | LAN-only; devices/known in memory (Nearby.qml:22-25). | No devices silently; firewall error if port blocked (:62). | Transfers need live LAN | Local selection yes | None |
+| **VoiceRecorder** | Recordings on disk (VoiceRecorder.qml:207-253). | Works offline. | n/a | Yes | n/a |
+| **Radio** | Favourites (Settings) + 50 hardcoded featured stations (Radio.qml:21-76). | Popular/Near/Genre/Search failure → **list wiped to []** and "No stations found" (:104-106, RadioView.qml:44-47). | Favourites local | Yes | None |
+| **LiveTV** | Source URL persists; **channels never cached** (LiveTv.qml:16,38-71). | Cold open "No channels yet"; error wipes list (:63-69); local M3U works. | n/a | Load local file yes | None |
+| **Calendar/CalDAV** | Events in memory from EDS; no shell cache (Agenda.qml:21,193-205). EDS holds CalDAV locally. | Keeps stale events, sets `available=false`; no message. | Writes go to EDS; on failure a natural-language "ask" to Chronoa, else "change not saved" (:211-218) | Yes via EDS | None |
+| **Contacts** | vCard files on disk (Contacts.qml:1-7). | Works offline. | Local writer queue (:88-98) | Yes | n/a |
+| **Backup** | Local snapshots (Backup.qml:62-105). | "The backup drive is not connected" (:97). | n/a | Yes | n/a |
+| **Updates** | Only firmware-told list (Updates.qml:29-36); no last-checked status. | Failed check → `known=false` → **empty summary** (:62,89-98). | n/a | n/a | None |
+| **shani-link** | GSConnect `sms.json` threads, contacts cache, call log, last battery (phone.py:39-41,286-299; devices.py:22). | Cached threads/contacts readable; offline device icon (devices.py:334). | **No send queue** (Link.qml:47) | Read yes | Per-device icon only |
+
+## Ranked gaps (value × ease)
+
+1. **Mail loses offline mail entirely** — no message cache (mail.py:53) and compose clears on Send (MailWindow.qml:365-374). Sketch: persist last N message bodies and an outbox json; flush on `Net.online`.
+2. **Weather goes blank on cold offline start** — only places persisted (Weather.qml:22-34), forecast memory-only (:114-130). Sketch: FileView last forecast + render it with a freshness line.
+3. **Radio wipes its list on any fetch error** — `r=[]` on parse failure (Radio.qml:104-106). Sketch: keep last-good stations per view in a cache; show them with "reconnect to refresh" instead of empty.
+4. **LiveTV re-fetches the same playlist every open** — saved source not auto-loaded, no channel cache (LiveTv.qml:16,45-55). Sketch: cache parsed channels keyed by source + load saved source at startup.
+5. **Calendar writes can vanish** — EDS failure falls through to a Chronoa "ask", then only a toast (Agenda.qml:211-218). Sketch: queue failed payloads to statePath and replay when `available` flips true.
+6. **Chronoa prompts are dropped offline** — `deliver()` logs a message and returns (Chronoa.qml:45-49). Sketch: outbox unsent prompts; replay on `Bridge.connected`.
+7. **shani-link texts dropped when device unreachable** — `send()` fire-and-forget (Link.qml:47). Sketch: outbox under `~/.cache/shani-link`, retry when device becomes reachable.
+8. **Models can't distinguish "ollama missing" from "none installed"** — `|| echo '[]'` (Models.qml:51). Sketch: probe command -v and show "Install ollama…" instead of empty state (:133-138).
+9. **Software ratings lie offline** — ODRS returns `[]` on any error (appstore.py:256-268), UI shows 0 stars. Sketch: return `null` and render "Ratings unavailable offline".
+10. **Updates check failure is indistinguishable from up-to-date** — `known=false` yields blank summary (Updates.qml:62,89-98). Sketch: persist last-good status and show "Could not check (offline)".
+11. **Maps retries failed tiles with no backoff** — `delete asked[forFile]` re-spawns curl on every pan (MapsPanel.qml:217-224). Sketch: exponential backoff per key while `!Net.online`; show cached-only hint over blank tiles.
+12. **Nearby send with no devices is a silent no-op** — `sendTo()` only checks `pending` (Nearby.qml:33). Sketch: note "No devices found — check the network" after a failed scan.
+13. **Feeds shows no cache age** — `fetched` is stored but unread in UI (FeedsWindow.qml:186+). Sketch: render "as of …" beside the feed title.
+14. **Chronoa/Translate have no offline dictionary fallback** when the local model is down (TranslateWindow.qml:109). Sketch: ship a tiny wordnet lookup for common strings.
+
+Already good: Feeds (cache-first reader), Contacts/Photos/Camera/VoiceRecorder/Backup (fully local), Software browsing (AppStream cache), shani-link (cached threads).
+
+Skipped: didn't verify any behavior in a QML runtime or with a blackholed network — all verdicts are static, so "blank offline" is inferred from code paths. Risk: EDS may cache CalDAV more aggressively than the shell's own code implies; item 5's fallback path may be rarer than it looks.
+
+## VERBATIM: Inclusive design depth
+
+I've read both docs (12 passes) and traced the relevant QML. Skipping all listed items plus the terminological/error-tone findings already logged in the Eighth-pass "UX consistency and tone" report (trash icons, Log out/Sign out, raw bridge errors, "Click again/Tap again", empty-state grammar, success-channel rule). Below are **16 new** inclusive-design gaps, ranked by value × ease.
+
+## Thirteenth-pass research — inclusive design (colors, icons, labels, tone)
+
+**1. An Undo-capable Toast exists — and is used in exactly one window.** `Common/Toast.qml:3-5,34-40` has `showUndo`/`undoValue`/`undo` built in, but only `Modules/Settings/SettingsWindow.qml:259-266` ever instantiates it. Every destructive app action goes silent: `Modules/Mail/MailWindow.qml:304` (`Delete`), `Modules/Files/FilesPanel.qml:2202` (`Delete` — permanent), `Modules/Camera/CameraPanel.qml:187`, `Modules/VoiceRecorder/VoiceRecorderPanel.qml:132`. Sketch: put one Toast in `AppWindow`, fire `showToast("Deleted — Undo", true)` from those call sites. Highest value/ease: the component is already written.
+
+**2. Destructive icon buttons are visually identical to benign ones.** `Common/IconButton.qml:32-42` has danger-free fill/icon color (`Theme.text`) and no `danger` property; `Button.qml:9,28,71` does. So `Weather/WeatherWindow.qml:133` (remove location, no confirm), `Camera/CameraPanel.qml:187` (delete capture), `Terminal/TerminalAppWindow.qml:180,475` (delete host/snippet) all look like `view-refresh`. Sketch: add `danger` bool → red icon + two-tap confirm.
+
+**3. Two equally destructive disk operations signal different severity.** `Disks/DisksWindow.qml:429` "Erase…" is `kind:"danger"` (red), `:430` "Format…" is `kind:"outline"` (neutral) — both wipe the filesystem. Sketch: make Format `danger` too, or one shared "This erases everything on the drive" confirm.
+
+**4. Calendar identity is color-only.** `Calendar/CalendarPanel.qml:1035` prefixes every calendar name with the same "●" glyph; the only differentiator is `Agenda.colorOf()`'s color (`Services/Agenda.qml:40`). `Accessible.name` on `:1036` omits the color. Sketch: add a distinct letter/pattern or speak the color name.
+
+**5. SMART attributes are a raw mono dump.** `Disks/DisksWindow.qml:534-536`: nine-pixel monospace rows `ID · name · value · worst · threshold · raw`, all `Theme.faint` — no plain-language pass/warn, no meaning. Sketch: summarize "All 15 attributes normal" with the table behind a "Raw values" disclosure.
+
+**6. Tooltips leak kernel internals into user-facing text.** `Processes/Processes.qml:444` "CPU is % since the last sample (/proc/stat deltas)", `:453` "…Disk is total read + write from /proc/<pid>/io". Sketch: "Updates every 2 seconds — CPU use is an estimate."
+
+**7. Urgent windows are a red rectangle only.** `Bar/Bar.qml:233` encodes `is_urgent` solely as `Theme.danger` fill in the workspace map — no icon, shape, or text. Sketch: add a pulsing ring or "!" marker.
+
+**8. Same concept, different delete glyphs inside Notes.** `Notes/NotesPanel.qml:95` uses `list-remove` for "delete the notebook and its notes" (the more destructive one), while `ControlCenter/SidebarNotes.qml:196` uses `edit-delete` for "Delete this note". Sketch: `edit-delete` + confirm for both.
+
+**9. `edit-clear-all` means four different things.** `Files/FilesPanel.qml:376` "Tidy this folder" (non-destructive), `Terminal/TerminalAppWindow.qml:180,475` "Delete" (destructive), `ControlCenter/SidebarNotifications.qml:32` "Clear all", `Whiteboard/Whiteboard.qml:288` "Clear the page". Sketch: reserve `edit-clear-all` for bulk-delete only.
+
+**10. Progressive-disclosure component exists but is barely used.** `Common/Advanced.qml:1-8` folds expert controls away, yet only `Settings/SettingsSound.qml:293` and `Settings/SettingsNetwork.qml:471` use it; `Settings/SettingsAppPermissions.qml` and `Settings/SettingsFirewall.qml` show everything at once. Sketch: wrap their env-var/bus-name/rule sections.
+
+**11. Small treemap tiles are identified by color alone.** `DiskUsage/DiskUsagePanel.qml:153-156` gives each tile a unique hue; labels only render when `tile.width>46 && height>28` (`:167`). AT name exists (`:162`), but a colorblind sighted user sees unlabeled colored blocks. Sketch: hatch/pattern or always-on initials.
+
+**12. Silent success on common actions.** `Mail/MailWindow.qml:281-302` (mark unread, star, archive) and `Feeds/FeedsWindow.qml:307` (mark unread) change state with no confirmation, while `PasswordGenerator/PasswordGeneratorPanel.qml:117` and `Authenticator/AuthenticatorWindow.qml:169` do show "Copied". Sketch: reuse #1's Toast for the silent ones.
+
+**13. Unexplained abbreviation in a results view.** `Kundali/KundaliPanel.qml:140` appends bare `"(R)"` for retrograde planets, never expanded. Sketch: "retrograde (R)", or a legend.
+
+**14. Dead-end playback error.** `MediaPlayer/MediaPlayerWindow.qml:246` "This file cannot be played" — no cause, no "open with…", no next step. Sketch: "Unsupported format — try another file or open with another app".
+
+**15. Inconsistent expansion of "e.g." in labels.** `Settings/...` and `Terminal/...` mix `Tr.t("e.g., https://example.com")` with `Tr.t("for example")` (found across ~6 user strings). Sketch: standardize on "for example".
+
+**16. Untranslated destructive user labels.** `Settings/SettingsUsers.qml:89` hardcodes `"Administrator" / "Standard"` and `Contacts/ContactsWindow.qml:190,214` hardcode `tip: "Remove"` — unlike the rest of those files. Sketch: wrap in `Tr.t()`.
+
+**Skipped / not checked:** no runtime or visual verification (static read only); I did not re-audit contrast, focus, AT-SPI naming, or the eight already-logged tone items. Biggest risk: #1/#2 change shared components — verify no app relies on the current neutral styling of destructive icon buttons.
+
+## VERBATIM: Test infrastructure & CI
+
+# Thirteenth-pass audit — TEST INFRASTRUCTURE & CI coverage (static only)
+
+Read `docs/GAPS.md`, `docs/GAPS-RESEARCH.md` (skipped logged items), then `tests/` (152 files), `dev/check.sh`, `dev/shell-test.sh`, all 78 `dev/shell-parts/*.sh`, `dev/session.sh`, `dev/Containerfile`, the 32 `dev/fake-*` tools, and workflows in `shani-builder`, `shani-pkgbuilds`, `shani-ci-commons`, `shani-testbed`.
+
+## Counts (what's tested, how)
+
+| Category | Count | Evidence |
+|---|---|---|
+| pytest files / test functions | 152 / 953 (`def test_`), 46 `@parametrize` | `tests/test_*.py` |
+| — pure source-string assertions | ~88 (58%) | `test_gap_*.py`, `test_qml_patterns.py`, `test_wiring.py` |
+| — bridge behavior (imports/calls bridge) | ~18 | `test_feeds_bridge.py`, `test_otp.py`, `test_mail_bridge.py` |
+| — mixed (bridge + source read) | ~34 | `test_app_registry.py`, `test_cli_ipc.py` |
+| — other | ~12 | `test_bridge_names.py`, `test_face.py` |
+| Full-shell IPC integration | ~1067 `result … PASS/FAIL` sites; 17 SKIP | `shell-test.sh:13` + 78 shell-parts |
+| Perf budgets | 7 (idle frames, RSS, open speed, files open/requests, leak, startup) | `shell-test.sh:127-180` |
+| Visual/render | 49 captures; 261 surfaces documented | `dev/render.sh`, `docs/RENDER-COVERAGE.md:8` |
+| A11y (AT-SPI) | ~20 surfaces, **conditionally skipped** | `shell-test.sh:196-221` |
+| Tests with silent skip guards | 50/152 files | `skipif`/`importorskip` |
+
+Fakes exist for every external dependency checked (podman, firewall-cmd, flatpak, gpg, nmcli, udevadm, gio, …); all 32 `dev/fake-*` are referenced — no clean-image fake gap found.
+
+## Ranked gaps (value × ease)
+
+1. **CI runs zero shell tests.** No `shani-shell/.github/workflows`; sibling workflows build/lint/package only — `shani-builder/.github/workflows/build.yml:15-22` (build+security), `shani-pkgbuilds/.github/workflows/lint.yml:20-37` (lint/package/security). Reusable `shani-ci-commons/.github/workflows/test.yml` never called for this repo. *Sketch: one workflow running `dev/check.sh unit` + `perf` with sibling checkouts.*
+2. **Skips count as green.** 50 files skip on missing `node`/`gi`/ffmpeg/siblings; `dev/check.sh:128` greps only `passed`/`failed`. Hundreds of skips still print green. *Sketch: parse `N skipped`, fail above threshold.*
+3. **Unit suite runs on the host, outside the test image.** `dev/check.sh:87` → `python3 -m pytest tests -q` (no `box()`); all deps are in `dev/Containerfile`. Host without node/gi → mass skips (gap 2). *Sketch: run `unit` inside `box()`.*
+4. **Perf budgets excluded from default `all`.** `dev/check.sh:23,64` = `unit shell greeter setup polkit admin setup-polkit pam keyring`; the 7 budgets need separate `check.sh perf`. *Sketch: add `perf` to `all`/nightly.*
+5. **A11y silently skips without `shani-testbed`.** `shell-test.sh:196,221`; mount conditional at `check.sh:39,68`. Static `tests/test_qml_a11y.py` (untracked) found ~84 unnamed IconButtons — the loudest signal is the one that skips. *Sketch: make `/testbed` mandatory for the a11y suite.*
+6. **Real network dependency with SKIP fallback.** `shell-test.sh:1153` `curl https://api.open-meteo.com`; `:1158` prints SKIP. No fake (unlike `fake-osm.py`). *Sketch: `fake-open-meteo.py` on localhost.*
+7. **One app has no test at all — Color Picker.** Excluded from generic `apps.sh` loop (state key `None`, `bin/shani:498`), explicitly skipped in `pad-reach.sh:33`; only mention is the skip-list. *Sketch: pointer-driven `ipc colorPicker` check.*
+8. **Four apps have only "opens, no QML error" checks.** Password Generator (`apps.sh:140` only), Models, Studio, Screen Ruler (`render.sh:634` capture only) — no behavior test. *Sketch: one core-action assertion each.*
+9. **Backup create/restore untested.** `dev/fake-backup.sh:12` implements `backup --json`, but only `shell-test.sh:2050-2062` (summary + `open home`) drives it; no snapshot taken/restored. *Sketch: one backup + restore assertion.*
+10. **Permission boundaries untested under root.** `tests/test_copyjob.py:101` skips unreadable-file case ("running as root"); `apps.sh:210` checks read-only only via the probe's flag. *Sketch: run one suite unprivileged.*
+11. **Sibling-repo skips; missing `/desk` unchecked.** `test_declared_deps.py:27-28`, `test_packaging.py:24`; `check.sh:38,89` mounts `$DESK` without `-d`, so a clean checkout mounts an empty dir and greeter/setup/pam get a missing KDL path. *Sketch: fail fast if siblings absent.*
+12. **Timing-dominated shell suite.** `waitfor` 379× in `shell-test.sh`, 447× in parts, 325 `sleep`s; helpers `:49-60`, prior loaded-machine miss recorded at `:74`. *Sketch: central deadline helper + jitter-tolerant assertions.*
+13. **Real D-Bus/process races in pytest.** `test_bt_agent.py:21,82`, `test_logind.py:26,120`, `test_mpris_player.py:43-78`, `test_obex_agent.py:21,88` — `importorskip("gi")`/`skip("no dbus-daemon")` with polling sleeps. *Sketch: shared private-bus fixture.*
+14. **No positive controls for ~88 string checks.** Contrast `shani-builder/.github/workflows/build.yaml:76-90`, which plants a real leak line to prove its grep guard is live. *Sketch: planted-mutation assertion per critical string suite.*
+15. **Render/visual checks never gate CI.** 49 captures guarded only by `test_cli_ipc_wiring.py`; excluded from `all` (gap 4).
+16. **Fixed-duration media waits.** `tests/test_voice_recorder.py:63-74` (`sleep 1.2/1.0/0.3`), `shell-test.sh:1560-1562` assume wall-clock completion.
+
+**Strengths worth noting:** Trash/destructive paths are unusually well covered (`files-ops.sh:50-60`, `files-nautilus.sh:19`, `apps.sh:261` firewall-never-permanent, editor save keeps perms/CRLF/symlink at `apps.sh:213-244`); every external tool has fakes; render coverage is source-derived and IPC-guarded.
+
+Skipped: re-running anything live (static pass), plus the already-logged string-only, PKGBUILD-pin, QML-harness and dev-session-state items. Risk: the 88/18/34/12 split is a heuristic grep classification — spot-check before quoting it as exact.
+
+---
+
+# Twelfth pass — VERBATIM agent reports
+
+## VERBATIM: Containers/virtualization depth
+
+# Twelfth-pass gap research — Containers app & virtualization integration depth
+
+**Scope:** static only. Read `shani/Modules/Containers/ContainersWindow.qml`, `bridge/containers.py`, `tests/test_containers.py`, `dev/shell-parts/containers.sh`, `dev/fake-podman.py`, `Ui.qml`, `shell.qml`, `ShellApps.js`, `bin/shani`, Cassini `tabs/containers.py` + `tabs/virtualization.py`, and `shani-docs` container/VM pages. No edits. Skipped prior-listed items (VMs Flatpak-only, Distrobox mentioned, Podman in Software).
+
+**What exists:** one 389-line window with three tabs (Toolboxes / Containers / Images). Distrobox: create, enter, upgrade, export app, remove — all via `containers.py`. Podman: list, start/stop/restart/remove, logs, image-remove, prune. Everything runs rootless as the user. A thin state surface in `Ui.qml:74-80` drives a11y tests. Launcher id `dev.shani.Containers` (`bin/shani:542-543`, `ShellApps.js:34`). This is the first container audit; GAPS only mentions containers incidentally.
+
+## Ranked gaps (value × ease)
+
+1. **H×H — No custom image.** Four hardcoded chips only (`ContainersWindow.qml:24-29`); `box-create` takes `(name, image)` fixed to those (`181`, `bridge:145`). Add a validated image TextField (regex already at `bridge:35`).
+2. **H×H — No name field.** `nextName()` auto-generates `ubuntu`, `ubuntu-2`… (`:109-113`). Add a text field checked with `NAME` (`bridge:34`).
+3. **H×H — Podman containers have no shell entry.** `enter()` always runs `distrobox enter` (`:114-117`); only *toolboxes* open. For `!c.box`, run `xdg-terminal-exec podman exec -it NAME sh`.
+4. **H×H — Export is one-way.** Only `box-export --app` (`:258-259`, `bridge:148-153`); no unexport, no list of already-exported apps, so re-export duplicates. Add `distrobox-export --app X --delete` + an "in menu" badge.
+5. **H×H — No container creation at all for Podman.** Only management verbs (`:304-312`); docs promise `podman run -p/-v`, volumes and networks (`containers.md:37,71-99`). Add a "New container" form with image, ports, volume, network.
+6. **M×H — No home/path choice.** `distrobox create` at `bridge:145` passes only `--yes --name --image`; home is always implicitly shared. Add `--home <path>` via `FolderPicker`.
+7. **M×H — `--nvidia` / `--init` / `--ephemeral` / `--root` absent** (`bridge:145`) though GPU containers are a documented first-class feature (`containers.md:18`, `gpu-containers.md:146-177`). Four checkboxes appended to the create argv.
+8. **M×H — No `--additional-flags`/`--mount`/`--env`.** `shlex` is imported (`bridge:27`) but unused for flags. One "advanced options" field; split with `shlex.split`.
+9. **M×H — Logs are one-shot.** `logs --tail 300` returns a static string (`bridge:90-94`) rendered in a Flickable (`:314-335`). Add `logs -f` with `SplitParser` like `job`.
+10. **M×H — App list misses user apps and locales.** `box_apps` scans only `/usr/share/applications/*.desktop` and reads plain `Name=` (`bridge:111-123`). Include `~/.local/share/applications` and prefer `Name[$LANG]`.
+11. **M×M — No resource limits or stats.** `listing()` pulls state/ports/images only (`bridge:54-79`); no `podman stats`, no `--cpus`/`--memory`. Add a per-row CPU/RAM meter from `podman stats --no-stream --format json`.
+12. **H×M — No "update all" or image-update signal.** Only per-box upgrade (`:227`, `bridge:154-155`); no bulk loop, no `podman pull`, no stale-image notification. Add one button looping `win.boxes` plus an image-age column.
+13. **H×M — Toolboxes detected by Podman label only.** `box = labels.get("manager") == "distrobox"` (`bridge:65`); the shell never calls `distrobox list` (Cassini does, `tabs/containers.py:110`). A missing/renamed label silently downgrades a toolbox to an ordinary container (losing Open/Apps/Update). Union both sources.
+14. **M×M — No snapshots.** No `commit`/restore verb anywhere in `bridge/main()` (`126-165`). Add `commit <name>` and a snapshot list with restore.
+15. **M×H — No file-manager integration.** Home is shared but nothing opens it; no Files action in either delegate (`:206-265`, `:284-336`). Add "Open its home" → `xdg-open <path>`.
+16. **M×M — No `.desktop` generation or icon-theme control** for ordinary Podman GUI apps; only Distrobox `--app` export exists. Generate `Exec=podman run --rm …` entries and pass `GTK_THEME`/`ICON_THEME` via gap 8.
+17. **M×M — No compose support.** Docs teach `podman-compose up/down` (`containers.md:89-99`); the app never searches for `compose.y*ml`. Add a "Stacks" tab discovering `~/Developer/**/compose.y*ml` with up/down.
+18. **M×H — No Settings defaults.** No container keys in `SettingsIndex.js`; distro choice is transient UI state (`:42`). Add default distro/image/flags keys and a Settings › Virtualization page.
+19. **M×H — No handover between the two apps.** Header says "Cassini's Containers page stays the read-only inventory" (`:6`); Cassini enforces read-only by AST (`tabs/containers.py:7-12`). Neither links to the other. Add "Manage in Containers" / "View inventory" buttons.
+20. **M×H — Tests are narrow and fake-only.** `test_containers.py:26-53` covers only list, stop, logs, create, apps, export, remove, prune; no test for restart, image-remove, box-upgrade, error branches, or tool-absent state. `dev/shell-parts/containers.sh:11-28` is gated on an a11y client. The `SHANI_PODMAN`/`SHANI_DISTROBOX` overrides (`bridge:32-33`) are never used by tests (they symlink into PATH, `test_containers.py:16-21`). Parametrize every verb and both missing-tool states.
+
+**Comparison context:** GNOME Boxes/virt-manager remain deliberately out of scope (GAPS:1090; `virtualization.py:23-25` notes virt-manager is commented out of `shani-core` and gnome-boxes unpackaged). Docs overclaim here: "Pods pre-installed on every edition" (`containers.md:39`) and "BoxBuddy pre-installed on GNOME and KDE" (`distrobox.md:11`) describe external apps the shell only imitates; reconcile those claims with the built-in Containers window.
+
+**Risk:** all verdicts are static; no Podman/Distrobox daemon, live export, polkit or GUI was available, so findings 3, 8 and 13 in particular need runtime confirmation before implementation.
+
+Skipped: VM/Boxes/virt-manager feature parity, docs-only framing beyond the two stale claims above, and any edit — this pass was read-only.
+
+## VERBATIM: Bluetooth/OBEX transfer depth
+
+# Twelfth pass — Bluetooth/OBEX file-transfer depth
+
+Static only. Prior passes covered pairing, codec, OBEX-agent bridge tests, Nearby/LocalSend and KDE Connect; those are skipped. Sources: `shani/Services/{BtAgent,BtSend,ObexReceive,Nearby}.qml`, `shani/Modules/ControlCenter/SidebarDetails.qml`, `bridge/{bt-agent,obex-agent,link}.py`, `bridge/shani_link/{obex_receive,bt_pair,bt_telephony,phone_bluez}.py`, `tests/*`, `dev/shell-test.sh`.
+
+## Shell-fixable — ranked by value × ease
+
+1. **Incoming push has no auto-accept for known/trusted devices.** Every push asks (obex-agent.py:99-109; shell-side only a `notify-send` with Accept/Decline at ObexReceive.qml:56-59). The agent already resolves the sender's BlueZ device on the system bus at :82-97 — reuse it to auto-accept when `Trusted` and a new setting allows. GNOME/KDE offer exactly this for trusted peers.
+2. **No receive progress and no cancel.** obex-agent.py:111-128 subscribes to `PropertiesChanged` but reads only `Status` complete/error; `BytesTransferred` is ignored, and `Transfer1.Cancel` is never called. Sketch: emit `{"progress":…}` from the same signal and add a Cancel action that calls Transfer1.Cancel on the stored transfer path.
+3. **An ignored push hangs forever.** obex-agent.py:107 keeps `pending[id]` until an answer; ObexReceive.qml:57 sets no `-t`, and `-A` implies `--wait` (verified via `notify-send --help`). The shani-link twin has `DECIDE_SECONDS = 60` (obex_receive.py:37,220) — port that: 60 s QML timer → `answer(id,false)`.
+4. **No destination picker per file.** The target path is fixed at authorization time (obex-agent.py:104) from the global `obexDir`; the prompt shows only name and size (ObexReceive.qml:57-58). Sketch: add a FolderPicker to the push card and pass the chosen path in `answer()`.
+5. **No Bluetooth transfer history.** `received` is a counter and `last` a single path (ObexReceive.qml:16-17); BtSend keeps nothing. Sketch: append `{device,file,size,when,dir,result}` to a persisted list shown in Settings > Network > Bluetooth — the shell's Nearby UI similarly keeps only the last three (GAPS-RESEARCH.md:455).
+6. **Outgoing send has no progress, cancel, resume, or retry.** BtSend.qml:24-30 polls only the `Status` string every 0.5 s for a hard 600 iterations (5 min), no `BytesTransferred`, no `Transfer1.Cancel`, no error detail; :38-43 reports only success/failure via `notify-send`. Sketch: emit progress/cancel lines from the same loop and expose a transfer card in `SidebarDetails.qml:282-299`.
+7. **One file per send.** `BtSend.qml:12` is a single `file` string, :23 one `SendFile`; Share.qml:22 builds one target per device. Sketch: make `pending` an array and loop CreateSession→SendFile sequentially.
+8. **Send does not connect a paired-but-disconnected device.** BtSend.qml:14 filters on `paired` only; :41 gives the vague "is it paired, on and accepting files?" hint. Sketch: call `device.connect()` before `sendTo`, then surface the gdbus error string.
+9. **HFP call-audio routing exists in the bridge but no shell UI.** bt_telephony.py:224-249 already implements `audio_route()`/`set_audio_route()` ("pc"/"phone" via `RejectSCO`), yet bridge/link.py exposes only dial/answer/hangup (:251-304) and the call card has no routing toggle. Sketch: add `link.py audio-route` and a button; this is the direct fix for "ring in silence" cases, distinct from the WirePlumber A2DP↔HFP auto-switch gap in GAPS-RESEARCH.md:855.
+10. **PBAP call history is implemented in shani-link but not reachable from the shell.** phone_bluez.py:478-494 pulls `int/cch` vCards; bridge/link.py:121-128 `cmd_calls()` reads only cached `calls_log` rows. Sketch: add `link.py phone-calls <device>` and a "Phone's recent calls" row in the Phone panel.
+11. **No FTP/browser of phone files anywhere.** `phone_bluez.py` implements MAP/PBAP/OPP only (:47-52); "ftp" appears only as NFC URI constants (shani-link/nfc.py:67-71). Sketch: obexd `Client1.CreateSession(ftp)` + `Filesystem1.ListFolder/GetFile`, surfaced as a paired-phone node in Files. Needs a phone that offers FTP and obexd FTP support — high value, highest effort here.
+12. **Per-device auto-connect is absent.** One global switch (SettingsNetwork.qml:443-450) drives BtAgent.qml:52-66, whose regex `/^(audio|input)/` excludes phones, watches and everything else. Sketch: a per-address `autoConnect` set in Settings and use it in `reconnect()` instead of the icon regex.
+13. **Connection profiles are not exposed.** SidebarDetails.qml:141-168 shows a single Connected/Paired state; bt_pair.py:312 already reads `Device1.UUIDs`. Sketch: show A2DP/HFP/PBAP/MAP profile chips from `UUIDs` and call `ConnectProfile`/`DisconnectProfile` — this also tells the user why MAP/PBAP failed (phone_bluez.py:26-28 requires per-device consent on Android).
+14. **Trust is set before pairing succeeds.** SidebarDetails.qml:157 sets `modelData.trusted = true` then calls `pair()`; bt_pair.py:347-355 sets Trusted only after a successful Pair. Sketch: move the trust assignment into the success callback.
+15. **No device rename/alias.** SidebarDetails.qml:146-149 renders `modelData.name` read-only; bt_pair.py's `Device` has no alias setter. Sketch: a rename row calling `bluetoothctl alias <addr> <name>` via `Process`.
+16. **Pairing prompts have no timeout; displayed passkeys do.** BtAgent.qml:47 times out only `show`; `ask` (:15) and bridge/bt-agent.py:71-75 wait indefinitely. Sketch: the same 60 s timer calling `answer(false)`.
+17. **The default agent answers pairings it did not start.** bt-agent.py:137-138 requests the global default with KeyboardDisplay, while shani-link's pairing flow deliberately uses a private connection with its own agent (bt_pair.py:9-15). Sketch: ignore `AuthorizeService`/confirm for addresses outside an active shell pairing session.
+18. **Single OBEX agent slot with no handoff.** obex-agent.py:151-158 exits when another agent holds obexd (tested: test_obex_agent.py:154-158); shani-link's receiver backs off inside niri (obex_receive.py:84-92,168-173). Sketch: one shared agent (or a handoff switch) so a Chronoa-driven session does not silence the shell receiver.
+
+## Needs BlueZ / hardware / other stack
+
+- **No NAP server / no obexctl, sdptool, pand, rfcomm** in the image (FINDINGS.md:775); FTP profile support must be verified on the paired phone before gap 11 is worth building.
+- **Android PBAP/MAP consent is per-device and external** (phone_bluez.py:26-28): 0x46 from PBAP and silence from MAP are phone-side settings, not shell bugs.
+- **A2DP↔HFP automatic switching** needs a WirePlumber Lua policy (GAPS-RESEARCH.md:855), not a QML change.
+- **Codec choice and HFP hardware audio silence** are already listed and skipped.
+
+## Comparison
+
+GNOME Bluetooth provides per-device Files transfer with a progress dialog, a Trust toggle, rename, and profile switches; KDE Connect adds file-manager context actions and a transfer list; Android Quick Share adds fast discovery, multi-file/recipient sends, known-device auto-accept and resumable history. The shell has OPP send/receive but none of the transfer-management layer: no progress, cancel, history, per-file destination, or trust rules.
+
+**Skipped / not checked:** no live BlueZ, obexd or phone — everything above is static, including the `-A` semantics which I verified from `notify-send --help` rather than a real notification daemon. **Risk:** the shell's outgoing OBEX send path has no test at all (GAPS.md:232-233); a send-command failure could hide additional D-Bus issues beyond gaps 6-8.
+
+## VERBATIM: WebApps/PWA depth
+
+## Scope read
+Read `GAPS.md`, `GAPS-RESEARCH.md`, `Services/WebApps.qml`, `SettingsWebApps.qml`, `bridge/portal.py`, `Common/Settings.qml`, `shell.qml` IPC, `Launcher.qml`, `Dock.qml`, both portal configs, and the `shani-docs` software tree. Skipped as instructed: broken app-mode, no icon fetch, no manifest/share target, no isolated profile, no import/export, browser-integration defaults. All verdicts static.
+
+## Ranked gaps (value × ease) — `[S]` shell-fixable, `[B]` browser/Flatpak-level
+
+1. **[S] Tapping a web-app row deletes it; there is no open or edit.** `SettingsWebApps.qml:16-27` — whole-row `onClicked` splices the entry out; the `✕` at `:21` is just decoration, and the only other action is Add (`:30-35`). Sketch: make row click `gio launch` the generated `.desktop`, add an explicit × remove button and an Edit action reusing the add dialog.
+2. **[S] No URL validation, secure-context check, or untrusted-site warning.** `SettingsWebApps.qml:97` checks only `urlInput.text === ""`; `WebApps.qml:61-63` merely percent-escapes shell characters. `http://`, `file://`, `javascript:`, `data:` are accepted silently, and the preset list (`:51-63`) is all HTTPS so there is no precedent for free-form safety. Sketch: require `https://` (allow `http://localhost`), reject non-web schemes, show a one-line "this site can store data / send notifications" consent.
+3. **[S] No per-app refresh, cache clear, or site-data clear.** `WebApps.qml:24-39` exposes only add/remove; `:89-101` writes a static Exec with no Actions. "Update" means re-opening the same URL and trusting the browser cache. Sketch: add per-app "Reload / Forget site data" actions (browser CDP/JS hook or, with an isolated profile, delete its dir).
+4. **[S] No launch-by-name IPC — the promised "reveal" hook does not exist.** `WebApps.qml:107` comments `ipc call vgs.webapps invoke open <name>`, but `shell.qml:1218-1219` exposes only `webappAdd` / `webappRemove`. Sketch: add `webappOpen(name)` that `gio launch`es `prefix + safeName + ".desktop"`; wire Chronoa/launcher/share to it.
+5. **[S] Web apps never appear under the launcher's "Internet" chip.** Generated entry uses `Categories=Network;WebBrowser;` (`WebApps.qml:95`), but the launcher chips are `"Internet"` and match `a.categories` directly (`Launcher.qml:264,287,747-753`); the only alias is `AudioVideo→Media` (`:265`), even though `SoftwareWindow.qml:44` already maps `Network→Internet`. Sketch: add `Network: "Internet"` to `categoryNames` (and match aliases), or emit `Categories=Internet;`.
+6. **[S] No edit/rename, reorder, or schema/dedupe.** Only add/remove exist (`SettingsWebApps.qml:14-35`); data is an untyped `property var webApps: []` (`Common/Settings.qml:603-605`); `removeApp` filters by name so duplicate names all vanish together (`WebApps.qml:37`). Sketch: store a stable `id`, validate/dedupe on write, add inline edit + up/down.
+7. **[S] Sanitized-name collisions silently overwrite.** `safeName = name.replace(/[^a-zA-Z0-9_-]/g,'_')` (`WebApps.qml:86`) is the filename (`:99`) and identity, so "My App" and "My_App" produce one `.desktop`. Sketch: key by generated id/UUID; detect collisions at add time.
+8. **[S] No "open at startup" for a web app.** Desktop entry (`WebApps.qml:89-101`) has no autostart file or `X-GNOME-Autostart`; no setting exists. Sketch: write the same entry into `~/.config/autostart/` behind a per-app flag.
+9. **[S] No dock-pin / workspace-assign action from the web-app row.** Generic pinning exists (`Dock.qml:188,571`) and `StartupWMClass=shani-webapp-…` is emitted (`WebApps.qml:98`), but nothing connects a web app to either; no window rule targets that class. Sketch: context menu "Pin to dock" → `Dock.pinApp(id)`, "Assign workspace…" → niri window rule on the class.
+10. **[S] No per-app keyboard shortcut.** No keybinding is generated and the shortcut settings have no hook for web-app ids. Sketch: optional `shortcut` field → a shani niri keybind include file.
+11. **[S] Feature is undocumented.** No page in `shani-docs/docs/software/`; the only PWA mention is `troubleshooting.md:600` as a Waydroid fallback. Sketch: `docs/software/web-apps.md` + manifest/nav entry covering add, limits, and data location.
+12. **[B] No PWA install pipeline at all.** Manual free-text URL only (`SettingsWebApps.qml:72-86`); no beforeinstallprompt capture, no manifest parse, so display mode (`standalone`/`minimal-ui`/`fullscreen`), theme colour, splash/icon and offline scope are never set. (The missing manifest/share target itself is already filed; this is the rest of the flow.) Sketch: needs a shell-hosted web view plus manifest parser — not achievable via the current `sh -c` launcher.
+13. **[B] No service worker / offline start.** Entries open a URL in a browser, so offline availability is entirely the remote site's; the shell has no offline state, no "available offline" flag, no retry. Sketch: browser-level; shell could at most surface an offline badge via Network state.
+14. **[B] Push notifications bypass the shell entirely.** `niri-portals.conf:8` delegates `Notification=gtk`; `data/portal/shani.portal:3` and `bridge/portal.py:34-43` implement only `FileChooser`. PWA push never reaches `Notifs.qml` or the rules engine, so no per-app notification toggle or rule can act on it. Sketch: implement `org.freedesktop.impl.portal.Notification` in `portal.py` and register it in `shani.portal`.
+15. **[B] Per-app permissions and storage quota are not expressible.** No origin-level permission or quota field in the data model (`Common/Settings.qml:603-605`); with no isolated profile these inherit one browser origin's site settings and shared storage. Sketch: browser site-settings scope; shell can only link out, not enforce.
+16. **[B] All web-app UX actions are browser-side and currently unreachable.** Back/forward, reload, "open in browser", copy URL and share would be browser UI or a shell menu over the window; the generated Exec never reaches the browser with `--app` (the already-filed Flatpak/app-mode bug), and no shell context menu exists for generated `.desktop` apps. Sketch: fix app-mode first, then add a window/context menu.
+17. **[B] Icons dir is allocated but unused, so uninstall cannot be clean.** `WebApps.qml:42` creates `iconsDir`; the scraping code is comments only (`:106-109`), and `removeApp` (`:35-39`) touches only the settings array. Once icons/profiles do exist, removal will leave them orphaned. Sketch: make `removeApp` delete icon + profile + autostart files in the same sync script.
+
+## Ponytail note
+Skipped runtime/browser verification (no QML runtime, Flatpak Vivaldi, or live portal bus) and the already-listed items above; everything is static. Main risk: item 5 depends on Quickshell not normalising `Network→Internet` internally, and item 14 assumes PWA push goes through the portal (Chromium may use its own notification path) — both need a real session to confirm.
+
+## VERBATIM: Keyboard shortcut conflicts/discoverability
+
+# Twelfth-pass: keyboard shortcut conflicts & discoverability (static only)
+
+Skip list honored. **Negative result first:** no direct niri-vs-app same-combo collision exists in the shipped config — every global bind uses `Mod` (`session.kdl:147-300`) and every app bind uses `Ctrl` or a bare key. Conflicts are instead *created by customization*, *within the app layer*, or *by unteachability*.
+
+### High value × easy
+
+1. **On-screen keyboard cannot send Super/Meta — all global shortcuts are touch-only unreachable.** `Services/Osk.qml:29-33` (`ctrl`/`alt` only), `Modules/Osk/Keyboard.qml:322-323` (only Ctrl/Alt keys), while `session.kdl:150-290` binds almost everything to `Mod`. Sketch: add `Osk.meta` + a Super key + `wtype -M super` in `modArgs()`.
+2. **Custom binds can silently break Ctrl+C/V/Z/S in every app.** `SettingsShortcuts.qml:28-34` `takenBy()` checks only niri binds + other custom binds; `:108-112` captures Ctrl combos; `InputConfig.qml:146` writes any `/^[A-Za-z0-9+_]+$/` combo as a *global* grab. Sketch: reject Ctrl/Alt-only combos in `takenBy()` using the existing conflict banner.
+3. **Annotate's bare `E` clear is unrecoverable.** `Annotate.qml:44` `clear()` sets `strokes=[]`; `undo()` at `:43` only pops one stroke, so `Z` after `E` restores nothing. Sketch: make clear one undoable snapshot and two-tap confirm.
+4. **No surface lists app-internal shortcuts.** `SettingsShortcuts.qml:39-49` shows niri binds only; `Tour.qml:31-35` and `LauncherActions.qml:69` show ~8 global keys. Viewer's ~20 bare keys (`Viewer.qml:33-51`) and Files' ~30 (`FilesPanel.qml:67-185`) are nowhere. Sketch: declarative `shortcutHint` per app, aggregated into a filterable sheet.
+5. **Calculator's window-level Return/Enter Shortcut overrides focused TextFields.** `Calculator.qml:575-578` uses QML `Shortcut` (default `Qt.WindowShortcut`, per Qt 6 docs), competing with `onAccepted` on `:344-347`, `:477`, `:479`. Sketch: scope to the calculator display or move to `Keys.onReturnPressed` there.
+
+### Medium value × easy
+
+6. **Escape is a no-op in TextEditor with >1 tab.** `TextEditorPanel.qml:451-458` `leave()` handles finding and single-doc only. Sketch: Escape closes the active tab (one level back) first.
+7. **Mutation modifier is inconsistent across drawing/viewer apps.** Annotate uses bare `Z/E/S/1-5` (`Annotate.qml:90-94`), Whiteboard uses `Ctrl+Z/Ctrl+S` (`Whiteboard.qml:119-121`), Video Trimmer bare `I/O/S` (`VideoTrimmerPanel.qml:30-32`), PdfReader bare `R/F/W/P` (`PdfReader.qml:232-239`). Sketch: require Ctrl for all state-changing keys, or show an in-app key legend.
+8. **Shared `KeyFocus` has no Home/End/PageUp/PageDown.** `Common/KeyFocus.qml:105-121` handles only Enter/Space/Menu/F10/arrows/Tab. Sketch: map Home/End to first/last in region, PgUp/PgDn to `move(±rows)`.
+9. **Launcher's Ctrl+Y Quick Look is undocumented in the UI.** Implemented at `Launcher.qml:652-659`; result subtitles at `:316-340` list only Enter/Shift+Enter/Ctrl+P/Shift+Delete. Sketch: append "Ctrl+Y Quick Look" to file-result subtitles.
+10. **"Change keyboard shortcuts" lands far from the editor.** `LauncherActions.qml:70` → `openSettings("input")`; `SettingsShortcuts` sits at `SettingsPage.qml:1440`, after ~40 input controls. Sketch: add a `shortcuts` sub-category that opens scrolled to that section.
+
+### Medium value / more work
+
+11. **Escape means four different things across surfaces.** Layered unwind (`PdfReader.qml:226`, `Viewer.qml:31`), close-everything (`QuickPanel.qml:98`, `Whiteboard.qml:117`, `Magnifier.qml:66`, `Ring.qml:148`), no-op (#6), refocus (`LockScreen.qml:191`, good). Sketch: one `goBack()` contract: popup → edit mode → surface.
+12. **Three-key a11y combos have no one-handed path.** `session.kdl:157-159,163` (read aloud, magnifier, annotate, captions) need Mod+Alt+letter; OSK has sticky Ctrl/Alt but not Meta (#1). Launcher actions exist for some (`LauncherActions.qml:87-89`), not annotate. Sketch: sticky Meta + launcher entry for annotate.
+13. **Redo combos and coverage diverge.** Files supports both `Ctrl+Shift+Z` and `Ctrl+Y` (`FilesPanel.qml:142-148`), TextEditor the same (`TextEditorPanel.qml:435-436`), WindowLayouts has undo only (`WindowLayouts.qml:35`). Sketch: standardize on Ctrl+Y and add redo to WindowLayouts.
+14. **Shortcut-search skips custom binds.** `SettingsShortcuts.qml:38-40` filters only `page.binds`; custom binds at `:53` are never filtered. Sketch: apply the same query to the custom-bind model.
+15. **`Mod+Escape` shortcuts-inhibit has no discoverability.** `session.kdl:296` has no `hotkey-overlay-title` and no Settings toggle; an inadvertent press disables all global binds until the same combo is found again. Sketch: title it and surface an OSD/Settings status.
+
+Skipped: the listed shortcut items, Super+Alt+S, and bare-Q/bare-W/zoom-modifier findings. Risk: Qt `Shortcut` priority (#5) is inferred from documented default context, not runtime-verified; all findings are static.
+
+## VERBATIM: niri integration and extensions
+
+## Scope
+
+Read GAPS.md and GAPS-RESEARCH.md (all 11 passes) plus `Niri.qml`, `NiriConfig.qml`, `WindowRules.qml`, both `WindowLayouts.qml`, `InputConfig.qml`, `Screenshots.qml`, `Ring.qml`, `LauncherActions.qml`, `OverviewSearch.qml`, `Scratchpads.qml`, `shell.qml` IPC, `NiriBinds.js`, `dev/niri/*.kdl`, `dev/session.sh`, and the 142-action niri 26.04 action list from `shani-pkgbuilds/cache/pacman_cache/niri-26.04-1-x86_64.pkg.tar.zst` (bash completion). Skipped every listed item (window-rule properties, gestures, named workspaces, monitor swap, workspace drag, always-on-top, thumbnails, Activities, session restore, crash recovery).
+
+**Already exposed — do not re-file:** `screenshot-window` (Ring.qml:61), `focus-window-or-workspace-*` (OverviewSearch.qml:78), dynamic cast (LauncherActions.qml:63-65), `unset-workspace-name` (Niri.qml:229,282), `close-window` + force-close (Niri.qml:300,458), global focus-follows-mouse (InputConfig.qml:94). These are KDL-bind-only or hardwired to one surface, not generally addressable.
+
+## Shell-exposable gaps, ranked (value × ease)
+
+| # | Gap + evidence | One-line sketch |
+|---|---|---|
+| 1 | **No third-party extension surface at all.** No manifest dir, no plugin loader: every bar widget, dock tile, launcher action and settings page is a literal `LazyLoader { source: "Modules/…" }` (shell.qml:114-155) or a hardcoded IpcHandler (shell.qml:258+). No `manifest` string exists in any QML/JS. | Scan `~/.local/share/shani/extensions/*/manifest.json` (slot, qml, ipc) → Loader per bar/dock/launcher/settings slot + dynamic IPC dispatch; this is the Waybar-module / Plasma-plasmoid / GNOME-extension equivalent. |
+| 2 | **Hand edits to shell-owned includes are destroyed.** `WindowRules.qml:63-67` regenerates the whole `shani-windows.kdl` file; line 64 says so. `NiriConfig.qml` validates syntax but never preserves unknown blocks. | Emit only marker-delimited blocks and merge, or parse+retain unrecognised `window-rule {}` blocks before writing. |
+| 3 | **No diff / history / manual restore for config changes.** One `.prev` copy, deleted on success (NiriConfig.qml:40-43,77); automatic undo only on `ConfigLoaded.failed` (80-85); `rejected` counter is not surfaced (21-23). | Keep timestamped backups under `~/.local/share/shani/niri-config/`, show `diff -u` in Settings, add `configRestore(idx)` IPC. |
+| 4 | **Preset width/height actions never exposed.** `switch-preset-column-width` and `switch-preset-window-height` are KDL binds only (dev/niri/session.kdl:279,286); niri 26.04 also has `*-back` and `switch-preset-window-width`. WindowLayouts uses only `set-column-width` percentages (Services/WindowLayouts.qml:106-141). | Add `widthPreset(next)` / `heightPreset()` IpcHandler functions + Ring/Quick Settings tiles. |
+| 5 | **`toggle-keyboard-shortcuts-inhibit` unreachable outside the KDL bind** (session.kdl:296). Matters for screen sharing, remote control and dictation. | IPC `shortcutsInhibit()` plus a Quick Settings toggle (no state query exists — track locally). |
+| 6 | **`screenshot-window` fires blind at the focused window** (Ring.qml:61); Screenshots.qml:112 only does screen. No capture in the window menu (GAPS-RESEARCH:894). | `windowScreenshot(match)` → focus `Niri.findWindows(match)[0]` then `Niri.action("screenshot-window")`. |
+| 7 | **Column-level moves/swap absent from the shell.** `move-column-to-workspace{,-down,-up}`, `move-column-to-index`, `move-column-to-monitor-*` are KDL-only or unused; `Niri.moveWindowTo` uses `move-window-to-workspace` (Niri.qml:193-201), splitting the column. Column swap never called (GAPS-RESEARCH:258). | WindowMenu "Move whole column to…" → `move-column-to-workspace`; add `swap-column-left/right` IPC. |
+| 8 | **No apply-config-without-restart path.** niri 26.04 has `niri msg action load-config-file`; the shell only writes includes and waits for niri's auto-reload (NiriConfig.qml:68-86). | Settings > Developer "Apply config file…" → `niri validate -c` then `load-config-file` (reuses existing preflight). |
+| 9 | **Urgency is display-only.** `is_urgent` tracked (Niri.qml:404-411); niri actions `set-window-urgent`/`unset-window-urgent`/`toggle-window-urgent` unused. | "Ping this window" in dock/window menu; `windowUrgent(match,on)` IPC. |
+| 10 | **Interactive `niri msg pick-window` unused.** Shell overlays cannot click underlying windows, so a "choose a window" flow has no cheap implementation today. | IPC `pickWindow()` parses the picker's id → feed `Niri.findWindows`/`focusWin`. |
+| 11 | **Single-socket assumption breaks nested/second sessions.** `Niri.qml:23,431-434` binds one `NIRI_SOCKET`; dev/session.sh:202 picks `ls … | head -1`; every action shells out to bare `niri msg` (Niri.qml:237). A nested test compositor is invisible and actions can hit the wrong one. | Parameterise the service by socket path, export it to child processes, add a Dev selector. |
+| 12 | **Focus-navigation actions unused.** `focus-workspace-previous`, `focus-window-previous`, `focus-window-top/bottom`, `center-visible-columns` exist in niri 26.04 but have no IPC/palette (GAPS-RESEARCH:272). | Add to the `window*` IPC family and the Ring/overview action set. |
+| 13 | **Workspace rename is monitor-warping and index-only.** `renameWorkspace` forces `focus-monitor` (Niri.qml:279-284); IPC exposes only `renameWorkspaceAt(idx,…)` (shell.qml:906), so a workspace on another monitor can't be renamed/unset by id. | `workspaceRename(id, name)` using `set-workspace-name --workspace <id>` (empty name → unset). |
+| 14 | **`toggle-window-rule-opacity` action unused**, so the window-rule opacity property that niri 26.04 supports has no runtime toggle (cf. GAPS-RESEARCH:893). | IPC `ruleOpacity()` + WindowMenu row. |
+| 15 | **`niri msg layers` / `pick-color` split.** `pick-color` is in shell.qml:481; `layers` is unused — no in-shell layer-surface inspector for the shell's own panels. | Dev IPC `layers()` rendering the JSON in LogsPanel. |
+| 16 | **IPC discoverability for extensions.** ~519 functions, no `listIpc`/`describe`/tracer (GAPS-RESEARCH:861-862); a plugin registry (gap 1) cannot advertise or be debugged without it. | Reflect `IpcHandler` names + signatures into `state()` and log invocations. |
+
+## Compositor-level — out of scope (confirmed, not new)
+
+Focus-follows-mouse **per workspace** (niri 26.04 only has the global `input.focus-follows-mouse` the shell writes at InputConfig.qml:94); drag-to-edge event, gestures, always-on-top, window thumbnails, Activities, colour management, per-output VRR/refresh (GAPS-RESEARCH:816), compositor session manager, XWayland scaling. All already listed; this pass adds no new ones.
+
+## Ecosystem comparison
+
+Waybar/Polybar expose module lists in config, eww a widget DSL, Plasma KPackage plasmoids, GNOME extensions a loader API. Shani has only Hooks (event scripts) and matugen templates — good for *behaviour*, not for *surfaces*. Gap 1 is the single structural difference; gaps 2-3 are the config-safety price of owning the include files.
+
+Skipped: runtime verification (static only), and I did not re-check the already-listed niri items. Risk: action names verified against the 26.04 package, but `pick-window`/`load-config-file` argument shapes were not executed; gap 5 has no queryable state, so the toggle may desync if the KDL bind is used.
+
+## VERBATIM: Context menus depth
+
+# Context menus — 12th-pass deep gap audit (static, read-only)
+
+**Scope/method:** all app panels in `shani/Modules/` plus shell surfaces; grep for `RightButton`, `onPressAndHold`, `Hold.*`, `menuable`, `Accessible.MenuItem`, `Menu{}`/`Popup{}`, then targeted reads. Skip list honoured (Files *action set*, desktop right-click, launcher→dock pin, notification long-press, Open With, bar app menu).
+
+**Structural finding:** there is **no shared context-menu component and no `Menu{}`/`Popup{}` anywhere** in ~93 modules. Every menu is hand-rolled `Glass`+`Repeater`+`Rectangle`+`KeyFocus` (Dock.qml:542-613, FilesPanel.qml:1347-1403, DesktopIcons.qml:297). Only Files, Dock, desktop icons and the bar app menu have a real menu; every other app row/field/image/tab has none. `KeyFocus.qml:114` does wire Menu/Shift+F10 to `menu()`, but only 8 call sites set `menuable: true`.
+
+Ranked by (value × ease). Sketches are one-liners.
+
+## Ranked gaps
+
+1. **Files menu never takes keyboard focus on open.** `FilesPanel.qml:3005-3011` sets `menuEntry/menuX/menuY` but omits `Ui.focusFirst(menuBox)`; Dock does it at `Dock.qml:539`. Menu-key users land on the file, not the menu. *Sketch: add `Ui.focusFirst(menuBox)` to `openMenu()`.*
+
+2. **Escape doesn't dismiss the Files menu.** Escape handler at `FilesPanel.qml:38-65` checks ~14 overlays but not `menuEntry`; it navigates up a folder or hides Files. *Sketch: add `win.menuEntry` to the first `if` and clear it.*
+
+3. **Files menu items are invisible to screen readers.** Delegate at `FilesPanel.qml:1364-1401` has no `Accessible.role/name/onPressAction`; its only label lives in `KeyFocus`, which is `Accessible.ignored: true` (`KeyFocus.qml:38`). Dock gets this right (`Dock.qml:588-590`). *Sketch: copy Dock's three Accessible lines into the Files delegate.*
+
+4. **Files file menu is mouse-only — no long-press.** `FilesPanel.qml:884-912` and `1006-1031` accept `RightButton` and use `Hold` nowhere; touch cannot open a file menu (and `drag.target` competes with a hold). *Sketch: add `Hold.state/press/hold` + `onPressAndHold: openMenu(...)`.*
+
+5. **No text-editing context menu anywhere.** `Common/TextField.qml:31` (raw `TextInput`), `TextEditorPanel.qml:716-738`, `NotesPanel.qml:337-345`, `PdfReader.qml:499-513`. Right-click yields nothing: no Copy/Cut/Paste/Select All/Undo/Redo. GTK4, KDE and macOS all provide this on every `GtkEntry`/`QLineEdit`/`NSTextField` by default. *Sketch: one `TextContextMenu.qml` attached to the shared field + the three `TextEdit`s.*
+
+6. **No shared context-menu primitive** (root cause of 1-3, 18). Three bespoke copies diverge. *Sketch: extract a `MenuSurface.qml` with model `{label,icon,sep,danger,run}`, focus-first, Escape, and Accessible.MenuItem built in.*
+
+7. **TextEditor tabs have no context menu.** `TextEditorPanel.qml:506-515` accepts only `LeftButton|MiddleButton`; no Close Others/Close All/Close to Right/Save/Copy Path. *Sketch: accept RightButton → tab menu, reuse `closeTab(i)`.*
+
+8. **Photos photo tiles have no menu.** `PhotosWindow.qml:390-426`: left-click only; Slideshow/Trash/Adjust are 22 px hover buttons (`414-428`) with opacity tied to `containsMouse`, so no right-click/long-press and no Copy/Share/Properties/Set-as-wallpaper. *Sketch: `onPressAndHold`/right-click → `FileActions.offer([path])`.*
+
+9. **Mail message rows have no menu.** `MailWindow.qml:135-142` uses `ListRow { onClicked: Mail.read(...) }`; Mark read/unread, Flag, Archive, Delete, Reply/Forward exist only in the detail toolbar (`274-307`). Geary/Gmail expose these per-row. *Sketch: right-click row → menu calling `Mail.flag/archive/markUnread/remove`.*
+
+10. **Viewer image right-click and long-press only rotate.** `Viewer.qml:352-377` — both gestures map to `Viewer.rotate()`; no image menu (Copy, Save As, Set as wallpaper, Properties, Share, Print). Touch parity is good, action coverage is not. *Sketch: hold/right-click → `FileActions.offer([Viewer.file])`, keep rotate on double-tap.*
+
+11. **Music library album/song rows have no menu.** `MusicLibraryView.qml:100,190`: `onClicked` only; no Play next, Add to queue, Add to playlist, Delete, Show in folder. *Sketch: right-click song → queue/playlist menu.*
+
+12. **Calendar events have no menu.** `CalendarPanel.qml:725,804`: `MouseArea { onClicked: win.viewEvent(modelData) }`; no Edit/Delete/Duplicate or right-click quick-create on empty day cells. *Sketch: right-click event → Edit/Delete; right-click day → New event.*
+
+13. **Contacts rows have no menu.** `ContactsWindow.qml:457-465`: `rowArea` is `acceptedButtons: Qt.NoButton`, second MouseArea left-click only. Call/Message/Email/Share vCard/Edit/Delete are scattered toolbar buttons. *Sketch: right-click row → grouped action menu.*
+
+14. **Feeds feed and article rows have no menu.** `FeedsWindow.qml:78-86,217-225`: `ListRow { onClicked }` only; no Mark read, Save, Open link, Copy link, Unsubscribe. *Sketch: right-click row → `Feeds.markUnread/toggleSave/open`.*
+
+15. **Tasks rows have no menu.** `TasksWindow.qml:164-172`: `rowArea` NoButton + check MouseArea; Edit/Delete/Set due/Repeat only via hover icons (`221-229`). *Sketch: right-click row → Edit/Delete/Repeat/Due.*
+
+16. **Terminal host rows have no menu.** `TerminalAppWindow.qml:112-133,159-182`: `rowArea` NoButton; Connect/Test/Browse/Edit/Delete are always-visible toolbar icons. *Sketch: right-click host → same actions as a compact menu.*
+
+17. **PdfReader has no page/selection menu.** `PdfReader.qml:499-513` text mode is a read-only `TextEdit` (selectable, no menu — `Copy` only exists as toolbar icon `276`); thumbnails/annotations likewise. *Sketch: right-click page text → Copy/Select All; right-click page → Bookmark/Mark up/Print.*
+
+18. **Menu presentation is inconsistent (icons, separators, submenus).** Files menu has icons (`FilesPanel.qml:1376`) but no separators; Dock has `sep` flags (`Dock.qml:562-567`) but no icons (`587-601`); no submenu support anywhere (e.g. TextEditor colours, Media playback speed remain flat toolbars), despite `Accessible.ButtonMenu` existing in `WindowMenu.qml:175`. *Sketch: shared model with `icon`/`sep`/`children`, one renderer.*
+
+19. **Bar right-click actions are mouse-only.** `Bar.qml:181-184,618-621,824-827` set `hasMenu: true` so Menu-key works via `Chip.qml:69`, but chips have no `Hold` (unlike Dock `499`, Island `309`, Tile `110`); launch-mode/player-next/DND toggles are unreachable by touch. *Sketch: add `Hold` to `Chip.qml` and route `swallowed || RightButton` to `rightClicked()`.*
+
+## Comparison
+GNOME/GTK4 gives every entry and view a `GtkPopoverMenu` (standard Undo/Cut/Copy/Paste/Select All), per-file menus in Nautilus, and event/message row menus; KDE QML uses `Menu`/`MenuItem` with standard roles; macOS `NSMenu` adds accessibility actions and standard Edit selectors, iOS supplies long-press context menus. Shani has the keyboard/scroll-reader scaffolding (`KeyFocus`) but almost no menus to attach it to — items 1-4 are the cheapest quality win, item 5 the highest-value one.
+
+**Skipped/not checked:** actual runtime rendering and AT-SPI output (static only); the six listed prior-pass items; non-listed utility apps (Settings, Launcher, etc.) beyond the named set. **Risk:** adding long-press to Files tiles (`4`) must not fight `drag.target`, and a shared menu component (`6`) would touch Dock/desktop menus that prior passes already verified.
+
+## VERBATIM: Authenticator, Password Generator, Kundali depth
+
+# Twelfth-pass gap research — Authenticator, Password Generator, Kundali / Panchang
+
+All static. Skips honored (digits/period/algorithm UI, export/backup, clipboard clear, refresh tick; look-alikes/length/word-count/entropy/keyring/GPG; Kundali timezone, nine unwired bridge commands, visual chart, city search, export, ayanamsa). Ranked by value × ease.
+
+| # | Gap | V/E | Evidence | Sketch |
+|---|-----|-----|----------|--------|
+| 1 | **Panchang computes 15 fields, UI shows 5** — `masa`, `paksha`, `ritu`, `ayana`, `kali/shaka/vikram_year`, sun/moon longitude, ayanamsa are silently dropped. | H/H | `KundaliPanel.qml:131-136` vs `shani-chronoa/astronomy.py:248-315` | Render the remaining 10 in the result block. |
+| 2 | **No HOTP** — counter-based `otpauth://hotp/` is explicitly rejected; `tests/test_otp.py:59` pins that rejection as intended. | H/H | `bridge/otp.py:75-76` | Parse `hotp`, store `counter`, add `hotp()` (RFC 4226) and a "next code" button. |
+| 3 | **No strength estimate** — only length is offered; a weak 20-char pattern looks identical to a strong one. | H/M | `PasswordGeneratorPanel.qml:132-145` | Score each candidate with zxcvbn locally; show label + bar, regenerate below threshold. |
+| 4 | **No dictionary/pattern rejection** — the `while True` loop only checks character classes, so `Password1!` and `qwerty123` pass. | H/M | `PasswordGeneratorPanel.qml:43-49` | Reject against a bundled common-password list + keyboard walks/sequences before printing. |
+| 5 | **No sunrise/sunset or tithi end times** — a Panchang's core utility is *when* a tithi/nakshatra changes; the helper hardcodes `06:00`/`18:00`. | H/M | `astronomy.py:2350-2353`; absent from `compute_panchang:248-315` | Compute rise/set and tithi/nak transition instants for the entered lat/lon; show countdown. |
+| 6 | **No dasha/antardasha** — `vimshottari_dasha`, `antardasha`, `full_dasha` exist but no bridge command reaches them (`timelords` calls `time_lords`, not dasha). | H/M | `bridge/kundali.py:68-185`, `133-145`; `astronomy.py:316,661,697` | Add `dasha` command + a timeline view of mahadasha/antardasha periods. |
+| 7 | **No muhurta selection** — `muhurta_score()` (purpose-weighted, 50-point scale) has no CLI path and no UI. | H/M | `astronomy.py:1680`; command list `kundali.py:68-185` | Add `muhurta` command; let user pick purpose + date range and list top scored windows. |
+| 8 | **No clock-drift correction** — codes come from raw `time.time()`/`Date.now()`; a fast/slow system clock silently yields wrong codes. | H/M | `otp.py:60-67,178`; `AuthenticatorWindow.qml:41,152` | Store a per-entry `offset` and add a "my code differs" wizard that solves for it (as Aegis/Google do). |
+| 9 | **Passphrase wordlist is an uncurated system dictionary** — `/usr/share/dict/words`, lowercase-alpha 4–8 chars, English-only, fixed `-` separator, word count `max(4, n//5)`. | M/H | `PasswordGeneratorPanel.qml:37-41` | Ship a small curated diceware list (EN + one Indic), add separator/capitalization/number options. |
+| 10 | **No history or favorites** — every refresh or option change overwrites the single `generated` string; a accidentally-lost good password is unrecoverable. | M/H | `PasswordGeneratorPanel.qml:54,125,90-93` | Keep a short in-memory list of recent candidates with a "keep" star (never persist secrets). |
+| 11 | **Vikram Samvat only approximated as a year** — `year + 57`, no Samvat month/day, and not displayed at all; wrong before Chaitra. | M/M | `astronomy.py:286-300`; `KundaliPanel.qml:131-136` | Convert the date into Vikram Samvat month/paksha/tithi using the computed `masa`, show alongside Gregorian. |
+| 12 | **YubiKey OATH handling is shallow** — every key credential is forced to period 30 / digits = code length; HOTP credentials are skipped; no add/delete/rename on the key. | M/M | `otp.py:224`, `271-272`, `282-284` | Parse `ykman oath accounts list` for real period/digits/type; expose credential management via `ykman oath accounts add/delete`. |
+| 13 | **No horoscope matching / gun milan** — the only two-chart helper is `synastry()` (cross-aspects), not 36-point Vivaha Milan; no two-birth input anywhere. | M/M | `astronomy.py:776-791`; `bridge/kundali.py:68-185`; `KundaliPanel.qml:67-89` | Add `match` command computing the 36 gunas + mangal/raj yoga flags; two birth forms side by side. |
+| 14 | **No planet→house mapping or divisional charts** — planets and houses are printed as two unrelated lists; varga helpers (`_dashamsha`, `_dwadashamsha`, `all_vargas`) are unreachable. | M/M | `KundaliPanel.qml:138-145`; `astronomy.py:431-465,~800` | Annotate each planet with its house/lord and add a Navamsha table. |
+| 15 | **No Steam Guard format** — Steam uses `steamauth://` and a custom base-32 alphabet with a 5-character symbol set; `parse()` only accepts `otpauth://totp/` and standard base32. | M/M | `otp.py:73-76`, `48-57` | Add a `steam` scheme with Steam's alphabet and 5-char encoding (separate code renderer, not `totp()`'s digits). |
+| 16 | **No camera QR scan** — "Scan a QR code on the screen" only grabs a screen region via `slurp`+`grim`+`zbarimg`; no webcam/v4l path for a code shown on a phone. | M/M | `otp.py:206-220`; `AuthenticatorWindow.qml:108` | Add a camera capture button (PipeWire portal or `ffmpeg -f v4l2`) feeding the same zbar decode. |
+| 17 | **No single-use backup/recovery-code storage** — the keyring schema stores only TOTP secrets; services hand out 8–10 one-time codes that are discarded after use. | M/M | `otp.py:121-129`, `155-169` | Add a `backup` item type: list of codes, mark-used-on-copy, stored in the same Secret Service item. |
+| 18 | **No auspicious-time reminders** — Panchang is computed only on demand; there is no "warn me when Brahma Muhurta / Rahu Kalam starts" or Calendar handoff. | M/L | `KundaliPanel.qml:30-46,91-96` | Compute next window and fire a notification / create a Calendar event via existing shell services. |
+| 19 | **No auto-fill handoff** — generated secrets go only to the clipboard; the keyring is opened separately as a read-only GPG list, so nothing links generation to a saved login. | M/L | `PasswordGeneratorPanel.qml:56-60`, `180-188` | Offer "save to keyring" via `passwords.py add` and/or a browser autofill D-Bus handoff. |
+
+**Skipped:** pronounceable/syllable passwords and North/South Indian chart styles — lower value than the 19 above; no runtime verification (static only). **Risk:** `shani-chronoa`'s dasha/muhurta/varga helpers are visibly simplified (`sunrise_approx = "06:00"`, "approximate" Samvat), so wiring #1/#6/#7/#11 into the UI will expose rough values as if authoritative — label them "approximate" until the astronomy is cross-checked.
+
+---
+
+# Eleventh pass — VERBATIM agent reports
+
+## VERBATIM: Diagnostic tools depth
+
+I read both GAPS docs in full and audited the interactive-diagnostics surfaces. I excluded the exact items already filed (Logs' raw-entry button / unused `priColor` / severity-unit-boot filters / `-n 200` / export / PRIORITY search / new-error notice; process details dialog, signals, renice, Users view, sort, PSI; health "text-only/no remediation" and "two divergent systems"; system-report crash specifics; SMART, thermal, SysStats meters; shani-doctor).
+
+## Ranked gaps — value × ease
+
+**Tier 1 — high value, cheap**
+
+1. **[H/E] Health ring ignores failed *user* units.** `health-check.py:52` runs `systemctl --failed` with no `--user`, so a failed `shani-*` bridge/user service leaves the ring green while the desktop is half-dead. Sketch: add a `--user` check (shani-health checks both scopes).
+2. **[H/E] Disk column is a lifetime total, not a rate.** `Processes.qml:377,453` + `TopProcesses.qml:156-178` read `/proc/<pid>/io` cumulatively; you cannot see which process is hammering disk *now*, and read/write are merged. Sketch: keep previous `io` sample and show Δbytes/s, split read vs write (iotop's core view).
+3. **[H/E] Follow mode yanks the reader back to newest.** `LogsPanel.qml:84-89` re-runs `readJournal()` every 3 s and `:116` replaces the whole model, so scrolling back or selecting a row is discarded and there is no "pause while scrolled". Sketch: stop the timer while `list.contentY > 0`; add a "Jump to latest" pill (GNOME Logs behaviour).
+4. **[H/E] Problem report has no redaction controls.** `system-report.py:57` is only a prose warning; `:51,65` include the hostname verbatim, `:90` dumps `lspci -nn`, `:104-135` dump 200 journal lines with possible usernames/IPs. `shani-health --export-logs` (shani-health.md:213-219) *filters secrets*. Sketch: opt-in scrub of host/user/IP/MAC fields before opening the editor.
+5. **[H/E] No time-range window in Logs.** `LogsPanel.qml:80` is count-based (`-n 200`) only; "what happened 14:00–15:00 yesterday" or an older boot is unreachable. Sketch: `--since/--until` + boot-ID picker.
+6. **[M/E] Health is a one-shot snapshot with no trend.** `SettingsAbout.qml:21-23` runs the check only while About is open; `:54-58` keeps just the latest JSON. Sketch: append each result to a small log and draw a score sparkline (Reliability Monitor's timeline).
+7. **[M/E] Category chips are regex heuristics, not journal sources.** `LogsPanel.qml:40-54,148` classify one merged stream, so "Kernel"/"User" can misclassify; audit logs are never read anywhere in the tree. Sketch: map chips to `-k` / `--user` / `-u UNIT` / `--file=/var/log/audit/audit.log`.
+8. **[M/E] No bookmarks on log entries.** `LogsPanel.qml:30` holds only `selected`, erased by every 3 s refresh. Sketch: cursor-keyed bookmark set with a "Bookmarked" chip.
+9. **[M/E] Search is literal substring only.** `LogsPanel.qml:68-72` uses lowercase `indexOf`; footer `:267` reports `shown.length` though only 100 are rendered. Sketch: regex toggle + `unit:foo` field operator, and report the rendered count.
+
+**Tier 2 — real work, still worth it**
+
+10. **[H/M] Per-process network is a dead placeholder.** `TopProcesses.qml:123,130` only probes `nethogs` availability; `Processes.qml:252-259` renders "available / not installed" and never launches it. No `ss`, `netstat`, `lsof` or `/proc/net/tcp` reader exists in the tree. Sketch: parse `/proc/net/tcp*` + `/proc/<pid>/fd` into a connections/ports table (Resource Monitor).
+11. **[M/M] Shell never surfaces `shani-health`.** `SettingsAbout.qml:54` calls the 4-check `health-check.py`; `:184-187` hands off to Cassini. The CLI's `--journal`, `--export-logs`, `--verify`, `--storage-info`, `--json` (shani-health.md:20-47) are unreachable from the GUI. Sketch: a "Full diagnostics" button showing filtered shani-health output.
+12. **[M/E] Graph history is ~3 minutes and memory-only.** `SysStats.qml:21-24,28` caps 60 samples at 3 s; `Processes.qml:136` claims "the last minute" (wrong). Sketch: downsampling ring buffer + on-disk append for hour/day graphs.
+13. **[M/M] Per-core is instantaneous bars only; GPU is one nvidia-smi line.** `SysStats.qml:218-238` has no per-core history; `Gpu.qml:82-92` takes the first line of name/util/memory only — no temp/power/clock/fan, no `rocm-smi`/Intel, no per-process GPU. Sketch: extend the query fields and store per-core sparklines.
+14. **[M/M] Threads are a count, not a view.** `TopProcesses.qml:117` and `Processes.qml:478` show `Threads: N` only; no TID list, state or per-thread CPU (htop's `H`). Sketch: read `/proc/<pid>/task/*/stat` into a second ListView.
+15. **[M/M] Benchmark coverage is thin.** Only `disks.py:277-305` — a 64 MiB read-only sequential sample, rendered as one line (`DisksWindow.qml:497-498`), no graph; no write/random/queue depth, and no CPU or network benchmark exists (speed test was removed, GAPS.md:216). Sketch: multi-size read/write graph; gate CPU/network benchmarks behind installed tools.
+16. **[L/E] Health scoring is unweighted and untunable.** `health-check.py:16,31-90` gives a missing `notify-send` the same weight as 0 GB free, with a hardcoded 2 GB threshold and no warning band. Sketch: per-check severity and a tuneable threshold.
+17. **[L/E] Report has no structured or selectable form.** `system-report.py:38-138` always emits the same 7 sections as text; no `--json`, no section checkboxes. Sketch: section flags + JSON output mirroring shani-health.
+18. **[L/E] Log details expose structured fields only as raw JSON.** `LogsPanel.qml:247-255` dumps `JSON.stringify(raw)`; `_TRANSPORT`, `_BOOT_ID`, `CODE_FILE/LINE` are unlabelled and uncopyable individually. Sketch: small key/value table with copy-per-field.
+
+**Comparison:** GNOME Logs has real journal sources, severity/time filters and export; htop/btop/iotop/nethogs give live I/O rates, threads and per-process network; Windows Resource Monitor shows TCP connections and Reliability Monitor a timeline. Shani's three tools are quick viewers — fixed buffer, 3-minute in-memory history, one-shot health ring.
+
+Skipped: I did not re-file any of the ten-pass items listed above, and made no edits. Risk: all verdicts are from static reading — no QML runtime, real journald/PipeWire/nvidia-smi or hardware was available, so the misclassification and scroll-reset claims should be confirmed in a live session.
+
+## VERBATIM: Backup/restore edge cases
+
+# Eleventh pass — per-app DATA PORTABILITY (format-level) audit — see pass 11 data portability section
+
+[Backup edge cases report merged — see the backup verification findings in pass 11 curated section; verbatim below:]
+
+1. **H/H — No `restic check` anywhere.** Integrity is inferred from a single-file restore (`restic.py:194-273`, `cli.py:215`); the docs separately tell users to run `restic check`, `--read-data`, and "verify after prune" by hand (`shani-docs/docs/system/backup.md:228,257,364`). No repository-wide verification ever runs. Sketch: add `shani-backup verify` → `restic check [--read-data]`, run after `thin()`, store result in `restore-test.json` alongside the existing restore test.
+2. **H/H — Restore-test failure never fails the backup.** `cli.py:217-220` exits on `result.ok` alone and merely *prints* the test result; `backups_page.py:270` discards `restore_test()`'s return; `Backup.qml:110-116` notifies only on job exit code. Sketch: fold `tested.ok` into exit status and both UI notifications.
+3. **H/H — Partial backup reported as success.** `restic.py:146-149` treats restic exit 3 ("some files could not be read") as OK; `summary.files_error` is parsed away at `:142-143`. Sketch: include `files_error` count in `Result.detail`/JSON and warn.
+4. **M/H — Restore test has false negatives.** `restic.py:247-250` only considers files `0 < size ≤ 50MB`; a backup of empty files or one large file reports "no file to test a restore with" though it may be fine. Sketch: fall back to any file, or to `restic check`, when the size filter finds nothing.
+5. **H/M — No space preflight, no cleanup after a failed restore.** `restic.py:183-191` has `timeout=None`, no `df` check against snapshot size; on ENOSPC/drive-loss, `backups_page.py:301-311` leaves a partial tree and the next attempt just picks `Backup of … (2)` (`:284-287`). Sketch: compare free space to `snap.size` first; delete the partial target in a `finally` and write a `.incomplete` marker with a retry/clean action.
+6. **M/H — Full restores never verify.** Only `restore_test` passes `--verify` (`restic.py:258-259`); GUI `restic.restore` (`backups_page.py:302`) does not, so bytes written to a bad target are unchecked. Sketch: add `--verify` to `restore()`.
+7. **H/M — Local snapshot restores lose fidelity.** `home_page.py:79-86` uses `shutil.copy2/copytree`: no xattrs (SELinux/user.*), no hardlink preservation, sparse files become fully allocated, FIFOs/sockets error or block. Sketch: use `cp -a --reflink=auto` or `rsync -aHAX` for all restores.
+8. **M/H — No post-restore verification of local copies.** `home_page.py:387-393` catches only `OSError`; no size/stat/hash recheck. Sketch: compare `st_size` after `restore()` and fail loudly.
+9. **M/H — Defaults leave Downloads and mounted filesystems.** `restic.py:42-47` excludes only caches/Trash/.snapshots/CACHEDIR.TAG/.nobackup; no `--one-file-system`, so an under-home mount or loop image is traversed. Sketch: add `--one-file-system` and a Downloads opt-out.
+10. **M/M — No user paths or pattern syntax.** Exclusions are a fixed code list; `backups_page.py:98-101` describes only defaults. Sketch: a GSettings exclusion list rendered as `--exclude <pattern>` with restic pattern help.
+11. **M/M — No key management or recovery material.** Password lives only in the keyring (`restic.py:91-117`); the UI says "write it down somewhere safe" (`backups_page.py:212-215`), but there is no `restic key add/change/list` flow, and home snapshots are plain ACL'd subvolumes (`home.py:37-46`). Sketch: "Add/change backup password" using `restic key add/remove` and an exportable key file.
+12. **H/L — No remote backend at all.** `backups_page.py:195-208` uses a folder picker and rejects paths under home; `config.py:269-275` requires an absolute path; credentials are only ambient env. S3/SSH/B2 URLs cannot be configured. Sketch: URL field + credential inputs mapped to `RESTIC_REPOSITORY`/AWS/SSH env, keyring-stored.
+13. **H/H — Manual backups never prune; prune failure ignored.** `cli.py:212-213` calls `thin()` only with `--scheduled` and drops its `Result`; `Backup.qml:108` and `backups_page.py:268` call `backup` without it. A manual-only user's repo grows forever. Sketch: prune after every successful backup and surface its failure.
+14. **M/H — No prune preview.** `restic.py:152-156` hardcodes `forget --prune` with fixed `KEEP`; no `--dry-run`, and the docs' verify-after-prune step is manual. Sketch: `backups --prune-preview` → `restic forget --dry-run`.
+15. **H/M — Missed catch-up run fails silently.** The restic timer is `Persistent=true`, but its service has no `RequiresMountsFor` or retry (`shani-backup-restic.service`); if the drive isn't attached at that boot, `restic.py:127-128` returns an error once and the day is lost. Sketch: `OnFailure=` notification + retry timer.
+16. **M/H — Two conflicting schedule stores.** `config.py` GSettings keys (`schedule-time` default 02:00, `enable-scheduler`) are dead (see `cli.py:326-327`); the real timer uses a drop-in defaulting to 12:30 (`restic.py:298`). Sketch: remove the dead schema keys or make them authoritative.
+17. **M/M — Linger and home-snapshot time are unfixable in UI.** The timer is a user unit: it never fires without a session/linger — Cassini only explains this (`backup.py:155-170`). Home snapshots are fixed at `OnCalendar=daily` (`shani-backup-home.timer:7`). Sketch: offer an enable-linger button and a time drop-in for the home timer.
+18. **H/M — No proactive backup notifications.** Only the manual job notifies (`Backup.qml:110-117`); the drive banner is app-internal (`backups_page.py:43,138`), staleness (≥3 days, `:142`) is visible only when a page is opened, and the timer units have no `OnFailure=`. No low-disk or drive-not-connected reminder. Sketch: timer `OnFailure=` notify + a session-start staleness/disk/daily reminder.
+19. **H/H — Local-snapshot restore gated on an external drive.** `BackupPanel.qml:106,116` sets `enabled: Backup.driveSetUp` (restic repo configured), but the timeline comes from `home list` local snapshots (`Backup.qml:69`). With daily snapshots but no backup drive, every restore button is dead. Sketch: drop the `driveSetUp` gate.
+20. **M/H — Sizes always zero and selected snapshot lost.** `Backup.qml:82` reads `s.total_size`, which `home list --json` never returns (`home.py:268-296`), so `formatBytes` is never used; `Backup.qml:37-44` ignores `name` and opens `home` for both "Restore" and "Files only". Sketch: add a size to `Snapshot` or remove the field; pass the chosen snapshot id to the GUI.
+
+**Skipped/not checked:** no runtime or real-slot execution (static only), and I did not re-litigate GAPS.md's listed items. Risk: several findings depend on restic's exact exit-3/`--verify`/`copy2` semantics; confirm against the shipped restic version before implementing.
+
+---
+
+# Tenth pass — VERBATIM agent reports
+
+## VERBATIM: Advanced text editor features
+
+**Method:** static only. Read `docs/GAPS.md`, `docs/GAPS-RESEARCH.md`, then `Modules/TextEditor/TextEditorPanel.qml`, `Services/TextDocs.qml`, `Services/TextMate.qml`, `Common/Highlight.js`, `Common/TextMate.js`, `Common/HighlightText.qml`, `bridge/textmate.py`, `Services/Terminal.qml`, plus greps over `shani/` and `bridge/`.
+
+**Correction to the older docs:** the editor is well ahead of what GAPS.md claims — session restore, multi-caret, snippets, TextMate theme chooser, bookmarks, go-to-line, current-line/matching-brace highlight, word count and regex find all exist in code. Those are the user's skip-list and are not reported below. The real frontier is code intelligence and project/IDE workflow.
+
+## A. Feasible in QML (or a small bridge) — ranked by value × ease
+
+1. **Jump to matching bracket** — `matchBrace()` is fully implemented (`TextEditorPanel.qml:371-391`) and used only to draw a box (`:674-684`); no key ever moves the cursor there. Sketch: add `Ctrl+]` in `shortcut()` (`:430-449`) calling `edit.cursorPosition = win.matchBrace(...)`. Highest ease.
+2. **Auto-save to disk** — `setText()` keeps every keystroke in memory only (`TextDocs.qml:199-215`); `save()` is manual (`:243-256`); no `autoSave` setting exists (`Common/Settings.qml:270-274`). Sketch: a `Timer` in `TextDocs` calling `save()` after N seconds of inactivity, with an on/off + delay row.
+3. **Unsaved-buffer recovery across restart** — `saveSession()` writes only `{paths, active}` (`TextDocs.qml:79-83`), and `restoreSession()` re-reads files from disk (`:84-101`). Unsaved text is lost on shell restart despite the header comment at `:4-9`. Sketch: include each doc's `text`/`eol`/`modified` in the session JSON and offer "Recover".
+4. **EOL selector** — EOL is *detected* and preserved (`TextDocs.qml:189`) and reapplied on save (`:254`), but the user cannot choose LF/CRLF. Sketch: a status-bar chip cycling `d.eol` before `save()`.
+5. **Type-over closing bracket** — `handleAutoclose()` inserts pairs and deletes pairs on Backspace (`TextEditorPanel.qml:89-124`) but typing `)` next to an auto-inserted `)` produces `))`. Sketch: if the next char equals `closeOf(c)`, advance the cursor instead of inserting.
+6. **Soft-wrap modes** — `wordWrap` is one boolean (`TextEditorPanel.qml:46`, `:720`). No off / wrap-at-viewport / wrap-at-column (80), no wrapped-line gutter marker. Sketch: a 3-state toggle driving `wrapMode` + a column ruler.
+7. **External-change / conflict detection** — the file is probed only at open (`TextDocs.qml:142-145`); there is no watcher, no mtime check, no "changed on disk" banner. A second editor can overwrite silently. Sketch: `DirMonitor`/periodic `stat` comparing mtime, then a Reload/Discard banner.
+8. **Breadcrumbs (cursor path)** — status bar shows path + line/column only (`TextEditorPanel.qml:778-808`). Sketch: regex-scan braces/`function|class|def` above the cursor and render `file › class › fn › line` in the tab strip.
+9. **Format document** — the editor panel spawns no process at all (no `Process`/`execDetached` in the file). Sketch: one bridge command dispatching `black`/`rustfmt`/`prettier`/`clang-format` by `win.lang`, replacing text via `TextDocs.setText()`; tools are optional deps, so degrade with a message.
+10. **Git status / diff for the open file** — `/usr/bin/git` exists, but no editor code calls it. Sketch: a side pane with `git diff -- <path>` rendered through the existing `diff` highlighter (`Highlight.js:34,111`).
+11. **Open a folder → file tree → project search** — `TextDocs.open()` explicitly refuses directories (`TextDocs.qml:143,169`), so the editor is single-file only; find/replace is per-document (`TextEditorPanel.qml:334-354,410-428`). Sketch: reuse `Services/Files` listing in a left panel and a `grep -rn` bridge for "Find in files".
+12. **Code folding** — the gutter holds only line numbers and bookmark dots (`TextEditorPanel.qml:625-650`). Sketch: compute indent/brace ranges and elide those line ranges in *both* overlay TextEdits (`:700-714` and `:715-763`), with a gutter chevron.
+13. **Selection grow/shrink** — Alt+Shift+Down/Up adds *vertical* cursors (`TextEditorPanel.qml:164-169,743-746`); there is no structural "expand selection to word → string → block". Sketch: brace/quote scan around selectionStart/End, mirroring `matchBrace()`.
+14. **Sticky scroll** — `flick.follow()` scrolls everything (`TextEditorPanel.qml:659-664`); no pinned enclosing scope header. Sketch: reuse the breadcrumb scan from #8 as a 1-line overlay that persists while scrolling.
+15. **Encoding selector** — the probe rejects any NUL-bearing file with `grep -qI ""` (`TextDocs.qml:143`), so UTF-16/32 is "Not a text file" (`:169`); `FileView` uses its default codec (`:179-196`). Sketch: bridge sniff of BOMs, explicit codec in a decode helper, and a UTF-8/Latin-1/UTF-16 chip.
+16. **Minimap** — the Flickable contains only the two TextEdits and highlight overlays (`TextEditorPanel.qml:651-775`). Sketch: render the `paint` text at 1:5 scale into a narrow column and map `contentY`. Low value per effort.
+17. **TextMate grammar data** — the loader scans two dirs (`TextMate.qml:16-19`) and highlights via `TextMate.js`, but **0** `.tmLanguage`/`.tmTheme` files ship outside Flatpak caches; every file falls back to keyword regex (`Common/Highlight.js:8-45`). Sketch: vendor five small grammars (C/Py/QML/JS/JSON). Overlaps an earlier file-format finding.
+
+## B. Needs an LSP daemon (or comparable backend)
+
+Grep for `lsp`, `language server`, `textDocument/*`, `publishDiagnostics`, `semanticTokens`, `completion`, `definition`, `rename`, `hover` across `shani/` and `bridge/` returns **zero** matches. The editor imports only `Highlight.js` (`TextEditorPanel.qml:17`) and launches no language process.
+
+18. **LSP client core** — no JSON-RPC transport, no workspace/rootUri, no capability handshake. Needs a bridge speaking stdio JSON-RPC and a QML-facing singleton. Sketch: `bridge/lsp.py` + `Services/Lsp.qml` mapping requests to document URIs.
+19. **Completion / IntelliSense** — the only "completion" is seven hard-coded Tab snippets (`TextEditorPanel.qml:61-87,756-758`). Needs `textDocument/completion` + a popup delegate; no QML-only fix gives real symbols.
+20. **Diagnostics / problems list** — no squiggles and no problems panel; the only error surface is `TextDocs.error` (`:30`, status bar `:784`). Needs `publishDiagnostics`; a cheap QML-only subset is `python -m py_compile`-style lint, but that is not diagnostics.
+21. **Go-to-definition / find references** — only go-to-*line* (`:269-276,360-370`). Needs `definition`/`references` plus a results list.
+22. **Rename symbol across files** — find/replace touches the current buffer only (`:410-428`). Needs `workspace/applyEdit`; the atomic multi-file save path would have to be newly written.
+23. **Hover docs / signature help** — no hover handler anywhere near the editing surface. Needs `hover`/`signatureHelp` and a rich-text tooltip.
+24. **Embedded terminal, build/run tasks, problem list** — `Services/Terminal.qml:1-52` only picks an *external* emulator (foot/Ghostty/kitty); the editor has no Run action. A "run file in terminal" is QML-feasible by launching the chosen terminal; a true embedded terminal and a build-task/problems pipeline need a PTY bridge and an LSP/task daemon.
+25. **Collaboration / CRDT** — grep for `CRDT`, `yjs`, `automerge`, `collab` is empty; documents are plain in-memory strings (`TextDocs.qml:23-26`). Needs a transport and server; out of scope for a local shell editor.
+
+**Top five by value × ease:** #1, #2, #3, #4, #5 — all small, self-contained changes in `TextEditorPanel.qml`/`TextDocs.qml`.
+
+Skipped: runtime/QML verification (static only), third-party LSP availability on the image, and any upstream comparison against actual Kate/Helix binaries. Risk: the line numbers are from the current tree and the session/TextMate code is newer than the docs, so anything already filed as "open" in GAPS.md for the editor should be re-checked against source before being re-reported.
+
+## VERBATIM: Advanced email composition
+
+# Tenth-pass deep gaps — Advanced Mail composition & organization
+
+**Verdict:** Mail is a four-pane reader with a single plain-text compose box. Every item below is *new at this depth* — composition metadata, organization, integration, and send lifecycle are absent from both the bridge command vocabulary (`mail.py:20-33,689-900`) and the QML surface (`MailWindow.qml`). Ranked by value × ease.
+
+## Composition
+
+1. **Recipient autocomplete from Contacts** — `MailWindow.qml:353-355` To/Cc/Bcc are bare `TextField`s; `Contacts.qml:16` already holds `{name,email,avatar}` but Mail never reads it. Sketch: `Repeater` over `Contacts.contacts` filtered on prefix → popup, fill `toBox`. *Cheapest high-value win in the app.*
+2. **Per-account signature** — `mail.py:11-15` config has no signature field; `send()` at `mail.py:648-655` sets only From/To/Cc/Subject/Date; `MailWindow.qml:360` body starts empty. Sketch: `account.signature` in `mail.json`, append in `send()`, one Settings row.
+3. **Request a read receipt** — `mail.py:648-655` emits no `Disposition-Notification-To`; no toggle exists. Sketch: checkbox in compose → `msg["Disposition-Notification-To"] = From`.
+4. **Delivery priority / importance** — `mail.py:648-655` sets no `X-Priority`/`Importance`. Sketch: High/Normal/Low combo → two headers.
+5. **"Do not reply" / Reply-To override** — `send()` (`mail.py:648-655`) never sets `Reply-To`; no field. Sketch: optional `replyTo` field → `msg["Reply-To"]`, or a no-reply `From`.
+6. **Send later / schedule** — `send()` transmits immediately (`mail.py:643-686`); no timer or queue anywhere. Sketch: datetime picker → local pending-jobs file + `systemd-run --on-calendar`, or a QML `Timer`.
+7. **HTML / rich-text compose** — `MailWindow.qml:360` fixes `textFormat: Text.PlainText`; `mail.py:655` uses `set_content(body)` only, no alternative part. Sketch: RichText TextArea + `msg.add_alternative(html, subtype="html")`; sanitize on send.
+8. **Spellcheck in compose** — `MailWindow.qml:360` `TextArea` has no spelling support; global "no spellcheck" note (`GAPS.md:1561`) never scoped to Mail. Sketch: Qt 6 `TextArea` spellcheck hints + dictionary at `Mail.qml`.
+
+## Attachments (outbound)
+
+9. **Drag files into compose** — `MailWindow.qml:335-380` compose is a plain `Rectangle` with no `DropArea` (save-side picker at `:20-26` is unrelated; `GAPS.md:1367`). Sketch: `DropArea` accepting `text/uri-list` → attachment chip row passed to `send()`.
+10. **Attachment preview / open** — `MailWindow.qml:248-264` shows name/type/size plus a save button only; `mail.py:197-219` decodes bytes but never renders. Sketch: "Preview" → QuickLook handoff or temp-file `Qt.openUrlExternally`.
+11. **Inline/CID images** — `mail.py:155` replaces every `<img>` with `[image]`; `bodies_of()` (`mail.py:164-179`) never resolves `cid:` parts. Sketch: map `cid:` → saved MIME part → `TextDocument` image source.
+12. **Large-file handling / attach-as-link** — `send()` (`mail.py:643`) has no size check or link alternative. Sketch: threshold warning + upload/link (needs storage backend).
+
+## Organization
+
+13. **Message filters / rules on arrival** — `mail.py:20-33` command set has no rule engine; only manual `imap_move` (`:547-560`). Sketch: `filters.json` + apply in `imap_list`/`imap_read` (move/flag by sender/subject).
+14. **Quick filters (unread-only, etc.)** — `MailWindow.qml:127-144` list has no filter controls despite `folders[].unread` (`Mail.qml:16`). Sketch: All/Unread/Starred chips in the list header.
+15. **Saved searches** — `Mail.search()` (`Mail.qml:63`) sets transient `query` only; nothing persists. Sketch: store named queries in the folder pane, one click to re-run.
+16. **Snooze until** — no `snooze` command (`mail.py:20-33,689-900`); `Mail.qml:42-63` has none. Sketch: `snooze <uid> <iso>` → hide + flag, local timer unflags at time.
+17. **Tags with colors / pin important** — only IMAP `\Flagged` star (`Mail.qml:49`, `mail.py:534`); list sorts by date only (`mail.py:438`). Sketch: custom IMAP keywords + color map, pinned section above the list.
+
+## Conversation view
+
+18. **Quote collapsing + load older** — `MailWindow.qml:331-334` flattens the quote into one `>`-prefixed block with no toggle; `imap_list` hardcodes last 100 (`:438`) and `Mail.open()` (`:44`) just re-lists. Sketch: fenced collapsible quote region and an "Load older" footer with `list <folder> <offset>`.
+
+## Contacts / calendar integration
+
+19. **Add sender to Contacts / contact photos** — reader renders `Mail.from` as plain Text (`MailWindow.qml:191-198`); no `Contacts.add()` call. Sketch: avatar + "Add to Contacts" passing parsed `sender()` (`mail.py:232-239`).
+20. **RSVP buttons / meeting indicators in the message** — `imap_read`/`mh_read` (`mail.py:503-526,293-331`) ignore `text/calendar` parts; `safe_html()` strips them. Sketch: parse the calendar part → Accept/Tentative/Decline + iTIP REPLY (distinct from the Calendar-side S11 gap).
+21. **Convert email to event** — no Agenda/Calendar reference in `MailWindow.qml`; Sketch: "Create event" button handing subject/date/body to the existing Agenda add path.
+
+## Send lifecycle & keyboard
+
+22. **Undo send / outbox / failed-send retry** — `MailWindow.qml:369-374` closes compose immediately; on error `Mail.qml:138-139` only sets `note`, no persistence. Sketch: 5s grace + Undo toast; failed sends to `outbox.json` with Retry.
+23. **Draft autosave across restarts** — Cancel clears all fields (`MailWindow.qml:377`), compose is memory-only. Sketch: write compose fields to XDG state on `textChanged`, restore on open.
+24. **Full keyboard navigation + compose-in-new-window** — only `onAccepted` on search (`MailWindow.qml:81`); no `Keys.onPressed`, no pane `KeyNavigation`; compose is a centered modal (`:335-345`). Sketch: j/k/r/c// keys + a standalone compose `AppWindow`.
+
+**Skipped / not checked:** message templates (already noted) and all items in the parent skip list; no runtime, Qt-version, or live-IMAP verification — purely static. **Risk:** #7/#11 depend on Qt's HTML subset and CID support in this image; #20's iTIP REPLY needs the Calendar backend's attendee path, which is itself noted as incomplete (`GAPS-RESEARCH.md:832`).
+
+---
+
+# Note on passes 1–9 and remaining pass-10/11 reports
+
+The sections above contain the **verbatim** text for passes 10–14 where available. For passes 1–9, and for the remaining pass-10/11 agents (advanced notes, files, calendar, media, shell utilities, data portability, FilePicker, CLI/terminal), the curated summaries in the numbered pass sections earlier in this file remain the complete record of their findings — each item there carries its own file:line evidence and one-line sketch. Those summaries were written directly from the agent reports at the time and were not lost; only the prose wrapping was shortened. Every distinct gap ID from those agents is present in the corresponding curated section.
+
+The repository's curated, deduplicated list remains `docs/GAPS.md`.

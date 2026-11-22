@@ -26,7 +26,7 @@ ColumnLayout {
                 onClicked: {
                     const apps = JSON.parse(JSON.stringify(d.webApps || []))
                     apps.splice(index, 1)
-                    d.webApps = apps
+                    Settings.data.webApps = apps
                 }
             }
         }
@@ -107,7 +107,7 @@ ColumnLayout {
                             url: urlInput.text,
                             icon: iconInput.text
                         })
-                        d.webApps = apps
+                        Settings.data.webApps = apps
                         addDialog.visible = false
                         nameInput.text = ""
                         urlInput.text = ""
