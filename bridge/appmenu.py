@@ -325,6 +325,48 @@ def find_dbusmenu(bus, pid: int):
                 return str(sender), str(path)
     except Exception:  # noqa: BLE001
         pass
+    # Qt 6.9+ on native Wayland no longer registers with the X11-era registrar:
+    # it registers only with KWin's appmenu protocol (absent in niri). But Qt
+    # still EXPORTS the menu at /MenuBar/N with com.canonical.dbusmenu. Scan
+    # bus names owned by this pid and find those objects directly.
+    try:
+        dbus_obj = bus.get_object("org.freedesktop.DBus", "/org/freedesktop/DBus")
+        iface = dbus.Interface(dbus_obj, "org.freedesktop.DBus")
+        for name in iface.ListNames(timeout=T):
+            name = str(name)
+            if name.startswith(":") or pid_of(bus, name) != pid:
+                continue
+            try:
+                xml = str(
+                    dbus.Interface(
+                        bus.get_object(name, "/"), "org.freedesktop.DBus.Introspectable"
+                    ).Introspect(timeout=T)
+                )
+                if "/MenuBar" not in xml:
+                    continue
+                mxml = str(
+                    dbus.Interface(
+                        bus.get_object(name, "/MenuBar"),
+                        "org.freedesktop.DBus.Introspectable",
+                    ).Introspect(timeout=T)
+                )
+                for child in re.findall(r'name="(\d+)"', mxml):
+                    p = "/MenuBar/" + child
+                    try:
+                        cx = str(
+                            dbus.Interface(
+                                bus.get_object(name, p),
+                                "org.freedesktop.DBus.Introspectable",
+                            ).Introspect(timeout=T)
+                        )
+                        if "com.canonical.dbusmenu" in cx:
+                            return name, p
+                    except Exception:  # noqa: BLE001
+                        continue
+            except Exception:  # noqa: BLE001
+                continue
+    except Exception:  # noqa: BLE001
+        pass
     return None
 
 

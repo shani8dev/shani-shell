@@ -37,17 +37,61 @@ Singleton {
     function appliedOn(output) { return applied[output || Niri.focusedOutput] || ""; }
 
     // ---- undo history ----------------------------------------------------------
-    // Each entry: { output, layoutId, time } — the last 10, newest last.
+    // Each entry: { output, layoutId, time, snapshot? } — the last 10, newest last.
     // Undo restores the one before the current.
     property var undoStack: []
-    function pushUndo(output, layoutId) {
-        undoStack = undoStack.concat([{ output: output, layoutId: layoutId, time: Date.now() }]).slice(-10);
+    function snapshot() {
+        const wsId = Niri.focusedWorkspaceId;
+        const out = [];
+        const seen = {};
+        for (const w of Object.values(Niri.windows)) {
+            if (!w || w.workspace_id !== wsId || w.is_floating) continue;
+            const L = w.layout || {};
+            const pos = L.pos_in_scrolling_layout;
+            const size = L.tile_size;
+            if (!pos || !size) continue;
+            const col = pos[0];
+            if (seen[col]) continue;   // one representative per column
+            seen[col] = true;
+            out.push({ id: w.id, col: col, width: size[0] });
+        }
+        return out.sort((a, b) => a.col - b.col);
+    }
+    function pushUndo(output, layoutId, snap) {
+        undoStack = undoStack.concat([{ output: output, layoutId: layoutId, time: Date.now(),
+                                         snapshot: snap || null }]).slice(-10);
+    }
+    function restore(snap) {
+        if (!snap || !snap.length) return;
+        const outW = (Displays.outputs.find(o => o.name === Niri.focusedOutput) || {}).width || 1920;
+        for (const c of snap) {
+            Niri.action("focus-window", "--id", String(c.id));
+            Niri.action("set-column-width", Math.max(10, Math.min(100, Math.round(100 * c.width / outW))) + "%");
+        }
     }
     function undo() {
         if (undoStack.length < 2) return;
         const prev = undoStack[undoStack.length - 2];
         undoStack = undoStack.slice(0, -1);
+        if (prev.snapshot && prev.snapshot.length) { restore(prev.snapshot); return; }
         root.apply(prev.layoutId, prev.output, false);
+    }
+    // Arrange every tiled column in the focused workspace into this layout's
+    // column ratios — the "arrange many windows at once" counterpart of apply().
+    function arrangeAll(layoutId) {
+        const layout = layouts.find(l => l.id === layoutId);
+        if (!layout) return;
+        const snap = snapshot();
+        pushUndo(Niri.focusedOutput, layoutId, snap);
+        const out = Niri.focusedOutput;
+        const a = Object.assign({}, applied);
+        a[out] = layoutId;
+        applied = a;
+        for (let i = 0; i < snap.length; i++) {
+            const ratio = layout.ratios[i % layout.ratios.length];
+            Niri.action("focus-window", "--id", String(snap[i].id));
+            Niri.action("set-column-width", Math.round(ratio * 100) + "%");
+        }
     }
 
     // ---- apply a layout --------------------------------------------------------
@@ -62,7 +106,7 @@ Singleton {
     function apply(layoutId, output, record) {
         const layout = layouts.find(l => l.id === layoutId);
         if (!layout) return;
-        if (record !== false) pushUndo(output || Niri.focusedOutput, layoutId);
+        if (record !== false) pushUndo(output || Niri.focusedOutput, layoutId, snapshot());
 
         // Mark as applied
         const out = output || Niri.focusedOutput;
@@ -99,10 +143,12 @@ Singleton {
     // ---- edge snap -------------------------------------------------------------
     // Niri has no "drag window to edge" compositor action — its columns fill the
     // screen height. The shell approximates the Slate behaviour by snapping the
-    // focused column to a half/third width and moving it to a side. Call this
-    // from a drag handler (EdgeStrips/WindowRules) or the keyboard shortcuts
-    // below. On a build whose niri supports `move-column-to-side` this gives the
-    // familiar left/right half; older niri still gets the width snap.
+    // focused column to a half/third width and moving it to a side. Niri handles
+    // drag-to-edge itself (`dnd-edge-*` in its config) and exposes no drag event
+    // to the shell, so the supported shell path is the keyboard shortcuts in the
+    // desktop's niri config (Super+Alt+Arrow) and the layout palette.
+    // shortcut: no compositor drag event exists to call snapToEdge from; niri's
+    // own dnd-edge handling is the drag path, keyboard snapping is ours.
     function snapToEdge(edge) {
         const w = Niri.focusedWindow;
         if (!w) return;

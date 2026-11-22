@@ -128,6 +128,16 @@ def address(value):
     return (addr or name).strip()
 
 
+def sender(value):
+    """Who it is from, as a person reads it: the name the sender gave, or the
+    bare address when there is none."""
+    addrs = email.utils.getaddresses([value or ""])
+    if not addrs:
+        return decoded(value)
+    name, addr = addrs[0]
+    return (decoded(name) or addr or "").strip()
+
+
 # ---- mailhog ---------------------------------------------------------------
 
 
@@ -147,11 +157,13 @@ def mh_messages(url, folder):
         content = m.get("Content") or {}
         headers = content.get("Headers") or {}
         # the list view has Body but not always Text
-        snippet = strip_html(content.get("Text") or content.get("Body") or content.get("HTML") or "")
+        snippet = strip_html(
+            content.get("Text") or content.get("Body") or content.get("HTML") or ""
+        )
         out.append(
             {
                 "uid": str(m.get("ID")),
-                "from": address((headers.get("From") or [""])[0]),
+                "from": sender((headers.get("From") or [""])[0]),
                 "subject": decoded((headers.get("Subject") or [""])[0]),
                 "date": (headers.get("Date") or [""])[0],
                 "snippet": snippet[:200],
@@ -175,12 +187,16 @@ def mh_read(url, uid):
                 continue
             content = raw.get("Content") or {}
             headers = content.get("Headers") or {}
-            body = (content.get("Text") or strip_html(content.get("HTML") or content.get("Body") or ""))
-            return {"from": address((headers.get("From") or [""])[0]),
-                    "to": ", ".join(address(x) for x in headers.get("To") or []),
-                    "subject": decoded((headers.get("Subject") or [""])[0]),
-                    "date": (headers.get("Date") or [""])[0],
-                    "text": body}
+            body = content.get("Text") or strip_html(
+                content.get("HTML") or content.get("Body") or ""
+            )
+            return {
+                "from": sender((headers.get("From") or [""])[0]),
+                "to": ", ".join(address(x) for x in headers.get("To") or []),
+                "subject": decoded((headers.get("Subject") or [""])[0]),
+                "date": (headers.get("Date") or [""])[0],
+                "text": body,
+            }
     return {"error": "no such message"}
 
 
@@ -248,7 +264,7 @@ def imap_list(c, folder):
             out.append(
                 {
                     "uid": uid.decode(),
-                    "from": address(decoded(m.get("From", ""))),
+                    "from": sender(m.get("From", "")),
                     "subject": decoded(m.get("Subject", "")) or "(no subject)",
                     "date": m.get("Date", ""),
                     "snippet": body_of(m)[:200].replace("\n", " "),
@@ -271,7 +287,7 @@ def imap_read(c, uid):
         raw = msg[0][1] if msg and isinstance(msg[0], tuple) else b""
         m = email.message_from_bytes(raw, policy=email.policy.default)
         return {
-            "from": address(decoded(m.get("From", ""))),
+            "from": sender(m.get("From", "")),
             "to": address(decoded(m.get("To", ""))),
             "subject": decoded(m.get("Subject", "")),
             "date": m.get("Date", ""),

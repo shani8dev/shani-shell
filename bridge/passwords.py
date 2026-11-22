@@ -302,42 +302,80 @@ def gpg_delete(key: str) -> dict:
 
 
 # ---- passkey registry -------------------------------------------------------------
-# Metadata only: the browser owns the real WebAuthn credential and its private key.
-PASSKEYS = os.path.join(
-    os.environ.get("XDG_DATA_HOME")
-    or os.path.join(os.path.expanduser("~"), ".local/share"),
-    "shani-passkeys.json",
-)
+# A browser-created WebAuthn credential cannot be minted by the shell (a site
+# only accepts credentials registered through its own WebAuthn flow). What the
+# shell can do honestly: keep a keyring-protected REFERENCE to the passkey, and
+# — when libfido2 tools are installed — create/sign genuine shell-local FIDO2
+# credentials. No random id is ever presented as a real credential id.
+PASSKEY_ATTRS = {"application": "shani-shell", "type": "passkey-registry"}
+
+
+def _passkeys_item() -> str:
+    try:
+        items = list_all().get("items", [])
+        for i in items:
+            attrs = i.get("attributes", {})
+            if all(attrs.get(k) == v for k, v in PASSKEY_ATTRS.items()):
+                return i.get("path", "")
+    except Exception:  # noqa: BLE001 - no keyring in this session
+        pass
+    return ""
 
 
 def _passkeys_load() -> list:
+    path = _passkeys_item()
+    if not path:
+        return []
     try:
-        with open(PASSKEYS) as f:
-            data = json.load(f)
+        data = json.loads(reveal(path).get("secret", "[]"))
         return data if isinstance(data, list) else []
-    except (OSError, ValueError):
+    except Exception:  # noqa: BLE001
         return []
 
 
 def _passkeys_save(items: list) -> None:
-    os.makedirs(os.path.dirname(PASSKEYS), exist_ok=True)
-    tmp = PASSKEYS + ".tmp"
-    with open(tmp, "w") as f:
-        json.dump(items, f, indent=2)
-    os.replace(tmp, PASSKEYS)
+    blob = json.dumps(items)
+    path = _passkeys_item()
+    if path:
+        set_secret(path, blob)
+    else:
+        try:
+            add(list_all().get("default", ""), "Shani passkeys", PASSKEY_ATTRS, blob)
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def _tool(env: str, name: str) -> str:
+    import shutil
+
+    return shutil.which(os.environ.get(env, name)) or ""
+
+
+def passkey_capabilities() -> dict:
+    return {
+        "keyring": bool(_passkeys_item() or list_all().get("items") is not None),
+        "fido2_token": bool(_tool("SHANI_FIDO2_TOKEN", "fido2-token")),
+        "fido2_cred": bool(_tool("SHANI_FIDO2_CRED", "fido2-cred")),
+        "fido2_assert": bool(_tool("SHANI_FIDO2_ASSERT", "fido2-assert")),
+    }
 
 
 def passkey_list() -> list:
     return _passkeys_load()
 
 
-def passkey_add(label: str) -> dict:
+def passkey_add(
+    label: str, rp_id: str = "", cred_id: str = "", source: str = "browser"
+) -> dict:
     label = (label or "").strip()
     if not label:
         return {"error": "a label is needed"}
     item = {
+        "id": secrets.token_hex(16),  # local reference id, NOT a credential id
         "label": label,
-        "id": secrets.token_hex(16),
+        "rp_id": (rp_id or "").strip(),
+        "cred_id": (cred_id or "").strip(),
+        "source": source if source in ("browser", "shell") else "browser",
         "created": int(time.time()),
     }
     items = _passkeys_load()
@@ -381,8 +419,16 @@ def main(argv: list[str]) -> int:
             r = gpg_delete(args[0])
         elif cmd == "passkey-list":
             r = passkey_list()
+        elif cmd == "passkey-capabilities":
+            r = passkey_capabilities()
         elif cmd == "passkey-add" and len(args) == 1:
-            r = passkey_add(args[0])
+            d = json.loads(sys.stdin.read() or "{}")
+            r = passkey_add(
+                args[0],
+                d.get("rp_id", ""),
+                d.get("cred_id", ""),
+                d.get("source", "browser"),
+            )
         elif cmd == "passkey-delete" and len(args) == 1:
             r = passkey_delete(args[0])
         else:

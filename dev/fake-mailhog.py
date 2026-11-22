@@ -90,6 +90,60 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"error": "unknown path"}, 404)
 
 
+def stored(raw):
+    """A message that came in over SMTP, in the shape the HTTP API serves.
+
+    Only what the reader shows: the sender as a person reads it, the subject,
+    and the text. The API's own list keeps a snippet; this one keeps the text.
+    """
+    import email
+    from email.header import decode_header, make_header
+
+    m = email.message_from_bytes(raw)
+    headers = m
+
+    def dec(v):
+        try:
+            return str(make_header(decode_header(v or "")))
+        except Exception:
+            return v or ""
+
+    text = ""
+    if m.is_multipart():
+        for part in m.walk():
+            if part.get_content_type() == "text/plain":
+                text += part.get_payload(decode=True).decode(
+                    part.get_content_charset() or "utf-8", "replace"
+                )
+    else:
+        text = m.get_payload(decode=True).decode(
+            m.get_content_charset() or "utf-8", "replace"
+        )
+    frm = dec(m.get("From", ""))
+    name, _, addr = frm.rpartition("<")
+    name = name.strip().strip('"')
+    addr = addr.rstrip(">").strip()
+    mid = "smtp-%d" % (len(MESSAGES) + 1)
+    return {
+        "ID": mid,
+        "From": {"Name": name, "Address": addr or frm.strip()},
+        "To": [{"Name": "", "Address": dec(m.get("To", ""))}],
+        "Subject": dec(m.get("Subject", "")) or "(no subject)",
+        "Date": m.get("Date", ""),
+        "Size": len(raw),
+        "Content": {
+            "Headers": {
+                "From": [frm],
+                "To": [dec(m.get("To", ""))],
+                "Subject": [dec(m.get("Subject", ""))],
+                "Date": [m.get("Date", "")],
+            },
+            "Body": text,
+            "Text": text,
+        },
+    }
+
+
 def smtp_sink(port=1025):
     """Enough of SMTP to accept a message: 220, EHLO, MAIL, RCPT, DATA, ."""
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -106,41 +160,47 @@ def smtp_sink(port=1025):
             threading.Thread(target=handle, args=(conn,), daemon=True).start()
 
     def handle(conn):
+        """Line by line, from a buffer: a client sends DATA and its message in
+        one go, and reading "one recv == one line" would sit waiting for a reply
+        the client is already waiting for itself."""
+        buf = b""
         data_mode = False
         body = []
         with conn:
             conn.sendall(b"220 fake-mailhog ESMTP\r\n")
             while True:
-                buf = b""
-                while not buf.endswith(b"\n"):
-                    chunk = conn.recv(4096)
-                    if not chunk:
-                        return
-                    buf += chunk
-                if data_mode:
-                    if buf.strip() == b".":
-                        data_mode = False
-                        with open("/tmp/mail-sent", "ab") as fh:
-                            fh.write(b"".join(body) + b"\n---\n")
-                        body = []
-                        conn.sendall(b"250 OK\r\n")
-                    else:
-                        body.append(buf)
-                    continue
-                line = buf.decode(errors="replace").strip()
-                upper = line.upper()
-                if upper.startswith("EHLO") or upper.startswith("HELO"):
-                    conn.sendall(b"250-fake-mailhog\r\n250 OK\r\n")
-                elif upper.startswith("MAIL") or upper.startswith("RCPT"):
-                    conn.sendall(b"250 OK\r\n")
-                elif upper == "DATA":
-                    data_mode = True
-                    conn.sendall(b"354 End data with <CR><LF>.<CR><LF>\r\n")
-                elif upper == "QUIT":
-                    conn.sendall(b"221 Bye\r\n")
+                chunk = conn.recv(4096)
+                if not chunk:
                     return
-                else:
-                    conn.sendall(b"250 OK\r\n")
+                buf += chunk
+                while b"\n" in buf:
+                    line, buf = buf.split(b"\n", 1)
+                    if data_mode:
+                        if line.strip() == b".":
+                            data_mode = False
+                            raw = b"".join(body)
+                            with open("/tmp/mail-sent", "ab") as fh:
+                                fh.write(raw + b"\n---\n")
+                            body = []
+                            MESSAGES.append(stored(raw))
+                            conn.sendall(b"250 OK\r\n")
+                        else:
+                            body.append(line + b"\n")
+                        continue
+                    line = line.decode(errors="replace").strip()
+                    upper = line.upper()
+                    if upper.startswith("EHLO") or upper.startswith("HELO"):
+                        conn.sendall(b"250-fake-mailhog\r\n250 OK\r\n")
+                    elif upper.startswith("MAIL") or upper.startswith("RCPT"):
+                        conn.sendall(b"250 OK\r\n")
+                    elif upper == "DATA":
+                        data_mode = True
+                        conn.sendall(b"354 End data with <CR><LF>.<CR><LF>\r\n")
+                    elif upper == "QUIT":
+                        conn.sendall(b"221 Bye\r\n")
+                        return
+                    else:
+                        conn.sendall(b"250 OK\r\n")
 
     threading.Thread(target=serve, daemon=True).start()
 

@@ -4,6 +4,7 @@
 // continuous scroll option, rotation, print button (lp via Printing).
 // poppler's PNGs in ~/.cache/shani-pdf, ← → or wheel to turn, Esc closes.
 import Quickshell
+import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
@@ -12,13 +13,64 @@ import qs.Services
 AppWindow {
     id: win
     appName: "Document Viewer"
+    property string note: ""
+    // status line for annotation saves and errors
+    Rectangle {
+        anchors { top: parent.top; right: parent.right; margins: Theme.px(12) }
+        z: 20
+        visible: win.note !== ""
+        implicitWidth: noteText.implicitWidth + 20
+        implicitHeight: Theme.px(30)
+        radius: Theme.px(8)
+        color: Theme.alpha(Theme.surface1, 0.96)
+        border.width: 1
+        border.color: Theme.border
+        Text { id: noteText; anchors.centerIn: parent; text: win.note; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Timer { interval: 4000; onTriggered: win.note = ""; running: parent.visible }
+    }
     visible: PdfViewer.shown
     onGone: PdfViewer.close()
     margins: 0
     implicitWidth: Theme.px(960)
     implicitHeight: Theme.px(760)
     property bool pdfAnnoMode: false
-    property bool pdfAnnoDrawing: false
+    // ---- markup strokes, the same model as the image Viewer --------------------
+    property var strokes: []
+    property string tool: "pen"         // pen | highlight | line | arrow | box | text | blur
+    property string penColor: "#e5484d"
+    property real penSize: 0.008
+    property string textInput: ""
+    readonly property bool twoPoint: tool === "line" || tool === "arrow" || tool === "box" || tool === "blur"
+    function addStroke(pts) {
+        if (!pts || !pts.length) return;
+        const p = twoPoint && pts.length > 1 ? [pts[0], pts[pts.length - 1]] : pts;
+        strokes = strokes.concat([{ kind: tool, color: penColor, size: penSize, points: p,
+                                    text: tool === "text" ? textInput : "" }]);
+        textInput = "";
+    }
+    function undoStroke() { if (strokes.length) strokes = strokes.slice(0, -1); }
+    function clearMarks() { strokes = []; }
+    readonly property string annTool: Quickshell.env("SHANI_PDFANNOTATE_TOOL") || "/usr/lib/shani-shell/pdf-annotate.py"
+    function markPage() {
+        if (!PdfViewer.file || strokes.length === 0) return;
+        const out = PdfViewer.file.replace(/\.pdf$/i, "") + " (annotated).pdf";
+        annoProc.command = ["python3", annTool, "annotate", PdfViewer.file, String(PdfViewer.page + 1), out];
+        annoProc.payload = JSON.stringify({ strokes: strokes });
+        annoProc.running = true;
+    }
+    Process {
+        id: annoProc
+        property string payload: ""
+        stdinEnabled: true
+        onStarted: { write(payload); payload = ""; stdinEnabled = false; }
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r = {}; try { r = JSON.parse(text); } catch (e) { r = { error: text.trim() }; }
+                if (r.saved) { win.pdfAnnoMode = false; PdfViewer.close(); PdfViewer.open(r.saved); win.note = Tr.t("Saved %1", r.saved); }
+                else win.note = r.error || Tr.t("Could not save the annotation");
+            }
+        }
+    }
     // Export the current page to a PNG for annotation in the image Viewer
     function pdfExportPage(path) {
         Quickshell.execDetached(["sh", "-c", 'mkdir -p "$(dirname "$1")" && pdftoppm -f $((PdfViewer.page+1)) -l $((PdfViewer.page+1)) -png "$PdfViewer.file" "${1%.png}" 2>/dev/null', "sh", path]);
@@ -379,33 +431,165 @@ AppWindow {
                             onActiveChanged: if (active) from = PdfViewer.zoom
                             onActiveScaleChanged: PdfViewer.setZoom(from * activeScale)
                         }
-                        // ---- PDF annotation overlay (Canvas) ----
+                        // ---- PDF annotation overlay: draw on the page image,
+                        // then flatten into a new PDF with pdf-annotate.py ----
                         Canvas {
                             id: annoCanvas
                             anchors.fill: parent
                             z: 5
-                            visible: false
-                            MouseArea { anchors.fill: parent; cursorShape: Qt.CrossCursor; enabled: win.pdfAnnoMode; onClicked: { /* mark next click */ win.pdfAnnoDrawing = true; } }
+                            visible: win.pdfAnnoMode && !PdfViewer.textMode
+                            property var live: []
+                            function mark(ctx, kind, color, size, pts, words) {
+                                if (!pts.length) return;
+                                const m = Math.min(width, height), w = Math.max(1, size * m);
+                                const P = pts.map(p => [p[0] * width, p[1] * height]);
+                                const a = P[0], b = P[P.length - 1];
+                                ctx.save();
+                                ctx.strokeStyle = color; ctx.fillStyle = color;
+                                ctx.lineWidth = w; ctx.lineCap = "round"; ctx.lineJoin = "round";
+                                if (kind === "blur") {
+                                    ctx.fillStyle = Qt.rgba(0.5, 0.5, 0.5, 0.75);
+                                    ctx.fillRect(Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]));
+                                } else if (kind === "box") {
+                                    ctx.strokeRect(Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]));
+                                } else if (kind === "text") {
+                                    ctx.font = Math.max(12, w * 5) + "px sans-serif";
+                                    ctx.fillText(words || "", a[0], a[1]);
+                                } else {
+                                    if (kind === "highlight") { ctx.globalAlpha = 0.4; ctx.lineWidth = w * 4; }
+                                    ctx.beginPath(); ctx.moveTo(a[0], a[1]);
+                                    const rest = win.twoPoint && live.length > 1 ? [b] : P.slice(1);
+                                    for (const p of rest) ctx.lineTo(p[0], p[1]);
+                                    if (P.length === 1) ctx.lineTo(a[0] + 0.1, a[1]);
+                                    ctx.stroke();
+                                    if (kind === "arrow") {
+                                        const ang = Math.atan2(b[1] - a[1], b[0] - a[0]), L = Math.max(10, w * 5);
+                                        ctx.beginPath(); ctx.moveTo(b[0], b[1]);
+                                        ctx.lineTo(b[0] - L * Math.cos(ang - 0.45), b[1] - L * Math.sin(ang - 0.45));
+                                        ctx.lineTo(b[0] - L * Math.cos(ang + 0.45), b[1] - L * Math.sin(ang + 0.45));
+                                        ctx.closePath(); ctx.fill();
+                                    }
+                                }
+                                ctx.restore();
+                            }
+                            onPaint: {
+                                const ctx = getContext("2d");
+                                ctx.clearRect(0, 0, width, height);
+                                for (const st of win.strokes) mark(ctx, st.kind, st.color, st.size, st.points, st.text);
+                                mark(ctx, win.tool, win.penColor, win.penSize, live, win.textInput);
+                            }
+                            Connections {
+                                target: win
+                                function onStrokesChanged() { annoCanvas.requestPaint(); }
+                                function onPenColorChanged() { annoCanvas.requestPaint(); }
+                                function onPenSizeChanged() { annoCanvas.requestPaint(); }
+                                function onToolChanged() { annoCanvas.requestPaint(); }
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                enabled: win.pdfAnnoMode
+                                cursorShape: Qt.CrossCursor
+                                property point start
+                                onPressed: m => {
+                                    start = mapToItem(annoCanvas, m.x, m.y);
+                                    annoCanvas.live = [[start.x / annoCanvas.width, start.y / annoCanvas.height]];
+                                }
+                                onPositionChanged: m => {
+                                    if (!(pressedButtons & Qt.LeftButton)) return;
+                                    const p = mapToItem(annoCanvas, m.x, m.y);
+                                    annoCanvas.live = annoCanvas.live.concat([[p.x / annoCanvas.width, p.y / annoCanvas.height]]);
+                                    annoCanvas.requestPaint();
+                                }
+                                onReleased: {
+                                    if (win.tool === "text") {
+                                        if (win.textInput.trim()) win.addStroke(annoCanvas.live);
+                                    } else {
+                                        win.addStroke(annoCanvas.live);
+                                    }
+                                    annoCanvas.live = [];
+                                    annoCanvas.requestPaint();
+                                }
+                            }
                         }
-                        // Annotation toolbar
+                        // Annotation toolbar: tools, colours, undo, save into PDF
                         Rectangle {
                             visible: win.pdfAnnoMode && PdfViewer.current !== ""
-                            anchors { bottom: pageFlick.bottom; horizontalCenter: parent.horizontalCenter; margins: Theme.px(16) }
-                            width: 200
-                            height: Theme.px(28)
-                            radius: Theme.px(14)
-                            color: Theme.surface1
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.margins: 4
-                                spacing: 4
-                                Button { text: Tr.t("Done"); flat: true; onClicked: { win.pdfAnnoMode = false; } }
-                                Button { text: Tr.t("Save copy"); kind: "outline"; onClicked: {
-                                    // Export current page to PNG and show annotation button
-                                    const d = Quickshell.env("XDG_SCREENSHOTS_DIR") || (Quickshell.env("HOME") + "/Pictures/Screenshots");
-                                    win.pdfExportPage(d + "/pdf-page-" + PdfViewer.label + ".png");
-                                    win.pdfAnnoMode = false;
-                                } }
+                            anchors { bottom: pageFlick.bottom; horizontalCenter: parent.horizontalCenter; margins: Theme.px(12) }
+                            width: Math.min(720, pageFlick.width - 24)
+                            implicitHeight: toolsCol.implicitHeight + 12
+                            radius: Theme.px(10)
+                            color: Theme.alpha(Theme.surface1, 0.96)
+                            border.width: 1
+                            border.color: Theme.border
+                            ColumnLayout {
+                                id: toolsCol
+                                anchors { fill: parent; margins: Theme.px(6) }
+                                spacing: Theme.px(4)
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: Theme.px(3)
+                                    Repeater {
+                                        model: [
+                                            { id: "pen", t: Tr.t("Pen") }, { id: "highlight", t: Tr.t("Highlight") },
+                                            { id: "line", t: Tr.t("Line") }, { id: "arrow", t: Tr.t("Arrow") },
+                                            { id: "box", t: Tr.t("Box") }, { id: "blur", t: Tr.t("Blur") },
+                                            { id: "text", t: Tr.t("Text") }
+                                        ]
+                                        Choice {
+                                            required property var modelData
+                                            text: modelData.t
+                                            selected: win.tool === modelData.id
+                                            onClicked: { win.tool = modelData.id; PdfViewer.setZoom(1); }
+                                        }
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                    Button { text: Tr.t("Undo"); flat: true; enabled: win.strokes.length > 0; onClicked: win.undoStroke() }
+                                    Button { text: Tr.t("Clear"); flat: true; enabled: win.strokes.length > 0; onClicked: win.clearMarks() }
+                                    Button { text: Tr.t("Done"); flat: true; onClicked: { win.pdfAnnoMode = false; win.strokes = []; } }
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    visible: win.tool === "text"
+                                    TextField {
+                                        Layout.fillWidth: true
+                                        placeholder: Tr.t("Text to place on the page, then drag on it")
+                                        text: win.textInput
+                                        onTextChanged: win.textInput = text
+                                    }
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: Theme.px(4)
+                                    Text { text: Tr.t("Colour"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                                    Repeater {
+                                        model: ["#e5484d", "#f5d90a", "#46a758", "#0091ff", "#ffffff"]
+                                        Rectangle {
+                                            required property string modelData
+                                            width: Theme.px(18); height: Theme.px(18); radius: Theme.px(9)
+                                            color: modelData
+                                            border.width: win.penColor === modelData ? 2 : 0
+                                            border.color: Theme.accent
+                                            MouseArea { anchors.fill: parent; onClicked: win.penColor = modelData }
+                                        }
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                    Text { text: Tr.t("Size"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                                    Repeater {
+                                        model: [0.005, 0.008, 0.014]
+                                        Choice {
+                                            required property real modelData
+                                            text: modelData === 0.005 ? Tr.t("Fine") : modelData === 0.008 ? Tr.t("Medium") : Tr.t("Thick")
+                                            selected: Math.abs(win.penSize - modelData) < 0.0001
+                                            onClicked: win.penSize = modelData
+                                        }
+                                    }
+                                    Button {
+                                        text: Tr.t("Save into PDF")
+                                        kind: "primary"
+                                        enabled: win.strokes.length > 0
+                                        onClicked: win.markPage()
+                                    }
+                                }
                             }
                         }
                         Text {

@@ -469,6 +469,8 @@ PanelWindow {
                     hoverEnabled: true
                     acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
                     cursorShape: Qt.PointingHandCursor
+                    onEntered: hoverPeek.forceActive()
+                    onExited: hoverPeek.cancel()
                     onPressAndHold: win.menuFor = cell.index
                     onWheel: w => {
                         const ids = cell.modelData.windows.filter(x => !Niri.isMinimised(x)).map(x => x.id).sort((p, q) => p - q);
@@ -486,6 +488,19 @@ PanelWindow {
                         } else
                             win.activate(cell.modelData);
                     }
+                }
+                // hover preview: a cropped capture of the window this tile
+                // represents (only when it has a running window)
+                HoverPeek {
+                    id: hoverPeek
+                    visible: cell.modelData.windows.length > 0 && win.menuFor < 0
+                    win: {
+                        const ws = cell.modelData.windows.filter(x => !Niri.isMinimised(x));
+                        const focus = ws.find(x => x.id === Niri.focusedWindowId);
+                        return focus || (Niri.windows[ws[0] && ws[0].id] || ws[0] || null);
+                    }
+                    output: Niri.focusedOutput
+                    delay: 500
                 }
                 // keyboard and controller: Enter opens or focuses it, Menu (X) its menu
                 KeyFocus {

@@ -40,6 +40,8 @@ this script never shells out to GNOME Calendar.
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import sys
 import time
 
@@ -136,6 +138,8 @@ def events(start: float, end: float, timeout: int = 10) -> list[dict]:
                     "calendar": _name,
                     "allDay": bool(getattr(istart, "is_date", lambda: False)()),
                     "uid": icomp.get_uid() or "",
+                    "organizer": "",  # filled when libical exposes attendee data
+                    "needsAction": False,
                 }
             )
             return True
@@ -176,17 +180,44 @@ def _ical_text(payload: dict) -> str:
         .replace("\n", "\\n")
     )
     stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    attendees = [
+        str(a).strip() for a in (payload.get("attendees") or []) if str(a).strip()
+    ]
     lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
         "PRODID:-//ShaniOS//agenda//EN",
+    ]
+    if attendees:
+        # METHOD:REQUEST + ORGANIZER + ATTENDEE lines: EDS/Evolution's iTIP
+        # delivery reads these. Escaping like SUMMARY above.
+        lines.append("METHOD:REQUEST")
+    lines += [
         "BEGIN:VEVENT",
         f"UID:{uid}",
+        f"SEQUENCE:{int(payload.get('sequence', 0))}",
         f"DTSTAMP:{stamp}",
         f"DTSTART;VALUE={'DATE' if all_day else 'DATE-TIME'}:{_fmt_local(start, all_day)}",
         f"DTEND;VALUE={'DATE' if all_day else 'DATE-TIME'}:{_fmt_local(end, all_day)}",
         f"SUMMARY:{summary}",
     ]
+    if attendees:
+        try:
+            ECal, _, _ = bindings()
+            name, addr = ECal.util_get_default_name_and_address()
+        except Exception:  # noqa: BLE001
+            name, addr = "", ""
+        org = (";CN=" + name.replace(";", "\\;")) if name else ""
+        lines.append(
+            f"ORGANIZER{org}:mailto:{addr}"
+            if addr
+            else f"ORGANIZER:mailto:shani@localhost"
+        )
+        for a in attendees:
+            esc = a.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,")
+            lines.append(
+                f"ATTENDEE;CN={esc};ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:{a}"
+            )
     if location:
         lines.append(f"LOCATION:{location}")
     lines += ["END:VEVENT", "END:VCALENDAR"]
@@ -220,7 +251,45 @@ def write_event(action: str, payload: dict) -> dict:
         if comp is None:
             raise RuntimeError("ICalGLib has no from-string constructor")
         uid = client.create_object_sync(comp, True, None)
-        return {"ok": True, "uid": uid or payload.get("uid", "")}
+        result = {"ok": True, "uid": uid or payload.get("uid", "")}
+        # Deliver meeting invitations via EDS's iTIP hook. Local calendars may
+        # not support it: fall back to a mail draft with the .ics attached.
+        attendees = [
+            str(a).strip() for a in (payload.get("attendees") or []) if str(a).strip()
+        ]
+        if attendees:
+            sent = False
+            try:
+                client.send_objects_sync(comp, ECal.OperationFlags.NONE, None)
+                sent = True
+            except Exception:  # noqa: BLE001
+                pass
+            if not sent:
+                try:
+                    import tempfile
+
+                    fd, path = tempfile.mkstemp(suffix=".ics")
+                    with os.fdopen(fd, "w") as fh:
+                        fh.write(_ical_text(payload))
+                    subprocess.Popen(
+                        [
+                            "xdg-email",
+                            "--attach",
+                            path,
+                            "--subject",
+                            "Invitation: " + (payload.get("summary") or ""),
+                            "--body",
+                            "You are invited.",
+                            "--",
+                        ]
+                        + attendees
+                    )
+                    result["mailDraft"] = True
+                except Exception:  # noqa: BLE001
+                    result["inviteWarning"] = (
+                        "Invitation stored, but no mail client opened"
+                    )
+        return result
     # edit / delete need the existing component, by UID
     uid = (payload.get("uid") or "").strip()
     if not uid:

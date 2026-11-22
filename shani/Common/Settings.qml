@@ -407,6 +407,10 @@ Singleton {
             property string niriRenderDevice: ""      // Multi-GPU: debug.render-drm-device (Services/Gpu)
             property bool showRibbon: false            // scrollable-viewport indicator in the bar
             property bool showWorkspaceMap: false      // proportional window map in the bar
+            property bool wsMapFloating: true           // show floating windows in the map
+            property string wsMapScope: "current"       // current | all | custom
+            property var wsMapOutputs: []               // custom output names when scope is "custom"
+            property string wsMapViewportMode: "highlight" // off | highlight | separate | both
             property string wsLabelMode: "name_or_index"  // name | index | both | name_or_index
             property bool wsShowPosition: false        // append "idx/count" to workspace labels
             property string ribbonAnchor: "fit"        // "fit" | "center"

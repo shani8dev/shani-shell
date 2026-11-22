@@ -601,6 +601,12 @@ AppWindow {
                         font.pixelSize: Theme.px(11) * Theme.fontScale
                     }
                 }
+                Button {
+                    visible: win.routeUrl !== ""
+                    text: Tr.t("Open these directions in a browser")
+                    flat: true
+                    onClicked: win.openDirections()
+                }
             }
         }
     }

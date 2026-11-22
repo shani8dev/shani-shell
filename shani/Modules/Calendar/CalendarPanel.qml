@@ -215,6 +215,7 @@ AppWindow {
             const s = new Date(e.start * 1000), en = new Date(e.end * 1000);
             fTitle.text = e.summary || "";
             fLocation.text = e.location || "";
+            fAttendees.text = (e.attendees || []).join(", ");
             fDateA.text = _fmtDate(s);
             fTimeA.text = _fmtTime(s);
             fDateB.text = _fmtDate(en);
@@ -225,6 +226,7 @@ AppWindow {
             const en = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 10, 0);
             fTitle.text = "";
             fLocation.text = "";
+            fAttendees.text = "";
             fDateA.text = _fmtDate(s);
             fTimeA.text = _fmtTime(s);
             fDateB.text = _fmtDate(en);
@@ -352,6 +354,7 @@ AppWindow {
             start: natStart,
             end: natEnd,
             location: fLocation.text.trim(),
+            attendees: fAttendees.text.split(",").map(s => s.trim()).filter(s => s !== ""),
             allDay: fAllDay,
             calendar: editingEvent && editingEvent.calendar ? editingEvent.calendar : Agenda.selectedCalendar,
             uid: editingEvent && editingEvent.uid ? editingEvent.uid : ""
@@ -1072,6 +1075,21 @@ AppWindow {
                     Layout.fillWidth: true
                     placeholder: Tr.t("Location")
                     label: Tr.t("Location")
+                }
+                TextField {
+                    id: fAttendees
+                    Layout.fillWidth: true
+                    placeholder: Tr.t("Invite by email, separated by commas")
+                    label: Tr.t("Attendees")
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: fAttendees.text.trim() !== ""
+                    text: Tr.t("Guests get an invitation through your mail app or calendar server. They can accept, decline or reply maybe.")
+                    color: Theme.faint
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    wrapMode: Text.Wrap
                 }
                 // the calendar this event belongs to: fixed when editing,
                 // chosen (Agenda.selectedCalendar) when new

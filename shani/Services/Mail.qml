@@ -31,15 +31,22 @@ Singleton {
     function remove(uid) { run("delete", [uid]) }
     function send(to, subject, body) { run("send", [to, subject, body]) }
 
-    // one Process, reused: `what` says which answer this is
+    // one Process, reused: `what` says which answer this is, and is the
+    // subcommand the bridge takes
     function run(what, args, redraw) {
-        if (job.running) return;
+        if (job.running) { root.pending = { what: what, args: args, redraw: redraw !== false }; return; }
+        start(what, args, redraw);
+    }
+
+    function start(what, args, redraw) {
         job.what = what;
         job.redraw = redraw !== false;
-        job.command = ["python3", root.tool].concat(args);
+        job.command = ["python3", root.tool, what].concat(args);
         job.running = false;
         job.running = true;
     }
+
+    property var pending: null
 
     function finished(what, text, code) {
         busy = false;
@@ -74,7 +81,14 @@ Singleton {
         property string what: ""
         property bool redraw: true
         stdout: StdioCollector { id: out }
-        onExited: code => root.finished(job.what, out.text, code)
+        onExited: code => {
+            root.finished(job.what, out.text, code);
+            if (root.pending) {
+                const next = root.pending;
+                root.pending = null;
+                root.start(next.what, next.args, next.redraw);
+            }
+        }
     }
 
     Component.onCompleted: { state(); refresh() }

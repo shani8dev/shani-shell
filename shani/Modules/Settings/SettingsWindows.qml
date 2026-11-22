@@ -334,6 +334,41 @@ ColumnLayout {
         checked: page.d.showWorkspaceMap
         onToggled: on => page.d.showWorkspaceMap = on
     }
+    Picks {
+        label: Tr.t("Map shows")
+        options: [
+            { label: Tr.t("This screen"), value: "current" },
+            { label: Tr.t("All screens"), value: "all" },
+            { label: Tr.t("Chosen screens"), value: "custom" }
+        ]
+        current: page.d.wsMapScope || "current"
+        onPicked: v => page.d.wsMapScope = v
+    }
+    TextField {
+        Layout.fillWidth: true
+        visible: page.d.wsMapScope === "custom"
+        placeholder: Tr.t("Screen names, comma separated (e.g. DP-1, HDMI-A-1)")
+        label: Tr.t("Mapped screens")
+        text: (page.d.wsMapOutputs || []).join(", ")
+        onTextChanged: page.d.wsMapOutputs = text.split(",").map(s => s.trim()).filter(s => s !== "")
+    }
+    Picks {
+        label: Tr.t("Visible part")
+        options: [
+            { label: Tr.t("Off"), value: "off" },
+            { label: Tr.t("Highlight"), value: "highlight" },
+            { label: Tr.t("Separate"), value: "separate" },
+            { label: Tr.t("Both"), value: "both" }
+        ]
+        current: page.d.wsMapViewportMode || "highlight"
+        onPicked: v => page.d.wsMapViewportMode = v
+    }
+    SwitchRow {
+        Layout.fillWidth: true
+        text: Tr.t("Show floating windows in the map")
+        checked: page.d.wsMapFloating !== false
+        onToggled: on => page.d.wsMapFloating = on
+    }
 
     Text {
         Layout.fillWidth: true

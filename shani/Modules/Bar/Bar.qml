@@ -175,39 +175,88 @@ Variants {
 
                 // niri workspaces of this output: one accent pill slides to the
                 // active one (iOS / Android-style), the numbers sit on top
-                // proportional workspace map: each tiled window a rectangle
-                Item {
-                    id: wsMap
-                    visible: Settings.data.showWorkspaceMap && !bar.narrow
-                    implicitWidth: Theme.px(72)
-                    implicitHeight: Theme.px(22)
-                    readonly property var ws: Niri.workspacesOn(bar.output).find(w => w.is_active) || null
-                    readonly property var groups: ws ? WorkspaceMap.group(Object.values(Niri.windows), ws.id) : { columns: [], floating: [] }
-                    readonly property var rects: WorkspaceMap.rects(groups, wsMap.width, wsMap.height, Theme.px(2))
-                    Repeater {
-                        model: wsMap.rects
-                        delegate: Rectangle {
-                            required property var modelData
-                            x: modelData.x; y: modelData.y
-                            width: Math.max(2, modelData.w); height: Math.max(2, modelData.h)
-                            radius: Theme.px(1)
-                            color: modelData.focused ? Theme.accent : (modelData.window.is_urgent ? Theme.danger : Theme.stroke)
-                            border.width: modelData.window.id === Niri.focusedWindowId ? 1 : 0
-                            border.color: Theme.accentInk
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: Niri.action("focus-window", "--id", modelData.window.id)
-                            }
-                            KeyFocus {
-                                name: modelData.window.title || modelData.window.app_id || ""
-                                onActivated: Niri.action("focus-window", "--id", modelData.window.id)
+                // proportional workspace map: one map per selected output
+                // (scope: current | all | custom), each tiled window a rectangle
+                property var mapOutputs: {
+                    const scope = Settings.data.wsMapScope || "current";
+                    if (scope === "custom") {
+                        const custom = Settings.data.wsMapOutputs || [];
+                        return Displays.outputs.filter(o => custom.indexOf(o.name) >= 0).map(o => o.name);
+                    }
+                    if (scope === "all")
+                        return Displays.outputs.map(o => o.name);
+                    return [bar.output];
+                }
+                Repeater {
+                    model: bar.mapOutputs
+                    delegate: Item {
+                        required property string modelData
+                        id: wsMap
+                        visible: Settings.data.showWorkspaceMap && !bar.narrow
+                        implicitWidth: Theme.px(72)
+                        implicitHeight: Theme.px(22)
+                        readonly property var ws: Niri.workspacesOn(modelData).find(w => w.is_active) || null
+                        readonly property var groups: ws ? WorkspaceMap.group(Object.values(Niri.windows), ws.id) : { columns: [], floating: [] }
+                        readonly property real outW: (Displays.outputs.find(o => o.name === modelData) || {}).width || 0
+                        readonly property real outH: (Displays.outputs.find(o => o.name === modelData) || {}).height || 0
+                        readonly property var rects: WorkspaceMap.rects(groups, wsMap.width, wsMap.height, Theme.px(2))
+                        readonly property var viewportRect: WorkspaceMap.viewport(groups, outW, Theme.px(2), Settings.data.ribbonAnchor || "fit", Niri.focusedWindowId)
+                        Rectangle {
+                            z: 0
+                            visible: Settings.data.wsMapViewportMode !== "off" && wsMap.groups.columns.length > 0
+                            x: (wsMap.viewportRect.x / Math.max(1, WorkspaceMap.canvasWidth(wsMap.groups, Theme.px(2)))) * wsMap.width
+                            width: Math.max(4, (wsMap.viewportRect.width / Math.max(1, WorkspaceMap.canvasWidth(wsMap.groups, Theme.px(2)))) * wsMap.width)
+                            y: 0; height: wsMap.height
+                            radius: Theme.px(2)
+                            color: "transparent"
+                            border.width: 1
+                            border.color: Theme.alpha(Theme.accent, 0.5)
+                        }
+                        Repeater {
+                            model: wsMap.rects
+                            delegate: Rectangle {
+                                required property var modelData
+                                x: modelData.x; y: modelData.y
+                                width: Math.max(2, modelData.w); height: Math.max(2, modelData.h)
+                                radius: Theme.px(1)
+                                color: modelData.focused ? Theme.accent : (modelData.window.is_urgent ? Theme.danger : Theme.stroke)
+                                border.width: modelData.window.id === Niri.focusedWindowId ? 1 : 0
+                                border.color: Theme.accentInk
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: Niri.action("focus-window", "--id", modelData.window.id)
+                                }
+                                KeyFocus {
+                                    name: modelData.window.title || modelData.window.app_id || ""
+                                    onActivated: Niri.action("focus-window", "--id", modelData.window.id)
+                                }
                             }
                         }
-                    }
-                    MouseArea {
-                        anchors.fill: parent
-                        z: -1
-                        onClicked: Niri.action("toggle-overview")
+                        Repeater {
+                            model: Settings.data.wsMapFloating ? WorkspaceMap.floatingRects(wsMap.groups.floating, wsMap.outW, wsMap.outH, wsMap.width, wsMap.height) : []
+                            Rectangle {
+                                required property var modelData
+                                x: modelData.x; y: modelData.y
+                                width: Math.max(2, modelData.w); height: Math.max(2, modelData.h)
+                                radius: Theme.px(1)
+                                color: modelData.focused ? Theme.accent : Theme.alpha(Theme.stroke, 0.7)
+                                border.width: 1
+                                border.color: modelData.focused ? Theme.accentInk : Theme.stroke
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: Niri.action("focus-window", "--id", modelData.window.id)
+                                }
+                                KeyFocus {
+                                    name: modelData.window.title || modelData.window.app_id || ""
+                                    onActivated: Niri.action("focus-window", "--id", modelData.window.id)
+                                }
+                            }
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            z: -1
+                            onClicked: Niri.action("toggle-overview")
+                        }
                     }
                 }
                 Item {

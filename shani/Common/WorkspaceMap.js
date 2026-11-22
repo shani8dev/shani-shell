@@ -27,6 +27,8 @@ function group(windows, wsId) {
     }
     const cols = Object.keys(byCol).map(k => byCol[k]).sort((a, b) => a.index - b.index);
     for (const c of cols) c.windows.sort((a, b) => a.row - b.row);
+    let runX = 0;
+    for (const c of cols) { c._x = runX; runX += c.width + 4; }
     return { columns: cols, floating: floating };
 }
 
@@ -62,4 +64,52 @@ function rects(groups, innerWidth, innerHeight, gap) {
         x += cw + gap;
     }
     return out;
+}
+
+// The visible viewport as a rectangle over the tiled map (niri-workspace-preview's
+// viewport highlight). Uses the same anchor logic as Ribbon.js: a focused
+// window's tile_pos_in_workspace_view gives the exact scroll offset; else a
+// fit/center estimate. `canvasWidth` is the unscaled width of the columns.
+function canvasWidth(groups, gap) {
+    let w = 0;
+    for (const c of groups.columns) w += c.width + gap;
+    return Math.max(1, w);
+}
+function viewport(groups, outputWidth, gap, anchor, focusedId) {
+    const cw = canvasWidth(groups, gap);
+    if (cw <= outputWidth) return { x: 0, width: cw };
+    let pos = null;
+    const focus = (groups.columns || []).flatMap(c => c.windows).find(w => w.window && w.window.id === focusedId);
+    if (focus && focus.window.layout && focus.window.layout.tile_pos_in_workspace_view) {
+        let colX = 0;
+        for (const c of groups.columns) {
+            if (c.index === focus.window.layout.pos_in_scrolling_layout[0]) break;
+            colX += c.width + gap;
+        }
+        pos = colX - focus.window.layout.tile_pos_in_workspace_view[0];
+    }
+    if (pos === null) {
+        let fx = 0, fw = 0;
+        for (const c of groups.columns) {
+            if (c.windows.some(w => w.window && w.window.id === focusedId)) { fx = c._x || 0; fw = c.width; }
+        }
+        if (anchor === "center") pos = fx + fw / 2 - outputWidth / 2;
+        else pos = fx;
+    }
+    pos = Math.max(0, Math.min(cw - outputWidth, pos));
+    return { x: pos, width: Math.min(cw, outputWidth) };
+}
+
+// Floating windows, positioned from their absolute workspace-view coordinates.
+// QML maps these into the map frame with the output's logical width/height.
+function floatingRects(floating, outputW, outputH, frameW, frameH) {
+    const sx = outputW > 0 ? frameW / outputW : 1;
+    const sy = outputH > 0 ? frameH / outputH : 1;
+    return (floating || []).map(w => {
+        const L = w.layout || {};
+        const p = L.tile_pos_in_workspace_view || [0, 0];
+        const size = L.tile_size || [0, 0];
+        return { x: p[0] * sx, y: p[1] * sy, w: size[0] * sx, h: size[1] * sy,
+                 window: w, focused: !!w.is_focused };
+    });
 }

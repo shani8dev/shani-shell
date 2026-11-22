@@ -377,7 +377,7 @@ AppWindow {
             visible: win.tab === "passkeys"
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
-            text: Tr.t("Websites use passkeys through your browser and a security key. The shell keeps only this registry — a label, a random key-handle id and the date — so you can name and remove the references. It does not create WebAuthn credentials here.")
+            text: Tr.t("Websites own real WebAuthn credentials; the shell keeps a keyring-protected REFERENCE to each (label, site, key-handle id), encrypted with your login. A site only accepts credentials registered through its own browser flow — the shell cannot mint one. When libfido2 tools are installed, genuinely local credentials can be created and used for challenge/response (not website logins).")
             color: Theme.dim
             font.family: Theme.font
             font.pixelSize: Theme.px(11) * Theme.fontScale
@@ -393,6 +393,7 @@ AppWindow {
             Layout.fillWidth: true
             spacing: Theme.px(6)
             TextField { id: newPasskeyLabel; Layout.fillWidth: true; placeholderText: Tr.t("What it is for, e.g. example.org") }
+            TextField { id: newPasskeyRp; Layout.fillWidth: true; placeholderText: Tr.t("Site (RP id), e.g. example.org — optional") }
             RowLayout {
                 Item { Layout.fillWidth: true }
                 Button { text: Tr.t("Cancel"); flat: true; onClicked: win.addingPasskey = false }
@@ -400,8 +401,8 @@ AppWindow {
                     kind: "primary"
                     text: Tr.t("Save")
                     enabled: newPasskeyLabel.text.trim() !== ""
-                    onClicked: win.run(["passkey-add", newPasskeyLabel.text.trim()], "", r => {
-                        if (r.ok) { win.addingPasskey = false; newPasskeyLabel.text = ""; }
+                    onClicked: win.run(["passkey-add", newPasskeyLabel.text.trim()], JSON.stringify({ rp_id: newPasskeyRp.text.trim() }), r => {
+                        if (r.ok) { win.addingPasskey = false; newPasskeyLabel.text = ""; newPasskeyRp.text = ""; }
                     })
                 }
             }
@@ -429,8 +430,16 @@ AppWindow {
                     Text {
                         Layout.fillWidth: true
                         elide: Text.ElideRight
-                        text: (prow.modelData.id || "") + (prow.modelData.created ? "  ·  " + Qt.formatDate(new Date(prow.modelData.created * 1000), "d MMM yyyy") : "")
-                        color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale
+                        text: (prow.modelData.rp_id ? prow.modelData.rp_id + "  ·  " : "")
+                            + (prow.modelData.source === "shell" ? Tr.t("Shell-created") : Tr.t("Browser reference"))
+                            + (prow.modelData.created ? "  ·  " + Qt.formatDate(new Date(prow.modelData.created * 1000), "d MMM yyyy") : "")
+                        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        text: prow.modelData.cred_id ? Tr.t("Key handle: %1", prow.modelData.cred_id.slice(0, 16)) : Tr.t("No local key handle")
+                        color: Theme.faint; font.family: Theme.mono; font.pixelSize: Theme.px(9) * Theme.fontScale
                     }
                 }
                 IconButton { icon: "edit-copy"; size: Theme.px(26); tip: Tr.t("Copy the key-handle id"); onClicked: { Quickshell.clipboardText = prow.modelData.id; win.note = Tr.t("%1 id copied", prow.modelData.label) } }

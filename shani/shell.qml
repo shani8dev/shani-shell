@@ -222,7 +222,7 @@ ShellRoot {
     }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [Idle, InputPlumber, Ups, Polkit, NightLight, AutoRotate, Appearance, Firewall, Feeds, Mail, Tablet, Privacy, Updates, Drives, Disks, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WindowLook, Terminal, TerminalApp, TextMate, Keyring, SmartReplies, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, PdfSigner, DiskUsage, WallpaperStyle, VideoTrimmer, Models, AIProviders, Studio]
+    readonly property var _services: [Idle, InputPlumber, Ups, Polkit, NightLight, AutoRotate, Appearance, Firewall, Feeds, Mail, Tablet, Privacy, Updates, Drives, Disks, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WindowLook, Terminal, TerminalApp, TextMate, Keyring, WindowPreview, SmartReplies, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, PdfSigner, DiskUsage, WallpaperStyle, VideoTrimmer, Models, AIProviders, Studio]
 
     // The test-only CalDAV hook reads a password from a file: keeping it out of
     // an IPC argument keeps it out of `ps`. Declared at root, not in IpcHandler;
@@ -378,7 +378,12 @@ ShellRoot {
         function notesClose() { Ui.notes = false; }
         function feedsOpen() { Ui.closeAll(); Ui.feeds = true; }
         function feedsClose() { Ui.feeds = false; }
-        function mailOpen() { Ui.closeAll(); Ui.mail = true; }
+        // the subscription list in and out, and how often it fetches: the same
+        // three the reader's buttons call, for a script or a test to drive
+        function feedsExport(path: string) { Feeds.exportTo(path); }
+        function feedsImport(path: string) { Feeds.run("import", [path]); }
+        function feedsInterval(minutes: int) { Feeds.setInterval(minutes); }
+        function mailOpen() { Ui.closeAll(); Ui.mail = true; Mail.state(); Mail.refresh(); }
         function mailClose() { Ui.mail = false; }
         function mailToggle() { const was = Ui.mail; Ui.closeAll(); Ui.mail = !was; }
         function feedsToggle() { const was = Ui.feeds; Ui.closeAll(); Ui.feeds = !was; }
@@ -1157,6 +1162,8 @@ ShellRoot {
                 callRecording: CallRecorder.recording,
                 callFile: CallRecorder.file,
                 cameraShown: Camera.open, notes: Ui.notes, feedsShown: Ui.feeds, mailShown: Ui.mail, textEditor: Ui.textEditor,
+                mailKind: Mail.kind, mailFolders: Mail.folders.length, mailCount: Mail.messages.length,
+                mailSubject: Mail.subject, mailFrom: Mail.from, mailBody: Mail.body.slice(0, 80),
                 textEditorFile: TextDocs.current ? TextDocs.current.path : "", textEditorDocs: TextDocs.docs.length, textEditorUnsaved: TextDocs.unsaved, textEditorChars: TextDocs.current ? TextDocs.current.text.length : 0, textEditorSaved: TextDocs.lastSaved, textEditorError: TextDocs.error, textEditorReadOnly: TextDocs.current ? TextDocs.current.readOnly : false,
                 calendarAccounts: Agenda.accounts.map(a => a.name + ':' + a.calendars.join('|')), calendarAccountError: Agenda.accountError, calendarImported: Agenda.imported, calendarNames: Agenda.calendarNames, tasksShown: Ui.tasks, tasksOpen: Tasks.open.map(t => t.summary), tasksDone: Tasks.done.map(t => t.summary), tasksAvailable: Tasks.available, contactsShown: Ui.contacts, contactsCount: Contacts.contacts.length, photosShown: Ui.photos, translateShown: Ui.translate, weatherShown: Ui.weather, cleanUpShown: Ui.settingsOpen && Ui.settingsCat === "storage", authenticatorShown: Ui.authenticator, passwordsShown: Ui.passwords, softwareShown: Ui.software, containersShown: Ui.containers, containersList: Ui.containersList, containersImages: Ui.containersImages, containersApps: Ui.containersApps, containersDone: Ui.containersDone, containersEntered: Ui.containersEntered, containersExported: Ui.containersExported, softwareResults: Ui.softwareResults, softwareInstalled: Ui.softwareInstalled, softwareApp: Ui.softwareApp, softwareDone: Ui.softwareDone, softwareLeftovers: Ui.softwareLeftovers, softwareAppImages: Ui.softwareAppImages, passwordsItems: Ui.passwordsItems, passwordsKeys: Ui.passwordsKeys, passwordsRevealed: Ui.passwordsRevealed, converterShown: Ui.converter, nearbyShown: Ui.nearby, nearbyVisible: Nearby.visible_, nearbyDevices: Nearby.devices.map(d => d.alias), nearbyOffers: Nearby.offers.length, nearbyTransfers: Object.values(Nearby.transfers).map(t => t.direction + ":" + t.state), nearbyNote: Nearby.note, screenTimeShown: Ui.settingsOpen && Ui.settingsCat === "screentime", clocksShown: Ui.clocks, clocksTab: Ui.clocksTab,
                 archiveShown: Archive.shown, archiveFile: Archive.file, archiveEntries: Archive.entries.length, archiveSize: Archive.totalSize, archiveExtractedTo: Archive.extractedTo, archiveError: Archive.error, archiveReading: Archive.reading, archiveExtracting: Archive.extracting, archivePassword: Archive.needsPassword, archiveMade: Archive.made, archiveCreating: Archive.creating,

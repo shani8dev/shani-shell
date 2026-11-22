@@ -152,7 +152,8 @@ Singleton {
             location: String(payload.location || ""),
             allDay: !!payload.allDay,
             calendar: payload.calendar || "",
-            uid: payload.uid || ""
+            uid: payload.uid || "",
+            attendees: Array.isArray(payload.attendees) ? payload.attendees : (payload.attendees ? String(payload.attendees).split(/[,;]\s*/).map(s => s.trim()).filter(s => s) : [])
         };
         // delete/edit by uid only: fill the rest from the last read
         if (p.uid !== "" && (p.start === 0 || p.summary === "")) {

@@ -88,7 +88,7 @@ Singleton {
         list.running = true;
         nbList.running = true;
     }
-    Component.onCompleted: refresh()
+    Component.onCompleted: { refresh(); cryptoProbe.running = true }
 
     // ---- paths --------------------------------------------------------------
     function validNotebook(name) {
@@ -154,11 +154,15 @@ Singleton {
         root.unlocked = isUnlocked(noteId(n, nb));
         root.lockError = "";
         root.text = "";
+        root.pass = "";          // one unlocked note at a time
+        if (isLocked(n)) {
+            root.locked = true;
+            root.unlocked = false;
+            file.path = lockedPath(n, nb);   // ciphertext; never feed it to a text editor
+            return;                          // wait for unlockNote() to fill root.text
+        }
         file.path = root.path;   // the path follows `current` (+ notebook)
         file.reload();
-        // a .locked.md with no sidecar protects nothing: treat it as open
-        if (root.locked && !root.unlocked)
-            runLock("state", lockPath(n, nb), "", noteId(n, nb));
     }
     function set(t) {
         if (isLocked(root.current) && !isUnlocked(noteId(root.current, root.currentNotebook)))
@@ -171,8 +175,20 @@ Singleton {
         id: save
         interval: 600
         onTriggered: {
-            if (isLocked(root.current) && !isUnlocked(noteId(root.current, root.currentNotebook)))
+            if (root.current === "")
                 return;
+            const lid = noteId(root.current, root.currentNotebook);
+            if (isLocked(root.current)) {
+                if (!isUnlocked(lid) || root.pass === "")
+                    return;
+                if (noteCrypto.running) noteCrypto.running = false;   // latest text wins
+                noteCrypto.mode = "encrypt";
+                noteCrypto.pendingPass = root.pass;
+                noteCrypto.payload = JSON.stringify({ passphrase: root.pass, text: root.text });
+                noteCrypto.command = ["python3", root.cryptoTool, "encrypt", lockedPath(root.current, root.currentNotebook)];
+                noteCrypto.running = true;
+                return;
+            }
             const dirPath = root.currentNotebook === "" ? root.dir : root.dir + "/" + root.currentNotebook;
             Quickshell.execDetached(["mkdir", "-p", dirPath]);
             file.setText(root.text);
@@ -332,9 +348,23 @@ Singleton {
     function printNote() {
         if (root.current === "")
             return "";
-        root.lastPrinted = root.path;
+        // a locked note's path is ciphertext: print the plaintext in memory
+        root.lastPrinted = root.current;
+        if (isLocked(root.current)) {
+            if (!isUnlocked(noteId(root.current, root.currentNotebook)))
+                return "";
+            printProc.stdinEnabled = true;
+            printProc.running = true;
+            return root.current;
+        }
         Quickshell.execDetached(["lp", "--", root.path]);
         return root.path;
+    }
+    Process {
+        id: printProc
+        command: ["lp", "-"]
+        stdinEnabled: true
+        onStarted: { write(root.text); stdinEnabled = false; }
     }
 
     // ---- [[wiki links]] -------------------------------------------------------
@@ -466,91 +496,96 @@ Singleton {
         }
     }
 
-    // ---- locked notes ---------------------------------------------------------
-    // <name>.locked.md is private in the UI: the sidecar <name>.locked.lock
-    // holds the SHA-256 of its passphrase on the first line. shortcut: this
-    // hides the body in the shell, it does not encrypt the file on disk;
-    // upgrade to gpg symmetric encryption if secrecy at rest is needed.
+    // ---- locked notes: real symmetric encryption (gpg) ------------------------
+    // The file on disk is <name>.locked.md.gpg (armored ciphertext). Plaintext
+    // lives only in root.text (memory). bridge/note-crypto.py handles the gpg
+    // call with the passphrase on a pipe fd, never in argv. No SHA-256 sidecar:
+    // gpg's own failure is the passphrase check.
     function isLocked(name) { return /\.locked$/.test(String(name || "")); }
     function isUnlocked(id) { return unlockedIds.indexOf(id) >= 0; }
-    function lockPath(name, notebook) {
-        return notePath(name, notebook).replace(/\.md$/, ".lock");
-    }
+    function lockedPath(name, notebook) { return notePath(name, notebook) + ".gpg"; }
     function markUnlocked(id) {
         if (!isUnlocked(id))
             unlockedIds = unlockedIds.concat([id]);
         root.locked = isLocked(root.current);
         root.unlocked = isUnlocked(noteId(root.current, root.currentNotebook));
     }
-    // one small shell helper: set the hash, check it, or ask if a lock exists.
-    // The passphrase travels as argv, never interpolated into the command.
-    function runLock(mode, sidecar, passphrase, id) {
-        lockProc.mode = mode;
-        lockProc.id = id;
-        lockProc.command = ["sh", "-c",
-            'case "$1" in set) printf %s "$3" | sha256sum | cut -d" " -f1 > "$2" ;; check) got=$(printf %s "$3" | sha256sum | cut -d" " -f1); want=$(head -n1 "$2" 2>/dev/null); [ -n "$want" ] && [ "$got" = "$want" ] ;; state) [ -s "$2" ] ;; esac',
-            "sh", mode, sidecar, passphrase];
-        lockProc.running = true;
+
+    readonly property string cryptoTool: Quickshell.env("SHANI_NOTES_CRYPTO") || "/usr/lib/shani-shell/note-crypto.py"
+    property bool cryptoAvailable: true
+    property string pass: ""                  // passphrase of the unlocked note, memory only
+    Process {
+        id: cryptoProbe
+        command: ["python3", root.cryptoTool, "probe"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { root.cryptoAvailable = (JSON.parse(text) || {}).gpg === true; }
+                catch (e) { root.cryptoAvailable = false; }
+            }
+        }
     }
     Process {
-        id: lockProc
+        id: noteCrypto
         property string mode: ""
-        property string id: ""
-        stdout: StdioCollector {}
+        property string pendingPass: ""
+        property string newName: ""
+        stdinEnabled: true
+        onStarted: { write(payload); payload = ""; stdinEnabled = false; }
+        property string payload: ""
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r = {};
+                try { r = JSON.parse(text); } catch (e) { r = { error: text.trim() }; }
+                root.cryptoDone(r);
+            }
+        }
         stderr: StdioCollector {}
-        onExited: code => {
-            if (mode === "state") {
-                if (code !== 0) {   // no sidecar: nothing is actually hidden
-                    markUnlocked(id);
-                    if (id === noteId(root.current, root.currentNotebook))
-                        file.reload();
-                }
-                return;
-            }
-            if (mode === "set") {
-                if (code !== 0) {
-                    root.lockError = Tr.t("Could not save the lock");
-                    return;
-                }
-                markUnlocked(id);
-                root.lockError = "";
-                refresh();
-                return;
-            }
-            if (code === 0) {
-                markUnlocked(id);
-                root.lockError = "";
-                if (id === noteId(root.current, root.currentNotebook))
-                    file.reload();
-            } else {
-                root.lockError = Tr.t("Wrong passphrase");
-            }
+        onExited: code => { if (code !== 0 && text.trim() === "") root.lockError = Tr.t("Encryption failed (is gpg installed?)"); }
+    }
+    function cryptoDone(r) {
+        if (r.error) { root.lockError = Tr.t(r.error); return; }
+        if (noteCrypto.mode === "decrypt") {
+            root.text = String(r.text || "");
+            root.pass = noteCrypto.pendingPass;
+            markUnlocked(noteId(root.current, root.currentNotebook));
+            root.lockError = "";
+        } else if (noteCrypto.mode === "lock") {
+            root.current = noteCrypto.newName;
+            root.pass = noteCrypto.pendingPass;
+            root.text = "";
+            root.lockError = "";
+            file.path = lockedPath(root.current, root.currentNotebook);  // the ciphertext, never reloaded
+            refresh();
+        } else if (noteCrypto.mode === "encrypt") {
+            root.lockError = "";   // autosave wrote the ciphertext
         }
     }
-    // Lock the open note: give it the .locked.md name, then store the hash.
     function lockNote(passphrase) {
         const pass = String(passphrase || "");
-        if (root.current === "" || pass === "")
+        if (root.current === "" || pass === "" || !root.cryptoAvailable)
             return;
-        let n = root.current;
-        let nb = root.currentNotebook;
-        if (!isLocked(n)) {
-            rename(n, n + ".locked", nb);
-            if (!isLocked(root.current))
-                return;   // a note with that name already exists
-            n = root.current;
-            nb = root.currentNotebook;
+        if (!root.cryptoAvailable) {
+            root.lockError = Tr.t("Locked notes need gpg, which is not installed");
+            return;
         }
-        root.locked = true;
-        root.unlocked = false;
-        root.lockError = "";
-        runLock("set", lockPath(n, nb), pass, noteId(n, nb));
+        const n = isLocked(root.current) ? root.current : root.current + ".locked";
+        noteCrypto.mode = "lock";
+        noteCrypto.pendingPass = pass;
+        noteCrypto.newName = n;
+        noteCrypto.payload = JSON.stringify({ passphrase: pass, text: root.text });
+        noteCrypto.command = ["python3", root.cryptoTool, "lock", root.path,
+                              lockedPath(n, root.currentNotebook)];
+        noteCrypto.running = true;
     }
     function unlockNote(passphrase) {
         const pass = String(passphrase || "");
         if (root.current === "" || !isLocked(root.current) || pass === "")
             return;
-        root.lockError = "";
-        runLock("check", lockPath(root.current, root.currentNotebook), pass, noteId(root.current, root.currentNotebook));
+        noteCrypto.mode = "decrypt";
+        noteCrypto.pendingPass = pass;
+        noteCrypto.payload = JSON.stringify({ passphrase: pass });
+        noteCrypto.command = ["python3", root.cryptoTool, "decrypt", lockedPath(root.current, root.currentNotebook)];
+        noteCrypto.running = true;
     }
+
 }

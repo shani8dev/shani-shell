@@ -19,6 +19,12 @@ Commands, one JSON answer on stdout:
 
 Read state is kept per feed+id in the cache, so "unread" survives a restart
 and a refresh does not bring an article back as unread.
+
+Two more things a reader needs: moving the subscription list in and out
+(OPML 2.0, the format every other reader writes - `export` prints it, `import`
+takes a file of it, ours or another reader's), and refreshing on its own
+(`interval <minutes>` says how often, 0 turns it off; the shell asks `due` when
+its timer fires and only the feeds older than that are fetched).
 """
 
 import html
@@ -28,7 +34,7 @@ import re
 import sys
 import urllib.request
 import xml.etree.ElementTree as ET
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 
@@ -37,6 +43,7 @@ CONF = HOME / ".config/shani-shell/feeds.json"
 CACHE = HOME / ".cache/shani-shell/feeds.json"
 UA = "shani-shell/1.0 (feed reader)"
 TIMEOUT = 12
+DEFAULT_OPML_TITLE = "Feeds"
 
 RSS = "{http://purl.org/rss/1.0/}"
 ATOM = "{http://www.w3.org/2005/Atom}"
@@ -61,6 +68,17 @@ def _save(path, data):
 
 def subs():
     return _load(CONF, {"feeds": []}).get("feeds", [])
+
+
+def conf():
+    return _load(CONF, {"feeds": [], "interval": 0})
+
+
+def interval():
+    try:
+        return max(0, int(conf().get("interval", 0) or 0))
+    except Exception:
+        return 0
 
 
 def cache():
@@ -208,6 +226,9 @@ def refresh_one(feed, c):
     c["feeds"][url] = {
         "title": feed.get("title") or title or url,
         "items": merged[:200],
+        # when this feed last answered, so "refresh every hour" only fetches
+        # what is due and the shell needs no timer per feed
+        "fetched": datetime.now(timezone.utc).isoformat(),
     }
     return {"title": c["feeds"][url]["title"], "url": url, "items": len(merged)}
 
@@ -235,6 +256,135 @@ def cmd_list():
             }
         )
     return out
+
+
+# ---- OPML 2.0: the subscription list in and out ---------------------------
+def opml_export():
+    """The feeds as an OPML 2.0 document - what every other reader reads.
+
+    Each feed is one <outline> with the text the spec requires (the title) and
+    xmlUrl (the feed). A reader that groups feeds writes nested outlines; ours
+    is flat, which every reader accepts.
+    """
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<opml version="2.0">',
+        "  <head>",
+        "    <title>%s</title>" % html.escape(DEFAULT_OPML_TITLE),
+        "  </head>",
+        "  <body>",
+    ]
+    for f in subs():
+        e = cache()["feeds"].get(f["url"]) or {}
+        title = e.get("title") or f.get("title") or f["url"]
+        lines.append(
+            '    <outline type="rss" text="%s" title="%s" xmlUrl="%s"/>'
+            % (
+                html.escape(title, quote=True),
+                html.escape(title, quote=True),
+                html.escape(f["url"], quote=True),
+            )
+        )
+    lines += ["  </body>", "</opml>", ""]
+    return "\n".join(lines)
+
+
+def opml_urls(path):
+    """Every xmlUrl in an OPML file, in document order.
+
+    Also accepts our own feeds.json, so a copy of the old list can go back in.
+    """
+    with open(path, encoding="utf-8") as fh:
+        raw = fh.read()
+    if raw.lstrip().startswith("{"):
+        try:
+            return [f["url"] for f in json.loads(raw).get("feeds", []) if f.get("url")]
+        except Exception:
+            return []
+    root = ET.fromstring(raw)
+    found = []
+    for el in root.iter():
+        if el.tag.split("}")[-1] != "outline":
+            continue
+        url = (el.get("xmlUrl") or "").strip()
+        if url and url not in found:
+            found.append(url)
+    return found
+
+
+def cmd_import(path):
+    urls = opml_urls(path)
+    have = {f["url"] for f in subs()}
+    feeds = subs()
+    added = 0
+    c = cache()
+    for url in urls:
+        if url in have:
+            continue
+        feeds.append({"title": "", "url": url})
+        have.add(url)
+        added += 1
+        refresh_one({"title": "", "url": url}, c)
+    _save(CONF, {"feeds": feeds, "interval": interval()})
+    save_cache(c)
+    return {"added": added, "known": len(urls) - added, "feeds": len(feeds)}
+
+
+# ---- refreshing on its own -------------------------------------------------
+def _older_than(iso, minutes):
+    if not iso:
+        return True
+    try:
+        seen = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+    except Exception:
+        return True
+    if seen.tzinfo is None:
+        seen = seen.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc) - seen >= timedelta(minutes=minutes)
+
+
+def cmd_due():
+    """Refresh the feeds whose last answer is older than the interval.
+
+    Called by the shell's timer, not on a schedule of its own: nothing wakes up
+    unless the reader is open and the interval is set.
+    """
+    minutes = interval()
+    if minutes <= 0:
+        return {"refreshed": 0, "interval": 0}
+    c = cache()
+    n = 0
+    for f in subs():
+        e = c["feeds"].get(f["url"]) or {}
+        if _older_than(e.get("fetched"), minutes):
+            refresh_one(f, c)
+            n += 1
+    if n:
+        save_cache(c)
+    return {"refreshed": n, "interval": minutes}
+
+
+def cmd_status():
+    c = cache()
+    stamps = [e.get("fetched") for e in c["feeds"].values() if e.get("fetched")]
+    stamps.sort()
+    return {
+        "interval": interval(),
+        "last": stamps[-1] if stamps else "",
+        "feeds": len(subs()),
+    }
+
+
+def cmd_interval(minutes):
+    try:
+        n = max(0, min(7 * 24 * 60, int(minutes)))
+    except Exception:
+        return {"error": "interval must be whole minutes"}
+    d = conf()
+    d["feeds"] = subs()
+    d["interval"] = n
+    _save(CONF, d)
+    return {"interval": n}
 
 
 def main():
@@ -312,6 +462,19 @@ def main():
         c.setdefault("read", {})[url + "|" + ident] = True
         save_cache(c)
         print(json.dumps({"ok": True}))
+    elif cmd == "export":
+        sys.stdout.write(opml_export())
+    elif cmd == "import":
+        if len(sys.argv) < 3:
+            print(json.dumps({"error": "import needs a file"}))
+            return 2
+        print(json.dumps(cmd_import(sys.argv[2])))
+    elif cmd == "interval":
+        print(json.dumps(cmd_interval(sys.argv[2] if len(sys.argv) > 2 else 0)))
+    elif cmd == "due":
+        print(json.dumps(cmd_due()))
+    elif cmd == "status":
+        print(json.dumps(cmd_status()))
     else:
         print(json.dumps({"error": "unknown command: " + cmd}))
         return 2

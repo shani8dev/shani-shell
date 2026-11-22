@@ -72,3 +72,16 @@ def test_rects_preserve_aspect_ratio():
     # column 1 starts after column 0 width + gap
     assert r[2]["x"] > r[0]["w"]
     assert r[0]["focused"] is True
+
+
+def test_viewport_and_floating():
+    g = run("group", WINDOWS, 1)
+    v = run("viewport", g, 800, 2, "fit", 1)
+    assert "x" in v and "width" in v
+    assert v["width"] <= run("canvasWidth", g, 2)
+    f = run("floatingRects", [{"id": 9, "is_focused": True,
+                              "layout": {"tile_pos_in_workspace_view": [100, 200], "tile_size": [300, 400]}}],
+            1600, 900, 80, 45)
+    assert len(f) == 1
+    assert abs(f[0]["x"] - 5) < 0.01   # 100 * 80/1600
+    assert abs(f[0]["w"] - 15) < 0.01  # 300 * 80/1600

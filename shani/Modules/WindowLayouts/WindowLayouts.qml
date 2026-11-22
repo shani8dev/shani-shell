@@ -13,6 +13,9 @@ import qs.Services
 
 PanelWindow {
     id: win
+    property bool arrangeAllMode: false     // apply the layout to every column, not just focus
+    property bool customEditing: false
+    property string customName: ""
     visible: Ui.windowLayouts && !Lock.locked && !Polkit.active
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     // appear near the center of the screen, not full-screen
@@ -79,6 +82,11 @@ PanelWindow {
                     tip: Tr.t("Undo last layout")
                     enabled: WindowLayouts.undoStack.length >= 2
                     onClicked: WindowLayouts.undo()
+                }
+                Choice {
+                    text: Tr.t("All windows")
+                    selected: win.arrangeAllMode
+                    onClicked: win.arrangeAllMode = !win.arrangeAllMode
                 }
                 IconButton {
                     icon: "window-close"
@@ -147,8 +155,77 @@ PanelWindow {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                WindowLayouts.apply(modelData.id, Niri.focusedOutput);
+                                if (win.arrangeAllMode) WindowLayouts.arrangeAll(modelData.id);
+                                else WindowLayouts.apply(modelData.id, Niri.focusedOutput);
                                 Ui.windowLayouts = false;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // custom layout authoring
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: customCol.implicitHeight + 12
+                radius: Theme.radiusSmall
+                color: Theme.surface1
+                border.width: 1
+                border.color: Theme.border
+                ColumnLayout {
+                    id: customCol
+                    anchors { fill: parent; margins: Theme.px(6) }
+                    spacing: Theme.px(4)
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: Tr.t("Your layouts"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.DemiBold }
+                        Item { Layout.fillWidth: true }
+                        Button {
+                            text: win.customEditing ? Tr.t("Cancel") : Tr.t("New layout…")
+                            flat: true
+                            onClicked: { win.customEditing = !win.customEditing; win.customName = ""; }
+                        }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: win.customEditing
+                        TextField {
+                            id: customName
+                            Layout.fillWidth: true
+                            placeholder: Tr.t("Layout name")
+                            text: win.customName
+                            onTextChanged: win.customName = text
+                        }
+                        Button {
+                            text: Tr.t("Add")
+                            kind: "primary"
+                            enabled: win.customName.trim() !== ""
+                            onClicked: {
+                                WindowLayouts.addCustom(win.customName.trim(), 2, 1, [0.6, 0.4]);
+                                win.customEditing = false;
+                                win.customName = "";
+                            }
+                        }
+                    }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: Theme.px(4)
+                        Repeater {
+                            model: Settings.data.windowLayouts || []
+                            Rectangle {
+                                required property var modelData
+                                implicitWidth: customLabel.implicitWidth + 28
+                                height: Theme.px(24)
+                                radius: Theme.px(12)
+                                color: Theme.hover
+                                Text { id: customLabel; anchors { left: parent.left; leftMargin: 8; verticalCenter: parent.verticalCenter }; text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                                IconButton {
+                                    anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                                    size: Theme.px(20)
+                                    icon: "edit-clear-all"
+                                    tip: Tr.t("Delete layout")
+                                    onClicked: WindowLayouts.removeCustom(modelData.id)
+                                }
                             }
                         }
                     }

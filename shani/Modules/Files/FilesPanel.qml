@@ -856,6 +856,8 @@ AppWindow {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
+                                    onEntered: hoverPeek.forceActive()
+                                    onExited: hoverPeek.cancel()
                                     drag.target: cellDrag
                                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                                     onReleased: { cellDrag.x = 0; cellDrag.y = 0; }
@@ -883,6 +885,10 @@ AppWindow {
                                     onActiveFocusChanged: if (activeFocus) Files.current = cell.modelData.path
                                     menuable: true
                                     onMenu: win.openMenu(cell.modelData, cellArea.mapToItem(win, mouseX, mouseY))
+                                }
+                                HoverPeek {
+                                    id: hoverPeek
+                                    path: cell.modelData.path
                                 }
                                 Accessible.role: Accessible.Button
                                 Accessible.name: cell.modelData.name
@@ -972,6 +978,8 @@ AppWindow {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
+                                    onEntered: hoverPeek.forceActive()
+                                    onExited: hoverPeek.cancel()
                                     drag.target: rowDrag
                                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                                     onReleased: { rowDrag.x = 0; rowDrag.y = 0; }
@@ -996,6 +1004,10 @@ AppWindow {
                                     onActiveFocusChanged: if (activeFocus) Files.current = row.modelData.path
                                     menuable: true
                                     onMenu: win.openMenu(row.modelData, rowArea.mapToItem(win, mouseX, mouseY))
+                                }
+                                HoverPeek {
+                                    id: hoverPeek
+                                    path: row.modelData.path
                                 }
                                 Accessible.role: Accessible.Button
                                 Accessible.name: row.modelData.name

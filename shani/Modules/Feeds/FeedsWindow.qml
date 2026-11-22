@@ -82,6 +82,41 @@ AppWindow {
                         onClicked: Feeds.remove(Feeds.current)
                     }
                 }
+                // the subscription list in and out (OPML), and how often it
+                // fetches on its own
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    Button { text: Tr.t("Import…"); flat: true; onClicked: Feeds.importDialog() }
+                    Button { text: Tr.t("Export…"); flat: true; enabled: Feeds.feeds.length > 0; onClicked: Feeds.exportDialog() }
+                }
+                Text { text: Tr.t("Refresh"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    Repeater {
+                        model: [0, 15, 30, 60, 360, 1440]
+                        Choice {
+                            required property int modelData
+                            text: modelData === 0 ? Tr.t("Never")
+                                : modelData === 60 ? Tr.t("Hourly")
+                                : modelData === 360 ? Tr.t("Every 6 hours")
+                                : modelData === 1440 ? Tr.t("Daily")
+                                : Tr.t("Every %1 min", modelData)
+                            selected: Feeds.refreshMinutes === modelData
+                            onClicked: Feeds.setInterval(modelData)
+                        }
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: Feeds.note !== ""
+                    text: Feeds.note
+                    color: Theme.dim
+                    wrapMode: Text.Wrap
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
                 Text {
                     Layout.fillWidth: true
                     visible: Feeds.feeds.length === 0 && !Feeds.busy

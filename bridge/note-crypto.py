@@ -104,12 +104,15 @@ def decrypt(path_str: str, passphrase: str) -> int:
         capture_output=True,
     )
     if r.returncode != 0:
-        return 1
-    sys.stdout.buffer.write(r.stdout)
-    return 0
+        return {"error": "Wrong passphrase or a damaged note"}
+    return {"ok": True, "text": r.stdout.decode(errors="replace")}
 
 
 def main(argv: list[str]) -> int:
+    cmd = argv[1] if len(argv) > 1 else ""
+    if cmd == "probe":
+        print(json.dumps({"gpg": gpg_available()}))
+        return 0
     if len(argv) < 3:
         print("usage: note-crypto.py encrypt|decrypt PATH", file=sys.stderr)
         return 2
@@ -121,10 +124,14 @@ def main(argv: list[str]) -> int:
         return 2
     passphrase = str(payload.get("passphrase", "") or "")
     if cmd == "encrypt":
-        return encrypt(argv[2], passphrase, str(payload.get("text", "") or ""))
-    if cmd == "decrypt":
-        return decrypt(argv[2], passphrase)
-    return 2
+        err = encrypt(argv[2], passphrase, str(payload.get("text", "") or ""))
+        r = {"error": err} if err else {"ok": True}
+    elif cmd == "decrypt":
+        r = decrypt(argv[2], passphrase)
+    else:
+        return 2
+    print(json.dumps(r))
+    return 1 if "error" in r else 0
 
 
 if __name__ == "__main__":
