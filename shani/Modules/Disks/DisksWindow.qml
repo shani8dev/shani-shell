@@ -364,6 +364,7 @@ AppWindow {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: win.selectedDisk = win.selectedDisk === modelData ? null : modelData
                 }
+                KeyFocus { onActivated: win.selectedDisk = win.selectedDisk === modelData ? null : modelData }
             }
             EmptyState {
                 anchors.centerIn: parent

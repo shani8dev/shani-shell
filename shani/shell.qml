@@ -1140,7 +1140,7 @@ ShellRoot {
                 player: Ui.player,
                 fonts: Ui.fonts,
                 contacts: Ui.contacts,
-                modelsShown: Ui.models, studioShown: Ui.studio, disksShown: Ui.disks, terminalAppShown: Ui.terminalApp, backupShown: Ui.backup,
+                modelsShown: Ui.models, studioShown: Ui.studio, disksShown: Ui.disks, terminalAppShown: Ui.terminalApp, backupShown: Ui.backup, windowLayouts: Ui.windowLayouts,
                 playerVolume: Media.current && Media.current.volumeSupported ? Math.round(Media.current.volume * 100) : -1,
                 playerShuffle: Media.current ? Media.current.shuffle : false,
                 playerLoop: Media.current ? Media.current.loopState : -1,

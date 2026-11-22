@@ -53,7 +53,7 @@ AppWindow {
         command: ["sh", "-c", 'd="${XDG_DATA_HOME:-$HOME/.local/share}/shani-photos/albums.json"; [ -f "$d" ] && cat "$d" || echo "[]"']
         stdout: StdioCollector {
             onStreamFinished: {
-                try { root.albums = JSON.parse(text); } catch (e) { root.albums = []; }
+                try { win.albums = JSON.parse(text); } catch (e) { win.albums = []; }
             }
         }
     }

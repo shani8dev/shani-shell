@@ -24,7 +24,7 @@ Singleton {
     readonly property string tool: Quickshell.env("SHANI_GAMEPAD_TOOL") || "/usr/lib/shani-shell/gamepad.py"
     property int controllers: 0
     readonly property var top: ToplevelManager.activeToplevel
-    readonly property bool fullscreen: top !== null && Boolean(top.fullscreen)
+    readonly property bool fullscreen: !!top && Boolean(top.fullscreen)
     // InputPlumber, when it manages the controllers, hands the presses over itself (Services/InputPlumber)
     readonly property bool wanted: Settings.loaded && Settings.data.gamepadNav && controllers > 0 && !fullscreen && !InputPlumber.managing
     readonly property bool running: reader.running

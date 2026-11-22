@@ -508,7 +508,7 @@ APPS: dict[str, tuple] = {
     "tasks": ("dev.shani.Tasks", "Tasks", "To-dos, ticked off when done", "gnome-todo", "Office;ProjectManagement;",
               [], ["tasksOpen"], None, "tasksShown"),
     "contacts": ("dev.shani.Contacts", "Contacts", "Your address book, as vCard files", "x-office-address-book", "Office;Utility;",
-                 ["text/vcard", "text/directory"], ["contactsOpen", ""], "contactsOpen", "contactsShown"),
+                 ["text/vcard", "text/directory"], ["contactsOpen"], None, "contactsShown"),
     "models": ("dev.shani.Models", "Models", "Local and cloud AI models for Chronoa", "applications-science", "Utility;",
                [], ["modelsOpen"], None, "modelsShown"),
     "studio": ("dev.shani.Studio", "Studio", "Describe an app and Chronoa builds it", "applications-development", "Development;Utility;",
