@@ -13,6 +13,7 @@ Rectangle {
     signal rightClicked()
     signal pressAndHold()               // a long press: the window-layout picker on the bar's maximise
     property bool hasMenu: false           // a right-click does something: the Menu key (a pad's X) too
+    property string accessibleName: ""     // overrides the tip as the AT-SPI name, when the tip is a hint rather than a label
 
     // for screen readers: a button named after what it does
     Accessible.role: Accessible.Button
@@ -23,7 +24,7 @@ Rectangle {
         "media-eject": "Eject", "folder-publicshare": "Share", "chat-message-new": "Summarise", "draw-eraser": "Eraser",
         "edit-undo": "Undo", "document-new": "New", "document-save": "Save", "view-paged": "QR code", "preferences-system": "Settings",
         "window-new": "Open", "insert-image-symbolic": "Insert image" })
-    Accessible.name: root.tip !== "" ? root.tip : (plainNames[root.icon.replace(/-symbolic$/, "")] || root.icon.replace(/-symbolic$/, "").replace(/-/g, " "))
+    Accessible.name: root.accessibleName !== "" ? root.accessibleName : root.tip !== "" ? root.tip : (plainNames[root.icon.replace(/-symbolic$/, "")] || root.icon.replace(/-symbolic$/, "").replace(/-/g, " "))
     Accessible.checkable: true
     Accessible.checked: root.on
     Accessible.onPressAction: root.clicked()

@@ -300,6 +300,7 @@ Variants {
                                 size: Theme.px(22)
                                 icon: "window-maximize-symbolic"
                                 tip: Tr.t("Hold for window layout · Click to maximise")
+                                accessibleName: Tr.t("Maximise")
                                 onClicked: Niri.action("maximize-column")
                                 onPressAndHold: Ui.toggleWindowLayouts()
                             }
