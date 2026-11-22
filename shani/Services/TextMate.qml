@@ -8,7 +8,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
-import "../../Common/TextMate.js" as TM
+import "../Common/TextMate.js" as TM
 
 Singleton {
     id: root
