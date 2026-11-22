@@ -376,10 +376,24 @@ def mh_source(url, uid):
 def imap_connect(c):
     imap = c.get("imap") or {}
     host, port = imap.get("host", ""), int(imap.get("port", 993))
-    if imap.get("ssl", True):
+    local = host in ("localhost", "127.0.0.1", "::1") or host.startswith("127.")
+    # Implicit TLS on 993; port 143 must explicitly upgrade with STARTTLS before
+    # any credentials are sent. Never LOGIN in the clear to a remote server.
+    implicit = imap.get("ssl", port == 993)
+    if implicit:
         box = imaplib.IMAP4_SSL(host, port, ssl_context=ssl.create_default_context())
     else:
         box = imaplib.IMAP4(host, port)
+        if not local:
+            box.ehlo()
+            if box.has_capability("STARTTLS"):
+                box.starttls(ssl_context=ssl.create_default_context())
+                box.ehlo()
+            else:
+                box.logout()
+                raise ValueError(
+                    "The mail server does not offer STARTTLS — refusing to send the password in the clear"
+                )
     user = imap.get("user", "")
     pw = password()
     if user and pw:
@@ -642,7 +656,12 @@ def send(c, to, subject, body, cc="", bcc=""):
     # Bcc must reach the server but never appear in the headers recipients see.
     # Passing an explicit envelope sidesteps send_message's header-derived list.
     recipients = _recipients(to, cc, bcc)
-    if smtp.get("ssl", True):
+    local = host in ("localhost", "127.0.0.1", "::1") or host.startswith("127.")
+    # Implicit TLS (SMTP_SSL) belongs on 465. Port 587/25 use STARTTLS. An
+    # explicit `ssl:true` for 465 still works; otherwise derive it from the port
+    # so a fresh config on 587 cannot silently wrap the wrong protocol.
+    implicit = smtp.get("ssl", port == 465)
+    if implicit:
         with smtplib.SMTP_SSL(
             host, port, timeout=TIMEOUT, context=ssl.create_default_context()
         ) as s:
@@ -652,10 +671,15 @@ def send(c, to, subject, body, cc="", bcc=""):
     else:
         with smtplib.SMTP(host, port, timeout=TIMEOUT) as s:
             s.ehlo()
-            # MailHog and a local relay often have no STARTTLS at all
+            # MailHog and a local relay often have no STARTTLS at all; a remote
+            # provider must offer it, otherwise do not send credentials in clear.
             if s.has_extn("starttls"):
                 s.starttls(context=ssl.create_default_context())
                 s.ehlo()
+            elif not local and user and pw:
+                return {
+                    "error": "The mail server does not offer STARTTLS — refusing to send the password in the clear"
+                }
             if user and pw:
                 s.login(user, pw)
             s.send_message(msg, to_addrs=recipients)

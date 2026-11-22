@@ -147,7 +147,9 @@ def test_save_attachment_command_writes_the_decoded_bytes(tmp_path, monkeypatch)
 
 def test_send_accepts_cc_and_bcc_without_leaking_the_bcc(monkeypatch):
     m = load()
+    # Port 587 now correctly uses STARTTLS (plain SMTP), not implicit SSL.
     monkeypatch.setattr(m.smtplib, "SMTP_SSL", FakeSMTP)
+    monkeypatch.setattr(m.smtplib, "SMTP", FakeSMTP)
     monkeypatch.setattr(m, "password", lambda: "")
     FakeSMTP.last = None
     rc, answer = run(m, "send", "to@x", "Subject", "Body", "cc@x", "bcc@x")

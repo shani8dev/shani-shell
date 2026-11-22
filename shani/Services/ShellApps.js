@@ -44,7 +44,7 @@ var ids = {
     "Document Scanner": "dev.shani.Scanner",
     "System Monitor": "dev.shani.SystemMonitor",
     "Logs": "dev.shani.Logs",
-    "Password Generator": "dev.shani.Passwords",
+    "Password Generator": "dev.shani.PasswordGenerator",
     "PDF Signer": "dev.shani.SignPdf",
     "Video Trimmer": "dev.shani.VideoTrimmer",
     "Kundali": "dev.shani.Kundali",
