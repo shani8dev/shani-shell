@@ -73,6 +73,11 @@ Singleton {
 
     // a subtitle file beside the video: "film.mkv" -> "film.srt" (or .vtt, or "film.en.srt")
     property string subtitleFile: ""
+    // how far the subtitle track is moved from what the file says, in seconds.
+    // Per file: a delay is a property of that rip, and carrying it into the
+    // next one would be worse than asking again.
+    property real subtitleShift: 0
+    function setSubtitleShift(s) { subtitleShift = Math.max(-60, Math.min(60, Number(s) || 0)); }
     onCurrentChanged: {
         tellMpris();
         if (current !== resumedPath) { resumedFrom = 0; resumedPath = ""; }
@@ -112,6 +117,9 @@ Singleton {
     signal opened()
     function open(arg) {
         root.shown = true;
+        // reopening the same file is a new viewing: any timing fix belonged to
+        // the last one (onCurrentChanged does not fire for the same path)
+        root.subtitleShift = 0;
         if (String(arg || "").trim() !== "")
             root.opened();
         root.error = "";

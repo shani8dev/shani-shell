@@ -123,9 +123,26 @@ AppWindow {
         player.activeSubtitleTrack = src === "embedded" ? track : -1;
     }
     property var cues: []                        // [{ start, end, text }] in seconds, from the file
+    // a subtitle file can be a moment out - a broadcast rip, a fan-made .srt.
+    // The whole track moves, by the step the buttons use, so it lines up
+    // without touching the file (which may be read-only, or shared).
+    property real subShift: PlayQueue.subtitleShift   // seconds added to every cue
+    readonly property var subShifts: [-5, -1, -0.5, 0, 0.5, 1, 5]
+    function nudgeSubtitles(dir) {
+        // the step buttons walk a short ladder, so one press is a small move
+        // and a held one keeps going
+        const steps = win.subShifts;
+        let best = 0;
+        for (const s of steps)
+            if (Math.abs(s - win.subShift) < Math.abs(best - win.subShift)) best = s;
+        const at = steps.indexOf(best);
+        const next = Math.max(0, Math.min(steps.length - 1, at + dir));
+        win.subShift = steps[next];
+        PlayQueue.setSubtitleShift(win.subShift);
+    }
     readonly property string cueNow: {
         if (subSource !== "file") return "";
-        const t = player.position / 1000;
+        const t = player.position / 1000 - win.subShift;
         const c = cues.find(x => t >= x.start && t < x.end);
         return c ? c.text : "";
     }
@@ -538,6 +555,28 @@ AppWindow {
                                     text: PlayQueue.subtitleFile.split("/").pop()
                                     selected: win.subSource === "file"
                                     onClicked: win.setSubtitles("file", -1)
+                                }
+                            }
+                            // a subtitle track that is a moment out: move it whole
+                            RowLayout {
+                                Layout.fillWidth: true
+                                visible: win.cues.length > 0 && win.subSource === "file"
+                                spacing: Theme.px(6)
+                                Text { text: Tr.t("Timing"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                                IconButton { icon: "media-seek-backward"; tip: Tr.t("Earlier"); size: Theme.px(24); onClicked: win.nudgeSubtitles(-1) }
+                                Text {
+                                    text: (PlayQueue.subtitleShift > 0 ? "+" : "") + PlayQueue.subtitleShift.toFixed(1) + " s"
+                                    color: Theme.text
+                                    font.family: Theme.mono
+                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                }
+                                IconButton { icon: "media-seek-forward"; tip: Tr.t("Later"); size: Theme.px(24); onClicked: win.nudgeSubtitles(1) }
+                                Item { Layout.fillWidth: true }
+                                Button {
+                                    text: Tr.t("Reset")
+                                    flat: true
+                                    enabled: PlayQueue.subtitleShift !== 0
+                                    onClicked: { PlayQueue.setSubtitleShift(0); win.subShift = 0; }
                                 }
                             }
                         }

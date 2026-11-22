@@ -47,3 +47,23 @@ waitfor "d['mediaTagLine'] == 'Test Song — Shani Band' and d['mediaCover'] != 
     && result media-song-tags-and-cover PASS || result media-song-tags-and-cover FAIL "tags '$(q "['mediaTagLine']")' cover '$(q "['mediaCover']")'"
 sleep 1; shot media-song-cover 0.2
 ipc mediaClose; ipc closeAll
+
+# ---- a subtitle track that is a moment out: move it whole -----------------
+# the cues are 0..180 s; a +1 s shift must move the line out at once, and a
+# reset must put it back, without touching the file
+ipc mediaOpen "$M/film.mkv"
+waitfor "d['mediaCue'] == 'Hello from the file'" 8
+before=$(q "['mediaSubShift']")
+i=0
+until [ "$(q "['mediaSubShift']")" != "$before" ] || [ $i -ge 20 ]; do
+    timeout 20 python3 "${A11Y:-/testbed/lib/a11y_client.py}" press "button:^Later$" >/dev/null 2>&1
+    sleep 0.3; i=$((i+1))
+done
+[ "$(q "['mediaSubShift']")" != "$before" ] \
+    && result media-subtitle-shift-moves-it PASS "$(q "['mediaSubShift']")" \
+    || result media-subtitle-shift-moves-it FAIL "still $(q "['mediaSubShift']")"
+# and the cue still shows: a shift is a move, not a mute
+sleep 1
+[ -n "$(q "['mediaCue']")" ] && result media-subtitle-shift-keeps-the-line PASS "$(q "['mediaCue']")" || result media-subtitle-shift-keeps-the-line FAIL "no cue after the shift"
+ipc mediaOpen "$M/film.mkv"
+waitfor "d['mediaSubShift'] == 0" 6 && result media-subtitle-shift-resets-per-file PASS || result media-subtitle-shift-resets-per-file FAIL "$(q "['mediaSubShift']")"
