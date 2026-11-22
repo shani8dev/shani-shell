@@ -20,6 +20,14 @@ Singleton {
     }
     property real temp: NaN
     property int code: -1
+    // current conditions beyond the temperature (Open-Meteo `current=` fields)
+    property real feelsLike: NaN
+    property real humidity: NaN
+    property real wind: NaN
+    property real pressure: NaN
+    property real visibility: NaN
+    property string sunrise: ""
+    property string sunset: ""
     readonly property bool fahrenheit: Settings.data.weatherUnits === "fahrenheit"
     readonly property string degree: fahrenheit ? "°F" : "°C"
     readonly property string summary: isNaN(temp) ? "" : Math.round(temp) + degree + "  " + describe(code)
@@ -74,8 +82,8 @@ Singleton {
     function fetch() {
         if (!enabled || (Settings.data.weatherLat === 0 && Settings.data.weatherLon === 0))
             return;
-        now.command = ["curl", "-sf", "--max-time", "8", "https://api.open-meteo.com/v1/forecast?current=temperature_2m,weather_code"
-            + "&daily=temperature_2m_max,temperature_2m_min,weather_code"
+        now.command = ["curl", "-sf", "--max-time", "8", "https://api.open-meteo.com/v1/forecast?current=temperature_2m,weather_code,apparent_temperature,relative_humidity_2m,wind_speed_10m,surface_pressure,visibility"
+            + "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset"
             + "&hourly=temperature_2m,weather_code,precipitation_probability,wind_speed_10m"
             + "&past_days=0&forecast_days=7"
             + "&temperature_unit=" + (fahrenheit ? "fahrenheit" : "celsius")
@@ -111,8 +119,17 @@ Singleton {
                     const c = rootObj.current;
                     root.temp = c.temperature_2m;
                     root.code = c.weather_code;
+                    root.feelsLike = c.apparent_temperature;
+                    root.humidity = c.relative_humidity_2m;
+                    root.wind = c.wind_speed_10m;
+                    root.pressure = c.surface_pressure;
+                    root.visibility = c.visibility;
                     // 7-day forecast
                     const d = rootObj.daily;
+                    if (d && d.sunrise && d.sunrise.length) {
+                        root.sunrise = String(d.sunrise[0]).slice(11, 16);
+                        root.sunset = String(d.sunset[0]).slice(11, 16);
+                    }
                     if (d && d.time) {
                         const days = [];
                         const n = Math.min(d.time.length, 7);

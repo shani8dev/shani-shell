@@ -24,7 +24,9 @@ AppWindow {
     property string groupBy: "month"  // day | month | year
     property bool importBusy: false
     property string importNote: ""
-    readonly property var shown: photos.filter(p => activeAlbum === "" || activeAlbum === "all" || albums.find(a => a.name === activeAlbum)?.members?.includes(p.path))
+    readonly property var shown: photos.filter(p =>
+        (filter === "all" || (filter === "camera" ? /\/Camera\/|\/DCIM\/|\/camera\//i.test(p.path) : /\/Screenshot/i.test(p.path))) &&
+        (activeAlbum === "" || activeAlbum === "all" || albums.find(a => a.name === activeAlbum)?.members?.includes(p.path)))
     // [{ key, items: [...] }], newest first — the key is a day, a month or a year
     readonly property var groups: {
         const fmt = win.groupBy === "day" ? "d MMM yyyy" : win.groupBy === "year" ? "yyyy" : "MMMM yyyy";

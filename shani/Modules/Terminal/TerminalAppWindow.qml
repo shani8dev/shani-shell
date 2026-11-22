@@ -24,6 +24,8 @@ AppWindow {
     property string newKeyName: ""
     property string tunnelHostId: ""
     property string snippetNote: ""
+    property string hostQuery: ""
+    property string hostNote: ""
 
     onVisibleChanged: if (visible) TerminalApp.refresh()
 
@@ -88,6 +90,7 @@ AppWindow {
                             Text { text: modelData.user + "@" + modelData.host + (modelData.port !== 22 ? ":" + modelData.port : ""); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
                         }
                         Button { text: Tr.t("Connect"); kind: "primary"; onClicked: TerminalApp.connect(modelData) }
+                        Button { text: Tr.t("Test"); enabled: !TerminalApp.busy && modelData.type !== "serial"; onClicked: TerminalApp.testConnection(modelData, (ok, msg) => win.hostNote = (ok === "ok" ? Tr.t("Connected to %1", modelData.name) : Tr.t("Test failed: %1", msg))) }
                         IconButton { icon: "folder-remote"; size: Theme.px(26); tip: Tr.t("Browse files on this host"); onClicked: Files.connectServer("ssh://" + modelData.user + "@" + modelData.host + ":" + modelData.port + "/", "", "", "") }
                         IconButton { icon: "go-previous"; tip: Tr.t("Edit"); onClicked: { win.tab = "add"; win.newHostName = modelData.name; win.newHostAddr = modelData.host; win.newHostUser = modelData.user; win.newHostPort = String(modelData.port); win.newHostKey = modelData.key || ""; win.editId = modelData.id; } }
                     }
@@ -97,6 +100,16 @@ AppWindow {
 
             // text
             Text { visible: TerminalApp.error !== ""; text: TerminalApp.error; color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { visible: win.hostNote !== ""; text: win.hostNote; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+
+            // find a host by name, address or user
+            TextField {
+                Layout.fillWidth: true
+                visible: TerminalApp.hosts.length > 3
+                placeholder: Tr.t("Find a host…")
+                text: win.hostQuery
+                onTextChanged: win.hostQuery = text
+            }
 
             // all hosts list
             ListView {
@@ -106,7 +119,7 @@ AppWindow {
                 clip: true
                 reuseItems: true
                 cacheBuffer: 400
-                model: TerminalApp.hosts
+                model: TerminalApp.hosts.filter(h => !win.hostQuery || [h.name, h.host, h.user].some(x => String(x || "").toLowerCase().includes(win.hostQuery.toLowerCase())))
                 delegate: Rectangle {
                     required property var modelData
                     width: hostList.width
@@ -124,6 +137,7 @@ AppWindow {
                             Text { text: modelData.user + "@" + modelData.host + (modelData.port !== 22 ? ":" + modelData.port : "") + (modelData.key ? " · " + Tr.t("key") : ""); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; elide: Text.ElideRight; Layout.fillWidth: true }
                         }
                         Button { text: Tr.t("Connect"); kind: "outline"; onClicked: TerminalApp.connect(modelData) }
+                        Button { text: Tr.t("Test"); enabled: !TerminalApp.busy && modelData.type !== "serial"; onClicked: TerminalApp.testConnection(modelData, (ok, msg) => win.hostNote = (ok === "ok" ? Tr.t("Connected to %1", modelData.name) : Tr.t("Test failed: %1", msg))) }
                         IconButton { icon: "folder-remote"; size: Theme.px(26); tip: Tr.t("Browse files on this host"); onClicked: Files.connectServer("ssh://" + modelData.user + "@" + modelData.host + ":" + modelData.port + "/", "", "", "") }
                         IconButton { icon: "object-select"; size: Theme.px(26); tip: modelData.pinned ? Tr.t("Unpin") : Tr.t("Pin"); onClicked: TerminalApp.togglePin(modelData.id) }
                         IconButton { icon: "go-previous"; size: Theme.px(26); tip: Tr.t("Edit"); onClicked: { win.tab = "add"; win.newHostName = modelData.name; win.newHostAddr = modelData.host; win.newHostUser = modelData.user; win.newHostPort = String(modelData.port); win.newHostKey = modelData.key || ""; win.editId = modelData.id; } }
@@ -226,6 +240,10 @@ AppWindow {
                     text: Tr.t("Generate key")
                     enabled: win.newKeyName.trim() !== "" && !TerminalApp.busy
                     onClicked: TerminalApp.generateKey(win.newKeyName.trim(), 2048)
+                }
+                Button {
+                    text: Tr.t("Import…")
+                    onClicked: FilePicker.open({ mode: "open", onPicked: paths => { if (paths.length) TerminalApp.importKey(paths[0], paths[0].split("/").pop()); } })
                 }
             }
 

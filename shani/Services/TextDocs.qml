@@ -31,6 +31,11 @@ Singleton {
     property string lastSaved: ""         // the path last written (for `state`)
     property int goToLine: 0              // a line to show once the document is on screen (+LINE)
     property bool saving: false
+    // undo/redo state of the document in front (arrays live on each doc)
+    property int undoCount: 0
+    property int redoCount: 0
+    readonly property bool canUndo: root.undoCount > 0
+    readonly property bool canRedo: root.redoCount > 0
     // bumped when the text on screen has to be taken again from `current`
     // (another tab, a file read, a save-as): the panel reloads its editor
     property int revision: 0
@@ -41,10 +46,16 @@ Singleton {
     function nameOf(path) { return path === "" ? Tr.t("Untitled") : String(path).split("/").pop(); }
     function indexOf(path) { return root.docs.findIndex(d => d.path !== "" && d.path === path); }
     function touch() { root.docs = root.docs.slice(); }
+    function syncHistory() {
+        const d = root.current;
+        root.undoCount = d && d.history ? d.history.length : 0;
+        root.redoCount = d && d.future ? d.future.length : 0;
+    }
     function show(i) {
         if (i < 0 || i >= root.docs.length)
             return;
         root.active = i;
+        root.syncHistory();
         root.revision++;
     }
 
@@ -139,11 +150,43 @@ Singleton {
         const d = root.current;
         if (!d || d.text === text)
             return;
+        if (!d.history) d.history = [];
+        if (!d.future) d.future = [];
+        d.history.push(d.text);
+        if (d.history.length > 300)
+            d.history.shift();
+        d.future.length = 0;
         d.text = text;
         if (!d.modified) {
             d.modified = true;
             touch();
         }
+        root.syncHistory();
+    }
+
+    // The panel calls these and writes the returned text into the editor while
+    // its own change handler is suppressed, so undo doesn't push a new entry.
+    function undo() {
+        const d = root.current;
+        if (!d || !d.history || d.history.length === 0)
+            return null;
+        if (!d.future) d.future = [];
+        d.future.push(d.text);
+        d.text = d.history.pop();
+        if (!d.modified) { d.modified = true; touch(); }
+        root.syncHistory();
+        return d.text;
+    }
+    function redo() {
+        const d = root.current;
+        if (!d || !d.future || d.future.length === 0)
+            return null;
+        if (!d.history) d.history = [];
+        d.history.push(d.text);
+        d.text = d.future.pop();
+        if (!d.modified) { d.modified = true; touch(); }
+        root.syncHistory();
+        return d.text;
     }
 
     // false: there is no name yet - the panel asks for one, then saveAs()

@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -154,6 +155,57 @@ def events(start: float, end: float, timeout: int = 10) -> list[dict]:
 def _fmt_local(ts: float, all_day: bool) -> str:
     lt = time.localtime(int(ts))
     return time.strftime("%Y%m%d" if all_day else "%Y%m%dT%H%M%S", lt)
+
+
+def _ical_escape(value: str) -> str:
+    return (
+        str(value)
+        .replace("\\", "\\\\")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+        .replace("\n", "\\n")
+    )
+
+
+def _replace_event_fields(text: str, payload: dict) -> str:
+    """Change only the fields the editor owns, keeping RRULE, DESCRIPTION,
+    attendees, alarms and every other line of an existing VEVENT intact."""
+    start = int(payload["start"])
+    end = int(payload["end"])
+    if start >= end:
+        raise ValueError("end must be after start")
+    summary = (payload.get("summary") or "").strip()
+    if not summary:
+        raise ValueError("an event needs a title")
+    all_day = bool(payload.get("allDay", False))
+    value = "DATE" if all_day else "DATE-TIME"
+    location = (payload.get("location") or "").strip()
+    replacements = {
+        "DTSTART": f"DTSTART;VALUE={value}:{_fmt_local(start, all_day)}",
+        "DTEND": f"DTEND;VALUE={value}:{_fmt_local(end, all_day)}",
+        "SUMMARY": f"SUMMARY:{_ical_escape(summary)}",
+        "LOCATION": f"LOCATION:{_ical_escape(location)}",
+    }
+    unfolded = text.replace("\r\n", "\n").replace("\r", "\n")
+    unfolded = re.sub(r"\n[ \t]", "", unfolded)
+    out: list[str] = []
+    seen: set[str] = set()
+    for line in unfolded.split("\n"):
+        key = line.split(";", 1)[0].split(":", 1)[0].strip().upper()
+        if key in replacements:
+            if key not in seen and (key != "LOCATION" or location):
+                out.append(replacements[key])
+            seen.add(key)
+        else:
+            out.append(line)
+    out = [line for line in out if line.strip()]
+    if "LOCATION" not in seen and location:
+        idx = next(
+            (i for i, line in enumerate(out) if line.upper().startswith("END:VEVENT")),
+            len(out),
+        )
+        out.insert(idx, replacements["LOCATION"])
+    return "\r\n".join(out) + "\r\n"
 
 
 def _ical_text(payload: dict) -> str:
@@ -301,12 +353,11 @@ def write_event(action: str, payload: dict) -> dict:
         client.remove_object_sync(comp, False, None)
         return {"ok": True}
     if action == "edit":
-        # Re-compose the whole event: start/end and summary/location all
-        # come from the payload, so the iCalendar text is the source of
-        # truth and modify_object_sync just stores it.
-        merged = dict(payload)
-        merged["uid"] = uid
-        text = _ical_text(merged)
+        # Change only the fields the editor owns. Re-composing the whole
+        # VEVENT from the payload would silently drop RRULE, DESCRIPTION,
+        # ATTENDEE and VALARM lines on imported/recurring events.
+        old_text = ICalGLib.component_as_ical_string(comp)
+        text = _replace_event_fields(old_text, payload)
         new_comp = ICalGLib.component_new_from_ical_string(text)
         if new_comp is None:
             raise RuntimeError("ICalGLib has no from-string constructor")

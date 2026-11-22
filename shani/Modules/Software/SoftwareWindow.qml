@@ -199,10 +199,11 @@ AppWindow {
         }
 
         // ---- Explore: search, categories, results; an app's page over them ----
+        Timer { id: liveSearch; interval: 450; onTriggered: if (q.text.trim().length >= 3) win.search(q.text.trim()) }
         RowLayout {
             visible: win.tab === "explore" && !win.app
             Layout.fillWidth: true
-            TextField { id: q; Layout.fillWidth: true; placeholderText: Tr.t("Find apps on Flathub"); onAccepted: if (text.trim()) win.search(text.trim()) }
+            TextField { id: q; Layout.fillWidth: true; placeholderText: Tr.t("Find apps on Flathub"); onTextChanged: liveSearch.restart(); onAccepted: if (text.trim()) { liveSearch.stop(); win.search(text.trim()) } }
             Button { text: Tr.t("Find"); enabled: q.text.trim() !== ""; onClicked: win.search(q.text.trim()) }
         }
         Flow {

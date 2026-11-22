@@ -19,6 +19,7 @@ Singleton {
     property string openUid: ""       // the message being read
     property string subject: ""
     property string from: ""
+    property string date: ""
     property string body: ""
     property string html: ""          // the same message as it was sent, made safe (bridge)
     property var attachments: []      // [{ name, type, size }] - named, not fetched
@@ -26,6 +27,15 @@ Singleton {
     property string query: ""         // what the search box is looking for
     property bool busy: false
     property string note: ""
+
+    // an IMAP date string -> "10:00" today, "21 Nov" otherwise
+    function when(value) {
+        if (!value) return "";
+        const d = new Date(value);
+        if (isNaN(d.getTime())) return String(value).slice(0, 16);
+        if (d.toDateString() === new Date().toDateString()) return Qt.formatTime(d, "HH:mm");
+        return Qt.formatDate(d, "d MMM");
+    }
 
     function state() { run("state", []) }
     function refresh() { run("folders", []) }
@@ -88,6 +98,7 @@ Singleton {
             if (data && data.error) { root.note = data.error; return; }
             root.from = (data && data.from) || "";
             root.subject = (data && data.subject) || "";
+            root.date = (data && data.date) || "";
             root.body = (data && data.text) || "";
             root.html = (data && data.html) || "";
             root.attachments = Array.isArray(data && data.attachments) ? data.attachments : [];

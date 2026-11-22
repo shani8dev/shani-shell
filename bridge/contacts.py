@@ -180,9 +180,26 @@ def parse(text: str) -> list[dict]:
                 "emails": [],
                 "groups": [],
                 "self": False,
+                "extras": [],
             }
             continue
         if current is None:
+            continue
+        # Keep fields we don't edit (ADR, BDAY, ORG, NOTE, URL, …) verbatim so a
+        # later save cannot silently destroy them.
+        if name not in (
+            "BEGIN",
+            "VERSION",
+            "UID",
+            "FN",
+            "N",
+            "TEL",
+            "EMAIL",
+            "CATEGORIES",
+            "X-SHANI-SELF",
+            "END",
+        ):
+            current["extras"].append(line)
             continue
         if name == "END":
             if (
@@ -297,6 +314,9 @@ def serialize(contact: dict) -> str:
         lines.append("CATEGORIES:" + ",".join(_escape(g) for g in groups))
     if contact.get("self"):
         lines.append("X-SHANI-SELF:1")
+    for extra in contact.get("extras") or []:
+        if ":" in extra and extra not in lines:
+            lines.append(extra)
     lines.append("END:VCARD")
     return "".join(_fold(ln) + "\r\n" for ln in lines)
 
@@ -511,20 +531,22 @@ def main(argv: list[str]) -> int:
             if existing is None:
                 print(f"Invalid argument: no contact with uid {uid!r}", file=sys.stderr)
                 return 3
-            saved = save(
-                _make(
-                    name,
-                    str(payload.get("phone", "")),
-                    str(payload.get("email", "")),
-                    uid,
-                    groups=payload["groups"]
-                    if "groups" in payload
-                    else existing.get("groups"),
-                    is_self=bool(payload["self"])
-                    if "self" in payload
-                    else bool(existing.get("self")),
-                )
+            edited = _make(
+                name,
+                str(payload.get("phone", "")),
+                str(payload.get("email", "")),
+                uid,
+                groups=payload["groups"]
+                if "groups" in payload
+                else existing.get("groups"),
+                is_self=bool(payload["self"])
+                if "self" in payload
+                else bool(existing.get("self")),
             )
+            # Editing only the fields the UI owns must not drop vCard fields we
+            # don't expose (birthday, address, org, notes, URLs, …).
+            edited["extras"] = existing.get("extras", [])
+            saved = save(edited)
             print(json.dumps({"ok": True, "uid": saved["uid"]}))
             return 0
         # delete

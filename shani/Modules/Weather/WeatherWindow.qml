@@ -110,6 +110,24 @@ AppWindow {
                 Item { Layout.fillWidth: true }
             }
 
+            // ---- the rest of "now" (the API already sends these) ------------
+            Text {
+                Layout.fillWidth: true
+                visible: Weather.summary !== ""
+                wrapMode: Text.Wrap
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(12) * Theme.fontScale
+                text: [
+                    isNaN(Weather.feelsLike) ? "" : Tr.t("Feels like") + " " + Math.round(Weather.feelsLike) + Weather.degree,
+                    isNaN(Weather.humidity) ? "" : Tr.t("Humidity") + " " + Math.round(Weather.humidity) + "%",
+                    isNaN(Weather.wind) ? "" : Tr.t("Wind") + " " + Math.round(Weather.wind) + " km/h",
+                    isNaN(Weather.pressure) ? "" : Tr.t("Pressure") + " " + Math.round(Weather.pressure) + " hPa",
+                    isNaN(Weather.visibility) ? "" : Tr.t("Visibility") + " " + Math.round(Weather.visibility / 1000) + " km",
+                    Weather.sunrise ? Tr.t("Sun") + " " + Weather.sunrise + " / " + Weather.sunset : ""
+                ].filter(s => s !== "").join("   ·   ")
+            }
+
             // ---- the next hours ----
             SectionTitle { Layout.fillWidth: true; visible: Weather.hourly.length > 0; text: Tr.t("Next hours") }
             ListView {
@@ -134,6 +152,14 @@ AppWindow {
                         Text { Layout.alignment: Qt.AlignHCenter; text: modelData.hour; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                         Icon { Layout.alignment: Qt.AlignHCenter; name: Weather.iconFor(modelData.code); size: Theme.px(22); color: Theme.text }
                         Text { Layout.alignment: Qt.AlignHCenter; text: Math.round(modelData.temp) + "°"; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.DemiBold }
+                        Text {
+                            Layout.alignment: Qt.AlignHCenter
+                            visible: (modelData.rain || 0) > 0
+                            text: Math.round(modelData.rain) + "%"
+                            color: Theme.accent
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                        }
                     }
                 }
             }

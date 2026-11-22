@@ -30,6 +30,10 @@ AppWindow {
     // root processes (ppid <= 1 or ppid not among listed pids) are top-level;
     // children are indented under their parent
     property var treeList: []
+    property string procQuery: ""
+    readonly property var shownList: win.procQuery
+        ? win.treeList.filter(x => String(x.p.name || "").toLowerCase().includes(win.procQuery.toLowerCase()))
+        : win.treeList
     function buildTree() {
         const procs = TopProcesses.list;
         const byPid = {};
@@ -189,6 +193,12 @@ AppWindow {
                 Layout.margins: Theme.px(4)
                 text: Tr.t("Process tree")
             }
+            TextField {
+                Layout.fillWidth: true
+                placeholder: Tr.t("Find a process…")
+                text: win.procQuery
+                onTextChanged: win.procQuery = text
+            }
             // the processes, a row each, in a list that scrolls: as a Repeater of
             // heightless Items every row was drawn on top of the one before
             ListView {
@@ -201,7 +211,7 @@ AppWindow {
                 clip: true
                 spacing: 2
                 boundsBehavior: Flickable.StopAtBounds
-                model: win.treeList
+                model: win.shownList
                 delegate: RowLayout {
                     id: procRow
                     required property var modelData

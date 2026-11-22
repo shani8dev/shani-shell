@@ -126,7 +126,7 @@ AppWindow {
                     width: ListView.view.width
                     icon: modelData.unread ? "mail-unread" : "mail-read"
                     title: modelData.subject
-                    subtitle: modelData.from
+                    subtitle: Mail.when(modelData.date) + (modelData.from ? "  ·  " + modelData.from : "")
                     selected: Mail.openUid === modelData.uid
                     onClicked: Mail.read(modelData.uid)
                 }
@@ -246,6 +246,18 @@ AppWindow {
                     visible: Mail.openUid !== ""
                     spacing: Theme.px(6)
                     Button {
+                        text: Tr.t("Reply")
+                        flat: true
+                        enabled: Mail.from !== ""
+                        onClicked: win.startCompose(Mail.from, win.replySubject(), win.quotedBody())
+                    }
+                    Button {
+                        text: Tr.t("Forward")
+                        flat: true
+                        onClicked: win.startCompose("", "Fwd: " + Mail.subject,
+                            "\n\n---------- Forwarded message ----------\nFrom: " + Mail.from + "\nSubject: " + Mail.subject + "\n\n" + Mail.body)
+                    }
+                    Button {
                         text: Tr.t("Delete")
                         kind: "danger"
                         flat: true
@@ -259,6 +271,22 @@ AppWindow {
     }
 
     // ---- compose ------------------------------------------------------------
+    function startCompose(to, subject, body) {
+        compose.visible = true;
+        compose.to = to;
+        toBox.text = to;
+        subBox.text = subject;
+        bodyBox.text = body;
+        toBox.forceActiveFocus();
+    }
+    function replySubject() {
+        const s = String(Mail.subject || "");
+        return /^re:/i.test(s.trim()) ? s : "Re: " + s;
+    }
+    function quotedBody() {
+        return "\n\nOn " + Mail.when(Mail.date) + ", " + Mail.from + " wrote:\n> "
+            + String(Mail.body || "").replace(/\n/g, "\n> ");
+    }
     Rectangle {
         id: compose
         visible: false

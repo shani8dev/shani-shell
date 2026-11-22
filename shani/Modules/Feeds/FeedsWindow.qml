@@ -157,7 +157,7 @@ AppWindow {
                     width: ListView.view.width
                     icon: modelData.read ? "mail-read" : "mail-unread"
                     title: modelData.title
-                    subtitle: Feeds.when(modelData.date)
+                    subtitle: Feeds.when(modelData.date) + (modelData.summary ? "  ·  " + modelData.summary : "")
                     selected: Feeds.articleTitle === modelData.title
                     onClicked: { Feeds.show(Feeds.current, modelData.id) }
                 }

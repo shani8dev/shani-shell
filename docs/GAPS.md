@@ -47,7 +47,7 @@ centre, and against what a session needs before any app runs.
 - **Headphone virtual surround (stereo widening is done).** Implemented via the matrix_spatialiser LADSPA plugin (shipped in ladspa) as a "Stereo widening" toggle in Settings › Sound effects, behind `SoundFx.canSpatial`. The convolver-based virtual surround (KEMAR/Hesuvi HRIR) still needs HRIR wav files that no package ships; stereo widening is what is available.
 - **More setup-wizard languages** than English, मराठी, हिन्दी, Deutsch, Español,
   Français (strings.js).
-- **Translations**: about 1525 of 3416 catalog strings are translated into
+- **Translations**: about 1525 of 3431 catalog strings are translated into
   Marathi and Hindi (the bar, control centre, Settings and its pages, launcher,
   notifications, lock screen, overview, dock, window menu). The rest are the
   newer app windows and settings (Files, Archives, Quick Look, the viewers, the
@@ -215,7 +215,7 @@ Each needs real hardware or shani-testbed:
   and connect in silence; phones over Bluetooth (Chronoa) carry sound.
 
 ## Improved (Nov 2026)
-- Translations: ~1525/3416 Marathi/Hindi strings done; the rest (newer app windows and settings) are documented above.
+- Translations: ~1525/3431 Marathi/Hindi strings done; the rest (newer app windows and settings) are documented above.
 - Live TV, free radio picks, a QR folder-link share target, health check and problem report are now in the shell (Media Player / Share / About).
 - Real-hardware runs: nested niri only; shani-testbed boot needed for Wi-Fi BT multi-screen recording.
 # Improvements applied (Nov 2026)

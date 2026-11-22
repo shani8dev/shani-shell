@@ -5,7 +5,8 @@
 //
 // Every action is a button with its shortcut in the tooltip - Ctrl+N new,
 // Ctrl+O open, Ctrl+S save, Ctrl+Shift+S save as, Ctrl+W close the tab,
-// Ctrl+F find, Ctrl+H replace, Ctrl +/-/0 text size.
+// Ctrl+Z undo, Ctrl+Shift+Z / Ctrl+Y redo, Ctrl+F find, Ctrl+H replace,
+// Ctrl +/-/0 text size.
 // The image's default for text files (dev.shani.TextEditor.desktop).
 import Quickshell
 import QtQuick
@@ -23,6 +24,8 @@ AppWindow {
     onGone: Ui.textEditor = false
     tools: [
         IconButton { size: Theme.px(30); icon: "document-new"; tip: Tr.t("New") + " (Ctrl+N)"; onClicked: TextDocs.newDoc() },
+        IconButton { size: Theme.px(30); icon: "edit-undo"; tip: Tr.t("Undo") + " (Ctrl+Z)"; enabled: TextDocs.canUndo; onClicked: win.undo() },
+        IconButton { size: Theme.px(30); icon: "edit-redo"; tip: Tr.t("Redo") + " (Ctrl+Shift+Z)"; enabled: TextDocs.canRedo; onClicked: win.redo() },
         IconButton { size: Theme.px(30); icon: "document-open"; tip: Tr.t("Open") + " (Ctrl+O)"; onClicked: win.pick() },
         Button { text: Tr.t("Save"); kind: TextDocs.current && TextDocs.current.modified ? "primary" : "plain"; enabled: TextDocs.current !== null && !TextDocs.saving; onClicked: win.save() },
         Button { text: Tr.t("Save as…"); flat: true; onClicked: win.saveAs() },
@@ -188,6 +191,20 @@ AppWindow {
     onTintsChanged: recolour()
     Timer { id: repaint; interval: 60; onTriggered: win.recolour() }
 
+    // put text back without recording it as a fresh edit
+    function showText(text) {
+        if (text === null)
+            return;
+        win.loading = true;
+        const pos = Math.min(edit.cursorPosition, text.length);
+        edit.text = text;
+        edit.cursorPosition = pos;
+        win.loading = false;
+        repaint.restart();
+    }
+    function undo() { win.showText(TextDocs.undo()); }
+    function redo() { win.showText(TextDocs.redo()); }
+
     // the document in front, into the editor
     function load() {
         win.loading = true;
@@ -299,6 +316,8 @@ AppWindow {
         if (!ctrl)
             return false;
         if (e.key === Qt.Key_S) { if (shift) win.saveAs(); else win.save(); }
+        else if (e.key === Qt.Key_Z) { if (shift) win.redo(); else win.undo(); }
+        else if (e.key === Qt.Key_Y) win.redo();
         else if (e.key === Qt.Key_O) win.pick();
         else if (e.key === Qt.Key_N) TextDocs.newDoc();
         else if (e.key === Qt.Key_W) win.closeTab(TextDocs.active);
