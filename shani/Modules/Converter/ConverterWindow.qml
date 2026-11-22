@@ -71,7 +71,9 @@ AppWindow {
         set(i, { state: "working", progress: 0 });
         const flags = [];
         const add = (name, field) => { const v = field.text.trim(); if (v) flags.push("--" + name, v); };
-        add("start", fromField); add("end", toField); add("volume", volField); add("title", titleField);
+        add("start", fromField); add("end", toField); add("volume", volField);
+        add("title", titleField); add("artist", artistField); add("fade", fadeField);
+        add("speed", speedField);
         worker.command = ["python3", win.tool, "run", jobs[i].path, jobs[i].format, win.quality].concat(flags);
         worker.running = true;
     }
@@ -133,6 +135,17 @@ AppWindow {
                 TextField { id: volField; Layout.preferredWidth: Theme.px(56); placeholderText: "100"; Accessible.name: Tr.t("Volume, percent") }
                 Text { text: Tr.t("Title"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                 TextField { id: titleField; Layout.fillWidth: true; placeholderText: Tr.t("What the file says about itself"); Accessible.name: Tr.t("Title") }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                visible: win.jobs.length > 0
+                spacing: Theme.px(6)
+                Text { text: Tr.t("Artist"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                TextField { id: artistField; Layout.preferredWidth: Theme.px(110); placeholderText: Tr.t("Performer"); Accessible.name: Tr.t("Artist") }
+                Text { text: Tr.t("Fade"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                TextField { id: fadeField; Layout.preferredWidth: Theme.px(70); placeholderText: "0:0"; Accessible.name: Tr.t("Fade in and out, seconds") }
+                Text { text: Tr.t("Speed"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                TextField { id: speedField; Layout.preferredWidth: Theme.px(60); placeholderText: "1.0"; Accessible.name: Tr.t("Playback speed") }
             }
 
             ListView {

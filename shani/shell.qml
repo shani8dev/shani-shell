@@ -200,6 +200,15 @@ ShellRoot {
     // the screen being worked on: the control centre opens there
     Binding { target: Ui; property: "screen"; value: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0] }
     // the file chooser, for the widgets in Common that ask for a file
+    // Super+Alt+S toggles the screen reader in the running session too: setup
+    // and the greeter already had it, but once the shell loaded there was no
+    // way back for someone who cannot see the Settings button.
+    Shortcut {
+        sequences: ["Meta+Alt+S"]
+        context: Qt.WindowShortcut
+        onActivated: Settings.data.screenReader = !Settings.data.screenReader
+    }
+
     Component.onCompleted: { Ui.filePicker = FilePicker; Ui.minimiser = () => { if (Niri.focusedWindow) Niri.minimise(Niri.focusedWindow.id); }; }
 
     // closeApps() (the IPC's closeAll, a script's "empty desktop"): the apps

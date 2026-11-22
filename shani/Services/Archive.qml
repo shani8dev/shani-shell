@@ -322,7 +322,9 @@ Singleton {
             return;
         root.error = "";
         root.appending = true;
-        if (root.appendExt === "zip")
+        // jar and apk are zip containers too: bsdtar -rf cannot append to
+        // them, so they must go through the same zip writer as .zip.
+        if (["zip", "jar", "apk"].indexOf(root.appendExt) >= 0)
             appender.command = ["python3", root.zipTool, "add", root.file].concat(list);
         else
             appender.command = ["sh", "-c", 'f=$1; p=$2; pp=$3; shift 3; cd "$p" || exit 1

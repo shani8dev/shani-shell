@@ -126,32 +126,48 @@ Singleton {
         // signature layer; no fill text, no text layer. Quoting is done
         // through "$N" argv slots, never by interpolation, so a path or
         // typed text with spaces or quotes cannot break the command.
+        // Render EVERY page: `-f N -singlefile` produced a one-page "signed
+        // copy" and destroyed the rest of the document (real data loss).
+        // Only the chosen page gets the stamp; all pages are then merged back.
         const script = [
             'set -e',
             'work=$(mktemp -d)',
             'trap \'rm -rf "$work"\' EXIT',
-            'pdftoppm -png -r 150 -f "$2" -singlefile "$1" "$work/page"',
+            'pdftoppm -png -r 150 "$1" "$work/page"',
+            'mapfile -t pages < <(find "$work" -maxdepth 1 -name "page-*.png" | sort -V)',
+            'target="${pages[$(( $2 - 1 ))]}"',
             'if [ -n "$3" ] && [ -f "$3" ]; then',
             '  convert "$3" -resize "$5%" "$work/sig.png"',
-            '  convert "$work/page.png" "$work/sig.png" -geometry "+$4+$6" -composite "$work/step.png"',
+            '  convert "$target" "$work/sig.png" -geometry "+$4+$6" -composite "$work/step.png"',
             'else',
-            '  cp "$work/page.png" "$work/step.png"',
+            '  cp "$target" "$work/step.png"',
             'fi',
             'if [ -n "$7" ]; then',
             '  convert "$work/step.png" -gravity NorthWest -pointsize "$10" -fill black -annotate "+$8+$9" "$7" "$work/composite.png"',
             'else',
             '  cp "$work/step.png" "$work/composite.png"',
             'fi',
-            'if command -v img2pdf >/dev/null 2>&1; then',
-            '  img2pdf "$work/composite.png" -o "$11"',
-            'elif command -v gs >/dev/null 2>&1; then',
-            '  gs -q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -sOutputFile="$11" "$work/composite.png" 2>/dev/null || convert "$work/composite.png" "$11"',
+            'cp "$work/composite.png" "$target"',
+            'i=0; parts=()',
+            'for p in "${pages[@]}"; do',
+            '  i=$((i+1))',
+            '  if command -v img2pdf >/dev/null 2>&1; then',
+            '    img2pdf "$p" -o "$work/$i.pdf"',
+            '  elif command -v gs >/dev/null 2>&1; then',
+            '    gs -q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -sOutputFile="$work/$i.pdf" "$p" 2>/dev/null || convert "$p" "$work/$i.pdf"',
+            '  else',
+            '    convert "$p" "$work/$i.pdf"',
+            '  fi',
+            '  parts+=("$work/$i.pdf")',
+            'done',
+            'if [ ${#parts[@]} -eq 1 ]; then',
+            '  cp "${parts[0]}" "$11"',
             'else',
-            '  convert "$work/composite.png" "$11"',
+            '  pdfunite "${parts[@]}" "$11" || gs -q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -sOutputFile="$11" "${parts[@]}" 2>/dev/null',
             'fi',
             'printf "%s\\n" "$11"'
         ].join("\n");
-        saveProc.command = ["sh", "-c", script, "sh",
+        saveProc.command = ["bash", "-c", script, "bash",
             file, String(page), signature || "", String(x), String(pct), String(y),
             fillText || "", String(textX), String(textY), String(textSize), out];
         saveProc.out = out;

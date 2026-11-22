@@ -114,7 +114,7 @@ AppWindow {
         sourceComponent: FileDialog {
             title: Tr.t("Install a font file")
             nameFilters: [Tr.t("Font files") + " (*.ttf *.otf *.ttc *.pfb)"]
-            onAccepted: win.installFont(selectedFile.toString().replace(/^file:\/\//, ""))
+            onAccepted: win.installFont(decodeURIComponent(selectedFile.toString().replace(/^file:\/\//, "")))
         }
     }
 

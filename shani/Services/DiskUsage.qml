@@ -150,6 +150,7 @@ Singleton {
         if (!e || !e.isDir)
             return;
         history = history.concat([current]);
+        marked = [];  // a mark from another folder must not be trashed here
         scan(path);
     }
     function back() {
@@ -157,6 +158,7 @@ Singleton {
             return;
         const prev = history[history.length - 1];
         history = history.slice(0, history.length - 1);
+        marked = [];
         scan(prev);
     }
     // the treemap for the panel: rectangles whose area is their size

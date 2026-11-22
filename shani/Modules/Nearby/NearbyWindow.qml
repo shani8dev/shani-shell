@@ -144,6 +144,13 @@ AppWindow {
                         text: Tr.t("Show")
                         onClicked: Files.show((tr.modelData.files || [""])[0].replace(/\/[^/]*$/, ""))
                     }
+                    IconButton {
+                        visible: !["done", "failed"].includes(tr.modelData.state)
+                        icon: "process-stop"
+                        size: Theme.px(22)
+                        tip: Tr.t("Cancel transfer")
+                        onClicked: Nearby.cancel(tr.modelData.session)
+                    }
                 }
             }
             Text { Layout.fillWidth: true; visible: Nearby.note !== ""; text: Nearby.note; color: Theme.danger; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }

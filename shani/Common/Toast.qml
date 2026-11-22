@@ -24,8 +24,10 @@ Rectangle {
     }
 
     onMessageChanged: {
-        if (message !== "") { _live = true; opacity = 1; dismiss.restart(); }
-        else opacity = 0;
+        if (message !== "") {
+            _live = true; opacity = 1; dismiss.restart();
+            Qt.accessibleAnnounce(message, Qt.LowPriority);
+        } else opacity = 0;
     }
     Component.onCompleted: if (message !== "") { _live = true; opacity = 1; dismiss.restart(); }
 

@@ -29,6 +29,11 @@ RowLayout {
     Item {
         Layout.fillWidth: true
         implicitHeight: Theme.px(28)
+        // KeyFocus stays ignored (the MouseArea drives it); expose semantics
+        // to the accessibility tree so Orca can name and read the value.
+        Accessible.role: Accessible.Slider
+        Accessible.name: root.icon
+        Accessible.value: Math.round(root.value * 100)
 
         Rectangle {
             id: track

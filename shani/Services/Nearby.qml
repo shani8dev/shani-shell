@@ -31,6 +31,7 @@ Singleton {
 
     function scan() { if (send({ op: "scan" })) scanning = true; }
     function sendTo(fp) { if (pending.length) send({ op: "send", to: fp, files: pending }); }
+    function cancel(session) { if (session) send({ op: "cancel", session: session }); }
     function answer(sessionId, accept) {
         send({ op: "answer", session: sessionId, accept: accept });
         offers = offers.filter(o => o.session !== sessionId);

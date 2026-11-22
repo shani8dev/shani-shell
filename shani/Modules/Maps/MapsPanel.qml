@@ -75,7 +75,8 @@ AppWindow {
     readonly property string routeUrl: {
         if (win.mapLat === 0 && win.mapLon === 0)
             return "";
-        const from = Location.available ? (Location.lat + "," + Location.lon) : "";
+        const from = win.fromOk ? (win.fromLat + "," + win.fromLon)
+            : Location.available ? (Location.lat + "," + Location.lon) : "";
         return "https://www.openstreetmap.org/directions?from=" + encodeURIComponent(from) + "&to=" + encodeURIComponent(win.mapLat + "," + win.mapLon);
     }
     // the place found (the pin), and the way to it

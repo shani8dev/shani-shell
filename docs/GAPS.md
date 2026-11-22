@@ -818,3 +818,281 @@ Ranked; evidence is in the named repos under the workspace root.
 Risk: items 8 and 9 are security / correctness claims that remain unverified.
 The `[fixed]` labels in this section come from static tests and code reading —
 no QML runtime or hardware was available in this environment.
+
+## Third-pass audit (Nov 2026) — unaudited apps, accessibility, cross-platform
+
+A third round of parallel agents covered apps that had never been audited, a
+full accessibility review, and comparisons against Android / iOS / macOS /
+Windows. This section is additive to the two above. Legend as before:
+**[bug→fixed]** a real defect found and repaired in this pass; **[fixed]** a
+cheap verified win built; **[open]** still missing; **[out of scope]** needs a
+server, radio, modem or proprietary ecosystem. No runtime or hardware was
+available — all verdicts are from source.
+
+### Security / i18n / developer ecosystem — see per-app sections below
+
+The fourth agent in this round covered password/authenticator security, i18n
+and the developer ecosystem; its findings are folded into the relevant app
+sections below and into "Corrections" where they overturned an earlier claim.
+
+### Archive Manager → File Roller
+
+- **[bug→fixed] jar / apk appends failed** — `appendable` listed them but the
+  append branch used `bsdtar -rf` only for `zip`; jar and apk are zip containers
+  and now go through `zipadd.py`.
+- **[bug] `zipadd.py` stores `../outside.txt`** for a file added from above the
+  archive's folder; extraction refuses `..` paths. **[open]**
+- **[open]** Delete a member, rename a member, open a member in its own app,
+  integrity test, archive comments/properties, progress on long operations.
+- **[open]** Add to 7z / rar / ISO (`appendable` excludes them).
+- **[open]** `zipadd.py names` has no caller; `extractSingle(dir, done)` has an
+  unused `done` parameter.
+
+### Calculator → GNOME Calculator
+
+- **[bug] `Ui.calculatorTab` is written but never read at startup** — the
+  chosen tab is not restored. **[open]**
+- **[bug] Programming "Base ▸" is visually inert** — it changes `base` but
+  `doProgramming()` calls `baseOutputs()`, which always renders all four.
+  **[open]**
+- **[bug] char↔code breaks for non-BMP characters** — `charCodeAt(0)` is
+  UTF-16, `codeToChar` uses `fromCodePoint`. **[open]**
+- **[open]** DEG/RAD/GRAD toggle; variables and `Ans`; `mod` and integer
+  division; hyperbolic and inverse functions; `log(x, base)`; history
+  persistence (memory-only today); currency/date conversions; copy the
+  expression, not just the result.
+
+### Clocks → GNOME Clocks
+
+- **[bug] An alarm for the already-fired minute is missed** — `lastFired` is a
+  single minute string, so adding an alarm for that minute is silently skipped.
+  **[open]**
+- **[open]** Weekday repeat, one-shot, snooze and sound choice; a ringing panel
+  with Dismiss/Snooze (only `notify-send` today); custom timer duration,
+  pause/resume, label and multiple timers; per-lap deltas (laps are cumulative
+  strings); in-app city search; sunrise/sunset/twilight; state persistence;
+  keyboard shortcuts beyond Space.
+
+### Characters → Gucharmap
+
+- **[bug] Browse starts at ASCII punctuation** (`entries[:limit]`, first code
+  point 0x21), though the docstring claims symbols and script letters first.
+  **[open]**
+- **[open]** Favorites/recents; Unicode-block browsing beyond six fixed chips;
+  insert-into-last-app and repeat insertion; multi-codepoint emoji (flags and
+  ZWJ are skipped); copy as U+/HTML entity/decimal; glyph detail panel;
+  font preview of the actual glyph.
+
+### Fonts → GNOME Font Viewer
+
+- **[bug→fixed] Installing a font whose path has a space failed** — the file
+  dialog path was not `decodeURIComponent`-ed.
+- **[bug] `installFont` silently overwrites a same-named user font.** **[open]**
+- **[open]** Family/style search (styles beyond the 400-style cap are
+  unreachable); uninstall; drag-and-drop a font file; license/copyright text
+  and a glyph grid in the file viewer; `.ttc` face list; "use this font in
+  Settings" handoff; side-by-side comparison; recent fonts.
+
+### Maps → GNOME Maps
+
+- **[bug→fixed] "Open in browser" used the device location, ignoring a typed
+  start** — `routeUrl` now honours `fromLat`/`fromLon` when set.
+- **[open]** `limit=1` geocoding (no disambiguation); transit routing; live
+  traffic; offline maps and cache eviction; map/night style; a marker for the
+  typed start and waypoints; reverse geocoding on long-press; alternative
+  routes; keyboard pan/zoom; structured (not flattened) route steps.
+
+### Disk Usage → Baobab
+
+- **[bug] Marks survive navigation** — `enter()`/`back()` kept `marked`, so a
+  file marked in one folder could be trashed from another. **[fixed]**
+- **[bug] `dir_size()` walks every subtree synchronously per child** — large
+  homes hit the timeout. **[open]**
+- **[open]** Rings/sunburst chart and sortable list; scan progress and partial
+  results; exclude/skip configuration; an in-app location/drive chooser;
+  hardlink double-counting; preview before marking; used/free bar.
+
+### Document Scanner → GNOME Document Scanner
+
+- **[bug] `scanErr` is collected but never displayed** — failures show a
+  generic message although the panel promises the scanner's own words.
+  **[open]**
+- **[bug] `--resolution` is not a universal SANE option** — the image's v4l
+  backend does not expose it, so scanning would fail there. **[open]**
+- **[open]** Batch/multi-page and duplex; post-scan crop/rotate/brightness/
+  contrast; page reorder and multi-page PDF merge; "scan to" destination;
+  scan-area selection; per-device option discovery; OCR; scan history.
+
+### Logs, Password Generator, Authenticator, Nearby, Converter, PDF Signer, Kundali
+
+- **[bug] Logs' "Show raw entry" button closes details** (the raw text is
+  already inline). **[open]** Also: `priColor()` is defined but never used;
+  no severity / unit / boot filters; fixed `-n 200` buffer; no export or copy;
+  search misses PRIORITY/_TRANSPORT fields; no new-error notification.
+- **[bug] Authenticator's 1 s tick can miss a TOTP rollover** — it refreshes
+  only when `Date.now()%period === 0` at the tick, so drift shows a stale code.
+  **[open]** Also: UI cannot set digits/period/algorithm (the bridge can);
+  no edit/rename; no export/backup (a lost keyring loses all tokens); no
+  search/sort/grouping; no per-issuer icon; clipboard not cleared after copy.
+  **Positive:** secrets are in GNOME Secret Service, never on disk or argv.
+- **[bug→fixed] PDF Signer's "signed copy" kept only one page** —
+  `pdftoppm -f N -singlefile` produced a one-page PDF and destroyed every
+  other page. All pages are now rendered, only the chosen page is stamped,
+  and the pages are merged back.
+- **[open]** PDF Signer: no real cryptographic signature (a pasted image is
+  forgeable, so "Signed" overstates it); no drag-to-place (six blind numeric
+  fields); no rotation/opacity/multi-signature/date stamp; no AcroForm fill;
+  no placement undo; no final-render preview.
+- **[bug] Converter's documented fade and artist options were never wired**
+  (the bridge implements them). **[fixed]** Speed control is now wired too.
+  Still **[open]**: cancel a running conversion, per-job options (the global
+  row applies to all queued jobs), output-folder choice, metadata strip /
+  codec / subtitle / track selection, and an error for invalid numbers
+  (they are silently coerced).
+- **[bug→fixed] Nearby had no way to cancel a transfer** — the bridge already
+  implemented `{"op":"cancel"}`. **[open]**: text/clipboard sharing; a
+  persistent device/trust store (`Devices.known` is in memory); receive
+  location choice and per-file accept; rename this computer; transfer history
+  (the UI shows only the last three); folder send and resume.
+- **[security] Nearby disables all TLS verification** (`CERT_NONE`,
+  `check_hostname=False`) and pins an announced fingerprint from an
+  unauthenticated multicast message — anyone on the LAN can claim an alias.
+  **[open]**
+- **[open]** Password Generator: exclude look-alike characters; custom
+  excluded-character set and hex-only mode; save straight into the keyring
+  (generation and Passwords are disconnected); custom length; passphrase
+  word count; strength/entropy readout; GPG actions (`passwords.py` already
+  implements them); clipboard auto-clear. **Positive:** uses `secrets`, not
+  `Math.random`. If the wordlist is missing, "Words" silently emits a random
+  string.
+- **[bug] Kundali always treats the typed birth time as UTC** (QML appends
+  `Z`), so a local time yields the wrong Lagna/chart; a `12:00:30` input
+  becomes malformed `12:00:30:00Z`. **[open]** Also: nine bridge commands are
+  dead/unwired (`nakshatra`, `aspects`, `dignity`, `transit`, `timelords`,
+  `arabicparts`, `temperament`, `lunarmansion`, `bazi`) and `aspects` computed
+  by `kundali()` is discarded by the QML parser; no visual 12-house chart;
+  no city search (manual lat/lon only); no save/export/share/history; no
+  "today" shortcut for Panchang; hardcoded Lahiri ayanamsa and house system.
+
+### Messages, Calls, Phone — Android / iOS / macOS / Windows
+
+The GTK4 app `shani-link` owns Messages and Calls; the QML shell has only
+entry points (`Services/Phone.qml:41-59`) and the modem dialog
+(`Services/Modem.qml`). Most gaps are therefore GTK4 work, not QML.
+
+- **[open]** Conversation search (bodies and senders); inline Reply on text
+  notifications; multi-recipient/group threads (KDE Connect accepts an
+  address array, Bluetooth does not); image attachments on send; SMS
+  backup/export (there is no own message store — threads come from GSConnect's
+  `sms.json` or Bluetooth MAP); drafts; speed dial / favourites in the shell;
+  a call-waiting card (ModemManager decodes `"waiting"` but the QML tracks one
+  call); call recordings named by caller; delivery/read status.
+- **[open]** Messages are not E2EE and bodies are echoed to `notify-send`.
+  **Positive:** bidirectional control characters are stripped
+  (`phone.py:229-242`), and message read/send switches default to off.
+- **[dead] `PhonePanel.add_tab()` is an empty stub**; `Phone.openRecentCalls()`
+  opens the Calls tab rather than a dedicated recents view.
+- **[out of scope]** Real SMS/MMS/voice without a modem or paired phone;
+  iMessage, FaceTime, RCS and iPhone calls/texts; typing indicators, read
+  receipts, reactions and scheduled server-side send (provider signals absent
+  from MAP, KDE Connect and ModemManager); visual voicemail/transcription;
+  E2EE for SMS; real MMS picture receive (MAP exposes text metadata only).
+- **Already built (not gaps):** one call history with duration across
+  landline/phone/modem; hold/swap/merge for the landline; two-sided call
+  recording with a consent notice; SMS OTP copy and Reply from modem
+  notifications.
+
+### Entirely missing app categories vs Android / iOS / macOS / Windows
+
+Codes: **Q** = QML + existing bridge; **D** = small daemon; **S** = server;
+**H** = hardware.
+
+- **[open, Q]** Podcasts — highest value × ease; reuse `feeds.py` polling and
+  cache plus Media Player's `PlayQueue` for enclosures.
+- **[open, Q]** Audiobook mode — bookmarks, chapters and a sleep timer in
+  Media Player (no new app).
+- **[open, Q]** IRC client — `bridge/irc.py` (socket/WebSocket), Feeds-style
+  list/entry UI.
+- **[open, Q]** SQLite/database client — `bridge/db.py` with the stdlib
+  `sqlite3`.
+- **[open, Q]** Teleprompter — QML only; reuse Text Editor's font/window
+  settings.
+- **[open, Q]** Network tools (LAN scan, ping, DNS, whois) — wrap
+  `nmcli`/`iw`/`dig`/`ping`.
+- **[open, Q+D]** Local-first health/fitness — shani-link already sees
+  watches/bands; log steps/sleep, import sensor data, no cloud.
+- **[open, Q]** Startup/login-items manager — XDG `autostart/*.desktop`.
+- **[open, Q]** Scheduled-tasks view — thin view over the existing Hooks and
+  Automations services, not a new engine.
+- **[open, Q]** Offline dictionary/thesaurus — local wordnet data, reuse
+  Lens' selection-to-query path.
+- **[open, partial]** VPN client — Quick Settings tile and Settings VPN list
+  exist; full NetworkManager D-B management is missing.
+- **[open, D/S]** Cloud-storage client — Files has rclone cloud folders; a
+  real sync daemon needs a service and account.
+- **[open, D]** System-level restore — Backup restores home snapshots only.
+- **[open, WebApp]** Video conferencing — needs WebRTC/GStreamer; Flatpak/WebApp
+  fallback.
+- **[open, partial]** E-book reflow — Document Viewer opens EPUB/FB2/MOBI with
+  a fixed layout (already in the first app list).
+- **[out of scope]** Find My device, wallet/payments, iMessage/FaceTime/iCloud,
+  a native-package app store, browser/office/torrent/VM/games (Flatpak-only,
+  already in the first list), remote desktop *control* (no portal backend),
+  NFC tools, Emergency SOS.
+
+### Accessibility — "Accessible by default" is overstated
+
+A real foundation exists (`Contrast.js`, computed `accentInk`, a high-contrast
+palette, `fontScale` on 1057/1074 font-size lines, `reduceMotion` via
+`Theme.anim`/`Theme.mot`, `KeyFocus`, Orca from `Services/Access.qml`, fcitx5
+from `Services/Ime.qml`). The specific claim that "every control has a name,
+verified with real accessibility tools" is not supported by code or tests.
+
+- **[fixed]** Toast announces its message via `Qt.accessibleAnnounce`.
+- **[fixed]** `SliderRow` now exposes `Accessible.Slider` + name + value;
+  previously Orca read "slider" with no value.
+- **[fixed]** Super+Alt+S now toggles the screen reader in the running shell
+  (setup and the greeter already had it).
+- **[open]** No live regions anywhere else: error text (`TextField.qml`),
+  captions (`CaptionBar.qml`) and status changes are silent to Orca/TalkBack.
+- **[open]** Custom controls with no AT-SPI name/role: `SegmentedTabs`,
+  `DatePicker`, `Toast` (other than the announce), `EmptyState`, `AppPicker`,
+  `FolderPicker`. `KeyFocus` is `Accessible.ignored`, so the keyboard path
+  exists but the screen-reader path does not.
+- **[open]** Slider values baked into names in `QuickPanel.qml`,
+  `SettingsSound.qml` and `MediaPlayer` go stale; `Accessible.value` is the
+  fix.
+- **[open]** The a11y lint only covers bar/control-centre/launcher/settings/
+  Chronoa and SKIPs without a testbed client; none of the ~45 app windows are
+  linted. `test_qml_patterns.py:307-316` only checks a Button role has a name
+  within 10 lines.
+- **[open]** `Theme.faint` measures about 2.73:1 light / 3.75:1 dark — below
+  AA 4.5:1 — across 173 uses; accent-on-`accentSoft` is ~3.85:1 in light mode
+  across ~72 uses.
+- **[open]** Captions are a visual card only: no AT-SPI role/name,
+  `keyboardFocus: None`, two-line elide truncation, 10 px dim label.
+- **[open]** Muted state is colour-only in `SliderRow`; `StatusPill` encodes
+  ok/warn/error by hue alone (WCAG 1.4.1).
+- **[open]** Touch targets: `Theme.touchTarget` in only 13 files;
+  `SegmentedTabs` is 40 px fixed, `DatePicker` 30 px, `Toast` 28 px — above
+  AA 24 px but below Android 48 dp / Apple 44 pt.
+- **[open]** `Theme.fontScale` is binary (1.0 / 1.25), not continuous;
+  unscaled fonts remain in `GamepadVisual`, `KundaliPanel`, `DesktopWidgets`,
+  `NotificationCard` and `MediaPlayerWindow`.
+- **[open]** No focus trap in modal dialogs (only three `modal: true` in the
+  tree); Tab can leave a dialog behind its scrim.
+- **[open]** No Escape handler in MailWindow, FeedsWindow and Processes.
+- **[open]** No `Accessible.heading` or landmark roles anywhere — Orca's
+  rotor and VoiceOver's rotor cannot navigate by structure.
+- **[open]** TextField focus is a 1 px colour swap, not a distinct ring;
+  `inputMethodHints` is set only for secrets, not email/URL/numeric/time
+  fields; there is no `LayoutMirroring` anywhere (latent until an RTL locale
+  is added).
+- **[open]** One unguarded animation: `NotificationCard.qml:408`
+  ignores `reduceMotion`.
+- **[out of scope]** Colour filters and gamma are compositor-level (already
+  in the first list); native Wayland Qt 6 / Chromium menus are not reachable
+  through the AT-SPI fallback (already in the first list).
+
+Static verdicts only: no Orca session, qmllint or per-app walk of all 45
+windows was possible in this container.
