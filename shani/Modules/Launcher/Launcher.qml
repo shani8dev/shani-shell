@@ -359,7 +359,10 @@ PanelWindow {
         if (q.startsWith("="))
             return out;
 
-        // contacts search (name, phone, email)
+        // contacts search (name, phone, email). Guarded: the launcher is the
+        // primary surface, and an address book that fails to read must not take
+        // every search down with it.
+        try {
         if (Contacts.contacts.length > 0) {
             const ql = q.toLowerCase();
             const matches = Contacts.contacts.filter(c =>
@@ -379,7 +382,10 @@ PanelWindow {
             }
         }
 
+        } catch (e) {}
+
         // calendar events (today and upcoming, matching the query)
+        try {
         if (Agenda.events.length > 0) {
             const ql = q.toLowerCase();
             const matches = Agenda.events.filter(e =>
@@ -395,8 +401,12 @@ PanelWindow {
                 })) });
             }
         }
+        } catch (e) {}
 
         // notes search (QuickNotes)
+        // notes search (QuickNotes), also guarded: a note backend that fails
+        // must not take the app search down with it
+        try {
         {
             const noteMatches = QuickNotes.search(q);
             if (noteMatches.length > 0) {
@@ -423,6 +433,7 @@ PanelWindow {
                 }
             }
         }
+        } catch (e) {}
 
         // a typo forgiven ("fierfox"), ranked below every exact, prefix and inside match
         const ranked = win.apps.map(a => { const s = win.appScore(a, ql); return { a: a, s: s > 0 ? s : Fuzzy.score(win.appWords[a.id], ql) }; }).filter(x => x.s > 0)
@@ -468,8 +479,14 @@ PanelWindow {
             out.push({ title: "From " + app, items: win.provided.filter(r => r.app === app).slice(0, 4).map(r => ({
                 kind: "provided", app: r.icon, title: r.name, subtitle: r.description,
                 run: () => Quickshell.execDetached(["python3", win.providersTool, "activate", r.bus, r.path, r.id].concat(q.split(/\s+/))) })) });
+        // "Ask Chronoa" takes over only what nothing else could answer: it lands
+        // last, so it is the first item exactly when the search found nothing
+        // and never pushes a real match out of the top spot.
+        if (q !== "" && Settings.data.searchMeaning !== false)
+            out.push({ title: Tr.t("Ask Chronoa"), items: [
+                { kind: "ask", icon: "chat-message-new", title: "Ask Chronoa: " + q, subtitle: Tr.t("Enter to ask in your own words"), run: () => Chronoa.ask(q) }
+            ] });
         out.push({ title: Tr.t("More"), items: [
-            { kind: "ask", icon: "chat-message-new", title: "Ask Chronoa: " + q, subtitle: "", run: () => Chronoa.ask(q) },
             { kind: "web", icon: "web-browser", title: "Search the web for “" + q + "”", subtitle: Ui.webSearchName(), run: () => Qt.openUrlExternally(Ui.webSearchUrl(q)) }
         ] });
         return out;
