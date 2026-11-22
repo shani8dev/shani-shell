@@ -19,7 +19,8 @@ ColumnLayout {
             title: modelData.title || modelData.name || modelData.url
             subtitle: modelData.url
             onClicked: WebApps.open(modelData.name || modelData.title)
-            trailing: IconButton {
+            // ListRow.trailing is a string (an icon name); the item slot is extra
+            extra: IconButton {
                 icon: "edit-delete"
                 size: Theme.px(22)
                 tip: Tr.t("Remove web app")
