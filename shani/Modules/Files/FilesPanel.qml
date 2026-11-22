@@ -1260,6 +1260,17 @@ AppWindow {
                             font.family: Theme.font
                             font.pixelSize: Theme.px(11) * Theme.fontScale
                         }
+                        // what the camera recorded, for a picture
+                        Text {
+                            Layout.fillWidth: true
+                            horizontalAlignment: Text.AlignHCenter
+                            visible: PhotoMeta.camera !== "" || PhotoMeta.date !== ""
+                            text: [PhotoMeta.camera, PhotoMeta.date].filter(x => x !== "").join("\n")
+                            color: Theme.dim
+                            wrapMode: Text.Wrap
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                        }
                         Text {
                             Layout.fillWidth: true
                             horizontalAlignment: Text.AlignHCenter
