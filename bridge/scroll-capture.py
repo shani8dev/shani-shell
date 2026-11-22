@@ -73,7 +73,7 @@ def find_overlap(a: Image.Image, b: Image.Image, max_overlap: int | None = None)
     best = 0
     # sample a few columns to keep it fast
     cols = [min(w - 1, int(w * f)) for f in (0.1, 0.3, 0.5, 0.7, 0.9)]
-    for n in range(8, limit):  # at least 8 rows of overlap
+    for n in range(8, limit + 1):  # at least 8 rows; a whole capture can be a duplicate
         strip_a = a.crop((0, ah - n, w, ah))
         strip_b = b.crop((0, 0, w, n))
         diff = ImageChops.difference(strip_a, strip_b)
