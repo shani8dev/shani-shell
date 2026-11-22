@@ -379,16 +379,17 @@ AppWindow {
             visible: win.selectedDisk && Disks.health[win.selectedDisk.path]
             Layout.fillWidth: true
             spacing: Theme.px(4)
+            readonly property var health: (win.selectedDisk && Disks.health[win.selectedDisk.path]) || ({})
             Text {
-                text: Tr.t("SMART health: %1", (Disks.health[win.selectedDisk.path] || {}).overall || "—")
-                color: (Disks.health[win.selectedDisk.path] || {}).overall === "passed" ? Theme.accent : Theme.red
+                text: Tr.t("SMART health: %1", win.selectedDisk && Disks.health[win.selectedDisk.path] ? Disks.health[win.selectedDisk.path].overall || "—" : "—")
+                color: win.selectedDisk && Disks.health[win.selectedDisk.path] && Disks.health[win.selectedDisk.path].overall === "passed" ? Theme.accent : Theme.red
                 font.family: Theme.font
                 font.pixelSize: Theme.px(12) * Theme.fontScale
                 font.weight: Font.DemiBold
             }
             Text {
-                visible: (Disks.health[win.selectedDisk.path] || {}).temp !== undefined
-                text: Tr.t("%1°C · %2 hours", (Disks.health[win.selectedDisk.path] || {}).temp || 0, (Disks.health[win.selectedDisk.path] || {}).hours || 0)
+                visible: win.selectedDisk && Disks.health[win.selectedDisk.path] && Disks.health[win.selectedDisk.path].temp !== undefined
+                text: win.selectedDisk && Disks.health[win.selectedDisk.path] ? Tr.t("%1°C · %2 hours", Disks.health[win.selectedDisk.path].temp || 0, Disks.health[win.selectedDisk.path].hours || 0) : ""
                 color: Theme.dim
                 font.family: Theme.font
                 font.pixelSize: Theme.px(11) * Theme.fontScale

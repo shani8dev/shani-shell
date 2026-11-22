@@ -150,7 +150,7 @@ AppWindow {
             ListView {
                 id: availList
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(availModel.implicitHeight, Theme.px(280))
+                Layout.preferredHeight: Math.min(availList.contentItem.children.length * Theme.px(52), Theme.px(280))
                 clip: true
                 model: Models.available
                 delegate: Rectangle {
