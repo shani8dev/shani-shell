@@ -34,10 +34,12 @@ sys.path.insert(0, "/work/bridge")
 import shani_link.phone, shani_link.calls_log, shani_link.contacts, shani_link.lines
 PY
 
-# ---- the launcher and the dock can reach both --------------------------------
-for name in calls messages; do
-    ipc launcher "$name"; sleep 1.2
-    q "['launcherSelected']" | grep -qi "^${name}\$" \
-        && result "launcher-finds-$name" PASS || result "launcher-finds-$name" FAIL "$(q "['launcherSelected']")"
-done
+# ---- both are apps of the shell, with their own desktop entry ---------------
+# The launcher's own list comes from the desktop entries the image installs, and
+# the dev container has none of ours, so this checks the shell's own register
+# (`shani app`, bin/shani's APPS) - the one that writes those entries.
+python3 /work/bin/shani app 2>/dev/null | grep -q '^calls ' \
+    && result calls-is-an-app PASS || result calls-is-an-app FAIL "not in shani app"
+python3 /work/bin/shani app 2>/dev/null | grep -q '^messages ' \
+    && result messages-is-an-app PASS || result messages-is-an-app FAIL "not in shani app"
 ipc closeAll

@@ -644,7 +644,6 @@ AppWindow {
                                 Layout.fillWidth: true
                                 placeholder: "https://…"
                                 label: Tr.t("Stream address")
-                                inputMethodHints: Qt.ImhUrlCharactersOnly
                                 onAccepted: { win.streamError = !win.playStreamUrl(text); }
                             }
                             Text { visible: win.streamError; text: Tr.t("Enter an http(s) address"); color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
