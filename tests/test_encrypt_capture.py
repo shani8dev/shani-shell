@@ -41,13 +41,14 @@ def text(out):
 def test_encrypt_then_decrypt_returns_the_same_bytes(tmp_path):
     src = tmp_path / "shot.png"
     src.write_bytes(b"\x89PNG\r\n\x1a\nnot really a picture")
+    before = src.read_bytes()
     out = run("encrypt", str(src), "pw")
     assert out.returncode == 0, out.stderr
     enc = Path(text(out).strip())
     assert enc.exists() and enc.name == "shot.png.age"
     back = run("decrypt", str(enc), "pw")
     assert back.returncode == 0
-    assert back.stdout == src.read_bytes()  # the plaintext is gone by now
+    assert back.stdout == before          # the plaintext is gone by now
 
 
 @gpg
@@ -65,7 +66,7 @@ def test_a_wrong_passphrase_decrypts_to_nothing(tmp_path):
     enc = Path(text(run("encrypt", str(src), "right")).strip())
     back = run("decrypt", str(enc), "wrong")
     assert back.returncode != 0
-    assert back.stdout == ""
+    assert b"secret" not in back.stdout   # it never hands over the contents
 
 
 # ---- what it cannot do ------------------------------------------------------

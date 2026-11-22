@@ -14,7 +14,6 @@ Uses age when present, else gpg symmetric (AES256). Standard library only.
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -26,12 +25,9 @@ def encrypt(path_str: str, passphrase: str) -> int:
         print(f"no such file: {path_str}", file=sys.stderr)
         return 1
     out = p.with_suffix(p.suffix + ".age")
-    if shutil.which("age"):
-        # age -p reads the passphrase from the terminal; pass it on stdin with -p? age has no
-        # --passphrase flag, so use `age -r` with a recipient derived via age-keygen, or gpg.
-        # Simplest deterministic path: gpg symmetric with --pinentry-mode loopback.
-        pass
-    # gpg symmetric, passphrase via stdin loopback
+    # gpg symmetric with the passphrase on stdin: age has no --passphrase flag
+    # (it wants a passphrase on the terminal, which a bridge has not), so this
+    # is the one path that works without a key file.
     r = subprocess.run(
         [
             "gpg",
