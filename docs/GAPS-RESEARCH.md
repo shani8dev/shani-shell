@@ -556,3 +556,217 @@ The first pass (app-by-app vs upstream OSS equivalents, shell-surface vs GNOME/K
 The first-pass subagents compared: Text Editor→Kate, Notes→Joplin, Calendar→GNOME Calendar, Contacts→GNOME Contacts, Files→Nautilus, Photos→gthumb/Loupe, Viewer/PDF→Evince, Mail→Geary, Feeds→Newsboat, Terminal→kitty, Disks→GNOME Disks, Software→GNOME Software, Processes→htop, Settings→GNOME Settings, MediaPlayer→VLC, Camera→GNOME Snapshot, VoiceRecorder→Vocalis, VideoTrimmer→LosslessCut, Translate→Argos, Weather→GNOME Weather. Each produced 5-8 ranked gaps with implementation sketches; all were transferred into the curated GAPS.md and the implementation passes. The three doc-audit agents (shani-shell, shani-docs, infra repos) found stale counts, wrong paths, false plugin claims, edition/provider/sync-direction errors, and workflow profile/timeout/secret errors — all fixed in commits 28c49e5, 1a585ab, 8b18653, 3d5da6b, 80139eb.
 
 All reports in this archive are static findings — no runtime or hardware verification was available.
+
+---
+
+# Eighth pass — full reports
+
+## Non-technical user documentation & UX (agent ses_dfbc6e71dffeTNRTzzZ72zWWxo)
+
+Read: overview.md, faq.md, troubleshooting.md, intro/*, install/*, system/{printing,backup}.md, updates/shani-reset.md, whats-new.md, setup/shell.qml + strings.js, bridge/QML error strings, index.html. Static only. Prior-pass fixes skipped.
+
+A. Task orientation & onboarding (highest value):
+1. (H/H) No "how do I…?" entry point. overview.md:120-133 "How to Use This Wiki" is a table of internals — "Concepts… Architecture deep-dives", "Boot process, Btrfs layout, dracut". A person asking "how do I connect a printer / back up my photos / share files / set up email" has no landing page. Fix: add a "Common tasks" card list linking existing system/printing, system/backup, networking/samba, servers/mail pages.
+2. (H/H) First steps are all terminal commands. intro/getting-started.md:104-158 "Recommended First Steps" = add Nix channel, gen-efi enroll-tpm2, shani-deploy, flatpak install, waydroid init. Fix: lead with "open Software and search for an app"; label every terminal step "optional / advanced".
+3. (H/H) "How do I install an app?" never names the GUI first. faq.md:43-50 answers with flatpak install, nix-env, distrobox create, podman run. Fix: first line "Open the Software app and search — that is the normal way"; keep CLI below.
+4. (H/H) Bug reports are developer-only. faq.md:332 "include the output of uname -r, cat /etc/shani-version, cat /data/current-slot, and relevant journalctl logs"; troubleshooting.md:681-690 repeats. Fix: "tell us what you were doing and what you saw; attach a screenshot — or copy diagnostics from Cassini".
+5. (H/M) Encryption choice explained as internals. install/steps.md:18 "Enable LUKS2 full-disk encryption (argon2id key derivation)". No consequence, no "can't change later". Fix: "Encrypt my files (recommended for laptops) — if the laptop is stolen, nobody can read your files. Remember the password; it cannot be changed later without reinstalling."
+6. (H/M) Setup wizard omits encryption entirely. setup/shell.qml:36 pages are welcome,keyboard,network,time,account,chronoa,done; setup/strings.js has no encryption strings. Fix: one plain-language summary line on account/done page: "Your files are/are not encrypted; change requires reinstall."
+7. (M/H) Chronoa and account ARE explained well — the bright spot: strings.js:13 "It runs on your own computer, with no cloud and no cost. Turn it off if you prefer"; :31 "This account… can install software and change system settings." Use as template for 4-6.
+
+B. Troubleshooting written as developer notes:
+8. (H/H) Fixes are command dumps, not "if X do Y". troubleshooting.md:28-49 "System Won't Boot" opens with six commands before telling the user the system usually recovered itself (stated at :30). Fix: lead "If the screen stays black after an update, reboot once — it usually fixes itself."
+9. (H/M) Unexplained TTY. troubleshooting.md:81 "Switch to a TTY (Ctrl+Alt+F2 or F3) and log in". Fix: "Press Ctrl+Alt+F2 for a plain text login screen (Ctrl+Alt+F1 returns)."
+10. (M/H) "If X, do Y" is used in places — copy that pattern. troubleshooting.md:291 and first-boot.md:78-87 symptom table are the right shape; most other sections are not.
+11. (M/M) Engineered correction note. troubleshooting.md:70-74 "There is no shani-deploy --repair-boot…" useful but speaks flag names; no GUI alternative.
+12. (M/M) Developer-speak fingerprint answer. faq.md:241 PAM services / pam_fprintd. Fix: "On GNOME your fingerprint works at login; on KDE only at the lock screen; on COSMIC it is not available yet."
+
+C. Jargon without plain-language gloss:
+13. (M/H) Security section opener. overview.md:22 "Six Linux Security Modules run simultaneously (lsm=landlock,lockdown,yama,integrity,apparmor,bpf)… Intel ME kernel modules not blacklisted by default". Fix: one sentence "These are independent locks on the system; a fault in one does not open the others."
+14. (M/H) Navigation table aimed at newcomers. overview.md:129 "Security | Polkit tiers, LUKS, TPM, AppArmor, Secure Boot, audit, hardening". Fix: "Password rules, disk encryption, fingerprint and secure boot."
+15. (M/H) D-Bus / AT-SPI unexplained. overview.md:76 and faq.md:147. Fix: "the top bar reads the app's own menu" (keep protocol names in parentheses).
+16. (M/M) Jargon wall before simple steps. system/printing.md:13-15 opens with CUPS, ipp-usb, eSCL/AirScan, WSD, SANE, cups-pk-helper, then only at :20-26 says "Settings → Printers → Add Printer". Fix: move GUI steps to top.
+17. (M/M) Backup jargon. system/backup.md:138 restic; GUI alternative at :13 buried. Fix: promote :13 to opening.
+18. (L/M) Printing permission note. system/printing.md:87 cups-pk-helper gates via Polkit. Fix: "Adding a printer asks for your password — that is normal."
+
+D. Step completeness, safety, product errors:
+19. (H/H) Destructive restore with no warning. system/backup.md:95-98 "sudo btrfs subvolume delete /home" — deletes today's files, said nowhere. [FIXED in this pass: added warning]
+20. (M/H) Factory reset leads with mechanism, not consequence. updates/shani-reset.md:9. Fix: open "This deletes your accounts, Wi-Fi passwords, and — with --home — every personal file. Back up first. It cannot be undone."
+21. (M/M) Wrong-slot recovery lacks plain outcome. troubleshooting.md:58-74. Fix: repeat "your files are safe; only the OS version changes" in-section.
+22. (M/M) Raw backend errors reach users. PasswordsWindow.qml:69 raw JSON error; SoftwareWindow.qml:203-207 flatpak text; bridge/cleanup.py:122,146; bridge/live-tv.py:306. Fix: small string maps.
+23. (L/M) No glossary anywhere. index.html has good a11y and no screenshots in docs, but no term-definition page. Fix: docs/glossary.md linked from Quick Links.
+
+## Shell startup, shutdown & session lifecycle (agent ses_dfbc79244ffeZt23SnpoKilMY4)
+
+Static only. Skipped prior-pass items.
+
+Shell-fixable:
+1. Shell-internal long jobs don't inhibit idle suspend. Idle.qml:97-101 only honours ext-idle-notify/ScreenSaver inhibitors; Files.qml:534,676-680 schedules suspend after copy drains, Recorder.qml:94-102/convert.py run ffmpeg with no inhibition. Idle Power.suspend() can cut copy/conversion/download mid-write. Sketch: inhibit when _jobs.length>0 || VoiceRecorder.recording || Convert.busy.
+2. Debounced state writes lost on immediate logout/poweroff. PlayQueue.qml:48-72 resume flush 1500ms; VoiceRecorder.qml:49-55 counter 800ms; Power.logout/poweroff/reboot (Power.qml:223-225) fire systemctl/niri quit with no flush. Sketch: Session.flush() IPC.
+3. No "save your work"/app-close prompt on logout/reboot/poweroff. SidebarHeader.qml:216-227 single double-click "Sure?"; Ui.closeAll() closes panels not windows; TextDocs.qml:29 exposes unsaved that nothing consults. Sketch: gate Power.* on dialog listing dirty apps.
+4. Recorders/conversions never finalised at session end. Recorder.stop() SIGINT (Recorder.qml:69-76), VoiceRecorder.stop() (90-105); on logout neither called, Opus/MP4 containers stay open.
+5. No resume handling at all. logind.py:66-72 re-inhibits on PrepareForSleep(false); Lock.qml:28-42 has no resume op. Media not paused/restored, BtAgent.reconnect() (BtAgent.qml:50-60), display/wallpaper not re-applied, no network re-check.
+6. No shutdown/logout hook for user scripts. Hooks.qml has startup + lock/unlock hooks but no session-end event.
+7. UPS "save your work" is a dead-end toast. Ups.qml:52-54 no countdown, "shut down now" or deferral.
+8. Power confirmation hides its scope. SidebarHeader.qml:216-227; lock screen armed 4s button (LockScreen.qml:280-294). Neither shows how many apps/unsaved docs will be lost.
+9. Suspend can hang if no output covered by lock. Lock.qml:15,26 releases sleep delay only once secure set by WlSessionLock covering every output; headless resume flag never flips.
+10. Other logind sessions invisible. greeter/shell.qml:104-120 only probes /run/user/<uid>; no session list, "log out other user", multi-user awareness.
+
+systemd/compositor-level:
+11. No startup readiness for niri/audio/network/keyring/Chronoa. shani-shell.service:5-9 only After/Requisite=graphical-session.target; no After=niri.service. Dev session waits for every daemon (dev/session.sh:115-241). Slow deps produce reconnect timers and blank first frame. Sketch: add After= lines + "Starting desktop…" cover.
+12. shani-chronoa-bridge.service has no dbus ordering (chronoa-bridge.service:1-12).
+13. No user-session stop protocol. Logout is niri quit --skip-confirmation; no org.gnome.SessionManager/XSMP equivalent, so external apps cannot veto/save. Compositor-level.
+14. Restart=on-failure only; no success-exit semantics/watchdog (shani-shell.service:21-22).
+15. Sleep inhibition covers only sleep, not shutdown (logind.py:98).
+
+Comparison: GNOME Session tracks inhibitor clients + EndSessionDialog; KDE ksmserver per-app save-then-quit; macOS applicationShouldTerminate:; Windows WM_QUERYENDSESSION. ShaniOS has a two-click "Sure?" and systemctl.
+
+## Latest releases (2024-2026) comparison (agent ses_dfbc74427ffeaP772aSwHXc92l)
+
+Verified candidates against tree (Writing Tools, long-press quick tiles, Live Activities, blur/glass, focus app-allowlist, named-panel ideas already built/filed — excluded).
+
+1. Named, on-demand sessions (KDE Plasma 6). Reopen.qml:33-58 keeps one automatic last-session list, offered only at sign-in. Sketch: "Save session as…" named JSON of desktop ids + workspace.
+2. Recall-style activity timeline (Win11). Screenshots encrypted captures never listed; Chronoa meaning index file-oriented, no time axis. Sketch: rolling local grim thumbnails + OCR text timeline.
+3. Private Space — hidden locked app vault (Android 15/16). AppFilter.qml is parental blocking only. Sketch: "Move to Private Space" gated behind Keyring/PIN via Polkit.
+4. On-screen contextual action overlay (Win11 Click to Do / Apple Visual Intelligence). Lens.qml does region OCR/QR/translate/ask-Chronoa, no element-level actions. Sketch: action chips after Lens capture.
+5. Unified Recent-files hub (GNOME 48 Files). Apps never write recently-used.xbel; Launcher recents one-way. Sketch: shell writes XDG recents + "Recent" launcher section.
+6. Customizable lock-screen shortcuts (iOS 18). Fixed camera (LockScreen.qml:350-393) and power; no torch, not configurable. Sketch: two Settings pickers.
+7. Focus Filters depth (iOS 18). Focus.qml:23-25 only gates notifications by app name. Sketch: people/calendar/badge filters.
+8. Notification cooldown (Android 15). No cooldown in Notifs.qml; distinct from storm coalescing. Sketch: per-app last-seen timestamp, downgrade Nth repeat within ~10s.
+9. Lock-screen widgets (iOS 16+). Lock surface only notification/media/camera (LockScreen.qml:340-409). Sketch: render one/two existing widget delegates.
+10. Cross-device clipboard continuity (Apple Universal Clipboard). Clipboard.qml local; shani-link can share but leaks with no confirm. Sketch: opt-in push with confirm card + 45s clear.
+11. Instant replay / rolling record buffer (Xbox Game Bar / ShadowPlay). Recorder no rolling buffer. Sketch: background wf-recorder to ring file, hotkey promotes last N seconds.
+12. Rotating widget stacks (macOS Sequoia / Win11 Widgets). desktop-widgets-* built, no stacking. Sketch: auto-rotate timer + manual swipe.
+13. Auto-arrange desktop icons (Finder Sort By). DesktopIcons.qml has placement, no sort action. Sketch: right-click "Arrange By…".
+14. Camera studio effects — background blur / centre framing (macOS Studio). Camera.qml only picks device index. Needs PipeWire/OpenCV filter chain.
+15. Per-focus app-badge suppression. Focus.allows() only used by notification path (Focus.qml:23-25). Sketch: reuse allow-list in Launcher badges and LockScreen.
+
+Out of scope: Stage Manager, predictive-back gesture, AOD/raise-to-wake, Windows Hello enhanced, Genmoji/Image Playground/cloud Recall, remote desktop control, Live Text on video, Wi-Fi sensing/theft-detection, HDR/colour filters/gamma, trackpad gestures, Find My/SOS/carrier.
+
+## User data lifecycle (agent ses_dfbc7ba6dffe53ahJHhqmVUehs)
+
+Scope: shani-shell bridges/services + shani-chronoa + shani-insights stores. Skipped prior-pass categories.
+
+Control matrix (V=view · 1=delete one · A=delete all · R=retention · E=export) — 25 stores including Notes (.trash/.history; no delete-all, 20/note only, ~export), Contacts (.vcf; export yes), Agenda/EDS (import only), Feeds (OPML subs only), Mail (server-side, no export), Photos meta.json/albums.json (no delete-all/export), Music library.json (KEEP, no delete), ScreenTime (5 wks, no clear/export), Notif history (50-cap, delete-all yes), Screenshots+.age (none of V/1/A/R/E), VoiceRecorder (export yes), Captions transcripts (none), CallRecorder (none), Call logs (view only), Chronoa transcript (in app, append-only), Chronoa learned bandit.json/outcome-*/tool_calls.log (none), AI provider keys, Models, Terminal hosts/snippets, WebApps, recents, Logs, Backup snapshots, Passkeys/OTP, U2F (delete all only).
+
+Ranked gaps:
+A. Deletion correctness:
+1. Contacts merge destroys almost every field — Contacts.qml:200-216 rewrites via edit payload; contacts.py:481-516 rebuilds fixed dict. Avatar, favorite, self, groups, unknown vCard fields lost from both cards. Fix: merge at vCard property level.
+2. Notes private trash/history escape retention sweep — QuickNotes.qml:49-50,339-341; Housekeeping.qml:14-24 only walks XDG Trash/info.
+3. Deleting a note orphans its version history — remove() (QuickNotes.qml:293-324) moves only .md; .history/<id>-* copies stay forever.
+4. Notes cloud sync leaks trashed/encrypted-adjacent copies and never applies deletions — rsync -au (QuickNotes.qml:71) copies hidden .trash/.history, no --delete.
+5. Call recordings have no lifecycle surface — CallRecorder.qml:17-30 writes .ogg and only notifies path; no list/play/delete/TTL/export.
+6. Caption transcripts accumulate unmanaged — Captions.qml:18-19,46.
+7. Screenshot .age files no retention/delete-all — encrypt-capture.py:35-50.
+8. Photos metadata sidecars survive photo deletion — path-keyed, never purged.
+9. U2F can only forget every key — SettingsAccount.qml:420 → u2f.py:101-113 drops whole file.
+10. Cleanup cannot free any app data store — cleanup.py:34-39 marks shani-shell/cliphist/Chronoa caches KEEP.
+B. GDPR/data-subject:
+11. No "show me all data the shell holds about me" — SettingsPrivacy.qml:164-184 only recents/trash/clipboard toggles.
+12. No "forget me" for a single app.
+13. No retention setting for any user-data store — only hard-coded values (trashDays 7/30, downloads 90d, ScreenTime 35d, notifs 50, notes 20/note).
+14. ScreenTime history cannot be cleared or exported.
+15. Launcher usage profile invisible — app-usage.json (Launcher.qml:108-120) no view/reset.
+16. Portal grants have no per-app data footprint view.
+C. Memory/learning:
+17. Chronoa learned state unviewable/unforgetable — learning.py:5625 bandit.json, :1885 tool_calls.log, :4566 outcome-predictions.jsonl.
+18. Transcript grows without bound — conversation_store.py:38-44 append-only; MAX_LOADED=500 read cap not truncation; backend clear()/delete() have no shell caller.
+19. "Forget these answers" only in Chronoa GTK settings window (activity.py:571-581).
+D. Telemetry:
+20. No shell-side inventory of what is collected — shani-insights opt-in collector gathers app/window activity, optional tab URLs, cam/mic device names, screenshots, session recordings; self-service view only on server.
+21. No retention statement for diagnostics — problem reports printed not stored (good), but no user-facing page states "we keep none".
+Highest value × ease: #5, #6, #2, #3, #14, #15, #19. Hardest: #1, #12/#20.
+
+## UX consistency and tone (agent ses_dfbc76949ffeYbYOdu4qgBiU3e)
+
+22 inconsistencies, ranked. Skipped prior-pass items.
+
+Terminology:
+1. "Log out" vs "Sign out" for same Power.logout() — SidebarHeader.qml:206, Ring.qml:84, LauncherActions.qml:97 "Log out"; TvHome.qml:73 "Sign out"; shell.qml:107 "sign out". Canonical: "Log in/Log out".
+2. "Devices" vs "Drives" for storage — FilesPanel.qml:521 "Devices"; SidebarDrives.qml:24 "Drives"; DisksWindow.qml calls disk "device"/"block devices". Canonical: "Drives" storage, "Devices" peripherals.
+3. "Delete" for recoverable trash — SidebarNotes.qml:198 "Delete this note" calls remove() which moves to .trash; CameraPanel.qml:187; FeedsWindow.qml:112 "Remove"; but NotesPanel.qml:450 and FilesPanel.qml:3111 "Trash". Canonical: "Move to Trash" recoverable, "Delete" permanent.
+4. Notebook vs folder in Notes — low priority.
+Errors:
+5. Developer-grade bridge errors rendered verbatim — 32 QML sites root.error = r.error; bridges return lowercase CLI internals (link.py:309 "usage: link.py…", files.py:533 "already exists", passwords.py:290 "no such key", flatperm.py:137 "not a permission: %s"). Canonical: bridges return {code,message}; QML owns user-visible text.
+6. Command names/shell syntax leak — SettingsSharing.qml:157 "sudo setcap cap_sys_admin+p $(command -v sunshine)"; Files.qml:1307 "rsync exited %1"; Disks.qml:166 "is lsblk installed?"; QuickNotes.qml:718 "is gpg installed?". Canonical: "This feature needs X" + action; command in "Copy details".
+7. Raw stderr appended — Archive.qml:187,235,297,354,382, Tasks.qml:67, Disks.qml:203, Contacts.qml:238, SettingsStorage.qml:54, flatperm.py:141,157, ratbag.py:121 use stderr last line.
+8. Actionable vs cryptic, no template — good: MapsPanel.qml:242,245,654,661; cryptic: Feeds.qml:131 "The feed reader could not answer", Link.qml:87, VoiceRecorder.qml:297 "Export failed", Backup.qml:114 "Backup failed", Firewall.qml:163.
+9. Case/tone split — QML sentence case; bridge lowercase.
+10. Greeter/setup show raw PAM text — greeter/shell.qml:214; setup/shell.qml:330,1288.
+Loading/progress:
+11. Ten words for busy — "Looking…" (9 files), "Scanning…" (3), "Working…" (4), "Loading…", "Searching…", "Computing…", "Comparing…", "Counting…", "Measuring…", "Cleaning…". ScannerPanel/DiskUsagePanel each use two words for same state. Canonical: "Scanning…" enumeration, "Working…" generic.
+12. Spinner only on buttons — Common/Spinner.qml wired through Button.qml:78; ~24 text-only busy labels no indicator.
+Empty/success/confirm:
+13. Four title grammars — "No X yet", "No X", "Nothing X", "This folder is empty". Canonical: "No <plural> yet" first-run, "No <plural>" filtered.
+14. Errors disguised as empty states — FilesPanel.qml:1046, ArchivesWindow.qml:215, AuthenticatorWindow.qml:208 render via EmptyState with faded icon.
+15. Three success channels no rule — toast (SettingsPage.qml only), inline notes, notify-send. PdfSigner does both at :186 and :188.
+16. Success notifications bypass i18n — VoiceRecorder.qml:160, Camera.qml:204, Calculator.qml:640, Modem.qml:77, Ruler.qml:81 bare literals.
+17. "Click again" vs "Tap again" even in one file — DisksWindow.qml:152,171,215,261,291 vs :446. Canonical: "Tap again".
+18. Three confirmation mechanisms — two-tap, modal, type-to-confirm.
+19. Missing confirmation on irreversible deletes — CalendarPanel.qml:1319 Delete → EDS no undo; MailWindow.qml:304 → IMAP. Canonical: two-tap both.
+Shortcuts/icons:
+20. Zoom modifier mismatch — FilesPanel.qml:100-104/TextEditorPanel.qml:442-444 Ctrl++/Ctrl+0; PdfReader.qml:238-240 bare +/-/0.
+21. Bare W means different things — Ctrl+W close tab (TextEditor, Files); bare W fit width (PdfReader); bare Q close window (Switcher:134); global Mod+Q close-window.
+22. Same "Move to trash" two icons — edit-delete in FilesPanel.qml:3111/Viewer.qml:471 vs user-trash in PhotosWindow.qml:418, TasksWindow.qml:225, StudioWindow.qml:139, ModelsWindow.qml:126, ContactsWindow.qml:442, FilesPanel.qml:508. Canonical: user-trash recoverable, edit-delete permanent, edit-clear-all bulk.
+Skipped: ellipsis glyph consistent, no OK/Apply, app-menu help/empty-state actions covered pass 7.
+
+## Calls, Messages, Link, Phone/Modem, Gamescope (agent ses_dfbc6bce0ffegr7r1O8sPNcyVa)
+
+All new vs seven passes. Static only.
+
+Shell-fixable:
+1. Contacts has no "Text" action — ContactsWindow.qml:538-562 offers Call/Mail/Maps/QR; Messages accepts number prefill (MessagesWindow.qml:20-28); Phone.qml:48-51 exposes openMessages(). Sketch: add Text button.
+2. Contacts' Call bypasses unified dial path — ContactsWindow.qml:62,545 uses xdg-open tel:; Modem.qml:36-42 has callNumber() preferring Link dial pad. Sketch: call Modem.callNumber(n).
+3. Dial pad ignores address book — CallsWindow.qml:52-58 bare TextField; Link.contacts populated but never bound; GTK app has T9 suggestions. Sketch: expose calls_view.suggestions() via link.py contacts.
+4. Call log no search/filter or delete/clear/undo — CallsWindow.qml:130-159 flat read-only; GTK app has per-day grouping, delete, clear, undo.
+5. Recordings not tied to caller and cannot be replayed from log — CallRecorder.qml:16-25 timestamp-only filename.
+6. Messages cannot start new thread or search — MessagesWindow.qml:38-46,141-164; link.py:185-248 no compose/search command.
+7. Messages silently truncates bodies and loses group recipients — bridge/link.py:210 slices to 200 chars, :198 keeps addresses[0], :245 sends to single address. MMS/group threads appear one-to-one.
+8. Text send cannot choose device or line — link.py:241 always _first_device(); dial can pick line.
+9. Link device management KDE Connect-only — Phone.qml:20-32 kdeconnect-cli; Link.devices can be GSConnect/Bluetooth/landline but no pair/unpair/ping/clipboard UI.
+10. Link engines exist but not surfaced — daemon exposes Bluetooth/USB/Wi-Fi tethering (service.py:331-342), clipboard sync (:374-376), phone camera as PipeWire webcam (screen_stream.py:640-650), remote shutter/volume/media (phone_remote.py:1-59), but link.py:42-45 imports only phone/calls_log/contacts/lines.
+11. Modem: no PUK, USSD, call forwarding or VoLTE/VoWiFi readout — modem.py:43 knows sim-puk but handle() only SendPin; no Modem3gpp USSD/forwarding; report() never reads voice/EPS state.
+12. Modem: no delivery reports or local SMS store — modem.py:131-139 only received; :160-165 emits sent immediately without watching Sms State; no on-disk store.
+13. Gamescope console lacks several shell settings — shani-gamescope-control:870-936 has Network/Bluetooth/Audio/Display/Updates/Password/Reset/Performance but no Users/accounts, Firewall, VPN, Date & time, Locale or Accessibility tile.
+14. Silent failures present as "no phone" — link.py:124-127,192-195,224-227 swallow every exception as []; MessagesWindow.qml:51 says "No phone is connected" even on bridge error.
+Needs phone/hardware/server: 15. Multi-SIM selection (modem.py:77-84 always modems[0]); 16. Real group/MMS picture receive, delivery receipts, visual voicemail, spam blocking; 17. Find-my-device/remote locate (only ring() at link.py:281-291).
+
+## File-format addendum (agent ses_dfbd91e06ffeLTNYXfM5zIXwP5 background grep)
+
+Flatpak fallbacks confirmed present in shani-install-media/cache/flatpak_data/:
+- Office: org.onlyoffice.desktopeditors shipped, .desktop covers DOCX/XLSX/PPTX/ODT/ODS/ODP plus RTF/HWP/EPUB/FB2/DjVu/OXPS/XPS/PDF. Makes office-format gap lower-risk; default already Flatpak covering more types than shell app. Shell's own path remains absent.
+- Images: org.gnome.Loupe present, registers image/heic; confirms HEIC/raw/image fallback.
+- PDF: org.gnome.Papers present (application/pdf=Papers in mimeinfo.cache).
+- Feeds: com.vivaldi.Vivaldi registers application/rss+xml, partial RSS fallback (not OPML/tags).
+- Also shipped: Gnote (x-scheme-handler/note), GNOME Maps (geo:/maps:/GPX/KML), Fragments, Warehouse.
+One correction: OnlyOffice also claims EPUB/OXPS/DjVu/FB2, so office gap lower-risk than first appears. Authoritative skel file is shani-pkgbuilds/shani-desktop-niri/etc/skel/.config/mimeapps.list.
+
+## Energy sustainability & hardware longevity (agent ses_dfbc71894ffefPJqxvd2iDuY1W)
+
+Static only. Skip-list items (battery health/cycles, charge limit, power profiles, thermal sensors, per-app power, UPS, GPU/VRAM fit) not re-filed. [S]=shell-fixable, [K]=firmware/kernel/daemon.
+
+Already present — do not re-file: health ring + cycle count (SettingsBattery.qml:76-124, battery.py:58,65), charge-limit Picks (SettingsPowerKeys.qml:166-172, shani-admin.py:275), PPD profile tile (SidebarTiles.qml:222-224), ambient-light servo (AmbientLight.qml:26-97), VRR + 60Hz-on-battery (SettingsDisplays.qml:196-200,324-326), OLED pixel-shift (ScreenSaver/Cover.qml:101-109), fan RPM/temps in Cassini, minimum requirements (shani-docs/docs/install/requirements.md:11-19).
+
+1. [S] "Dim the screen" draws a black overlay; never lowers backlight. Idle/Dim.qml:22-27 55%-opacity Rectangle; on LCD backlight stays full. Sketch: on Idle.dimmed call Brightness.set(value*0.5) and restore on wake.
+2. [S] No energy-consumption or CO2 readout. battery.py:69 instantaneous W shown only at SettingsBattery.qml:134; nothing accumulates Wh. Sketch: integrate W into "energy used today" with configurable gCO2 factor.
+3. [S] No charge timer or battery-care schedule. Static cap only (SettingsPowerKeys.qml:166-172). Sketch: "charge to X% by <time>" picker applying threshold on systemd timer.
+4. [S] Power mode bare three-way cycle with no effect explanation. Power.qml:175-180; tile/OSD print only label. Sketch: show PPD driver + one line "CPU governor / platform profile / brightness cap".
+5. [S] Profiles don't coordinate screen/keyboard light. Power.qml:127,132,159,179 write only PowerProfiles.profile; Brightness.qml and KbdBacklight.qml have no Power reference. Sketch: on PowerSaver cap Brightness ~70% and force keyboard backlight off.
+6. [S] Always-on polling keeps shell busy when idle. Agenda.qml:224 and Tasks.qml:89 every 10min, Housekeeping.qml:59 every 24h, Printing.qml:42 every 10min all running:true; NightLight.qml:48-59 every 60s, KbdBacklight.qml:102-107 every 30s. Sketch: gate on visibility.
+7. [S] No way to end a stuck app wake-lock. Idle.qml:27-37 counts/names inhibitors, SidebarTiles.qml:214 shows name, no release action. Sketch: "End wake locks" action.
+8. [S] Auto-brightness no calibration or battery ceiling. AmbientLight.qml:75-77 fixed lux curve, first IIO device, polls 5s. Sketch: calibrate button and battery-only cap.
+9. [S] Battery age never shown. battery.py:59-77 has health/cycles/voltage/temp but no manufacture date; SettingsBattery.qml:235-243 shows tech/vendor/model.
+10. [S] Refresh-rate reduction on battery is hard 60Hz step. DisplayModes.js:11-20 picks lowest mode >=59Hz. Sketch: idle-aware policy high Hz active/60Hz after dim.
+11. [S] Component health split across three surfaces (SMART in Disks.qml:62-72, fan/temps in Cassini, battery in SettingsBattery.qml); no summary. Sketch: "Hardware health" card in Settings > About.
+12. [S] No repairability documentation — grep finds "repair" only for btrfs/Flatpak/rollback. Sketch: docs/system/repair.md.
+13. [S] No support lifecycle/EOL/LTS policy. shani-docs/docs/updates/channels.md:9-49 defines only latest/stable. Sketch: support-policy page surfaced in Settings > About.
+14. [K] True timed charging needs EC support.
+15. [K] Direct governor/EPP control — PPD owns it.
+16. [K] Per-key RGB — no OpenRGB/hidapi bridge.
+17. [K] True energy accounting — no powercap/RAPL reader.
+18. [K] Backlight dim outside brightnessctl — DDC/CI fallback only.
+Highest value × ease: #1, #2, #4, #5, #6, #13. Risk: nothing hardware-verified; #1 could double-dim where firmware dims on idle.
+
+## Additional fix from this pass
+
+- Switcher.qml open() now sets `grouped = buildGroups().length > 1` so Alt+Tab with a single app still cycles that app's windows instead of showing one dead tile (auto-disable grouping when there is nothing to group).
