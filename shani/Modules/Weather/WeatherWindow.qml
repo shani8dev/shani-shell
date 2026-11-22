@@ -28,6 +28,37 @@ AppWindow {
             anchors.fill: parent
             spacing: Theme.px(14)
 
+            // ---- an advisory from the next few hours ------------------------
+            Rectangle {
+                Layout.fillWidth: true
+                visible: Weather.advisory !== ""
+                implicitHeight: noteCol.implicitHeight + 20
+                radius: Theme.radiusSmall
+                color: Theme.alpha(Theme.amber, 0.14)
+                border.width: 1
+                border.color: Theme.alpha(Theme.amber, 0.5)
+                ColumnLayout {
+                    id: noteCol
+                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
+                    spacing: 2
+                    Text {
+                        text: Tr.t("Worth knowing")
+                        color: Theme.amber
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.weight: Font.DemiBold
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: Weather.advisory
+                        color: Theme.text
+                        wrapMode: Text.Wrap
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(13) * Theme.fontScale
+                    }
+                }
+            }
+
             // ---- the place ----
             RowLayout {
                 Layout.fillWidth: true

@@ -32,6 +32,21 @@ Singleton {
         return c === 0 ? "Clear" : c <= 2 ? "Partly cloudy" : c === 3 ? "Overcast" : c <= 48 ? "Fog"
              : c <= 57 ? "Drizzle" : c <= 67 ? "Rain" : c <= 77 ? "Snow" : c <= 82 ? "Showers" : c <= 86 ? "Snow showers" : "Thunderstorm";
     }
+    // ---- advisories ---------------------------------------------------------
+    // open-meteo has no official warning feed, so these are read from the next
+    // 12 hours of the forecast and say plainly what they are ("likely", not an
+    // official warning). Empty when nothing stands out.
+    readonly property string advisory: {
+        const next = hourly.slice(0, 12);
+        if (!next.length) return "";
+        const rain = Math.max.apply(null, next.map(h => h.rain || 0));
+        const wind = Math.max.apply(null, next.map(h => h.wind || 0));
+        const hot = Math.max.apply(null, next.map(h => h.temp));
+        if (rain >= 70) return Tr.t("Rain is likely in the next few hours");
+        if (wind >= 40) return Tr.t("Strong wind — %1 km/h", Math.round(wind));
+        if (!fahrenheit && hot >= 35) return Tr.t("Very hot — %1°", Math.round(hot));
+        return "";
+    }
     readonly property string icon: code < 0 ? "" : code === 0 ? "weather-clear" : code <= 2 ? "weather-few-clouds"
         : code === 3 ? "weather-overcast" : code <= 48 ? "weather-fog" : code <= 67 ? "weather-showers"
         : code <= 77 ? "weather-snow" : code <= 82 ? "weather-showers-scattered" : code <= 86 ? "weather-snow" : "weather-storm"
@@ -61,7 +76,7 @@ Singleton {
             return;
         now.command = ["curl", "-sf", "--max-time", "8", "https://api.open-meteo.com/v1/forecast?current=temperature_2m,weather_code"
             + "&daily=temperature_2m_max,temperature_2m_min,weather_code"
-            + "&hourly=temperature_2m,weather_code"
+            + "&hourly=temperature_2m,weather_code,precipitation_probability,wind_speed_10m"
             + "&past_days=0&forecast_days=7"
             + "&temperature_unit=" + (fahrenheit ? "fahrenheit" : "celsius")
             + "&timezone=auto"
@@ -121,7 +136,9 @@ Singleton {
                             if (when.getTime() + 30 * 60 * 1000 >= nowMs) {
                                 hours.push({ hour: String(h.time[i]).slice(11, 16),
                                              temp: h.temperature_2m[i],
-                                             code: h.weather_code[i] });
+                                             code: h.weather_code[i],
+                                             rain: (h.precipitation_probability || [])[i] || 0,
+                                             wind: (h.wind_speed_10m || [])[i] || 0 });
                             }
                         }
                         if (hours.length === 0) {
