@@ -204,6 +204,7 @@ Singleton {
         root.locker = null;
         root.unlockFor = null;
         root.comparison = null;
+        root.syncAsk = null;
         root.props = null;
         if (root.conflictAsk) root.answerConflict("");
         if (!root.usbBusy) root.usb = null;
@@ -1240,6 +1241,60 @@ Singleton {
         if (!a || !b) return;
         root.comparison = { loading: true, a: a, b: b };
         run(["compare", a, b], r => { r.a = a; r.b = b; root.comparison = r; });
+    }
+
+    // ---- folder sync with rsync: mirror (--delete) or update (-u) -------------------
+    // A dry run fills the preview and asks first: --delete is destructive. The real
+    // run is a Process (not fire-and-forget) so its output and exit code are known,
+    // the surface can show progress, and both folders are refreshed when it ends.
+    property string syncMode: "mirror"           // mirror | update
+    property var syncAsk: null                   // { left, right, mode } while confirming
+    property string syncPreview: ""
+    property bool syncBusy: false
+    property string syncCommand: ""
+    signal syncFinished()
+
+    function _rsyncArgs(mode, dryRun) {
+        const flags = mode === "update" ? ["-au"] : ["-a", "--delete"];
+        return ["rsync"].concat(flags).concat(dryRun ? ["--dry-run"] : []).concat(["--out-format=%n"]);
+    }
+    function _syncDir(p) { return String(p).replace(/\/+$/, "") + "/"; }
+    function syncFolders(left, right, mode) {
+        if (!left || !right || left === right) return;
+        const m = mode === "update" ? "update" : "mirror";
+        const args = _rsyncArgs(m, false).concat([_syncDir(left), _syncDir(right)]);
+        root.syncAsk = { left: left, right: right, mode: m, args: args };
+        root.syncCommand = args.join(" ");
+        root.syncPreview = Tr.t("Reading what would change…");
+        syncDry.command = _rsyncArgs(m, true).concat([_syncDir(left), _syncDir(right)]);
+        syncDry.running = true;
+    }
+    function syncCancel() { root.syncAsk = null; }
+    function syncConfirm() {
+        const s = root.syncAsk;
+        if (!s || root.syncBusy) return;
+        root.syncAsk = null;
+        root.syncBusy = true;
+        syncProc.command = s.args;
+        syncProc.running = true;
+    }
+    Process {
+        id: syncDry
+        stdout: StdioCollector {
+            onStreamFinished: root.syncPreview = text.trim() || Tr.t("Nothing to change")
+        }
+    }
+    Process {
+        id: syncProc
+        stdout: StdioCollector {
+            onStreamFinished: root.syncPreview = text.trim().split("\n").filter(l => l).slice(-12).join("\n")
+        }
+        onExited: code => {
+            root.syncBusy = false;
+            if (code === 0) root.note = Tr.t("Folders synced");
+            else root.error = Tr.t("Sync failed (rsync exited %1) — is rsync installed?", code);
+            root.syncFinished();
+        }
     }
 
     // ---- several renamed at once: "Holiday #" -> Holiday 1, Holiday 2 ... ------------

@@ -26,6 +26,7 @@ Singleton {
     property var list: []                // [{ pid, name, cpu, mem, threads, ticks }]
     property real totalTicks: 0
     property int nCpus: 1
+    property var diskIo: ({})            // pid -> total bytes read + written (/proc/<pid>/io)
     property bool nethogsAvailable: false
     property var lastTicks: null        // pid -> ticks, for the delta
     property real _prevTotal: 0
@@ -40,7 +41,7 @@ Singleton {
         running: root.watching
         repeat: true
         triggeredOnStart: true
-        onTriggered: ps.running = true
+        onTriggered: { ps.running = true; if (!io.running) io.running = true; }
     }
     Process {
         id: ps
@@ -102,6 +103,31 @@ Singleton {
                     // a weird /proc: keep the last good list, never blank the UI
                     root.list = root.list || [];
                 }
+            }
+        }
+    }
+
+    // Per-process disk I/O: /proc/<pid>/io's read_bytes + write_bytes (cumulative
+    // since the process started). Cheap to read, done in its own Process so the
+    // UI thread never touches /proc; unavailable for a process we cannot read.
+    Process {
+        id: io
+        command: ["python3", "-c",
+            "import os, json\n" +
+            "out={}\n" +
+            "for pid in os.listdir('/proc'):\n" +
+            "    if not pid.isdigit(): continue\n" +
+            "    try:\n" +
+            "        r=w=0\n" +
+            "        for l in open('/proc/'+pid+'/io'):\n" +
+            "            if l.startswith('read_bytes:'): r=int(l.split()[1])\n" +
+            "            if l.startswith('write_bytes:'): w=int(l.split()[1])\n" +
+            "        out[int(pid)]=r+w\n" +
+            "    except Exception: pass\n" +
+            "print(json.dumps(out))\n"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { root.diskIo = JSON.parse(text); } catch (e) {}
             }
         }
     }

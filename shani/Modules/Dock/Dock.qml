@@ -650,6 +650,17 @@ PanelWindow {
                         }
                     }
                 }
+                // more windows than the four shown: a +N badge, so the strip
+                // never silently hides windows (niri-workspace-stack)
+                Text {
+                    visible: !wsCell.plus && wsCell.wins.length > 4
+                    anchors { right: parent.right; bottom: parent.bottom; margins: Theme.px(1) }
+                    text: "+" + (wsCell.wins.length - 4)
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: Math.max(7, wsCell.width * 0.16)
+                    font.weight: Font.DemiBold
+                }
             }
         }
         // the trash, last: drop files to throw them away; a click opens it in

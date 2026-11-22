@@ -85,6 +85,9 @@ Singleton {
         } else if (e.event === "reply") {
             state = "speaking";
             lastReply += e.text || "";
+            // attribute the answer to the model/provider that produced it
+            if (e.provider) AIProviders.lastProvider = String(e.provider);
+            if (e.model) AIProviders.lastModel = String(e.model);
         } else if (e.event === "approval") {
             state = "waiting";
             approval = { id: e.id, text: e.text || "", detail: e.detail || "",

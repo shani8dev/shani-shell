@@ -53,15 +53,45 @@ Singleton {
         onExited: code => { if (code !== 0) notifyFail.running = true; }
     }
     Process { id: notifyFail; command: ["notify-send", "-a", "Screenshot", "Scrolling capture failed — is grim, slop, ydotool and PIL installed?"] }
-    // encrypted history: optionally encrypt the screenshots folder with age/gpg
+    // encrypted capture history: encrypt screenshots at rest after the
+    // notification actions have had time to use the plaintext.
     readonly property bool encryptedHistory: Settings.data.screenshotEncrypted === true
+    property string lastCapture: ""
+    Timer { id: encryptTimer; interval: 120000; onTriggered: if (root.encryptedHistory && root.lastCapture !== "") root.encryptCapture(root.lastCapture); }
     function setEncryptedHistory(on) {
         Settings.data.screenshotEncrypted = on;
         if (on) {
-            Quickshell.execDetached(["sh", "-c",
-                'notify-send -a Screenshot "Encrypted screenshot history: new captures will be encrypted with age. Run: age -r <pubkey> -o <file.age> <file.png>"'
-                + " 2>/dev/null || true"]);
+            Keyring.get("screenshot-passphrase", pass => {
+                if (!pass) {
+                    // use the system's entropy (not Math.random) for the key
+                    const p = genProc.createObject(root, {});
+                    p.onFinished = key => { if (key) Keyring.set("screenshot-passphrase", key); notifySend("Screenshot encryption is on — captures are encrypted 2 minutes after they are taken"); };
+                    p.command = ["sh", "-c", "head -c 24 /dev/urandom | base64 | tr -d '\\n'"];
+                    p.running = true;
+                }
+                else notifySend("Screenshot encryption is on — captures are encrypted 2 minutes after they are taken");
+            });
         }
+    }
+    function notifySend(msg) { Quickshell.execDetached(["notify-send", "-a", "Screenshot", msg]); }
+    property Component genProc: Component {
+        Process {
+            property var onFinished: null
+            stdout: StdioCollector { onStreamFinished: { if (onFinished) onFinished(text.trim()); destroy(); } }
+        }
+    }
+    function encryptCapture(path) {
+        Keyring.get("screenshot-passphrase", pass => {
+            if (!pass) return;
+            const tool = Quickshell.env("SHANI_ENCRYPT_CAPTURE_TOOL") || "/usr/lib/shani-shell/encrypt-capture.py";
+            encProc.command = ["python3", tool, "encrypt", path, pass];
+            encProc.running = true;
+            root.lastCapture = "";
+        });
+    }
+    Process {
+        id: encProc
+        stdout: StdioCollector { onStreamFinished: { if (text.trim() !== "") root.last = text.trim(); } }
     }
     function later(seconds) {
         countdown = seconds;
@@ -86,6 +116,7 @@ Singleton {
 
     function offer(path) {
         last = path;
+        if (root.encryptedHistory) { root.lastCapture = path; encryptTimer.restart(); }
         if (Settings.data.screenshotCopyImage)
             Quickshell.execDetached(["sh", "-c", 'p="$1"; case "$p" in *.png) t=image/png;; *.jpg|*.jpeg) t=image/jpeg;; *.webp) t=image/webp;; *) t=image/png;; esac; wl-copy --type "$t" < "$p"', "sh", path]);
         // "default": a click on the notification itself opens the picture (Pantheon, GNOME)
@@ -122,7 +153,9 @@ Singleton {
     Process { id: ocr }
     Process {
         running: true
-        command: ["sh", "-c", "command -v " + root.annTool + " >/dev/null 2>&1 && echo yes || echo no"]
+        command: ["sh", "-c", root.annTool === "native"
+            ? 'echo yes'   // the shell's own Viewer is always available
+            : 'command -v "' + root.annTool + '" >/dev/null 2>&1 && echo yes || echo no']
         stdout: StdioCollector { onStreamFinished: root.canAnnotate = text.trim() === "yes" }
     }
     Process {
@@ -138,6 +171,13 @@ Singleton {
     }
 
     function annotate() {
+        // "native": use the shell's own image Viewer, which has pen, highlighter,
+        // line, arrow, box, text and blur (Loupe-style) — no external install.
+        if (root.annTool === "native") {
+            Viewer.open(root.last);
+            Viewer.startEdit();
+            return;
+        }
         // swappy edits PNG pictures only; a JPEG picture falls back to satty if available
         if (root.annTool === "swappy" && !root.last.endsWith(".png") && root.canSatty) {
             Quickshell.execDetached(["sh", "-c", 'command -v satty >/dev/null 2>&1 && exec satty --filename "$1" --output-filename "$1"; exec swappy -f "$1"', "sh", root.last]);

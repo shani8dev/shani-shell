@@ -22,6 +22,8 @@ AppWindow {
     property string newHostPort: ""
     property string newHostKey: ""
     property string newKeyName: ""
+    property string tunnelHostId: ""
+    property string snippetNote: ""
 
     onVisibleChanged: if (visible) TerminalApp.refresh()
 
@@ -48,16 +50,20 @@ AppWindow {
             }
             Item { Layout.fillWidth: true }
             Button { text: Tr.t("Refresh"); flat: true; onClicked: TerminalApp.refresh() }
-            Button {
-                text: win.tab === "hosts" ? Tr.t("Keys") : Tr.t("Hosts")
-                flat: true
-                onClicked: win.tab = win.tab === "hosts" ? "keys" : "hosts"
+            Repeater {
+                model: [["hosts", Tr.t("Hosts")], ["keys", Tr.t("Keys")], ["tunnels", Tr.t("Tunnels")], ["snippets", Tr.t("Snippets")]]
+                Choice {
+                    required property var modelData
+                    text: modelData[1]
+                    selected: win.tab === modelData[0] || (modelData[0] === "hosts" && win.tab === "add")
+                    onClicked: win.tab = modelData[0]
+                }
             }
         }
 
         // ---- hosts tab ----
         ColumnLayout {
-            visible: win.tab === "hosts"
+            visible: win.tab === "hosts" || win.tab === "add"
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: Theme.px(6)
@@ -82,6 +88,7 @@ AppWindow {
                             Text { text: modelData.user + "@" + modelData.host + (modelData.port !== 22 ? ":" + modelData.port : ""); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
                         }
                         Button { text: Tr.t("Connect"); kind: "primary"; onClicked: TerminalApp.connect(modelData) }
+                        IconButton { icon: "folder-remote"; size: Theme.px(26); tip: Tr.t("Browse files on this host"); onClicked: Files.connectServer("ssh://" + modelData.user + "@" + modelData.host + ":" + modelData.port + "/", "", "", "") }
                         IconButton { icon: "go-previous"; tip: Tr.t("Edit"); onClicked: { win.tab = "add"; win.newHostName = modelData.name; win.newHostAddr = modelData.host; win.newHostUser = modelData.user; win.newHostPort = String(modelData.port); win.newHostKey = modelData.key || ""; win.editId = modelData.id; } }
                     }
                     MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
@@ -117,6 +124,7 @@ AppWindow {
                             Text { text: modelData.user + "@" + modelData.host + (modelData.port !== 22 ? ":" + modelData.port : "") + (modelData.key ? " · " + Tr.t("key") : ""); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; elide: Text.ElideRight; Layout.fillWidth: true }
                         }
                         Button { text: Tr.t("Connect"); kind: "outline"; onClicked: TerminalApp.connect(modelData) }
+                        IconButton { icon: "folder-remote"; size: Theme.px(26); tip: Tr.t("Browse files on this host"); onClicked: Files.connectServer("ssh://" + modelData.user + "@" + modelData.host + ":" + modelData.port + "/", "", "", "") }
                         IconButton { icon: "object-select"; size: Theme.px(26); tip: modelData.pinned ? Tr.t("Unpin") : Tr.t("Pin"); onClicked: TerminalApp.togglePin(modelData.id) }
                         IconButton { icon: "go-previous"; size: Theme.px(26); tip: Tr.t("Edit"); onClicked: { win.tab = "add"; win.newHostName = modelData.name; win.newHostAddr = modelData.host; win.newHostUser = modelData.user; win.newHostPort = String(modelData.port); win.newHostKey = modelData.key || ""; win.editId = modelData.id; } }
                         IconButton { icon: "edit-clear-all"; size: Theme.px(26); tip: Tr.t("Delete"); onClicked: TerminalApp.deleteHost(modelData.id) }
@@ -251,6 +259,145 @@ AppWindow {
                     title: Tr.t("No SSH keys")
                     subtitle: Tr.t("Generate a new key or import one from another computer")
                 }
+            }
+        }
+
+        // ---- tunnels tab ----
+        ColumnLayout {
+            visible: win.tab === "tunnels"
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: Theme.px(6)
+
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: Tr.t("Forward a local port to a host reachable from an SSH server. The tunnel runs in the background until you stop it.")
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Repeater {
+                    model: TerminalApp.hosts
+                    Choice {
+                        required property var modelData
+                        text: modelData.name
+                        selected: (win.tunnelHostId || TerminalApp.hosts[0]?.id) === modelData.id
+                        onClicked: win.tunnelHostId = modelData.id
+                    }
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                TextField { id: tunLocal; Layout.preferredWidth: Theme.px(90); placeholder: Tr.t("Local port") }
+                TextField { id: tunRemoteHost; Layout.fillWidth: true; placeholder: Tr.t("Remote host") }
+                TextField { id: tunRemotePort; Layout.preferredWidth: Theme.px(90); placeholder: Tr.t("Remote port") }
+                Button {
+                    text: Tr.t("Start tunnel")
+                    kind: "primary"
+                    enabled: TerminalApp.hosts.length > 0 && tunLocal.text.trim() !== "" && tunRemoteHost.text.trim() !== "" && tunRemotePort.text.trim() !== ""
+                    onClicked: {
+                        const h = TerminalApp.hosts.find(x => x.id === win.tunnelHostId) || TerminalApp.hosts[0];
+                        TerminalApp.tunnel(h, tunLocal.text.trim(), tunRemoteHost.text.trim(), tunRemotePort.text.trim());
+                        tunLocal.text = ""; tunRemoteHost.text = ""; tunRemotePort.text = "";
+                    }
+                }
+            }
+            ListView {
+                id: tunnelList
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                model: TerminalApp.tunnels
+                delegate: RowLayout {
+                    required property var modelData
+                    width: tunnelList.width
+                    spacing: Theme.px(8)
+                    Icon { name: "network-workgroup"; size: Theme.px(18); color: Theme.dim }
+                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData.label; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                    Button { text: Tr.t("Stop"); flat: true; onClicked: TerminalApp.stopTunnel(modelData.id) }
+                }
+                EmptyState {
+                    anchors.centerIn: parent
+                    visible: tunnelList.count === 0
+                    icon: "network-workgroup"
+                    title: Tr.t("No active tunnels")
+                    subtitle: Tr.t("Add one with the form above")
+                }
+            }
+        }
+
+        // ---- snippets tab ----
+        ColumnLayout {
+            visible: win.tab === "snippets"
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: Theme.px(6)
+
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: Tr.t("Saved SSH commands — copy one into a terminal when you need it.")
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                TextField { id: snipName; Layout.preferredWidth: Theme.px(140); placeholder: Tr.t("Name") }
+                TextField { id: snipCommand; Layout.fillWidth: true; placeholder: Tr.t("Command, e.g. ssh -L 8080:localhost:80 server") }
+                Button {
+                    text: Tr.t("Add")
+                    kind: "primary"
+                    enabled: snipName.text.trim() !== "" && snipCommand.text.trim() !== ""
+                    onClicked: {
+                        TerminalApp.addSnippet(snipName.text, snipCommand.text);
+                        snipName.text = ""; snipCommand.text = "";
+                    }
+                }
+            }
+            ListView {
+                id: snippetList
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                model: TerminalApp.snippets
+                delegate: RowLayout {
+                    required property var modelData
+                    width: snippetList.width
+                    spacing: Theme.px(8)
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 0
+                        Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                        Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData.command; color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    }
+                    IconButton {
+                        icon: "edit-copy"; size: Theme.px(26); tip: Tr.t("Copy command")
+                        onClicked: { Quickshell.clipboardText = modelData.command; win.snippetNote = Tr.t("Copied %1", modelData.name) }
+                    }
+                    IconButton { icon: "edit-clear-all"; size: Theme.px(26); tip: Tr.t("Delete"); onClicked: TerminalApp.deleteSnippet(modelData.name) }
+                }
+                EmptyState {
+                    anchors.centerIn: parent
+                    visible: snippetList.count === 0
+                    icon: "edit-copy"
+                    title: Tr.t("No SSH snippets")
+                    subtitle: Tr.t("Save a command you use often")
+                }
+            }
+            Text {
+                visible: win.snippetNote !== ""
+                Layout.fillWidth: true
+                text: win.snippetNote
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
         }
     }

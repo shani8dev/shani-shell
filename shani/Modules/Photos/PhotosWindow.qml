@@ -21,13 +21,18 @@ AppWindow {
     property var photos: []           // [{ path, time (s), month "November 2026" }]
     property bool scanning: false
     property string filter: "all"     // all | camera | screenshots
+    property string groupBy: "month"  // day | month | year
+    property bool importBusy: false
+    property string importNote: ""
     readonly property var shown: photos.filter(p => activeAlbum === "" || activeAlbum === "all" || albums.find(a => a.name === activeAlbum)?.members?.includes(p.path))
-    // [{ month, items: [...] }], newest first
-    readonly property var months: {
+    // [{ key, items: [...] }], newest first — the key is a day, a month or a year
+    readonly property var groups: {
+        const fmt = win.groupBy === "day" ? "d MMM yyyy" : win.groupBy === "year" ? "yyyy" : "MMMM yyyy";
         const out = [];
         for (const p of shown) {
-            if (!out.length || out[out.length - 1].month !== p.month)
-                out.push({ month: p.month, items: [] });
+            const key = Qt.formatDate(new Date(p.time * 1000), fmt);
+            if (!out.length || out[out.length - 1].key !== key)
+                out.push({ key: key, items: [] });
             out[out.length - 1].items.push(p);
         }
         return out;
@@ -40,6 +45,38 @@ AppWindow {
     }
     Component.onCompleted: scan()
     onVisibleChanged: if (visible) { scan(); albumLister.running = true; }
+
+    // the Viewer's edit mode is its crop / rotate / markup mode
+    function adjust(path) {
+        if (!path) return;
+        Viewer.open(path);
+        Viewer.startEdit();
+    }
+
+    // ---- import from a mounted phone / camera / USB -------------------------------
+    function importPhotos(paths) {
+        if (!paths || !paths.length || importer.running) return;
+        importer.count = paths.length;
+        importer.command = ["sh", "-c", 'd=$1; shift; mkdir -p -- "$d" && cp -n -- "$@" "$d"', "sh", win.pictures].concat(paths);
+        win.importBusy = true;
+        win.importNote = Tr.t("Copying %1 photo%2…", paths.length, paths.length === 1 ? "" : "s");
+        importer.running = true;
+    }
+    Process {
+        id: importer
+        property int count: 0
+        property string err: ""
+        stderr: StdioCollector { onStreamFinished: importer.err = text.trim().split("\n").pop() || "" }
+        onExited: code => {
+            win.importBusy = false;
+            if (code === 0) {
+                win.importNote = Tr.t("Imported %1 photo%2", importer.count, importer.count === 1 ? "" : "s");
+                win.scan();
+            } else {
+                win.importNote = Tr.t("Import failed: %1", importer.err || Tr.t("copy error"));
+            }
+        }
+    }
 
     // ---- albums ------------------------------------------------------------------
     property var albums: []              // [{ name, members: [paths] }] — user albums
@@ -108,6 +145,15 @@ AppWindow {
                         onClicked: win.filter = modelData[0]
                     }
                 }
+                Repeater {
+                    model: [["day", Tr.t("Day")], ["month", Tr.t("Month")], ["year", Tr.t("Year")]]
+                    Choice {
+                        required property var modelData
+                        text: modelData[1]
+                        selected: win.groupBy === modelData[0]
+                        onClicked: win.groupBy = modelData[0]
+                    }
+                }
                 Item { Layout.fillWidth: true }
                 // ---- albums ----
                 Flow {
@@ -149,6 +195,17 @@ AppWindow {
                         }
                     }
                 }
+                Button {
+                    text: Tr.t("Import…")
+                    flat: true
+                    enabled: !win.importBusy
+                    onClicked: FilePicker.open({
+                        mode: "open", multiple: true,
+                        title: Tr.t("Photos to import (phone, camera, USB)"),
+                        filters: ["jpg", "jpeg", "png", "webp", "gif", "avif", "bmp", "heic", "heif"],
+                        onPicked: paths => win.importPhotos(paths)
+                    })
+                }
                 Text {
                     text: win.scanning ? Tr.t("Looking…") : win.shown.length + " " + Tr.t("photos")
                     color: Theme.dim
@@ -157,6 +214,15 @@ AppWindow {
                 }
                 IconButton { size: Theme.px(30); icon: "view-refresh"; tip: Tr.t("Look again"); onClicked: win.scan() }
                 IconButton { size: Theme.px(30); icon: "folder-pictures"; tip: Tr.t("Open Pictures in Files"); onClicked: Files.show(win.pictures) }
+            }
+            Text {
+                visible: win.importNote !== ""
+                Layout.fillWidth: true
+                text: win.importNote
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+                elide: Text.ElideRight
             }
 
             ListView {
@@ -168,8 +234,8 @@ AppWindow {
                 clip: true
                 spacing: Theme.px(14)
                 boundsBehavior: Flickable.StopAtBounds
-                model: win.months
-                // one month: its name, then its photos as square tiles
+                model: win.groups
+                // one group: its name, then its photos as square tiles
                 delegate: Column {
                     id: monthCol
                     required property var modelData
@@ -178,7 +244,7 @@ AppWindow {
                     readonly property int cols: Math.max(2, Math.floor(width / 150))
                     readonly property real cell: width / cols
                     Text {
-                        text: monthCol.modelData.month + "  ·  " + monthCol.modelData.items.length
+                        text: monthCol.modelData.key + "  ·  " + monthCol.modelData.items.length
                         color: Theme.text
                         font.family: Theme.font
                         font.pixelSize: Theme.px(14) * Theme.fontScale
@@ -214,6 +280,14 @@ AppWindow {
                                 Accessible.name: tile.modelData.path.split("/").pop()
                                 Accessible.onPressAction: Viewer.open(tile.modelData.path)
                                 MouseArea { id: tileArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Viewer.open(tile.modelData.path) }
+                                IconButton {
+                                    anchors { right: parent.right; bottom: parent.bottom; margins: Theme.px(4) }
+                                    size: Theme.px(22)
+                                    icon: "document-edit"
+                                    tip: Tr.t("Adjust…")
+                                    opacity: tileArea.containsMouse ? 1 : 0.7
+                                    onClicked: win.adjust(tile.modelData.path)
+                                }
                                 KeyFocus { name: tile.modelData.path.split("/").pop(); onActivated: Viewer.open(tile.modelData.path) }
                             }
                         }

@@ -21,20 +21,22 @@ Singleton {
     property string did: ""             // the last item pressed (the tests read it)
     property int seq: 0
 
+    property string appId: ""            // for GTK/D-Bus menu discovery alongside AT-SPI
     function load(window) {
         menus = [];
         why = "";
         pid = window && window.pid ? window.pid : 0;
         title = window ? (window.title || "") : "";
+        appId = window ? (window.app_id || "") : "";
         if (!pid) { why = "no process id for this window"; return; }
         loading = true;
         seq++;
-        reader.command = ["timeout", "6", "python3", tool, "menu", String(pid), title];
+        reader.command = ["timeout", "6", "python3", tool, "menu", String(pid), title, appId];
         reader.running = true;
     }
     function activate(path) {
         if (!pid || !path) return;
-        presser.command = ["timeout", "6", "python3", tool, "activate", String(pid), path, title];
+        presser.command = ["timeout", "6", "python3", tool, "activate", String(pid), path, title, appId];
         presser.running = true;
     }
     function clear() { menus = []; pid = 0; why = ""; }

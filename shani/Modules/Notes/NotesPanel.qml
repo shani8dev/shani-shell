@@ -29,6 +29,8 @@ AppWindow {
 
     property string filterText: ""
     property string selectedNotebook: ""
+    property string lockMode: ""            // "" | "set" | "check" — the passphrase box
+    property string lockPass: ""
     // delete asks first: a note is a file on disk, and there is no undo
     property bool confirmDelete: false
     property bool confirmNotebook: false
@@ -165,6 +167,21 @@ AppWindow {
                     Layout.margins: Theme.px(8)
 
                     Label { text: Services.QuickNotes.current || Tr.t("No note selected"); font.bold: true; Layout.fillWidth: true }
+                    Button { text: Tr.t("Checklist"); enabled: Services.QuickNotes.current !== "" && editor.enabled; onClicked: win.insertChecklist() }
+                    Button { text: Tr.t("Attach…"); enabled: Services.QuickNotes.current !== "" && editor.enabled; onClicked: Services.QuickNotes.attachFile() }
+                    Button {
+                        text: Services.QuickNotes.locked
+                              ? (Services.QuickNotes.unlocked ? Tr.t("Locked") : Tr.t("Unlock…"))
+                              : Tr.t("Lock…")
+                        enabled: Services.QuickNotes.current !== ""
+                        onClicked: {
+                            if (Services.QuickNotes.locked && Services.QuickNotes.unlocked)
+                                return;
+                            win.lockPass = "";
+                            win.lockMode = Services.QuickNotes.locked ? "check" : "set";
+                            lockField.forceActiveFocus();
+                        }
+                    }
                     Button { text: Tr.t("Export HTML"); enabled: Services.QuickNotes.current !== ""; onClicked: Services.QuickNotes.exportHtml() }
                     Button { text: Tr.t("Print"); enabled: Services.QuickNotes.current !== ""; onClicked: Services.QuickNotes.printNote() }
                     // the note is a file on disk: ask before it goes
@@ -185,6 +202,43 @@ AppWindow {
                     }
                 }
 
+                // A locked note asks for its passphrase before the body appears.
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.px(8)
+                    Layout.rightMargin: Theme.px(8)
+                    visible: (Services.QuickNotes.locked && !Services.QuickNotes.unlocked) || win.lockMode === "set"
+                    implicitHeight: lockRow.implicitHeight + Theme.px(12)
+                    color: Theme.surface1
+                    radius: Theme.radiusSmall
+                    RowLayout {
+                        id: lockRow
+                        anchors { fill: parent; margins: Theme.px(6) }
+                        spacing: Theme.px(6)
+                        TextField {
+                            id: lockField
+                            Layout.fillWidth: true
+                            secret: true
+                            placeholderText: win.lockMode === "set" ? Tr.t("Choose a passphrase") : Tr.t("Passphrase for this note")
+                            text: win.lockPass
+                            onTextChanged: win.lockPass = text
+                            onAccepted: win.submitLock()
+                            error: Services.QuickNotes.lockError
+                        }
+                        Button {
+                            text: win.lockMode === "set" ? Tr.t("Lock it") : Tr.t("Unlock")
+                            kind: "primary"
+                            enabled: win.lockPass !== ""
+                            onClicked: win.submitLock()
+                        }
+                        Button {
+                            text: Tr.t("Cancel")
+                            visible: win.lockMode === "set"
+                            onClicked: { win.lockMode = ""; win.lockPass = ""; }
+                        }
+                    }
+                }
+
                 // Text editor
                 ScrollView {
                     Layout.fillWidth: true
@@ -192,6 +246,7 @@ AppWindow {
 
                     TextArea {
                         id: editor
+                        enabled: !Services.QuickNotes.locked || Services.QuickNotes.unlocked
                         text: Services.QuickNotes.text
                         onTextChanged: {
                             if (text !== Services.QuickNotes.text) Services.QuickNotes.text = text;
@@ -258,10 +313,28 @@ AppWindow {
         if (!m) return false;
         const box = start + m[1].length;                 // the char between [ and ]
         if (index < box - 1 || index > box + 1) return false;
-        const mark = m[2] === " " ? "x" : " ";
-        editor.text = text.slice(0, box) + mark + text.slice(box + 1);
+        const lineIndex = text.slice(0, start).split("\n").length - 1;
+        if (!Services.QuickNotes.toggleChecklistItem(lineIndex)) return false;
         editor.cursorPosition = index;
         return true;
+    }
+
+    /// Put a fresh checklist box at the cursor (the service keeps the text).
+    function insertChecklist() {
+        editor.cursorPosition = Services.QuickNotes.insertChecklistItem(editor.cursorPosition);
+        editor.forceActiveFocus();
+    }
+
+    /// Lock the open note with the typed passphrase, or open a locked one.
+    function submitLock() {
+        if (win.lockPass === "")
+            return;
+        if (win.lockMode === "set")
+            Services.QuickNotes.lockNote(win.lockPass);
+        else
+            Services.QuickNotes.unlockNote(win.lockPass);
+        win.lockPass = "";
+        win.lockMode = "";
     }
 
     /// Take the clipboard's picture (wl-paste), keep it beside the notes, and

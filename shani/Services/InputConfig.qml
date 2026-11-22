@@ -164,6 +164,9 @@ Singleton {
         d.dndEdgeViewScroll ? "    dnd-edge-view-scroll" : "",
         d.dndEdgeWorkspaceSwitch ? "    dnd-edge-workspace-switch" : "",
         "}",
+        // Multi-GPU: pin the render device niri uses, so a laptop stays on
+        // its integrated GPU instead of draining battery with the dGPU
+        d.niriRenderDevice ? 'debug { render-drm-device "' + String(d.niriRenderDevice).replace(/"/g, "") + '" }' : "",
         ""
     ].filter(l => l !== "").join("\n") + "\n" : ""
 

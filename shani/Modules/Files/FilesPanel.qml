@@ -37,12 +37,13 @@ AppWindow {
         focus: win.visible
         // Escape goes back a folder first, and out of the surface at the top
         Keys.onEscapePressed: {
-            if (renameBox.visible || newFolderBox.visible || batchBox.visible || Files.props || Files.comparison || Files.usb || Files.unlockFor || Files.locker || (Files.cloudAsk && !Files.cloudAdding) || win.serveAsk !== "" || Files.conflictAsk || Files.copyTo || Files.historyShown || Files.deleteAsk.length) {
+            if (renameBox.visible || newFolderBox.visible || batchBox.visible || Files.props || Files.comparison || Files.syncAsk || Files.usb || Files.unlockFor || Files.locker || (Files.cloudAsk && !Files.cloudAdding) || win.serveAsk !== "" || Files.conflictAsk || Files.copyTo || Files.historyShown || Files.deleteAsk.length) {
                 renameBox.visible = false;
                 newFolderBox.visible = false;
                 batchBox.visible = false;
                 Files.props = null;
                 Files.comparison = null;
+                Files.syncCancel();
                 if (!Files.usbBusy) Files.usb = null;
                 Files.unlockFor = null;
                 Files.locker = null;
@@ -217,6 +218,12 @@ AppWindow {
             if (Files.splitActive)
                 win.syncSplit();
         }
+    }
+
+    // a folder sync finished: both panes show the folders as they are now
+    Connections {
+        target: Files
+        function onSyncFinished() { dir.reload(); splitDir.reload(); }
     }
 
     // the service keeps the paths and the entries, so a range selection and a
@@ -1637,6 +1644,44 @@ AppWindow {
                 Button { visible: Files.compareEdited.r; text: Tr.t("Save right"); kind: "primary"; onClicked: Files.compareSave(true) }
                 IconButton { icon: "window-close"; size: Theme.px(26); tip: Tr.t("Close"); onClicked: Files.comparison = null }
             }
+            // folder comparison only: sync one side into the other with rsync
+            RowLayout {
+                Layout.fillWidth: true
+                visible: compareBox.c.kind === "folders"
+                spacing: Theme.px(6)
+                Text {
+                    text: Tr.t("Sync:")
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+                Button {
+                    id: syncModeBtn
+                    text: Files.syncMode === "mirror" ? Tr.t("Mirror · delete extra files") : Tr.t("Update · newer files only")
+                    onClicked: Files.syncMode = Files.syncMode === "mirror" ? "update" : "mirror"
+                    Hint { text: Files.syncMode === "mirror" ? Tr.t("rsync -a --delete: the right side becomes a copy of the left") : Tr.t("rsync -au: only newer files are copied, nothing is deleted") }
+                }
+                Text {
+                    visible: Files.syncBusy
+                    text: Tr.t("Syncing…")
+                    color: Theme.accent
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+                Item { Layout.fillWidth: true }
+                Button {
+                    text: Tr.t("Sync →")
+                    enabled: !Files.syncBusy
+                    onClicked: Files.syncFolders(compareBox.c.a, compareBox.c.b, Files.syncMode)
+                    Hint { text: Tr.t("Sync %1 into %2", FilePaths.baseName(compareBox.c.a || ""), FilePaths.baseName(compareBox.c.b || "")) }
+                }
+                Button {
+                    text: Tr.t("Sync ←")
+                    enabled: !Files.syncBusy
+                    onClicked: Files.syncFolders(compareBox.c.b, compareBox.c.a, Files.syncMode)
+                    Hint { text: Tr.t("Sync %1 into %2", FilePaths.baseName(compareBox.c.b || ""), FilePaths.baseName(compareBox.c.a || "")) }
+                }
+            }
             ListView {
                 reuseItems: true
                 cacheBuffer: 400
@@ -1697,6 +1742,71 @@ AppWindow {
                             font.pixelSize: Theme.px(12) * Theme.fontScale
                         }
                     }
+                }
+            }
+        }
+    }
+
+    // ---- folder sync: confirm before rsync, --delete is destructive ------------------
+    Glass {
+        id: syncBox
+        parent: win.contentItem
+        visible: Files.syncAsk !== null
+        z: 32
+        strong: true
+        solid: true
+        radius: Theme.px(12)
+        width: Theme.px(560)
+        height: syncCol.implicitHeight + 28
+        anchors.centerIn: parent
+        readonly property var a: Files.syncAsk || ({})
+        ColumnLayout {
+            id: syncCol
+            anchors.fill: parent
+            anchors.margins: Theme.px(14)
+            spacing: Theme.px(8)
+            Text {
+                Layout.fillWidth: true
+                text: syncBox.a.mode === "mirror"
+                    ? Tr.t("Mirror %1 into %2? Files only on the right will be deleted.", FilePaths.baseName(syncBox.a.left || ""), FilePaths.baseName(syncBox.a.right || ""))
+                    : Tr.t("Update %1 into %2? Only newer files are copied, nothing is deleted.", FilePaths.baseName(syncBox.a.left || ""), FilePaths.baseName(syncBox.a.right || ""))
+                color: Theme.text
+                font.family: Theme.font
+                font.pixelSize: Theme.px(13) * Theme.fontScale
+                font.weight: Font.DemiBold
+                wrapMode: Text.Wrap
+            }
+            Text {
+                Layout.fillWidth: true
+                text: Tr.t("Dry run — what rsync would do:")
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(10) * Theme.fontScale
+            }
+            Flickable {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(Theme.px(220), syncPrev.implicitHeight + Theme.px(8))
+                clip: true
+                contentHeight: syncPrev.implicitHeight
+                Text {
+                    id: syncPrev
+                    width: parent.width
+                    text: Files.syncPreview
+                    color: Theme.dim
+                    font.family: Theme.mono
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    wrapMode: Text.Wrap
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                Button { text: Tr.t("Cancel"); onClicked: Files.syncCancel() }
+                Button {
+                    text: syncBox.a.mode === "mirror" ? Tr.t("Delete extra files and sync") : Tr.t("Sync")
+                    kind: "primary"
+                    onClicked: Files.syncConfirm()
+                    Hint { text: Tr.t("Runs: %1", Files.syncCommand || "rsync") }
                 }
             }
         }

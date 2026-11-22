@@ -9,21 +9,48 @@
     tasks.py done '<json>'      {"uid", "list", "done": true|false}
     tasks.py edit '<json>'      {"uid", "list", "summary"?, "due"?, "notes"?}
     tasks.py delete '<json>'    {"uid", "list"}
+    tasks.py repeat '<json>'    {"uid", "rule": "daily"|"weekly"|"monthly"}
 
 The same task lists GNOME's Endeavour, Thunderbird and Chronoa use: EDS's
 "Personal" one and any online account's. Writes print {"ok": true, "uid": …}.
 Exit 2: no task service here (no EDS bindings or registry); exit 3: bad input.
 """
+
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 import uuid
+from pathlib import Path
+
+# Recurrences live in a small sidecar instead of EDS: there is no VTODO RRULE
+# field that the other clients agree on. Completing a repeating task spawns
+# the next occurrence, due one interval later.
+REPEATS = (
+    Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state")
+    / "shani-task-repeats.json"
+)
+_INTERVALS = {"daily": 1, "weekly": 7, "monthly": 30}  # days
+
+
+def _load_repeats() -> dict:
+    try:
+        data = json.loads(REPEATS.read_text())
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _save_repeats(data: dict) -> None:
+    REPEATS.parent.mkdir(parents=True, exist_ok=True)
+    REPEATS.write_text(json.dumps(data))
 
 
 def bindings():
     import gi
+
     try:
         gi.require_version("ECal", "2.0")
         gi.require_version("EDataServer", "1.2")
@@ -36,13 +63,18 @@ def bindings():
         except ValueError:
             continue
     from gi.repository import ECal, EDataServer, ICalGLib  # noqa: E402
+
     return ECal, EDataServer, ICalGLib
 
 
 def _sources():
     _, EDataServer, _ = bindings()
     registry = EDataServer.SourceRegistry.new_sync(None)
-    return [s for s in registry.list_sources(EDataServer.SOURCE_EXTENSION_TASK_LIST) if s.get_enabled()]
+    return [
+        s
+        for s in registry.list_sources(EDataServer.SOURCE_EXTENSION_TASK_LIST)
+        if s.get_enabled()
+    ]
 
 
 def _clients(timeout: int = 10):
@@ -50,7 +82,9 @@ def _clients(timeout: int = 10):
     out = []
     for source in _sources():
         try:
-            client = ECal.Client.connect_sync(source, ECal.ClientSourceType.TASKS, timeout, None)
+            client = ECal.Client.connect_sync(
+                source, ECal.ClientSourceType.TASKS, timeout, None
+            )
         except Exception:  # noqa: BLE001 - one broken account must not hide the others
             continue
         out.append((source.get_display_name(), source, client))
@@ -109,19 +143,35 @@ def tasks() -> list[dict]:
         for icomp in comps or []:
             due = icomp.get_due() if hasattr(icomp, "get_due") else None
             prio = icomp.get_first_property(ICalGLib.PropertyKind.PRIORITY_PROPERTY)
-            out.append({
-                "uid": icomp.get_uid() or "", "summary": icomp.get_summary() or "(no title)",
-                "due": _timet(due), "done": _status_done(icomp, ICalGLib), "list": name,
-                "priority": int(prio.get_priority()) if prio is not None else 0,
-                "notes": icomp.get_description() or "",
-            })
+            out.append(
+                {
+                    "uid": icomp.get_uid() or "",
+                    "summary": icomp.get_summary() or "(no title)",
+                    "due": _timet(due),
+                    "done": _status_done(icomp, ICalGLib),
+                    "list": name,
+                    "priority": int(prio.get_priority()) if prio is not None else 0,
+                    "notes": icomp.get_description() or "",
+                }
+            )
     # open first, then by due date (none last), then by name
-    return sorted(out, key=lambda t: (t["done"], t["due"] == 0, t["due"], t["summary"].lower()))
+    return sorted(
+        out, key=lambda t: (t["done"], t["due"] == 0, t["due"], t["summary"].lower())
+    )
 
 
 def task_lists() -> list[dict]:
-    return sorted(({"name": s.get_display_name() or "", "uid": s.get_uid() or "", "readOnly": not s.get_writable()} for s in _sources()),
-                  key=lambda x: x["name"].lower())
+    return sorted(
+        (
+            {
+                "name": s.get_display_name() or "",
+                "uid": s.get_uid() or "",
+                "readOnly": not s.get_writable(),
+            }
+            for s in _sources()
+        ),
+        key=lambda x: x["name"].lower(),
+    )
 
 
 def _ical_due(ts: float) -> str:
@@ -130,18 +180,54 @@ def _ical_due(ts: float) -> str:
 
 
 def _esc(s: str) -> str:
-    return s.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
+    return (
+        s.replace("\\", "\\\\")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+        .replace("\n", "\\n")
+    )
+
+
+def _create_next(
+    client, rule: str, rules: dict, ICalGLib, summary: str, notes: str, due: float
+) -> str:
+    """A completed repeating task spawns the next one with a new uid and due date."""
+    base = max(due, time.time())  # a task finished late still repeats into the future
+    next_due = base + _INTERVALS[rule] * 86400
+    next_uid = str(uuid.uuid4())
+    lines = [
+        "BEGIN:VTODO",
+        f"UID:{next_uid}",
+        "DTSTAMP:" + time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()),
+        f"SUMMARY:{_esc(summary or '(no title)')}",
+        "STATUS:NEEDS-ACTION",
+        "DUE:" + _ical_due(next_due),
+    ]
+    if notes:
+        lines.append("DESCRIPTION:" + _esc(notes))
+    lines.append("END:VTODO")
+    comp = ICalGLib.Component.new_from_string("\r\n".join(lines))
+    _ok, created = client.create_object_sync(comp, 0, None)
+    new_uid = created or next_uid
+    rules[new_uid] = rule
+    _save_repeats(rules)
+    return new_uid
 
 
 def write(action: str, p: dict) -> dict:
-    _, _, ICalGLib = bindings()
     if action == "add":
+        ICalGLib = bindings()[2]
         summary = str(p.get("summary") or "").strip()
         if not summary:
             raise ValueError("a task needs a summary")
         uid = str(uuid.uuid4())
-        lines = ["BEGIN:VTODO", f"UID:{uid}", "DTSTAMP:" + time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()),
-                 f"SUMMARY:{_esc(summary)}", "STATUS:NEEDS-ACTION"]
+        lines = [
+            "BEGIN:VTODO",
+            f"UID:{uid}",
+            "DTSTAMP:" + time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()),
+            f"SUMMARY:{_esc(summary)}",
+            "STATUS:NEEDS-ACTION",
+        ]
         if float(p.get("due") or 0) > 0:
             lines.append("DUE:" + _ical_due(float(p["due"])))
         if p.get("notes"):
@@ -156,20 +242,42 @@ def write(action: str, p: dict) -> dict:
     uid = str(p.get("uid") or "")
     if not uid:
         raise ValueError("which task? (uid)")
+    if action == "repeat":
+        rule = str(p.get("rule") or "").strip().lower()
+        if rule and rule not in _INTERVALS:
+            raise ValueError("repeat: use daily, weekly or monthly")
+        rules = _load_repeats()
+        if rule:
+            rules[uid] = rule
+        else:
+            rules.pop(uid, None)  # an empty rule stops the repeat
+        _save_repeats(rules)
+        return {"ok": True, "uid": uid, "rule": rule}
+    ICalGLib = bindings()[2]
     client = _client(str(p.get("list") or ""))
     if action == "delete":
         ECal = bindings()[0]
         client.remove_object_sync(uid, None, ECal.ObjModType.THIS, 0, None)
         return {"ok": True, "uid": uid}
     ok, comp = client.get_object_sync(uid, None, None)
+    was_done = False
     if action == "done":
         done = bool(p.get("done", True))
-        comp.set_status(ICalGLib.PropertyStatus.COMPLETED if done else ICalGLib.PropertyStatus.NEEDSACTION)
+        was_done = _status_done(comp, ICalGLib)
+        comp.set_status(
+            ICalGLib.PropertyStatus.COMPLETED
+            if done
+            else ICalGLib.PropertyStatus.NEEDSACTION
+        )
         old = comp.get_first_property(ICalGLib.PropertyKind.COMPLETED_PROPERTY)
         if old is not None:
             comp.remove_property(old)
         if done:
-            comp.add_property(ICalGLib.Property.new_from_string("COMPLETED:" + time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())))
+            comp.add_property(
+                ICalGLib.Property.new_from_string(
+                    "COMPLETED:" + time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+                )
+            )
     elif action == "edit":
         if p.get("summary"):
             comp.set_summary(str(p["summary"]))
@@ -180,17 +288,34 @@ def write(action: str, p: dict) -> dict:
             if old is not None:
                 comp.remove_property(old)
             if float(p["due"] or 0) > 0:
-                comp.add_property(ICalGLib.Property.new_from_string("DUE:" + _ical_due(float(p["due"]))))
+                comp.add_property(
+                    ICalGLib.Property.new_from_string(
+                        "DUE:" + _ical_due(float(p["due"]))
+                    )
+                )
     else:
         raise ValueError(f"unknown action {action}")
     ECal = bindings()[0]
     client.modify_object_sync(comp, ECal.ObjModType.THIS, 0, None)
+    rules = _load_repeats()
+    rule = rules.get(uid)
+    if action == "done" and rule and not was_done and bool(p.get("done", True)):
+        due = _timet(comp.get_due() if hasattr(comp, "get_due") else None)
+        _create_next(
+            client,
+            rule,
+            rules,
+            ICalGLib,
+            comp.get_summary() or "",
+            comp.get_description() or "",
+            due,
+        )
     return {"ok": True, "uid": uid}
 
 
 def main(argv: list[str]) -> int:
     try:
-        if len(argv) > 1 and argv[1] in ("add", "done", "edit", "delete"):
+        if len(argv) > 1 and argv[1] in ("add", "done", "edit", "delete", "repeat"):
             try:
                 payload = json.loads(argv[2]) if len(argv) > 2 else None
                 if not isinstance(payload, dict):
@@ -204,7 +329,11 @@ def main(argv: list[str]) -> int:
                 print(f"tasks: {exc}", file=sys.stderr)
                 return 3
             return 0
-        print(json.dumps(task_lists() if len(argv) > 1 and argv[1] == "lists" else tasks()))
+        print(
+            json.dumps(
+                task_lists() if len(argv) > 1 and argv[1] == "lists" else tasks()
+            )
+        )
         return 0
     except Exception as exc:  # noqa: BLE001 - no bindings, or the registry did not answer
         print(f"tasks: no task service ({exc})", file=sys.stderr)

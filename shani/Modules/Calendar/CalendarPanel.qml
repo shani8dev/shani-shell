@@ -39,6 +39,35 @@ AppWindow {
     // month view or week view: synced to Ui.calendarView so the CLI/shell
     // and the surface agree
     property string view: Ui.calendarView || "month"
+    // time zone for the times shown: "local" or a zoneinfo name. The QML JS
+    // engine's Intl converts; if it is missing we show local time + the label.
+    property string zone: "local"
+    readonly property var zones: [
+        ["local", Tr.t("Local")],
+        ["UTC", "UTC"],
+        ["America/New_York", "America/New_York"],
+        ["Europe/London", "Europe/London"],
+        ["Asia/Kolkata", "Asia/Kolkata"],
+        ["Asia/Tokyo", "Asia/Tokyo"],
+        ["Australia/Sydney", "Australia/Sydney"]
+    ]
+    readonly property string zoneLabel: {
+        const z = zones.find(x => x[0] === zone);
+        return z ? z[1] : zone;
+    }
+    function zoneTime(epochSec) {
+        const d = new Date(epochSec * 1000);
+        if (zone === "local" || typeof Intl === "undefined")
+            return Qt.formatTime(d, "HH:mm");
+        try {
+            const parts = new Intl.DateTimeFormat("en-GB", { timeZone: zone, hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(d);
+            const h = (parts.find(p => p.type === "hour") || {}).value || "00";
+            const m = (parts.find(p => p.type === "minute") || {}).value || "00";
+            return h + ":" + m;
+        } catch (e) {
+            return Qt.formatTime(d, "HH:mm");   // unsupported zone/Intl: local time
+        }
+    }
     readonly property date month: new Date(today.getFullYear(), today.getMonth() + offset, 1)
     readonly property date weekAnchor: new Date(today.getFullYear(), today.getMonth(), today.getDate() + (offset * 7))
     readonly property bool sundayFirst: Settings.data.weekStartsOn === "sunday"
@@ -52,6 +81,15 @@ AppWindow {
         t.setUTCDate(t.getUTCDate() + 3 - (t.getUTCDay() + 6) % 7);
         const y = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
         return 1 + Math.round(((t - y) / 86400000 - 3 + (y.getUTCDay() + 6) % 7) / 7);
+    }
+    // day numbers for one month of the year view: leading blanks, then 1..N
+    function yearMonthDays(y, m) {
+        const out = [];
+        const lead = (new Date(y, m, 1).getDay() + (sundayFirst ? 0 : 6)) % 7;
+        for (let i = 0; i < lead; i++) out.push(0);
+        const count = new Date(y, m + 1, 0).getDate();
+        for (let d = 1; d <= count; d++) out.push(d);
+        return out;
     }
     // the grid, cell by cell: an optional week number, then seven days, per row
     readonly property var cells: {
@@ -115,8 +153,37 @@ AppWindow {
     function stepView(delta) {
         if (view === "week")
             offset += delta;
-        else
+        else if (view === "year")
+            offset += delta * 12;
+        else if (view === "day") {
+            const d = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate() + delta);
+            selectedDate = d;
+            offset = (d.getFullYear() - today.getFullYear()) * 12 + d.getMonth() - today.getMonth();
+        } else
             stepMonth(delta);   // keep the selected day inside the shown month
+    }
+    function viewLabel() {
+        if (view === "week") return weekLabel;
+        if (view === "year") return String(month.getFullYear());
+        if (view === "day") return Qt.formatDate(selectedDate, "dddd d MMMM yyyy");
+        return Qt.formatDate(month, "MMMM yyyy");
+    }
+    function prevTip() {
+        if (view === "week") return Tr.t("Previous week");
+        if (view === "day") return Tr.t("Previous day");
+        if (view === "year") return Tr.t("Previous year");
+        return Tr.t("Previous month");
+    }
+    function nextTip() {
+        if (view === "week") return Tr.t("Next week");
+        if (view === "day") return Tr.t("Next day");
+        if (view === "year") return Tr.t("Next year");
+        return Tr.t("Next month");
+    }
+    function selectYearDay(y, m, d) {
+        selectedDate = new Date(y, m, d);
+        Ui.calendarView = "day";
+        view = "day";
     }
     // the week on screen: seven days from its first, which follows "week starts on"
     readonly property date weekStart: new Date(weekAnchor.getFullYear(), weekAnchor.getMonth(),
@@ -131,6 +198,7 @@ AppWindow {
     function allDayForDay(col) { return eventsOn(col).filter(e => e.allDay); }
     function weekEventsForHour(col, hour) { return eventsOn(col).filter(e => !e.allDay && new Date(e.start * 1000).getHours() === hour); }
     function selectWeekDay(col) { selectedDate = weekDays[col]; }
+    function dayEventsForHour(hour) { return shownEvents.filter(e => !e.allDay && new Date(e.start * 1000).getHours() === hour); }
 
     // ---- event editor ------------------------------------------------------
     property bool editor: false
@@ -273,8 +341,8 @@ AppWindow {
         const start = _parseDateTime(fDateA.text, fTimeA.text);
         const end = _parseDateTime(fDateB.text, fTimeB.text);
         // Try natural language parsing as a fallback
-        const natStart = start === NaN ? _parseNaturalDateTime(fTitle.text + " " + fDateA.text + " " + fTimeA.text) : start;
-        const natEnd = end === NaN ? _parseNaturalDateTime(fTitle.text + " " + fDateB.text + " " + fTimeB.text) : end;
+        const natStart = isNaN(start) ? _parseNaturalDateTime(fTitle.text + " " + fDateA.text + " " + fTimeA.text) : start;
+        const natEnd = isNaN(end) ? _parseNaturalDateTime(fTitle.text + " " + fDateB.text + " " + fTimeB.text) : end;
         if (isNaN(natStart) || isNaN(natEnd) || natEnd <= natStart) {
             formError = Tr.t("Check the dates and times (end after start)");
             return;
@@ -320,6 +388,8 @@ AppWindow {
                 spacing: Theme.px(6)
                 Choice { text: Tr.t("Month"); selected: win.view === "month"; onClicked: { Ui.calendarView = "month"; Agenda.refresh(); } }
                 Choice { text: Tr.t("Week"); selected: win.view === "week"; onClicked: { Ui.calendarView = "week"; Agenda.refresh(); } }
+                Choice { text: Tr.t("Day"); selected: win.view === "day"; onClicked: { Ui.calendarView = "day"; Agenda.refresh(); } }
+                Choice { text: Tr.t("Year"); selected: win.view === "year"; onClicked: { Ui.calendarView = "year"; Agenda.refresh(); } }
                 Choice {
                     text: Moon.glyph(win.today) + " " + Tr.t("Panchang")
                     selected: false
@@ -339,14 +409,38 @@ AppWindow {
                 }
             }
 
+            // time zone of the event times shown below
+            Flow {
+                visible: !win.editor
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Repeater {
+                    model: win.zones
+                    Choice {
+                        required property var modelData
+                        text: modelData[1]
+                        selected: win.zone === modelData[0]
+                        onClicked: win.zone = modelData[0]
+                    }
+                }
+            }
+            Text {
+                visible: !win.editor
+                Layout.fillWidth: true
+                text: Tr.t("Times shown in %1").arg(win.zoneLabel)
+                color: Theme.faint
+                font.family: Theme.font
+                font.pixelSize: Theme.px(10) * Theme.fontScale
+            }
+
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
-                IconButton { icon: "go-previous"; size: Theme.px(28); tip: win.view === "week" ? Tr.t("Previous week") : Tr.t("Previous month"); onClicked: win.stepView(-1) }
+                IconButton { icon: "go-previous"; size: Theme.px(28); tip: win.prevTip(); onClicked: win.stepView(-1) }
                 Text {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
-                    text: win.view === "week" ? win.weekLabel : Qt.formatDate(win.month, "MMMM yyyy")
+                    text: win.viewLabel()
                     color: Theme.text
                     font.family: Theme.font
                     font.pixelSize: Theme.px(14) * Theme.fontScale
@@ -356,7 +450,7 @@ AppWindow {
                     MouseArea { anchors.fill: parent; onClicked: win.goToday() }
                     KeyFocus { onActivated: win.goToday() }
                 }
-                IconButton { icon: "go-next"; size: Theme.px(28); tip: win.view === "week" ? Tr.t("Next week") : Tr.t("Next month"); onClicked: win.stepView(1) }
+                IconButton { icon: "go-next"; size: Theme.px(28); tip: win.nextTip(); onClicked: win.stepView(1) }
             }
 
             GridLayout {
@@ -592,7 +686,7 @@ AppWindow {
                                                     radius: Theme.px(3)
                                                     color: Theme.accentSoft
                                                     Accessible.role: Accessible.Button
-                                                    Accessible.name: modelData.summary + " " + Qt.formatTime(new Date(modelData.start * 1000), "HH:mm")
+                                                    Accessible.name: modelData.summary + " " + win.zoneTime(modelData.start)
                                                     Text {
                                                         anchors.fill: parent
                                                         anchors.leftMargin: Theme.px(3); anchors.rightMargin: Theme.px(3)
@@ -622,6 +716,166 @@ AppWindow {
                     color: Theme.dim
                     font.family: Theme.font
                     font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+            }
+
+            // ---- day timetable: 00:00–23:00, events in their start hour ----
+            Flickable {
+                visible: win.view === "day"
+                Layout.fillWidth: true
+                Layout.preferredHeight: Theme.px(220)
+                contentHeight: dayHourCol.implicitHeight
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                ColumnLayout {
+                    id: dayHourCol
+                    width: parent.width
+                    spacing: 0
+                    Repeater {
+                        model: 24
+                        RowLayout {
+                            required property int index
+                            readonly property int hour: index
+                            Layout.fillWidth: true
+                            spacing: 2
+                            Text {
+                                Layout.preferredWidth: Theme.px(44)
+                                Layout.fillWidth: false
+                                text: (hour < 10 ? "0" : "") + hour + ":00"
+                                color: Theme.faint
+                                horizontalAlignment: Text.AlignHCenter
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                            Rectangle {
+                                id: dayHourCell
+                                readonly property var _evs: win.dayEventsForHour(hour)
+                                Layout.fillWidth: true
+                                implicitHeight: Math.max(22, _evs.length * 18 + 2)
+                                radius: Theme.px(4)
+                                color: "transparent"
+                                border.width: 1
+                                border.color: Theme.stroke
+                                ColumnLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: 1
+                                    spacing: 1
+                                    Repeater {
+                                        model: dayHourCell._evs
+                                        Rectangle {
+                                            required property var modelData
+                                            Layout.fillWidth: true
+                                            implicitHeight: Theme.px(16)
+                                            radius: Theme.px(3)
+                                            color: Theme.accentSoft
+                                            Accessible.role: Accessible.Button
+                                            Accessible.name: modelData.summary + " " + win.zoneTime(modelData.start)
+                                            Text {
+                                                anchors.fill: parent
+                                                anchors.leftMargin: Theme.px(4); anchors.rightMargin: Theme.px(4)
+                                                text: win.zoneTime(modelData.start) + "  " + modelData.summary
+                                                color: Theme.text
+                                                elide: Text.ElideRight
+                                                verticalAlignment: Text.AlignVCenter
+                                                font.family: Theme.font
+                                                font.pixelSize: Theme.px(9) * Theme.fontScale
+                                            }
+                                            MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.openEditor(modelData) }
+                                            KeyFocus { onActivated: win.openEditor(modelData) }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ---- year: 12 mini months; click a day for that day's view -----
+            GridLayout {
+                visible: win.view === "year"
+                Layout.fillWidth: true
+                columns: 3
+                rowSpacing: Theme.px(8)
+                columnSpacing: Theme.px(8)
+                Repeater {
+                    model: 12
+                    Rectangle {
+                        required property int index
+                        readonly property int yy: win.month.getFullYear()
+                        readonly property int mm: index
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Theme.px(118)
+                        radius: Theme.px(8)
+                        color: Theme.alpha(Theme.stroke, 0.12)
+                        border.width: 1
+                        border.color: Theme.stroke
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: Theme.px(4)
+                            spacing: 2
+                            Text {
+                                Layout.fillWidth: true
+                                text: Qt.formatDate(new Date(yy, mm, 1), "MMMM")
+                                color: Theme.text
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.weight: Font.DemiBold
+                            }
+                            Row {
+                                Layout.fillWidth: true
+                                property real cellW: width / 7
+                                Repeater {
+                                    model: win.weekNames
+                                    Text {
+                                        width: parent.cellW
+                                        horizontalAlignment: Text.AlignHCenter
+                                        text: modelData
+                                        color: Theme.faint
+                                        font.family: Theme.font
+                                        font.pixelSize: Theme.px(8) * Theme.fontScale
+                                    }
+                                }
+                            }
+                            Grid {
+                                id: yearGrid
+                                Layout.fillWidth: true
+                                columns: 7
+                                readonly property real cell: width / 7
+                                Repeater {
+                                    model: win.yearMonthDays(yy, mm)
+                                    Rectangle {
+                                        required property int modelData
+                                        readonly property bool todayCell: modelData > 0 && yy === win.today.getFullYear() && mm === win.today.getMonth() && modelData === win.today.getDate()
+                                        width: yearGrid.cell
+                                        height: Theme.px(14)
+                                        color: "transparent"
+                                        radius: Theme.px(3)
+                                        Text {
+                                            anchors.centerIn: parent
+                                            visible: parent.modelData > 0
+                                            text: parent.modelData
+                                            color: parent.todayCell ? Theme.accent : Theme.text
+                                            font.family: Theme.font
+                                            font.pixelSize: Theme.px(9) * Theme.fontScale
+                                            font.weight: parent.todayCell ? Font.DemiBold : Font.Normal
+                                        }
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            enabled: parent.modelData > 0
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: win.selectYearDay(yy, mm, parent.modelData)
+                                        }
+                                        KeyFocus {
+                                            enabled: parent.modelData > 0
+                                            onActivated: win.selectYearDay(yy, mm, parent.modelData)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
 

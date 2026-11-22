@@ -21,6 +21,7 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs.Common
 
 Singleton {
     id: root
@@ -37,6 +38,13 @@ Singleton {
     property string text: ""        // its content — what the widget shows
     property bool loaded: false
     property bool exists: false     // there is at least one note on disk
+
+    // ---- checklists / attachments / locked notes -----------------------------
+    property string lastAttached: ""   // last file copied into assets/, for `state`
+    property var unlockedIds: []       // ids of .locked.md notes unlocked this session
+    property bool locked: false        // the open note is a .locked.md
+    property bool unlocked: false      // its passphrase was accepted this session
+    property string lockError: ""      // why the last lock/unlock failed
 
     // ---- export / print / sync (Gnote parity) ------------------------------
     property string lastExported: ""   // last .html written by exportHtml(), for `state`
@@ -103,10 +111,14 @@ Singleton {
         path: root.path
         printErrors: false
         onLoaded: {
+            root.loaded = true;
+            // a locked note stays blank until its passphrase is accepted,
+            // even though FileView has already read the file
+            if (isLocked(root.current) && !isUnlocked(noteId(root.current, root.currentNotebook)))
+                return;
             // an outside edit (Chronoa, a text editor) is shown; when it
             // is empty and the open note is new, that stays empty too
             root.text = text();
-            root.loaded = true;
         }
         onLoadFailed: root.loaded = true
     }
@@ -138,11 +150,19 @@ Singleton {
         save.stop();   // do not write the old note's text into the new path
         root.current = n;
         root.currentNotebook = nb;
+        root.locked = isLocked(n);
+        root.unlocked = isUnlocked(noteId(n, nb));
+        root.lockError = "";
         root.text = "";
         file.path = root.path;   // the path follows `current` (+ notebook)
         file.reload();
+        // a .locked.md with no sidecar protects nothing: treat it as open
+        if (root.locked && !root.unlocked)
+            runLock("state", lockPath(n, nb), "", noteId(n, nb));
     }
     function set(t) {
+        if (isLocked(root.current) && !isUnlocked(noteId(root.current, root.currentNotebook)))
+            return;   // never overwrite a note whose body we cannot read
         text = t;
         if (root.current !== "")
             save.restart();
@@ -151,6 +171,8 @@ Singleton {
         id: save
         interval: 600
         onTriggered: {
+            if (isLocked(root.current) && !isUnlocked(noteId(root.current, root.currentNotebook)))
+                return;
             const dirPath = root.currentNotebook === "" ? root.dir : root.dir + "/" + root.currentNotebook;
             Quickshell.execDetached(["mkdir", "-p", dirPath]);
             file.setText(root.text);
@@ -381,5 +403,154 @@ Singleton {
         if (nb !== undefined && nb !== root.currentNotebook)
             return "";
         return root.text.split("\n").find(l => l.trim() !== "") || "";
+    }
+
+    // ---- checklists -----------------------------------------------------------
+    // Toggle the checkbox on a 0-based line of the current note. Returns false
+    // when that line is not a Markdown task, so a click elsewhere does nothing.
+    function toggleChecklistItem(lineIndex) {
+        const lines = String(root.text).split("\n");
+        const i = Number(lineIndex);
+        if (!(i >= 0) || i >= lines.length)
+            return false;
+        const m = /^(\s*[-*+]\s+\[)([ xX])(\].*)$/.exec(lines[i]);
+        if (!m)
+            return false;
+        lines[i] = m[1] + (m[2] === " " ? "x" : " ") + m[3];
+        set(lines.join("\n"));
+        return true;
+    }
+    // Insert a fresh "- [ ] " at a character position and return the new cursor
+    // position: the service owns the text, the surface owns the cursor.
+    function insertChecklistItem(pos) {
+        const t = String(root.text);
+        const at = Math.max(0, Math.min(pos === undefined ? t.length : Number(pos), t.length));
+        const lead = at > 0 && t[at - 1] !== "\n" ? "\n" : "";
+        set(t.slice(0, at) + lead + "- [ ] " + t.slice(at));
+        return at + lead.length + 6;
+    }
+
+    // ---- attachments ----------------------------------------------------------
+    // Pick a file, copy it into <notesdir>/assets/ (never overwriting one that
+    // is already there) and link it from the end of the current note.
+    function attachFile() {
+        if (root.current === "")
+            return;
+        FilePicker.open({ mode: "open", title: Tr.t("A file to attach to this note"),
+                          onPicked: paths => {
+                              if (!paths.length)
+                                  return;
+                              const src = paths[0];
+                              const name = src.slice(src.lastIndexOf("/") + 1);
+                              if (!name)
+                                  return;
+                              const folder = root.dir + "/assets";
+                              attach.name = name;
+                              attach.command = ["sh", "-c", 'mkdir -p "$1" && cp -n -- "$2" "$3"', "sh", folder, src, folder + "/" + name];
+                              attach.running = true;
+                          } });
+    }
+    Process {
+        id: attach
+        property string name: ""
+        stdout: StdioCollector {}
+        stderr: StdioCollector {}
+        onExited: code => {
+            if (code !== 0)
+                return;
+            root.lastAttached = name;
+            // escape the markdown link's delimiters; spaces in a URL are %20
+            const textName = name.replace(/([\[\]\\])/g, "\\$1");
+            const urlName = name.replace(/ /g, "%20").replace(/([()])/g, "\\$1");
+            set(String(root.text).replace(/\s*$/, "") + "\n[" + textName + "](assets/" + urlName + ")");
+        }
+    }
+
+    // ---- locked notes ---------------------------------------------------------
+    // <name>.locked.md is private in the UI: the sidecar <name>.locked.lock
+    // holds the SHA-256 of its passphrase on the first line. shortcut: this
+    // hides the body in the shell, it does not encrypt the file on disk;
+    // upgrade to gpg symmetric encryption if secrecy at rest is needed.
+    function isLocked(name) { return /\.locked$/.test(String(name || "")); }
+    function isUnlocked(id) { return unlockedIds.indexOf(id) >= 0; }
+    function lockPath(name, notebook) {
+        return notePath(name, notebook).replace(/\.md$/, ".lock");
+    }
+    function markUnlocked(id) {
+        if (!isUnlocked(id))
+            unlockedIds = unlockedIds.concat([id]);
+        root.locked = isLocked(root.current);
+        root.unlocked = isUnlocked(noteId(root.current, root.currentNotebook));
+    }
+    // one small shell helper: set the hash, check it, or ask if a lock exists.
+    // The passphrase travels as argv, never interpolated into the command.
+    function runLock(mode, sidecar, passphrase, id) {
+        lockProc.mode = mode;
+        lockProc.id = id;
+        lockProc.command = ["sh", "-c",
+            'case "$1" in set) printf %s "$3" | sha256sum | cut -d" " -f1 > "$2" ;; check) got=$(printf %s "$3" | sha256sum | cut -d" " -f1); want=$(head -n1 "$2" 2>/dev/null); [ -n "$want" ] && [ "$got" = "$want" ] ;; state) [ -s "$2" ] ;; esac',
+            "sh", mode, sidecar, passphrase];
+        lockProc.running = true;
+    }
+    Process {
+        id: lockProc
+        property string mode: ""
+        property string id: ""
+        stdout: StdioCollector {}
+        stderr: StdioCollector {}
+        onExited: code => {
+            if (mode === "state") {
+                if (code !== 0) {   // no sidecar: nothing is actually hidden
+                    markUnlocked(id);
+                    if (id === noteId(root.current, root.currentNotebook))
+                        file.reload();
+                }
+                return;
+            }
+            if (mode === "set") {
+                if (code !== 0) {
+                    root.lockError = Tr.t("Could not save the lock");
+                    return;
+                }
+                markUnlocked(id);
+                root.lockError = "";
+                refresh();
+                return;
+            }
+            if (code === 0) {
+                markUnlocked(id);
+                root.lockError = "";
+                if (id === noteId(root.current, root.currentNotebook))
+                    file.reload();
+            } else {
+                root.lockError = Tr.t("Wrong passphrase");
+            }
+        }
+    }
+    // Lock the open note: give it the .locked.md name, then store the hash.
+    function lockNote(passphrase) {
+        const pass = String(passphrase || "");
+        if (root.current === "" || pass === "")
+            return;
+        let n = root.current;
+        let nb = root.currentNotebook;
+        if (!isLocked(n)) {
+            rename(n, n + ".locked", nb);
+            if (!isLocked(root.current))
+                return;   // a note with that name already exists
+            n = root.current;
+            nb = root.currentNotebook;
+        }
+        root.locked = true;
+        root.unlocked = false;
+        root.lockError = "";
+        runLock("set", lockPath(n, nb), pass, noteId(n, nb));
+    }
+    function unlockNote(passphrase) {
+        const pass = String(passphrase || "");
+        if (root.current === "" || !isLocked(root.current) || pass === "")
+            return;
+        root.lockError = "";
+        runLock("check", lockPath(root.current, root.currentNotebook), pass, noteId(root.current, root.currentNotebook));
     }
 }

@@ -63,6 +63,15 @@ AppWindow {
         function onListChanged() { treeList = buildTree(); }
     }
 
+    // total bytes read + written, as a short number for the Disk column
+    function diskText(b) {
+        if (!b) return "0";
+        if (b < 1024) return b + " B";
+        if (b < 1048576) return (b / 1024).toFixed(0) + " KB";
+        if (b < 1073741824) return (b / 1048576).toFixed(1) + " MB";
+        return (b / 1073741824).toFixed(1) + " GB";
+    }
+
     Item {
         id: card
         anchors.fill: parent
@@ -231,6 +240,30 @@ AppWindow {
                         horizontalAlignment: Text.AlignRight
                         Layout.preferredWidth: Theme.px(96)
                     }
+                    Text {
+                        text: win.diskText(TopProcesses.diskIo[procRow.p.pid] || 0)
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.features: { "tnum": 1 }
+                        color: Theme.faint
+                        horizontalAlignment: Text.AlignRight
+                        Layout.preferredWidth: Theme.px(64)
+                        Accessible.name: Tr.t("Disk I/O") + " " + text
+                        Hint { text: Tr.t("Total read + write for this process, from /proc/<pid>/io") }
+                    }
+                    Text {
+                        // cpu is already a percentage of one core (it includes the
+                        // core count), so ~6.5 W per fully loaded core = cpu * 0.065
+                        text: Math.round(procRow.p.cpu * 0.065) + " W"
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.features: { "tnum": 1 }
+                        color: Theme.faint
+                        horizontalAlignment: Text.AlignRight
+                        Layout.preferredWidth: Theme.px(44)
+                        Accessible.name: Tr.t("Energy estimate") + " " + text
+                        Hint { text: Tr.t("Estimate from CPU use — not measured") }
+                    }
                     Button {
                         text: procRow.confirming ? Tr.t("Tap again") : Tr.t("End")
                         kind: procRow.confirming ? "danger" : "plain"
@@ -252,6 +285,15 @@ AppWindow {
                 color: Theme.dim
                 font.family: Theme.font
                 font.pixelSize: Theme.px(10) * Theme.fontScale
+                wrapMode: Text.Wrap
+            }
+            Text {
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
+                text: Tr.t("Energy is estimated from CPU use, not measured · Disk is total read + write from /proc/<pid>/io")
+                color: Theme.faint
+                font.family: Theme.font
+                font.pixelSize: Theme.px(9) * Theme.fontScale
                 wrapMode: Text.Wrap
             }
         }

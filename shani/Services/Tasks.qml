@@ -12,6 +12,8 @@ Singleton {
     readonly property string tool: Quickshell.env("SHANI_TASKS_TOOL") || "/usr/lib/shani-shell/tasks.py"
     property var tasks: []            // [{ uid, summary, due, done, list, priority, notes }]
     property var lists: []            // [{ name, uid, readOnly }]
+    property var repeats: ({})        // uid -> daily | weekly | monthly (bridge sidecar)
+    readonly property string repeatsPath: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") || "") + "/.local/state") + "/shani-task-repeats.json"
     property bool available: true
     property string error: ""
     property string selectedList: ""  // where a new task goes ("" = the first)
@@ -22,7 +24,11 @@ Singleton {
     property var told: ({})
 
     function endOfToday() { const d = new Date(); d.setHours(23, 59, 59, 999); return d.getTime(); }
-    function refresh() { if (!reader.running) reader.running = true; if (!listReader.running) listReader.running = true; }
+    function refresh() {
+        if (!reader.running) reader.running = true;
+        if (!listReader.running) listReader.running = true;
+        if (!repeatReader.running) repeatReader.running = true;
+    }
     function add(summary, due) {
         const s = String(summary || "").trim();
         if (s === "")
@@ -33,6 +39,14 @@ Singleton {
     function remove(t) { run(["delete", JSON.stringify({ uid: t.uid, list: t.list })]); }
     function rename(t, summary) { if (String(summary).trim() !== "") run(["edit", JSON.stringify({ uid: t.uid, list: t.list, summary: String(summary).trim() })]); }
     function setDue(t, due) { run(["edit", JSON.stringify({ uid: t.uid, list: t.list, due: due })]); }
+    // accept either a task or a bare uid: setRepeat(task, "weekly")
+    function setRepeat(t, rule) {
+        const uid = typeof t === "string" ? t : (t && t.uid);
+        const list = typeof t === "string" ? "" : (t && t.list);
+        if (!uid || rule === undefined || rule === null)
+            return;
+        run(["repeat", JSON.stringify({ uid: uid, list: list || "", rule: String(rule).trim().toLowerCase() })]);
+    }
 
     // one write at a time, then the list again
     property var _queue: []
@@ -65,6 +79,11 @@ Singleton {
         id: listReader
         command: ["python3", root.tool, "lists"]
         stdout: StdioCollector { onStreamFinished: { try { root.lists = JSON.parse(text); } catch (e) {} } }
+    }
+    Process {
+        id: repeatReader
+        command: ["sh", "-c", 'cat "$1" 2>/dev/null || printf "{}"', "sh", root.repeatsPath]
+        stdout: StdioCollector { onStreamFinished: { try { root.repeats = JSON.parse(text); } catch (e) {} } }
     }
     // read at the start and every ten minutes; due ones told once
     Timer { interval: 10 * 60000; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }

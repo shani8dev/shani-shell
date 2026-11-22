@@ -77,6 +77,7 @@ environment {
     QT_IM_MODULE "fcitx"
     QT_QPA_PLATFORMTHEME "gtk3"
     QT_WAYLAND_DECORATION "adwaita"
+    _JAVA_AWT_WM_NONREPARENTING "1"
 }
 
 // clipboard history for the launcher's "c" mode, and a clipboard that

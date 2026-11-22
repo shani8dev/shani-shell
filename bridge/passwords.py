@@ -16,16 +16,24 @@ and your GPG keys.
     passwords.py gpg-export <id> <file>    its public key, armoured
     passwords.py gpg-import <file>
     passwords.py gpg-delete <id>           the public key, and the secret one with it
+    passwords.py passkey-list              [{"label", "id", "created"}]
+    passwords.py passkey-add <label>       a label and a random id added to the registry
+    passwords.py passkey-delete <id>
 
 A secret is only ever printed for `reveal`, and read from stdin to be stored.
+The passkey registry is metadata only - a label and a random key-handle id. No
+WebAuthn credential is created here: browsers make and use those with a security
+key. The shell keeps the reference so it can be listed, named and removed.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import secrets
 import subprocess
 import sys
+import time
 
 import gi
 
@@ -293,6 +301,60 @@ def gpg_delete(key: str) -> dict:
     )
 
 
+# ---- passkey registry -------------------------------------------------------------
+# Metadata only: the browser owns the real WebAuthn credential and its private key.
+PASSKEYS = os.path.join(
+    os.environ.get("XDG_DATA_HOME")
+    or os.path.join(os.path.expanduser("~"), ".local/share"),
+    "shani-passkeys.json",
+)
+
+
+def _passkeys_load() -> list:
+    try:
+        with open(PASSKEYS) as f:
+            data = json.load(f)
+        return data if isinstance(data, list) else []
+    except (OSError, ValueError):
+        return []
+
+
+def _passkeys_save(items: list) -> None:
+    os.makedirs(os.path.dirname(PASSKEYS), exist_ok=True)
+    tmp = PASSKEYS + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(items, f, indent=2)
+    os.replace(tmp, PASSKEYS)
+
+
+def passkey_list() -> list:
+    return _passkeys_load()
+
+
+def passkey_add(label: str) -> dict:
+    label = (label or "").strip()
+    if not label:
+        return {"error": "a label is needed"}
+    item = {
+        "label": label,
+        "id": secrets.token_hex(16),
+        "created": int(time.time()),
+    }
+    items = _passkeys_load()
+    items.insert(0, item)
+    _passkeys_save(items)
+    return {"ok": True, "passkey": item}
+
+
+def passkey_delete(key_id: str) -> dict:
+    items = _passkeys_load()
+    rest = [k for k in items if k.get("id") != key_id]
+    if len(rest) == len(items):
+        return {"error": "no such passkey"}
+    _passkeys_save(rest)
+    return {"ok": True}
+
+
 def main(argv: list[str]) -> int:
     cmd, args = (argv[1], argv[2:]) if len(argv) > 1 else ("", [])
     try:
@@ -317,6 +379,12 @@ def main(argv: list[str]) -> int:
             r = gpg_import(args[0])
         elif cmd == "gpg-delete" and len(args) == 1:
             r = gpg_delete(args[0])
+        elif cmd == "passkey-list":
+            r = passkey_list()
+        elif cmd == "passkey-add" and len(args) == 1:
+            r = passkey_add(args[0])
+        elif cmd == "passkey-delete" and len(args) == 1:
+            r = passkey_delete(args[0])
         else:
             print(__doc__.strip().split("\n\n")[1], file=sys.stderr)
             return 2

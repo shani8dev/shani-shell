@@ -96,19 +96,28 @@ Singleton {
         }
     }
 
-    // ---- drag-to-edge ----------------------------------------------------------
-    // EdgeStrips detects when a window is dragged to an edge. Map that to a
-    // layout: left edge = left half, right edge = right half, top-left = top-left quarter.
-    // This is called by the EdgeStrips / WindowRules module.
-    function onEdgeDrop(output, edge) {
-        switch (edge) {
-            case "left":    root.apply("half", output); break;
-            case "right":   root.apply("half", output); break;   // niri handles left/right the same
-            case "top":     root.apply("half", output); break;
-            case "bottom":  root.apply("stack", output); break;
-            default: break;
+    // ---- edge snap -------------------------------------------------------------
+    // Niri has no "drag window to edge" compositor action — its columns fill the
+    // screen height. The shell approximates the Slate behaviour by snapping the
+    // focused column to a half/third width and moving it to a side. Call this
+    // from a drag handler (EdgeStrips/WindowRules) or the keyboard shortcuts
+    // below. On a build whose niri supports `move-column-to-side` this gives the
+    // familiar left/right half; older niri still gets the width snap.
+    function snapToEdge(edge) {
+        const w = Niri.focusedWindow;
+        if (!w) return;
+        Niri.action("focus-window", "--id", String(w.id));
+        if (edge === "left" || edge === "right") {
+            Niri.action("set-column-width", "50%");
+            Niri.action("move-column-to-side", edge);   // ignored on niri without it
+        } else if (edge === "top" || edge === "bottom") {
+            Niri.action("set-column-width", "100%");
+        } else if (edge === "top-left" || edge === "top-right") {
+            Niri.action("set-column-width", "50%");
+            Niri.action("move-column-to-side", edge.indexOf("left") >= 0 ? "left" : "right");
         }
     }
+    function onEdgeDrop(output, edge) { snapToEdge(edge); root.apply(edge === "top" || edge === "bottom" ? "stack" : "half", output); }
 
     // ---- custom layouts --------------------------------------------------------
     // The user can define their own grid: name, columns, rows, ratios.

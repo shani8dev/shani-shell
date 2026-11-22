@@ -564,7 +564,7 @@ ShellRoot {
                                 Text {
                                     Layout.fillWidth: true
                                     text: ({ welcome: root.t("welcome"), keyboard: root.t("keyboard"), network: root.t("network"),
-                                             time: root.t("time"), account: root.t("account"), done: root.t("done") })[root.pageId]
+                                             time: root.t("time"), account: root.t("account"), chronoa: root.t("chronoaTitle"), done: root.t("done") })[root.pageId]
                                     color: Theme.text
                                     font.family: Theme.font
                                     font.pixelSize: 24 * Theme.fontScale
@@ -595,6 +595,7 @@ ShellRoot {
                                      network: root.t("networkSub"),
                                      time: root.t("timeSub"),
                                      account: root.t("accountSub"),
+                                     chronoa: root.t("chronoaSub"),
                                      done: root.status === "signing-in" ? root.t("signingIn") : "" })[root.pageId]
                             color: Theme.dim
                             font.family: Theme.font
@@ -1199,6 +1200,88 @@ ShellRoot {
                             }
                         }
 
+                        // Chronoa offer page (between account and done)
+                        Flickable {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            visible: root.pageId === "chronoa"
+                            clip: true
+                            contentHeight: chronoaCol.implicitHeight
+                            boundsBehavior: Flickable.StopAtBounds
+                            ColumnLayout {
+                                id: chronoaCol
+                                anchors { fill: parent; margins: 32 }
+                                spacing: 16
+                                Text {
+                                    text: root.t("chronoaTitle")
+                                    font.family: Theme.font
+                                    font.pixelSize: 20 * Theme.fontScale
+                                    font.weight: Font.DemiBold
+                                    color: Theme.text
+                                }
+                                Text {
+                                    text: root.t("chronoaBody")
+                                    font.family: Theme.font
+                                    font.pixelSize: 13 * Theme.fontScale
+                                    color: Theme.dim
+                                    wrapMode: Text.Wrap
+                                }
+                                Text {
+                                    text: root.t("chronoaCost")
+                                    font.family: Theme.font
+                                    font.pixelSize: 11 * Theme.fontScale
+                                    color: Theme.faint
+                                    wrapMode: Text.Wrap
+                                }
+                                Item { Layout.fillHeight: true }
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 12
+                                    Rectangle {
+                                        Layout.fillWidth: true
+                                        implicitHeight: chronoaOnCol.implicitHeight + 12
+                                        radius: 10
+                                        color: root.chronoaOn ? Theme.accentSoft : Theme.surface1
+                                        border.width: 1
+                                        border.color: root.chronoaOn ? Theme.accent : Theme.stroke
+                                        ColumnLayout {
+                                            id: chronoaOnCol
+                                            anchors { fill: parent; margins: 12 }
+                                            spacing: 4
+                                            Text { text: root.t("chronoaOn"); font.weight: Font.DemiBold; font.family: Theme.font; font.pixelSize: 14 * Theme.fontScale; color: Theme.text }
+                                            Text { text: root.t("chronoaOnDesc"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; wrapMode: Text.Wrap }
+                                        }
+                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.chronoaOn = true }
+                                        KeyFocus { onActivated: root.chronoaOn = true }
+                                    }
+                                    Rectangle {
+                                        Layout.fillWidth: true
+                                        implicitHeight: chronoaOffCol.implicitHeight + 12
+                                        radius: 10
+                                        color: root.chronoaOn ? Theme.surface1 : Theme.accentSoft
+                                        border.width: 1
+                                        border.color: root.chronoaOn ? Theme.stroke : Theme.accent
+                                        ColumnLayout {
+                                            id: chronoaOffCol
+                                            anchors { fill: parent; margins: 12 }
+                                            spacing: 4
+                                            Text { text: root.t("chronoaOff"); font.weight: Font.DemiBold; font.family: Theme.font; font.pixelSize: 14 * Theme.fontScale; color: Theme.text }
+                                            Text { text: root.t("chronoaOffDesc"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; wrapMode: Text.Wrap }
+                                        }
+                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.chronoaOn = false }
+                                        KeyFocus { onActivated: root.chronoaOn = false }
+                                    }
+                                }
+                                // Continue control inside the chronoa page
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Layout.topMargin: 8
+                                    Item { Layout.fillWidth: true }
+                                    Button { kind: "primary"; text: root.t("start"); onClicked: root.next() }
+                                }
+                            }
+                        }
+
                         Text {
                             Layout.fillWidth: true
                             visible: text !== ""
@@ -1219,14 +1302,7 @@ ShellRoot {
                             Item { Layout.fillWidth: true }
                             Button { visible: root.pageId === "network" && !netPage.online; kind: "outline"; text: root.t("continueOffline"); onClicked: root.next() }
                             Button {
-                                visible: root.pageId === "chronoa"
-                                kind: "primary"
-                                text: root.t("start")
-                                onClicked: root.next()
-                            }
-                            Button {
                                 visible: root.pageId !== "network" || netPage.online
-                                visible: root.pageId !== "chronoa" && (root.pageId !== "network" || netPage.online)
                                 kind: "primary"
                                 text: root.pageId === "account" ? (root.status === "working" ? root.t("working") : root.t("start")) : root.t("next")
                                 enabled: (root.pageId !== "account" || (root.accountProblem === "" && root.status !== "working"))
@@ -1236,83 +1312,6 @@ ShellRoot {
                             }
                         }
                     }
-                }
-            }
-        }
-    }
-
-    // Chronoa offer page (between account and done)
-    visible: root.pageId === "chronoa"
-    anchors.fill: parent
-    Flickable {
-        Layout.fillWidth: true
-        Layout.fillHeight: true
-        clip: true
-        contentHeight: chronoaCol.implicitHeight
-        boundsBehavior: Flickable.StopAtBounds
-        ColumnLayout {
-            id: chronoaCol
-            anchors { fill: parent; margins: 32 }
-            spacing: 16
-            Text {
-                text: root.t("chronoaTitle")
-                font.family: Theme.font
-                font.pixelSize: 20 * Theme.fontScale
-                font.weight: Font.DemiBold
-                color: Theme.text
-            }
-            Text {
-                text: root.t("chronoaBody")
-                font.family: Theme.font
-                font.pixelSize: 13 * Theme.fontScale
-                color: Theme.dim
-                wrapMode: Text.Wrap
-            }
-            Text {
-                text: root.t("chronoaCost")
-                font.family: Theme.font
-                font.pixelSize: 11 * Theme.fontScale
-                color: Theme.faint
-                wrapMode: Text.Wrap
-            }
-            Item { Layout.fillHeight: true }
-            // User choices: On (recommended) or Off
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 12
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: chronoaOnCol.implicitHeight + 12
-                    radius: 10
-                    color: root.chronoaOn ? Theme.accentSoft : Theme.surface1
-                    border.width: 1
-                    border.color: root.chronoaOn ? Theme.accent : Theme.stroke
-                    ColumnLayout {
-                        id: chronoaOnCol
-                        anchors { fill: parent; margins: 12 }
-                        spacing: 4
-                        Text { text: root.t("chronoaOn"); font.weight: Font.DemiBold; font.family: Theme.font; font.pixelSize: 14 * Theme.fontScale; color: Theme.text }
-                        Text { text: root.t("chronoaOnDesc"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; wrapMode: Text.Wrap }
-                    }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.chronoaOn = true }
-                    KeyFocus { onActivated: root.chronoaOn = true }
-                }
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: chronoaOffCol.implicitHeight + 12
-                    radius: 10
-                    color: root.chronoaOn ? Theme.surface1 : Theme.accentSoft
-                    border.width: 1
-                    border.color: root.chronoaOn ? Theme.stroke : Theme.accent
-                    ColumnLayout {
-                        id: chronoaOffCol
-                        anchors { fill: parent; margins: 12 }
-                        spacing: 4
-                        Text { text: root.t("chronoaOff"); font.weight: Font.DemiBold; font.family: Theme.font; font.pixelSize: 14 * Theme.fontScale; color: Theme.text }
-                        Text { text: root.t("chronoaOffDesc"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; wrapMode: Text.Wrap }
-                    }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.chronoaOn = false }
-                    KeyFocus { onActivated: root.chronoaOn = false }
                 }
             }
         }

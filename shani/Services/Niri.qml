@@ -14,6 +14,7 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs.Common
 import "ShellApps.js" as ShellApps
 
 Singleton {
@@ -67,8 +68,19 @@ Singleton {
             focusOrder = [focusedWindowId].concat(focusOrder.filter(id => id !== focusedWindowId)).slice(0, 64);
     }
 
+    // hidden workspace names + hide-empty (niri-workspaces). The focused
+    // workspace is always kept — an operator on an invisible workspace with
+    // no way back is worse than a spare dot.
+    readonly property var hiddenWorkspaceNames: ["minimised"].concat(Settings.data.hiddenWorkspaces || [])
+    readonly property bool hideEmptyWorkspaces: Settings.data.hideEmptyWorkspaces !== false
     function workspacesOn(output) {
-        return workspaces.filter(w => w.output === output && w.name !== hiddenName);
+        return workspaces.filter(w => {
+            if (w.output !== output) return false;
+            if (w.is_active || w.is_focused) return true;
+            if (hiddenWorkspaceNames.indexOf(w.name) >= 0) return false;
+            if (hideEmptyWorkspaces && w.active_window_id === null) return false;
+            return true;
+        });
     }
 
     // ---- minimise and show desktop (niri has neither) ------------------------
@@ -276,9 +288,12 @@ Singleton {
             renameWorkspace(ws, name);
     }
     function focusWorkspace(ws) {
-        if (ws.output !== focusedOutput)
+        // niri resolves a named workspace on its own output, so skip the
+        // focus-monitor pointer warp for those (niri-workspace-stack)
+        const named = isNaN(Number(ws.name));
+        if (!named && ws.output !== focusedOutput)
             action("focus-monitor", ws.output);
-        action("focus-workspace", ws.idx);
+        action("focus-workspace", named ? ws.name : ws.idx);
     }
 
     // ---- smart window actions by title (niri-remote style) ----------------
@@ -364,12 +379,14 @@ Singleton {
             if (w.is_focused)
                 focusedWindowId = w.id;
         } else if (ev.WindowLayoutsChanged) {
-            // a floating window moved or resized (what the bar and dock step aside
-            // for); tiled ones are left alone, so scrolling the row costs nothing
+            // a window moved or resized. Floating ones are what the bar and dock
+            // step aside for; tiled ones carry pos_in_scrolling_layout / tile_size /
+            // tile_pos_in_workspace_view, used by the workspace preview and ribbon
+            // viewport indicators. Keep layout for both so scrolling stays cheap.
             let m = null;
             for (const [id, layout] of ev.WindowLayoutsChanged.changes) {
                 const w = windows[id];
-                if (!w || !w.is_floating)
+                if (!w)
                     continue;
                 m = m || Object.assign({}, windows);
                 m[id] = Object.assign({}, w, { layout: layout });

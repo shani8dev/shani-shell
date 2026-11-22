@@ -19,8 +19,44 @@ Singleton {
     property bool busy: false
     property var selected: null          // the contact being viewed/edited
 
+    // "your own card": uid kept in Settings, flag written to the vCard as
+    // X-SHANI-SELF:1 by bridge/contacts.py
+    readonly property string myUid: Settings.data.myContactUid || ""
+    readonly property var me: myUid ? (contacts.find(c => c.uid === myUid) || null) : null
+    readonly property var allGroups: {
+        const seen = {};
+        for (const c of contacts)
+            for (const g of (c.groups || []))
+                seen[g] = true;
+        return [Tr.t("All")].concat(Object.keys(seen).sort());
+    }
+
     // the list, filtered by query (contacts.py does the matching)
     readonly property var shown: contacts
+
+    function listContactsInGroup(group) {
+        if (!group || group === Tr.t("All")) return contacts.slice();
+        return contacts.filter(c => (c.groups || []).indexOf(group) >= 0);
+    }
+    function setGroups(uid, groups) {
+        const c = contacts.find(x => x.uid === uid);
+        if (!c) return;
+        run(["edit", JSON.stringify({ uid: uid, name: c.name, phone: c.phone || "",
+            email: c.email || "", groups: groups })]);
+    }
+    function setSelf(uid, on) {
+        const c = contacts.find(x => x.uid === uid);
+        if (!c) return;
+        run(["edit", JSON.stringify({ uid: uid, name: c.name, phone: c.phone || "",
+            email: c.email || "", groups: c.groups || [], self: on })]);
+    }
+    function toggleMe(uid) {
+        const becoming = myUid !== uid;
+        if (myUid && myUid !== uid) setSelf(myUid, false);
+        setSelf(uid, becoming);
+        Settings.data.myContactUid = becoming ? uid : "";
+        Settings.save();
+    }
 
     function refresh() {
         if (!reader.running) reader.running = true;
@@ -38,11 +74,11 @@ Singleton {
         writer.running = true;
     }
 
-    function add(name, phone, email) {
-        run(["add", JSON.stringify({ name: String(name || "").trim(), phone: String(phone || "").trim(), email: String(email || "").trim() })]);
+    function add(name, phone, email, groups) {
+        run(["add", JSON.stringify({ name: String(name || "").trim(), phone: String(phone || "").trim(), email: String(email || "").trim(), groups: groups || [] })]);
     }
-    function edit(uid, name, phone, email) {
-        run(["edit", JSON.stringify({ uid: uid, name: String(name || "").trim(), phone: String(phone || "").trim(), email: String(email || "").trim() })]);
+    function edit(uid, name, phone, email, groups) {
+        run(["edit", JSON.stringify({ uid: uid, name: String(name || "").trim(), phone: String(phone || "").trim(), email: String(email || "").trim(), groups: groups || [] })]);
     }
     function remove(uid) { run(["delete", JSON.stringify({ uid: uid })]); }
 

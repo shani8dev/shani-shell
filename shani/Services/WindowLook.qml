@@ -121,6 +121,10 @@ vec4 close_color(vec3 coords_geo, vec3 size_geo) {
             return "";
         const moving = d.winAnimations && !d.reduceMotion;
         const st = root.styles[d.winMotion];
+        // an optional preset file included before our own animations block
+        // (niri includes are positional; ours last wins, like niri-animations)
+        const preset = (Settings.data.winAnimationPreset || "").trim();
+        const presetLine = (moving && preset) ? ['include "' + preset.replace(/"/g, "") + '"', ""] : [];
         const anim = !moving ? ["animations {", "    off", "}"]
             : ["animations {", "    slowdown " + Number(d.winSpeed || 1).toFixed(2)]
                 .concat(st ? [root.shaderBlock("window-open", st.open, st.openShader), root.shaderBlock("window-close", st.close, st.closeShader)] : [])
@@ -129,7 +133,7 @@ vec4 close_color(vec3 coords_geo, vec3 size_geo) {
         const bl = root.blurs[d.blurStrength] || root.blurs.medium;
         return [
             "// written by shani-shell: Settings > Windows > Look and motion. Edits here are replaced."
-        ].concat(anim, [
+        ].concat(presetLine, anim, [
             "layout {",
             "    shadow {",
             sh ? "        on\n        " + sh.join("\n        ") : "        off",

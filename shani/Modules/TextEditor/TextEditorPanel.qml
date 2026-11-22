@@ -60,9 +60,10 @@ AppWindow {
             const trigger = m[1];
             const snip = win.snippets.find(s => s.trigger === trigger);
             if (snip) {
-                edit.remove(edit.cursorPosition - trigger.length, edit.cursorPosition);
-                edit.insert(edit.cursorPosition - trigger.length, snip.body);
-                edit.cursorPosition = edit.cursorPosition - trigger.length + snip.body.length;
+                const at = edit.cursorPosition - trigger.length;  // cache before remove() moves the cursor
+                edit.remove(at, edit.cursorPosition);
+                edit.insert(at, snip.body);
+                edit.cursorPosition = at + snip.body.length;
                 edit.forceActiveFocus();
                 return true;
             }

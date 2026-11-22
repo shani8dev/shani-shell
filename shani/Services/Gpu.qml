@@ -17,6 +17,11 @@ Singleton {
     // NVIDIA driver loaded, or a second render node - what launch-app.py uses
     property int renderNodes: 1
     property bool nvidia: false
+    // Multi-GPU (ArchWiki/Niri): niri may pick the discrete GPU for both the
+    // compositor and apps, draining battery on laptops. The person can pin a
+    // render node here; InputConfig writes `debug { render-drm-device "…" }`.
+    property var renderDevices: []        // [{ path, pci, name }]
+    readonly property string chosenRenderDevice: Settings.data.niriRenderDevice || ""
     readonly property bool hasChoice: (gpus.length > 1 && other !== null) || nvidia || renderNodes > 1
     property var stats: null              // { name, util, memUsed, memTotal } or null
     Process {
@@ -27,6 +32,20 @@ Singleton {
                 const l = text.trim().split("\n");
                 root.renderNodes = parseInt(l[0]) || 1;
                 root.nvidia = l.indexOf("nvidia") >= 0;
+            }
+        }
+    }
+    // /dev/dri/by-path/pci-0000:c1:00.0-render -> ../renderD129 — the PCI
+    // address identifies the card (lspci -s c1:00.0), so the picker can name it.
+    Process {
+        running: true
+        command: ["sh", "-c", 'for f in /dev/dri/by-path/*-render; do [ -e "$f" ] || continue; t=$(readlink -f "$f"); pci=$(basename "$f" -render); pci=${pci#pci-}; name=$(lspci -s "$pci" 2>/dev/null | sed "s/.*: //"); echo "$t|$pci|$name"; done']
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.renderDevices = text.trim().split("\n").filter(l => l.indexOf("|") > 0).map(l => {
+                    const [path, pci, name] = l.split("|");
+                    return { path: path, pci: pci, name: name || pci };
+                });
             }
         }
     }

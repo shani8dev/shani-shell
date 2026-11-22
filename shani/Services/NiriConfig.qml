@@ -18,17 +18,29 @@ Singleton {
     id: root
     property var pending: ({})            // path -> what it holds, in words, written and not yet loaded
     property int undone: 0                // how many times a change was put back (for tests)
+    property int rejected: 0              // how many changes niri validate refused before writing
     property string lastUndone: ""
+    property string lastRejected: ""
 
     function write(path, text, label) {
         const p = proc.createObject(root, { path: path, label: label });
-        p.command = ["sh", "-c", 'f=$1; mkdir -p "${f%/*}" || exit 1
-            # the same text again: niri would not reload, nothing to keep
-            [ -f "$f" ] && [ "$(cat "$f")" = "$(printf "%s" "$2")" ] && exit 3
+        // pre-flight: validate a candidate config beside the real one so its
+        // relative includes resolve, and never touch the live file if niri
+        // would reject it (niri-rules-studio / ArchWiki `niri validate`)
+        p.command = ["sh", "-c", 'f=$1; t=$2; label=$3
+            mkdir -p "${f%/*}" || exit 1
+            [ -f "$f" ] && [ "$(cat "$f")" = "$(printf "%s" "$t")" ] && exit 3
+            cand="$f.candidate"
+            printf "%s" "$t" > "$cand"
+            if command -v niri >/dev/null 2>&1 && ! niri validate -c "$cand" >/dev/null 2>&1; then
+                printf "%s\\n" "niri rejected $label" > "$f.invalid"
+                rm -f "$cand"; exit 4
+            fi
+            rm -f "$cand" "$f.invalid"
             if [ ! -f "$f.prev" ]; then
                 if [ -f "$f" ]; then cp "$f" "$f.prev"; else printf "// written by shani-shell\\n" > "$f.prev"; fi
             fi
-            printf "%s" "$2" > "$f.tmp" && mv "$f.tmp" "$f"', "sh", path, text];
+            printf "%s" "$t" > "$f.tmp" && mv "$f.tmp" "$f"', "sh", path, text, label];
         p.running = true;
     }
     Component {
@@ -41,6 +53,12 @@ Singleton {
                     const m = Object.assign({}, root.pending);
                     m[path] = label;
                     root.pending = m;
+                } else if (code === 4) {
+                    root.rejected++;
+                    root.lastRejected = label;
+                    Quickshell.execDetached(["notify-send", "-a", Tr.t("Settings"), "-i", "dialog-warning",
+                        Tr.t("The change was not applied"),
+                        Tr.t("Niri would reject the new %1, so nothing was changed.").replace("%1", label)]);
                 }
                 destroy();
             }

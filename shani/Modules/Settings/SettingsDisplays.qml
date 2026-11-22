@@ -258,6 +258,65 @@ ColumnLayout {
     }
 
     // ---- battery: the built-in panel at 60 Hz until the charger is back ------------
+    // ---- scale presets: resolution=scale applied when a display changes ---------
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Scale presets") }
+    Text {
+        Layout.fillWidth: true
+        wrapMode: Text.WordWrap
+        text: Tr.t("Apply a scale automatically when a display's resolution changes. One per line: 2560x1440=1.5 or DP-3:1920x1080=1.25 (port-specific wins).")
+        color: Theme.dim
+        font.family: Theme.font
+        font.pixelSize: Theme.px(11) * Theme.fontScale
+    }
+    TextField {
+        Layout.fillWidth: true
+        placeholder: Tr.t("Add a preset: 2560x1440=1.5 or DP-3:1920x1080=1.25")
+        label: Tr.t("Scale preset")
+        id: presetField
+        onAccepted: {
+            const s = text.trim();
+            if (s && /^(?:(?:[\w-]+):)?\d+x\d+=[\d.]+$/.test(s)) {
+                const all = (Settings.data.displayScalePresets || []).concat([s]);
+                Settings.data.displayScalePresets = all;
+                text = "";
+            }
+        }
+    }
+    Flow {
+        Layout.fillWidth: true
+        spacing: Theme.px(6)
+        Repeater {
+            model: Settings.data.displayScalePresets || []
+            Rectangle {
+                required property string modelData
+                required property int index
+                implicitWidth: presetLabel.implicitWidth + 30
+                height: Theme.px(26)
+                radius: Theme.px(13)
+                color: Theme.surface1
+                Text { id: presetLabel; anchors.centerIn: parent; text: modelData; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                IconButton {
+                    anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                    size: Theme.px(20)
+                    icon: "edit-clear-all"
+                    tip: Tr.t("Remove preset")
+                    onClicked: {
+                        const all = (Settings.data.displayScalePresets || []).slice();
+                        all.splice(index, 1);
+                        Settings.data.displayScalePresets = all;
+                    }
+                }
+            }
+        }
+    }
+    SwitchRow {
+        Layout.fillWidth: true
+        text: Tr.t("Apply presets automatically")
+        hint: Tr.t("when a display's resolution changes")
+        checked: Settings.data.displayScalePresetsAuto !== false
+        onToggled: on => Settings.data.displayScalePresetsAuto = on
+    }
+
     SwitchRow {
         Layout.fillWidth: true
         visible: Power.hasBattery
@@ -269,6 +328,34 @@ ColumnLayout {
 
     // ---- auto-rotate: tablets and convertibles with an accelerometer --------------
     SectionTitle { Layout.fillWidth: true; visible: AutoRotate.available; text: Tr.t("Rotation") }
+    // ---- multi-GPU: which card niri renders on -----------------------------------
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Graphics") }
+    Text {
+        Layout.fillWidth: true
+        visible: Gpu.renderDevices.length > 1
+        wrapMode: Text.WordWrap
+        text: Tr.t("Which graphics card Niri uses. On a laptop, the integrated card saves battery; a game can still be opened on the other card with the launcher's “Run on other GPU”.")
+        color: Theme.dim
+        font.family: Theme.font
+        font.pixelSize: Theme.px(11) * Theme.fontScale
+    }
+    Repeater {
+        model: Gpu.renderDevices
+        delegate: Choice {
+            required property var modelData
+            text: modelData.name + "  (" + modelData.path.split("/").pop() + ")"
+            selected: Settings.data.niriRenderDevice === modelData.path
+            visible: Gpu.renderDevices.length > 1
+            onClicked: Settings.data.niriRenderDevice = modelData.path
+        }
+    }
+    Choice {
+        visible: Gpu.renderDevices.length > 1 && Settings.data.niriRenderDevice !== ""
+        text: Tr.t("Let Niri choose")
+        selected: false
+        onClicked: Settings.data.niriRenderDevice = ""
+    }
+
     SwitchRow {
         Layout.fillWidth: true
         visible: AutoRotate.available

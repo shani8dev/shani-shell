@@ -80,6 +80,10 @@ ColumnLayout {
             Choice {
                 required property var modelData
                 text: modelData.name
+                // "Edit lab", not "lab": the same zone is also a chip in the
+                // default-zone row above, and a screen reader must be able to
+                // tell the two apart
+                Accessible.name: Tr.t("Edit %1", modelData.name)
                 selected: (page.zone || Firewall.defaultZone) === modelData.name
                 enabled: Firewall.running
                 onClicked: page.zone = modelData.name
@@ -148,6 +152,97 @@ ColumnLayout {
                 enabled: serviceField.text.trim() !== ""
                 onClicked: { Firewall.addService(page.editing.name, serviceField.text.trim()); serviceField.text = "" }
             }
+        }
+    }
+
+    // ---- rich rules: who, what, and what happens ---------------------------
+    Text { Layout.fillWidth: true; text: Tr.t("Rich rules"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.Medium }
+    Text {
+        Layout.fillWidth: true
+        text: Tr.t("A port or a service is open to everyone. A rich rule names who it is open to and what happens — accept, reject or drop — and can limit how often, log it, or forward a port elsewhere.")
+        color: Theme.dim
+        wrapMode: Text.Wrap
+        font.family: Theme.font
+        font.pixelSize: Theme.px(11) * Theme.fontScale
+    }
+    ColumnLayout {
+        Layout.fillWidth: true
+        spacing: Theme.px(2)
+        Repeater {
+            model: page.editing.rich
+            ListRow {
+                required property string modelData
+                Layout.fillWidth: true
+                icon: "network-server"
+                title: modelData
+                subtitle: Tr.t("rule")
+                extra: Button { text: Tr.t("Remove"); flat: true; Accessible.name: Tr.t("Remove %1", modelData); onClicked: Firewall.removeRich(page.editing.name, modelData) }
+            }
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            TextField {
+                id: ruleField
+                Layout.fillWidth: true
+                placeholder: Tr.t('rule service name="ssh" reject')
+            }
+            Button {
+                text: Tr.t("Add")
+                kind: "primary"
+                enabled: ruleField.text.trim() !== ""
+                onClicked: { Firewall.addRich(page.editing.name, ruleField.text.trim()); ruleField.text = "" }
+            }
+        }
+        Flow {
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Repeater {
+                model: Firewall.richPresets
+                Choice {
+                    required property var modelData
+                    text: modelData.label
+                    enabled: Firewall.running
+                    onClicked: Firewall.addRich(page.editing.name, modelData.rule)
+                }
+            }
+        }
+    }
+
+    // ---- zones --------------------------------------------------------------
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Zones") }
+    Text {
+        Layout.fillWidth: true
+        text: Tr.t("A zone is a set of rules. An interface or a connection joins one; everything else lands in the default. The usual ones are already here — a zone of your own keeps them untouched.")
+        color: Theme.dim
+        wrapMode: Text.Wrap
+        font.family: Theme.font
+        font.pixelSize: Theme.px(11) * Theme.fontScale
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.px(6)
+        TextField {
+            id: zoneField
+            Layout.fillWidth: true
+            placeholder: Tr.t("the name of a new zone")
+        }
+        Button {
+            text: Tr.t("New zone")
+            kind: "primary"
+            enabled: zoneField.text.trim() !== "" && Firewall.running
+            onClicked: { Firewall.newZone(zoneField.text.trim()); zoneField.text = "" }
+        }
+    }
+    Button {
+        Layout.fillWidth: true
+        visible: (page.zone || Firewall.defaultZone) !== "" && (page.zone || Firewall.defaultZone) !== Firewall.defaultZone
+        text: Tr.t("Delete the zone “%1”", page.zone || Firewall.defaultZone)
+        enabled: Firewall.running
+        onClicked: {
+            const gone = page.zone || Firewall.defaultZone;
+            Firewall.deleteZone(gone);
+            page.zone = "";
         }
     }
 }

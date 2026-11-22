@@ -208,6 +208,7 @@ Singleton {
             property bool smartReplies: true           // suggested replies on message notifications (SmartReplies)
             property string terminal: "footclient"     // a window of the foot server (Services/Terminal)
             property bool terminalThemed: true         // foot in the desktop's colours (~/.config/foot/foot.ini, while it is the shell's)
+            property var sshSnippets: []               // Terminal: saved SSH commands [{ name, command }]
             property bool dock: true
             // always | smart (in view, steps aside only for a window over it - Plank's
             // and Dash-to-Dock's default) | hide (until the pointer asks)
@@ -268,6 +269,7 @@ Singleton {
             property int uiFontSize: 11
             property int textEditorFontSize: 13
             property list<string> calendarsHidden: []   // calendars (by name) the Calendar, the agenda and reminders leave out
+            property string myContactUid: ""           // Contacts: the uid of "your own card"
             property string translateTo: "en"        // the Translate app's target language
             property bool textEditorColours: true     // syntax colours in the Text Editor
             property string monoFont: "JetBrains Mono"
@@ -321,7 +323,7 @@ Singleton {
             // missing Noctalia adapter entries with existing QML bindings (subagent finding #1)
             property bool showCalendarEvents: true     // SidebarCalendar.qml line 40
             property bool bluetoothAutoConnect: true  // BtAgent.qml reconnects audio/input devices
-            property string screenshotAnnotationTool: ""  // "satty" (default) | "swappy"
+            property string screenshotAnnotationTool: "native"  // "native" (Viewer) | "satty" | "swappy"
             // Keyboard & input: written to ~/.config/niri/shani-input.kdl (InputConfig)
             property bool tapToClick: true
             property bool typingGuard: true          // touchpad off while typing (dwt)
@@ -374,6 +376,8 @@ Singleton {
             property int keyRepeatRate: 30
             // screens, by connector: { mode, scale, transform, x, y, vrr, off } (Displays)
             property var displays: ({})
+            property var displayScalePresets: []          // "WxH=SCALE" or "PORT:WxH=SCALE" (Services/Displays)
+            property bool displayScalePresetsAuto: true   // apply presets on resolution change
             // what kind of screen each one is, when the owner chose it (FormFactor.js):
             // { "HDMI-A-1": "tv" }; a screen not here is told by its size and input
             property var formFactors: ({})
@@ -399,6 +403,15 @@ Singleton {
             // how windows look and move (Services/WindowLook -> niri's shani-look.kdl)
             property string winMotion: "glide"     // glide | pop | dissolve | plain (niri's own)
             property real winSpeed: 1.0            // niri's slowdown: 0.7 brisk, 1 normal, 1.5 relaxed
+            property string winAnimationPreset: ""  // path to a .kdl preset included before our animations block
+            property string niriRenderDevice: ""      // Multi-GPU: debug.render-drm-device (Services/Gpu)
+            property bool showRibbon: false            // scrollable-viewport indicator in the bar
+            property bool showWorkspaceMap: false      // proportional window map in the bar
+            property string wsLabelMode: "name_or_index"  // name | index | both | name_or_index
+            property bool wsShowPosition: false        // append "idx/count" to workspace labels
+            property string ribbonAnchor: "fit"        // "fit" | "center"
+            property var hiddenWorkspaces: []           // workspace names hidden from the bar
+            property bool hideEmptyWorkspaces: true     // drop empty, non-focused workspaces from the bar
             property string winShadow: "soft"      // off | soft | deep
             property int winCorners: 12            // 0 square .. 18 round
             property string blurStrength: "medium" // light | medium | strong

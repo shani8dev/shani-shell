@@ -16,21 +16,40 @@ Singleton {
     readonly property string path: (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config") + "/niri/shani-windows.kdl"
     readonly property var d: Settings.data
 
-    // a rule is { app: "foot", float: true|false, workspace: "chat", width: 0.5 }
-    // float false or workspace 0 or width 0: leave that thing alone
+    // a rule is { app, title, float, mode, workspace, output, width, height }
+    // float false or workspace 0 or width 0: leave that thing alone.
+    // mode: tiled | floating | fullscreen | maximized | maximized_edges
+    // width/height <= 1 is a proportion, > 1 a fixed pixel size.
     function kdlRule(std, r) {
         if (!std || std.trim() === "")
             return "";
         // the app-id is a regex: escape it, then escape for KDL (backslash first)
         const re = std.trim().replace(/[\\^$.*+?()[\]{}|]/g, "\\$&").replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+        // a manually-entered title stays a raw regex (niri-rules-studio's rule)
+        const title = (r.title || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+        const match = '    match app-id="^' + re + '$"' + (title ? ' title="' + title + '"' : "");
+        const mode = r.mode || (r.float ? "floating" : "tiled");
+        const usesSize = mode === "tiled" || mode === "floating";
+        const size = (name, v) => {
+            const n = Number(v) || 0;
+            if (n <= 0) return "";
+            return n <= 1
+                ? "    default-" + name + " { proportion " + n.toFixed(4) + "; }"
+                : "    default-" + name + " { fixed " + Math.floor(n) + "; }";
+        };
         return [
             "window-rule {",
-            "    match app-id=\"^" + re + "$\"",
-            r.float ? "    open-floating true" : "",
+            match,
+            mode === "floating" ? "    open-floating true" : "",
+            mode === "fullscreen" ? "    open-fullscreen true" : "",
+            mode === "maximized" ? "    open-maximized true" : "",
+            mode === "maximized_edges" ? "    open-maximized-to-edges true" : "",
             // a NAME (niri's open-on-workspace resolves named workspaces — the
             // ones configured with a `workspace "chat" {}` in the niri config)
             r.workspace ? "    open-on-workspace " + JSON.stringify(r.workspace) : "",
-            r.width > 0 ? "    default-column-width { proportion " + (+r.width).toFixed(4) + "; }" : "",
+            r.output ? "    open-on-output " + JSON.stringify(r.output) : "",
+            usesSize ? size("column-width", r.width) : "",
+            usesSize ? size("window-height", r.height) : "",
             "}",
             ""
         ].filter(x => x !== "").join("\n");

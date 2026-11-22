@@ -18,12 +18,30 @@ AppWindow {
 
     property real dueChoice: 0        // seconds; 0 = no date
     property bool showDone: false
+    property string smartList: "all"  // all | today | upcoming | completed | nodate
+    property var repeatTask: null     // the task whose repeat rule is being picked
+    readonly property var smartLists: [
+        ["all", Tr.t("All")], ["today", Tr.t("Today")], ["upcoming", Tr.t("Upcoming")],
+        ["completed", Tr.t("Completed")], ["nodate", Tr.t("No date")]
+    ]
+    readonly property var repeatRules: [
+        ["", Tr.t("Never")], ["daily", Tr.t("Daily")], ["weekly", Tr.t("Weekly")], ["monthly", Tr.t("Monthly")]
+    ]
     // delete asks first: two taps, the second within 4 s
     property int confirmTask: -1
     Timer { id: taskTimer; interval: 4000; onTriggered: win.confirmTask = -1 }
     onVisibleChanged: if (visible) Tasks.refresh()
 
     function at(days, hour) { const d = new Date(); d.setDate(d.getDate() + days); d.setHours(hour, 0, 0, 0); return Math.floor(d.getTime() / 1000); }
+    function inSmartList(t) {
+        if (win.smartList === "completed") return t.done;
+        if (t.done) return false;
+        if (win.smartList === "nodate") return !t.due;
+        if (win.smartList === "all") return true;
+        const end = Tasks.endOfToday();
+        if (win.smartList === "upcoming") return t.due > 0 && t.due * 1000 > end;
+        return t.due > 0 && t.due * 1000 <= end;   // today, overdue included
+    }
     readonly property var dueOptions: [
         [Tr.t("No date"), 0], [Tr.t("Today"), at(0, 18)], [Tr.t("Tomorrow"), at(1, 9)],
         [Tr.t("This weekend"), at((6 - new Date().getDay() + 7) % 7 || 7, 10)], [Tr.t("Next week"), at(7, 9)]
@@ -95,6 +113,42 @@ AppWindow {
                 font.pixelSize: Theme.px(11) * Theme.fontScale
             }
 
+            // the repeat picker for the task whose repeat button was tapped
+            Flow {
+                Layout.fillWidth: true
+                visible: win.repeatTask !== null
+                spacing: Theme.px(6)
+                Text { text: Tr.t("Repeat:"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Repeater {
+                    model: win.repeatRules
+                    Choice {
+                        required property var modelData
+                        text: modelData[1]
+                        selected: modelData[0] === (win.repeatTask ? (Tasks.repeats[win.repeatTask.uid] || "") : "")
+                        onClicked: {
+                            Tasks.setRepeat(win.repeatTask, modelData[0]);
+                            win.repeatTask = null;
+                        }
+                    }
+                }
+                IconButton { size: Theme.px(24); icon: "window-close"; tip: Tr.t("Cancel"); onClicked: win.repeatTask = null }
+            }
+
+            // smart lists: named views over the same tasks, no backend needed
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Repeater {
+                    model: win.smartLists
+                    Choice {
+                        required property var modelData
+                        text: modelData[1]
+                        selected: win.smartList === modelData[0]
+                        onClicked: win.smartList = modelData[0]
+                    }
+                }
+            }
+
             ListView {
                 reuseItems: true
                 cacheBuffer: 400
@@ -104,7 +158,9 @@ AppWindow {
                 clip: true
                 spacing: 2
                 boundsBehavior: Flickable.StopAtBounds
-                model: win.showDone ? Tasks.open.concat(Tasks.done) : Tasks.open
+                model: win.smartList === "all"
+                       ? (win.showDone ? Tasks.open.concat(Tasks.done) : Tasks.open)
+                       : Tasks.tasks.filter(t => win.inSmartList(t))
                 delegate: Rectangle {
                     id: row
                     required property var modelData
@@ -154,6 +210,15 @@ AppWindow {
                                 font.family: Theme.font
                                 font.pixelSize: Theme.px(11) * Theme.fontScale
                             }
+                        }
+                        IconButton {
+                            size: Theme.px(28)
+                            icon: "view-refresh"
+                            on: (Tasks.repeats[row.modelData.uid] || "") !== ""
+                            tip: (Tasks.repeats[row.modelData.uid] || "")
+                                 ? Tr.t("Repeats %1").arg(Tasks.repeats[row.modelData.uid])
+                                 : Tr.t("Repeat this task")
+                            onClicked: win.repeatTask = row.modelData
                         }
                         IconButton {
                             size: Theme.px(28)

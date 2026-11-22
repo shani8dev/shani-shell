@@ -24,6 +24,9 @@ AppWindow {
     property var items: []
     property string defaultCollection: ""
     property var keys: []
+    property var passkeys: []             // [{ label, id, created }] — a metadata registry, not real credentials
+    property bool addingPasskey: false
+    property string removingPasskey: ""
     property string error: ""
     property string note: ""
     property string shownPath: ""             // the item whose secret is on screen
@@ -62,7 +65,7 @@ AppWindow {
     readonly property bool hasIssues: weakCount > 0 || reusedCount > 0
     readonly property var visibleItems: items.filter(i => !search.text.trim() || (i.label + " " + JSON.stringify(i.attributes)).toLowerCase().indexOf(search.text.trim().toLowerCase()) >= 0)
 
-    function refresh() { lister.running = true; keyLister.running = true; }
+    function refresh() { lister.running = true; keyLister.running = true; passkeyLister.running = true; }
     onVisibleChanged: if (visible) refresh()
     Component.onCompleted: refresh()
 
@@ -84,6 +87,11 @@ AppWindow {
         id: keyLister
         command: ["python3", win.tool, "gpg-list"]
         stdout: StdioCollector { onStreamFinished: { try { win.keys = JSON.parse(text) || []; } catch (e) { win.keys = []; } Ui.passwordsKeys = win.keys.map(k => k.uid); } }
+    }
+    Process {
+        id: passkeyLister
+        command: ["python3", win.tool, "passkey-list"]
+        stdout: StdioCollector { onStreamFinished: { try { const r = JSON.parse(text); win.passkeys = Array.isArray(r) ? r : []; } catch (e) { win.passkeys = []; } } }
     }
     // one action at a time; stdin carries any secret
     Process {
@@ -143,7 +151,7 @@ AppWindow {
             Layout.fillWidth: true
             spacing: Theme.px(6)
             Repeater {
-                model: [["passwords", Tr.t("Passwords")], ["gpg", Tr.t("GPG keys")]]
+                model: [["passwords", Tr.t("Passwords")], ["gpg", Tr.t("GPG keys")], ["passkeys", Tr.t("Passkeys")]]
                 Choice { required property var modelData; text: modelData[1]; selected: win.tab === modelData[0]; onClicked: win.tab = modelData[0] }
             }
             Choice { text: Tr.t("SSH keys…"); onClicked: Quickshell.execDetached(["shani-cassini", "--section=sshkeys"]) }
@@ -361,6 +369,89 @@ AppWindow {
                     tip: win.removing === krow.modelData.id ? Tr.t("Click again: the key is deleted") : Tr.t("Delete")
                     onClicked: { if (win.removing === krow.modelData.id) { win.removing = ""; win.run(["gpg-delete", krow.modelData.id]); } else win.removing = krow.modelData.id; }
                 }
+            }
+        }
+
+        // ---- passkeys (a registry of references, not real WebAuthn credentials) ----
+        Text {
+            visible: win.tab === "passkeys"
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+            text: Tr.t("Websites use passkeys through your browser and a security key. The shell keeps only this registry — a label, a random key-handle id and the date — so you can name and remove the references. It does not create WebAuthn credentials here.")
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
+        RowLayout {
+            visible: win.tab === "passkeys"
+            Layout.fillWidth: true
+            Item { Layout.fillWidth: true }
+            Button { text: Tr.t("Add…"); onClicked: win.addingPasskey = !win.addingPasskey }
+        }
+        ColumnLayout {
+            visible: win.tab === "passkeys" && win.addingPasskey
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            TextField { id: newPasskeyLabel; Layout.fillWidth: true; placeholderText: Tr.t("What it is for, e.g. example.org") }
+            RowLayout {
+                Item { Layout.fillWidth: true }
+                Button { text: Tr.t("Cancel"); flat: true; onClicked: win.addingPasskey = false }
+                Button {
+                    kind: "primary"
+                    text: Tr.t("Save")
+                    enabled: newPasskeyLabel.text.trim() !== ""
+                    onClicked: win.run(["passkey-add", newPasskeyLabel.text.trim()], "", r => {
+                        if (r.ok) { win.addingPasskey = false; newPasskeyLabel.text = ""; }
+                    })
+                }
+            }
+        }
+        ListView {
+            reuseItems: true
+            cacheBuffer: 400
+            id: passkeyList
+            visible: win.tab === "passkeys"
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            clip: true
+            spacing: 2
+            model: win.passkeys
+            delegate: RowLayout {
+                id: prow
+                required property var modelData
+                width: passkeyList.width
+                spacing: Theme.px(8)
+                Icon { name: "dialog-password"; size: Theme.px(20); color: Theme.dim }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: prow.modelData.label || Tr.t("Unnamed"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                    Text {
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        text: (prow.modelData.id || "") + (prow.modelData.created ? "  ·  " + Qt.formatDate(new Date(prow.modelData.created * 1000), "d MMM yyyy") : "")
+                        color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale
+                    }
+                }
+                IconButton { icon: "edit-copy"; size: Theme.px(26); tip: Tr.t("Copy the key-handle id"); onClicked: { Quickshell.clipboardText = prow.modelData.id; win.note = Tr.t("%1 id copied", prow.modelData.label) } }
+                IconButton {
+                    icon: win.removingPasskey === prow.modelData.id ? "edit-delete" : "window-close"
+                    size: Theme.px(26)
+                    tip: win.removingPasskey === prow.modelData.id ? Tr.t("Click again: the reference is deleted") : Tr.t("Delete")
+                    onClicked: {
+                        if (win.removingPasskey === prow.modelData.id) {
+                            win.removingPasskey = "";
+                            win.run(["passkey-delete", prow.modelData.id]);
+                        } else win.removingPasskey = prow.modelData.id;
+                    }
+                }
+            }
+            EmptyState {
+                anchors.centerIn: parent
+                visible: passkeyList.count === 0
+                icon: "dialog-password"
+                title: Tr.t("No passkeys yet")
+                subtitle: Tr.t("Add one to keep a reference to a passkey you use")
             }
         }
     }

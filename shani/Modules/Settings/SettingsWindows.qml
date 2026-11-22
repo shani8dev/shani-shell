@@ -3,6 +3,7 @@
 // new window opens, whether focus follows the pointer, and animations.
 import QtQuick
 import QtQuick.Layouts
+import Quickshell.Io
 import qs.Common
 import qs.Services
 
@@ -82,6 +83,21 @@ ColumnLayout {
         current: page.d.winSpeed
         onPicked: v => page.d.winSpeed = v
     }
+    // ---- animation presets: .kdl files included before our own block -------------
+    Process {
+        id: presetLister
+        command: ["sh", "-c", 'd="${XDG_CONFIG_HOME:-$HOME/.config}/niri/animations"; [ -d "$d" ] && find "$d" -maxdepth 1 -name "*.kdl" -type f 2>/dev/null | sort']
+        stdout: StdioCollector { onStreamFinished: { page.animationPresets = text.trim().split("\n").filter(s => s !== ""); } }
+    }
+    property var animationPresets: []
+    Component.onCompleted: presetLister.running = true
+    Picks {
+        label: Tr.t("Animation preset")
+        enabled: page.d.winAnimations && !page.d.reduceMotion
+        options: [{ label: Tr.t("No preset"), value: "" }].concat(page.animationPresets.map(p => ({ label: p.split("/").pop().replace(/\.kdl$/, ""), value: p })))
+        current: page.d.winAnimationPreset || ""
+        onPicked: v => page.d.winAnimationPreset = v
+    }
     Picks {
         label: Tr.t("Shadow")
         options: [{ label: Tr.t("None"), value: "off" }, { label: Tr.t("Soft"), value: "soft" }, { label: Tr.t("Deep"), value: "deep" }]
@@ -104,7 +120,7 @@ ColumnLayout {
     // ---- per-app rules: written to the shell's niri include (WindowRules) -------------
     function setRule(i, patch) {
         const rules = Array.from(page.d.windowRules || []);
-        rules[i] = Object.assign({}, rules[i] || { app: "", float: false, workspace: "", width: 0 }, patch);
+        rules[i] = Object.assign({}, rules[i] || { app: "", title: "", mode: "tiled", workspace: "", output: "", width: 0, height: 0 }, patch);
         page.d.windowRules = rules;
     }
     function popRule(i) {
@@ -141,10 +157,23 @@ ColumnLayout {
                 IconButton { icon: "list-remove"; onClicked: page.popRule(index) }
             }
             Picks {
-                label: Tr.t("Opens floating?")
-                options: [{ label: Tr.t("Tiled, like the rest"), value: false }, { label: Tr.t("Floating"), value: true }]
-                current: !!modelData.float
-                onPicked: v => page.setRule(index, { float: v })
+                label: Tr.t("How it opens")
+                options: [
+                    { label: Tr.t("Tiled, like the rest"), value: "tiled" },
+                    { label: Tr.t("Floating"), value: "floating" },
+                    { label: Tr.t("Full screen"), value: "fullscreen" },
+                    { label: Tr.t("Maximized"), value: "maximized" },
+                    { label: Tr.t("Maximized to edges"), value: "maximized_edges" }
+                ]
+                current: rule.modelData.mode || (rule.modelData.float ? "floating" : "tiled")
+                onPicked: v => page.setRule(index, { mode: v, float: v === "floating" })
+            }
+            TextField {
+                Layout.fillWidth: true
+                placeholder: Tr.t("Also match window title (a regular expression)")
+                label: Tr.t("Window title")
+                text: rule.modelData.title || ""
+                onTextChanged: page.setRule(index, { title: text })
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -164,11 +193,82 @@ ColumnLayout {
                     }
                 }
             }
-            Picks {
-                label: Tr.t("Width")
-                options: [{ label: Tr.t("Niri's usual"), value: 0 }, { label: Tr.t("A third"), value: 0.33333 }, { label: Tr.t("Half"), value: 0.5 }, { label: Tr.t("Two thirds"), value: 0.66667 }, { label: Tr.t("Full"), value: 1 }]
-                current: modelData.width || 0
-                onPicked: v => page.setRule(index, { width: v })
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(8)
+                visible: Displays.outputs.length > 1
+                Text { text: Tr.t("Opens on screen"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    Choice {
+                        text: Tr.t("Any screen")
+                        selected: !rule.modelData.output
+                        onClicked: page.setRule(index, { output: "" })
+                    }
+                    Repeater {
+                        model: Displays.outputs
+                        Choice {
+                            required property var modelData
+                            text: modelData.label || modelData.name
+                            selected: (rule.modelData.output || "") === modelData.name
+                            onClicked: page.setRule(index, { output: modelData.name })
+                        }
+                    }
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(8)
+                visible: (rule.modelData.mode || (rule.modelData.float ? "floating" : "tiled")) === "tiled"
+                    || (rule.modelData.mode || (rule.modelData.float ? "floating" : "tiled")) === "floating"
+                Text { text: Tr.t("Width"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    Repeater {
+                        model: [
+                            { label: Tr.t("Niri's usual"), value: 0 },
+                            { label: Tr.t("A third"), value: 0.33333 },
+                            { label: Tr.t("Half"), value: 0.5 },
+                            { label: Tr.t("Two thirds"), value: 0.66667 },
+                            { label: Tr.t("Full"), value: 1 }
+                        ]
+                        Choice {
+                            required property var modelData
+                            text: modelData.label
+                            selected: (rule.modelData.width || 0) === modelData.value
+                            onClicked: page.setRule(index, { width: modelData.value })
+                        }
+                    }
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(8)
+                visible: (rule.modelData.mode || (rule.modelData.float ? "floating" : "tiled")) === "tiled"
+                    || (rule.modelData.mode || (rule.modelData.float ? "floating" : "tiled")) === "floating"
+                Text { text: Tr.t("Height"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    Repeater {
+                        model: [
+                            { label: Tr.t("Niri's usual"), value: 0 },
+                            { label: Tr.t("A third"), value: 0.33333 },
+                            { label: Tr.t("Half"), value: 0.5 },
+                            { label: Tr.t("Full"), value: 1 },
+                            { label: Tr.t("800 px"), value: 800 },
+                            { label: Tr.t("1200 px"), value: 1200 }
+                        ]
+                        Choice {
+                            required property var modelData
+                            text: modelData.label
+                            selected: (rule.modelData.height || 0) === modelData.value
+                            onClicked: page.setRule(index, { height: modelData.value })
+                        }
+                    }
+                }
             }
         }
     }
@@ -176,6 +276,63 @@ ColumnLayout {
         Layout.fillWidth: true
         text: Tr.t("Add a rule for an app")
         onClicked: page.d.windowRules = Array.from(page.d.windowRules || []).concat([{ app: "", float: false, workspace: "", width: 0 }])
+    }
+
+    // ---- workspace bar: label modes, hidden names, indicators --------------------
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Workspaces in the bar") }
+    Picks {
+        label: Tr.t("Workspace label")
+        options: [
+            { label: Tr.t("Name, else number"), value: "name_or_index" },
+            { label: Tr.t("Name"), value: "name" },
+            { label: Tr.t("Number"), value: "index" },
+            { label: Tr.t("Number and name"), value: "both" }
+        ]
+        current: page.d.wsLabelMode || "name_or_index"
+        onPicked: v => page.d.wsLabelMode = v
+    }
+    SwitchRow {
+        Layout.fillWidth: true
+        text: Tr.t("Show workspace position")
+        hint: Tr.t("append the workspace's place among the visible ones")
+        checked: page.d.wsShowPosition
+        onToggled: on => page.d.wsShowPosition = on
+    }
+    SwitchRow {
+        Layout.fillWidth: true
+        text: Tr.t("Hide empty workspaces")
+        hint: Tr.t("empty workspaces are not shown in the bar; the one you are on always is")
+        checked: page.d.hideEmptyWorkspaces !== false
+        onToggled: on => page.d.hideEmptyWorkspaces = on
+    }
+    TextField {
+        Layout.fillWidth: true
+        placeholder: Tr.t("Hidden workspace names, comma separated")
+        label: Tr.t("Hidden workspaces")
+        text: (page.d.hiddenWorkspaces || []).join(", ")
+        onTextChanged: {
+            page.d.hiddenWorkspaces = text.split(",").map(s => s.trim()).filter(s => s !== "");
+        }
+    }
+    SwitchRow {
+        Layout.fillWidth: true
+        text: Tr.t("Scrollable view indicator")
+        hint: Tr.t("a ribbon in the bar showing where the visible part of the workspace row is")
+        checked: page.d.showRibbon
+        onToggled: on => page.d.showRibbon = on
+    }
+    Picks {
+        label: Tr.t("View indicator anchor")
+        options: [{ label: Tr.t("Fit"), value: "fit" }, { label: Tr.t("Center focused column"), value: "center" }]
+        current: page.d.ribbonAnchor || "fit"
+        onPicked: v => page.d.ribbonAnchor = v
+    }
+    SwitchRow {
+        Layout.fillWidth: true
+        text: Tr.t("Workspace window map")
+        hint: Tr.t("show each tiled window as a small rectangle in the bar")
+        checked: page.d.showWorkspaceMap
+        onToggled: on => page.d.showWorkspaceMap = on
     }
 
     Text {

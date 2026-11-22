@@ -3,8 +3,8 @@
 
     contacts.py list [QUERY]        [{uid, name, phone, email, ...}] sorted by name
     contacts.py search QUERY        same as list QUERY (live search)
-    contacts.py add '<json>'        {"name": "…", "phone": "…", "email": "…"}
-    contacts.py edit '<json>'       {"uid": "…", "name": "…", "phone": "…", "email": "…"}
+    contacts.py add '<json>'        {"name": "…", "phone": "…", "email": "…", "groups": [], "self": false}
+    contacts.py edit '<json>'       {"uid": "…", "name": "…", "phone": "…", "email": "…", "groups": [], "self": false}
     contacts.py delete '<json>'     {"uid": "…"} (a bare uid string is also read)
     contacts.py import '<path>'     a .vcf path, or '{"path": "…"}' (same contract)
     contacts.py get '<uid>'         one contact as JSON
@@ -41,7 +41,9 @@ from pathlib import Path
 # Let a checkout of shani-link serve the import (the dev machine keeps it at
 # ~/Documents/shani/shani-link); an installed package needs no path help.
 for _candidate in (Path.home() / "Documents/shani/shani-link",):
-    if (_candidate / "shani_link" / "contacts.py").is_file() and str(_candidate) not in sys.path:
+    if (_candidate / "shani_link" / "contacts.py").is_file() and str(
+        _candidate
+    ) not in sys.path:
         sys.path.insert(0, str(_candidate))
 
 
@@ -56,11 +58,16 @@ def folder() -> Path:
     except Exception:  # noqa: BLE001 - no package: the XDG rule below is the API's
         pass
     configured = os.environ.get("XDG_DATA_HOME", "")
-    base = Path(configured) if configured and Path(configured).is_absolute() else Path.home() / ".local" / "share"
+    base = (
+        Path(configured)
+        if configured and Path(configured).is_absolute()
+        else Path.home() / ".local" / "share"
+    )
     return base / "shani-link" / "contacts"
 
 
 # --- searching and sorting (the documented rules of contacts.py) -----------------
+
 
 def fold_text(text: str) -> str:
     """Lowercase with accents removed, so "jose" finds "José"."""
@@ -76,7 +83,9 @@ def _display(contact: dict) -> str:
     name = (contact.get("name") or "").strip()
     if name:
         return name
-    joined = " ".join(p for p in (contact.get("given", ""), contact.get("family", "")) if p)
+    joined = " ".join(
+        p for p in (contact.get("given", ""), contact.get("family", "")) if p
+    )
     if joined.strip():
         return joined.strip()
     for key in ("phones", "emails"):
@@ -91,15 +100,27 @@ def matches(contact: dict, query: str) -> bool:
     q = fold_text((query or "").strip())
     if not q:
         return True
-    names = fold_text(" ".join((contact.get("name", ""), contact.get("given", ""),
-                                contact.get("family", ""))))
+    names = fold_text(
+        " ".join(
+            (
+                contact.get("name", ""),
+                contact.get("given", ""),
+                contact.get("family", ""),
+            )
+        )
+    )
     if all(word in names for word in q.split()):
         return True
-    if any(q in fold_text(item.get("address", "")) for item in contact.get("emails") or []):
+    if any(
+        q in fold_text(item.get("address", "")) for item in contact.get("emails") or []
+    ):
         return True
     wanted = digits(q)
     if len(wanted) >= 2:
-        return any(wanted in digits(item.get("number", "")) for item in contact.get("phones") or [])
+        return any(
+            wanted in digits(item.get("number", ""))
+            for item in contact.get("phones") or []
+        )
     return False
 
 
@@ -109,6 +130,7 @@ def sort_key(contact: dict) -> tuple[str, str]:
 
 
 # --- vCard: reading (2.1, 3.0 and 4.0) --------------------------------------------
+
 
 def _unfold(text: str) -> list[str]:
     raw = re.sub(r"\r\n|\r", "\n", text)
@@ -125,7 +147,7 @@ def _split(value: str, sep: str) -> list[str]:
     while i < len(value):
         ch = value[i]
         if ch == "\\" and i + 1 < len(value):
-            cur.append(value[i:i + 2])
+            cur.append(value[i : i + 2])
             i += 2
             continue
         if ch == sep:
@@ -149,14 +171,28 @@ def parse(text: str) -> list[dict]:
         name = head.split(".")[-1].split(";", 1)[0].strip().upper()
         value = value.strip()
         if name == "BEGIN" and value.upper() == "VCARD":
-            current = {"uid": "", "name": "", "given": "", "family": "",
-                       "phones": [], "emails": []}
+            current = {
+                "uid": "",
+                "name": "",
+                "given": "",
+                "family": "",
+                "phones": [],
+                "emails": [],
+                "groups": [],
+                "self": False,
+            }
             continue
         if current is None:
             continue
         if name == "END":
-            if _display(current) != "Unnamed contact" or current["phones"] or current["emails"]:
-                current["name"] = _display(current) if not current["name"] else current["name"]
+            if (
+                _display(current) != "Unnamed contact"
+                or current["phones"]
+                or current["emails"]
+            ):
+                current["name"] = (
+                    _display(current) if not current["name"] else current["name"]
+                )
                 found.append(current)
             current = None
             continue
@@ -175,6 +211,13 @@ def parse(text: str) -> list[dict]:
             address = re.sub(r"^mailto:", "", _unescape(value).strip(), flags=re.I)
             if address:
                 current["emails"].append({"type": "home", "address": address})
+        elif name == "CATEGORIES":
+            for group in _split(value, ","):
+                group = _unescape(group).strip()
+                if group and group not in current["groups"]:
+                    current["groups"].append(group)
+        elif name == "X-SHANI-SELF":
+            current["self"] = value.strip().lower() in ("1", "true", "yes")
     for c in found:
         if not c["name"]:
             joined = " ".join(p for p in (c.get("given", ""), c.get("family", "")) if p)
@@ -184,9 +227,15 @@ def parse(text: str) -> list[dict]:
 
 # --- vCard: writing (4.0, as Shani Link's serialize writes) ------------------------
 
+
 def _escape(value: str) -> str:
-    return (value.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,")
-            .replace("\r\n", "\n").replace("\n", "\\n"))
+    return (
+        value.replace("\\", "\\\\")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+        .replace("\r\n", "\n")
+        .replace("\n", "\\n")
+    )
 
 
 def _fold(line: str) -> str:
@@ -224,13 +273,30 @@ def serialize(contact: dict) -> str:
     lines.append("FN:" + _escape(name))
     lines.append(f"N:{_escape(family)};{_escape(given)};;;")
     for item in contact.get("phones") or []:
-        number = (item.get("number") or "").strip() if isinstance(item, dict) else str(item).strip()
+        number = (
+            (item.get("number") or "").strip()
+            if isinstance(item, dict)
+            else str(item).strip()
+        )
         if number:
-            lines.append(f"TEL;TYPE={item.get('type', 'cell') if isinstance(item, dict) else 'cell'}:{_escape(number)}")
+            lines.append(
+                f"TEL;TYPE={item.get('type', 'cell') if isinstance(item, dict) else 'cell'}:{_escape(number)}"
+            )
     for item in contact.get("emails") or []:
-        address = (item.get("address") or "").strip() if isinstance(item, dict) else str(item).strip()
+        address = (
+            (item.get("address") or "").strip()
+            if isinstance(item, dict)
+            else str(item).strip()
+        )
         if address:
-            lines.append(f"EMAIL;TYPE={item.get('type', 'home') if isinstance(item, dict) else 'home'}:{_escape(address)}")
+            lines.append(
+                f"EMAIL;TYPE={item.get('type', 'home') if isinstance(item, dict) else 'home'}:{_escape(address)}"
+            )
+    groups = [str(g).strip() for g in (contact.get("groups") or []) if str(g).strip()]
+    if groups:
+        lines.append("CATEGORIES:" + ",".join(_escape(g) for g in groups))
+    if contact.get("self"):
+        lines.append("X-SHANI-SELF:1")
     lines.append("END:VCARD")
     return "".join(_fold(ln) + "\r\n" for ln in lines)
 
@@ -255,19 +321,33 @@ def _atomic_write(path: Path, data: bytes) -> None:
 
 # --- the book on disk (one .vcf per contact, named by UID) ------------------------
 
+
 def _file(uid: str) -> Path:
     safe = re.sub(r"[^A-Za-z0-9_.-]", "_", uid)
     return folder() / f"{safe}.vcf"
 
 
 def _to_json(contact: dict) -> dict:
-    phones = [{"type": p.get("type", "cell"), "number": p.get("number", "")} for p in contact.get("phones") or []]
-    emails = [{"type": e.get("type", "home"), "address": e.get("address", "")} for e in contact.get("emails") or []]
-    return {"uid": contact.get("uid", ""), "name": contact.get("name") or _display(contact),
-            "given": contact.get("given", ""), "family": contact.get("family", ""),
-            "phone": phones[0]["number"] if phones else "",
-            "email": emails[0]["address"] if emails else "",
-            "phones": phones, "emails": emails}
+    phones = [
+        {"type": p.get("type", "cell"), "number": p.get("number", "")}
+        for p in contact.get("phones") or []
+    ]
+    emails = [
+        {"type": e.get("type", "home"), "address": e.get("address", "")}
+        for e in contact.get("emails") or []
+    ]
+    return {
+        "uid": contact.get("uid", ""),
+        "name": contact.get("name") or _display(contact),
+        "given": contact.get("given", ""),
+        "family": contact.get("family", ""),
+        "phone": phones[0]["number"] if phones else "",
+        "email": emails[0]["address"] if emails else "",
+        "phones": phones,
+        "emails": emails,
+        "groups": list(contact.get("groups") or []),
+        "self": bool(contact.get("self", False)),
+    }
 
 
 def all_contacts() -> list[dict]:
@@ -330,16 +410,37 @@ def import_file(path: str) -> list[dict]:
         return import_text(fh.read())
 
 
-def _make(name: str, phone: str, email: str, uid: str = "") -> dict:
+def _make(
+    name: str,
+    phone: str,
+    email: str,
+    uid: str = "",
+    groups=None,
+    is_self: bool = False,
+) -> dict:
     given, family = _split_name(name)
-    return {"uid": uid, "name": name.strip(), "given": given, "family": family,
-            "phones": [{"type": "cell", "number": phone.strip()}] if (phone or "").strip() else [],
-            "emails": [{"type": "home", "address": email.strip()}] if (email or "").strip() else []}
+    return {
+        "uid": uid,
+        "name": name.strip(),
+        "given": given,
+        "family": family,
+        "phones": [{"type": "cell", "number": phone.strip()}]
+        if (phone or "").strip()
+        else [],
+        "emails": [{"type": "home", "address": email.strip()}]
+        if (email or "").strip()
+        else [],
+        "groups": [str(g).strip() for g in (groups or []) if str(g).strip()],
+        "self": bool(is_self),
+    }
 
 
 def main(argv: list[str]) -> int:
     if len(argv) < 2:
-        print("usage: contacts.py list [QUERY] | add|edit|delete '<json>' | import PATH", file=sys.stderr)
+        print(
+            "usage: contacts.py list [QUERY] | add|edit|delete '<json>' | import PATH",
+            file=sys.stderr,
+        )
         return 3
     command = argv[1]
     if command in ("list", "search"):
@@ -389,7 +490,15 @@ def main(argv: list[str]) -> int:
             if not name:
                 print("Invalid argument: a contact needs a name", file=sys.stderr)
                 return 3
-            saved = save(_make(name, str(payload.get("phone", "")), str(payload.get("email", ""))))
+            saved = save(
+                _make(
+                    name,
+                    str(payload.get("phone", "")),
+                    str(payload.get("email", "")),
+                    groups=payload.get("groups"),
+                    is_self=bool(payload.get("self")),
+                )
+            )
             print(json.dumps({"ok": True, "uid": saved["uid"]}))
             return 0
         if command == "edit":
@@ -398,10 +507,24 @@ def main(argv: list[str]) -> int:
             if not uid or not name:
                 print("Invalid argument: edit needs a uid and a name", file=sys.stderr)
                 return 3
-            if get_contact(uid) is None:
+            existing = get_contact(uid)
+            if existing is None:
                 print(f"Invalid argument: no contact with uid {uid!r}", file=sys.stderr)
                 return 3
-            saved = save(_make(name, str(payload.get("phone", "")), str(payload.get("email", "")), uid))
+            saved = save(
+                _make(
+                    name,
+                    str(payload.get("phone", "")),
+                    str(payload.get("email", "")),
+                    uid,
+                    groups=payload["groups"]
+                    if "groups" in payload
+                    else existing.get("groups"),
+                    is_self=bool(payload["self"])
+                    if "self" in payload
+                    else bool(existing.get("self")),
+                )
+            )
             print(json.dumps({"ok": True, "uid": saved["uid"]}))
             return 0
         # delete

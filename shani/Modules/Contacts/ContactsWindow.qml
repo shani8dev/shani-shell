@@ -24,6 +24,9 @@ AppWindow {
     property string editPhone: ""
     property string editEmail: ""
     property string editUid: ""
+    property string editGroups: ""
+    property bool showGroupField: false
+    property string groupFilter: Tr.t("All")
 
     // delete asks first: two taps, the second within 4 s
     property string confirmDelete: ""
@@ -92,7 +95,7 @@ AppWindow {
                 visible: win.mode === "list" && !win.showDuplicates
                 text: Tr.t("New contact")
                 kind: "primary"
-                onClicked: { win.mode = "add"; win.editName = ""; win.editPhone = ""; win.editEmail = ""; win.editUid = ""; }
+                onClicked: { win.mode = "add"; win.editName = ""; win.editPhone = ""; win.editEmail = ""; win.editUid = ""; win.editGroups = ""; win.showGroupField = false; }
             }
             Button {
                 visible: win.mode !== "list"
@@ -106,8 +109,9 @@ AppWindow {
                 kind: "primary"
                 enabled: win.editName.trim() !== ""
                 onClicked: {
-                    if (win.mode === "add") Contacts.add(win.editName, win.editPhone, win.editEmail);
-                    else Contacts.edit(win.editUid, win.editName, win.editPhone, win.editEmail);
+                    const groups = win.editGroups.split(",").map(s => s.trim()).filter(s => s);
+                    if (win.mode === "add") Contacts.add(win.editName, win.editPhone, win.editEmail, groups);
+                    else Contacts.edit(win.editUid, win.editName, win.editPhone, win.editEmail, groups);
                     win.mode = "list";
                 }
             }
@@ -139,6 +143,19 @@ AppWindow {
                 label: Tr.t("Email address")
                 text: win.editEmail
                 onTextChanged: win.editEmail = text
+            }
+            Button {
+                text: win.showGroupField ? Tr.t("Hide groups") : Tr.t("Group…")
+                flat: true
+                onClicked: win.showGroupField = !win.showGroupField
+            }
+            TextField {
+                visible: win.showGroupField
+                Layout.fillWidth: true
+                placeholder: Tr.t("Groups, comma-separated")
+                label: Tr.t("Groups")
+                text: win.editGroups
+                onTextChanged: win.editGroups = text
             }
             Text {
                 visible: Contacts.error !== ""
@@ -231,6 +248,21 @@ AppWindow {
             }
         }
 
+        Flow {
+            visible: win.mode === "list" && !win.showDuplicates
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Repeater {
+                model: Contacts.allGroups
+                Choice {
+                    required property string modelData
+                    text: modelData
+                    selected: win.groupFilter === modelData
+                    onClicked: win.groupFilter = modelData
+                }
+            }
+        }
+
         ListView {
             id: list
             visible: win.mode === "list" && !win.showDuplicates
@@ -239,7 +271,7 @@ AppWindow {
             clip: true
             reuseItems: true
             cacheBuffer: 400
-            model: Contacts.shown
+            model: win.groupFilter === Tr.t("All") ? Contacts.shown : Contacts.listContactsInGroup(win.groupFilter)
             delegate: Rectangle {
                 required property var modelData
                 width: list.width
@@ -256,7 +288,7 @@ AppWindow {
                         Layout.fillWidth: true
                         spacing: 0
                         Text {
-                            text: modelData.name || Tr.t("Unnamed")
+                            text: (modelData.name || Tr.t("Unnamed")) + (modelData.uid === Contacts.myUid ? "  ·  " + Tr.t("You") : "")
                             color: Theme.text
                             font.family: Theme.font
                             font.pixelSize: Theme.px(13) * Theme.fontScale
@@ -272,6 +304,12 @@ AppWindow {
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                         }
+                    }
+                    IconButton {
+                        size: Theme.px(28)
+                        icon: modelData.uid === Contacts.myUid ? "starred" : "avatar-default"
+                        tip: modelData.uid === Contacts.myUid ? Tr.t("This is you") : Tr.t("This is me")
+                        onClicked: Contacts.toggleMe(modelData.uid)
                     }
                     IconButton {
                         size: Theme.px(28)
@@ -301,6 +339,8 @@ AppWindow {
                         win.editName = modelData.name || "";
                         win.editPhone = modelData.phone || "";
                         win.editEmail = modelData.email || "";
+                        win.editGroups = (modelData.groups || []).join(", ");
+                        win.showGroupField = (modelData.groups || []).length > 0;
                     }
                 }
             }

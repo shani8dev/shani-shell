@@ -11,6 +11,8 @@ Singleton {
     id: root
     property var hosts: []               // [{ id, name, host, port, user, key, type }]
     property var keys: []                // [{ id, name, fingerprint, path }]
+    property var tunnels: []             // [{ id, pidfile, label, host, localPort, remoteHost, remotePort }]
+    property var snippets: Settings.loaded ? (Settings.data.sshSnippets || []) : []
     property bool busy: false
     property string error: ""
     readonly property string sshDir: Quickshell.env("HOME") + "/.ssh"
@@ -77,6 +79,46 @@ Singleton {
         , "sh", host.user + "@" + host.host, String(host.port || 22)];
         testProc.running = true;
         cbStore = cb;
+    }
+
+    // ---- port forwards: ssh -N -L local:remotehost:remoteport, kept in the background ----
+    function tunnel(h, localPort, remoteHost, remotePort) {
+        if (!h || !localPort || !remoteHost || !remotePort) return "";
+        const lp = parseInt(localPort, 10), rp = parseInt(remotePort, 10);
+        if (!lp || !rp || lp < 1 || lp > 65535 || rp < 1 || rp > 65535) return "";
+        const id = String(Date.now()) + Math.floor(Math.random() * 1000);
+        const pidfile = (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/shani-tunnel-" + id + ".pid";
+        const sshArgs = ["ssh", "-N", "-o", "StrictHostKeyChecking=accept-new",
+                         "-L", lp + ":" + remoteHost + ":" + rp, "-p", String(h.port || 22)];
+        if (h.key) sshArgs.push("-i", sshDir + "/" + h.key);
+        sshArgs.push(h.user + "@" + h.host);
+        // $1 is the pidfile; the rest is the ssh command, run detached with nohup
+        Quickshell.execDetached(["sh", "-c", 'pf=$1; shift; nohup "$@" >/dev/null 2>&1 & echo $! > "$pf"', "sh", pidfile].concat(sshArgs));
+        root.tunnels = root.tunnels.concat([{ id: id, pidfile: pidfile,
+            label: lp + " → " + remoteHost + ":" + rp + " · " + (h.name || h.host),
+            host: h.host, localPort: lp, remoteHost: remoteHost, remotePort: rp }]);
+        return id;
+    }
+    function stopTunnel(id) {
+        const t = root.tunnels.find(x => x.id === id);
+        if (!t) return;
+        Quickshell.execDetached(["sh", "-c", 'if [ -f "$1" ]; then kill "$(cat "$1")" 2>/dev/null || true; rm -f "$1"; fi', "sh", t.pidfile]);
+        root.tunnels = root.tunnels.filter(x => x.id !== id);
+    }
+
+    // ---- SSH snippets: stored in Settings.data.sshSnippets ----
+    function addSnippet(name, command) {
+        name = String(name || "").trim();
+        command = String(command || "").trim();
+        if (!name || !command) return;
+        const next = root.snippets.filter(s => s.name !== name).concat([{ name: name, command: command }]);
+        root.snippets = next;
+        Settings.data.sshSnippets = next;
+    }
+    function deleteSnippet(name) {
+        const next = root.snippets.filter(s => s.name !== name);
+        root.snippets = next;
+        Settings.data.sshSnippets = next;
     }
 
     // ---- internals ----

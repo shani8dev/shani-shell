@@ -68,6 +68,58 @@ Singleton {
     }
     function setScale(name, scale) { apply(name, { scale: scale }); }
 
+    // ---- temporary (this-session-only) output changes ---------------------------
+    // Like the Noctalia niri-displays plugin: `niri msg output <port> ...` changes
+    // the live session only and is never written to config.kdl. A niri restart
+    // restores the configured values. Our `apply()` above remains the persistent
+    // path with its 15 s probation; these are for "try it now".
+    function temporary(port, args) {
+        if (!port) return;
+        Quickshell.execDetached(["niri", "msg", "output", port].concat(args.map(String)));
+        Qt.callLater(root.rescan);
+    }
+    function tempMode(port, w, h, refreshHz) {
+        // niri takes WxH@Hz, e.g. 3840x2160@59.997
+        const hz = refreshHz ? Number(refreshHz).toFixed(3) : null;
+        const spec = hz ? (w + "x" + h + "@" + hz) : (w + "x" + h);
+        temporary(port, ["mode", spec]);
+    }
+    function tempScale(port, scale) { temporary(port, ["scale", String(scale)]); }
+    function tempTransform(port, transform) { temporary(port, ["transform", transform]); }
+    function tempPosition(port, x, y) { temporary(port, ["position", "set", "--", String(x), String(y)]); }
+    function tempEnabled(port, on) {
+        if (!on && outputs.filter(o => o.on && o.name !== port).length === 0)
+            return;   // never leave the session with no screen
+        temporary(port, [on ? "on" : "off"]);
+    }
+
+    // ---- scale presets (resolution=scale, optionally PORT:WxH=SCALE) -------------
+    // Applied automatically when a resolution changes, after the pattern of the
+    // niri-displays plugin. The most specific matching preset (port-specific,
+    // last one) wins.
+    readonly property var scalePresets: Settings.data.displayScalePresets || []
+    function presetScale(port, w, h) {
+        const res = w + "x" + h;
+        let chosen = null;
+        for (const entry of scalePresets) {
+            const s = String(entry || "");
+            const m = s.match(/^(?:([\w-]+):)?(\d+x\d+)=([\d.]+)$/);
+            if (!m || m[2] !== res) continue;
+            if (m[1] && m[1] !== port) continue;
+            chosen = parseFloat(m[3]);   // last valid match wins
+        }
+        return chosen;
+    }
+    function applyPresets() {
+        for (const o of outputs) {
+            if (!o.on) continue;
+            const scale = presetScale(o.name, o.width, o.height);
+            if (scale !== null && Math.abs((o.scale || 1) - scale) > 0.001)
+                tempScale(o.name, scale);
+        }
+    }
+    onOutputsChanged: if (Settings.data.displayScalePresetsAuto !== false) applyPresets()
+
     // the output blocks InputConfig writes
     // on battery the built-in panel steps down to 60 Hz (Settings > Displays)
     readonly property bool slowOnBattery: Settings.data.batteryRefresh60 && PowerState.onBattery

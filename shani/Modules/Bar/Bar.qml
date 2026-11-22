@@ -14,6 +14,8 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import "../../Common/Ribbon.js" as Ribbon
+import "../../Common/WorkspaceMap.js" as WorkspaceMap
 
 Variants {
     model: Quickshell.screens
@@ -66,7 +68,43 @@ Variants {
             Ui.closeAll();
             Ui.windowMenu = true;
         }
-        Component.onCompleted: { Hiding.setBarShown(output, shown); Hiding.setBarOverlap(output, bar.overlap) }
+
+        // ---- inline app menu bar (macOS style) --------------------------------
+        // AppMenu is read on open; here it is also read when focus changes,
+        // debounced so focus churn does not spawn a process per window.
+        property int inlineMenu: -1                 // which top-level menu is open
+        property var inlineExpanded: ({})           // submenus unfolded in it
+        Timer {
+            id: inlineReload
+            interval: 200
+            onTriggered: { AppMenu.load(Niri.focusedWindow); bar.inlineMenu = -1; bar.inlineExpanded = ({}); }
+        }
+        Connections {
+            target: Niri
+            function onFocusedWindowChanged() { inlineReload.restart(); }
+        }
+        function inlineFlatten(items, depth) {
+            let out = [];
+            for (const it of items || []) {
+                out.push(Object.assign({ depth: depth }, it));
+                if (it.items && bar.inlineExpanded[it.path])
+                    out = out.concat(bar.inlineFlatten(it.items, depth + 1));
+            }
+            return out;
+        }
+        function inlinePress(it) {
+            if (it.items) {
+                const e = Object.assign({}, bar.inlineExpanded);
+                e[it.path] = !e[it.path];
+                bar.inlineExpanded = e;
+                return;
+            }
+            if (it.enabled === false) return;
+            bar.inlineMenu = -1;
+            AppMenu.activate(it.path);
+        }
+
+        Component.onCompleted: { Hiding.setBarShown(output, shown); Hiding.setBarOverlap(output, bar.overlap); inlineReload.restart(); }
         onOverlapChanged: Hiding.setBarOverlap(output, overlap)
         HoverHandler { id: barHover }
         Item {
@@ -137,6 +175,74 @@ Variants {
 
                 // niri workspaces of this output: one accent pill slides to the
                 // active one (iOS / Android-style), the numbers sit on top
+                // proportional workspace map: each tiled window a rectangle
+                Item {
+                    id: wsMap
+                    visible: Settings.data.showWorkspaceMap && !bar.narrow
+                    implicitWidth: Theme.px(72)
+                    implicitHeight: Theme.px(22)
+                    readonly property var ws: Niri.workspacesOn(bar.output).find(w => w.is_active) || null
+                    readonly property var groups: ws ? WorkspaceMap.group(Object.values(Niri.windows), ws.id) : { columns: [], floating: [] }
+                    readonly property var rects: WorkspaceMap.rects(groups, wsMap.width, wsMap.height, Theme.px(2))
+                    Repeater {
+                        model: wsMap.rects
+                        delegate: Rectangle {
+                            required property var modelData
+                            x: modelData.x; y: modelData.y
+                            width: Math.max(2, modelData.w); height: Math.max(2, modelData.h)
+                            radius: Theme.px(1)
+                            color: modelData.focused ? Theme.accent : (modelData.window.is_urgent ? Theme.danger : Theme.stroke)
+                            border.width: modelData.window.id === Niri.focusedWindowId ? 1 : 0
+                            border.color: Theme.accentInk
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: Niri.action("focus-window", "--id", modelData.window.id)
+                            }
+                            KeyFocus {
+                                name: modelData.window.title || modelData.window.app_id || ""
+                                onActivated: Niri.action("focus-window", "--id", modelData.window.id)
+                            }
+                        }
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        z: -1
+                        onClicked: Niri.action("toggle-overview")
+                    }
+                }
+                Item {
+                    id: ribbon
+                    visible: Settings.data.showRibbon && !bar.narrow
+                    implicitWidth: Theme.px(80)
+                    implicitHeight: Theme.px(6)
+                    readonly property var ws: Niri.workspacesOn(bar.output).find(w => w.is_active) || null
+                    readonly property var ratios: Ribbon.computeRatios(
+                        Object.values(Niri.windows), ws,
+                        (Displays.outputs.find(o => o.name === bar.output) || {}).width || 0,
+                        Settings.data.winGaps, Settings.data.ribbonAnchor || "fit",
+                        Niri.focusedWindowId, null)
+                    Rectangle {
+                        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
+                        height: Theme.px(4)
+                        radius: Theme.px(2)
+                        color: Theme.stroke
+                        Rectangle {
+                            x: parent.width * ribbon.ratios.start
+                            width: Math.max(4, parent.width * ribbon.ratios.width)
+                            height: parent.height
+                            radius: Theme.px(2)
+                            color: Theme.accent
+                            Behavior on x { NumberAnimation { duration: Theme.anim; easing.type: Easing.OutCubic } }
+                            Behavior on width { NumberAnimation { duration: Theme.anim; easing.type: Easing.OutCubic } }
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: m => { if (m.x > width / 2) Niri.action("focus-column-right"); else Niri.action("focus-column-left"); }
+                        }
+                        KeyFocus { name: Tr.t("Scrollable view"); onActivated: Niri.action("focus-column-right"); onMenu: Niri.action("focus-column-left") }
+                    }
+                }
                 Item {
                     visible: !bar.narrow
                     implicitWidth: wsRow.implicitWidth
@@ -197,9 +303,20 @@ Variants {
                                 id: wsLabel
                                 visible: !parent.renaming
                                 anchors.centerIn: parent
-                                // its place among the visible ones (the minimised one is hidden)
-                                // a floating workspace (WorkspaceLayout): marked, as the layout is the workspace's own
-                                text: (modelData.name || (parent.index + 1)) + (WorkspaceLayout.isFloating(modelData) ? " ◇" : "")
+                                // label mode: name, index, both, or name-or-index
+                                // (niri-active-workspace), plus the place among
+                                // the visible ones when show_position is on
+                                readonly property string base: {
+                                    const mode = Settings.data.wsLabelMode || "name_or_index";
+                                    const nm = modelData.name || "";
+                                    const ix = String(modelData.idx || (parent.index + 1));
+                                    if (mode === "name") return nm || ix;
+                                    if (mode === "index") return ix;
+                                    if (mode === "both") return nm ? (ix + ":" + nm) : ix;
+                                    return nm || ix;   // name_or_index
+                                }
+                                text: base + (Settings.data.wsShowPosition ? " " + (parent.index + 1) + "/" + Niri.workspacesOn(bar.output).length : "")
+                                    + (WorkspaceLayout.isFloating(modelData) ? " ◇" : "")
                                 color: modelData.is_active ? Theme.accentInk : (parent.occupied ? Theme.text : Theme.dim)
                                 font.family: Theme.font
                                 font.pixelSize: Theme.px(11) * Theme.fontScale
@@ -266,6 +383,47 @@ Variants {
                                 const w = Niri.focusedWindow;
                                 const e = w ? DesktopEntries.heuristicLookup(w.app_id) : null;
                                 return Quickshell.iconPath(e ? e.icon : (w ? w.app_id : ""), true);
+                            }
+                        }
+                        // the focused app's own menus, always visible; first five
+                        // only and elided so the chip stays narrow
+                        Repeater {
+                            model: AppMenu.menus.slice(0, 5)
+                            Rectangle {
+                                id: menuLabel
+                                required property var modelData
+                                required property int index
+                                Layout.maximumWidth: Theme.px(58)
+                                implicitWidth: menuText.implicitWidth + Theme.px(10)
+                                implicitHeight: Theme.px(20)
+                                radius: Theme.px(5)
+                                color: bar.inlineMenu === menuLabel.index ? Theme.accent : (menuMouse.containsMouse ? Theme.hover : "transparent")
+                                Text {
+                                    id: menuText
+                                    anchors.centerIn: parent
+                                    width: Math.min(implicitWidth, Theme.px(52))
+                                    text: menuLabel.modelData.label || ""
+                                    elide: Text.ElideRight
+                                    color: bar.inlineMenu === menuLabel.index ? Theme.accentInk : Theme.dim
+                                    font.family: Theme.font
+                                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                                }
+                                MouseArea {
+                                    id: menuMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        bar.inlineExpanded = ({});
+                                        bar.inlineMenu = bar.inlineMenu === menuLabel.index ? -1 : menuLabel.index;
+                                    }
+                                }
+                                KeyFocus {
+                                    name: menuLabel.modelData.label || ""
+                                    onActivated: { bar.inlineExpanded = ({}); bar.inlineMenu = bar.inlineMenu === menuLabel.index ? -1 : menuLabel.index; }
+                                }
+                                Accessible.role: Accessible.Button
+                                Accessible.name: menuLabel.modelData.label || ""
                             }
                         }
                         Text {
@@ -611,6 +769,87 @@ Variants {
                     }
                 }
 
+            }
+        }
+
+        // the open menu's items, in their own popup surface so the thin bar
+        // never clips it; clicking one activates it through AppMenu
+        PopupWindow {
+            id: appMenuPopup
+            visible: bar.inlineMenu >= 0 && AppMenu.menus[bar.inlineMenu] !== undefined
+            anchor.item: titleChip
+            anchor.rect.x: Theme.px(10)
+            anchor.rect.y: titleChip.height + 4
+            anchor.edges: Edges.Bottom
+            anchor.gravity: Edges.Bottom
+            implicitWidth: Theme.px(250)
+            implicitHeight: appMenuCol.implicitHeight + 12
+            color: Theme.glassStrong
+            readonly property var items: bar.inlineFlatten(AppMenu.menus[bar.inlineMenu] ? AppMenu.menus[bar.inlineMenu].items : [], 0)
+            MouseArea { anchors.fill: parent; onClicked: bar.inlineMenu = -1 }   // click outside the items closes
+            KeyFocus { name: Tr.t("Close menu"); onActivated: bar.inlineMenu = -1 }
+            ColumnLayout {
+                id: appMenuCol
+                anchors.fill: parent
+                anchors.margins: Theme.px(6)
+                spacing: 1
+                Repeater {
+                    model: appMenuPopup.items
+                    Item {
+                        id: appMi
+                        required property var modelData
+                        Layout.fillWidth: true
+                        implicitHeight: modelData.separator ? 9 : Theme.px(28)
+                        Rectangle {
+                            visible: !!appMi.modelData.separator
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: Theme.px(8); width: parent.width - Theme.px(16); height: 1
+                            color: Theme.alpha(Theme.text, 0.1)
+                        }
+                        Rectangle {
+                            visible: !appMi.modelData.separator
+                            anchors.fill: parent
+                            radius: Theme.radiusSmall
+                            color: appMouse.containsMouse && appMi.modelData.enabled !== false ? Theme.hover : "transparent"
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: Theme.px(8) + (appMi.modelData.depth || 0) * Theme.px(14)
+                                anchors.rightMargin: Theme.px(8)
+                                spacing: Theme.px(6)
+                                Text {
+                                    text: appMi.modelData.checked ? "✓" : ""
+                                    Layout.preferredWidth: Theme.px(12)
+                                    color: Theme.accent
+                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: appMi.modelData.label || ""
+                                    elide: Text.ElideRight
+                                    color: appMi.modelData.enabled === false ? Theme.faint : Theme.text
+                                    font.family: Theme.font
+                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                }
+                                Text {
+                                    text: appMi.modelData.items ? (bar.inlineExpanded[appMi.modelData.path] ? "▾" : "▸") : (appMi.modelData.shortcut || "")
+                                    color: Theme.dim
+                                    font.family: Theme.font
+                                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                                }
+                            }
+                            MouseArea {
+                                id: appMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: bar.inlinePress(appMi.modelData)
+                            }
+                            KeyFocus {
+                                name: appMi.modelData.label || ""
+                                onActivated: bar.inlinePress(appMi.modelData)
+                            }
+                        }
+                    }
+                }
             }
         }
 
