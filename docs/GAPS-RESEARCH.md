@@ -3345,3 +3345,172 @@ The first pass compared each app against its closest open-source equivalent and 
 ---
 
 All reports in this archive are static findings — no runtime, hardware, live network, real daemon or Flatpak verification was available in this environment.
+
+---
+
+# Fifteenth pass — VERBATIM agent reports
+
+## VERBATIM: Release notes / What's New UX
+
+Research complete. Read both GAPS.md and GAPS-RESEARCH.md first. Honored all four skip items (stale WhatsNew docs; no release notes per promotion; no whats-new page in shani-docs; update-failure UX) — none are repeated below. Static only; no files changed.
+
+## Ranked gaps (value × ease)
+
+1. **What's New cannot be re-opened from any UI.** `WhatsNew.qml:64-71` only fires from one startup check; the sole re-trigger is IPC `whatsNewCheck` (`shell.qml:690`). The first-login Tour, by contrast, is re-openable from launcher, sidebar and Settings (`Settings.qml:466`, `SidebarHeader.qml:186`, `LauncherActions.qml:55`). Sketch: add a `Ui.whatsNew` action + launcher/Settings entry calling `openNotes()`.
+2. **Generic content is presented as version-specific.** Notification says "What's new in *\<version\>* … what this update brings" (`WhatsNew.qml:69-70`) but `data/whats-new.md:1-5` is a static Feature tour with **zero** version/date markers. Sketch: either reword to "About this desktop" or make content version-stamped.
+3. **Skipping 3 updates collapses to one generic note.** `shouldShow()` only string-compares current vs lastSeen (`WhatsNew.js:22-28`); no accumulated changes are kept. Sketch: store all seen versions and render the range between last-shown and current.
+4. **"Full list is in FEATURES.md on the machine" is false.** `whats-new.md:3-4` promises it; the PKGBUILD installs only `whats-new.md` (`shani-pkgbuilds/shani-shell/PKGBUILD:173`). Sketch: ship FEATURES.md too, or delete the claim.
+5. **"See everything" opens raw Markdown.** `WhatsNew.qml:65` shells `xdg-open` on a `.md` — no renderer, likely a text editor or nothing. Sketch: ship a styled HTML page or open the docs URL.
+6. **No opt-out.** No setting gates the What's New note (contrast `tourEnabled` at `Settings.qml:466`). Sketch: `whatsNewEnabled` bool checked in `check()`.
+7. **Notification action is the only path to details and may not work.** `WhatsNew.qml:69-71` relies on notify-send `-A see=...`; daemons without actions drop it entirely. Sketch: pair with gap #1's always-available entry point.
+8. **Breaking changes are never surfaced.** No breaking/migration field in `whats-new.md`, the notification, or the deploy status JSON (`shani-deploy.sh:3316`). Sketch: `breaking:` tag → high-urgency notification.
+9. **Security fixes are unflagged.** `shani-install-media/CHANGELOG.md` has no security label; no security section anywhere in shipped notes. Sketch: `[security]` tag + prominent badge.
+10. **Known issues are absent** from every shipped note. Sketch: short "Known issues" block per version.
+11. **Cassini spec promises a "Release Notes text area" and "View Changelog" button but the UI has neither.** `overview_tab_spec.md:41-42,49` vs `overview.py:197-259`. Sketch: implement or retire the stale spec.
+12. **Before installing, users see size/version/signature but no features or fixes.** "Before It Installs" rows are only newer/space/verified/stays (`updates.py:144-163`); deploy JSON has no notes field (`shani-deploy.sh:3316`). Sketch: add `changelog` to status JSON + a "What's changing" expander.
+13. **After installing, there is no "what changed" path.** Updates page shows version + slot only (`updates.py:224-225`); nothing links to whats-new.md. Sketch: "What changed in X" row.
+14. **Changelog is developer-facing.** `shani-install-media/CHANGELOG.md:7-50` documents build-script bugs — commit-message style, not "what changed for me". Sketch: maintain a separate user-facing releases page.
+15. **Changelog has no real releases** — only `[Unreleased]` and a placeholder `[0.0.0] - 2026-09-15` (`CHANGELOG.md:3,51`). Sketch: tag real entries per promotion.
+16. **What's New is English-only** while the shell carries ~3684 i18n strings. Sketch: ship translated copies or route through `Tr.t`.
+
+## Comparison
+GNOME/KDE ship per-version release notes with "What's New" dialogs and web links; Windows Update shows a "What's new" line; macOS shows update details + "Learn More"; Steam and SteamOS keep per-patch notes with full archives. Shani has **one undated static file**, shown once, with no archive, no per-version granularity, no breaking/security marking, and no link from the update UI — the weakest of this set.
+
+## VERBATIM: Translation content quality
+
+## Translation content-quality audit — mr.json / hi.json
+
+**Static only.** Compared all 1,515 keys of each catalog against `template.json` (3,708 keys) with scripted placeholder, reverse-mapping, script-detection and length checks, then hand-reviewed flagged samples.
+
+### 1. Placeholder integrity — CLEAN
+Missing `%1/%2`: **0**; extra: **0**; reordered/wrong-set: **0** in both catalogs. Every translation preserves the source's placeholder multiset and order.
+
+### 2. Untranslated strings that look translated — essentially none
+**29** values per catalog identical to English (1.9%), all legitimate brands/keys/paths/units. Only outliers: `Escape`→`Esc`, `PDFs`→`PDF` (plural lost). Low.
+
+### 3. Wrong language — none systematic
+0 strings fully in the other language. One Hindi-ism in Marathi: `Extend, mirror, or only this screen?` → mr `विस्तृत, मिरर, की फक्त ही स्क्रीन?` — `की` is Hindi for "or"; Marathi needs `किंवा`. Medium.
+
+### 4. Technical terms / brands — good
+All brands correctly left in English. Some loanword inconsistency across catalogs (`Forward` hi `फ़ॉरवर्ड` vs mr `पुढे`). Low.
+
+### 5. Inconsistencies — the main cluster
+- `Do Not Disturb` vs `Do not disturb` — mr `व्यत्यय आणू नका` / `त्रास देऊ नका`; hi `परेशान न करें` / `ध्यान न दें`. Same feature, two words. Medium.
+- `Connected`/`Connected.`/`connected` variants. Low–Medium.
+- `Restart`/`Restart…` noun vs imperative. Low.
+- `Network name`/`network name` case variants. Low.
+- Quick settings→hi `त्वरित सेटिंग्स` vs Quick tiles→hi `क्विक टाइल` split. Low.
+Reverse collisions (one translation, several meanings) — 52 groups (mr), 46 (hi); notably hi **`कल` = both `Tomorrow` and `yesterday`** — genuinely ambiguous. Medium. hi `तेज़`=`Bright`/`Fast`; `छोटा`=`Short`/`Small`; `हटाएँ`=`Dismiss`/`Remove`; `बंद करें/करा`=`Close`/`Dismiss`/`Power off`/`Shut down`/`Turn off`. Low–Medium.
+
+### 6. Awkward / machine-translated samples
+- **`Narrow` → mr `दर्जेदार`** — means "quality", not "narrow" (should be `अरुंद`/`संकरा`; hi correct). **High — clear mistranslation.**
+- **`Use this` → hi `इसे उपयोग करें`** — ungrammatical (`इसका उपयोग करें`); **10** such `उपयोग/इस्तेमाल करें` lacking `का/की/के`. Medium.
+- `Night light from/to` mr awkward. Low–Medium. `Shuffle`→mr `फेरफार` ("alteration"). `Sleep` imperative vs power state. `Up for` literal, unclear. Low. No offensive strings.
+
+### 7. Length / format — clean
+Max expansion ~2.6× on short labels; 0 HTML tags/escapes/artifacts. 61 mr entries contain ZWNJ U+200D in `अ‍ॅप` etc — intentional orthography, not corruption.
+
+### 8. Reporting/correcting a translation — NONE
+No in-shell UI, docs link, or translation-report path. `Settings › About` offers only Copy details / Problem report / Cassini. `Tr.qml` builds `table = Object.assign({}, machine, reviewed)` — reviewed catalog always wins, so even hand-editing the machine cache cannot correct a wrong reviewed string. Medium.
+
+**Risk:** heuristic verdicts (esp. `दर्जेदार`, `की`, `उपयोग करें`) — not a native Marathi/Hindi speaker; confirm with a native reviewer before fixing.
+
+## VERBATIM: Package set vs distributions
+
+## Package-set audit — FIFTEENTH PASS (static, read-only)
+
+Method: read GAPS.md/GAPS-RESEARCH.md first, then the five-layer chain (profile `Packages-*` → PKGBUILD `depends=()` → `.install` → overlays → dev Containerfile). Skip-list honoured.
+
+### Already covered — do not re-file
+The image is unusually well-stocked: `curl/wget/rsync/git/gnupg/tmux/man-db/plocate/bc/vi/vim/nano/less`, `htop/btop/tree/strace/jq/ripgrep/man-pages/cronie/7zip/unrar/unzip/zip/micro`, `zsh/fish/bash-completion/starship/fzf/bat/eza/fd/zoxide/git-delta`, `ssh`, `dig/netcat/traceroute/nmap/tcpdump/mtr/nethogs/socat`, `imagemagick`, `xdg-utils`, `grim/slurp/wf-recorder/satty`, `ffmpeg`. Man pages ship.
+
+### Gaps ranked by value × ease
+1. **[H×E] No compiler/build toolchain on the image.** `gcc`, `make`, `cmake`, `base-devel` only as build-time `makedepends`. Sketch: add `base-devel` to `shani-tools-extra/PKGBUILD:8`.
+2. **[H×E] No Python `pip`.** `python` hard dep but `python-pip` nowhere. Sketch: add to `shani-tools`.
+3. **[H×E] `sshfs` optdepend-only → Files `ssh://` dead on shipped image.** `shani-shell/PKGBUILD:89`; dev Containerfile installs it so tests pass. Sketch: promote to `shani-desktop-niri` depends.
+4. **[H×E] `gocryptfs` optdepend-only → encrypted folders unavailable.** Sketch: move to `shani-storage` depends.
+5. **[M×E] No Node/npm, Rust/cargo, Qt SDK or IDE.** Studio emits QML with no SDK. Sketch: ship a `shani-dev` meta or distrobox template.
+6. **[M×E] Dev/image surface divergence systemic.** dev Containerfile installs gocryptfs/sshfs/ffmpeg/strace that are only optdepends in image. Sketch: CI assertion that dev-required tools are hard deps.
+7. **[M×E] `picocom` optdepend-only → Terminal serial cannot work.** Sketch: promote to depends.
+8. **[M×E] `swappy` optdepend-only → annotate before saving missing.** Sketch: add to `shani-desktop-niri`.
+9. **[M×E] Nautilus absent from niri image while docs call it default file manager/portal chooser.** `shani-desktop-niri/PKGBUILD:55` says "no nautilus"; stale `.SRCINFO:24` still says depends. Sketch: fix docs + regenerate .SRCINFO.
+10. **[M×E] Chronoa `driver_dev` skill offers make/dkms but no compiler.** Sketch: include gcc/base-devel in optdepends.
+11. **[M×M] No offline OS documentation in image.** shani-docs in no depends. Sketch: package docs to /usr/share/doc/shani.
+12. **[L×E] `mediainfo` optdepend-only → codec/bitrate line never appears.** Sketch: add to shani-multimedia.
+13. **[L×E] Minor CLI omissions:** no `at`, `yq`, `sshpass`, `lftp`, `neovim`. Sketch: add at yq to shani-tools-extra.
+14. **[L×M] Full editors absent fleet-wide** (GIMP/Audacity/Kdenlive) — Fedora/Ubuntu also omit, only a gap if marketing claims parity.
+Risk: optdepend-only tools could arrive transitively; verify with `pacman -Qi` in a fresh slot.
+
+## VERBATIM: Hardware/driver/firmware coverage
+
+# Fifteenth-pass gap research — image-level hardware / driver / firmware inventory
+
+Method: static only. Traced the five-layer chain rather than grepping package lists alone.
+
+### What is actually shipped (not a gap)
+`linux-firmware`, `amd-ucode`, `intel-ucode`, `fwupd`, `sof-firmware`, `alsa-firmware`, mesa + Vulkan for Intel/AMD/Nouveau/Virtio/Asahi/Freedreno/Dzn + NVIDIA open, `brltty`/`espeakup`/`orca`, broad peripheral stack. Firmware for Intel/AMD/NVIDIA/Realtek/MediaTek/Broadcom covered by linux-firmware metapackage — do not re-file.
+
+### Image / kernel / firmware level (ranked)
+1. **[H×M] One kernel, no LTS fallback.** Only `linux`; both slots carry same kernel, so a regression is unrecoverable. Sketch: ship linux-lts as third boot entry.
+2. **[H×M] No headers or DKMS on desktop images — out-of-tree drivers impossible.** Only server has linux-headers; no dkms. Broadcom wl, rtlwifi-new, v4l2loopback, vendor DKMS cannot be installed with immutable host. Sketch: ship headers+DKMS variant or document as hard boundary.
+3. **[H×M] NVIDIA covers only current open branch.** Kepler/Maxwell/Pascal/early Turing need legacy branches; no nvidia-lts. Sketch: legacy-branch image variant or explicit unsupported-GPU list.
+4. **[M×E] Variant flags only rename the artifact.** WITH_NVIDIA/MINIMAL_BUILD change VARIANT_NAME only; --minimal unimplemented. Sketch: make flag switch package overlay or delete it.
+5. **[M–H×E] Apple Silicon Vulkan driver shipped with no ARM image.** vulkan-asahi in PKGBUILD, every profile x86_64. Sketch: drop driver or add aarch64 profile.
+6. **[M×E] No ARM/Raspberry Pi/SBC enablement.** x86_64/UEFI only. Sketch: state x86_64-only scope or add aarch64 profile.
+7. **[M×E] No supported/unsupported hardware matrix.** requirements.md/hardware.md tell users to look up PCI IDs on the web. Sketch: publish per-release HCL from CI lspci/fwupd captures.
+8. **[M×E] i2c-tools documented as pre-installed but is not.** Sketch: add to shani-tools-extra + udev rule, or correct page.
+9. **[M×E] No GUI firmware updater on gamescope/kiosk/server.** shani-cassini only in desktop profiles. Sketch: add to Base or document CLI-only.
+10. **[M×E] MOK/module-signing boundary undocumented.** Sketch: add mokutil --import section.
+11. **[M×E] Braille/console speech absent on three editions.** shani-accessibility only desktop. Sketch: move to Base.
+12. **[M×E] Firmware updates escape atomic/rollback model.** Capsules write host NVRAM outside both roots; manual TPM re-enrollment after each update. Sketch: record firmware version in shani-health + offer re-enrollment in Cassini.
+13. **[L–M×E] No image-level firmware/driver assertion.** validate-image.sh proves only declared packages. Sketch: emit firmware-file manifest at build.
+14. **[L–M×E] Legacy firmware unreachable.** no headers/DKMS, AUR-only ipw2100/2200-fw, broadcom-wl, bluez-firmware. Sketch: repackage as documented legacy bundle.
+### Shell-fixable
+15. **[M×E] Stale firmware GUI claim.** Updates.qml:38 says gnome-firmware not installed but gnome profile ships it; shell always routes to Cassini absent on gamescope/kiosk. Sketch: fall back to gnome-firmware.
+16. **[M×E] About page guesses driver package from three cases.** SettingsAbout.qml:37-39 maps nvidia→nvidia-open, amdgpu|i915|xe→mesa, else raw module — wrong for virtio, Asahi, legacy NVIDIA. Sketch: show actual lspci -k module.
+Risk: all static; item 2 size trade-off and item 12 capsule behavior need a real machine.
+
+## VERBATIM: Docs site HTML accessibility/UX
+
+## shani-docs as a web artifact — 15th-pass audit (static only)
+Ranked by value × ease.
+1. Search never indexes content — only titles. script-docs.js:296-305 buildSearchIndex pushes {title,slug,group}; :983-984 Fuse keys same. 2.3MB llms-full.txt full text unused. Sketch: index body.
+2. No-JS search dead, SEO SearchAction lands on empty box. index.html:190-200 no form; JSON-LD SearchAction → /?q= handled only by JS. Sketch: wrap in form + static results, or drop SearchAction.
+3. Search listbox has no options. index.html:200 role=listbox but emitted .search-result divs have no role=option/aria-selected, input never sets aria-activedescendant. Screen readers cannot perceive highlighted result.
+4. Heading hierarchy skips on 250 headings across ~150 pages. generate-manifest.js:219-220 emits hN verbatim; check-html.py checks h1 count not level order. Sketch: clamp each level to previous+1.
+5. Freshness badge pollutes H1 accessible name. script-docs.js:595 puts _freshBadge inside <h1> → "NewBoot Process". Sketch: move badge outside h1.
+6. Mobile sidebar reachable while visually off-canvas. style-docs.css:1313 uses transform only (no visibility/inert); no Escape-to-close/focus-in/return. Sketch: toggle inert+visibility:hidden, Escape, restore focus.
+7. prefers-reduced-motion ignored by JS scrolling. script-docs.js:631,887,707 hard-code behavior:'smooth'. Sketch: gate on matchMedia.
+8. One CDN stylesheet lacks SRI. index.html:108-109 prism-tomorrow.min.css crossorigin but no integrity, replicated on all 205 pages. Sketch: add sha384 hash + test.
+9. No-JS doc pages lose breadcrumb, TOC, prev/next (built client-side). Sketch: emit lightweight versions into stub template.
+10. Nav leaves are fake buttons not links. script-docs.js:339-343 builds div role=button tabindex=0; no href → no open-in-new-tab, no crawl, vanish without JS. Sketch: render <a href>.
+11. CSP relies on unsafe-inline. index.html:5. No frame-ancestors/base-uri. Sketch: nonce/hash inline scripts.
+12. lang disagrees across site. index.html lang=en vs config-docs.js LANG=en-IN, feed.xml, manifest.json, og:locale en_IN. Sketch: set lang=en-IN.
+13. Print output includes unusable controls. Sketch: hide print/edit buttons in @media print.
+14. Weak PWA install story. manifest.json:11-16 single SVG icon, no 192/512 PNG, no scope/id/shortcuts, no apple-touch-icon. Sketch: add PNG icons + scope.
+15. Offline fallback shows wrong page, no indicator. sw.js cache-first shell; :70-73 answers any offline navigation with cached /index.html — homepage body at /doc/ URL. No online/offline listener. Sketch: cache stub per URL + offline banner.
+16. aria-label on generic element. index.html:171 div with aria-label no role. Sketch: drop or put on child link.
+17. og:image alt describes different image. index.html:31-32 og:image gnome-screenshot.jpg, alt "Shanios Docs logo". Sketch: align.
+18. 20 CDN scripts + 2 stylesheets on every page. 18 Prism languages unconditionally; local JS 158KB unminified. Sketch: self-host minified bundle, lazy-load languages.
+19. Tests don't cover any of the above. check-html.py checks parse errors, h1 count, title/description uniqueness, BreadcrumbList, CSP presence; generated-contract.test.js checks link wiring. No heading-order/ARIA/SRI/lang/a11y assertions. Sketch: add regex assertions.
+Risk: top fixes (1,9,10) touch shared render template and client router — verify stubs and hydrated pages match testbed web heading checks.
+
+## VERBATIM: Multi-window / app lifecycle
+
+## Fifteenth-pass gaps — multi-window / app lifecycle (static, read-only)
+1. **closeApps() leaves five app windows open.** Ui.qml:270-304 lists 32 flags but omits mail, feeds, calls, messages, backup; onClosedApps() only closes six. Sketch: add five flags.
+2. **Conversions die when Converter window closes.** ConverterWindow.qml:15-16,80-95 — worker Process and jobs live in window; onGone destroys mid-encode, partial output no notification. Sketch: move to Services/Converter or refuse close while running.
+3. **Software installs die on window close.** SoftwareWindow.qml:18,129-146 — jobProc window-owned. Sketch: move runJob/jobProc into Services/Updates.
+4. **Scanner close mid-scan leaves .part file.** ScannerPanel.qml:15-16,49-60. Sketch: onDestruction kills+trashes .part.
+5. **Per-app window rules never apply to shell apps.** WindowRules.qml:23-55 matches app-id="^dev.shani.X$" but shell windows are org.quickshell (AppWindow.qml:7-9). Sketch: emit app-id="org.quickshell" title="<AppName>".
+6. **Recording continues invisibly after Voice Recorder window closes.** VoiceRecorderPanel.qml:21 clears flag but pw-record keeps running, no bar/dock indicator. Sketch: expose recording pill + stop.
+7. **Two Exclusive-keyboard shell dialogs can coexist.** Launcher.qml:31,38 and FilePickerPanel.qml:14-24; FilePicker.open() never calls Ui.closeAll(). Sketch: one Ui.modalOwner arbiter.
+8. **No per-app close IPC.** shell.qml:269 only global closeAll + windowClose(match). Sketch: add appClose(id).
+9. **No window geometry/maximized persistence.** AppWindow.qml fixed 900×640; every reopen loses size/position/state. Sketch: per-app geometry in statePath.
+10. **Window-owned state vanishes on close; service-backed apps keep it.** Converter jobs, Software showing/results, Scanner lastScan are window properties. Sketch: move valued state into services.
+11. **No app-modal vs shell-modal distinction.** App dialogs are QML Popups modal:true; shell dialogs Overlay + Exclusive keyboard. Polkit prompt can appear behind/over app modal. Sketch: single Ui.modalOwner.
+12. **Shell-modal dialogs cover only focused monitor.** FilePickerPanel.qml:16, PolkitDialog.qml:15 pick focusedOutput; scrim/keyboard one output, other monitors clickable. Sketch: Variants over screens.
+13. **shani app <name> re-runs open IPC even when already open.** bin/shani:629-642; open functions start with Ui.closeAll() so re-launching dismisses overlays. Sketch: check state() key first, only appRaise.
+14. **Only 4 of 44 app windows put a document in their title.** doc: set in TextEditor, Archives, MediaPlayer, Weather only. Sketch: set doc from service current path/subject.
+15. **No multi-window identity anywhere (structural).** One Ui bool + one LazyLoader per app; AppWindow keys navRoots by appName, titles carry no index. Sketch: window-list model keyed by window id.
+Risk: items 2–4 assume Quickshell destroys window-owned Process on LazyLoader deactivation — static only.
