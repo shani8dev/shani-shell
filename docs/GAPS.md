@@ -2,8 +2,10 @@
 
 What the ShaniOS niri desktop does not do yet, or does without proof, surface
 by surface. An item leaves this file when it is built *and* a test runs it.
-Compared against GNOME Settings, KDE System Settings and Deepin's control
-centre, and against what a session needs before any app runs.
+Compared against GNOME Settings, KDE System Settings, Deepin's dde-control-center,
+UKUI's ukui-control-center and Cutefish's settings (the three re-read at source
+on 2026-11-22 — see [ECOSYSTEM.md](ECOSYSTEM.md#deepin-ukui-and-cutefish-closely-2026-11-22)),
+and against what a session needs before any app runs.
 
 ## Not built — by choice
 
@@ -60,6 +62,44 @@ centre, and against what a session needs before any app runs.
   touchscreens, pen calibration, handheld orientation, suspend or TV remotes.
   Run the per-device checklist in FORM-FACTORS.md on an installed image through
   shani-testbed; do not infer that coverage from nested-compositor checks.
+
+## What the other desktops have that we do not (2026-11-22)
+
+Read at source, not from a review: Deepin's repositories (dde-* and deepin-*),
+UKUI's, and Cutefish's, plus each control centre's plugin/page directories.
+[ECOSYSTEM.md](ECOSYSTEM.md#deepin-ukui-and-cutefish-closely-2026-11-22) has
+the side-by-side; these are the ones that are genuinely absent here, each
+checked against the tree before being written down.
+
+- **A download manager** (Deepin's, on aria2). Files has copy and move jobs,
+  not a queue with pause, retry and per-file progress.
+- **An instant offline filename index** (Deepin's *anything*). The launcher and
+  Chronoa's meaning index answer what a file *is about*; neither answers "which
+  file is called X" across the disk in milliseconds.
+- **A hardware inventory** (Deepin's device manager). SMART per disk (Models),
+  disks and partitions (Disks), processes (System Monitor) and a summary
+  (Settings › About) — but no one tree of the machine's devices.
+- **A shutdown timer** (UKUI's). The power menu has Shut down, Restart, Suspend,
+  Log out and Lock; nothing schedules one.
+- **Biometric enrolment** (UKUI's biometric manager, Deepin's authentication
+  page). The image ships fprintd; nothing enrols a finger or a face, so
+  Settings › Your account can only set a password.
+- **A display-switch popup** on Super+P (UKUI's, which also reports
+  CapsLock/NumLock). We have Displays settings and a layout switcher, not the
+  transient popup.
+- **A notification centre with the clipboard beside it** (UKUI's sidebar). We
+  have notifications, the Island, and a clipboard history reachable from the
+  launcher's `c` mode — not one tray panel holding both.
+- **A theme packager** (UKUI's): icons, cursors and wallpapers turned into an
+  installable package.
+- **An MCP door onto the desktop** (Cutefish's computer-use): an outside agent
+  seeing the screen and driving the pointer and keyboard. Chronoa acts through
+  the shell's own tools; nothing else can.
+
+Two of Deepin's apps are deliberately not copied: clone, boot maker and recover
+manager are the installer's job on a single-image system (we have shani-backup
+and the installer), and *grand search* overlaps our launcher plus Chronoa's
+meaning search.
 
 ## The app's menus in the bar (updated Nov 2026)
 

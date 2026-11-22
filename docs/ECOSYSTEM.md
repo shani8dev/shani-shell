@@ -4,7 +4,10 @@ What a desktop ships as its own apps, side by side, so a gap is visible
 before someone goes looking for an app. Surveyed 2026-11-12 from each
 desktop's own app set: GNOME core apps, KDE Gear, Deepin (DDE), Kylin (UKUI),
 Cutefish, Budgie, Cinnamon (X-Apps and Mint tools), macOS, Windows (with
-PowerToys) and Android (AOSP and Pixel).
+PowerToys) and Android (AOSP and Pixel). The Deepin, UKUI and Cutefish columns
+were re-read on 2026-11-22 from each project's own repositories — READMEs and,
+for the control centres, their plugin/page directories — see
+[Deepin, UKUI and Cutefish closely](#deepin-ukui-and-cutefish-closely-2026-11-22).
 
 **Ours** are the shell's apps (`shani app` lists them, `bin/shani`'s `APPS`):
 each a window (`Common/AppWindow`), opened in the suite by
@@ -18,9 +21,9 @@ ShaniOS package (native or a Flatpak of the niri profile) covers it.
 | Notes | — | KNotes | Voice Notes | Notebook | — | Sticky Notes | Notes, Stickies | Sticky Notes | Keep | **Notes** |
 | To-dos | Endeavour | (Merkuro) | — | — | — | — | Reminders | To Do | Tasks | **Tasks** (EDS) |
 | Calendar | Calendar | Merkuro | Calendar | Calendar | — | — | Calendar | Calendar | Calendar | **Calendar** |
-| Contacts | Contacts | KAddressBook | Contacts | — | — | — | Contacts | People | Contacts | shani-link |
+| Contacts | Contacts | KAddressBook | Contacts | — | — | — | Contacts | People | Contacts | **Contacts** · shani-link |
 | Phone, texts | Calls | KDE Connect | Phone Master | Connectivity | — | — | Phone, Messages | Phone Link | Phone, Messages | shani-link · Mirror (scrcpy) |
-| Mail | Geary | KMail | Mail | — | — | Thunderbird | Mail | Outlook | Gmail | none in the image, by choice (install from Software) |
+| Mail | Geary | KMail | Mail | — | — | Thunderbird | Mail | Outlook | Gmail | **Mail** (IMAP + SMTP) |
 | Browser | Web | Konqueror | Browser | — | — | Firefox | Safari | Edge | Chrome | Vivaldi |
 | Office | — | Calligra | — | WPS | — | LibreOffice | Pages… | Office | Docs | ONLYOFFICE |
 | Calculator | Calculator | KCalc | Calculator | Calculator | Calculator | — | Calculator | Calculator | Calculator | **Calculator** |
@@ -34,7 +37,7 @@ ShaniOS package (native or a Flatpak of the niri profile) covers it.
 | Sign / fill a PDF | — | Okular | — | — | — | — | Preview | Edge | — | **PDF Signer** |
 | Video, music | Showtime, Decibels | Haruna, Elisa | Movie, Music | Video, Music | — | Celluloid | QuickTime, Music | Media Player | YouTube Music | **Media Player** (MPRIS) · Showtime, Decibels, Gapless |
 | Music library | Music | Elisa | Music | Music | — | Rhythmbox | Music | Media Player | — | **Media Player › Library** (albums, artists, songs, videos) |
-| Podcasts, radio | Podcasts¹ | Kasts | — | — | — | Hypnotix (TV) | Podcasts | — | — | Shortwave |
+| Podcasts, radio | Podcasts¹ | Kasts | — | — | — | Hypnotix (TV) | Podcasts | — | — | Shortwave · **Feeds** (RSS/Atom) |
 | Camera | Snapshot | Kamoso | Camera | Camera | — | — | Photo Booth | Camera | Camera | **Camera** |
 | Sound recorder | Sound Recorder | — | Voice Notes | Recorder | — | — | Voice Memos | Sound Recorder | Recorder | **Voice Recorder** |
 | Screenshot | (shell) | Spectacle | Screen Capture | Screenshot | Screenshot | — | Screenshot | Snipping Tool | (system) | **Screenshot** · satty |
@@ -44,8 +47,8 @@ ShaniOS package (native or a Flatpak of the niri profile) covers it.
 | Scanner | Document Scanner | Skanpage | Scanner | Scanner | — | — | Image Capture | Scan | — | **Scanner** |
 | Archives | (Files) | Ark | Archive Manager | — | — | File Roller | Archive Utility | (Explorer) | — | **Archive Manager** · File Roller |
 | Disk usage | Disk Usage | Filelight | — | — | — | — | Storage | Storage | Storage | **Disk Usage** · Baobab |
-| Disks | Disks | Partition Manager | Disk Manager | — | — | — | Disk Utility | Disk Management | — | GNOME Disks |
-| Write an image to USB | — | — | Boot Maker | USB Creator | — | USB Image Writer | — | — | — | Impression |
+| Disks | Disks | Partition Manager | Disk Manager | — | — | — | Disk Utility | Disk Management | — | **Disks** · GNOME Disks |
+| Write an image to USB | — | — | Boot Maker | USB Creator | — | USB Image Writer | — | — | — | **Files** (write an image) · Impression |
 | Task manager | System Monitor | System Monitor | System Monitor | System Monitor | — | — | Activity Monitor | Task Manager | — | **System Monitor** |
 | Logs | Logs | KSystemLog | Log Viewer | Log Viewer | — | — | Console | Event Viewer | — | **Logs** |
 | Device info | (Settings) | Info Center | Device Manager | Device Manager | — | System Reports | System Information | System Information | — | Settings › About · Cassini |
@@ -70,6 +73,115 @@ ShaniOS package (native or a Flatpak of the niri profile) covers it.
 | Theme | (Settings) | (Settings) | — | — | — | — | — | — | Wallpaper & style | **Settings › Personalisation** (colours from a picture) |
 
 ¹ not part of the desktop's own set, but its usual choice.
+
+## Deepin, UKUI and Cutefish closely (2026-11-22)
+
+The three are the desktops this shell borrows its ideas from, so they were read
+again at source: each project's README for its apps, and each control centre's
+own plugin/page directories for its surface. What follows is what they actually
+have, not what a review says they have.
+
+### The control centre, side by side
+
+| Desktop | How it is split | Parts |
+|---|---|---|
+| **Deepin** (dde-control-center) | 19 plugins | accounts, authentication, bluetooth, commoninfo, datetime, deepinid, defaultapp, display, dock, keyboard, mouse, notification, personalization, power, privacy, sound, systeminfo, touchscreen, wacom |
+| **Cutefish** (settings) | 29 pages | about, accounts, appearance, battery, bluetooth, cursortheme, datetime, defaultapps, display, dock, fonts, general, hotcorners, icontheme, input, keyboard, language, menubar, mouse, network, notifications, power, privacy, shortcuts, softwareupdate, sound, touchpad, touchscreen, wallpaper |
+| **UKUI** (ukui-control-center) | 8 groups | account, devices, messages-task, network, personalized, security-updates, system, time-language |
+| **Ours** | 24 categories | personal, notifications, network, displays, windows, sound, access, input, time, apps, search, printers, sharing, firewall, backup, automations, privacy, chronoa, account, users, power, storage, screentime, about |
+
+All four cover the same ground; the difference is where the seams are. Deepin
+and Cutefish both split input by device — keyboard, mouse, touchpad,
+touchscreen, and in Deepin a Wacom page — where we have one "Keyboard & input"
+category with a tablet readout inside it. Cutefish is the most granular
+(29 pages) and the only one with a separate *hotcorners* page; we have hot
+corners inside Personalisation. UKUI is by far the thinnest and the oldest — its
+control centre was last touched in 2022 — with "devices" and "system" carrying
+what the others spread over ten pages.
+
+### Apps, and what each one is for
+
+- **Deepin** ships the widest set of the three: file manager, editor,
+  compressor, album, movie, music, reader (PDF/DJVU, tabs, bookmarks, notes,
+  magnify, slideshow, rotate), draw, image-editor (the editing library behind
+  both viewer and album), disk manager (partition, health, data
+  administration), device manager (hardware inventory), log viewer, screen
+  recorder, screensaver, downloader (aria2), **deepin-anything** (an offline,
+  instant filename index — "like Everything, but nothing is really like
+  anything"), **dde-grand-search** (one search across files, apps and
+  documents), **dde-clipboard** (clipboard history), **dde-cooperation**
+  (cross-platform transfer and device cooperation), print manager, manual,
+  update UI, clone, boot maker, recover manager, installer, launchpad, app
+  manager and a plugin-based `dde-shell`.
+- **UKUI** is mostly the desktop's own plumbing plus a few apps: peony (file
+  manager, with extensions), ukui-notebook (sticky notes), ukui-media, system
+  monitor (processes, CPU/memory, file systems), **ukui-search** (desktop
+  search, marked work-in-progress), **ukui-sidebar** (notification centre *and*
+  a clipboard in one tray panel), **ukui-paste** (a clipboard that also builds
+  for other platforms), **ukui-shutdown-timer**, **kylin-display-switch** (a
+  Super+P display popup that also watches CapsLock/NumLock),
+  **kylin-nm** (a NetworkManager applet), **ukui-biometric-manager**
+  (enrol a fingerprint or face), ukui-menu (an app menu with common/all,
+  alphabetical and functional groupings plus search), **ukui-theme-customizer**
+  (packs icons, cursors and wallpapers into installable debs), screensaver,
+  greeter, panel, window switch and settings daemon.
+- **Cutefish** is the smallest app set and the most modern underneath: settings
+  (29 pages), file manager, terminal (state, parsing, scrollback, selection and
+  search from **libghostty-vt**), calendar (iCalendar read *and* write,
+  repeating events, alerts, coloured calendars, web-published calendars),
+  calculator, text editor (tabs, find and replace, encoding detection, syntax
+  highlighting), system monitor (CPU, memory, disk, network **and GPU**),
+  preview (images and PDF together, folder stepping, thumbnails), video player
+  (libmpv, subtitles, folder playlists, resume, seek-bar previews), disk utility
+  (partitions, volumes, capacity, usage, connection, SMART, mount/unmount/
+  eject), display manager, installer, a WebKit shell, a portal, and
+  **cutefish-computer-use** — an MCP server that lets an agent app see the
+  desktop and use its pointer and keyboard once the person allows it.
+
+### What they have that we do not
+
+Each of these was checked against our tree before being written down; none of
+them is already here under another name.
+
+1. **A download manager** (Deepin: aria2; nothing in the shell — Files has copy
+   and move jobs, not a queue with pause, retry and per-file progress).
+2. **An instant, offline filename index** (Deepin's *anything*). Our launcher
+   and Chronoa's meaning index answer *what a file is about*; neither answers
+   "which file is called X" across the whole disk in milliseconds.
+3. **A hardware inventory** (Deepin's device manager). We show SMART per disk
+   (Models), disks and partitions (Disks), processes (System Monitor) and a
+   system summary (Settings › About); there is no one tree of the machine's
+   devices.
+4. **A shutdown timer** (UKUI). The power menu has Shut down, Restart,
+   Suspend, Log out and Lock — nothing that says "shut down in 90 minutes".
+5. **Biometric enrolment** (UKUI's biometric manager, Deepin's authentication
+   plugin). The image ships fprintd; nothing in the shell enrols a finger or a
+   face, so Settings › Your account can only set a password.
+6. **A display-switch popup** (UKUI's, on Super+P) that also reports
+   CapsLock/NumLock. We have Displays settings and a layout switcher, not the
+   transient popup.
+7. **A notification centre with a clipboard beside it** (UKUI's sidebar). We
+   have notifications, the Island and a clipboard history reachable from the
+   launcher's `c` mode — but not as one tray panel with both in it.
+8. **A theme packager** (UKUI's): icons, cursors and wallpapers turned into an
+   installable package. Ours are settings and files.
+9. **An MCP door onto the desktop** (Cutefish's computer-use). Chronoa can act
+   through the shell's own tools; an outside agent cannot see or drive the
+   desktop.
+
+Two of these are deliberate rather than missing: Deepin's clone, boot maker and
+recover manager are the installer's job on a single-image system (we have
+shani-backup and the installer), and Deepin's grand search overlaps our
+launcher plus Chronoa's meaning search.
+
+### What we have that they do not
+
+Worth saying in the other direction, so the comparison is not read as a
+deficit: Chronoa (the assistant, with approvals and an Island that shows what
+it is doing), the launcher's own ranking (typos, actions, files, windows and
+app-provided results in one list), Nearby Share and shani-link, Feeds, the
+firewall page, Containers, Window Layouts, Screen time and the accessibility
+surface (Magnifier, Live Captions, Lens, Characters, dictation).
 
 ## The gaps
 
