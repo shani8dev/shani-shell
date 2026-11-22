@@ -1,7 +1,7 @@
 # Known gaps
 
 > **Complete agent reports:** this file is the curated, deduplicated list. The
-> full verbatim reports from all eleven research passes (hundreds of findings,
+> full verbatim reports from all twelve research passes (hundreds of findings,
 > including items that were later fixed or deduplicated) are in
 > [GAPS-RESEARCH.md](GAPS-RESEARCH.md).
 

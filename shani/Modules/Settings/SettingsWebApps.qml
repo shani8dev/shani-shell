@@ -18,11 +18,16 @@ ColumnLayout {
             icon: modelData.icon || "web-browser"
             title: modelData.title || modelData.name || modelData.url
             subtitle: modelData.url
-            trailing: "✕"
-            onClicked: {
-                const apps = JSON.parse(JSON.stringify(d.webApps || []))
-                apps.splice(index, 1)
-                d.webApps = apps
+            onClicked: WebApps.open(modelData.name || modelData.title)
+            trailing: IconButton {
+                icon: "edit-delete"
+                size: Theme.px(22)
+                tip: Tr.t("Remove web app")
+                onClicked: {
+                    const apps = JSON.parse(JSON.stringify(d.webApps || []))
+                    apps.splice(index, 1)
+                    d.webApps = apps
+                }
             }
         }
     }

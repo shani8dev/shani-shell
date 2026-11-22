@@ -32,6 +32,13 @@ Singleton {
         Settings.data.webApps = apps
     }
 
+    // Launch a generated web app from its desktop entry. The settings row used
+    // to delete the app on click; opening it is what a person expects.
+    function open(name) {
+        if (!name) return;
+        const desktop = prefix + String(name).replace(/[^a-zA-Z0-9_-]/g, "_") + ".desktop";
+        Quickshell.execDetached(["gio", "launch", appsDir + "/" + desktop]);
+    }
     function removeApp(name) {
         const apps = JSON.parse(JSON.stringify(Settings.data.webApps || []))
         const filtered = apps.filter(a => (a.name || a.title) !== name)

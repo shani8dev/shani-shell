@@ -1160,3 +1160,124 @@ Tier 2: 10 per-process network dead placeholder (nethogs probed never launched, 
 
 - shani media next/stop/previous/toggle now pass their action literal to media(action) (were silent no-ops).
 - tests/test_cli_ipc.py updated to accept lowercase literal args (the fixed-action mechanism _run_group uses).
+
+---
+
+# Twelfth pass — full reports
+
+## Containers/virtualization depth (agent ses_dfb849f69ffes7jsIrMkKcbY8T)
+
+Scope: ContainersWindow.qml, bridge/containers.py, tests, dev scripts, Cassini tabs, docs. What exists: 389-line window, three tabs (Toolboxes/Containers/Images); Distrobox create/enter/upgrade/export/remove; Podman list/start/stop/restart/remove/logs/image-remove/prune; rootless.
+
+1. No custom image — four hardcoded chips (ContainersWindow.qml:24-29).
+2. No name field — nextName() auto-generates ubuntu, ubuntu-2.
+3. Podman containers have no shell entry — enter() always distrobox enter; for !c.box run xdg-terminal-exec podman exec -it.
+4. Export one-way — box-export --app only; no unexport/list of exported apps.
+5. No Podman container creation — only management verbs; docs promise podman run -p/-v.
+6. No home/path choice — distrobox create passes only --yes --name --image.
+7. --nvidia/--init/--ephemeral/--root absent though GPU containers documented.
+8. No --additional-flags/--mount/--env (shlex imported but unused).
+9. Logs one-shot (--tail 300 static string), no follow.
+10. App list scans only /usr/share/applications and plain Name=, misses user apps/locales.
+11. No resource limits or stats (no podman stats, no --cpus/--memory).
+12. No update-all or image-update signal.
+13. Toolboxes detected by Podman label only — union with distrobox list.
+14. No snapshots (commit/restore).
+15. No file-manager integration ("Open its home").
+16. No .desktop generation or icon-theme control for ordinary Podman GUI apps.
+17. No compose support (docs teach podman-compose).
+18. No Settings defaults (distro choice transient).
+19. No handover between shell Containers and Cassini inventory.
+20. Tests narrow and fake-only; env overrides unused.
+Docs overclaim: "Pods pre-installed on every edition" and "BoxBuddy pre-installed" describe external apps the shell only imitates.
+
+## Bluetooth/OBEX transfer depth (agent ses_dfb84cadcffeDfeNknQT7225t9)
+
+Shell-fixable:
+1. No auto-accept for known/trusted devices (obex-agent.py:99-109 asks every push).
+2. No receive progress and no cancel (BytesTransferred ignored, Transfer1.Cancel never called).
+3. Ignored push hangs forever (notify-send -A implies --wait, no -t; shani-link twin has DECIDE_SECONDS=60).
+4. No destination picker per file (target fixed at authorization).
+5. No Bluetooth transfer history (received counter + last path only).
+6. Outgoing send no progress/cancel/resume/retry (BtSend.qml polls Status only, 600 iterations).
+7. One file per send (single file string, one SendFile).
+8. Send does not connect paired-but-disconnected device.
+9. HFP call-audio routing exists in bridge (bt_telephony.py:224-249 audio_route) but no shell UI.
+10. PBAP call history implemented in shani-link but not reachable from shell.
+11. No FTP/browser of phone files.
+12. No per-device auto-connect (one global switch, regex /^(audio|input)/ excludes phones/watches).
+13. Connection profiles not exposed (UUIDs read but no profile chips).
+14. Trust set before pairing succeeds (SidebarDetails.qml:157).
+15. No device rename/alias.
+16. Pairing prompts no timeout (ask waits indefinitely).
+17. Default agent answers pairings it did not start.
+18. Single OBEX agent slot with no handoff.
+Needs BlueZ/hardware: no NAP server/obexctl/sdptool/pand/rfcomm; FTP support unconfirmed; Android PBAP/MAP consent external; A2DP↔HFP auto-switch needs WirePlumber policy.
+Risk: shell's outgoing OBEX send path has no test at all.
+
+## Authenticator, Password Generator, Kundali depth (agent ses_dfb847481ffe9n1Er4WlI70qOl)
+
+19 gaps ranked. Top: 1 Panchang computes 15 fields, UI shows 5 (masa/paksha/ritu/ayana/years/sun-moon longitude dropped); 2 no HOTP (explicitly rejected, test pins it); 3 no strength estimate (zxcvbn); 4 no dictionary/pattern rejection (Password1! passes); 5 no sunrise/sunset or tithi end times (helper hardcodes 06:00/18:00); 6 no dasha/antardasha (helpers exist unreachable); 7 no muhurta selection (muhurta_score exists, no CLI/UI); 8 no clock-drift correction; 9 passphrase wordlist uncurated system dictionary; 10 no history/favorites; 11 Vikram Samvat approximated as year+57; 12 YubiKey OATH shallow (period 30 forced, HOTP skipped); 13 no horoscope matching/gun milan; 14 no planet→house mapping/divisional charts; 15 no Steam Guard format; 16 no camera QR scan; 17 no single-use backup-code storage; 18 no auspicious-time reminders; 19 no autofill handoff.
+Risk: shani-chronoa dasha/muhurta/varga helpers simplified ("sunrise_approx=06:00") — label values approximate.
+
+## WebApps/PWA depth (agent ses_dfb83f53cffewCWLBe9sqkGoly)
+
+Shell-fixable: 1 tapping a web-app row DELETES it, no open/edit [FIXED this pass: row opens via WebApps.open, explicit ✕ removes]; 2 no URL validation/secure-context/warning (http/file/javascript/data accepted); 3 no per-app refresh/cache/site-data clear; 4 no launch-by-name IPC (comment promises but only add/remove exist); 5 web apps never under launcher Internet chip (Network alias missing); 6 no edit/rename/reorder/schema/dedupe; 7 sanitized-name collisions overwrite; 8 no open-at-startup; 9 no dock-pin/workspace-assign action; 10 no per-app keyboard shortcut; 11 feature undocumented.
+Browser-level: 12 no PWA install pipeline beforeinstallprompt/manifest; 13 no service worker/offline start; 14 push notifications bypass shell (portal Notification unimplemented); 15 per-app permissions/quota not expressible; 16 web-app UX actions browser-side/unreachable; 17 icons dir allocated but unused so uninstall cannot be clean.
+
+## Keyboard shortcut conflicts/discoverability (agent ses_dfb841ecaffeN4gYGad1ojrI7n)
+
+Negative result: no direct niri-vs-app same-combo collision in shipped config (globals use Mod, apps use Ctrl/bare). Conflicts from customization/within app layer/unteachability.
+1. OSK cannot send Super/Meta — all global shortcuts touch-unreachable (Osk.qml ctrl/alt only).
+2. Custom binds can silently break Ctrl+C/V/Z/S (takenBy checks only niri binds).
+3. Annotate bare E clear unrecoverable (undo only pops one stroke).
+4. No surface lists app-internal shortcuts (Viewer ~20, Files ~30 nowhere).
+5. Calculator window-level Return/Enter Shortcut overrides focused TextFields.
+6. Escape no-op in TextEditor with >1 tab.
+7. Mutation modifier inconsistent (Annotate bare Z/E/S, Whiteboard Ctrl+Z, Trimmer I/O/S, PdfReader R/F/W/P).
+8. Shared KeyFocus no Home/End/PageUp/PageDown.
+9. Launcher Ctrl+Y Quick Look undocumented.
+10. "Change keyboard shortcuts" lands far in Settings.
+11. Escape means four different things across surfaces.
+12. Three-key a11y combos no one-handed path.
+13. Redo combos diverge (Files/TextEditor both, WindowLayouts undo only).
+14. Shortcut-search skips custom binds.
+15. Mod+Escape shortcuts-inhibit no discoverability.
+
+## niri integration & extensions (agent ses_dfb83c98dffeaLwdDXNyVVpmRT)
+
+Verified niri 26.04 action list. Already exposed: screenshot-window, focus-window-or-workspace-*, dynamic cast, unset-workspace-name, close-window+force-close, global focus-follows-mouse.
+Shell-exposable: 1 no third-party extension surface at all (every widget literal LazyLoader, no manifest dir) — the structural Waybar/Plasma/GNOME-extension gap; 2 hand edits to shell-owned includes destroyed (WindowRules regenerates whole file); 3 no diff/history/manual restore for config (one .prev deleted on success); 4 preset width/height actions KDL-only; 5 toggle-keyboard-shortcuts-inhibit unreachable outside KDL; 6 screenshot-window fires blind at focused window, no window-menu capture; 7 column-level moves/swap absent; 8 no apply-config-without-restart (niri load-config-file unused); 9 urgency display-only (set/unset-window-urgent unused); 10 niri pick-window unused; 11 single-socket assumption breaks nested sessions; 12 focus-navigation actions unused; 13 workspace rename monitor-warping and index-only; 14 toggle-window-rule-opacity unused; 15 niri msg layers unused; 16 IPC discoverability for extensions absent.
+Compositor-level out of scope: per-workspace focus-follows-mouse, drag-to-edge, gestures, always-on-top, thumbnails, Activities, colour management, per-output VRR, session manager, XWayland scaling.
+
+## Context menus depth (agent ses_dfb84453dffeUyEoWFBA2qYJ1c)
+
+Structural: no shared context-menu component and no Menu{}/Popup{} anywhere in ~93 modules. Every menu hand-rolled Glass+Repeater+Rectangle+KeyFocus. Only Files, Dock, desktop icons and bar app menu have real menus; KeyFocus wires Menu/Shift+F10 but only 8 call sites set menuable:true.
+1. Files menu never takes keyboard focus on open (no Ui.focusFirst, Dock does).
+2. Escape doesn't dismiss Files menu.
+3. Files menu items invisible to screen readers (no Accessible role/name/onPressAction; Dock gets it right).
+4. Files file menu mouse-only — no long-press.
+5. No text-editing context menu anywhere (TextField raw TextInput, 3 TextEdits) — no Copy/Cut/Paste/Select All/Undo/Redo. Highest value.
+6. No shared context-menu primitive (root cause of 1-3,18).
+7. TextEditor tabs no menu.
+8. Photos tiles no menu.
+9. Mail message rows no menu.
+10. Viewer right-click/long-press only rotate — no image menu.
+11. Music library rows no menu.
+12. Calendar events no menu.
+13. Contacts rows no menu.
+14. Feeds rows no menu.
+15. Tasks rows no menu.
+16. Terminal host rows no menu.
+17. PdfReader no page/selection menu.
+18. Menu presentation inconsistent (icons/separators/submenus).
+19. Bar right-click actions mouse-only (no Hold on Chip).
+Comparison: GNOME/GTK4 gives every entry GtkPopoverMenu; KDE Menu/MenuItem; macOS NSMenu; iOS long-press. Shani has scaffolding but almost no menus.
+
+## Test finding (agent a11y test)
+
+A new static a11y test (tests/test_qml_a11y.py) found ~84 IconButtons with no tip or Accessible name across the shell — real AT-SPI gaps, recorded for triage (not fixed in this pass).
+
+## Fixes applied this pass
+
+- WebApps settings row no longer deletes the app on click; row opens via new WebApps.open(name), explicit remove button.
