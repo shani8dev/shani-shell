@@ -489,8 +489,10 @@ PanelWindow {
                 run: () => Quickshell.execDetached(["python3", win.providersTool, "activate", r.bus, r.path, r.id].concat(q.split(/\s+/))) })) });
         // "Ask Chronoa" takes over only what nothing else could answer: it lands
         // last, so it is the first item exactly when the search found nothing
-        // and never pushes a real match out of the top spot.
-        if (q !== "" && Settings.data.searchMeaning !== false)
+        // and never pushes a real match out of the top spot. A sum the
+        // calculator already answered is not a question, so it gets none.
+        const calcAnswered = out.some(s => s.items.some(i => i.kind === "calc"));
+        if (q !== "" && Settings.data.searchMeaning !== false && !calcAnswered)
             out.push({ title: Tr.t("Ask Chronoa"), items: [
                 { kind: "ask", icon: "chat-message-new", title: "Ask Chronoa: " + q, subtitle: Tr.t("Enter to ask in your own words"), run: () => Chronoa.ask(q) }
             ] });
