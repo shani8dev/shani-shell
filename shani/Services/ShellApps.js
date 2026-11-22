@@ -53,7 +53,8 @@ var ids = {
     "Disks": "dev.shani.Disks",
     "Terminal": "dev.shani.TerminalApp",
     "Shani Backup": "dev.shani.Backup",
-    "Feeds": "dev.shani.Feeds"
+    "Feeds": "dev.shani.Feeds",
+    "Mail": "dev.shani.Mail"
 };
 
 // "notes.txt — Text Editor" and "Text Editor" are both the Text Editor

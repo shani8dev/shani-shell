@@ -20,7 +20,7 @@ export SHANI_NIRI_CONFIG=/work/dev/niri/session.kdl
 # the first-login tour would sit over every other check; one test opens it by hand
 export SHANI_NO_TOUR=1
 export SHANI_BACKUP_TOOL=/work/dev/fake-backup.sh
-export SHANI_DEVWATCH_TOOL=/work/bridge/devwatch.py SHANI_FEEDS_TOOL=/work/bridge/feeds.py
+export SHANI_DEVWATCH_TOOL=/work/bridge/devwatch.py SHANI_FEEDS_TOOL=/work/bridge/feeds.py SHANI_MAIL_TOOL=/work/bridge/mail.py
 # devices plugged in: the real watcher over recorded udev events (dev/udev/, written
 # into the FIFO /tmp/udev-events by the suite), a second monitor through a niri
 # shim, a gaming mouse (fake ratbagctl), a security key (fake fido2-token and

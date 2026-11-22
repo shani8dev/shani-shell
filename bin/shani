@@ -521,6 +521,8 @@ APPS: dict[str, tuple] = {
                [], ["backupOpen"], None, "backupShown"),
     "feeds": ("dev.shani.Feeds", "Feeds", "Read RSS and Atom feeds", "mail-unread", "Network;News;Utility;",
               [], ["feedsOpen"], None, "feedsShown"),
+    "mail": ("dev.shani.Mail", "Mail", "Read and write mail", "mail-unread", "Network;Office;Utility;",
+             [], ["mailOpen"], None, "mailShown"),
     "photos": ("dev.shani.Photos", "Photos", "Every picture in Pictures, by month", "shotwell", "Graphics;Photography;",
                [], ["photosOpen"], None, "photosShown"),
     "translate": ("dev.shani.Translate", "Translate", "Translate text, on this computer", "translator", "Utility;Office;",
