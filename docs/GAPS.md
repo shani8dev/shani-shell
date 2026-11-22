@@ -242,3 +242,23 @@ Each needs real hardware or shani-testbed:
 - niri options that are only in git main ("next release"): tablet mapping to the focused window, per-output `max-bpc` and `drm-lease`. Arch's `extra/niri` is 26.04; the config guard puts the old file back if a setting writes one of these, with a warning. `track-layout "window"` *is* in 26.04.
 - Recording: video codec choice (auto/H.264/HEVC/VP9/AV1) via wf-recorder -c; screenshot auto-copy to clipboard.
 - Snooze length (5/10/30/60 min) and media controls on the lock screen are now settings.
+
+## Built since the last pass
+
+- **Mail** (Modules/Mail, bridge/mail.py) — IMAP and SMTP for a real account,
+  or MailHog's API and SMTP for development. Verified end-to-end against the
+  `mailhog/mailhog` container: send → list → read.
+- **Feeds** (Modules/Feeds, bridge/feeds.py) — RSS 2.0, RSS 1.0 and Atom over
+  the standard library, with a cache and per-feed read state.
+- **Firewall** (Settings > Firewall, Services/Firewall.qml) — firewalld through
+  firewall-cmd: on/off, the default zone, and the ports and services let into
+  the zone being edited.
+- **ScreenCast portal** — `xdg-desktop-portal-wlr` is now in
+  shani-desktop-niri and named for ScreenCast and Screenshot in
+  niri-portals.conf, so a browser's Share… has a backend under niri.
+  **RemoteDesktop still has none** (portal-wlr 0.8.4 implements only
+  Screenshot and ScreenCast), so the remote-desktop line above stands.
+- **Printing from Files** — the file-actions card offers Print… for PDFs,
+  images and text when a printer is there (CUPS `lp`).
+- **Weather advisories** — rain, wind and heat read out of the forecast the
+  shell already fetches; open-meteo has no warning feed, and these say so.
