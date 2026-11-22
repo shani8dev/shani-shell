@@ -105,7 +105,13 @@ def test_a_command_that_takes_an_argument_says_which():
     """`<ARG>` in the help is how `shani <group> <cmd> --help` tells you."""
     for group in groups():
         for name, args, help_text in cli.GROUPS[group]:
-            # [""] is how a group says "an optional argument"
+            # _run_group passes lowercase tokens to the IPC verbatim (a fixed
+            # action, e.g. media next -> media("next")), upper-case tokens are
+            # placeholders filled from the command line, and "-" is stdin.
             if any(a for a in args):
                 joined = " ".join(args)
-                assert ("<" in joined) or joined.isupper(), (group, name)
+                assert (
+                    ("<" in joined)
+                    or joined.isupper()
+                    or all(a.islower() or a == "-" for a in args)
+                ), (group, name)

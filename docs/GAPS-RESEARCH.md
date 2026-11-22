@@ -1039,3 +1039,124 @@ Bugs/dead code: PinCapture triple-open (#5), TabletMode.lidClosed unused (#11), 
 - Calendar recurring-event RRULE loss: ruleFromForm() now returns the original rule verbatim when the person hasn't touched the repeat controls (repeatTouched flag).
 - PinCapture double-click triple-open: removed onDoubleClicked handler.
 - Smart clipboard watcher privacy opt-out: new Settings.data.smartSuggestions gate on Process.running.
+
+---
+
+# Eleventh pass — full reports
+
+## Notification actions & quick-response depth (agent ses_dfb8c0de9ffeHDClcT6FL3PCo2)
+
+Scope: static; skipped parent's listed items. Note GAPS.md:801/805 stale — Popups.qml:46-189 and NotificationCard.qml:395-410 now implement grouped stacks + progress bars.
+
+1. Inline reply is a single-line TextField — no multiline/Shift+Enter, attachments, emoji/OSK, voice dictation, draft persistence; typed text dropped on expiry (NotificationCard.qml:304-315).
+2. Action labels not localized — card renders a.text verbatim; shani-link posts hardcoded English "answer"/"Answer"/"Call back"/"Message" (NotificationCard.qml:55,330; incoming_call.py:279-280; missed_call.py:69-71).
+3. Custom rule "actions" dead code — evaluate() returns arbitrary action strings but onNotification only branches on "block"; mute/hide/silence collapse to hide (NotifsRules.qml:73-77; Notifs.qml:243-247,256).
+4. No "mark all read" semantic — clearAll dismisses everything; no read/unread flag; dock badge raw count (Notifs.qml:27-43,179-184).
+5. Call actions Answer/Decline only — no quick SMS presets, send location, silence, add-to-contacts; missed calls only Call back/Message.
+6. No action overflow — every action one Repeater in RowLayout with ElideRight; 5 actions squeeze unreadably (NotificationCard.qml:320-391).
+7. Action icons advertised but never drawn — server declares actionIconsSupported but pill model only {text,run}.
+8. Suggested replies send with one tap, no confirm/edit — LLM suggestion dispatched straight to sendInlineReply (→ paired phone via MAP) with no review/undo (NotificationCard.qml:293-300; SmartReplies.qml:29-34).
+9. Snooze one fixed-length chip — no later today/tomorrow/next week presets or reminder integration (tomorrowMorning used only for DND).
+10. Post-reboot "Earlier" entries inert — snapshot() drops desktopEntry and actions (Notifs.qml:192-198).
+11. No one-tap "silence this conversation" — app-level silencing buried in overflow, per-app not per-thread.
+12. Notification-centre groups never collapse — sidebar groups always expanded, Clear dismisses whole group with no undo.
+13. No action-result feedback — card calls done() immediately after run(); failures logged only.
+14. Test IPC invokes actions without context — notificationAct() calls a.invoke() with no args vs real clicks passing {notificationId,appName} (shell.qml:959-963).
+15. "Ask Chronoa" has no consent gate — ships full summary+body to assistant with no confirmation.
+16. Dock badge long-press shows launcher actions, not pending notifications (Dock.qml:566).
+17. Reply-target state daemon-memory-only — map_notify.replies/incoming_call.shown lost on restart.
+Highest value × ease: #1,#2,#4,#5,#8.
+
+## Visual polish & micro-interactions depth (agent ses_dfb8bae64ffeYfVWF5vXBuDAOa)
+
+Skipped documented items (reduceMotion, accent, matugen, bar opacity, glass, Theme.faint, focus ring, fontScale, niri Pop spring, NotificationCard:408 animation, edge swipes, empty-state actions).
+
+1. Quick Panel no entrance or exit — QuickPanel.qml:18 flips visible, card has no Behavior; blinks. Sketch: Behavior on x/opacity mirroring Sidebar.
+2. Quick-settings tiles hover but no pressed state — ControlCenter/Tile.qml:60 colour from containsMouse only; no pressed/ripple.
+3. Toggle switches no press feedback/haptic tick — SwitchRow.qml:55-75 fixed bezier, onClicked only.
+4. Haptics entirely absent — grep haptic|rumble|vibrate zero; only force-feedback diagnostic in Plugged.qml. Long-press silent.
+5. Interaction sounds absent — SystemSounds.qml only volume/screenshot/charger/drive; no toggle/open/close/long-press/dismiss.
+6. Notification swipe-back snaps — NotificationCard.qml:98-114 no Behavior on slide.x; failed dismiss jumps.
+7. Dock icons can't be drag-reordered — movePin exists (Dock.qml:160-175) only context menu callers; control-centre tiles do drag-reorder.
+8. Motion language fragmented — Theme.emphasized used in only 5 files; 7 easing types, ~24 distinct Theme.mot values 60ms–90000ms.
+9. Surfaces don't appear from where you tapped — Launcher fixed y:28; no shared-element pattern.
+10. Panel opening state-driven not finger-driven — Sidebar tracks finger only for dismissal; no drag-from-edge-to-open, no velocity carry-over.
+11. No pull-to-refresh in any list — Feeds toolbar button/timer only.
+12. Empty/loading/error swap instantly, no shimmer — no skeleton, Spinner only in Button.qml:78 and VoiceRecorderPanel.qml:356.
+13. No in-app swipe-to-back — four edge gestures + long-press/pinch on 3 viewers; none of ~45 AppWindows has back-swipe.
+14. Ripples on only two controls — Button.qml and IconButton.qml; ListRow/SegmentedTabs/SwitchRow/NotificationCard none.
+15. 90-second ambient animation while cover shown — ScreenSaver/Cover.qml:51-52 breathing Theme.mot(90000).
+16. Overlay stacking implicit — 30+ surfaces declare WlrLayer.Overlay with no cross-surface z; Ui.closeAll lists 12 flags.
+
+## Backup/restore edge cases (agent ses_dfb8b598fffeH1jegSuhvVFEcM)
+
+Verification:
+1. No restic check anywhere — integrity inferred from single-file restore (restic.py:194-273); docs tell users to run restic check by hand.
+2. Restore-test failure never fails backup — cli.py:217-220 exits on result.ok alone, merely prints test result.
+3. Partial backup reported as success — restic.py:146-149 treats exit 3 (some files unreadable) as OK; files_error parsed away.
+4. Restore test false negatives — restic.py:247-250 only files 0<size≤50MB; empty-file or single-large-file backups report no test file.
+Restore correctness:
+5. No space preflight, no cleanup after failed restore — restic.py:183-191 timeout=None, no df check; partial tree left on ENOSPC.
+6. Full restores never verify — only restore_test passes --verify; GUI restore doesn't.
+7. Local snapshot restores lose fidelity — home_page.py:79-86 shutil.copy2/copytree: no xattrs, no hardlinks, sparse fully allocated, FIFOs error.
+8. No post-restore verification of local copies — only OSError caught.
+Exclusions: 9 defaults leave Downloads and mounted filesystems (no --one-file-system, restic.py:42-47); 10 no user paths or pattern syntax.
+Encryption: 11 no key management/recovery material — password in keyring only, no restic key add/change/list.
+Off-site: 12 no remote backend — path picker only, rejects paths under home; S3/SSH/B2 impossible.
+Retention: 13 manual backups never prune (thin only with --scheduled); 14 no prune preview.
+Scheduling: 15 missed catch-up run fails silently (Persistent timer no RequiresMountsFor/retry); 16 two conflicting schedule stores (GSettings dead, drop-in 12:30); 17 linger/home-snapshot time unfixable in UI.
+Notifications: 18 no proactive backup notifications (timer units no OnFailure).
+Shell-specific: 19 local-snapshot restore gated on external drive — BackupPanel.qml:106,116 enabled: Backup.driveSetUp but timeline from local home list; with snapshots but no drive every restore button dead; 20 sizes always zero (s.total_size never returned by home list) and selected snapshot lost (Backup.qml:37-44 ignores name).
+
+## Data portability formats (agent ses_dfb8c3a55ffe50FUxF4vKMMisN)
+
+Capability matrix: Contacts imports vCard 2.1/3.0/4.0 + images, exports vCard 4.0 only (missing CSV, LDIF, vCard 3.0-out); Agenda ICS VEVENT import, no export; Feeds OPML in/out flat (missing JSON Feed, category-preserving OPML, read/starred export); Mail no import, decoded MIME/source out; QuickNotes HTML-in-pre/print out; Photos import 9 image exts, no export; VideoTrimmer 5 video+opus in, mp4/opus/png out; VoiceRecorder opus/flac/wav; Passwords GPG only; Tasks no formats; Terminal own JSON; WebApps .desktop one-way; Clipboard image/text; Screenshots PNG/clipboard/OCR.
+22 ranked gaps with evidence: 1 Contacts no CSV; 2 vCard export hardcoded 4.0; 3 no LDIF; 4 Terminal no ~/.ssh/config import; 5 key import blind cp fails on .ppk; 6 VoiceRecorder no MP3/AAC; 7 VideoTrimmer no EDL/cut-list; 8 output container fixed .mp4; 9 QuickNotes HTML not rendered; 10 no PDF export; 11 Music no m3u/pls; 12 Calendar no export; 13 Mail no .eml save; 14 no mbox/Maildir export; 15 Photos no XMP/IPTC; 16 no Google Photos Takeout JSON; 17 no export-selection copy-out; 18 Feeds no JSON Feed; 19 OPML export drops read/starred; 20 Tasks zero file formats (todo.txt etc); 21 WebApps no import/export; 22 Screenshots OCR/formats clipboard-only.
+
+## FilePicker & handoff UX (agent ses_dfb8bde56ffeMRFAt4xiNkyHq5)
+
+Picker thin overlay: sidebar Files.places only, list FileDirectory (watch+name filter), save bare TextField; no per-picker search/preview/mkdir/sort/view/path typing/context menu. Portal maps OpenFile/SaveFile/directory correctly (Portal.qml:24).
+1. No search field though model supports query/refilter (FileDirectory.qml:22,73-83; picker never sets it).
+2. Save mode never confirms overwrite (canAccept only validName).
+3. Wildcard MIME filters from Flatpaks degrade to show-everything (portal.py:86-89 image/* → no extensions → filters=[]).
+4. Picker-initiated saves/exports give no feedback (Contacts.qml:142-152 FileView printErrors:false; Feeds.qml:78 fires blind).
+5. Drag file from picker impossible (rows MouseArea-only, no Drag mime data).
+6. Portal dialog neither modal to requesting window nor placed on its output (portal.py:125 discards parent; picker Ui.closeAll + focusedOutput).
+7. No file preview/Quick Look in picker (KeyFocus peekable exists but picker rows default false).
+8. No Recent/Starred place in picker sidebar (virtual places exist in Files but unreachable).
+9. No show-hidden/sort/view controls.
+10. No path-bar editing Ctrl+L (breadcrumbs click-only; FolderPicker has typed field).
+11. Portal writable hint dropped (portal.py never reads opts["writable"]).
+12. No default extension appended in save mode.
+13. No create-folder affordance.
+14. Multiple selection offered when multiple:false then truncated.
+15. "Open with"/"Edit" don't hand file to right app (Share.qml gio open; FileActions → Chronoa says "open file" to LLM).
+16. No reveal-containing-folder from share sheet/picker.
+17. Open-with picker can't set default.
+18. Read errors look like empty folder.
+19. Keyboard nav gaps (no Backspace-up, no type-to-select).
+20. No recent save locations or filename autocomplete.
+Highest value × ease: #1–#4. #11 needs live portal confirmation.
+
+## CLI & terminal tool depth (agent ses_dfb8b85c1ffeHYGSR72Jd4ac7C)
+
+CLI:
+1.1 shani media next/stop/previous/toggle silent no-ops — GROUPS empty args, IPC_NAMES maps to "media" but shell function media(action) never gets action. [FIXED this pass: arg literals passed through]
+1.2 advertised --json mode doesn't exist (docstring bin/shani:5,11,14 but build_parser has no flag).
+1.3 most app operations no CLI verb (feeds/mail/photos/contacts/translate/backup/firewall/nearby/disks/passwords/etc).
+1.4 no dry-run, verbose, config file, version.
+1.5 argument handling unchecked/dead (unused needed with precedence bug; numeric args raw strings; stdin truncated 12000).
+1.6 wiring test can't catch 1.1 (checks function name not arity).
+Terminal emulator: 2.1 Connect spawns TTY-less process (execDetached ssh/picocom vs Files.openTerminal via xdg-terminal-exec); 2.2 no per-app terminal; 2.3 Settings monospace font never reaches terminal; 2.4 transparency hardcoded; 2.5 only foot themed.
+SSH: 3.1 host groups/tags promised in header but absent; 3.2 no ~/.ssh/config import; 3.3 no multiplexing/ControlMaster; 3.4 no host-key management (accept-new forced); 3.5 tunnel list no liveness status; 3.6 agent forwarding config-only; 3.7 key list display-only and resolves to public key (.ssh typo in name parser); 3.8 RSA-2048-only, no passphrase.
+Snippets: 4.1 clipboard-only (no variables/Run/import/export, stored in 0644 settings.json); 4.2 no command-completion notification (OSC 133 marks emitted but nothing listens).
+
+## Interactive diagnostics depth (agent ses_dfb8c63ebffeC5IxeHkGq76onE)
+
+Tier 1: 1 health ring ignores failed user units (health-check.py:52 systemctl --failed no --user); 2 Disk column lifetime total not rate (Processes.qml:377,453 + TopProcesses:156-178 cumulative /proc io); 3 Follow mode yanks reader to newest (LogsPanel.qml:84-89 re-reads every 3s); 4 Problem report no redaction controls (system-report.py:57 prose warning, hostname/lspci/200 journal lines); 5 no time-range window in Logs (-n 200 only); 6 health one-shot no trend; 7 category chips regex heuristics not journal sources, audit logs never read; 8 no bookmarks on log entries; 9 search literal substring only.
+Tier 2: 10 per-process network dead placeholder (nethogs probed never launched, no ss/lsof/proc/net reader); 11 shell never surfaces shani-health CLI flags; 12 graph history ~3min memory-only; 13 per-core instantaneous only, GPU one nvidia-smi line; 14 threads a count not a view; 15 benchmark thin (64MiB read-only); 16 health scoring unweighted; 17 report no structured form; 18 log details raw JSON.
+
+## Fixes applied this pass
+
+- shani media next/stop/previous/toggle now pass their action literal to media(action) (were silent no-ops).
+- tests/test_cli_ipc.py updated to accept lowercase literal args (the fixed-action mechanism _run_group uses).
