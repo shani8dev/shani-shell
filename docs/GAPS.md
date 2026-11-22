@@ -322,3 +322,242 @@ Built since the pass above, each with the limit that still applies:
 - **Mail, Feeds, Firewall** — Mail reads by folder and sends, with no user-facing flag button yet (only read/unread state); Feeds does RSS/Atom with OPML and one refresh timer, not per-feed times; Firewall drives firewalld but has no zone policies, ipset or direct rules.
 - **Notes, Reminders, Calendar, Photos** — gpg-locked notes, checklists, attachments and cloud-folder sync; smart lists and repeat rules; day/year views, time zones, natural-language dates and invitations; day/month/year grouping, import from phone or camera and adjust in Viewer. Adding an online calendar account is still GNOME Online Accounts'.
 - **Text Editor, Preview, Passwords, Clipboard, Screenshots** — multiple carets, snippets and TextMate bundles; seven PDF tools flattened into a copy plus merge/split/export; passkey entries that are a keyring-backed metadata registry, not real credentials, and a weak/reused audit over saved secrets; text transforms and gpg-encrypted history; pin, scrolling capture (grim+slop+ydotool+PIL), Viewer annotation and encrypted history. Scrolling capture needs those tools installed.
+
+## Full upstream app comparison — every gap found (Nov 2026)
+
+Four parallel audits compared our apps against the closest open-source
+equivalent, cloned into `/tmp/opencode/ref-apps/`. This is the complete list,
+not just what got built. **[fixed]** means it was implemented in the same pass
+and has a test; **[open]** means it is still missing. Items already listed
+above are repeated here so this section stands alone. Nothing here was
+verified on real hardware or in a QML runtime — the findings come from reading
+our code and the upstream source/docs.
+
+### Text Editor → Kate
+
+- **[fixed]** Undo / redo — Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y, bounded per-document history.
+- **[open]** Smart indent after `{` and auto-close of `()[]{}""''`.
+- **[open]** Regex, case-sensitive and whole-word search with live match highlighting (ours is lowercase `indexOf`).
+- **[open]** Quick-open / MRU tab switcher (we have only a tab strip).
+- **[open]** Current-line highlight and matching-brace highlight.
+- **[open]** Line bookmarks (Ctrl+B, next / previous).
+- **[open]** Word and character count in the status bar (only lines today).
+- **[open]** Split view of one document, and session restore across restarts (`TextDocs` is memory-only).
+
+### Notes → Joplin
+
+- **[open]** Rendered Markdown preview (raw `TextArea` only; no Markdown renderer in `Common/`).
+- **[open]** Trash / restore deleted notes (`remove()` is `rm -f`; no undo).
+- **[open]** Version history (each autosave overwrites the file).
+- **[open]** Formatting toolbar — bold, italic, heading, link, table, code (only Checklist and Attach today).
+- **[open]** Tags with filtering (notebooks + name filter only).
+- **[open]** First-class to-dos with due dates (only `- [ ]` checkboxes).
+- **[open]** Note previews and sort by updated / created / title (`preview()` exists but is unused).
+- **[open]** Browseable body-search results (`searchBodies()` exists but only `results[0]` opens).
+
+### Calendar → GNOME Calendar
+
+- **[fixed]** Editing keeps RRULE, DESCRIPTION, attendees and alarms (the editor previously re-composed the whole VEVENT).
+- **[open]** Event description / notes field in the editor and popover; the bridge never reads `DESCRIPTION`.
+- **[open]** Click-to-view detail popover before editing (currently opens the edit form directly).
+- **[open]** Quick-add natural-language field (`_parseNaturalDateTime()` exists but is only in the full form).
+- **[open]** Import `.ics` button (`agenda.py import` and `Agenda.importFile()` exist with no QML caller).
+- **[open]** Repeat / end-repeat field for new events (only preservation is fixed).
+- **[open]** Per-event reminders / alarms (one hard-coded 10-minute heads-up for all events).
+- **[open]** Drag to create / move events in the week and month grids.
+- **[open]** Current-time indicator line, and local calendar create / rename / colour.
+
+### Contacts → GNOME Contacts
+
+- **[fixed]** Editing keeps unknown vCard fields — BDAY, ADR, ORG, NOTE, URL were silently destroyed.
+- **[open]** Multiple phone numbers and emails with type labels (mobile / home / work); backend handles arrays, UI edits one of each.
+- **[open]** Read-only detail sheet with click-to-call, mailto and map rows.
+- **[open]** Export / Share as QR (`Qr.show()` already takes arbitrary text).
+- **[open]** Editable avatars / photos with crop.
+- **[open]** Favorites (the star is used only for "This is me").
+- **[open]** Alphabetical index and sort by first name / surname.
+- **[open]** Manual link / unlink versus the existing automatic duplicate merge.
+
+### Files → Nautilus
+
+- **[open]** Search filter popover — file type, date preset, size, content vs filename (`files.py --filter=` exists; needs `--after=` / `--min-size=`).
+- **[open]** Breadcrumb dropdowns listing sibling folders (crumbs are click-only).
+- **[open]** Visible-columns chooser and clickable list headers (fixed Name / Size / Date).
+- **[open]** "Select Items Matching…" wildcard select.
+- **[open]** Create Link / symlink (Ctrl+M).
+- **[open]** Grid caption settings.
+- **[open]** Sort by Type / Date Created.
+- **[open]** A second Files window (Ctrl+N).
+
+### Photos → gthumb / Loupe
+
+- **[fixed]** Camera / Screenshots filter chips were inert — they now filter by path.
+- **[open]** Delete / move to trash from a tile.
+- **[open]** Multi-select with batch delete, album add, move / copy.
+- **[open]** Sort order control (newest / oldest / name); grid is hardwired `sort -rn`.
+- **[open]** Slideshow from the grid (Viewer has one).
+- **[open]** EXIF details panel (our `PhotoMeta` reads only Make / Model / Date and is bound to Files' selection).
+- **[open]** Ratings and tags persisted per photo.
+- **[open]** Import into date-based subfolders and delete from source.
+
+### Viewer / PDF → Evince / Loupe
+
+- **[open]** User bookmarks per document (outline is the PDF's own TOC).
+- **[open]** Clickable PDF links — internal GoTo, external URI and email (clicking turns the page).
+- **[open]** Embedded attachments sidebar — list / open / save.
+- **[open]** Navigation history and First / Last page.
+- **[open]** Two-page / facing-pages layout.
+- **[open]** Annotations list sidebar (we can draw but not review them).
+- **[open]** Search options — case-sensitive / whole word / wrap (always lowercased).
+- **[open]** Print page range, copies and preview.
+
+### Mail → Geary
+
+- **[fixed]** Reply and Forward (compose opens prefilled with quoted text). Reply-to-all specifically is not separate.
+- **[fixed]** Message date in the list; snippet still not shown.
+- **[open]** Cc / Bcc in compose (`send()` takes three arguments).
+- **[open]** Save attachments (names only today; bridge must decode the MIME part).
+- **[open]** Mark unread / star / move / archive (bridge has `imap_flag` internally, exposes only `markread`).
+- **[open]** View source.
+- **[open]** Opt-in remote images (the bridge strips all remote content).
+- **[open]** Multiple accounts and an account editor.
+
+### Feeds → Newsboat
+
+- **[fixed]** Article summary in the list (data was already in each item).
+- **[open]** Next-unread navigation and Mark-all-read.
+- **[open]** Tags / categories with a tag filter.
+- **[open]** Search / filter articles.
+- **[open]** Bookmark / save article for later.
+- **[open]** Show-read toggle and sorting.
+- **[open]** Feed auto-discovery from a site URL.
+- **[open]** Podcast enclosures → download queue.
+
+### Terminal → kitty / SSH managers
+
+- **[fixed]** Test connection button (`testConnection()` existed with no caller).
+- **[fixed]** Import key from the UI (`importKey()` existed with no caller).
+- **[fixed]** Search / filter hosts by name, address and user.
+- **[open]** Remote (`-R`) and dynamic SOCKS (`-D`) tunnels; only local `-L` today.
+- **[open]** Import / export the hosts JSON.
+- **[open]** Advanced per-host options — ProxyJump, agent forwarding, X11, compression, arbitrary `-o`.
+- **[open]** Recents / last-connected and connection status.
+- **[open]** Remote shell integration (kitty's ssh kitten: config copy, connection reuse, remote completion).
+
+### Disks → GNOME Disks
+
+- **[open]** Visual partition / space-allocation bar.
+- **[open]** Detailed SMART dialog and short / extended / conveyance self-tests.
+- **[open]** Partition management — create / delete / resize / move, type and flags, filesystem label.
+- **[open]** Disk-image tools — create, restore with progress, attach as loop device.
+- **[open]** Unlock and passphrase change for encrypted volumes (creation works).
+- **[open]** Job progress and cancel UI (`Disks.busy` exists but no progress stream).
+- **[open]** Mount options dialog (noauto / ro / uid / gid).
+- **[open]** Benchmark graph.
+- Any of these need the existing two-click confirmation and polkit path preserved — destructive operations.
+
+### Software → GNOME Software
+
+- **[fixed]** Search Flathub as you type (was Enter / Find only).
+- **[open]** Ratings / reviews (ODRS) and popularity.
+- **[open]** Featured / editorial discovery (Explore starts at a plain category grid).
+- **[open]** apt / dpkg / Snap apps alongside Flatpak (OS updates deliberately go to Cassini).
+- **[open]** Version history / per-update changelog.
+- **[open]** Screenshot gallery and age / content rating (first screenshot only).
+- **[open]** Repository / remote management.
+- **[open]** Optional add-ons / extensions.
+
+### Processes → htop
+
+- **[fixed]** Search / filter by process name.
+- **[open]** Click-to-sort by PID / name / memory / disk (fixed CPU then memory).
+- **[open]** Signal choice on kill — TERM / KILL / INT / HUP / STOP / CONT (`end()` hardcodes `-TERM`).
+- **[open]** Process details dialog — command line, user, state, threads, open files, environment.
+- **[open]** Renice and CPU affinity.
+- **[open]** Per-user aggregation / Users view.
+- **[open]** Configurable / persisted columns and meters.
+- **[open]** Saved views / tabs (htop's F1–F5 screens).
+
+### Settings → GNOME Settings
+
+- **[open]** Online Accounts (already "by choice" above — needs GOA, a system daemon).
+- **[open]** ICC colour profile assign / default (niri has no colour management).
+- **[open]** WWAN beyond on/off — APN profiles, SIM PIN, roaming and data limits.
+- **[open]** Fractional scaling (125 / 150 / 175%).
+- **[open]** Removable-media defaults (what opens on inserting a disc or USB).
+- **[open]** Per-device Wacom detail — button remap, pressure curve, tablet area, monitor mapping.
+- **[open]** Per-monitor wallpaper / scale assignment.
+- **[open]** Hardware-driver / firmware section inside Settings (currently a Cassini handoff).
+
+### Media Player → VLC
+
+- **[open]** Audio equalizer and effects (10-band EQ, compressor, spatializer, stereo mode).
+- **[open]** Go-to-time dialog and chapter list.
+- **[open]** A→B loop.
+- **[open]** Video effects — crop, rotate, deinterlace, filters.
+- **[open]** Recent media list.
+- **[open]** Open a network stream from the UI (`isStream` plays URLs; no field to enter one).
+- **[open]** Save / load a playlist (.m3u); the queue is session-only.
+- **[open]** Record / stream output.
+- Subtitle timing shifts were fixed earlier (`1a55836`); chapters and go-to-time remain.
+
+### Camera → GNOME Snapshot
+
+- **[open]** QR / barcode scan mode (reuse Lens / zbar).
+- **[open]** Configurable self-timer (hard-coded 3 seconds).
+- **[open]** Composition guidelines grid over the viewfinder.
+- **[open]** Shutter sound.
+- **[open]** Audio on / off for video (always adds `pulsesrc`).
+- **[open]** Hardware encoding / H.264 MP4 option (always VP8 / WebM).
+- **[open]** Picture format choice (always PNG).
+- **[open]** In-window gallery with photo / video viewer.
+
+### Voice Recorder → GNOME Sound Recorder (Vocalis)
+
+- **[open]** Waveform display — live while recording and seekable during playback.
+- **[open]** Format / codec and mono / stereo choice (Opus only, fixed).
+- **[open]** Export recording to a chosen file / format.
+- **[open]** Skip back / forward during playback.
+- **[open]** Friendly sequential names and per-row duration.
+- **[open]** Cancel / discard a take.
+- **[open]** In-app playback bar (playback is handed to another app today).
+- **[open]** Persistent peaks per recording.
+
+### Video Trimmer → LosslessCut
+
+- **[open]** Thumbnail timeline with a scrubbable playhead (offsets are blind numbers).
+- **[open]** Multiple segments and merge export (one cut today).
+- **[open]** Keyboard shortcuts / frame stepping — I / O at playhead, S split.
+- **[open]** Scene / black-frame / silence detection and split.
+- **[open]** Smart cut / nearest-keyframe snapping.
+- **[open]** Capture frame / snapshot.
+- **[open]** Speed change / mute / volume on output.
+- **[open]** Remux / format change and track selection.
+
+### Translate → Argos Translate
+
+- **[open]** Source-language pick, auto-detection and swap (target only today).
+- **[open]** File / HTML translation.
+- **[open]** Model / language-package status and install UI (only error is "The local model is not running").
+- **[open]** Pivot translation through an intermediate language.
+- **[open]** Batch / string-list translation (`translate.py strings` exists, no UI).
+- **[open]** Translation history (low value — Argos keeps none either).
+
+### Weather → GNOME Weather
+
+- **[fixed]** Detailed current conditions — feels like, humidity, wind, pressure, visibility, sunrise and sunset.
+- **[fixed]** Rain probability in hourly tiles (data was already fetched, not rendered).
+- **[open]** Multiple saved locations and in-app city search (single city today).
+- **[open]** Smooth temperature graph over the hourly points.
+- **[open]** Morning / afternoon / evening / night breakdown per day.
+- Wind is fetched and stored but not yet drawn in the hourly tiles.
+
+### Audit findings from the doc-review agents
+
+The three documentation audits also reported gaps, all of which were fixed in
+the same pass: wrong app and i18n counts, stale paths and plugin claims in
+shani-shell; stale edition, provider, sync-direction, security and link claims
+in shani-docs; and wrong workflow profile / timeout / secret / notification
+claims in shani-builder, shani-install-media and shani-pkgbuilds. The release
+promotion failure (run `44967348298`) was traced to a missing dated output
+directory before `curl --output` and fixed in `promote-stable.sh`.
