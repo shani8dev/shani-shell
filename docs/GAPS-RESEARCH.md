@@ -3514,3 +3514,158 @@ Risk: top fixes (1,9,10) touch shared render template and client router — veri
 14. **Only 4 of 44 app windows put a document in their title.** doc: set in TextEditor, Archives, MediaPlayer, Weather only. Sketch: set doc from service current path/subject.
 15. **No multi-window identity anywhere (structural).** One Ui bool + one LazyLoader per app; AppWindow keys navRoots by appName, titles carry no index. Sketch: window-list model keyed by window id.
 Risk: items 2–4 assume Quickshell destroys window-owned Process on LazyLoader deactivation — static only.
+
+---
+
+# Sixteenth pass — VERBATIM agent reports
+
+## VERBATIM: Notification sound & visual design craft
+
+# Sixteenth pass — notification sound & visual design craft (static, read-only)
+
+Read both GAPS files; honoured the skip list and did not re-file previously-audited items. Ranked gaps (value × ease):
+1. **[H×trivial] Two switches gate one notification sound.** SettingsPage.qml:1170 notifSound and SettingsSound.qml:66 soundNotification both tested at Notifs.qml:66-69; labels differ and search indexes them separately. Sketch: one key, other alias.
+2. **[H×easy] DND has no lock-screen presence.** LockScreen.qml never reads Notifs.dnd; bar only dims glyph. Sketch: lock-screen chip "DND on · N held · until …".
+3. **[H×easy] No "why didn't I get a notification?" explanation anywhere.** Notifs.qml:243-263 blocks silently. Sketch: notification-centre banner listing last suppressed app + reason.
+4. **[H×easy] Critical alerts are colour-only.** NotificationCard.qml:60,132-148 red tint; FlashAlert.qml:37 same accent for every event; Speak.qml:42 reads critical identically. Sketch: "Urgent" text badge + distinct cadence.
+5. **[H×easy] Flash alert can strobe.** FlashAlert.qml:36-45 full-screen 0.9-opacity border; every alerted restarts pulse with no rate ceiling. Photosensitivity risk. Sketch: cap flashes/minute, drop opacity on repeats.
+6. **[M×easy] Alert sounds have no independent volume or stream.** pw-play called with no volume (Notifs.qml:80-81, SystemSounds.qml:23). Sketch: named @DEFAULT_ALERT sink-input + slider.
+7. **[M×easy] No exit animation; stack reflow jumps.** Only slideIn exists (NotificationCard.qml:76-82); removal snaps. Sketch: add/remove transitions + fade-out.
+8. **[M×easy] Urgency and category not visually encoded.** Only Critical styled; hints.category read solely for calls, never in Modules/Notifications. Sketch: category→icon/accent strip.
+9. **[M×trivial] Privacy setting bypassed on lock screen.** Card hides summary under notifHideContent (NotificationCard.qml:21,255) but LockScreen.qml:536 prints raw appName: summary. Sketch: apply same gate.
+10. **[M×trivial] Notifications counted twice on lock screen.** Both count line (LockScreen.qml:264-269) and icon+number row (:550-559) render. Sketch: keep one.
+11. **[M×easy] Lock previews ignore silent/rules filtering.** LockScreen.qml:532 reads Notifs.list raw. Sketch: reuse hide gate.
+12. **[M×easy] Sound-name selection no validation/preview/fallback.** Notifs.qml:77-81 concatenates path, silently plays nothing; no sound-theme package shipped. Sketch: vendor fallback .oga + test row.
+13. **[M×easy] Flash tells nothing about the sound it replaces.** FlashAlert.qml:28 stores only summary; one pulse for chat and call alike. Sketch: category-coloured flash + persistent card.
+14. **[L×easy] Flash goes to focused monitor, not notification's.** FlashAlert.qml:13. Sketch: store originating output.
+15. **[L×easy] Hover-pause doesn't cover grouped stacks.** Popups.qml:85-89 pauses only individual card.
+16. **[L×trivial] Bar DND tooltip omits end time.** Bar.qml:823 vs dndUntilText existing. Sketch: reuse.
+
+## VERBATIM: Search relevance & ranking
+
+# 16th pass — Search relevance & ranking (static only)
+1. **Usage bonus inverts relevance classes.** Launcher.qml:447-448 adds Math.min(15,used) to raw score where 2-typo fuzzy hit=25; frequent bad-typo app outranks exact hit, breaking promise at :446. Sketch: score*1000+usage.
+2. **No recency/time decay.** app-usage.json stores bare count (Launcher.qml:58,108-112). Sketch: store {count,last}, exp decay.
+3. **No workspace/pinned/focus boost.** Sketch: +20 if window on current workspace, +10 if dockPinned.
+4. **Fuzzy first letter cannot be typo'd.** Fuzzy.js:56 skips words with w[0]!=t[0]. Sketch: permit one substitution at position 0 for queries>=5.
+5. **No acronym/subsequence matching.** "mp" never finds Media Player. Sketch: initials score.
+6. **Shell apps ship no search aliases.** bin/shani:600-609 writes no Keywords=/GenericName=. Sketch: add keywords tuple to APPS.
+7. **Name search unranked despite docstring.** files.py:1481 says "nearest first" but :1487-1506 appends os.walk order. Sketch: score hits and sort.
+8. **Content hits unsorted.** files.py:1521-1544 traversal order. Sketch: rg --count-matches, sort by count then mtime.
+9. **Launcher file hits keep tool order.** Launcher.qml:473-477. Sketch: run through win.score() and sort.
+10. **Settings search "best first" is declaration order.** SettingsIndex.js:329-352. Sketch: separate fields, score label-prefix > words > hint.
+11. **No typo tolerance in settings.** SettingsIndex.js:343 indexOf(token)===0 only. Sketch: reuse Fuzzy.js.
+12. **Settings index English-only, outside i18n.** SettingsIndex.js literals; tools/i18n.py scans only *.qml. Sketch: wrap in Tr.t, extend i18n.py to .js.
+13. **Recently changed settings don't boost.** Common/Settings.qml:34,54-55 kept for rail only. Sketch: rank bonus.
+14. **Mail search flat substring/server order.** mail.py:284-290, :467-490. Sketch: subject 3x body, sort newest.
+15. **Feeds search ranks by date only.** feeds.py:333,343-344. Sketch: score title/feed above body.
+16. **Photos has no text search.** PhotosWindow.qml:32-34 filters only path chips. Sketch: TextField + FileFilter.
+17. **Stale async results can overwrite fresh.** Only meaning has seq guard (Launcher.qml:182-190); providerSearch/fileSearch/contentSearch and QuickNotes.qml:474-501 don't. Sketch: seq per fire.
+18. **Search providers queried serially.** search-providers.py:71-96 N×3s worst case. Sketch: single GLib async deadline.
+
+## VERBATIM: Tray/status icon semantics
+
+# 16th-pass gap research — Tray / status-icon semantics and behavior
+1. "Hide volume/brightness icon" settings are visual no-ops. Settings.qml:507-508 promises hiding; Bar.qml:759-760 uses only in accessible name; icons render unconditionally. No brightness glyph at all.
+2. Wi-Fi quick-settings tile icon is static. SidebarTiles.qml:96 binds to "excellent" always. Sketch: Net.icon.
+3. Tailscale active shows no bar VPN icon. Bar.qml:780 only Net.vpnActive. Sketch: || Net.tailscaleUp.
+4. Hotspot/tethering active has no bar indicator. Net.hotspotOn tracked, no glyph.
+5. Individual status icons no accessible names/tooltips. Bar.qml:778-807 plain Icon elements.
+6. No right-click/long-press menus on status icons.
+7. Camera-in-use chip inert and unnamed. Bar.qml:699-703 no onClicked/name/hint.
+8. Bluetooth "connected" is colour-only. Bar.qml:794-798 always bluetooth-active when enabled.
+9. Status icons not individually clickable — one Chip for all.
+10. Location-in-use has no bar indicator. Location.running never referenced in Bar.qml.
+11. Low battery colour-only, no persistent badge.
+12. Updates dot has no context or action. Bar.qml:866-873 bare dot.
+13. Focus icon visibility coupled to unrelated settings. Bar.qml:778 requires both hideVolumeGlyph and hideBrightnessGlyph false.
+14. Disk-full/critical storage no bar surface. DiskUsage never referenced in Bar.qml.
+15. Firewall state no bar indicator. Firewall.available/running never read.
+16. Peripheral low-battery uses fragile 0-1/0-100 heuristic. Bar.qml:748-753.
+Risk: items 1,2,3,5,13 one-line but check accessibility tests.
+
+## VERBATIM: App icons & branding
+
+# 16th pass — App icons & branding consistency (static only)
+Themes: Adwaita (greeter/setup), Papirus (shipped default), Papirus-Dark/-Light, Pop (dev only).
+1. iconPath(name,true) makes fallback guards dead. Common/Icon.qml:26-28 true always returns placeholder; AppIcon.qml:16, Dock.qml:784, NotificationCard.qml:38,43-44, Bar.qml:473, AppWindow.qml:113, Popups.qml:117-119 rely on emptiness. Initial-letter tile, Dock drawn glyph, notification symbolic tint never render.
+2. Shipped ShaniOS logo unused by shell. /usr/share/pixmaps/shani-logo.svg installed (filesystem/PKGBUILD:224-228), zero QML references.
+3. APPS icons mostly foreign names, blank on Adwaita: evince, gnome-clocks, ark, gcolor3, kmag, shotwell, gnote, cheese, kstars, kdenlive, xournalpp, translator, kruler, etc. None in Adwaita/hicolor.
+4. Icon theme splits three ways (env Papirus desktop, hardcoded Adwaita greeter/setup, arbitrary Settings).
+5. Four icon-rendering patterns with different missing behavior.
+6. Distinct apps share one icon: mail-unread = Messages/Feeds/Mail; seahorse = Passwords/PasswordGenerator.
+7. High-DPI bypass: fixed icon sizes ignore Theme.px().
+8. AppWindow header icon has no fallback.
+9. Symbolic and colorful icons mixed in one cluster.
+10. Status names built full-color then rescued by -symbolic suffix; fallback to gear.
+11. Generic fallback is a settings gear for any missing glyph. Common/Icon.qml:31.
+12. Ring vs Switcher disagree.
+13. Dock control-tile comment contradicts behavior (iconPath true always answers).
+14. Launcher/Ring collapse all missing app icons to application-x-executable.
+15. QR has no brand mark, shared fixed path.
+16. WebApps desktop entries write unvalidated Icon=.
+Highest value×ease: #1,#2,#3,#6,#13.
+Risk: icon-existence checked against dev Adwaita/hicolor, not shipped Papirus.
+
+## VERBATIM: Loading states & perceived performance
+
+Read both GAPS files (all 15 passes), skipped listed items. Ranked gaps:
+1. Mail's busy never set — refresh and empty states lie. Services/Mail.qml:30 declares, :95 clears, nothing sets. Sketch: set in start(), gate empty on !busy.
+2. IconButton.on doubles as busy indicator, AT-SPI says "checked". Common/IconButton.qml.
+3. Feeds reports busy only for manual update, not open/search/add. Services/Feeds.qml:51 vs :42,:49,:57.
+4. Feeds search shows previous query's results while new search in flight. Feeds.qml:57-61.
+5. Weather's loading state never becomes error state. Weather.qml:175-188 catch(e){}; WeatherWindow.qml:141-148 only enabled/disabled.
+6. Weather city search silent up to 8s. Weather.qml:65-83.
+7. Logs opens with false "No logs available" before journalctl returns. LogsPanel.qml:75-89.
+8. Contacts duplicate scan claims "all unique" while computing. ContactsWindow.qml:307-313.
+9. Contacts can show error and "No contacts yet" simultaneously. ContactsWindow.qml:245-251 vs :465-471.
+10. File navigation shows old folder's contents as current. FileDirectory.qml:58-65.
+11. EmptyState has no loading/error variant — 45 call sites reinvent it. Common/EmptyState.qml:8-13.
+12. First-open Photos grid blank for whole scan. PhotosWindow.qml:111-117.
+13. Music Library grids blank after restart; scanned used for videos not music.
+14. Long loads can't be cancelled; closing window abandons UI not work.
+15. App windows pop in with no entrance transition. shell.qml:141-195, AppWindow.qml no Behavior.
+16. Scanning states carry no magnitude.
+Risk: all static; #1,#3 one-line choke-point changes.
+
+## VERBATIM: Typography & text rendering
+
+## Typography & text-rendering audit — static only
+Baseline: 351 QML files, 1209 pixelSize, 264 elide, 5 lineHeight, 0 leading, 7 textFormat. Font families good (703 Theme.font, 66 Theme.mono).
+1. **[high] Untrusted text rendered with auto-detected RichText → remote image loads + theme override.** Only 7 files set textFormat. Raw bindings: FeedsWindow.qml:271-278 (feed title), MailWindow.qml:182-197 (subject, from), FilesPanel.qml:844-850 and DesktopIcons.qml:202-208 (filenames, `<` legal), ChronoaPanel.qml:564-576 (LLM reply). Sketch: Text.PlainText on all external data.
+2. **[high] Notification body sanitizer is <img>-only.** NotificationCard.qml:29; StyledText honours font/a/Markdown. Sketch: escape all markup.
+3. **[high] Leading unmanaged; Devanagari will clip.** Only 5 lineHeight values, leading never used. Sketch: Theme.leading 1.3/1.5.
+4. **[high] 8-10px text everywhere; 11px minimum not enforced.** ~35 uses px(9), 185 px(10) across ~70 files. Sketch: floor at px(11).
+5. **[med] No real type scale — ~28 arbitrary sizes.** 8,9,10,10.5,11,12,12.5,13,14,15,16,17,18,19,20,22,24,26,28,30,34,40,44,48,96. Three tokens used only 58x. Sketch: named ladder.
+6. **[med] Two scaling paths diverge.** Theme.qml:161-181 tokens raw ints no px(); other sizes use Theme.px(). Sketch: tokens as px(11).
+7. **[med] Elided text no reveal affordance.** 264 elide sites, one tooltip-on-truncation. ListRow.qml:43-59 used in 48 files. Sketch: ToolTip.visible: truncated.
+8. **[med] Fixed-width tab segments overflow on translated labels.** SegmentedTabs.qml:11,43,46-53.
+9. **[med] Button labels clip with no ellipsis.** Button.qml:19,22,62-77 clip:true no elide.
+10. **[med] Emphasis weight no semantic token.** 185 DemiBold, 17 Medium, 4 Bold.
+11. **[med] RichText syntax highlighting may ignore mono font.** QuickLookSheet.qml:203-208, TextEditorPanel.qml:710-714.
+12. **[low] Dead font-family fallback.** SettingsDevTools.qml:76 Theme.mono||Theme.font.
+13. **[low] One pointSize in px system.** SettingsLook.qml:125.
+14. **[low] Uppercase/tracked caption style used twice only.**
+Already good: font families centralized, px/fontScale on 1193/1209 sizes, elide+wrap paired, Highlight.js escapes, Mail sanitized.
+Risk: RichText auto-detection and Devanagari clipping need runtime render.
+
+## VERBATIM: Focus management & keyboard navigation
+
+# Focus management & keyboard navigation — 15 gaps (value × ease)
+1. No focus restoration anywhere after surface closes — H×M. Grep for previousFocus/etc only two unrelated hits. Ui.closeAll() flips booleans; panel closes don't refocus invoker. Sketch: Ui.focusStack.
+2. Settings search jump flashes but never focuses target — H×E. SettingsPage.qml:148-164 openSetting() visual pulse only. Sketch: forceActiveFocus after page load.
+3. Focus ring clipped on two most-used controls — H×E. KeyFocus.qml:142-150 halo at margins:-3 but Button.qml:22/IconButton.qml:35 clip:true.
+4. "Tab jumps to next region" inert in ~97% of tree — M×E. Only 14 region: markers in two files.
+5. Multi-line editors trap Up/Down except two places — M×E. Ui.leaveAtEdge wired only in TranslateWindow and SidebarNotes.
+6. Arrows move focus in tab strips but don't change selection — M×E. SegmentedTabs.qml:63-69, Choice.qml:44.
+7. Switcher's per-tile KeyFocus can never take focus — M×E. Switcher.qml:80 focuses invisible keys item.
+8. Grid arrow order not layout-aware except two grids — M×E. KeyFocus.qml:51-60 ordered hook used only by Tile.qml and FilesPanel.qml.
+9. Launcher grid: horizontal arrows die once query typed; no Home/End/PgUp/PgDn — M×E. Launcher.qml:675.
+10. One photo tile costs four Tab stops — M×E. PhotosWindow.qml:409-429 three IconButtons plus KeyFocus.
+11. App-internal view/tab switches don't move focus — M×M. AppWindow.qml:161 body.focus on entry only.
+12. nav:pointer is self-declared unreviewed escape hatch — M×E. Ui.qml:449-453 drops any tagged MouseArea.
+13. Secret field focus shown only by 1px border — L×E. TextField.qml:27.
+14. Ui.navFocus empty for controls without Accessible.name — L×E. KeyFocus.qml:22.
+15. Reveal-eye KeyFocus stays in chain while visible — L×E. TextField.qml:98.
+Start: #1,#2,#3 then #4/#5/#6.
+Risk: #3 and #7 need QML runtime to confirm visually.

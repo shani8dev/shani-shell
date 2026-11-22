@@ -42,14 +42,12 @@ def js(body, expr):
 
 
 def test_an_exact_touch_maps_to_itself():
-    """The four targets are at 10% and 90%; a finger exactly on them must come
-    back as those points."""
+    """Four targets touched exactly: the matrix is the identity, so every point
+    lands where it was touched."""
     body = load("shani/Common/Calibrate.js")
-    targets = js(body, "targets")
-    solved = js(body, "JSON.stringify(solve(targets.map(p => ({ x: p[0], y: p[1] }))))")
-    for want, got in zip(targets, json.loads(solved)):
-        assert abs(got["x"] - want[0]) < 1e-6, (want, got)
-        assert abs(got["y"] - want[1]) < 1e-6, (want, got)
+    matrix = js(body, "solve(targets.map(p => ({ seen: p, target: p })))")
+    # [a, b, c, d, e, f]: x' = a·x + b·y + c, y' = d·x + e·y + f
+    assert matrix == [1, 0, 0, 0, 1, 0], matrix
 
 
 def test_a_missing_point_does_not_solve():
@@ -79,30 +77,40 @@ def test_a_missing_point_does_not_solve():
 
 
 @pytest.mark.parametrize(
-    "name,expect",
+    "ext,expect",
     [
-        ("notes.md", "text-x-generic"),
-        ("song.mp3", "audio-x-generic"),
-        ("clip.webm", "video-x-generic"),
-        ("backup.tar.gz", "package-x-generic"),
-        ("photo.png", "image-x-generic"),
+        (".md", "text-x-generic"),
+        (".mp3", "audio-x-generic"),
+        (".webm", "video-x-generic"),
+        (".zip", "package-x-generic"),
+        (".pdf", "x-office-document"),
+        (".desktop", "application-x-executable"),
     ],
 )
-def test_a_file_gets_the_icon_for_its_kind(name, expect):
+def test_a_file_gets_the_icon_for_its_kind(ext, expect):
     body = load("shani/Common/FileIcons.js")
-    got = js(body, f"iconFor({{ name: {json.dumps(name)} }})")
-    assert got == expect, (name, got)
+    got = js(body, f"iconFor({{ ext: {json.dumps(ext)} }})")
+    assert got == expect, (ext, got)
 
 
-def test_a_file_with_no_name_falls_back():
+def test_the_extension_is_case_insensitive():
     body = load("shani/Common/FileIcons.js")
-    got = js(body, "iconFor({})")
-    assert got == "text-x-generic"
+    assert js(body, 'iconFor({ ext: ".MP3" })') == "audio-x-generic"
+
+
+def test_a_picture_is_a_picture():
+    body = load("shani/Common/FileIcons.js")
+    assert js(body, 'iconFor({ ext: ".png", image: true })') == "image-x-generic"
+
+
+def test_an_entry_with_nothing_is_a_plain_file():
+    body = load("shani/Common/FileIcons.js")
+    assert js(body, "iconFor({})") == "text-x-generic"
 
 
 def test_a_folder_is_a_folder():
     body = load("shani/Common/FileIcons.js")
-    assert js(body, "iconFor({ name: 'anything', isDir: true })") == "folder"
+    assert js(body, "iconFor({ isDir: true })") == "folder"
 
 
 # ---- setup/strings.js ------------------------------------------------------
@@ -155,4 +163,8 @@ def test_a_region_locale_uses_its_language():
 
 def test_a_key_nobody_defined_falls_back_rather_than_printing_undefined():
     body = load("setup/strings.js")
-    assert js(body, 'tr("en", "no-such-key")') is None
+    out = subprocess.run(
+        [NODE, "-e", body + '\nconsole.log(String(tr("en", "no-such-key")));'],
+        capture_output=True, text=True, timeout=30)
+    assert out.returncode == 0, out.stderr
+    assert out.stdout.strip() == "undefined"

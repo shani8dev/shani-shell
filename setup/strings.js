@@ -53,8 +53,16 @@ var strings = {
         refresh: "रिफ्रेश", connect: "जोडा", continueOffline: "इंटरनेटशिवाय पुढे जा",
         showPassword: "पासवर्ड दाखवा", hidePassword: "पासवर्ड लपवा",
         summary: "सारांश", language: "भाषा", layouts: "कीबोर्ड", zone: "वेळ विभाग", computer: "संगणकाचे नाव",
-        adminNote: "हे खाते या संगणकाचे प्रशासक आहे — ते सॉफ्टवेअर स्थापित करू शकते आणि सिस्टम सेटिंग्ज बदलू शकते."
-    },
+        adminNote: "हे खाते या संगणकाचे प्रशासक आहे — ते सॉफ्टवेअर स्थापित करू शकते आणि सिस्टम सेटिंग्ज बदलू शकते.",
+    
+        chronoaTitle: "Meet Chronoa",
+        chronoaSub: "One choice about your assistant, then you are in.",
+        chronoaBody: "Chronoa is your assistant in the Island — it answers questions, runs your apps, and helps with what you do.",
+        chronoaCost: "It runs on your own computer, with no cloud and no cost. Turn it off if you prefer.",
+        chronoaOn: "Enable Chronoa",
+        chronoaOnDesc: "Suggestions and answers from the assistant appear in the Island and in the bar. You can turn it off anytime in Settings > Chronoa.",
+        chronoaOff: "Skip Chronoa",
+        chronoaOffDesc: "Everything works normally — you just get no assistant suggestions or answers.",},
     hi: {
         welcome: "ShaniOS में आपका स्वागत है", welcomeSub: "अपनी भाषा चुनें। इसे बाद में सेटिंग्स में बदला जा सकता है।",
         keyboard: "आपका कीबोर्ड", keyboardSub: "जिन लेआउट में आप टाइप करते हैं उन्हें जोड़ें। Super+Space से उनके बीच बदलें।",
@@ -78,8 +86,16 @@ var strings = {
         refresh: "रीफ़्रेश", connect: "कनेक्ट करें", continueOffline: "इंटरनेट के बिना आगे बढ़ें",
         showPassword: "पासवर्ड दिखाएँ", hidePassword: "पासवर्ड छिपाएँ",
         summary: "सारांश", language: "भाषा", layouts: "कीबोर्ड", zone: "समय क्षेत्र", computer: "कंप्यूटर का नाम",
-        adminNote: "यह खाता इस कंप्यूटर का व्यवस्थापक है — यह सॉफ़्टवेयर इंस्टॉल कर सकता है और सिस्टम सेटिंग्स बदल सकता है."
-    },
+        adminNote: "यह खाता इस कंप्यूटर का व्यवस्थापक है — यह सॉफ़्टवेयर इंस्टॉल कर सकता है और सिस्टम सेटिंग्स बदल सकता है.",
+    
+        chronoaTitle: "Meet Chronoa",
+        chronoaSub: "One choice about your assistant, then you are in.",
+        chronoaBody: "Chronoa is your assistant in the Island — it answers questions, runs your apps, and helps with what you do.",
+        chronoaCost: "It runs on your own computer, with no cloud and no cost. Turn it off if you prefer.",
+        chronoaOn: "Enable Chronoa",
+        chronoaOnDesc: "Suggestions and answers from the assistant appear in the Island and in the bar. You can turn it off anytime in Settings > Chronoa.",
+        chronoaOff: "Skip Chronoa",
+        chronoaOffDesc: "Everything works normally — you just get no assistant suggestions or answers.",},
     de: {
         welcome: "Willkommen bei ShaniOS", welcomeSub: "Wählen Sie Ihre Sprache. Sie lässt sich später in den Einstellungen ändern.",
         keyboard: "Ihre Tastatur", keyboardSub: "Fügen Sie die Belegungen hinzu, mit denen Sie schreiben. Super+Leertaste wechselt.",
@@ -103,8 +119,16 @@ var strings = {
         refresh: "Aktualisieren", connect: "Verbinden", continueOffline: "Ohne Internet fortfahren",
         showPassword: "Passwort anzeigen", hidePassword: "Passwort verbergen",
         summary: "Übersicht", language: "Sprache", layouts: "Tastaturen", zone: "Zeitzone", computer: "Computername",
-        adminNote: "Dieses Konto ist der Administrator dieses Computers — es kann Software installieren und Systemeinstellungen ändern."
-    },
+        adminNote: "Dieses Konto ist der Administrator dieses Computers — es kann Software installieren und Systemeinstellungen ändern.",
+    
+        chronoaTitle: "Meet Chronoa",
+        chronoaSub: "One choice about your assistant, then you are in.",
+        chronoaBody: "Chronoa is your assistant in the Island — it answers questions, runs your apps, and helps with what you do.",
+        chronoaCost: "It runs on your own computer, with no cloud and no cost. Turn it off if you prefer.",
+        chronoaOn: "Enable Chronoa",
+        chronoaOnDesc: "Suggestions and answers from the assistant appear in the Island and in the bar. You can turn it off anytime in Settings > Chronoa.",
+        chronoaOff: "Skip Chronoa",
+        chronoaOffDesc: "Everything works normally — you just get no assistant suggestions or answers.",},
     es: {
         welcome: "Te damos la bienvenida a ShaniOS", welcomeSub: "Elige tu idioma. Podrás cambiarlo más tarde en Ajustes.",
         keyboard: "Tu teclado", keyboardSub: "Añade las distribuciones en las que escribes. Super+Espacio cambia entre ellas.",
@@ -128,8 +152,16 @@ var strings = {
         refresh: "Actualizar", connect: "Conectar", continueOffline: "Continuar sin internet",
         showPassword: "Mostrar contraseña", hidePassword: "Ocultar contraseña",
         summary: "Resumen", language: "Idioma", layouts: "Teclados", zone: "Zona horaria", computer: "Nombre del equipo",
-        adminNote: "Esta cuenta es la administradora de este equipo: puede instalar software y cambiar la configuración del sistema."
-    },
+        adminNote: "Esta cuenta es la administradora de este equipo: puede instalar software y cambiar la configuración del sistema.",
+    
+        chronoaTitle: "Meet Chronoa",
+        chronoaSub: "One choice about your assistant, then you are in.",
+        chronoaBody: "Chronoa is your assistant in the Island — it answers questions, runs your apps, and helps with what you do.",
+        chronoaCost: "It runs on your own computer, with no cloud and no cost. Turn it off if you prefer.",
+        chronoaOn: "Enable Chronoa",
+        chronoaOnDesc: "Suggestions and answers from the assistant appear in the Island and in the bar. You can turn it off anytime in Settings > Chronoa.",
+        chronoaOff: "Skip Chronoa",
+        chronoaOffDesc: "Everything works normally — you just get no assistant suggestions or answers.",},
     fr: {
         welcome: "Bienvenue dans ShaniOS", welcomeSub: "Choisissez votre langue. Vous pourrez la changer plus tard dans les Paramètres.",
         keyboard: "Votre clavier", keyboardSub: "Ajoutez les dispositions dans lesquelles vous écrivez. Super+Espace passe de l'une à l'autre.",
@@ -153,8 +185,16 @@ var strings = {
         refresh: "Actualiser", connect: "Se connecter", continueOffline: "Continuer sans Internet",
         showPassword: "Afficher le mot de passe", hidePassword: "Masquer le mot de passe",
         summary: "Récapitulatif", language: "Langue", layouts: "Claviers", zone: "Fuseau horaire", computer: "Nom de l'ordinateur",
-        adminNote: "Ce compte est l'administrateur de cet ordinateur : il peut installer des logiciels et modifier les réglages du système."
-    }
+        adminNote: "Ce compte est l'administrateur de cet ordinateur : il peut installer des logiciels et modifier les réglages du système.",
+    
+        chronoaTitle: "Meet Chronoa",
+        chronoaSub: "One choice about your assistant, then you are in.",
+        chronoaBody: "Chronoa is your assistant in the Island — it answers questions, runs your apps, and helps with what you do.",
+        chronoaCost: "It runs on your own computer, with no cloud and no cost. Turn it off if you prefer.",
+        chronoaOn: "Enable Chronoa",
+        chronoaOnDesc: "Suggestions and answers from the assistant appear in the Island and in the bar. You can turn it off anytime in Settings > Chronoa.",
+        chronoaOff: "Skip Chronoa",
+        chronoaOffDesc: "Everything works normally — you just get no assistant suggestions or answers.",}
 };
 
 // "mr_IN.UTF-8" → its language's word for key, English when there is none
