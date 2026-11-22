@@ -59,9 +59,11 @@ PanelWindow {
         { id: "wsdown", label: Tr.t("Move this workspace down"), icon: "go-down", run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("move-workspace-down"); } },
         ...(Displays.outputs.length > 1 ? [{ id: "wsmonitor", label: Tr.t("Move this workspace to the other monitor"), icon: "video-display",
             run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("move-workspace-to-monitor-next"); } }] : []),
-        { id: "ws1", sep: Displays.outputs.length <= 1, label: Tr.t("Move to workspace 1"), icon: "go-next", run: () => Niri.action("move-window-to-workspace", "--window-id", target.id, "--focus", "false", "1") },
-        { id: "ws2", label: Tr.t("Move to workspace 2"), icon: "go-next", run: () => Niri.action("move-window-to-workspace", "--window-id", target.id, "--focus", "false", "2") },
-        { id: "ws3", label: Tr.t("Move to workspace 3"), icon: "go-next", run: () => Niri.action("move-window-to-workspace", "--window-id", target.id, "--focus", "false", "3") },
+        ...Niri.workspacesOn(Niri.focusedOutput).map((ws, i) => ({
+            id: "ws" + ws.idx, sep: i === 0 && Displays.outputs.length <= 1,
+            label: Tr.t("Move to workspace %1", ws.name || ws.idx), icon: "go-next",
+            run: () => Niri.action("move-window-to-workspace", "--window-id", target.id, "--focus", "false", String(ws.idx))
+        })),
         { id: "ask", sep: true, label: Tr.t("Ask Chronoa about this window"), icon: "chat-message-new",
           run: () => Chronoa.ask("About the window “" + (target.title || target.app_id) + "” (" + target.app_id + ") on my screen: what can you help me do with it?") }
     ]

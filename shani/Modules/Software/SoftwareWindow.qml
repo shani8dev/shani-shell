@@ -303,12 +303,22 @@ AppWindow {
                     }
                     Button { visible: !appCol.a.installed; kind: "primary"; text: jobProc.running && win.job === appCol.a.id ? Tr.t("Installing…") : Tr.t("Install"); enabled: !jobProc.running; onClicked: win.runJob(["install", appCol.a.id], appCol.a.id) }
                 }
-                Image {
+                ListView {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: status === Image.Ready ? Math.min(Theme.px(380), width * implicitHeight / Math.max(1, implicitWidth)) : 0
-                    source: (appCol.a.screenshots || [])[0] || ""
-                    fillMode: Image.PreserveAspectFit
-                    asynchronous: true
+                    Layout.preferredHeight: Math.min(Theme.px(380), Theme.px(220))
+                    visible: (appCol.a.screenshots || []).length > 0
+                    orientation: ListView.Horizontal
+                    clip: true
+                    spacing: Theme.px(8)
+                    model: appCol.a.screenshots || []
+                    delegate: Image {
+                        required property var modelData
+                        width: Math.min(Theme.px(560), ListView.view.width - Theme.px(40))
+                        height: ListView.view.height
+                        source: modelData
+                        fillMode: Image.PreserveAspectFit
+                        asynchronous: true
+                    }
                 }
                 Text {
                     Layout.fillWidth: true

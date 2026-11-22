@@ -39,6 +39,7 @@ AppWindow {
                     spacing: Theme.px(6)
                     Text { text: Tr.t("Feeds"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(14) * Theme.fontScale; font.weight: Font.DemiBold }
                     Item { Layout.fillWidth: true }
+                    IconButton { icon: "mail-mark-read"; tip: Tr.t("Mark all read"); size: Theme.px(26); enabled: Feeds.items.length > 0; onClicked: Feeds.markAll() }
                     IconButton { icon: "view-refresh"; tip: Tr.t("Refresh"); size: Theme.px(26); on: Feeds.busy; onClicked: Feeds.update() }
                 }
 

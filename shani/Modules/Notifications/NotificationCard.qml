@@ -392,6 +392,23 @@ Glass {
         }
     }
 
+    // progress reported by the app (download, copy, transfer): -1 means none.
+    // Placed below the body, above the popup's time-left line.
+    Rectangle {
+        visible: notification && notification.progress >= 0 && notification.progress <= 1 && !hideContent
+        anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: Theme.px(12); rightMargin: Theme.px(12); bottomMargin: 8 }
+        height: Theme.px(4)
+        radius: 2
+        color: Theme.alpha(Theme.accent, 0.2)
+        Rectangle {
+            width: parent.width * notification.progress
+            height: parent.height
+            radius: parent.radius
+            color: Theme.accent
+            Behavior on width { NumberAnimation { duration: 180 } }
+        }
+    }
+
     // a popup's time left
     Rectangle {
         visible: root.popup && !root.critical

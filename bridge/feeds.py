@@ -462,6 +462,20 @@ def main():
         c.setdefault("read", {})[url + "|" + ident] = True
         save_cache(c)
         print(json.dumps({"ok": True}))
+    elif cmd == "markall":
+        # Mark every cached article read; with a url, only that feed's items.
+        url = sys.argv[2] if len(sys.argv) > 2 else ""
+        read = c.setdefault("read", {})
+        feeds = [url] if url else list(c.get("feeds", {}))
+        n = 0
+        for f in feeds:
+            for i in c["feeds"].get(f, {}).get("items", []):
+                key = f + "|" + i["id"]
+                if not read.get(key):
+                    n += 1
+                read[key] = True
+        save_cache(c)
+        print(json.dumps({"ok": True, "marked": n}))
     elif cmd == "export":
         sys.stdout.write(opml_export())
     elif cmd == "import":

@@ -31,8 +31,11 @@ Singleton {
     property var lastTicks: null        // pid -> ticks, for the delta
     property real _prevTotal: 0
 
-    function end(pid) {
-        Quickshell.execDetached(["kill", "-TERM", String(pid)]);
+    function end(pid, signal) {
+        // Only a fixed set of signals reaches the shell command: the UI never
+        // passes an arbitrary string into `kill -<sig>`.
+        const sig = ["TERM", "KILL", "INT", "HUP", "STOP", "CONT"].indexOf(signal) >= 0 ? signal : "TERM";
+        Quickshell.execDetached(["kill", "-" + sig, String(pid)]);
         refresh.restart();
     }
     Timer {
@@ -91,7 +94,7 @@ Singleton {
                             : 0;
                         const mem = mt > 0 ? (p.rss / mt) * 100 : 0;
                         next[p.pid] = p.ticks;
-                        return { pid: p.pid, name: p.name, cpu: cpu, mem: mem, threads: p.threads || 0, ticks: p.ticks };
+                        return { pid: p.pid, ppid: p.ppid, name: p.name, cpu: cpu, mem: mem, threads: p.threads || 0, ticks: p.ticks };
                     });
                     // all processes, sorted by CPU then memory — tree view
                     // builds parent->children from ppid

@@ -282,13 +282,30 @@ AppWindow {
                                 Accessible.name: tile.modelData.path.split("/").pop()
                                 Accessible.onPressAction: Viewer.open(tile.modelData.path)
                                 MouseArea { id: tileArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Viewer.open(tile.modelData.path) }
-                                IconButton {
+                                RowLayout {
                                     anchors { right: parent.right; bottom: parent.bottom; margins: Theme.px(4) }
-                                    size: Theme.px(22)
-                                    icon: "document-edit"
-                                    tip: Tr.t("Adjust…")
-                                    opacity: tileArea.containsMouse ? 1 : 0.7
-                                    onClicked: win.adjust(tile.modelData.path)
+                                    spacing: Theme.px(2)
+                                    IconButton {
+                                        size: Theme.px(22)
+                                        icon: "media-playlist-play"
+                                        tip: Tr.t("Slideshow from here")
+                                        opacity: tileArea.containsMouse ? 1 : 0.7
+                                        onClicked: { Viewer.open(tile.modelData.path); Viewer.toggleSlideshow(); }
+                                    }
+                                    IconButton {
+                                        size: Theme.px(22)
+                                        icon: "user-trash"
+                                        tip: Tr.t("Move to trash")
+                                        opacity: tileArea.containsMouse ? 1 : 0.7
+                                        onClicked: { Viewer.trash(); win.scan(); }
+                                    }
+                                    IconButton {
+                                        size: Theme.px(22)
+                                        icon: "document-edit"
+                                        tip: Tr.t("Adjust…")
+                                        opacity: tileArea.containsMouse ? 1 : 0.7
+                                        onClicked: win.adjust(tile.modelData.path)
+                                    }
                                 }
                                 KeyFocus { name: tile.modelData.path.split("/").pop(); onActivated: Viewer.open(tile.modelData.path) }
                             }

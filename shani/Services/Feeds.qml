@@ -31,6 +31,7 @@ Singleton {
     function open(url) { current = url; article = ""; run("items", [url]) }
     function show(url, id) { openId = id; run("article", [url, id]) }
     function markRead(url, id) { if (id) run("markread", [url, id], false) }
+    function markAll() { run("markall", current ? [current] : [], false) }
     function add(url, title) { run("add", title ? [url, title] : [url]) }
     function remove(url) { run("remove", [url]) }
     function update() { busy = true; run("refresh", []) }

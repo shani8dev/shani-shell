@@ -31,6 +31,7 @@ AppWindow {
     // children are indented under their parent
     property var treeList: []
     property string procQuery: ""
+    property string endSignal: "TERM"
     readonly property var shownList: win.procQuery
         ? win.treeList.filter(x => String(x.p.name || "").toLowerCase().includes(win.procQuery.toLowerCase()))
         : win.treeList
@@ -199,6 +200,20 @@ AppWindow {
                 text: win.procQuery
                 onTextChanged: win.procQuery = text
             }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Text { text: Tr.t("End with signal:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Repeater {
+                    model: ["TERM", "KILL", "INT", "HUP", "STOP", "CONT"]
+                    Choice {
+                        required property var modelData
+                        text: modelData
+                        selected: win.endSignal === modelData
+                        onClicked: win.endSignal = modelData
+                    }
+                }
+            }
             // the processes, a row each, in a list that scrolls: as a Repeater of
             // heightless Items every row was drawn on top of the one before
             ListView {
@@ -282,7 +297,7 @@ AppWindow {
                         enabled: !/^(niri|qs|quickshell|systemd|init)$/.test(procRow.p.name)
                         Accessible.name: Tr.t("End") + " " + procRow.p.name
                         onClicked: {
-                            if (procRow.confirming) TopProcesses.end(procRow.p.pid);
+                            if (procRow.confirming) TopProcesses.end(procRow.p.pid, win.endSignal);
                             procRow.confirming = !procRow.confirming;
                         }
                     }
