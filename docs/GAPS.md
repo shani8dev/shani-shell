@@ -122,8 +122,11 @@ been used on a real screen and nothing below is in the way.
   creates (zip, tar.gz, tar.xz, 7z), extracts all or one item, opens
   password-protected archives (the password is passed as bsdtar's
   --passphrase, so it is in the process list while bsdtar runs: bsdtar 3.8
-  reads no other source but a terminal). It does not add to an existing
-  archive or make protected ones.
+  reads no other source but a terminal). It adds to a zip (bridge/zipadd.py -
+  libarchive cannot append to one at all) and to a plain tar (bsdtar -rf), and
+  refuses the rest in words; a protected zip is refused rather than rewritten
+  as a readable copy. It makes protected archives too - zip encrypts with
+  AES-256, 7z with its own. Still no 7z/iso/rar add, and no deleting a member.
 - **Calendar**: which calendars show, and which a new event goes to. Adding
   an online account is still GNOME Online Accounts' (not in this image).
 - **Files**: offered for folders; Nautilus stays the default and is the
@@ -249,25 +252,28 @@ Each needs real hardware or shani-testbed:
 
 ## Built since the last pass
 
-- **Mail** (Modules/Mail, bridge/mail.py) — IMAP and SMTP for a real account,
-  or MailHog's API and SMTP for development. Verified end-to-end against the
-  `mailhog/mailhog` container: send → list → read.
-- **Feeds** (Modules/Feeds, bridge/feeds.py) — RSS 2.0, RSS 1.0 and Atom over
-  the standard library, with a cache and per-feed read state.
-- **Firewall** (Settings > Firewall, Services/Firewall.qml) — firewalld through
-  firewall-cmd: on/off, the default zone, and the ports and services let into
-  the zone being edited.
 - **Weather advisories** — rain, wind and heat read out of the forecast the
   shell already fetches; open-meteo has no warning feed, and these say so.
 - **Mail** (Modules/Mail, bridge/mail.py) — IMAP and SMTP for a real account,
-  or MailHog's API and SMTP for development. It reads plain text only: no HTML
-  bodies, no attachments, no search.
+  or MailHog's API and SMTP for development. Shows the message as it was sent
+  (Qt's TextDocument over a body the bridge has stripped of scripts, remote
+  images and event handlers) or as plain text, and searches a word in the
+  sender, the subject or the body (IMAP SEARCH, or the reader's own pass over
+  MailHog). Attachments are listed with their name, type and size, but not yet
+  saved - there is no "save this attachment" anywhere in the reader.
 - **Feeds** (Modules/Feeds, bridge/feeds.py) — RSS 2.0, RSS 1.0 and Atom over
-  the standard library, with a cache and per-feed read state. No OPML
-  import/export and no refresh scheduling.
+  the standard library, with a cache and per-feed read state. The subscription
+  list moves in and out as OPML 2.0 (another reader's, or ours, without
+  doubling), and it can refresh on its own from 15 minutes to daily - one timer,
+  which exists only while an interval is set, and a feed that answered recently
+  is not fetched again. No per-feed refresh times, no "mark all read".
 - **Firewall** (Settings > Firewall, Services/Firewall.qml) — firewalld through
-  firewall-cmd: on/off, the default zone, and the ports and services let into
-  the zone being edited. No rich rules and no zone list beyond the default.
+  firewall-cmd: on/off, the default zone, every zone (its own can be added and
+  deleted), and the ports, services and rich rules of the zone being edited - a
+  rule typed in firewalld's own words, or one of firewalld's presets. A rule is
+  removed by its exact string, which is the only form firewall-cmd takes back.
+  No zone *policies* (firewalld 2.3's successor to zones), no ipset, no
+  direct rules.
 - **Tablet readout** — Settings > Keyboard & input names the connected drawing
   tablet from libwacom-list-local-devices. Read-only: niri 26.04 has no pen
   button remapping, and the page says so.
