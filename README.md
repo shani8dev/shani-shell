@@ -4,7 +4,7 @@
 
 **The desktop of Shani OS — Chronoa, and everything else a desktop needs.**
 
-Sign in without typing, find anything from one launcher, 50 apps of its own, your phone built in,
+Sign in without typing, find anything from one launcher, 52 apps of its own, your phone built in,
 a desktop you can drive by keyboard, touch or game controller — and an assistant that asks before it acts.
 Built on [niri](https://github.com/YaLTeR/niri) and [Quickshell](https://quickshell.org).
 
@@ -167,7 +167,7 @@ Each of these is a real screen of the shell — the gaps the clips above leave.
 ## What makes it different
 
 - **A complete desktop, not a bar.** Sign-in and lock screens, first setup, Quick Settings, notifications,
-  a launcher, a file manager, 50 apps and Settings — one look, one set of keys.
+  a launcher, a file manager, 52 apps and Settings — one look, one set of keys.
 - **Click, don't type.** Settings are picked from choices — your city, a DNS that blocks ads, a
   shortcut you press — never values you would have to know.
 - **For everyone.** A screen reader names every control (checked through AT-SPI); large text, high
@@ -232,7 +232,7 @@ The Tour app shows every shortcut.
   calls — are tested against stand-ins only; two (casting to a TV, drives) have no
   check yet. [docs/GAPS.md](docs/GAPS.md) lists every one.
 - **Translations are partial**: Marathi and Hindi are translated for the shell's main surfaces
-  (about 1525 of 3684 strings; the newer app windows and settings still show in English); German,
+  (about 1525 of 3699 strings; the newer app windows and settings still show in English); German,
   Spanish and French cover first setup only.
 - **What niri cannot give yet**: remote desktop through the portal, colour management, always on top,
   sticky/slow keys in the compositor.

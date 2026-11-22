@@ -93,6 +93,10 @@ Singleton {
     property bool notes: false               // the Notes surface (Modules/Notes): notebooks + wiki links
     property bool feeds: false               // the Feeds reader (Modules/Feeds)
     property bool mail: false                // the Mail reader (Modules/Mail)
+    property bool calls: false               // the Calls app (Modules/Calls): dial pad + history
+    property bool messages: false            // the Messages app (Modules/Messages): the phone's texts
+    property string callsNumber: ""          // the Calls app: the number the dial pad opens with
+    property string messagesNumber: ""       // the Messages app: the conversation to open
     property string calculatorTab: "standard" // the Calculator tab (Modules/Calculator): standard | scientific | financial | programming | converter
     property string notesNotebook: ""         // the notes notebook filter (SidebarNotes): "" = all notebooks, else a notebook name
     property bool annotate: false                  // drawing on the screen
@@ -206,7 +210,6 @@ Singleton {
     // Shani Link Phone / Messages (opened via Services/Phone; the external
     // shani-link-app window, not a shell panel): which page the shell last
     // opened and the number its dialer/messages composer was prefilled with.
-    property string phonePage: ""     // "" | "phone" | "messages" | "recent" (for `state`, the tests)
     property string phoneNumber: ""   // the number the dial pad / Messages composer opened with
     // the web search chosen in Settings > Search (the launcher, Lens)
     readonly property var webSearches: ({
@@ -262,6 +265,8 @@ Singleton {
     function openScreenTime() { openSettings("screentime"); }
     function openNotes() { closeAll(); notes = true; }
     function openContacts() { closeAll(); Contacts.refresh(); contacts = true; }
+    function openCalls() { closeAll(); calls = true; }
+    function openMessages() { closeAll(); messages = true; }
     function closeApps() {
         converter = false;
         nearby = false;

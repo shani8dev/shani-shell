@@ -162,6 +162,8 @@ ShellRoot {
     LazyLoader { active: Ui.notes; source: "Modules/Notes/NotesPanel.qml" }
     LazyLoader { active: Ui.feeds; source: "Modules/Feeds/FeedsWindow.qml" }
     LazyLoader { active: Ui.mail; source: "Modules/Mail/MailWindow.qml" }
+    LazyLoader { active: Ui.calls; source: "Modules/Calls/CallsWindow.qml" }
+    LazyLoader { active: Ui.messages; source: "Modules/Messages/MessagesWindow.qml" }
     LazyLoader { active: Ui.textEditor; source: "Modules/TextEditor/TextEditorPanel.qml" }
     LazyLoader { active: PlayQueue.shown; source: "Modules/MediaPlayer/MediaPlayerWindow.qml" }
     LazyLoader { active: Ui.clocks; source: "Modules/Clocks/ClocksWindow.qml" }
@@ -231,7 +233,7 @@ ShellRoot {
     }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [Idle, InputPlumber, Ups, Polkit, NightLight, AutoRotate, Appearance, Firewall, Feeds, Mail, Tablet, Privacy, Updates, Drives, Disks, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WindowLook, Terminal, TerminalApp, TextMate, Keyring, WindowPreview, SmartReplies, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, PdfSigner, DiskUsage, WallpaperStyle, VideoTrimmer, Models, AIProviders, Studio]
+    readonly property var _services: [Link, Idle, InputPlumber, Ups, Polkit, NightLight, AutoRotate, Appearance, Firewall, Feeds, Mail, Tablet, Privacy, Updates, Drives, Disks, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WindowLook, Terminal, TerminalApp, TextMate, Keyring, WindowPreview, SmartReplies, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, PdfSigner, DiskUsage, WallpaperStyle, VideoTrimmer, Models, AIProviders, Studio]
 
     // The test-only CalDAV hook reads a password from a file: keeping it out of
     // an IPC argument keeps it out of `ps`. Declared at root, not in IpcHandler;
@@ -395,6 +397,21 @@ ShellRoot {
         function mailOpen() { Ui.closeAll(); Ui.mail = true; Mail.state(); Mail.refresh(); }
         function mailSearch(q: string) { Mail.search(q); }
         function mailClose() { Ui.mail = false; }
+        // the Calls app: the dial pad and the history. `number` prefills the
+        // pad and nothing is dialled until Call is pressed.
+        function callsOpen(number: string) {
+            Ui.closeAll();
+            Ui.callsNumber = (number || "").trim();
+            Ui.calls = true;
+        }
+        function callsClose() { Ui.calls = false; }
+        // the Messages app, on the conversation with `number` when one is given
+        function messagesOpen(number: string) {
+            Ui.closeAll();
+            Ui.messagesNumber = (number || "").trim();
+            Ui.messages = true;
+        }
+        function messagesClose() { Ui.messages = false; }
         function mailToggle() { const was = Ui.mail; Ui.closeAll(); Ui.mail = !was; }
         function feedsToggle() { const was = Ui.feeds; Ui.closeAll(); Ui.feeds = !was; }
         function notesRefresh() { QuickNotes.refresh(); }
@@ -764,28 +781,10 @@ ShellRoot {
         function dynamicLockAway() { DynamicLock.away(); }
         function share(path: string) { Ui.closeAll(); Share.open(path); }
         function textMessage(to: string) { Ui.closeAll(); Ui.smsTo = to; Ui.modemDialog = "sms"; }
-        // Shani Link Phone / Messages (Services/Phone, the external app).
-        // `phoneOpen` / `messagesOpen` take an optional number - called with
-        // none, the pad/composer opens empty; called with one, it is prefilled
-        // and nothing is dialled or sent until the person presses Call / Send.
-        function phoneOpen(number: string) {
-            Ui.closeAll();
-            Ui.phonePage = "phone";
-            Ui.phoneNumber = (number || "").trim();
-            Phone.openDial(Ui.phoneNumber);
-        }
-        function messagesOpen(number: string) {
-            Ui.closeAll();
-            Ui.phonePage = "messages";
-            Ui.phoneNumber = (number || "").trim();
-            Phone.openMessages(Ui.phoneNumber);
-        }
-        function recentCalls() {
-            Ui.closeAll();
-            Ui.phonePage = "recent";
-            Ui.phoneNumber = "";
-            Phone.openRecentCalls();
-        }
+        // the phone: callsOpen (the pad and the history) and messagesOpen
+        // (the texts) are the apps now, so these are spellings of them.
+        function phoneOpen(number: string) { callsOpen(number); }
+        function recentCalls() { callsOpen(""); }
         function qr(title: string, text: string) { Ui.closeAll(); Qr.show(title, text); }
         function qrClose() { Qr.close(); }
         function calculator() { const was = Calculator.shown; Ui.closeAll(); if (!was) Calculator.open(); }
@@ -1078,7 +1077,7 @@ ShellRoot {
                 agenda: Agenda.events.map(e => e.summary), calendars: Agenda.calendarNames, calendarsHidden: Agenda.hidden,
                 modem: Modem.modem ? Modem.modem.state + "/" + (Modem.modem.locked || "unlocked") + "/" + Modem.modem.operator : "",
                 modemCall: Modem.call ? Modem.call.state + ":" + Modem.call.number : "",
-                modemDialog: Ui.modemDialog, phonePage: Ui.phonePage, phoneNumber: Ui.phoneNumber,
+                modemDialog: Ui.modemDialog, phoneNumber: Ui.phoneNumber,
                 dynamicLocks: DynamicLock.locks, dynamicLockDevice: DynamicLock.address,
                 automationsFired: Automations.fired,
                 language: Tr.lang, sampleWord: Tr.t("Notifications"),
@@ -1174,6 +1173,9 @@ ShellRoot {
                 callRecording: CallRecorder.recording,
                 callFile: CallRecorder.file,
                 cameraShown: Camera.open, notes: Ui.notes, feedsShown: Ui.feeds, mailShown: Ui.mail, textEditor: Ui.textEditor,
+                callsShown: Ui.calls, callsCount: Link.calls.length, callsLines: Link.lines.join(','),
+                messagesShown: Ui.messages, messagesCount: Link.messages.length,
+                linkPhone: Link.phoneName, linkBackend: Link.backend,
                 mailKind: Mail.kind, mailFolders: Mail.folders.length, mailCount: Mail.messages.length,
                 mailSubject: Mail.subject, mailFrom: Mail.from, mailBody: Mail.body.slice(0, 80),
                 mailHtml: Mail.html.length, mailAttachments: Mail.attachments.map(a => a.name),

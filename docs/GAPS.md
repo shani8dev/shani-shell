@@ -49,7 +49,7 @@ and against what a session needs before any app runs.
 - **Headphone virtual surround (stereo widening is done).** Implemented via the matrix_spatialiser LADSPA plugin (shipped in ladspa) as a "Stereo widening" toggle in Settings › Sound effects, behind `SoundFx.canSpatial`. The convolver-based virtual surround (KEMAR/Hesuvi HRIR) still needs HRIR wav files that no package ships; stereo widening is what is available.
 - **More setup-wizard languages** than English, मराठी, हिन्दी, Deutsch, Español,
   Français (strings.js).
-- **Translations**: about 1525 of 3684 catalog strings are translated into
+- **Translations**: about 1525 of 3699 catalog strings are translated into
   Marathi and Hindi (the bar, control centre, Settings and its pages, launcher,
   notifications, lock screen, overview, dock, window menu). The rest are the
   newer app windows and settings (Files, Archives, Quick Look, the viewers, the
@@ -261,7 +261,7 @@ Each needs real hardware or shani-testbed:
   and connect in silence; phones over Bluetooth (Chronoa) carry sound.
 
 ## Improved (Nov 2026)
-- Translations: ~1525/3684 Marathi/Hindi strings done; the rest (newer app windows and settings) are documented above.
+- Translations: ~1525/3699 Marathi/Hindi strings done; the rest (newer app windows and settings) are documented above.
 - Live TV, free radio picks, a QR folder-link share target, health check and problem report are now in the shell (Media Player / Share / About).
 - Real-hardware runs: nested niri only; shani-testbed boot needed for Wi-Fi BT multi-screen recording.
 # Improvements applied (Nov 2026)
@@ -1585,7 +1585,7 @@ Handwriting is genuinely implemented (`WritePad.qml`, `bridge/handwriting.py`).
 - **[open]** 11 of 21 `test_gap_*.py` files are pure source-string assertions
   that cannot catch runtime breakage; the counts in README/FEATURES were
   updated from 700+ to 800+, but `hi.json`/`mr.json` remain at 1525 keys while
-  `template.json` grew to 3684 — 242 new strings ship English-only.
+  `template.json` grew to 3699 — 242 new strings ship English-only.
 - **[open]** `data/whats-new.md` and the FEATURES/README app catalogue have not
   been updated with the mass-pass capabilities.
 - **[open]** No test asserts the PKGBUILD pin tracks shani-shell HEAD, and no
@@ -1594,3 +1594,142 @@ Handwriting is genuinely implemented (`WritePad.qml`, `bridge/handwriting.py`).
 
 All fifth-pass verdicts are static — no QML runtime, hardware, hung-process,
 blackholed-network or real-package-install verification was possible.
+
+## Sixth-pass research (Nov 2026) — AI, automations, windowing, docs, security, installer
+
+Seven more read-only audits. All findings are **[open]** unless marked, all
+static (no QML runtime, hardware, PAM/polkit, TPM/MOK or network capture).
+
+### AI / Chronoa integration depth
+
+- **[security bug, open]** `ChronoaPanel.qml:201-214` forwards `options[0]` for
+  any unrecognised approval decision, so a scripted `approve "deny"` can grant
+  "Allow this once" — exactly what its own comment warns against. Match
+  `deny`/`always` semantically and never default to the allow option.
+- **[open]** No conversation history / new / switch / delete in the panel
+  (the backend already has the D-Bus actions). Cloud fallback is invisible in
+  the Island; tool-choice events are dropped; replies are plain text with no
+  Markdown, copy or regenerate; suggested prompts are four static chips.
+- **[open]** Window context is only a title string; no per-turn local/cloud or
+  model switch; panel state labels ship untranslated; no voice wake / barge-in
+  / cloud-fallback switches or push-to-talk in the shell (backend actions exist);
+  approvals have no audit trail or per-app "always" granularity; no shell-side
+  privacy/memory controls; no streaming cancel (the Agent contract has no
+  Cancel action).
+- **[needs backend]** persistent screen/camera context, shell-app tool/prompt
+  registration, per-app data-access provenance, live model registry, voice/style
+  controls, multi-session and cross-device continuity.
+
+### Automations, hooks and routines
+
+- **[open]** Captured special keys (F1–F12, Space, arrows) are silently
+  discarded by the `^[A-Za-z0-9+_]+$` filter in `InputConfig.qml:146`.
+- **[open]** No way to fire a rule manually; trigger vocabulary is only 5 items
+  (wifi/power/output/displays/time) and action vocabulary 6 (focus/dnd/volume/
+  style/open/run); rule failures are invisible; no loop or rate guard (a rule
+  can reverse its own trigger and ping-pong forever).
+- **[open]** Five unrelated "when X then Y" systems (shell rules, shell hooks,
+  keybinds, Chronoa event rules, Chronoa phrase routines) with separate stores,
+  UIs and logs; no templates, import/export or sharing; no dry-run or undo.
+- **[open]** `notificationRules` is a declared-but-unused setting; GUI caps at
+  3 screens and 6 volumes; hooks share one global on/off; user `sh -c` scripts
+  are unpermissioned and unbounded; time rules are daily-only with no weekday,
+  one-shot, sunrise/sunset or timezone.
+- **[open]** Chronoa routines are phrase-only, not scene/schedule-driven;
+  percept rules have no unattended product caller; event-rule authoring is
+  skill-driven, not a GUI.
+- **Risk:** widening trigger sources widens an already-unpermissioned `sh -c`
+  execution path — failure reporting and loop guards should land first.
+
+### Window management / niri depth
+
+- **[open]** Column swap (as opposed to window swap) is absent from the UI;
+  fullscreen/float menu labels never reflect current state; force-kill works only
+  on the focused window; no create/delete workspace action; overview search
+  discards its context; urgency is shown but never acted on (no "focus urgent").
+- **[open]** Edge swipes are four hard-coded actions with no per-edge assignment;
+  no workspace-level drag reorder; "move to monitor" only targets the *next*
+  monitor; resize is percentage-only; floating-workspace key is not
+  monitor-namespaced (named workspaces on two monitors collide); session restore
+  brings back app identities, not layout/geometry/monitor placement; no
+  focus-stealing policy; swap-monitors only swaps the active workspaces.
+- **[open]** No monitor-hotplug workspace placement restore; no niri crash-recovery
+  UX (reconnect after 1.5 s but no banner or config check).
+- **[out of scope]** trackpad gestures (compositor-owned), always-on-top, Activities
+  / workspace-set abstraction, per-window thumbnails in the switcher.
+
+### User documentation accuracy
+
+- **[fixed]** The generated HTML stubs for overview, FAQ and troubleshooting were
+  from 2026-11-01 while the markdown was from 2026-11-22 — they omitted the whole
+  app section, the new Q&As and the new troubleshooting entries, showed
+  "Updated 2026-08-28" and the old provider list. Regenerated with
+  `node generate-manifest.js`.
+- **[fixed]** Five intro/FAQ files still said COSMIC was "announced"/"upcoming"
+  although it builds today; corrected. The app name "Translator" was corrected
+  to "Translate".
+- **[fixed]** Added a "A shell app says a tool is missing" troubleshooting table
+  (smartctl, picocom, llama-server, at-spi2-core, rclone, GeoClue) and extended
+  `shani-doctor.py` to check those tools. Added a "Recent refinements" section to
+  `shani-docs/docs/overview.md` for the mass-pass features.
+
+### Security and privacy depth
+
+- **[critical, documented elsewhere]** MOK private key shipped inside the base
+  image and two real keys still in git history (`shani-install-media/SECURITY.md`,
+  `AUDIT-HISTORY.md`) — rotate and rewrite history (human decision). Podman
+  builds set `SigLevel = Never` and the AMI path soft-fails verification.
+- **[high]** The 45 s clipboard clear covers only 1 of ~25 copy paths; 6-digit
+  OTPs are admitted to cliphist; phone-share leaks the clipboard with no confirm;
+  suspend can happen unlocked (toggleable); the "notification previews" toggle
+  also governs agenda and media titles; no audit trail of unlocks, grants, admin
+  actions or deletes; polkit `caller()` silently passes when `PKEXEC_UID` is unset.
+- **[high]** `settings.json` is 0644 and holds pinned clipboard text and server
+  URLs; clipboard encryption is off by default; no per-item recent-list removal;
+  Flatpak `.flatpakref` installs from arbitrary URLs without showing the remote;
+  AppImage files get `chmod +x` with no signature/hash check; no per-request
+  consent for cloud LLM calls.
+- **[med]** Camera kill switch unloads only `uvcvideo`; no DoH/DoT option; no
+  WebRTC leak protection; no TPM/Secure Boot state or stale-seal warning in the
+  shell; voice recordings, transcripts and call logs have no retention control.
+- **Deliberate win, not a gap:** no diagnostic log upload and "Nothing is sent"
+  in About — keep it opt-in if ever added.
+
+### Installer / upgrade / recovery UX
+
+- **[open, shell-fixable]** Failed updates show a toast with no cause or retry;
+  pending reboot cannot be deferred; no update history on the Updates page; no
+  support bundle at the point of failure; no "last checked" time; health results
+  are text-only with no remediation actions; setup failure is a raw error string
+  with no retry; no Wi-Fi-only/metered warning before a multi-GB update; channel
+  switch has no explanation; Boot & Recovery is read-only; two divergent health
+  systems exist; Settings › About has no in-OS recovery entry.
+- **[open, installer/daemon]** No basic-graphics/safe-mode boot entry on the
+  installed system; image size/ETA not in the deploy JSON; health recommendations
+  not in JSON so the UI cannot render actions; no "reinstall keeping files";
+  restoring an older snapshot is manual btrfs; failed-install help button is dead
+  (no browser on the live ISO); encryption choice and recovery key are not
+  explained at install; metered enforcement needs the daemon.
+- **Deliberate win:** no log-upload consent flow exists — report as a privacy win.
+
+### Specialized subsystems
+
+- **Printing — [open]** ink/supply levels, scan-to destinations, a real print
+  dialog (copies/page-range/duplex/preview), in-shell job queue with cancel/hold,
+  printer-state alerts. Driverless setup, default printer and defaults already
+  exist.
+- **Fonts system — [open]** hinting/antialiasing UI, font DPI control, font
+  uninstall, cache refresh watcher.
+- **Gamescope console — [open]** MangoHUD overlay control, per-game TDP/frame-cap
+  profiles, in-game screenshot/recording hotkeys, controller-remap and fan-curve
+  tiles. A full gamescope session already ships in a separate package.
+- **Casting — [open]** cast session state/sink list/stop control, mirror-area
+  choice (currently `--fullscreen`), audio routing with a cast.
+- **Time/date — [open]** NTP server configuration, sync status/source readout,
+  dual-boot RTC mode, timezone-change feedback. The settings UI is otherwise solid.
+- **Freedesktop compliance — [open]** cross-volume trash restore, recent-files
+  destruction by `Housekeeping.qml` (truncates every app's recents daily),
+  thumbnail metadata and cache bound, more thumbnail sizes.
+
+All sixth-pass verdicts are static — no runtime, hardware, PAM/polkit, TPM/MOK,
+printer, gamescope or live deploy verification was possible.

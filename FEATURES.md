@@ -178,7 +178,8 @@ in that nested session - not yet on an installed image - is listed in
   Clocks, Weather, Notes, Translate, Camera, Voice Recorder, Characters, Fonts,
   Maps, Disk Usage, Document Scanner, System Monitor, Logs, Passwords and Keys,
   Software, Containers, Password Generator, Authenticator, Nearby Share,
-  Converter, PDF Signer, Video Trimmer, Kundali, Contacts, Disks, Models,
+  Converter, PDF Signer, Video Trimmer, Kundali, Calls, Messages, Contacts,
+  Disks, Models,
   Studio, Terminal, Backup, Mail, Feeds and
   Settings (screen time, storage and colours from a picture live there, as on
   other desktops); and the tools

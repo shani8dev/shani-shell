@@ -5,6 +5,8 @@
 // dock, the switcher and the bar find the app's entry, icon and name.
 // The same names and ids as bin/shani's APPS (tests/test_apps.py keeps them equal).
 var ids = {
+    "Calls": "dev.shani.Calls",
+    "Messages": "dev.shani.Messages",
     "Text Editor": "dev.shani.TextEditor",
     "Files": "dev.shani.Files",
     "Image Viewer": "dev.shani.ImageViewer",
