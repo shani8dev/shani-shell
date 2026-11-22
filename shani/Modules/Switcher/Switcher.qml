@@ -70,6 +70,10 @@ PanelWindow {
 
     function open(back) {
         list = Niri.mru();
+        // One app on screen has one tile, and Alt+Tab with one tile goes
+        // nowhere: the tiles are its windows instead, so two terminals still
+        // swap. The G toggle stays as it was for a real mix of apps.
+        grouped = win.buildGroups().length > 1;
         sel = list.length > 1 ? (back ? list.length - 1 : 1) : 0;
         win.clampSel();
         Ui.switcher = true;
