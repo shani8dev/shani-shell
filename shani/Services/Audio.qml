@@ -12,7 +12,9 @@ Singleton {
 
     readonly property PwNode sink: Pipewire.defaultAudioSink
     readonly property PwNode source: Pipewire.defaultAudioSource
-    readonly property bool ready: Pipewire.ready && sink !== null && sink.audio !== null
+    // `sink` is undefined, not null, when Pipewire has no default sink - and
+    // `undefined !== null` is true, so the check has to be truthiness
+    readonly property bool ready: Pipewire.ready && !!sink && !!sink.audio
     readonly property real volume: ready ? sink.audio.volume : 0
     readonly property bool muted: ready ? sink.audio.muted : true
     readonly property bool micMuted: source && source.audio ? source.audio.muted : true
