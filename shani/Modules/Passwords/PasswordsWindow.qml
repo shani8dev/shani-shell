@@ -22,6 +22,17 @@ AppWindow {
     readonly property string tool: Quickshell.env("SHANI_PASSWORDS_TOOL") || "/usr/lib/shani-shell/passwords.py"
     property string tab: "passwords"
     property var items: []
+    // the list as it is shown: everything, or what the search box matches on
+    // the label, the collection or any of the item's attributes
+    readonly property var visibleItems: {
+        const q = search.text.trim().toLowerCase();
+        if (q === "") return items;
+        return items.filter(i => {
+            const attrs = Object.values(i.attributes || {}).join(" ");
+            return [i.label, i.collection, attrs].filter(x => x)
+                .join(" ").toLowerCase().indexOf(q) >= 0;
+        });
+    }
     property string defaultCollection: ""
     property var keys: []
     property var passkeys: []             // [{ label, id, created }] — a metadata registry, not real credentials

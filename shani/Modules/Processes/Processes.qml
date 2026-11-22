@@ -469,12 +469,15 @@ AppWindow {
             visible: win.detailPid > 0 && TopProcesses.details !== null
             onClosed: { win.detailPid = -1; TopProcesses.details = null; }
             contentItem: ColumnLayout {
+                id: detailCol
                 spacing: Theme.px(6)
+                // a child of a Dialog's contentItem cannot see a property
+                // declared on it, so every use below is qualified by the id
                 readonly property var det: TopProcesses.details || ({})
-                Text { Layout.fillWidth: true; text: det.cmdline || Tr.t("(no command line)"); color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale; wrapMode: Text.Wrap }
-                Text { Layout.fillWidth: true; text: Tr.t("User %1 · state %2 · %3 threads · %4 open files").arg(det.user || "?").arg(det.state || "?").arg(det.threads || 0).arg(det.files || 0); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; wrapMode: Text.Wrap }
+                Text { Layout.fillWidth: true; text: detailCol.det.cmdline || Tr.t("(no command line)"); color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale; wrapMode: Text.Wrap }
+                Text { Layout.fillWidth: true; text: Tr.t("User %1 · state %2 · %3 threads · %4 open files").arg(detailCol.det.user || "?").arg(detailCol.det.state || "?").arg(detailCol.det.threads || 0).arg(detailCol.det.files || 0); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; wrapMode: Text.Wrap }
                 Text { Layout.fillWidth: true; text: Tr.t("Environment"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
-                Text { Layout.fillWidth: true; text: (det.env || []).join("\n"); color: Theme.faint; font.family: Theme.mono; font.pixelSize: Theme.px(9) * Theme.fontScale; wrapMode: Text.Wrap; maximumLineCount: 8; elide: Text.ElideRight }
+                Text { Layout.fillWidth: true; text: (detailCol.det.env || []).join("\n"); color: Theme.faint; font.family: Theme.mono; font.pixelSize: Theme.px(9) * Theme.fontScale; wrapMode: Text.Wrap; maximumLineCount: 8; elide: Text.ElideRight }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)

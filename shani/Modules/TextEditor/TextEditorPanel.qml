@@ -292,7 +292,9 @@ AppWindow {
     }
     Component.onCompleted: {
         if (Settings.data.textmateTheme) TextMate.themePath = Settings.data.textmateTheme;
-        if (TextDocs) TextDocs.onActiveChanged.connect(() => win.clearExtraCursors());
+        // the connection outlives the window: the editor can be closed while a
+        // document is still being switched, and then `win` is gone
+        if (TextDocs) TextDocs.onActiveChanged.connect(() => { if (win) win.clearExtraCursors(); });
         if (TextDocs.docs.length === 0)
             TextDocs.newDoc();
         else

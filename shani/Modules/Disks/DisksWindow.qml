@@ -528,16 +528,16 @@ AppWindow {
                     width: parent.width
                     spacing: Theme.px(4)
                     readonly property var info: Disks.smart || ({})
-                    Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: Tr.t("%1 · %2 · %3°C · %4 hours powered on").arg(info.model || "").arg(info.serial || "").arg(info.temp || 0).arg(info.hours || 0); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                    Text { Layout.fillWidth: true; text: Tr.t("Overall: %1", info.overall === true || info.overall === "passed" ? Tr.t("PASSED") : Tr.t("FAILED")); color: info.overall === true || info.overall === "passed" ? Theme.accent : Theme.red; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                    Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: Tr.t("%1 · %2 · %3°C · %4 hours powered on").arg(smartCol.info.model || "").arg(smartCol.info.serial || "").arg(smartCol.info.temp || 0).arg(smartCol.info.hours || 0); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                    Text { Layout.fillWidth: true; text: Tr.t("Overall: %1", smartCol.info.overall === true || smartCol.info.overall === "passed" ? Tr.t("PASSED") : Tr.t("FAILED")); color: smartCol.info.overall === true || smartCol.info.overall === "passed" ? Theme.accent : Theme.red; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                     Text { Layout.fillWidth: true; text: Tr.t("Attributes (ID · name · value · worst · threshold · raw)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
                     Repeater {
-                        model: info.attributes || []
+                        model: smartCol.info.attributes || []
                         Text { required property var modelData; Layout.fillWidth: true; text: [modelData.id, modelData.name, modelData.value, modelData.worst, modelData.thresh, modelData.raw].join(" · "); color: Theme.faint; font.family: Theme.mono; font.pixelSize: Theme.px(9) * Theme.fontScale }
                     }
                     Text { Layout.fillWidth: true; text: Tr.t("Self-test log"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
                     Repeater {
-                        model: info.tests || []
+                        model: smartCol.info.tests || []
                         Text { required property var modelData; Layout.fillWidth: true; text: modelData.type + " · " + modelData.status + " · " + modelData.hours + " h"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(9) * Theme.fontScale }
                     }
                     RowLayout {

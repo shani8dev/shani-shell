@@ -399,12 +399,20 @@ ShellRoot {
         function mailClose() { Ui.mail = false; }
         // the Calls app: the dial pad and the history. `number` prefills the
         // pad and nothing is dialled until Call is pressed.
+        // `number` prefills the pad. Typed on purpose: Quickshell's IPC
+        // reflection skips a function whose parameter has no type, and `shani app
+        // calls` passes "" - see bin/shani's APPS.
         function callsOpen(number: string) {
             Ui.closeAll();
             Ui.callsNumber = (number || "").trim();
             Ui.calls = true;
         }
         function callsClose() { Ui.calls = false; }
+        // the zero-argument spellings: Quickshell's IPC reflection skips a
+        // function whose parameter has no type, and a typed one cannot have a
+        // default, so "open it with nothing" is its own name
+        function callsAppOpen() { callsOpen(""); }
+        function messagesAppOpen() { messagesOpen(""); }
         // the Messages app, on the conversation with `number` when one is given
         function messagesOpen(number: string) {
             Ui.closeAll();
