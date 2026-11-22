@@ -322,3 +322,32 @@ rather than playback, the queue, or the codecs. The likely next step is to trace
 `AppWindow`/`FloatingWindow` for this instance (it is the only LazyLoader window
 whose `visible` starts false and flips later while the loader is already
 created), and to check `register()` and the window's implicit size at creation.
+
+## Round 7 — the portal stack and a firewall page
+
+**Portals (shani-desktop-niri 1.0-22).** The shell owns the file chooser
+(`bridge/portal.py` on `org.freedesktop.impl.portal.desktop.shani`) and writes
+gsettings itself, so the GNOME portal was never selected under niri: its
+backends are `UseIn=gnome`, and `xdg-desktop-portal` skips a backend whose
+`UseIn` does not match `XDG_CURRENT_DESKTOP`. It was dropped.
+
+- `xdg-desktop-portal-gtk` stays for `Access` and `Notification` — the two
+  interfaces a sandboxed app's permission prompt and portal notifications use.
+- `xdg-desktop-portal-wlr` added for `ScreenCast` and `Screenshot`, both named
+  explicitly in `niri-portals.conf` because its `UseIn` lists
+  wlroots/sway/Hyprland but not niri. niri already exports
+  `zwlr_screencopy_manager_v1`, which is what portal-wlr speaks.
+- Screen sharing had no backend before: gnome's ScreenCast needs mutter and gtk's
+  implements none, so a browser's Share… fell through `default=gnome;gtk;`.
+- **RemoteDesktop has no backend.** portal-wlr 0.8.4 implements only Screenshot
+  and ScreenCast; RemoteDesktop lives in xdg-desktop-portal-gnome (mutter).
+
+**Settings > Firewall.** A page over firewalld: on/off, the default zone, and the
+ports and services let into the zone being edited. Changes are runtime first,
+then `--runtime-to-permanent` — they survive a reload without dropping the
+connections open now. `firewall-cmd` speaks D-Bus, so polkit asks when a change
+needs it. `dev/fake-firewall-cmd.sh` answers the reads with real zones so the
+suite and the renders see a populated page.
+
+A guard test now keeps SettingsPage's `cats` list and its Loaders in step: a
+category with no Loader is a dead menu row.
