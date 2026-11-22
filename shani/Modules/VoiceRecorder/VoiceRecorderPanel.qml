@@ -384,6 +384,7 @@ AppWindow {
                 spacing: Theme.px(8)
                 IconButton {
                     icon: playback.playbackState === MediaPlayer.PlayingState ? "media-playback-pause" : "media-playback-start"
+                    tip: playback.playbackState === MediaPlayer.PlayingState ? Tr.t("Pause") : Tr.t("Play")
                     size: Theme.px(28)
                     onClicked: win.playInline(win.inlinePlay)
                 }

@@ -16,7 +16,7 @@ ColumnLayout {
         spacing: Theme.px(8)
         Button { text: Tr.t("Primary") }
         Button { text: Tr.t("Secondary") }
-        IconButton { icon: "view-refresh" }
+        IconButton { icon: "view-refresh"; tip: Tr.t("Reset") }
     }
 
     ListRow { Layout.fillWidth: true; icon: "folder"; title: Tr.t("List row"); subtitle: Tr.t("Subtitle") }

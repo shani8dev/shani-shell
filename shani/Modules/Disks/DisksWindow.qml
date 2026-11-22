@@ -113,6 +113,7 @@ AppWindow {
                 radius: Theme.px(2)
                 color: Theme.alpha(Theme.text, 0.15)
                 Accessible.role: Accessible.ProgressBar
+                Accessible.name: Tr.t("Operation progress")
                 Rectangle { width: parent.width * Math.max(0, Disks.jobProgress) / 100; height: parent.height; radius: parent.radius; color: Theme.accent }
             }
         }

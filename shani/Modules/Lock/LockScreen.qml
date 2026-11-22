@@ -440,9 +440,9 @@ Scope {
                             font.pixelSize: Theme.px(11) * Theme.fontScale
                         }
                     }
-                    IconButton { icon: "media-skip-backward"; size: Theme.px(30); onClicked: nowPlaying.player.previous() }
-                    IconButton { icon: nowPlaying.player && nowPlaying.player.isPlaying ? "media-playback-pause" : "media-playback-start"; size: Theme.px(34); on: true; onClicked: nowPlaying.player.togglePlaying() }
-                    IconButton { icon: "media-skip-forward"; size: Theme.px(30); onClicked: nowPlaying.player.next() }
+                    IconButton { icon: "media-skip-backward"; tip: Tr.t("Previous"); size: Theme.px(30); onClicked: nowPlaying.player.previous() }
+                    IconButton { icon: nowPlaying.player && nowPlaying.player.isPlaying ? "media-playback-pause" : "media-playback-start"; tip: nowPlaying.player && nowPlaying.player.isPlaying ? Tr.t("Pause") : Tr.t("Play"); size: Theme.px(34); on: true; onClicked: nowPlaying.player.togglePlaying() }
+                    IconButton { icon: "media-skip-forward"; tip: Tr.t("Next"); size: Theme.px(30); onClicked: nowPlaying.player.next() }
                 }
             }
 

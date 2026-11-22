@@ -830,6 +830,7 @@ AppWindow {
                                     }
                                     TextField {
                                         Layout.fillWidth: true
+                                        label: modelData.name || Tr.t("Value")
                                         visible: modelData.type === "text"
                                         text: String(PdfViewer.fieldValue(modelData))
                                         onTextChanged: if (visible && text !== String(PdfViewer.fieldValue(modelData))) PdfViewer.setField(modelData.name, text)

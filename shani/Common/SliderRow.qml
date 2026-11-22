@@ -27,6 +27,7 @@ RowLayout {
 
     IconButton {
         icon: root.icon
+        tip: root.icon
         size: Theme.px(34)
         iconColor: root.muted ? Theme.dim : Theme.text
         onClicked: root.iconClicked()
@@ -108,6 +109,7 @@ RowLayout {
     IconButton {
         visible: root.hasDetail
         icon: "go-next"
+        tip: Tr.t("More")
         size: Theme.px(28)
         rotation: root.expanded ? 90 : 0
         onClicked: root.detail()

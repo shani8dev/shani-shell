@@ -71,8 +71,8 @@ ColumnLayout {
         Text { Layout.fillWidth: true; text: Tr.t("L"); color: Theme.dim; horizontalAlignment: Text.AlignRight }
         Text { text: (Audio.balance || 0) === 0 ? Tr.t("Centre") : ((Audio.balance || 0) > 0 ? ("R+" + (Audio.balance||0)) : ("L+" + Math.abs(Audio.balance||0))); color: Theme.accent; font.family: Theme.font }
         Text { text: Tr.t("R"); color: Theme.dim }
-        IconButton { icon: "go-previous"; onClicked: if (Audio.setBalance) Audio.setBalance((Audio.balance||0)-10); }
-        IconButton { icon: "go-next"; onClicked: if (Audio.setBalance) Audio.setBalance((Audio.balance||0)+10); }
+        IconButton { icon: "go-previous"; tip: Tr.t("Left"); onClicked: if (Audio.setBalance) Audio.setBalance((Audio.balance||0)-10); }
+        IconButton { icon: "go-next"; tip: Tr.t("Right"); onClicked: if (Audio.setBalance) Audio.setBalance((Audio.balance||0)+10); }
         IconButton { icon: "window-close"; tip: Tr.t("Centre"); onClicked: if (Audio.setBalance) Audio.setBalance(0); }
     }
     Repeater {

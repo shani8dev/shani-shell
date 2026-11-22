@@ -31,7 +31,7 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         spacing: Theme.px(8)
-        IconButton { icon: "go-previous"; size: Theme.px(26); onClicked: current = new Date(current.getFullYear(), current.getMonth() - 1, 1) }
+        IconButton { icon: "go-previous"; tip: Tr.t("Previous month"); size: Theme.px(26); onClicked: current = new Date(current.getFullYear(), current.getMonth() - 1, 1) }
         Text {
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
@@ -43,7 +43,7 @@ ColumnLayout {
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.current = new Date() }
             KeyFocus { onActivated: root.current = new Date() }
         }
-        IconButton { icon: "go-next"; size: Theme.px(26); onClicked: current = new Date(current.getFullYear(), current.getMonth() + 1, 1) }
+        IconButton { icon: "go-next"; tip: Tr.t("Next month"); size: Theme.px(26); onClicked: current = new Date(current.getFullYear(), current.getMonth() + 1, 1) }
     }
 
     GridLayout {

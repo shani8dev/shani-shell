@@ -177,9 +177,9 @@ ColumnLayout {
                             }
                         }
                     }
-                    IconButton { icon: "media-skip-backward"; size: Theme.px(28); onClicked: sidebar.player.previous() }
-                    IconButton { icon: sidebar.player && sidebar.player.isPlaying ? "media-playback-pause" : "media-playback-start"; size: Theme.px(28); on: true; onClicked: sidebar.player.togglePlaying() }
-                    IconButton { icon: "media-skip-forward"; size: Theme.px(28); onClicked: sidebar.player.next() }
+                    IconButton { icon: "media-skip-backward"; tip: Tr.t("Previous"); size: Theme.px(28); onClicked: sidebar.player.previous() }
+                    IconButton { icon: sidebar.player && sidebar.player.isPlaying ? "media-playback-pause" : "media-playback-start"; tip: sidebar.player && sidebar.player.isPlaying ? Tr.t("Pause") : Tr.t("Play"); size: Theme.px(28); on: true; onClicked: sidebar.player.togglePlaying() }
+                    IconButton { icon: "media-skip-forward"; tip: Tr.t("Next"); size: Theme.px(28); onClicked: sidebar.player.next() }
                     IconButton { visible: sidebar.player && sidebar.player.canRaise; icon: "window-new"; size: Theme.px(28); tip: Tr.t("Show the player"); onClicked: { Ui.closeAll(); sidebar.player.raise(); } }
                 }
             }

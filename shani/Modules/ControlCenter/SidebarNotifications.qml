@@ -24,12 +24,13 @@ ColumnLayout {
         text: Notifs.count > 0 ? "Notifications · " + Notifs.count : "Notifications"
         IconButton {
             icon: Notifs.dnd ? "notifications-disabled" : "preferences-system-notifications"
+            tip: Notifs.dnd ? Tr.t("Do not disturb") : Tr.t("Notification settings")
             size: Theme.px(26)
             on: Notifs.dnd
             onClicked: Notifs.setDnd(!Notifs.dnd)
         }
-        IconButton { visible: Notifs.count > 1; icon: "chat-message-new"; size: Theme.px(26); onClicked: { Ui.closeAll(); Notifs.summarize(); } }
-        IconButton { visible: Notifs.count > 0 || Notifs.earlier.length > 0; icon: "edit-clear-all"; size: Theme.px(26); onClicked: Notifs.clearAll() }
+        IconButton { visible: Notifs.count > 1; icon: "chat-message-new"; tip: Tr.t("Summarise"); size: Theme.px(26); onClicked: { Ui.closeAll(); Notifs.summarize(); } }
+        IconButton { visible: Notifs.count > 0 || Notifs.earlier.length > 0; icon: "edit-clear-all"; tip: Tr.t("Clear all"); size: Theme.px(26); onClicked: Notifs.clearAll() }
     }
     // search field — shown when there are enough notifications to warrant it
     TextField {

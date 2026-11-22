@@ -154,7 +154,7 @@ ColumnLayout {
                     value: modelData.app || ""
                     onPicked: id => page.setRule(index, { app: id })
                 }
-                IconButton { icon: "list-remove"; onClicked: page.popRule(index) }
+                IconButton { icon: "list-remove"; tip: Tr.t("Remove"); onClicked: page.popRule(index) }
             }
             Picks {
                 label: Tr.t("How it opens")

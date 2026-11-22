@@ -210,6 +210,7 @@ PanelWindow {
                     font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 TextField {
+                    label: Tr.t("Name")
                     visible: ic.modelData.path !== undefined && win.renaming === ic.modelData.path
                     anchors.top: parent.top
                     anchors.topMargin: Theme.px(56)

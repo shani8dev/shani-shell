@@ -30,7 +30,7 @@ ColumnLayout {
         SectionTitle {
             text: Tr.t("Wi-Fi networks")
             IconButton { icon: "view-paged"; size: Theme.px(24); visible: Net.activeWifi !== null; Accessible.name: Tr.t("Share this Wi-Fi as a QR code"); onClicked: { Ui.closeAll(); Qr.shareWifi(); } }
-            IconButton { icon: "preferences-system"; size: Theme.px(24); onClicked: { Ui.closeAll(); Net.editConnections(); } }
+            IconButton { icon: "preferences-system"; tip: Tr.t("Network settings"); size: Theme.px(24); onClicked: { Ui.closeAll(); Net.editConnections(); } }
         }
         // a sign-in page in the way of the internet (a hotel's, a café's)
         Button {

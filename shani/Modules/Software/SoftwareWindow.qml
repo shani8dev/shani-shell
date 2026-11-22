@@ -507,7 +507,7 @@ AppWindow {
                 width: llist.width
                 Text { Layout.fillWidth: true; elide: Text.ElideMiddle; text: lrow.modelData.id + "  ·  " + win.human(lrow.modelData.size); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                 Button {
-                    visible: win.removingLeftover === lrow.modelData.id ? Tr.t("Click again to remove") : Tr.t("Move to the trash")
+                    text: win.removingLeftover === lrow.modelData.id ? Tr.t("Click again to remove") : Tr.t("Move to the trash")
                     enabled: !jobProc.running
                     onClicked: { if (win.removingLeftover === lrow.modelData.id) { win.removingLeftover = ""; win.ask(["leftover-remove", lrow.modelData.id], () => win.loadLeftovers()); } else win.removingLeftover = lrow.modelData.id; }
                 }

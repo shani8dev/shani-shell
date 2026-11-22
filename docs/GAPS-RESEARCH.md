@@ -1331,3 +1331,54 @@ Risk: 88/18/34/12 split is heuristic grep classification.
 ## Fixes applied this pass
 
 None (research only). A new untracked static a11y test (tests/test_qml_a11y.py) found ~84 unnamed IconButtons; left untracked because it would break CI until those labels are added.
+
+---
+
+# Fourteenth pass — full reports
+
+## Power / suspend / hibernate hardware depth (agent ses_dfb6f337bffeXUI14PH6oz5I6A)
+
+Skipped all listed power items and session-lifecycle suspend findings. Static only.
+
+Shell-fixable: 1 Hibernate delay never configured (HibernateDelaySec exists nowhere; docs tell users to hand-edit sleep.conf); 2 no critical-battery action tied to suspend (15%/7% warn and lock but no hibernate/shutdown fallback); 3 hibernate/resume untested end-to-end (zero testbed probes); 4 two unsynchronised WoL controls (wakeup.py sysfs vs Net.qml NM magic packet); 5 WoL changes not applied to live link (no nmcli device reapply); 6 no RTC wake alarms/wake-to-alarm (rtcwake absent; suspended machine misses calendar alarms); 7 no pre-suspend/post-resume hardware hooks (Hooks has 6 events, no PrepareForSleep); 8 secondary internal batteries ignored (only displayDevice); 9 hibernate has no confirmation while suspend does; 10 hibernate capability checked once at startup; 11 power menu mislabels sleep style (always "Suspend"); 12 docs name nonexistent key HandleLidSwitchExternalMemory (should be ExternalPower).
+Firmware/install: 13 swap can be smaller than RAM and deploy shrink invalidates resume_offset; 14 cloud images cannot hibernate silently; 15 sleep state left to firmware/manual tmpfiles (no deep default); 16 power-button long press/double tap unsupported.
+Comparison: GNOME/KDE cover basic actions + critical-battery policy but also lack HibernateDelaySec UI; macOS/Windows add RTC wake and modern-standby timing.
+
+## Btrfs snapshot management UI depth (agent ses_dfb6f6794ffe8lnkqAVvpAu29P)
+
+Scope: shani-backup home snapshots + shani-deploy blue-green system snapshots (distinct from predeploy HOME snapshots already filed).
+1 Docs teach nonexistent CLI verbs (home create/delete vs home snapshot/remove) — fix docs, regenerate stubs; 2 shell restore footer "Changed files are overwritten" is false/dangerous (GTK copies to dated sibling); 3 Find a File skips all dot-directories (.config/.local/.ssh unreachable); 4 no unified snapshot timeline (shell home + Cassini raw subvolumes + Boot & Recovery slot backups are three disjoint views); 5 manual snapshots cannot be named; 6 per-snapshot size absent; 7 slot backups listing-only with no restore action; 8 no in-app snapshot file browser; 9 no per-snapshot pin (prune deletes oldest by name); 10 snapshot validity never checked (partial/corrupt subvolume looks healthy); 11 boot count/tries never shown; 12 no true revert (restore always creates dated copy); 13 two competing snapshot models (Cassini raw vs home timeline); 14 shell restore no confirmation and closes before opening GUI; 15 whole-/home snapshot scope undisclosed; 16 slot rows raw blue/green no friendly label; 17 script comment names wrong opt-out key.
+Risk: items 7/11 need backend work; rest UI/docs-only.
+
+## Boot / splash / first-boot UX (agent ses_dfb6f960effeVUTa0KIKPZBUzE)
+
+What exists: Plymouth bgrt theme (firmware logo + spinner), quiet/splash cmdline, no account at install (vendor wizards for GNOME/Plasma/COSMIC; ShaniOS wizard for niri), automatic slot rollback, no graphical recovery UI.
+Shell-fixable: 1 update entry point raw terminal (pkexec shani-deploy, no progress/ETA/phase); 2 account creation one undifferentiated "working" state (6 sequential steps); 3 no "welcome" page on GNOME/Plasma/COSMIC; 4 orphaned-home warning console text only; 5 "Signing you in…" bare status; 6 no boot-time readout (shani-health boot time unsurfaced).
+Installer/firmware/docs: 7 no boot progress at all (static logo indistinguishable from hang); 8 impossible docs instruction ("remove splash from cmdline" — embedded in signed UKI, editor disabled); 9 recovery messages invisible under splash; 10 slot-switch notice hidden by design; 11 first-boot script claims console output it never writes; 12 no disk-unlock recovery-key UX at prompt; 13 no hardware detection/driver prompt at first boot; 14 Plymouth updates mode never used.
+Comparison: Windows WinRE + BitLocker key escrow; macOS Cmd-R recovery + progress; Ubuntu plymouth text + recovery entry; SteamOS branded animation vs Shani's OEM bgrt looking unbranded.
+
+## D-Bus shell surface as third-party API (agent ses_dfb6f041fffeQMoGWm66bkIbX7)
+
+Architecture: (a) shell's own API is Quickshell IpcHandler (521 functions) over private socket; (b) actual D-Bus names owned only by Python bridges ("Quickshell cannot export a D-Bus object"); no org.shani.Shell interface at all.
+Security (high value, low effort — mostly one sender check each): 1 any session process can drive every shell function (lock/poweroff/settings) with no polkit/peer check; 2 Agent Approve bus-wide — malicious app can approve its own tool calls; 3 UI spoofing via Mascot.Show/Windows.Cue; 4 any process can lock/reset idle/prevent locking; 5 dev.shani.Link exposes contacts/call history/dial/notifications/location to any bus client; 6 portal OpenFile returns user-chosen paths to any caller.
+API design: 7 no D-Bus Properties for shell state (only pull-only state() JSON); 8 no D-Bus signals for shell events (external apps must poll); 9 no service activation for most names (only portal has .service file); 10 bus names/paths undocumented as stable API; 11 no versioning/deprecation; 12 all bridges use BusNameOwnerFlags.NONE no replacement policy; 13 Flatpak reachability undefined (no name manifest); 14 relay contract payloads undocumented; 15 portal FileChooser-only; 16 no caller identity exposure.
+Comparison: GNOME publishes documented org.gnome.Shell; KDE versioned org.kde.* with introspection; sway documented versioned IPC. Shani has private unversioned socket + undocumented compat names.
+Risk: #2/#5 may be intentional bus-wide design — confirm with owners before hardening so legitimate peers aren't locked out.
+
+## Chronoa backend under-exposure (agent ses_dfb6fc40affev9Y7uLv7LIyE9D)
+
+1 Structured tool arguments thrown away (backend tool/tool_done with tool+args; shell handlers read only e.text); 2 compaction events dropped ("it forgot what I said" indistinguishable); 3 turn-id broadcasts ignored; 4 shell exposes only 4 of ~36 GActions; 5 project folder/Build mode unreachable; 6 MCP server state invisible; 7 inbound channel bridges (Telegram/WhatsApp/LAN) no shell face; 8 entire Chronoa Settings window behind external process launch (~225 schema keys, shell shows enable/kill); 9 Mascot settings no shell control; 10 learned tool priors never reach shell suggestions; 11 search provider on separate bus name ignored by launcher; 12 usage/cost telemetry no shell surface; 13-18 lower value (answer-question, setup pages, voice-clip health, cloud STT, transcribe-file, rail toggles).
+Risk: items 4-9 assume bridge actions can be dispatched generically — allow-list required because ActivateAction passes no parameters.
+
+## Niche/commercial desktop comparisons (agent ses_dfb6ed859ffeebiLGGrRHe71z1)
+
+New QML-deliverable ideas: 1 Cinnamon panel edit mode + applet manager (bar widgets toggle but not reorder); 2 taskbar-style per-window list in bar (Niri.windows exposes ids); 3 app-grid edit mode — reorder/hide/folders (tvOS/Tizen); 4 tvOS Top Shelf focused-app hero preview; 5 Kodi Continue Watching row (PlayQueue resume points exist); 6 Batocera game library with box art; 7 Garuda network assistant guided troubleshooter; 8 Garuda upgrade-adviser "needs attention" card; 9 unresponsive-app watchdog Wait/Force Quit (System Monitor polls /proc); 10 ChromeOS combined clock+calendar+notifications tray; 11 ChromeOS lock-screen accessibility dock; 12 Kodi profiles on shared TV; 13 Clear Linux verify & repair; 14 Pantheon starred files virtual folder; 15 external media "index/play" prompt; 16 screenshot/record in power menu.
+Out of scope: visionOS gaze, SteamOS controller layouts/fan curves, Tizen bezel/HDMI-CEC, webOS Magic Remote, postmarketOS charging/emergency call, Manjaro kernel switching, NixOS generations, Garuda cloud sync/retroachievements, Tizen multi-view/PiP.
+
+## Shani Link GTK app features not surfaced in shell (agent ses_dfb6fec14ffemQj14WWvzn9a62)
+
+1 Five of seven GTK pages have no shell entry point (Watch/Radio/NFC/Remote/Background/Screen; shell only --page=phone/contacts); 2 no Link settings UI (14 named switches in GTK Background page); 3 screen mirroring no shell controls (Check/Start/Share window/Stop, Touch toggle, report); 4 watch dashboard entirely GTK-only (steps ring, sleep stages, stress, HR/SpO2/BP, workouts, Find, Sync time); 5 Android USB tools reduced to one share call (GTK has 20+ verbs); 6 phone diagnostics reads unreachable (Notifications/Usage/Line/Wifi/Thermal/Location/Display via D-Bus); 7 live in-call controls missing from Calls (timer, mute, audio picker, DTMF, hold/swap/merge, recording, video); 8 SIP account manager no shell surface; 9 phone music control not in Media Player; 10 received-files list and receive switch missing; 11 shell always picks first device (GTK has per-serial cards); 12 generic BLE/GATT inspector; 13 live FM/SDR radio absent from shell Radio; 14 NFC read/write UI; 15 infrared remote learn/send; 16 pairing wizard QR/passkey flow unreachable.
+
+## Test/verification note
+
+A new static a11y test (tests/test_qml_a11y.py) found ~84 unnamed IconButtons; an agent has begun adding tips/labels to affected files (DatePicker, CameraPanel, ControlCenter, Settings, etc.). Outcomes pending.

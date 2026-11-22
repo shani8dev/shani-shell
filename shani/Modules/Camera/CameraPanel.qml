@@ -46,7 +46,7 @@ AppWindow {
                     font.pixelSize: Theme.px(15) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
-                IconButton { icon: "view-refresh"; size: Theme.px(28); onClicked: Camera.openViewfinder() }
+                IconButton { icon: "view-refresh"; tip: Tr.t("Open the camera"); size: Theme.px(28); onClicked: Camera.openViewfinder() }
             }
 
             RowLayout {

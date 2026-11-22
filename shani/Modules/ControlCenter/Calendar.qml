@@ -54,8 +54,8 @@ ColumnLayout {
             MouseArea { anchors.fill: parent; onClicked: root.offset = 0 }
             KeyFocus { onActivated: root.offset = 0 }
         }
-        IconButton { icon: "go-previous"; size: Theme.px(26); onClicked: root.offset-- }
-        IconButton { icon: "go-next"; size: Theme.px(26); onClicked: root.offset++ }
+        IconButton { icon: "go-previous"; tip: Tr.t("Previous"); size: Theme.px(26); onClicked: root.offset-- }
+        IconButton { icon: "go-next"; tip: Tr.t("Next"); size: Theme.px(26); onClicked: root.offset++ }
     }
 
     GridLayout {

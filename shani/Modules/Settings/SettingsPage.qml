@@ -1056,8 +1056,8 @@ ColumnLayout {
                             onToggled: on => page.d.hiddenTiles = on ? Array.from(page.d.hiddenTiles).filter(x => x !== modelData)
                                                                       : Array.from(page.d.hiddenTiles).concat([modelData])
                         }
-                        IconButton { icon: "go-up"; size: Theme.px(24); enabled: index > 0; onClicked: page.moveTile(modelData, -1) }
-                        IconButton { icon: "go-down"; size: Theme.px(24); enabled: index < page.tileOrder.length - 1; onClicked: page.moveTile(modelData, 1) }
+                        IconButton { icon: "go-up"; tip: Tr.t("Move up"); size: Theme.px(24); enabled: index > 0; onClicked: page.moveTile(modelData, -1) }
+                        IconButton { icon: "go-down"; tip: Tr.t("Move down"); size: Theme.px(24); enabled: index < page.tileOrder.length - 1; onClicked: page.moveTile(modelData, 1) }
                     }
                 }
 
