@@ -47,7 +47,7 @@ centre, and against what a session needs before any app runs.
 - **Headphone virtual surround (stereo widening is done).** Implemented via the matrix_spatialiser LADSPA plugin (shipped in ladspa) as a "Stereo widening" toggle in Settings › Sound effects, behind `SoundFx.canSpatial`. The convolver-based virtual surround (KEMAR/Hesuvi HRIR) still needs HRIR wav files that no package ships; stereo widening is what is available.
 - **More setup-wizard languages** than English, मराठी, हिन्दी, Deutsch, Español,
   Français (strings.js).
-- **Translations**: about 1525 of 2924 catalog strings are translated into
+- **Translations**: about 1525 of 3416 catalog strings are translated into
   Marathi and Hindi (the bar, control centre, Settings and its pages, launcher,
   notifications, lock screen, overview, dock, window menu). The rest are the
   newer app windows and settings (Files, Archives, Quick Look, the viewers, the
@@ -113,7 +113,7 @@ tests/test_appfilter.py), not a run in the session.
 
 ## The shell's apps: what each still lacks (Nov 2026)
 
-`shani app` lists them (39). Each is a window of its own (`Common/AppWindow`),
+`shani app` lists them (50). Each is a window of its own (`Common/AppWindow`),
 opens cleanly in the suite and is photographed there (`out/shots/app-*.png`).
 The shell's app is the default for its file types and the Flatpak is kept
 after it as the fallback; a Flatpak leaves the niri image when its app has
@@ -215,14 +215,13 @@ Each needs real hardware or shani-testbed:
   and connect in silence; phones over Bluetooth (Chronoa) carry sound.
 
 ## Improved (Nov 2026)
-- Translations: ~1525/2924 Marathi/Hindi strings done; the rest (newer app windows and settings) are documented above.
+- Translations: ~1525/3416 Marathi/Hindi strings done; the rest (newer app windows and settings) are documented above.
 - Live TV, free radio picks, a QR folder-link share target, health check and problem report are now in the shell (Media Player / Share / About).
 - Real-hardware runs: nested niri only; shani-testbed boot needed for Wi-Fi BT multi-screen recording.
 # Improvements applied (Nov 2026)
 - Scratchpads: plugin manifest + full settings schema + service lifecycle
 - ScreenSaver: active cover + idle-stage hooks
 - WebApps: site scraping + reveal hooks
-- Traffic: full plugin architecture
 - DevTools: dynamic catalog + TUI hooks
 - Lens/Chronoa: turn-stream enhancement
 - Adaptive palette: "Accent from wallpaper" extended to a full Material You
