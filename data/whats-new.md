@@ -20,6 +20,15 @@ a glance away, and when you are not using it, it costs almost nothing.
   edits that keep the fields you can't see; a fuller Weather report; host
   testing and key import in Terminal; Reply and Forward in Mail; live app
   search in Software; and working Photos filters.
+- **A big round of app refinements** — editor bookmarks, regex search and
+  session restore; Notes trash, history and tags; Calendar repeat rules,
+  alarms and time zones; repeatable contacts with call/mail/map actions;
+  Mail Cc/Bcc, saved attachments and flags; Feeds tags, search and saving;
+  PDF bookmarks, links and annotations; Media Player chapters, go-to-time
+  and A→B loop; camera timer and shutter sound; recorder formats and export;
+  trimmer segments; source-language selection in Translate; multiple weather
+  locations; SSH tunnels; disk SMART self-tests; richer Software ratings;
+  process details and renice; and grouped notifications with a tray drawer.
 
 - **Bar, dock and Island** — workspaces, the focused window, now playing,
   status at a glance. The middle of the bar (the Island) shows what is

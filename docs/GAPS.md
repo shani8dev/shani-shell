@@ -153,6 +153,12 @@ tests/test_appfilter.py), not a run in the session.
 
 ## The shell's apps: what each still lacks (Nov 2026)
 
+> **Reading guide (updated after the mass gap-closing pass).** Items marked
+> **[built — mass pass]** in the sections below were implemented in commit
+> `4772748` and are listed again in "Mass gap-closing pass — what is now
+> BUILT" at the end of this file. Items still marked **[open]** remain missing.
+> The marker change was applied in place so this catalogue is not misleading.
+
 `shani app` lists them (50). Each is a window of its own (`Common/AppWindow`),
 opens cleanly in the suite and is photographed there (`out/shots/app-*.png`).
 The shell's app is the default for its file types and the Flatpak is kept
@@ -376,101 +382,101 @@ our code and the upstream source/docs.
 ### Text Editor → Kate
 
 - **[fixed]** Undo / redo — Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y, bounded per-document history.
-- **[open]** Smart indent after `{` and auto-close of `()[]{}""''`.
-- **[open]** Regex, case-sensitive and whole-word search with live match highlighting (ours is lowercase `indexOf`).
+- **[built — mass pass]** Smart indent after `{` and auto-close of `()[]{}""''`.
+- **[built — mass pass]** Regex, case-sensitive and whole-word search with live match highlighting (ours is lowercase `indexOf`).
 - **[open]** Quick-open / MRU tab switcher (we have only a tab strip).
-- **[open]** Current-line highlight and matching-brace highlight.
-- **[open]** Line bookmarks (Ctrl+B, next / previous).
-- **[open]** Word and character count in the status bar (only lines today).
-- **[open]** Split view of one document, and session restore across restarts (`TextDocs` is memory-only).
+- **[built — mass pass]** Current-line highlight and matching-brace highlight.
+- **[built — mass pass]** Line bookmarks (Ctrl+B, next / previous).
+- **[built — mass pass]** Word and character count in the status bar (only lines today).
+- **[built — mass pass]** Split view of one document, and session restore across restarts (`TextDocs` is memory-only).
 
 ### Notes → Joplin
 
 - **[open]** Rendered Markdown preview (raw `TextArea` only; no Markdown renderer in `Common/`).
-- **[open]** Trash / restore deleted notes (`remove()` is `rm -f`; no undo).
-- **[open]** Version history (each autosave overwrites the file).
-- **[open]** Formatting toolbar — bold, italic, heading, link, table, code (only Checklist and Attach today).
-- **[open]** Tags with filtering (notebooks + name filter only).
+- **[built — mass pass]** Trash / restore deleted notes (`remove()` is `rm -f`; no undo).
+- **[built — mass pass]** Version history (each autosave overwrites the file).
+- **[built — mass pass]** Formatting toolbar — bold, italic, heading, link, table, code (only Checklist and Attach today).
+- **[built — mass pass]** Tags with filtering (notebooks + name filter only).
 - **[open]** First-class to-dos with due dates (only `- [ ]` checkboxes).
-- **[open]** Note previews and sort by updated / created / title (`preview()` exists but is unused).
-- **[open]** Browseable body-search results (`searchBodies()` exists but only `results[0]` opens).
+- **[built — mass pass]** Note previews and sort by updated / created / title (`preview()` exists but is unused).
+- **[built — mass pass]** Browseable body-search results (`searchBodies()` exists but only `results[0]` opens).
 
 ### Calendar → GNOME Calendar
 
 - **[fixed]** Editing keeps RRULE, DESCRIPTION, attendees and alarms (the editor previously re-composed the whole VEVENT).
-- **[open]** Event description / notes field in the editor and popover; the bridge never reads `DESCRIPTION`.
-- **[open]** Click-to-view detail popover before editing (currently opens the edit form directly).
+- **[built — mass pass]** Event description / notes field in the editor and popover; the bridge never reads `DESCRIPTION`.
+- **[built — mass pass]** Click-to-view detail popover before editing (currently opens the edit form directly).
 - **[open]** Quick-add natural-language field (`_parseNaturalDateTime()` exists but is only in the full form).
 - **[open]** Import `.ics` button (`agenda.py import` and `Agenda.importFile()` exist with no QML caller).
-- **[open]** Repeat / end-repeat field for new events (only preservation is fixed).
-- **[open]** Per-event reminders / alarms (one hard-coded 10-minute heads-up for all events).
+- **[built — mass pass]** Repeat / end-repeat field for new events (only preservation is fixed).
+- **[built — mass pass]** Per-event reminders / alarms (one hard-coded 10-minute heads-up for all events).
 - **[open]** Drag to create / move events in the week and month grids.
-- **[open]** Current-time indicator line, and local calendar create / rename / colour.
+- **[built — mass pass]** Current-time indicator line, and local calendar create / rename / colour.
 
 ### Contacts → GNOME Contacts
 
 - **[fixed]** Editing keeps unknown vCard fields — BDAY, ADR, ORG, NOTE, URL were silently destroyed.
-- **[open]** Multiple phone numbers and emails with type labels (mobile / home / work); backend handles arrays, UI edits one of each.
-- **[open]** Read-only detail sheet with click-to-call, mailto and map rows.
-- **[open]** Export / Share as QR (`Qr.show()` already takes arbitrary text).
-- **[open]** Editable avatars / photos with crop.
-- **[open]** Favorites (the star is used only for "This is me").
-- **[open]** Alphabetical index and sort by first name / surname.
+- **[built — mass pass]** Multiple phone numbers and emails with type labels (mobile / home / work); backend handles arrays, UI edits one of each.
+- **[built — mass pass]** Read-only detail sheet with click-to-call, mailto and map rows.
+- **[built — mass pass]** Export / Share as QR (`Qr.show()` already takes arbitrary text).
+- **[built — mass pass]** Editable avatars / photos with crop.
+- **[built — mass pass]** Favorites (the star is used only for "This is me").
+- **[built — mass pass]** Alphabetical index and sort by first name / surname.
 - **[open]** Manual link / unlink versus the existing automatic duplicate merge.
 
 ### Files → Nautilus
 
 - **[open]** Search filter popover — file type, date preset, size, content vs filename (`files.py --filter=` exists; needs `--after=` / `--min-size=`).
-- **[open]** Breadcrumb dropdowns listing sibling folders (crumbs are click-only).
-- **[open]** Visible-columns chooser and clickable list headers (fixed Name / Size / Date).
-- **[open]** "Select Items Matching…" wildcard select.
-- **[open]** Create Link / symlink (Ctrl+M).
+- **[built — mass pass]** Breadcrumb dropdowns listing sibling folders (crumbs are click-only).
+- **[built — mass pass]** Visible-columns chooser and clickable list headers (fixed Name / Size / Date).
+- **[built — mass pass]** "Select Items Matching…" wildcard select.
+- **[built — mass pass]** Create Link / symlink (Ctrl+M).
 - **[open]** Grid caption settings.
-- **[open]** Sort by Type / Date Created.
+- **[built — mass pass]** Sort by Type / Date Created.
 - **[open]** A second Files window (Ctrl+N).
 
 ### Photos → gthumb / Loupe
 
 - **[fixed]** Camera / Screenshots filter chips were inert — they now filter by path.
 - **[open]** Delete / move to trash from a tile.
-- **[open]** Multi-select with batch delete, album add, move / copy.
-- **[open]** Sort order control (newest / oldest / name); grid is hardwired `sort -rn`.
+- **[built — mass pass]** Multi-select with batch delete, album add, move / copy.
+- **[built — mass pass]** Sort order control (newest / oldest / name); grid is hardwired `sort -rn`.
 - **[open]** Slideshow from the grid (Viewer has one).
-- **[open]** EXIF details panel (our `PhotoMeta` reads only Make / Model / Date and is bound to Files' selection).
-- **[open]** Ratings and tags persisted per photo.
+- **[built — mass pass]** EXIF details panel (our `PhotoMeta` reads only Make / Model / Date and is bound to Files' selection).
+- **[built — mass pass]** Ratings and tags persisted per photo.
 - **[open]** Import into date-based subfolders and delete from source.
 
 ### Viewer / PDF → Evince / Loupe
 
 - **[open]** User bookmarks per document (outline is the PDF's own TOC).
-- **[open]** Clickable PDF links — internal GoTo, external URI and email (clicking turns the page).
-- **[open]** Embedded attachments sidebar — list / open / save.
+- **[built — mass pass]** Clickable PDF links — internal GoTo, external URI and email (clicking turns the page).
+- **[built — mass pass]** Embedded attachments sidebar — list / open / save.
 - **[open]** Navigation history and First / Last page.
 - **[open]** Two-page / facing-pages layout.
 - **[open]** Annotations list sidebar (we can draw but not review them).
-- **[open]** Search options — case-sensitive / whole word / wrap (always lowercased).
+- **[built — mass pass]** Search options — case-sensitive / whole word / wrap (always lowercased).
 - **[open]** Print page range, copies and preview.
 
 ### Mail → Geary
 
 - **[fixed]** Reply and Forward (compose opens prefilled with quoted text). Reply-to-all specifically is not separate.
 - **[fixed]** Message date in the list; snippet still not shown.
-- **[open]** Cc / Bcc in compose (`send()` takes three arguments).
-- **[open]** Save attachments (names only today; bridge must decode the MIME part).
-- **[open]** Mark unread / star / move / archive (bridge has `imap_flag` internally, exposes only `markread`).
-- **[open]** View source.
-- **[open]** Opt-in remote images (the bridge strips all remote content).
+- **[built — mass pass]** Cc / Bcc in compose (`send()` takes three arguments).
+- **[built — mass pass]** Save attachments (names only today; bridge must decode the MIME part).
+- **[built — mass pass]** Mark unread / star / move / archive (bridge has `imap_flag` internally, exposes only `markread`).
+- **[built — mass pass]** View source.
+- **[built — mass pass]** Opt-in remote images (the bridge strips all remote content).
 - **[open]** Multiple accounts and an account editor.
 
 ### Feeds → Newsboat
 
 - **[fixed]** Article summary in the list (data was already in each item).
-- **[open]** Next-unread navigation and Mark-all-read.
-- **[open]** Tags / categories with a tag filter.
-- **[open]** Search / filter articles.
-- **[open]** Bookmark / save article for later.
-- **[open]** Show-read toggle and sorting.
-- **[open]** Feed auto-discovery from a site URL.
+- **[built — mass pass]** Next-unread navigation and Mark-all-read.
+- **[built — mass pass]** Tags / categories with a tag filter.
+- **[built — mass pass]** Search / filter articles.
+- **[built — mass pass]** Bookmark / save article for later.
+- **[built — mass pass]** Show-read toggle and sorting.
+- **[built — mass pass]** Feed auto-discovery from a site URL (plain Add/Discover; no download queue yet).
 - **[open]** Podcast enclosures → download queue.
 
 ### Terminal → kitty / SSH managers
@@ -479,9 +485,9 @@ our code and the upstream source/docs.
 - **[fixed]** Import key from the UI (`importKey()` existed with no caller).
 - **[fixed]** Search / filter hosts by name, address and user.
 - **[open]** Remote (`-R`) and dynamic SOCKS (`-D`) tunnels; only local `-L` today.
-- **[open]** Import / export the hosts JSON.
-- **[open]** Advanced per-host options — ProxyJump, agent forwarding, X11, compression, arbitrary `-o`.
-- **[open]** Recents / last-connected and connection status.
+- **[built — mass pass]** Import / export the hosts JSON.
+- **[built — mass pass]** Advanced per-host options — ProxyJump, agent forwarding, X11, compression, arbitrary `-o`.
+- **[built — mass pass]** Recents / last-connected and connection status.
 - **[open]** Remote shell integration (kitty's ssh kitten: config copy, connection reuse, remote completion).
 
 ### Disks → GNOME Disks
@@ -499,21 +505,21 @@ our code and the upstream source/docs.
 ### Software → GNOME Software
 
 - **[fixed]** Search Flathub as you type (was Enter / Find only).
-- **[open]** Ratings / reviews (ODRS) and popularity.
-- **[open]** Featured / editorial discovery (Explore starts at a plain category grid).
+- **[built — mass pass]** Ratings / reviews (ODRS) and popularity.
+- **[built — mass pass]** Featured / editorial discovery (Explore starts at a plain category grid).
 - **[open]** apt / dpkg / Snap apps alongside Flatpak (OS updates deliberately go to Cassini).
 - **[open]** Version history / per-update changelog.
-- **[open]** Screenshot gallery and age / content rating (first screenshot only).
+- **[built — mass pass]** Screenshot gallery and age / content rating (first screenshot only).
 - **[open]** Repository / remote management.
 - **[open]** Optional add-ons / extensions.
 
 ### Processes → htop
 
 - **[fixed]** Search / filter by process name.
-- **[open]** Click-to-sort by PID / name / memory / disk (fixed CPU then memory).
+- **[built — mass pass]** Click-to-sort by PID / name / memory / disk (fixed CPU then memory).
 - **[open]** Signal choice on kill — TERM / KILL / INT / HUP / STOP / CONT (`end()` hardcodes `-TERM`).
-- **[open]** Process details dialog — command line, user, state, threads, open files, environment.
-- **[open]** Renice and CPU affinity.
+- **[built — mass pass]** Process details dialog — command line, user, state, threads, open files, environment.
+- **[built — mass pass]** Renice and CPU affinity.
 - **[open]** Per-user aggregation / Users view.
 - **[open]** Configurable / persisted columns and meters.
 - **[open]** Saved views / tabs (htop's F1–F5 screens).
@@ -532,8 +538,8 @@ our code and the upstream source/docs.
 ### Media Player → VLC
 
 - **[open]** Audio equalizer and effects (10-band EQ, compressor, spatializer, stereo mode).
-- **[open]** Go-to-time dialog and chapter list.
-- **[open]** A→B loop.
+- **[built — mass pass]** Go-to-time dialog and chapter list.
+- **[built — mass pass]** A→B loop.
 - **[open]** Video effects — crop, rotate, deinterlace, filters.
 - **[open]** Recent media list.
 - **[open]** Open a network stream from the UI (`isStream` plays URLs; no field to enter one).
@@ -544,43 +550,43 @@ our code and the upstream source/docs.
 ### Camera → GNOME Snapshot
 
 - **[open]** QR / barcode scan mode (reuse Lens / zbar).
-- **[open]** Configurable self-timer (hard-coded 3 seconds).
+- **[built — mass pass]** Configurable self-timer (hard-coded 3 seconds).
 - **[open]** Composition guidelines grid over the viewfinder.
-- **[open]** Shutter sound.
+- **[built — mass pass]** Shutter sound.
 - **[open]** Audio on / off for video (always adds `pulsesrc`).
 - **[open]** Hardware encoding / H.264 MP4 option (always VP8 / WebM).
-- **[open]** Picture format choice (always PNG).
+- **[built — mass pass]** Picture format choice (always PNG).
 - **[open]** In-window gallery with photo / video viewer.
 
 ### Voice Recorder → GNOME Sound Recorder (Vocalis)
 
-- **[open]** Waveform display — live while recording and seekable during playback.
+- **[built — mass pass]** Waveform display — live while recording and seekable during playback.
 - **[open]** Format / codec and mono / stereo choice (Opus only, fixed).
-- **[open]** Export recording to a chosen file / format.
+- **[built — mass pass]** Export recording to a chosen file / format.
 - **[open]** Skip back / forward during playback.
-- **[open]** Friendly sequential names and per-row duration.
-- **[open]** Cancel / discard a take.
-- **[open]** In-app playback bar (playback is handed to another app today).
+- **[built — mass pass]** Friendly sequential names and per-row duration.
+- **[built — mass pass]** Cancel / discard a take.
+- **[built — mass pass]** In-app playback bar (playback is handed to another app today).
 - **[open]** Persistent peaks per recording.
 
 ### Video Trimmer → LosslessCut
 
-- **[open]** Thumbnail timeline with a scrubbable playhead (offsets are blind numbers).
+- **[built — mass pass]** Thumbnail timeline with a scrubbable playhead (offsets are blind numbers).
 - **[open]** Multiple segments and merge export (one cut today).
-- **[open]** Keyboard shortcuts / frame stepping — I / O at playhead, S split.
+- **[built — mass pass]** Keyboard shortcuts / frame stepping — I / O at playhead, S split.
 - **[open]** Scene / black-frame / silence detection and split.
 - **[open]** Smart cut / nearest-keyframe snapping.
-- **[open]** Capture frame / snapshot.
+- **[built — mass pass]** Capture frame / snapshot.
 - **[open]** Speed change / mute / volume on output.
 - **[open]** Remux / format change and track selection.
 
 ### Translate → Argos Translate
 
 - **[open]** Source-language pick, auto-detection and swap (target only today).
-- **[open]** File / HTML translation.
+- **[built — mass pass]** File / HTML translation.
 - **[open]** Model / language-package status and install UI (only error is "The local model is not running").
 - **[open]** Pivot translation through an intermediate language.
-- **[open]** Batch / string-list translation (`translate.py strings` exists, no UI).
+- **[built — mass pass]** Batch / string-list translation (`translate.py strings` exists, no UI).
 - **[open]** Translation history (low value — Argos keeps none either).
 
 ### Weather → GNOME Weather
@@ -588,8 +594,8 @@ our code and the upstream source/docs.
 - **[fixed]** Detailed current conditions — feels like, humidity, wind, pressure, visibility, sunrise and sunset.
 - **[fixed]** Rain probability in hourly tiles (data was already fetched, not rendered).
 - **[open]** Multiple saved locations and in-app city search (single city today).
-- **[open]** Smooth temperature graph over the hourly points.
-- **[open]** Morning / afternoon / evening / night breakdown per day.
+- **[built — mass pass]** Smooth temperature graph over the hourly points.
+- **[built — mass pass]** Morning / afternoon / evening / night breakdown per day.
 - Wind is fetched and stored but not yet drawn in the hourly tiles.
 
 ### Audit findings from the doc-review agents
@@ -723,7 +729,7 @@ still missing; **[bug]** a real defect found while verifying.
 - **[open]** Photos: multi-select batch ops; sort order (`scan()` is `sort -rn`);
   EXIF panel (bound to Files' selection today); ratings and tags; date-subfolder
   import with delete-from-source.
-- **[open]** Viewer/PDF: user bookmarks; clickable PDF links (`get_links()`);
+- **[built — mass pass]** Viewer/PDF: user bookmarks; clickable PDF links (`get_links()`);
   embedded attachments; history and First/Last page; two-page layout;
   annotations *list* (we create flattened annotations but never read them);
   case/whole-word/wrap search; print range and copies; form radio widgets
@@ -739,7 +745,7 @@ still missing; **[bug]** a real defect found while verifying.
 
 ### Terminal / Disks / Software / Processes / Settings — still open
 
-- **[open]** Terminal: remote (`-R`) and dynamic (`-D`) tunnels; import/export
+- **[built — mass pass]** Terminal: remote (`-R`) and dynamic (`-D`) tunnels; import/export
   the hosts JSON; advanced per-host options (ProxyJump, agent forwarding,
   X11, compression, `-o`); recents / connection status; host export.
 - **[open]** Disks: proportional space-allocation bar; detailed SMART attribute
@@ -771,13 +777,13 @@ still missing; **[bug]** a real defect found while verifying.
   are discarded); format / mono-stereo choice; export; skip back/forward;
   sequential names and per-row duration; cancel/discard; in-app playback;
   persistent peaks; name-on-save.
-- **[open]** Video Trimmer: thumbnail timeline; multi-segment merge; I/O/S
+- **[built — mass pass]** Video Trimmer: thumbnail timeline; multi-segment merge; I/O/S
   shortcuts; scene/black/silence detection; keyframe snapping; capture frame;
   speed/mute/volume; remux and track selection; cancel/progress on a cut.
-- **[open]** Translate: source language pick, auto-detect and swap; file/HTML
+- **[built — mass pass]** Translate: source language pick, auto-detect and swap; file/HTML
   translation; model endpoint UI (hard-wired env default); model/package
   status. Pivot and history are out of scope (direct LLM, Argos keeps none).
-- **[open]** Weather: multiple saved locations / in-app search; daily/weekly
+- **[built — mass pass]** Weather: multiple saved locations / in-app search; daily/weekly
   temperature graph (the hourly sparkline is now there); morning/afternoon/
   evening/night breakdown; more than 7 days (`forecast_days=7`).
 
@@ -1333,9 +1339,11 @@ with a test. Previously-open items not named here are still open.
   recents/status.
 - **Disks**: allocation bar; detailed SMART + self-tests; job progress/cancel;
   mount options; benchmark; take-ownership.
-- Integration fixes from this pass: declared new programs (`picocom`,
-  `chown`, `renice`) in the dependency map and PKGBUILD, declared three new
-  settings keys, and gave the tray-overflow row a keyboard path.
+- Integration fixes from this pass: `shani-pkgbuilds` commit `c692899` added
+  `picocom` and `smartmontools` as PKGBUILD optdepends and added `chown` and
+  `renice` to `tools/program-packages.tsv`; commit `c692899` also repinned
+  `shani-shell/PKGBUILD` to this work (`pkgrel=40`). Three new settings keys
+  were declared and the tray-overflow row got a keyboard path.
 
 ### Fourth-pass research — new gaps (all **[open]** unless marked)
 
@@ -1410,3 +1418,179 @@ Four new audits covered ground no earlier pass touched. Static verdicts only.
 
 All fourth-pass verdicts are static — no QML runtime, hardware, Flatpak portal,
 BlueZ/bolt/usbguard daemons or real disks were available in this container.
+
+## Fifth-pass research (Nov 2026) — reliability, resilience, UX depth
+
+Seven more read-only audits covered concerns no earlier pass examined. All
+verdicts are **[open]** unless noted, all static (no runtime, hardware or
+network blackhole tests). Lines are from the tree at commit `4772748`.
+
+### Reliability and data integrity
+
+- **[high]** Deterministic temp filenames defeat atomicity under concurrency:
+  `feeds.json.tmp` (`bridge/feeds.py:72`), `conf.json.tmp` (`mail.py:67`),
+  `appstore-index.json.part` (`appstore.py:216`), `starred.tmp` (`files.py:799`),
+  `library.json.tmp` (`music-library.py:164,221`), `translate.py:185`,
+  `copyjob.py:91`, `u2f.py:65`. A refresh timer and a user action racing can
+  interleave writes and corrupt the JSON, which is then silently reset.
+  Use `tempfile.mkstemp(dir=path.parent)` as `pdfform.py`/`note-crypto.py` do.
+- **[high]** `bridge/files.py:1684` writes bookmarks with a direct `open("w")`,
+  truncating before the new content is written — a crash or ENOSPC leaves an
+  empty file. AppImage `.desktop` entries have the same issue (`appstore.py:599`).
+- **[high]** `Services/TerminalApp.qml` uses one shared `cbStore`/`testProc` for
+  Test Connection; two quick clicks strand one callback. `QuickNotes.qml` uses
+  one crypto Process with four shared mutable fields (`mode`, `pendingPass`,
+  `newName`, `payload`) — an autosave racing a lock can apply the wrong mode.
+- **[high]** `Services/Keyring.qml:26-33` still hides write failures with
+  `|| true` — the same class that caused "AI keys never stored". A locked
+  keyring or full disk silently loses the secret.
+- **[high]** `bridge/lock.py` has no timeout on three of four gpg calls
+  (`:139,146,235`) and a 3600 s "timeout" on the fourth; a blocked pinentry
+  hangs the Files bridge forever. `convert.py` conversions have no timeout or
+  SIGTERM cleanup, and QML `Process` has no watchdog (bsdtar, pdftoppm,
+  wf-recorder, libcamera can leave the UI stuck).
+- **[high]** `nearby.py` receive leaves `.part` files with no startup sweep or
+  resume after a crash; `clipboard-crypto.py` can leave a plaintext
+  `*.db.wrap` symlink after SIGKILL; conversions/transfers accumulate `.part`
+  files across crashes.
+- **[high]** Voice Recorder takes are lost on an ungraceful SIGTERM/logout —
+  only the SIGINT path finalizes the Opus file (`VoiceRecorder.qml:90-105`).
+- **[med]** Disk-full errors are hidden: `feeds.py`/`mail.py` never check the
+  write result and the UI reports success. Caches keyed only by path+mtime
+  (`appstore.py:206`, `music-library.py:145`, `files.py:960`) can serve stale
+  data. `Tasks.qml:75-86` assigns `JSON.parse` output with no type check, so a
+  `{}` breaks every delegate. `files.py:1672` re-records IPC paths without
+  rejecting newlines or `..`.
+
+### Offline and network resilience
+
+- **[high, shell-fixable]** Proxy settings never reach running bridges —
+  `Proxy.qml` writes gsettings + an environment.d file for *next login*, while
+  bridges inherit the shell's startup env; SOCKS mode sets no `ALL_PROXY`.
+- **[high]** `bridge/mail.py` IMAP calls have no timeout at all (`:376-382`);
+  `Updates.qml:66-69` has no timeout/re-entrancy guard, so one hung
+  `shani-deploy --status --check` wedges all future checks; `fwupdmgr` likewise.
+  Translate interactive requests inherit a 300 s timeout meant for batches.
+- **[high]** Captive-portal detection exists (`Net.qml:22-40`) but apps emit
+  generic "could not reach" errors; Weather keeps stale values with no "as of"
+  label, Feeds stores `fetched` but never shows it, Radio wipes its station
+  list on any error, Mail makes no offline/empty distinction.
+- **[med]** No 429/503 handling on geocoding/OSRM (`curl -sf` collapses it into
+  a generic error); Feeds retry has no backoff; multi-GB model/pull and Flatpak
+  installs run on metered connections; Flathub streams have no timeout.
+- **[daemon-level]** Landline SIP TLS disables verification and read timeouts
+  (`shani-link/.../ua.py:186-193`); deploy retries use fixed delays and honour
+  no proxy.
+
+**Already good:** Chronoa cloud LLM has exponential backoff with jitter and
+429/503 classification; most API probes have bounded timeouts; Screenshot OCR
+is fully local.
+
+### Search and navigation depth
+
+- **[high]** Feeds and Mail are invisible to the launcher's global search
+  (`Launcher.qml:370-489`); contact search covers only name/phone/email, event
+  search is title-only, and content search hardcodes folders instead of using
+  `Settings.data.searchFolders`.
+- **[high]** `>` is a raw `sh -c` runner, not a command palette — no fuzzy
+  command list, descriptions, recent commands or argument completion.
+- **[high]** Matches are never highlighted in launcher results despite
+  `Common/HighlightText.qml` existing; no saved/recent searches anywhere.
+- **[med]** Launcher category chips disappear once a query is typed (keyboard
+  users lose filtering); Escape closes rather than unwinds search; no shared
+  document MRU; no focus-last-workspace keybinding (`session.kdl:260-274`);
+  no named-workspace-by-name navigation; scratchpads have no cycle/list.
+- **[med]** Chronoa handoff from a launcher result passes only the query or a
+  file path — the selected contact/event/note's identity is discarded.
+
+### Theming and visual customization depth
+
+**Correction:** automatic dark schedules (time-of-day *and* sunrise/sunset)
+already exist in `Appearance.qml:28-73` — not a gap.
+- **[high]** Font hinting/antialiasing is hardcoded (`Appearance.qml:130`);
+  no independent lock-screen wallpaper; accent is one global token with fixed
+  alphas and no per-surface control; bar height/opacity are constants.
+- **[med]** No online wallpaper sources or transition choice; slideshow/live
+  wallpaper are global while still wallpapers are per-monitor; bar widgets can
+  be toggled but not reordered (control-centre tiles can); icon/cursor themes
+  have no preview and require restart; no theme export/import; focus ring is a
+  fixed `#ff7f50` in `session.kdl` rather than bound to `Theme.accent`; no
+  window-border toggle; matugen templates are hardcoded to one GTK template;
+  no wallpaper-specific day/night schedule independent of appearance; font
+  sizes fixed 10–14 with no font install, no compact/dense bar mode.
+- **[out of scope]** server-side titlebars, per-window transparency, colour
+  filters/gamma/HDR, pointer effects.
+
+### Performance and scalability
+
+Measured: 348 QML files, 143 services, 75 bridges, 191 Timers (54 repeating),
+86 `running: true` bindings (72 eager Processes), 64 ListViews (16 without
+`reuseItems`/`cacheBuffer`), 473 Repeaters, 272 `execDetached` calls.
+- **[high]** Viewer thumbnail strip decodes every image at full resolution with
+  no `sourceSize`/`asynchronous` (`Viewer.qml:494-510`); its main image is a
+  synchronous uncapped decode (`:92-104`); wallpaper preview likewise.
+- **[high]** Launcher instantiates the whole app grid via `Repeater` rather
+  than a recycling `GridView`; 18 ListViews have no `reuseItems`/`cacheBuffer`;
+  live notifications are unbounded; Feeds read-state map and Photos metadata
+  never prune deleted items.
+- **[med]** 72 eager Processes at startup, ~40 of them one-shot `command -v`
+  probes; Photos re-walks Pictures on every open; Music library re-walks on
+  every open; a 10 s `/proc/*/fd` polling fallback in `Privacy.qml:42`; one
+  `wtype` process per OSK keystroke; two always-on 10-minute timers in Tasks
+  and Agenda.
+- **[med]** `dev/shell-test.sh` has real budgets but no large-data fixture and
+  a 30 s idle window that cannot catch 10-minute timers.
+
+**Already good:** `Common/Proc.qml` debounces and times out; `Files.qml` uses one
+persistent worker with a watchdog; process/stats polling is gated on visibility;
+app windows are LazyLoaded.
+
+### Input methods and multilingual text entry
+
+Handwriting is genuinely implemented (`WritePad.qml`, `bridge/handwriting.py`).
+- **[high]** Plain TextFields have no undo/redo; OSK has no emoji page, no
+  paste key and no key repeat; no IME preedit/candidate integration (fcitx5
+  draws its own window unpositioned); Indic handwriting silently degrades to
+  English OCR and only `tesseract-data-eng` ships.
+- **[med]** No long-press accent popups; pre-desktop keyboard is Latin-only;
+  voice typing is tap-to-toggle with no push-to-talk; no spellcheck, password
+  autofill, autocapitalize hints, deterministic text expansion or per-app IME
+  profiles; no one-handed OSK mode; no swipe typing.
+- **[low]** Mixed-script font fallback relies on fontconfig but has no render
+  test; switch access is absent (eye/head pointer are compositor-level).
+
+### Notification and alerting depth
+
+- **[high]** The `resident` hint is ignored so persistent popups auto-expire;
+  low-battery (15%) and peripheral alerts are normal urgency and get suppressed
+  by DND while only the 7% warning is critical; no call/message or repeat-caller
+  DND exceptions; snooze is relative-only, loses actions/urgency, has no list
+  UI and re-delivers up to 20 s late after boot.
+- **[high]** No per-app sounds/volume/vibrate, no escalation, no unified silent
+  gate across sound/flash/speech, no storm coalescing. Lock-screen
+  notifications are inert `Text` rather than actionable `NotificationCard`s.
+- **[med]** Any app can self-declare urgency 2 and bypass DND, rules and
+  silent-apps; DND `dndUntil` bypassed by automations; history capped at 50 with
+  no export/TTL; Backup/PdfSigner/VoiceRecorder/Camera completion notices have
+  no "open result" action.
+
+### Test and docs consistency after the mass pass (audit findings, fixed)
+
+- **[fixed]** The `shani-shell` PKGBUILD was 9 commits behind and would have
+  installed a package with none of the new features — repinned to `4772748`,
+  `pkgrel=40`. Added deps `picocom`, `smartmontools` to the PKGBUILD and `chown`,
+  `renice` to the dependency map in `c692899`.
+- **[fixed]** 77 stale `[open]` markers in the earlier catalogues were flipped
+  to `[built — mass pass]`; the integration/deps note was corrected.
+- **[open]** 11 of 21 `test_gap_*.py` files are pure source-string assertions
+  that cannot catch runtime breakage; the counts in README/FEATURES were
+  updated from 700+ to 800+, but `hi.json`/`mr.json` remain at 1525 keys while
+  `template.json` grew to 3684 — 242 new strings ship English-only.
+- **[open]** `data/whats-new.md` and the FEATURES/README app catalogue have not
+  been updated with the mass-pass capabilities.
+- **[open]** No test asserts the PKGBUILD pin tracks shani-shell HEAD, and no
+  test checks translation-catalog parity. Podcast enclosures are metadata +
+  an open link, not a download queue (the earlier GAPS claim was overstated).
+
+All fifth-pass verdicts are static — no QML runtime, hardware, hung-process,
+blackholed-network or real-package-install verification was possible.

@@ -17,7 +17,7 @@ Built on [niri](https://github.com/YaLTeR/niri) and [Quickshell](https://quicksh
 ## A tour
 
 Everything here was recorded or photographed in a real session of the shell — the test suite's own
-nested niri, the same one that runs the 700+ checks.
+nested niri, the same one that runs the 800+ checks.
 
 <table>
 <tr>
@@ -176,7 +176,7 @@ Each of these is a real screen of the shell — the gaps the clips above leave.
 - **Your devices and phone.** Plug something in and it says what it can do; calls, texts and contacts
   from your phone; the screen locks when your phone walks away.
 - **Light.** At rest it draws nothing and starts at most a few programs a minute — measured by its tests.
-- **Tested by running it.** Over 700 checks drive the real shell in a nested session and read back what
+- **Tested by running it.** Over 800 checks drive the real shell in a nested session and read back what
   it did; filming this page found four bugs, each now a check.
 
 ## Apps of its own

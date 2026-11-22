@@ -9,7 +9,7 @@ using it, it costs almost nothing.
 
 Built on the [niri](https://github.com/YaLTeR/niri) scrolling compositor and
 [Quickshell](https://quickshell.org). Every feature below is in the shell today.
-Most are driven by the test suite in a real nested session (over 700 checks);
+Most are driven by the test suite in a real nested session (over 800 checks);
 what needs real hardware, what has no check yet, and what has only been proven
 in that nested session - not yet on an installed image - is listed in
 [docs/GAPS.md](docs/GAPS.md).
