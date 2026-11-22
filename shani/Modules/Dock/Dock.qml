@@ -493,8 +493,11 @@ PanelWindow {
                 // represents (only when it has a running window)
                 HoverPeek {
                     id: hoverPeek
-                    visible: cell.modelData.windows.length > 0 && win.menuFor < 0
+                    // the delegate can be torn down while this is still being
+                    // evaluated, and then modelData is null
+                    visible: cell.modelData && cell.modelData.windows.length > 0 && win.menuFor < 0
                     win: {
+                        if (!cell.modelData) return null;
                         const ws = cell.modelData.windows.filter(x => !Niri.isMinimised(x));
                         const focus = ws.find(x => x.id === Niri.focusedWindowId);
                         return focus || (Niri.windows[ws[0] && ws[0].id] || ws[0] || null);

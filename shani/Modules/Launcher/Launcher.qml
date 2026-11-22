@@ -418,10 +418,10 @@ PanelWindow {
                     run: () => { Ui.closeAll(); Ui.notes = true; QuickNotes.open(n.name, n.notebook || ""); },
                 })) });
             }
-            // also search note bodies
+            // also search note bodies. The search itself is asked for in
+            // onQChanged: running it here writes contentHits, which this binding
+            // reads - a loop that spins the shell and empties every answer.
             if (noteMatches.length === 0 && q.length >= 3) {
-                QuickNotes.searchBodies(q);
-                // contentHits is async — show a "searching" item
                 if (QuickNotes.contentHits && QuickNotes.contentHits.length > 0) {
                     out.push({ title: Tr.t("Notes (in content)"), items: QuickNotes.contentHits.slice(0, 5).map(id => ({
                         kind: "note",
@@ -502,6 +502,7 @@ PanelWindow {
             Characters.search(q.slice(1).trim());
         Ui.launcherText = q;
         if (q.trim().length < 4) meaning = [];
+        if (q.trim().length >= 3) QuickNotes.searchBodies(q.trim());
         sel = 0;
         fileDebounce.restart();
         if (q === "c" || q.startsWith("c "))

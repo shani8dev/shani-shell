@@ -190,7 +190,7 @@ Each of these is a real screen of the shell — the gaps the clips above leave.
 <tr>
 <td align="center" width="33%"><img src="docs/apps/maps.jpg" alt="Maps"><br><b>Maps</b> — search, and directions by car, bike or foot</td>
 <td align="center" width="33%"><img src="docs/apps/weather.jpg" alt="Weather"><br><b>Weather</b> — now, the hours and the week</td>
-<td align="center" width="33%"><img src="docs/apps/photos.jpg" alt="Photos"><br><b>Photos</b> — every picture, by month</td>
+<td align="center" width="33%"><img src="docs/apps/photos.jpg" alt="Photos"><br><b>Photos</b> — every picture, by day, month or year; import and adjust</td>
 </tr>
 <tr>
 <td align="center" width="33%"><img src="docs/apps/image-viewer.jpg" alt="Image Viewer"><br><b>Image Viewer</b> — a picture, and the rest of its folder</td>
@@ -204,10 +204,11 @@ Each of these is a real screen of the shell — the gaps the clips above leave.
 </tr>
 </table>
 
-Also: Text Editor, Calendar, Notes, Tasks, Translate, Kundali, Camera, Voice Recorder, Screenshot,
-Screen Recorder, Color Picker, Magnifier, Live Captions, Characters, Fonts, Disk Usage, Logs, Document
-Scanner, Password Generator, Authenticator, PDF Signer, Video Trimmer, Converter, Nearby Share,
-Screen Ruler and a Tour. `shani app` lists them; each opens from the launcher like any app.
+Also: Contacts, Disks, Models, Studio, Terminal, Mail, Feeds, Text Editor, Calendar, Notes, Tasks,
+Translate, Kundali, Camera, Voice Recorder, Screenshot, Screen Recorder, Color Picker, Magnifier,
+Live Captions, Characters, Fonts, Disk Usage, Logs, Document Scanner, Password Generator,
+Authenticator, PDF Signer, Video Trimmer, Converter, Nearby Share, Screen Ruler and a Tour.
+`shani app` lists them; each opens from the launcher like any app.
 
 ## The keys worth knowing
 
@@ -260,7 +261,13 @@ The Tour app shows every shortcut.
 | **Alt+Tab** | every window, most recent first, the previous one preselected; releasing Alt switches |
 | **Screen keyboard** | the shell's own, typing through niri's virtual-keyboard protocol: hand-made English and **मराठी** (smart matras: क + आ = का), plus **any of xkb's 598 layouts** (45 Indian — Marathi, Hindi, Tamil, Telugu, Bengali, Gujarati, Kannada, Malayalam, Odia, Gurmukhi, Sanskrit …; Cyrillic, Arabic, Greek, Hebrew, Thai …) generated from the system's own xkb data by `bridge/osk-layout.py`, chosen in settings; never steals focus, never fights the input method |
 | **Input methods** | fcitx5 (English + Hindi phonetic by default, 179 m17n tables); the active one in the bar (हि), switched from the sidebar |
-| **Window menu** | click the focused window's title: the app's own menus (File, Edit … read from its accessibility tree, as a screen reader does — GTK 3, Qt and XWayland apps; others get their desktop actions), then close, fullscreen, float, maximize, center, move to a workspace, ask Chronoa about it |
+| **Window menu** | click the focused window's title: the app's own menus (File, Edit …), then close, fullscreen, float, maximize, center, move to a workspace, ask Chronoa about it |
+| **Global menu** | the focused app's menus inline in the bar, macOS style: read over D-Bus from Qt, GTK and XWayland apps that register with the shell's registrar, or from the accessibility tree as a fallback; native Wayland Qt 6 and Chromium need XWayland |
+| **Window layouts** | hold the bar's maximise/zoom button for the layout palette; Super+Alt+Arrow snaps to an edge; arrange all windows, Ctrl+Z to undo |
+| **Workspace map** | a proportional map of workspaces in the bar, with a ribbon showing the viewport you can see |
+| **Hover previews** | hovering a dock icon captures its window (grim -g); hovering a path previews the file |
+| **New apps** | Contacts (vCard, groups, your own card), Disks (erase, format, encrypt, health, install stick), Models (find and download models that fit, cloud providers), Studio (describe an app, Chronoa builds it), Terminal (SSH hosts, keys, tunnels, snippets), Backup (snapshot timeline, restore all or files), Mail (by folder, send), Feeds (RSS/Atom), Firewall settings |
+| **Apps, updated** | Text Editor (multiple carets, Tab snippets, TextMate bundles), Document Viewer (seven PDF annotation tools flattened into a copy; merge, split, export), Calendar (day and year views, time zones, natural-language dates, invitations with RSVP), Notes (gpg-locked notes, checklists, attachments, cloud-folder sync), Reminders (smart lists, repeat rules), Photos (day/month/year, import from phone or camera, adjust in Viewer), Passwords (passkey references, weak/reused audit), Clipboard (upper/lower/title/plain/trim, history encrypted at rest), Screenshots (pin above work, scrolling capture, Viewer annotation, encrypted history) |
 | **Focus modes** | Work / Sleep / Personal (after macOS, Android): hold back notifications except allowed apps, warm or keep awake, on a schedule or by hand |
 | **Also borrowed** | hot corners (GNOME), battery saver at 20 % (Android), screen time (Digital Wellbeing), the shelf of recent screenshots/recordings/downloads (ChromeOS), Quick Look of the selected file in the launcher (macOS), the phone through KDE Connect |
 | **Accessibility** | screen reader (Orca; every shell control has an accessible role and name — verified through AT-SPI), large text (shell + apps), high contrast, reduce motion, mono audio, screen keyboard, voice typing |

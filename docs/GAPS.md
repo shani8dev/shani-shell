@@ -61,14 +61,30 @@ centre, and against what a session needs before any app runs.
   Run the per-device checklist in FORM-FACTORS.md on an installed image through
   shani-testbed; do not infer that coverage from nested-compositor checks.
 
-## The app's menus in the window menu (2026-11-13)
+## The app's menus in the bar (updated Nov 2026)
 
-Read over AT-SPI (bridge/appmenu.py), after noctalia-appmenu on niri. Tested with a
-GTK 3 menu bar (dev/menubar-app.py) and a GTK 4 app's fallback; **not yet tried**
-with a Qt app, LibreOffice or an XWayland app on a real session. GTK 4 popover menu
-bars are empty until opened and Firefox's fill only when opened, so they get the
-desktop-action fallback; a real Firefox menu needs niri to carry KWin's appmenu
-protocol (niri issue #1839).
+The focused app's menus now sit inline in the bar, macOS style, rather than only
+in the window menu. They are read two ways: a D-Bus reader plus a registrar
+(bridge/appmenu-registrar.py, installed as `shani-appmenu-registrar.service`,
+wanted by niri.service) that Qt 5, GTK and XWayland apps register their menu
+object with, and an AT-SPI fallback (bridge/appmenu.py) for apps with no D-Bus
+menu. GTK 4 popover bars are empty until opened and Firefox's fill only when
+opened, so those get desktop actions.
+**Honest limit:** native Wayland Qt 6 and Chromium apps do not register with any
+registrar — they need KWin's appmenu protocol, which niri does not carry (niri
+issue #1839). Run them under XWayland to get their menus. Still not tried with
+LibreOffice on a real session.
+
+## Window layouts — what niri cannot give (Nov 2026)
+
+The layout palette (hold the bar's maximise/zoom button), edge snap
+(Super+Alt+Arrow) and arrange-all with Ctrl+Z undo are the shell's own actions
+on niri's columns. Two limits are niri's, not ours: there is no compositor
+"drag a window to the screen edge" event to hook — drag-to-edge snapping lives
+in niri's own `dnd-edge-*` handling, so ours is a keyboard and palette path —
+and a true free grid of windows is not possible, as niri only lays windows out
+in scrolling columns. The palette offers halves, stacks and quarters within
+that model.
 
 ## Peripherals against stand-ins only (2026-11-13)
 
@@ -116,8 +132,9 @@ been used on a real screen and nothing below is in the way.
   PyMuPDF into a copy (no signing fields, no JavaScript forms).
 - **Text Editor**: colours from TextMate grammars (`.tmLanguage` in the bundle
   dirs, `.tmTheme` themes) when one matches the file type, falling back to the
-  built-in regex highlighter; a file over 2 MB is refused, over 200 000
-  characters is shown without colours.
+  built-in regex highlighter; multiple carets (Alt+Shift+Down/Up for a column),
+  Tab-expanded snippets and user bundles are built now; a file over 2 MB is
+  refused, over 200 000 characters is shown without colours.
 - **Archive Manager** (default for zip, tar.*, 7z, ISO; File Roller behind it):
   creates (zip, tar.gz, tar.xz, 7z), extracts all or one item, opens
   password-protected archives (the password is passed as bsdtar's
@@ -127,8 +144,10 @@ been used on a real screen and nothing below is in the way.
   refuses the rest in words; a protected zip is refused rather than rewritten
   as a readable copy. It makes protected archives too - zip encrypts with
   AES-256, 7z with its own. Still no 7z/iso/rar add, and no deleting a member.
-- **Calendar**: which calendars show, and which a new event goes to. Adding
-  an online account is still GNOME Online Accounts' (not in this image).
+- **Calendar**: day and year views, time zones, natural-language dates and
+  invitations with guests and RSVP are built now. Which calendars show, and
+  which a new event goes to, is still chosen here; adding an online account is
+  still GNOME Online Accounts' (not in this image).
 - **Files**: offered for folders; Nautilus stays the default and is the
   portal's file chooser. Has copy / cut / paste (with other apps), undo, the
   trash's put back and empty, search through folders, Properties, batch rename

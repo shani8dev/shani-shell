@@ -427,6 +427,11 @@ Singleton {
         }
     }
     function searchBodies(q) {
+        // a query that changes leaves the last answer behind unless it is
+        // dropped first: the launcher would show "found in content" for a word
+        // nobody typed any more
+        if (grepBodies.query !== String(q || "").trim())
+            root.contentHits = [];
         grepBodies.query = String(q || "").trim();
         if (grepBodies.query !== "")
             grepBodies.running = true;
