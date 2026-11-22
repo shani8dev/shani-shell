@@ -328,7 +328,23 @@ PanelWindow {
                 : [{ kind: "none", icon: "edit-paste", title: Clipboard.available ? "Clipboard history is empty" : "cliphist is not installed", subtitle: "", run: () => {} }];
             if (items.length && Clipboard.available)
                 clipItems.push({ kind: "clipclear", icon: "edit-clear", title: Tr.t("Clear clipboard history"), subtitle: Tr.t("Shift+Delete clears all"), run: () => Clipboard.wipe() });
-            return (pins.length ? [{ title: Tr.t("Pinned"), items: pins }] : []).concat([{ title: Tr.t("Clipboard"), items: clipItems }]);
+            const out = (pins.length ? [{ title: Tr.t("Pinned"), items: pins }] : []).concat([{ title: Tr.t("Clipboard"), items: clipItems }]);
+            // quick changes: transform the most recent text entry
+            const latest = items.find(e => !e.image);
+            if (latest && Clipboard.available) {
+                const transforms = [
+                    { title: Tr.t("UPPERCASE"), icon: "text-case-upper", mode: "upper" },
+                    { title: Tr.t("lowercase"), icon: "text-case-lower", mode: "lower" },
+                    { title: Tr.t("Title Case"), icon: "text-case-title", mode: "title" },
+                    { title: Tr.t("Plain text"), icon: "text-x-generic", mode: "plain" },
+                    { title: Tr.t("Trim whitespace"), icon: "edit-clear", mode: "trim" },
+                ];
+                out.push({ title: Tr.t("Quick changes"), items: transforms.map(t => ({
+                    kind: "clip", icon: t.icon, title: t.title, subtitle: Tr.t("Paste the latest clipboard text as %1", t.title.toLowerCase()),
+                    run: () => Clipboard.transformAndPaste(latest.text, t.mode),
+                })) });
+            }
+            return out;
         }
 
         const math = q.startsWith("=") ? q.slice(1) : q;
@@ -342,6 +358,71 @@ PanelWindow {
             out.push({ title: Tr.t("Currency"), items: [{ kind: "ask", icon: "chat-message-new", title: "Convert " + q + " with Chronoa", subtitle: Tr.t("live rates"), run: () => Chronoa.ask("Convert " + q) }] });
         if (q.startsWith("="))
             return out;
+
+        // contacts search (name, phone, email)
+        if (Contacts.contacts.length > 0) {
+            const ql = q.toLowerCase();
+            const matches = Contacts.contacts.filter(c =>
+                (c.name || "").toLowerCase().indexOf(ql) >= 0
+                || (c.phone || "").indexOf(q) >= 0
+                || (c.email || "").toLowerCase().indexOf(ql) >= 0
+            ).slice(0, 5);
+            if (matches.length) {
+                out.push({ title: Tr.t("Contacts"), items: matches.map(c => ({
+                    kind: "contact",
+                    icon: "x-office-address-book",
+                    title: c.name || c.phone || c.email,
+                    subtitle: [c.phone, c.email].filter(x => x).join("  ·  "),
+                    run: () => { Ui.closeAll(); Ui.contacts = true; Contacts.selected = c; },
+                    copy: () => Quickshell.clipboardText = c.phone || c.email || "",
+                })) });
+            }
+        }
+
+        // calendar events (today and upcoming, matching the query)
+        if (Agenda.events.length > 0) {
+            const ql = q.toLowerCase();
+            const matches = Agenda.events.filter(e =>
+                (e.title || "").toLowerCase().indexOf(ql) >= 0
+            ).slice(0, 5);
+            if (matches.length) {
+                out.push({ title: Tr.t("Events"), items: matches.map(e => ({
+                    kind: "event",
+                    icon: "x-office-calendar",
+                    title: e.title || Tr.t("Untitled event"),
+                    subtitle: e.start ? Qt.formatDateTime(new Date(e.start * 1000), Settings.data.use24h ? "ddd HH:mm" : "ddd h:mm AP") : "",
+                    run: () => { Ui.closeAll(); Ui.calendar = true; },
+                })) });
+            }
+        }
+
+        // notes search (QuickNotes)
+        {
+            const noteMatches = QuickNotes.search(q);
+            if (noteMatches.length > 0) {
+                out.push({ title: Tr.t("Notes"), items: noteMatches.slice(0, 5).map(n => ({
+                    kind: "note",
+                    icon: "text-x-generic",
+                    title: n.name,
+                    subtitle: (n.notebook ? n.notebook + "  ·  " : "") + (QuickNotes.preview(n.name, n.notebook) || "").slice(0, 60),
+                    run: () => { Ui.closeAll(); Ui.notes = true; QuickNotes.open(n.name, n.notebook || ""); },
+                })) });
+            }
+            // also search note bodies
+            if (noteMatches.length === 0 && q.length >= 3) {
+                QuickNotes.searchBodies(q);
+                // contentHits is async — show a "searching" item
+                if (QuickNotes.contentHits && QuickNotes.contentHits.length > 0) {
+                    out.push({ title: Tr.t("Notes (in content)"), items: QuickNotes.contentHits.slice(0, 5).map(id => ({
+                        kind: "note",
+                        icon: "text-x-generic",
+                        title: id,
+                        subtitle: Tr.t("Found in note content"),
+                        run: () => { Ui.closeAll(); Ui.notes = true; QuickNotes.open(id.split("/").pop(), id.includes("/") ? id.split("/")[0] : ""); },
+                    })) });
+                }
+            }
+        }
 
         // a typo forgiven ("fierfox"), ranked below every exact, prefix and inside match
         const ranked = win.apps.map(a => { const s = win.appScore(a, ql); return { a: a, s: s > 0 ? s : Fuzzy.score(win.appWords[a.id], ql) }; }).filter(x => x.s > 0)

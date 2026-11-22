@@ -387,6 +387,24 @@ Singleton {
         printProc.command = ["sh", "-c", "lpstat -o 2>/dev/null | grep -c . || true"];
         printProc.running = true;
     }
+
+    // ---- merge / split ----
+    property var mergeFiles: []     // [paths] — set then call merge()
+    property string mergeOutput: "" // where to save
+    function merge() {
+        if (mergeFiles.length < 2 || !mergeOutput) return;
+        const args = ["sh", "-c", 'pdfunite "$@" "$out" 2>&1 && echo "Merged $# PDFs"'].concat(mergeFiles, ["", mergeOutput]);
+        Quickshell.execDetached(args);
+        mergeFiles = [];
+        mergeOutput = "";
+    }
+    function split(inputPath, outputPrefix, pageRange) {
+        // pdfseparate: pdfseparate input.pdf out-%d.pdf [startPage,endPage]
+        const cmd = pageRange ? ["sh", "-c", 'pdfseparate "$1" "$2-%02d.pdf" "$3" 2>&1', "sh", inputPath, outputPrefix, pageRange]
+                                : ["sh", "-c", 'pdfseparate "$1" "$2-%02d.pdf" 2>&1', "sh", inputPath, outputPrefix];
+        Quickshell.execDetached(cmd);
+    }
+
     Process { id: printProc; onExited: code => root.printState = code === 0 ? "printed " + root.name : "print failed"; }
     // print_file: the shell has no print dialog — `lp` is enough (CUPS).
 

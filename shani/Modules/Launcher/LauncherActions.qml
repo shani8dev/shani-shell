@@ -21,6 +21,7 @@ QtObject {
         { title: Tr.t("Airplane mode"), words: "airplane flight radio", icon: "airplane-mode", run: () => Net.setAirplane(!Net.airplane), state: () => Net.airplane },
         { title: Tr.t("Whiteboard"), words: "whiteboard board draw write class lesson teach chalk pen", icon: "draw-freehand", run: () => { Ui.closeAll(); Ui.whiteboard = true; } },
         { title: Tr.t("Screenshot"), words: "screenshot capture print", icon: "applets-screenshooter", run: () => Niri.action("screenshot") },
+        { title: Tr.t("Pin last screenshot"), words: "pin screenshot capture keep visible float above", icon: "view-pin", run: () => Screenshots.togglePin(Screenshots.last), state: () => Screenshots.pinned },
         { title: Tr.t("Screen record"), words: "record video capture", icon: "media-record", run: () => Recorder.toggle(), state: () => Recorder.recording },
         { title: Tr.t("Lens"), words: "lens ocr read text scan qr", icon: "system-search", run: () => Lens.capture() },
         { title: Tr.t("Color picker"), words: "color colour pick hex", icon: "color-select", run: () => Quickshell.execDetached(["sh", "-c", "c=$(niri msg pick-color | sed -n 's/^Hex: //p'); [ -n \"$c\" ] && printf %s \"$c\" | wl-copy"]) },
@@ -39,6 +40,7 @@ QtObject {
         { title: Tr.t("Keyboard & input"), words: "keyboard layout language input touchpad mouse tap scroll natural pointer speed repeat left-handed osk", icon: "input-keyboard", run: () => launcher.openSettings("input") },
         { title: Tr.t("Date & language"), words: "date time timezone time zone clock 24-hour ntp language locale region formats", icon: "preferences-system-time", run: () => launcher.openSettings("time") },
         { title: Tr.t("Default apps"), words: "default apps browser mail email files text pictures video music pdf open with terminal", icon: "view-app-grid", run: () => launcher.openSettings("apps") },
+        { title: Tr.t("Terminal"), words: "terminal ssh remote host connection management connect server", icon: "terminal", run: () => { Ui.closeAll(); Ui.terminalApp = true; TerminalApp.refresh(); } },
         { title: Tr.t("Your account"), words: "account user name change password sign-in picture avatar photo face", icon: "system-users", run: () => launcher.openSettings("account") },
         { title: Tr.t("Writing tools"), words: "writing tools proofread rewrite grammar spelling shorter longer friendlier professional tone summary translate selected text", icon: "tools-check-spelling", run: () => { Ui.closeAll(); WritingTools.open(); } },
         { title: Tr.t("Clipboard as a QR code"), words: "qr code clipboard link phone share scan", icon: "view-paged", run: () => Qr.show("From the clipboard", Quickshell.clipboardText) },
@@ -47,6 +49,7 @@ QtObject {
         { title: Tr.t("Dial a number…"), words: "dial number call phone keypad", icon: "call-start", run: () => Phone.openDial("") },
         { title: Tr.t("Messages"), words: "messages sms texts conversations", icon: "mail-send", run: () => Phone.openMessages("") },
         { title: Tr.t("Contacts"), words: "contacts address book people phone numbers", icon: "x-office-address-book", run: () => Phone.openContacts() },
+        { title: Tr.t("Desktop contacts"), words: "desktop contacts address book vcard people", icon: "x-office-address-book", run: () => { Ui.closeAll(); Ui.contacts = true; Contacts.refresh(); } },
         { title: Tr.t("Recent calls"), words: "recent calls history missed", icon: "document-open-recent", run: () => Phone.openRecentCalls() },
         { title: Tr.t("Tour"), words: "tour welcome help introduction tips what is new how", icon: "help-about", run: () => Ui.tour = true },
         { title: Tr.t("Take a photo"), words: "camera photo picture selfie snap webcam", icon: "camera-photo", run: () => Camera.photo() },
@@ -61,6 +64,7 @@ QtObject {
         { title: Tr.t("Stop casting to the phone"), words: "cast stop clear phone screen", icon: "media-playback-stop", run: () => Niri.action("clear-dynamic-cast-target") },
         // every key at a glance (niri's own list, from the config's titles) - and where to change them
         { title: Tr.t("Desktop layout"), words: "desktop layout style preset classic focus tiling dashboard touch tablet dock widgets look switcher", icon: "view-grid", run: () => { Ui.closeAll(); Ui.layoutSwitcher = true; } },
+        { title: Tr.t("Window layout"), words: "window layout grid half split columns rows arrange tile undo", icon: "view-grid", run: () => { Ui.closeAll(); Ui.toggleWindowLayouts(); } },
         { title: Tr.t("Show all keyboard shortcuts"), words: "keyboard shortcuts keys hotkeys cheat sheet help what keys super", icon: "preferences-desktop-keyboard-shortcuts", run: () => { Ui.closeAll(); Niri.action("show-hotkey-overlay"); } },
         { title: Tr.t("Change keyboard shortcuts"), words: "keyboard shortcuts keys hotkeys binds compose caps lock settings", icon: "preferences-desktop-keyboard-shortcuts", run: () => launcher.openSettings("input") },
         { title: Tr.t("Startup apps"), words: "startup apps autostart login start", icon: "system-run", run: () => launcher.openSettings("apps") },
@@ -77,6 +81,8 @@ QtObject {
         { title: Tr.t("Cast screen"), words: "cast miracast tv display wireless project", icon: "video-display", run: () => Cast.open() },
         { title: Tr.t("Earlier versions of my files"), words: "restore deleted file earlier version undo backup snapshot time machine history recover", icon: "document-open-recent", run: () => Backup.open("home") },
         { title: Tr.t("Back up now"), words: "backup back up drive copy restic", icon: "drive-harddisk", run: () => Backup.backupNow() },
+        { title: Tr.t("Restore from backup"), words: "restore backup recover earlier versions snapshot restore home files folder", icon: "view-paged", run: () => Ui.backup = true },
+        { title: Tr.t("Disks"), words: "disks disk drive format erase encrypt health smart usb stick install", icon: "drive-harddisk", run: () => { Ui.closeAll(); Ui.disks = true; Disks.refresh(); } },
         { title: Tr.t("Paste as plain text"), words: "paste plain text formatting strip clean clipboard", icon: "edit-paste", run: () => Clipboard.pastePlain() },
         { title: Tr.t("Clear clipboard history"), words: "clipboard clear wipe history privacy", icon: "edit-clear", run: () => Clipboard.wipe() },
         { title: Tr.t("Notifications"), words: "notifications messages", icon: "preferences-system-notifications", run: () => Ui.toggleControlCenter("notifications") },
@@ -84,6 +90,8 @@ QtObject {
         // Chronoa's diff surface (wiring only: Chronoa.ask fallback, see
         // Services/Chronoa.openDiff — no direct surface-open exists).
         { title: Tr.t("Show diff"), words: "diff changes changed git what changed", icon: "document-open-recent", run: () => Chronoa.openDiff() },
+        { title: Tr.t("AI models"), words: "models ai llm ollama llama download provider openai anthropic mistral", icon: "applications-internet", run: () => { Ui.closeAll(); Ui.models = true; Models.refresh(); } },
+        { title: Tr.t("Studio"), words: "studio build create app developer generate ai chronoa qml", icon: "applications-development", run: () => { Ui.closeAll(); Ui.studio = true; Studio.refresh(); } },
         { title: Tr.t("Suspend"), words: "suspend sleep", icon: "weather-clear-night", run: () => Power.suspend() },
         { title: Tr.t("Log out"), words: "logout log out sign out", icon: "system-log-out", run: () => Power.logout() },
         // irreversible: these open the sidebar's confirm row instead of acting

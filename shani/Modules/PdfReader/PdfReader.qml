@@ -17,6 +17,17 @@ AppWindow {
     margins: 0
     implicitWidth: Theme.px(960)
     implicitHeight: Theme.px(760)
+    property bool pdfAnnoMode: false
+    property bool pdfAnnoDrawing: false
+    // Export the current page to a PNG for annotation in the image Viewer
+    function pdfExportPage(path) {
+        Quickshell.execDetached(["sh", "-c", 'mkdir -p "$(dirname "$1")" && pdftoppm -f $((PdfViewer.page+1)) -l $((PdfViewer.page+1)) -png "$PdfViewer.file" "${1%.png}" 2>/dev/null', "sh", path]);
+        pdfAnnoMode = false;
+        // Open the exported page in the image Viewer
+        const base = path.replace(/\.png$/, "");
+        Ui.closeAll();
+        Viewer.open(base + "-" + String(PdfViewer.page + 1).padStart(4, "0") + ".png");
+    }
     // blur behind the card, as on every shell surface (ext-background-effect)
 
     // the document's properties (pdfinfo), over the page until closed
@@ -98,6 +109,7 @@ AppWindow {
                 IconButton { icon: "go-next"; size: Theme.px(28); tip: Tr.t("Next page"); onClicked: PdfViewer.nextPage() }
                 IconButton { icon: "document-open"; size: Theme.px(28); tip: Tr.t("Toggle thumbnails"); on: PdfViewer.showSidebar; onClicked: PdfViewer.toggleSidebar() }
                 IconButton { icon: "printer"; size: Theme.px(28); tip: Tr.t("Print (P)"); onClicked: PdfViewer.printFile() }
+                IconButton { icon: "draw-freehand"; size: Theme.px(28); tip: Tr.t("Mark up this page"); on: win.pdfAnnoMode; onClicked: { win.pdfAnnoMode = !win.pdfAnnoMode; } }
                 IconButton { icon: "weather-clear-night"; size: Theme.px(28); tip: Tr.t("Night mode"); on: PdfViewer.night; onClicked: PdfViewer.setNight(!PdfViewer.night) }
                 IconButton { icon: "format-text-direction-ltr"; size: Theme.px(28); tip: Tr.t("Read as text (select and copy)"); on: PdfViewer.textMode; onClicked: PdfViewer.textMode = !PdfViewer.textMode }
                 IconButton { icon: "edit-copy"; size: Theme.px(28); tip: Tr.t("Copy this page's text"); onClicked: PdfViewer.copyPageText() }
@@ -366,6 +378,35 @@ AppWindow {
                             property real from: 1
                             onActiveChanged: if (active) from = PdfViewer.zoom
                             onActiveScaleChanged: PdfViewer.setZoom(from * activeScale)
+                        }
+                        // ---- PDF annotation overlay (Canvas) ----
+                        Canvas {
+                            id: annoCanvas
+                            anchors.fill: parent
+                            z: 5
+                            visible: false
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.CrossCursor; enabled: win.pdfAnnoMode; onClicked: { /* mark next click */ win.pdfAnnoDrawing = true; } }
+                        }
+                        // Annotation toolbar
+                        Rectangle {
+                            visible: win.pdfAnnoMode && PdfViewer.current !== ""
+                            anchors { bottom: pageFlick.bottom; horizontalCenter: parent.horizontalCenter; margins: Theme.px(16) }
+                            width: 200
+                            height: Theme.px(28)
+                            radius: Theme.px(14)
+                            color: Theme.surface1
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.margins: 4
+                                spacing: 4
+                                Button { text: Tr.t("Done"); flat: true; onClicked: { win.pdfAnnoMode = false; } }
+                                Button { text: Tr.t("Save copy"); kind: "outline"; onClicked: {
+                                    // Export current page to PNG and show annotation button
+                                    const d = Quickshell.env("XDG_SCREENSHOTS_DIR") || (Quickshell.env("HOME") + "/Pictures/Screenshots");
+                                    win.pdfExportPage(d + "/pdf-page-" + PdfViewer.label + ".png");
+                                    win.pdfAnnoMode = false;
+                                } }
+                            }
                         }
                         Text {
                             visible: PdfViewer.loading

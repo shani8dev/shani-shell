@@ -41,8 +41,53 @@ AppWindow {
     property real fontSize: Settings.data.textEditorFontSize || 13
     property bool finding: false
     property bool replacing: false
+    // Built-in snippets: type the trigger + Tab to expand.
+    readonly property var snippets: [
+        { trigger: "if", body: "if () {\n    \n}" },
+        { trigger: "for", body: "for () {\n    \n}" },
+        { trigger: "fn", body: "function () {\n    \n}" },
+        { trigger: "main", body: "function main() {\n    \n}" },
+        { trigger: "class", body: "class {\n    \n}" },
+        { trigger: "while", body: "while () {\n    \n}" },
+        { trigger: "print", body: "console.log()" },
+    ]
     property int confirmClose: -1         // the tab asked to close with changes: a second click closes it
     property bool loading: false          // the editor is being filled, not typed in
+
+    // ---- snippets ----
+    // Column selection state
+    property real colSelectX1: -1
+    property real colSelectX2: -1
+    property int colSelectY1: -1
+    property int colSelectY2: -1
+    function enableColSelect() {
+        // Enter column select mode: remember current position
+        colSelectX1 = edit.cursorRectangle.x
+        colSelectY1 = edit.cursorRectangle.y
+        colSelectX2 = colSelectX1
+        colSelectY2 = colSelectY1
+    }
+    function disableColSelect() { colSelectX1 = -1; colSelectY1 = -1; colSelectX2 = -1; colSelectY2 = -1; }
+    // expand a typed trigger (if/for/fn…) into its snippet body; true if one fired
+    function trySnippet() {
+        const before = edit.text.substring(0, edit.cursorPosition);
+        const triggers = ["if", "for", "fn", "fun", "func", "class", "main", "while", "fn("];
+        // Match the last word before cursor
+        const m = before.match(/([\w()]+)$/);
+        if (m) {
+            const trigger = m[1];
+            const match = win.snippets.find(s => s.trigger === trigger);
+            if (match) {
+                // Replace the trigger word with the snippet body
+                edit.remove(edit.cursorPosition - trigger.length, edit.cursorPosition);
+                edit.insert(edit.cursorPosition, match.body);
+                edit.cursorPosition += match.body.length;
+                edit.forceActiveFocus();
+                return true;
+            }
+        }
+        return false;
+    }
 
     onFontSizeChanged: Settings.data.textEditorFontSize = fontSize
 
@@ -416,7 +461,12 @@ AppWindow {
                         Accessible.name: Tr.t("Text") + ": " + (TextDocs.current ? TextDocs.current.name : "")
                         onTextChanged: { if (!win.loading) TextDocs.setText(text); repaint.restart(); }
                         onCursorRectangleChanged: flick.follow(cursorRectangle)
-                        Keys.onPressed: e => { if (win.shortcut(e)) e.accepted = true; }
+                        Keys.onPressed: e => {
+                            if (e.key === Qt.Key_Tab && !(e.modifiers & Qt.ShiftModifier) && !(e.modifiers & Qt.ControlModifier)) {
+                                if (win.expandSnippet()) { e.accepted = true; return; }
+                            }
+                            if (win.shortcut(e)) e.accepted = true;
+                        }
                         Keys.onEscapePressed: win.leave()
                     }
                 }

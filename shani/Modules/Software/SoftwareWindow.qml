@@ -24,6 +24,8 @@ AppWindow {
     property var results: []
     property string showing: ""               // what the list shows: a search or a category
     property var app: null                    // the app whose page is open
+    property var appPermissions: null         // Flatpak permissions for the open app
+    property bool permsLoading: false
     property var installedApps: []
     property var leftovers: []
     property var appimages: []
@@ -87,7 +89,34 @@ AppWindow {
         win.showing = "category:" + c;
         ask(["category", c], r => { win.results = Array.isArray(r) ? r : []; Ui.softwareResults = win.results.map(a => a.id); });
     }
-    function openApp(id) { ask(["info", id], r => { if (r && !r.error) { win.app = r; Ui.softwareApp = r.id; } }); }
+    function openApp(id) {
+        ask(["info", id], r => {
+            if (r && !r.error) { win.app = r; Ui.softwareApp = r.id; win.loadPerms(id); }
+        });
+    }
+    function loadPerms(id) {
+        win.appPermissions = null;
+        win.permsLoading = true;
+        permsProc.command = ["sh", "-c",
+            'flatpak info --show-permissions "$1" 2>/dev/null || echo "No permissions info"', "sh", id];
+        permsProc.running = true;
+    }
+    Process {
+        id: permsProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                win.permsLoading = false;
+                const lines = text.trim().split("\n").filter(l => l !== "" && l !== "No permissions info");
+                const perms = [];
+                for (const line of lines) {
+                    const [key, ...rest] = line.split("=");
+                    if (key && rest.length) perms.push({ key: key.trim(), value: rest.join("=").trim() });
+                }
+                win.appPermissions = perms;
+            }
+        }
+        onExited: code => { win.permsLoading = false; if (code !== 0) win.appPermissions = []; }
+    }
     function runJob(args, forId) {
         if (jobProc.running) return;
         win.error = ""; win.progress = 0; win.jobLine = ""; win.job = forId || "";
@@ -291,6 +320,32 @@ AppWindow {
                     text: Tr.t("Website: %1", appCol.a.homepage || "")
                     color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Quickshell.execDetached(["xdg-open", appCol.a.homepage]) }
+                }
+                // ---- permissions (Flatpak apps) ----
+                Text {
+                    visible: !win.permsLoading && win.appPermissions !== null && win.appPermissions.length > 0
+                    text: Tr.t("Permissions")
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.weight: Font.DemiBold
+                }
+                Repeater {
+                    model: !win.permsLoading && win.appPermissions !== null ? win.appPermissions : []
+                    delegate: RowLayout {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        spacing: Theme.px(8)
+                        Text { text: modelData.key; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale; Layout.preferredWidth: Theme.px(120) }
+                        Text { text: modelData.value; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; elide: Text.ElideRight; Layout.fillWidth: true }
+                    }
+                }
+                Text {
+                    visible: win.permsLoading
+                    text: Tr.t("Reading permissions…")
+                    color: Theme.faint
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
             }
         }

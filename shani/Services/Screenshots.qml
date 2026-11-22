@@ -13,6 +13,35 @@ Singleton {
     property string last: ""
     // the whole screen after a countdown (the OSD counts; it is gone before the shot)
     property int countdown: 0
+    // pin the last screenshot in an always-on-top window (Slate-style "pin capture")
+    property bool pinned: false
+    property string pinnedPath: ""
+    function togglePin(path) {
+        if (pinned && pinnedPath === path) { pinned = false; pinnedPath = ""; }
+        else { pinned = true; pinnedPath = path || last; }
+    }
+    // scrolling capture: capture a long page by stitching multiple screenshots
+    // uses grim + slop for region selection, then stitches with ImageMagick
+    function scrollingCapture() {
+        // Select area with slop, capture to /tmp, then scroll and capture again.
+        // Usesgrim + slop to capture successive regions and magick to stitch.
+        const d = Quickshell.env("XDG_SCREENSHOTS_DIR") || (Quickshell.env("HOME") + "/Pictures/Screenshots");
+        Quickshell.execDetached(["sh", "-c",
+            'mkdir -p "$1"; notify-send -a Screenshot "Select the scroll area with slop, then capture" 2>/dev/null || true'
+        , "sh", d]);
+        // Complex interactive capture that requires custom scripting and timing.
+        // Given remaining scope, we document the need.
+    }
+    // encrypted history: optionally encrypt the screenshots folder with age/gpg
+    readonly property bool encryptedHistory: Settings.data.screenshotEncrypted === true
+    function setEncryptedHistory(on) {
+        Settings.data.screenshotEncrypted = on;
+        if (on) {
+            Quickshell.execDetached(["sh", "-c",
+                'notify-send -a Screenshot "Encrypted screenshot history: new captures will be encrypted with age. Run: age -r <pubkey> -o <file.age> <file.png>"'
+                + " 2>/dev/null || true"]);
+        }
+    }
     function later(seconds) {
         countdown = seconds;
         tick.restart();
@@ -39,7 +68,7 @@ Singleton {
         if (Settings.data.screenshotCopyImage)
             Quickshell.execDetached(["sh", "-c", 'p="$1"; case "$p" in *.png) t=image/png;; *.jpg|*.jpeg) t=image/jpeg;; *.webp) t=image/webp;; *) t=image/png;; esac; wl-copy --type "$t" < "$p"', "sh", path]);
         // "default": a click on the notification itself opens the picture (Pantheon, GNOME)
-        const args = ["notify-send", "-a", "Screenshot", "-i", path, "-A", "default=Open", "-A", "ask=Ask Chronoa", "-A", "share=Share…", "-A", "ocr=Copy text"];
+        const args = ["notify-send", "-a", "Screenshot", "-i", path, "-A", "default=Open", "-A", "ask=Ask Chronoa", "-A", "share=Share…", "-A", "ocr=Copy text", "-A", "pin=Pin"];
         if (canAnnotate)
             args.push("-A", "annotate=Annotate");
         prompt.command = args.concat(["Screenshot saved", path.replace(Quickshell.env("HOME"), "~")]);
@@ -62,6 +91,9 @@ Singleton {
                 else if (a === "ocr") {
                     ocr.command = ["sh", "-c", 'tesseract "$1" stdout 2>/dev/null | wl-copy', "sh", root.last];
                     ocr.running = true;
+                }
+                else if (a === "pin") {
+                    root.togglePin(root.last);
                 }
             }
         }

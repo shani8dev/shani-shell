@@ -255,6 +255,7 @@ ColumnLayout {
         Repeater {
             model: [
                 { label: Tr.t("Updates & going back"), id: "updates" },
+                { label: Tr.t("Update channel: %1", Updates.channel === "latest" ? Tr.t("Latest") : Tr.t("Stable")), id: "update-channel" },
                 { label: Tr.t("Firmware"), id: "firmware" },
                 { label: Tr.t("Disk space & clean-up"), id: "maintenance" },
                 { label: Tr.t("Disk health"), id: "smart" },
@@ -266,7 +267,14 @@ ColumnLayout {
             Choice {
                 required property var modelData
                 text: modelData.label
-                onClicked: { Ui.closeAll(); Quickshell.execDetached(["shani-cassini", "--section=" + modelData.id]); }
+                onClicked: {
+                    if (modelData.id === "update-channel") {
+                        Updates.setChannel(Updates.channel === "beta" ? "stable" : "beta");
+                    } else {
+                        Ui.closeAll();
+                        Quickshell.execDetached(["shani-cassini", "--section=" + modelData.id]);
+                    }
+                }
             }
         }
     }

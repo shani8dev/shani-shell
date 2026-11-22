@@ -16,6 +16,9 @@ import qs.Modules.Notifications
 ColumnLayout {
     spacing: Theme.px(14)
 
+    // search/filter state
+    property string filter: ""
+
     SectionTitle {
         Layout.fillWidth: true
         text: Notifs.count > 0 ? "Notifications · " + Notifs.count : "Notifications"
@@ -28,6 +31,15 @@ ColumnLayout {
         IconButton { visible: Notifs.count > 1; icon: "chat-message-new"; size: Theme.px(26); onClicked: { Ui.closeAll(); Notifs.summarize(); } }
         IconButton { visible: Notifs.count > 0 || Notifs.earlier.length > 0; icon: "edit-clear-all"; size: Theme.px(26); onClicked: Notifs.clearAll() }
     }
+    // search field — shown when there are enough notifications to warrant it
+    TextField {
+        visible: Notifs.count + Notifs.earlier.length > 5
+        Layout.fillWidth: true
+        placeholder: Tr.t("Search notifications")
+        label: Tr.t("Search notifications")
+        text: filter
+        onTextChanged: filter = text
+    }
     Text {
         visible: Notifs.count === 0 && Notifs.earlier.length === 0
         Layout.fillWidth: true
@@ -38,11 +50,24 @@ ColumnLayout {
         font.family: Theme.font
         font.pixelSize: Theme.px(12) * Theme.fontScale
     }
+    Text {
+        visible: filter !== "" && Notifs.count + Notifs.earlier.length > 5
+            && Notifs.list.filter(n => (n.appName + " " + n.summary + " " + n.body).toLowerCase().indexOf(filter.toLowerCase()) >= 0).length === 0
+            && Notifs.earlier.filter(e => (e.app + " " + e.summary + " " + e.body).toLowerCase().indexOf(filter.toLowerCase()) >= 0).length === 0
+        Layout.fillWidth: true
+        horizontalAlignment: Text.AlignHCenter
+        text: Tr.t("No notifications match %1", filter)
+        color: Theme.faint
+        font.family: Theme.font
+        font.pixelSize: Theme.px(12) * Theme.fontScale
+    }
     // grouped by app, newest group first; the app is named once
     Repeater {
         model: {
+            const q = filter.toLowerCase();
             const groups = [];
             for (const n of Notifs.list) {
+                if (q && (n.appName + " " + n.summary + " " + n.body).toLowerCase().indexOf(q) < 0) continue;
                 const key = n.appName || "Notifications";
                 let g = groups.find(x => x.app === key);
                 if (!g)
@@ -86,12 +111,12 @@ ColumnLayout {
 
     // from before the restart: read here, cleared one by one or all at once
     RowLayout {
-        visible: Notifs.earlier.length > 0
+        visible: Notifs.earlier.filter(e => filter === "" || (e.app + " " + e.summary + " " + (e.body || "")).toLowerCase().indexOf(filter.toLowerCase()) >= 0).length > 0
         Layout.fillWidth: true
         Layout.topMargin: Theme.px(6)
         Text {
             Layout.fillWidth: true
-            text: Tr.t("Earlier") + " · " + Notifs.earlier.length
+            text: Tr.t("Earlier") + " · " + Notifs.earlier.filter(e => filter === "" || (e.app + " " + e.summary + " " + (e.body || "")).toLowerCase().indexOf(filter.toLowerCase()) >= 0).length
             color: Theme.dim
             font.family: Theme.font
             font.pixelSize: Theme.px(11) * Theme.fontScale
@@ -100,7 +125,7 @@ ColumnLayout {
         Button { text: Tr.t("Clear"); onClicked: Notifs.forgetEarlier() }
     }
     Repeater {
-        model: Notifs.earlier
+        model: Notifs.earlier.filter(e => filter === "" || (e.app + " " + e.summary + " " + (e.body || "")).toLowerCase().indexOf(filter.toLowerCase()) >= 0)
         ListRow {
             required property var modelData
             Layout.fillWidth: true

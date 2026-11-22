@@ -736,6 +736,24 @@ Singleton {
     property var tabs: []                    // the other tabs' folders; [] = one tab (no tab bar)
     property int tabIndex: 0
     readonly property var tabPaths: tabs.length ? tabs.map((p, i) => i === tabIndex ? root.path : p) : [root.path]
+    // persist tabs across restarts (Settings.data.fileTabs)
+    onTabIndexChanged: if (Settings.loaded) saveTabs()
+    onTabsChanged: if (Settings.loaded) saveTabs()
+    function saveTabs() {
+        if (root.tabs.length > 1)
+            Settings.data.fileTabs = root.tabPaths;
+        else
+            Settings.data.fileTabs = [];
+    }
+    function restoreTabs() {
+        const saved = Settings.data.fileTabs;
+        if (saved && Array.isArray(saved) && saved.length > 0) {
+            root.tabs = saved.slice(1);
+            root.tabIndex = 0;
+            root.open(saved[0]);
+        }
+    }
+    Component.onCompleted: if (Settings.loaded) restoreTabs()
     function newTab(at) {
         const all = root.tabPaths.slice();
         all.splice(root.tabIndex + 1, 0, at || root.path);

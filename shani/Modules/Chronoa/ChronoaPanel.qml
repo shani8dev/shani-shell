@@ -27,7 +27,16 @@ PanelWindow {
     property bool busy: false
     property string state: "idle"
     property string detail: ""
-    property string modelLabel: "local · llama.cpp · 8B"
+    property string modelLabel: {
+        if (AIProviders.lastProvider && AIProviders.lastProvider !== "local") {
+            const p = AIProviders.providers.find(p => p.id === AIProviders.lastProvider);
+            return (p ? p.name : AIProviders.lastProvider) + " · " + (AIProviders.lastModel || "");
+        }
+        // local model: try to get the actual model name from Models.installed
+        const local = Models.installed.find(m => m.name === Settings.data.chronoaPreferredModel);
+        if (local) return "local · " + local.name;
+        return "local · llama.cpp · 8B";
+    }
     property color accent: Theme.accent
     property color amber: Theme.amber
     property color textColor: Theme.text

@@ -286,7 +286,10 @@ python3 /work/bridge/convert.py run "$M/song.ogg" mp3 small >/dev/null 2>&1
 shot app-converter-list 0.2
 ipc closeAll
 
-# ---- one place for each thing: what the sidebar, the bar and the widgets hand over to ----
+# window layouts: an overlay, opened from the bar's maximise hold, not a window
+ipc windowLayoutsOpen; waitfor "d['windowLayouts']" 4 && result window-layouts-opens PASS || result window-layouts-opens FAIL "windowLayouts not set"
+shot app-window-layouts 0.2
+ipc closeAll
 # pressed through AT-SPI, as a person would (the nested session has no pointer)
 A11Y=${A11Y:-/testbed/lib/a11y_client.py}
 if [ -f "$A11Y" ]; then

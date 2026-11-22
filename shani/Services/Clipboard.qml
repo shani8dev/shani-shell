@@ -28,6 +28,64 @@ Singleton {
     readonly property string cache: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/shani-clip"
     property bool available: false
 
+    // ---- password / secret exclusion -------------------------------------------
+    // Text that looks like a password or token is never stored in the history.
+    // Checked by the launcher before pinning, and by the `wl-paste --watch`
+    // wrapper (bridge/clipboard-watch.sh) before `cliphist store`.
+    readonly property bool excludeSecrets: Settings.data.clipboardExcludeSecrets !== false  // on by default
+    // a simple heuristic: long random-looking strings, API keys, "password", etc.
+    function looksSecret(text) {
+        const t = String(text || "");
+        if (t.length < 8) return false;
+        // common secret patterns
+        if (/^(sk-|pk-|ghp_|xox[baprs]-|AKIA|AIza)/i.test(t)) return true;  // API keys
+        if (/^password\s*[:=]/i.test(t)) return true;                       // "password: …"
+        if (/^Bearer\s+/i.test(t)) return true;                             // bearer token
+        // long base64/hex string (32+ chars, no spaces)
+        if (/^[A-Za-z0-9+/=]{32,}$/.test(t)) return true;
+        // a line that is just a long random-looking string
+        if (/^[A-Za-z0-9!@#$%^&*()_+-=]{20,}$/.test(t) && !/\s/.test(t)) {
+            // has a mix of upper, lower, and numbers — likely a password
+            const hasUpper = /[A-Z]/.test(t), hasLower = /[a-z]/.test(t), hasNum = /\d/.test(t);
+            if (hasUpper && hasLower && hasNum) return true;
+        }
+        return false;
+    }
+
+    // ---- quick text changes ----------------------------------------------------
+    // transform a text for pasting: "plain" (strip HTML/RTF), "upper" (UPPERCASE),
+    // "lower" (lowercase), "title" (Title Case), "trim" (strip whitespace)
+    function transformText(text, mode) {
+        let t = String(text || "");
+        switch (mode) {
+            case "plain":   t = t.replace(/<[^>]+>/g, "").replace(/&[a-z]+;/g, " ").trim(); break;
+            case "upper":   t = t.toUpperCase(); break;
+            case "lower":   t = t.toLowerCase(); break;
+            case "title":   t = t.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()); break;
+            case "trim":    t = t.trim().replace(/\s+/g, " "); break;
+        }
+        return t;
+    }
+    function transformAndPaste(text, mode) {
+        setAndPaste(root.transformText(text, mode));
+    }
+
+    // ---- encrypted history (optional) ------------------------------------------
+    // When Settings.data.clipboardEncrypted is on, the cliphist database is
+    // encrypted with age (or gpg) at rest. The bridge/clipboard-encrypt.sh
+    // script handles encrypt/decrypt; the shell just toggles the setting and
+    // tells the user to re-run the store watcher with the wrapper.
+    readonly property bool encrypted: Settings.data.clipboardEncrypted === true
+    function setEncrypted(on) {
+        Settings.data.clipboardEncrypted = on;
+        if (on) {
+            Quickshell.execDetached(["sh", "-c",
+                "command -v age >/dev/null 2>&1 || { notify-send -a Clipboard 'Encryption needs age'; exit 1; };"
+                + "notify-send -a Clipboard 'Encrypted clipboard history: restart the session or run: pkill -f \"wl-paste.*cliphist\"; wl-paste --watch cliphist store &'"
+                + " 2>/dev/null || true"]);
+        }
+    }
+
     function refresh() {
         // a watch on a file that is not there yet never fires: read it again each time
         originFile.reload();

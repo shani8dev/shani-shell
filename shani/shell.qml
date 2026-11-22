@@ -17,11 +17,14 @@ import QtQuick
 import qs.Common
 import qs.Services
 import qs.Modules.Bar
+import qs.Modules.Backup
 import qs.Modules.Island
 import qs.Modules.ControlCenter
 import qs.Modules.Launcher
 import qs.Modules.Notifications
+import qs.Modules.Screenshots
 import qs.Modules.Files
+import qs.Modules.Terminal
 import qs.Modules.Osd
 import qs.Modules.Lock
 import qs.Modules.Polkit
@@ -45,6 +48,7 @@ import qs.Modules.Touch
 import qs.Modules.Flash
 import qs.Modules.Pair
 import qs.Modules.LayoutSwitcher
+import qs.Modules.WindowLayouts
 import qs.Modules.DisplayConfirm
 import qs.Modules.Tour
 import qs.Modules.QrView
@@ -71,8 +75,11 @@ import qs.Modules.TextEditor
 import qs.Modules.Scanner
 import qs.Modules.PasswordGenerator
 import qs.Modules.Kundali
+import qs.Modules.Models
+import qs.Modules.Studio
 import qs.Modules.PdfSigner
 import qs.Modules.DiskUsage
+import qs.Modules.Disks
 import qs.Modules.Files
 import qs.Modules.FilePicker
 import qs.Modules.VideoTrimmer
@@ -113,6 +120,8 @@ ShellRoot {
     Sidebar { id: sidebarWin }
     Launcher { id: launcherWin }
     Popups {}
+    BackupPanel {}
+    PinCapture {}
     Osd {}
     Dim {}
     PolkitDialog {}
@@ -124,6 +133,7 @@ ShellRoot {
     // (measured: 527 -> 512 MB idle). A mistake in one therefore shows when it
     // is opened, not at load - dev/shell-parts/apps.sh opens every one of them.
     LazyLoader { active: Ui.layoutSwitcher; source: "Modules/LayoutSwitcher/LayoutSwitcher.qml" }
+    LazyLoader { active: Ui.windowLayouts; source: "Modules/WindowLayouts/WindowLayouts.qml" }
     Keyboard {}
     OskButton {}
     LazyLoader { active: Ui.windowMenu; source: "Modules/WindowMenu/WindowMenu.qml" }
@@ -162,6 +172,7 @@ ShellRoot {
     LazyLoader { active: Ui.nearby; source: "Modules/Nearby/NearbyWindow.qml" }
     LazyLoader { active: Ui.converter; source: "Modules/Converter/ConverterWindow.qml" }
     LazyLoader { active: Ui.tasks; source: "Modules/Tasks/TasksWindow.qml" }
+    LazyLoader { active: Ui.contacts; source: "Modules/Contacts/ContactsWindow.qml" }
     LazyLoader { active: QuickLook.shown; source: "Modules/QuickLook/QuickLookSheet.qml" }
     LazyLoader { active: WritingTools.shown; source: "Modules/WritingTools/WritingToolsSheet.qml" }
     LazyLoader { active: Ui.photos; source: "Modules/Photos/PhotosWindow.qml" }
@@ -171,9 +182,13 @@ ShellRoot {
     LazyLoader { active: Ui.scanner; source: "Modules/Scanner/ScannerPanel.qml" }
     LazyLoader { active: Ui.passwordGenerator; source: "Modules/PasswordGenerator/PasswordGeneratorPanel.qml" }
     LazyLoader { active: Ui.kundali; source: "Modules/Kundali/KundaliPanel.qml" }
+    LazyLoader { active: Ui.models; source: "Modules/Models/ModelsWindow.qml" }
+    LazyLoader { active: Ui.studio; source: "Modules/Studio/StudioWindow.qml" }
     LazyLoader { active: Ui.pdfSigner; source: "Modules/PdfSigner/PdfSignerPanel.qml" }
     LazyLoader { active: Ui.diskUsage; source: "Modules/DiskUsage/DiskUsagePanel.qml" }
+    LazyLoader { active: Ui.disks; source: "Modules/Disks/DisksWindow.qml" }
     LazyLoader { active: Ui.files; source: "Modules/Files/FilesPanel.qml" }
+    LazyLoader { active: Ui.terminalApp; source: "Modules/Terminal/TerminalAppWindow.qml" }
     LazyLoader { active: FilePicker.shown; source: "Modules/FilePicker/FilePickerPanel.qml" }
     LazyLoader { active: Ui.videoTrimmer; source: "Modules/VideoTrimmer/VideoTrimmerPanel.qml" }
     LazyLoader { active: Ui.characters; source: "Modules/Characters/CharactersPanel.qml" }
@@ -206,7 +221,7 @@ ShellRoot {
     }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [Idle, InputPlumber, Ups, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WindowLook, Terminal, SmartReplies, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, PdfSigner, DiskUsage, WallpaperStyle, VideoTrimmer]
+    readonly property var _services: [Idle, InputPlumber, Ups, Polkit, NightLight, AutoRotate, Appearance, Privacy, Updates, Drives, Disks, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WindowLook, Terminal, TerminalApp, SmartReplies, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, PdfSigner, DiskUsage, WallpaperStyle, VideoTrimmer, Models, AIProviders, Studio]
 
     // The test-only CalDAV hook reads a password from a file: keeping it out of
     // an IPC argument keeps it out of `ps`. Declared at root, not in IpcHandler;
@@ -368,6 +383,28 @@ ShellRoot {
         function tasksAdd(summary: string, due: string) { Tasks.add(summary, parseFloat(due) || 0); }
         function photosOpen() { Ui.closeAll(); Ui.photos = true; }
         function translateOpen() { Ui.closeAll(); Ui.translate = true; }
+        // the newer apps: each opens its window, and each can be closed again
+        function contactsOpen() { Ui.closeAll(); Ui.contacts = true; }
+        function contactsClose() { Ui.contacts = false; }
+        function contactsToggle() { const was = Ui.contacts; Ui.closeAll(); Ui.contacts = !was; }
+        function modelsOpen() { Ui.closeAll(); Ui.models = true; }
+        function modelsClose() { Ui.models = false; }
+        function modelsToggle() { const was = Ui.models; Ui.closeAll(); Ui.models = !was; }
+        function studioOpen() { Ui.closeAll(); Ui.studio = true; }
+        function studioClose() { Ui.studio = false; }
+        function studioToggle() { const was = Ui.studio; Ui.closeAll(); Ui.studio = !was; }
+        function disksOpen() { Ui.closeAll(); Ui.disks = true; }
+        function disksClose() { Ui.disks = false; }
+        function disksToggle() { const was = Ui.disks; Ui.closeAll(); Ui.disks = !was; }
+        function terminalAppOpen() { Ui.closeAll(); Ui.terminalApp = true; }
+        function terminalAppClose() { Ui.terminalApp = false; }
+        function terminalAppToggle() { const was = Ui.terminalApp; Ui.closeAll(); Ui.terminalApp = !was; }
+        function windowLayoutsOpen() { Ui.closeAll(); Ui.windowLayouts = true; }
+        function windowLayoutsClose() { Ui.windowLayouts = false; }
+        function windowLayoutsToggle() { const was = Ui.windowLayouts; Ui.closeAll(); Ui.windowLayouts = !was; }
+        function backupOpen() { Ui.closeAll(); Ui.backup = true; }
+        function backupClose() { Ui.backup = false; }
+        function backupToggle() { const was = Ui.backup; Ui.closeAll(); Ui.backup = !was; }
         // Converter: files, if any, then the window
         function converterOpen(path: string) { Ui.closeAll(); if (path) Ui.converterFiles = [path]; Ui.converter = true; }
         // Nearby (LocalSend): files to send, if any, then the window
@@ -1103,6 +1140,7 @@ ShellRoot {
                 player: Ui.player,
                 fonts: Ui.fonts,
                 contacts: Ui.contacts,
+                modelsShown: Ui.models, studioShown: Ui.studio, disksShown: Ui.disks, terminalAppShown: Ui.terminalApp, backupShown: Ui.backup,
                 playerVolume: Media.current && Media.current.volumeSupported ? Math.round(Media.current.volume * 100) : -1,
                 playerShuffle: Media.current ? Media.current.shuffle : false,
                 playerLoop: Media.current ? Media.current.loopState : -1,
@@ -1113,7 +1151,7 @@ ShellRoot {
                 callFile: CallRecorder.file,
                 cameraShown: Camera.open, notes: Ui.notes, textEditor: Ui.textEditor,
                 textEditorFile: TextDocs.current ? TextDocs.current.path : "", textEditorDocs: TextDocs.docs.length, textEditorUnsaved: TextDocs.unsaved, textEditorChars: TextDocs.current ? TextDocs.current.text.length : 0, textEditorSaved: TextDocs.lastSaved, textEditorError: TextDocs.error, textEditorReadOnly: TextDocs.current ? TextDocs.current.readOnly : false,
-                calendarAccounts: Agenda.accounts.map(a => a.name + ':' + a.calendars.join('|')), calendarAccountError: Agenda.accountError, calendarImported: Agenda.imported, calendarNames: Agenda.calendarNames, tasksShown: Ui.tasks, tasksOpen: Tasks.open.map(t => t.summary), tasksDone: Tasks.done.map(t => t.summary), tasksAvailable: Tasks.available, photosShown: Ui.photos, translateShown: Ui.translate, weatherShown: Ui.weather, cleanUpShown: Ui.settingsOpen && Ui.settingsCat === "storage", authenticatorShown: Ui.authenticator, passwordsShown: Ui.passwords, softwareShown: Ui.software, containersShown: Ui.containers, containersList: Ui.containersList, containersImages: Ui.containersImages, containersApps: Ui.containersApps, containersDone: Ui.containersDone, containersEntered: Ui.containersEntered, containersExported: Ui.containersExported, softwareResults: Ui.softwareResults, softwareInstalled: Ui.softwareInstalled, softwareApp: Ui.softwareApp, softwareDone: Ui.softwareDone, softwareLeftovers: Ui.softwareLeftovers, softwareAppImages: Ui.softwareAppImages, passwordsItems: Ui.passwordsItems, passwordsKeys: Ui.passwordsKeys, passwordsRevealed: Ui.passwordsRevealed, converterShown: Ui.converter, nearbyShown: Ui.nearby, nearbyVisible: Nearby.visible_, nearbyDevices: Nearby.devices.map(d => d.alias), nearbyOffers: Nearby.offers.length, nearbyTransfers: Object.values(Nearby.transfers).map(t => t.direction + ":" + t.state), nearbyNote: Nearby.note, screenTimeShown: Ui.settingsOpen && Ui.settingsCat === "screentime", clocksShown: Ui.clocks, clocksTab: Ui.clocksTab,
+                calendarAccounts: Agenda.accounts.map(a => a.name + ':' + a.calendars.join('|')), calendarAccountError: Agenda.accountError, calendarImported: Agenda.imported, calendarNames: Agenda.calendarNames, tasksShown: Ui.tasks, tasksOpen: Tasks.open.map(t => t.summary), tasksDone: Tasks.done.map(t => t.summary), tasksAvailable: Tasks.available, contactsShown: Ui.contacts, contactsCount: Contacts.contacts.length, photosShown: Ui.photos, translateShown: Ui.translate, weatherShown: Ui.weather, cleanUpShown: Ui.settingsOpen && Ui.settingsCat === "storage", authenticatorShown: Ui.authenticator, passwordsShown: Ui.passwords, softwareShown: Ui.software, containersShown: Ui.containers, containersList: Ui.containersList, containersImages: Ui.containersImages, containersApps: Ui.containersApps, containersDone: Ui.containersDone, containersEntered: Ui.containersEntered, containersExported: Ui.containersExported, softwareResults: Ui.softwareResults, softwareInstalled: Ui.softwareInstalled, softwareApp: Ui.softwareApp, softwareDone: Ui.softwareDone, softwareLeftovers: Ui.softwareLeftovers, softwareAppImages: Ui.softwareAppImages, passwordsItems: Ui.passwordsItems, passwordsKeys: Ui.passwordsKeys, passwordsRevealed: Ui.passwordsRevealed, converterShown: Ui.converter, nearbyShown: Ui.nearby, nearbyVisible: Nearby.visible_, nearbyDevices: Nearby.devices.map(d => d.alias), nearbyOffers: Nearby.offers.length, nearbyTransfers: Object.values(Nearby.transfers).map(t => t.direction + ":" + t.state), nearbyNote: Nearby.note, screenTimeShown: Ui.settingsOpen && Ui.settingsCat === "screentime", clocksShown: Ui.clocks, clocksTab: Ui.clocksTab,
                 archiveShown: Archive.shown, archiveFile: Archive.file, archiveEntries: Archive.entries.length, archiveSize: Archive.totalSize, archiveExtractedTo: Archive.extractedTo, archiveError: Archive.error, archiveReading: Archive.reading, archiveExtracting: Archive.extracting, archivePassword: Archive.needsPassword, archiveMade: Archive.made, archiveCreating: Archive.creating,
                 librarySongs: MusicLibrary.songs.length, libraryVideos: MusicLibrary.videos.length, libraryAlbums: MusicLibrary.albums.map(a => a.title), libraryScanning: MusicLibrary.scanning, mediaPage: PlayQueue.page, mediaShown: PlayQueue.shown, radioStations: Radio.stations.map(s => s.name), radioShowing: Radio.showing, radioFavourites: Radio.favourites.map(s => s.name), liveTvChannels: LiveTv.channels.map(c => c.name), liveTvShown: LiveTv.shown.length, liveTvGroups: LiveTv.groups, liveTvSource: LiveTv.source, liveTvLoading: LiveTv.loading, liveTvError: LiveTv.error, mediaName: PlayQueue.name, mediaFrameSaved: Ui.mediaFrameSaved, mediaFile: PlayQueue.current, mediaPlayerPlaying: PlayQueue.playing, mediaMini: PlayQueue.mini, mediaResumedFrom: PlayQueue.resumedFrom, mediaSubtitleFile: PlayQueue.subtitleFile, mediaCue: PlayQueue.cue, mediaAudioTracks: PlayQueue.audioTrackCount, mediaTagLine: PlayQueue.tagLine, mediaCover: PlayQueue.coverShown, mediaPinned: Niri.pinned.length, mediaPosition: Math.round(PlayQueue.position * 10) / 10, mediaDuration: Math.round(PlayQueue.duration * 10) / 10, mediaHasVideo: PlayQueue.hasVideo, mediaQueue: PlayQueue.queue.length, mediaIndex: PlayQueue.index, mediaError: PlayQueue.error, mediaVolume: PlayQueue.volume, mediaRate: PlayQueue.rate,
                 scanner: Ui.scanner, passwordGenerator: Ui.passwordGenerator, kundali: Ui.kundali,

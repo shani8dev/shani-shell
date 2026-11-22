@@ -21,6 +21,17 @@ ColumnLayout {
         font.family: Theme.font
         font.pixelSize: Theme.px(12) * Theme.fontScale
     }
+    SwitchRow {
+        Layout.fillWidth: true
+        text: Tr.t("Enable Chronoa")
+        hint: Tr.t("Start the local assistant at login. When off, the Island still shows what is going on but Chronoa does not answer.")
+        checked: Settings.data.chronoaEnabled !== false
+        onToggled: on => {
+            Settings.data.chronoaEnabled = on;
+            if (on) Quickshell.execDetached(["shani-chronoa"]);
+            else Quickshell.execDetached(["pkill", "-f", "shani-chronoa"]);
+        }
+    }
     Button {
         kind: "outline"
         text: Tr.t("Chronoa's settings — model, voice, wake word, permissions")

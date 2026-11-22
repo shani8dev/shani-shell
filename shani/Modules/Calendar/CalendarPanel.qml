@@ -186,6 +186,84 @@ AppWindow {
             return NaN;
         return Math.floor(dt.getTime() / 1000);
     }
+    // Natural language parser: "lunch Friday at noon", "meeting tomorrow at 3pm",
+    // "team call next tuesday 2:30pm", etc. Returns epoch seconds or NaN.
+    function _parseNaturalDateTime(text) {
+        const s = String(text || "").trim();
+        if (s === "")
+            return NaN;
+        // Match an ISO date first
+        const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (iso) {
+            const t = s.match(/(\d{1,2}):(\d{2})/);
+            return _parseDateTime(iso[0], t ? t[0].replace(":", ":") : "00:00");
+        }
+        // Now/today/tomorrow
+        let dayOffset = 0;
+        if (/^today/i.test(s)) dayOffset = 0;
+        else if (/^tomorrow/i.test(s)) dayOffset = 1;
+        else if (/^yesterday/i.test(s)) dayOffset = -1;
+        // Next/this/last + weekday
+        const weekdays = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+        let wdMatch = s.match(/(?:next|this|last)\s+(?:the\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)/i);
+        if (!wdMatch)
+            wdMatch = s.match(/(?:on\s+|at\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i);
+        let targetDay = -1;
+        if (wdMatch) {
+            const wd = weekdays.indexOf(wdMatch[1].toLowerCase());
+            if (wd >= 0) {
+                targetDay = new Date().getDay();
+                const diff = (wd - targetDay + 7) % 7;
+                if (/^next/i.test(s)) dayOffset = diff + 7;
+                else if (/^last/i.test(s)) dayOffset = diff - 7;
+                else dayOffset = diff;
+            }
+        }
+        // "in N days/weeks"
+        const inMatch = s.match(/in\s+(\d+)\s+(day|week|month)/i);
+        if (inMatch) {
+            const n = parseInt(inMatch[1]);
+            const unit = inMatch[2].toLowerCase();
+            const d = new Date();
+            if (unit === "week") d.setDate(d.getDate() + n * 7);
+            else if (unit === "month") d.setMonth(d.getMonth() + n);
+            else d.setDate(d.getDate() + n);
+            // set time
+            const t = s.match(/(\d{1,2}):(\d{2})/);
+            d.setHours(t ? parseInt(t[1]) : 12, t ? parseInt(t[2]) : 0, 0, 0);
+            return Math.floor(d.getTime() / 1000);
+        }
+        if (targetDay < 0 && dayOffset === 0) {
+            // No specific date info — return NaN
+            return NaN;
+        }
+        // Compute the date
+        const d = new Date();
+        d.setDate(d.getDate() + dayOffset);
+        d.setHours(0, 0, 0, 0);
+        // Extract time: "at 3pm", "at 3:30pm", "noon", "5:30", "5pm", "3:00"
+        let h = -1, mi = 0;
+        const pmRe = s.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+        if (pmRe) {
+            const numH = parseInt(pmRe[1]);
+            const numMi = pmRe[2] ? parseInt(pmRe[2]) : 0;
+            let ampm = (pmRe[3] || "").toLowerCase();
+            h = numH; mi = numMi;
+            if (ampm === "pm" && h < 12) h += 12;
+            else if (ampm === "am" && h === 12) h = 0;
+        } else {
+            const noonRe = s.match(/\bnoon\b/i);
+            const midnightRe = s.match(/\bmidnight\b/i);
+            if (noonRe) h = 12;
+            else if (midnightRe) h = 0;
+        }
+        if (h < 0) {
+            if (fAllDay) h = 0;
+            else h = 10;  // default 10am if "lunch"
+        }
+        d.setHours(h, mi, 0, 0);
+        return Math.floor(d.getTime() / 1000);
+    }
     function saveEditor() {
         const title = fTitle.text.trim();
         if (title === "") {
@@ -194,14 +272,17 @@ AppWindow {
         }
         const start = _parseDateTime(fDateA.text, fTimeA.text);
         const end = _parseDateTime(fDateB.text, fTimeB.text);
-        if (isNaN(start) || isNaN(end) || end <= start) {
+        // Try natural language parsing as a fallback
+        const natStart = start === NaN ? _parseNaturalDateTime(fTitle.text + " " + fDateA.text + " " + fTimeA.text) : start;
+        const natEnd = end === NaN ? _parseNaturalDateTime(fTitle.text + " " + fDateB.text + " " + fTimeB.text) : end;
+        if (isNaN(natStart) || isNaN(natEnd) || natEnd <= natStart) {
             formError = Tr.t("Check the dates and times (end after start)");
             return;
         }
         const payload = {
             summary: title,
-            start: start,
-            end: end,
+            start: natStart,
+            end: natEnd,
             location: fLocation.text.trim(),
             allDay: fAllDay,
             calendar: editingEvent && editingEvent.calendar ? editingEvent.calendar : Agenda.selectedCalendar,

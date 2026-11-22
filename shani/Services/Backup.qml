@@ -17,6 +17,10 @@ Singleton {
     property bool driveSetUp: false
     property string versions: ""          // "2 snapshots on this disk · latest today"
     property string drive: ""             // "Last today 21:15 · every day at 21:15"
+    // snapshot timeline: [{ name, date, size, status }] sorted newest first
+    property var snapshots: []
+    // restore target: the selected snapshot's name
+    property string restoring: ""
     readonly property string summary: drive
 
     function refresh() { if (available) { homeList.running = true; backups.running = true; } }
@@ -24,6 +28,20 @@ Singleton {
     function backupNow() {
         if (!driveSetUp) { open("backups"); return; }
         job.running = true;
+    }
+
+    // list snapshots via shani-backup home list --json
+    function restoreFromSnapshot(name, what) {
+        Quickshell.execDetached([root.tool, "home", "restore", name, what || "all"]);
+        restoring = "";
+    }
+
+    function formatBytes(n) {
+        const m = parseFloat(n) || 0;
+        if (m >= 1024*1024*1024) return (m/(1024*1024*1024)).toFixed(1) + " GB";
+        if (m >= 1024*1024) return (m/(1024*1024)).toFixed(0) + " MB";
+        if (m >= 1024) return (m/1024).toFixed(0) + " KB";
+        return m + " B";
     }
 
     function day(stamp) {
@@ -50,7 +68,13 @@ Singleton {
                     root.versions = n < 0 ? (d.error || Tr.t("Shani Backup did not answer"))
                         : n === 0 ? Tr.t("None yet — your home is snapshotted once a day")
                         : Tr.t("%1 on this disk · latest %2", n === 1 ? Tr.t("1 snapshot") : Tr.t("%1 snapshots", n), root.day(d.snapshots[0].name));
-                } catch (e) { root.versions = Tr.t("Shani Backup did not answer"); }
+                    root.snapshots = (d.ok ? d.snapshots : []).map(s => ({
+                        name: s.name || "",
+                        date: s.name || "",
+                        displayDate: root.day(s.name),
+                        size: s.total_size || 0,
+                    }));
+                } catch (e) { root.versions = Tr.t("Shani Backup did not answer"); root.snapshots = []; }
             }
         }
     }

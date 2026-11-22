@@ -314,6 +314,9 @@ Singleton {
             property bool barWorldClock: false          // the first world clock beside the bar's clock
             property var floatingWorkspaces: []         // "output:index" of the workspaces whose windows float
             property string aiConsoleAgent: ""          // the AI console's agent command; "": the first one installed
+            property var aiProviders: []               // connected AI providers (Services/AIProviders)
+            property string chronoaPreferredModel: ""   // the model Chronoa uses (Services/Models)
+            property bool chronoaEnabled: true            // start Chronoa at login (SettingsChronoa)
             // missing Noctalia adapter entries with existing QML bindings (subagent finding #1)
             property bool showCalendarEvents: true     // SidebarCalendar.qml line 40
             property bool bluetoothAutoConnect: true  // BtAgent.qml reconnects audio/input devices
@@ -382,6 +385,7 @@ Singleton {
             property int winGaps: 12
             property int winFocusRing: 2
             property real winDefaultWidth: 0.5
+            property var windowLayouts: []              // custom window grid layouts (Services/WindowLayouts)
             property bool winFocusFollowsMouse: false   // click to focus, as on every other desktop (the Tiling layout turns it on)
             property bool winTabbed: false              // new columns show their windows as tabs, one at a time
             property bool winEmptyAbove: false          // an empty workspace above the first too
@@ -403,6 +407,8 @@ Singleton {
             property string screenshotFormat: "png"        // niri's format: png | jpeg; webp also affects the drawing tool
             property int screenshotQuality: 95             // 1-100 percent (jpeg/webp only)
             property bool screenshotCopyImage: true        // copy the captured picture to the clipboard automatically
+            property bool screenshotEncrypted: false      // encrypt screenshots with age/gpg (optional)
+            property string updateChannel: "stable"       // "stable" or "beta" (Services/Updates)
             property string clipboardOutputFormat: "png"  // clipboard copy format: "" = the file's format; png | jpeg | webp
             property bool rememberRecent: true
             property bool lockPreviews: false         // notification titles on the lock screen
@@ -412,6 +418,8 @@ Singleton {
             property bool lockScreenMedia: true       // the now-playing controls on the lock screen
             property bool lockScreenBattery: true     // battery percentage on the lock screen
             property list<string> clipPins: []          // pinned clipboard texts
+            property bool clipboardExcludeSecrets: true   // skip passwords/API keys in clipboard history
+            property bool clipboardEncrypted: false       // encrypt clipboard history with age/gpg
             property string tabletOutput: ""              // the screen a drawing tablet maps to ("" all, "@focused" the one in use)
             property bool plugGreetings: true             // a card for a device plugged in: what it is, one next step (Plugged)
             property bool oskButton: true                 // the floating keyboard button while the screen keyboard is hidden (touch / no keyboard)
@@ -498,6 +506,7 @@ Singleton {
             property bool filesSearchDeep: false          // Files' search goes through the folders under this one too
             property var filesRecentServers: []           // Files: servers connected to before, newest first (clicked, not typed again)
             property var filesRecentDests: []             // Files: Copy to… / Move to… folders used lately, newest first
+            property var fileTabs: []                      // Files: open tabs, restored on restart (Services/Files)
             property var radioFavourites: []              // Media Player > Radio: stations kept, [{ uuid, name, url, favicon, tags, country, codec, bitrate }]
             property string liveTvSource: ""              // Media Player > Live TV: the M3U URL or file last loaded
             property bool pdfNight: false                 // Document Viewer: pages shown inverted (night mode)

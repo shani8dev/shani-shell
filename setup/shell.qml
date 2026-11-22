@@ -33,7 +33,7 @@ ShellRoot {
     readonly property var applyCmd: (Quickshell.env("SHANI_SETUP_APPLY") || "pkexec /usr/lib/shani-shell/first-account.py").split(" ")
     readonly property string layoutTool: Quickshell.env("SHANI_OSK_LAYOUT_TOOL") || "/usr/lib/shani-shell/osk-layout.py"
 
-    readonly property var pages: ["welcome", "keyboard", "network", "time", "account", "done"]
+    readonly property var pages: ["welcome", "keyboard", "network", "time", "account", "chronoa", "done"]
     property int page: 0
     // the furthest step reached: the rail lets you go back to any of them
     property int furthest: 0
@@ -42,8 +42,11 @@ ShellRoot {
     function t(key) { return Strings.tr(root.locale, key); }
     function stepIcon(id) {
         return ({ welcome: "preferences-desktop-locale", keyboard: "input-keyboard", network: "network-wireless",
-                  time: "preferences-system-time", account: "avatar-default", done: "object-select" })[id] || "go-next";
+                  time: "preferences-system-time", account: "avatar-default", chronoa: "face-smile-big",
+                  done: "object-select" })[id] || "go-next";
     }
+    // Chronoa offer: user's choice to enable or skip
+    property bool chronoaOn: true
 
     // what will be applied
     property string locale: ""
@@ -256,6 +259,10 @@ ShellRoot {
         if (pageId === "account") {
             if (accountProblem)
                 return;
+            page++; // move to chronoa page
+            return;
+        }
+        if (pageId === "chronoa") {
             finish();
             return;
         }
@@ -307,6 +314,9 @@ ShellRoot {
         }
     }
     function finish() {
+        // write Chronoa setting (chronoaOn is false if user chose Off)
+        Quickshell.execDetached(["sh", "-c",
+            'gsettings set com.shani.desktop.shell chronoa-enabled "' + (chronoaOn ? "true" : "false") + '" 2>/dev/null || true', "sh"]);
         status = "working";
         applyProc.stdinEnabled = true;
         applyProc.running = true;
@@ -595,6 +605,7 @@ ShellRoot {
                         Item {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
+                            visible: root.pageId !== "chronoa"
 
                             // language: the languages the wizard speaks first,
                             // then every language the system has
@@ -945,6 +956,7 @@ ShellRoot {
                                 anchors.fill: parent
                                 visible: root.pageId === "account"
                                 clip: true
+                                enabled: root.pageId === "account"
                                 contentHeight: acctCol.implicitHeight
                                 boundsBehavior: Flickable.StopAtBounds
                                 ScrollBar.vertical: ScrollBar { policy: root.kb ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded }
@@ -1201,13 +1213,20 @@ ShellRoot {
 
                         RowLayout {
                             Layout.fillWidth: true
-                            visible: root.pageId !== "done"
+                            visible: root.pageId !== "done" && root.pageId !== "chronoa"
                             spacing: 8
                             Button { visible: root.page > 0; kind: "outline"; text: root.t("back"); onClicked: root.back() }
                             Item { Layout.fillWidth: true }
                             Button { visible: root.pageId === "network" && !netPage.online; kind: "outline"; text: root.t("continueOffline"); onClicked: root.next() }
                             Button {
+                                visible: root.pageId === "chronoa"
+                                kind: "primary"
+                                text: root.t("start")
+                                onClicked: root.next()
+                            }
+                            Button {
                                 visible: root.pageId !== "network" || netPage.online
+                                visible: root.pageId !== "chronoa" && (root.pageId !== "network" || netPage.online)
                                 kind: "primary"
                                 text: root.pageId === "account" ? (root.status === "working" ? root.t("working") : root.t("start")) : root.t("next")
                                 enabled: (root.pageId !== "account" || (root.accountProblem === "" && root.status !== "working"))
@@ -1217,6 +1236,83 @@ ShellRoot {
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+
+    // Chronoa offer page (between account and done)
+    visible: root.pageId === "chronoa"
+    anchors.fill: parent
+    Flickable {
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        clip: true
+        contentHeight: chronoaCol.implicitHeight
+        boundsBehavior: Flickable.StopAtBounds
+        ColumnLayout {
+            id: chronoaCol
+            anchors { fill: parent; margins: 32 }
+            spacing: 16
+            Text {
+                text: root.t("chronoaTitle")
+                font.family: Theme.font
+                font.pixelSize: 20 * Theme.fontScale
+                font.weight: Font.DemiBold
+                color: Theme.text
+            }
+            Text {
+                text: root.t("chronoaBody")
+                font.family: Theme.font
+                font.pixelSize: 13 * Theme.fontScale
+                color: Theme.dim
+                wrapMode: Text.Wrap
+            }
+            Text {
+                text: root.t("chronoaCost")
+                font.family: Theme.font
+                font.pixelSize: 11 * Theme.fontScale
+                color: Theme.faint
+                wrapMode: Text.Wrap
+            }
+            Item { Layout.fillHeight: true }
+            // User choices: On (recommended) or Off
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 12
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: chronoaOnCol.implicitHeight + 12
+                    radius: 10
+                    color: root.chronoaOn ? Theme.accentSoft : Theme.surface1
+                    border.width: 1
+                    border.color: root.chronoaOn ? Theme.accent : Theme.stroke
+                    ColumnLayout {
+                        id: chronoaOnCol
+                        anchors { fill: parent; margins: 12 }
+                        spacing: 4
+                        Text { text: root.t("chronoaOn"); font.weight: Font.DemiBold; font.family: Theme.font; font.pixelSize: 14 * Theme.fontScale; color: Theme.text }
+                        Text { text: root.t("chronoaOnDesc"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; wrapMode: Text.Wrap }
+                    }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.chronoaOn = true }
+                    KeyFocus { onActivated: root.chronoaOn = true }
+                }
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: chronoaOffCol.implicitHeight + 12
+                    radius: 10
+                    color: root.chronoaOn ? Theme.surface1 : Theme.accentSoft
+                    border.width: 1
+                    border.color: root.chronoaOn ? Theme.stroke : Theme.accent
+                    ColumnLayout {
+                        id: chronoaOffCol
+                        anchors { fill: parent; margins: 12 }
+                        spacing: 4
+                        Text { text: root.t("chronoaOff"); font.weight: Font.DemiBold; font.family: Theme.font; font.pixelSize: 14 * Theme.fontScale; color: Theme.text }
+                        Text { text: root.t("chronoaOffDesc"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; wrapMode: Text.Wrap }
+                    }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.chronoaOn = false }
+                    KeyFocus { onActivated: root.chronoaOn = false }
                 }
             }
         }

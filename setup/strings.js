@@ -10,6 +10,7 @@ var strings = {
         network: "Get connected", networkSub: "Connect now for the right time and updates — or skip this.",
         time: "Your time zone", timeSub: "Click on the map where you are — or search for a city.",
         account: "About you", accountSub: "This is the computer's first account, and its administrator.",
+        chronoaTitle: "Meet Chronoa", chronoaBody: "Chronoa is your assistant in the Island — it answers questions, runs your apps, and helps with what you do.", chronoaCost: "It runs on your own computer, with no cloud and no cost. Turn it off if you prefer.", chronoaOn: "Enable Chronoa", chronoaOnDesc: "Suggestions and answers from the assistant appear in the Island and in the bar. You can turn it off anytime in Settings > Chronoa.", chronoaOff: "Skip Chronoa", chronoaOffDesc: "Everything works normally — you just get no assistant suggestions or answers.",
         done: "All set", signingIn: "Signing you in…", welcomeUser: "Welcome, {name}", fasterTip: "To unlock with your fingerprint or your face: Settings > Account > Sign in faster.",
         searchLang: "Search — English, मराठी, Deutsch…", addLayout: "Add a layout — marathi, german, dvorak…",
         online: "Connected to the internet.", chooseWifi: "Choose a Wi-Fi network.", noWifi: "No Wi-Fi here — plug in a cable, or skip.",

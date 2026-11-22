@@ -15,6 +15,13 @@ Singleton {
     property bool rebootNeeded: false
     property string slot: ""
     readonly property bool attention: available || rebootNeeded || firmware.length > 0
+    // shani-deploy channels: "stable" (default) | "latest" — see shani-deploy/scripts/shani-deploy.sh
+    readonly property string channel: Settings.data.updateChannel || "stable"
+    function setChannel(ch) {
+        if (ch !== "stable" && ch !== "latest") ch = "stable";
+        Settings.data.updateChannel = ch;
+        check();
+    }
     // firmware (fwupd, LVFS): the devices with a newer release — told once per
     // release, persisted across restarts; opens Cassini's Firmware page
     property var firmware: []             // ["Thunderbolt Controller 1.2 → 1.3", …]

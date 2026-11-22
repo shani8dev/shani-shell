@@ -248,21 +248,20 @@ Variants {
                     radius: Theme.px(10)
                     color: Theme.card
                     border.color: Theme.stroke
-                    Row {
+                    RowLayout {
                         id: titleRow
                         spacing: Theme.px(8)
                         anchors.fill: parent
                         anchors.leftMargin: Theme.px(10)
                         anchors.rightMargin: Theme.px(10)
-                        anchors.verticalCenter: parent.verticalCenter
-                        MouseArea {
-                            anchors.fill: parent
+                        // right-click anywhere on the title chip opens the window menu;
+                        // a handler (not a MouseArea child) so it takes no layout slot
+                        TapHandler {
                             acceptedButtons: Qt.RightButton
-                            onClicked: acceptedButtons & Qt.RightButton ? win.openAppMenu() : Qt.NoButton
+                            onTapped: win.openAppMenu()
                         }
                         IconImage {
                             implicitSize: 16
-                            anchors.verticalCenter: parent.verticalCenter
                             source: {
                                 const w = Niri.focusedWindow;
                                 const e = w ? DesktopEntries.heuristicLookup(w.app_id) : null;
@@ -270,14 +269,13 @@ Variants {
                             }
                         }
                         Text {
-                            width: Math.min(implicitWidth, titleChip.Layout.maximumWidth - 124)
+                            Layout.preferredWidth: Math.min(implicitWidth, titleChip.Layout.maximumWidth - 124)
                             text: Niri.focusedWindow ? (Niri.focusedTitle || Niri.focusedWindow.app_id) : ""
                             color: Theme.text
                             elide: Text.ElideRight
                             font.family: Theme.font
                             font.pixelSize: Theme.px(12) * Theme.fontScale
                             font.weight: Font.Medium
-                            anchors.verticalCenter: parent.verticalCenter
                         }
                         // Layout suggestion when hovering the title
                         Text {
@@ -285,15 +283,14 @@ Variants {
                             font.family: Theme.font
                             font.pixelSize: Theme.px(10) * Theme.fontScale
                             color: bar.suggestion !== "" ? Theme.accent : Theme.dim
-                            anchors.verticalCenter: parent.verticalCenter
                             Layout.leftMargin: Theme.px(6)
                             horizontalAlignment: Text.AlignRight
                             Layout.fillWidth: true
                         }
                         // minimise, maximise, close: dim at rest, plain on hover
-                        Row {
-                            anchors.verticalCenter: parent.verticalCenter
+                        RowLayout {
                             spacing: 2
+                            Layout.alignment: Qt.AlignVCenter
                             opacity: titleHover.hovered ? 1 : 0.55
                             Behavior on opacity { NumberAnimation { duration: Theme.anim } }
                             // by the focused id, not the window looked up from it: the lookup can be

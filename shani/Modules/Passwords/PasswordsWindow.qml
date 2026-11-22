@@ -32,6 +32,34 @@ AppWindow {
     property string changing: ""              // the item whose secret is being changed
     property bool adding: false
     property bool newKey: false
+    // password audit: weak (short, common) and reused passwords
+    readonly property var auditResults: {
+        const secrets = {};
+        const counts = {};
+        const weak = [];
+        const common = ["password", "123456", "12345678", "qwerty", "abc123", "letmein", "admin", "welcome", "monkey", "dragon", "master", "sunshine", "princess", "football", "shadow", "superman", "michael", "trustno1"];
+        for (const item of win.items) {
+            const secret = item.secret || "";
+            if (secret.length < 4) continue;
+            // count usage
+            counts[secret] = (counts[secret] || 0) + 1;
+            // check weak
+            if (secret.length < 8 || common.indexOf(secret.toLowerCase()) >= 0 || /^\d+$/.test(secret)) {
+                weak.push({ label: item.label, reason: secret.length < 8 ? Tr.t("Too short") : Tr.t("Common password") });
+            }
+        }
+        const reused = [];
+        for (const [secret, count] of Object.entries(counts)) {
+            if (count > 1) {
+                const items = win.items.filter(i => (i.secret || "") === secret).map(i => i.label);
+                reused.push({ count: count, items: items });
+            }
+        }
+        return { weak: weak, reused: reused, total: win.items.length };
+    }
+    readonly property int weakCount: auditResults.weak.length
+    readonly property int reusedCount: auditResults.reused.length
+    readonly property bool hasIssues: weakCount > 0 || reusedCount > 0
     readonly property var visibleItems: items.filter(i => !search.text.trim() || (i.label + " " + JSON.stringify(i.attributes)).toLowerCase().indexOf(search.text.trim().toLowerCase()) >= 0)
 
     function refresh() { lister.running = true; keyLister.running = true; }
@@ -121,6 +149,54 @@ AppWindow {
             Choice { text: Tr.t("SSH keys…"); onClicked: Quickshell.execDetached(["shani-cassini", "--section=sshkeys"]) }
             Item { Layout.fillWidth: true }
             IconButton { icon: "view-refresh"; size: Theme.px(28); tip: Tr.t("Read again"); onClicked: win.refresh() }
+        }
+        // ---- password audit banner ----
+        Rectangle {
+            visible: win.hasIssues && win.tab === "passwords" && win.items.length > 0
+            Layout.fillWidth: true
+            implicitHeight: auditCol.implicitHeight + 16
+            radius: Theme.radiusSmall
+            color: Theme.alpha(Theme.amber, 0.12)
+            border.width: 1
+            border.color: Theme.alpha(Theme.amber, 0.3)
+            ColumnLayout {
+                id: auditCol
+                anchors { fill: parent; margins: Theme.px(8) }
+                spacing: Theme.px(2)
+                RowLayout {
+                    Layout.fillWidth: true
+                    Icon { name: "dialog-warning"; size: Theme.px(16); color: Theme.amber }
+                    Text {
+                        text: win.weakCount > 0 && win.reusedCount > 0
+                            ? Tr.t("%1 weak · %2 reused", win.weakCount, win.reusedCount)
+                            : win.weakCount > 0 ? Tr.t("%1 weak password%2", win.weakCount, win.weakCount === 1 ? "" : "s")
+                            : Tr.t("%1 reused password%2", win.reusedCount, win.reusedCount === 1 ? "" : "s")
+                        color: Theme.amber
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.weight: Font.DemiBold
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+                Text {
+                    visible: win.weakCount > 0
+                    Layout.fillWidth: true
+                    text: win.auditResults.weak.slice(0, 3).map(w => w.label).join(", ") + (win.weakCount > 3 ? "…" : "")
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    elide: Text.ElideRight
+                }
+                Text {
+                    visible: win.reusedCount > 0
+                    Layout.fillWidth: true
+                    text: Tr.t("Reused: %1", win.auditResults.reused.slice(0, 2).map(r => r.items.join(", ")).join(" · "))
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    elide: Text.ElideRight
+                }
+            }
         }
         Text {
             visible: win.error !== "" || win.note !== ""

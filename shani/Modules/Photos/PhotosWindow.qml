@@ -21,7 +21,7 @@ AppWindow {
     property var photos: []           // [{ path, time (s), month "November 2026" }]
     property bool scanning: false
     property string filter: "all"     // all | camera | screenshots
-    readonly property var shown: photos.filter(p => filter === "all" || (filter === "camera" ? /\/Camera\//.test(p.path) : /\/Screenshots\//.test(p.path)))
+    readonly property var shown: photos.filter(p => activeAlbum === "" || activeAlbum === "all" || albums.find(a => a.name === activeAlbum)?.members?.includes(p.path))
     // [{ month, items: [...] }], newest first
     readonly property var months: {
         const out = [];
@@ -39,7 +39,31 @@ AppWindow {
         lister.running = true;
     }
     Component.onCompleted: scan()
-    onVisibleChanged: if (visible) scan()
+    onVisibleChanged: if (visible) { scan(); albumLister.running = true; }
+
+    // ---- albums ------------------------------------------------------------------
+    property var albums: []              // [{ name, members: [paths] }] — user albums
+    property string activeAlbum: ""      // the selected album name, "" for All
+    property string newAlbumName: ""
+
+    function refresh() { if (lister.running) lister.running = true; if (albumLister.running) albumLister.running = true; }
+
+    Process {
+        id: albumLister
+        command: ["sh", "-c", 'd="${XDG_DATA_HOME:-$HOME/.local/share}/shani-photos/albums.json"; [ -f "$d" ] && cat "$d" || echo "[]"']
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { root.albums = JSON.parse(text); } catch (e) { root.albums = []; }
+            }
+        }
+    }
+
+    function createAlbum(name, photoPaths) {
+        Quickshell.execDetached(["sh", "-c",
+            'd="$1/albums.json"; mkdir -p "$2"; ex=$(cat "$d" 2>/dev/null || echo "[]");'
+            + 'echo "$ex" | python3 -c "import json,sys; a=json.loads(sys.stdin.read() or \"[]\"); a.append({\\\"name\\\":$3, \\\"members\\\":$4}); print(json.dumps(a))" > "$d.tmp" 2>/dev/null && mv "$d.tmp" "$d" || true'
+        , "sh", Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") + "/.local/share") + "/shani-photos", Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") + "/.local/share") + "/shani-photos", JSON.stringify(String(name)), JSON.stringify(photoPaths)]);
+    }
     Process {
         id: lister
         stdout: StdioCollector {
@@ -54,9 +78,15 @@ AppWindow {
                 }
                 win.photos = out;
                 win.scanning = false;
+                if (win.activeAlbum !== "")
+                    win.activeAlbum = win.activeAlbum; // re-evaluate shown filter
             }
         }
     }
+
+    // keep albums refreshed on scan
+    onShownChanged: {}
+    function _refreshAlbums() { if (albumLister.running) albumLister.running = true; }
 
     Item {
         anchors.fill: parent
@@ -79,6 +109,46 @@ AppWindow {
                     }
                 }
                 Item { Layout.fillWidth: true }
+                // ---- albums ----
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(4)
+                    visible: win.albums.length > 0
+                    Repeater {
+                        model: win.albums
+                        delegate: Rectangle {
+                            required property var modelData
+                            implicitWidth: Math.min(label.implicitWidth + 30, 120)
+                            height: Theme.px(26)
+                            radius: Theme.px(13)
+                            color: win.activeAlbum === modelData.name ? Theme.accent : (area.containsMouse ? Theme.hover : Theme.surface1)
+                            Text {
+                                id: label
+                                anchors.centerIn: parent
+                                text: modelData.name + " (" + (modelData.members ? modelData.members.length : 0) + ")"
+                                color: win.activeAlbum === modelData.name ? "white" : Theme.text
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                                elide: Text.ElideMiddle
+                            }
+                            MouseArea { id: area; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { win.activeAlbum = win.activeAlbum === modelData.name ? "" : modelData.name; } }
+                        }
+                    }
+                }
+                // "New album" button
+                Button {
+                    visible: true
+                    text: Tr.t("+ Album")
+                    flat: true
+                    onClicked: {
+                        // Create an album from current filter
+                        const selected = win.shown;
+                        if (selected.length > 0) {
+                            const name = selected[0].split("/").slice(-2, -1)[0] + (selected.length > 1 ? " +" + (selected.length - 1) : "");
+                            Photos.createAlbum(name, selected);
+                        }
+                    }
+                }
                 Text {
                     text: win.scanning ? Tr.t("Looking…") : win.shown.length + " " + Tr.t("photos")
                     color: Theme.dim

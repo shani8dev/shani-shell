@@ -46,7 +46,13 @@ var ids = {
     "PDF Signer": "dev.shani.SignPdf",
     "Video Trimmer": "dev.shani.VideoTrimmer",
     "Kundali": "dev.shani.Kundali",
-    "Settings": "dev.shani.Settings"
+    "Settings": "dev.shani.Settings",
+    "Contacts": "dev.shani.Contacts",
+    "Models": "dev.shani.Models",
+    "Studio": "dev.shani.Studio",
+    "Disks": "dev.shani.Disks",
+    "Terminal": "dev.shani.TerminalApp",
+    "Shani Backup": "dev.shani.Backup"
 };
 
 // "notes.txt — Text Editor" and "Text Editor" are both the Text Editor
