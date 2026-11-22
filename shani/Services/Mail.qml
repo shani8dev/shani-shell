@@ -26,9 +26,9 @@ Singleton {
     function state() { run("state", []) }
     function refresh() { run("folders", []) }
     function open(name) { folder = name; run("list", [name]) }
-    function read(uid) { if (uid) { openUid = uid; run("read", [uid]) } }
-    function markRead(uid) { if (uid) run("markread", [uid], false) }
-    function remove(uid) { run("delete", [uid]) }
+    function read(uid) { if (uid) { openUid = uid; run("read", [uid, root.folder]) } }
+    function markRead(uid) { if (uid) run("markread", [uid, root.folder], false) }
+    function remove(uid) { if (uid) run("delete", [uid, root.folder]) }
     function send(to, subject, body) { run("send", [to, subject, body]) }
 
     // one Process, reused: `what` says which answer this is, and is the
@@ -73,6 +73,8 @@ Singleton {
             root.markRead(root.openUid);
         } else if (what === "delete") {
             root.refresh();
+        } else if (what === "send") {
+            root.note = data && data.error ? data.error : Tr.t("Message sent");
         }
     }
 

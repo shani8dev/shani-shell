@@ -15,6 +15,18 @@ AppWindow {
     implicitWidth: Theme.px(1080)
     implicitHeight: Theme.px(680)
 
+    // status note (send result, server errors)
+    Text {
+        anchors { top: parent.top; right: parent.right; margins: Theme.px(12) }
+        z: 20
+        visible: Mail.note !== ""
+        text: Mail.note
+        color: Theme.text
+        font.family: Theme.font
+        font.pixelSize: Theme.px(11) * Theme.fontScale
+        Timer { interval: 5000; onTriggered: Mail.note = ""; running: parent.visible }
+    }
+
     RowLayout {
         anchors.fill: parent
         anchors.margins: Theme.px(10)

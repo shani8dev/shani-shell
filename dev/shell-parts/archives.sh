@@ -49,3 +49,44 @@ printf 'not compressed at all' > $R/fake.gz
 ipc archiveOpen "$R/fake.gz"
 waitfor "'Not an archive' in d['archiveError']" 6 && result archive-bad-lone-file-said PASS || result archive-bad-lone-file-said FAIL "entries $(q "['archiveEntries']") error '$(q "['archiveError']")'"
 ipc archiveClose
+
+# ---- adding to an archive that is open, and making a protected one ----------
+# a zip can be added to (bridge/zipadd.py - libarchive cannot append to one);
+# a compressed tar cannot, and says so instead of quietly doing nothing
+( cd $R/src && bsdtar -acf $R/plain.zip s.txt sub )
+ipc archiveOpen "$R/plain.zip"; waitfor "d['archiveEntries'] > 0" 6
+[ "$(q "['archiveCanAppend']")" = True ] && result archive-zip-can-be-added-to PASS || result archive-zip-can-be-added-to FAIL "$(q "['archiveCanAppend']")"
+printf 'added-later\n' > $R/src/late.txt
+ipc archiveAppend "$R/src/late.txt"
+# the name it takes is its path from the archive's own folder
+waitfor "any(n.endswith('late.txt') for n in (d['archiveNames'] or []))" 8 \
+    && result archive-added-to-the-zip PASS "$(q "['archiveNames']")" || result archive-added-to-the-zip FAIL "$(q "['archiveNames']") error '$(q "['archiveError']")'"
+
+# a protected archive is refused, not silently rewritten as a readable one
+ipc archiveOpen "$R/locked.zip"; waitfor "d['archiveEntries'] > 0" 6
+ipc archiveUnlock "hunter2"; sleep 0.5
+printf 'nope\n' > $R/src/no.txt
+ipc archiveAppend "$R/src/no.txt"; sleep 1.8
+grep -q 'protected' <<<"$(q "['archiveError']")" && result archive-protected-refused PASS "$(q "['archiveError']")" || result archive-protected-refused FAIL "$(q "['archiveError']")"
+# and the archive itself is unchanged by the refusal
+bsdtar --passphrase hunter2 -tf "$R/locked.zip" | grep -q 'late' && result archive-protected-refusal-changed-it FAIL "it was rewritten" || result archive-protected-refusal-changed-it PASS
+
+# a tar.gz cannot be appended to by bsdtar - it says so in words
+( cd $R/src && bsdtar -czf $R/plain.tar.gz s.txt )
+ipc archiveOpen "$R/plain.tar.gz"; waitfor "d['archiveEntries'] > 0" 6
+[ "$(q "['archiveCanAppend']")" = False ] && result archive-compressed-tar-refused PASS || result archive-compressed-tar-refused FAIL "$(q "['archiveCanAppend']")"
+
+# a password on Compress: the archive it makes opens with that password and not without
+ipc archiveCompressWith "$R/src/s.txt" zip "open sesame"
+waitfor "d['archiveMade'].endswith('.zip') and not d['archiveCreating']" 10 \
+    && result archive-compress-with-password-made PASS "$(q "['archiveMade']")" || result archive-compress-with-password-made FAIL "made '$(q "['archiveMade']")' error '$(q "['archiveError']")'"
+PZW=$(q "['archiveMade']")
+# the names are readable in a zip without the password (only the contents are
+# encrypted), so what proves it is the content: the wrong one gives nothing
+wrong=$(bsdtar --passphrase "wrong-one" -xOf "$PZW" s.txt 2>/dev/null | head -c 400)
+[ "$wrong" = "secret-content" ] && result archive-password-is-needed FAIL "the wrong password gave the content" \
+    || result archive-password-is-needed PASS
+bsdtar --passphrase "open sesame" -xOf "$PZW" s.txt 2>/dev/null | grep -q 'secret-content' \
+    && result archive-password-opens-it PASS || result archive-password-opens-it FAIL "$(bsdtar --passphrase 'open sesame' -tf "$PZW" 2>&1 | tr '\n' ';')"
+
+ipc archiveClose; ipc closeAll

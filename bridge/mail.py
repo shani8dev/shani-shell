@@ -279,10 +279,10 @@ def imap_list(c, folder):
             pass
 
 
-def imap_read(c, uid):
+def imap_read(c, uid, folder="INBOX"):
     box = imap_connect(c)
     try:
-        box.select("INBOX")
+        box.select(folder or "INBOX")
         typ, msg = box.fetch(uid.encode(), "(BODY.PEEK[])")
         raw = msg[0][1] if msg and isinstance(msg[0], tuple) else b""
         m = email.message_from_bytes(raw, policy=email.policy.default)
@@ -300,10 +300,10 @@ def imap_read(c, uid):
             pass
 
 
-def imap_flag(c, uid, flag, on):
+def imap_flag(c, uid, flag, on, folder="INBOX"):
     box = imap_connect(c)
     try:
-        box.select("INBOX")
+        box.select(folder or "INBOX")
         box.store(uid.encode(), ("+%s" if on else "-%s") % flag, "FLAGS")
         return {"ok": True}
     finally:
@@ -313,10 +313,10 @@ def imap_flag(c, uid, flag, on):
             pass
 
 
-def imap_delete(c, uid):
+def imap_delete(c, uid, folder="INBOX"):
     box = imap_connect(c)
     try:
-        box.select("INBOX")
+        box.select(folder or "INBOX")
         box.store(uid.encode(), "+FLAGS", "\\Deleted")
         box.expunge()
         return {"ok": True}
@@ -426,13 +426,13 @@ def main():
         )
         return 0
     if cmd == "read":
-        print(json.dumps(imap_read(c, args[0]), ensure_ascii=False))
+        print(json.dumps(imap_read(c, args[0], args[1] if len(args) > 1 else "INBOX"), ensure_ascii=False))
         return 0
     if cmd == "markread":
-        print(json.dumps(imap_flag(c, args[0], "\\Seen", True)))
+        print(json.dumps(imap_flag(c, args[0], "\\Seen", True, args[1] if len(args) > 1 else "INBOX")))
         return 0
     if cmd == "delete":
-        print(json.dumps(imap_delete(c, args[0])))
+        print(json.dumps(imap_delete(c, args[0], args[1] if len(args) > 1 else "INBOX")))
         return 0
     if cmd == "send":
         if len(args) < 3:

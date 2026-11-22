@@ -405,6 +405,7 @@ Singleton {
             property real winSpeed: 1.0            // niri's slowdown: 0.7 brisk, 1 normal, 1.5 relaxed
             property string winAnimationPreset: ""  // path to a .kdl preset included before our animations block
             property string niriRenderDevice: ""      // Multi-GPU: debug.render-drm-device (Services/Gpu)
+            property string notesSyncPath: ""          // Notes: local-first mirror to a cloud mount (QuickNotes)
             property bool showRibbon: false            // scrollable-viewport indicator in the bar
             property bool showWorkspaceMap: false      // proportional window map in the bar
             property bool wsMapFloating: true           // show floating windows in the map

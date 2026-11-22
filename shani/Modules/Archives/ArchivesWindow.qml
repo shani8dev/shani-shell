@@ -67,6 +67,18 @@ AppWindow {
                     }
                 }
                 Button { text: Tr.t("Open…"); flat: true; onClicked: win.pick() }
+                Button {
+                    text: Tr.t("Add files…")
+                    flat: true
+                    visible: Archive.file !== ""
+                    enabled: Archive.canAppend && !Archive.appending
+                    onClicked: FilePicker.open({
+                        mode: "open", multiple: true,
+                        title: Tr.t("Add to the archive"),
+                        startPath: Archive.file.substring(0, Archive.file.lastIndexOf("/")),
+                        onPicked: paths => Archive.append(paths),
+                    })
+                }
             }
 
             // ---- Compress (Files' right-click): the chosen files into one archive ----
@@ -96,6 +108,20 @@ AppWindow {
                             selected: Archive.format === modelData.ext
                             onClicked: Archive.format = modelData.ext
                         }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: Archive.format === "zip" || Archive.format === "7z"
+                    spacing: Theme.px(8)
+                    Text { text: Tr.t("Password"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                    TextField {
+                        id: archPass
+                        Layout.fillWidth: true
+                        secret: true
+                        placeholder: Tr.t("none — anyone can open it")
+                        text: Archive.newPass
+                        onTextChanged: Archive.newPass = text
                     }
                 }
                 RowLayout {

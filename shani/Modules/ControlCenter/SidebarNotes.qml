@@ -312,4 +312,37 @@ ColumnLayout {
             }
         }
     }
+
+    // ---- notes sync: local-first, mirrored to a chosen cloud folder -------------
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Sync") }
+    Text {
+        Layout.fillWidth: true
+        wrapMode: Text.Wrap
+        text: Tr.t("Notes are kept in Documents/Notes. Choose a mounted cloud folder (Nextcloud, Dropbox, a network drive) to mirror them there. Nothing is deleted from either side.")
+        color: Theme.dim
+        font.family: Theme.font
+        font.pixelSize: Theme.px(11) * Theme.fontScale
+    }
+    FolderPicker {
+        Layout.fillWidth: true
+        label: Tr.t("Sync folder")
+        value: Settings.data.notesSyncPath || ""
+        onPicked: path => { Settings.data.notesSyncPath = path; QuickNotes.syncNotes(); }
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        Text {
+            Layout.fillWidth: true
+            text: QuickNotes.syncState
+            color: Theme.faint
+            font.family: Theme.font
+            font.pixelSize: Theme.px(10) * Theme.fontScale
+        }
+        Button {
+            text: Tr.t("Sync now")
+            flat: true
+            enabled: Settings.data.notesSyncPath !== ""
+            onClicked: QuickNotes.syncNotes()
+        }
+    }
 }

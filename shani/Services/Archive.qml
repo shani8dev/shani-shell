@@ -241,6 +241,7 @@ Singleton {
     function extractHere(path) { open(path); extractWhenRead = true; }
     property var toCompress: []           // what Files asked to compress (the window shows the choices)
     property string format: "zip"
+    property string newPass: ""           // password for the archive about to be made
     function createAsk(paths) {
         toCompress = typeof paths === "string" ? [paths] : Array.from(paths || []).map(String);
         // a task of its own: no archive open underneath it
@@ -251,28 +252,39 @@ Singleton {
         needsPassword = false;
         made = "";
         error = "";
+        newPass = "";
         shown = true;
     }
     function defaultName(paths) {
         return !paths || !paths.length ? "" : paths.length === 1 ? paths[0].split("/").pop().replace(/\.[^.\/]+$/, "") : Tr.t("Archive");
     }
     readonly property var formats: [{ ext: "zip", label: "ZIP" }, { ext: "tar.gz", label: "tar.gz" }, { ext: "tar.xz", label: "tar.xz" }, { ext: "7z", label: "7z" }]
-    function create(given, ext, name) {
+    function create(given, ext, name, pass) {
         // a list, however it came (a JS array, a QML list, one path)
         const paths = typeof given === "string" ? [given] : Array.from(given || []).map(String);
         if (!paths.length || root.creating)
             return;
         const parent = paths[0].substring(0, paths[0].lastIndexOf("/")) || "/";
         const stem = (name || defaultName(paths)).replace(/\//g, "-");
+        const pw = pass !== undefined ? pass : root.newPass;
         root.error = "";
         root.made = "";
         root.creating = true;
+        // a password is a real one for zip and 7z: zip encrypts the contents
+        // (AES, for a reader that can; ZipCrypto for one that cannot) and 7z
+        // encrypts by default. A tar is a container with no encryption of its
+        // own, so it gets none. The options go through the command line as
+        // separate arguments, so a passphrase with spaces or quotes survives.
+        const opts = pw
+            ? (ext === "zip" ? ["--options", "zip:encryption=aes256", "--passphrase", pw]
+                              : ext === "7z" ? ["--passphrase", pw] : [])
+            : ["--passphrase", "\u0001no-password"];
         maker.command = ["sh", "-c", 'p=$1; s=$2; x=$3; shift 3
             t=$(mktemp -d "$p/.shani-archive.XXXXXX") || exit 1
-            ( cd "$p" && bsdtar -acf "$t/$s.$x" -- "$@" ) || { r=$?; rm -rf "$t"; exit $r; }
+            ( cd "$p" && bsdtar -acf "$t/$s.$x" "$@" ) || { r=$?; rm -rf "$t"; exit $r; }
             d="$p/$s.$x"; i=2; while [ -e "$d" ]; do d="$p/$s ($i).$x"; i=$((i+1)); done
             mv -- "$t/$s.$x" "$d" && rm -rf "$t" && printf "%s" "$d"',
-            "sh", parent, stem, ext || "zip"].concat(paths.map(p => p.split("/").pop()));
+            "sh", parent, stem, ext || "zip"].concat(opts, ["--"], paths.map(p => p.split("/").pop()));
         maker.running = true;
     }
     Process {
@@ -283,6 +295,61 @@ Singleton {
             root.creating = false;
             if (code === 0) root.made = madeOut.text;
             else root.error = Tr.t("Could not make the archive") + ": " + (makeErr.text.trim().split("\n").pop() || "");
+        }
+    }
+
+    // ---- adding to an archive that is already open -------------------------
+    // What can be added to depends on the tool: libarchive cannot append to a
+    // zip at all ("Unrecognized archive format" reading one back for -r) and
+    // refuses a compressed tar, so a zip goes through bridge/zipadd.py (the
+    // standard library, which can) and a plain tar through bsdtar itself. The
+    // rest - 7z, iso, rar, anything compressed - is refused in words, because
+    // a silent no would be worse.
+    readonly property var appendable: ["zip", "jar", "apk", "tar", "cpio"]
+    readonly property string appendExt: {
+        const n = root.name.toLowerCase();
+        for (const e of root.appendable)
+            if (n.endsWith("." + e)) return e;
+        return "";
+    }
+    readonly property bool canAppend: root.appendExt !== "" && root.file !== "" && !root.single
+    property bool appending: false
+    property string zipTool: Quickshell.env("SHANI_ZIPADD_TOOL") || "/usr/lib/shani-shell/zipadd.py"
+
+    function append(paths) {
+        const list = (typeof paths === "string" ? [paths] : Array.from(paths || []).map(String)).filter(p => p);
+        if (!list.length || !root.canAppend || root.appending)
+            return;
+        root.error = "";
+        root.appending = true;
+        if (root.appendExt === "zip")
+            appender.command = ["python3", root.zipTool, "add", root.file].concat(list);
+        else
+            appender.command = ["sh", "-c", 'f=$1; p=$2; pp=$3; shift 3; cd "$p" || exit 1
+                bsdtar --passphrase "$pp" -rf "$f" -- "$@" || exit $?',
+                "sh", root.file, root.file.substring(0, root.file.lastIndexOf("/")) || "/", root.pass]
+                .concat(list);
+        appender.running = true;
+    }
+
+    Process {
+        id: appender
+        stdout: StdioCollector { id: appendOut }
+        stderr: StdioCollector { id: appendErr }
+        onExited: code => {
+            root.appending = false;
+            if (code === 0) {
+                if (appendOut.text.trim().indexOf('"error"') >= 0) {
+                    let why = "";
+                    try { why = (JSON.parse(appendOut.text) || {}).error || ""; } catch (e) {}
+                    root.error = why === "protected"
+                        ? Tr.t("A protected archive cannot be added to")
+                        : (why || Tr.t("Could not add to the archive"));
+                    return;
+                }
+                root.list();
+            } else
+                root.error = Tr.t("Could not add to the archive") + ": " + (appendErr.text.trim().split("\n").pop() || "");
         }
     }
 

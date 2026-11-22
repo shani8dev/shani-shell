@@ -70,20 +70,25 @@ Singleton {
         setAndPaste(root.transformText(text, mode));
     }
 
-    // ---- encrypted history (optional) ------------------------------------------
-    // When Settings.data.clipboardEncrypted is on, the cliphist database is
-    // encrypted with age (or gpg) at rest. The bridge/clipboard-encrypt.sh
-    // script handles encrypt/decrypt; the shell just toggles the setting and
-    // tells the user to re-run the store watcher with the wrapper.
+    // ---- encrypted history (optional) -------------------------------------------
+    // bridge/clipboard-crypto.py keeps cliphist's DB encrypted at rest with
+    // gpg; every cliphist call goes through its `wrap` command, and the
+    // watcher uses bridge/clipboard-watch.sh. The key is in the keyring.
+    readonly property string crypto: Quickshell.env("SHANI_CLIPBOARD_CRYPTO") || "/usr/lib/shani-shell/clipboard-crypto.py"
     readonly property bool encrypted: Settings.data.clipboardEncrypted === true
     function setEncrypted(on) {
         Settings.data.clipboardEncrypted = on;
-        if (on) {
-            Quickshell.execDetached(["sh", "-c",
-                "command -v age >/dev/null 2>&1 || { notify-send -a Clipboard 'Encryption needs age'; exit 1; };"
-                + "notify-send -a Clipboard 'Encrypted clipboard history: restart the session or run: pkill -f \"wl-paste.*cliphist\"; wl-paste --watch cliphist store &'"
-                + " 2>/dev/null || true"]);
-        }
+        Quickshell.execDetached(["python3", crypto, on ? "enable" : "disable"]);
+        notifyEncrypted(on);
+    }
+    function notifyEncrypted(on) {
+        Quickshell.execDetached(["notify-send", "-a", Tr.t("Clipboard"),
+            on ? Tr.t("Clipboard history is now encrypted at rest")
+               : Tr.t("Clipboard history is no longer encrypted")]);
+    }
+    // Run a cliphist command, wrapped when encryption is on.
+    function clip(args) {
+        return encrypted ? ["python3", crypto, "wrap"].concat(args) : ["cliphist"].concat(args);
     }
 
     function refresh() {
@@ -108,7 +113,7 @@ Singleton {
     // picked in the launcher (Win+V's way): onto the clipboard, then pasted into the
     // window the person was in - pictures and formatting too, which typing can't
     function copyAndPaste(entry) {
-        Quickshell.execDetached(["sh", "-c", 'cliphist decode "$1" | wl-copy; sleep 0.35; shift; exec wtype "$@"', "sh", entry.id].concat(pasteKeys()));
+        Quickshell.execDetached(["sh", "-c", '"$@" decode "$2" | wl-copy; sleep 0.35; shift 2; exec wtype "$@"'].concat(clip([]), ["sh", entry.id]).concat(pasteKeys()));
     }
     function setAndPaste(text) {
         Quickshell.execDetached(["sh", "-c", 'printf "%s" "$1" | wl-copy; sleep 0.35; shift; exec wtype "$@"', "sh", text].concat(pasteKeys()));
@@ -118,11 +123,11 @@ Singleton {
         Quickshell.execDetached(["sh", "-c", 'sleep 0.35; exec wtype -- "$1"', "sh", text]);
     }
     function copy(entry) {
-        Quickshell.execDetached(["sh", "-c", 'cliphist decode "$1" | wl-copy', "sh", entry.id]);
+        Quickshell.execDetached(["sh", "-c", '"$@" decode "$2" | wl-copy'].concat(clip([]), ["sh", entry.id]));
     }
     // pinned texts (Settings.clipPins): above the history, kept through clearing it
     function pin(entry) {
-        pinDecode.command = ["cliphist", "decode", entry.id];
+        pinDecode.command = clip(["decode", entry.id]);
         pinDecode.running = true;
     }
     function unpin(text) { Settings.data.clipPins = Array.from(Settings.data.clipPins).filter(t => t !== text); }
@@ -144,7 +149,10 @@ Singleton {
 
     // one entry out of the history: cliphist deletes the line it is given
     function remove(entry) {
-        Quickshell.execDetached(["sh", "-c", 'cliphist list | grep -m1 "^$1	" | cliphist delete', "sh", entry.id]);
+        // list through the wrapper, then feed the exact line to `wrap delete`
+        Quickshell.execDetached(["sh", "-c",
+            'line=$("$@" list | grep -m1 "^$2\\t") || exit 0; printf "%s\\n" "$line" | python3 "$3" wrap delete'
+        ].concat(clip([]), ["sh", entry.id, crypto]));
         entries = entries.filter(e => e.id !== entry.id);
     }
     // the history and what is on the clipboard now. Not --clear: wl-clip-persist
@@ -152,13 +160,13 @@ Singleton {
     // back in the history at once. An empty text replaces it (cliphist stores
     // nothing empty), then the history goes once that has settled.
     function wipe() {
-        Quickshell.execDetached(["sh", "-c", "printf '' | wl-copy; printf '' | wl-copy --primary; sleep 0.5; cliphist wipe"]);
+        Quickshell.execDetached(["sh", "-c", "printf '' | wl-copy; printf '' | wl-copy --primary; sleep 0.5; \"$@\"", "sh"].concat(clip(["wipe"])));
         entries = [];
     }
 
     Process {
         id: list
-        command: ["cliphist", "list"]
+        command: root.clip(["list"])
         stdout: StdioCollector {
             onStreamFinished: {
                 root.entries = text.split("\n").filter(l => l.indexOf("\t") > 0).slice(0, 100).map(l => {
@@ -173,7 +181,7 @@ Singleton {
                 // decode the newest pictures once, for their thumbnails
                 const imgs = root.entries.filter(e => e.image).slice(0, 12);
                 if (imgs.length) {
-                    thumbs.command = ["sh", "-c", 'd="$1"; shift; mkdir -p "$d"; for e in "$@"; do id="${e%%:*}"; out="${e#*:}"; [ -f "$out" ] || cliphist decode "$id" > "$out"; done', "sh", root.cache]
+                    thumbs.command = ["sh", "-c", 'd="$1"; shift; mkdir -p "$d"; for e in "$@"; do id="${e%%:*}"; out="${e#*:}"; [ -f "$out" ] || "$@" decode "$id" > "$out"; done', "sh", root.cache].concat(root.clip([]))
                         .concat(imgs.map(e => e.id + ":" + e.preview));
                     thumbs.running = true;
                 }

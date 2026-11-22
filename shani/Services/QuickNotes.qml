@@ -49,7 +49,22 @@ Singleton {
     // ---- export / print / sync (Gnote parity) ------------------------------
     property string lastExported: ""   // last .html written by exportHtml(), for `state`
     property string lastPrinted: ""    // last path sent to `lp` by printNote(), for `state`
-    property string syncState: "TODO: notes sync is not implemented"  // no sync backend; never faked
+    property string syncState: Settings.data.notesSyncPath ? Tr.t("Not synced yet") : Tr.t("No sync folder chosen")  // local-first; sync to a chosen cloud mount
+    readonly property string syncPath: Settings.data.notesSyncPath || ""
+    Process {
+        id: noteSync
+        onExited: code => {
+            root.syncState = code === 0 ? Tr.t("Synced %1", Qt.formatTime(new Date(), "HH:mm"))
+                                        : Tr.t("Sync failed — check the folder");
+        }
+    }
+    function syncNotes() {
+        if (!root.syncPath) return;
+        Quickshell.execDetached(["mkdir", "-p", root.syncPath]);
+        noteSync.command = ["sh", "-c", 'rsync -au "$1/" "$2/Notes/" 2>/dev/null', "sh", root.dir, root.syncPath];
+        noteSync.running = true;
+    }
+    Timer { id: syncTimer; interval: 4000; onTriggered: root.syncNotes() }
     readonly property bool syncTodo: true
 
     // ---- listing ------------------------------------------------------------
@@ -88,7 +103,7 @@ Singleton {
         list.running = true;
         nbList.running = true;
     }
-    Component.onCompleted: { refresh(); cryptoProbe.running = true }
+    Component.onCompleted: { refresh(); cryptoProbe.running = true; if (root.syncPath) root.syncNotes() }
 
     // ---- paths --------------------------------------------------------------
     function validNotebook(name) {
@@ -192,6 +207,7 @@ Singleton {
             const dirPath = root.currentNotebook === "" ? root.dir : root.dir + "/" + root.currentNotebook;
             Quickshell.execDetached(["mkdir", "-p", dirPath]);
             file.setText(root.text);
+            root.syncTimer.restart();   // local-first, then mirror to the cloud mount
         }
     }
 
