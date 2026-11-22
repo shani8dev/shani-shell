@@ -97,13 +97,14 @@ call next
 waitfor "d['page'] == 'account'" 3
 call set fullname "Shani Tester"
 waitfor "d['username'] == 'shani' and d['hostname'] == 'shani-shani'" 3 && result setup-suggests-names PASS || result setup-suggests-names FAIL "$(st)"
-call set password shani
+# eight characters is the minimum (accountProblem): a shorter one is refused
+call set password shani-test
 call set password2 nope
 waitfor "'match' in d['problem']" 2 && result setup-checks-passwords PASS || result setup-checks-passwords FAIL "$(st)"
 call next
 sleep 0.5
 getent passwd shani >/dev/null && result setup-waits-for-a-valid-form FAIL || result setup-waits-for-a-valid-form PASS
-call set password2 shani
+call set password2 shani-test
 shot 84-setup-account 0.5
 call next
 # the wizard quits once the session is launched; niri then ends

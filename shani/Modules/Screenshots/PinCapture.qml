@@ -86,7 +86,9 @@ PanelWindow {
                             Quickshell.execDetached(["xdg-open", Screenshots.pinnedPath]);
                         }
                     }
-                    onDoubleClicked: Quickshell.execDetached(["xdg-open", Screenshots.pinnedPath])
+                    // Qt fires `clicked` for both clicks of a double-click, so a
+                    // separate handler opened the image twice over. Left-click above
+                    // already opens it once.
                 }
             }
 

@@ -910,3 +910,132 @@ Risk: niri action names and screenshot-window availability not verified against 
 - Duplicate desktop ID: ShellApps.js "Password Generator" pointed to dev.shani.Passwords (same as Passwords and Keys) — corrected to dev.shani.PasswordGenerator; tests/test_app_registry.py (523 checks) caught it.
 - SMTP STARTTLS bug and IMAP cleartext login in bridge/mail.py corrected (security).
 - Two new agent test files added: tests/test_app_registry.py, tests/test_cli_ipc.py (608 checks).
+
+---
+
+# Tenth pass — full reports
+
+## Advanced text editor features (agent ses_dfb935d11ffeQshGadkNuvJvm5)
+
+Correction: editor well ahead of docs — session restore, multi-caret, snippets, TextMate theme chooser, bookmarks, go-to-line, current-line/matching-brace highlight, word count, regex find all exist. Frontier is code intelligence and project/IDE workflow.
+
+Feasible in QML/small bridge:
+1. Jump to matching bracket — matchBrace() implemented (TextEditorPanel.qml:371-391) used only to draw a box (:674-684); no key moves cursor there. Sketch: Ctrl+] in shortcut().
+2. Auto-save to disk — setText() memory-only (TextDocs.qml:199-215), save() manual, no autoSave setting. Sketch: Timer in TextDocs after N seconds inactivity.
+3. Unsaved-buffer recovery across restart — saveSession() writes only {paths,active} (TextDocs.qml:79-83); unsaved text lost despite header comment. Sketch: include text/eol/modified in session JSON + Recover.
+4. EOL selector — detected and preserved (TextDocs.qml:189) but user cannot choose LF/CRLF. Sketch: status-bar chip.
+5. Type-over closing bracket — handleAutoclose() (TextEditorPanel.qml:89-124) but typing ) next to auto-inserted ) yields )). Sketch: advance cursor if next char equals closeOf(c).
+6. Soft-wrap modes — one boolean (TextEditorPanel.qml:46,720). Sketch: off/wrap-viewport/wrap-column + column ruler.
+7. External-change/conflict detection — probed only at open (TextDocs.qml:142-145), no watcher/mtime check; second editor can overwrite silently. Sketch: DirMonitor/periodic stat + Reload/Discard banner.
+8. Breadcrumbs (cursor path) — status bar path + line/column only. Sketch: regex-scan braces/function|class|def above cursor.
+9. Format document — panel spawns no process. Sketch: bridge dispatching black/rustfmt/prettier/clang-format by win.lang.
+10. Git status/diff for open file — git exists but editor never calls it. Sketch: side pane with git diff rendered through diff highlighter.
+11. Open folder → file tree → project search — TextDocs.open() refuses directories (TextDocs.qml:143,169); find/replace per-document. Sketch: left panel reusing Files listing + grep -rn bridge.
+12. Code folding — gutter only line numbers and bookmark dots. Sketch: compute indent/brace ranges, elide in both overlay TextEdits.
+13. Selection grow/shrink — Alt+Shift+Down adds vertical cursors but no structural expand-to-word/string/block.
+14. Sticky scroll — no pinned enclosing scope header.
+15. Encoding selector — probe rejects NUL-bearing via grep -qI (TextDocs.qml:143), so UTF-16/32 "Not a text file". Sketch: BOM sniff + explicit codec.
+16. Minimap — low value per effort.
+17. TextMate grammar data — 0 .tmLanguage/.tmTheme ship; all files fall back to keyword regex. Overlaps earlier file-format finding.
+Needs LSP daemon: 18 LSP client core; 19 completion/IntelliSense; 20 diagnostics/problems; 21 go-to-definition/find references; 22 rename symbol across files; 23 hover docs/signature help; 24 embedded terminal/build tasks; 25 collaboration/CRDT (out of scope).
+Top five by value × ease: #1,#2,#3,#4,#5.
+
+## Advanced notes features (agent ses_dfb9333d7ffetpC8YMY23tOnRf)
+
+Feasible in QML:
+1. Diff/compare before restore — history copies exist but restoreVersion() overwrites immediately (QuickNotes.qml:528-563). Sketch: Process diff -u in read-only pane.
+2. Note templates on create — create() writes empty file (:245-259). Sketch: ~/Documents/Notes/.templates/<notebook>.md with {{title}}/{{date}}.
+3. Daily/periodic notes — no date-based creation. Sketch: Today button.
+4. Outgoing-link index + orphan detection — links() regex only on current note (:440-449). Sketch: global pass mapping id → [[targets]].
+5. Tag index/tag graph/nested tags — tags() scans only root.text with #[A-Za-z0-9_-]+ (:567-574), no / and no cross-note co-occurrence.
+6. Search operators (tag:, path:, created:) — search() name/current-body substring (:462-469), searchBodies() grep -liF (:477).
+7. Regex toggle + saved searches — only -F; no saved searches.
+8. Pin/favorite + colour coding — note model {name,path,notebook,id,mtime} only (:90).
+9. Nested notebooks — validNotebook()→valid() replaces / with space (:241-244), list globs one level (:80).
+10. Templater-like variables beyond creation.
+11. Kanban/table view — one ListView with one delegate.
+Needs backend: 12 HTML export with real Markdown + CSS (htmlDocument escapes into <pre> :393-397; markdown_lite.py exists in sibling package); 13 styled PDF export; 14 static-site/multi-note publish; 15 block references/transclusion; 16 YAML front matter; 17 sync conflict resolution; 18 plugin/extension API.
+Top value × ease: #1–#5, then #6/#8. Risk: #9/#16 need atomic writes — Notes uses execDetached shell writes (:256,314,334).
+
+## Advanced files features (agent ses_dfb9307a8ffe2BOEYZ87vcvec2)
+
+Already built not re-filed: boolean star + starred: place, Ctrl+L path box, Recent sidebar, per-tab bar, read-only Properties perms, checksums, folder compare + dry-run sync confirm, zip append via zipadd.py, dup detection via dupes.py.
+
+1. No per-file Previous Versions / restore from btrfs snapshots — daily home snapshots exist (Backup.qml:2-5,18-21) but per-file restore only hands off to external GUI (:33-43); Files context menu has no version action. Sketch: files.py versions <path> + context action.
+2. Search no operators or regex — search() only w in name.lower() (files.py:1481-1506), content search rg -F fixed (:1531-1543), searchPath concatenates words (Files.qml:1326-1329).
+3. Batch rename numbering-only — batch_rename() only substitutes # (files.py:1611-1639). Sketch: s/pattern/repl/ + date/camera tokens.
+4. Bulk permissions not exposed; no owner/ACL/xattr/immutable — chmod-pairs accepts many (files.py:821-835) but Properties one path; no setfacl/setfattr/chown/chattr anywhere.
+5. Folder sync one-way with no exclusions/conflict policy — _rsyncArgs only -a --delete/-au (Files.qml:1269-1272).
+6. Archives not navigable as folders — Files only "Extract here"; Archive.qml lists in separate window. Sketch: archive:// VFS.
+7. Stars one bit, not metadata — flat newline file of paths (files.py:773-803). No colors/tags/ratings/comments.
+8. Search silently caps results — 300 hits/4s with truncated flag (files.py:1483-1506) UI never surfaces.
+9. No saved searches.
+10. Bookmark aliases cannot be written — parses label after URI (:1651-1669) but bookmark() appends bare URI (:1672-1685).
+11. Per-tab history actually global — one history/historyIndex (Files.qml:33-34); switchTab calls open() which pushes same stack.
+12. No content search inside archives.
+13. No compare of two archives.
+14. No bulk resize/convert from Files.
+15. No extract-to-multiple-destinations.
+16. Exif/date tokens absent from rename and search — props() reports no EXIF though PhotoMeta exists.
+
+## Advanced calendar features (agent ses_dfb92de52ffe2hwnOUgk6Tlerd)
+
+Tier A:
+1. Editing any recurring event destroys custom RRULE — ruleFromForm() reconstructs FREQ+UNTIL only (CalendarPanel.qml:249-255), openEditor feeds e.rrule (:275), saveEditor writes back (:430). Imported FREQ=WEEKLY;BYDAY=MO,WE,FR becomes plain FREQ=WEEKLY after any edit. DATA-LOSS BUG. [FIXED this pass: carry original rule when repeat controls untouched]
+2. No custom recurrence patterns — five fixed chips, end date only. No INTERVAL/BYDAY/nth weekday/BYMONTHDAY/COUNT though agenda.py:_safe_rrule accepts them.
+3. No recurrence preview.
+4. No agenda-list/multi-day schedule view — views only Month/Week/Day/Year.
+5. Control-centre mini-month shows no events — zero Agenda references. Sketch: bind hasEvent() helper.
+6. Event location inert text — no Maps link/geo URI/travel estimate.
+7. No calendar export of a date range — agenda.py commands add/edit/delete/import/accounts/calendars only, no export.
+8. No calendar groups/merge — flat show/hide chips only.
+9. Recurring tasks a 3-value sidecar — Tasks.qml:15-16,43-49 uid → daily|weekly|monthly, no interval/weekday/count/end.
+10. No tasks↔calendar integration — TasksWindow has no Agenda/Calendar reference.
+Tier B:
+11. No per-occurrence edit/delete (series exceptions) — events() gives every occurrence master UID (agenda.py:150,162), edit/delete get_object_sync(uid) on master; no RECURRENCE-ID/EXDATE.
+12. No free/busy or find-a-time — never calls ECal get_free_busy_sync.
+13. No busy/tentative/out-of-office status — events() fixed field set (:140-157).
+14. No working hours — week grid all 24h; ScreenTime.qml:92 has unrelated hardcoded 09–17.
+15. No time blocking/Focus–calendar coupling.
+16. No subtasks — flat row list, tasks.py no parent field.
+17. No publish-a-link/delegate access.
+18. No travel-time buffer.
+19. No unified reminder list.
+
+## Advanced email composition (agent ses_dfb92b320ffekOybWqgLs0cefW)
+
+Verdict: Mail is a four-pane reader with single plain-text compose box. All new at this depth.
+Composition: 1 recipient autocomplete from Contacts (To/Cc/Bcc bare TextFields MailWindow.qml:353-355, Contacts.qml:16 holds contacts) — cheapest high-value; 2 per-account signature; 3 request read receipt; 4 delivery priority; 5 Reply-To override; 6 send later/schedule; 7 HTML/rich-text compose; 8 spellcheck in compose.
+Attachments outbound: 9 drag files into compose (no DropArea); 10 attachment preview/open; 11 inline/CID images (mail.py:155 replaces <img> with [image]); 12 large-file handling/attach-as-link.
+Organization: 13 message filters/rules on arrival; 14 quick filters (unread-only); 15 saved searches; 16 snooze until; 17 tags with colors/pin.
+Conversation: 18 quote collapsing + load older (flattens quote into one > block; imap_list last 100 hardcoded :438).
+Contacts/calendar: 19 add sender to Contacts/contact photos; 20 RSVP buttons in message (imap_read ignores text/calendar parts); 21 convert email to event.
+Send lifecycle/keyboard: 22 undo send/outbox/failed-send retry; 23 draft autosave across restarts; 24 full keyboard navigation + compose-in-new-window.
+
+## Advanced photo/video/media features (agent ses_dfb928217ffeTyGfz85t0hA50t)
+
+Key finding: bridge/face.py:2 is face sign-in (linux-hello), NOT photo face detection; imgedit.py/convert.py only edit/transcode engines.
+Feasible: 1 EXIF editor + IPTC/XMP (PhotoMeta.qml:57 exiv2 read-only, no -M set); 2 video subtitle embedding on export (convert.py:319-329 only metadata; sidecar SRT read in MediaPlayer but never burned); 3 perceptual duplicate photos (dupes.py byte-identical only); 4 video transitions on multi-segment join (concat = hard cuts); 5 photo tone controls (imgedit.py:83-100 only flip/rotate/crop/resize/marks); 6 video colour correction + text overlays; 7 speed ramping; 8 before/after compare (save destructive imgedit.py:103-123); 9 non-destructive edits/sidecar; 10 slideshow music/transitions/interval (fixed 3500ms Timer); 11 filters/presets; 12 geotag/map view (PhotoMeta reads no GPS); 13 smart/auto albums + memories; 14 scrobbling (PlayQueue.qml:246-264 only MPRIS); 15 related/recommendations (local metadata-only); 16 bulk metadata edit; 17 audio track mixing on export; 18 N-up print layouts/photo books; 19 social share targets.
+Needs AI/model/hardware: face detection/naming; scene/object recognition; content-based recommendations; true multi-window PiP (compositor).
+
+## Shell-specific utility surfaces (agent ses_dfb925707ffe1pGpBpRJJz0SC5)
+
+Tour: 1 Skip indistinguishable from completion — Skip calls same finish() that marks tour seen (Tour.qml:130,39-43); no step persisted.
+Quick Look: 2 no zoom/pan for images, no PDF page navigation (Image fixed PreserveAspectFit :100-109, PDF hardcodes -f 1 -l 1 :122); 3 no seek on previews; 4 no Share or Copy action.
+Pinned capture: 5 BUG double-click opens image 2–3× — single-click handler xdg-open (:86) and onDoubleClicked again (:89), Qt fires clicked for both clicks. [FIXED this pass: removed onDoubleClicked]; 6 only one pin, no zoom (Screenshots.qml:17-22 single pinnedPath).
+Screen saver: 7 never runs over lock screen (active requires !Lock.locked ScreenSaver.qml:18); 8 photo mode no curation/controls (Math.random with replacement :65-70).
+Ambient light: 9 no-sensor mode silently overwrites brightness with clock curve (apply() uses timeLevel() :82,90-97); 10 sensor hotplug never detected (probe once at startup).
+Tablet mode: 11 lid state effectively dead (TabletMode.qml:27-28 lidClosed only in state dump), tablet mode changes only OSK.
+Shelf: 12 parked entries never validated (deleted files stay with broken thumbnails); 13 recents hardcoded (3 fixed dirs, 7 days, 12 items :38-41).
+Housekeeping: 14 SMART warning re-notifies every 24h forever with no suppress/snooze/self-test (:53-55).
+Smart: 15 no global opt-out and no privacy boundary — watcher always on, no Settings key, ships copied error text to Chronoa (:30-31,61-63). [FIXED this pass: added smartSuggestions setting gating running:]; 16 tiny vocabulary (no date→calendar, address→maps, file path→open, IP/tracking).
+Smart replies: 17 maps grow unbounded and chips fixed (asked/suggestions never pruned :14-15).
+Writing tools: 18 Replace fragile and destroys clipboard (no save/restore, fixed sleeps :97-105); 19 no custom instruction or before/after diff.
+Ring: 20 hardcoded contents contradict "things you do most" claim (Tour.qml:35), Apps slice first 8 dock pins (:79); 21 keyboard/a11y thin (number keys only, no Accessible names on slices).
+Bugs/dead code: PinCapture triple-open (#5), TabletMode.lidClosed unused (#11), SmartReplies maps never pruned (#17).
+
+## Fixes applied this pass
+
+- Calendar recurring-event RRULE loss: ruleFromForm() now returns the original rule verbatim when the person hasn't touched the repeat controls (repeatTouched flag).
+- PinCapture double-click triple-open: removed onDoubleClicked handler.
+- Smart clipboard watcher privacy opt-out: new Settings.data.smartSuggestions gate on Process.running.

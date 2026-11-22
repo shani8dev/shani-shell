@@ -227,6 +227,7 @@ AppWindow {
     // repeat / end-repeat and this event's own reminder and zone
     property string fRepeat: "NONE"     // NONE | DAILY | WEEKLY | MONTHLY | YEARLY
     property string fRepeatUntil: ""    // yyyy-MM-dd
+    property bool repeatTouched: false  // the person edited the repeat controls
     property int fAlarm: 0              // minutes before; 0 = no alarm
     property string fZone: "local"
     readonly property bool readOnlyEvent: !!(
@@ -246,12 +247,16 @@ AppWindow {
         win.viewingEvent = null;
         win.openEditor(e);
     }
+    // The form only understands FREQ + UNTIL. If the event had a richer RRULE
+    // (BYDAY, INTERVAL, COUNT …) and the person did not touch the repeat
+    // controls, return the original verbatim instead of silently flattening it.
     function ruleFromForm() {
         if (win.fRepeat === "NONE") return "";
-        let r = "FREQ=" + win.fRepeat;
-        if (win.fRepeatUntil !== "")
-            r += ";UNTIL=" + win.fRepeatUntil.replace(/-/g, "") + "T235959";
-        return r;
+        const built = "FREQ=" + win.fRepeat +
+            (win.fRepeatUntil !== "" ? ";UNTIL=" + win.fRepeatUntil.replace(/-/g, "") + "T235959" : "");
+        const original = String((win.viewingEvent || win.editingEvent)?.rrule || "");
+        if (original !== "" && !win.repeatTouched) return original;
+        return built;
     }
     function formFromRule(rule) {
         const r = String(rule || "").toUpperCase();
@@ -259,6 +264,7 @@ AppWindow {
         win.fRepeat = f ? f[1] : "NONE";
         const u = r.match(/UNTIL=(\d{8})/);
         win.fRepeatUntil = u ? u[1].slice(0, 4) + "-" + u[1].slice(4, 6) + "-" + u[1].slice(6, 8) : "";
+        win.repeatTouched = false;  // a fresh edit form starts from the event's rule
     }
 
     function _fmtDate(d) { return Qt.formatDate(d, "yyyy-MM-dd"); }
@@ -1227,7 +1233,7 @@ AppWindow {
                             required property var modelData
                             text: modelData[1]
                             selected: win.fRepeat === modelData[0]
-                            onClicked: win.fRepeat = modelData[0]
+                            onClicked: { win.fRepeat = modelData[0]; win.repeatTouched = true; }
                         }
                     }
                 }
@@ -1240,7 +1246,7 @@ AppWindow {
                         label: "End repeat"
                         text: win.fRepeatUntil
                         enabled: win.fRepeat !== "NONE"
-                        onTextChanged: win.fRepeatUntil = text
+                        onTextChanged: { win.fRepeatUntil = text; win.repeatTouched = true; }
                     }
                     TextField {
                         Layout.preferredWidth: Theme.px(90)

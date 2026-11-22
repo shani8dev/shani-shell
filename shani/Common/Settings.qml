@@ -206,6 +206,7 @@ Singleton {
             property bool wallpaperVideoOnBattery: false
             property bool searchMeaning: true          // the launcher asks Chronoa's file index too (FindFiles)
             property bool smartReplies: true           // suggested replies on message notifications (SmartReplies)
+            property bool smartSuggestions: true       // watch the clipboard for suggestions (Smart)
             property string terminal: "footclient"     // a window of the foot server (Services/Terminal)
             property bool terminalThemed: true         // foot in the desktop's colours (~/.config/foot/foot.ini, while it is the shell's)
             property var sshSnippets: []               // Terminal: saved SSH commands [{ name, command }]

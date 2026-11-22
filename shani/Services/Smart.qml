@@ -59,7 +59,9 @@ Singleton {
     readonly property double startedAt: Date.now()
     property string lastText: ""
     Process {
-        running: true
+        // Opt-out: clipboard contents never leave the machine, but watching
+        // every copy is a privacy choice the person should control.
+        running: Settings.data.smartSuggestions !== false
         command: ["wl-paste", "--no-newline", "--type", "text", "--watch", "sh", "-c", "head -c 4000 | tr '\\n' '\\037'; echo"]
         stdout: SplitParser {
             onRead: line => {
