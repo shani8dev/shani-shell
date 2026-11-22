@@ -47,7 +47,7 @@ Item {
         command: ["sh", "-c", 'cat /usr/share/zoneinfo/zone1970.tab 2>/dev/null || cat /usr/share/zoneinfo/zone.tab 2>/dev/null']
         stdout: StdioCollector {
             onStreamFinished: {
-                // "IN	+2232+08822	Asia/Kolkata	India"
+                // "IN    +2232+08822    Asia/Kolkata    India"
                 const out = [];
                 for (const line of text.split("\n")) {
                     const f = line.charAt(0) === "#" ? [] : line.split("\t");

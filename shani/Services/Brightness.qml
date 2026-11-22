@@ -70,7 +70,7 @@ Singleton {
         id: ddcProbe
         running: true
         command: ["sh", "-c", 'command -v ddcutil >/dev/null || exit 0; ddcutil detect --terse 2>/dev/null | awk "/^Display/{n=\$2} /Monitor:/{split(\$0,a,\":\"); print n\"\t\"a[3]}" |
-            while IFS="	" read -r n m; do v=$(ddcutil --display "$n" getvcp 10 --terse 2>/dev/null | awk "{print \$4\"/\"\$5}"); printf "%s\t%s\t%s\n" "$n" "$m" "$v"; done']
+            while IFS="    " read -r n m; do v=$(ddcutil --display "$n" getvcp 10 --terse 2>/dev/null | awk "{print \$4\"/\"\$5}"); printf "%s\t%s\t%s\n" "$n" "$m" "$v"; done']
         stdout: StdioCollector {
             onStreamFinished: {
                 root.ddc = text.trim().split("\n").filter(l => l.split("\t").length === 3).map(l => {

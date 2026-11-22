@@ -2403,10 +2403,945 @@ Skipped: runtime/QML verification (static only), third-party LSP availability on
 
 **Skipped / not checked:** message templates (already noted) and all items in the parent skip list; no runtime, Qt-version, or live-IMAP verification — purely static. **Risk:** #7/#11 depend on Qt's HTML subset and CID support in this image; #20's iTIP REPLY needs the Calendar backend's attendee path, which is itself noted as incomplete (`GAPS-RESEARCH.md:832`).
 
+
 ---
 
-# Note on passes 1–9 and remaining pass-10/11 reports
+# Ninth pass — VERBATIM agent reports
 
-The sections above contain the **verbatim** text for passes 10–14 where available. For passes 1–9, and for the remaining pass-10/11 agents (advanced notes, files, calendar, media, shell utilities, data portability, FilePicker, CLI/terminal), the curated summaries in the numbered pass sections earlier in this file remain the complete record of their findings — each item there carries its own file:line evidence and one-line sketch. Those summaries were written directly from the agent reports at the time and were not lost; only the prose wrapping was shortened. Every distinct gap ID from those agents is present in the corresponding curated section.
+## VERBATIM: Crash handling, diagnostics and self-recovery
 
-The repository's curated, deduplicated list remains `docs/GAPS.md`.
+# Ninth-pass research — crash handling, diagnostics and self-recovery of the shell itself
+
+Read both docs (2,657 lines) first. Skipped all prior-pass topics (niri crash recovery, session lifecycle, audit trail, problem reports, logs panel, shani-doctor, health checks) — the items below are crash/diagnostics/self-recovery only. Static analysis, nothing run or edited.
+
+## Ranked gaps (value × ease)
+
+1. **Mid-conversation bridge death spins forever.** `Services/Chronoa.qml:135-139` — `onConnectedChanged` sets only `state="offline"`; `busy`, `step`, `approval` are never cleared, and no turn timeout exists anywhere. `Island.qml:30,80,152` keys the "working" spinner off `Chronoa.busy`. Sketch: on disconnect clear busy/step, emit `system("Chronoa stopped responding")`, open panel; add 60s turn watchdog.
+
+2. **Bridge never detects Chronoa D-Bus death.** `bridge/chronoa-bridge.py:389-412` subscribes to `Agent.Event` but has no `NameOwnerChanged` watch and no turn timeout; `turn_filter` waits for a `done` that never arrives. Sketch: watch `AGENT_NAME` owner loss, broadcast an `error` event, plus per-turn timeout.
+
+3. **Persistent QML bridges die silently.** `Services/Plugged.qml:248-255`, `InputPlumber.qml:122-126`, `Modem.qml:46-50`, `Thunderbolt.qml:28-31` are `running: true` Processes with no `onExited` restart — Quickshell does not auto-restart. Only `LauncherEntries.qml:39-41` retries (blindly) and `Files.qml:150-195` has a real watchdog. Sketch: one shared bridge wrapper with retry+backoff.
+
+4. **No watchdog for a hung shell.** `data/systemd/shani-shell.service:21-22` is `Restart=on-failure` only; no `WatchdogSec`, no `sd_notify`. A frozen event loop is a dead desktop that systemd never touches. Sketch: `WatchdogSec=30` + QML keepalive timer.
+
+5. **Crash loop ends in a failed unit with no UX.** `RestartSec=2` plus systemd's default `StartLimitBurst=5/10s` trips after ~5 crashes; no `StartLimitAction`, no notice. Sketch: back off longer and add an on-failure oneshot that notifies "Desktop stopped, see report".
+
+6. **No user notification for any bridge restart.** `Bridge.qml:37-42` reconnects silently; `LauncherEntries.qml:39-41` retries silently. Sketch: notify after 3 rapid restarts, name the service, offer Retry/Report.
+
+7. **No failure counting / self-diagnosis.** Zero `NRestarts`/`RestartCount` reads in the tree; `bridge/health-check.py:43-97` has only space/failed-units/writable/tools checks. Sketch: add a check reading `systemctl show -p NRestarts shani-chronoa-bridge` and per-bridge counters.
+
+8. **Unsaved editor content lost on crash.** `Services/TextDocs.qml:42-86` persists only open *paths* in `text-editor-session.json`; buffers are memory-only. Sketch: autosave dirty buffers to XDG state every 30s, offer restore at next start.
+
+9. **No "desktop restarted" signal.** Nothing records an abnormal previous exit. Sketch: clean-shutdown marker; if absent at start, toast + open diagnostics.
+
+10. **No crash dumps.** No coredump config anywhere; a Quickshell segfault leaves no backtrace. Sketch: enable systemd-coredump and list it in the report.
+
+11. **Problem report lacks crash specifics.** `bridge/system-report.py:100-140` has journald errors (this + previous boot) and failed units, but no per-bridge unit logs, restart counts, or coredumps. Sketch: add a "Crashes" section (`journalctl -u shani-chronoa-bridge`, `coredumpctl list`).
+
+12. **No automated or crash-triggered reporting.** The report is a manual button in `Modules/Settings/SettingsAbout.qml:59-75`; nothing sends or prompts after a crash. Sketch: on abnormal restart offer "Send diagnostics?" behind explicit consent.
+
+13. **Half-dead bridge is invisible.** The bridge implements `ping` (`chronoa-bridge.py:206-207`) but `Bridge.qml` never sends one; a stuck event loop with an open socket looks healthy. Sketch: 30s ping/pong, mark offline on missed pong.
+
+14. **Almost no diagnostic logging.** `Common/Log.qml:46` is the tree's only `console.log`; `Log.scoped` appears only twice in real code (`Services/Files.qml:27`, `Common/Proc.qml:24`). Silent `catch(e){}` at `Bridge.qml:32`, `Plugged.qml:253`, `chronoa-bridge.py:395`. Sketch: route catches through scoped loggers.
+
+15. **Unbounded dev logs / unconfigured journald.** `dev/session.sh:107,116-241` redirects every daemon to `$L/*.log` with no rotation; no `journald.conf` ships with the product. Sketch: logrotate in dev, journald size caps in image.
+
+16. **Socket unlink race on restart.** `chronoa-bridge.py:419-423` unconditionally unlinks the socket; a fast systemd restart with a lingering old process can remove the live socket. Sketch: bind-then-replace, or check owner.
+
+## Comparison (Q7)
+
+GNOME restarts gnome-shell via the session unit and feeds crashes to ABRT/gnome-abrt with a triaged report; KDE's DrKonqi shows a backtrace dialog with "restart application" and bug-report actions; Windows Reliability Monitor gives a chronological crash timeline; macOS Crash Reporter writes per-app `.ips` reports. Shani has restart-on-failure, a manual text report, and none of the dialog, timeline, backtrace, or consented sending.
+
+Skipped: no dynamic reproduction, no systemd/Quickshell internals verified beyond source, no changes made. Main risk: Quickshell's `Process` restart semantics are inferred from `LauncherEntries.qml`'s explicit retry, not confirmed against upstream docs.
+
+## VERBATIM: Multi-monitor display edge cases
+
+# Ninth-pass gap research — multi-monitor & display hotplug edge cases
+
+**Static only.** Skipped per instructions: per-monitor wallpaper/scale, EDID, hotplug workspace-placement restore, arrangement profiles, named monitor targets, swap-monitors limits, fractional scaling. Also skipped: Ruler "grim all outputs" and Magnifier "cross-monitor" (already in GAPS.md capture-tools section) — but the *mixed-scale* angle below is new.
+
+## Shell-fixable (ranked by value × ease)
+
+**S1. Window previews use logical geometry for a physical-pixel capture.** `WindowPreview.qml:27-34` derives the `grim -g` rect from `Displays.outputs` `x/y/width/height` — which are niri's **logical** pixels (`Displays.qml:241-243`) — plus `tile_pos_in_workspace_view`; `grim` expects **physical** pixels. On any scaled output (1x+2x) the rect is half-size/wrong origin. Worse, `Dock.qml:530` passes `Niri.focusedOutput`, not the window's own output, so hovering a dock tile on monitor B for a window on monitor A uses A's origin. *Sketch: multiply rect by that output's scale and pass the window's `output`/`win` workspace output.*
+
+**S2. Ruler's pixel ratio comes from an arbitrary monitor.** `Ruler.qml:37-41` sets `ratio` once from `Displays.outputs[0].scale` (outputs are sorted by connector name, `Displays.qml:232`), while `grim "$1"` (`:63`) captures a **composite of all outputs** and `RulerPanel.qml:27-35` fits that whole composite into the *focused* screen. On mixed scale or portrait+landscape, both the fit and the ratio are wrong. *Sketch: `grim -o <focusedOutput>`, set `ratio` from that same output.*
+
+**S3. A monitor greeted while locked is never greeted after unlock.** `Plugged.qml:72` drops greetings when `Lock.locked` *before* marking `seen`; `onArrived` (`:245`) fires once, and `Displays.known` (`Displays.qml:257-263`) already contains the output, so no replay. Plug a monitor at the lock screen → no Extend/Mirror prompt, ever. *Sketch: queue arrivals while locked, flush on `Lock.unlocked()`.*
+
+**S4. Presenting survives unplugging its source.** `Plugged.qml:164-171` only ends presentation when `presenting.output` (the target) departs; if the mirrored-from monitor is unplugged, `wl-mirror` keeps a dead source while DND and caffeine stay on. *Sketch: also end on source departure, or track source explicitly.*
+
+**S5. Focus-following single surfaces teleport between monitors.** ~30 surfaces bind `screen: find(name===Niri.focusedOutput) || screens[0]` (e.g. `Island.qml:26`, `Osd.qml:213`, `Launcher.qml:32`, `WindowMenu.qml:18`, `shell.qml:203`). A Chronoa approval card, launcher, or control centre open on monitor A jumps to B when focus changes; if the focused output is unplugged, everything falls back to `screens[0]`. *Sketch: sticky output per open surface (capture `Ui.screen` at open, re-anchor only if that output departs).*
+
+**S6. Lid close produces no shell behaviour.** `InputConfig.qml:137-138` forwards lid events; `TabletMode.qml:27-28` only sets `lidClosed`, read by nothing but the test state dump (`shell.qml:1154`). With `HandleLidSwitchExternalPower=ignore` (`shani-admin.py:265`, docked), closing the lid on an external monitor leaves the internal panel logically on, focus untouched, idle unchanged. *Sketch: on lid-close with external outputs, turn off internal output + focus external + re-arm idle.*
+
+**S7. "minimised" is one global workspace name across all outputs.** `Niri.qml:92-94` finds the *first* workspace named `minimised`; `minimise()` (`:96-114`) moves windows there by name. With 2+ outputs, minimising on the non-first monitor moves windows to the other monitor's hidden workspace, and `isMinimised()` then hides them from both bars. *Sketch: keep a per-output hidden workspace (`minimised:<output>`).*
+
+**S8. "Extend" assumes a landscape right-hand neighbour.** `Plugged.qml:180-181` sets `x = max(right edge), y = 0` unconditionally; a portrait monitor beside a landscape one is top-aligned, not centred, and there is no left/above choice. *Sketch: centre on `y`, offer side via setting.*
+
+**S9. Dock layout swaps behind the lock, and only has two states.** `Docking.qml:25-29,41` follows `Displays.outputs` hotplug with no `Lock.locked` guard, so bar/dock/gaps change while locked; all 3+ monitor setups collapse to "docked". *Sketch: defer `follow()` until unlock; key layout by output-set.*
+
+**S10. Per-monitor wallpaper is dropped on the lock screen and overview.** `LockScreen.qml:205` and the overview backdrop `Wallpaper.qml:38` both use the global `Theme.wallpaper`, while the live background honours `wallpapersByMonitor` (`Wallpaper.qml:66-73`). Locked/overview shows one picture on every monitor. *Sketch: use the same `wanted` resolver with the surface's output name.*
+
+**S11. Magnifier shows a stale frame after focus moves.** `Magnifier.qml:18` rebinds `screen` to the focused output, but `grab()` (`:36-48`) runs only on open/right-click; switching monitors keeps the old monitor's frozen frame under the loupe. *Sketch: `onScreenChanged: grab()` and reset `at`.*
+
+**S12. `Quickshell.screens` and `Displays.outputs` desync during hotplug.** Per-output layers are built from `Quickshell.screens` (`Bar.qml:21`, `Wallpaper.qml:20`, `Dock` via `shell.qml:101`) but read geometry from `Displays.outputs` (`Bar.qml:211-212,296`), which lags niri's rescan (`Displays.qml:214-219`). A brand-new output briefly gets a bar/wallpaper with width 0. *Sketch: guard geometry bindings until `Displays.outputs` contains the output.*
+
+## niri / compositor-level (not shell-fixable)
+
+**N1. "Mirror" is a fullscreen `wl-mirror` window, not a cloned output.** `Displays.qml:169-177`, `Plugged.qml:154-161`. It inherits niri's per-output mode/refresh and cannot honour independent VRR; projector mirroring with mixed refresh or resolution is fundamentally limited.
+
+**N2. No audio routing for presentation mode.** `present()` toggles DND/caffeine only (`Plugged.qml:159-160`); nothing routes sound to the projector's HDMI sink. Needs a PipeWire sink choice tied to the output.
+
+**N3. Idle screen-off is all-or-nothing.** `Idle.qml:119` issues `power-off-monitors` globally; no per-output dim/off, so a presentation cannot keep one screen awake.
+
+**N4. Refresh/VRR/scale values are per-output in config only.** `Displays.qml:126-167` writes `mode`/`scale`/`variable-refresh-rate` per output, but niri applies them on reload with no "applied" event — the shell polls 4× over ~4 s (`:211-219`), so mixed-rate/VRR changes can briefly disagree with reality.
+
+**Risk / not checked:** no runtime or multi-monitor hardware available; all findings are static. The highest-value fixes (S1, S2) need a real 1x+2x setup to confirm which coordinate space niri reports in `tile_pos_in_workspace_view` — if niri already reports physical pixels there, only the output-origin term of S1 is wrong.
+
+## VERBATIM: Network protocol depth
+
+I've read all seven passes plus ECOSYSTEM.md and voltkit-alignment.md, and verified candidates against the actual tree (Writing Tools, long-press quick tiles, Live Activities, blur/glass, focus app-allowlist and named-panel ideas are already built or filed — excluded). Here is the eighth-pass report.
+
+[NOTE: the following is the ninth-pass NETWORK PROTOCOL report, filed here verbatim.]
+
+I've read all seven gap files (GAPS.md 1885 lines, GAPS-RESEARCH.md 772 lines), skipped the listed items, and read the six bridges plus Net/Proxy/Updates QML and the deploy downloader. Static only; no runtime/network verification.
+
+# Ninth-pass protocol-level gaps (ranked by value × ease)
+
+## Shell-fixable (bridge/QML change only)
+
+**S1. SMTP uses implicit TLS on STARTTLS port 587.** `bridge/mail.py:631` defaults port 587, `:645-648` defaults `ssl:true` → `SMTP_SSL` (465-style) on a submission port that expects STARTTLS; most providers reject. Sketch: key TLS mode off port (465=SMTP_SSL, 587/25=STARTTLS), fail closed.
+
+**S2. STARTTLS optional → credentials sent in clear.** `mail.py:653-661` calls `s.login()` even when the server has no STARTTLS; `mail.py:381-386` opens plain `IMAP4` (port 143 path) and LOGINs with no STARTTLS at all. Sketch: require `starttls()` for non-loopback hosts, abort if unavailable.
+
+**S3. UID/sequence-number mix makes search results unclickable.** `imap_search:462,466` returns real UIDs via `box.uid(...)`, but `imap_read:493`, `imap_flag:524`, `imap_move:538`, `imap_delete:605`, `imap_source:553`, `imap_attachment_data:567` treat that ID as a *sequence* number via `box.fetch/store`. Acting on a hit can flag the wrong message. Sketch: use `box.uid()` everywhere; keep one ID space.
+
+**S4. Feeds never send conditional GET.** `feeds.py:140-149` sends no `If-None-Match`/`If-Modified-Since`; `refresh_one:254-260` stores no ETag/Last-Modified, so every refresh re-downloads full bodies and 304 handling is impossible. Sketch: persist validators, send them, treat 304 as no-op.
+
+**S5. No OAuth2/XOAUTH2 anywhere.** `password():81-96` returns only `$SHANI_MAIL_PASSWORD`/`secret-tool` plaintext; `:385-386` and `:649-660` use bare LOGIN. Google/Microsoft/modern iCloud accounts are unreachable without an app password. Sketch: add `box.authenticate("XOAUTH2", ...)` and a token source (see D1).
+
+**S6. No DKIM/SPF/DMARC result shown.** `imap_read:503-512` and `mh_read:321-330` return only from/to/subject/date/text — `Authentication-Results` and `Received-SPF` are discarded. Sketch: parse `Authentication-Results` into a `auth` badge field.
+
+**S7. RSS `content:encoded` and full Atom content lost.** `parse_feed:180-186` searches plain/ATOM namespaces, never `http://purl.org/rss/1.0/modules/content/`, so full-text feeds fall back to a short `<description>`. Sketch: add the content namespace to the lookup chain.
+
+**S8. No S/MIME or PGP handling.** `bodies_of:164-179` only walks `text/plain` and `text/html`; `multipart/signed`, `application/pgp-encrypted` and `application/pkcs7-mime` parts are silently ignored. Sketch: detect signed/encrypted parts and either decrypt via gpg or show an explicit "encrypted, unsupported" state.
+
+**S9. Folder LIST parsing assumes `/` delimiter and unescaped names.** `imap_folders:397` splits on the literal `' "/" '`; `:401` quotes with naive `'"%s"' % name`. Servers using `.`, or names containing `"`/`\`, fail. Sketch: parse the LIST tuple properly and use `imaplib`'s quoting.
+
+**S10. Full-message refetch on every list; no cache/UIDVALIDITY/CONDSTORE.** `imap_list:425` does `BODY.PEEK[]` for the last 100 messages per folder on each open; no Maildir cache, no UIDVALIDITY, no CONDSTORE/QRESYNC. Sketch: cache headers+snippets locally, fetch `FLAGS`+header only, track UIDVALIDITY.
+
+**S11. No attendee RSVP roundtrip.** `events:151-152` hardcodes `organizer=""` and `needsAction=False`; `_ical_text:391-420` emits REQUEST/ATTENDEE but nothing reads `PARTSTAT`/`RSVP` or emits an iTIP REPLY. Edits/deletes (`:509-519`, `:506-508`) never bump `SEQUENCE` or send CANCEL/updated REQUEST. Sketch: parse ATTENDEE state, add accept/decline → `METHOD:REPLY`, increment SEQUENCE on edit.
+
+**S12. Webcal subscriptions unsupported.** `account_add:551-598` accepts only `http(s)` WebDAV collections; no `webcal://` and no `SOURCE_EXTENSION_WEBCAL` path. Sketch: accept `webcal:` → `https:`, create a webcal source.
+
+**S13. SFTP host-key trust-on-first-use + no key management.** `connect_sshfs:1402-1427` uses `StrictHostKeyChecking=accept-new` (blindly trusts an unknown host, MITM on first connect) and `BatchMode=yes`, with no identity-file picker, no encrypted-key passphrase path, no known_hosts review. Sketch: `StrictHostKeyChecking=ask` with a fingerprint prompt exposed to QML; add `-i` key selection.
+
+**S14. Proxy bypass list is hardcoded.** `Proxy.qml:24` writes `no_proxy=localhost,127.0.0.1,::1`; `Common/Settings.qml:470-471` exposes only `proxySocks`/`proxyPac` — no user-editable bypass list. Sketch: add `proxyNoProxy` setting and interpolate it into the environment.d line.
+
+**S15. Radio stations from a third-party directory played without scheme validation or metadata.** `Radio.qml:95` fetches over `curl -sf`; `:119` plays `s.url` straight from the directory with no allow-list (plain `http://` ICECAST allowed), and no ICY/Shoutcast now-playing metadata or redirect display. Sketch: require https-or-explicit-opt-in, surface stream title.
+
+## Needs server/daemon or privileged helper
+
+**D1. OAuth2 token acquisition/refresh.** `agenda.py:551-598` stores a one-shot password (`store_password_sync`) with `auth.set_method("plain/password")` at `:572`; no refresh-token flow, so expired credentials leave EDS waiting on a prompt nobody shows. Needs a token-refresh daemon/keyring integration.
+
+**D2. CalDAV sync conflict resolution.** `agenda.py:445-519` calls `create/modify/remove_object_sync` with no ETag/If-Match or conflict surfacing — concurrent edits from another device silently overwrite. EDS holds the sync state; needs EDS/daemon-level conflict reporting plus a UI.
+
+**D3. Files network protocol depth.** `files.py:1328` accepts `nfs://` though gvfs has no NFS backend (generic failure); `:1332-1342` only feeds user/domain/password to `gio mount`, with no SMB dialect (SMB2/3 vs SMB1) or Kerberos/GSSAPI choice, and no WebDAV auth-method selection. Needs privileged `mount`/gvfs options.
+
+**D4. rclone backend config and encryption.** `files.py:1207,1266` only *detects* existing rclone FUSE mounts; there is no backend config UI, no `rclone crypt`/`rclone config --password` path. Needs a config daemon/service.
+
+**D5. Per-app proxy.** `Proxy.qml` sets only system-wide gsettings/env; `flatperm.py` has no proxy key. Needs Flatpak/system proxy configuration at the daemon layer (alongside the already-listed "proxy never reaches bridges").
+
+**Skipped:** all eight passes' listed items (Cc/Bcc, attachments, IMAP timeout, account import, ODRS, OPML categories, CalDAV/CardDAV import, proxy→bridges). **Risk:** S3 (UID bug) can target the wrong message once a user searches then flags; S1/S2 are credential-exposure and connection-failure risks. Every finding is from source reading — no live IMAP/CalDAV/SMB/OAuth server was contacted.
+
+## VERBATIM: Audio routing and PipeWire graph depth
+
+# Ninth-pass research — audio routing & PipeWire graph depth (static only)
+
+### Corrections first (the topic brief was stale — do NOT re-file these)
+
+- **10-band EQ, bass boost, compressor, loudness (EBU R128), stereo width/mono, crossfeed, spatialiser, AutoEq, impulse response are all built** — `shani/Modules/Settings/SettingsSound.qml:105-263`, `shani/Services/SoundFx.qml:83-160`. GAPS.md:545 and the brief's "equalizer missing" are obsolete.
+- **Device switching on plug-in/BT-connect is delegated to WirePlumber and OSD-reported** — `shani/Services/Audio.qml:137-161`.
+- **Per-app volume mixer and per-app output routing exist in code**: mixer `shani/Modules/ControlCenter/SidebarSliders.qml:73-93`; routing helper `Audio.moveStream()` via `pw-metadata target.object` at `Audio.qml:95-103`.
+- **RNNoise mic suppression** at `SoundFx.qml:232-291`. **Wake word / TTS voice** remain noted only (`SettingsChronoa.qml:37`, `GAPS.md:1803`; `Speak.qml:25` hardcodes spd-say/espeak). Skipped per instructions: BT codecs, mic AGC, loopback, per-sink delay, sound theme, record-what-system-plays.
+
+### Shell-fixable gaps (ranked value × ease)
+
+1. **Per-app output picker absent from the mixer.** `Audio.moveStream()` exists but app rows only expose volume/mute (`SidebarSliders.qml:75-92`). *Sketch: add a sink dropdown per app row calling `Audio.moveStream(modelData, sink)`.*
+2. **Echo cancellation is detection-only.** `echo_cancel_active()` never enables anything (`bridge/shani_link/audio.py:66-81`; `bt_telephony.py:276-291`). *Sketch: mirror the RNNoise filter-chain pattern (`SoundFx.qml:238-291`) with an AEC fragment + Settings toggle; the report must stop listing it as missing.*
+3. **No separate mic monitoring level.** Mic slider is capture gain only (`SidebarSliders.qml:31-48`). *Sketch: monitoring slider over a monitor source + loopback, default off.*
+4. **Lock-screen media controls are shallow.** Only prev/play/next and art (`LockScreen.qml:416-445`); sidebar has player switching + seek (`SidebarNowPlaying.qml:80-92`). *Sketch: reuse the sidebar card, add seek bar, volume, `Media.cycle()`.*
+5. **Media keys follow a sticky preferred player.** `Media.current = preferred || playing || first` (`Services/Media.qml:13-15`); a newly-starting player is ignored while a preference is stored. *Sketch: prefer `isPlaying` unless pinned this session.*
+6. **No limiter / true-peak ceiling.** 150 % over-amplification distorts; only a compressor exists (`SettingsSound.qml:56,248-263`). *Sketch: append a LADSPA limiter to the filter chain (`SoundFx.qml:83-160`).*
+7. **No notification/media ducking.** No `duck` reference outside URLs/search engines (grep). *Sketch: lower `Audio.players` gains briefly on notification/call via Settings toggle.*
+8. **Recording has no latency compensation or live monitoring.** Desktop+mic are muxed after capture (`Services/Recorder.qml:44,50-60`); voice recorder uses `pw-record` with no monitor (`VoiceRecorder.qml:65-66`). *Sketch: expose `adelay` offset + a monitor toggle.*
+9. **Channel remap/swap not exposed.** Only L/R balance (`Audio.qml:110-135`); a mono remap sink is created in `Services/Access.qml:35-42`. *Sketch: add channel_map choices to that remap module.*
+10. **Album-art fallback missing.** `trackArtUrl` used raw (`SidebarNowPlaying.qml:62`, `LockScreen.qml:418`); empty/embedded-only art shows a blank tile. *Sketch: media-app icon fallback + small cache.*
+11. **Wake word is a label, not a control.** Only "wake word" text pointing into Chronoa (`SettingsChronoa.qml:37`); no in-shell always-listening state. *Sketch: either expose real enable/phrase controls or mark explicitly delegated.*
+
+### PipeWire/daemon-level gaps
+
+12. **A2DP↔HFP auto-switch on mic use.** `set_profile()` exists and is correct (`bt_telephony.py:338-360`), and card profiles appear in Settings (`SettingsSound.qml:78-103`), but switching is manual/skill-driven; no WirePlumber policy reacting to capture start. *Needs a wireplumber Lua policy script.*
+13. **Beamforming for mic arrays.** No `module-beamforming`/spatial filter anywhere; only single-source RNNoise (`SoundFx.qml:250`). *Needs hardware-specific filter-chain config, not a shell toggle.*
+14. **No virtual sink/source or device-combining UI.** Only the accessibility mono remap (`Access.qml:39`). *Needs `module-combine-sink`/null-sink management exposed via shell commands.*
+15. **No PipeWire graph viewer or arbitrary patching UI.** `Audio.qml:87-94` reads `linkGroups` internally only. *Needs a graph panel driving `pw-link` / `pw-dump` (daemon tooling, large).*
+16. **Per-app recording.** Recorder captures the whole-output monitor or default source only (`Recorder.qml:44,51`). *Needs per-stream `target.object` capture via PipeWire policy.*
+17. **TTS voice selection** confirmed unbuilt (`Speak.qml:25`); needs speech-dispatcher/espeak voice enumeration, not just UI.
+
+**Highest value × ease:** #1 (routing UI already has the helper), #2 (filter-chain pattern already in repo), #3, #4.
+
+**Skipped/not checked:** no runtime/hardware verification — AEC availability, Beamforming hardware, and HFP negotiation were assessed only from static source and the existing reports. Risk: #1's `moveStream` relies on WirePlumber honouring `target.object`; confirm on real hardware before shipping.
+
+## VERBATIM: Developer tooling experience
+
+# Ninth-pass gap research — developer/tooling experience for people extending the shell
+
+All findings below are new vs. the eight passes (the only prior statement was one line in `docs/GAPS.md:1286` / `docs/GAPS-RESEARCH.md:481`: "no IPC reference/stability contract"). Static only. Ranked by value × ease.
+
+## Hot reload
+
+**1. No QML reload — every edit needs a full shell restart.** `dev/session.sh:241` starts `qs -p /work/shani` once; `dev/render.sh:124-132` literally `pkill -f 'qs -c shani'` then re-sources `dev/session.sh`. The only "live reload" in the repo is settings data (`Common/Settings.qml:1-4` watches its JSON file) — not QML source. *Sketch:* add a dev-only `shani ipc call shani reloadUi` that restarts just `qs`, or a watcher OnQmlChanged calling it.
+
+## Debugging
+
+**2. No IPC call tracer.** The `IpcHandler` has **519 functions** (`shani/shell.qml:258`, count to end); none logs invocation, args or result. *Sketch:* wrap calls in `Log.scoped("IPC").debug(name, args)` behind `SHANI_LOG=IPC:debug`.
+
+**3. The in-code logger is effectively unused.** `Common/Log.qml:1-57` defines `SHANI_LOG` filtering, but `Log.scoped` appears only twice in real code (`Services/Files.qml:27`, `Common/Proc.qml:24`); `console.log`/`warn` total 4 across all of `shani/`. A developer editing a Service has near-zero runtime visibility by default. *Sketch:* adopt `Log.scoped` at Service entry points and document the filters.
+
+**4. No in-shell view of the shell's own diagnostics.** `Modules/Logs/LogsPanel.qml:1` reads `journalctl` — system logs, not `qs.log`. QML output goes to `out/logs/qs.log`, bridge stderr to `out/logs/bridge.log` (`dev/session.sh:193,241`), readable only by leaving the GUI. `chronoa-bridge.py:450` prints just `bridge up: …`, no request log. *Sketch:* add `shani logs --follow` or a dev overlay tailing both files.
+
+**5. No programmatic discovery of IPC functions beyond one fixed blob.** `state()` (`shell.qml:998`) returns a hand-picked JSON of UI state; no `listIpc`/`help`/`describe`. `bin/shani call` requires knowing the exact name; `shani ipc list` (a Quickshell builtin) is not surfaced. *Sketch:* add `IpcHandler.listFunctions()` or `shani call --list` that exposes reflection.
+
+## Scaffold / boilerplate
+
+**6. No scaffold command for a new app / module / service / bridge.** The only generator is `tools/i18n.py extract → template.json` (`tools/i18n.py:64`). *Sketch:* `dev/new.sh <name>` emitting a `pragma Singleton` + bridge docstring + test stub.
+
+**7. Adding one IPC call means three manual edits.** Define it in `shell.qml:258`, add it to `bin/shani` `GROUPS` and the `_register()` table (`bin/shani:769`), then a test. No codegen keeps them in sync. *Sketch:* `dev/gen-cli.py` producing `_register()` from `qs ipc list` or a single manifest.
+
+**8. A shell "app" has no single registry.** It must be added to the hardcoded `APPS` dict (`bin/shani:425`), a `Ui` boolean, an IpcHandler function, a `state()` line, and the launcher modules. *Sketch:* `shani/apps/*.json` consumed by CLI, PKGBUILD `--write-desktop` (`bin/shani:598-640`), and shell.
+
+## API docs / discoverability
+
+**9. Common components and Services singletons have no contract docs.** ~60 files in each of `shani/Common/` and `shani/Services/`; the only developer description is the prose layout list (`README.md:291-318`). *Sketch:* one-line "properties/signals/contract" header per singleton, or `docs/API.md`.
+
+**10. Bridge command contracts exist only as per-file docstrings.** e.g. `bridge/tasks.py:1-12`, `bridge/cleanup.py:1-9`; no aggregate authored-facing guide and no version marker in any of the ~70 bridges. *Sketch:* `tools/gen-bridge-docs.py` extracting the docstrings into `docs/BRIDGES.md`.
+
+## Testing
+
+**11. No QML unit-test harness.** `tests/` is pytest only: static regex checks (`tests/test_qml_patterns.py:1`), subprocess bridge tests, and full-shell IPC integration. No `qmltestrunner`, `TestCase` or `SignalSpy` anywhere (`grep` of tests/dev/Containerfile: none). A developer cannot unit-test a new QML component. *Sketch:* add `qmltestrunner` to `dev/Containerfile` + a `qml` suite in `dev/check.sh`.
+
+**12. No per-component test template.** Even the fluent pattern — a bridge test like `tests/test_devwatch.py` — must be hand-copied; there is no `tests/templates/` or `check.sh unit <name>` shortcut. *Sketch:* ship a copy-me `tests/test_<name>.py` and QML `TestCase` stub.
+
+**13. Dev loop is container-only.** `dev/check.sh:56-84` builds/needs Docker plus a sibling `$SHANI_DESKTOP_NIRI` and `shani-testbed`; no documented host-native `qs -c shani` development path (the symlink at `README.md:323` assumes a live session). *Sketch:* document a minimal host env for QML-only iteration.
+
+## Packaging for testing
+
+**14. Dev install only symlinks QML.** `README.md:323` links `shani/`; Python bridges are installed to `/usr/lib/shani-shell` by the PKGBUILD (`../shani-pkgbuilds/shani-shell/PKGBUILD:164`). `dev/session.sh` compensates with `SHANI_*_TOOL=/work/bridge/...` env vars for tests only — nothing installs a modified bridge for real use. *Sketch:* `dev/install.sh` symlinking `bridge/` and `bin/` into packaged paths.
+
+**15. PKGBUILD is pinned to a git commit — no local-checkout build.** `PKGBUILD:126` `source=(git+…#commit=4772748…)`; no documented override to build the working tree. *Sketch:* `dev/pkg.sh` with `source=("$PWD")` and `pkgver` from git.
+
+**16. No checklist of files a feature must touch.** PKGBUILD installs QML by `cp -r shani` (`:136`), bridges by glob (`:164`), desktop entries via `--write-desktop` (`:197`), plus ad-hoc PAM/systemd/wallpaper lines. Adding a systemd-activated bridge or new asset has no documented packaging step. *Sketch:* `docs/PACKAGING.md` mapping source paths → installed paths.
+
+## Versioning
+
+**17. No API version for IPC or bridges.** `pkgver=0.1.0` and `/etc/shani-version` are product versions; no `SHANI_IPC_VERSION`, bridge `--version`, or deprecation field anywhere. External tools cannot pin a contract. *Sketch:* a version constant in `shell.qml`, expose it in `state()`, print it from `bin/shani --version` and each bridge `--version`.
+
+Skipped: CONTRIBUTING/CI/theme-pack/Settings-hardcoding/man-page/command-palette (already listed), and the generic "no IPC reference" line — this pass is strictly about the *extension* workflow. Risk: all findings are static; no QML runtime or container was used, so the absence of a reload mechanism is inferred from scripts, not observed.
+
+## VERBATIM: Config migration and versioning
+
+# Ninth-pass gaps: configuration migration & versioning across updates
+
+Read GAPS.md and GAPS-RESEARCH.md; skipped the four listed items. Static only. Nothing edited. Ranked by value × ease.
+
+## High value, cheap
+
+**1. No schema version exists in any state file — only a release-notification marker.** `Settings.qml:1-6` documents the JSON format with no version; `feeds.py:45-77` (`CONF`, `subs()`, `conf()`), `mail.py:44-56`, `music-library.py:124-130` all use bare dict shapes. The only version-ish state is `WhatsNew.qml:20-34` (`/etc/shani-version` + `whats-new-last.txt`) — a "tell me once" flag, not schema. Sketch: add `_schema: N` to every writer, a `migrate(obj, version)` dispatcher on every load, and quarantine unknown-future versions.
+
+**2. Existing users never receive changed defaults.** "Created on first change" (`Settings.qml:2`) is misleading: `writeAdapter()` (`:118`) writes *all* ~300 keys at once — asserted by `dev/shell-test.sh:266-267` (`"caffeine": false` appears after toggling it). `applyOutside` (`:101-105`) always prefers the file value over `defaults[k]`, so a release that changes an existing default is invisible to anyone who ever toggled one setting. Sketch: persist a `touched[]` set; re-apply new defaults only to untouched keys, gated on a settings schema version bump.
+
+**3. Renamed/removed keys are neither migrated nor cleaned.** The only historical transform is a one-off `dockAutoHide → dockVisibility` (`:98-100`). `applyOutside` loops `Object.keys(defaults)` only (`:101`); `snapshot()` enumerates every adapter key (`:39-48`) and `SettingsPage.qml:101-107` `resetAll()` also loops defaults only — stale keys survive even a full reset, and a renamed key silently loses its value. Sketch: a `retiredKeys` map of `{rename, transform, drop}` applied in `applyOutside` and `resetAll`.
+
+**4. Corrupted `settings.json` is the only file with a safety net.** `Settings.qml:141-152` copies to `.unreadable-<ts>` and notifies. Every other loader silently resets: `ScreenTime.qml:85`, `Launcher.qml:122`, `Shelf.qml:33`, `PlayQueue.qml:70`, `Clipboard.qml:26`, `Notifs.qml:169,214`, `Reopen.qml:78`, `Weather.qml:28`, `VoiceRecorder.qml:53`, `TextDocs.qml:95`, `Updates.qml:34`, `Tr.qml:70,79` (~14 QML sites) and `feeds.py:60-65`, `mail.py:50-56`, `music-library.py:129-130,198-199`, `PhotosWindow.qml:82`. Sketch: one shared quarantine-and-notify helper used by all state loaders.
+
+**5. Most of those same files are written non-atomically.** Only `Settings.qml:137`, `Updates.qml:33`, `Notifs.qml:208` set `atomicWrites: true`. `ScreenTime.qml:81-53`, `Shelf.qml:29`, `PlayQueue.qml:66/72`, `Weather.qml:22/34`, `Reopen.qml:72/93`, `Notifs.qml:165`, `Launcher.qml:119`, `PhotosWindow.qml:56` (plain `open("w")`) don't. Crash mid-write → corrupt JSON → gap 4 → permanent loss of screen-time/app-usage history. Sketch: set `atomicWrites: true` on every state `FileView`; tmp+`os.replace` in `metaWriteCode`.
+
+**6. Corrupt `feeds.json` / `mail.json` destroy subscriptions and account config.** `feeds.py:60-65` catches `Exception` and returns the default; `_save` (`:68-75`) then overwrites it. `mail.py:50-56` same. This is irrecoverable user data, unlike the regenerable library cache. Sketch: quarantine bytes + toast before returning default.
+
+**7. No downgrade migration across blue-green rollback.** `/home` is a separate subvolume (`gen-efi.sh:658` mounts `subvol=@blue|green`; `shani-reset.sh:21-24` confirms `/home` separate), so `~/.config/shani-shell/settings.json` outlives both slots. A setting written by the new version is read verbatim by the old one; no compat check or downgrade transform exists anywhere. Sketch: stamp settings with the writing version; on startup, if writer > current, quarantine or run a reverse transform.
+
+## Medium
+
+**8. Pre-deploy home snapshots aren't version-labelled and only two are kept.** `shani-backup/home.py:131` names them `predeploy-<timestamp>`, `:229-244` keeps 2; `shani-deploy.sh:73-75`, `shani-snapshot-home.sh:5-13`. To roll settings back to a specific release you must guess which timestamp. Sketch: `predeploy-<version>-<ts>` and expose version in `home list --json`.
+
+**9. Factory reset preserves all per-user shell config/state.** `shani-reset.sh:21-27` explicitly leaves `/home` and `/root`; `shani-first-boot.sh:43-49` deliberately keeps theme/wallpaper. No scoped "reset just the shell" exists outside the in-app `Reset all settings` (which has gap 3). Sketch: `shani-reset --shell-config` clearing `~/.config/shani-shell` + `~/.local/state/shani*`, with dry-run listing.
+
+**10. Dev session doesn't isolate bridge state.** `dev/session.sh:44` redirects only `SHANI_SHELL_SETTINGS` and `XDG_CONFIG_HOME`; bridges derive paths from `HOME` (`feeds.py:45-46`, `mail.py:44`) and `Quickshell.statePath()` uses unset `XDG_STATE_HOME`. Test runs write real `/root/.config` and `/root/.local/state` files. Sketch: redirect the XDG state/data/cache roots to a scratch dir too.
+
+**11. No settings import from GNOME/KDE/COSMIC editions.** Export is one-way (`Appearance.qml:117`, `Access.qml:31` write gsettings); Setup has no importer; profiles are separate images (`shani-install-media/image_profiles/{gnome,plasma,cosmic}`). Sketch: a Setup page reading `dconf dump`/kconfig and mapping dark mode, accent, fonts, time format.
+
+**12. Wrong-but-valid JSON passes silently.** `feeds.py:70-73` calls `.get("feeds", [])` on any parsed type; `ScreenTime.qml:85` accepts any type as `days` then `Object.values` (`:17`); `Tasks.qml:75-86` assigns parse results unchecked. Sketch: type-check (`isinstance`/`Array.isArray`) and quarantine mismatches, not just parse errors.
+
+**13. No migration tests exist.** No test in `tests/` or `dev/` mentions version/migration/stale keys; `dev/shell-test.sh:33` writes a minimal file and `dev/session.sh:222-225` rewrites it wholesale. Sketch: `tests/test_settings_migration.py` with renamed/removed/unknown keys and a deliberately corrupt file.
+
+**14. State lives in four different roots with four different corruption stories.** Webapps in `settings.json` (`WebApps.qml:16`), photos in `~/.local/share/shani-photos/meta.json` (`PhotosWindow.qml:55`), notes in `~/Documents/Notes` + hidden `.trash/.history` (`QuickNotes.qml:38-51`), passkey registry inside a keyring secret (`passwords.py:325-344`). Sketch: one `shani-state` helper implementing version + quarantine for all.
+
+**15. Two different version files.** `shani-deploy` reads `/etc/shani-version` (`shani-deploy.sh:1547-1550`, `WhatsNew.qml:24`) while `shani-upgrade-adviser.sh:44-49` reads `/etc/shani/version`. Any future version-gated migration would read the wrong one on some systems. Sketch: one canonical path referenced by both.
+
+Skipped: runtime verification of rollback with real settings, and whether Quickshell's `JsonAdapter` keeps undeclared JSON keys as dynamic properties (the stale-key outcome differs slightly between "persisted forever" and "dropped on next save"; neither migrates). Risk: if you add a schema version, the pre-deploy snapshots only cover two updates, so a third update makes an older config unrecoverable.
+
+## VERBATIM: External-app interoperability
+
+# Ninth pass — external-app interoperability (static only)
+
+Read `GAPS.md` + `GAPS-RESEARCH.md` (8 passes). Skipped the parent's list (menus/AT-SPI, appmenu registrar, drag-out — built, RemoteDesktop portal, focus stealing, always-on-top) and items already filed elsewhere (mailto/geo handlers, "share into our apps", plain-text copy path — now `text/uri-list` at `Services/Files.qml:922`, grouped notifs, urgency-2 DND bypass, FileChooser-only portal, window thumbnails). What follows is new or materially deeper.
+
+## Shell-fixable — ranked by value × ease
+
+1. **Per-app rules cannot target a *named* workspace.** `SettingsWindows.qml:186` hardcodes `["","1"…"5"]`; the writer already emits any name (`WindowRules.qml:49`). A rule for a workspace called "chat" is impossible from Settings. *Sketch:* replace the Choice row with a free-text field populated from `niri msg workspaces`.
+
+2. **Window-rule UI covers ~6 of niri's ~25 rule properties.** `WindowRules.qml:40-55` emits only mode/workspace/output/size; border, `focus-ring`, `opacity`, `background-effect`, `geometry-corner-radius`, `draw-border-with-background`, `block-out-from` and dynamic `is-focused` rules are only global (`SettingsWindows.qml:29,101-117`) or in hand-written KDL (`etc/niri/config.kdl:104-178`). An opaque legacy X11 app cannot get "no border" or a screencast blackout from the shell. *Sketch:* add per-app border/blur/opacity picks plus an "advanced KDL" passthrough reusing `NiriConfig.write`.
+
+3. **No "screenshot this window" for an external app.** `Screenshots.qml:112` wires only `screenshot-screen`; `WindowMenu.qml` has no capture action. *Sketch:* add a menu item calling niri's window-capture action, then the existing annotate/copy pipeline.
+
+4. **Inbound drag accepts file URIs only.** `Files/FileDropArea.qml:14` `keys: ["text/uri-list"]`; `Common/DropZone.qml:86-89` checks only `hasUrls`. X11/xwayland-satellite apps (`shani-desktop-niri/PKGBUILD:15`) commonly offer `UTF8_STRING` / `text/plain;charset=utf-8` paths; GTK/GIMP/Firefox offer `image/png`. No target in Photos, QuickLook, Annotate, Text Editor or Mail compose accepts either. *Sketch:* accept `text/plain` paths and `image/*`, spool to a temp file, reuse `Files.importPath`.
+
+5. **DropZone trusts any URL scheme.** `Common/DropZone.qml:87-88` forwards all URLs; an `http://` drag from a browser becomes a bogus local path. *Sketch:* filter `file://`, decode URI.
+
+6. **Mail is a dead row in Default Apps.** `SettingsDefaultApps.qml:23` queries `x-scheme-handler/mailto`, but no installed entry declares it (`bin/shani:528` mail mimes `[]`; skel `mimeapps.list` has no mailto/message/rfc822) — the row can only say "No app installed". *Sketch:* register both types on `dev.shani.Mail` and seed a default.
+
+7. **No scheme handlers on any of our desktop entries.** `bin/shani:598-606` writes only `MimeType`; skel registers `magnet`/`dht`/`tel`/`ftp` to third parties but nothing for `mailto`, `geo`, `message/rfc822`, `web+*`. A link clicked in Vivaldi or a Flatpak never reaches our Mail/Maps. *Sketch:* add `x-scheme-handler/*` tokens to `APPS` mimes + default lines.
+
+8. **Minimise/restore forgets the original workspace.** `Niri.qml:117-122` restores to the *currently focused* workspace; `:139-150` show-desktop parks all windows in "minimised". An external app comes back on the wrong workspace after Show Desktop. *Sketch:* remember `workspace_id` per window at minimise and move it back on restore.
+
+9. **Flatpak portal notifications bypass our rule engine as first-class objects.** No code references `org.freedesktop.portal.Notification`; `niri-portals.conf` delegates `Notification=gtk`, and `NotifsRules.qml:49-78` matches `appName/summary/body` only. Relayed notifications may carry a different app id, so silent-app/rule matching can silently miss. *Sketch:* normalise relayed notifications by desktop id before `evaluate()`; verify with a real Flatpak chat app.
+
+10. **Snoozed notifications lose identity and actions.** `Notifs.qml:143-163` re-posts with `notify-send`, dropping the `desktopEntry` hint that drives badges (`Niri.countFor`, `:30,39`) and all actions; a snoozed chat can't be replied to. *Sketch:* persist the hint/action payload and re-post over D-Bus.
+
+11. **X11 PRIMARY selection is unsynced.** `etc/niri/config.kdl:100` runs `wl-clip-persist --clipboard regular` only — no `--primary`, no X clipboard manager. Middle-click text from an XWayland app never reaches Wayland apps or cliphist. *Sketch:* start a primary watcher and feed `clipboard-watch.sh`.
+
+12. **XWayland input-method env is incomplete.** `config.kdl:84-94` sets `XMODIFIERS`/`QT_IM_MODULE` but no `GTK_IM_MODULE`; `fcitx5-gtk` ships (`shani-input-fcitx5/PKGBUILD:13`). GTK apps under xwayland-satellite may not load the module. *Sketch:* add `GTK_IM_MODULE "fcitx"` and verify on a real GTK app.
+
+13. **Share sheet shells out instead of using portal Mail/Share.** `Share.qml:32` runs `xdg-email --attach`, `:35` `gio open`; `bridge/portal.py:35-42` implements only FileChooser. A Flatpak's Share intent or "Open with our Photos" cannot route through our sheet. *Sketch:* own portal Share/Email, or at least make `gio open` resolve to our apps via #7.
+
+## niri / portal-level (no shell fix)
+
+14. **Sharing one window to a Flatpak exposes the whole monitor.** portal-wlr 0.8.4 captures outputs only; `Niri.qml:240-264` manages casts globally with no per-window source. *Sketch:* portal-side window capture (upstream portal-wlr).
+
+15. **No compositor session manager**, so external X11 apps cannot veto/save on logout (already filed at compositor level; restated for this topic's completeness).
+
+16. **XWayland per-app scaling** is compositor-owned; `SettingsDisplays.qml` scales per output only. *Sketch:* niri-level Xwayland scale hint.
+
+**Skipped / not checked:** no runtime or real Flatpak/XWayland app was available — items 9, 12, 14 are static inferences needing a booted image. I did not re-audit the eight already-filed menu/portal/notification gaps beyond confirming their evidence still stands. Risk: niri's exact rule/action names and `screenshot-window` availability were not verified against the installed binary, so the sketches may need a `niri msg action` name check before coding.
+
+---
+
+# Eighth pass — VERBATIM agent reports
+
+## VERBATIM: Non-technical user documentation & UX
+
+# Eighth-pass audit — non-technical user documentation & UX
+
+Read: `overview.md`, `faq.md`, `troubleshooting.md`, `intro/*`, `install/*`, `system/{printing,backup}.md`, `updates/shani-reset.md`, `whats-new.md`, `setup/shell.qml` + `strings.js`, bridge/QML error strings, `index.html`. Static only. Items already fixed in prior passes (COSMIC, Translator name, dependency table, HTML stubs, whats-new refinements) skipped.
+
+**Ranked by value × ease (H/M/L).** Evidence is quoted with file:line.
+
+## A. Task orientation & onboarding (highest value)
+
+1. **(H/H) No "how do I…?" entry point.** `overview.md:120-133` "How to Use This Wiki" is a table of *internals* — "Concepts… Architecture deep-dives", "Boot process, Btrfs layout, dracut". A person asking "how do I connect a printer / back up my photos / share files / set up email" has no landing page. *Fix:* add a "Common tasks" card list linking the existing `system/printing`, `system/backup`, `networking/samba`, `servers/mail` pages.
+2. **(H/H) First steps are all terminal commands.** `intro/getting-started.md:104-158` "Recommended First Steps" = add Nix channel, `gen-efi enroll-tpm2`, `shani-deploy`, `flatpak install …`, `waydroid init`. *Fix:* lead with "open Software and search for an app"; label every terminal step "optional / advanced".
+3. **(H/H) "How do I install an app?" never names the GUI first.** `faq.md:43-50` answers with `flatpak install flathub`, `nix-env`, `distrobox create`, `podman run`. *Fix:* first line "Open the Software app and search — that is the normal way"; keep CLI below.
+4. **(H/H) Bug reports are developer-only.** `faq.md:332` "include the output of `uname -r`, `cat /etc/shani-version`, `cat /data/current-slot`, and relevant `journalctl` logs"; `troubleshooting.md:681-690` repeats the pattern. *Fix:* "tell us what you were doing and what you saw; attach a screenshot — or copy diagnostics from Cassini".
+5. **(H/M) Encryption choice explained as internals.** `install/steps.md:18` "Enable LUKS2 full-disk encryption (argon2id key derivation)". No consequence, no "can't change later". *Fix:* "Encrypt my files (recommended for laptops) — if the laptop is stolen, nobody can read your files. Remember the password; it cannot be changed later without reinstalling." (The reinstall consequence exists only later at `faq.md:263`.)
+6. **(H/M) Setup wizard omits encryption entirely.** `setup/shell.qml:36` pages are `welcome,keyboard,network,time,account,chronoa,done`; `setup/strings.js` has no encryption strings. The choice was made in the installer and never explained in plain language. *Fix:* one plain-language summary line on the account/"done" page: "Your files are/are not encrypted; change requires reinstall."
+7. **(M/H) Chronoa and account *are* explained well** — the one bright spot: `strings.js:13` "It runs on your own computer, with no cloud and no cost. Turn it off if you prefer"; `:31` "This account… can install software and change system settings." Use this as the template for findings 4–6.
+
+## B. Troubleshooting written as developer notes
+
+8. **(H/H) Fixes are command dumps, not "if X do Y".** `troubleshooting.md:28-49` "System Won't Boot" opens with six commands (`grep -o 'subvol=@[a-z]*'`, `ls /data/boot_failure`, `journalctl -b -1 -u mark-boot-in-progress.service…`) before telling the user the system usually recovered itself (stated at `:30`). *Fix:* lead "If the screen stays black after an update, reboot once — it usually fixes itself."
+9. **(H/M) Unexplained TTY.** `troubleshooting.md:81` "Switch to a TTY (Ctrl+Alt+F2 or F3) and log in". *Fix:* "Press Ctrl+Alt+F2 for a plain text login screen (Ctrl+Alt+F1 returns)."
+10. **(M/H) "If X, do Y" is used in places — copy that pattern.** `troubleshooting.md:291` "If you see 'Locked notes need gpg…', `gpg` is missing… Install `gnupg`…" and `first-boot.md:78-87`'s symptom table are the right shape; most other sections are not.
+11. **(M/M) Engineered correction note.** `troubleshooting.md:70-74` "There is no `shani-deploy --repair-boot`… gives `unrecognized option`" is useful but speaks flag names; no GUI alternative offered.
+12. **(M/M) Developer-speak fingerprint answer.** `faq.md:241` "the PAM service comes from the login manager… `plasma-login-manager` (`plasmalogin`), whose PAM services never reference `pam_fprintd`". *Fix:* "On GNOME your fingerprint works at login; on KDE only at the lock screen; on COSMIC it is not available yet."
+
+## C. Jargon without plain-language gloss
+
+13. **(M/H) Security section opener.** `overview.md:22` "Six Linux Security Modules run simultaneously (`lsm=landlock,lockdown,yama,integrity,apparmor,bpf`)… Intel ME kernel modules not blacklisted by default". *Fix:* one sentence "These are independent locks on the system; a fault in one does not open the others."
+14. **(M/H) Navigation table aimed at newcomers.** `overview.md:129` "**Security** | Polkit tiers, LUKS, TPM, AppArmor, Secure Boot, audit, hardening". *Fix:* "Password rules, disk encryption, fingerprint and secure boot."
+15. **(M/H) D-Bus / AT-SPI unexplained.** `overview.md:76` and `faq.md:147` "menus… read over D-Bus and AT-SPI". *Fix:* "the top bar reads the app's own menu" (keep the protocol names in parentheses for technicians).
+16. **(M/M) Jargon wall before the simple steps.** `system/printing.md:13-15` opens with CUPS, `ipp-usb`, eSCL/AirScan, WSD, SANE, `cups-pk-helper`, then only at `:20-26` says "Settings → Printers → Add Printer". *Fix:* move the GUI steps to the top and retitle the rest "Under the hood".
+17. **(M/M) Backup jargon.** `system/backup.md:138` "restic is fast, cryptographically secure, and content-addressed. Every file is deduplicated…". A GUI alternative exists at `:13` (Deja Dup/KBackup) but is buried after two pages of CLI. *Fix:* promote `:13` to the opening.
+18. **(L/M) Printing permission note.** `system/printing.md:87` "`cups-pk-helper` gates printer administration via Polkit". *Fix:* "Adding a printer asks for your password — that is normal."
+
+## D. Step completeness, safety, product errors
+
+19. **(H/H) Destructive restore with no warning.** `system/backup.md:95-98` "**Restoring the entire home directory**: `sudo btrfs subvolume delete /home`" — deletes today's files, said nowhere. *Fix:* "⚠️ This deletes all current files in your home; copy anything you still need first."
+20. **(M/H) Factory reset leads with mechanism, not consequence.** `updates/shani-reset.md:9` opens "`shani-reset` wipes all persistent system state stored in `/data`"; the irreversible warning is at `:52` and again at `:128`. *Fix:* open "This deletes your accounts, Wi-Fi passwords, and — with `--home` — every personal file. Back up first. It cannot be undone."
+21. **(M/M) Wrong-slot recovery lacks the plain outcome.** `troubleshooting.md:58-74`: steps plus an internal note, but never "your files are safe; only the OS version changes" until `:16` in the Golden Rule. *Fix:* repeat the reassurance in-section.
+22. **(M/M) Raw backend errors reach users.** `Passwords/…Window.qml:69` "The keyring could not be reached: %1" with raw JSON `error`; `SoftwareWindow.qml:203-207` passes `flatpak` "No such file / permission denied" text through; `bridge/cleanup.py:122,146` returns `r.stderr.strip()` / "flatpak is not installed"; `bridge/live-tv.py:306` returns `str(exc)`. *Fix:* small string maps to "That program isn't installed" / "Not allowed — run as Administrator".
+23. **(L/M) No glossary anywhere.** `index.html` has good a11y (skip link `:140`, search `:190-200`, font/theme buttons `:207-217`, `aria-label`s throughout) and no screenshots in docs (so no alt-text debt), but no term-definition page. *Fix:* one `docs/glossary.md` page linked from the home "Quick Links".
+
+**Skipped / risk:** I did not open a browser or run the site (static only), so rendering of the suggested card list is unverified; and I did not re-audit the six prior-pass topics. Highest-risk item is #19 — the restore command is genuinely data-destroying and currently unlabelled.
+
+## VERBATIM: Session lifecycle
+
+# Eighth-pass gap report — shell startup, shutdown & session lifecycle
+
+Static only. Skipped the seven passes' existing items (session-restore layout, eager startup processes, niri crash recovery, suspend-unlocked/security, lock-screen/lock gaps). All findings below are from current source, unverified at runtime.
+
+## Shell-fixable — ranked by value × ease
+
+1. **Shell-internal long jobs don't inhibit idle suspend.** `Idle.qml:97-101` only honours ext-idle-notify/`ScreenSaver` inhibitors; `Files.qml:534,676-680` exists solely to *schedule* suspend after a copy queue drains, and `Recorder.qml:94-102`/`convert.py` run ffmpeg with no inhibition. So idle `Power.suspend()` (`Idle.qml:121-125`) can cut a copy, conversion or download mid-write. Sketch: when `_jobs.length>0 || VoiceRecorder.recording || Convert.busy`, arm the existing `logind.Inhibit("sleep","delay")` path or `org.freedesktop.ScreenSaver.Inhibit`.
+2. **Debounced state writes are lost on immediate logout/poweroff.** `PlayQueue.qml:48-72` resume points flush on a 1500 ms timer; `VoiceRecorder.qml:49-55` counter on 800 ms; `TextDocs` session on change. `Power.logout/poweroff/reboot` (`Power.qml:223-225`) fire `systemctl`/`niri quit` with no flush. Sketch: a `Session.flush()` IPC that forces each store's timer before the destructive action.
+3. **No "save your work" / app-close prompt on logout, reboot or poweroff.** `SidebarHeader.qml:216-227` is a single double-click "Sure?"; `Ui.closeAll()` (`shell.qml:216-233,269`) closes shell panels, not app windows; `TextDocs.qml:29` exposes `unsaved` that nothing consults. GNOME/KDE/macOS enumerate dirty apps. Sketch: gate `Power.*` on a dialog listing `TextDocs.unsaved` + recorder/converter state, with "Save & quit / Discard / Cancel".
+4. **Recorders and conversions are never finalised at session end.** `Recorder.stop()` sends SIGINT deliberately (`Recorder.qml:69-76`); `VoiceRecorder.stop()` too (`VoiceRecorder.qml:90-105`); on logout neither is called, so Opus/MP4 containers stay open. Sketch: call both `stop()`s and await `onExited` before `systemctl`.
+5. **No resume handling at all.** `logind.py:66-72` re-inhibits on `PrepareForSleep(false)`; `Lock.qml:28-42` has no `resume` op. Media isn't paused/restored, `BtAgent.reconnect()` (`BtAgent.qml:50-60`) and display/wallpaper state aren't re-applied, no network re-check. Sketch: emit `{"op":"resume"}`, pause `PlayQueue`, re-run reconnect + per-output layout.
+6. **No shutdown/logout hook for user scripts.** `Hooks.qml:17-22,69,99-107` has startup + lock/unlock hooks but no session-end event. Sketch: add `shutdown` key, fire it from the deferred `Power.*` path (ties to #2/#3).
+7. **UPS "save your work" is a dead-end toast.** `Ups.qml:52-54` tells the person the machine "will shut down soon" but the shell offers no countdown, "shut down now", or deferral, and no coordination with #3. Sketch: a UPS banner with the NUT-estimated time and a "Save & power off" action.
+8. **Power confirmation hides its scope.** `SidebarHeader.qml:216-227`; lock screen uses an armed 4 s button (`LockScreen.qml:280-294`). Neither shows how many apps/unsaved docs will be lost. Sketch: put the count from #3 in the confirm step.
+9. **Suspend can hang if no output is covered by the lock.** `Lock.qml:15,26` releases the sleep delay only once `secure` is set by `WlSessionLock` covering every output; with no outputs/headless resume the flag never flips. Sketch: cap the delay with a timeout or release on `PrepareForSleep` regardless of `secure` when there are zero outputs.
+10. **Other logind sessions are invisible to the shell.** `greeter/shell.qml:104-120` only probes `/run/user/<uid>` to decide whether to ask for a password (keyring); there is no session list, no "log out other user", no multi-user awareness. (Distinct from the already-listed "switch user" gap.)
+
+## systemd / compositor-level
+
+11. **No startup readiness for niri, audio, network, keyring or Chronoa.** `shani-shell.service:5-9` has only `After/Requisite=graphical-session.target`; `Wants=shani-shell.service` in `niri.service.d/10-shani-shell.conf:6` adds no `After=niri.service`. By contrast the dev session waits for every daemon (`dev/session.sh:115-241`: pipewire 1.5 s, niri socket loop, keyring `busctl` loop, Chronoa D-Bus 30 s loop). Slow/absent dependencies only produce reconnect timers (`Bridge.qml:37-42`, `Niri.qml:466-472`, `Idle` probes at startup) and a partially blank first frame. Sketch: add `After=niri.service pipewire-pulse.service org.freedesktop.secrets.service shani-chronoa-daemon.service` + a "Starting desktop…" cover until `Niri.available && Bridge.connected`.
+12. **`shani-chronoa-bridge.service` has no dbus ordering.** `chronoa-bridge.service:1-12` declares only `After=graphical-session.target`, no `After=dbus.socket`; `PartOf=shani-shell.service` is correct, but a bus-not-ready start prints "unavailable" and the bridge never retries `logind.start()` (unlike Bridge.qml's socket retry).
+13. **No user-session stop protocol.** Logout is `niri.action("quit","--skip-confirmation")` (`Power.qml:225`); niri disconnects Wayland clients rather than issuing a save request. No `org.gnome.SessionManager`/XSMP equivalent exists, so external apps (LibreOffice etc.) cannot veto or save on logout. Compositor-level.
+14. **`Restart=on-failure` only; no success-exit semantics.** `shani-shell.service:21-22`, `chronoa-bridge.service:11-12`. A clean shell exit (crash-recovery restart) leaves `Restart=no` behaviour undefined for pending bridge state; no watchdog.
+15. **Sleep inhibition covers only sleep, not shutdown.** `logind.py:98` requests `Inhibit("sleep", …, "delay")`; there is no `shutdown` inhibitor, so a poweroff from #3's path has no equivalent grace period for a slow flush.
+
+## Comparison
+
+GNOME Session tracks inhibitor clients and shows `EndSessionDialog` with dirty apps; KDE `ksmserver` runs per-app save-then-quit with a fallback timer; macOS `loginwindow` calls `applicationShouldTerminate:`; Windows sends `WM_QUERYENDSESSION`/`WM_ENDSESSION` so apps can veto. ShaniOS has a two-click "Sure?" and `systemctl` — none of the four session-level contracts.
+
+**Skipped / not checked:** no runtime, real logind session, suspend/resume or second-user boot was available — all verdicts are source-only; I did not re-audit the seven passes' items above. **Risk:** the startup-ordering and lock-secure findings are timing-sensitive and could be masked by systemd's actual `Before=graphical-session.target` edges on pipewire/keyring in the shipped image — needs one real boot to confirm.
+
+## VERBATIM: UX consistency and tone
+
+# Eighth-pass UX consistency audit — findings
+
+Read-only, static only. Skipped all seven prior passes' items. All 52 apps + `Common/`, `Services/`, `greeter/`, `setup/`, niri config. 22 concrete inconsistencies, ranked value × ease.
+
+## Terminology (cheapest wins)
+
+**1. "Log out" vs "Sign out" for the *same* `Power.logout()` call.** `ControlCenter/SidebarHeader.qml:206`, `Ring/Ring.qml:84`, `Launcher/LauncherActions.qml:97` all say "Log out"; `TvHome/TvHome.qml:73` says "Sign out"; `shell.qml:107` says "sign out" in prose. Companion split: "Sign in automatically" (`Settings/SettingsUsers.qml:109`) vs "the adapter powers on when you log in" (`Settings/SettingsNetwork.qml:455`). **Canonical: "Log in / Log out" everywhere** (matches the power-menu vocabulary and the `logout` action name). Greeter `shell.qml:219` "Login failed" folds it into one word.
+
+**2. "Devices" vs "Drives" for identical storage hardware.** `Files/FilesPanel.qml:521` labels the storage list "Devices" (model `Files.devices`); `ControlCenter/SidebarDrives.qml:24` labels the same kind of list "Drives" (model `Drives.drives`); `Disks/DisksWindow.qml:129,131,215,261,471` calls a disk "the device" / "block devices", while `FilesPanel.qml:630,2716,2717` says "USB drives". **Canonical: "Drives" for storage; "Devices" only for peripherals** (`Services/Plugged.qml:123` "Devices" for MIDI/serial/keys is correct).
+
+**3. "Delete" used for a recoverable trash action.** `ControlCenter/SidebarNotes.qml:198` tip "Delete this note" calls `QuickNotes.remove()`, which *moves to `.trash`* (`Services/QuickNotes.qml:292-294`); `Camera/CameraPanel.qml:187` "Delete capture" calls `Camera.trash()`; `Feeds/FeedsWindow.qml:112` "Remove"; but `Notes/NotesPanel.qml:450` and `FilesPanel.qml:3111` say "Trash"/"Move to trash". **Canonical: "Move to Trash" for recoverable; reserve "Delete" for permanent** (`FilesPanel.qml:3112` "Delete for good…" is correct).
+
+**4. Notebook/folder within one Notes surface.** `Notes/NotesPanel.qml:91` "New notebook" vs `Services/QuickNotes.qml:59,65` "No sync folder chosen"/"Sync failed — check the folder". Low priority — "notebook" is deliberate Gnote parity — but the sync path is a folder, so name it "sync location" instead.
+
+## Error messages (highest value)
+
+**5. Developer-grade bridge errors are rendered verbatim.** 32 QML sites do `root.error = r.error || …` (`Services/Files.qml:241,648,698,736,863,875,892,965,1094,1117,1129,1247,1317,1353,1378,1429,1550`, `Services/Archive.qml:346`, `Services/PdfViewer.qml:48,123,342`, `Services/Backup.qml:75,99`, …). The strings they receive are lowercase CLI internals: `bridge/link.py:309` `"usage: link.py <command> [args]"`, `bridge/files.py:533` `"already exists"`, `:541` `"that is not a name"`, `:1795` `"%s: %s" % (type(e).__name__, e)`, `bridge/passwords.py:290` `"no such key"`, `:244` `"a name and an email address"`, `bridge/drives.py:442` `"stopped"`, `:476` `"this drive is not locked with a password"`, `bridge/flatperm.py:137` `"not a permission: %s"`. **Canonical: bridges return `{code, message}` for logs; QML owns all user-visible text.**
+
+**6. Command names and shell syntax leak into user-facing strings.** `Settings/SettingsSharing.qml:157` — "it needs cap_sys_admin `(sudo setcap cap_sys_admin+p $(command -v sunshine))`"; `Services/Files.qml:1307` — "Sync failed (rsync exited %1) — is rsync installed?"; `Services/Disks.qml:166` — "(is lsblk installed?)"; `Services/QuickNotes.qml:718` — "(is gpg installed?)"; `Services/WallpaperStyle.qml:55` — "matugen is not installed"; `Disks/DisksWindow.qml:471` — "lsblk could not find any block devices". **Canonical: "This feature needs X" + one action; put the command in a "Copy details" affordance.**
+
+**7. Raw stderr appended to friendly text.** `Services/Archive.qml:187,235,297,354,382`, `Services/Tasks.qml:67`, `Services/Disks.qml:203`, `Services/Contacts.qml:238`, `Settings/SettingsStorage.qml:54`, `bridge/flatperm.py:141,157`, `bridge/ratbag.py:121` all use `stderr.strip().splitlines()[-1]` as the message — can surface paths, Python exceptions, locale-specific tool chatter. **Canonical: map known exit codes; log stderr; expose via details.**
+
+**8. Actionable vs cryptic errors, no template.** Good: `Maps/MapsPanel.qml:242,245,654,661` "check the network and try again"; `Disks.qml:166`. Cryptic: `Services/Feeds.qml:131` "The feed reader could not answer"; `Services/Link.qml:87` "Link could not answer"; `Services/VoiceRecorder.qml:297` "Export failed"; `Services/Backup.qml:114` "Backup failed"; `Services/Firewall.qml:163` "The firewall refused that". **Canonical: `<what failed> — <cause or next step>.`**
+
+**9. Case/tone split.** QML errors are sentence-cased ("Could not save", `Services/PdfViewer.qml:124`); bridge errors are lowercase ("already exists", "stopped", `bridge/files.py:533`, `bridge/drives.py:442`). **Canonical: sentence case at every display site.**
+
+**10. Greeter/setup show raw PAM text.** `greeter/shell.qml:214` `root.error = message` verbatim, `:219` "Login failed"; `setup/shell.qml:330` `"error: signing in: " + message`, displayed bare at `:1288`. **Canonical: map auth status to "That password didn't work. Try again." + retry affordance.**
+
+## Loading / progress
+
+**11. Ten words for "busy".** "Looking…": `PhotosWindow.qml:290`, `Scanner/ScannerPanel.qml:78`, `DiskUsage/DiskUsagePanel.qml:71`, `MediaPlayer/RadioView.qml:46`, `MusicLibraryView.qml:59`, `NearbyWindow.qml:90`, `FilesPanel.qml:2716`, `SettingsPage.qml:538`, `SettingsPrinters.qml:221`. "Scanning…": `SidebarDrives.qml:66`, `ScannerPanel.qml:150,171`, `DiskUsagePanel.qml:211`. Plus "Working…" (`StudioWindow.qml:78`, `DisksWindow.qml:107`, `SoftwareWindow.qml:188,262`), "Loading…" (`FilesPanel.qml:1052`), "Searching…" (`CharactersPanel.qml:144`), "Computing…" (`KundaliPanel.qml:93`), "Comparing…", "Counting…", "Measuring…", "Cleaning…" (`FilesPanel.qml:1807,2042`, `SettingsStorage.qml:105,93`). ScannerPanel and DiskUsagePanel each use two different words for the same state. **Canonical: "Scanning…" for enumeration, "Working…" generic; specific verbs only when they name the operation.**
+
+**12. Spinner used only on buttons.** `Common/Spinner.qml` is wired through `Common/Button.qml:78`; direct use only `VoiceRecorder/VoiceRecorderPanel.qml:356`. ~24 text-only busy labels in `Text` elements have no indicator or progress bar. **Canonical: shared busy status row (Spinner + label); use `Button.busy` where applicable.**
+
+## Empty states / success / confirmation
+
+**13. Four title grammars.** "No X yet": `PhotosWindow.qml:440`, `NotesPanel.qml:192`, `AuthenticatorWindow.qml:208`, `TerminalAppWindow.qml:188`, `StudioWindow.qml:155`. "No X": `SidebarClock.qml:64`, `TerminalAppWindow.qml:336,419,481`. "Nothing X": `TasksWindow.qml:240`, `FilesPanel.qml:1337`, `CalendarPanel.qml:1147`. "This folder is empty": `FilesPanel.qml:1046,1236`. **Canonical: "No <plural> yet" first-run, "No <plural>" when filtered.**
+
+**14. Errors disguised as empty states.** `FilesPanel.qml:1046` "This folder could not be opened", `ArchivesWindow.qml:215` "bsdtar (libarchive) is not installed", `AuthenticatorWindow.qml:208` "The keyring is not running" all render through `Common/EmptyState.qml` with a faded 40px icon and `Theme.dim` subtitle. **Canonical: error card with danger icon/colour + retry.**
+
+**15. Three success channels, no rule.** Settings-only toast: 6 sites, all `Settings/SettingsPage.qml:187,189,196,208,406,832` (Common/Toast.qml otherwise unused by apps). Inline notes: `Feeds.qml:143,180,199`, `WallpaperStyle.qml:83`, `FontsPanel.qml:99`, `Files.qml:878`. `notify-send`: `PdfSigner.qml:188`, `VoiceRecorder.qml:160`, `Camera.qml:204`, `Calculator.qml:640`, `Modem.qml:77`, `Ruler.qml:81`, `CallRecorder.qml:34`, `shell.qml:473`. PdfSigner does both at `:186` and `:188`. **Canonical: inline for results in an open app; notification only for background completion.**
+
+**16. Success notifications bypass i18n.** `VoiceRecorder.qml:160` "Recording saved", `Camera.qml:204` "Video saved"/"Video stopped", `Calculator.qml:640` "Copied ", `Modem.qml:77` "Text sent", `Ruler.qml:81` "Copied " are bare literals while inline counterparts use `Tr.t`. **Canonical: wrap all in `Tr.t`.**
+
+**17. "Click again" vs "Tap again" — even inside one file.** `DisksWindow.qml:152,171,215,261,291` "Click again to confirm" vs `:446` "Tap again to confirm". "Click": `FilesPanel.qml:373,614,3042`, `SoftwareWindow.qml:333,510,541`, `PasswordsWindow.qml:281,359,439`, `ContactsWindow.qml:444`. "Tap": `NotesPanel.qml:279`, `Viewer.qml:471`, `Processes.qml:407`, `SettingsPage.qml:289,380`, `ClocksWindow.qml:119`, `TasksWindow.qml:227`. **Canonical: "Tap again" (input-agnostic on a touch-capable desktop).**
+
+**18. Three confirmation mechanisms.** Two-tap (dozens), modal (`FilesPanel.qml:2193-2194`), type-to-confirm (`SettingsUsers.qml:162`). **Canonical: two-tap reversible; type-to-confirm only for home-folder deletion.**
+
+**19. Missing confirmation on irreversible deletes.** `Calendar/CalendarPanel.qml:1319` `Delete` → `win.deleteEditor()` (EDS, no undo); `Mail/MailWindow.qml:304` `Delete` → `Mail.remove()` (IMAP). Compare `FilesPanel.qml:3112` modal and `SettingsPrinters.qml:176` two-tap. **Canonical: two-tap both.**
+
+## Shortcuts / icons
+
+**20. Zoom modifier mismatch.** `FilesPanel.qml:100-104` and `TextEditorPanel.qml:442-444` use Ctrl++/Ctrl+-/Ctrl+0; `PdfReader.qml:238-240` uses bare `+`/`-`/`0`. **Canonical: Ctrl+ modifiers everywhere; bare keys as secondary.**
+
+**21. Bare `W` means different things in adjacent apps.** `TextEditorPanel.qml:437` and `FilesPanel.qml:108` use Ctrl+W = close tab; `PdfReader.qml:236` uses bare W = fit width; `Switcher.qml:134` bare Q = close window; global `Mod+Q` = close-window (`dev/niri/session.kdl:223`). **Canonical: reserve bare letters for reader view modes, document the conflict.**
+
+**22. Same "Move to trash" action, two icons.** Recoverable trash uses `edit-delete` in `FilesPanel.qml:3111` and `Viewer.qml:471`, but `user-trash` in `PhotosWindow.qml:418`, `TasksWindow.qml:225`, `StudioWindow.qml:139`, `ModelsWindow.qml:126`, `ContactsWindow.qml:442`, `FilesPanel.qml:508`. Related: `edit-clear-all` (mapped to "Clear all" in `Common/IconButton.qml:22`) is used for a single-item delete at `TerminalAppWindow.qml:180,475`. **Canonical: `user-trash` recoverable, `edit-delete` permanent, `edit-clear-all` bulk only.**
+
+Skipped deliberately: ellipsis glyph (246 `…` vs 1 ASCII — already consistent), alarming words/"Please" (none found), OK/Apply (none in tree — Cancel/Done consistent), app-menu help buttons and empty-state missing actions (covered in pass seven).
+
+Risk: all static; I did not verify how raw bridge strings actually render at runtime, nor whether any two "Delete" actions differ in recoverability beyond the code path shown. No files changed.
+
+---
+
+# Seventh pass — VERBATIM agent reports
+
+## VERBATIM: Regional formats depth
+
+# Seventh-pass: regional/locale format depth (static only)
+
+**Scope note:** `docs/GAPS.md` treats i18n as translated words only (`:52-60`, `:1269-1276`, `:1729`) — it has *no* date/number-format claims. Everything below is new. Skipped per instructions: translation counts, RTL, `%2` plural hack, fontScale, slider, IME, greeter.
+
+**Core finding:** `Common/Tr.qml` follows `locale.conf` live for *words* (`:22-31`), but **no `QLocale.setDefault` and no locale argument to `Qt.formatDate`/`Qt.formatTime` exists anywhere in the tree** (verified by grep: only `Qt.locale()` in `SettingsDateLanguage.qml:35` and `Radio.qml:77`). The format preview in Settings (`SettingsDateLanguage.qml:244-247`, `date "+%A, %x"`, `printf "%'.2f"`) promises grouped, locale-ordered output that no app actually renders.
+
+1. **Dates ignore QLocale.** Every `Qt.formatDate(d,"d MMM")` uses the process-default locale (C/English at startup), never `Tr.lang`. `Services/Files.qml:1608-09`, `Services/Feeds.qml:103`, `Services/Mail.qml:39`, `Services/Agenda.qml:189`, `Services/Backup.qml:59`, `Services/QuickLook.qml:101`. Sketch: pass `Qt.locale(Tr.chosen||undefined)` as `Qt.formatDate`'s third arg.
+2. **12/24h toggle ignored in 9+ surfaces.** `use24h` is honoured in Bar/Link/Clocks but not `Services/Feeds.qml:102`, `Services/Mail.qml:38`, `Services/Files.qml:1606`, `Services/Agenda.qml:189-190,240,265`, `Services/Backup.qml:59`, `Services/QuickLook.qml:101`, `Services/WorldClock.qml:80`, `CalendarPanel.qml:67,74,184,208,265` (always `HH:mm`). Sketch: gate each on `Settings.data.use24h`.
+3. **Hardcoded English weekday/month arrays.** `Services/Weather.qml:166` `["Sun"…]`; `Common/DatePicker.qml:21`, `Modules/ControlCenter/Calendar.qml:42`, `Modules/Calendar/CalendarPanel.qml:128` `["Su","Mo"…]`. Sketch: `Qt.locale().dayName(i,QLocale.ShortFormat)` / `Qt.formatDate(d,"ddd")`.
+4. **Fixed day-month order in all short dates.** Even with a real QLocale, `"d MMM"` forces day-first; en-US expects month-first. Same files as #1. Sketch: `Qt.formatDate(d, Qt.locale().dateFormat(QLocale.ShortFormat))`.
+5. **File sizes mislabel binary bytes.** `Services/Files.qml:1591-95`, `Services/ObexReceive.qml:19`, `Services/FileActions.qml:101` divide by 1024 but print `KB/MB/GB`. Sketch: `KiB/MiB/GiB` (or decimal /1000).
+6. **No number grouping / digit script / Indian grouping.** Numbers use JS `toFixed`/`toString` with `.` and ASCII digits: `Files.qml:1593-95`, `Services/Displays.qml:83`, Calculator display. No `toLocaleString`; no Devanagari numerals; no १,००० / 1,00,000. Sketch: `Number(x).toLocaleString(Qt.locale())`.
+7. **AM/PM not localised or missing.** `"h:mm AP"` yields English AM/PM from QLocale; `Modules/ScreenSaver/Cover.qml:85`, `QuickPanel.qml:108`, `TvHome.qml:137` use `"h:mm"` with **no** AP → ambiguous 12-hour time. Sketch: include AP and use `Qt.locale().amText/pmText`.
+8. **First day of week is monday|sunday only, not locale-derived.** `Common/Settings.qml:185`; applied in `DatePicker.qml:18`, both Calendars. Locales starting Saturday unreachable. Sketch: default from `Qt.locale().firstDayOfWeek`.
+9. **ISO week numbering hardcoded.** `CalendarPanel.qml:31,117` (`isoWeek()`), `SettingsDateLanguage.qml:357-58` says "ISO weeks". Locale week-1 rules (US: week containing Jan 1) absent. Sketch: use QLocale/QCalendar week rules.
+10. **Weather's imperial toggle is temperature-only.** `WeatherWindow.qml:186,188,259` always `km/h` and `km`; `Services/Weather.qml:183` requests only `temperature_unit`. Sketch: send `wind_speed_unit=mph` and pick `mph`/`mi` from `weatherUnits`.
+11. **Maps distance always metric.** `MapsWindow.qml:116` `km()`/`m` hardcoded, no toggle. `SettingsDateLanguage.qml:237` writes `LC_MEASUREMENT`, but no app reads it. Sketch: reuse `Calc.js` unit table with a metric/imperial setting.
+12. **No real currency conversion.** `Launcher/Calc.js:89-92` detects `100 USD in INR` but hands it to the Chronoa LLM (`Launcher.qml:365-366`); Calculator's converter tab has only physical units (`Calculator.qml:73`, `Calc.js:61-71`). No rates, symbols, or locale placement. Sketch: small rates bridge + `Qt.locale().currencySymbol`.
+13. **Collation is codepoint/lowercase, not locale-aware.** `bridge/files.py:335-366` (`natural_key`, `name.lower()`), `bridge/contacts.py:130-135` (`sort_key`) sort Indic/accented names wrong; QML uses `localeCompare` with no locale (`Viewer.qml:361`, `Launcher.qml:288`, `AppPicker.qml:103`, `MusicLibrary.qml:39`). Sketch: `localeCompare(b, Qt.locale().name)` / Python `locale.strxfrm`.
+14. **Locale setup: formats written but never consumed.** `SettingsDateLanguage.qml:235-240` writes LC_TIME/NUMERIC/MONETARY/MEASUREMENT/PAPER; `:324` claims "every language is installed"; but only hi.json/mr.json ship and QML formatters ignore all LC_*; change needs re-login (`:327`). Sketch: wire `Qt.locale()` from the chosen locale, or state the preview is illustrative.
+15. **First-boot wizard sets LANG only.** `bridge/first-account.py:133` `localectl set-locale LANG=…`; no format/measurement choices at setup. Sketch: add a format-locale page that writes LC_* too.
+16. **Per-event timezone is display-only.** `CalendarPanel.qml:67,74` falls back to local time for unsupported zones; GAPS.md:708-709. Sketch: use ICU/i18n timezone conversion for event rendering.
+17. **No alternate calendars.** Calendar is Gregorian-only (`CalendarPanel.qml:87-92` JS `Date` arithmetic); Kundali hardcodes Lahiri ayanamsa (GAPS.md:1021). No Vikram Samvat/Hijri for Marathi/Hindi dates. Sketch: surface QCalendar/ICU calendar types behind a setting.
+18. **Percent/sign spacing hardcoded.** e.g. `Services/Plugged.qml:92` `Tr.t("Battery %1 %", b)` — fixed space, no locale percent sign/placement. Sketch: `Qt.locale().percent()`-aware formatting. (Low value.)
+
+Highest value × ease: #1–#5, #7, #10. Needs design: #12, #17. Risk: no QML runtime or locale data available to verify Qt produces Marathi/Hindi month names.
+
+## VERBATIM: File-format compatibility matrix
+
+# Seventh-pass gap research: file-format compatibility matrix (static, read-only)
+
+Audited `bin/shani:425-586` (the authoritative MIME claim table), `shani-pkgbuilds/shani-desktop-niri/etc/skel/.config/mimeapps.list` (defaults), each bridge/QML decoder path, and `shani-shell/PKGBUILD`. No prior pass compared format *claims* to format *code*. Skipped per brief: EPUB reflow, archive-add limits, HEIC defaulting, OCR/scanner, subtitle formats.
+
+**Ranked by value × ease. "FP" = Flatpak fallback exists.**
+
+1. **Text Editor ships zero syntax grammars.** `TextMate.qml:16-20` scans `~/.local/share/shani-textmate` and `/usr/share/shani-shell/textmate`; `find -name '*.tmLanguage'|wc -l` = **0**, and `PKGBUILD:package()` installs none. Every file silently falls back to the regex highlighter (`TextEditorPanel.qml:224`). Sketch: vendor ~5 small `.tmLanguage` files (C/Py/QML/JS/JSON). FP yes.
+2. **UTF-16 text is classified "Not a text file".** `TextDocs.qml:143` uses `grep -qI ""`; any NUL-bearing file (UTF-16/32) tests binary and is refused before FileView (`:179-195`) can decode a BOM. Latin-1 has no selector either. Sketch: BOM sniff in the probe, decode via a bridge with explicit codec. FP yes.
+3. **Viewer's navigation list is narrower than its own MIME claims.** `Viewer.qml:37-39` `isImage()` accepts only 13 extensions; `bin/shani:438` claims JXL, PSD, TGA, PCX, EXR, HDR, DDS, QOI, PPM/PGM/PBM/PAM, XPM, XBM, ICO — all decodable via `kimageformats` per `PKGBUILD:35-40` — but they vanish from next/prev (`:360`). Sketch: derive `isImage()` from the claimed MIME set. FP yes.
+4. **Photos grid excludes formats its own importer accepts.** `PhotosWindow.qml:113` scans only jpg/jpeg/png/webp/gif/avif/bmp; the import picker at `:285` offers heic/heif. Imported HEIC files never appear. TIFF/raw also absent. Sketch: extend the `find` filter. FP yes.
+5. **QuickLook's format table lags every app.** `QuickLook.qml:28-36`: no heic/jxl/psd/raw in image, no epub/djvu/cbz in pdf, no deb/apk/rpm in archive, no aiff/wma in audio. Sketch: reuse the APPS MIME table. FP partial.
+6. **OPML round-trip destroys feed categories.** `feeds.py:475-485` writes flat outlines with only text/title/xmlUrl; `:502-509` reads only xmlUrl. Tags are first-class in feeds.json (`:273,348-364`) and drive UI filters (FeedsWindow.qml:50-77). Sketch: emit/read `category=`. FP no.
+7. **RPM is offered in the Archive picker but cannot be read.** `Archive.qml:54` includes rpm in types used by ArchivesWindow.qml:20; bin/shani:478-488 and mimeapps.list omit application/x-rpm; libarchive/bsdtar has no RPM reader. Sketch: drop rpm, or `rpm2cpio | bsdtar -x`. FP yes.
+8. **Office documents have no shell path at all.** No DOCX/ODT/PPTX/XLSX MIME in bin/shani; only an icon (DesktopIcons.qml:65), a tidy category (tidy.py:32), defaults to OnlyOffice Flatpak (mimeapps.list:295-389). `pymupdf.office.to_pdf()` exists but needs a separate licensed package. Sketch: read-only PDF-render bridge or accept the Flatpak explicitly. FP yes.
+9. **Mail cannot open local .eml, mbox, Maildir or MSG.** `mail.py:6,17` is IMAP/SMTP/MailHog only; MailWindow.qml:20-26 uses FilePicker solely to save attachments. message/rfc822 unregistered. Sketch: `open <path>` via email.parser plus MIME registration. FP yes.
+10. **Media Player claims ~130 MIME types with no capability probe.** bin/shani:446-471 + mimeapps.list:409-507 default MIDI, DTS-HD, Amiga modules, RealAudio, niche video to a thin MediaPlayer{} forwarding to QtMultimedia's FFmpeg backend. Only failure surface is generic onErrorOccurred (:246). Sketch: probe `ffmpeg -decoders/-formats` once and narrow defaults. FP yes.
+11. **Converter input sets much narrower than the player's.** convert.py:40-81 omits .mts/.m2ts/.vob/.3g2/.f4v/.rmvb and all documents, so PDFs/e-books cannot be converted. Sketch: extend VIDEO_IN/AUDIO_IN. FP partial.
+12. **Converter output codecs hardcoded, quality 3 presets.** convert.py:82-92,144-196 emits only libx264/libvpx-vp9 and 3 CRF/bitrate tuples, no HEVC/AV1/10-bit/HDR; UI offers only Small/Balanced/Best. Sketch: expose codec + numeric CRF. FP yes.
+13. **DjVu/PS/EPS defaults depend on optional tools.** PdfViewer.qml:283-298 requires ddjvu and gs; PKGBUILD lists djvulibre/ghostscript as optdepends, yet bin/shani:441-445 claims the MIME types unconditionally. Sketch: make them hard deps or gate the claim. FP yes.
+14. **Calendar registers vCalendar but imports only VEVENT.** bin/shani:551 claims application/x-vcalendar; agenda.py:601-619 walks VEVENT_COMPONENT only, so VTODO/VJOURNAL in .ics/.vcs are dropped. Sketch: route VTODO to Tasks. FP no.
+15. **Multipage TIFF shows only page 1.** Viewer.qml:169 converts with `magick "$1[0]"`; display is AnimatedImage (`:92-100`) with no page navigation. Sketch: render `[N]` pages like the PDF strip. FP yes.
+16. **E-book/comic conversion has no test.** pdfform.py:124-137 topdf() is the single failure point for EPUB/FB2/MOBI/XPS/CBZ; no test mentions them. Sketch: one fixture per format. FP yes.
+17. **QuickLook treats any extensionless file under 2 MB as text.** QuickLook.qml:103-104 only checks size, then heads it; binaries render as garbage. Sketch: sniff first bytes. FP no.
+18. **Archive creation supports 4 formats despite reading 20.** Archive.qml:261 offers only zip/tar.gz/tar.xz/7z; .tar.zst/.tar.bz2/.cab readable but not creatable. FP yes.
+
+Cross-cutting: the real matrix is 3 hard deps (kimageformats, qt6-multimedia-ffmpeg, python-pymupdf+libarchive) wrapped in a 130-entry MIME list asserted, never measured. Cheapest systemic fix: one startup capability probe filtering MimeType claims against installed decoders.
+
+## VERBATIM: Disability-specific accessibility
+
+# Twelfth-pass [seventh-pass] gap research — accessibility by disability group
+
+Read the full GAPS.md (all six passes) and skipped its WCAG/live-region/AT-SPI-name/contrast/focus-trap/RTL/caption-a11y items. This pass is static only — no QML runtime or hardware.
+
+## Shell-fixable, ranked by value × ease
+
+| # | Gap (group) | Evidence | One-line sketch |
+|---|---|---|---|
+| 1 | **High contrast stops at the shell** (low vision). The toggle only swaps `Theme` tokens; GTK/libadwaita apps are explicitly set to `adw-gtk3`, and `Access.qml` pushes only screen-reader + text-scaling to gsettings. | `SettingsPage.qml:1308`, `Theme.qml:100`, `Access.qml:28-34`, `Appearance.qml:125-132` | On toggle, also set `org.gnome.desktop.a11y.interface high-contrast` and a real HighContrast GTK theme (or ship an adw HC variant). |
+| 2 | **Flash alerts die at the lock screen** (deaf). Incoming calls are urgency-2 and always alert, but `FlashAlert` returns immediately while locked — a deaf user gets no call/doorbell visual when the screen is locked. | `FlashAlert.qml:25`, `Notifs.qml:259-263`, `shani_link/.../sip_accounts.py:930`, `landline/__init__.py:435` | Let the overlay flash run over `WlSessionLock`, or render a persistent visual call card there. |
+| 3 | **Braille stack ships but is inert** (blind). `shani-accessibility` depends on `brltty`/`espeakup` yet has no `.install` enabling either; `/var/lib/brltty` is bind-mounted but nothing starts; plug-in only flips Orca's switch. | `shani-pkgbuilds/shani-accessibility/PKGBUILD:8-12` (no `.install` in dir), `image_profiles/.../fstab:546`, `Plugged.qml:143-146` | Enable brltty/espeakup units; add a Braille subsection (Orca prefs, per-display choice, status-cell message on shell events). |
+| 4 | **TTS has no voice/language/pitch choice** (blind/speech). Only three speed chips; the rate line hardcodes spd-say/espeak arguments. | `Speak.qml:20,24-25`, `SettingsPage.qml:1332-1345` | List `spd-say -v`/`espeak -v` voices and expose voice + pitch alongside rate. |
+| 5 | **Voice typing ≠ voice control** (motor). Dictation only transcribes and types via `wtype`; no spoken-command grammar, so "click OK"/"open Settings" are impossible. | `Dictation.qml:26-65` | Classify the transcript as command vs dictation before typing; dispatch commands over the existing AT-SPI/`wtype` paths. |
+| 6 | **No switch access** (motor). Desktop navigation is gamepad-only (d-pad/stick/buttons); OSK supports arrow+OK but nothing scans it from a single switch. | `GamepadNav.qml:1-15`, `Modules/Osk/Keyboard.qml:255` | Add a timed linear scan (Tab/arrows/Enter) into the focused surface, driven by any bound key/button, with adjustable scan speed. |
+| 7 | **Orca is fire-and-forget** (blind). Launches `orca --replace` and probes `command -v`; no AT-SPI env/registry assertion, no Orca preferences entry, no shell "describe this panel" command. Bar/dock *do* have names — this is depth, not labelling. | `Access.qml:18-27`, `shell.qml:205-209` | Set `QT_ACCESSIBILITY=1`/`GTK_MODULES=gail:atk-bridge` in the session env; add "Orca preferences" + a describe-surface IPC. |
+| 8 | **Captions have no call source or speaker labels** (deaf). Only "speakers"/"mic" via `pw-record`; no per-app/call node and no "who said what"; no Settings entry (one Control Centre tile + `Mod+Alt+C` only). | `Captions.qml:15-18,42-48`, `SidebarTiles.qml:330-343`, `niri/config.kdl:195` | Add a third source bound to the active call's PipeWire node plus speaker labels, and surface the switch on the Accessibility page. |
+| 9 | **Non-visual notifications are title-only and inert** (blind). Read-aloud speaks app+summary, never the body; no spoken/braille reply or dismiss; hard 2000-char cap. | `Speak.qml:20,38-43` | Add "read body" and map notification actions to spoken/braille commands. |
+| 10 | **Magnifier is pointer-only** (low vision). The lens follows `MouseArea` position; keyboard/Orca users have no focus-follow (separate from the already-logged auto-refresh/loupe gaps). | `Magnifier.qml:73-84` | Add a "follow keyboard focus" mode reading `Niri.focusedWindow` geometry. |
+| 11 | **No simple/essential mode** (cognitive). The ten-foot `FormFactor` is a layout preset, not a cognitive simplification; no toggle trims advanced pages. | `SettingsPage.qml:1305-1377` (no such row), `Theme.qml:166-176` | One toggle hiding advanced tiles/pages, forcing large targets and icon+text labels. |
+| 12 | **No reading assistance / text-only mode** (cognitive/low vision). Select-to-speech is the sole aid; no line focus, ruler, font override or reading overlay. | `Speak.qml:28,45-50`, `SettingsPage.qml:1305-1377` | Add a global reading overlay with line highlight and a font override bound to `Theme.fontScale`. |
+| 13 | **Dictation language is borrowed from OSK/captions** (speech). Only auto/en/mr/hi and no independent picker or confidence feedback. | `Dictation.qml:19-25`, `SettingsPage.qml:1346-1359` | Separate dictation language choice reusing installed Whisper models; show a transcript-confirmed value before typing. |
+| 14 | **Audio-description tracks are unidentified** (blind/low vision). Sound tracks render by title/language only; no AD tag or dual-track mix. | `MediaPlayerWindow.qml:553-559`, `trackName()` `:116-119` | Flag known AD track titles and offer "description alongside main audio" via a second player. |
+| 15 | **Distraction-free is notifications-only** (cognitive). Focus modes hold notifications; the bar, dock and chips stay fully present. | `Focus.qml:1-5,20-25` | Extend focus mode to hide non-essential bar chips and dim/collapse the dock. |
+| 16 | **No global "always show labels" setting** (cognitive/low vision). `Chip` carries a label and Accessible name, but dense states are glyph-only and the Accessibility page has no label toggle. | `Bar/Chip.qml:24-26`, `SettingsPage.qml:1305-1377` | Add an accessibility setting forcing visible labels under bar/dock/quick tiles. |
+
+**Low-effort note:** gap 1 is roughly a gsettings line in `Appearance.qml`; gaps 4, 13, 15 and 16 are single rows/choices in the existing Accessibility page. Gaps 3, 5, 6 and 8 are the real work.
+
+**Compositor / AT-SPI-level — flag, don't promise:**
+- Colour filters, HDR, gamma — niri has no colour management; already logged at `GAPS.md:29,1139,1522`. A layer-shell tint overlay would also tint the control that switches it off, so it is not a real filter.
+- Dwell / eye- or head-pointer selection — no pointer position is available to a layer-shell client ("find my pointer", `GAPS.md:38`). The `dwell` timers in `HotCorners.qml:52-56` and `Ring.qml:175-189` are accidental-activation guards, not selection methods.
+- Sticky / Slow / Bounce Keys — keyboard input is niri's (`GAPS.md:38,823`); only xkb options are writable from the shell.
+- Native Wayland Qt 6 / Chromium AT-SPI menus — niri lacks the appmenu protocol (`GAPS.md:113-116`), so voice/switch users cannot reach those menus even with a scanner.
+
+Skipped: every item already in the WCAG accessibility section and the six prior passes (live regions, AT-SPI names, `Theme.faint` contrast, focus traps, RTL, caption styling, magnifier auto-refresh/loupe, one-handed OSK). **Risk:** all 16 are source-reading verdicts — in particular the braille-service claim depends on no `.install` existing in `shani-pkgbuilds/shani-accessibility`, and the call-flash claim assumes incoming-call notifications keep urgency 2 at runtime; neither was verified on a booted image or with Orca/brltty hardware.
+
+---
+
+# Earlier passes — VERBATIM agent reports preserved from the original audits
+
+## Sixth pass — AI / Chronoa integration depth (VERBATIM)
+
+Feasible in the shell (ranked value × ease):
+1. **No conversation history / new / switch / delete.** The panel's transcript is one in-memory `ListModel`, wiped with the shell; the backend already has `reset-conversation`, `switch-conversation`, `delete-conversation` actions. (ChronoaSurface.qml:10-11; backend app/application.py:1849-1861) Add header "New / History" menu driving those existing D-Bus actions.
+2. **Scripted `approve "deny"` can grant "Allow this once".** `optionFor()` forwards `options[0]` (the allow option) for any unrecognised decision — the exact failure its own comment warns about. (ChronoaPanel.qml:201-214, shell.qml:327-332, FINDINGS.md:175-179) Match `deny`/`always` semantically or reject unknown labels; never default to option 0.
+3. **Cloud fallback is invisible in the Island.** Backend emits `notice "A cloud provider answered this turn"`; the shell puts it in the transcript only (panel must be open), never in the bar pill. (agent_service.py:213-214; ChronoaSurface.qml:47-48; Island.qml:80-93) Set a `lastCloud` flag on that notice and show a small cloud chip in the Island + panel header.
+4. **Tool-choice ("selection") events are silently dropped.** The Agent emits a record of which tool was chosen and why; neither event handler has a case for it. (agent_service.py:26,206-207; Chronoa.qml:72-105; ChronoaSurface.qml:36-51) Render an expandable "chose `<tool>` because …" line for transparency.
+5. **Suggested prompts are static.** Four hard-coded chips (Battery / Summarise screen / Tidy desktop / Dictate), no adaptation to focused app, clipboard or notification. (ChronoaPanel.qml:751-757) Derive chips from `Niri.focusedWindowId`, `Smart.suggestion`, `SmartReplies`.
+6. **Window context is a title string.** "Ask Chronoa about this window" sends only title + `app_id`; file handoff sends paths as prose. (WindowMenu.qml:67-68; FileActions.qml:156; Island.qml:359-379 (bare ask)) Attach window id, workspace, app, selection and accessible summary to the text.
+7. **No per-turn local/cloud or model switch in the panel.** The model chip is read-only; `defaultProvider` is informational; switching lives in Chronoa's own settings window. (ChronoaPanel.qml:359-375; AIProviders.qml:88-92) Make the chip a menu of installed models + providers, sent with the turn.
+8. **Assistant replies are plain unformatted text** — no Markdown, links, code blocks or copy/regenerate/feedback controls. (ChronoaPanel.qml:547-577) Render with the backend's `markdown_lite.py` (or a local helper) and add copy/regenerate.
+9. **Panel state labels ship untranslated** ("listening", "thinking", "speaking", "waiting for you", "offline", "ready") while the rest uses `Tr.t`. (ChronoaPanel.qml:79-91) Wrap in `Tr.t()` — strings exist in the template catalog.
+10. **No voice / wake / barge-in controls in Settings > Chronoa.** Backend actions `toggle-wake-word`, `toggle-barge-in-vad`, `toggle-cloud-fallback` exist; the shell surfaces only enable/kill and a link to Chronoa's settings. (SettingsChronoa.qml:24-43; backend application.py:1724,1884, audio.py:1044-1052) Add three switches; the D-Bus plumbing already exists in `chronoa-bridge.action()`.
+11. **No push-to-talk in the shell conversation.** Mic is tap-to-toggle; voice typing is tap-to-toggle; no hold key or interruption gesture. (ChronoaPanel.qml:843-877; Dictation.qml:26-31) Bind a hold key that calls `toggle-listening` / `stop-speaking` (both registered).
+12. **Approvals have no audit trail or "always for this app" granularity** — decisions survive only as transcript text; no log of what was permitted. (ChronoaPanel.qml:191-195,715-724) Keep a shell-side decision ledger keyed by turn + app (`Settings.data`).
+13. **No privacy / memory controls on the shell side.** All sense consent and "forget" live in Chronoa's own window; the shell only has an on/off switch. (SettingsChronoa.qml:24-43) Expose key sense toggles + a "Forget" button in the shell settings page.
+14. **No streaming cancellation affordance** — `submit()` refuses input while busy; the stop button only stops speech, not the turn. (ChronoaPanel.qml:229-236,859-877) Add a Cancel button in the working state (needs #16).
+
+Needs backend / model:
+15. **Cannot cancel a running turn.** `Agent` has only Turn/Approve/Write/FindFiles; the bridge has no cancel op. (agent_contract.py (XML); chronoa-bridge.py:191-222) Add `Cancel(turn_id)` + an Event, wire shell button to it.
+16. **No persistent screen sharing / live context.** Shell only passes one-off screenshot or Lens-region *paths in prose*; backend vision is per-turn. (Lens.qml:69-77; Screenshots.qml:140) A "share screen with Chronoa" toggle streaming frames or a vision sense subscription.
+17. **No camera input to Chronoa.** Camera captures stills to disk, but there is no "ask Chronoa about the viewfinder." (Services/Camera.qml (still path); backend screengrab.py camera backend) Add a camera-attach button that hands a frame to the vision sense.
+18. **No shell-app tool/prompt registration.** Backend MCP server exposes skills to Claude/Cursor, but Shani apps and Hooks cannot register tools or prompts with Chronoa. (backend mcp.py; shell Services/Hooks.qml (event scripts only)) Define a desktop-entry `X-Shani-Chronoa-Tool` manifest + an MCP bridge action.
+19. **No per-app data-access provenance.** Consent is sense-based in the backend; events carry no "which app asked", so the shell cannot show an access timeline. (backend capabilities.py gating, agent_service.py event shape) Add caller/app id to events; shell renders a per-app access log.
+20. **Model management is disconnected from the live model.** Models reads `ollama list` only; the panel guesses the label from a setting, cannot test connection or see fallback/offline state. (Models.qml:44-75; ChronoaPanel.qml:30-39) Expose a live model/provider registry D-Bus property and bind the chip to it.
+21. **Voice output has no in-shell voice/style controls.** TTS/voices exist in the backend; the shell just watches PipeWire peaks on the Island. (Island.qml:111-118; backend tts.py, voices.py) Add voice/style pickers and an in-panel playback bar.
+22. **No multi-session or cross-device continuity.** One turn at a time (`TurnFilter` holds 8 unclaimed turns); no handoff of a conversation to a phone/other app. (bridge/turn_filter.py:38-40; shell has no session id) Needs a session id in the Agent contract plus a resume/handoff action.
+
+Skipped/did not re-list the already-audited Chronoa items (opt-in bug, dconf key mirroring, model-download notices, translator, semantic file search, launcher/popup "Ask Chronoa"), and did not runtime-test any D-Bus path, wake word, barge-in or a real vision model. **Risk:** items 15–22 depend on backend APIs that exist only in `shani-chronoa`; wiring the shell before those methods exist will silently no-op. Item 2 is a real security bug, not a feature gap — it should be fixed first.
+
+## Sixth pass — Automations, hooks and routines (VERBATIM)
+
+Shell rule engine (Services/Automations.qml):
+1. **Captured special keys are silently discarded when the bind is written.** SettingsShortcuts.qml:71-80 can capture F1–F12, Space, Return, arrows, Home/End, but InputConfig.qml:146 keeps only `/^[A-Za-z0-9+_]+$/` — so those binds are recorded in Settings and never appear in `shani-input.kdl`. Fix the filter to emit niri key names, or stop offering uncapturable keys.
+2. **No way to fire a rule manually.** `act()` (`Automations.qml:43-55`) is private; there is no IPC method, palette entry, or keybind action for "run this automation now". Expose `fire(index)` over `shani ipc` and add it to `SettingsShortcuts.qml:133-137`'s action presets and the palette.
+3. **Trigger vocabulary is 5 items.** `holds()` `:32-42` supports only `wifi`, `power`, `output`, `displays`, `time`; the Chronoa engine already has 19 event types (`triggers/common.py:305-330`). Add app focus / window title, notification, clipboard change, USB/BT device (bridges `devwatch.py`, `plugwatch.py` already watch), battery *level*, and file change; reuse `bridge/clipboard-watch.sh`.
+4. **Action vocabulary is 6 items.** `act()` `:43-55` = focus, dnd, volume, style, open, run. Missing: notify, play sound, lock/sleep, set arbitrary setting, open URL, media control. Route through existing shell IPC rather than adding per-action bridges.
+5. **Failures are invisible.** `Automations.qml:51` `execDetached(["sh","-c",a])` discards exit status and stderr; `Hooks.qml:25-29` only catches a synchronous spawn failure. Capture output, log to a rule history, and toast a failed `run`.
+6. **No loop or rate guard.** `:56-65` is edge-triggered only (`wasTrue`); an action that reverses its own trigger (a `run` that changes Wi-Fi/output, or DND toggling) can ping-pong forever. Add a per-rule cooldown and a max-fires-per-minute budget.
+7. **Five unrelated "when X then Y" systems.** Shell rules (`Automations.qml`), shell hooks (`Hooks.qml`), keybinds (`SettingsShortcuts.qml`), Chronoa event/percept rules (`triggers/event_rules.py`), and Chronoa phrase routines (`routines.py`) have separate stores, formats, UIs and logs. Unify on one rule schema and one Settings page, with adapters for each actuator.
+8. **`notificationRules` is a dead setting.** `Common/Settings.qml:260` declares `notificationRules: []`; `Hooks.qml` never reads it (0 matches). Either implement notification-triggered scripts or delete the key.
+9. **No templates, import/export, or sharing.** `SettingsAutomations.qml:100-283` builds every rule from scratch; `setRules()` just overwrites the JSON array. Add starter templates ("office Wi-Fi → Work focus"), export/import of `Settings.data.automations`, and a shareable file/QR.
+10. **No dry-run / test.** No way to ask "what would this rule do right now?" Add a Test button that calls `holds(r)` and prints the resolved action without `act()`.
+11. **Rule edits have no undo.** `SettingsAutomations.qml:37,60,62` writes immediately; `Settings.qml:73-81` undo is per-key, taken at sign-in. Add a rule-level undo stack or reuse `undo(key)` scoped to `automations`.
+12. **GUI caps at 3 screens and 6 volumes.** `SettingsAutomations.qml:184` offers only "1","2","3" although `holds()` `:38` parses any integer; `:236` offers only 0/20/…/100. Generate from `Displays.outputs.length`; use a slider like `TimePicker` at `:189`.
+13. **Hooks share one global on/off.** `Hooks.qml:21` `_enabled()` gates all six; `SettingsAutomations.qml:69-75` has one switch. Add per-hook enable and a per-hook failure indicator.
+14. **User scripts are unpermissioned.** `Hooks.qml:27` and `Automations.qml:51` run `sh -c` as the full desktop user with no confirmation, timeout, or audit. Add an opt-in confirmation for `run` rules and a bounded timeout.
+15. **Time rules are "every day at HH:MM" only.** `Automations.qml:39,91-105` — no weekday mask, one-shot, sunrise/sunset, or timezone. `Appearance.qml:28-73` already computes sunrise/sunset, and Chronoa's `read_schedule` (`triggers/desktop_sources.py`) has weekdays + grace — reuse one.
+16. **Startup quirk for time rules.** `prime()` `:71` deliberately excludes `r.when !== "time"`, so a rule matching the current minute at startup waits for the *next* minute boundary. Document or offer a "fire now if due" option.
+17. **Wi-Fi match is exact string equality.** `:35` `wifiNow === is`; `output` uses a case-insensitive substring `:37`. Add regex/SSID-picker semantics and a "connects to any open network" predicate.
+18. **No named/sound notification action.** `Notify` exists as a shell service but there is no `then: notify` (`:20-26`, `:43-55`) and no sound action; add both, with a message field in the author form.
+
+Routines (Chronoa) and the trigger engine:
+19. **Routines are phrase-only, not scene/schedule-driven.** `routines.py:54-73` matches a whole utterance; `skills/routines.py:13` only save/list/delete. Add optional schedule/app/location triggers and an explicit ordered step list so "good morning" is deterministic rather than model-planned.
+20. **No import/export or sharing of routines.** `routines.save_all()` writes one local JSON; no bundle, QR, or cross-device sync. Add export/import of `routines.json` (same mechanism as other data-portability gaps).
+21. **Percept rules have no unattended product caller.** `triggers/rules.py` `TriggerEngine` is reachable only via `shani-chronoa-sense trigger run`; `AmbientScheduler` drives only event rules. Wire percept rules into the daemon so "when battery < 20% then …" actually fires without a CLI.
+22. **Event-rule authoring is skill-driven, not first-class GUI.** `skills/manage_triggers` is the only writer (`event_rules.json`); the shell's Settings never sees these 19 types. Surface the Chronoa event/rule list in the same Automations page (ties back to #7).
+
+Comparison (Tasker / Shortcuts / Power Automate / Home Assistant): Consistently absent across all five systems: variables and expressions, condition branching (`if/else`), wait/delay steps, subroutines, loop/iteration, run history with replay, dry-run, and rule versioning. Home Assistant's device-state scenes and Shortcuts' shareable shortcut files are the closest references — #7, #9, #19 are the highest-leverage transfers.
+
+**Not checked:** runtime behaviour, real hardware events (Wi-Fi/output changes), QML execution, or whether niri actually applies every generated bind. **Risk:** many shell actions call `sh -c` as the user (#14), so any new trigger source widens an already-unpermissioned execution path; #5/#6 should land before #3/#4.
+
+## Sixth pass — Window management / niri depth (VERBATIM)
+
+1. **Column swap is absent from the UI (only per-window swap exists).** `WindowMenu.qml:49-50` offers `swap-window-left/right`; niri's `swap-column-left/right` is never called anywhere in the tree. One menu entry each, mirroring the existing ones. *Sketch: add "Swap column left/right" using `focus-window` then `swap-column-*`.*
+2. **Fullscreen / float / maximize menu labels never reflect current state.** `WindowMenu.qml:38,40,41,45,46` issue actions but render fixed labels; the `windows` objects carry `is_floating` only (`Niri.qml:346-355`), no fullscreen/maximized readback, so no checkmarks or "Restore" toggles. *Sketch: check `w.is_floating`, track fullscreen via `WindowLayoutsChanged` or an action-local map, relabel to "Exit fullscreen".*
+3. **Force-kill works only on the *focused* window.** `Niri.qml:458-464` kills `focusedWindow.pid`; `LauncherActions.qml:62` exposes exactly that, and `shell.qml:931` `windowClose` sends only polite `close-window`. A frozen window named over IPC cannot be killed. *Sketch: `forceClose(match)` → `findWindows()` → `kill -9` its pid; add a "Kill this app" menu row gated on a confirm.*
+4. **No create / delete workspace action.** Rename exists (`Bar.qml:364-378`, `Niri.qml:279-289`, IPC `shell.qml:899`) and reorder via `move-workspace-up/down` (`WindowMenu.qml:58-59`), but niri only creates workspaces implicitly; there is no "new workspace" or "close this workspace" in bar, ring, menu or IPC. *Sketch: bar context menu → `focus-workspace <next free>` then `set-workspace-name`; close = minimise its windows then `unset-workspace-name`.*
+5. **Overview search throws away its context.** `OverviewSearch.qml:31-35` closes the overview and hands the typed string to the launcher; there is no search *within* the current workspaces/windows, no result list while the overview is open, and a typed query cannot select a window. *Sketch: filter `Niri.windows` locally and highlight through `focus-column-*` / `focus-window` before handing off on Enter.*
+6. **Urgency is displayed but never acted on.** `Niri.qml:404-411` tracks `is_urgent` on windows and workspaces (`343-345`); the bar/map colour it (`Bar.qml:233,360-361`), but there is no "focus the urgent window", "switch to its workspace", or "flash its dock tile and stop when seen" policy. *Sketch: one IPC + a dock/bar badge action calling `Niri.focusWin()`.*
+7. **Edge swipes are four hard-coded actions only.** `EdgeSwipe.qml:14-33` maps launcher / quick-settings / back / overview; no per-edge assignment, no "previous/next workspace" or "show desktop" swipe, no disabled toggle beyond the global `edgeSwipes`. *Sketch: expose an edge→action pick list in Settings and route through the existing `run()`; add `focus-workspace-up/down` cases.*
+8. **No workspace-level drag reorder.** The build already has a drag proxy with MIME id in `Bar.qml:237-247` (used to drop a *window* onto a workspace), but workspace chips themselves have no drag target/source, so `move-workspace-up/down` (`WindowMenu.qml:58-59`) is the only reorder path. *Sketch: reuse the proxy; on drop call `move-workspace-up`/`down` N times, or index-to-index if niri gains `<index>`.*
+9. **"Move workspace to monitor" only goes to the *next* monitor.** `WindowMenu.qml:60-61` and the window move `:55-56` both use `*-next`; named monitor targets exist only in IPC (`Niri.moveWindowTo` at `Niri.qml:193-201`, `shell.qml:933`) and in `swapMonitors` (`Niri.qml:210-234`). *Sketch: add a submenu of `Displays.outputs` calling `move-window-to-monitor`/`move-workspace-to-monitor <name>`.*
+10. **General resize is percentage-only; no exact pixel or per-height UI.** `WindowMenu.qml:52-54` uses `set-column-width` percentages; `set-window-width`/`height` are used only by Media Player (`MediaPlayerWindow.qml:47-48`). No "set size" dialog, and height presets are keyboard-only (`session.kdl:285-287`). *Sketch: a size sheet with width × height px and proportion chips, calling `set-column-width`/`set-window-height` on the captured id.*
+11. **Floating-workspace key is not monitor-namespaced.** `WorkspaceLayout.qml:15` keys by `ws.name || "output:idx"`; a *named* workspace on two monitors collides, and names are resolved on their own output (`Niri.qml:293-296`). *Sketch: always key by `output:idx` and keep name as a label; migrate old keys.*
+12. **Session restore brings back app identities, not the layout.** `Reopen.qml:20-38,89-94` stores only desktop entry ids; window count, geometry, column widths, workspace and monitor placement are lost. Compare GNOME/Windows "restore windows". *Sketch: persist a compact `{app, count, workspace, output, tile_size}` snapshot from `Niri.windows` + `WindowLayoutsChanged`; reapply after reopen via `set-column-width` / `move-window-to-workspace`.*
+13. **No focus-stealing / new-window focus policy.** Urgency events arrive (`Niri.qml:404-411`) but nothing implements "focus new windows", "focus only my workspace", or an allow-list; `SettingsWindows.qml:34` covers only pointer focus. *Sketch: a setting + `onWindowOpened` / `WindowUrgencyChanged` handler in the shell (niri itself has no configurable policy).*
+14. **Swap monitors only swaps the two active workspaces.** `Niri.qml:210-234` operates on one active workspace per output and temporarily renames one; no UI to pick *which* workspaces to exchange, and columns are snapped to four preset widths (`:206-209`). *Sketch: a monitor-pair dialog listing `workspacesOn(output)`; reuse the width-preserving shell script.*
+15. **No "focus previous workspace" bind or UI (previously noted, still open).** `InputConfig.qml:91` enables niri's `workspace-auto-back-and-forth` and `SettingsWindows.qml:37` exposes the double-tap setting, but `session.kdl:260-274` has no `focus-workspace-previous` / back-and-forth key and no bar action. *Sketch: bind `Mod+Tab` to an IPC `focusPrevWorkspace` using the existing focus history.*
+16. **Overview has no window-level actions.** `OverviewStats.qml:37-42` can only close all; `OverviewSearch.qml:77-79` relies entirely on niri's arrow keys. No per-window close/minimise/pin while zoomed out, unlike KDE/GNOME overviews. *Sketch: a small action strip bound to the niri-focused window (niri's overview selection is not exposed in `Niri.qml`'s event handling — `OverviewOpenedOrClosed` at `:426-428` only gives open/closed).*
+17. **Trackpad workspace/column gestures are entirely compositor-owned.** `session.kdl:19-25` states three-finger and four-finger gestures are niri's built-in with no config; `InputConfig.qml:157-166` writes only `dnd-edge-*` and turns hot corners off. No gesture enable/disable, direction remap, or sensitivity in any shell UI. **Compositor-only — out of scope for the shell** (track this as a niri feature request, not a gap to implement here).
+18. **No monitor-hotplug workspace placement restore.** `Docking.qml:20-29` restores bar/dock/gaps on dock state change, but nothing remembers which workspace belonged to which output (`Niri.workspaces` are keyed by transient output+idx). *Sketch: persist an output→workspace-name map and re-run `move-workspace-to-monitor` on `Displays.outputs` change.*
+19. **No crash-recovery UX for niri.** `Niri.qml:466-472` reconnects the event stream after 1.5 s but does not detect that niri died, show a banner, or verify config; `NiriConfig.qml:68-86` only restores files on `ConfigLoaded(failed)`. *Sketch: on repeated reconnect failure, notify "Compositor restarted" and offer `niri msg action` re-application of shell-owned state.*
+20. **Always-on-top is genuinely impossible.** `Niri.qml:152-180` implements the floated-window "show on all workspaces" carry instead; there is no Wayland layer a client can request above other windows. **Out of scope (compositor). Do not file as a buildable gap; the existing docs already say so.**
+21. **No Activities / multi-workspace-set abstraction.** niri exposes a flat per-output workspace list; KDE Activities, GNOME workspaces-as-separate-sets and macOS Spaces groups have no analogue. The shell's only grouping is `hiddenWorkspaceNames` (`Niri.qml:71-84`) and `floatingWorkspaces`. **Compositor-level model — out of scope** for a layer-shell client; a shell-side "workspace set" would have to rename and hide workspaces wholesale.
+22. **No window thumbnails in switcher or overview.** `Switcher.qml:1-8` explicitly notes niri has no per-window capture protocol and uses icons. **Out of scope (compositor protocol).**
+
+Already correct — not gaps: Focus-follows-mouse, warp-pointer-to-focused-window, workspace double-tap-back, named workspaces, per-app open-on-workspace/screen rules, hidden-workspace names and resize/snap presets are all implemented (`InputConfig.qml:90-95,124`, `SettingsWindows.qml:34,131-219,281-316`, `Bar.qml:364-378`). Kill-by-pid, rename and monitor swap exist but only in the forms listed above.
+
+Skipped: runtime/hardware verification of any gesture, hotplug or overview behaviour; whether niri 26.04 actually implements all actions the shell issues (e.g. `move-column-to-side` is noted as ignored at `Services/WindowLayouts.qml:158`). Risk items 4, 12 and 18 touch persistent state and need a migration/backup path before shipping.
+
+## Sixth pass — User documentation accuracy (VERBATIM)
+
+HIGH:
+1. Generated HTML for all three shell-related pages is stale. `shani-docs/doc/overview/index.html`, `doc/faq/index.html`, `doc/troubleshooting/index.html` — markdown was updated 2026-11-22 (commits `54cff3c`, `1a585ab`) but the stubs were last regenerated 2026-11-01 (`e540d3e`); working tree is clean. Concretely: `doc/overview/index.html` jumps from "Quick Links" straight to "Current Release" — the entire "The Shani Desktop / Built-in apps / Things worth knowing" section (`docs/overview.md:50-81`) is absent. The words "Disks", "Models", "Studio", "Feeds", "Firewall" occur 0 times in the stub. `doc/faq/index.html` omits the new "What apps does Shani Shell include?", "What do the newer apps do?", global-menu, window-arrangement and backup Q&As. `doc/troubleshooting/index.html` omits "Locked Notes Won't Unlock", "Global Menu Missing or Empty", "PDF Annotation or Conversion Fails", "Notes Sync Has No Cloud Folder", "Scrolling Screenshot Capture Fails". All three carry `dateModified`/`datePublished` of `2026-08-28…Z` and a visible "Updated 2026-08-28", contradicting `updated: 2026-11-22` in source. One stub even ships the old provider list "OpenAI, Anthropic, Mistral", while `docs/overview.md:60` and `shani/Services/AIProviders.qml:19-25` list OpenAI / Anthropic / Google Gemini / Groq / OpenRouter (+ Mistral via OpenRouter). Correction: run `node generate-manifest.js`, verify byte-identical on a second run, and commit the three regenerated stubs.
+2. Edition count contradicts itself across shani-docs. `docs/overview.md:13` and `docs/faq.md:29` (both updated 2026-11-22) correctly say three desktop editions ship (GNOME, KDE Plasma, COSMIC). Still stale: `docs/intro/what-is-shanios.md:9` ("two desktop editions today… COSMIC announced and in development"), `docs/intro/comparison.md:29` ("COSMIC (announced)"), `docs/intro/comparison.md:112` ("upcoming release"), `docs/intro/getting-started.md:17` ("announced, in development… Watch shani.dev for its release"), `docs/intro/switching-from-windows.md:19` ("COSMIC *(announced)*"). `shani-install-media/image_profiles/cosmic/` and `iso_profiles/cosmic/profiledef.sh` confirm COSMIC builds today. Correction: change all five to "ships today".
+MEDIUM:
+3. Troubleshooting omits every new bridge/dependency failure mode. `shani-docs/docs/troubleshooting.md` names no external tool behind the new apps even though bridges emit explicit errors: `bridge/disks.py:61-62,193-194,256-257` → "smartctl is not installed (smartmontools)"; `shani/Services/TerminalApp.qml:85` shells out to `picocom` for serial; `bridge/location.py` → "no GPS fix from gpsd, and GeoClue is not installed"; `bridge/translate.py:19-25` needs llama-server on `127.0.0.1:8765` and exits 2 without it; global menu needs `at-spi2-core`; notes cloud sync needs `rclone`. Worse, `shani-shell/bin/shani-doctor.py:18-99` checks none of picocom, smartctl, GeoClue, llama-server or at-spi2-core. Correction: add a short "Shell app dependencies" table/section to troubleshooting.md and extend `shani-doctor.py`'s `FEATURES` list.
+4. The ~70 mass-pass features have no user-facing home in shani-docs. There is no whats-new page in the docs site (nav/config contain none; `docs/updates/shell.md` is about Zsh/terminal, not the desktop shell). The granular refinements live only in `shani-shell/data/whats-new.md:19-31` and `FEATURES.md:190-222`. Correction: add a "What's new in the desktop" page (or a compact list in overview.md) linking to the shell's FEATURES.md.
+LOW:
+5. Wrong app name: `docs/faq.md:117` lists "Translator". The real app is "Translate" — `shani/Services/ShellApps.js` (`"Translate": "dev.shani.Translate"`) and `bin/shani:528` (key `"translate"`). Correction: "Translator" → "Translate".
+Checks that passed: App count 50 consistent; 7 PDF annotation tools verified in `bridge/pdf-annotate.py`; clipboard transforms verified; provider list in `docs/overview.md:60` verified against `AIProviders.qml`; i18n catalog 3684 strings matches GAPS.md; stable version 2026.05.18 consistent (22 occurrences); `node tests/check-links.js`: 0 broken internal links (1179 across 206 pages); `check-ground-truth.py`: no bad flags/subcommands/units/SELinux; FORM-FACTORS/HARDWARE-VALIDATION cross-links resolve. FORM-FACTORS.md, RENDER-COVERAGE.md, HARDWARE-VALIDATION.md, UX-IMPROVEMENTS.md carry recent review dates and no concrete code contradiction found.
+Skipped: live browser crawl and dynamic shell execution (static-only per brief). Risk: the site fetches current markdown at runtime for JS visitors, so finding #1 mainly affects no-JS/crawler views and structured data — but the stale stubs are committed and would be served as-is.
+
+## Sixth pass — Security and privacy depth (VERBATIM)
+
+1. **[CRITICAL, documented only in installer repo]** MOK private key shipped inside the base image (`shani-install-media/SECURITY.md:30-34`) and two real keys still retrievable from git history (`AUDIT-HISTORY.md:63-71`). Rotate + rewrite history — human decision. Also: Podman builds set `SigLevel = Never` and the AMI path soft-fails verification (`SECURITY.md:35-49`) — fail-closed all paths.
+2. **[high]** The 45 s clipboard clear covers one of ~25 copy paths. Only `PasswordsWindow.qml:126` arms `wl-copy --clear`. Authenticator sets a 1.5 s *label* timer but never clears (`AuthenticatorWindow.qml:70,89,93`); all others write `Quickshell.clipboardText` directly — `Launcher.qml:316,321,330,361,364`, `TranslateWindow.qml:280`, `LensPanel.qml:84`, `Viewer.qml:287`, `Files.qml:403`, `Characters.qml:34`, `Ruler.qml:80`, `FontsPanel.qml:39`, `QrView.qml:88`, `CameraPanel.qml:151`, `SettingsAbout.qml:176`, `TerminalAppWindow.qml:473`. Sketch: single `Clipboard.copySecret()` that writes via `wl-copy` and restarts one global clear timer; route all secret paths through it.
+3. **[high]** OTPs are admitted to cliphist. `looksSecret()` requires ≥8 chars and hex/base64/prefix patterns (`Clipboard.qml:37-53`); a 6-digit TOTP matches none, so `AuthenticatorWindow.qml:89` puts it in history permanently. Sketch: tag OTP copies as ephemeral; `clipboard-watch.sh` drops them.
+4. **[high]** Phone share leaks whatever is on the clipboard, no confirm/secret filter. `SidebarDetails.qml:443` → `Phone.qml:27 kdeconnect-cli --share-text Quickshell.clipboardText`. Sketch: confirmation dialog + `looksSecret()` guard.
+5. **[high]** Suspend can happen unlocked. `Lock.qml:33-38` releases the sleep delay without locking when `lockBeforeSuspend` is false (default true, but user-toggleable at `SettingsPage.qml:2016`); on resume there is no lock. Sketch: lock on suspend always; treat the pref as "lock before vs. after".
+6. **[high]** "Notification previews" toggle also governs agenda and media titles. `LockScreen.qml:254,399,532` show next-event and track title under `lockPreviews`; `SettingsPrivacy.qml:107` only labels it "notification titles". Sketch: one `hideContentWhileLocked` gate covering all three.
+7. **[high]** No audit trail. `Log.qml:40-47` writes only warnings/errors; `shani-admin.py:491-509` logs nothing; `SettingsPrivacy.qml:211` (permission revoke), `passwords.py:177,280,387` (deletes), unlocks in `Modules/Lock` emit no structured record. Sketch: `Log.audit("unlock|grant|admin|delete", actor, target)` → journald with UID; surface in Logs panel.
+8. **[high]** Guest/enrollment privilege boundary is loose. `50-shani-admin.rules:19-22` grants `AUTH_SELF_KEEP` by regex on the *trailing token* (`/(autologin|power-keys|battery-limit)$/`); `guest`, `wakeup`, `lighting`, `power-limit` fall to admin (correct), but `caller()` returns `""` if `PKEXEC_UID` is absent (`shani-admin.py:138-143`), so self-demotion checks (`user_admin:199`, `user_remove:182`) silently pass. Sketch: refuse when `PKEXEC_UID` unset; match command name exactly, not suffix.
+9. **[high]** Camera kill switch is a single-module unload. `Privacy.qml:17-20` runs `pkexec modprobe -r uvcvideo`; built-in cameras on other drivers stay live, and any wheel member can disable the module globally. Sketch: enumerate actual `/dev/video*` owners and the owning module; confirm scope.
+10. **[high]** Clipboard encryption off by default and no migration (`Settings.qml:444`); enabling wraps only the existing DB once (`clipboard-crypto.py:149-155`). Sketch: default on, wrap on first run.
+11. **[high]** `settings.json` is world-readable by umask and holds `clipPins`/server URLs (`Settings.qml:2,442,529`). Sketch: chmod 0600 after first write.
+12. **[high]** Pinned clipboard text bypasses `looksSecret()` — `Clipboard.qml:139-140` pins any decoded text. Sketch: filter at pin time.
+13. **[high]** Recent lists have clear-all only. `SettingsPrivacy.qml:163-165` `Housekeeping.clearRecent()`; no per-item removal, and URL/history entries in `filesRecentServers` have no UI at all. Sketch: per-entry delete + list in Privacy page.
+14. **[high]** Lock-screen biometric can call `unlocked()` outside the password conversation with 3 retries and dropped `queued` (`Modules/Lock`, already noted at GAPS:1245-49) — still unfixed; add a single state machine.
+15. **[high]** Note-crypto races and leaves plaintext (`note-crypto.py:47-53`; shared QML crypto Process per GAPS:1442) — serialize and keep plaintext in memory only.
+16. **[D]** No DoH/DoT option. `SettingsNetwork.qml:547-550` offers only plaintext Cloudflare presets via `nmcli`. Sketch: systemd-resolved DoT toggle.
+17. **[D]** No WebRTC leak protection / VPN kill switch surfaced anywhere; no WebRTC stack exists (GAPS:1080), so nothing blocks a browser's WebRTC while VPN tile is on.
+18. **[S]** `.flatpakref` installs from arbitrary URL without showing the remote. `appstore.py:668-677` passes `--from` straight through. Sketch: parse and display origin + confirm.
+19. **[S]** AppImage added executable with no signature/hash check. `appstore.py:541-607,555` chmod +x and writes a launcher from extracted metadata. Sketch: verify detached signature or warn prominently.
+20. **[S]** No per-request consent for cloud LLM. `ModelsWindow.qml:202` and `AIProviders.qml:26-53` send prompts to the chosen provider using keys from Passwords; opt-in is only at setup.
+21. **[D]** TPM seal is weak unless the user re-enrolls after first boot. Installer seals a literal PCR 0+7 policy without Secure Boot and defers pcrlock to `gen-efi.sh enroll-tpm2` (`os-installer-config/README.md:105-109`); nothing in the shell detects a stale seal or nags. Sketch: Cassini/About reports TPM policy age and re-enroll action.
+22. **[S]** Shell exposes no TPM/Secure Boot state. `SettingsAbout.qml:263-275` only launches `shani-cassini --section=secureboot`; no state, re-enroll, or MOK status in the shell.
+23. **[D/H]** MOK private key shipped inside base image and keys in git history (same as #1).
+24. **[D]** Auditd is installed fleet-wide but the shell emits no audit records for its privileged actions; add rules for `shani-admin.py` and admin D-Bus calls.
+25. **[D]** No retention/encryption control for voice recordings, Chronoa transcripts or call logs (no bridge file found for call logs); these persist unencrypted beside notes.
+
+**Deliberate win, not a gap:** no diagnostic log upload and "Nothing is sent" in About — keep it opt-in if ever added.
+
+## Sixth pass — Installer / upgrade / recovery UX (VERBATIM)
+
+Shell-fixable (ranked): failed update toast no cause/retry; pending reboot cannot defer; no update history on Updates page; no support bundle at failure; no "last checked" time; health results text-only with no remediation actions; setup failure raw error with no retry; no Wi-Fi-only/metered warning before a multi-GB update; channel switch no explanation; Boot & Recovery read-only; two divergent health systems; Settings › About has no in-OS recovery entry.
+Installer/daemon: no basic-graphics/safe-mode boot entry; image size/ETA not in deploy JSON; health recommendations not in JSON so UI cannot render actions; no "reinstall ShaniOS keeping files"; restoring an older snapshot is manual btrfs; failed-install help button dead (no browser on live ISO); encryption choice and recovery key not explained at install; metered enforcement needs daemon.
+Deliberate win: no log-upload consent flow exists — report as a privacy win.
+Two-desktop comparison: Shani already beats GNOME Software / KDE Discover / SteamOS / macOS / Windows Update on blue-green rollback and phase-level progress, but is weakest on exactly those human affordances: no pause/history/safe-mode/keep-files path and no failure-to-action bridge.
+
+## Sixth pass — Specialized subsystems (VERBATIM)
+
+Printing (driverless setup/default/test page already exist): missing ink/supply levels, scan-to destinations, real print dialog (copies/page-range/duplex/preview), in-shell job queue with cancel/hold, printer-state alerts.
+Fonts system: missing hinting/antialiasing UI (hardcoded in `Appearance.qml:130`), font DPI control, font uninstall, cache refresh watcher.
+Gamescope console (full session ships in separate package): missing MangoHUD overlay control, per-game TDP/frame-cap profiles, in-game screenshot/recording hotkeys, controller-remap and fan-curve tiles.
+Casting: missing cast session state/sink list/stop, mirror-area choice (`--fullscreen` hardcoded), audio routing with cast.
+Time/date (settings UI otherwise solid): missing NTP server configuration, sync status/source readout, dual-boot RTC mode, timezone-change feedback.
+Freedesktop compliance: cross-volume trash restore, recent-files destruction by `Housekeeping.qml:27` (truncates all apps' recents daily), thumbnail metadata and cache bound, more thumbnail sizes.
+
+All sixth-pass verdicts are static — no runtime, hardware, PAM/polkit, TPM/MOK, printer, gamescope or live deploy verification was possible.
+
+---
+
+# Fifth pass — VERBATIM agent reports
+
+## VERBATIM: Reliability and data integrity
+
+1. **Deterministic temp filenames defeat atomicity when two processes overlap.** Every "atomic" JSON save in the bridges uses a *deterministic* temp path, so a concurrent second invocation truncates the first's temp and both `rename`s race: `bridge/feeds.py:72` (`feeds.json.tmp`), `bridge/mail.py:67` (`conf.json.tmp`), `bridge/appstore.py:216` (`appstore-index.json.part`), `bridge/files.py:799` (`starred.tmp`), `bridge/music-library.py:164,221` (`library.json.tmp`), `bridge/translate.py:185`, `bridge/copyjob.py:91`, `bridge/u2f.py:65`. Concrete: the Feeds refresh timer (`Services/Feeds.qml:88`) and a user mark-read can call `save_cache()` at once → interleaved write + `os.replace` → corrupt cache JSON that `_load()` then silently resets. **Fix:** `tempfile.mkstemp(dir=path.parent)` for every temp, as `pdfform.py:168`/`note-crypto.py:47` already do.
+2. **Bookmarks file written non-atomically.** `bridge/files.py:1684` — `bookmark()` does `open(f, "w")` directly (read at 1676, truncate at 1684), so a crash/ENOSPC mid-write leaves an empty or half bookmarks file; `starred()` 30 lines above already uses tmp+`os.replace`. AppImage `.desktop` entry same (`appstore.py:599`).
+3. **Singleton races:** TerminalApp.qml uses one shared `cbStore`/`testProc` for Test Connection; two quick clicks strand one callback. QuickNotes.qml uses one crypto Process with four shared mutable fields (`mode`, `pendingPass`, `newName`, `payload`) — an autosave racing a lock can apply the wrong mode.
+4. **Keyring.qml:26-33 hides write failures with `|| true`.** Same class that caused "AI keys never stored". A locked Secret Service or full disk reports success while the secret never lands.
+5. **Three of four gpg calls have no timeout.** `bridge/lock.py:98-105` `_gpg()` passes `**kw` through; only decrypt at :226 supplies `timeout=3600`. Calls at :139,146,235 have none — a gpg-agent blocked on a locked keyring/pinentry hangs the Files bridge forever. convert.py conversions no timeout/SIGTERM cleanup; QML Process no watchdog (bsdtar, pdftoppm, wf-recorder, libcamera can leave UI stuck).
+6. **nearby.py receive leaves `.part` files with no recovery.** Receive writes `target + ".part"`; a crash/SIGKILL mid-upload leaves an orphan in the Inbox, no sweep, no resume. clipboard-crypto.py can leave plaintext `*.db.wrap` symlink after SIGKILL; conversions/transfers accumulate `.part` across crashes.
+7. **Voice Recorder takes lost on ungraceful SIGTERM/logout.** Only SIGINT finalizes the Opus file (`VoiceRecorder.qml:90-105`); a logout, crash or System Monitor SIGTERM gives no finalization and the whole take is lost.
+8. **Disk-full errors hidden:** feeds.py/mail.py never check write result and UI reports success. Caches keyed only by path+mtime (appstore.py:206, music-library.py:145, files.py:960). Tasks.qml:75-86 assigns JSON.parse output with no type check — `{}` breaks every delegate. files.py:1672 re-records IPC paths without rejecting newlines or `..`.
+
+## VERBATIM: Offline and network resilience
+
+1. **[shell-fixable]** Proxy settings never reach running bridges — Proxy.qml writes gsettings + environment.d for next login while bridges inherit startup env; SOCKS mode sets no ALL_PROXY.
+2. **[high]** mail.py IMAP calls no timeout (:376-382); Updates.qml:66-69 no timeout/re-entrancy guard — one hung shani-deploy wedges all checks; fwupdmgr likewise. Translate interactive requests inherit 300s batch timeout.
+3. **[high]** Captive-portal detection exists (Net.qml:22-40) but apps emit generic errors; Weather keeps stale values with no "as of"; Feeds stores fetched but never shows; Radio wipes list on any error; Mail no offline/empty distinction.
+4. **[med]** No 429/503 handling on geocoding/OSRM (curl -sf collapses generic); Feeds retry no backoff; multi-GB model/Flatpak installs on metered connections; Flathub streams no timeout.
+5. **[daemon-level]** Landline SIP TLS disables verification and read timeouts (shani-link/.../ua.py:186-193); deploy retries fixed delays and honour no proxy.
+Already good: Chronoa cloud LLM exponential backoff with jitter; most API probes bounded; Screenshot OCR fully local.
+
+## VERBATIM: Search and navigation depth
+
+1. **[high]** Feeds and Mail invisible to launcher global search (Launcher.qml:370-489); contact search only name/phone/email; event search title-only; content search hardcodes folders instead of Settings.data.searchFolders.
+2. **[high]** `>` is raw sh -c runner, not a command palette — no fuzzy command list, descriptions, recent commands, argument completion.
+3. **[high]** Matches never highlighted in launcher results despite Common/HighlightText.qml; no saved/recent searches.
+4. **[med]** Launcher category chips disappear once query typed (keyboard users lose filtering); Escape closes rather than unwinds; no shared document MRU; no focus-last-workspace keybinding; no named-workspace-by-name navigation; scratchpads no cycle/list.
+5. **[med]** Chronoa handoff from launcher result passes only query or file path — selected contact/event/note identity discarded.
+
+## VERBATIM: Theming and visual customization depth
+
+Correction: automatic dark schedules (time-of-day AND sunrise/sunset) already exist (Appearance.qml:28-73) — not a gap.
+1. **[high]** Font hinting/antialiasing hardcoded (Appearance.qml:130); no independent lock-screen wallpaper; accent one global token with fixed alphas; bar height/opacity constants.
+2. **[med]** No online wallpaper sources/transition choice; slideshow/live wallpaper global while still wallpapers per-monitor; bar widgets toggle but not reorder (control-centre tiles do); icon/cursor themes no preview and require restart; no theme export/import; focus ring fixed #ff7f50 in session.kdl rather than Theme.accent; no window-border toggle; matugen templates hardcoded to one GTK template; no wallpaper-specific day/night schedule; font sizes fixed 10-14; no compact/dense bar mode.
+Out of scope: server-side titlebars, per-window transparency, colour filters/gamma/HDR, pointer effects.
+
+## VERBATIM: Performance and scalability
+
+Measured: 348 QML files, 143 services, 75 bridges, 191 Timers (54 repeating), 86 `running: true` bindings (72 eager Processes), 64 ListViews (16 without reuseItems/cacheBuffer), 473 Repeaters, 272 execDetached calls.
+1. **[high]** Viewer thumbnail strip decodes every image full resolution no sourceSize/asynchronous (Viewer.qml:494-510); main image synchronous uncapped (:92-104); wallpaper preview likewise.
+2. **[high]** Launcher whole app grid via Repeater rather than recycling GridView; 18 ListViews no reuseItems/cacheBuffer; live notifications unbounded; Feeds read-state map and Photos metadata never prune deleted items.
+3. **[med]** 72 eager Processes at startup (~40 one-shot command -v probes); Photos re-walks Pictures every open; Music library re-walks every open; 10s /proc/*/fd polling fallback in Privacy.qml:42; one wtype process per OSK keystroke; two always-on 10-minute timers in Tasks/Agenda.
+4. **[med]** dev/shell-test.sh has real budgets but no large-data fixture and 30s idle window cannot catch 10-minute timers.
+Already good: Common/Proc.qml debounces/times out; Files.qml persistent worker with watchdog; process/stats polling gated on visibility; app windows LazyLoaded.
+
+## VERBATIM: Input methods and multilingual text entry
+
+Handwriting genuinely implemented (WritePad.qml, bridge/handwriting.py).
+1. **[high]** Plain TextFields no undo/redo; OSK no emoji page, no paste key, no key repeat; no IME preedit/candidate integration; Indic handwriting silently degrades to English OCR and only tesseract-data-eng ships.
+2. **[med]** No long-press accent popups; pre-desktop keyboard Latin-only; voice typing tap-to-toggle no push-to-talk; no spellcheck, password autofill, autocapitalize hints, deterministic text expansion or per-app IME profiles; no one-handed OSK mode; no swipe typing.
+3. **[low]** Mixed-script font fallback relies on fontconfig but no render test; switch access absent (eye/head pointer compositor-level).
+
+## VERBATIM: Notification and alerting depth
+
+1. **[high]** resident hint ignored so persistent popups auto-expire; low-battery (15%) and peripheral alerts normal urgency suppressed by DND while only 7% critical; no call/message or repeat-caller DND exceptions; snooze relative-only, loses actions/urgency, no list UI, re-delivers up to 20s late after boot.
+2. **[high]** No per-app sounds/volume/vibrate, no escalation, no unified silent gate across sound/flash/speech, no storm coalescing. Lock-screen notifications inert Text rather than actionable NotificationCards.
+3. **[med]** Any app can self-declare urgency 2 bypassing DND/rules/silent-apps; DND dndUntil bypassed by automations; history capped at 50 with no export/TTL; Backup/PdfSigner/VoiceRecorder/Camera completion notices no "open result".
+
+## VERBATIM: Test and docs consistency after mass pass
+
+1. **[critical]** shani-shell PKGBUILD was 9 commits behind, would install package with none of new features — repinned to 4772748, pkgrel=40. Added deps picocom, smartmontools to PKGBUILD and chown, renice to dependency map in c692899.
+2. **[fixed]** 77 stale [open] markers flipped to [built — mass pass]; integration/deps note corrected; check counts 700+→800+.
+3. **[open]** 11 of 21 test_gap_*.py files pure source-string assertions that cannot catch runtime breakage; hi.json/mr.json remain 1525 keys while template.json grew to 3684 — 242 new strings ship English-only.
+4. **[fixed]** data/whats-new.md and FEATURES/README app catalogue updated with mass-pass capabilities.
+5. **[open]** No test asserts PKGBUILD pin tracks HEAD; no translation-catalog parity test. Podcast enclosures are metadata + link, not download queue.
+
+## VERBATIM: Advanced notes / files / calendar / media / shell utilities (pass 10)
+
+Advanced Notes: diff-before-restore; note templates; daily/periodic notes; outgoing-link index + orphan detection; tag index/graph/nested tags; search operators; regex toggle + saved searches; pin/favorite + colour; nested notebooks; templater variables; kanban/table view; HTML export with real Markdown+CSS; styled PDF; static-site publish; block references; YAML front matter; sync conflict resolution; plugin API. Top: #1–#5 then #6/#8.
+Advanced Files: no per-file Previous Versions from btrfs; search no operators/regex; batch rename numbering-only; no bulk permissions/ACL/xattr; folder sync one-way; archives not navigable as folders; stars one bit; search silently caps; no saved searches; bookmark aliases unwritable; per-tab history actually global; no content search inside archives; no compare of two archives; no bulk resize/convert; no extract-to-multiple; Exif tokens absent.
+Advanced Calendar: editing recurring event destroys custom RRULE (data loss); no custom patterns; no recurrence preview; no agenda-list view; control-centre mini-month no events; location inert; no date-range export; no calendar groups; recurring tasks 3-value sidecar; no tasks↔calendar; no per-occurrence exceptions; no free/busy; no busy/tentative status; no working hours; no time blocking; no subtasks; no publish-link; no travel buffer; no unified reminder list.
+Advanced Mail: 24 composition/organization gaps (recipient autocomplete; signature; read receipt; priority; reply-to; send later; HTML compose; spellcheck; drag attachments; preview; CID images; large-file; filters; quick filters; saved searches; snooze; tags; quote collapsing; add to contacts; RSVP in message; email→event; undo send; draft autosave; full keyboard nav).
+Advanced photo/video/media: EXIF editor; subtitle burn-in; perceptual dedupe; transitions; tone controls; colour correction; speed ramping; before/after; non-destructive edits; slideshow music; presets; geotag/map; smart albums; scrobbling; recommendations; bulk metadata; audio mixing; N-up print; social share.
+Shell-specific utilities (Tour, Quick Look, PinCapture, ScreenSaver, AmbientLight, TabletMode, Shelf, Housekeeping, Smart, SmartReplies, WritingTools, Ring): Skip indistinguishable from completion; Quick Look no zoom/PDF nav/seek/share; PinCapture triple-open bug; one pin no zoom; screensaver never over lock; photo mode no curation; ambient no-sensor overwrites brightness with clock curve; sensor hotplug undetected; lid state dead; parked entries never validated; recents hardcoded; SMART warning re-notifies forever; Smart watcher no opt-out; SmartReplies maps unbounded; WritingTools replace destroys clipboard; Ring hardcoded contents; keyboard/a11y thin.
+
+## VERBATIM: Data portability formats / FilePicker / CLI (pass 11)
+
+Data portability capability matrix for Contacts, Agenda, Feeds, Mail, QuickNotes, Photos, VideoTrimmer, VoiceRecorder/Music, Passwords, Tasks, Terminal, WebApps, Clipboard, Screenshots with top-3 missing formats each; 22 ranked gaps (Contacts CSV, vCard 4.0 hardcode, LDIF; Terminal OpenSSH config; VoiceRecorder MP3/AAC; VideoTrimmer EDL; QuickNotes HTML/PDF; Music playlists; Calendar export; Mail .eml/mbox; Photos XMP/Takeout/export-selection; Feeds JSON Feed; Tasks todo.txt; WebApps import/export; Screenshots formats).
+FilePicker: picker is thin overlay; 20 gaps (no search though model supports; no overwrite confirm; wildcard MIME filters degrade to show-all; no save feedback; no drag from picker; portal not modal to requesting window; no preview; no Recent/Starred; no show-hidden/sort/view; no Ctrl+L; writable hint dropped; no default extension; no create folder; multi-select offered when false; Open With broken; no reveal folder; can't set default; read errors look empty; keyboard gaps; no recent save locations).
+CLI/Terminal: shani media next/stop/previous/toggle silent no-ops (fixed); advertised --json doesn't exist; most app operations no CLI verb; no dry-run/verbose/config/version; unchecked args; wiring test can't catch arity; Connect spawns TTY-less process; no per-app terminal; monospace font never reaches terminal; transparency hardcoded; only foot themed; SSH host groups promised absent; no ~/.ssh/config import; no multiplexing; no host-key management; tunnel list no liveness; agent forwarding config-only; key list display-only; RSA-only; snippets clipboard-only; no command-completion notification.
+
+---
+
+# Fourth pass — VERBATIM agent reports
+
+## VERBATIM: Cross-app integration and data portability
+
+Tier 1 — high value, cheap:
+1. **mailto: has no handler** — dev.shani.Mail.desktop has empty MIME list (bin/shani:524-525), niri skel no default, XF86Mail falls to browser. Register x-scheme-handler/mailto + message/rfc822.
+2. **Share sheet no targets into our own apps** — Services/Share.qml:20-35 only KDE Connect/Bluetooth/LocalSend/QR/xdg-email/clipboard/gio; Photos no share action. Add Notes/Photos/Editor targets.
+3. **Copy-path copies plain text, not text/uri-list** (Viewer.qml:287, TerminalAppWindow.qml:328), cannot paste as file. Mail compose/Text Editor/Photos no inbound DropArea.
+4. **Apps never write recently-used.xbel** — Launcher recents one-way from GTK. Calendar ICS import but no export. Notes .md and Contacts .vcf no default associations.
+5. **geo:/web+*/obsidian:///file:// no registration or dispatch policy.** Desktop entries emit no Actions=.
+6. **No portable data bundle** ("take my data to another OS") — Photos/Mail/Passwords no export UI.
+7. **Mail cannot attach a file** — send() takes no file list; Share's Email target shells xdg-email bypassing Mail.
+8. **Portal backend implements only FileChooser** — Email/Share/SendFlatpak intents bypass shell. Rich-text/file-URI clipboard formats dropped.
+9. **No notification→file affordance;** portal/share handoffs call Ui.closeAll() discarding surface; Files bookmarks no import/export; no shared cross-app session document registry; skel default-app lists drift across editions.
+Stale: "Files can't drag out" is false — FilesPanel.qml:863,985,1197 does drag out.
+
+## VERBATIM: Multi-user, family, guest, enterprise/MDM
+
+Already built: per-user settings/screen-time, app blocking via malcontent, guest on/off, usershares, current-grants privacy dashboard, fleet agent with inventory/signed remote exec.
+Feasible gaps: screen time advisory only (no enforced caps); no bedtime/downtime schedule; no weekly/monthly report or export; parental filter set outside shell; no approval/ask-a-parent flow; no per-user web/content filtering; no privacy access timeline; no bulk revoke/app-data deletion; no "why does this app need X" rationale; no simplified/caregiver mode; guest has no rules; no kiosk/single-app mode; no settings-profile copy between accounts; no child-visible weekly digest.
+Needs server/daemon: MDM enrolment/policy plane, remote wipe/lock, signed configuration profiles, per-user certificate management, enforced signed settings, trustworthy access log, cross-account parental supervision, guided access/switch control, family account layer (CalDAV/CardDAV/IMAP services), enterprise inventory surface.
+
+## VERBATIM: Hardware and peripheral depth
+
+1. [H×M] Bluetooth codec choice (LDAC/aptX/AAC/SBC) — no org.bluez.MediaTransport1 reference anywhere.
+2. [H×M] USB device blocking — no usbguard reference.
+3. [H×M] General key remapping/layers — InputConfig.qml:15-32 writes only xkb options.
+4. [H×M] Per-app camera/mic permission for native apps — SettingsAppPermissions.qml governs Flatpak portals only (partly OOS).
+5. [M×E] Camera hardware privacy switch state — Privacy.qml:17-20 infers from kernel module, not actual switch/LED.
+6. [M×M] Camera controls (focus/exposure/zoom/pan/tilt) — Camera.qml:87-89 uses cam only to select index.
+7. [M×M] Microphone AGC/gain — SettingsSound.qml:273-280 only RNNoise toggle.
+8. [M×M] Audio loopback — no module-loopback/null-sink in shell.
+9. [M×E–M] Per-app power profiles — GameMode.qml:26-29 hardcodes fullscreen game → performance.
+10. [M×E] Thermal sensor depth — SysStats.qml:119-122 reads single CPU hwmon.
+11. [M×E] EDID/panel info — Displays.qml:238-239 keeps only make/model/physical mm.
+12. [M×E–M] Extended printer options — SettingsPrinters.qml:189-191 hardcodes media/duplex/colour.
+13. [M×M] Bolt device management UI — Thunderbolt.qml:23-37 enumerates/prompts on arrival only.
+14. [M×M] UPS depth — bridge/ups.py:35-51 reports only first UPS and six variables, no graceful shutdown.
+15. [L–M×M] Per-sink audio delay (lip-sync) — Audio.qml no latency property.
+16. [L×E] Sound theme/scheme — SystemSounds.qml:13 hardcodes freedesktop path.
+17. [L–M×M] Named multi-monitor arrangement profiles.
+OOS: virtual displays, overscan, mouse accel threshold, fan curves, USB gadget modes, per-output HDR/gamma/colour filters, Sticky/Slow/Bounce Keys.
+
+## VERBATIM: Missing app categories
+
+18 categories: Podcasts (Q), audiobook mode (Q), IRC (Q), database client (Q), teleprompter (Q), network tools (Q), health/fitness (Q+D), startup manager (Q), scheduled tasks (Q), offline dictionary (Q), VPN client (partial), cloud storage (D/S), system restore (partial), video conferencing (WebApp), e-book reflow (partial), NFC (H), Emergency SOS (S+H).
+Out of scope: Find My, wallet/payments, iMessage/FaceTime/iCloud, native app store, browser/office/torrent/VM/games (Flatpak-only), remote desktop control, NFC/SOS.
+
+---
+
+# Third pass — VERBATIM agent reports (from original audits)
+
+## VERBATIM: Unaudited utility apps
+
+Archive Manager: gaps delete/rename member, route .jar/.apk to zipadd, open member in own app, integrity test, add to 7z/rar/ISO, progress, comments. Bugs: appendable includes jar/apk but branch uses zipadd only for zip; zipadd.py stores ../outside.txt for files above archive folder; zipadd.py names no caller.
+Calculator: gaps DEG/RAD/GRAD, variables+Ans, mod/integer division, hyperbolic, log(x,base), history persistence, currency/date conversions, copy expression. Bugs: Ui.calculatorTab written but never read at startup; Base ▸ button inert; charCode uses UTF-16 charCodeAt(0) vs fromCodePoint.
+Clocks: gaps weekday repeat/one-shot/snooze/sound, ringing panel, custom timers/multiple, per-lap deltas, in-app city search, sunrise/sunset, state persistence, shortcuts. Bug: lastFired single minute string so alarm added for already-fired minute silently missed.
+Characters: gaps browse starts at ASCII punctuation not symbols/scripts, favorites/recents, Unicode-block browsing, insert-into-last-app, multi-codepoint emoji skipped, copy as U+/HTML/decimal, glyph detail, font preview. Bug: characters.py:203 claims browse shows symbols first but returns entries[:limit].
+Fonts: gaps family/style search (400-style cap), uninstall, drag-and-drop, license/glyph grid, .ttc face list, Settings handoff, side-by-side, recents. Bugs: percent-encoding in install path (fixed), installFont silently overwrites.
+Maps: gaps limit=1 geocoding, transit, live traffic, offline maps, map style, typed start marker/waypoints, reverse geocoding, alternative routes, keyboard pan/zoom. Bug: routeUrl always uses Location ignoring typed fromLat/fromLon (fixed).
+Disk Usage: gaps Rings chart, scan progress, exclude config, in-app chooser, hardlink double-count, preview, used/free bar. Bugs: dir_size walks every subtree synchronously per child; enter()/back() don't clear marked (fixed).
+Document Scanner: gaps batch/duplex, post-scan crop/rotate, page reorder/merge, scan-to, scan-area, per-device options, OCR, history. Bugs: scanErr collected but never displayed; --resolution not universal SANE option.
+
+## VERBATIM: Communication/apps
+
+Logs: "Show raw entry" button closes details; priColor() defined never used; no priority/unit/boot filters; fixed -n 200; no export; search misses PRIORITY fields; no new-error notification.
+Password Generator: no exclude look-alikes, custom length, word count, entropy readout, save to keyring, GPG actions, clipboard auto-clear. RNG sound (secrets); wordlist missing silently emits random string.
+Authenticator: UI cannot set digits/period/algorithm (bridge can); no edit/rename; no export/backup (lost keyring loses all tokens); no search/sort; no icon; clipboard not cleared; refresh tick can miss rollover. Secrets in GNOME Secret Service (good).
+Nearby: cancel unwired (fixed), text sharing, no persistent trust store, fixed receive location, rename, history, folder send. Security: TLS CERT_NONE, fingerprint from unauthenticated multicast.
+Converter: fade/artist/speed unwired (fixed), per-job options wrong, output-folder choice, metadata strip, no cancel. Invalid numbers silently coerced.
+PDF Signer: only current page saved — one-page PDF destroys rest (fixed); no real cryptographic signature; no drag-to-place; no rotation/opacity/multi-signature; no AcroForm fill; no placement undo.
+Kundali: timezone always UTC (appends Z) — wrong Lagna (fixed); nine bridge commands unwired; no visual chart; no city search; no export/history; hardcoded Lahiri; malformed ISO with seconds.
+
+## VERBATIM: Messages/Calls/Phone
+
+Architecture: GTK4 shani-link owns Messages/Calls; QML shell has entry points and modem dialog.
+Gaps: conversation search; inline Reply on text notifications; group threads; image attachments; SMS backup/export; drafts; speed dial/favorites in shell; call-waiting UI; tie recordings to caller; delivery/read status.
+Security: messages not E2EE, bodies echoed to notify-send; positive: bidi control chars stripped, switches default off.
+Dead: PhonePanel.add_tab() empty stub; openRecentCalls() opens Calls tab.
+Impossible: real SMS/voice without modem/paired phone; iMessage/FaceTime/RCS; typing indicators/read receipts/reactions; visual voicemail; E2EE for SMS; MMS picture receive.
+Already built: call history with duration, hold/swap/merge landline, two-sided recording with consent, SMS OTP copy and Reply.
+
+## VERBATIM: Accessibility (general)
+
+"Accessible by default" overstated. 20 gaps: no live regions; custom controls no AT-SPI name/role; slider value not exposed; verification claim thin; Super+Alt+S absent in running session (fixed); Theme.faint fails AA; accent on accentSoft fails AA; captions not accessible output; error message claim overstated; muted state colour-only; touch targets inconsistent; no continuous text size; no focus traps; Escape missing in Mail/Feeds/Processes; no headings/landmarks; focus ring 1px colour swap; IME hints only for secrets; no RTL mirroring; one unguarded animation; app-menu AT-SPI best-effort.
+
+## VERBATIM: Security/i18n/ecosystem
+
+Security: hook placeholder injection (fixed), QR world-readable path (fixed), files.py chmod follows symlinks, WebApps safeUrl undefined (fixed), stale desktop entries glob quoted, SettingsPage fake chips (fixed).
+i18n: greeter no translation, two catalog systems, English plural via %2, no placeholder parity validation, 83 unwrapped literals, two substitution mechanisms.
+Ecosystem: no CONTRIBUTING, no IPC reference/stability contract, no man page/completion, undocumented LauncherEntry D-Bus, settings pages hardcoded, no theme-pack API, no CI config.
+
+## VERBATIM: Capture tools
+
+Screenshot: region/window capture, all-monitors, history browser (encrypted captures never listed), OCR preview, configurable dir, pin zoom/fit. Bugs: PinCapture claims move/resize but fixed window; scroll-capture manual mode documented but absent.
+Recorder: pointer toggle, delay, single-window, container choice, cancel, max duration, mic meter.
+Color Picker: no picker window, recents never rendered, colour wheel, copy-as formats, sample from image. Bugs: claimed clipboard copy never happened (fixed), picked signal no listener, dead code!=0 branch.
+Ruler: ratio never assigned (fixed), diagonal/angle, ticks, saved measurements, units, arrow nudge, loupe. Bugs: dead straight property, grim captures all outputs vs one screen, temp PNG never deleted.
+Lens: QR action types beyond http/copy, OCR language choice, editable OCR text, TSV structure, history, keyboard region. Bugs: save hardcodes .png for jpg, openImage no encoding, language regex.
+Magnifier: auto-refresh, full-screen mode, inversion, resizable, arrow pan, reset key, cross-monitor.
+Captions: history/scrollback, pause/resume, timestamps, font settings, send to Chronoa, language picker. Bug: hh-mm 12-hour filename (fixed), out-of-order captions.
+Tour: five raw literals not Tr.t, tourEnabled checked only in shell.qml, no spotlight/capture card/try-it/replay/Back.
+Preview: PDF navigation/zoom, metadata, archive extract-one, video seek, share, image zoom/pan; Viewer redo/fullscreen/copy pixels. Bug: PDF cache key md5(path) only (fixed).
+
+## VERBATIM: New apps and session surfaces
+
+Backup: two restore buttons identical (what/restoring dead); CLI restore into new folder only; no progress/cancel, JSON errors swallowed, no verification badge, retention/exclusions/off-site/diff.
+Models: API keys never stored (fixed); download announces success on failure and notifies per line; preferred model set before success; GGUF claim false; VRAM unused; no live registry/test-connection/in-window errors.
+Studio: busy never cleared (fixed); find expression can never match .desktop under ~/Developer so gio launch dead; no code preview/revision/syntax check/export/privilege warning.
+Firewall: newZone/deleteZone use --permanent without --reload; parseZones drops hyphenated keys; interfaces/target parsed but not displayed; presets English; no panic mode/logging/validation.
+Passwords: audit never ran (fixed); passkey copy wrong field; passkey-add false success; FIDO2 no commands; locked collections invisible; attribute editing, GPG expiry, import/export, generator handoff.
+Greeter: typed password kept on user change (fixed); no translation, IME, auth status, last-layout, user dconf a11y, PIN path, retry countdown.
+Setup: 1-char password (fixed); Chronoa setting written from greeter user; auto-join open Wi-Fi without asking; onAuthMessage answers every prompt with password; no hidden Wi-Fi/proxy/restore/encryption/import/telemetry.
+Lock: messages raw English; photos accumulate but only newest shown; biometric unlocked() outside password conversation; queued discarded; no session-level lock test.
+
+---
+
+# First pass — the original app-by-app audits
+
+The first pass compared each app against its closest open-source equivalent and produced 5–8 ranked gaps per app with implementation sketches. Those original reports were transferred into `docs/GAPS.md` in the section "Full upstream app comparison — every gap found (Nov 2026)" (158 gaps across 20 apps) and into the curated pass sections above. The three doc-audit agents (shani-shell docs, shani-docs, infra repos) found stale counts, wrong paths, false plugin claims, edition/provider/sync-direction errors, and workflow profile/timeout/secret errors — all fixed in commits 28c49e5, 1a585ab, 8b18653, 3d5da6b, 80139eb. The upstream equivalents compared were: Text Editor→Kate, Notes→Joplin, Calendar→GNOME Calendar, Contacts→GNOME Contacts, Files→Nautilus, Photos→gthumb/Loupe, Viewer/PDF→Evince, Mail→Geary, Feeds→Newsboat, Terminal→kitty, Disks→GNOME Disks, Software→GNOME Software, Processes→htop, Settings→GNOME Settings, MediaPlayer→VLC, Camera→GNOME Snapshot, VoiceRecorder→Vocalis, VideoTrimmer→LosslessCut, Translate→Argos, Weather→GNOME Weather.
+
+---
+
+All reports in this archive are static findings — no runtime, hardware, live network, real daemon or Flatpak verification was available in this environment.
