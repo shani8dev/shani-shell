@@ -92,6 +92,14 @@ ColumnLayout {
             sourceSize: Qt.size(192, 120)
             visible: status === Image.Ready
         }
+        Image {
+            source: "file:///usr/share/pixmaps/shani-logo.svg"
+            Layout.preferredWidth: Theme.px(28)
+            Layout.preferredHeight: Theme.px(28)
+            fillMode: Image.PreserveAspectFit
+            sourceSize: Qt.size(56, 56)
+            visible: status === Image.Ready
+        }
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 2

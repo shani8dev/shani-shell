@@ -551,6 +551,15 @@ ShellRoot {
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 10
+                            Image {
+                                source: "file:///usr/share/pixmaps/shani-logo.svg"
+                                sourceSize: Qt.size(64, 64)
+                                Layout.preferredWidth: 26 * Theme.fontScale
+                                Layout.preferredHeight: 26 * Theme.fontScale
+                                fillMode: Image.PreserveAspectFit
+                                visible: status === Image.Ready
+                                Layout.alignment: Qt.AlignVCenter
+                            }
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 2

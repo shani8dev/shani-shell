@@ -13,7 +13,10 @@ Item {
     property real implicitSize: 32
     implicitWidth: implicitSize
     implicitHeight: implicitSize
-    readonly property string path: !icon ? "" : icon.startsWith("/") ? "file://" + icon : Quickshell.iconPath(icon, true)
+    // no fallback (false): with true, iconPath always answers with the theme's
+    // missing-image placeholder, so path is never "" and the initial tile below
+    // never renders for an app whose icon the theme does not know
+    readonly property string path: !icon ? "" : icon.startsWith("/") ? "file://" + icon : Quickshell.iconPath(icon, false)
 
     IconImage {
         anchors.fill: parent

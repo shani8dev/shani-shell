@@ -48,10 +48,15 @@ PanelWindow {
         { id: "tabs", label: Tr.t("Show this column as tabs"), icon: "tab-new", run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("toggle-column-tabbed-display"); } },
         { id: "swapleft", label: Tr.t("Swap with the window on the left"), icon: "go-previous", run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("swap-window-left"); } },
         { id: "swapright", label: Tr.t("Swap with the window on the right"), icon: "go-next", run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("swap-window-right"); } },
+        { id: "swapcolleft", label: Tr.t("Swap with the column on the left"), icon: "go-previous", run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("swap-column-left"); } },
+        { id: "swapcolright", label: Tr.t("Swap with the column on the right"), icon: "go-next", run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("swap-column-right"); } },
         // snap layouts (after Windows): the column at a half, a third or two thirds of the screen
         { id: "half", label: Tr.t("Half the screen"), icon: "view-dual", run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("set-column-width", "50%"); } },
         { id: "third", label: Tr.t("A third"), icon: "view-dual", run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("set-column-width", "33.333%"); } },
         { id: "twothirds", label: Tr.t("Two thirds"), icon: "view-dual", run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("set-column-width", "66.667%"); } },
+        // edge snap through the layout service (which knows the accepted edges)
+        { id: "snapleft", label: Tr.t("Snap left"), icon: "go-previous", run: () => { Niri.action("focus-window", "--id", target.id); WindowLayouts.snapToEdge("left"); } },
+        { id: "snapright", label: Tr.t("Snap right"), icon: "go-next", run: () => { Niri.action("focus-window", "--id", target.id); WindowLayouts.snapToEdge("right"); } },
         ...(Displays.outputs.length > 1 ? [{ id: "monitor", sep: true, label: Tr.t("Move to the other monitor"), icon: "video-display",
             run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("move-column-to-monitor-next"); } }] : []),
         // the whole workspace this window is on: up or down the list, or to the other screen

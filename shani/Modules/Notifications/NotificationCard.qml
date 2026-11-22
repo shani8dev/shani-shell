@@ -10,6 +10,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import "../../Common/Gestures.js" as Hold
 
 Glass {
     id: root
@@ -17,6 +18,8 @@ Glass {
     // Note: MultiEffect is available through QtQuick.Effects when enabled
     property var notification
     property bool popup: false
+    // a finger has no hover: keep the header buttons readable on touch devices
+    readonly property bool touchFirst: ["tablet", "phone"].indexOf(FormFactor.focused.profile) >= 0
     // privacy mode (Settings > Notifications): the app is named, the message is not
     readonly property bool hideContent: Settings.data.notifHideContent && !critical
     property bool showApp: true          // false inside a group: the header already names the app
@@ -81,6 +84,19 @@ Glass {
         NumberAnimation { target: root; property: "opacity"; from: 0; to: 1; duration: Theme.animEnter * 0.5 }
     }
 
+    function dismissCard() {
+        if (root.notification)
+            root.notification.dismiss();
+        root.done();
+    }
+    function openMenu(px, py) {
+        if (!root.notification)
+            return;
+        contextMenu.x = Math.max(0, Math.min(px, root.width - contextMenu.width));
+        contextMenu.y = Math.max(0, Math.min(py, root.height - contextMenu.height));
+        contextMenu.visible = true;
+    }
+
     function activate() {
         const def = root.notification.actions.find(a => a.identifier === "default");
         if (def)
@@ -105,8 +121,7 @@ Glass {
             if (active)
                 return;
             if (Math.abs(slide.x) > root.width / 3) {
-                root.notification.dismiss();
-                root.done();
+                root.dismissCard();
             } else {
                 slide.x = 0;
             }
@@ -114,8 +129,34 @@ Glass {
     }
     MouseArea {
         anchors.fill: parent
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        // a finger has no right button: a long press asks for the menu, and the
+        // click that ends it must not also open the notification
+        property var held: Hold.state()
+        onPressed: Hold.press(held)
+        onPressAndHold: {
+            if (Math.abs(swipe.translation.x) > Theme.px(8))
+                return;                       // a drag is under way, not a hold
+            Hold.hold(held);
+            swipe.enabled = false;            // reject the drag grab while the menu is up
+            root.openMenu(mouseX, mouseY);
+        }
+        onReleased: swipe.enabled = true
+        onCanceled: swipe.enabled = true
         cursorShape: root.notification && root.notification.actions.some(a => a.identifier === "default") ? Qt.PointingHandCursor : Qt.ArrowCursor
-        onClicked: root.activate()
+        onClicked: e => {
+            if (Hold.swallowed(held))
+                return;
+            if (contextMenu.visible) {
+                contextMenu.visible = false;   // a tap outside the menu closes it
+                return;
+            }
+            if (e.button === Qt.RightButton) {
+                root.openMenu(e.x, e.y);
+                return;
+            }
+            root.activate();
+        }
         // the card itself is a button to a screen reader: open it, as a click does
         Accessible.role: Accessible.Button
         Accessible.name: root.notification ? root.notification.summary : ""
@@ -126,7 +167,16 @@ Glass {
         name: root.notification ? root.notification.summary : ""
         radius: Theme.radiusLarge
         onActivated: root.activate()
-        Keys.onDeletePressed: root.done()
+        Keys.onDeletePressed: root.dismissCard()
+    }
+
+    // a swipe reveals this backing strip: the red grows as the card slides, so
+    // the dismiss action is discoverable before the card is let go
+    Rectangle {
+        anchors.fill: parent
+        radius: Theme.radiusLarge
+        color: Theme.red
+        opacity: Math.abs(slide.x) / root.width
     }
 
     // critical: a tint as well as the red edge, so it reads as urgent at a glance
@@ -234,7 +284,7 @@ Glass {
                         icon: "view-more"
                         size: Theme.px(22)
                         on: root.more
-                        opacity: hover.hovered || root.more ? 1 : 0.55
+                        opacity: root.touchFirst || hover.hovered || root.more ? 1 : 0.55
                         Accessible.name: Tr.t("More actions")
                         onClicked: root.more = !root.more
                     }
@@ -242,12 +292,9 @@ Glass {
                     IconButton {
                         icon: "window-close"
                         size: Theme.px(22)
-                        opacity: hover.hovered || root.critical ? 1 : 0.55
+                        opacity: root.touchFirst || hover.hovered || root.critical ? 1 : 0.55
                         Accessible.name: Tr.t("Dismiss")
-                        onClicked: {
-                            root.notification.dismiss();
-                            root.done();
-                        }
+                        onClicked: root.dismissCard()
                     }
                 }
                 Text {
@@ -420,5 +467,44 @@ Glass {
         height: 2
         radius: 1
         color: Theme.alpha(Theme.accent, 0.7)
+    }
+
+    // long press / right click: the same small menu the desktop uses elsewhere
+    Glass {
+        id: contextMenu
+        visible: false
+        strong: true
+        z: 20
+        radius: Theme.px(12)
+        width: Theme.px(190)
+        height: menuCol.implicitHeight + 12
+        Column {
+            id: menuCol
+            x: 6; y: 6
+            width: parent.width - 12
+            Repeater {
+                model: [
+                    { icon: "edit-copy", label: Tr.t("Copy text"), run: () => {
+                        const n = root.notification;
+                        if (n) Quickshell.clipboardText = n.summary + (n.body ? "\n" + root.safeBody(n.body) : "");
+                    } },
+                    { icon: "notifications-disabled", label: Tr.t("Mute app"), run: () => {
+                        if (root.notification) Notifs.setSilenced(root.notification.appName, true);
+                    } },
+                    { icon: "preferences-system-notifications", label: Tr.t("Open app settings"), run: () => {
+                        const name = root.notification ? root.notification.appName : "";
+                        Ui.closeAll();
+                        Ui.openSettings("notifications", "label:" + name);
+                    } }
+                ]
+                ListRow {
+                    required property var modelData
+                    width: menuCol.width
+                    icon: modelData.icon
+                    title: modelData.label
+                    onClicked: { contextMenu.visible = false; modelData.run(); }
+                }
+            }
+        }
     }
 }

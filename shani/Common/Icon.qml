@@ -28,7 +28,7 @@ Item {
             // name the theme lacks paints as an empty white square
             const sym = root.name.endsWith("-symbolic") ? root.name : root.name + "-symbolic";
             return Quickshell.iconPath(sym, false) || Quickshell.iconPath(root.name.replace(/-symbolic$/, ""), false)
-                || Quickshell.iconPath("preferences-system-symbolic", false);
+                || Quickshell.iconPath("dialog-question-symbolic", false);
         }
         visible: false
     }

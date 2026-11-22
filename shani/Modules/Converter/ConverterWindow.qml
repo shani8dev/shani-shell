@@ -64,6 +64,8 @@ AppWindow {
         onExited: next()
     }
     function convertAll() { if (running < 0) startNext(); }
+    // killing the worker fires its onExited, which marks the current job "Stopped"
+    function stop() { if (running >= 0) worker.running = false; }
     function startNext() {
         const i = jobs.findIndex(j => j.state === "ready" && j.format !== "");
         if (i < 0) { running = -1; return; }
@@ -175,6 +177,7 @@ AppWindow {
                             Icon { name: row.modelData.kind === "video" ? "video-x-generic" : row.modelData.kind === "audio" ? "audio-x-generic" : "image-x-generic"; size: Theme.px(18); color: Theme.dim }
                             Text { Layout.fillWidth: true; text: row.modelData.path.split("/").pop(); color: Theme.text; elide: Text.ElideMiddle; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
                             IconButton { size: Theme.px(26); visible: row.modelData.state !== "working"; icon: "window-close"; tip: Tr.t("Remove from the list"); onClicked: { const l = win.jobs.slice(); l.splice(row.index, 1); win.jobs = l; } }
+                            Button { flat: true; visible: row.modelData.state === "working"; text: Tr.t("Cancel"); onClicked: win.stop() }
                         }
                         // into what: a pick of what makes sense for this file
                         Flow {

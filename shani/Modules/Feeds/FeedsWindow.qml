@@ -271,6 +271,7 @@ AppWindow {
                     text: Feeds.articleTitle
                     color: Theme.text
                     wrapMode: Text.Wrap
+                    textFormat: Text.PlainText
                     font.family: Theme.font
                     font.pixelSize: Theme.px(20) * Theme.fontScale
                     font.weight: Font.DemiBold

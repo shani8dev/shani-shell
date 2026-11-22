@@ -133,10 +133,11 @@ Singleton {
         else if (layout.cols === 3) {
             Niri.action("focus-column-right");
         }
-        // "stack": move window down (if niri supports it)
+        // "stack"/"quarters": niri is a column tiler — it cannot split a column
+        // vertically, so a true 2×2 grid is impossible. A move-down/move-up pair
+        // cancels out, so instead give the focused column the honest full width.
         else if (layout.rows > 1) {
-            Niri.action("move-window-down");
-            Niri.action("move-window-up");
+            Niri.action("set-column-width", "100%");
         }
     }
 

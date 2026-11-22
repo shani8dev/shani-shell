@@ -300,6 +300,11 @@ Singleton {
         models = false;
         studio = false;
         notes = false;
+        mail = false;
+        feeds = false;
+        calls = false;
+        messages = false;
+        backup = false;
         closedApps();
     }
     function closeAll() {

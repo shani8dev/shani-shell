@@ -1121,6 +1121,7 @@ ShellRoot {
                 caffeine: Idle.caffeine,
                 keptAwakeBy: Idle.keptAwakeBy, idleStagesOn: !Idle.awake,
                 niriConfigUndone: NiriConfig.undone, niriConfigPending: Object.keys(NiriConfig.pending).length,
+                niriConfigRejected: NiriConfig.rejected,
                 dimmed: Idle.dimmed,
                 idleLock: Idle.lockIdle,
                 lockAfter: Idle.lockAfter,

@@ -3669,3 +3669,166 @@ Risk: RichText auto-detection and Devanagari clipping need runtime render.
 15. Reveal-eye KeyFocus stays in chain while visible — L×E. TextField.qml:98.
 Start: #1,#2,#3 then #4/#5/#6.
 Risk: #3 and #7 need QML runtime to confirm visually.
+
+---
+
+# Seventeenth pass — VERBATIM agent reports
+
+## VERBATIM: Window snapping & tiling UX depth
+
+# 17th pass — Window snapping & tiling UX depth
+1. Dead edge-snap service — no UI calls it. snapToEdge()/onEdgeDrop() defined (Services/WindowLayouts.qml:152-166) but zero callers. Keyboard snap lives only in packaged config, not dev session.kdl. Sketch: add Snap left/right/full buttons in palette + Mod+Alt+Arrow binds.
+2. "Half the screen" never places the window. WindowMenu.qml:52 only set-column-width 50%, no move-column-to-side. Sketch: Snap left/right using snapToEdge.
+3. Quarters / 2×2 layout is a no-op. apply() rows>1 does move-window-down then up (WindowLayouts.qml:137-140) net zero; palette tile at WindowLayouts.qml:146 does nothing. Sketch: remove misleading tile or implement stacked 50%-height windows.
+4. Ring pie menu has no tiling actions. Window slice only Close/Fullscreen/Float/Maximize/Center (Ring.qml:70-76). Sketch: Snap subring.
+5. Top/bottom "snap" is fake — snapToEdge("top"/"bottom") only sets width 100% (WindowLayouts.qml:159-160); "stack" also no-op. Sketch: relabel "Full width".
+6. No numeric width entry — only 50/33.333/66.667% (WindowMenu.qml:52-54). Sketch: TextField in palette.
+7. No incremental resize/nudge. Sketch: +/-5% menu rows.
+8. Resize undo missing — undoStack records only layouts (WindowLayouts.qml:60-78); manual set-column-width untracked.
+9. No equalize/distribute-evenly. Sketch: focus each column, set 100/N%.
+10. swap-column-* never wired (only swap-window-*). Sketch: two menu entries.
+11. Expand without collapse — "Take the free space" (WindowMenu.qml:47) no inverse.
+12. Custom layout authoring hard-coded cols:2,rows:1,ratios:[0.6,0.4] (WindowLayouts.qml:204) despite addCustom accepting params.
+13. Arrangements have no named windows — layout is {cols,rows,ratios}, undo snapshots {id,col,width}, no app identity.
+14. No floating geometry UI — floating toggled but size/position only at open via WindowRules.
+15. No floating "center" — Center is center-column (tiled-only).
+16. No live floating size persistence per app.
+17. No touch/pen tiling interaction.
+Niri-impossible: drag-to-edge snap, true 2-D grid/quarters, top/bottom half tiling, drag resize handles for tiled windows, raise/lower stacking, always-on-top, per-window thumbnails.
+Highest value×ease: #1,#2,#6,#9,#10.
+
+## VERBATIM: Clipboard rich content & formats
+
+# Clipboard rich content pipeline audit
+Answers: (1) publish — almost all plain text; rich only Files uri-list, Share uri-list, screenshots/image png/jpeg/webp. Nothing publishes text/html. (2) paste — only Notes accepts image/png; file URIs only Files/Converter/drop targets; no text/html paste into editors. (3) history — cliphist one blob per copy, text or image-by-magic; HTML/URI survive only as plain rendering. (4) feedback — no unified confirmation, many silent copies. (5) cross-app rich text always flattened. (6) color copy triple-implemented, QR/path/screenshot inconsistent.
+1. [H×E] Clipboard format setting ignored for screenshots (SettingsPage.qml:1594, Settings.qml:435 vs Screenshots.qml:117-121).
+2. [H×E] Encrypted history inert — session runs wl-paste --watch cliphist store directly (config.kdl:99), clipboard-watch.sh never launched; enable only wraps existing DB. test_clipboard_crypto checks script text not wiring.
+3. [H×M] Image history replay cannot paste into shell editors (Clipboard.qml:115-117 vs plain-text-only TextEdit).
+4. [H×E] No text/html producer at all.
+5. [H×M] Cross-app rich text always flattens.
+6. [H×E] File URIs pasted into text fields stay literal file:// strings.
+7. [M×E] Notes image paste rejects webp/gif/avif and file drops.
+8. [M×E] Color copy triple-implemented and writes twice (Color.qml:164, SidebarTiles.qml:405-409, shell.qml:481).
+9. [M×E] Copy feedback ad hoc and mostly absent.
+10. [M×M] History thumbnail decoder iterates over its own command prefix (Clipboard.qml:184) creating stray files.
+11. [M×E] Uncommon image types become gibberish in history (Clipboard.qml:176).
+12. [M×E] Two "plain text" actions, neither reads real HTML target; Launcher regex-strips <> destructively.
+13. [M×E] QR-from-clipboard ignores URI/file copies.
+14. [M×E] Screenshot image copies publish no file-URI fallback.
+15. [L×E] No MIME/type readout on history entries.
+
+## VERBATIM: Greeter/setup UX craft
+
+# Seventeenth-pass gaps — greeter/setup UX craft (static)
+1. Setup has no power controls at all (setup/shell.qml:1297-1313 vs greeter:301-341). H×E.
+2. Chronoa page traps narrow-screen users — Back hidden at setup:1299; dots inert :575-588. H×E.
+3. Wi-Fi failure silent — connectWithPsk clears pending, no error/retry (setup:811-835). H×M.
+4. Hung face scan has no cancel/fallback — Cancel gated on root.asked (greeter:521-525). H×M.
+5. Screen-reader shortcut swallowed at first boot — Qt.WindowShortcut (setup:377-381, greeter:258-262); dev/setup-test.sh presses up to 3×. H×M.
+6. Account errors buried below scroll — Start disabled, reason below summary (setup:1285-1295). H×E.
+7. "Show password" survives failure and user switching (greeter reset :183-191 clears 7 fields not showPass). M×E.
+8. Greeter feedback and caps warning not announced — no Accessible.role/live (greeter:491-512). M×E.
+9. Setup password fields lack caps-lock warning (setup:1023-1028 vs greeter:62-66). M×E.
+10. Greeter clock ignores locale — hardcoded HH:mm/dddd d MMMM (greeter:350-365). M×E.
+11. Visited steps look unvisited after going back — furthest kept but never shown (setup:39,486,585). M×E.
+12. No final confirmation before account creation — summary omits account/admin/Chronoa (setup:1092-1145). M×E.
+13. Chronoa choice no radio semantics, defaults on (setup:1240-1273, chronoaOn:true :49). M×E.
+14. "Try the layout" field doesn't apply layout (setup:707-710, XKB applied later by bridge). M×M.
+15. No primary-layout reorder (setup:185-196,689-706). M×M.
+16. Timezone suggestions mouse-only (setup:923-948, Enter blindly picks zoneMatches[0]). M×E.
+17. Secondary monitors inert — card and WlrKeyboardFocus.Exclusive only primary (greeter:235-254,375; setup:360-373,432). M×M.
+18. Privileged helper enforces only non-empty password (first-account.py:78-80) vs QML 8-char rule (setup:239). M×E.
+Not gaps: offline account creation works, Continue without internet, Wi-Fi PSK/show-hide/guest-empty paths have tests.
+
+## VERBATIM: App-to-app drag/drop & share-out
+
+# Drag/drop & share-out coverage
+Structural: only 8 Drag.mimeData sources (FilesPanel×3, DesktopIcons, SidebarShelf, Bar×2, Launcher) and 7 DropArea hosts (Files×8 via FileDropArea, Dock×4, Converter×2, Island, MediaPlayer, Bar, DropZone). None of 14 apps except Files/MediaPlayer/Screenshots touch drag, drop or Share.
+Matrix (drag out/drop in/Share/copy URI): Files ✓✓✓✓; Photos ✗✗✗✗; Viewer ✗✗✗ (path text); PdfReader ✗✗✗ (page text); TextEditor ✗✗✗ (selection text); Mail compose ✗✗✗; Notes ✗ picker✗ Export HTML; Contacts ✗✗ despite comment (Contacts.qml:154) ✗ QR; Calendar ✗ picker✗; MediaPlayer ✗ ✓(first URL only :468) ✗; VideoTrimmer ✗✗✗ Open/Trash; VoiceRecorder ✗✗✗ Export; Screenshots ✗ pinned img ✓(transient notif only) ✓ image/png.
+1. Multi-file Share silently shares one file (FilesPanel.qml:3105 uses e.path vs chosen; FileActions.qml:154 fs[0]; Share.qml single file string).
+2. Photos tiles cannot be dragged out (PhotosWindow.qml:366-432 no Drag props).
+3. Viewer cannot drag its image out (Viewer.qml:466-471 zero Drag.mimeData).
+4. Desktop/Shelf drag URIs unencoded (DesktopIcons.qml:251, SidebarShelf.qml:64 raw file:// vs Files.uriOf).
+5. Share "Copy the file" emits malformed URI (Share.qml:33 raw interpolation).
+6. Contacts promises drag-to-import but has no DropArea (Contacts.qml:154 vs ContactsWindow.qml:64-70 picker-only).
+7. Dropping tracks onto MediaPlayer queues only first (MediaPlayerWindow.qml:468 drop.urls[0] vs PlayQueue accepts arrays).
+8. PDF attachments can't be dragged out (save-to-disk only).
+9. No drop-to-open PDF (PdfReader.qml no DropArea).
+10. No drop-to-open image in Viewer.
+11. Mail attachments save-only, not draggable.
+12. No single-contact vCard export/share.
+13. Calendar event can't be handed out as .ics (import only).
+14. Recordings can't be dragged/shared.
+15. Trimmed video result can't be dragged/shared.
+16. Pinned screenshot can't be dragged/shared (share only transient notif).
+17. Share cannot carry text or URL (Share.qml single file path vs Phone.qml:27 --share-text).
+18. Text selection and notes have no drag-out.
+19. Converter has two overlapping drop handlers (full-window :106 and empty-state DropZone :218).
+Risk: adding text/plain drag fallbacks could paste paths as text into editors — keep URI-only for file sources.
+
+## VERBATIM: In-app shortcut discoverability
+
+# In-app shortcut discoverability — craft audit (static)
+Method: counted handlers, read AppWindow/Hint/IconButton/EmptyState/KeyFocus, both menus, SettingsShortcuts, NiriBinds.js, session.kdl, StartHints, Tour/Launcher.
+Answers: (1) 26 QML files Keys.onPressed, 10 Shortcut{} declarations, ~162 Qt.Key_ comparisons. Heaviest Files 23, TextEditor 20, Viewer 19, MediaPlayer 15, PdfReader 10. Surfaced in UI well under 15%; no complete per-app list. (2) Hint.qml keys badge used only bar/chrome; IconButton.qml:94 passes only text; keys smuggled into prose. Formats collide. (3) Third-party menus show accelerators (Bar.qml:941, WindowMenu.qml:197 fed by appmenu.py:284-312); our menus don't. (4) EmptyState has no key field; few contextual hints. (5) No per-app overlay; niri overlay separate from searchable list. (6) takenBy() checks niri+custom binds only, bare F-keys shadow Files F2/F5.
+1. IconButton.qml:94 drops keys channel.
+2. Shell menus show no accelerators while native menus do.
+3. No declarative shortcut metadata: AppWindow.qml:35 has tools, no shortcuts counterpart.
+4. Shortcut list sources split: NiriBinds.js vs SettingsShortcuts vs niri overlay.
+5. Conflict check blind to app keys and bare F-keys.
+6. 4+ notations for keys.
+7. Legends in 4 surfaces with 3 formats.
+8. Empty states omit creation keys.
+9. AppWindow F6/Menu/arrow navigation undocumented.
+10. Hint keys used only in bar/chrome.
+11. Two tooltip systems: Hint vs Qt ToolTip.
+12. Launcher subtitle keys ad hoc.
+13. Native accelerators visible only in hidden menus.
+14. Redo/undo key absent from 7s undo bar.
+15. Bare-key mutation schemes make any legend untrustworthy.
+16. Ui.shortcutsListed test-only counter, no UI uses it.
+
+## VERBATIM: Undo/redo in non-text contexts
+
+# 17th-pass report — UNDO/REDO in non-text contexts
+1. Files navigation history global, not per-tab (Files.qml:33-34, open():252-255, switchTab/closeTab call open():782,792). High×med.
+2. Files tab close no confirmation, no reopen closed tab (Files.qml:784-793, FilesPanel.qml:108 Ctrl+W).
+3. Converter no way to cancel running job — X hidden while working (ConverterWindow.qml:177), working row only progress (:194-201), closing window only sets visible=false so worker keeps running invisibly. High×high.
+4. Converter failed/done jobs no retry reusing options.
+5. Files retryFailed() forces conflict:"replace" (Files.qml:580-585) ignoring user's original choice — DATA-LOSS RISK.
+6. Files cancelJob() discards entire queue (Files.qml:626-629).
+7. Maps no reset/fit view; "Recenter" no-op when location off (MapsPanel.qml:281-291).
+8. Viewer zoom/pan/rotation reset on every image (Viewer.qml:77-113, open():41-62).
+9. No redo for any stroke/annotation undo (Whiteboard, Annotate, Viewer, PdfReader) — undo only.
+10. Selection wiped on every navigation with no undo (Files.qml:249,263,271; DiskUsage:153,161; Photos:97,106).
+11. Photos batch-trash/album undo not surfaced in Photos — undo lands in Files.undoStack reachable only from Files.
+12. Photos filter/groupBy/sortOrder window-local, not persisted (PhotosWindow.qml:23-25, controls :214-234).
+13. Files search query survives navigation, no clear/undo (Files.qml:248-278; FilesPanel.qml:205-209,329).
+14. Navigation Back/Forward absent outside Files and PDF (Software one-way, Mail one-way, Settings direct, DiskUsage back but no forward).
+15. PDF nav history lost on close/reopen; view state reset (PdfViewer.qml:250-275).
+16. Magnifier no reset to default zoom (Magnifier.qml:26,69-70,83).
+17. Batch/one-way view changes with no undo in rest of Settings.
+Cross-cutting: only Files has genuine non-text undo/redo pair, only Files/PDF nav forward. Cheapest lever: generic view-state stack reused by Maps/Viewer/Photos/PDF.
+Risk: Converter job-keeps-running inference rests on AppWindow only hiding and worker owned by still-live window.
+
+## VERBATIM: Multi-monitor bar/dock/taskbar gaps
+
+# Multi-monitor bar/dock/taskbar gaps — 17th pass
+1. [H×H] Dock pips reflect every monitor's windows, not this one's (Dock.qml:101-126, :339, :422-445).
+2. [H×H] Quick settings ignores the bar you clicked — one global Ui bool, sidebar uses focused output (Ui.qml:11,351-357; Sidebar.qml:25; shell.qml:203; Bar.qml:765,825,837).
+3. [H×M] Bar height fixed while contents scale from focused output (Bar.qml:43,48 vs Theme.px; FormFactor.qml:74-79; TV 1.6 vs laptop 1.0).
+4. [H×M] Dock size global and takes focused output scale (Dock.qml:130-138,232-234).
+5. [H×H] Dock click/wheel/menu can focus a window on another monitor (Dock.qml:142-159,500-506,564-566).
+6. [H×M] Notifications: badge on every bar, popup on only one (Notifs.qml:16, Bar.qml:819-828, Popups.qml:17-18).
+7. [H×H] Desktop icons only on first screen (shell.qml:98, DesktopIcons.qml:24 vs per-output widgets).
+8. [H×M] No primary-monitor concept; screens[0] de-facto (Displays.qml:21, Niri.qml:34-37, FormFactor.qml:74, Bar.qml:142, Dock.qml:63).
+9. [M×H] Every bar shows focused app's menus (AppMenu.qml:1,18,25; Bar.qml:66-70,88-96,478-516).
+10. [M×H] Window menu placed with coordinates from wrong bar (Bar.qml:590-594,599 vs WindowMenu.qml:18,219).
+11. [M×H] Quick settings un-hides every bar (Bar.qml:58 bare ||Ui.controlCenter).
+12. [M×H] TV home state global across per-output instances (shell.qml:102, TvHome.qml:24,48,51,57,70, Ui.qml:90-92).
+13. [M×M] No dock-to-dock drag, pins one global list (Dock.qml:448-481 DropArea only, no Drag.mimeData; dockPinned :160-194).
+14. [M×H] TV home "open" shelf ignores output (TvHome.qml:54-58 uses global Niri.mru()).
+15. [M×M] Workspace-map drag resolves by bare name across monitors (Bar.qml:355,416-425; Niri.qml:193-200).
+16. [M×M] Launching from dock doesn't target that dock's monitor (Dock.qml:143-147,510-514; Launch.qml:23-32).
+Niri-impossible: N1 no primary output in niri; N2 no pointer cross-monitor drag event; N3 per-invocation output placement needs niri window rules.
+Risk: #1/#5/#14 depend on niri reporting window output via workspace — needs real 2-monitor IPC readback.

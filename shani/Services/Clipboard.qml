@@ -75,10 +75,28 @@ Singleton {
     // gpg; every cliphist call goes through its `wrap` command, and the
     // watcher uses bridge/clipboard-watch.sh. The key is in the keyring.
     readonly property string crypto: Quickshell.env("SHANI_CLIPBOARD_CRYPTO") || "/usr/lib/shani-shell/clipboard-crypto.py"
+    // the watcher lives beside clipboard-crypto.py: bridge/clipboard-watch.sh
+    readonly property string watcher: crypto.replace(/[^/]*$/, "clipboard-watch.sh")
     readonly property bool encrypted: Settings.data.clipboardEncrypted === true
+    function restartWatcher() {
+        // The niri session spawns `wl-paste --watch cliphist store` directly
+        // (dev/niri/session.kdl:85), so toggling encryption never reaches
+        // clipboard-watch.sh and the live watcher keeps writing a plaintext DB.
+        // Replace it with one that feeds through the wrapper, which re-checks
+        // crypto status on every store. The [t] keeps pkill -f from matching
+        // this very command line. If the session wiring is fixed instead, that
+        // line should become: spawn-at-startup "wl-paste" "--watch" "bridge/clipboard-watch.sh"
+        Quickshell.execDetached(["sh", "-c",
+            'pkill -f "wl-paste.*--watch.*cliphis[t].*store" 2>/dev/null; '
+            + 'pf="$1/watcher.pid"; mkdir -p "$1"; '
+            + '[ -f "$pf" ] && kill "$(cat "$pf")" 2>/dev/null; '
+            + 'echo $$ > "$pf"; exec wl-paste --watch "$2"',
+            "sh", cache, watcher]);
+    }
     function setEncrypted(on) {
         Settings.data.clipboardEncrypted = on;
         Quickshell.execDetached(["python3", crypto, on ? "enable" : "disable"]);
+        restartWatcher();
         notifyEncrypted(on);
     }
     function notifyEncrypted(on) {
@@ -181,8 +199,17 @@ Singleton {
                 // decode the newest pictures once, for their thumbnails
                 const imgs = root.entries.filter(e => e.image).slice(0, 12);
                 if (imgs.length) {
-                    thumbs.command = ["sh", "-c", 'd="$1"; shift; mkdir -p "$d"; for e in "$@"; do id="${e%%:*}"; out="${e#*:}"; [ -f "$out" ] || "$@" decode "$id" > "$out"; done', "sh", root.cache].concat(root.clip([]))
-                        .concat(imgs.map(e => e.id + ":" + e.preview));
+                    // keep the cliphist/python command in "$@" and pass the
+                    // id:path list separately, or the loop would decode the
+                    // command's own tokens (e.g. `cliphist decode cliphist`)
+                    // and leave stray files behind
+                    thumbs.command = ["sh", "-c",
+                        'd="$1"; list="$2"; shift 2; mkdir -p "$d"; '
+                        + 'printf "%s\\n" "$list" | while IFS= read -r e; do '
+                        + '[ -z "$e" ] && continue; id="${e%%:*}"; out="${e#*:}"; '
+                        + '[ -f "$out" ] || "$@" decode "$id" > "$out"; done',
+                        "sh", root.cache, imgs.map(e => e.id + ":" + e.preview).join("\n")]
+                        .concat(root.clip([]));
                     thumbs.running = true;
                 }
             }

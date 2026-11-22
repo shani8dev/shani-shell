@@ -93,7 +93,7 @@ ColumnLayout {
         Tile {
             tid: "wifi"
             can: Net.hasWifi
-            icon: Net.wifiEnabled ? "network-wireless-signal-excellent" : "network-wireless-disabled"
+            icon: Net.icon
             title: Tr.t("Wi-Fi")
             subtitle: Net.activeWifi ? Net.activeWifi.name : (Net.wifiEnabled ? "Not connected" : "Off")
             on: Net.wifiEnabled

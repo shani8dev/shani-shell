@@ -48,7 +48,7 @@ Singleton {
     function markAll() { run("markall", current ? [current] : [], false) }
     function add(url, title) { run("add", title ? [url, title] : [url]) }
     function remove(url) { run("remove", [url]) }
-    function update() { busy = true; run("refresh", []) }
+    function update() { run("refresh", []) }
     function check() { run("status", []) }
     function setInterval(n) { run("interval", [String(n)]) }
     function discover(url) { run("discover", [url]) }
@@ -114,6 +114,7 @@ Singleton {
     }
 
     function start(what, args, redraw) {
+        root.busy = true;
         job.what = what;
         job.redraw = redraw !== false;
         // the subcommand is part of the command line: `feeds.py items <url>`,

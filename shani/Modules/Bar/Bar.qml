@@ -775,10 +775,16 @@ Variants {
                         font.pixelSize: Theme.px(11) * Theme.fontScale
                         anchors.verticalCenter: parent.verticalCenter
                     }
-                    Icon { visible: Focus.on && !(Settings.data.hideVolumeGlyph || Settings.data.hideBrightnessGlyph); name: Focus.mode ? Focus.mode.icon : ""; size: Theme.px(15); color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
+                    Icon { visible: Focus.on; name: Focus.mode ? Focus.mode.icon : ""; size: Theme.px(15); color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
                     Icon { visible: Idle.caffeine || Idle.keptAwake; name: "preferences-desktop-screensaver"; size: Theme.px(15); color: Theme.amber; anchors.verticalCenter: parent.verticalCenter }
-                    Icon { visible: Net.vpnActive; name: "network-vpn"; size: Theme.px(15); color: Theme.text; anchors.verticalCenter: parent.verticalCenter }
-                    Icon { name: Net.icon; size: Theme.px(15); color: Net.portal ? Theme.amber : Theme.text; anchors.verticalCenter: parent.verticalCenter }
+                    Icon { visible: Net.vpnActive || Net.tailscaleUp; name: "network-vpn"; size: Theme.px(15); color: Theme.text; anchors.verticalCenter: parent.verticalCenter }
+                    Icon {
+                        name: Net.icon
+                        size: Theme.px(15)
+                        color: Net.portal ? Theme.amber : Theme.text
+                        anchors.verticalCenter: parent.verticalCenter
+                        Accessible.name: Tr.t("Network: %1", Net.label)
+                    }
                     // the network wants a sign-in: a click opens its page
                     Icon {
                         visible: Net.portal
@@ -798,13 +804,20 @@ Variants {
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     Icon { visible: Audio.micMuted && Audio.source !== null; name: "microphone-sensitivity-muted"; size: Theme.px(15); color: Theme.red; anchors.verticalCenter: parent.verticalCenter }
-                    Icon { name: Audio.icon; size: Theme.px(15); color: Theme.text; anchors.verticalCenter: parent.verticalCenter }
+                    Icon {
+                        name: Audio.icon
+                        size: Theme.px(15)
+                        color: Theme.text
+                        anchors.verticalCenter: parent.verticalCenter
+                        Accessible.name: Audio.muted ? Tr.t("Muted") : Tr.t("Volume %1%", Math.round(Audio.volume * 100))
+                    }
                     Icon {
                         visible: Power.hasBattery
                         name: Power.batteryIcon
                         size: Theme.px(15)
                         color: Power.percent < 0.15 && !Power.charging ? Theme.red : Theme.text
                         anchors.verticalCenter: parent.verticalCenter
+                        Accessible.name: Power.charging ? Tr.t("Battery %1% (charging)", Math.round(Power.percent * 100)) : Tr.t("Battery %1%", Math.round(Power.percent * 100))
                     }
                     Text {
                         visible: Power.hasBattery && Settings.data.barBatteryPercent

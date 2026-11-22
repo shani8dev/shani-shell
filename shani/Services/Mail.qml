@@ -82,6 +82,7 @@ Singleton {
     }
 
     function start(what, args, redraw) {
+        root.busy = true;
         job.what = what;
         job.redraw = redraw !== false;
         job.command = ["python3", root.tool, what].concat(args);

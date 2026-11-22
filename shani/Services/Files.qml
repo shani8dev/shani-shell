@@ -55,7 +55,7 @@ Singleton {
     }
 
     // ---- the view ------------------------------------------------------------
-    property string viewMode: Settings.data.filesViewMode || "grid"     // grid | list | columns
+    property string viewMode: Settings.data.filesViewMode === "list" ? "list" : "grid"   // grid | list
     property string sortKey: Settings.data.filesSortKey || "name"        // name | size | mtime
     property bool sortDesc: Settings.data.filesSortDesc === true
     property bool showHidden: Settings.data.filesShowHidden === true
@@ -65,7 +65,7 @@ Singleton {
     property bool splitActive: false
     property string splitPath: ""
     property var splitSelected: []
-    property string splitViewMode: Settings.data.filesViewMode || "grid"
+    property string splitViewMode: Settings.data.filesViewMode === "list" ? "list" : "grid"
 
     // ---- the places in the sidebar -------------------------------------------
     property var places: []
@@ -324,6 +324,12 @@ Singleton {
     property string _vaultAsked: ""
     function setPaths(paths) {
         root._paths = paths || [];
+        // a re-list drops entries that went away: drop them from the selection too,
+        // but leave a copy/move job's own paths be until it is done (jobs hold a
+        // snapshot, yet the selection should still show what is being worked on)
+        const busy = root.jobRunning || root._jobs.length || root._conflictChecks.length || root.conflictAsk || root.copyTo || root.jobFailed.length;
+        if (!busy)
+            root.selected = root.selected.filter(p => root._paths.indexOf(p) >= 0);
         // inside an encrypted folder's locked side (gocryptfs.conf is there): its
         // password asked for, to open it
         // (asked once per visit: cancelled, it is not asked again until you come back)

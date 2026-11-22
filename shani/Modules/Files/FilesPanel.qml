@@ -59,6 +59,11 @@ AppWindow {
                 Files.toggleSplit();
                 return;
             }
+            // Escape first lets go of a selection, then walks up (or closes)
+            if (Files.selected.length) {
+                Files.clearSelection();
+                return;
+            }
             if (Files.canUp)
                 Files.up();
             else
@@ -338,12 +343,12 @@ AppWindow {
                     onClicked: { Files.setSearchDeep(!Files.searchDeep); dir.query = Files.searchDeep ? "" : searchBox.text; deepTimer.restart(); }
                 }
                 IconButton {
-                    icon: Files.viewMode === "grid" ? "view-list" : (Files.viewMode === "columns" ? "view-column" : "view-grid")
+                    icon: Files.viewMode === "grid" ? "view-list" : "view-grid"
                     size: Theme.px(30)
                     tip: Tr.t("Change view")
                     onClicked: {
-                        const m = Files.viewMode === "grid" ? "list" : Files.viewMode === "list" ? "columns" : "grid";
-                        Files.setViewMode(m);
+                        const views = ["grid", "list"];
+                        Files.setViewMode(views[(views.indexOf(Files.viewMode) + 1) % views.length]);
                     }
                 }
                 IconButton {
@@ -784,13 +789,19 @@ AppWindow {
                             }
                         }
 
-                        // a right-click on the background: the folder's own menu (new folder,
-                        // new document, paste, terminal, select all, turn the selection over)
+                        // a left-click on empty background drops the selection; a right-click
+                        // opens the folder's own menu (new folder, paste, terminal, select all…)
                         MouseArea {
                             anchors.fill: parent
-                            acceptedButtons: Qt.RightButton
-                            enabled: Files.path.startsWith("/") && !Files.isTrash
-                            onClicked: mouse => win.openMenu({ path: Files.path, isDir: true, background: true, name: Files.baseName(Files.path) }, mapToItem(win, mouse.x, mouse.y))
+                            acceptedButtons: Qt.RightButton | Qt.LeftButton
+                            onClicked: mouse => {
+                                if (mouse.button === Qt.LeftButton) {
+                                    Files.clearSelection();
+                                    return;
+                                }
+                                if (Files.path.startsWith("/") && !Files.isTrash)
+                                    win.openMenu({ path: Files.path, isDir: true, background: true, name: Files.baseName(Files.path) }, mapToItem(win, mouse.x, mouse.y));
+                            }
                         }
 
                         // the grid: a tile per file
@@ -3108,7 +3119,7 @@ AppWindow {
                      run: () => Archive.createAsk(Files.selected.indexOf(e.path) >= 0 ? Files.selected : [e.path]) });
         if (!e.isDir && Archive.types.indexOf((e.name.split(".").pop() || "").toLowerCase()) >= 0)
             items.push({ label: Tr.t("Extract here"), icon: "archive-extract", danger: false, run: () => Archive.extractHere(e.path) });
-        items.push({ label: Tr.t("Move to trash"), icon: "edit-delete", danger: true, run: () => Files.trashEntries([e.path]) });
+        items.push({ label: Tr.t("Move to trash"), icon: "edit-delete", danger: true, run: () => Files.trashEntries(chosen) });
         items.push({ label: Tr.t("Delete for good…"), icon: "edit-delete", danger: true, run: () => Files.deleteAsk = chosen });
         return items;
     }

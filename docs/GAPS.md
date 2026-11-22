@@ -1,7 +1,7 @@
 # Known gaps
 
 > **Complete agent reports:** this file is the curated, deduplicated list. The
-> full verbatim reports from all fifteen research passes (hundreds of findings,
+> full verbatim reports from all seventeen research passes (hundreds of findings,
 > including items that were later fixed or deduplicated) are in
 > [GAPS-RESEARCH.md](GAPS-RESEARCH.md).
 
@@ -105,6 +105,25 @@ Two of Deepin's apps are deliberately not copied: clone, boot maker and recover
 manager are the installer's job on a single-image system (we have shani-backup
 and the installer), and *grand search* overlaps our launcher plus Chronoa's
 meaning search.
+
+## Reachable only with a pointer (pad-reach, 2026-11-23)
+
+`dev/shell-parts/pad-reach.sh` asks every surface what takes a click but no
+focus - what a d-pad, Tab or a controller's A could never reach. Three controls
+still do, and they are recorded here rather than papered over:
+
+- the **breadcrumb chevron** in Files (the ▾ that lists a folder's siblings),
+- a **note row** in the Notes list,
+- the **sort headers** in System Monitor (Name, PID, CPU, Memory, Disk).
+
+Each has a MouseArea and an Accessible name but no keyboard path. The house
+`Common/KeyFocus` is an Item that attaches its Keys to the parent, and in these
+three places that is either a Text (the chevron, the headers) or a MouseArea
+(the note row) - dropping it in produced "Could not attach Keys property to …
+is not an Item", and in System Monitor the activation re-entered the sort
+binding until the stack ran out. The fix is a focusable control (a Button or a
+ListRow's own click) rather than a Keys handler bolted beside one, which is a
+change to those three surfaces, not a one-line patch.
 
 ## The app's menus in the bar (updated Nov 2026)
 
