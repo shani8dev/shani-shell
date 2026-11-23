@@ -493,6 +493,8 @@ def guest(req: dict) -> dict:
 
 
 SSHD_DROPIN = Path("/etc/ssh/sshd_config.d/50-shani-shell.conf")
+PWQUALITY = Path("/etc/security/pwquality.conf")
+PW_KEYS = {"minlen","dcredit","ucredit","lcredit","ocredit","difok","minclass","maxrepeat","maxclassrepeat","enforce_for_root"}
 
 
 def remote_access_get(_req: dict) -> dict:
@@ -549,6 +551,64 @@ def remote_access_set(req: dict) -> dict:
     return remote_access_get(req)
 
 
+def pwquality_get(_req: dict) -> dict:
+    settings = {}
+    try:
+        for line in PWQUALITY.read_text(encoding="utf-8", errors="replace").splitlines():
+            s = line.strip()
+            if not s or s.startswith("#") or s.startswith("[") or "=" not in s:
+                continue
+            k, v = s.split("=", 1)
+            k, v = k.strip(), v.strip()
+            if k in PW_KEYS:
+                settings[k] = v
+    except OSError:
+        pass
+    return {"settings": settings, "path": str(PWQUALITY)}
+
+
+def pwquality_set(req: dict) -> dict:
+    updates = req.get("settings") or {}
+    if not isinstance(updates, dict):
+        raise Refused("settings must be an object")
+    clean = {}
+    for k, v in updates.items():
+        if k not in PW_KEYS:
+            raise Refused(f"unknown key: {k}")
+        if k == "enforce_for_root":
+            clean[k] = "1" if str(v).lower() in ("1", "true", "yes", "on") else "0"
+        else:
+            try:
+                iv = int(v)
+            except Exception:
+                raise Refused(f"{k} must be an integer")
+            if iv < -128 or iv > 128:
+                raise Refused(f"{k} out of range")
+            clean[k] = str(iv)
+    try:
+        lines = PWQUALITY.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        lines = []
+    seen = set()
+    out = []
+    for line in lines:
+        s = line.strip()
+        if s and not s.startswith("#") and not s.startswith("[") and "=" in s:
+            k = s.split("=", 1)[0].strip()
+            if k in clean:
+                out.append(f"{k} = {clean[k]}")
+                seen.add(k)
+                continue
+        out.append(line)
+    for k, v in clean.items():
+        if k not in seen:
+            out.append(f"{k} = {v}")
+    content = "\n".join(out).rstrip("\n") + "\n"
+    PWQUALITY.write_text(content, encoding="utf-8")
+    os.chmod(PWQUALITY, 0o644)
+    return pwquality_get(req)
+
+
 COMMANDS = {
     "guest": guest,
     "wakeup": wakeup,
@@ -564,6 +624,8 @@ COMMANDS = {
     "battery-limit": battery_limit,
     "remote-access-get": remote_access_get,
     "remote-access-set": remote_access_set,
+    "pwquality-get": pwquality_get,
+    "pwquality-set": pwquality_set,
 }
 
 
