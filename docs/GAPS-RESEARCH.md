@@ -5,6 +5,15 @@
 summarisation. Each section is the agent's report with only formatting
 normalised. Static findings only — no runtime/hardware verification.
 
+**Archive integrity note (2026-11-23):** the original pass-16/17 entries were
+written as condensed one-liners. Pass 17 and the focus-management report are
+restored verbatim from the session transcript. The six other pass-16 topics
+(notification sound/visual, search ranking, tray icons, app icons, loading
+states, typography) are **fresh full re-researches against current source** —
+labeled as such in that section — because the original agent text could not be
+recovered. Passes 1–15 remain in the terse style in which they were first
+recorded.
+
 ---
 
 # Seventh pass — regional formats, file formats, disability a11y, web, sandbox, help, other desktops
@@ -3519,319 +3528,838 @@ Risk: items 2–4 assume Quickshell destroys window-owned Process on LazyLoader 
 
 # Sixteenth pass — VERBATIM agent reports
 
-## VERBATIM: Notification sound & visual design craft
+> **Archive note:** the original sixteenth-pass reports were condensed when first
+> written. Six topics below are fresh, full re-researches (dated 2026-11-23)
+> against current source, explicitly labeled as such; they replace the condensed
+> versions. The focus-management report is the original text, restored verbatim.
 
-# Sixteenth pass — notification sound & visual design craft (static, read-only)
+## VERBATIM: Notification sound & visual design craft (fresh full re-research)
 
-Read both GAPS files; honoured the skip list and did not re-file previously-audited items. Ranked gaps (value × ease):
-1. **[H×trivial] Two switches gate one notification sound.** SettingsPage.qml:1170 notifSound and SettingsSound.qml:66 soundNotification both tested at Notifs.qml:66-69; labels differ and search indexes them separately. Sketch: one key, other alias.
-2. **[H×easy] DND has no lock-screen presence.** LockScreen.qml never reads Notifs.dnd; bar only dims glyph. Sketch: lock-screen chip "DND on · N held · until …".
-3. **[H×easy] No "why didn't I get a notification?" explanation anywhere.** Notifs.qml:243-263 blocks silently. Sketch: notification-centre banner listing last suppressed app + reason.
-4. **[H×easy] Critical alerts are colour-only.** NotificationCard.qml:60,132-148 red tint; FlashAlert.qml:37 same accent for every event; Speak.qml:42 reads critical identically. Sketch: "Urgent" text badge + distinct cadence.
-5. **[H×easy] Flash alert can strobe.** FlashAlert.qml:36-45 full-screen 0.9-opacity border; every alerted restarts pulse with no rate ceiling. Photosensitivity risk. Sketch: cap flashes/minute, drop opacity on repeats.
-6. **[M×easy] Alert sounds have no independent volume or stream.** pw-play called with no volume (Notifs.qml:80-81, SystemSounds.qml:23). Sketch: named @DEFAULT_ALERT sink-input + slider.
-7. **[M×easy] No exit animation; stack reflow jumps.** Only slideIn exists (NotificationCard.qml:76-82); removal snaps. Sketch: add/remove transitions + fade-out.
-8. **[M×easy] Urgency and category not visually encoded.** Only Critical styled; hints.category read solely for calls, never in Modules/Notifications. Sketch: category→icon/accent strip.
-9. **[M×trivial] Privacy setting bypassed on lock screen.** Card hides summary under notifHideContent (NotificationCard.qml:21,255) but LockScreen.qml:536 prints raw appName: summary. Sketch: apply same gate.
-10. **[M×trivial] Notifications counted twice on lock screen.** Both count line (LockScreen.qml:264-269) and icon+number row (:550-559) render. Sketch: keep one.
-11. **[M×easy] Lock previews ignore silent/rules filtering.** LockScreen.qml:532 reads Notifs.list raw. Sketch: reuse hide gate.
-12. **[M×easy] Sound-name selection no validation/preview/fallback.** Notifs.qml:77-81 concatenates path, silently plays nothing; no sound-theme package shipped. Sketch: vendor fallback .oga + test row.
-13. **[M×easy] Flash tells nothing about the sound it replaces.** FlashAlert.qml:28 stores only summary; one pulse for chat and call alike. Sketch: category-coloured flash + persistent card.
-14. **[L×easy] Flash goes to focused monitor, not notification's.** FlashAlert.qml:13. Sketch: store originating output.
-15. **[L×easy] Hover-pause doesn't cover grouped stacks.** Popups.qml:85-89 pauses only individual card.
-16. **[L×trivial] Bar DND tooltip omits end time.** Bar.qml:823 vs dndUntilText existing. Sketch: reuse.
+# Notification sound & visual design craft — full audit (static, read-only)
 
-## VERBATIM: Search relevance & ranking
+Scope read: `shani/Services/Notifs.qml`, `shani/Services/SystemSounds.qml`, `shani/Services/Speak.qml`, `shani/Modules/Notifications/{NotificationCard,Popups}.qml`, `shani/Modules/Flash/FlashAlert.qml`, `shani/Modules/Lock/LockScreen.qml`, `shani/Modules/ControlCenter/SidebarNotifications.qml`, `shani/Modules/Bar/Bar.qml`, `Common/Settings.qml`, `Modules/Settings/{SettingsPage,SettingsSound,SettingsPrivacy,SettingsIndex.js}`. This replaces the condensed sixteenth-pass entry. Items the two GAPS files mark fixed (grouped stacks, progress bars, swipe-dismiss undo, long-press menu, dismiss helper) are excluded. All line numbers below are current, not the old report's.
 
-# 16th pass — Search relevance & ranking (static only)
-1. **Usage bonus inverts relevance classes.** Launcher.qml:447-448 adds Math.min(15,used) to raw score where 2-typo fuzzy hit=25; frequent bad-typo app outranks exact hit, breaking promise at :446. Sketch: score*1000+usage.
-2. **No recency/time decay.** app-usage.json stores bare count (Launcher.qml:58,108-112). Sketch: store {count,last}, exp decay.
-3. **No workspace/pinned/focus boost.** Sketch: +20 if window on current workspace, +10 if dockPinned.
-4. **Fuzzy first letter cannot be typo'd.** Fuzzy.js:56 skips words with w[0]!=t[0]. Sketch: permit one substitution at position 0 for queries>=5.
-5. **No acronym/subsequence matching.** "mp" never finds Media Player. Sketch: initials score.
-6. **Shell apps ship no search aliases.** bin/shani:600-609 writes no Keywords=/GenericName=. Sketch: add keywords tuple to APPS.
-7. **Name search unranked despite docstring.** files.py:1481 says "nearest first" but :1487-1506 appends os.walk order. Sketch: score hits and sort.
-8. **Content hits unsorted.** files.py:1521-1544 traversal order. Sketch: rg --count-matches, sort by count then mtime.
-9. **Launcher file hits keep tool order.** Launcher.qml:473-477. Sketch: run through win.score() and sort.
-10. **Settings search "best first" is declaration order.** SettingsIndex.js:329-352. Sketch: separate fields, score label-prefix > words > hint.
-11. **No typo tolerance in settings.** SettingsIndex.js:343 indexOf(token)===0 only. Sketch: reuse Fuzzy.js.
-12. **Settings index English-only, outside i18n.** SettingsIndex.js literals; tools/i18n.py scans only *.qml. Sketch: wrap in Tr.t, extend i18n.py to .js.
-13. **Recently changed settings don't boost.** Common/Settings.qml:34,54-55 kept for rail only. Sketch: rank bonus.
-14. **Mail search flat substring/server order.** mail.py:284-290, :467-490. Sketch: subject 3x body, sort newest.
-15. **Feeds search ranks by date only.** feeds.py:333,343-344. Sketch: score title/feed above body.
-16. **Photos has no text search.** PhotosWindow.qml:32-34 filters only path chips. Sketch: TextField + FileFilter.
-17. **Stale async results can overwrite fresh.** Only meaning has seq guard (Launcher.qml:182-190); providerSearch/fileSearch/contentSearch and QuickNotes.qml:474-501 don't. Sketch: seq per fire.
-18. **Search providers queried serially.** search-providers.py:71-96 N×3s worst case. Sketch: single GLib async deadline.
+---
 
-## VERBATIM: Tray/status icon semantics
+**1. [H×trivial] Two independent settings switches gate the one notification chime.**
+`Services/Notifs.qml:66-69` tests both `Settings.data.notifSound` and `Settings.data.soundNotification === false` before playing anything. They are exposed as two differently-labelled rows (`SettingsPage.qml:1170` "Sound"; `SettingsSound.qml:66` "Notification sounds") and indexed as two separate search targets (`SettingsIndex.js:69` vs `:134`). A person who turns the chime off in Sound but on in Notifications gets a silent desk with no idea why, and Settings search offers two controls for one behaviour.
+*Fix:* keep one canonical key and make the other an alias that writes it.
 
-# 16th-pass gap research — Tray / status-icon semantics and behavior
-1. "Hide volume/brightness icon" settings are visual no-ops. Settings.qml:507-508 promises hiding; Bar.qml:759-760 uses only in accessible name; icons render unconditionally. No brightness glyph at all.
-2. Wi-Fi quick-settings tile icon is static. SidebarTiles.qml:96 binds to "excellent" always. Sketch: Net.icon.
-3. Tailscale active shows no bar VPN icon. Bar.qml:780 only Net.vpnActive. Sketch: || Net.tailscaleUp.
-4. Hotspot/tethering active has no bar indicator. Net.hotspotOn tracked, no glyph.
-5. Individual status icons no accessible names/tooltips. Bar.qml:778-807 plain Icon elements.
-6. No right-click/long-press menus on status icons.
-7. Camera-in-use chip inert and unnamed. Bar.qml:699-703 no onClicked/name/hint.
-8. Bluetooth "connected" is colour-only. Bar.qml:794-798 always bluetooth-active when enabled.
-9. Status icons not individually clickable — one Chip for all.
-10. Location-in-use has no bar indicator. Location.running never referenced in Bar.qml.
-11. Low battery colour-only, no persistent badge.
-12. Updates dot has no context or action. Bar.qml:866-873 bare dot.
-13. Focus icon visibility coupled to unrelated settings. Bar.qml:778 requires both hideVolumeGlyph and hideBrightnessGlyph false.
-14. Disk-full/critical storage no bar surface. DiskUsage never referenced in Bar.qml.
-15. Firewall state no bar indicator. Firewall.available/running never read.
-16. Peripheral low-battery uses fragile 0-1/0-100 heuristic. Bar.qml:748-753.
-Risk: items 1,2,3,5,13 one-line but check accessibility tests.
+**2. [H×easy] Do Not Disturb has no presence on the lock screen.**
+`LockScreen.qml` has zero references to `Notifs.dnd` (verified by grep), while the control centre (`SidebarNotifications.qml:26-30`) and bar (`Bar.qml:833-840`) both show it. A locked machine therefore looks identical whether DND is holding notifications or the phone is simply quiet, so the person cannot tell whether they will be woken on unlock.
+*Fix:* add a lock-screen chip reading `DND on · N held · <Notifs.dndUntilText>`.
 
-## VERBATIM: App icons & branding
+**3. [H×easy] Suppressed notifications vanish with no "why didn't I get that?" surface.**
+`Notifs.qml:243-247` dismisses "block"-verdict notifications outright, and `:256-264` silently drops everything caught by silent-apps, Focus, DND, the lock-screen gate or `quiet`. No counter, log or banner records the event, so a missed two-factor code is indistinguishable from an app that never sent one. The rules engine (`_filterNotification`, `:21-23`) knows the reason but never surfaces it.
+*Fix:* keep a rolling "suppressed: app + reason" list and show it as a notification-centre banner.
 
-# 16th pass — App icons & branding consistency (static only)
-Themes: Adwaita (greeter/setup), Papirus (shipped default), Papirus-Dark/-Light, Pop (dev only).
-1. iconPath(name,true) makes fallback guards dead. Common/Icon.qml:26-28 true always returns placeholder; AppIcon.qml:16, Dock.qml:784, NotificationCard.qml:38,43-44, Bar.qml:473, AppWindow.qml:113, Popups.qml:117-119 rely on emptiness. Initial-letter tile, Dock drawn glyph, notification symbolic tint never render.
-2. Shipped ShaniOS logo unused by shell. /usr/share/pixmaps/shani-logo.svg installed (filesystem/PKGBUILD:224-228), zero QML references.
-3. APPS icons mostly foreign names, blank on Adwaita: evince, gnome-clocks, ark, gcolor3, kmag, shotwell, gnote, cheese, kstars, kdenlive, xournalpp, translator, kruler, etc. None in Adwaita/hicolor.
-4. Icon theme splits three ways (env Papirus desktop, hardcoded Adwaita greeter/setup, arbitrary Settings).
-5. Four icon-rendering patterns with different missing behavior.
-6. Distinct apps share one icon: mail-unread = Messages/Feeds/Mail; seahorse = Passwords/PasswordGenerator.
-7. High-DPI bypass: fixed icon sizes ignore Theme.px().
-8. AppWindow header icon has no fallback.
-9. Symbolic and colorful icons mixed in one cluster.
-10. Status names built full-color then rescued by -symbolic suffix; fallback to gear.
-11. Generic fallback is a settings gear for any missing glyph. Common/Icon.qml:31.
-12. Ring vs Switcher disagree.
-13. Dock control-tile comment contradicts behavior (iconPath true always answers).
-14. Launcher/Ring collapse all missing app icons to application-x-executable.
-15. QR has no brand mark, shared fixed path.
-16. WebApps desktop entries write unvalidated Icon=.
-Highest value×ease: #1,#2,#3,#6,#13.
-Risk: icon-existence checked against dev Adwaita/hicolor, not shipped Papirus.
+**4. [H×easy] Critical alerts are encoded in colour alone, in every channel.**
+`NotificationCard.qml:63,182-198` renders urgency only as a red border, a 10 % red tint and a 3 px red edge — no text badge; `FlashAlert.qml:37` gives every event the same `Theme.accent` border; `Speak.qml:42` reads a critical alert as plain "App: summary". A colour-blind user, a deaf user watching the flash, and a blind user listening all receive no distinct urgency signal.
+*Fix:* add a localized "Urgent" badge, a distinct flash cadence and a spoken urgency prefix.
 
-## VERBATIM: Loading states & perceived performance
+**5. [H×easy] The flash can strobe, with no rate ceiling and a 0.9 full-perimeter glow.**
+`FlashAlert.qml:29` calls `pulse.restart()` on every `onAlerted`, and `:36-45` animates a 14 px border to opacity 0.9 three times in quick succession; a burst of ten notifications restarts it ten times with no cap. `reduceMotion` merely collapses it to one 900 ms hold at 0.9 (`:43`) — still a full-screen high-intensity flash. This is a photosensitivity hazard that no setting other than the bare on/off (`SettingsPage.qml:1328`) mitigates.
+*Fix:* cap flashes per minute and drop opacity on repeats within the window.
 
-Read both GAPS files (all 15 passes), skipped listed items. Ranked gaps:
-1. Mail's busy never set — refresh and empty states lie. Services/Mail.qml:30 declares, :95 clears, nothing sets. Sketch: set in start(), gate empty on !busy.
-2. IconButton.on doubles as busy indicator, AT-SPI says "checked". Common/IconButton.qml.
-3. Feeds reports busy only for manual update, not open/search/add. Services/Feeds.qml:51 vs :42,:49,:57.
-4. Feeds search shows previous query's results while new search in flight. Feeds.qml:57-61.
-5. Weather's loading state never becomes error state. Weather.qml:175-188 catch(e){}; WeatherWindow.qml:141-148 only enabled/disabled.
-6. Weather city search silent up to 8s. Weather.qml:65-83.
-7. Logs opens with false "No logs available" before journalctl returns. LogsPanel.qml:75-89.
-8. Contacts duplicate scan claims "all unique" while computing. ContactsWindow.qml:307-313.
-9. Contacts can show error and "No contacts yet" simultaneously. ContactsWindow.qml:245-251 vs :465-471.
-10. File navigation shows old folder's contents as current. FileDirectory.qml:58-65.
-11. EmptyState has no loading/error variant — 45 call sites reinvent it. Common/EmptyState.qml:8-13.
-12. First-open Photos grid blank for whole scan. PhotosWindow.qml:111-117.
-13. Music Library grids blank after restart; scanned used for videos not music.
-14. Long loads can't be cancelled; closing window abandons UI not work.
-15. App windows pop in with no entrance transition. shell.qml:141-195, AppWindow.qml no Behavior.
-16. Scanning states carry no magnitude.
-Risk: all static; #1,#3 one-line choke-point changes.
+**6. [M×easy] Alert sounds have no independent volume or audio stream.**
+`Notifs.qml:80-81` and `SystemSounds.qml:23` both call bare `pw-play` with no `--volume` and no media role, so notification chimes ride the normal notification/music sink at whatever level it happens to be. There is no way to make alerts louder than media (or quieter at night) without changing every other sound, and no named sink-input to route them to a different device.
+*Fix:* play through a named `@DEFAULT_ALERT` sink-input with its own slider.
 
-## VERBATIM: Typography & text rendering
+**7. [M×easy] Cards animate in but never out; the stack reflows by snapping.**
+`NotificationCard.qml:80-85` defines only `slideIn`; removal is `Notifs.dropPopup()` (`Notifs.qml:220-224`) which simply drops the model entry. `Theme.qml:200` already defines `animExit`, but nothing under `Modules/Notifications` uses it, so the remaining cards jump upward the instant one is dismissed. The visual language contradicts the emphasized enter curve.
+*Fix:* add an exit transition using `Theme.animExit` and delay model removal until it finishes.
 
-## Typography & text-rendering audit — static only
-Baseline: 351 QML files, 1209 pixelSize, 264 elide, 5 lineHeight, 0 leading, 7 textFormat. Font families good (703 Theme.font, 66 Theme.mono).
-1. **[high] Untrusted text rendered with auto-detected RichText → remote image loads + theme override.** Only 7 files set textFormat. Raw bindings: FeedsWindow.qml:271-278 (feed title), MailWindow.qml:182-197 (subject, from), FilesPanel.qml:844-850 and DesktopIcons.qml:202-208 (filenames, `<` legal), ChronoaPanel.qml:564-576 (LLM reply). Sketch: Text.PlainText on all external data.
-2. **[high] Notification body sanitizer is <img>-only.** NotificationCard.qml:29; StyledText honours font/a/Markdown. Sketch: escape all markup.
-3. **[high] Leading unmanaged; Devanagari will clip.** Only 5 lineHeight values, leading never used. Sketch: Theme.leading 1.3/1.5.
-4. **[high] 8-10px text everywhere; 11px minimum not enforced.** ~35 uses px(9), 185 px(10) across ~70 files. Sketch: floor at px(11).
-5. **[med] No real type scale — ~28 arbitrary sizes.** 8,9,10,10.5,11,12,12.5,13,14,15,16,17,18,19,20,22,24,26,28,30,34,40,44,48,96. Three tokens used only 58x. Sketch: named ladder.
-6. **[med] Two scaling paths diverge.** Theme.qml:161-181 tokens raw ints no px(); other sizes use Theme.px(). Sketch: tokens as px(11).
-7. **[med] Elided text no reveal affordance.** 264 elide sites, one tooltip-on-truncation. ListRow.qml:43-59 used in 48 files. Sketch: ToolTip.visible: truncated.
-8. **[med] Fixed-width tab segments overflow on translated labels.** SegmentedTabs.qml:11,43,46-53.
-9. **[med] Button labels clip with no ellipsis.** Button.qml:19,22,62-77 clip:true no elide.
-10. **[med] Emphasis weight no semantic token.** 185 DemiBold, 17 Medium, 4 Bold.
-11. **[med] RichText syntax highlighting may ignore mono font.** QuickLookSheet.qml:203-208, TextEditorPanel.qml:710-714.
-12. **[low] Dead font-family fallback.** SettingsDevTools.qml:76 Theme.mono||Theme.font.
-13. **[low] One pointSize in px system.** SettingsLook.qml:125.
-14. **[low] Uppercase/tracked caption style used twice only.**
-Already good: font families centralized, px/fontScale on 1193/1209 sizes, elide+wrap paired, Highlight.js escapes, Mail sanitized.
-Risk: RichText auto-detection and Devanagari clipping need runtime render.
+**8. [M×easy] Urgency and category are not visually encoded beyond the critical red tint.**
+`Notifs.qml:47` is the sole reader of `hints.category`, and only to find `call.incoming`; `NotificationCard.qml:28,63,182-198` styles exclusively off the `critical` boolean. A chat message, a calendar reminder and an email therefore look identical, so the notification centre cannot be scanned by type and there is no category-based visual priority.
+*Fix:* map category and urgency to a small icon plus accent strip on the card.
 
-## VERBATIM: Focus management & keyboard navigation
+**9. [M×trivial] The privacy "hide content" switch is bypassed on the lock screen.**
+`NotificationCard.qml:24,302-316` hides summary and body when `Settings.data.notifHideContent` is on, but `LockScreen.qml:532-541` prints raw `(appName + ": " + summary)` gated only by `lockPreviews`. `LockScreen.qml` never references `notifHideContent` at all (grep confirmed). A person who enabled that setting for shoulder-surfing protection still has every message title on the lock screen.
+*Fix:* add the `notifHideContent` gate to the lock-screen Repeater.
+
+**10. [M×trivial] Unread notifications are counted twice on the lock screen.**
+`LockScreen.qml:262-269` draws a centred text "N notifications" when `lockPreviews && Notifs.count > 0`, and `:549-560` draws an icon plus the same `Notifs.count` when `count > 0`. With previews on, the number is printed twice a few pixels apart; with previews off, the privacy-preserving row remains, so the two blocks disagree about their purpose.
+*Fix:* keep the icon+count row and drop the text line (or gate the text on previews off).
+
+**11. [M×easy] Lock-screen previews read the raw list, ignoring silent-app and rule filtering.**
+`LockScreen.qml:532` binds directly to `Notifs.list.slice(0,3)`. All suppression logic lives in the popup path at `Notifs.qml:256-264`, so a notification muted with "No pop-ups" or hidden by a rule is still shown on the lock screen the moment previews are enabled. The silence setting people use to tame a noisy app does not reach this surface.
+*Fix:* expose a pre-filtered `Notifs.previews` list and bind the lock screen to it.
+
+**12. [M×easy] Notification sound names are concatenated into a path with no validation, preview or shipped fallback.**
+`Notifs.qml:76-81` builds `dir + sound-name + ".oga"` from an app hint with no existence check before the shell loop tries it. There is no sound picker or test row anywhere in Settings (no `pw-play`/preview reference there), and no sound-theme package dependency in this repo's PKGBUILDs. A hint with a typo or a missing theme leaves the alert silent with no diagnostic. The `sh` loop at `:81` does try `message.oga` as a second candidate, so total silence is now avoided — but neither choice is visible to the user.
+*Fix:* vendor one fallback `.oga` and add a Settings row that plays the chosen name and reports failure.
+
+**13. [M×easy] The flash says nothing about what it is flashing for.**
+`FlashAlert.qml:28` stores only `n.summary`, and `:37` pulses the same accent for a chat, a low-battery warning and an incoming call alike. Even when the person looks up from a deafening environment, the flash cannot tell them which alert mattered or that a call is waiting — and unlike the popup layer, the overlay leaves nothing behind after the pulse.
+*Fix:* colour the flash by category and leave a persistent critical call card.
+
+**14. [L×easy] The flash targets the focused monitor, not the notification's source.**
+`FlashAlert.qml:13` chooses `Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]`, so a notification from an app on a second display flashes the display the pointer happens to be on. `Popups.qml:17` uses the same proxy for popups; together they mean multi-monitor users get alerts on the wrong screen and no way to trace them back.
+*Fix:* store the originating output with the notification and target it for both surfaces.
+
+**15. [L×easy] Hover-pause covers individual cards, not a grouped stack (and collapsed stacks never expire).**
+`Popups.qml:85-94` puts the `HoverHandler` and the `paused: hover.hovered` life animation on each `PopupCard`; the stack header (`:122-182`) has click/key handling only. Worse, the delegate at `:185` renders no cards while a multi-item stack is collapsed, so those notifications have no `life` animation running at all and can sit in the popup list indefinitely.
+*Fix:* lift the hover handler to the stack and pause all of its cards' timers together.
+
+**16. [L×trivial] The bar's DND tooltip omits the end time that Notifs already computes.**
+`Bar.qml:836` hardcodes `hint: "Do Not Disturb is on - right-click to turn it off"`, while `Notifs.qml:126-127` exposes a localized `dndUntilText` that nobody consumes. Right-click also calls `setDnd()` (`Notifs.qml:111-114`), which zeroes `dndUntil`, so the one action the tooltip advertises destroys the schedule without mentioning it.
+*Fix:* append `Notifs.dndUntilText` to the hint and say that right-click clears the timer.
+
+**17. [M×easy] DND does not silence the shell's own system sounds.**
+`SystemSounds.qml:15-24` gates `play()` only on `systemSounds`, `soundVolumeChange` and `soundScreenshot`; it never reads `Notifs.dnd` or `Notifs.quiet` (the predicate used for notifications at `Notifs.qml:258-260`). Charger plug/unplug, drive arrival/removal, screenshot shutter and volume clicks therefore keep sounding in DND, which breaks the expectation that "do not disturb" means quiet.
+*Fix:* route `play()` through the same `Notifs.dnd || Notifs.quiet` gate.
+
+**18. [L×trivial] The flash border is hard-coded in raw pixels and has no test affordance.**
+`FlashAlert.qml:36` sets `border.width: 14` rather than `Theme.px(14)` used everywhere else in the shell (e.g. `NotificationCard.qml:205,218`), so the flash stays 14 device pixels on a scaled phone/tablet where every other element grows. The only control is a bare on/off (`SettingsPage.qml:1328`) with no way to preview the effect before relying on it as an accessibility channel.
+*Fix:* use `Theme.px(14)` and add a "Test flash" button beside the switch.
+
+---
+
+Skipped: items the GAPS files mark fixed (grouped stacks, progress bars, swipe undo, long-press menu) and the already-documented cross-cutting gaps (per-app sounds, storm coalescing, ducking, notification→file). Risk: all findings are static source readings — the strobe cadence, the collapsed-stack expiry behaviour and the missing theme package need one live multi-monitor session to confirm before fixing.
+
+## VERBATIM: Search relevance & ranking (fresh full re-research)
+
+# SEARCH RELEVANCE & RANKING — FULL AUDIT (static, read-only)
+
+**Scope:** `Launcher.qml`, `Common/Fuzzy.js`, `bin/shani` app entries, `bridge/files.py`, `bridge/mail.py`, `bridge/feeds.py`, `SettingsIndex.js`, `Common/Settings.qml`, `bridge/search-providers.py`, plus corroborating `PhotosWindow.qml`, `QuickNotes.qml`, `tools/i18n.py`.
+
+**Archive status:** The authoritative list is the 16th-pass "Search relevance & ranking" block (`docs/GAPS-RESEARCH.md:3544-3564`). Later passes (17–22) explicitly *skipped* search ranking (`GAPS-RESEARCH.md:4044`, `:4546`), and no fix commit touches these paths. Every item below was re-verified against current source and is **still open**. Ratings are value × ease on 1–5 (5 = highest impact / easiest one-line fix).
+
+### 1. Usage bonus is added after scoring, inverting lower relevance classes (4×5)
+`shani/Modules/Launcher/Launcher.qml:447-448` — `s: x.s + Math.min(15, used(x.a))`.
+The score classes are exact ≈100, word-prefix 80, inside 60, keyword/GenericName 40, fuzzy 30/25 (`Fuzzy.js:67`), comment 20 (`:243-251`). Adding up to 15 *after* classification lets a heavily-launched app found only by a 2-typo fuzzy hit (25+15=40) tie or beat an app found via its own declared keywords (40), and reshuffle fuzzy-vs-comment ordering — despite the comment at `:446` promising typo hits rank below real matches. Fix: `s: x.s * 1000 + used(x.a)` so usage only breaks ties inside a class.
+
+### 2. No recency or time decay in app usage (3×3)
+`Launcher.qml:58,108-112,118-123` store/read `app-usage.json` as a bare `{id: count}` map.
+An app launched 200 times once last year still out-boosts an app used daily this week; "Frequent" (`:281-284`) is a lifetime count, not a habit. Fix: store `{count,last}` and apply `Math.exp(-(now-last)/τ)` to the boost.
+
+### 3. No workspace / pinned / focus boost in app and window ranking (4×4)
+`Launcher.qml:447-448` (apps), `:459` (windows filtered by `score()` only), `:465-469` (actions).
+`Niri.focusedWorkspace` and `Settings.data.dockPinned` (`:36`) are never consulted, so the app whose window is on the current workspace, or a dock-pinned favourite, has no ranking advantage over a dormant app with the same name score. Fix: add `+ (onCurrentWorkspace(a)?20:0) + (dockPinned(a)?10:0)` in the `ranked` map.
+
+### 4. Fuzzy matching refuses a typo in the first letter (3×4)
+`shani/Modules/Launcher/Fuzzy.js:56` — `if (w[0] !== t[0]) continue;`.
+The comment (`:45-46`) justifies this as "typos are rarely there", but it makes `fierfox`→Firefox work while `direfox` or `sirefox` never does, even for long queries where the edit budget is 2. Fix: for `t.length >= 5`, allow one substitution at position 0 before skipping the word.
+
+### 5. No acronym or subsequence matching (4×3)
+`Launcher.qml:243-251` (`appScore`) and `Fuzzy.js:21-42,47-67` (prefix edit distance only).
+Typing `mp` never finds *Media Player*, `sm` never finds *System Monitor* — every scheme requires each query word to be a near-prefix of a name word, so initials are invisible. Fix: add an initials score (e.g. `initials(name).startsWith(q) ? 50 : 0`) to `appScore`.
+
+### 6. Shell apps ship desktop entries with no search keywords (4×4)
+`bin/shani:604-614` (`desktop_entry()` writes Name, Comment, Icon, Exec, Categories, StartupNotify, MimeType, NoDisplay — no `Keywords=` or `GenericName=`).
+The launcher *does* read `keywords`/`genericName` when present (`Launcher.qml:247-249`), but the ~50 first-party apps never supply them, so searching "browser", "music", "editor" or any natural-language alias cannot reach them via their own entries. Fix: add a keywords tuple to the `APPS` spec and emit `Keywords=`/`GenericName=`.
+
+### 7. Files name search claims "nearest first" but is unranked (3×3)
+`bridge/files.py:1481-1506` — docstring `:1482`, results appended at `:1501` in `os.walk` order.
+`search()` sorts *directory traversal* (`dirs.sort()`, `:1490-1491`) but never scores hits; a file whose name starts with the query can appear after an unrelated match simply because it lives in a later folder. Fix: score prefix > word-prefix > substring, then `found.sort(key=score, reverse=True)`.
+
+### 8. Content hits are returned in tool/traversal order (3×3)
+`bridge/files.py:1521-1546` (`inside()`), used at `:1508-1517` to append `inside: True` rows.
+`rg -l … --max-count 1` (`:1533`) only lists matching paths, so the best file — most matches, recently edited — has no advantage over a one-word hit in an old log; limit is applied to whatever order `rg`/`grep` emitted. Fix: `rg --count-matches`, sort by count then `mtime`, then slice to `limit`.
+
+### 9. Launcher file hits keep tool order; no scoring re-rank (3×4)
+`Launcher.qml:473-477` — recent names first, then `win.found`, then `win.inside` sliced.
+Unlike apps (`:447`), files bypass `win.score()` entirely: an exact filename match from `plocate`/`fd` sits wherever the tool emitted it, and "recent files" (which only substring-match at `:473`) precede a better `found` hit. Fix: run `allFiles` through `win.score()` and sort before `.slice(0,10)`.
+
+### 10. Settings "best first" is declaration order, with no field weighting (4×4)
+`shani/Modules/Settings/SettingsIndex.js:328-353` — `hay = label + hint + words` (`:337`), loop over `entries` in declaration order (`:335`), stop at 8 (`:349-350`).
+A keyword-only hit on an early-declared entry outranks an exact label prefix declared later; label, hint and `words` are flattened into one string so there is no "label prefix > words > hint" tiering. Fix: score label-prefix=3, word-prefix=2, hint=1, collect all, then sort and slice 8.
+
+### 11. Settings search has no typo tolerance (3×4)
+`SettingsIndex.js:343` — `words[w].indexOf(tokens[j]) === 0` is the only test.
+`wallpapr` or `animaton` return nothing, while the launcher forgives the same mistakes through `Fuzzy.js`; the two search surfaces disagree on basic spelling. Fix: fall back to `Fuzzy.score(Fuzzy.words(hay), token) > 0` with a lower rank.
+
+### 12. Settings index is English-only and outside the i18n pipeline (3×3)
+`SettingsIndex.js:8-60+` hardcodes every `label`, `hint` and `words` string; `tools/i18n.py:27-28` globs only `*.qml`.
+A Marathi or Hindi user sees translated QML labels but searches against an English corpus — typing a translated word finds nothing, and no translation can ever be supplied for these strings. Fix: wrap labels/hints in `Tr.t(...)` and extend `qml_files()` to include `*.js` (keep `words` as untranslated alias tokens).
+
+### 13. Recently-changed settings are tracked but never boost search (2×5)
+`shani/Common/Settings.qml:34,52-56` (`recentlyChanged`, `touch()`), `SettingsPage.qml:231` / `SettingsWindow.qml:65` (call `SettingsIndex.matches(text)` with no recency input).
+The 8-key rail is the sole consumer of `recentlyChanged`; a setting you just changed has no advantage over an equally-scored one you have never touched. Fix: pass `Settings.recentlyChanged` into `matches()` and add `+ (indexOf(key) < 0 ? 0 : 8 - index)` to the score.
+
+### 14. Mail search is flat substring matching in server order (4×3)
+`bridge/mail.py:278-290` (`mh_search`) and `:491-519` (`imap_search`).
+`mh_search` is a single `q in from or subject or snippet` filter over API order; `imap_search` delegates to IMAP `TEXT` (`:500`) and returns `uids[-100:]` in UID order (`:503`) — neither boosts subject over body nor sorts newest-first, so a decade-old body hit can outrank today's subject match. Fix: weight subject×3/from×2 and `out.sort(key=date, reverse=True)` in both functions.
+
+### 15. Feeds search ranks purely by date (3×4)
+`bridge/feeds.py:318-345` — flat haystack at `:330-333`, substring gate at `:333`, `out.sort(key=date, reverse=True)` at `:344`.
+Title, feed name, summary and full text are concatenated into one string, so an article whose *title* is the query is indistinguishable from one that merely mentions it deep in the body; recency alone decides. Fix: `score = (title hit?3:0)+(feed hit?1:0)`, sort by `(score, date)` descending.
+
+### 16. Photos has no text search at all (4×3)
+`shani/Modules/Photos/PhotosWindow.qml:32-34` — `shown` filters only `filter` (camera/screenshots path regex) and `activeAlbum`.
+There are tags and ratings in `meta` (`:31,62-63`) but no field or predicate to search filenames, paths or tags; a user with thousands of photos must scroll month groups (`:38-52`) to find "beach". Fix: add a `TextField` + `searchText` and extend `shown` with a lowercase filename/path/tag substring test.
+
+### 17. Stale async results can overwrite fresh ones (4×3)
+`Launcher.qml:66-71` (`providerSearch`), `:157-170` (`fileSearch`), `:173-178` (`contentSearch`) assign `win.provided/found/inside` directly in `onStreamFinished`; only the meaning search has a guard (`:182-192`, `meaningSeq`). `shani/Services/QuickNotes.qml:474-490` clears on query change (`:495-498`) but tags no token, so an older `grepBodies` run can repopulate stale hits.
+Typing `rep` then quickly `repo` can land the slower older process last, leaving results for a query nobody typed any more; the file/meaning sections then disagree. Fix: increment a token per fire and ignore callbacks whose token is not current (as `:186` already does).
+
+### 18. Search providers are queried serially with per-call timeouts (3×3)
+`bridge/search-providers.py:68-112` — single `for` loop at `:71`, two `bus.call_sync(..., 1500, ...)` at `:73-83` and `:86-96`.
+With N installed GNOME SearchProvider2 apps the launcher's provider query can take up to ~3N seconds, contradicting the docstring's "short timeout … never waited on" (`:10-11`); a single slow provider delays every other app's results. Fix: dispatch `call_async` for all providers and collect under one shared GLib deadline.
+
+### 19. Launcher content search ignores the configured search folders (3×5)
+`Launcher.qml:176` hardcodes `d="$HOME/Documents $HOME/Desktop $HOME/Downloads"`; name search correctly uses `Settings.data.searchFolders` at `:168`.
+A user who narrows Search folders in Settings still gets content hits from all three default folders, so "inside files" results leak paths the user excluded and dilute relevant hits. Fix: concat `Settings.data.searchFolders` (tilde-expanded as at `:168`) into `d` in `contentSearch.command`.
+
+---
+
+**Skipped / not checked:** no runtime or QML verification — all line evidence is static; the 17th-pass search-*controls* gaps (clear buttons, Escape-to-clear, Ctrl+F, result counts) were out of scope. **Risk:** the async-race and serial-provider fixes (#17–18) touch process lifecycle and D-Bus timing, so a regression would show as missing/stale launcher sections rather than a crash; #12 widening i18n globbing could alter translation tooling output.
+
+## VERBATIM: Tray / status-icon semantics and behavior (fresh full re-research)
+
+# Tray / status-icon semantics and behavior — full verbatim report
+
+Scope: `Modules/Bar/Bar.qml`, `Modules/ControlCenter/SidebarTiles.qml`, `Services/{Net,Audio,Power,Location,Firewall,Updates,DiskUsage}.qml`, plus the directly coupled `Privacy.qml`, `Ime.qml`, `Niri.qml`, `Common/{Chip,Icon}.qml`, `Common/Settings.qml`, `Modules/Settings/SettingsPage.qml`. Static, read-only; current source only.
+
+**Verified fixed — not re-filed** (earlier 16th-pass items now corrected in source): Wi-Fi tile icon is no longer static (`SidebarTiles.qml:96`, now `Net.icon`, which is signal-aware per `Net.qml:49-61`); Tailscale now raises the bar VPN glyph (`Bar.qml:780`, `Net.vpnActive || Net.tailscaleUp`); focus icon is no longer coupled to the hide-glyph settings (`Bar.qml:778`, now `visible: Focus.on`). The clock's AT name also now says "updates waiting" (`Bar.qml:846`), a partial fix noted under finding 15.
+
+---
+
+### 1. "Hide volume / brightness icon" are visual no-ops; the brightness flag also corrupts the battery's AT name (High × Trivial)
+`Common/Settings.qml:507-508`; `Modules/Settings/SettingsPage.qml:1030-1031` ("Hide the volume icon" / "Hide the brightness icon", hints "the speaker in the bar" / "the sun in the bar"); `Bar.qml:759-760` (both flags used only inside the composite `name`), `Bar.qml:807-813` (speaker icon renders unconditionally), `Bar.qml:814-829` (battery icon + percent). There is no brightness glyph anywhere in `Bar.qml`. Turning either switch changes nothing on screen, and `hideBrightnessGlyph` actually suppresses the *battery* percentage from the screen-reader name of the quick-settings button. *Fix sketch:* gate the `Icon` at `:807-813` on `!hideVolumeGlyph` and repurpose/remove `hideBrightnessGlyph` (or add a real brightness glyph and bind it).
+
+### 2. Hotspot / tethering has no persistent bar indicator (Medium × Easy)
+`Net.qml:43` (`hotspotOn`), `:76-83` (setHotspot), `:244-251` (parsed from `nmcli monitor`); `SidebarTiles.qml:140-148` (tile); `Bar.qml:778-829` (no hotspot reference). Once the control centre closes, a machine broadcasting an AP has no cue at all — a battery/data/security-relevant state that every comparable desktop shows continuously. *Fix sketch:* add `Icon { visible: Net.hotspotOn; name: "network-wireless-hotspot"; color: Theme.amber }` to the cluster.
+
+### 3. "Connected, no internet" looks identical to working Wi-Fi (High × Easy)
+`Net.qml:22` (`online` from NM connectivity) is ignored by `Net.icon` and `Net.label` at `:49-63`; `Bar.qml:781-787` recolours only for `Net.portal`, `:789-798` is the portal warning only. Full signal bars stay grey/dim when connectivity is Limited, so a user sees "connected" while nothing loads and blames apps. *Fix sketch:* in `Net.icon`/`label`, if `activeWifi && !online && !portal`, return `network-wireless-offline` / "No internet" and tint the bar glyph amber.
+
+### 4. Bluetooth "connected" is colour-only in the bar (Medium × Easy)
+`Bar.qml:799-805` — the icon name is hard-coded `bluetooth-active` whenever the adapter is enabled; connection state is expressed solely by `color: Bluetooth.devices.values.some(d => d.connected) ? Theme.accent : Theme.text`. Contrast the control-centre tile, `SidebarTiles.qml:108-115`, which names connected devices correctly. Colour-blind users and AT users cannot tell connected from merely enabled. *Fix sketch:* switch the name between `bluetooth-active`/`bluetooth-disabled` and bind `Accessible.name` to the connected device list.
+
+### 5. Mobile-data tile still uses a static "good signal" icon (Medium × Easy) — missed by the earlier audit
+`SidebarTiles.qml:130-139`: `icon: "network-cellular-signal-good"` is fixed even though the subtitle at `:135-136` reads `Modem.modem.signal + "%"`. The Wi-Fi equivalent was fixed, but this parallel was not; a weak WWAN link still paints full bars. *Fix sketch:* map `Modem.modem.signal` to `network-cellular-signal-{weak,ok,good,excellent}` in a helper and bind `icon` to it.
+
+### 6. The whole status cluster is one click target; individual glyphs are not clickable (High × Medium)
+`Bar.qml:758-830` is a single `Chip`; `Chip.qml:59-67` routes left-click to the one `clicked()` handler, which at `Bar.qml:765` only toggles the control centre. Of the child icons (`:778-821`), only the portal warning (`:789-798`) has its own `MouseArea`; network, volume and battery glyphs cannot open their own pages. *Fix sketch:* give each status `Icon` its own `MouseArea`/`onClicked` (network → `"wifi"`, battery → `"power"`, etc.) or split them into separate `Chip`s.
+
+### 7. Most status icons have no accessible name and none has a tooltip (High × Easy)
+Named: network (`:786`), portal (`:796`), audio (`:812`), battery (`:820`). Unnamed: focus (`:778`), caffeine/wake-lock (`:779`), VPN (`:780`), Bluetooth (`:799-805`), muted mic (`:806`), the IME/layout `Text` (`:771-777`). `Common/Icon.qml:8-42` exposes no Accessible properties, and `Chip.qml:18,25,69-70` provides one `hint` for the whole chip only. A screen reader hears one "Quick settings…" button and nothing about the glyph states; sighted users get no hover explanation. *Fix sketch:* copy the `Accessible.name` pattern from `:786/812/820` onto every sibling icon and attach a `Hint`/`ToolTip` per state.
+
+### 8. Right-click / Menu key / long-press do nothing on the status cluster (Medium × Easy)
+`Bar.qml:758-767` wires `onClicked`, `onScrolled`, `onMiddleClicked` but sets no `hasMenu` and no `onRightClicked`; `Chip.qml:17,69` makes the Menu key conditional on `hasMenu` and has no `Hold` handler. Other bar chips do it (`Bar.qml:183-184,620-621,839-840`; 12th-pass finding 19 already covers the mouse-only limitation generally, but not this cluster). The quick-settings toggles are therefore unreachable by keyboard Menu key or touch long-press. *Fix sketch:* add `hasMenu: true` + `onRightClicked` to the cluster Chip and a `Hold` in `Chip.qml` routed to `rightClicked()`.
+
+### 9. Privacy chips: camera is inert, mic is unlabelled, neither attributes or revokes (Medium × Easy)
+`Bar.qml:699-703` — the camera-in-use chip has only `visible/icon/tint`: no `onClicked`, no `hint`, no accessible name. `Bar.qml:685-690` — mic-in-use opens the audio panel but has no name/hint; `Bar.qml:806` muted-mic icon is unnamed. `Privacy.qml:14,44-52` detects holders only as `true/false` via a PID-based `/proc/*/fd` probe. Unlike the control-centre camera tile (`SidebarTiles.qml:252-260`, which says "In use" and can toggle), the persistent chips offer no way to see *which* app holds the device or to revoke access. *Fix sketch:* add `Accessible.name`/`hint` with the app name and `onClicked: Privacy.toggleCamera()` (mic → audio panel), surfacing the PID from `Privacy.qml`.
+
+### 10. Location-in-use has no bar indicator at all (High × Medium)
+`Bar.qml:676-703` covers recording, mic, screen-share and camera but nothing for location. `Location.qml:15` exposes `running` and `:22-28` drives the helper, but `Bar.qml` never references `Location` (verified by grep); `Privacy.qml` has no `locationInUse` field. An opt-in, privacy-sensitive capability that can run for an hour (`:61-67`) has no persistent cue or revoke affordance. *Fix sketch:* expose `Location.active` and add a `Privacy.locationInUse`-style amber chip using the existing privacy-chip pattern.
+
+### 11. The "Sharing" chip stops every cast with one click, with no list or confirm (Medium × Easy)
+`Bar.qml:691-697`: `onClicked: Niri.stopCasts()` with hint "click to stop". `Niri.qml:243-263` walks every `session_id` from `niri msg -j casts` and calls `stop-cast` on all of them. One tap on a small status chip silently tears down every screencast (e.g. a recording plus a meeting share) with no attribution or undo. *Fix sketch:* open a menu from `niri msg -j casts` with one Disconnect row per session, keeping a single "Stop all" as an explicit item.
+
+### 12. Screen-share detection itself is a property heuristic prone to false positives (Medium × Medium)
+`Audio.qml:34-38`: `screenShared` is any `VideoSource` whose `properties["device.api"]` is empty. A virtual camera (OBS) or shani-link's phone-as-webcam that omits that property lights the red "Sharing" chip at `Bar.qml:691-697` and, via the existing coupling, forces quiet elsewhere; a real share whose source sets it is missed. *Fix sketch:* correlate with the actual `niri msg -j casts` sessions (the source already used by `Niri.qml:246`) instead of a node property.
+
+### 13. Low battery is colour-only with a notify-once policy (Medium × Easy)
+`Bar.qml:814-829`: the battery glyph turns red only when `percent < 0.15 && !charging`; the numeric percent at `:822-829` depends on `barBatteryPercent`. `Power.qml:97-115` warns once at 15 % and 7 % per discharge (`warned`), so after a notification is dismissed there is no persistent textual badge — just a tint that reverts while charging. *Fix sketch:* add a small always-on "low battery" chip/label while `percent < 0.15 && !charging`, independent of `barBatteryPercent`.
+
+### 14. Peripheral low-battery uses a fragile 0-1 / 0-100 heuristic in two places (High × Easy)
+`Bar.qml:748-753` and `Power.qml:62`: `d.percentage <= 1 ? d.percentage * 100 : d.percentage`. A device at exactly `1` is read as 100 % (hidden), a device at `0.5` as 50 %, and a 1 % UPower fraction as 1 %; the same value drives both the chip and the one-shot 15 % warning (`Power.qml:63-67`). A boundary value can suppress a real low-battery alert for a mouse or headphones. *Fix sketch:* normalise once in `Power.peripherals` (or use UPower's `percentage`/`state` fields) and let the bar consume the normalised value.
+
+### 15. The updates dot still has no direct action or detail (Medium × Easy)
+`Bar.qml:879-886`: a bare 6 px amber `Rectangle` on the clock when `Updates.attention`; `:846` now at least appends "updates waiting" to the AT name (partial fix). Clicking the clock (`:850`) opens the generic control centre, and `Updates.qml:17,62-64` carries a richer `summary` (reboot needed / update ready / firmware ready) that the dot never uses. There is no "what is waiting" or one-tap path to `Updates.open()`. *Fix sketch:* make the dot a `Chip`/`Hint` bound to `Updates.summary` with `onClicked: Updates.open()`.
+
+### 16. Disk-full / critical storage cannot be surfaced because no capacity model exists (High × Medium)
+`DiskUsage.qml:17-31` exposes only `entries/marked/scanning/error`; there is no filesystem size, used, free or percent field anywhere (`Component.onCompleted` at `:206` does not even scan until opened). `Bar.qml` never references `DiskUsage`. So the earlier "no disk-full bar surface" finding is deeper than a missing glyph: the data to decide that a disk is full is not modelled. *Fix sketch:* add `df --output=pcent,target` polling to `DiskUsage` (e.g. `diskUsedPct`) and gate an amber/red bar chip on it.
+
+### 17. Firewall up/down state has no bar surface (Medium × Easy)
+`Firewall.qml:21-22` tracks `available`/`running` with a startup `refresh()` (`:169`); `Bar.qml` reads neither. A machine whose firewalld has stopped — a security-relevant state change — is silent until the person opens Settings › Firewall. *Fix sketch:* add `Icon { visible: !Firewall.running; name: "security-medium"; color: Theme.red; onClicked: ... }` to the cluster.
+
+### 18. IME / layout indicator goes blank for most non-m17n methods (Medium × Easy)
+`Ime.qml:18-24` yields a label only for `m17n_<lang>_` and `keyboard-<x>`; `pinyin`, `anthy`, `libime:*` and similar produce `""`. `Bar.qml:771-777` hides that `Text` when `Ime.running && Ime.label === ""`, and the fallback keyboard-layout text is also hidden when `Ime.running` is true, so an active non-m17n method leaves no input-state cue at all. *Fix sketch:* fall back to the first token of `Ime.current` (or the layout) when `label` is empty and show it whenever a method is active.
+
+### 19. Quick settings ignores which bar was clicked (Medium × Medium)
+`Bar.qml:765` (cluster), `:825` (notifications) and `:837` (clock) all call the same global `Ui.toggleControlCenter()`; the state is one global bool (`Ui.qml:11,351-357`) while the sidebar uses the focused output (`Sidebar.qml:25`, `shell.qml:203`). On two monitors, clicking the status cluster on monitor A opens/controls the panel on the focused monitor B, and `Bar.qml:58` un-hides every bar (`|| Ui.controlCenter`). The status cluster therefore reports state for the wrong screen. *Fix sketch:* pass `output` into `Ui.toggleControlCenter(output)` and have `Sidebar` bind to that output.
+
+---
+
+**Skipped / risk:** did not run QML, AT-SPI, a11y tests or real hardware; "fixed" verdicts are source-level (e.g. `Net.icon`, focus coupling) and the false-positive/no-capacity claims (12, 16) depend on how PipeWire labels virtual cameras and on there being no other disk-capacity service (grep confirmed). Findings 1, 4, 7, 8 and 14 touch shared `Chip`/`Icon`/`Settings` plumbing — verify the AT name change does not duplicate announcements and that a `Hold` in `Chip.qml` does not fight existing wheel/MiddleButton handlers.
+
+## VERBATIM: App icons & branding consistency (fresh full re-research)
+
+# APP ICONS & BRANDING CONSISTENCY — full static audit (current source)
+
+**Scope.** Read `docs/GAPS.md`, `docs/GAPS-RESEARCH.md` (the 16th-pass icon report at lines 3587–3608 is the prior archive), then re-read current source. `tests/test_icon_fallbacks.py` shows three of the archived items were fixed *in the paths the test checks*: `Common/Icon.qml` and `Common/AppIcon.qml` now use `iconPath(..., false)` (`Icon.qml:30-31`, `AppIcon.qml:19`), the gear fallback became `dialog-question-symbolic` (`Icon.qml:31`), and the logo is referenced by `SettingsAbout.qml:96` and `setup/shell.qml:555`. Everything below is still open, or a residue those fixes did not reach. Static only; no QML runtime, and icon existence was not checked against the shipped Papirus theme.
+
+---
+
+**1. `iconPath(name, true)` still kills six fallback guards (HIGH × EASY).** `AppWindow.qml:113`, `Bar.qml:473`, `Dock.qml:784`, `NotificationCard.qml:41,43`, `Popups.qml:117,119` all pass `true`. With the fallback flag on, `iconPath` always answers with the theme's missing-icon placeholder, so every `source !== ""` / `visible` emptiness check is unreachable and an app the theme does not know paints a placeholder instead of an initial or drawn glyph. `test_icon_fallbacks.py:24-31` polices only `Icon.qml`/`AppIcon.qml`, so this regressed silently elsewhere. **Fix:** flip the six call sites to `false` (or a string fallback) and let their existing guards run.
+
+**2. ShaniOS brand mark appears in two places only (MED × EASY).** The filesystem package installs five logo assets (`shani-pkgbuilds/filesystem/PKGBUILD:224-228`), but QML references only `SettingsAbout.qml:96` and `setup/shell.qml:555`. The main shell (`shani/shell.qml`), the bar, the launcher and the greeter (`greeter/shell.qml`, whose only `Image` is the wallpaper at `:264-266`) carry no logo at all — a first-time user sees an unbranded login and desktop. **Fix:** reuse `file:///usr/share/pixmaps/shani-logo.svg` in the greeter header and the launcher/bar brand chip with `visible: status === Image.Ready`.
+
+**3. Most shipped app icons are foreign names that Adwaita cannot resolve (HIGH × EASY).** `bin/shani:444,476,478,502,506,534,536,538,548,582,584,586,588` set `evince`, `gnome-clocks`, `ark`, `gcolor3`, `kmag`, `shotwell`, `translator`, `kruler`, `seahorse`, `xournalpp`, `kdenlive`, `kstars`; many entries use `org.gnome.*` / `com.belmoussaoui.Authenticator` (`:510,544,550,560,564,574`). None exist in Adwaita/hicolor. The service defaults to Adwaita when gsettings is unset (`data/systemd/shani-shell.service:20`) and the greeter/setup hardcode it (`greeter/shell.qml:9`, `setup/shell.qml:15`), so these apps are blank in exactly the first-run and login surfaces. **Fix:** switch the APPS icons to freedesktop names (`org.gnome.*` → `gnome-*`/generic) or ship a hicolor icon for each desktop id.
+
+**4. Icon theme is chosen three different ways and can diverge mid-session (MED × MED).** Desktop shell reads `QS_ICON_THEME` from gsettings (`shani-shell.service:20`, `shani/shell.qml:1-2`); greeter and setup pin `//@ pragma IconTheme Adwaita` (`:9`, `:15`); Settings offers every theme on disk (`SettingsLook.qml:23-50`). Picking a theme changes apps immediately while the shell's own `Icon.qml` keeps the startup theme until restart, as its own warning admits (`SettingsLook.qml:53-58`, `Appearance.qml:25`). **Fix:** make greeter/setup read the same gsettings value and derive `QS_ICON_THEME` live or drop the restart caveat.
+
+**5. Four icon-rendering vocabularies coexist (MED × MED).** `Common/Icon.qml:17-42` (symbolic + `MultiEffect` recolor), `Common/AppIcon.qml:21-43` (themed image or initial tile), `IconImage` + `iconPath(..., true)` (`Bar.qml:468-474`, `Dock.qml:790-795`), and `IconImage` + a string fallback (`Launcher.qml:792,839`, `Ring.qml:269`). Each fails differently — question mark, initial letter, placeholder, or generic executable — so the same missing icon looks unrelated across surfaces and any global branding change needs four edits. **Fix:** render every icon through `Common/AppIcon` with an explicit `symbolic` boolean.
+
+**6. Distinct apps share one icon (MED × EASY).** `mail-unread` is the icon for Messages, Feeds and Mail (`bin/shani:516,530,532`); `seahorse` is both Passwords and Password Generator (`:548,582`). In the dock, launcher and switcher these read as duplicates or the wrong app (a feeds item looks like mail), defeating icon-based recognition. **Fix:** give each a unique shipped icon name, e.g. `org.gnome.FeedReader`/`preferences-system-privacy` and `dialog-password`/`utilities-keyring`.
+
+**7. Fixed icon pixel sizes bypass the theme scale (MED × EASY).** Literal `implicitSize` values at `Bar.qml:469` (16), `NotificationCard.qml:233` (26), `Ring.qml:268` (30), `Launcher.qml:791` (54) and `:838` (28), `Switcher.qml:205` (56), `AppIcon.qml:13` (32) are not multiplied by `Theme.px()`/`Theme.fontScale`. On HiDPI or large-text settings these stay small while neighbouring text grows, making app identity hard to read exactly where it matters most. **Fix:** wrap each in `Theme.px(...)`, as `Icon.qml:12` already does.
+
+**8. The AppWindow header icon has no fallback at all (MED × EASY).** `AppWindow.qml:109-115` is a plain `Image` with `source: Quickshell.iconPath(win.entry.icon, true)` and `visible: source != ""`; with `true` the source is never empty, so an unknown app gets the theme placeholder rather than the initial tile that `Common/AppIcon` would draw. The adjacent title texts are `Accessible.ignored` (`:125,134`) but the icon is not, so screen readers get an unnamed image too. **Fix:** replace the `Image` with `AppIcon { icon: win.entry?.icon; name: win.appName; implicitSize: Theme.px(20) }` and set `Accessible.ignored: true`.
+
+**9. Dock control-tile comment contradicts its behavior (MED × EASY).** `Dock.qml:781-784` says the drawn tile is used "only where a theme has none", but `iconPath(icon, true)` always answers, so `face.visible: tile.themed === ""` (`:813`) is dead and the pip at `:799` renders on a placeholder. The overview/show-desktop controls therefore lose the shell's own visual language whenever the theme lacks `multitasking-view` or `show-desktop`. **Fix:** use `iconPath(icon, false)` at `:784` so `themed === ""` can actually trigger the drawn tile.
+
+**10. Notification symbolic-tint path is unreachable (MED × EASY).** `NotificationCard.qml:36-47` computes `appSymbolic` only when `appIcon === ""`, but `appIcon` is built with `iconPath(..., true)` at `:41,43` and is therefore never empty when an icon is named. The symbolic `Icon` at `:236-242` never draws, and `Popups.qml:117,119` repeats the same `true` logic for stacks; apps whose icons are symbolic-only (the documented Adwaita case in the comment at `:45`) show a placeholder or a bare initial instead of a tinted glyph. **Fix:** use `false` at `:41,:43,:117,:119` and keep the `-symbolic` rescue at `:47`.
+
+**11. Symbolic and colorful icons are mixed inside one cluster (MED × EASY).** `Ring.qml:258-270` places a recoloured symbolic `Icon` beside a full-colour `IconImage` in the same ring; `NotificationCard.qml:230-242` stacks a colourful app `IconImage` with a tinted symbolic `Icon`; the bar title chip is colourful (`Bar.qml:468-474`) while its window buttons are symbolic (`AppWindow.qml:218-223`). The visual weight jumps within one widget, so app identity reads as inconsistent with shell chrome. **Fix:** split the model into `appIcon` (colour) and `symbolic` (tint) fields and render each cluster with one component.
+
+**12. No single "missing icon" visual language (MED × EASY).** The same unknown app becomes a question-mark dialog (`Icon.qml:31`), a generic executable (`Launcher.qml:792,839`, `Ring.qml:269`), a theme placeholder (`Bar.qml:473`, `Dock.qml:784`, `NotificationCard.qml:41,43`), or an initial letter (`AppIcon.qml:27-42`). Users cannot tell "no icon" from "help", "binary" or "broken", and the question-mark fallback is applied to status glyphs too. **Fix:** choose one neutral glyph (e.g. `application-x-executable` or the initial tile) and use it in every fallback branch.
+
+**13. Ring and Switcher disagree for the same missing app (MED × EASY).** `Switcher.qml:203-208` uses `AppIcon` with an initial-tile fallback, while `Ring.qml:265-270` uses `iconPath(app, "application-x-executable")` and `visible: !!slice.modelData.app` (`:266`) with no tile. Alt+Tab and the radial app ring therefore show different identities for the app the theme does not know, undermining the two switchers' shared purpose. **Fix:** use `AppIcon` in the Ring delegate with `icon: slice.modelData.app` and `name` from the entry.
+
+**14. WebApps writes unvalidated `Icon=` into desktop entries (MED × EASY).** `WebApps.qml:92,95,104` takes free text from `SettingsWebApps` and emits `Icon=` with only quote escaping; no name is checked against a theme, no absolute path is required, and the desktop entry is written at `:107-108` and launched via `gio launch` at `:40`. A typo yields a blank icon in launcher and dock, and an arbitrary string is injected into a file consumed by other desktop tools. **Fix:** validate `icon` as a name/path with `Quickshell.iconPath(icon, false)` before writing, else omit the line.
+
+**15. WebApps allocates an icon directory it never fills (MED × MED).** `WebApps.qml:13` defines `iconsDir` and `:49` creates it, but `addApp()` (`:24-33`) stores only a name, and the favicon/apple-touch-icon scraping is comments only (`:113-116`); `removeApp()` (`:42-46`) deletes the settings row, not any icon. Every generated web app thus falls back to a generic icon and future icon files would be orphaned on removal. **Fix:** fetch/store one icon file in `iconsDir` during `addApp` and delete it in `removeApp`.
+
+**16. QR codes carry no brand mark and reuse one fixed path (LOW × EASY).** `Qr.qml:23-26` always renders to `$XDG_RUNTIME_DIR/shani-qr.png` with hard-coded `-s 10 -m 2`; `QrView` offers no save/share, and no logo option exists. Two consecutive shares overwrite the same file, so a viewer left open shows the newer code, and shared Wi-Fi/vCard codes have no Shani identity. **Fix:** add a `--image` logo option and a unique temp path per `rev`, then expose "Save PNG…" in `QrView`.
+
+**17. `Icon.qml`'s own header comment describes a pragma that no longer exists (LOW × TRIVIAL).** `Common/Icon.qml:1` says "Adwaita, see shell.qml's IconTheme pragma", but `shani/shell.qml:1-2` explicitly says the theme is *not* a pragma and comes from `QS_ICON_THEME`. A maintainer following the comment will edit the wrong place and leave greeter/setup on Adwaita (finding #4). **Fix:** change line 1 to point at `shani-shell.service:20` / `Appearance.qml:22`.
+
+**18. Bar's focused-app icon is neither named nor given a fallback (LOW × EASY).** `Bar.qml:468-475` is a bare `IconImage` using `DesktopEntries.heuristicLookup(w.app_id)` and `iconPath(..., true)`, with no `Accessible.name`, no `Accessible.ignored`, and no initial tile. A screen reader announces an unnamed image, and an app niri reports under a raw id (the fragile title parsing noted in the archive) shows the theme placeholder in the most visible app-identity slot. **Fix:** swap it for `AppIcon` with `name: w?.app_id` and mark it `Accessible.ignored` since the chip already has a title.
+
+---
+
+**Skipped / not verified:** no QML runtime or screenshots, so "blank on Adwaita" is inferred from the absence of those names in Adwaita/hicolor as recorded in the prior pass, not measured against the shipped Papirus theme; I did not re-audit the tray/status-icon pass (`GAPS-RESEARCH.md:3566-3585`), the 84 unnamed IconButtons, or non-icon tone/terminology findings. **Biggest risk:** findings 1, 9, 10 and 18 all depend on `iconPath`'s two-argument semantics — flipping `true` to `false` without adding the initial/symbolic fallback they currently mask would turn placeholders into *empty* icons on the very apps this is meant to help.
+
+## VERBATIM: Loading states & perceived performance (fresh full re-research)
+
+## Loading states & perceived performance — static audit (current source)
+
+Scope: `shani/Services/*.qml`, the named `Modules/*`, and `Common/{EmptyState,IconButton,Button,Spinner,FileDirectory,AppWindow}.qml`. The earlier condensed entry has been re-checked against current source; items now implemented are listed at the end, not repeated below. All findings are static — no QML runtime or network verification.
+
+---
+
+### 1. Mail's "Nothing in this folder" is shown before and during every load — **H × E**
+`Modules/Mail/MailWindow.qml:145-152` — `visible: Mail.messages.length === 0`, with no `Mail.busy` or `Mail.query` guard. The service now does set busy (`Services/Mail.qml:85`), and the folder-list empty text respects it (`:103`), but the message-list text does not. On launch, folder change, refresh or a search with no answer yet, the person is told the folder is empty when it has not been read. **Fix:** `visible: Mail.messages.length === 0 && !Mail.busy; text: Mail.query !== "" ? Tr.t("No matches for %1").arg(Mail.query) : Tr.t("Nothing in this folder")`.
+
+### 2. Mail search leaves the previous query's messages on screen with no in-flight marker — **M × E**
+`Services/Mail.qml:63` sets `query` then runs the search; `:124-126` replaces `messages` only when the answer arrives. `MailWindow.qml:133` binds the list directly to `Mail.messages`. Typing a new search keeps the last result set visible under a new header until the server replies, and `busy` is expressed only as a colour on a refresh icon (see #4). **Fix:** clear `root.messages = []` in `search()` before `run()` so the list cannot show stale hits.
+
+### 3. IMAP calls have no timeout, so Mail's busy flag can stick indefinitely — **H × M**
+`bridge/mail.py:408-410` constructs `imaplib.IMAP4_SSL(host, port, ssl_context=...)` / `IMAP4(host, port)` with no `timeout=`, unlike the urllib path at `:247` and SMTP at `:699,705`. A server that accepts a connection but never answers leaves `job.running` true and `Mail.busy` true forever, with no cancel and no error. **Fix:** pass `timeout=TIMEOUT` to both IMAP constructors and let `finished()` report the failure (already handled at `Mail.qml:97`).
+
+### 4. Busy is mislabelled or invisible to assistive tech on both button helpers — **M × E**
+`Common/IconButton.qml:8,28-29` exposes only `on`, and sets `Accessible.checkable: true; Accessible.checked: root.on`; the two refresh buttons use it as a busy light (`MailWindow.qml:65`, `FeedsWindow.qml:47`), so AT announces "checked" throughout a fetch. `Common/Button.qml:12,65,78-83` swaps the label for `Spinner`, but `Common/Spinner.qml:43` is `Accessible.ignored` and `Button.qml:16` keeps `Accessible.name: root.text`, so a long save is announced as the unchanged label. **Fix:** add a real `busy` property to IconButton with a spinner, restrict `checkable/checked` to actual toggles, and set `Accessible.name: root.busy ? root.text + ", working" : root.text` on Button.
+
+### 5. Feeds' single pending slot drops its startup status and tag loads — **H × E**
+`Services/Feeds.qml:112` keeps one `pending` object (`:127`), overwritten by each new call; `Component.onCompleted` at `:246` fires `refresh(), check(), loadTags(), savedArticles()`. Only `saved` survives behind the first `list`, so `refreshMinutes` and `tags` are never populated at startup — the refresh timer and tag filter silently stay off until something else calls them. **Fix:** make `pending` an array and shift it on exit, as Mail does at `Services/Mail.qml:78,93,151-155`.
+
+### 6. Feeds shows the previous search's results and a false "No articles match" mid-search — **M × E**
+`Services/Feeds.qml:57-61` sets `query` immediately but replaces `searchResults` only in `finished` at `:204-205`; `FeedsWindow.qml:186` flips the header to "Search results" at once and `:231-236` declares "No articles match that search" whenever the list count is 0. During an in-flight query the person sees either the last query's hits or a false no-hits verdict. **Fix:** clear `searchResults` in `search()` and gate the empty text on `!Feeds.busy`.
+
+### 7. Weather fetch failures are swallowed; "Getting the weather…" never becomes an error — **H × E**
+`Services/Weather.qml:267` is a bare `catch (e) {}` in the forecast handler, and `:194-205` does the same for geocoding; there is no error or last-updated property. `Modules/Weather/WeatherWindow.qml:141-148` therefore shows "Getting the weather…" forever on an offline/failed fetch, and once data exists (`summary !== ""`, `:153`) stale values display with no "as of" time. **Fix:** add `error` and `fetchedAt`, set them in the catch paths, and render error + "as of HH:mm" in the EmptyState subtitle and the now row.
+
+### 8. Weather city search is a silent wait of up to eight seconds — **M × E**
+`Services/Weather.qml:65-83` starts `geoSearch` with `curl --max-time 8`, clears `searchError`, and sets no `searching` flag; results arrive only in `onStreamFinished`. The picker has no spinner or "Searching…" state, so typing a city and pressing Enter looks inert for the whole request. **Fix:** add `searching` set true/false around `geoSearch.running` and show `Spinner { visible: Weather.searching }` beside the results list.
+
+### 9. Logs opens with a false "No logs available" before journalctl answers — **M × E**
+`Modules/Logs/LogsPanel.qml:75-89` starts `journalctl` on `onVisibleChanged` but has no loading flag; `:176-186` renders `EmptyState` whenever `entries.length === 0`, with the subtitle "The journal is empty or unreadable — try Refresh". The first read of a large journal can take long enough that the panel confidently reports no logs and offers a redundant Refresh button. **Fix:** add `property bool loading`, set it in `readJournal()` and clear it in `onStreamFinished`/`onExited`, and gate the EmptyState on `!loading`.
+
+### 10. Contacts' empty states ignore both load and error state — **M × E**
+`Services/Contacts.qml:19` declares `busy` but sets it only for writes (`:94,237`); the reader at `:218-227` has no busy flag. `Modules/Contacts/ContactsWindow.qml:465-471` gates "No contacts yet" on `!Contacts.busy` — which is false during the initial read — and `:245-251` can print "Could not read the address book" in the edit form while the list simultaneously claims "No contacts yet". The duplicates view repeats this: its model is the synchronous `Contacts.findDuplicates()` (`:274`) and its `EmptyState` (`:307-313`) says "All your contacts look unique" while `contacts` is still `[]`. **Fix:** set `busy` in `refresh()`/reader, clear it on `reader.onExited`, and add `&& Contacts.error === "" && Contacts.contacts.length > 0` to both empty-state conditions.
+
+### 11. File navigation keeps the previous folder's rows visible under a "loading" flag — **H × E**
+`Common/FileDirectory.qml:58-66` sets `loading = true` and restarts the watcher but never clears `entries` or `_all`; `:99-120` replaces them only when a line arrives. `Modules/Files/FilesPanel.qml:1059` and `:1067` show the "Loading…" text only when `dir.entries.count === 0`. Navigating from a full folder to another therefore leaves the old folder's filenames on screen with no indication they are stale. **Fix:** `root.entries.clear(); root._all = [];` in `reload()` before starting the watcher.
+
+### 12. Photos' first open is a blank grid with only a "Looking…" label — **M × E**
+`Modules/Photos/PhotosWindow.qml:111-117` sets `scanning = true` and starts a `find | sort | head -5000`; `:290` renders a plain text "Looking…" and `:436-440` hides the EmptyState while scanning. The grid area itself is empty for the whole scan with no spinner and no count, so the window reads as broken on a large Pictures folder. **Fix:** overlay `Spinner { visible: win.scanning }` plus "Scanning… %1 photos" using the last known `shown.length`.
+
+### 13. Music Library's grids are blank after restart until the tag scan finishes — **M × E**
+`Services/MusicLibrary.qml:14-15,68-84` tracks `scanning`/`scanned` (and `videosScanned`) but `Modules/MediaPlayer/MusicLibraryView.qml:29` only calls `scan()`; `:59` shows "Looking…" as plain text while the album/song/video GridViews at `:68` onward have no loading delegate. Because `songs` is memory-only, every restart shows empty grids with no explanation until ffprobe finishes. **Fix:** feed `MusicLibrary.scanning || !MusicLibrary.scanned` into a loading row/overlay in each grid instead of relying on the single header string.
+
+### 14. EmptyState has no loading or error variant — 48 call sites reinvent one — **H × M**
+`Common/EmptyState.qml:8-13` exposes only `icon`, `title`, `subtitle`, `actionText`, `action`; there are now 48 `EmptyState {` uses, and each hand-builds busy/error semantics. Errors are routinely disguised as empty states — `FilesPanel.qml:1062` ("This folder could not be opened"), `ArchivesWindow.qml:215` ("bsdtar is not installed"), `WeatherWindow.qml:144-147`, `LogsPanel.qml:176-186` — all with the same faded 40px icon, and none with a spinner. **Fix:** add `kind: "empty"|"loading"|"error"` selecting a Spinner or danger-coloured icon plus a Retry action, then migrate the error sites first.
+
+### 15. Backup says "No snapshots yet" before `home list` returns — **M × E**
+`Modules/Backup/BackupPanel.qml:18` calls `Backup.refresh()` on open; `:50-55` immediately prints "No snapshots yet" or "No backup drive set up" whenever `snapshots.length === 0`. `Services/Backup.qml:26` has no loading flag and folds errors into display strings (`:75,84,99,102`), so a slow or failed `shani-backup home list --json` is indistinguishable from an empty backup history. **Fix:** add `loading` to Backup, set it in `refresh()`, clear it in each `onStreamFinished`, and gate the timeline message on it.
+
+### 16. Scanning states use ten words and never show magnitude — **M × E**
+Across the tree: "Looking…" (`PhotosWindow.qml:290`, `MusicLibraryView.qml:59`, `NearbyWindow.qml:90`, `FilesPanel.qml:2716`, `QuickLookSheet.qml:218`), "Scanning…" (`ScannerPanel.qml:192,233`, `DiskUsagePanel.qml:211`, `SidebarDrives.qml:66`), "Working…" (`StudioWindow.qml:78`, `DisksWindow.qml:107`, `SoftwareWindow.qml:188,262`), plus "Loading…", "Searching…", "Computing…", "Comparing…", "Counting…", "Measuring…", "Cleaning…". `Common/Spinner.qml` is only wired through `Common/Button.qml:78`; these are text-only labels with no item count, byte count or percentage. **Fix:** canonicalise to "Scanning…" for enumeration / "Working…" generic and render a shared Spinner + count row (e.g. `%1 of %2 scanned`).
+
+### 17. Long scans and network requests have no cancel or watchdog — **M × M**
+`Modules/Scanner/ScannerPanel.qml:62` starts `scanProc` with no timer or Cancel action; `Services/Weather.qml:172,179` uses 8-second curls and `Modules/Maps/MapsPanel.qml:146` a 20-second curl, all without cancellation; `Modules/Photos/PhotosWindow.qml:113` runs an unbounded `find`; `Services/Archive.qml:76-79` lists an entire archive with no kill path. Closing the window destroys the UI but not the process. Converter (`ConverterWindow.qml:68,244`) and Files' copy jobs do have stop buttons — the pattern exists, it is just not applied here. **Fix:** expose `cancel()` that sets the relevant `Process.running = false` and pair each with a watchdog `Timer` that reports "Took too long".
+
+### 18. App windows pop in with no entrance transition or "opening" affordance — **M × E**
+`Common/AppWindow.qml:25-59` has no `Behavior on opacity/scale` and no entrance animation on `frame`; every app is a `LazyLoader` (`shell.qml:114-175`) that compiles its source on first activation. The first click on Mail, Photos, Software, etc. shows nothing until the QML compiles, then the window appears fully formed with no visual continuity. **Fix:** add `opacity: 0` + `Behavior on opacity { NumberAnimation { duration: Theme.mot(180) } }` (bound to `Component.completed`) on `frame`, and show a brief "Opening…" chip while the relevant loader is not yet `loaded`.
+
+---
+
+**Verified fixed since the earlier entry (not reported):** Mail's `busy` is now set in `start()` (`Mail.qml:85`); Feeds sets `busy` for every `run()` (`:117`); `FileDirectory` gained `loading`/`error` (`:25-26`); Photos gates its EmptyState on `!scanning` (`:438`); Software has proper loading/error/empty EmptyStates and a progress bar (`SoftwareWindow.qml:195,252-267`); Converter has per-job progress and Stop.
+
+**Skipped / risk:** I did not run any of these surfaces in a QML runtime, nor confirm timing on a real network or large disk — the "silent wait" and blank-grid severities are inferred from code paths, and the AT-SPI announcements depend on the screen reader's handling of `Accessible.checked`/`Accessible.ignored`.
+
+## VERBATIM: Typography & text rendering (fresh full re-research)
+
+# Typography & text-rendering audit — shani-shell (static, read-only)
+
+Baseline re-measured against the current tree (353 QML files, up from 351): 1260 `pixelSize`, 270 `elide`, 5 `lineHeight`, 2 `leading` (both in comments, zero as a text property), 13 `textFormat` (up from 7), 1992 `Theme.font`, 93 `Theme.mono`. Since the earlier audit, **fixed and not re-filed**: feed title/body (`FeedsWindow.qml:274,287`), mail body (`MailWindow.qml:205`) and compose box (`:364`), notification **summary** (`NotificationCard.qml:303`), and launcher output (`Launcher.qml:939`) now pin `Text.PlainText`. Everything below is still open or was missed.
+
+### 1. Mail subject and From still auto-detect RichText — [high × trivial]
+`shani/Modules/Mail/MailWindow.qml:180-198` — `text: Mail.subject` (`:182`) and `text: Mail.from` (`:194`) have no `textFormat`; only the body got `PlainText`. A sender can put `<font color=…>`, `<img src=…>` or `<a>` markup in a subject and restyle the header or trigger a remote fetch. Fix: add `textFormat: Text.PlainText` to both Text blocks.
+
+### 2. Filenames are rendered as auto-detected RichText in two surfaces — [high × trivial]
+`shani/Modules/Files/FilesPanel.qml:858-866` (`text: cell.modelData.name`, `:860`) and `shani/Modules/Background/DesktopIcons.qml:195-210` (`text: ic.modelData.name`, `:202`). `<` and `&` are legal in filenames, so a file literally named `<img src=http://…>` renders as markup, not a name, and can load a remote URL. Fix: `textFormat: Text.PlainText` on both.
+
+### 3. Chronoa assistant replies are untrusted RichText — [high × trivial]
+`shani/Modules/Chronoa/ChronoaPanel.qml:564-576` — `text: row.text` (`:570`, `lineHeight: 1.35` at `:574`, no `textFormat`). LLM output or tool output can contain HTML, so a cloud/local reply can restyle the panel or embed an image. Fix: pin `Text.PlainText` unless a dedicated sanitized markup renderer is added.
+
+### 4. Phone message bubbles are unescaped and links are dead — [med × trivial]
+`shani/Modules/Messages/MessagesWindow.qml:105-114` — incoming SMS text (`text: modelData.text`, `:109`) has no `textFormat`, so the same auto-detection applies to phone-originated text; there is also no `onLinkActivated`. Fix: `textFormat: Text.PlainText` (or `StyledText` plus `onLinkActivated: Qt.openUrlExternally(link)`).
+
+### 5. Notification body sanitizer is `<img>`-only and elides a StyledText — [high × easy]
+`shani/Modules/Notifications/NotificationCard.qml:30-32` (`safeBody()` strips only `<img>`), body at `:313-326` with `textFormat: Text.StyledText` (`:317`), `maximumLineCount` (`:321`) and `elide: Text.ElideRight` (`:322`). StyledText honours `<font>`, `<a>`, `<b>` — an app can override the theme colour — and Qt ignores `elide` for rich/styled text, so long bodies overflow the 6-line cap instead of ellipsising. Fix: escape all markup (`& < >`) and render the body as `PlainText`, keeping `linkColor`/`onLinkActivated` only if needed.
+
+### 6. Mail HTML sanitizer is a regex allowlist with holes — [med × med]
+`bridge/mail.py:128-161` — `safe_html()` blocks script/style/iframe/object/embed/link/meta and `on*=` handlers, but leaves inline `style="…"`, `<font color=…>`, `<svg>` and `<form>` in place. Qt's text renderer accepts `color`/`font` from these, so a sender still overrides the shell's text colour, and `background-image:url(...)` in an inline style is not covered by the remote-image rule. Fix: drop `style`/`font`/`svg`/`form` tags too, or sanitize through a real allowlist library.
+
+### 7. No leading token; Devanagari has no managed line height — [high × med]
+`Common/Theme.qml:161-181` defines no `leading`; only 5 `lineHeight` assignments exist tree-wide (`Tour.qml:91`, `SettingsDateLanguage.qml:257`, `NotificationCard.qml:323`, `ChronoaPanel.qml:456,574`). The Marathi/Hindi setup labels at `setup/shell.qml:188-189` are drawn at `px(10)` (`:473`) with default leading, so Devanagari's tall matras and subscript signs can clip in wrapped rows. Fix: add `Theme.leading` (e.g. 1.3 body / 1.5 prose) and apply it to multi-line and Indic-facing Text.
+
+### 8. Devanagari font preview is the one pointSize in a px system — [med × trivial]
+`shani/Modules/Settings/SettingsLook.qml:121-125` — the preview string `"The quick brown fox — शनि ओएस"` (`:122`) uses `font.pointSize` (`:125`), the only such use. It ignores `Theme.px()`, `ui` and `fontScale`, so the Indic sample previews at a different size from the UI it previews, and mixed-script fallback (fontconfig only) has no render test. Fix: `font.pixelSize: Theme.px(<n>) * Theme.fontScale` and add one hi/mr render assertion.
+
+### 9. 8–10px text is still everywhere — [high × easy]
+`font.pixelSize: Theme.px(9)` appears ~35× and `px(10)` ~185×: e.g. `shani/Modules/Calendar/CalendarPanel.qml:723,802,893,972`, `shani/Modules/Files/FilesPanel.qml:735`, `shani/Modules/Passwords/PasswordsWindow.qml:443`, `shani/Common/ListRow.qml:58,88`, `shani/Modules/Settings/SettingsDevTools.qml:77`. Below the 11px floor declared at `Theme.qml:179` (`fontSmall`), these are unreadable at 1× and worsen under high-DPI. Fix: sed `px(9)`/`px(10)` font sizes to `Theme.fontSmall`.
+
+### 10. Arbitrary type scale instead of the token ladder — [med × med]
+`Common/Theme.qml:179-181` ships three tokens (`fontSmall/fontBody/fontTitle`), used 57/1/3 times, while sizes 8, 9, 10, 10.5, 11, 12, 12.5, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28, 30, 34, 40, 44, 48, 96 are written inline. Text Editor and Notes pick unrelated sizes with no shared step. Fix: expand to a named ladder (display/title/body/caption/mono) and migrate inline font sizes to it.
+
+### 11. Three scaling paths, not two — [med × med]
+`Common/Theme.qml:178-181` — `px(n)` scales by `ui`, but the three type tokens are raw ints and `fontScale` is applied per site; worse, `greeter/shell.qml:331,356,428,473…` (9 sites) and `setup/shell.qml:472,473,536,570…` (34 sites) use bare `N * Theme.fontScale` and never call `px()` at all. Login and first-boot text therefore ignores form-factor scaling while the rest of the shell honours it. Fix: make the tokens `px(11)/px(13)/px(15)` and replace `N * fontScale` with `Theme.px(N) * Theme.fontScale` in greeter/setup.
+
+### 12. Large-text setting misses ~16 unscaled sizes — [med × trivial]
+`Common/GamepadVisual.qml:54,74` (`font.pixelSize: 10`, no `px()`/`fontScale`), `shani/Modules/Notes/NotesPanel.qml:362` (`Theme.px(14)`), `shani/Modules/Background/DesktopWidgets.qml:115` (`px(30)`), `shani/Modules/Fonts/FontsPanel.qml:226` (`px(16)`), `NotificationCard.qml:249` (`px(18)`), `shani/Modules/Software/SoftwareWindow.qml:299` (`px(14)`). The a11y toggle multiplies `* Theme.fontScale` everywhere else, so these rows stay small in "large text" mode. Fix: append `* Theme.fontScale` to each.
+
+### 13. 270 elide sites, one reveal affordance — [med × easy]
+`Common/ListRow.qml:43-59` elides title and subtitle (`:47,56`) and is reused in 49 QML files; only `shani/Modules/Settings/SettingsWindow.qml:166` binds a tooltip to `truncated`. Translated names, long filenames and notification summaries are cut with no way to read the rest. Fix: make a shared `Truncated` helper (`ToolTip.visible: truncated`) and attach it to `ListRow`'s two Text items.
+
+### 14. Fixed-width tab segments overflow on translated labels — [med × easy]
+`Common/SegmentedTabs.qml:11` (`segmentWidth: Theme.px(100)`), `:14` (`implicitWidth: options.length * segmentWidth`), `:39-53` — each segment is a fixed 100px box with a centred, non-wrapping, non-eliding Text. Marathi/Hindi labels and longer English ones spill into the neighbouring segment or under the thumb. Fix: size segments from `implicitWidth + padding` (or elide with a tooltip) instead of a constant.
+
+### 15. Button labels clip with no ellipsis — [med × easy]
+`Common/Button.qml:22` (`clip: true`), `:62-77` — the label has no `elide`, `wrapMode` or `maximumLineCount`; `implicitWidth` (`:19`) fits it only while callers leave width unconstrained. Any `Layout.fillWidth`/fixed-width button in a dense row shows a hard cut mid-word. Fix: add `elide: Text.ElideRight` and a width bound to the label.
+
+### 16. Emphasis weight is written inline, never tokenized — [low × trivial]
+`Common/Button.qml:76`, `Common/SectionTitle.qml:15`, `NotificationCard.qml:310`, `FeedsWindow.qml:277` are representative of ~200 `Font.DemiBold`, 18 `Font.Medium` and 4 `Font.Bold` literals. `Theme.qml` has colour/type-size tokens but no weight token, so adjusting emphasis means editing hundreds of sites. Fix: add `readonly property int weightEmphasis: Font.DemiBold` and use it at emphasis sites.
+
+### 17. RichText syntax highlighting can drop the mono font — [med × easy]
+`shani/Modules/QuickLook/QuickLookSheet.qml:203-208` and `shani/Modules/TextEditor/TextEditorPanel.qml:710-714` — both render `Highlight.html()` output as RichText while setting `font.family: Theme.mono` (or `font: edit.font`) on the outer Text/TextEdit. Qt's rich-text spans can override inherited family, so code may render in the proportional UI font; alignment with the editable gutter then drifts. Fix: emit `font-family` into the `<pre>`/spans or render highlighting with per-char `Text` styling.
+
+### 18. Dead font-family fallback — [low × trivial]
+`shani/Modules/Settings/SettingsDevTools.qml:76` — `font.family: Theme.mono || Theme.font`. `Theme.mono` is always a non-empty string (`Theme.qml:164`, default `"JetBrains Mono"`), so `Theme.font` is unreachable and the expression only adds noise (and the row also uses `px(10)`, below the floor). Fix: `font.family: Theme.mono`.
+
+### 19. Uppercase/tracked caption style used twice only — [low × trivial]
+`Common/SectionTitle.qml:16-17` and `shani/Modules/Launcher/Launcher.qml:742-743` are the only `font.capitalization: Font.AllUppercase` / `letterSpacing: 1` pairs. The rest of the shell's captions use plain `px(11)` DemiBold, so section headers read inconsistently, and the Launcher chip copy duplicates the helper instead of using `SectionTitle`. Fix: route both through one `SectionTitle`-style caption component.
+
+**Skipped / not checked:** no QML runtime, so the Devanagari clipping, StyledText-elide and RichText-mono items are inferred from code, not rendered; the 8–10px and size-token findings are counted statically and may include decorative glyphs. The mail HTML sanitizer is regex-based throughout — a proper parser-based verdict needs an actual MIME corpus, which I did not run.
+
+## VERBATIM: Focus management & keyboard navigation (original report, restored verbatim)
 
 # Focus management & keyboard navigation — 15 gaps (value × ease)
-1. No focus restoration anywhere after surface closes — H×M. Grep for previousFocus/etc only two unrelated hits. Ui.closeAll() flips booleans; panel closes don't refocus invoker. Sketch: Ui.focusStack.
-2. Settings search jump flashes but never focuses target — H×E. SettingsPage.qml:148-164 openSetting() visual pulse only. Sketch: forceActiveFocus after page load.
-3. Focus ring clipped on two most-used controls — H×E. KeyFocus.qml:142-150 halo at margins:-3 but Button.qml:22/IconButton.qml:35 clip:true.
-4. "Tab jumps to next region" inert in ~97% of tree — M×E. Only 14 region: markers in two files.
-5. Multi-line editors trap Up/Down except two places — M×E. Ui.leaveAtEdge wired only in TranslateWindow and SidebarNotes.
-6. Arrows move focus in tab strips but don't change selection — M×E. SegmentedTabs.qml:63-69, Choice.qml:44.
-7. Switcher's per-tile KeyFocus can never take focus — M×E. Switcher.qml:80 focuses invisible keys item.
-8. Grid arrow order not layout-aware except two grids — M×E. KeyFocus.qml:51-60 ordered hook used only by Tile.qml and FilesPanel.qml.
-9. Launcher grid: horizontal arrows die once query typed; no Home/End/PgUp/PgDn — M×E. Launcher.qml:675.
-10. One photo tile costs four Tab stops — M×E. PhotosWindow.qml:409-429 three IconButtons plus KeyFocus.
-11. App-internal view/tab switches don't move focus — M×M. AppWindow.qml:161 body.focus on entry only.
-12. nav:pointer is self-declared unreviewed escape hatch — M×E. Ui.qml:449-453 drops any tagged MouseArea.
-13. Secret field focus shown only by 1px border — L×E. TextField.qml:27.
-14. Ui.navFocus empty for controls without Accessible.name — L×E. KeyFocus.qml:22.
-15. Reveal-eye KeyFocus stays in chain while visible — L×E. TextField.qml:98.
-Start: #1,#2,#3 then #4/#5/#6.
-Risk: #3 and #7 need QML runtime to confirm visually.
+
+*Read-only, static-only audit of `shani-shell/shani/` (351 QML files). Both GAPS files read first; all seven skip-list topics (KeyFocus Home/End, focus traps, Escape inconsistencies, OSK Meta, shortcut conflicts, focus-follows-mouse, key remapping) honored, plus adjacent items already filed in earlier passes.*
+
+**1. No focus restoration anywhere after a surface closes — [H×M].** Grep for `previousFocus|restoreFocus|returnFocus|focusInvoker|lastFocus` yields only two unrelated hits. `Ui.closeAll()` (`Common/Ui.qml:305-321`) just flips booleans; `FilesPanel.qml:3149-3170` hides the rename/new-folder editors with no hand-back; `Processes.qml:470`, `TextEditorPanel.qml:592-606,813-830`, `ModelsWindow.qml:269-281`, `DisksWindow.qml:515-521` clear state but never refocus the invoker. `Ui.focusFirst()` (`:360-366`) is only called on *open*. Sketch: capture `Window.activeFocusItem` before each grab, restore on close (one `Ui.focusStack`).
+
+**2. Settings search jump flashes but never focuses the target — [H×E].** `SettingsPage.qml:148-164 openSetting()` sets category/scroll and calls `Ui.flashSetting()` (`Ui.qml:124-133`) — a visual pulse only (`SwitchRow.qml:88-103`, `ListRow.qml:93-110`). Keyboard users land on the page with focus nowhere near the result. Sketch: resolve the delegate by label and `forceActiveFocus()` after page load.
+
+**3. Focus ring is clipped on the two most-used controls — [H×E].** `KeyFocus.qml:142-150` draws a 2px `Theme.accent` ring at `margins:-3` (a halo *outside* the control), but `Button.qml:22` and `IconButton.qml:35` set `clip:true`, cutting the halo; on accent states (`Button.qml:27`, `IconButton.qml:39` `on`) the remainder is accent-on-accent, invisible. Sketch: drop outer `clip:true` (clip the ripple in its own item) or draw the ring in a non-clipped parent.
+
+**4. "Tab jumps to next region" is inert in ~97% of the tree — [M×E].** `KeyFocus.qml:86-104 jumpRegion()` falls back to a one-item move without an ancestor `objectName:"region:"`. Only 14 markers exist, in two files: `ControlCenter/Sidebar.qml:142-178`, `SettingsWindow.qml:46,196`, of 351 QML files. Sketch: mark app sidebars/toolbars/detail panes, or skip non-interactive containers structurally.
+
+**5. Multi-line editors trap Up/Down except in two places — [M×E].** `Ui.leaveAtEdge()` (`Ui.qml:375-384`) is wired only in `TranslateWindow.qml:216-217` and `SidebarNotes.qml:266-267`. The Notes `TextArea` (`NotesPanel.qml:337-353`), Mail compose (`MailWindow.qml:215`), and editor (`TextEditorPanel.qml:715`) have no first/last-line exit. Sketch: attach `Ui.leaveAtEdge` to every TextEdit/TextArea's Up/Down.
+
+**6. Arrows move focus in tab strips/chips but don't change selection — [M×E].** `SegmentedTabs.qml:63-69`, `Choice.qml:44` call `activated()` only from `KeyFocus.onActivated` (Enter/Space); `KeyFocus.qml:116-119` arrows only move the ring. Sketch: handle Left/Right to set index/selection and fire `activated()`.
+
+**7. The switcher's per-tile KeyFocus can never take focus — [M×E].** `Switcher.qml:80` focuses an invisible `keys` item whose handler (`:124-141`) accepts *every* key incl. Tab; the delegate `KeyFocus` at `:259-262` is unreachable. Sketch: delete the dead KeyFocus or route Tab/arrows to it.
+
+**8. Grid arrow order isn't layout-aware except in two grids — [M×E].** `KeyFocus.qml:51-60`'s `ordered` hook is used only by `ControlCenter/Tile.qml:177` and `FilesPanel.qml:903`. Elsewhere (e.g. `PhotosWindow.qml:431`) arrows follow delegate creation order, diverging from visual order after filtering/reuse. Sketch: set `ordered` on every Repeater grid.
+
+**9. Launcher grid: horizontal arrows die once a query is typed; no Home/End/PgUp/PgDn — [M×E].** `Launcher.qml:675` handles Left/Right only when `win.q === ""`; Up/Down (`:633-642`) and Tab (`:643-644`) are the only other movement in its `nav:keys` highlight. (The launcher's own highlight — not the shared `KeyFocus` skip item.) Sketch: allow horizontal movement in results; bind Home/End/Page keys.
+
+**10. One photo tile costs four Tab stops — [M×E].** `PhotosWindow.qml:409-429` puts three `IconButton`s plus the tile KeyFocus (`:431`) in each delegate — ~80 Tabs to reach photo 20. Sketch: make tile actions sub-commands of the tile's Menu key, or one focus stop per tile.
+
+**11. App-internal view/tab switches don't move focus — [M×M].** `AppWindow.qml:161` sets `body.focus:true` and `:63-86` pulls focus to the first control on entry, but changing tabs/views inside an app (Files tabs, Settings categories) leaves focus on the old strip. Sketch: `Ui.focusFirst(newView)` on page/tab change.
+
+**12. `nav:pointer` is a self-declared, unreviewed escape hatch — [M×E].** `Ui.qml:449-453` silently drops any MouseArea tagged `nav:pointer` — legitimate backdrops, but also real interactions (mini-player drag `MediaPlayerWindow.qml:353`, magnifier lens `Magnifier.qml:74`). Sketch: assert in tests that each tag names a keyboard equivalent.
+
+**13. Secret field: focus shown only by a 1px border — [L×E].** `TextField.qml:27` signals focus by border color alone (no KeyFocus ring), a weak cue on any background. Sketch: add a ring to the well.
+
+**14. `Ui.navFocus` is empty for controls without Accessible.name — [L×E].** `KeyFocus.qml:22` derives the name from `parent.Accessible.name`; unnamed controls report `""`, so the keyboard-focus audit cannot name where focus landed. Sketch: fall back to `objectName`/`text`.
+
+**15. Reveal-eye KeyFocus stays in the chain while visible — [L×E].** `TextField.qml:98` has no `enabled` gate (unlike `Button.qml:85`), so the show/hide eye adds a tab stop whenever the secret field is visible. Sketch: gate on `root.secret`.
+
+**Start here:** #1, #2, #3, then #4/#5/#6 — high value, one-line-to-small fixes.
+
+Skipped: all seven listed topics and adjacent items already filed (Exclusive-dialog coexistence, scrim-per-monitor, FilePicker keyboard gaps). Risk: all findings are static — #3 (ring clip) and #7 (unreachable switcher focus) need a QML runtime to confirm visually; I did not run the shell or the nav-audit harness.
 
 ---
 
 # Seventeenth pass — VERBATIM agent reports
 
+> **Archive note:** the original seventeenth-pass reports were condensed when first
+> written. All seven below are the original agent texts, restored verbatim from
+> the session transcript (the agent wording is unchanged).
+
 ## VERBATIM: Window snapping & tiling UX depth
 
 # 17th pass — Window snapping & tiling UX depth
-1. Dead edge-snap service — no UI calls it. snapToEdge()/onEdgeDrop() defined (Services/WindowLayouts.qml:152-166) but zero callers. Keyboard snap lives only in packaged config, not dev session.kdl. Sketch: add Snap left/right/full buttons in palette + Mod+Alt+Arrow binds.
-2. "Half the screen" never places the window. WindowMenu.qml:52 only set-column-width 50%, no move-column-to-side. Sketch: Snap left/right using snapToEdge.
-3. Quarters / 2×2 layout is a no-op. apply() rows>1 does move-window-down then up (WindowLayouts.qml:137-140) net zero; palette tile at WindowLayouts.qml:146 does nothing. Sketch: remove misleading tile or implement stacked 50%-height windows.
-4. Ring pie menu has no tiling actions. Window slice only Close/Fullscreen/Float/Maximize/Center (Ring.qml:70-76). Sketch: Snap subring.
-5. Top/bottom "snap" is fake — snapToEdge("top"/"bottom") only sets width 100% (WindowLayouts.qml:159-160); "stack" also no-op. Sketch: relabel "Full width".
-6. No numeric width entry — only 50/33.333/66.667% (WindowMenu.qml:52-54). Sketch: TextField in palette.
-7. No incremental resize/nudge. Sketch: +/-5% menu rows.
-8. Resize undo missing — undoStack records only layouts (WindowLayouts.qml:60-78); manual set-column-width untracked.
-9. No equalize/distribute-evenly. Sketch: focus each column, set 100/N%.
-10. swap-column-* never wired (only swap-window-*). Sketch: two menu entries.
-11. Expand without collapse — "Take the free space" (WindowMenu.qml:47) no inverse.
-12. Custom layout authoring hard-coded cols:2,rows:1,ratios:[0.6,0.4] (WindowLayouts.qml:204) despite addCustom accepting params.
-13. Arrangements have no named windows — layout is {cols,rows,ratios}, undo snapshots {id,col,width}, no app identity.
-14. No floating geometry UI — floating toggled but size/position only at open via WindowRules.
-15. No floating "center" — Center is center-column (tiled-only).
-16. No live floating size persistence per app.
-17. No touch/pen tiling interaction.
-Niri-impossible: drag-to-edge snap, true 2-D grid/quarters, top/bottom half tiling, drag resize handles for tiled windows, raise/lower stacking, always-on-top, per-window thumbnails.
-Highest value×ease: #1,#2,#6,#9,#10.
+
+## Ranked gaps (value × ease)
+
+1. **Dead edge-snap service — no UI calls it.** `snapToEdge()`/`onEdgeDrop()` are defined (`Services/WindowLayouts.qml:152-166`) but grep finds zero callers in any QML. The documented keyboard snap lives only in the packaged config (`shani-pkgbuilds/.../config.kdl:278-281`), not the dev `session.kdl`. *Sketch:* add "Snap left / right / full" buttons in the palette calling `snapToEdge(edge)`; add the four `Mod+Alt+Arrow` binds to `dev/niri/session.kdl`.
+
+2. **"Half the screen" never places the window.** `WindowMenu.qml:52` only runs `set-column-width 50%` — no `move-column-to-side` — so the window stays in its current column. *Sketch:* split into "Snap left" / "Snap right" entries using `WindowLayouts.snapToEdge`.
+
+3. **Quarters / 2×2 layout is a no-op.** `apply()` handles `rows > 1` by `move-window-down` then `move-window-up` (`WindowLayouts.qml:137-140`) — net zero. The palette shows a "2×2" tile (`Modules/WindowLayouts/WindowLayouts.qml:146`) that does nothing. *Sketch:* either remove the misleading tile, or implement as two 50%-height windows stacked in one column (niri's only vertical model).
+
+4. **Ring pie menu has no tiling actions.** The Window slice offers only Close/Fullscreen/Float/Maximize/Center (`Ring.qml:70-76`) — no half/third/quarter. *Sketch:* add a "Snap" subring reusing `snapToEdge` (a 5th slice, or nested under Window).
+
+5. **Top/bottom "snap" is fake.** `snapToEdge("top"/"bottom")` merely sets width 100% (`WindowLayouts.qml:159-160`); `onEdgeDrop` then applies "stack" (`:166`), which is also a no-op (see #3). *Sketch:* relabel as "Full width"; do not advertise a vertical half.
+
+6. **No numeric width entry.** Window menu offers only 50 / 33.333 / 66.667 % (`WindowMenu.qml:52-54`); Settings "A new window opens" is four fixed presets (`SettingsWindows.qml:22-27`). *Sketch:* a `TextField` in the palette calling `Niri.action("set-column-width", n + "%")`.
+
+7. **No incremental resize / nudge.** No "+5 % / −5 %" or pixel-step action anywhere (compare `Mod+R` `switch-preset-column-width` in `session.kdl:279`). *Sketch:* two menu rows or `Mod+Alt+Wheel` bound to relative widths.
+
+8. **Resize undo missing.** `undoStack` records only layouts (`WindowLayouts.qml:60-78`); manual `set-column-width` calls (menu, IPC) are untracked. *Sketch:* push a snapshot in a shared `setWidth()` helper used by every caller.
+
+9. **No equalize / distribute-evenly.** `arrangeAll()` applies named ratios only (`WindowLayouts.qml:81-95`); there is no "make all columns equal". *Sketch:* new `equalize()` focusing each column and setting `100/N + "%"`, exposed as a palette tile.
+
+10. **`swap-column-*` never wired.** Only `swap-window-left/right` exist (`WindowMenu.qml:49-50`); column swap is absent (already noted in pass 6 but still open and squarely in this topic). *Sketch:* two entries calling `swap-column-left/right`.
+
+11. **Expand without collapse.** "Take the free space" exists (`WindowMenu.qml:47`) but there is no inverse restore. *Sketch:* pair with `reset-column-width` / remembered pre-expand snapshot.
+
+12. **Custom layout authoring is hard-coded.** The UI always adds `cols:2, rows:1, ratios:[0.6,0.4]` (`Modules/WindowLayouts/WindowLayouts.qml:204`) — the "New layout…" name field has no cols/rows/ratio inputs despite `addCustom()` accepting them (`WindowLayouts.qml:171-179`). *Sketch:* three small spin boxes / slider row feeding `addCustom`.
+
+13. **Arrangements have no named windows.** A layout is `{cols, rows, ratios}` (`:18-33`); undo snapshots store `{id, col, width}` (`:47-58`) — no app identity, so "restore this workspace with Firefox left, foot right" is impossible. *Sketch:* store `app_id` per slot in `windowLayouts` and focus/move matching windows on apply.
+
+14. **No floating geometry UI.** Floating is toggled (`WindowMenu.qml:40`, `Ring.qml:73`, `WorkspaceLayout.qml:28`) but size/position are only set at open time via `WindowRules.qml:33-52` or static rules (`session.kdl:97-145`). No in-session dialog. *Sketch:* reuse `WindowRules` fixed/proportion fields in a "Float settings" popover issuing the matching niri action.
+
+15. **No floating "center".** "Center" is `center-column` — tiled-only (`WindowMenu.qml:42`). Floating windows are centered only by their window rule at open. *Sketch:* add an explicit floating-center action guarded on `target.is_floating`.
+
+16. **No live floating size persistence per app.** `WindowRules` remembers *open mode* (float/fullscreen/maximized) and default size (`WindowRules.qml:31-52`), but a user's resized geometry is not saved back. *Sketch:* on `WindowLayoutsChanged` for a floating window, write its `tile_size` into the app's rule.
+
+17. **No touch/pen tiling interaction.** The Ring is tap/long-press only (`Ring.qml:158-185`); edge swipe just sends Alt+Left (`Services/EdgeSwipe.qml:26`); no resize handles. Three/four-finger gestures are niri's (`session.kdl:19-25`). *Sketch:* a touch drag from a window edge to a screen zone mapped to `snapToEdge`, if niri ever exposes the geometry; otherwise document as compositor-limited.
+
+## Niri-impossible / out of scope (do not file as UI bugs)
+
+- **Drag-to-edge snap** — no compositor drag event; niri owns `dnd-edge-*` (`WindowLayouts.qml:143-151`, GAPS.md:123-132).
+- **True 2-D grid / quarters** — niri lays out scrolling columns only (`WindowLayouts.qml:98-104`).
+- **Top/bottom half tiling** — columns are full-height by design.
+- **Drag resize handles for tiled windows**, **raise/lower stacking** (focus = z-order), **always-on-top** (pinned float substitute, `Niri.qml:152-180`).
+- **Per-window thumbnails** in switcher/overview (no capture protocol, pass 6).
+
+## Notes
+
+No runtime/QML verification — all findings from static reading; tests only assert function *presence* (`tests/test_window_layouts.py:10-32`), not that any UI calls it (gap #1 survives that test). Highest value × ease: #1, #2, #6, #9, #10.
+
+Skipped: hardware/touch verification and whether niri 26.04 accepts every action name used above — that needs a live session.
 
 ## VERBATIM: Clipboard rich content & formats
 
-# Clipboard rich content pipeline audit
-Answers: (1) publish — almost all plain text; rich only Files uri-list, Share uri-list, screenshots/image png/jpeg/webp. Nothing publishes text/html. (2) paste — only Notes accepts image/png; file URIs only Files/Converter/drop targets; no text/html paste into editors. (3) history — cliphist one blob per copy, text or image-by-magic; HTML/URI survive only as plain rendering. (4) feedback — no unified confirmation, many silent copies. (5) cross-app rich text always flattened. (6) color copy triple-implemented, QR/path/screenshot inconsistent.
-1. [H×E] Clipboard format setting ignored for screenshots (SettingsPage.qml:1594, Settings.qml:435 vs Screenshots.qml:117-121).
-2. [H×E] Encrypted history inert — session runs wl-paste --watch cliphist store directly (config.kdl:99), clipboard-watch.sh never launched; enable only wraps existing DB. test_clipboard_crypto checks script text not wiring.
-3. [H×M] Image history replay cannot paste into shell editors (Clipboard.qml:115-117 vs plain-text-only TextEdit).
-4. [H×E] No text/html producer at all.
-5. [H×M] Cross-app rich text always flattens.
-6. [H×E] File URIs pasted into text fields stay literal file:// strings.
-7. [M×E] Notes image paste rejects webp/gif/avif and file drops.
-8. [M×E] Color copy triple-implemented and writes twice (Color.qml:164, SidebarTiles.qml:405-409, shell.qml:481).
-9. [M×E] Copy feedback ad hoc and mostly absent.
-10. [M×M] History thumbnail decoder iterates over its own command prefix (Clipboard.qml:184) creating stray files.
-11. [M×E] Uncommon image types become gibberish in history (Clipboard.qml:176).
-12. [M×E] Two "plain text" actions, neither reads real HTML target; Launcher regex-strips <> destructively.
-13. [M×E] QR-from-clipboard ignores URI/file copies.
-14. [M×E] Screenshot image copies publish no file-URI fallback.
-15. [L×E] No MIME/type readout on history entries.
+I've read both gap docs (skipping the listed items) and the clipboard pipeline end to end: `Clipboard.qml`, `clipboard-{crypto.py,watch.sh}`, `Common/{TextField,DropZone}.qml`, `FileDropArea.qml`, all paste/copy handlers, and the niri session wiring. Static findings only.
+
+## Answers to the six questions
+
+1. **Publish:** shell copies are almost all `Quickshell.clipboardText = …` → plain text only. Rich producers are the exception: Files (`text/uri-list` + `x-special/gnome-copied-files`, `Files.qml:920-922`), Share (`text/uri-list`, `Share.qml:33`), screenshots/Annotate (`image/png|jpeg|webp`, `Screenshots.qml:121`, `Annotate.qml:52`). **Nothing in the shell ever publishes `text/html`.** Mail compose, Notes, Translate, Lens, Color, QR, characters, paths are plain-text-only.
+2. **Paste:** only Notes accepts image/png (and only png/jpeg, `NotesPanel.qml:548`). File URIs are accepted only by Files/Converter/drop targets (`FileDropArea.qml:14`, `DropZone.qml:87`, `ConverterWindow.qml:108`). **No app accepts `text/html` paste into an editor**; Mail compose and Text Editor are `TextEdit.PlainText` (`MailWindow.qml:360`, `TextEditorPanel.qml:721`); `TextField` is a raw `TextInput` (`TextField.qml:31`).
+3. **History:** cliphist stores one blob per copy (`config.kdl:99`, no `--type`), only text or image-by-magic; images are recognised by a 5-extension regex (`Clipboard.qml:176`). HTML/URI survive only as their plain-text rendering.
+4. **Feedback:** no unified confirmation. Characters (`Characters.qml:36`), Ruler (`Ruler.qml:81`), color picker, Files, Passwords, Authenticator toast/label; Translate, Lens, Viewer, Camera, Fonts, QrView, SettingsAbout, Modem, Launcher copies are silent. No snippet/icon preview of what is on the clipboard.
+5. **Cross-app rich text:** formatting from GTK/Qt/Firefox is always flattened — no `text/html` producer or consumer exists.
+6. **Specialized:** color copy is triple-implemented, QR/path/screenshot copies publish inconsistent MIME types, and the "Clipboard format" setting is honoured only by Annotate.
+
+## Ranked gaps (value × ease)
+
+1. **[H×E] "Clipboard format" setting ignored for screenshots.** `SettingsPage.qml:1594` offers "", png, jpeg; `Settings.qml:435` also promises webp; but `Screenshots.qml:117-121` derives MIME from the saved file extension and never reads the setting — only `Annotate.qml:50` does. *Sketch: reuse Annotate's format selection in `offer()` before `wl-copy --type`.*
+
+2. **[H×E] Encrypted history is inert — the session never starts the encrypted watcher.** `config.kdl:99` / `dev/niri/session.kdl:85` run `wl-paste --watch cliphist store` directly; `clipboard-watch.sh` is never launched. `enable` (`clipboard-crypto.py:138-155`) only wraps the existing DB; the live watcher keeps writing plaintext. `test_clipboard_crypto.py:55-58` checks the script's text, not the session wiring. *Sketch: on enable, restart the watcher through `clipboard-watch.sh`.*
+
+3. **[H×M] Image history replay cannot paste into any shell editor.** `Clipboard.copyAndPaste:115-117` decodes to `wl-copy` then sends Ctrl+V, but `TextEditorPanel.qml:721`, `MailWindow.qml:360`, `TextField.qml:31` accept plain text only; the image is ignored. Only Notes has a manual button (`NotesPanel.qml:542`). *Sketch: handle image MIME on paste in shell editors, or route image replay to an image-capable surface.*
+
+4. **[H×E] No `text/html` producer exists at all.** `Clipboard.qml`, `Launcher.qml:316-364`, `MailWindow.qml:360`, `QuickNotes.qml:393-411` (HTML exported to a *file*, never the clipboard). Copying rendered mail/notes cannot carry formatting. *Sketch: add "Copy as HTML" for Mail body / Notes render, writing `wl-copy --type text/html`.*
+
+5. **[H×M] Cross-app rich text always flattens.** Mail compose (`MailWindow.qml:360`), Text Editor (`:721`), Notes editor, `TextField.qml:31` have no HTML paste path; Qt's default paste gives plain text. Pasting styled text from a browser/GTK app loses all formatting even where HTML mail is displayable (`MailWindow.qml:215`). *Sketch: give compose a RichText mode and a bridge reading `text/html` from the clipboard.*
+
+6. **[H×E] File URIs pasted into text fields stay literal `file://` strings.** Drop support exists only in `FileDropArea.qml:14`, `DropZone.qml:87`, `ConverterWindow.qml:108`; Mail compose (`:335-380`), Notes, Text Editor, `TextField` have no URI paste/drop handler. *Sketch: one shared handler that turns `text/uri-list` into attachments/imports.*
+
+7. **[M×E] Notes image paste rejects webp/gif/avif and file drops.** `NotesPanel.qml:548` hardcodes `image/png || image/jpeg`; a webp screenshot (a selectable clipboard format) fails with "The clipboard has no image". No DropArea in the Notes module (grep: only `insertImage`). *Sketch: try `--list-types` and take the first `image/*`, plus a file-drop import.*
+
+8. **[M×E] Color copy is triple-implemented and writes twice.** `Color.qml:164` copies hex via `wl-copy`; `SidebarTiles.qml:405-409` copies hex again via `clipboardText` + toast on the same signal; `shell.qml:481` is a third picker path. `rgb`/`hsl` are computed (`Color.qml:154-155`) but never offered as copy formats. *Sketch: one `Color.copy(format)` used by all three, with a hex/rgb/hsl choice.*
+
+9. **[M×E] Copy feedback is ad hoc and mostly absent.** Silent: `Launcher.qml:316-364`, `TranslateWindow.qml:279`, `Lens.qml:54`, `Viewer.qml:287`, `CameraPanel.qml:151`, `FontsPanel.qml:39`, `QrView.qml:88`, `SettingsAbout.qml:176`, `Modem.qml:103`, `PasswordGeneratorPanel.qml:57`. No toast shows a snippet or icon of what was copied. *Sketch: one `Clipboard.copyText(text,label)` that writes, toasts a snippet, and feeds an "on clipboard" readout.*
+
+10. **[M×M] History thumbnail decoder iterates over its own command prefix.** `Clipboard.qml:184` — after `shift`, `"$@"` still holds the `cliphist`/`python3 … wrap` tokens, so the loop decodes e.g. `cliphist decode cliphist > cliphist` and leaves stray files before the real entries. *Sketch: store the command separately; iterate only over `id:path` args.*
+
+11. **[M×E] Uncommon image types become gibberish in history.** `Clipboard.qml:176` matches only `png|jpe?g|webp|gif|bmp`; cliphist can store avif/tiff via kimageformats, which then display as raw text with no thumbnail. *Sketch: treat any `[[ binary data … ]]` as an image and derive the extension from the reported type.*
+
+12. **[M×E] Two "plain text" actions, neither reads the real HTML target.** `Clipboard.pastePlain:147` republishes `wl-paste --type text`; the Launcher "Plain text" quick change (`Launcher.qml:347`, `Clipboard.qml:61`) regex-strips `<…>` from already-plain history text — destructive to code like `a<b`. *Sketch: one implementation that reads `text/html` when offered and converts, otherwise no-op.*
+
+13. **[M×E] QR-from-clipboard ignores URI/file copies.** `SidebarTiles.qml:446`, `LauncherActions.qml:47`, `QrView.qml:88` read only `clipboardText`; a file copied as `text/uri-list` (`Share.qml:33`, `Files.qml:922`) yields "Clipboard is empty" or nothing. *Sketch: fall back to `wl-paste --list-types` / `--type text/uri-list`.*
+
+14. **[M×E] Screenshot image copies publish no file-URI fallback.** `Screenshots.qml:121` and `Annotate.qml:52` publish only `image/*`; the saved path lives solely in a notification, so pasting the screenshot into a file manager or chat that expects a URI does nothing. *Sketch: add `text/uri-list` of the saved file as a second `wl-copy` target.*
+
+15. **[L×E] No MIME/type readout on history entries.** `Launcher.qml:331-334` shows text/image thumbnails but no indicator of whether an entry is plain text, HTML-rendered text, a URI, or an image; `clipboardOutputFormat`, `copyAndPaste` and `--type` choices are invisible to the user. *Sketch: record `wl-paste --list-types` in the watcher and show a type chip per entry.*
+
+**Skipped/not checked:** all sixteen listed items (clear timer, OTP leak, replay-format loss, pin bypass, phone push, PRIMARY sync, copy-path URI, `copySecret`, encryption-default). I did not run a QML session or `wl-paste`/cliphist to confirm which single MIME type cliphist reports for each producer — items 3, 4, 11, 15 are reasoned from the static code paths.
 
 ## VERBATIM: Greeter/setup UX craft
 
-# Seventeenth-pass gaps — greeter/setup UX craft (static)
-1. Setup has no power controls at all (setup/shell.qml:1297-1313 vs greeter:301-341). H×E.
-2. Chronoa page traps narrow-screen users — Back hidden at setup:1299; dots inert :575-588. H×E.
-3. Wi-Fi failure silent — connectWithPsk clears pending, no error/retry (setup:811-835). H×M.
-4. Hung face scan has no cancel/fallback — Cancel gated on root.asked (greeter:521-525). H×M.
-5. Screen-reader shortcut swallowed at first boot — Qt.WindowShortcut (setup:377-381, greeter:258-262); dev/setup-test.sh presses up to 3×. H×M.
-6. Account errors buried below scroll — Start disabled, reason below summary (setup:1285-1295). H×E.
-7. "Show password" survives failure and user switching (greeter reset :183-191 clears 7 fields not showPass). M×E.
-8. Greeter feedback and caps warning not announced — no Accessible.role/live (greeter:491-512). M×E.
-9. Setup password fields lack caps-lock warning (setup:1023-1028 vs greeter:62-66). M×E.
-10. Greeter clock ignores locale — hardcoded HH:mm/dddd d MMMM (greeter:350-365). M×E.
-11. Visited steps look unvisited after going back — furthest kept but never shown (setup:39,486,585). M×E.
-12. No final confirmation before account creation — summary omits account/admin/Chronoa (setup:1092-1145). M×E.
-13. Chronoa choice no radio semantics, defaults on (setup:1240-1273, chronoaOn:true :49). M×E.
-14. "Try the layout" field doesn't apply layout (setup:707-710, XKB applied later by bridge). M×M.
-15. No primary-layout reorder (setup:185-196,689-706). M×M.
-16. Timezone suggestions mouse-only (setup:923-948, Enter blindly picks zoneMatches[0]). M×E.
-17. Secondary monitors inert — card and WlrKeyboardFocus.Exclusive only primary (greeter:235-254,375; setup:360-373,432). M×M.
-18. Privileged helper enforces only non-empty password (first-account.py:78-80) vs QML 8-char rule (setup:239). M×E.
-Not gaps: offline account creation works, Continue without internet, Wi-Fi PSK/show-hide/guest-empty paths have tests.
+I've read both GAPS documents, all target files, and the systemd/test wiring. Here are the fresh craft-level gaps, ranked by value × ease. I skipped the 13 items in your brief plus the already-filed English-only greeter, retry-countdown, LED-sysfs caps probe, enterprise/hidden Wi-Fi, and Chronoa-gsettings issues.
+
+## Seventeenth-pass gaps — greeter/setup UX craft (static)
+
+1. **Setup has no power controls at all** — H×E. `setup/shell.qml:1297-1313` (only Back/Continue); greeter has sleep/reboot/power-off at `greeter/shell.qml:301-341`. Sketch: lift the two-tap power `Repeater` into setup's bottom row.
+
+2. **Chronoa page traps narrow-screen users** — H×E. `setup/shell.qml:1299` hides Back on `chronoa`; `575-588` dots are inert rectangles; wide screens can still click the rail (`:517-525`). Sketch: add a Back button to the chronoa `RowLayout` at `:1276-1281`.
+
+3. **Wi-Fi failure is silent** — H×M. `setup/shell.qml:811-835`: `connectWithPsk()` clears `pending`, spinner ends, row returns to unconnected with no error or retry. Sketch: capture failed connect state and show "Could not connect — try again" beside the row.
+
+4. **Hung face scan has no cancel/fallback** — H×M. `greeter/shell.qml:128-134` starts a session on face detection; during `Authenticating` with `asked=false`, `submit()` only stashes pending (`:172-179`) and "Cancel — use another account" is gated on `root.asked` (`:521-525`). Sketch: show Cancel whenever `busy`, and have it call `cancelSession()`.
+
+5. **Screen-reader shortcut can be swallowed at first boot** — H×M. `dev/setup-test.sh:61-69` presses Meta+Alt+S up to 3× because the first press lands before window focus; `Shortcut` uses `Qt.WindowShortcut` (`setup/shell.qml:377-381`, same in greeter `:258-262`). Sketch: use `Qt.ApplicationShortcut` / register on `ShellRoot`.
+
+6. **Account errors are buried below a scroll** — H×E. `setup/shell.qml:955-1149` is a tall `Flickable`; Start is simply disabled (`:1308`) and the only reason is the error line at `:1285-1295`, below the summary and filler. Sketch: inline error under each field + reveal first problem when Start is pressed.
+
+7. **"Show password" survives failure and user switching** — M×E. `greeter/shell.qml:59`, `reset()` at `:183-191` clears 7 fields but not `showPass`; avatar pick at `:436` also leaves it. Sketch: add `showPass = false` in `reset()` and the pick handler.
+
+8. **Greeter feedback and caps warning are not announced** — M×E. `greeter/shell.qml:491-512`: error/info and "Caps Lock is on" `Text`s have no `Accessible.role`/live property; the buttons do. Sketch: add `Accessible.role: Accessible.StatusBar` + name to both.
+
+9. **Setup password fields lack a caps-lock warning** — M×E. `setup/shell.qml:1023-1028` vs greeter's probe/warning at `greeter/shell.qml:62-66, 505-512`. Sketch: reuse the same probe beside both password fields.
+
+10. **Greeter clock ignores locale** — M×E. `greeter/shell.qml:350-365` hardcodes `"HH:mm"` and `"dddd, d MMMM"` (English, 24h) with no locale input; setup collects a locale at `setup/shell.qml:52`. Sketch: format via `Qt.locale(systemLocale)`.
+
+11. **Visited steps look unvisited after going back** — M×E. `setup/shell.qml:486` marks done as `index < page`, and dots at `:585` use `index <= page`; `furthest` (`:39`) is kept but never shown. Sketch: outline-check `index <= furthest && index !== page`.
+
+12. **No single final confirmation before account creation** — M×E. Summary at `setup/shell.qml:1092-1145` lists language/keys/zone/hostname but omits the account, admin status and Chronoa choice (`:1203-1282`). Sketch: add name/username/"Administrator" rows to `summaryCol`.
+
+13. **Chronoa choice has no radio semantics, defaults on** — M×E. `setup/shell.qml:1240-1273` are plain Rectangles + MouseArea/KeyFocus; `chronoaOn: true` at `:49`. Sketch: `Accessible.role: Accessible.RadioButton`, `checked`, and default Off for opt-in.
+
+14. **"Try the layout" field doesn't apply the chosen layout** — M×M. `setup/shell.qml:707-710` is a plain TextField while XKB is only applied later by the bridge (`first-account.py:138-141`). Sketch: run `setxkbmap` locally on selection or show a keycap preview.
+
+15. **No primary-layout reorder** — M×M. `setup/shell.qml:185-196, 689-706`: chips append to `keymap`, only × removal exists; first entry becomes the default layout. Sketch: up/down arrows on each `ListRow`.
+
+16. **Timezone suggestions are mouse-only** — M×E. `setup/shell.qml:923-948`: delegates have only `onClicked`; Enter at `:947` blindly picks `zoneMatches[0]`. Sketch: `KeyFocus` on rows + Up/Down on `tzSearch`.
+
+17. **Secondary monitors are inert** — M×M. `greeter/shell.qml:235-254, 375` and `setup/shell.qml:360-373, 432`: every screen gets wallpaper, but card and `WlrKeyboardFocus.Exclusive` only on primary. Sketch: show a "Sign in on the main display" hint on non-primary outputs.
+
+18. **Privileged helper enforces only a non-empty password** — M×E. `bridge/first-account.py:78-80` checks `pw == ""`; the 8-char rule lives only in QML (`setup/shell.qml:239`). Sketch: apply the same minimum in `validate()`.
+
+**Not gaps (verified):** offline account creation works — `first-account.py` makes no network calls; setup offers "Continue without internet" (`setup/shell.qml:1303`); Wi-Fi PSK, show/hide and guest-empty-password paths all have tests (`dev/setup-test.sh:50-114`, `dev/greeter-test.sh:141-153`).
+
+Skipped: runtime visual confirmation of focus rings/map hit areas, and polkit-prompt behavior under a real (non-rule) auth dialog — both need a live session. Risk: #5's shortcut fix and #17's multi-monitor hint need QML runtime checks; the rest are static-safe.
 
 ## VERBATIM: App-to-app drag/drop & share-out
 
-# Drag/drop & share-out coverage
-Structural: only 8 Drag.mimeData sources (FilesPanel×3, DesktopIcons, SidebarShelf, Bar×2, Launcher) and 7 DropArea hosts (Files×8 via FileDropArea, Dock×4, Converter×2, Island, MediaPlayer, Bar, DropZone). None of 14 apps except Files/MediaPlayer/Screenshots touch drag, drop or Share.
-Matrix (drag out/drop in/Share/copy URI): Files ✓✓✓✓; Photos ✗✗✗✗; Viewer ✗✗✗ (path text); PdfReader ✗✗✗ (page text); TextEditor ✗✗✗ (selection text); Mail compose ✗✗✗; Notes ✗ picker✗ Export HTML; Contacts ✗✗ despite comment (Contacts.qml:154) ✗ QR; Calendar ✗ picker✗; MediaPlayer ✗ ✓(first URL only :468) ✗; VideoTrimmer ✗✗✗ Open/Trash; VoiceRecorder ✗✗✗ Export; Screenshots ✗ pinned img ✓(transient notif only) ✓ image/png.
-1. Multi-file Share silently shares one file (FilesPanel.qml:3105 uses e.path vs chosen; FileActions.qml:154 fs[0]; Share.qml single file string).
-2. Photos tiles cannot be dragged out (PhotosWindow.qml:366-432 no Drag props).
-3. Viewer cannot drag its image out (Viewer.qml:466-471 zero Drag.mimeData).
-4. Desktop/Shelf drag URIs unencoded (DesktopIcons.qml:251, SidebarShelf.qml:64 raw file:// vs Files.uriOf).
-5. Share "Copy the file" emits malformed URI (Share.qml:33 raw interpolation).
-6. Contacts promises drag-to-import but has no DropArea (Contacts.qml:154 vs ContactsWindow.qml:64-70 picker-only).
-7. Dropping tracks onto MediaPlayer queues only first (MediaPlayerWindow.qml:468 drop.urls[0] vs PlayQueue accepts arrays).
-8. PDF attachments can't be dragged out (save-to-disk only).
-9. No drop-to-open PDF (PdfReader.qml no DropArea).
-10. No drop-to-open image in Viewer.
-11. Mail attachments save-only, not draggable.
-12. No single-contact vCard export/share.
-13. Calendar event can't be handed out as .ics (import only).
-14. Recordings can't be dragged/shared.
-15. Trimmed video result can't be dragged/shared.
-16. Pinned screenshot can't be dragged/shared (share only transient notif).
-17. Share cannot carry text or URL (Share.qml single file path vs Phone.qml:27 --share-text).
-18. Text selection and notes have no drag-out.
-19. Converter has two overlapping drop handlers (full-window :106 and empty-state DropZone :218).
-Risk: adding text/plain drag fallbacks could paste paths as text into editors — keep URI-only for file sources.
+## Scope read
+
+Read `docs/GAPS.md` + `docs/GAPS-RESEARCH.md` headings and every drag/drop/share passage; skipped parent's list (drag-out from Files, inbound `text/plain`/`image/png`, Share-sheet targets/cloud upload/portal Share/Email, share targets in own apps, Photos share action, copy-path URI, notification→file). Audited `Common/DropZone.qml`, `Modules/Files/FileDropArea.qml`, `Services/FileActions.qml`, `Services/Share.qml` and all 14 named apps. Static only.
+
+Key structural fact: only **8 `Drag.mimeData` sources** exist (FilesPanel ×3, DesktopIcons, SidebarShelf, Bar ×2, Launcher) and only **7 `DropArea` hosts** (Files ×8 via FileDropArea, Dock ×4, Converter ×2, Island, MediaPlayer, Bar, DropZone). None of the 14 apps except Files/MediaPlayer/Screenshots touch drag, drop or Share at all.
+
+## Matrix (a: drag out · b: drop in · c: Share sheet · d: copy URI vs text)
+
+| App | a | b | c | d |
+|---|---|---|---|---|
+| Files | ✓ `FilesPanel.qml:863,985,1197` | ✓ `FileDropArea.qml:10-24` (×8) | ✓ one file only `:3105` | ✓ `uri-list` `Files.qml:922`; "Copy path" is text `:3097` |
+| Photos | ✗ | ✗ picker only `:282-287` | ✗ tile actions `:409-429` | ✗ none |
+| Viewer | ✗ | ✗ | ✗ | ✗ path text `Viewer.qml:469` |
+| PdfReader | ✗ | ✗ | ✗ | ✗ page text `PdfViewer.qml:206` |
+| TextEditor | ✗ | ✗ | ✗ | ✗ selection text only |
+| Mail compose | ✗ | ✗ | ✗ | n/a; attach via `send()` has no files `Mail.qml:55` |
+| Notes | ✗ | ✗ picker `NotesPanel.qml:261` | ✗ Export HTML `:275` | ✗ |
+| Contacts | ✗ | ✗ despite comment `Contacts.qml:154` | ✗ QR only `:574` | ✗ |
+| Calendar | ✗ | ✗ picker `:24-27` | ✗ | ✗ |
+| MediaPlayer | ✗ | ✓ **first URL only** `:468` | ✗ | n/a |
+| VideoTrimmer | ✗ | ✗ | ✗ Open/Trash `:323-324` | ✗ |
+| VoiceRecorder | ✗ | ✗ | ✗ Export… `:265-271` | ✗ |
+| Screenshots | ✗ pinned img `:57-60,84` | ✗ | ✓ **transient notif only** `Screenshots.qml:123,142` | ✓ `image/png` `:121`; pinned = path text |
+| Converter (bonus) | ✗ | ✓ two overlapping DropAreas `:106,218` | ✗ | n/a |
+
+## Ranked gaps (value × ease)
+
+**Tier 1 — high × easy**
+
+1. **Multi-file Share silently shares one file.** `FilesPanel.qml:3105` uses `e.path` while sibling actions use `chosen` (`:3107-3111`); `FileActions.qml:154` uses `fs[0]`; `Share.qml:13-17,20-35` has a single `file` string. *Sketch:* `Share.files: []`, `open(paths)`, targets loop/zips URIs.
+
+2. **Photos tiles cannot be dragged out.** `PhotosWindow.qml:366-432` — tile `Item`/`MouseArea` has no `Drag` attached properties. *Sketch:* copy `FilesPanel.qml:859-863` onto the tile.
+
+3. **Viewer, the dedicated image app, cannot drag its image out.** `Viewer.qml:466-471` has only Copy path / Open with / trash; zero `Drag.mimeData` in file. *Sketch:* attach `Drag.mimeData` to the image item.
+
+4. **Desktop and Shelf drag URIs are unencoded.** `DesktopIcons.qml:251`, `SidebarShelf.qml:64` build `"file://" + path` raw, but `Files.uriOf` (`Files.qml:914`) encodes each segment. Paths with space/`#`/`?` break in strict targets. *Sketch:* use `Files.uriOf(path)`.
+
+5. **Share's "Copy the file" emits a malformed URI.** `Share.qml:33` interpolates `"file://%s"` raw via `wl-copy`. *Sketch:* pass `Files.uriOf(root.file)` already encoded.
+
+6. **Contacts promises drag-to-import but has no `DropArea`.** `Services/Contacts.qml:154` ("drag onto the window, or a file picker"); `ContactsWindow.qml:64-70` is picker-only, and `DropArea` grep has no Contacts entry. *Sketch:* `DropArea{keys:["text/uri-list"]; onDropped: Contacts.importFile(…)}`.
+
+7. **Dropping tracks onto Media Player queues only the first.** `MediaPlayerWindow.qml:468` takes `drop.urls[0]`; `PlayQueue.qml:150-162` already accepts a file, URI or folder. *Sketch:* pass all `drop.urls`.
+
+**Tier 2 — medium × easy**
+
+8. **PDF and embedded attachments can't be dragged out** — save-to-disk only (`PdfReader.qml:21-28`, `PdfViewer.qml:17,83`). *Sketch:* `Drag.mimeData` on page/attachment rows.
+
+9. **No drop-to-open PDF.** `PdfReader.qml` has no `DropArea`; pattern at `MediaPlayerWindow.qml:465-469`. *Sketch:* reuse `Common/DropZone.qml` (used once, `Converter.qml:218`).
+
+10. **No drop-to-open image in Viewer.** `Viewer.qml` has no `DropArea`. *Sketch:* same `DropZone` reuse → `Viewer.open()`.
+
+11. **Mail attachments are save-only, not draggable.** `MailWindow.qml:246-261`; service holds names only (`Mail.qml:25`). *Sketch:* drag UID+index, fetch on drop via bridge (medium).
+
+12. **No single-contact vCard export/share.** Only "Export all…" (`ContactsWindow.qml:119-125`); detail sheet `:486-575` offers Call/Mail/Map/QR/Edit, no Share/drag. *Sketch:* `Contacts.vcard()` result → `Share` or `Drag`.
+
+13. **Calendar event can't be handed out as `.ics`.** Import only (`CalendarPanel.qml:24-27`, `Agenda.qml:115-125`); no export/Share/drag. *Sketch:* `bridge/agenda.py export` + context action.
+
+14. **Recordings can't be dragged/shared.** `VoiceRecorderPanel.qml:265-271` only FilePicker export. *Sketch:* `Drag.mimeData: Files.uriOf(row.modelData.path)`.
+
+15. **Trimmed video result can't be dragged/shared.** `VideoTrimmerPanel.qml:323-324` only Open/Trash. *Sketch:* add a Share icon + Drag on the result row.
+
+16. **Pinned screenshot can't be dragged/shared** — only copy path (`PinCapture.qml:57-60,84`), while sharing exists only on the transient notification (`Screenshots.qml:123,142`). *Sketch:* add Share + `text/uri-list` drag to the pin's toolbar.
+
+17. **Share cannot carry text or a URL.** `Share.qml:13` is a lone `file` path; `Phone.qml:27` already has `--share-text`. *Sketch:* `Share.text` + a text target for notes/editor selection/OCR.
+
+18. **Text selection and notes have no drag-out.** No `Drag.mimeData` in `TextEditorPanel.qml:26-41` or `NotesPanel.qml` (attach/export `:261,275`). *Sketch:* `Drag.mimeData: {"text/plain": selectedText}`.
+
+19. **Converter has two overlapping drop handlers.** Full-window `DropArea` (`:106-109`) and empty-state `DropZone` (`:218-226`) can both consume one drop; outer also mangles non-`file:` URLs via `String.replace`. *Sketch:* keep one handler, filter `url.startsWith("file:")`.
+
+Skipped: runtime verification of Qt drop-event propagation (#19 is static inference), and any share gaps already in the parent list. Risk: adding `text/plain` drag fallbacks (#18) could paste paths as text into editors — keep URI-only for file sources.
 
 ## VERBATIM: In-app shortcut discoverability
 
-# In-app shortcut discoverability — craft audit (static)
-Method: counted handlers, read AppWindow/Hint/IconButton/EmptyState/KeyFocus, both menus, SettingsShortcuts, NiriBinds.js, session.kdl, StartHints, Tour/Launcher.
-Answers: (1) 26 QML files Keys.onPressed, 10 Shortcut{} declarations, ~162 Qt.Key_ comparisons. Heaviest Files 23, TextEditor 20, Viewer 19, MediaPlayer 15, PdfReader 10. Surfaced in UI well under 15%; no complete per-app list. (2) Hint.qml keys badge used only bar/chrome; IconButton.qml:94 passes only text; keys smuggled into prose. Formats collide. (3) Third-party menus show accelerators (Bar.qml:941, WindowMenu.qml:197 fed by appmenu.py:284-312); our menus don't. (4) EmptyState has no key field; few contextual hints. (5) No per-app overlay; niri overlay separate from searchable list. (6) takenBy() checks niri+custom binds only, bare F-keys shadow Files F2/F5.
-1. IconButton.qml:94 drops keys channel.
-2. Shell menus show no accelerators while native menus do.
-3. No declarative shortcut metadata: AppWindow.qml:35 has tools, no shortcuts counterpart.
-4. Shortcut list sources split: NiriBinds.js vs SettingsShortcuts vs niri overlay.
-5. Conflict check blind to app keys and bare F-keys.
-6. 4+ notations for keys.
-7. Legends in 4 surfaces with 3 formats.
-8. Empty states omit creation keys.
-9. AppWindow F6/Menu/arrow navigation undocumented.
-10. Hint keys used only in bar/chrome.
-11. Two tooltip systems: Hint vs Qt ToolTip.
-12. Launcher subtitle keys ad hoc.
-13. Native accelerators visible only in hidden menus.
-14. Redo/undo key absent from 7s undo bar.
-15. Bare-key mutation schemes make any legend untrustworthy.
-16. Ui.shortcutsListed test-only counter, no UI uses it.
+## In-app shortcut discoverability — craft audit (static, read-only)
+
+**Method:** counted handlers, read `Common/AppWindow.qml`, `Hint.qml`, `IconButton.qml`, `EmptyState.qml`, `KeyFocus.qml`, both menu surfaces, `SettingsShortcuts.qml`, `NiriBinds.js`, `session.kdl`, `StartHints.qml`, Tour/Launcher actions. Skip list honored; prior-pass items not repeated.
+
+### Answers to the six questions
+
+1. **Volume vs. discovery.** 26 QML files carry `Keys.onPressed` (27 incl. `SettingsShortcuts.qml:102`), plus 10 `Shortcut {}` declarations (9 in app windows) and ~162 `Qt.Key_` comparisons tree-wide. Heaviest: Files 23, TextEditor 20, Viewer 19, MediaPlayer 15, PdfReader 10. Surfaced in UI: TextEditor's tooltip keys (listed), 4 Files tips, 4 in-window legends, a few launcher subtitles — well under 15%, and **no complete per-app list exists**.
+2. **Tooltips.** `Hint.qml:14` has a `keys` badge, but it is used only in bar/chrome (`Bar.qml:181,433,824`; `Chip.qml:70`). `IconButton.qml:94` passes only `text` to `Hint`, so 12 non-TextEditor buttons smuggle keys into prose (`FilesPanel.qml:370,371,683`; `Bar.qml:575,584`; `SidebarHeader.qml:188`). Formats collide: `"Super + Space"`, `"Ctrl+V"`/`"Super+M"`, `"Ctrl+S"` (`bridge/appmenu.py:133-154`), `"Mod+2"` (`SettingsWindows.qml:37`), `" + "` (`SettingsShortcuts.qml:35`).
+3. **Menus.** Third-party menus *do* show accelerators (`Bar.qml:941`, `WindowMenu.qml:197`, fed by `appmenu.py:284-312`). Our own menus do not: shell window entries (`WindowMenu.qml:34-69`, rendered `:313-319`) and Files' right-click menu (`FilesPanel.qml:1377-1383`) show label/icon only, despite bound keys (F2 `:187`, Ctrl+C/V/A `:132-137`).
+4. **Contextual hints.** `EmptyState.qml:9-13` has no key field; none of its 45 uses names a creation key (`TextEditorPanel.qml:525-533` offers "New document" though Ctrl+N exists at `:438`; `FilesPanel.qml:1041-1048`; `SidebarNotes.qml:164-169`). Only 4 surfaces carry any in-window legend.
+5. **Overlay.** No per-app equivalent. `session.kdl:148` opens niri's static overlay; the shell's searchable list parses niri config only (`NiriBinds.js:6-28`, `SettingsShortcuts.qml:22-49`). `Tour.qml:132` and `LauncherActions.qml:69` delegate to niri. Two disconnected systems, neither with app keys.
+6. **Conflicts.** `SettingsShortcuts.qml:28-34` `takenBy()` checks niri + custom binds only. `:110-112` admits bare F-keys, which shadow Files F2/F5 (`FilesPanel.qml:187,162`); the banner at `:117-124` says "already taken" without naming the app. There is no app-shortcut registry to consult.
+
+### Ranked gaps (value × ease)
+
+| # | Gap & evidence | One-line sketch |
+|---|---|---|
+| 1 | `IconButton.qml:94` drops the `keys` channel; keys live in prose (`FilesPanel.qml:370`) | Add `property string keys` → `Hint { keys: root.keys }` |
+| 2 | Shell menus show no accelerators while native menus do (`WindowMenu.qml:197` vs `:313-319`; `FilesPanel.qml:1379`) | Add `key` to menu models + a dim right column |
+| 3 | No declarative shortcut metadata: `AppWindow.qml:35` has `tools`, no `shortcuts` counterpart | Add `shortcutHints` array on AppWindow, one entry per app key |
+| 4 | Shortcut list sources split: `NiriBinds.js:6-28` vs `SettingsShortcuts.qml:39-49` vs niri overlay | One merged model (niri + custom + app registry) for sheet and launcher |
+| 5 | Conflict check blind to app keys and bare F-keys (`SettingsShortcuts.qml:28-34,110-112`) | Consult registry; banner says "Ctrl+S is Save in Text Editor" |
+| 6 | 4+ notations (`Hint.qml:58` keycap vs tips vs `appmenu.py:154` vs `SettingsWindows.qml:37`) | One `KeyLabel` formatter + "Mod"→"Super" |
+| 7 | Legends exist in 4 surfaces with 3 formats (`Switcher.qml:268`, `RulerPanel.qml:173`, `Annotate.qml:132`, `WindowLayouts.qml:74`) | One `ShortcutLegend` bound to the registry |
+| 8 | Empty states omit creation keys (`EmptyState.qml:9-13`, `TextEditorPanel.qml:531`) | Add `keys` rendered as a keycap beside subtitle |
+| 9 | AppWindow's F6/Menu/arrow navigation undocumented (`AppWindow.qml:63-86`) | One-line hint in header tip or first-open toast |
+| 10 | Hint keys used only in bar/chrome (`Chip.qml:70`; 20 app buttons have none) | Pass `keys:` on app tool buttons |
+| 11 | Two tooltip systems: Hint (`Hint.qml:20`, 550 ms) vs Qt ToolTip (`SwitchRow.qml:42-51`) | Route all help through Hint |
+| 12 | Launcher subtitle keys ad hoc: run/clipboard rows list keys, app/file rows none (`Launcher.qml:299,333,338`) | Derive subtitle keys from the registry |
+| 13 | Native accelerators visible only in hidden menus, not the inline bar chips (`Bar.qml:493` vs `:941`) | Show a small keycap on long-press/hover of the chip |
+| 14 | Redo/undo key only in a tooltip, absent from the 7 s undo bar (`FilesPanel.qml:371` vs `:2872-2894`) | Put "(Ctrl+Z)" on the undo bar label |
+| 15 | Bare-key mutation schemes make any legend untrustworthy (`Annotate.qml:132` vs `Whiteboard.qml:119-121`) | Normalize mutation keys to Ctrl before publishing a legend |
+| 16 | `Ui.shortcutsListed` is a test-only counter (`Ui.qml:152`, `SettingsShortcuts.qml:25`) — no UI uses it for coverage display | Surface it as "X shortcuts listed" or drop it |
+
+Skipped: the seven listed items, prior-pass conflict/OSK/onboarding findings, and anything needing runtime or a real app menu. Risk: Qt `Shortcut` scope and the exact discoverable fraction are inferred statically; no QML runtime was available.
 
 ## VERBATIM: Undo/redo in non-text contexts
 
 # 17th-pass report — UNDO/REDO in non-text contexts
-1. Files navigation history global, not per-tab (Files.qml:33-34, open():252-255, switchTab/closeTab call open():782,792). High×med.
-2. Files tab close no confirmation, no reopen closed tab (Files.qml:784-793, FilesPanel.qml:108 Ctrl+W).
-3. Converter no way to cancel running job — X hidden while working (ConverterWindow.qml:177), working row only progress (:194-201), closing window only sets visible=false so worker keeps running invisibly. High×high.
-4. Converter failed/done jobs no retry reusing options.
-5. Files retryFailed() forces conflict:"replace" (Files.qml:580-585) ignoring user's original choice — DATA-LOSS RISK.
-6. Files cancelJob() discards entire queue (Files.qml:626-629).
-7. Maps no reset/fit view; "Recenter" no-op when location off (MapsPanel.qml:281-291).
-8. Viewer zoom/pan/rotation reset on every image (Viewer.qml:77-113, open():41-62).
-9. No redo for any stroke/annotation undo (Whiteboard, Annotate, Viewer, PdfReader) — undo only.
-10. Selection wiped on every navigation with no undo (Files.qml:249,263,271; DiskUsage:153,161; Photos:97,106).
-11. Photos batch-trash/album undo not surfaced in Photos — undo lands in Files.undoStack reachable only from Files.
-12. Photos filter/groupBy/sortOrder window-local, not persisted (PhotosWindow.qml:23-25, controls :214-234).
-13. Files search query survives navigation, no clear/undo (Files.qml:248-278; FilesPanel.qml:205-209,329).
-14. Navigation Back/Forward absent outside Files and PDF (Software one-way, Mail one-way, Settings direct, DiskUsage back but no forward).
-15. PDF nav history lost on close/reopen; view state reset (PdfViewer.qml:250-275).
-16. Magnifier no reset to default zoom (Magnifier.qml:26,69-70,83).
-17. Batch/one-way view changes with no undo in rest of Settings.
-Cross-cutting: only Files has genuine non-text undo/redo pair, only Files/PDF nav forward. Cheapest lever: generic view-state stack reused by Maps/Viewer/Photos/PDF.
-Risk: Converter job-keeps-running inference rests on AppWindow only hiding and worker owned by still-live window.
+
+Scope: all app windows' navigation/state (Files, PDF, Ring, Maps, Viewer, Magnifier, Photos, Calendar, Settings, Converter, jobs, selection). Static only. Skipped per instructions: Settings sign-in-snapshot undo, TextEditor undo, Files undo, WindowLayouts undo-only, destructive-delete undo, Toast undo fragility. All line refs under `shani-shell/shani/`.
+
+## Ranked gaps (value × ease)
+
+**1. Files navigation history is global, not per-tab** — `Services/Files.qml:33-34` `history`/`historyIndex` are singletons; `open()` pushes into the shared array (`:252-255`); `switchTab`/`closeTab` both call `open()` (`:782,792`). Back/Forward therefore follow a folder visited in a *different* tab, and closing a tab leaves its folders in history. Sketch: `historyById[tab]` map; on close drop that tab's entries. High value, medium ease.
+
+**2. Files tab close has no confirmation, no "reopen closed tab"** — `Services/Files.qml:784-793` splices the tab and immediately `open()`s another; `FilesPanel.qml:108` binds Ctrl+W; no confirm for a tab with a deep search or selection (TextEditor at least confirms modified docs, `TextEditorPanel.qml:320-329`). Sketch: keep `closedTabs[]` and a Ctrl+Shift+T action.
+
+**3. Converter: no way to cancel a running job** — the X is hidden while working (`ConverterWindow.qml:177` `visible: state !== "working"`), the working row shows only a progress bar (`:194-201`); closing the window merely sets `visible=false` (`Common/AppWindow.qml:47`), so the `worker` Process keeps running invisibly. Sketch: `worker.running=false` stop button, and cancel-on-close with a "was stopped" note. High value, high ease.
+
+**4. Converter: failed/done jobs have no retry that reuses options** — `ConverterWindow.qml:204-215` shows error only; format/quality/time options live per job (`:34`, `:72-77`) but are lost if the row is removed via `:177`; the "Stopped" state only appears on process exit (`:92-94`), not by user action. Sketch: a Retry button setting state back to `ready` with the same job object.
+
+**5. Files `retryFailed()` forces `conflict:"replace"`** — `Services/Files.qml:580-585` ignores the user's original conflict choice (skip/ask) and hard-codes `"replace"`, so "Retry" can overwrite files the user had chosen to protect. Sketch: stash the original `opts` in `jobFailed[]` and reuse it. Data-loss risk — fix regardless.
+
+**6. Files `cancelJob()` discards the entire queue** — `Services/Files.qml:626-629` sets `_jobs=[]` after SIGTERM; cancelled multi-file transfers cannot resume the remaining files with the same destination/options. Sketch: keep `_jobs` and offer "Resume N remaining".
+
+**7. Maps: no reset/fit view; "Recenter" is a no-op when location is off** — `MapsPanel.qml:281-291` recenters only when `Location.available` and coords non-zero, and never resets `z`; `syncCenter()` (`:269-279`) restores center but not zoom. Sketch: fall back to last place/default zoom 14 and add a "Reset view" that resets `z`.
+
+**8. Viewer: zoom/pan/rotation reset on every image** — `Services/Viewer.qml:77-113` `_resetTransform()` (and `open()` `:41-62`) zeroes zoom/pan/rotation/flip on next/prev/goToIndex, so zooming into one photo and stepping back loses the view. Sketch: per-path transform map keyed by `file`. Medium value, high ease.
+
+**9. No redo for any stroke/annotation undo** — undo only (`Whiteboard.qml:44,287`; `Annotate.qml:43,128`; `Viewer.qml:216,460`; `PdfReader.qml:82,675`); no `redoStack`, no Ctrl+Shift+Z. Only Files (`:847-877`) and PdfViewer navigation (`:414`) have redo outside text editors. Sketch: each `undo()` pushes the popped stroke to a redo array.
+
+**10. Selection is wiped on every navigation, with no undo** — `Services/Files.qml:249,263,271` clear `selected`/`current` on `open/back/forward`; `DiskUsage.qml:153,161` clears `marked` on enter/back; `PhotosWindow.qml:97,106` clears on batch ops. Sketch: key selection by folder in a map, or add an "undo selection clear".
+
+**11. Photos batch-trash/album undo not surfaced in Photos** — `PhotosWindow.qml:92-107` calls `Files.trash()`/`Photos.createAlbum()`; the undo entry lands in `Files.undoStack` (`Services/Files.qml:836-877`) reachable only by leaving Photos and pressing Ctrl+Z in Files. Sketch: an Undo button in the Photos toolbar calling `Files.undo()`.
+
+**12. Photos filter / groupBy / sortOrder are window-local, not persisted** — `PhotosWindow.qml:23-25` with controls at `:214-234`; every reopen resets to "all/month/newest". No undo/remember. Sketch: persist to `Settings.data` or `Ui` like `calendarView` (`Common/Ui.qml:45`).
+
+**13. Files search query survives navigation and has no clear/undo** — `Services/Files.qml:248-278` clears selection but not `searchText` (`:1326`); `FilesPanel.qml:205-209,329` keeps `dir.query`/`deepWords`, so Back/Up apply the old query to the new folder. Sketch: clear `searchText` in `open()` or show an "active search" chip.
+
+**14. Navigation Back/Forward absent outside Files and PDF** — Software's Back is one-way `win.app=null` (`SoftwareWindow.qml:321`); Mail folder switch one-way `open(name)` (`Services/Mail.qml:44`); Settings category clicks direct `Ui.settingsCat=` (`SettingsWindow.qml:105,130-131`); DiskUsage has back but no forward (`DiskUsage.qml:156-163`). Sketch: one generic `navStack` service wired to each window's Back/Forward buttons.
+
+**15. PDF nav history lost on close/reopen; view state reset** — `Services/PdfViewer.qml:250-275` clears `navHistory`, sidebar, zoom, search on `open()`; navForward exists (`:414`) but is wiped when the document is reopened. Sketch: per-document view map keyed by path.
+
+**16. Magnifier has no reset to default zoom** — `Magnifier.qml:26,69-70,83` clamps zoom 1.5–6 with only ±0.5 steps and a fresh-frame right-click; no key/button returns to 2.5× or centers the loupe. Sketch: bind a key to `zoom=2.5`.
+
+**17. Batch/one-way view changes with no undo in the rest of Settings** — e.g. `SettingsDefaultApps.qml:241` "Back to how it came" is a one-shot reset; `SettingsAppPermissions.qml:6,275` "Back to what the app asked for" is a reset, not a redo of the prior choice. Sketch: generic "undo last change" toast already exists in `SettingsPage.qml:397-409` — extend it to these reset buttons. (Overlaps the skipped sign-in-snapshot item only in mechanism, not surface.)
+
+## Cross-cutting note
+
+Only **Files** has a genuine non-text undo/redo pair, only **Files/PDF** have nav forward, and the rest of the shell is undo-or-reset with no redo. The cheapest systemic lever is a small generic view-state stack (`{key, prev, next}`) reused by Maps/Viewer/Photos/PDF rather than one stack per window.
+
+## Skipped / not checked
+
+Did not re-file the six skip-list items, or verify anything at runtime — no QML session, real hardware or multi-tab stress test was run; all claims are from static source. Risk: the Converter "job keeps running after window close" inference rests on `AppWindow` only hiding (`AppWindow.qml:47`) and the `worker` Process being owned by the still-live window object — worth a live check before filing as a bug.
 
 ## VERBATIM: Multi-monitor bar/dock/taskbar gaps
 
 # Multi-monitor bar/dock/taskbar gaps — 17th pass
-1. [H×H] Dock pips reflect every monitor's windows, not this one's (Dock.qml:101-126, :339, :422-445).
-2. [H×H] Quick settings ignores the bar you clicked — one global Ui bool, sidebar uses focused output (Ui.qml:11,351-357; Sidebar.qml:25; shell.qml:203; Bar.qml:765,825,837).
-3. [H×M] Bar height fixed while contents scale from focused output (Bar.qml:43,48 vs Theme.px; FormFactor.qml:74-79; TV 1.6 vs laptop 1.0).
-4. [H×M] Dock size global and takes focused output scale (Dock.qml:130-138,232-234).
-5. [H×H] Dock click/wheel/menu can focus a window on another monitor (Dock.qml:142-159,500-506,564-566).
-6. [H×M] Notifications: badge on every bar, popup on only one (Notifs.qml:16, Bar.qml:819-828, Popups.qml:17-18).
-7. [H×H] Desktop icons only on first screen (shell.qml:98, DesktopIcons.qml:24 vs per-output widgets).
-8. [H×M] No primary-monitor concept; screens[0] de-facto (Displays.qml:21, Niri.qml:34-37, FormFactor.qml:74, Bar.qml:142, Dock.qml:63).
-9. [M×H] Every bar shows focused app's menus (AppMenu.qml:1,18,25; Bar.qml:66-70,88-96,478-516).
-10. [M×H] Window menu placed with coordinates from wrong bar (Bar.qml:590-594,599 vs WindowMenu.qml:18,219).
-11. [M×H] Quick settings un-hides every bar (Bar.qml:58 bare ||Ui.controlCenter).
-12. [M×H] TV home state global across per-output instances (shell.qml:102, TvHome.qml:24,48,51,57,70, Ui.qml:90-92).
-13. [M×M] No dock-to-dock drag, pins one global list (Dock.qml:448-481 DropArea only, no Drag.mimeData; dockPinned :160-194).
-14. [M×H] TV home "open" shelf ignores output (TvHome.qml:54-58 uses global Niri.mru()).
-15. [M×M] Workspace-map drag resolves by bare name across monitors (Bar.qml:355,416-425; Niri.qml:193-200).
-16. [M×M] Launching from dock doesn't target that dock's monitor (Dock.qml:143-147,510-514; Launch.qml:23-32).
-Niri-impossible: N1 no primary output in niri; N2 no pointer cross-monitor drag event; N3 per-invocation output placement needs niri window rules.
-Risk: #1/#5/#14 depend on niri reporting window output via workspace — needs real 2-monitor IPC readback.
+
+Read both gap files and skipped all listed items. Static review only — no runtime/hardware verification.
+
+## Shell-fixable — ranked by value × ease
+
+1. **[H×H] Dock pips reflect every monitor's windows, not this one's.** `Dock.qml:101-126` builds `running` from all `Niri.windows`; `:339` `focused` is global; `:422-445` pips count `Math.min(3, windows.length)`. Two docks show identical dots and both light up for a window on one monitor; no "this monitor only" mode (Windows taskbar has one). *Sketch:* filter `running` by the window's workspace output, plus a "windows from all monitors" toggle.
+
+2. **[H×H] Quick settings ignores the bar you clicked.** `Ui.qml:11,351-357` is one global bool; `Sidebar.qml:25` uses `Ui.screen`, bound to the focused output at `shell.qml:203`. Clicking the chip/bell/clock on `Bar.qml:765,825,837` of a non-focused bar opens the panel on the *other* monitor; a second click toggles the first closed — it cannot be open on two monitors. *Sketch:* `Ui.controlCenterOutput` set from `bar.output`, sidebar `screen` resolved from it.
+
+3. **[H×M] Bar height is fixed while its contents scale from the focused output.** `Bar.qml:43,48` uses constant `Theme.barHeight+8/+16`, but every chip uses `Theme.px` (`:125,151-152,372`…), and `Theme.px` multiplies `Ui.uiScale` (`Theme.qml:172,178`), which `FormFactor.qml:74-79` sets from *focus*. `FormFactor.js:24` gives TV 1.6 vs laptop 1.0: focusing the TV clips the laptop bar; focusing the laptop shrinks TV chrome inside a 48px strip. *Sketch:* `Theme.pxOn(output,n)`, use it for height, margins and exclusiveZone.
+
+4. **[H×M] Dock size is global and also takes the focused output's scale.** `Dock.qml:130-138` `base: Settings.data.dockIconSize` (one setting) and `:232-234` use `Theme.px`; `FormFactor.qml:9-11,74-79` documents per-output sizing but Bar/Dock never call `FormFactor.of(output).scale`. *Sketch:* per-output size map in Settings + local scale for `base`, peak and spacing.
+
+5. **[H×H] Dock click/wheel/menu can focus a window on another monitor.** `Dock.qml:142-159` sorts *all* non-minimised ids and cycles globally; `:500-506` wheel does the same; `:564-566` menu rows call `Niri.focusWin(w)` with no output label. *Sketch:* prefer windows on `win.output` first, append an output tag to menu rows.
+
+6. **[H×M] Notifications: badge on every bar, popup on only one.** `Notifs.qml:16` count is global and rendered on all bars (`Bar.qml:819-828`); `Popups.qml:17-18` is one surface on the focused output. Looking at monitor B shows a badge with no popup; clicking its bell moves the sidebar to A (see #2). *Sketch:* key popups/expanded state by output, and show per-output unread counts.
+
+7. **[H×H] Desktop icons exist only on the first screen.** `shell.qml:98` instantiates `DesktopIcons {}` once; `DesktopIcons.qml:24` pins it to `Quickshell.screens[0]`, while widgets are per-output (`DesktopWidgets.qml:16,59`, `MoreWidgets.qml:15,50`). Second monitor has widgets but no icons. *Sketch:* `Variants { model: Quickshell.screens; DesktopIcons {} }`.
+
+8. **[H×M] No primary-monitor concept; `screens[0]` is the de-facto one.** `Displays.qml:21` has no primary flag; `Niri.qml:34-37` derives "focused" from the focused workspace; `FormFactor.qml:74` falls back to `Displays.outputs[0]`; `Bar.qml:142` puts the idle inhibitor on `screens[0]`; `Dock.qml:63` shows the dock hint only there. Unplug the first output and these silently migrate. *Sketch:* `Settings.data.primaryOutput` consumed by every `screens[0]` fallback.
+
+9. **[M×H] Every bar shows the focused app's menus.** `AppMenu.qml:1,18,25` is a singleton loaded from `Niri.focusedWindow` by each bar (`Bar.qml:66-70,88-96,478-516`); `activate()` targets that one window. Monitor A's bar displays menus for an app whose window is on B. *Sketch:* per-output menu loader keyed by the active window on that output.
+
+10. **[M×H] Window menu is placed with coordinates from the wrong bar.** `Bar.qml:590-594,599` sets `Ui.windowMenuX` from the clicked chip, but `WindowMenu.qml:18` renders on the focused output and `:219` uses that x verbatim. *Sketch:* carry `bar.output` with `windowMenuX` and resolve the menu's screen from it.
+
+11. **[M×H] Quick settings un-hides every bar.** `Bar.qml:58` includes bare `|| Ui.controlCenter` (global) while island busy is correctly output-scoped in the same expression. Open quick settings on one monitor and all "hide"/"smart" bars on other monitors become fully visible and take input (`:129`). *Sketch:* `Ui.controlCenter && output === Ui.controlCenterOutput`.
+
+12. **[M×H] TV home state is global across per-output instances.** `shell.qml:102` makes one `TvHome` per screen, but `TvHome.qml:24` gates all on `Ui.tvHome`, `:48,51,57,70` set it false, and `Ui.tvSelected` is one string (`:90-92`). With two TVs, Home/launch on one hides both and highlights both. *Sketch:* `Ui.tvHomeByOutput` / `tvSelectedByOutput` maps keyed by `modelData.name`.
+
+13. **[M×M] No dock-to-dock drag, and pins are one global list.** Dock cells have only `DropArea` (`Dock.qml:448-481`, shelf/trash `:637,761`); no `Drag.mimeData` source (contrast `Launcher.qml:780-784`). `dockPinned` (`:160-194`) is a single list, so a "pin dragged to monitor B" concept does not exist. *Sketch:* add `shani-app:` drag to cells and an output-keyed pin map.
+
+14. **[M×H] TV home's "open" shelf ignores output.** `TvHome.qml:54-58` takes `Niri.mru()` globally; a TV shows windows from the laptop and `focusWin` warps to them. *Sketch:* filter MRU by window workspace output.
+
+15. **[M×M] Workspace-map drag resolves by bare name across monitors.** `Bar.qml:355` sets `moveTarget` to `modelData.name || idx`; `:416-425` drops into `Niri.moveWindowTo` (`Niri.qml:193-200` falls back to a name). With `wsMapScope:"all"` every bar shows every output's map; duplicate workspace names on two outputs misroute. *Sketch:* put target output in the drag mime and call `move-window-to-monitor` explicitly.
+
+16. **[M×M] Launching from a dock doesn't target that dock's monitor.** `Dock.qml:143-147,510-514` calls `Launch.app(id)`; `Launch.qml:23-32` has no output/workspace option, so the window lands where niri currently focuses. *Sketch:* focus the dock's output before launch or pass `--output` through `launch-app.py`.
+
+## Niri-impossible / compositor-owned
+
+- **N1 — No primary output in niri.** Outputs are independent (`Displays.qml:21`); "primary" can only be a shell preference (#8). Unplug reassignment and where new workspaces land are niri's decisions; `move-workspace-to-monitor` is config/IPC-only (`Niri.qml:210-234`).
+- **N2 — Pointer-driven cross-monitor window drag has no shell event.** The shell's only drag is map-rect → workspace (`Bar.qml:237-247`); dragging a client window across outputs is handled inside niri, same class as the already-listed drag-to-edge limit.
+- **N3 — Spawning a window onto a chosen output needs niri window rules.** `WindowRules.qml` can pin an app to an output statically, but there is no per-invocation placement API; focusing first (per #16) changes the user's focus and is not equivalent.
+
+Skipped: the sixteen listed items, single-surface teleport as such, and per-output wallpaper/scale settings. Risk: #1/#5/#14 depend on niri reporting a window's output via its workspace (not directly on the window), so the filter needs an IPC readback check on a real 2-monitor session; #15 assumes niri permits duplicate workspace names across outputs.
 
 ---
 
