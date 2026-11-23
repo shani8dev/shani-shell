@@ -23,6 +23,7 @@ AppWindow {
     property var keys: []
     property bool keysRead: false
     property string generated: ""
+    property bool generatedHidden: false
     property int length: 20
     property bool symbols: true
     property bool digits: true
@@ -52,11 +53,18 @@ while True:
     }
     Process {
         id: gen
-        stdout: StdioCollector { onStreamFinished: win.generated = text.trim() }
+        stdout: StdioCollector { onStreamFinished: {
+            win.generated = text.trim();
+            win.generatedHidden = false;
+            hideTimer.restart();
+        } }
     }
+    // like the Passwords window: a generated secret is not left on screen
+    Timer { id: hideTimer; interval: 30000; onTriggered: win.generatedHidden = true }
     function copy(text, what) {
         Quickshell.clipboardText = text;
         win.copied = what;
+        hideTimer.restart();
         copiedTimer.restart();
     }
     Timer { id: copiedTimer; interval: 1500; onTriggered: win.copied = "" }
@@ -116,7 +124,7 @@ while True:
                     spacing: Theme.px(8)
                     Text {
                         Layout.fillWidth: true
-                        text: win.copied === "password" ? Tr.t("Copied") : win.generated
+                        text: win.copied === "password" ? Tr.t("Copied") : (win.generatedHidden ? "••••••••" : win.generated)
                         color: Theme.text
                         elide: Text.ElideRight
                         font.family: Theme.mono

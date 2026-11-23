@@ -282,17 +282,19 @@ Singleton {
             cutProc.command = ["ffmpeg", "-y", "-loglevel", "error", "-ss", String(start), "-to", String(end), "-i", input, "-c", "copy", "-progress", "pipe:1", "-nostats", out];
         }
         cutProc.running = true;
+        return out;   // the exact path used, so callers can match the later result
     }
     function trimAudio(path, s, e) {
         if (!path)
-            return;
+            return "";
         setInput(path);
         setStart(s);
         setEnd(e);
         if (end <= start && inputDuration > 0)
             setEnd(inputDuration);
-        cut();
-        return outputFor(path);
+        // cut() stamps the name; returning a fresh outputFor() here would
+        // give a different timestamp than the file ffmpeg actually writes.
+        return cut();
     }
     function cutAudio(path, s, e) { return trimAudio(path, s, e); }
 

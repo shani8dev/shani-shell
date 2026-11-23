@@ -209,6 +209,26 @@ Singleton {
     }
 
     // ---- helpers ----------------------------------------------------------------
+    // The disk holding the running root filesystem (or anything under it) is
+    // never a valid target for erase/format/encrypt, whatever the UI passes.
+    function deviceIsSystem(path) {
+        const target = String(path || "");
+        if (!target) return false;
+        function touchesRoot(node) {
+            if (!node) return false;
+            if ((node.mountpoints || []).indexOf("/") >= 0) return true;
+            const kids = node.children || [];
+            for (let i = 0; i < kids.length; i++)
+                if (touchesRoot(kids[i])) return true;
+            return false;
+        }
+        for (const d of root.disks) {
+            if (d.path === target || d.name === target || d.majmin === target)
+                return touchesRoot(d);
+        }
+        return false;
+    }
+
     function humanSize(s) {
         const n = parseInt(s) || 0;
         if (n >= 1e12) return (n / 1e12).toFixed(1) + " TB";

@@ -62,9 +62,11 @@ Singleton {
             root.note = Tr.t("Colours made again from this wallpaper");
             return;
         }
+        // an override, not an edit of the per-style pictures: applying a theme
+        // must not destroy the separately-chosen light/dark wallpapers
         Settings.data.wallpaper = root.image;
-        Settings.data.wallpaperLight = "";
-        Settings.data.wallpaperDark = "";
+        Theme.themeWallpaper = root.image;
+        Theme.slideshowWallpaper = "";
         Matugen.reload();
         root.note = Tr.t("This picture is the wallpaper now, and the colours come from it");
     }

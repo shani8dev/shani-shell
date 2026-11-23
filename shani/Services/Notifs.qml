@@ -169,9 +169,34 @@ Singleton {
         onLoaded: { try { root.snoozed = JSON.parse(text()); } catch (e) {} }
     }
 
-    // a summary by Chronoa (after iOS / macOS): what came in, in a few lines
+    // a summary by Chronoa (after iOS / macOS): what came in, in a few lines.
+    // Chronoa may run in the cloud, so the first use needs an explicit opt-in:
+    // confirm with a second click (a short-lived state, not a persisted setting).
+    property bool summarizeConsent: false
+    property bool summarizePending: false
+    Timer { id: summarizeConfirmTimer; interval: 15000; onTriggered: root.summarizePending = false }
+    // only app + summary go out: no message bodies, no 4-8 digit codes (OTPs)
+    function _safeSummary(n) {
+        return String(n.summary || "").replace(/<[^>]*>/g, "").replace(/\b\d{4,8}\b/g, "").trim();
+    }
     function summarize() {
-        const items = list.slice(0, 30).map(n => "- " + (n.appName || "App") + ": " + n.summary + (n.body ? " — " + n.body.replace(/<[^>]*>/g, "").slice(0, 200) : ""));
+        if (!summarizeConsent) {
+            if (summarizePending) {
+                summarizeConsent = true;
+                summarizePending = false;
+            } else {
+                summarizePending = true;
+                summarizeConfirmTimer.restart();
+                Quickshell.execDetached(["notify-send", "-a", Tr.t("Notifications"), "-t", "15000",
+                    Tr.t("Send notifications to Chronoa?"),
+                    Tr.t("Tap Summarise again to allow it. Only app names and summaries are sent — message text and codes are removed.")]);
+                return;
+            }
+        }
+        const items = list.slice(0, 30).map(n => {
+            const s = root._safeSummary(n);
+            return s ? "- " + (n.appName || "App") + ": " + s : "";
+        }).filter(Boolean);
         if (items.length)
             Chronoa.ask("Summarise these notifications for me in a few lines — what needs me, what can wait:\n" + items.join("\n"));
     }

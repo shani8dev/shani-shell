@@ -251,15 +251,21 @@ while True:
         }
     }
 
-    // ---- rename (keeps the .opus extension), delete (gio trash), play -----
-    function cleanName(name) {
+    // ---- rename (keeps the take's own extension), delete (gio trash), play -
+    function cleanName(name, path) {
         let n = String(name || "").trim().replace(/\//g, "");
         if (!n)
             return "";
-        return /\.(opus|flac)$/i.test(n) ? n : n + "." + (root.format === "flac" ? "flac" : "opus");
+        if (/\.(opus|flac)$/i.test(n))
+            return n;
+        // the file's own extension, not the current format choice: renaming an
+        // old .flac while Opus is selected must not produce X.flac.opus
+        const ext = String(path || "").split(".").pop().toLowerCase();
+        const suffix = ext === "flac" || ext === "opus" ? ext : (root.format === "flac" ? "flac" : "opus");
+        return n + "." + suffix;
     }
     function rename(path, name) {
-        const to = cleanName(name);
+        const to = cleanName(name, path);
         if (!path || !to || to === path.split("/").pop())
             return;
         renameProc.command = ["gio", "rename", "--", path, to];
@@ -311,23 +317,23 @@ while True:
 
     // ---- Monologue-style take trim ---------------------------------------
     // Two offsets on the take itself, cut through the Trim service's audio
-    // branch (ffmpeg re-encodes libopus, no -c copy) as *.trimmed.opus
-    // beside the original.
+    // branch (ffmpeg re-encodes libopus, no -c copy). The old fixed
+    // *.trimmed.opus name is now *.trimmed-<stamp>.opus so a second cut
+    // never overwrites the first; the actual path is kept in trimOutput.
     property string trimFile: ""            // the take being trimmed, "" when none
     property real trimStart: 0
     property real trimEnd: 0
     property real trimDuration: 0           // ffprobe seconds for the take
-    property string trimmedLast: ""         // the *.trimmed.opus written
+    property string trimmedLast: ""         // the *.trimmed-<stamp>.opus written
+    property string trimOutput: ""          // exact path the current cut will write
     property string trimError: ""
-    function trimmedPathFor(p) {
-        return (p || "").replace(/\.opus$/i, "") + ".trimmed.opus";   // *.trimmed.opus beside the original
-    }
     function openTrim(path) {
         trimFile = path || "";
         trimStart = 0;
         trimEnd = 0;
         trimDuration = 0;
         trimmedLast = "";
+        trimOutput = "";
         trimError = "";
         if (trimFile)
             VideoTrimmer.setInput(trimFile);
@@ -354,22 +360,22 @@ while True:
     function saveTrimmedCopy() {
         if (!trimFile || VideoTrimmer.cutting)
             return;
-        const out = trimmedPathFor(trimFile);
         const s = trimStart, e = trimDuration > 0 && trimEnd <= 0 ? trimDuration : trimEnd;
+        trimOutput = "";
         if (e <= s) {
             trimError = Tr.t("End must be after start");
             return;
         }
         trimError = "";
         trimmedLast = "";
-        VideoTrimmer.trimAudio(trimFile, s, e);
-        // trimmedLast is set on Trim's completion (Connections below);
-        // the output name is deterministic, so the check there suffices.
+        trimOutput = VideoTrimmer.trimAudio(trimFile, s, e) || "";
+        // trimmedLast is set on Trim's completion (Connections below), matched
+        // against the exact timestamped path cut() handed to ffmpeg.
     }
     Connections {
         target: VideoTrimmer
         function onResultChanged() {
-            if (VideoTrimmer.result && VideoTrimmer.result === root.trimmedPathFor(root.trimFile))
+            if (VideoTrimmer.result && VideoTrimmer.result === root.trimOutput)
                 root.trimmedLast = VideoTrimmer.result;
         }
         function onInputDurationChanged() {

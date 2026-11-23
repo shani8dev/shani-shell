@@ -455,9 +455,21 @@ Singleton {
     // A window that will not close: the polite `close-window` request is
     // ignored by a frozen app, so this is the person's own "close it anyway",
     // aimed at the focused window's process. The launcher offers it by name.
+    // Every shell app window comes from the one org.quickshell process, so
+    // SIGKILL on that pid would kill the whole desktop. Hide the owning window
+    // instead (its gone() clears that app's Ui flag); kill external apps only.
     function forceCloseFocused() {
         const w = focusedWindow
-        if (!w || !w.pid)
+        if (!w)
+            return false
+        if (w.shell === true || w.app_id === "org.quickshell") {
+            const id = w.app_id !== "org.quickshell" ? w.app_id : ShellApps.idFor(w.title);
+            if (Ui.closeAppWindow(id)) return true;
+            // no registered window: a polite close still avoids the shared pid
+            action("close-window", "--id", w.id);
+            return true;
+        }
+        if (!w.pid)
             return false
         Quickshell.execDetached(["/bin/kill", "-9", String(w.pid)])
         return true

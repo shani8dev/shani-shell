@@ -20,6 +20,7 @@ import Quickshell
 import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
+import qs.Services
 import "../Services/ShellApps.js" as ShellApps
 
 FloatingWindow {
@@ -45,8 +46,14 @@ FloatingWindow {
     BackgroundEffect.blurRegion: Settings.blurWanted ? whole : null
     Region { id: whole; item: frame }
     onVisibleChanged: { if (!visible) win.gone(); register(); }
-    Component.onCompleted: register()
-    Component.onDestruction: { const r = Object.assign({}, Ui.navRoots); delete r[win.appName]; Ui.navRoots = r; }
+    Component.onCompleted: {
+        register();
+        Ui.registerAppWindow(win.desktopId, {
+            close: () => { win.visible = false; },
+            minimise: () => { Niri.minimiseWindowByTitle(win.title); }
+        });
+    }
+    Component.onDestruction: { const r = Object.assign({}, Ui.navRoots); delete r[win.appName]; Ui.navRoots = r; Ui.unregisterAppWindow(win.desktopId); }
     // the content, by app, for Ui.navAudit (the tests' reach check)
     function register() {
         const r = Object.assign({}, Ui.navRoots);
@@ -148,7 +155,7 @@ FloatingWindow {
                     }
                 }
                 Rectangle { visible: toolRow.children.length > 0; Layout.preferredWidth: 1; Layout.preferredHeight: Theme.px(20); color: Theme.border }
-                WindowButton { visible: !win.compact; icon: "window-minimize"; tip: Tr.t("Minimise"); onClicked: Ui.minimiseFocused() }
+                WindowButton { visible: !win.compact; icon: "window-minimize"; tip: Tr.t("Minimise"); onClicked: Ui.minimise(win.desktopId) }
                 WindowButton { visible: !win.compact; icon: win.maximized ? "window-restore" : "window-maximize"; tip: win.maximized ? Tr.t("Restore") : Tr.t("Maximise"); onClicked: win.toggleMaximised() }
                 WindowButton { icon: "window-close"; tip: Tr.t("Close"); danger: true; onClicked: win.visible = false }
             }

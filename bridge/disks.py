@@ -38,6 +38,91 @@ def run(cmd: list[str], **kw) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, capture_output=True, text=True, **kw)
 
 
+def _bare(name: str) -> str:
+    s = str(name or "")
+    return s[5:] if s.startswith("/dev/") else s
+
+
+def _flatten(devices: list[dict]):
+    for d in devices:
+        yield d
+        yield from _flatten(d.get("children") or [])
+
+
+def protected_devices(devices: list[dict]) -> set[str]:
+    """Whole disks backing '/' plus every device beneath them.
+
+    lsblk reports the mountpoint on the node holding the filesystem, which may
+    be a partition or a mapper device. Walking up PKNAME reaches the whole disk
+    and walking the tree down covers all of its partitions, so neither the
+    system disk nor any sibling partition can be wiped while the system runs.
+    """
+    all_devs = list(_flatten(devices))
+    by_name = {_bare(d.get("name")): d for d in all_devs}
+    tree_parent = {}
+
+    def index_parents(nodes, parent=""):
+        for d in nodes:
+            name = _bare(d.get("name"))
+            if parent:
+                tree_parent[name] = parent
+            index_parents(d.get("children") or [], name)
+
+    index_parents(devices)
+
+    def top(name):
+        seen = set()
+        while name and name in by_name and name not in seen:
+            seen.add(name)
+            # PKNAME is a direct kernel parent; the lsblk tree is the fallback
+            # for older util-linux builds that omit the column.
+            parent = _bare(by_name[name].get("pkname")) or tree_parent.get(name, "")
+            if not parent or parent not in by_name:
+                return name
+            name = parent
+        return name
+
+    roots = {
+        top(_bare(d.get("name")))
+        for d in all_devs
+        if "/" in (d.get("mountpoints") or [])
+    }
+    out = set()
+    for d in all_devs:
+        name = _bare(d.get("name"))
+        if name and top(name) in roots:
+            out.add(os.path.realpath("/dev/" + name))
+    return out
+
+
+def _current_disks() -> list[dict]:
+    r = run(["lsblk", "-J", "-p", "-o", "NAME,PKNAME,MOUNTPOINTS"])
+    if r.returncode != 0:
+        return []
+    try:
+        return json.loads(r.stdout).get("blockdevices", [])
+    except json.JSONDecodeError:
+        return []
+
+
+def _block_running_root(device: str) -> bool:
+    """Refuse a destructive op on the system disk, or when root is unknown."""
+    protected = protected_devices(_current_disks())
+    if not protected:
+        print(
+            json.dumps({"error": "Refusing: cannot identify the running system disk"})
+        )
+        return True
+    if os.path.realpath(device) in protected:
+        print(json.dumps({"error": "Refusing to change the running system disk"}))
+        return True
+    return False
+
+
+def passphrase_ok(passphrase: str) -> bool:
+    return len(passphrase or "") >= 8
+
+
 def list_disks() -> int:
     """Print lsblk JSON for the shell to parse."""
     r = run(
@@ -84,6 +169,8 @@ def check_health(device: str) -> int:
 
 def erase_quick(device: str) -> int:
     """Wipe filesystem signatures — fast, not secure."""
+    if _block_running_root(device):
+        return 1
     if not shutil.which("wipefs"):
         print("wipefs is not installed (util-linux)", file=sys.stderr)
         return 1
@@ -97,6 +184,8 @@ def erase_quick(device: str) -> int:
 
 def erase_secure(device: str) -> int:
     """Zero the first 100 MB — slower but safer than quick erase."""
+    if _block_running_root(device):
+        return 1
     r = run(["dd", "if=/dev/zero", f"of={device}", "bs=1M", "count=100", "status=none"])
     if r.returncode != 0:
         print(r.stderr.strip(), file=sys.stderr)
@@ -109,6 +198,8 @@ def erase_secure(device: str) -> int:
 
 def format_disk(device: str, fstype: str, label: str) -> int:
     """Create a new filesystem."""
+    if _block_running_root(device):
+        return 1
     tools = {
         "ext4": ["mkfs.ext4", "-F", device],
         "btrfs": ["mkfs.btrfs", "-f", device],
@@ -138,6 +229,11 @@ def format_disk(device: str, fstype: str, label: str) -> int:
 
 def encrypt_disk(device: str, fstype: str, passphrase: str) -> int:
     """LUKS format + open + create filesystem inside."""
+    if _block_running_root(device):
+        return 1
+    if not passphrase_ok(passphrase):
+        print(json.dumps({"error": "Passphrase must be at least 8 characters"}))
+        return 1
     if not shutil.which("cryptsetup"):
         print("cryptsetup is not installed (cryptsetup)", file=sys.stderr)
         return 1
@@ -174,6 +270,8 @@ def encrypt_disk(device: str, fstype: str, passphrase: str) -> int:
 
 def install_stick(device: str, iso: str) -> int:
     """Write an ISO to a USB drive."""
+    if _block_running_root(device):
+        return 1
     if not os.path.isfile(iso):
         print(f"ISO not found: {iso}", file=sys.stderr)
         return 1

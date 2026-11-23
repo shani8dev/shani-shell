@@ -13,6 +13,7 @@
     lock.py vault-open <folder>        password on stdin: it opened (gocryptfs, FUSE) at
                                        $XDG_RUNTIME_DIR/vaults/<name> - {"saved": that};
                                        closed as any FUSE mount (files.py unmount)
+    lock.py vault-close-all            unmount every shell vault (on lock/suspend)
     lock.py open-pdf <path> <out>      password on stdin: a locked PDF's unlocked
                                        copy written to <out> (the Document Viewer's,
                                        in its private cache) - {"saved": out}
@@ -26,10 +27,14 @@ told not to keep it (--no-symkey-cache). What is made goes beside the original
 under a name not taken; the original stays unless --trash (then it goes to the
 trash, which can be emptied - locking is about what you send or keep elsewhere).
 """
+
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import re
+import shutil
 import subprocess
 import sys
 
@@ -67,7 +72,15 @@ def is_vault(path: str) -> bool:
 
 
 def vault_point(path: str) -> str:
-    return os.path.join(os.environ.get("XDG_RUNTIME_DIR") or "/tmp", "vaults", os.path.basename(os.path.abspath(path).rstrip("/")))
+    path = os.path.abspath(path.rstrip("/"))
+    tag = hashlib.sha256(path.encode("utf-8")).hexdigest()[
+        :8
+    ]  # two "Private" vaults must not share a mount
+    return os.path.join(
+        os.environ.get("XDG_RUNTIME_DIR") or "/tmp",
+        "vaults",
+        "%s-%s" % (os.path.basename(path), tag),
+    )
 
 
 def _mounted(point: str) -> bool:
@@ -81,7 +94,11 @@ def _mounted(point: str) -> bool:
 def status(path: str) -> dict:
     if is_vault(path):
         point = vault_point(path)
-        return {"locked": not _mounted(point), "kind": "vault", "open": point if _mounted(point) else ""}
+        return {
+            "locked": not _mounted(point),
+            "kind": "vault",
+            "open": point if _mounted(point) else "",
+        }
     if path.endswith(".gpg") and os.path.isfile(path):
         return {"locked": True, "kind": "gpg"}
     if path.lower().endswith(".zip") and os.path.isfile(path):
@@ -100,8 +117,23 @@ def _gpg(args: list[str], password: str, **kw) -> subprocess.CompletedProcess:
     os.write(w, password.encode() + b"\n")
     os.close(w)
     try:
-        return subprocess.run(["gpg", "--batch", "--yes", "--quiet", "--no-symkey-cache", "--pinentry-mode", "loopback",
-                               "--passphrase-fd", str(r)] + args, pass_fds=(r,), capture_output=True, **kw)
+        return subprocess.run(
+            [
+                "gpg",
+                "--batch",
+                "--yes",
+                "--quiet",
+                "--no-symkey-cache",
+                "--pinentry-mode",
+                "loopback",
+                "--passphrase-fd",
+                str(r),
+            ]
+            + args,
+            pass_fds=(r,),
+            capture_output=True,
+            **kw,
+        )
     finally:
         os.close(r)
 
@@ -109,6 +141,7 @@ def _gpg(args: list[str], password: str, **kw) -> subprocess.CompletedProcess:
 def _zip():
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import zipcrypt
+
     return zipcrypt
 
 
@@ -119,7 +152,11 @@ def lock(path: str, password: str, trash: bool = False, as_zip: bool = False) ->
     if not os.path.exists(path):
         return {"error": "it is not there any more"}
     if as_zip:
-        out = _free(os.path.splitext(path)[0] + ".zip" if os.path.isfile(path) else path + ".zip")
+        out = _free(
+            os.path.splitext(path)[0] + ".zip"
+            if os.path.isfile(path)
+            else path + ".zip"
+        )
         r = _zip().make(out, [path], password)
         if "error" in r:
             _drop(out)
@@ -130,23 +167,50 @@ def lock(path: str, password: str, trash: bool = False, as_zip: bool = False) ->
                 return {"error": "it has a password already"}
             stem = os.path.splitext(path)[0]
             out = _free(stem + " (locked).pdf")
-            doc.save(out, encryption=fitz.PDF_ENCRYPT_AES_256, user_pw=password, owner_pw=password,
-                     permissions=int(fitz.PDF_PERM_ACCESSIBILITY | fitz.PDF_PERM_PRINT | fitz.PDF_PERM_COPY | fitz.PDF_PERM_ANNOTATE),
-                     garbage=1)
+            doc.save(
+                out,
+                encryption=fitz.PDF_ENCRYPT_AES_256,
+                user_pw=password,
+                owner_pw=password,
+                permissions=int(
+                    fitz.PDF_PERM_ACCESSIBILITY
+                    | fitz.PDF_PERM_PRINT
+                    | fitz.PDF_PERM_COPY
+                    | fitz.PDF_PERM_ANNOTATE
+                ),
+                garbage=1,
+            )
     elif os.path.isdir(path):
         out = _free(path + ".tar.gpg")
-        tar = subprocess.Popen(["bsdtar", "-cf", "-", "-C", os.path.dirname(path), os.path.basename(path)], stdout=subprocess.PIPE)
-        r = _gpg(["--symmetric", "--cipher-algo", "AES256", "-o", out], password, stdin=tar.stdout)
+        tar = subprocess.Popen(
+            ["bsdtar", "-cf", "-", "-C", os.path.dirname(path), os.path.basename(path)],
+            stdout=subprocess.PIPE,
+        )
+        r = _gpg(
+            ["--symmetric", "--cipher-algo", "AES256", "-o", out],
+            password,
+            stdin=tar.stdout,
+        )
         tar.stdout.close()
         if tar.wait() != 0 or r.returncode != 0:
             _drop(out)
-            return {"error": (r.stderr.decode(errors="replace").strip().splitlines() or ["the folder could not be packed"])[-1]}
+            return {
+                "error": (
+                    r.stderr.decode(errors="replace").strip().splitlines()
+                    or ["the folder could not be packed"]
+                )[-1]
+            }
     else:
         out = _free(path + ".gpg")
         r = _gpg(["--symmetric", "--cipher-algo", "AES256", "-o", out, path], password)
         if r.returncode != 0:
             _drop(out)
-            return {"error": (r.stderr.decode(errors="replace").strip().splitlines() or ["it could not be locked"])[-1]}
+            return {
+                "error": (
+                    r.stderr.decode(errors="replace").strip().splitlines()
+                    or ["it could not be locked"]
+                )[-1]
+            }
     if trash:
         subprocess.run(["gio", "trash", "--", path], capture_output=True)
     return {"saved": out}
@@ -162,18 +226,36 @@ def vault_new(path: str, password: str) -> dict:
     if os.path.lexists(path):
         return {"error": "%s is there already" % os.path.basename(path)}
     os.mkdir(path, 0o700)
-    r = subprocess.run(["gocryptfs", "-init", "-q", "-passfile", "/dev/stdin", path],
-                       input=password + "\n", capture_output=True, text=True)
+    r = subprocess.run(
+        ["gocryptfs", "-init", "-q", "-passfile", "/dev/stdin", path],
+        input=password + "\n",
+        capture_output=True,
+        text=True,
+    )
     if r.returncode != 0:
         try:
-            for n in os.listdir(path):                    # only what gocryptfs -init made
+            for n in os.listdir(path):  # only what gocryptfs -init made
                 if n in ("gocryptfs.conf", "gocryptfs.diriv"):
                     os.remove(os.path.join(path, n))
             os.rmdir(path)
         except OSError:
             pass
-        return {"error": (r.stderr.strip().splitlines() or ["the encrypted folder could not be made"])[-1]}
-    return {"saved": path}
+        return {
+            "error": (
+                r.stderr.strip().splitlines()
+                or ["the encrypted folder could not be made"]
+            )[-1]
+        }
+    # The master key is shown only here: the UI must display it once and get an
+    # "I saved it" acknowledgement before the vault is used (FilesPanel.qml).
+    master = re.search(
+        r"(?:(?:[0-9a-fA-F]{4,}-){3,}[0-9a-fA-F]{4,}|[0-9a-fA-F]{32,})",
+        r.stdout,
+    )
+    result = {"saved": path}
+    if master:
+        result["masterKey"] = master.group(0)
+    return result
 
 
 def vault_open(path: str, password: str) -> dict:
@@ -184,17 +266,44 @@ def vault_open(path: str, password: str) -> dict:
     if _mounted(point):
         return {"saved": point}
     os.makedirs(point, exist_ok=True)
-    r = subprocess.run(["gocryptfs", "-q", "-passfile", "/dev/stdin", path, point],
-                       input=password + "\n", capture_output=True, text=True)
+    r = subprocess.run(
+        ["gocryptfs", "-q", "-passfile", "/dev/stdin", path, point],
+        input=password + "\n",
+        capture_output=True,
+        text=True,
+    )
     if r.returncode != 0:
         try:
             os.rmdir(point)
         except OSError:
             pass
-        if r.returncode == 12:                             # gocryptfs: "password incorrect"
+        if r.returncode == 12:  # gocryptfs: "password incorrect"
             return {"wrongPassword": True}
-        return {"error": (r.stderr.strip().splitlines() or ["it could not be opened"])[-1]}
+        return {
+            "error": (r.stderr.strip().splitlines() or ["it could not be opened"])[-1]
+        }
     return {"saved": point}
+
+
+def vault_close_all() -> dict:
+    """Unmount every shell vault — driven by Lock.qml on lock/suspend."""
+    root = os.path.join(os.environ.get("XDG_RUNTIME_DIR") or "/tmp", "vaults")
+    try:
+        points = [os.path.join(root, n) for n in os.listdir(root)]
+    except OSError:
+        return {"closed": 0}
+    closed = 0
+    for p in points:
+        if not _mounted(p):
+            continue
+        r = subprocess.run(
+            [shutil.which("fusermount3") or "fusermount3", "-u", p],
+            capture_output=True,
+            text=True,
+        )
+        if r.returncode == 0:
+            closed += 1
+    return {"closed": closed}
 
 
 def _drop(made: str) -> None:
@@ -214,7 +323,9 @@ def unlock(path: str, password: str, out: str = "") -> dict:
         with fitz.open(path) as doc:
             if not doc.authenticate(password):
                 return {"wrongPassword": True}
-            out = out or _free(os.path.splitext(path)[0].removesuffix(" (locked)") + " (unlocked).pdf")
+            out = out or _free(
+                os.path.splitext(path)[0].removesuffix(" (locked)") + " (unlocked).pdf"
+            )
             doc.save(out, encryption=fitz.PDF_ENCRYPT_NONE, garbage=1)
         return {"saved": out}
     if st["kind"] == "zip":
@@ -227,9 +338,18 @@ def unlock(path: str, password: str, out: str = "") -> dict:
         if r.returncode != 0:
             os.rmdir(dest)
             return _gpg_error(r)
-        x = subprocess.run(["bsdtar", "-xf", "-", "-C", dest, "--strip-components", "1"], input=r.stdout, capture_output=True)
+        x = subprocess.run(
+            ["bsdtar", "-xf", "-", "-C", dest, "--strip-components", "1"],
+            input=r.stdout,
+            capture_output=True,
+        )
         if x.returncode != 0:
-            return {"error": (x.stderr.decode(errors="replace").strip().splitlines() or ["it could not be unpacked"])[-1]}
+            return {
+                "error": (
+                    x.stderr.decode(errors="replace").strip().splitlines()
+                    or ["it could not be unpacked"]
+                )[-1]
+            }
         return {"saved": dest}
     out = _free(path[:-4])
     r = _gpg(["--decrypt", "-o", out, path], password)
@@ -241,7 +361,11 @@ def unlock(path: str, password: str, out: str = "") -> dict:
 
 def _gpg_error(r) -> dict:
     err = r.stderr.decode(errors="replace")
-    if "Bad session key" in err or "decryption failed" in err or "bad passphrase" in err.lower():
+    if (
+        "Bad session key" in err
+        or "decryption failed" in err
+        or "bad passphrase" in err.lower()
+    ):
         return {"wrongPassword": True}
     return {"error": (err.strip().splitlines() or ["it could not be unlocked"])[-1]}
 
@@ -251,6 +375,9 @@ def main(argv: list[str]) -> int:
     if cmd == "status" and len(args) == 1:
         print(json.dumps(status(args[0])))
         return 0
+    if cmd == "vault-close-all" and not args:
+        print(json.dumps(vault_close_all()))
+        return 0
     if cmd in ("lock", "unlock", "open-pdf", "vault-new", "vault-open") and args:
         if fitz is None and cmd == "open-pdf":
             print(json.dumps({"error": "PyMuPDF (python-pymupdf) is not installed"}))
@@ -258,7 +385,12 @@ def main(argv: list[str]) -> int:
         password = sys.stdin.readline().rstrip("\n")
         try:
             if cmd == "lock" and set(args[1:]) <= {"--trash", "--zip"}:
-                r = lock(args[0], password, trash="--trash" in args[1:], as_zip="--zip" in args[1:])
+                r = lock(
+                    args[0],
+                    password,
+                    trash="--trash" in args[1:],
+                    as_zip="--zip" in args[1:],
+                )
             elif cmd == "unlock" and len(args) == 1:
                 r = unlock(args[0], password)
             elif cmd == "vault-new" and len(args) == 1:

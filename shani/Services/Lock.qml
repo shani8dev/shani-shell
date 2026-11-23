@@ -5,6 +5,7 @@ pragma Singleton
 // logind is told back (LockedHint) so `loginctl` and other tools see it, and
 // the bridge releases its sleep delay only once the lock is really up.
 import Quickshell
+import Quickshell.Io
 import QtQuick
 import qs.Common
 
@@ -14,8 +15,23 @@ Singleton {
     property bool locked: false
     property bool secure: false     // set by the WlSessionLock once every output is covered
 
+    // A locked shell must not leave vault plaintext readable: drop every gocryptfs mount
+    // on lock/suspend via the same bridge tool Files uses. Unlocking only clears the UI —
+    // remounting is out of scope (each vault is reopened with its password in Files).
+    readonly property string lockTool: Quickshell.env("SHANI_LOCK_TOOL") || "/usr/lib/shani-shell/lock.py"
+
+    function closeVaults() {
+        if (!vaultCloser.running)
+            vaultCloser.running = true;
+    }
+    Process {
+        id: vaultCloser
+        command: ["python3", root.lockTool, "vault-close-all"]
+    }
+
     function lock() {
         locked = true;
+        closeVaults();
     }
     function unlocked() {
         locked = false;
@@ -33,8 +49,10 @@ Singleton {
             else if (m.type === "logind" && m.op === "sleep") {
                 if (Settings.data.lockBeforeSuspend)
                     root.lock();
-                else
+                else {
+                    root.closeVaults();   // suspend must close vaults even without a lock
                     Bridge.send({ op: "release-sleep" });
+                }
             }
             else if (m.type === "logind" && m.op === "unlock")
                 root.unlocked();

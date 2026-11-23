@@ -21,13 +21,15 @@ Singleton {
 
     // ---- the light/dark fade ------------------------------------------------
     // `dark` is the target; every token below blends between its light and
-    // dark value by `darkT`, which walks 0 -> 1 (or back) over ~300 ms when
-    // the style flips — a gentle cross-fade instead of a snap. It is 0 ms
-    // with reduce motion, so that setting still means no movement. The
-    // animation runs only while it moves (event-driven): at rest nothing
-    // redraws, so the idle-frames budget is untouched.
+    // dark value by `darkT`, which walks 0 -> 1 (or back) over ~300 ms at
+    // normal speed when the style flips — a gentle cross-fade instead of a
+    // snap. The animation-speed setting scales that; reduce motion makes it
+    // 0 ms, so that setting still means no movement. The animation runs only
+    // while it moves (event-driven): at rest nothing redraws, so the
+    // idle-frames budget is untouched.
+    readonly property int fadeDuration: Math.round(Fade.fadeMs(Settings.data.reduceMotion) / Math.max(0.1, Settings.data.animationSpeed || 1.0))
     property real darkT: Settings.data.darkMode ? 1 : 0
-    Behavior on darkT { NumberAnimation { duration: Fade.fadeMs(Settings.data.reduceMotion); easing.type: Easing.InOutQuad } }
+    Behavior on darkT { NumberAnimation { duration: root.fadeDuration; easing.type: Easing.InOutQuad } }
     // how many in-between values the last fade drew (the tests read it: polling
     // for one mid-fade sample missed the 300 ms fade on a busy machine)
     property int darkSteps: 0
@@ -47,7 +49,7 @@ Singleton {
     readonly property color brand: "#ff7f50"
     ColorQuantizer {
         id: quant
-        source: Settings.data.accentFromWallpaper && root.wallpaper ? ("file://" + String(root.wallpaper).replace(/ /g, "%20")) : ""
+        source: Settings.data.accentFromWallpaper && root.wallpaper ? ("file://" + String(root.wallpaper).split("/").map(encodeURIComponent).join("/")) : ""
         depth: 3                        // 8 candidates
         rescaleSize: 96
     }
@@ -91,8 +93,16 @@ Singleton {
     // contrast says it does, not where the eye expects it.
     readonly property color accentInk: Contrast.readableOn(root.accent, [Qt.color("#08110f"), Qt.color("#ffffff")], 4.5)
 
-    // the wallpaper in use: the style's own when one is set, the one wallpaper otherwise
-    readonly property string wallpaper: (dark ? Settings.data.wallpaperDark : Settings.data.wallpaperLight) || Settings.data.wallpaper
+    // a slideshow tick or a WallpaperStyle Apply overrides the style fields
+    // without clearing them — that would destroy separately-set light/dark
+    // pictures. The override holds only while it is still the general setting:
+    // picking another wallpaper in Settings drops it without touching that code.
+    property string slideshowWallpaper: ""
+    property string themeWallpaper: ""
+    readonly property string wallpaper: {
+        const o = root.slideshowWallpaper || root.themeWallpaper;
+        return (o === Settings.data.wallpaper ? o : "") || (dark ? Settings.data.wallpaperDark : Settings.data.wallpaperLight) || Settings.data.wallpaper;
+    }
 
     // ---- the palette ---------------------------------------------------------
     // high contrast: opaque surfaces, strong strokes, secondary text nearly as

@@ -98,9 +98,10 @@ Singleton {
                     }
                 }
                 root.slide = (root.slide + 1) % pics.length;
+                // an override, not an edit of the per-style pictures: those stay
+                // intact so the person's light/dark choices survive a slide
                 Settings.data.wallpaper = pics[root.slide];
-                Settings.data.wallpaperLight = "";
-                Settings.data.wallpaperDark = "";
+                Theme.slideshowWallpaper = pics[root.slide];
             }
         }
     }

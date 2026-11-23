@@ -139,6 +139,35 @@ Singleton {
     // the shell sets it, so a window in Common can ask without reaching into the services
     property var minimiser: null
     function minimiseFocused() { if (minimiser) minimiser(); }
+    // Shell app windows (Common/AppWindow) register by desktop-entry id so a
+    // stuck one can be closed or minimised by its own id. Niri.forceCloseFocused
+    // uses close: SIGKILL would take down every shell window (one shared pid).
+    // shell.qml owns the zero-arg `minimiser` closure, so an id cannot be routed
+    // through it without editing shell.qml - these per-window actions are the fix.
+    property var appWindowActions: ({})
+    function registerAppWindow(id, actions) {
+        if (!id) return;
+        const m = Object.assign({}, appWindowActions);
+        m[id] = actions;
+        appWindowActions = m;
+    }
+    function unregisterAppWindow(id) {
+        if (!id || !appWindowActions[id]) return;
+        const m = Object.assign({}, appWindowActions);
+        delete m[id];
+        appWindowActions = m;
+    }
+    function closeAppWindow(id) {
+        const a = appWindowActions[id];
+        if (a && typeof a.close === "function") { a.close(); return true; }
+        return false;
+    }
+    // minimise the window that registered as `id`, never the focused one
+    function minimise(id) {
+        const a = appWindowActions[id];
+        if (a && typeof a.minimise === "function") { a.minimise(); return true; }
+        return false;
+    }
     property bool chargingPreview: false           // the charging animation, once (the tests, the showcase)
     // section: an objectName in the page to scroll to ("section:colours")
     function openSettings(cat, section) {

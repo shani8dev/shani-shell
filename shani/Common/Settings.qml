@@ -443,6 +443,7 @@ Singleton {
             property list<string> clipPins: []          // pinned clipboard texts
             property bool clipboardExcludeSecrets: true   // skip passwords/API keys in clipboard history
             property bool clipboardEncrypted: false       // encrypt clipboard history with age/gpg
+            property bool passwordAuditEnabled: false     // opt-in: scan the keyring for weak/reused secrets on open
             property string tabletOutput: ""              // the screen a drawing tablet maps to ("" all, "@focused" the one in use)
             property bool plugGreetings: true             // a card for a device plugged in: what it is, one next step (Plugged)
             property bool oskButton: true                 // the floating keyboard button while the screen keyboard is hidden (touch / no keyboard)

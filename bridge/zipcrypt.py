@@ -6,12 +6,14 @@ into the library and never onto a command line (where any user reads it in
 /proc). Used by lock.py; on its own:
 
     zipcrypt.py make <out.zip> <path>...   password on stdin
-    zipcrypt.py extract <zip> <folder>     password on stdin; {"saved"} or
+    zipcrypt.py extract <archive> <folder> [member...]
+                                           password on stdin; {"saved"} or
                                            {"wrongPassword": true}
-    zipcrypt.py encrypted <zip>            {"encrypted": bool}
+    zipcrypt.py encrypted <archive>        {"encrypted": bool}
 
 Extracting writes only inside <folder>: a name that climbs out (../, /) or a link
-is not written.
+is not written. Every format libarchive can read is accepted; with member names,
+only those entries (and anything below a named folder) are written.
 """
 
 from __future__ import annotations
@@ -58,6 +60,8 @@ def lib():
             "archive_entry_perm": (ctypes.c_uint, [vp]),
             "archive_read_new": (vp, []),
             "archive_read_support_format_zip": (ctypes.c_int, [vp]),
+            "archive_read_support_format_all": (ctypes.c_int, [vp]),
+            "archive_read_support_filter_all": (ctypes.c_int, [vp]),
             "archive_read_add_passphrase": (ctypes.c_int, [vp, cp]),
             "archive_read_open_filename": (ctypes.c_int, [vp, cp, ctypes.c_size_t]),
             "archive_read_next_header": (ctypes.c_int, [vp, ctypes.POINTER(vp)]),
@@ -139,7 +143,10 @@ def make(out: str, paths: list[str], password: str) -> dict:
 def _entries(path: str, password: str = ""):
     L = lib()
     a = L.archive_read_new()
-    L.archive_read_support_format_zip(a)
+    # the whole reader, not just zip: tar/7z/iso/rar/cpio all go through this
+    # one hardened path, so links and devices are filtered for every format
+    L.archive_read_support_filter_all(a)
+    L.archive_read_support_format_all(a)
     if password:
         L.archive_read_add_passphrase(a, password.encode())
     if L.archive_read_open_filename(a, path.encode(), 1 << 16):
@@ -165,8 +172,19 @@ def encrypted(path: str) -> bool:
         L.archive_read_free(a)
 
 
-def extract(path: str, dest: str, password: str) -> dict:
-    """Into dest (made here, and taken back on a wrong password)."""
+def extract(path: str, dest: str, password: str, members=None) -> dict:
+    """Into dest (made here, and taken back on a wrong password).
+
+    With members, only those entries are written; naming a folder includes its
+    children, matching what an archive manager's "extract one" does.
+    """
+
+    def clean(n):
+        return "/".join(x for x in n.split("/") if x not in ("", "."))
+
+    want = [
+        clean(m) for m in ([members] if isinstance(members, str) else (members or []))
+    ]
     L = lib()
     os.mkdir(dest)
     made = []
@@ -183,6 +201,12 @@ def extract(path: str, dest: str, password: str) -> dict:
             name = (L.archive_entry_pathname_utf8(e) or b"").decode(errors="replace")
             parts = [x for x in name.split("/") if x not in ("", ".")]
             if not parts or ".." in parts or name.startswith("/"):
+                L.archive_read_data_skip(a)
+                continue
+            if want and not any(
+                "/".join(parts) == w or "/".join(parts).startswith(w + "/")
+                for w in want
+            ):
                 L.archive_read_data_skip(a)
                 continue
             out = os.path.join(dest, *parts)
@@ -245,7 +269,7 @@ def main(argv: list[str]) -> int:
             r = (
                 make(args[0], args[1:], pw)
                 if cmd == "make"
-                else extract(args[0], args[1], pw)
+                else extract(args[0], args[1], pw, args[2:] or None)
             )
             print(json.dumps(r))
             return 0 if "saved" in r else 1

@@ -206,14 +206,14 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
-                Button { text: "◀"; flat: true; enabled: false; Accessible.name: Tr.t("One frame back"); onClicked: VideoTrimmer.nudgePlayhead(-VideoTrimmer.frameStep) }
+                Button { text: "◀"; flat: true; enabled: VideoTrimmer.inputDuration > 0; Accessible.name: Tr.t("One frame back"); onClicked: VideoTrimmer.nudgePlayhead(-VideoTrimmer.frameStep) }
                 SliderRow {
                     Layout.fillWidth: true
                     icon: "go-next"
                     value: VideoTrimmer.inputDuration > 0 ? VideoTrimmer.playhead / VideoTrimmer.inputDuration : 0
                     onMoved: v => VideoTrimmer.setPlayhead(v * win.span)
                 }
-                Button { text: "▶"; flat: true; enabled: false; Accessible.name: Tr.t("One frame forward"); onClicked: VideoTrimmer.nudgePlayhead(VideoTrimmer.frameStep) }
+                Button { text: "▶"; flat: true; enabled: VideoTrimmer.inputDuration > 0; Accessible.name: Tr.t("One frame forward"); onClicked: VideoTrimmer.nudgePlayhead(VideoTrimmer.frameStep) }
             }
             RowLayout {
                 Layout.fillWidth: true

@@ -24,6 +24,8 @@ AppWindow {
     property string formFsType: "ext4"
     property string formLabel: ""
     property string formPassphrase: ""
+    property string formPassphrase2: ""
+    property string formConfirm: ""
     property string formIso: ""
     property bool showLoops: false
     property string mountOptions: ""
@@ -37,6 +39,23 @@ AppWindow {
         return n + " B";
     }
 
+    // Destructive ops: removable media are allowed with the two-click confirm;
+    // anything internal needs its full device path typed as well — and the
+    // running system disk is never allowed, typed or not.
+    function canDestroy() {
+        const d = win.selectedDisk;
+        if (!d || Disks.deviceIsSystem(d.path)) return false;
+        if (d.removable) return true;
+        return String(d.path || "") !== "" && win.formConfirm.trim() === d.path;
+    }
+    function clearOp() {
+        win.opMode = "";
+        win.confirmAction = "";
+        win.formConfirm = "";
+        win.formPassphrase = "";
+        win.formPassphrase2 = "";
+    }
+
     // two-click confirm for destructive ops
     property string confirmAction: ""
     Timer { id: confirmTimer; interval: 4000; onTriggered: win.confirmAction = "" }
@@ -48,7 +67,7 @@ AppWindow {
         anchors.fill: parent
         focus: win.visible
         Keys.onEscapePressed: {
-            if (win.opMode !== "") { win.opMode = ""; win.confirmAction = ""; }
+            if (win.opMode !== "") win.clearOp();
             else Ui.disks = false;
         }
     }
@@ -93,7 +112,7 @@ AppWindow {
                 visible: win.opMode !== ""
                 text: Tr.t("Cancel")
                 flat: true
-                onClicked: { win.opMode = ""; win.confirmAction = ""; }
+                onClicked: win.clearOp()
             }
         }
 
@@ -136,6 +155,26 @@ AppWindow {
                 font.pixelSize: Theme.px(12) * Theme.fontScale
             }
 
+            // The running system disk can never be wiped; for any other internal
+            // device the exact path has to be typed before the buttons wake up.
+            Text {
+                visible: win.opMode !== "" && win.selectedDisk && Disks.deviceIsSystem(win.selectedDisk.path)
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                text: Tr.t("This is the running system disk — it cannot be erased, formatted or encrypted.")
+                color: Theme.red
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+            TextField {
+                visible: win.opMode !== "" && win.selectedDisk && !win.selectedDisk.removable && !Disks.deviceIsSystem(win.selectedDisk.path)
+                Layout.fillWidth: true
+                placeholder: win.selectedDisk ? Tr.t("Type %1 to confirm", win.selectedDisk.path) : ""
+                label: Tr.t("Type the device name to confirm")
+                text: win.formConfirm
+                onTextChanged: win.formConfirm = text
+            }
+
             // erase options
             RowLayout {
                 visible: win.opMode === "erase"
@@ -144,8 +183,9 @@ AppWindow {
                 Button {
                     text: Tr.t("Quick erase")
                     kind: "danger"
+                    enabled: win.canDestroy()
                     onClicked: {
-                        if (win.confirmAction === "erase-quick") { Disks.eraseQuick(win.selectedDisk.path); win.opMode = ""; }
+                        if (win.confirmAction === "erase-quick") { Disks.eraseQuick(win.selectedDisk.path); win.clearOp(); }
                         else { win.confirmAction = "erase-quick"; confirmTimer.restart(); }
                     }
                 }
@@ -163,8 +203,9 @@ AppWindow {
                 Button {
                     text: Tr.t("Secure erase")
                     kind: "danger"
+                    enabled: win.canDestroy()
                     onClicked: {
-                        if (win.confirmAction === "erase-secure") { Disks.eraseSecure(win.selectedDisk.path); win.opMode = ""; }
+                        if (win.confirmAction === "erase-secure") { Disks.eraseSecure(win.selectedDisk.path); win.clearOp(); }
                         else { win.confirmAction = "erase-secure"; confirmTimer.restart(); }
                     }
                 }
@@ -207,8 +248,9 @@ AppWindow {
                 Button {
                     text: Tr.t("Format")
                     kind: "danger"
+                    enabled: win.canDestroy()
                     onClicked: {
-                        if (win.confirmAction === "format") { Disks.format(win.selectedDisk.path, win.formFsType, win.formLabel); win.opMode = ""; }
+                        if (win.confirmAction === "format") { Disks.format(win.selectedDisk.path, win.formFsType, win.formLabel); win.clearOp(); }
                         else { win.confirmAction = "format"; confirmTimer.restart(); }
                     }
                 }
@@ -245,6 +287,24 @@ AppWindow {
                 text: win.formPassphrase
                 onTextChanged: win.formPassphrase = text
             }
+            TextField {
+                visible: win.opMode === "encrypt"
+                Layout.fillWidth: true
+                placeholder: Tr.t("Passphrase again")
+                label: Tr.t("Passphrase again")
+                secret: true
+                text: win.formPassphrase2
+                onTextChanged: win.formPassphrase2 = text
+            }
+            Text {
+                visible: win.opMode === "encrypt"
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                text: Tr.t("There is no way to recover this passphrase — if you forget it, the data on the device is lost forever.")
+                color: Theme.red
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
             RowLayout {
                 visible: win.opMode === "encrypt"
                 Layout.fillWidth: true
@@ -252,14 +312,15 @@ AppWindow {
                 Button {
                     text: Tr.t("Encrypt")
                     kind: "danger"
-                    enabled: win.formPassphrase.length >= 4
+                    enabled: win.canDestroy() && win.formPassphrase.length >= 8 && win.formPassphrase === win.formPassphrase2
                     onClicked: {
-                        if (win.confirmAction === "encrypt") { Disks.encrypt(win.selectedDisk.path, win.formFsType, win.formPassphrase); win.opMode = ""; }
+                        if (win.confirmAction === "encrypt") { Disks.encrypt(win.selectedDisk.path, win.formFsType, win.formPassphrase); win.clearOp(); }
                         else { win.confirmAction = "encrypt"; confirmTimer.restart(); }
                     }
                 }
                 Text {
-                    text: win.confirmAction === "encrypt" ? Tr.t("Click again to confirm") : Tr.t("Erases the device and creates an encrypted volume")
+                    text: win.formPassphrase2 !== "" && win.formPassphrase !== win.formPassphrase2 ? Tr.t("The passphrases do not match")
+                        : win.confirmAction === "encrypt" ? Tr.t("Click again to confirm") : Tr.t("Erases the device and creates an encrypted volume")
                     color: win.confirmAction === "encrypt" ? Theme.red : Theme.dim
                     font.family: Theme.font
                     font.pixelSize: Theme.px(11) * Theme.fontScale
@@ -284,7 +345,7 @@ AppWindow {
                     kind: "danger"
                     enabled: win.formIso !== "" && win.selectedDisk && win.selectedDisk.removable
                     onClicked: {
-                        if (win.confirmAction === "install") { Disks.installStick(win.selectedDisk.path, win.formIso); win.opMode = ""; }
+                        if (win.confirmAction === "install") { Disks.installStick(win.selectedDisk.path, win.formIso); win.clearOp(); }
                         else { win.confirmAction = "install"; confirmTimer.restart(); }
                     }
                 }
@@ -425,11 +486,16 @@ AppWindow {
                         spacing: Theme.px(6)
                         Button { text: Tr.t("Health"); flat: true; onClicked: Disks.checkHealth(modelData.path) }
                         Button { text: Tr.t("Mount"); flat: true; visible: !modelData.mountpoints || modelData.mountpoints.length === 0; onClicked: Disks.mount(modelData.path) }
+                        Button {
+                            text: Tr.t("Unmount"); flat: true
+                            visible: !modelData.removable && modelData.mountpoints && modelData.mountpoints.length > 0
+                            onClicked: Disks.unmount(modelData.path)
+                        }
                         Button { text: Tr.t("Eject"); flat: true; visible: modelData.removable; onClicked: Disks.powerOff(modelData.path) }
                         Item { Layout.fillWidth: true }
-                        Button { text: Tr.t("Erase…"); kind: "danger"; flat: true; onClicked: { win.opMode = "erase"; win.formFsType = "ext4"; win.formLabel = ""; } }
-                        Button { text: Tr.t("Format…"); kind: "outline"; flat: true; onClicked: { win.opMode = "format"; win.formFsType = "ext4"; win.formLabel = ""; } }
-                        Button { text: Tr.t("Encrypt…"); kind: "outline"; flat: true; onClicked: { win.opMode = "encrypt"; win.formFsType = "ext4"; win.formPassphrase = ""; } }
+                        Button { text: Tr.t("Erase…"); kind: "danger"; flat: true; onClicked: { win.opMode = "erase"; win.formFsType = "ext4"; win.formLabel = ""; win.formConfirm = ""; } }
+                        Button { text: Tr.t("Format…"); kind: "outline"; flat: true; onClicked: { win.opMode = "format"; win.formFsType = "ext4"; win.formLabel = ""; win.formConfirm = ""; } }
+                        Button { text: Tr.t("Encrypt…"); kind: "outline"; flat: true; onClicked: { win.opMode = "encrypt"; win.formFsType = "ext4"; win.formPassphrase = ""; win.formPassphrase2 = ""; win.formConfirm = ""; } }
                         Button { text: Tr.t("Install stick…"); kind: "outline"; flat: true; visible: modelData.removable; onClicked: { win.opMode = "install"; win.formIso = ""; } }
                     }
                     RowLayout {

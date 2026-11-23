@@ -21,8 +21,9 @@ pragma Singleton
 //
 // Extracting never writes over anything: the files go into a new folder
 // named after the archive ("photos.zip" -> "photos", or "photos (2)" when
-// that is taken). bsdtar refuses paths that climb out with ".." and absolute
-// ones by itself, so an archive cannot place a file outside that folder.
+// that is taken). Every entry is written by bridge/zipcrypt.py, which refuses
+// paths that climb out ("../", absolute) and links/devices, so an archive
+// cannot place a file or a symlink outside that folder.
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -48,6 +49,7 @@ Singleton {
     // never empty: bsdtar would ask on a terminal it does not have, forever
     readonly property string pass: passphrase || "\u0001no-password"
     readonly property bool available: tool.found
+    readonly property string extractTool: Quickshell.env("SHANI_ARCHIVE_EXTRACT_TOOL") || "/usr/lib/shani-shell/zipcrypt.py"
     property bool single: false           // a lone compressed file, not an archive (bsdcat takes it out)
     readonly property var singleExts: ["gz", "bz2", "xz", "zst", "lz", "lzma", "lz4", "Z"]
     readonly property string singleExt: { const m = /\.([A-Za-z0-9]+)$/.exec(name); return m && singleExts.indexOf(m[1]) >= 0 ? m[1] : ""; }
@@ -78,7 +80,30 @@ Singleton {
         lister.command = ["bsdtar", "--passphrase", root.pass, "-tvf", root.file];
         lister.running = true;
     }
-    function close() { shown = false; }
+    // a window can go away while a job is still running; stop it here, not in
+    // the UI, so closing is the same as cancelling for every caller
+    function cancel() {
+        if (lister.running) lister.running = false;
+        if (singleSize.running) singleSize.running = false;
+        if (singleOut.running) singleOut.running = false;
+        if (hardOne.running) hardOne.running = false;
+        if (extractor.running) extractor.running = false;
+        if (maker.running) maker.running = false;
+        if (appender.running) appender.running = false;
+        root.reading = false;
+        root.extracting = false;
+        root.creating = false;
+        root.appending = false;
+        root.extractWhenRead = false;
+    }
+    function close() {
+        cancel();
+        shown = false;
+        passphrase = "";
+        needsPassword = false;
+        retry = "";
+        newPass = "";
+    }
 
     Process {
         id: tool
@@ -99,11 +124,13 @@ Singleton {
                     const m = /^(\S+)\s+\S+\s+\S+\s+\S+\s+(\d+)\s+\S+\s+\S+\s+\S+\s(.*)$/.exec(line);
                     if (!m)
                         continue;
-                    const dir = m[1].charAt(0) === "d";
-                    let path = m[3];
-                    const link = path.indexOf(" -> ");
-                    if (m[1].charAt(0) === "l" && link > 0)
-                        path = path.substring(0, link);
+                    const kind = m[1].charAt(0);
+                    // only regular files and folders: a link or device is never
+                    // shown, selectable, or handed to an extractor
+                    if (kind !== "-" && kind !== "d")
+                        continue;
+                    const dir = kind === "d";
+                    const path = m[3];
                     const size = dir ? 0 : parseInt(m[2]);
                     total += size;
                     out.push({ path: path.replace(/\/$/, ""), size: size, dir: dir });
@@ -197,6 +224,17 @@ Singleton {
         root.retry = what;
         return true;
     }
+    // the hardened extractor reports a wrong password in its JSON; bsdtar's
+    // wording is kept as a fallback for the paths that still use it
+    function askResult(result, stderr, what) {
+        if (result && result.wrongPassword) {
+            root.error = root.passphrase ? Tr.t("That password is not right") : "";
+            root.needsPassword = true;
+            root.retry = what;
+            return true;
+        }
+        return root.askPassword(stderr, what);
+    }
     function unlock(pw) {
         root.passphrase = pw;
         root.needsPassword = false;
@@ -206,33 +244,48 @@ Singleton {
         else if (root.retry.indexOf("one:") === 0) extractOne(root.retry.slice(4));
     }
 
-    // one item (a file or a folder) beside the archive, under a name not taken
+    // one item (a file or a folder) beside the archive, under a name not taken.
+    // Only a listed entry can be selected, and the hardened reader gets that
+    // exact name, so a link planted beside it is never written.
     function extractOne(entry) {
         if (root.file === "" || root.extracting || !entry)
             return;
         if (root.single) { extractSingle(root.file.substring(0, root.file.lastIndexOf("/")), ""); return; }
+        if (!root.entries.some(e => e.path === entry)) {
+            root.error = Tr.t("Could not extract") + ": " + entry;
+            return;
+        }
         root.error = "";
         root.extractedTo = "";
         root.extracting = true;
-        oneOut.target = entry;
-        oneOut.command = ["sh", "-c", 'p=$1; t=$(mktemp -d "$p/.shani-extract.XXXXXX") || exit 1
-            bsdtar --passphrase "$4" -xf "$2" -C "$t" -- "$3" || { s=$?; rm -rf "$t"; exit $s; }
-            n=${3##*/}; case "$n" in *.*) b=${n%.*}; e=.${n##*.};; *) b=$n; e=;; esac
+        hardOne.target = entry;
+        hardOne.payload = root.pass + "\n";
+        hardOne.command = ["sh", "-c", 'p=$1; t=$(mktemp -d "$p/.shani-extract.XXXXXX") || exit 1
+            python3 "$2" extract "$3" "$t/x" "$4" || { s=$?; rm -rf "$t"; exit $s; }
+            n=${4##*/}; case "$n" in *.*) b=${n%.*}; e=.${n##*.};; *) b=$n; e=;; esac
             d="$p/$n"; i=2; while [ -e "$d" ]; do d="$p/$b ($i)$e"; i=$((i+1)); done
-            mv -- "$t/$3" "$d" && rm -rf "$t" && printf "%s" "$d"',
-            "sh", root.file.substring(0, root.file.lastIndexOf("/")), root.file, entry, root.pass];
-        oneOut.running = true;
+            mv -- "$t/x/$4" "$d" && rm -rf "$t" && printf "%s" "$d"',
+            "sh", root.file.substring(0, root.file.lastIndexOf("/")), root.extractTool, root.file, entry];
+        hardOne.stdinEnabled = true;
+        hardOne.running = true;
     }
     Process {
-        id: oneOut
+        id: hardOne
         property string target: ""
+        property string payload: ""
+        stdinEnabled: true
+        onStarted: { write(payload); payload = ""; stdinEnabled = false; }
         stdout: StdioCollector { id: oneMade }
         stderr: StdioCollector { id: oneErr }
         onExited: code => {
             root.extracting = false;
-            if (code === 0) root.extractedTo = oneMade.text;
-            else if (!root.askPassword(oneErr.text, "one:" + oneOut.target))
-                root.error = Tr.t("Could not extract") + ": " + (oneErr.text.trim().split("\n").pop() || oneOut.target);
+            const lines = oneMade.text.trim().split("\n");
+            let result = {};
+            try { result = JSON.parse(lines[0]) || {}; } catch (e) {}
+            if (root.askResult(result, oneErr.text, "one:" + hardOne.target))
+                return;
+            if (code === 0) root.extractedTo = lines[lines.length - 1];
+            else root.error = Tr.t("Could not extract") + ": " + (result.error || oneErr.text.trim().split("\n").pop() || hardOne.target);
         }
     }
 
@@ -279,12 +332,28 @@ Singleton {
             ? (ext === "zip" ? ["--options", "zip:encryption=aes256", "--passphrase", pw]
                               : ext === "7z" ? ["--passphrase", pw] : [])
             : ["--passphrase", "\u0001no-password"];
-        maker.command = ["sh", "-c", 'p=$1; s=$2; x=$3; shift 3
+        // Inputs may come from different folders: stage each full path under a
+        // unique name in the temp dir, then archive from there. Copying (rather
+        // than symlinking) keeps bsdtar from storing the link itself.
+        maker.command = ["bash", "-c", 'p=$1; s=$2; x=$3; shift 3
+            p=$(cd "$p" && pwd) || exit 1
+            opts=(); while [ "$#" -gt 0 ] && [ "$1" != "--" ]; do opts+=("$1"); shift; done
+            [ "$#" -gt 0 ] && shift
             t=$(mktemp -d "$p/.shani-archive.XXXXXX") || exit 1
-            ( cd "$p" && bsdtar -acf "$t/$s.$x" "$@" ) || { r=$?; rm -rf "$t"; exit $r; }
+            t=$(cd "$t" && pwd) || { rm -rf "$t"; exit 1; }
+            stage="$t/stage"; mkdir -p "$stage" || { rm -rf "$t"; exit 1; }
+            names=()
+            for src in "$@"; do
+                b=${src##*/}; [ -n "$b" ] || b=item
+                n=$b; i=2; while [ -e "$stage/$n" ]; do n="$b ($i)"; i=$((i+1)); done
+                cp -a -- "$src" "$stage/$n" || { r=$?; rm -rf "$t"; exit $r; }
+                names+=("$n")
+            done
+            cd "$stage" || { rm -rf "$t"; exit 1; }
+            bsdtar -acf "$t/$s.$x" "${opts[@]}" -- "${names[@]}" || { r=$?; rm -rf "$t"; exit $r; }
             d="$p/$s.$x"; i=2; while [ -e "$d" ]; do d="$p/$s ($i).$x"; i=$((i+1)); done
             mv -- "$t/$s.$x" "$d" && rm -rf "$t" && printf "%s" "$d"',
-            "sh", parent, stem, ext || "zip"].concat(opts, ["--"], paths.map(p => p.split("/").pop()));
+            "bash", parent, stem, ext || "zip"].concat(opts, ["--"], paths);
         maker.running = true;
     }
     Process {
@@ -365,21 +434,28 @@ Singleton {
         root.extracting = true;
         const parent = where || root.file.substring(0, root.file.lastIndexOf("/"));
         const stem = root.name.replace(/\.(tar\.(gz|xz|zst|bz2|lz4|lzma)|tgz|txz|tbz2|[A-Za-z0-9]+)$/, "") || "archive";
-        // a password asked for halfway leaves no half-made folder behind
-        extractor.command = ["sh", "-c", 'd="$1/$2"; n=2; while [ -e "$d" ]; do d="$1/$2 ($n)"; n=$((n+1)); done; mkdir -p -- "$d" && { bsdtar --passphrase "$4" -xf "$3" -C "$d" || { s=$?; rm -rf -- "$d"; exit $s; }; } && printf "%s" "$d"',
-                             "sh", parent, stem, root.file, root.pass];
+        // the hardened reader takes back anything it wrote on a wrong password
+        extractor.payload = root.pass + "\n";
+        extractor.command = ["sh", "-c", 'd="$1/$2"; n=2; while [ -e "$d" ]; do d="$1/$2 ($n)"; n=$((n+1)); done; exec python3 "$3" extract "$4" "$d"',
+                             "sh", parent, stem, root.extractTool, root.file];
+        extractor.stdinEnabled = true;
         extractor.running = true;
     }
     Process {
         id: extractor
+        property string payload: ""
+        stdinEnabled: true
+        onStarted: { write(payload); payload = ""; stdinEnabled = false; }
         stdout: StdioCollector { id: madeDir }
         stderr: StdioCollector { id: extractErr }
         onExited: code => {
             root.extracting = false;
-            if (code === 0)
-                root.extractedTo = madeDir.text;
-            else if (!root.askPassword(extractErr.text, "extract"))
-                root.error = Tr.t("Could not extract") + ": " + (extractErr.text.trim().split("\n").pop() || root.name);
+            let result = {};
+            try { result = JSON.parse(madeDir.text.trim()) || {}; } catch (e) {}
+            if (root.askResult(result, extractErr.text, "extract"))
+                return;
+            if (code === 0 && result.saved) root.extractedTo = result.saved;
+            else root.error = Tr.t("Could not extract") + ": " + (result.error || extractErr.text.trim().split("\n").pop() || root.name);
         }
     }
 

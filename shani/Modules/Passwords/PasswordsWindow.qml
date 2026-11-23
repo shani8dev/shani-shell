@@ -66,7 +66,8 @@ AppWindow {
             }
         }
     }
-    function refresh() { lister.running = true; keyLister.running = true; passkeyLister.running = true; runAudit(); }
+    // the audit decrypts every keyring item: opt in, or use the explicit button
+    function refresh() { lister.running = true; keyLister.running = true; passkeyLister.running = true; if (Settings.data.passwordAuditEnabled === true) runAudit(); }
     onVisibleChanged: if (visible) refresh()
     Component.onCompleted: refresh()
 
@@ -124,6 +125,13 @@ AppWindow {
         run(["reveal", i.path], "", r => { if (r.secret !== undefined) { win.shownPath = i.path; win.shownSecret = r.secret; Ui.passwordsRevealed = i.label; hideTimer.restart(); } });
     }
     Timer { id: hideTimer; interval: 30000; onTriggered: { win.shownPath = ""; win.shownSecret = ""; } }
+    // a screen lock must conceal a revealed secret before the timer gets to it
+    Connections {
+        target: Lock
+        function onLockedChanged() {
+            if (Lock.locked) { win.shownPath = ""; win.shownSecret = ""; hideTimer.stop(); }
+        }
+    }
     function copy(i) {
         run(["reveal", i.path], "", r => {
             if (r.secret === undefined) return;
@@ -221,6 +229,7 @@ AppWindow {
             visible: win.tab === "passwords"
             Layout.fillWidth: true
             TextField { id: search; Layout.fillWidth: true; placeholderText: Tr.t("Find a password") }
+            Button { text: Tr.t("Run security check"); tip: Tr.t("Reads every keyring item to find weak or reused passwords"); onClicked: win.runAudit(); }
             Button { text: Tr.t("Add…"); onClicked: win.adding = !win.adding }
         }
         ColumnLayout {
