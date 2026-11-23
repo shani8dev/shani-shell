@@ -16,6 +16,9 @@ PanelWindow {
     property bool arrangeAllMode: false     // apply the layout to every column, not just focus
     property bool customEditing: false
     property string customName: ""
+    property string pendingDeleteId: ""
+    Timer { id: pendingDeleteTimer; interval: 3000; onTriggered: win.pendingDeleteId = "" }
+    onVisibleChanged: if (!visible) { customEditing = false; customName = ""; pendingDeleteId = "" }
     visible: Ui.windowLayouts && !Lock.locked && !Polkit.active
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     // appear near the center of the screen, not full-screen
@@ -111,6 +114,8 @@ PanelWindow {
                         color: current ? Theme.alpha(Theme.accent, 0.18) : (area.containsMouse ? Theme.hover : Theme.surface1)
                         border.width: current ? 2 : 1
                         border.color: current ? Theme.accent : Theme.border
+                        Accessible.role: Accessible.Button
+                        Accessible.name: modelData.name
 
                         ColumnLayout {
                             anchors { fill: parent; margins: Theme.px(10) }
@@ -155,6 +160,13 @@ PanelWindow {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
+                                if (win.arrangeAllMode) WindowLayouts.arrangeAll(modelData.id);
+                                else WindowLayouts.apply(modelData.id, Niri.focusedOutput);
+                                Ui.windowLayouts = false;
+                            }
+                        }
+                        KeyFocus {
+                            onActivated: {
                                 if (win.arrangeAllMode) WindowLayouts.arrangeAll(modelData.id);
                                 else WindowLayouts.apply(modelData.id, Niri.focusedOutput);
                                 Ui.windowLayouts = false;
@@ -222,9 +234,18 @@ PanelWindow {
                                 IconButton {
                                     anchors { right: parent.right; verticalCenter: parent.verticalCenter }
                                     size: Theme.px(20)
-                                    icon: "edit-clear-all"
-                                    tip: Tr.t("Delete layout")
-                                    onClicked: WindowLayouts.removeCustom(modelData.id)
+                                    icon: win.pendingDeleteId === modelData.id ? "dialog-warning" : "edit-clear-all"
+                                    tip: win.pendingDeleteId === modelData.id ? Tr.t("Click again to delete") : Tr.t("Delete layout")
+                                    onClicked: {
+                                        if (win.pendingDeleteId === modelData.id) {
+                                            pendingDeleteTimer.stop();
+                                            win.pendingDeleteId = "";
+                                            WindowLayouts.removeCustom(modelData.id);
+                                        } else {
+                                            win.pendingDeleteId = modelData.id;
+                                            pendingDeleteTimer.restart();
+                                        }
+                                    }
                                 }
                             }
                         }

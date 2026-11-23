@@ -26,6 +26,8 @@ PanelWindow {
     Region { id: menuRegion; item: card; radius: Theme.radius }
 
     property var target: null            // the window, captured when the menu opens
+    readonly property bool targetAlive: target !== null && Niri.windows[target.id] !== undefined
+    onTargetAliveChanged: if (visible && !targetAlive) { target = null; Ui.windowMenu = false }
     // the app's desktop actions, when it shows no menu bar of its own
     readonly property var desktopEntry: target ? (DesktopEntries.byId(target.app_id || "") || DesktopEntries.heuristicLookup(target.app_id || "")) : null
     readonly property var appActions: AppMenu.loading || AppMenu.menus.length || !desktopEntry ? []
@@ -103,7 +105,7 @@ PanelWindow {
     function run(id) {
         const e = entries.find(x => x.id === id);
         Ui.windowMenu = false;
-        if (e)
+        if (e && win.targetAlive)
             e.run();
     }
 
@@ -128,7 +130,7 @@ PanelWindow {
         }
         function onWindowMenuAppRequested(index) { win.openMenu = index; win.expanded = ({}); }
         function onWindowMenuActionRequested(id) {
-            win.target = win.target || Niri.focusedWindow;
+            if (!win.targetAlive) win.target = Niri.focusedWindow;
             win.run(id);
         }
     }
@@ -137,10 +139,15 @@ PanelWindow {
         id: keys
         anchors.fill: parent
         focus: true
-        Keys.onEscapePressed: Ui.windowMenu = false
+        Keys.onEscapePressed: {
+            if (win.openMenu >= 0) { win.openMenu = -1; win.expanded = ({}); }
+            else Ui.windowMenu = false;
+        }
         Keys.onDownPressed: win.sel = Math.min(win.sel + 1, win.entries.length - 1)
         Keys.onUpPressed: win.sel = Math.max(win.sel - 1, 0)
-        Keys.onReturnPressed: win.run(win.entries[win.sel].id)
+        Keys.onHomePressed: win.sel = 0
+        Keys.onEndPressed: win.sel = Math.max(0, win.entries.length - 1)
+        Keys.onReturnPressed: if (win.entries.length > 0) win.run(win.entries[win.sel].id)
     }
     MouseArea { objectName: "nav:pointer"; anchors.fill: parent; onClicked: Ui.windowMenu = false }   // a click outside closes; Escape does with keys
 
@@ -153,6 +160,10 @@ PanelWindow {
         y: card.y
         width: Theme.px(300)
         height: menuCol.implicitHeight + 16
+        Keys.onEscapePressed: {
+            if (win.openMenu >= 0) { win.openMenu = -1; win.expanded = ({}); keys.forceActiveFocus(); }
+            else Ui.windowMenu = false;
+        }
         MouseArea { anchors.fill: parent }
         ColumnLayout {
             id: menuCol
