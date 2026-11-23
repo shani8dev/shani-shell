@@ -640,6 +640,49 @@ def hosts_set(req: dict) -> dict:
     return hosts_get(req)
 
 
+SUDOERS_DROPIN = Path("/etc/sudoers.d/50-shani-shell")
+
+
+def sudoers_get(_req: dict) -> dict:
+    try:
+        text = SUDOERS_DROPIN.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        text = ""
+    return {"text": text, "path": str(SUDOERS_DROPIN)}
+
+
+def sudoers_set(req: dict) -> dict:
+    text = req.get("text", "")
+    if not isinstance(text, str) or len(text) > 16384:
+        raise Refused("sudoers text too large")
+    # normalize: keep lines, ensure trailing newline
+    content = "\n".join(text.splitlines()).rstrip("\n") + "\n" if text.strip() else ""
+    if content:
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", delete=False, encoding="utf-8") as tf:
+            tf.write(content)
+            tmp = tf.name
+        try:
+            os.chmod(tmp, 0o440)
+            r = subprocess.run(["visudo", "-c", "-f", tmp], capture_output=True, text=True, timeout=10)
+            if r.returncode != 0:
+                raise Refused((r.stderr or r.stdout).strip().splitlines()[-1][:200] or "visudo rejected the drop-in")
+        finally:
+            os.unlink(tmp)
+        SUDOERS_DROPIN.write_text(content, encoding="utf-8")
+        os.chmod(SUDOERS_DROPIN, 0o644)
+        r = subprocess.run(["visudo", "-c"], capture_output=True, text=True, timeout=10)
+        if r.returncode != 0:
+            # rollback
+            try: SUDOERS_DROPIN.unlink()
+            except OSError: pass
+            raise Refused("sudoers check failed after write; rolled back")
+    else:
+        try: SUDOERS_DROPIN.unlink()
+        except OSError: pass
+    return sudoers_get(req)
+
+
 COMMANDS = {
     "guest": guest,
     "wakeup": wakeup,
@@ -659,6 +702,8 @@ COMMANDS = {
     "pwquality-set": pwquality_set,
     "hosts-get": hosts_get,
     "hosts-set": hosts_set,
+    "sudoers-get": sudoers_get,
+    "sudoers-set": sudoers_set,
 }
 
 

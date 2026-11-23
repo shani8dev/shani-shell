@@ -16,8 +16,11 @@ ColumnLayout {
     property string hostsText: ""
     property string hostsNote: ""
     property bool hostsBusy: false
-    onActiveChanged: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); }
-    Component.onCompleted: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); }
+    property string sudoersText: ""
+    property string sudoersNote: ""
+    property bool sudoersBusy: false
+    onActiveChanged: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); }
+    Component.onCompleted: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); }
 
     readonly property var r: SecurityInfo.report || ({})
     readonly property var aa: r.apparmor || ({})
@@ -68,6 +71,16 @@ ColumnLayout {
         onExited: code => { stdinEnabled = true; page.hostsBusy = false; page.hostsNote = code === 0 ? Tr.t("Hosts saved") : (hostsErr.text.trim().split("\n").pop() || Tr.t("Could not save")); if (code === 0) page.loadHosts(); }
     }
     function saveHosts() { page.hostsBusy = true; page.hostsNote = ""; hostsSaveProc.payload = JSON.stringify({ text: page.hostsText }); hostsSaveProc.command = page.adminCmd.concat(["hosts-set"]); hostsSaveProc.running = true; }
+
+    Process { id: sudoersRead; command: ["sh","-c","cat /etc/sudoers.d/50-shani-shell 2>/dev/null || true"]; stdout: StdioCollector { onStreamFinished: { page.sudoersText = text; sudoersEdit.text = text; } } }
+    function loadSudoers() { sudoersRead.running = false; sudoersRead.running = true; }
+    Process {
+        id: sudoersSaveProc; stdinEnabled: true; property string payload: ""
+        stdout: StdioCollector { } stderr: StdioCollector { id: sudoersErr }
+        onStarted: { write(payload + "\n"); stdinEnabled = false; }
+        onExited: code => { stdinEnabled = true; page.sudoersBusy = false; page.sudoersNote = code === 0 ? Tr.t("Sudo rules saved") : (sudoersErr.text.trim().split("\n").pop() || Tr.t("Could not save")); if (code === 0) page.loadSudoers(); }
+    }
+    function saveSudoers() { page.sudoersBusy = true; page.sudoersNote = ""; sudoersSaveProc.payload = JSON.stringify({ text: page.sudoersText }); sudoersSaveProc.command = page.adminCmd.concat(["sudoers-set"]); sudoersSaveProc.running = true; }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Security") }
     Text { Layout.fillWidth: true; text: Tr.t("What the kernel, sign-in and audit subsystems report. Policy edits go through administrator authorisation."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
@@ -132,5 +145,20 @@ ColumnLayout {
         Item { Layout.fillWidth: true; visible: page.hostsNote === "" }
         Button { text: Tr.t("Reload"); enabled: !page.hostsBusy; onClicked: page.loadHosts() }
         Button { text: Tr.t("Save hosts"); kind: "primary"; enabled: !page.hostsBusy; onClicked: page.saveHosts() }
+    }
+
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Sudo rules") }
+    Text { Layout.fillWidth: true; text: Tr.t("Managed drop-in /etc/sudoers.d/50-shani-shell. Checked with visudo before and after saving; a failed check rolls back."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+    Rectangle {
+        Layout.fillWidth: true; Layout.preferredHeight: Theme.px(120)
+        radius: Theme.radiusSmall; color: Theme.surface1; border.width: 1; border.color: sudoersEdit.activeFocus ? Theme.accent : Theme.stroke
+        TextEdit { id: sudoersEdit; anchors.fill: parent; anchors.margins: Theme.px(8); color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale; wrapMode: TextEdit.NoWrap; selectByMouse: true; onTextChanged: if (page.sudoersText !== text) page.sudoersText = text }
+    }
+    RowLayout {
+        Layout.fillWidth: true; spacing: Theme.px(6)
+        Text { Layout.fillWidth: true; text: page.sudoersNote; color: page.sudoersNote.indexOf("saved") >= 0 ? Theme.accent : Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; visible: page.sudoersNote !== "" }
+        Item { Layout.fillWidth: true; visible: page.sudoersNote === "" }
+        Button { text: Tr.t("Reload"); enabled: !page.sudoersBusy; onClicked: page.loadSudoers() }
+        Button { text: Tr.t("Save sudo rules"); kind: "primary"; enabled: !page.sudoersBusy; onClicked: page.saveSudoers() }
     }
 }
