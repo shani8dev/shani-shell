@@ -92,10 +92,52 @@ Singleton {
     }
 
     // ---- firmware ----------------------------------------------------------
-    // fwupd's own GUI is not installed; the shell reads the updates and points
-    // at `fwupdmgr` for the ones that need a reboot.
-    function openFirmware() {
-        Quickshell.execDetached(["sh", "-c", "command -v fwupdmgr >/dev/null && exec fwupdmgr get-updates"]);
+    // fwupd's own GUI is not installed. We list what LVFS offers and install it
+    // here: fwupd asks polkit over D-Bus, so the shell's own agent answers. A
+    // firmware update changes PCR 0, which can invalidate a TPM2-sealed disk -
+    // the page names that cost before the person confirms.
+    property bool firmwareInstalling: false
+    property var firmwareProgress: []
+    property string firmwareError: ""
+    property string firmwareNote: ""
+
+    function installFirmware() {
+        if (root.firmwareInstalling || root.firmware.length === 0) return;
+        root.firmwareInstalling = true;
+        root.firmwareProgress = [];
+        root.firmwareError = "";
+        root.firmwareNote = "";
+        fwInstall.command = ["sh", "-c",
+            "command -v fwupdmgr >/dev/null || exit 3; exec fwupdmgr update --assume-yes --no-reboot-check"];
+        fwInstall.running = false;
+        fwInstall.running = true;
+    }
+
+    function openFirmware() { root.installFirmware(); }
+
+    Process {
+        id: fwInstall
+        stdout: SplitParser {
+            onRead: line => {
+                const l = String(line).trim();
+                if (l === "") return;
+                root.firmwareProgress = root.firmwareProgress.concat([l]).slice(-60);
+            }
+        }
+        stderr: StdioCollector { id: fwInstallErr }
+        onExited: code => {
+            root.firmwareInstalling = false;
+            if (code === 0) {
+                root.firmwareNote = Tr.t("Firmware updated. Restart when you are ready; some is written during the restart.");
+                fw.running = true;
+            } else if (code === 3) {
+                root.firmwareError = Tr.t("fwupdmgr is not installed.");
+            } else {
+                root.firmwareError = (fwInstallErr.text.trim().split("\n").pop()
+                    || (root.firmwareProgress.length ? root.firmwareProgress[root.firmwareProgress.length - 1] : ""))
+                    || Tr.t("The firmware update did not finish.");
+            }
+        }
     }
     Process {
         id: fw

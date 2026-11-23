@@ -76,6 +76,8 @@ ColumnLayout {
     }
 
     // ---- firmware ----------------------------------------------------------
+    property bool confirmFirmware: false
+
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Firmware") }
     Text {
         Layout.fillWidth: true
@@ -98,14 +100,57 @@ ColumnLayout {
             }
         }
     }
+    // the cost named before it is written: PCR 0 changes, so a TPM2-sealed disk
+    // will ask for its passphrase once after a firmware update
+    ColumnLayout {
+        Layout.fillWidth: true
+        visible: page.confirmFirmware && Updates.firmware.length > 0 && !Updates.firmwareInstalling
+        spacing: Theme.px(6)
+        Text {
+            Layout.fillWidth: true
+            text: Tr.t("Keep the computer plugged in. If your disk unlocks by itself at start-up, it will ask for its passphrase once after this — have it ready, then set up automatic unlock again on the Encryption page.")
+            color: Theme.dim
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Item { Layout.fillWidth: true }
+            Button { flat: true; text: Tr.t("Cancel"); onClicked: page.confirmFirmware = false }
+            Button { kind: "primary"; text: Tr.t("Install firmware"); onClicked: { page.confirmFirmware = false; Updates.installFirmware(); } }
+        }
+    }
+    ColumnLayout {
+        Layout.fillWidth: true
+        visible: Updates.firmwareInstalling || Updates.firmwareProgress.length > 0 || Updates.firmwareNote !== "" || Updates.firmwareError !== ""
+        spacing: Theme.px(4)
+        Text { Layout.fillWidth: true; visible: Updates.firmwareNote !== ""; text: Updates.firmwareNote; color: Theme.accent; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Text { Layout.fillWidth: true; visible: Updates.firmwareError !== ""; text: Updates.firmwareError; color: Theme.danger; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        ListView {
+            Layout.fillWidth: true
+            Layout.preferredHeight: Math.min(120, Updates.firmwareProgress.length * 16 + 8)
+            visible: Updates.firmwareProgress.length > 0
+            clip: true
+            model: Updates.firmwareProgress
+            delegate: Text { required property string modelData; width: ListView.view.width; text: modelData; color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale; elide: Text.ElideLeft }
+        }
+    }
 
     RowLayout {
         Layout.fillWidth: true
         spacing: Theme.px(6)
         Button {
             text: Tr.t("Check now")
-            enabled: !Updates.installing
+            enabled: !Updates.installing && !Updates.firmwareInstalling
             onClicked: Updates.check()
+        }
+        Button {
+            visible: Updates.firmware.length > 0
+            text: Updates.firmwareInstalling ? Tr.t("Installing firmware…") : Tr.t("Install firmware")
+            enabled: !Updates.firmwareInstalling && !Updates.installing
+            onClicked: page.confirmFirmware = true
         }
         Item { Layout.fillWidth: true }
         Button {
@@ -117,49 +162,25 @@ ColumnLayout {
         Button {
             text: Updates.installing ? Tr.t("Installing…") : Tr.t("Install now")
             kind: "primary"
-            enabled: Updates.available && !Updates.installing
+            enabled: Updates.available && !Updates.installing && !Updates.firmwareInstalling
             onClicked: Updates.install()
         }
     }
 
-    // ---- the install itself, as it happens --------------------------------
+    // ---- the system install itself, as it happens --------------------------
     ColumnLayout {
         Layout.fillWidth: true
         visible: Updates.installing || Updates.progress.length > 0 || Updates.note !== "" || Updates.installError !== ""
         spacing: Theme.px(4)
-        Text {
-            Layout.fillWidth: true
-            visible: Updates.note !== ""
-            text: Updates.note
-            color: Theme.accent
-            wrapMode: Text.Wrap
-            font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
-        }
-        Text {
-            Layout.fillWidth: true
-            visible: Updates.installError !== ""
-            text: Updates.installError
-            color: Theme.danger
-            wrapMode: Text.Wrap
-            font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
-        }
+        Text { Layout.fillWidth: true; visible: Updates.note !== ""; text: Updates.note; color: Theme.accent; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Text { Layout.fillWidth: true; visible: Updates.installError !== ""; text: Updates.installError; color: Theme.danger; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
         ListView {
             Layout.fillWidth: true
             Layout.preferredHeight: Math.min(160, Updates.progress.length * 16 + 8)
             visible: Updates.progress.length > 0
             clip: true
             model: Updates.progress
-            delegate: Text {
-                required property string modelData
-                width: ListView.view.width
-                text: modelData
-                color: Theme.dim
-                font.family: Theme.mono
-                font.pixelSize: Theme.px(10) * Theme.fontScale
-                elide: Text.ElideLeft
-            }
+            delegate: Text { required property string modelData; width: ListView.view.width; text: modelData; color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale; elide: Text.ElideLeft }
         }
     }
 

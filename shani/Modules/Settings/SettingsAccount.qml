@@ -21,12 +21,14 @@ ColumnLayout {
     property string accountPath: ""
     property var pictures: []
     property string note: ""
+    property bool sshAddOpen: false
 
     function refresh() {
         who.running = true;
         pics.running = true;
         fingers.running = true;
         u2fProbe.running = true;
+        SshKeys.refresh();
     }
 
     // ---- a security key (pam-u2f): registered in ~/.config/Yubico/u2f_keys, as the person ----
@@ -419,6 +421,90 @@ ColumnLayout {
         spacing: Theme.px(6)
         Button { visible: page.u2f.key; kind: "primary"; text: page.u2f.registered > 0 ? Tr.t("Register another key") : Tr.t("Register this key"); onClicked: page.u2fDo("register") }
         Button { visible: page.u2f.registered > 0; kind: "danger"; text: Tr.t("Remove my keys"); onClicked: page.u2fDo("remove") }
+    }
+
+    // ---- SSH keys: what can sign in to this machine over SSH ----------------
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("SSH keys") }
+    Text {
+        Layout.fillWidth: true
+        text: Tr.t("Keys that can sign in to this account over SSH. A public key is not a secret; a private key never belongs here.")
+        color: Theme.dim
+        wrapMode: Text.Wrap
+        font.family: Theme.font
+        font.pixelSize: Theme.px(11) * Theme.fontScale
+    }
+    Text {
+        Layout.fillWidth: true
+        visible: SshKeys.note !== ""
+        text: SshKeys.note
+        color: Theme.dim
+        wrapMode: Text.Wrap
+        font.family: Theme.font
+        font.pixelSize: Theme.px(11) * Theme.fontScale
+    }
+    Text {
+        Layout.fillWidth: true
+        visible: SshKeys.error !== ""
+        text: SshKeys.error
+        color: Theme.danger
+        wrapMode: Text.Wrap
+        font.family: Theme.font
+        font.pixelSize: Theme.px(11) * Theme.fontScale
+    }
+    ColumnLayout {
+        Layout.fillWidth: true
+        spacing: Theme.px(2)
+        Repeater {
+            model: SshKeys.keys
+            ListRow {
+                required property var modelData
+                required property int index
+                Layout.fillWidth: true
+                interactive: false
+                icon: "dialog-password"
+                title: modelData.comment || modelData.type || Tr.t("SSH key")
+                subtitle: [modelData.fingerprint, modelData.type].filter(x => x).join("  ·  ")
+                Button {
+                    text: Tr.t("Remove")
+                    kind: "danger"
+                    flat: true
+                    enabled: SshKeys.editable && !SshKeys.busy
+                    onClicked: SshKeys.remove(index)
+                }
+            }
+        }
+    }
+    Text {
+        Layout.fillWidth: true
+        visible: SshKeys.keys.length === 0
+        text: Tr.t("No SSH keys yet.")
+        color: Theme.dim
+        font.family: Theme.font
+        font.pixelSize: Theme.px(11) * Theme.fontScale
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        visible: !page.sshAddOpen
+        spacing: Theme.px(6)
+        Button { text: Tr.t("Add a key…"); enabled: SshKeys.editable && !SshKeys.busy; onClicked: { page.sshAddOpen = true; } }
+        Item { Layout.fillWidth: true }
+    }
+    ColumnLayout {
+        Layout.fillWidth: true
+        visible: page.sshAddOpen
+        spacing: Theme.px(6)
+        TextField {
+            id: sshInput
+            Layout.fillWidth: true
+            placeholder: Tr.t("ssh-ed25519 AAAA… comment")
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Item { Layout.fillWidth: true }
+            Button { flat: true; text: Tr.t("Cancel"); onClicked: { page.sshAddOpen = false; sshInput.text = ""; } }
+            Button { kind: "primary"; text: Tr.t("Add"); enabled: sshInput.text.trim() !== "" && !SshKeys.busy; onClicked: { SshKeys.add(sshInput.text.trim()); page.sshAddOpen = false; sshInput.text = ""; } }
+        }
     }
 
     Text {
