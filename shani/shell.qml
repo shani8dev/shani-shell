@@ -517,9 +517,9 @@ ShellRoot {
         function mediaVolume(level: string) { const v = parseFloat(level); if (isFinite(v)) { PlayQueue.muted = false; PlayQueue.volume = Math.max(0, Math.min(1, v)); } }
         function mediaRate(rate: string) { const v = parseFloat(rate); if (isFinite(v) && v >= 0.25 && v <= 4) PlayQueue.rate = v; }
         // the person's own playlists (Services/PlayQueue, media-playlists.json)
-        function mediaPlaylistSave(name: string) { return PlayQueue.saveQueueAs(name); }
+        function mediaPlaylistSave(name: string) { PlayQueue.saveQueueAs(name); }
         function mediaPlaylistOpen(name: string) { PlayQueue.openPlaylist(name); }
-        function mediaPlaylistAdd(name: string) { return PlayQueue.addPlayingTo(name); }
+        function mediaPlaylistAdd(name: string) { PlayQueue.addPlayingTo(name); }
         function mediaPlaylistDelete(name: string) { PlayQueue.deletePlaylist(name); }
         function scannerOpen() { Ui.closeAll(); Ui.scanner = true; }
         function scannerClose() { Ui.scanner = false; }

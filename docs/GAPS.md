@@ -209,8 +209,9 @@ been used on a real screen and nothing below is in the way.
 - **Maps**: drag, zoom, search, directions (OSRM's public server: fine for a
   person, not for heavy use). No offline maps, no transit, no live traffic.
   GNOME Maps stays.
-- **Document Scanner, Password Generator, Kundali**: they work and take the shell's
-  colours, but are laid out with stock controls, not the shell's own widgets.
+- **Document Scanner, Password Generator, Kundali**: restyled with the shell's
+  own widgets (ListRow, Choice, SectionTitle, EmptyState, house cards); no
+  stock Qt Controls left in the three windows.
 - **Still Flatpaks with no app of ours**: an office suite, a browser, a
   torrent client, internet radio, virtual machines, remote desktop, the games.
 - **Not there at all**: a network speed test (tried and taken out, see FINDINGS).
@@ -328,8 +329,9 @@ Each needs real hardware or shani-testbed:
   (Qt's TextDocument over a body the bridge has stripped of scripts, remote
   images and event handlers) or as plain text, and searches a word in the
   sender, the subject or the body (IMAP SEARCH, or the reader's own pass over
-  MailHog). Attachments are listed with their name, type and size, but not yet
-  saved - there is no "save this attachment" anywhere in the reader.
+  MailHog). Attachments are listed with name, type and size and can be saved
+  to a path picked in the shell; the bridge decodes the MIME part. There is no
+  image-body rendering and no attachment preview.
 - **Feeds** (Modules/Feeds, bridge/feeds.py) — RSS 2.0, RSS 1.0 and Atom over
   the standard library, with a cache and per-feed read state. The subscription
   list moves in and out as OPML 2.0 (another reader's, or ours, without
@@ -467,7 +469,7 @@ our code and the upstream source/docs.
 - **[fixed]** Reply and Forward (compose opens prefilled with quoted text). Reply-to-all specifically is not separate.
 - **[fixed]** Message date in the list; snippet still not shown.
 - **[built — mass pass]** Cc / Bcc in compose (`send()` takes three arguments).
-- **[built — mass pass]** Save attachments (names only today; bridge must decode the MIME part).
+- **[built]** Save attachments — the bridge decodes the MIME part and writes the picked path.
 - **[built — mass pass]** Mark unread / star / move / archive (bridge has `imap_flag` internally, exposes only `markread`).
 - **[built — mass pass]** View source.
 - **[built — mass pass]** Opt-in remote images (the bridge strips all remote content).
@@ -550,7 +552,7 @@ our code and the upstream source/docs.
 - **[open]** Open a network stream from the UI (`isStream` plays URLs; no field to enter one).
 - **[open]** Save / load a playlist (.m3u); the queue is session-only.
 - **[open]** Record / stream output.
-- Subtitle timing shifts were fixed earlier (`1a55836`); chapters and go-to-time remain.
+- Subtitle timing shifts, chapters and go-to-time are all built now.
 
 ### Camera → GNOME Snapshot
 
@@ -740,7 +742,7 @@ still missing; **[bug]** a real defect found while verifying.
   case/whole-word/wrap search; print range and copies; form radio widgets
   (`pdfform.py` emits `radio`, the reader handles only text/checkbox/choice);
   a UI for the existing `merge()` / `split()`.
-- **[open]** Mail: Cc/Bcc; save attachments (names only — payload discarded);
+- **[open]** Mail: Cc/Bcc; attachment preview;
   mark unread / star / move / archive (`imap_flag()` exists, only `markread`
   is exposed); view source; opt-in remote images; multiple accounts;
   conversation threading (`In-Reply-To`/`References` unused); IMAP labels.
@@ -769,7 +771,7 @@ still missing; **[bug]** a real defect found while verifying.
 
 ### Media / Camera / Voice / Trimmer / Translate / Weather — still open
 
-- **[open]** Media Player: 10-band EQ and effects; go-to-time and chapters;
+- **[open]** Media Player: 10-band EQ and effects; playlist import/export;
   A→B loop; video effects (crop/rotate/deinterlace); recent-media UI (resume
   points are persisted, just not listed); generic "open network stream" field
   (`PlayQueue.playStream()` exists); save `.m3u`; Stop control (MPRIS stop maps
@@ -1305,7 +1307,7 @@ with a test. Previously-open items not named here are still open.
   app-menu `⋯` overflow; "Run as administrator" from the launcher.
 - **Feeds**: next-unread; tags/categories; article search; save/bookmark;
   show-read toggle; feed auto-discovery; podcast enclosures.
-- **Mail**: Cc/Bcc; save attachments; mark unread / star / move-archive;
+- **Mail**: Cc/Bcc; mark unread / star / move-archive;
   view source; opt-in remote images. Also fixed a latent `imap_flag` bug.
 - **Files**: symlink creation; select-items-matching; breadcrumb dropdowns;
   sort by type and date-created.

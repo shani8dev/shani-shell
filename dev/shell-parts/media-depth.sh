@@ -67,3 +67,39 @@ sleep 1
 [ -n "$(q "['mediaCue']")" ] && result media-subtitle-shift-keeps-the-line PASS "$(q "['mediaCue']")" || result media-subtitle-shift-keeps-the-line FAIL "no cue after the shift"
 ipc mediaOpen "$M/film.mkv"
 waitfor "d['mediaSubShift'] == 0" 6 && result media-subtitle-shift-resets-per-file PASS || result media-subtitle-shift-resets-per-file FAIL "$(q "['mediaSubShift']")"
+
+# ---- chapters: read from the file by ffprobe, jumped to from the list ------
+# a two-chapter file (0-5 s "Opening", 5-10 s "Main"); the service reads the
+# chapters out of it and the window lists them
+ffmpeg -loglevel error -y -f lavfi -i testsrc=duration=10:size=320x240:rate=10 -c:v libx264 -preset ultrafast $M/base.mp4 2>/dev/null
+printf ';FFMETADATA1\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=5000\ntitle=Opening\n\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=5000\nEND=10000\ntitle=Main\n' > $M/meta.txt
+ffmpeg -loglevel error -y -i $M/base.mp4 -i $M/meta.txt -map 0 -map_metadata 1 -codec copy $M/chap.mkv 2>/dev/null
+ipc mediaOpen "$M/chap.mkv"
+waitfor "d['mediaChapters'] == 2" 10 && result media-chapters-read PASS "two chapters" || result media-chapters-read FAIL "$(q "['mediaChapters']") chapters"
+# jump to the second chapter (5 s): the playhead must follow
+ipc mediaSeek 0; sleep 0.5
+i=0
+until python3 -c "import sys; sys.exit(0 if float('$(q "['mediaPosition']")') >= 4.5 else 1)" 2>/dev/null || [ $i -ge 20 ]; do
+    timeout 20 python3 "${A11Y:-/testbed/lib/a11y_client.py}" press "list item:^Main," >/dev/null 2>&1
+    sleep 0.3; i=$((i+1))
+done
+python3 -c "import sys; sys.exit(0 if float('$(q "['mediaPosition']")') >= 4.5 else 1)" 2>/dev/null \
+    && result media-chapters-jump PASS "at $(q "['mediaPosition']") s" || result media-chapters-jump FAIL "still $(q "['mediaPosition']") s"
+
+# ---- playlists of its own: save the queue, open it, add the playing one -----
+# $M holds film.mkv, song.mp3 and film.srt: the queue is the two playable files
+PL=/tmp/mp/pl; rm -rf $PL; mkdir -p $PL
+ffmpeg -loglevel error -f lavfi -i "sine=frequency=440:duration=3" $PL/one.mp3 2>/dev/null
+ffmpeg -loglevel error -f lavfi -i "sine=frequency=550:duration=3" $PL/two.mp3 2>/dev/null
+ipc mediaOpen "$PL/one.mp3"; sleep 2
+ipc mediaPlaylistSave "Road trip"
+waitfor "d['mediaPlaylists'] == ['Road trip:2']" 6 && result media-playlist-save PASS "the queue saved" || result media-playlist-save FAIL "$(q "['mediaPlaylists']")"
+# another folder's file: it cannot join $PL's queue, so the playlist grows by one
+ipc mediaOpen "$M/song.mp3"; sleep 1.5
+ipc mediaPlaylistAdd "Road trip"
+waitfor "d['mediaPlaylists'] == ['Road trip:3']" 6 && result media-playlist-add PASS "three items" || result media-playlist-add FAIL "$(q "['mediaPlaylists']")"
+ipc mediaPlaylistOpen "Road trip"; sleep 1
+waitfor "d['mediaQueue'] >= 2" 6 && result media-playlist-open PASS "playing the playlist" || result media-playlist-open FAIL "queue $(q "['mediaQueue']")"
+ipc mediaPlaylistDelete "Road trip"
+waitfor "d['mediaPlaylists'] == []" 6 && result media-playlist-delete PASS "gone" || result media-playlist-delete FAIL "$(q "['mediaPlaylists']")"
+ipc mediaClose

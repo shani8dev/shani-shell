@@ -49,8 +49,9 @@ waitfor "d['mailAttachments'] == ['readme.txt']" 6 \
 # ---- the attachment is saved: the bridge decodes its bytes to the picked path
 ATT=$(mktemp /tmp/mail-attachment-XXXXXX); rm -f "$ATT"
 printf 'Shani shell readme.\n' >/tmp/mail-attachment-expected
+# (cmp is not in the dev image: python compares the bytes)
 if python3 /work/bridge/mail.py saveattachment mail-1 0 "$ATT" >/tmp/mail-attachment.json 2>&1 \
-   && cmp -s "$ATT" /tmp/mail-attachment-expected; then
+   && python3 -c 'import sys; sys.exit(0 if open(sys.argv[1],"rb").read() == open(sys.argv[2],"rb").read() else 1)' "$ATT" /tmp/mail-attachment-expected; then
     result mail-saves-an-attachment PASS "$(cat /tmp/mail-attachment.json)"
 else
     result mail-saves-an-attachment FAIL "$(cat /tmp/mail-attachment.json 2>&1) $(cat "$ATT" 2>&1)"

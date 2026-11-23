@@ -325,6 +325,7 @@ Rectangle {
                     Accessible.role: Accessible.ListItem
                     Accessible.name: plRow.modelData.name + ", " + plRow.modelData.paths.length + " " + Tr.t("items")
                     MouseArea {
+                        id: plArea
                         anchors.fill: parent
                         acceptedButtons: Qt.LeftButton | Qt.RightButton
                         hoverEnabled: true
@@ -332,7 +333,7 @@ Rectangle {
                         onClicked: m => { if (m.button === Qt.LeftButton) PlayQueue.openPlaylist(plRow.modelData.name); }
                         onPressAndHold: PlayQueue.deletePlaylist(plRow.modelData.name)
                     }
-                    KeyFocus { name: plRow.modelData.name; onActivated: PlayQueue.openPlaylist(plRow.modelData.name) }
+                    KeyFocus { onActivated: PlayQueue.openPlaylist(plRow.modelData.name) }
                 }
             }
             EmptyState {

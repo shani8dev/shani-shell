@@ -80,7 +80,6 @@ Singleton {
     // The queue is session-only; these survive a restart. No m3u: a plain JSON
     // list is the shell's own format and the Library reads it back directly.
     property var playlists: []              // [{ name, paths: [] }]
-    function playlistNames() { return playlists.map(p => p.name); }
     function findPlaylist(name) { return playlists.find(p => p.name === name) || null; }
     function savePlaylist(name, paths) {
         name = String(name || "").trim();
