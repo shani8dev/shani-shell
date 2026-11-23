@@ -21,8 +21,8 @@ ColumnLayout {
     Component.onCompleted: if (active) { load(); loadLog(); }
 
     Process {
-        id: getProc; command: page.adminCmd.concat(["journald-get"])
-        stdout: StdioCollector { onStreamFinished: { try { const s = (JSON.parse(text).settings) || {}; page.storage = s.Storage || "auto"; page.maxUse = s.SystemMaxUse || ""; maxUseField.text = page.maxUse; } catch(e) {} } }
+        id: getProc; command: ["sh","-c","f=/etc/systemd/journald.conf.d/50-shani-shell.conf; [ -r \"$f\" ] && grep -E '^(Storage|SystemMaxUse)=' \"$f\" || true"]
+        stdout: StdioCollector { onStreamFinished: { let st="auto", mu=""; for (const l of text.split("\n")) { if (l.startsWith("Storage=")) st=l.slice(8).trim(); if (l.startsWith("SystemMaxUse=")) mu=l.slice(13).trim(); } page.storage=st; page.maxUse=mu; maxUseField.text=mu; } }
     }
     function load() { getProc.running = false; getProc.running = true; }
     Process {

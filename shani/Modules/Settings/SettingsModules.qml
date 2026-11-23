@@ -23,9 +23,9 @@ ColumnLayout {
     Component.onCompleted: if (active) { KernelModules.refresh(); loadManaged(); }
 
     function loadManaged() { blRead.running = false; blRead.running = true; mlRead.running = false; mlRead.running = true; sysRead.running = false; sysRead.running = true; }
-    Process { id: blRead; command: page.adminCmd.concat(["modprobe-blacklist-get"]); stdout: StdioCollector { onStreamFinished: { try { page.blacklist = (JSON.parse(text).modules) || []; } catch(e) {} } } }
-    Process { id: mlRead; command: page.adminCmd.concat(["modules-load-get"]); stdout: StdioCollector { onStreamFinished: { try { page.loadOnBoot = (JSON.parse(text).modules) || []; } catch(e) {} } } }
-    Process { id: sysRead; command: page.adminCmd.concat(["sysctl-get"]); stdout: StdioCollector { onStreamFinished: { try { const d = JSON.parse(text); page.sysctl = d.settings || {}; page.sysctlLive = d.live || {}; } catch(e) {} } } }
+    Process { id: blRead; command: ["sh","-c","f=/etc/modprobe.d/50-shani-shell.conf; [ -r \"$f\" ] && sed -n 's/^blacklist //p' \"$f\" || true"]; stdout: StdioCollector { onStreamFinished: { page.blacklist = text.split("\n").map(s=>s.trim()).filter(s=>/^[A-Za-z0-9_-]+$/.test(s)); } } }
+    Process { id: mlRead; command: ["sh","-c","f=/etc/modules-load.d/50-shani-shell.conf; [ -r \"$f\" ] && grep -v '^#' \"$f\" || true"]; stdout: StdioCollector { onStreamFinished: { page.loadOnBoot = text.split("\n").map(s=>s.trim()).filter(s=>/^[A-Za-z0-9_-]+$/.test(s)); } } }
+    Process { id: sysRead; command: ["sh","-c","f=/etc/sysctl.d/50-shani-shell.conf; [ -r \"$f\" ] && grep -v '^#' \"$f\" | grep '=' || true; echo '---'; for k in vm.swappiness fs.inotify.max_user_watches fs.inotify.max_user_instances kernel.sysrq; do p=$(echo \"$k\" | tr . /); v=$(cat /proc/sys/$p 2>/dev/null || true); echo \"$k=$v\"; done"]; stdout: StdioCollector { onStreamFinished: { const parts = text.split("\n---\n"); const set={}, live={}; for (const l of (parts[0]||"").split("\n")) { const m=l.match(/^([^=]+)=\s*(.*)$/); if(m) set[m[1].trim()]=m[2].trim(); } for (const l of (parts[1]||"").split("\n")) { const m=l.match(/^([^=]+)=\s*(.*)$/); if(m) live[m[1].trim()]=m[2].trim(); } page.sysctl=set; page.sysctlLive=live; } } }
 
     function saveManaged(cmd, modules) {
         page.busy = true; page.note = "";

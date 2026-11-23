@@ -30,6 +30,11 @@ ColumnLayout {
     property string formats: ""           // LC_TIME and the other formats; "" = as the language
     property string preview: ""
     readonly property string localeConf: (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config") + "/locale.conf"
+    readonly property var adminCmd: (Quickshell.env("SHANI_ADMIN_TOOL") || "pkexec /usr/lib/shani-shell/shani-admin.py").split(" ")
+    property string ntpServers: ""
+    property string ntpFallback: ""
+    property string ntpNote: ""
+    property bool ntpBusy: false
 
     function niceLocale(name) {
         if (!name)
@@ -44,6 +49,7 @@ ColumnLayout {
         localeList.running = true;
         conf.reload();
         refreshPreview();
+        ntpGet.running = false; ntpGet.running = true;
     }
     onActiveChanged: if (active) refresh()
     // made already active (a Settings category is a Loader): load now too
@@ -80,6 +86,9 @@ ColumnLayout {
         setTime.command = ["timedatectl"].concat(args);
         setTime.running = true;
     }
+    Process { id: ntpGet; command: ["sh","-c","f=/etc/systemd/timesyncd.conf.d/50-shani-shell.conf; [ -r \"$f\" ] && grep -E '^(NTP|FallbackNTP)=' \"$f\" || true"]; stdout: StdioCollector { onStreamFinished: { let n="", fb=""; for (const l of text.split("\n")) { if (l.startsWith("NTP=")) n=l.slice(4).trim(); if (l.startsWith("FallbackNTP=")) fb=l.slice(12).trim(); } page.ntpServers=n; page.ntpFallback=fb; ntpServersField.text=n; ntpFallbackField.text=fb; } } }
+    Process { id: ntpSet; stdinEnabled: true; property string payload: ""; stderr: StdioCollector { id: ntpErr } onStarted: { write(payload + "\n"); stdinEnabled = false; } onExited: code => { stdinEnabled = true; page.ntpBusy = false; page.ntpNote = code === 0 ? Tr.t("NTP servers saved") : (ntpErr.text.trim().split("\n").pop() || Tr.t("Could not save")); if (code === 0) { ntpGet.running = false; ntpGet.running = true; } } }
+    function saveNtp() { page.ntpBusy = true; page.ntpNote = ""; ntpSet.payload = JSON.stringify({ settings: { NTP: ntpServersField.text.trim(), FallbackNTP: ntpFallbackField.text.trim() } }); ntpSet.command = page.adminCmd.concat(["timesyncd-set"]); ntpSet.running = true; }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Date & time") }
     SwitchRow {
@@ -89,6 +98,19 @@ ColumnLayout {
         checked: page.ntp
         enabled: page.canNtp
         onToggled: on => page.timedatectl(["set-ntp", String(on)])
+    }
+    ColumnLayout {
+        Layout.fillWidth: true; spacing: Theme.px(4)
+        Text { text: Tr.t("NTP servers (space separated)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        TextField { id: ntpServersField; Layout.fillWidth: true; placeholder: "time.cloudflare.com 0.pool.ntp.org" }
+        Text { text: Tr.t("Fallback NTP servers"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        TextField { id: ntpFallbackField; Layout.fillWidth: true; placeholder: "1.pool.ntp.org" }
+        RowLayout {
+            Layout.fillWidth: true
+            Text { Layout.fillWidth: true; text: page.ntpNote; color: page.ntpNote.indexOf("saved") >= 0 ? Theme.accent : Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; visible: page.ntpNote !== "" }
+            Item { Layout.fillWidth: true; visible: page.ntpNote === "" }
+            Button { text: Tr.t("Save NTP servers"); enabled: !page.ntpBusy; onClicked: page.saveNtp() }
+        }
     }
     // automatic time off: set it here (timedated; the polkit agent asks)
     ColumnLayout {

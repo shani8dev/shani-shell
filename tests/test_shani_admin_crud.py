@@ -17,6 +17,7 @@ def load_admin(tmp_path, monkeypatch):
     sa.MODULES_LOAD_DROPIN = tmp_path / "modules-load.d" / "50-shani-shell.conf"
     sa.JOURNALD_DROPIN = tmp_path / "journald.conf.d" / "50-shani-shell.conf"
     sa.SYSCTL_DROPIN = tmp_path / "sysctl.d" / "50-shani-shell.conf"
+    sa.TIMESYNCD_DROPIN = tmp_path / "timesyncd.conf.d" / "50-shani-shell.conf"
     monkeypatch.setattr(sa.shutil, "which", lambda x: None)
     real_run = subprocess.run
     def fake_run(cmd, *a, **k):
@@ -138,3 +139,13 @@ def test_sysctl_allowlist_and_range(tmp_path, monkeypatch):
         sa.sysctl_set({"settings": {"kernel.randomize_va_space": 0}})
     with pytest.raises(Exception):
         sa.sysctl_set({"settings": {"vm.swappiness": 999}})
+
+
+def test_timesyncd_crud(tmp_path, monkeypatch):
+    sa = load_admin(tmp_path, monkeypatch)
+    r = sa.timesyncd_set({"settings": {"NTP": "time.example.com 0.pool.ntp.org", "FallbackNTP": ""}})
+    assert "time.example.com" in r["settings"]["NTP"]
+    txt = sa.TIMESYNCD_DROPIN.read_text()
+    assert "NTP=time.example.com 0.pool.ntp.org" in txt
+    with pytest.raises(Exception):
+        sa.timesyncd_set({"settings": {"NTP": "bad host;rm"}})

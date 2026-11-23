@@ -898,6 +898,54 @@ def sysctl_set(req: dict) -> dict:
     return sysctl_get(req)
 
 
+TIMESYNCD_DROPIN = Path("/etc/systemd/timesyncd.conf.d/50-shani-shell.conf")
+NTP_TOKEN = re.compile(r"^[A-Za-z0-9.:_-]{1,253}$")
+
+
+def timesyncd_get(_req: dict) -> dict:
+    vals = {"NTP": "", "FallbackNTP": ""}
+    try:
+        for line in TIMESYNCD_DROPIN.read_text(encoding="utf-8", errors="replace").splitlines():
+            s = line.strip()
+            if not s or s.startswith("#") or s.startswith("[") or "=" not in s:
+                continue
+            k, v = s.split("=", 1)
+            k, v = k.strip(), v.strip()
+            if k in vals:
+                vals[k] = v
+    except OSError:
+        pass
+    return {"settings": vals, "path": str(TIMESYNCD_DROPIN)}
+
+
+def timesyncd_set(req: dict) -> dict:
+    settings = req.get("settings") or {}
+    if not isinstance(settings, dict):
+        raise Refused("settings must be an object")
+    clean = {}
+    for k in ("NTP", "FallbackNTP"):
+        raw = str(settings.get(k, "")).strip()
+        if not raw:
+            continue
+        toks = raw.split()
+        if len(toks) > 8:
+            raise Refused(f"too many {k} servers")
+        for t in toks:
+            if not NTP_TOKEN.match(t):
+                raise Refused(f"bad {k} server: {t!r}")
+        clean[k] = " ".join(toks)
+    if clean:
+        content = "# Managed by shani-shell\n[Time]\n" + "".join(f"{k}={v}\n" for k, v in clean.items())
+        TIMESYNCD_DROPIN.parent.mkdir(parents=True, exist_ok=True)
+        TIMESYNCD_DROPIN.write_text(content, encoding="utf-8")
+        os.chmod(TIMESYNCD_DROPIN, 0o644)
+    else:
+        try: TIMESYNCD_DROPIN.unlink()
+        except OSError: pass
+    subprocess.run(["systemctl", "restart", "systemd-timesyncd"], capture_output=True, text=True, timeout=20)
+    return timesyncd_get(req)
+
+
 COMMANDS = {
     "guest": guest,
     "wakeup": wakeup,
@@ -929,6 +977,8 @@ COMMANDS = {
     "journald-vacuum": journald_vacuum,
     "sysctl-get": sysctl_get,
     "sysctl-set": sysctl_set,
+    "timesyncd-get": timesyncd_get,
+    "timesyncd-set": timesyncd_set,
 }
 
 
