@@ -3,6 +3,9 @@
 
     agenda.py [DAYS]                    events from the start of today to DAYS
                                         ahead (7), sorted by start
+    agenda.py range START END           events in [START, END], epoch seconds
+                                        (the shell's loadRange; DAYS kept for
+                                         the old callers)
     agenda.py calendars                 the calendars there are:
                                         [{"name", "uid", "color", "readOnly"}]
     agenda.py add '<json>'              create an event (see below)
@@ -319,9 +322,8 @@ def _replace_event_fields(text: str, payload: dict) -> str:
     tz_param = f";TZID={zone}" if zone and not all_day else ""
 
     def dt(kind: str) -> str:
-        return (
-            f"{kind};VALUE={value}{tz_param}:"
-            + _fmt_in_zone(start if kind == "DTSTART" else end, all_day, zone)
+        return f"{kind};VALUE={value}{tz_param}:" + _fmt_in_zone(
+            start if kind == "DTSTART" else end, all_day, zone
         )
 
     replacements = {
@@ -332,7 +334,9 @@ def _replace_event_fields(text: str, payload: dict) -> str:
     }
     if "description" in payload:
         desc = str(payload.get("description") or "").strip()
-        replacements["DESCRIPTION"] = ("DESCRIPTION:" + _ical_escape(desc)) if desc else ""
+        replacements["DESCRIPTION"] = (
+            ("DESCRIPTION:" + _ical_escape(desc)) if desc else ""
+        )
     if "rrule" in payload:
         rule = _safe_rrule(payload.get("rrule"))
         replacements["RRULE"] = ("RRULE:" + rule) if rule else ""
@@ -655,6 +659,26 @@ def account_remove(uid: str) -> dict:
     return {"ok": True}
 
 
+def range_window(argv: list[str]) -> tuple[float, float]:
+    """The [start, end) epoch-second window this invocation asks for.
+
+    `range START END` is the shell's loadRange; the bare DAYS form (default 7)
+    stays for the old callers. Kept separate from events() so it is testable
+    without EDS bindings.
+    """
+    if len(argv) > 1 and argv[1] == "range":
+        if len(argv) < 4:
+            raise ValueError("usage: agenda.py range START END")
+        start, end = float(argv[2]), float(argv[3])
+        if not end > start:
+            raise ValueError("end must be after start")
+        return start, end
+    days = int(argv[1]) if len(argv) > 1 and argv[1].isdigit() else 7
+    now = time.localtime()
+    today = time.mktime((now.tm_year, now.tm_mon, now.tm_mday, 0, 0, 0, 0, 0, -1))
+    return today, today + days * 86400
+
+
 def main(argv: list[str]) -> int:
     if len(argv) > 2 and argv[1] == "import":
         try:
@@ -717,11 +741,13 @@ def main(argv: list[str]) -> int:
             print(f"agenda: no calendar service ({exc})", file=sys.stderr)
             return 2
         return 0
-    days = int(argv[1]) if len(argv) > 1 and argv[1].isdigit() else 7
-    now = time.localtime()
-    today = time.mktime((now.tm_year, now.tm_mon, now.tm_mday, 0, 0, 0, 0, 0, -1))
     try:
-        print(json.dumps(events(today, today + days * 86400)))
+        start, end = range_window(argv)
+    except ValueError as exc:
+        print(f"agenda: {exc}", file=sys.stderr)
+        return 3
+    try:
+        print(json.dumps(events(start, end)))
     except Exception as exc:  # noqa: BLE001 - no bindings, or the registry did not answer
         print(f"agenda: no calendar service ({exc})", file=sys.stderr)
         return 2

@@ -48,18 +48,36 @@ Singleton {
         case "volume": Audio.setVolume(Math.max(0, Math.min(100, parseInt(a) || 0)) / 100); break;
         case "style": Settings.data.darkMode = a === "dark"; break;
         case "open": Launch.app(a); break;
-        case "run": Quickshell.execDetached(["sh", "-c", a]); break;
+        // bound arbitrary user commands so a hang cannot wedge the shell
+        case "run": Quickshell.execDetached(["timeout", "10s", "sh", "-c", a]); break;
         default: return;
         }
         // keep a bounded, timestamped record instead of growing forever
         fired = fired.concat([{ at: new Date().toISOString(), rule: r.when + "=" + r.is + " → " + r.then + " " + a }]).slice(-50);
     }
+    // Two rules that share a trigger (when/is) and an action target (then)
+    // would write the same setting in array order — last write wins. Treat
+    // them as one conflict group; only the first of a group actually fires.
+    function conflictKey(r) {
+        return String(r.when || "") + "|" + String(r.is || "").trim() + "|" + String(r.then || "");
+    }
+    function conflictsAt(i) {
+        const list = Array.from(rules || []);
+        const r = list[i];
+        if (!r || r.on === false) return false;
+        const key = conflictKey(r);
+        return list.some((x, j) => j !== i && x.on !== false && conflictKey(x) === key);
+    }
     function check() {
         if (!Settings.loaded) return;
         const seen = {};
+        const firedKeys = {};
         Array.from(rules).forEach((r, i) => {
             const now = r.on !== false && holds(r);
-            if (now && !wasTrue[i]) act(r);
+            if (now && !wasTrue[i]) {
+                const key = conflictKey(r);
+                if (!firedKeys[key]) { act(r); firedKeys[key] = true; }
+            }
             seen[i] = now;
         });
         wasTrue = seen;

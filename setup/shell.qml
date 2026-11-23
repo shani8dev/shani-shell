@@ -749,6 +749,7 @@ ShellRoot {
                                 readonly property var wifi: Networking.devices.values.find(d => d.type === DeviceType.Wifi) || null
                                 readonly property bool online: Networking.connectivity === NetworkConnectivity.Full
                                 property string pending: ""
+                                property string failed: ""        // the network whose connect attempt failed
                                 property bool showPass: false
                                 property bool autoTried: false
                                 // join the first open network in range once, so a
@@ -817,7 +818,25 @@ ShellRoot {
                                             title: wRow.modelData.name
                                             subtitle: wRow.modelData.connected ? root.t("connected") : wRow.modelData.stateChanging ? root.t("connecting") : ""
                                             selected: wRow.modelData.connected
-                                            onClicked: wRow.modelData.security === WifiSecurityType.Open ? wRow.modelData.connect() : netPage.pending = wRow.modelData.name
+                                            onClicked: {
+                                                netPage.failed = "";
+                                                wRow.modelData.security === WifiSecurityType.Open ? wRow.modelData.connect() : netPage.pending = wRow.modelData.name;
+                                            }
+                                        }
+                                        // a refused password used to leave the row silently unconnected
+                                        Text {
+                                            Layout.fillWidth: true
+                                            Layout.leftMargin: 44
+                                            visible: netPage.failed === wRow.modelData.name && !wRow.modelData.connected && !wRow.modelData.stateChanging
+                                            text: Tr.t("Could not connect — try again")
+                                            color: Theme.danger
+                                            wrapMode: Text.Wrap
+                                            font.family: Theme.font
+                                            font.pixelSize: 12 * Theme.fontScale
+                                        }
+                                        Connections {
+                                            target: wRow.modelData
+                                            function onConnectionFailed(reason) { netPage.failed = wRow.modelData.name; }
                                         }
                                         RowLayout {
                                             Layout.fillWidth: true
@@ -828,13 +847,13 @@ ShellRoot {
                                                 Layout.fillWidth: true
                                                 placeholder: root.t("passwordFor") + wRow.modelData.name
                                                 secret: !netPage.showPass
-                                                onAccepted: { wRow.modelData.connectWithPsk(text); text = ""; netPage.pending = ""; }
+                                                onAccepted: { wRow.modelData.connectWithPsk(text); text = ""; netPage.pending = ""; netPage.failed = ""; }
                                             }
                                             Button {
                                                 text: root.t("connect")
                                                 kind: "primary"
                                                 enabled: wifiPass.text !== ""
-                                                onClicked: { wRow.modelData.connectWithPsk(wifiPass.text); wifiPass.text = ""; netPage.pending = ""; }
+                                                onClicked: { wRow.modelData.connectWithPsk(wifiPass.text); wifiPass.text = ""; netPage.pending = ""; netPage.failed = ""; }
                                             }
                                             Choice {
                                                 text: netPage.showPass ? root.t("hidePassword") : root.t("showPassword")
@@ -1281,10 +1300,14 @@ ShellRoot {
                                         KeyFocus { onActivated: root.chronoaOn = false }
                                     }
                                 }
-                                // Continue control inside the chronoa page
+                                // Continue control inside the chronoa page — on a
+                                // narrow screen the rail and the shared Back row
+                                // are hidden, so this page needs its own Back.
                                 RowLayout {
                                     Layout.fillWidth: true
                                     Layout.topMargin: 8
+                                    spacing: 8
+                                    Button { kind: "outline"; text: root.t("back"); onClicked: root.back() }
                                     Item { Layout.fillWidth: true }
                                     Button { kind: "primary"; text: root.t("start"); onClicked: root.next() }
                                 }
@@ -1318,6 +1341,37 @@ ShellRoot {
                                     && (root.pageId !== "welcome" || root.locale !== "")
                                     && (root.pageId !== "time" || root.timezone !== "")
                                 onClicked: root.next()
+                            }
+                            // the machine itself: sleep, restart, power off (logind).
+                            // A person stuck in first-boot with no account still needs
+                            // to reboot or shut down; two taps for the last two.
+                            Row {
+                                spacing: 8
+                                IconButton { icon: "weather-clear-night"; Accessible.name: Tr.t("Sleep"); onClicked: Quickshell.execDetached(["systemctl", "suspend"]) }
+                                Repeater {
+                                    model: [{ icon: "system-reboot", name: "Restart", cmd: "reboot" }, { icon: "system-shutdown", name: "Power off", cmd: "poweroff" }]
+                                    Row {
+                                        id: powerKey
+                                        required property var modelData
+                                        property bool armed: false
+                                        spacing: 4
+                                        Timer { running: powerKey.armed; interval: 4000; onTriggered: powerKey.armed = false }
+                                        Text {
+                                            visible: powerKey.armed
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: Tr.t(powerKey.modelData.name) + "?"
+                                            color: Theme.danger
+                                            font.family: Theme.font
+                                            font.pixelSize: 13 * Theme.fontScale
+                                        }
+                                        IconButton {
+                                            icon: powerKey.modelData.icon
+                                            on: powerKey.armed
+                                            Accessible.name: powerKey.armed ? Tr.t(powerKey.modelData.name) + ", press again to confirm" : Tr.t(powerKey.modelData.name)
+                                            onClicked: powerKey.armed ? Quickshell.execDetached(["systemctl", powerKey.modelData.cmd]) : (powerKey.armed = true)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

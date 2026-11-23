@@ -349,7 +349,7 @@ ShellRoot {
 
                 Text {
                     Layout.alignment: Qt.AlignHCenter
-                    text: Qt.formatTime(clock.date, "HH:mm")
+                    text: Qt.formatTime(clock.date, root.clockLocale, Locale.ShortFormat)
                     font.features: { "tnum": 1 }
                     color: root.textColor
                     font.family: Theme.font
@@ -358,7 +358,7 @@ ShellRoot {
                 }
                 Text {
                     Layout.alignment: Qt.AlignHCenter
-                    text: Qt.formatDate(clock.date, "dddd, d MMMM")
+                    text: Qt.formatDate(clock.date, root.clockLocale, Locale.LongFormat)
                     color: root.dimColor
                     font.family: Theme.font
                     font.pixelSize: 18 * Theme.fontScale
@@ -592,6 +592,19 @@ ShellRoot {
         blockWrites: true       // written just before launch(quit=true) exits the greeter
         printErrors: false
     }
+
+    // first-boot setup writes LANG through localectl (=/etc/locale.conf); the
+    // greeter runs before any user config exists, so read that file directly and
+    // fall back to the process environment. The clock is the first thing a new
+    // user sees, so it must speak their language.
+    property string systemLocale: Quickshell.env("LC_ALL") || Quickshell.env("LANG") || ""
+    FileView {
+        path: Quickshell.env("SHANI_GREETER_LOCALE_CONF") || "/etc/locale.conf"
+        printErrors: false
+        onLoaded: { const m = /^LANG=(\S+)/m.exec(text()); if (m) root.systemLocale = m[1]; }
+    }
+    readonly property var clockLocale: root.systemLocale
+        ? Qt.locale(root.systemLocale.split(".")[0]) : Qt.locale()
 
     SystemClock {
         id: clock

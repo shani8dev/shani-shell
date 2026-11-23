@@ -846,7 +846,12 @@ AppWindow {
                             onClicked: PlayQueue.rate = modelData
                         }
                     }
-                    IconButton { icon: "media-playlist-repeat"; tip: Tr.t("Repeat this one"); on: PlayQueue.repeatOne; onClicked: PlayQueue.repeatOne = !PlayQueue.repeatOne }
+                    IconButton {
+                        icon: PlayQueue.repeat === "one" ? "media-playlist-repeat-song" : "media-playlist-repeat"
+                        tip: PlayQueue.repeat === "off" ? Tr.t("Repeat off") : PlayQueue.repeat === "all" ? Tr.t("Repeat all") : Tr.t("Repeat this one")
+                        on: PlayQueue.repeat !== "off"
+                        onClicked: PlayQueue.repeat = PlayQueue.repeat === "off" ? "all" : PlayQueue.repeat === "all" ? "one" : "off"
+                    }
                     IconButton { icon: "media-playlist-shuffle"; tip: Tr.t("Shuffle"); on: PlayQueue.shuffle; onClicked: PlayQueue.shuffle = !PlayQueue.shuffle }
                     IconButton {
                         icon: PlayQueue.muted || PlayQueue.volume === 0 ? "audio-volume-muted" : PlayQueue.volume < 0.5 ? "audio-volume-low" : "audio-volume-high"
@@ -902,7 +907,11 @@ AppWindow {
                     anchors.fill: parent
                     anchors.margins: Theme.px(10)
                     spacing: Theme.px(6)
-                    SectionTitle { Layout.fillWidth: true; text: Tr.t("Queue") + "  ·  " + PlayQueue.queue.length }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        SectionTitle { Layout.fillWidth: true; text: Tr.t("Queue") + "  ·  " + PlayQueue.queue.length }
+                        Button { text: Tr.t("Clear"); flat: true; enabled: PlayQueue.queue.length > 0; onClicked: PlayQueue.clear() }
+                    }
                     ListView {
                         reuseItems: true
                         cacheBuffer: 400
@@ -925,7 +934,7 @@ AppWindow {
                             Accessible.name: modelData.split("/").pop()
                             Accessible.onPressAction: PlayQueue.go(index)
                             Text {
-                                anchors { left: parent.left; right: parent.right; margins: Theme.px(8); verticalCenter: parent.verticalCenter }
+                                anchors { left: parent.left; right: parent.right; leftMargin: Theme.px(8); rightMargin: Theme.px(34); verticalCenter: parent.verticalCenter }
                                 text: row.modelData.split("/").pop()
                                 color: row.now ? Theme.text : Theme.dim
                                 elide: Text.ElideMiddle
@@ -934,6 +943,14 @@ AppWindow {
                             }
                             MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: PlayQueue.go(row.index) }
                             KeyFocus { onActivated: PlayQueue.go(row.index) }   // keys and a controller: play this one
+                            IconButton {
+                                width: parent.height; height: parent.height
+                                anchors { right: parent.right; verticalCenter: parent.verticalCenter; rightMargin: Theme.px(2) }
+                                size: Theme.px(18)
+                                icon: "list-remove"
+                                tip: Tr.t("Remove from the queue")
+                                onClicked: PlayQueue.remove(row.index)
+                            }
                         }
                     }
                 }

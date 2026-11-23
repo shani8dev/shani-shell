@@ -49,7 +49,7 @@ FloatingWindow {
     Component.onCompleted: {
         register();
         Ui.registerAppWindow(win.desktopId, {
-            close: () => { win.visible = false; },
+            close: () => { win.requestClose(); },
             minimise: () => { Niri.minimiseWindowByTitle(win.title); }
         });
     }
@@ -62,6 +62,18 @@ FloatingWindow {
     }
 
     function toggleMaximised() { win.maximized = !win.maximized; }
+
+    // Every close path (the X, Mod+Q, the dock) asks here first. The editor keeps
+    // unsaved text in TextDocs across a window close, so offer Save / Discard.
+    property bool closePending: false
+    function canClose() {
+        if (win.appName === "Text Editor" && TextDocs.unsaved > 0) {
+            closePending = true;
+            return false;
+        }
+        return true;
+    }
+    function requestClose() { if (canClose()) win.visible = false; }
 
     Item {
         id: frame
@@ -104,10 +116,9 @@ FloatingWindow {
             // the empty part of the header moves the window, and maximises it on a double click
             MouseArea {
                 anchors.fill: parent
-                acceptedButtons: Qt.LeftButton | Qt.MiddleButton
-                onPressed: m => { if (m.button === Qt.LeftButton) win.startSystemMove(); }
+                acceptedButtons: Qt.LeftButton
+                onPressed: win.startSystemMove()
                 onDoubleClicked: win.toggleMaximised()
-                onClicked: m => { if (m.button === Qt.MiddleButton) win.visible = false; }
             }
 
             RowLayout {
@@ -157,7 +168,7 @@ FloatingWindow {
                 Rectangle { visible: toolRow.children.length > 0; Layout.preferredWidth: 1; Layout.preferredHeight: Theme.px(20); color: Theme.border }
                 WindowButton { visible: !win.compact; icon: "window-minimize"; tip: Tr.t("Minimise"); onClicked: Ui.minimise(win.desktopId) }
                 WindowButton { visible: !win.compact; icon: win.maximized ? "window-restore" : "window-maximize"; tip: win.maximized ? Tr.t("Restore") : Tr.t("Maximise"); onClicked: win.toggleMaximised() }
-                WindowButton { icon: "window-close"; tip: Tr.t("Close"); danger: true; onClicked: win.visible = false }
+                WindowButton { icon: "window-close"; tip: Tr.t("Close"); danger: true; onClicked: win.requestClose() }
             }
         }
 
@@ -207,6 +218,55 @@ FloatingWindow {
                 onPressed: win.startSystemResize(modelData.e)
             }
         }
+
+        // The unsaved-work choice. Shown only while a close is pending, over the
+        // bottom of the app; every button clears the flag before acting.
+        Rectangle {
+            id: closeGuard
+            visible: win.closePending
+            z: 20
+            anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+            height: visible ? Math.max(Theme.px(42), Theme.touchTarget + Theme.px(8)) : 0
+            color: Theme.surface2
+            RowLayout {
+                anchors { fill: parent; leftMargin: Theme.px(10); rightMargin: Theme.px(6) }
+                spacing: Theme.px(6)
+                Text {
+                    Layout.fillWidth: true
+                    text: Tr.t("Save changes before closing?")
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    elide: Text.ElideRight
+                }
+                GuardButton { label: Tr.t("Cancel"); onClicked: win.closePending = false }
+                GuardButton { label: Tr.t("Discard"); onClicked: { win.closePending = false; win.visible = false; } }
+                GuardButton { label: Tr.t("Save"); primary: true; onClicked: { TextDocs.save(); win.closePending = false; win.visible = false; } }
+            }
+        }
+    }
+
+    component GuardButton: Rectangle {
+        id: gb
+        property string label
+        property bool primary: false
+        signal clicked()
+        Layout.preferredHeight: Math.max(Theme.px(30), Theme.touchTarget)
+        Layout.preferredWidth: gb.label.length * Theme.px(8) + Theme.px(24)
+        radius: Theme.px(8)
+        color: area.pressed ? Theme.pressed : area.containsMouse ? Theme.hover : (gb.primary ? Theme.accent : Theme.surface3)
+        Text {
+            anchors.centerIn: parent
+            text: gb.label
+            color: gb.primary ? Theme.accentInk : Theme.text
+            font.family: Theme.font
+            font.pixelSize: Theme.px(12) * Theme.fontScale
+        }
+        Accessible.role: Accessible.Button
+        Accessible.name: gb.label
+        Accessible.onPressAction: gb.clicked()
+        MouseArea { id: area; anchors.fill: parent; hoverEnabled: true; onClicked: gb.clicked() }
+        KeyFocus { name: gb.label; onActivated: gb.clicked() }
     }
 
     component WindowButton: Rectangle {

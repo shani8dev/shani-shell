@@ -13,6 +13,7 @@ Singleton {
     readonly property var d: Settings.data
     property bool available: false        // GeoClue2 + helper present
     property bool running: false
+    readonly property bool active: root.running   // in use: the bar's privacy chip reads this
     property real lat: 0
     property real lon: 0
     property real accuracy: 0

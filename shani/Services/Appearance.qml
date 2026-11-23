@@ -48,6 +48,8 @@ Singleton {
     }
     function minutes(s) { const m = /^(\d\d?):(\d\d)$/.exec(s || ""); return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : -1; }
     function wantDark() {
+        if (d.darkSchedule === "system")
+            return root.systemScheme === "prefer-dark";
         const now = new Date(), t = now.getHours() * 60 + now.getMinutes();
         let from, to;
         if (d.darkSchedule === "sunset") {
@@ -62,7 +64,7 @@ Singleton {
         interval: 60000
         repeat: true
         triggeredOnStart: true
-        running: Settings.loaded && root.d.darkSchedule !== "manual"
+        running: Settings.loaded && root.d.darkSchedule !== "manual" && root.d.darkSchedule !== "system"
         onTriggered: {
             const want = root.wantDark();
             if (want !== root.lastWanted)
@@ -71,6 +73,39 @@ Singleton {
         }
         onRunningChanged: root.lastWanted = null
     }
+
+    // ---- follow the system colour scheme ------------------------------------
+    // "system" makes GNOME's org.gnome.desktop.interface color-scheme the source
+    // of truth. The monitor wakes only on a change (as in WallpaperSync); an
+    // initial get covers startup. In this mode we READ the key instead of
+    // writing it (see the Process below), so there is no echo loop.
+    // The Settings UI option is a later addition; manual/sunset/custom are intact.
+    property string systemScheme: ""
+    function applySystemScheme(value) {
+        const s = String(value || "").trim().replace(/^['"]|['"]$/g, "");
+        root.systemScheme = s;
+        const dark = s === "prefer-dark";
+        if (Settings.loaded && Settings.data.darkMode !== dark)
+            Settings.data.darkMode = dark;
+    }
+    Process {
+        running: Settings.loaded && root.d.darkSchedule === "system"
+        command: ["gsettings", "get", "org.gnome.desktop.interface", "color-scheme"]
+        stdout: StdioCollector { onStreamFinished: root.applySystemScheme(text) }
+        onCommandChanged: if (Settings.loaded && root.d.darkSchedule === "system") running = true
+    }
+    Process {
+        running: Settings.loaded && root.d.darkSchedule === "system"
+        command: ["gsettings", "monitor", "org.gnome.desktop.interface", "color-scheme"]
+        stdout: SplitParser {
+            onRead: line => {
+                const m = /^color-scheme:\s*(.*)$/.exec(line.trim());
+                if (m && Settings.loaded && root.d.darkSchedule === "system")
+                    root.applySystemScheme(m[1]);
+            }
+        }
+    }
+
     // ---- wallpaper slideshow: the pictures in a folder, one after another ----
     // shuffle: random order instead of alphabetical
     property int slide: 0
@@ -114,9 +149,11 @@ Singleton {
     }
 
     Process {
-        running: true
+        // in "system" mode this key is an input, not an output — writing it
+        // would fight the monitor above and overwrite the person's own choice
+        running: Settings.loaded && root.d.darkSchedule !== "system"
         command: ["gsettings", "set", "org.gnome.desktop.interface", "color-scheme", Settings.data.darkMode ? "prefer-dark" : "default"]
-        onCommandChanged: running = true
+        onCommandChanged: if (Settings.loaded && root.d.darkSchedule !== "system") running = true
     }
     // once the settings are read, so a first start does not write defaults over the person's own
     Process {

@@ -16,7 +16,9 @@ pragma Singleton
 //     pointing the wallpaper setting at the picture instead, then reloads —
 //     same command, same result.
 //   - Save theme persists the palette snapshot to Settings as a named theme
-//     (Settings.data.wallpaperStyleThemes); re-applying one is re-applying its image.
+//     (Settings.data.wallpaperStyleThemes); loading one materialises that
+//     snapshot directly, so a moved/deleted picture cannot kill the theme.
+//     Apply snapshots the theme keys it changes; revert() puts them back.
 // Shown in Settings > Personalisation (Modules/Settings/SettingsWallpaperStyle.qml); `themeFromImage(path)`
 // opens it (`shani aether`).
 import Quickshell
@@ -29,6 +31,7 @@ Singleton {
     property string image: ""        // the picture being considered; "" until opened
     property string note: ""         // the last action's words, for the panel + `state`
     property string lastSaved: ""    // the name saved last, for `state`
+    property var beforeApply: null   // theme keys before the last Apply, for revert()
 
     readonly property string lastWallpaper: Theme.wallpaper || Settings.data.wallpaper
 
@@ -53,6 +56,16 @@ Singleton {
     function apply() {
         if (!root.image) { root.note = Tr.t("Pick a picture first"); return; }
         if (!Matugen.available) { root.note = Tr.t("matugen is not installed — cannot extract colours"); return; }
+        // remember exactly what this call changes, so a single revert() can put
+        // it back (a UI button can be added without touching the theme keys)
+        root.beforeApply = {
+            adaptivePalette: Settings.data.adaptivePalette,
+            wallpaper: Settings.data.wallpaper,
+            themeWallpaper: Theme.themeWallpaper,
+            slideshowWallpaper: Theme.slideshowWallpaper,
+            savedPalette: JSON.parse(JSON.stringify(Theme.savedPalette || {}))
+        };
+        Theme.savedPalette = {};   // a live extract now owns the palette
         Settings.data.adaptivePalette = true;
         // the wallpaper setting points at the picture, and the colours follow it.
         // Never a copy over the current wallpaper's file: that file is often the
@@ -71,6 +84,22 @@ Singleton {
         root.note = Tr.t("This picture is the wallpaper now, and the colours come from it");
     }
 
+    // put the theme keys back to their pre-apply values and regen from the old
+    // wallpaper. Exposed for a future "Revert" button; the snapshot is taken in
+    // apply(), so a revert before any apply is a no-op with a word.
+    function revert() {
+        const s = root.beforeApply;
+        if (!s) { root.note = Tr.t("Nothing to revert"); return; }
+        Settings.data.adaptivePalette = s.adaptivePalette;
+        Settings.data.wallpaper = s.wallpaper;
+        Theme.themeWallpaper = s.themeWallpaper;
+        Theme.slideshowWallpaper = s.slideshowWallpaper;
+        Theme.savedPalette = s.savedPalette || {};
+        root.beforeApply = null;
+        Matugen.reload();
+        root.note = Tr.t("Reverted the last theme apply");
+    }
+
     // persist the extracted palette snapshot as a named theme
     function saveTheme(name) {
         const n = String(name || "").trim() || "Untitled theme";
@@ -85,10 +114,22 @@ Singleton {
         root.note = Tr.t("Saved “" + n + "” to Settings");
     }
 
-    // re-open a saved theme's picture (Apply then re-extracts it)
+    // Re-apply a saved theme from its stored palette snapshot: the picture may
+    // have been moved or deleted, so re-reading it must not be required. Live
+    // matugen output takes over again on the next wallpaper change or Apply.
     function loadTheme(idx) {
         const t = (Settings.data.wallpaperStyleThemes || [])[idx];
-        if (t)
-            root.open(t.image || "");
+        if (!t) return;
+        root.lastSaved = t.name || "";
+        root.image = t.image || "";
+        const pal = t.palette || {};
+        if (Object.keys(pal).length) {
+            Settings.data.adaptivePalette = true;
+            Theme.savedPalette = JSON.parse(JSON.stringify(pal));
+            root.note = Tr.t("Restored “" + (t.name || "theme") + "” from its saved palette");
+        } else {
+            Theme.savedPalette = {};
+            root.note = Tr.t("This saved theme has no palette snapshot");
+        }
     }
 }

@@ -30,7 +30,9 @@ Singleton {
         root.playList([url], 0);
         root.opened();                        // the window goes to Now playing
     }
-    property bool repeatOne: false
+    // off | all | one — MPRIS None | Playlist | Track
+    property string repeat: "off"
+    readonly property bool repeatOne: repeat === "one"   // kept for readers of the old flag
     property bool shuffle: false
     // the window's readings
     property bool playing: false
@@ -226,6 +228,7 @@ Singleton {
         // it plays at once; the folder's other files join the queue when they are listed
         root.queue = [path];
         root.index = 0;
+        root.history = [];
         root.playRequested();
         siblings.want = path;
         siblings.command = ["sh", "-c", 'if [ -d "$1" ]; then d=$1; else d=${1%/*}; fi; find "$d" -maxdepth 1 -type f -printf "%p\\n" 2>/dev/null | sort -V | head -2000', "sh", path];
@@ -248,6 +251,7 @@ Singleton {
                 if (root.queue.length === 1 && root.queue[0] === first || wanted === "") {
                     root.queue = all;
                     root.index = Math.max(0, at);
+                    root.history = [];
                     if (wanted === "")
                         root.playRequested();
                 }
@@ -263,13 +267,39 @@ Singleton {
         root.error = "";
         root.queue = paths.slice();
         root.index = Math.max(0, Math.min(paths.length - 1, at || 0));
+        root.history = [];
         root.playRequested();
     }
+    // the indices we actually played, so Back retraces a shuffle jump too
+    property var history: []
     function go(i) {
         if (i < 0 || i >= queue.length)
             return;
+        if (index >= 0 && i !== index) {
+            const h = history.slice(); h.push(index); history = h;
+        }
         index = i;
         playRequested();
+    }
+    // edits keep `current` pointing at a real row
+    function remove(i) {
+        if (i < 0 || i >= queue.length)
+            return;
+        const wasCurrent = i === index, wasPlaying = playing;
+        const q = queue.slice(); q.splice(i, 1);
+        queue = q;
+        history = [];                    // the old indices no longer mean anything
+        if (i < index) index--;
+        else if (index >= q.length) index = q.length - 1;
+        if (q.length === 0) { playing = false; position = 0; }
+        else if (wasCurrent && wasPlaying) playRequested();
+    }
+    function clear() {
+        queue = [];
+        index = -1;
+        history = [];
+        playing = false;
+        position = 0;
     }
     function next() {
         if (queue.length < 2)
@@ -282,14 +312,20 @@ Singleton {
             seekRequested(0);
             return;
         }
-        go((index - 1 + queue.length) % queue.length);
+        if (history.length) {
+            const h = history.slice(), prev = h.pop();
+            history = h;
+            index = prev;
+            playRequested();
+        } else
+            go((index - 1 + queue.length) % queue.length);
     }
-    // the file ended: the next one, the same one again, or stop at the last
+    // the file ended: replay it, play on through the queue, or stop at the last
     function ended() {
-        if (repeatOne) {
+        if (repeat === "one" || (repeat === "all" && queue.length === 1)) {
             seekRequested(0);
             playRequested();
-        } else if (shuffle || index < queue.length - 1)
+        } else if (repeat === "all" || shuffle || index < queue.length - 1)
             next();
     }
     // Stop: pause and rewind (what MPRIS stop means); the file stays queued
@@ -307,7 +343,7 @@ Singleton {
             url: current !== "" ? "file://" + current.split("/").map(encodeURIComponent).join("/") : "",
             length: duration, position: position, volume: muted ? 0 : volume, rate: rate,
             canNext: queue.length > 1, canPrevious: queue.length > 1,
-            loop: repeatOne ? "Track" : "None", shuffle: shuffle }) + "\n";
+            loop: repeat === "one" ? "Track" : repeat === "all" ? "Playlist" : "None", shuffle: shuffle }) + "\n";
     }
     function tellMpris() { if (mpris.running) mpris.write(mprisState()); }
     onPlayingChanged: tellMpris()
@@ -315,7 +351,7 @@ Singleton {
     onVolumeChanged: tellMpris()
     onMutedChanged: tellMpris()
     onRateChanged: tellMpris()
-    onRepeatOneChanged: tellMpris()
+    onRepeatChanged: tellMpris()
     onShuffleChanged: tellMpris()
     onQueueChanged: tellMpris()
     onSeekRequested: seconds => { if (mpris.running) mpris.write(JSON.stringify({ seeked: seconds }) + "\n"); }
@@ -341,7 +377,7 @@ Singleton {
                 else if (c.op === "seek") root.seekRequested(Number(c.to) || 0);
                 else if (c.op === "volume") { root.muted = false; root.volume = Math.max(0, Math.min(1, Number(c.value))); }
                 else if (c.op === "rate") root.rate = Math.max(0.25, Math.min(4, Number(c.value) || 1));
-                else if (c.op === "loop") root.repeatOne = c.value === "Track";
+                else if (c.op === "loop") root.repeat = c.value === "Track" ? "one" : c.value === "Playlist" ? "all" : "off";
                 else if (c.op === "shuffle") root.shuffle = !!c.value;
                 else if (c.op === "open") root.open(c.uri);
                 else if (c.op === "raise") root.raiseRequested();

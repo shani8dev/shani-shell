@@ -20,6 +20,7 @@ Singleton {
 
     property bool available: false     // firewall-cmd is installed
     property bool running: false       // firewalld is up
+    property bool probed: false        // the startup read has answered: below states are real
     property string defaultZone: ""
     property var zones: []             // [{ name, active, target, services, ports, interfaces, rich }]
     property var zoneNames: []         // every zone, active or not (--get-zones)
@@ -84,6 +85,7 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: {
                 const lines = text.split("\n");
+                root.probed = true;
                 root.available = true;
                 root.running = true;
                 const m = /^default=(.*)$/.exec(lines[0] || "");
@@ -94,6 +96,7 @@ Singleton {
             }
         }
         onExited: code => {
+            root.probed = true;
             if (code === 3) { root.available = false; root.running = false; root.zones = []; }
             else if (code === 4) { root.available = true; root.running = false; root.zones = []; }
         }

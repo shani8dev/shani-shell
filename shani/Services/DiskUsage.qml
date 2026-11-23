@@ -30,6 +30,33 @@ Singleton {
     readonly property int totalSize: entries.reduce((s, e) => s + (e.size || 0), 0)
     readonly property var markedPaths: marked   // paths marked for removal
 
+    // ---- capacity: one bounded df per minute, only while the shell is up ------
+    // The treemap walks a folder on demand, so there was no size/used/free field
+    // for a bar chip to read. df fills one; the poll is lazy and capped at 10 s.
+    property var mounts: []                             // [{ target, usedPct }]
+    readonly property bool anyFull: mounts.some(m => m.usedPct > 90)
+    readonly property int fullestPct: mounts.reduce((mx, m) => Math.max(mx, m.usedPct), 0)
+
+    function pollCapacity() {
+        Proc.run("diskusage-df", ["df", "--output=pcent,target"], (out, code) => {
+            if (code !== 0) return;
+            const rows = String(out || "").split("\n").slice(1);   // drop the "Use% Mounted on" header
+            const parsed = [];
+            for (const line of rows) {
+                const m = /^\s*(\d+)%\s+(.+?)\s*$/.exec(line);
+                if (m) parsed.push({ target: m[2], usedPct: Number(m[1]) });
+            }
+            root.mounts = parsed;
+        }, 0, 10000);
+    }
+    Timer {
+        interval: 60000
+        repeat: true
+        running: Settings.loaded
+        triggeredOnStart: true
+        onTriggered: root.pollCapacity()
+    }
+
     function homeDir() { return Quickshell.env("HOME") || "/tmp"; }
 
     function open(dir) {

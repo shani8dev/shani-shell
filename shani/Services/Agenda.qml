@@ -19,6 +19,13 @@ Singleton {
     id: root
     readonly property string tool: Quickshell.env("SHANI_AGENDA_TOOL") || "/usr/lib/shani-shell/agenda.py"
     property var allEvents: []            // [{ start, end, summary, location, calendar, allDay, uid }] (seconds)
+    // Date-keyed cache of everything read so far. Each read replaces only the
+    // window it covers, so stepping to another week/month fills the gaps and
+    // an edit in that window still drops deleted events.
+    property var loadedDays: ({})         // "yyyy-MM-dd" -> true, for a quick "was this day fetched?"
+    property var _ranges: ({})            // requested "start:end" windows, never fetched twice
+    property var _pending: []             // range commands queued while a read is running
+    property var _readWindow: null        // [start, end] seconds of the read in flight
     // what everything shows: the events of the calendars not hidden
     readonly property var events: hidden.length ? allEvents.filter(e => hidden.indexOf(e.calendar) < 0) : allEvents
     property bool available: false
@@ -46,8 +53,35 @@ Singleton {
     // asked while a read is running: read once more when it ends (a change - an
     // import, an account's first sync - must not be lost to a read already under way)
     property bool _readAgain: false
+    // the default read is the old "7 days from today" form; a Calendar view
+    // overrides it with the window it actually shows
+    property var _activeCommand: ["python3", root.tool, "7"]
+
+    function _windowOf(cmd) {
+        return cmd.length > 4 && cmd[2] === "range" ? [Number(cmd[3]), Number(cmd[4])] : null;
+    }
+    function _startRead(cmd) {
+        root._readWindow = root._windowOf(cmd);
+        read.command = cmd;
+        read.running = true;
+    }
+    // Fetch the half-open [from, to) window (Dates or epoch-ms). Used by the
+    // Calendar when its view/offset changes; repeated calls are no-ops.
+    function loadRange(from, to) {
+        const a = from instanceof Date ? from : new Date(from);
+        const b = to instanceof Date ? to : new Date(to);
+        const s = Math.floor(a.getTime() / 1000), e = Math.ceil(b.getTime() / 1000);
+        if (!isFinite(s) || !isFinite(e) || e <= s) return;
+        const key = s + ":" + e;
+        if (root._ranges[key]) return;
+        root._ranges[key] = true;
+        root._activeCommand = ["python3", root.tool, "range", String(s), String(e)];
+        if (read.running) root._pending = root._pending.concat([root._activeCommand]);
+        else root._startRead(root._activeCommand);
+    }
     function refresh() {
-        if (read.running) root._readAgain = true; else read.running = true;
+        if (read.running) root._readAgain = true;
+        else root._startRead(root._activeCommand);
         if (!sources.running) sources.running = true;
     }
     Process {
@@ -195,12 +229,38 @@ Singleton {
         command: ["python3", root.tool, "7"]
         stdout: StdioCollector {
             onStreamFinished: {
-                try { root.allEvents = JSON.parse(text); root.available = true; } catch (e) {}
+                try {
+                    const got = JSON.parse(text);
+                    if (Array.isArray(got)) {
+                        const w = root._readWindow;
+                        const merged = w ? root.allEvents.filter(e => e.start < w[0] || e.start >= w[1]) : [];
+                        const seen = {};
+                        for (const e of merged) seen[(e.uid || "") + "@" + e.start + "@" + (e.summary || "")] = true;
+                        const days = Object.assign({}, root.loadedDays);
+                        for (const e of got) {
+                            const k = (e.uid || "") + "@" + e.start + "@" + (e.summary || "");
+                            if (!seen[k]) { seen[k] = true; merged.push(e); }
+                            days[Qt.formatDate(new Date(e.start * 1000), "yyyy-MM-dd")] = true;
+                        }
+                        merged.sort((a, b) => a.start - b.start);
+                        root.allEvents = merged;
+                        root.loadedDays = days;
+                    }
+                    root.available = true;
+                } catch (e) {}
             }
         }
         onExited: code => {
             if (code === 2) root.available = false;
-            if (root._readAgain) { root._readAgain = false; Qt.callLater(() => { read.running = true; }); }
+            // queued ranges first, then a plain refresh requested while busy
+            if (root._pending.length) {
+                const next = root._pending[0];
+                root._pending = root._pending.slice(1);
+                Qt.callLater(() => { root._startRead(next); });
+            } else if (root._readAgain) {
+                root._readAgain = false;
+                Qt.callLater(() => { root._startRead(root._activeCommand); });
+            }
         }
     }
     Process {

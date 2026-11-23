@@ -34,7 +34,7 @@ AppWindow {
     implicitHeight: Math.max(320, Math.min(900, col.implicitHeight + 40))
     // blur behind the card, as on every shell surface (ext-background-effect)
 
-    onVisibleChanged: if (visible) { Agenda.refresh(); win.view = Ui.calendarView || "month"; }
+    onVisibleChanged: if (visible) { Agenda.refresh(); win.view = Ui.calendarView || "month"; win.ensureRange(); }
     Connections { target: Ui; function onCalendarViewChanged() { win.view = Ui.calendarView || "month"; } }
 
     Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: { if (win.editor) win.closeEditor(); else Ui.calendar = false; } }
@@ -200,6 +200,41 @@ AppWindow {
         selectedDate = new Date(y, m, d);
         Ui.calendarView = "day";
         view = "day";
+    }
+    // Fetch exactly the window on screen. Agenda merges it into a date-keyed
+    // cache, so stepping weeks/months/years stops showing empty grids.
+    function ensureRange() {
+        let from, to;
+        if (view === "year") {
+            from = new Date(month.getFullYear(), 0, 1);
+            to = new Date(month.getFullYear() + 1, 0, 1);
+        } else if (view === "month") {
+            from = new Date(month.getFullYear(), month.getMonth(), 1);
+            to = new Date(month.getFullYear(), month.getMonth() + 1, 1);
+        } else {  // day and week both show a week at a time
+            from = weekStart;
+            to = new Date(weekDays[6].getFullYear(), weekDays[6].getMonth(), weekDays[6].getDate() + 1);
+        }
+        Agenda.loadRange(from, to);
+    }
+    Connections {
+        target: win
+        function onOffsetChanged() { win.ensureRange(); }
+        function onSelectedDateChanged() { win.ensureRange(); }
+        function onViewChanged() { win.ensureRange(); }
+    }
+    // A hidden event in an overfull hour: show its whole day, where all of them fit.
+    function openDayFromWeek(col) {
+        selectWeekDay(col);
+        Ui.calendarView = "day";
+        view = "day";
+    }
+    // EDS calendar colours are arbitrary strings; fall back rather than assign
+    // an invalid color to a typed property.
+    function eventColor(cal) {
+        const c = Agenda.colorOf(cal);
+        if (!c) return Theme.accent;
+        try { Qt.color(c); return c; } catch (e) { return Theme.accent; }
     }
     // the week on screen: seven days from its first, which follows "week starts on"
     readonly property date weekStart: new Date(weekAnchor.getFullYear(), weekAnchor.getMonth(),
@@ -706,15 +741,22 @@ AppWindow {
                                     model: allDayCell._evs
                                     Rectangle {
                                         required property var modelData
+                                        readonly property color calColor: win.eventColor(modelData.calendar)
                                         Layout.fillWidth: true
                                         implicitHeight: Theme.px(16)
                                         radius: Theme.px(4)
-                                        color: Theme.accentSoft
+                                        color: Theme.alpha(calColor, 0.45)
                                         Accessible.role: Accessible.Button
                                         Accessible.name: modelData.summary
+                                        Rectangle {
+                                            anchors { left: parent.left; top: parent.top; bottom: parent.bottom; leftMargin: 1; topMargin: 1; bottomMargin: 1 }
+                                            width: Theme.px(3)
+                                            color: parent.calColor
+                                            radius: Theme.px(2)
+                                        }
                                         Text {
                                             anchors.fill: parent
-                                            anchors.leftMargin: Theme.px(4); anchors.rightMargin: Theme.px(4)
+                                            anchors.leftMargin: Theme.px(6); anchors.rightMargin: Theme.px(4)
                                             text: modelData.summary
                                             color: Theme.text
                                             elide: Text.ElideRight
@@ -785,15 +827,22 @@ AppWindow {
                                                 model: hourCell._evs.slice(0, 2)
                                                 Rectangle {
                                                     required property var modelData
+                                                    readonly property color calColor: win.eventColor(modelData.calendar)
                                                     Layout.fillWidth: true
                                                     implicitHeight: Theme.px(14)
                                                     radius: Theme.px(3)
-                                                    color: Theme.accentSoft
+                                                    color: Theme.alpha(calColor, 0.45)
                                                     Accessible.role: Accessible.Button
                                                     Accessible.name: modelData.summary + " " + win.zoneTime(modelData.start)
+                                                    Rectangle {
+                                                        anchors { left: parent.left; top: parent.top; bottom: parent.bottom; leftMargin: 1; topMargin: 1; bottomMargin: 1 }
+                                                        width: Theme.px(3)
+                                                        color: parent.calColor
+                                                        radius: Theme.px(2)
+                                                    }
                                                     Text {
                                                         anchors.fill: parent
-                                                        anchors.leftMargin: Theme.px(3); anchors.rightMargin: Theme.px(3)
+                                                        anchors.leftMargin: Theme.px(6); anchors.rightMargin: Theme.px(3)
                                                         text: modelData.summary
                                                         color: Theme.text
                                                         elide: Text.ElideRight
@@ -803,6 +852,21 @@ AppWindow {
                                                     }
                                                     MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.viewEvent(modelData) }
                                                     KeyFocus { onActivated: win.viewEvent(modelData) }
+                                                }
+                                            }
+                                            Text {
+                                                visible: hourCell._evs.length > 2
+                                                Layout.fillWidth: true
+                                                text: Tr.t("+%1 more").arg(hourCell._evs.length - 2)
+                                                color: Theme.accent
+                                                font.family: Theme.font
+                                                font.pixelSize: Theme.px(9) * Theme.fontScale
+                                                Accessible.role: Accessible.Button
+                                                Accessible.name: text
+                                                MouseArea {
+                                                    anchors.fill: parent
+                                                    cursorShape: Qt.PointingHandCursor
+                                                    onClicked: win.openDayFromWeek(hourCell.index)
                                                 }
                                             }
                                         }
@@ -876,15 +940,22 @@ AppWindow {
                                         model: dayHourCell._evs
                                         Rectangle {
                                             required property var modelData
+                                            readonly property color calColor: win.eventColor(modelData.calendar)
                                             Layout.fillWidth: true
                                             implicitHeight: Theme.px(16)
                                             radius: Theme.px(3)
-                                            color: Theme.accentSoft
+                                            color: Theme.alpha(calColor, 0.45)
                                             Accessible.role: Accessible.Button
                                             Accessible.name: modelData.summary + " " + win.zoneTime(modelData.start)
+                                            Rectangle {
+                                                anchors { left: parent.left; top: parent.top; bottom: parent.bottom; leftMargin: 1; topMargin: 1; bottomMargin: 1 }
+                                                width: Theme.px(3)
+                                                color: parent.calColor
+                                                radius: Theme.px(2)
+                                            }
                                             Text {
                                                 anchors.fill: parent
-                                                anchors.leftMargin: Theme.px(4); anchors.rightMargin: Theme.px(4)
+                                                anchors.leftMargin: Theme.px(6); anchors.rightMargin: Theme.px(4)
                                                 text: win.zoneTime(modelData.start) + "  " + modelData.summary
                                                 color: Theme.text
                                                 elide: Text.ElideRight

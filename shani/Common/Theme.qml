@@ -92,6 +92,12 @@ Singleton {
     // text, a deep one takes white - and the switch happens where the
     // contrast says it does, not where the eye expects it.
     readonly property color accentInk: Contrast.readableOn(root.accent, [Qt.color("#08110f"), Qt.color("#ffffff")], 4.5)
+    // The check above is ink ON the accent; this is the accent ON the page.
+    // WCAG 2.1 wants 3:1 for non-text UI (accentLine, borders, icons). Exposed
+    // as properties so Settings can show a warning later — we do not silently
+    // repaint the person's chosen accent (e.g. pale yellow on a light surface).
+    readonly property real accentContrast: Contrast.ratio(Qt.color(accent), Qt.color(bg))
+    readonly property bool accentContrastWarning: accentContrast < 3.0
 
     // a slideshow tick or a WallpaperStyle Apply overrides the style fields
     // without clearing them — that would destroy separately-set light/dark
@@ -103,6 +109,14 @@ Singleton {
         const o = root.slideshowWallpaper || root.themeWallpaper;
         return (o === Settings.data.wallpaper ? o : "") || (dark ? Settings.data.wallpaperDark : Settings.data.wallpaperLight) || Settings.data.wallpaper;
     }
+
+    // A saved theme's palette snapshot, materialised from
+    // Settings.data.wallpaperStyleThemes by WallpaperStyle.loadTheme: loading a
+    // theme must not depend on its picture still living at the recorded path.
+    // The snapshot is preferred over Matugen's live palette while it is set;
+    // any later wallpaper change retires it so the live palette takes over.
+    property var savedPalette: ({})
+    onWallpaperChanged: if (Object.keys(root.savedPalette).length) root.savedPalette = ({})
 
     // ---- the palette ---------------------------------------------------------
     // high contrast: opaque surfaces, strong strokes, secondary text nearly as
@@ -118,6 +132,9 @@ Singleton {
     // roles override the tonal material on the four core tokens. The whole
     // shell follows, since every surface binds to these.
     function _mat(role, fallback) {
+        const saved = root.savedPalette[role];
+        if (Settings.data.adaptivePalette && saved)
+            return saved;
         return Settings.data.adaptivePalette && Matugen.ready && Matugen.palette[role]
             ? Matugen.palette[role] : fallback;
     }

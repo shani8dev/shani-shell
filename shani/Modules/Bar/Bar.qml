@@ -68,6 +68,13 @@ Variants {
             Ui.closeAll();
             Ui.windowMenu = true;
         }
+        // UPower/Battery1 report 0-100; a few sources report 0-1. Exactly 1 is
+        // 1 % (not 100 %), so only values strictly below 1 are fractions. A
+        // missing percentage is -1 so an unknown device is not read as empty.
+        function peripheralPct(d) {
+            const p = Number(d && d.percentage);
+            return Number.isFinite(p) ? (p < 1 ? p * 100 : p) : -1;
+        }
 
         // ---- system tray: a few inline, the rest in a drawer -------------------
         readonly property int trayCap: 6
@@ -701,6 +708,15 @@ Variants {
                     icon: "camera-web"
                     tint: Theme.amber
                 }
+                // location can run for an hour: keep an amber cue in the bar
+                Chip {
+                    visible: Location.active
+                    icon: "mark-location"
+                    tint: Theme.amber
+                    name: Tr.t("Location in use")
+                    hint: Tr.t("Location in use - click for privacy settings")
+                    onClicked: Ui.openSettings("privacy")
+                }
 
                 // system tray: the first few inline, the rest in a drawer
                 Row {
@@ -745,14 +761,36 @@ Variants {
                 // a Bluetooth device running low (headphones, mouse, watch): in the bar until
                 // it is charged, not only the one notification that may have gone by
                 Chip {
-                    readonly property var low: Power.peripherals.filter(d => (d.percentage <= 1 ? d.percentage * 100 : d.percentage) < 20)
+                    readonly property var low: Power.peripherals.filter(d => {
+                        const pct = bar.peripheralPct(d);
+                        return pct >= 0 && pct < 20;
+                    })
                     readonly property var first: low.length ? low[0] : null
                     visible: first !== null
                     icon: first ? (first.iconName || "battery-caution") : ""
                     tint: Theme.amber
-                    label: first ? first.model.split(" ").slice(0, 2).join(" ") + " " + Math.round(first.percentage <= 1 ? first.percentage * 100 : first.percentage) + "%" : ""
+                    label: first ? first.model.split(" ").slice(0, 2).join(" ") + " " + Math.round(bar.peripheralPct(first)) + "%" : ""
                     hint: low.length > 1 ? Tr.t("%1 devices running low - charge them soon", low.length) : Tr.t("Running low - charge it soon")
                     onClicked: Ui.toggleControlCenter("bluetooth")
+                }
+                // a stopped/unavailable firewall is security-relevant: show it until fixed
+                Chip {
+                    visible: Firewall.probed && (!Firewall.available || !Firewall.running)
+                    icon: "security-medium"
+                    tint: Theme.red
+                    name: Tr.t("The firewall is not running")
+                    hint: Tr.t("The firewall is not running - click to open firewall settings")
+                    onClicked: Ui.openSettings("firewall")
+                }
+                // a disk over 90 % full: a chip that opens the treemap
+                Chip {
+                    visible: DiskUsage.anyFull
+                    icon: "drive-harddisk"
+                    tint: Theme.red
+                    label: DiskUsage.fullestPct + "%"
+                    name: Tr.t("Disk almost full")
+                    hint: Tr.t("A disk is over 90% full - click to see what is using it")
+                    onClicked: DiskUsage.open()
                 }
                 // status cluster: one target, opens the control center
                 Chip {

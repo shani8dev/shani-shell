@@ -82,15 +82,25 @@ Singleton {
         }
         onLoadFailed: root.decide(null)
     }
+    function flush() {
+        root.saved = root.openNow;
+        file.setText(JSON.stringify({ session: root.session, apps: root.openNow }));
+    }
     onOpenNowChanged: if (decided) save.restart()
     // not on every change: as a session ends its apps close one by one, and
-    // the shell is gone before this fires, so the list kept is the last calm one
+    // the shell is gone before the calm timer fires, so flush on the bridge's
+    // logind session-exit message and, failing that, as this singleton dies
+    Connections {
+        target: Bridge
+        function onMessage(m) {
+            if (m.type === "logind" && (m.op === "sleep" || m.op === "prepare-for-shutdown" || m.op === "shutdown"))
+                root.flush();
+        }
+    }
+    Component.onDestruction: if (root.openNow.length) root.flush()
     Timer {
         id: save
         interval: 5000
-        onTriggered: {
-            root.saved = root.openNow;
-            file.setText(JSON.stringify({ session: root.session, apps: root.openNow }));
-        }
+        onTriggered: root.flush()
     }
 }

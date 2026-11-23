@@ -59,6 +59,13 @@ ColumnLayout {
                 checked: modelData.on !== false
                 onToggled: on => { const l = page.rulesCopy(); l[index].on = on; page.setRules(l); }
             }
+            StatusPill {
+                visible: Automations.conflictsAt(index)
+                tone: "warn"
+                dot: false
+                text: Tr.t("Conflicting rule")
+                Layout.alignment: Qt.AlignVCenter
+            }
             IconButton { icon: "document-edit"; tip: Tr.t("Edit"); onClicked: page.loadRule(modelData, index) }
             IconButton { icon: "edit-delete"; tip: Tr.t("Remove"); onClicked: { if (page.editIndex >= 0) page.resetForm(); const l = page.rulesCopy(); l.splice(index, 1); page.setRules(l); } }
         }
@@ -104,8 +111,12 @@ ColumnLayout {
     property string then: "focus"
     property string arg: ""
     property int editIndex: -1          // >= 0: the form is editing this rule instead of adding one
+    property string formNote: ""        // brief, friendly validation feedback
     readonly property var w: whens.find(x => x.id === when)
     readonly property var t: thens.find(x => x.id === then)
+
+    Timer { id: noteTimer; interval: 6000; onTriggered: page.formNote = "" }
+    function showNote(msg) { page.formNote = msg; noteTimer.restart(); }
 
     function loadRule(r, i) {
         page.when = r.when; page.is = r.is || "";
@@ -117,15 +128,33 @@ ColumnLayout {
         page.is = page.w.choices ? page.w.choices[0] : "";
         page.arg = page.t.choices ? page.t.choices()[0] : "";
     }
-    function saveRule() {
+    // the real write: refuse an exact duplicate, then add/edit in place
+    function commitRule() {
         const l = page.rulesCopy();
         const rule = { when: page.when, is: page.is, then: page.then, arg: page.arg };
+        const dup = l.some((x, i) => i !== page.editIndex && x.when === rule.when && x.is === rule.is
+                           && x.then === rule.then && String(x.arg) === String(rule.arg));
+        if (dup) { page.showNote(Tr.t("That rule already exists")); return; }
         if (page.editIndex >= 0 && page.editIndex < l.length)
             Object.assign(l[page.editIndex], rule);   // keep the rule's on state and position
         else
             l.push(Object.assign({ on: true }, rule));
         page.setRules(l);
+        page.formNote = "";
         page.resetForm();
+    }
+    function saveRule() {
+        page.formNote = "";
+        if (page.then === "run" && page.arg !== "") {
+            // sh -n parses without executing: reject a broken command before
+            // it can ever become a rule (the runner still bounds it at 10 s).
+            Proc.run("automation-command-check", ["sh", "-n", "-c", page.arg], (out, code) => {
+                if (code === 0) page.commitRule();
+                else page.showNote(Tr.t("That command has a syntax error — check it and try again"));
+            }, 0, 5000, page);
+        } else {
+            page.commitRule();
+        }
     }
     Flow {
         Layout.fillWidth: true
@@ -293,6 +322,17 @@ ColumnLayout {
         color: Theme.dim
         font.family: Theme.font
         font.pixelSize: Theme.px(11) * Theme.fontScale
+    }
+    Text {
+        Layout.fillWidth: true
+        visible: page.formNote !== ""
+        text: page.formNote
+        color: Theme.danger
+        font.family: Theme.font
+        font.pixelSize: Theme.px(11) * Theme.fontScale
+        wrapMode: Text.WordWrap
+        Accessible.role: Accessible.StaticText
+        Accessible.name: page.formNote
     }
     RowLayout {
         Layout.fillWidth: true
