@@ -23,20 +23,21 @@ def load_admin(tmp_path, monkeypatch):
     sa.TIMESYNCD_DROPIN = tmp_path / "timesyncd.conf.d" / "50-shani-shell.conf"
     sa.RESOLVED_DROPIN = tmp_path / "resolved.conf.d" / "50-shani-shell.conf"
     sa.LOGIN_DEFS = tmp_path / "login.defs"
-    monkeypatch.setattr(sa.shutil, "which", lambda x: None)
+    monkeypatch.setattr(sa.shutil, "which", lambda x: "/usr/bin/" + x if x in ("visudo", "aa-enforce", "aa-complain") else None)
+    real_exists = sa.os.path.exists
+    monkeypatch.setattr(sa.os.path, "exists", lambda pth: True if str(pth) in ("/usr/bin/visudo", "/usr/bin/aa-enforce", "/usr/bin/aa-complain") else real_exists(pth))
     real_run = subprocess.run
 
     def fake_run(cmd, *a, **k):
         # avoid real systemctl/visudo/apparmor
         if cmd[0] in (
             "systemctl",
-            "aa-enforce",
-            "aa-complain",
-            "/usr/sbin/aa-enforce",
-            "/usr/sbin/aa-complain",
+            "aa-enforce", "aa-complain",
+            "/usr/sbin/aa-enforce", "/usr/sbin/aa-complain",
+            "/usr/bin/aa-enforce", "/usr/bin/aa-complain",
         ):
             return subprocess.CompletedProcess(cmd, 0, "", "")
-        if cmd[0] == "visudo":
+        if cmd[0] in ("visudo", "/usr/sbin/visudo", "/usr/bin/visudo"):
             return subprocess.CompletedProcess(cmd, 0, "ok", "")
         return real_run(cmd, *a, **k)
 

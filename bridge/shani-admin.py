@@ -841,6 +841,8 @@ def apparmor_set(req: dict) -> dict:
         raise Refused("mode must be enforce or complain")
     cmd = "aa-enforce" if mode == "enforce" else "aa-complain"
     exe = shutil.which(cmd) or f"/usr/sbin/{cmd}"
+    if not os.path.exists(exe):
+        raise Refused(f"{cmd} is not installed")
     r = subprocess.run([exe, profile], capture_output=True, text=True, timeout=20)
     if r.returncode != 0:
         raise Refused(
