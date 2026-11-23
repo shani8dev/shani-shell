@@ -167,6 +167,10 @@ AppWindow {
                     label: Tr.t("Start offset (seconds)")
                     onAccepted: VideoTrimmer.setStart(parseFloat(startField.text))
                 }
+                Connections {
+                    target: startField.input
+                    function onEditingFinished() { VideoTrimmer.setStart(parseFloat(startField.text)); }
+                }
             }
 
             // end offset
@@ -198,6 +202,10 @@ AppWindow {
                     placeholder: "0.0"
                     label: Tr.t("End offset (seconds)")
                     onAccepted: VideoTrimmer.setEnd(parseFloat(endField.text))
+                }
+                Connections {
+                    target: endField.input
+                    function onEditingFinished() { VideoTrimmer.setEnd(parseFloat(endField.text)); }
                 }
             }
 

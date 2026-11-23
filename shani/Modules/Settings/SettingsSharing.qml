@@ -50,7 +50,7 @@ ColumnLayout {
             for u in app-dev.lizardbyte.app.Sunshine.service sunshine.service; do systemctl --user cat "$u" >/dev/null 2>&1 || continue
                 echo "sun=$u"; systemctl --user is-active -q "$u" && echo sunon=yes
                 getcap "$(command -v sunshine)" 2>/dev/null | grep -q cap_sys_admin && echo suncap=yes; break; done
-            f=/etc/ssh/sshd_config.d/50-shani-shell.conf; [ -r "$f" ] && grep -iE '^(PasswordAuthentication|PubkeyAuthentication|PermitRootLogin) ' "$f" | sed 's/^/sshd_/' || true
+            f=/etc/ssh/sshd_config.d/50-shani-shell.conf; [ -r "$f" ] && grep -iE \'^(PasswordAuthentication|PubkeyAuthentication|PermitRootLogin) \' "$f" | sed \'s/^/sshd_/\' || true
             command -v net >/dev/null && net usershare info 2>/dev/null']
         stdout: StdioCollector {
             onStreamFinished: {

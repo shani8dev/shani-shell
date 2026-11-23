@@ -93,6 +93,7 @@ PanelWindow {
                 value: SysStats.memTotalGb > 0 ? (SysStats.mem * SysStats.memTotalGb).toFixed(1) + " " + Tr.t("of") + " " + SysStats.memTotalGb.toFixed(1) + " GB" : Math.round(SysStats.mem * 100) + "%"
                 fraction: SysStats.mem
             }
+            Text { visible: TopProcesses.list.length === 0; text: Tr.t("Reading…"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
             Text { visible: win.heavy.length > 0; text: Tr.t("Using the most memory"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
             Repeater {
                 model: win.heavy

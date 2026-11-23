@@ -56,15 +56,25 @@ PanelWindow {
     function groupPopups() {
         const out = [], byKey = {};
         for (const n of Notifs.popups.slice().reverse()) {   // newest first
-            const key = win.appKey(n);
+            // a critical one (an incoming call) is never folded into a stack:
+            // its red edge and Urgent label must be seen, not counted
+            const key = n && n.urgency === NotificationUrgency.Critical
+                ? "critical:" + n.id : win.appKey(n);
             if (!byKey[key]) {
-                byKey[key] = { key: key, name: n.appName || "Notification",
+                byKey[key] = { key: key, name: n.appName || Tr.t("Notification"),
                                icon: n.appIcon || "", desktopEntry: n.desktopEntry || "", items: [] };
                 out.push(byKey[key]);
             }
             byKey[key].items.push(n);
         }
         return out;
+    }
+    // every popup at once: the ones critical (which never leave by themselves)
+    // and the rest; they stay in the sidebar's history as each card's X would
+    function clearPopups() {
+        for (const n of Notifs.popups.slice())
+            n.dismiss();
+        win.expanded = ({});
     }
     function toggleGroup(key) {
         const e = Object.assign({}, win.expanded);
@@ -83,10 +93,13 @@ PanelWindow {
         showApp: !pc.inGroup              // the stack's header already names the app
         onDone: Notifs.dropPopup(modelData)
         HoverHandler { id: hover }
-        // the time left runs down, paused while the pointer rests on it
+        // the time left runs down, paused while the pointer rests on it or the
+        // card is in use (menu, reply, finger, swipe); a hidden surface (the
+        // control centre, lock, launcher) pauses it rather than letting the
+        // popup expire unseen
         NumberAnimation on life {
-            running: !pc.critical
-            paused: running && hover.hovered
+            running: win.visible && !pc.critical
+            paused: running && (hover.hovered || pc.interacting)
             from: 1
             to: 0
             duration: pc.modelData.expireTimeout > 0 ? pc.modelData.expireTimeout * 1000 : Settings.data.popupSeconds * 1000
@@ -98,6 +111,35 @@ PanelWindow {
         id: list
         width: parent.width
         spacing: Theme.px(8)
+        // two or more waiting: one press clears them all, including the critical
+        // ones that never leave on their own
+        Glass {
+            visible: Notifs.popups.length > 1
+            Layout.fillWidth: true
+            implicitHeight: clearRow.implicitHeight + Theme.px(6)
+            radius: Theme.radiusLarge
+            RowLayout {
+                id: clearRow
+                anchors.fill: parent
+                anchors.leftMargin: Theme.px(12)
+                anchors.rightMargin: Theme.px(4)
+                spacing: Theme.px(6)
+                Text {
+                    Layout.fillWidth: true
+                    text: Tr.t("%1 notifications", Notifs.popups.length)
+                    color: Theme.dim
+                    elide: Text.ElideRight
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+                IconButton {
+                    icon: "edit-clear-all"
+                    size: Theme.px(22)
+                    Accessible.name: Tr.t("Clear all")
+                    onClicked: win.clearPopups()
+                }
+            }
+        }
         Repeater {
             model: win.groupPopups()
             delegate: ColumnLayout {

@@ -78,7 +78,7 @@ Rectangle {
             name: "object-select-symbolic"
             size: Theme.px(14)
             color: Theme.accent
-            anchors.verticalCenter: parent.verticalCenter
+            anchors.verticalCenter: parent ? parent.verticalCenter : 0
         }
         Text {
             visible: root.trailing !== ""
@@ -86,7 +86,7 @@ Rectangle {
             color: Theme.dim
             font.family: Theme.font
             font.pixelSize: Theme.px(10) * Theme.fontScale
-            anchors.verticalCenter: parent.verticalCenter
+            anchors.verticalCenter: parent ? parent.verticalCenter : 0
         }
     }
 

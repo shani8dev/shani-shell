@@ -70,6 +70,9 @@ AppWindow {
     property string converted: "—"        // last "x unit" result text, "—" when none
     property real convertedValue: 0
 
+    // the service reports every failure as "Error"; name the one common cause
+    readonly property bool divideByZero: /\/\s*\(?\s*-?0\s*\)?(?![0-9.])/.test(Services.Calculator.display)
+
     property string tab: "standard"       // standard | scientific | converter | financial | programming
     onTabChanged: Ui.calculatorTab = win.tab
 
@@ -180,7 +183,7 @@ AppWindow {
                         horizontalAlignment: Text.AlignRight
                         verticalAlignment: Text.AlignVCenter
                         elide: Text.ElideLeft
-                        text: Services.Calculator.error !== "" ? Services.Calculator.error : Services.Calculator.display
+                        text: Services.Calculator.error !== "" ? (win.divideByZero ? Tr.t("Cannot divide by zero") : Services.Calculator.error) : Services.Calculator.display
                         color: Services.Calculator.error !== "" ? Theme.danger : Theme.text
                         font.family: Theme.mono
                         font.pixelSize: Theme.px(26) * Theme.fontScale

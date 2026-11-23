@@ -28,6 +28,7 @@ AppWindow {
     property string copied: ""
 
     function refresh() { if (!lister.running) lister.running = true; }
+    function clearForm() { issuer.text = ""; account.text = ""; key.text = ""; }
     function run(args) {
         // `add` carries the shared secret: hand it over on stdin, never in argv
         writer.stdinEnabled = true;
@@ -111,7 +112,7 @@ AppWindow {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
                 Button { kind: "primary"; text: Tr.t("Scan a QR code on the screen"); enabled: win.available && !writer.running; onClicked: { win.note = Tr.t("Draw a box round the QR code…"); win.run(["scan-screen"]); } }
-                Button { text: win.adding ? Tr.t("Cancel") : Tr.t("Enter a setup key"); flat: true; onClicked: win.adding = !win.adding }
+                Button { text: win.adding ? Tr.t("Cancel") : Tr.t("Enter a setup key"); flat: true; onClicked: { win.adding = !win.adding; if (!win.adding) win.clearForm(); } }
                 Item { Layout.fillWidth: true }
             }
             Text {
@@ -136,8 +137,8 @@ AppWindow {
                     Layout.alignment: Qt.AlignRight
                     kind: "primary"
                     text: Tr.t("Add")
-                    enabled: key.text.trim() !== "" && (issuer.text.trim() !== "" || account.text.trim() !== "")
-                    onClicked: { win.run(["add", JSON.stringify({ issuer: issuer.text, account: account.text, secret: key.text })]); key.text = ""; }
+                    enabled: key.text.trim() !== "" && (issuer.text.trim() !== "" || account.text.trim() !== "") && !writer.running
+                    onClicked: { win.run(["add", JSON.stringify({ issuer: issuer.text, account: account.text, secret: key.text })]); win.clearForm(); }
                 }
             }
 
@@ -198,6 +199,7 @@ AppWindow {
                         }
                         IconButton {
                             visible: !row.modelData.fromKey          // the key's codes are the key's to remove
+                            enabled: !writer.running
                             size: Theme.px(30)
                             icon: win.removing === row.modelData.id ? "dialog-warning" : "user-trash"
                             on: win.removing === row.modelData.id
@@ -212,7 +214,7 @@ AppWindow {
                 }
                 EmptyState {
                     anchors.centerIn: parent
-                    visible: list.count === 0
+                    visible: list.count === 0 && !lister.running
                     icon: "dialog-password"
                     title: win.available ? Tr.t("No codes yet") : Tr.t("The keyring is not running")
                     subtitle: win.available ? Tr.t("When a website offers two-factor sign-in, scan its QR code") : Tr.t("It starts when you sign in; the codes are kept there")

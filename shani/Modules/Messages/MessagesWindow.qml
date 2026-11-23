@@ -18,6 +18,7 @@ AppWindow {
     implicitHeight: Theme.px(620)
 
     property string pendingNumber: ""   // a requested conversation, matched once messages arrive
+    property string retryText: ""       // last send's text, kept until the bridge replies
 
     onVisibleChanged: if (visible) {
         pendingNumber = Ui.messagesNumber.trim();
@@ -40,6 +41,17 @@ AppWindow {
     Connections {
         target: Link
         function onMessagesLoadedChanged() { if (Link.messagesLoaded) win.tryPendingNumber(); }
+        // a thread change or a new message: show the end of the conversation,
+        // not the first lines of a thread opened hours ago
+        function onOpenThreadChanged() {
+            if (win.retryText !== "" && Link.openThread === "") win.retryText = "";   // a send landed
+            if (Link.openThread !== "") Qt.callLater(() => thread.positionViewAtEnd());
+        }
+        // a failed send keeps its text in the composer, so Send is a retry
+        function onNoteChanged() {
+            if (win.retryText !== "" && Link.note !== "" && Link.note !== Tr.t("Text sent"))
+                reply.text = win.retryText;
+        }
     }
 
     // ---- the conversations --------------------------------------------------
@@ -81,7 +93,9 @@ AppWindow {
         RowLayout {
             Layout.fillWidth: true
             Text {
-                text: Link.threadName || Tr.t("Messages")
+                // openDevice() clears the thread but not its name: do not keep a
+                // closed conversation's title above an empty composer
+                text: Link.openThread !== "" && Link.threadName !== "" ? Link.threadName : Tr.t("Messages")
                 color: Theme.text
                 font.family: Theme.font
                 font.pixelSize: Theme.px(15) * Theme.fontScale
@@ -105,6 +119,7 @@ AppWindow {
             clip: true
             spacing: Theme.px(6)
             model: Link.thread
+            onCountChanged: if (count > 0) Qt.callLater(() => thread.positionViewAtEnd())
             delegate: RowLayout {
                 required property var modelData
                 width: ListView.view.width
@@ -178,6 +193,7 @@ AppWindow {
     function send() {
         const t = reply.text.trim();
         if (t === "" || Link.openThread === "") return;
+        retryText = t;
         Link.send(t);
         Link.clearDraft();
     }

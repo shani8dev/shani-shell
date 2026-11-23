@@ -201,7 +201,7 @@ AppWindow {
                 text: Tr.t("Delete")
                 flat: true
                 enabled: number.text.length > 0
-                onClicked: number.remove(number.text.length - 1, 1)
+                onClicked: win.deleteDigit()
             }
         }
 
@@ -223,6 +223,15 @@ AppWindow {
         win.dialed = n;
         Link.dial(n);
         number.text = "";
+    }
+
+    // backspace at the caret (or the whole selection), not always the last digit
+    function deleteDigit() {
+        if (number.selectionStart !== number.selectionEnd) {
+            number.remove(number.selectionStart, number.selectionEnd - number.selectionStart);
+            return;
+        }
+        if (number.cursorPosition > 0) number.remove(number.cursorPosition - 1, 1);
     }
 
     // ---- the history --------------------------------------------------------
@@ -264,7 +273,9 @@ AppWindow {
                 subtitle: [modelData.line, Link.when(modelData.when),
                            modelData.seconds > 0 ? Link.clock(modelData.seconds) : ""].filter(x => x).join("  ·  ")
                 selected: false
-                onClicked: { number.text = modelData.number; }
+                // a tap fills the pad: put the caret at the end and focus it so
+                // Enter calls and typing continues without a Tab
+                onClicked: { number.text = modelData.number; number.cursorPosition = number.text.length; number.forceActiveFocus(); }
                 extra: RowLayout {
                     Button { text: Tr.t("Call"); flat: true; onClicked: { win.line = modelData.line || win.line; number.text = modelData.number; win.call() } }
                 }

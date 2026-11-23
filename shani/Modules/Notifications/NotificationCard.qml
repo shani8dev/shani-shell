@@ -25,8 +25,13 @@ Glass {
     property bool showApp: true          // false inside a group: the header already names the app
     property real life: 1                // a popup's time left, 1 → 0 (Popups drives it)
     property bool more: false            // Snooze and Ask Chronoa shown ("⋯" pressed)
+    // a popup's countdown holds while the card is being used: the extra
+    // actions or the menu are open, a reply is being typed, a finger is down
+    // (touch has no hover), or a swipe is under way
+    readonly property bool interacting: more || (contextMenu && contextMenu.visible)
+        || (replyField && replyField.activeFocus) || tap.pressed || swipe.active
     readonly property bool critical: notification && notification.urgency === NotificationUrgency.Critical
-    readonly property string appName: notification ? (notification.appName || "Notification") : ""
+    readonly property string appName: notification ? (notification.appName || Tr.t("Notification")) : ""
     // Notification bodies come from arbitrary apps. Rendered as Text.PlainText,
     // Qt shows tags literally; HTML-escaping here would display "&amp;" to the user.
     function safeBody(body) { return String(body || ""); }
@@ -128,6 +133,7 @@ Glass {
         }
     }
     MouseArea {
+        id: tap
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         // a finger has no right button: a long press asks for the menu, and the
@@ -157,9 +163,15 @@ Glass {
             }
             root.activate();
         }
-        // the card itself is a button to a screen reader: open it, as a click does
+        // the card itself is a button to a screen reader: open it, as a click
+        // does; name the app and the urgency too, so two "New message" cards
+        // are told apart and a critical one is heard as critical
         Accessible.role: Accessible.Button
-        Accessible.name: root.notification ? root.notification.summary : ""
+        Accessible.name: root.notification
+            ? (root.critical ? Tr.t("Urgent") + ", " : "")
+              + (root.showApp && root.notification.appName ? root.notification.appName + ": " : "")
+              + root.notification.summary
+            : ""
         Accessible.onPressAction: root.activate()
     }
     // keyboard and controller: Enter opens it (its default action), Delete dismisses it
@@ -370,6 +382,7 @@ Glass {
         }
         // inline reply, for apps that offer it (messaging)
         TextField {
+            id: replyField
             Layout.fillWidth: true
             visible: !root.hideContent && root.notification && root.notification.hasInlineReply
             placeholder: root.notification && root.notification.inlineReplyPlaceholder ? root.notification.inlineReplyPlaceholder : "Reply…"

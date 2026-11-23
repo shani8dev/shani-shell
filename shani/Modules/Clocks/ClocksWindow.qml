@@ -21,6 +21,9 @@ AppWindow {
     property string alarmTime: Qt.formatTime(new Date(Date.now() + 3600000), "HH:mm")
     property string alarmLabel: ""
     readonly property var alarms: Array.from(WorldClock.alarms || [])
+    // an alarm removed elsewhere shifts every index: drop a pending confirmation
+    // so the second tap cannot delete a different alarm
+    onAlarmsChanged: win.confirmAlarm = -1
     // a row asks before it removes an alarm: two taps, the second within 4 s
     property int confirmAlarm: -1
     Timer { id: alarmTimer; interval: 4000; onTriggered: win.confirmAlarm = -1 }

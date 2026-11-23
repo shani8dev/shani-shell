@@ -19,8 +19,20 @@ AppWindow {
     implicitWidth: Theme.px(640)
     implicitHeight: Theme.px(580)
 
-    onVisibleChanged: if (visible) Characters.browse()
-    Component.onCompleted: if (visible) Characters.browse()
+    property string copiedLabel: ""
+
+    function copyChar(entry) {
+        if (!entry || !entry.ch)
+            return;
+        Characters.copy(entry);
+        win.copiedLabel = entry.ch + "  " + (entry.name || "");
+        copiedTimer.restart();
+    }
+
+    onVisibleChanged: if (visible) { Characters.browse(); searchField.forceActiveFocus() }
+    Component.onCompleted: if (visible) { Characters.browse(); searchField.forceActiveFocus() }
+
+    Timer { id: copiedTimer; interval: 1800; onTriggered: win.copiedLabel = "" }
 
     Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: Ui.characters = false }
 
@@ -40,6 +52,7 @@ AppWindow {
                 placeholder: Tr.t("Search symbols, arrows, math, scripts — “arrow”, “devanagari”, “rupee”…")
                 label: Tr.t("Search characters")
                 onTextChanged: Characters.search(text)
+                onAccepted: if (Characters.results.length > 0) win.copyChar(Characters.results[0])
             }
 
             // quick categories, one tap each — the Unicode blocks the bridge
@@ -81,7 +94,7 @@ AppWindow {
                     color: cellArea.containsMouse ? Theme.hover : "transparent"
                     Accessible.role: Accessible.Button
                     Accessible.name: cell.modelData.name
-                    Accessible.onPressAction: Characters.copy(cell.modelData)
+                    Accessible.onPressAction: win.copyChar(cell.modelData)
 
                     ColumnLayout {
                         anchors.fill: parent
@@ -122,11 +135,11 @@ AppWindow {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: Characters.copy(cell.modelData)
+                        onClicked: win.copyChar(cell.modelData)
                     }
                     KeyFocus {
                         name: cell.modelData.name
-                        onActivated: Characters.copy(cell.modelData)
+                        onActivated: win.copyChar(cell.modelData)
                     }
                 }
             }

@@ -26,11 +26,12 @@ AppWindow {
         : archPass.text !== archPassConfirm.text ? Tr.t("Passwords do not match") : ""
 
     function clearPass() { Archive.newPass = ""; archPassConfirm.text = ""; }
+    function clearPrompt() { pw.text = ""; }
 
     function pick() {
         FilePicker.open({ mode: "open", title: Tr.t("Open an archive"), filters: Archive.types,
                           startPath: Archive.file !== "" ? Archive.file.substring(0, Archive.file.lastIndexOf("/")) : (Quickshell.env("HOME") + "/Downloads"),
-                          onPicked: paths => { if (paths.length) Archive.open(paths[0]); } });
+                          onPicked: paths => { if (paths.length) { win.clearPrompt(); Archive.open(paths[0]); } } });
     }
     function extractTo() {
         FilePicker.open({ mode: "folder", title: Tr.t("Extract into"),
@@ -154,6 +155,17 @@ AppWindow {
                     font.family: Theme.font
                     font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
+                // a failed Compress leaves entries empty, so the result row at
+                // the bottom cannot show it — say it here, where Create lives
+                Text {
+                    Layout.fillWidth: true
+                    visible: Archive.error !== ""
+                    text: Archive.error
+                    color: Theme.danger
+                    wrapMode: Text.Wrap
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(8)
@@ -265,7 +277,7 @@ AppWindow {
                 }
                 Button { kind: "primary"; text: Tr.t("Unlock"); onClicked: if (pw.text !== "") { Archive.unlock(pw.text); pw.text = ""; } }
             }
-            Connections { target: Archive; function onNeedsPasswordChanged() { if (Archive.needsPassword) pw.forceActiveFocus(); } }
+            Connections { target: Archive; function onNeedsPasswordChanged() { if (Archive.needsPassword) pw.forceActiveFocus(); else win.clearPrompt(); } }
 
             // ---- what happened ----
             RowLayout {

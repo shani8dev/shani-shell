@@ -328,6 +328,9 @@ AppWindow {
                 required property var modelData
                 width: plist.width
                 spacing: 2
+                Accessible.role: Accessible.ListItem
+                Accessible.name: prow.modelData.label
+                Accessible.description: win.about(prow.modelData)
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(8)
@@ -415,6 +418,8 @@ AppWindow {
                 required property var modelData
                 width: klist.width
                 spacing: Theme.px(8)
+                Accessible.role: Accessible.ListItem
+                Accessible.name: krow.modelData.uid || krow.modelData.id
                 Icon { name: krow.modelData.secret ? "application-pgp-keys" : "contact-new"; size: Theme.px(20); color: Theme.dim }
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -503,6 +508,8 @@ AppWindow {
                 required property var modelData
                 width: passkeyList.width
                 spacing: Theme.px(8)
+                Accessible.role: Accessible.ListItem
+                Accessible.name: prow.modelData.label || Tr.t("Unnamed")
                 Icon { name: "dialog-password"; size: Theme.px(20); color: Theme.dim }
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -523,7 +530,7 @@ AppWindow {
                         color: Theme.faint; font.family: Theme.mono; font.pixelSize: Theme.px(9) * Theme.fontScale
                     }
                 }
-                IconButton { icon: "edit-copy"; size: Theme.px(26); tip: Tr.t("Copy the key-handle id"); onClicked: { Quickshell.clipboardText = prow.modelData.id; win.note = Tr.t("%1 id copied", prow.modelData.label) } }
+                IconButton { icon: "edit-copy"; size: Theme.px(26); tip: Tr.t("Copy the key-handle id"); onClicked: { Quickshell.clipboardText = prow.modelData.id; clearTimer.restart(); win.note = Tr.t("%1 id copied", prow.modelData.label) } }
                 IconButton {
                     icon: win.removingPasskey === prow.modelData.id ? "edit-delete" : "window-close"
                     size: Theme.px(26)

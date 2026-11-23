@@ -30,6 +30,11 @@ AppWindow {
     MediaPlayer {
         id: playback
         audioOutput: AudioOutput {}
+        // a take that ended (or failed to load) must not leave a dead bar behind
+        onStatusChanged: {
+            if (playback.status === MediaPlayer.EndOfMedia || playback.status === MediaPlayer.InvalidMedia)
+                win.inlinePlay = "";
+        }
     }
     function playInline(path) {
         if (!path) return;
@@ -52,7 +57,7 @@ AppWindow {
         });
     }
 
-    onVisibleChanged: { if (visible) VoiceRecorder.refresh(); }
+    onVisibleChanged: { if (visible) VoiceRecorder.refresh(); else { playback.stop(); win.inlinePlay = ""; } }
 
     Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: Ui.voiceRecorder = false }
 
@@ -250,7 +255,11 @@ AppWindow {
                             visible: win.renaming === row.modelData.path
                             text: row.modelData.name.replace(/\.opus$/i, "")
                             label: Tr.t("Recording name")
+                            // Escape cancels the rename here; it must not reach
+                            // the window's Escape handler and close the panel
+                            Keys.onEscapePressed: { event.accepted = true; win.renaming = ""; }
                             onAccepted: {
+                                if (win.inlinePlay === row.modelData.path) { playback.stop(); win.inlinePlay = ""; }
                                 VoiceRecorder.rename(row.modelData.path, text);
                                 win.renaming = "";
                             }
@@ -288,7 +297,10 @@ AppWindow {
                             icon: "edit-delete"
                             size: Theme.px(30)
                             tip: Tr.t("Move to trash")
-                            onClicked: VoiceRecorder.trash(row.modelData.path)
+                            onClicked: {
+                                if (win.inlinePlay === row.modelData.path) { playback.stop(); win.inlinePlay = ""; }
+                                VoiceRecorder.trash(row.modelData.path);
+                            }
                         }
                     }
                     MouseArea {

@@ -5583,3 +5583,27 @@ I've read both gap files and audited the app-lifecycle/daemon code paths statica
 16. **No "quit app" for shell apps.** Closing the window leaves service state alive in memory (PlayQueue/TextDocs/Camera); there is no full-quit that releases captures, timers or recorders per app. *Sketch: an app-context "Quit" that calls the service's close/stop.*
 
 **Skipped / risk:** static only — no niri/systemd runtime, no crash reproduction, and the QML `pid`/scope reasoning is inferred from window events; #1 in particular needs one real "force close on a shell app" test to confirm the pid is the process-wide one. No files changed.
+
+## VERBATIM: Archives, Authenticator, Feeds, Passwords, Processes
+
+Research complete. I read all five module windows, their four backing QML services and three Python bridges, and cross-checked every candidate against both GAPS docs (including the deep Archive, Authenticator/Password, Feeds and Processes passes). Findings are static-only; nothing was modified.
+
+**Top 15 new, low-risk gaps (not in GAPS.md or GAPS-RESEARCH.md)**
+
+1. `/home/shrinivaskumbhar/Documents/shani/shani-shell/shani/Services/Archive.qml:52` — Missing `zipcrypt.py` gives a generic "Could not extract"; only bsdtar is probed (`:110`). Fix: probe `extractTool` at startup and surface "Extractor not installed".
+2. `/home/shrinivaskumbhar/Documents/shani/shani-shell/shani/Modules/Archives/ArchivesWindow.qml:246` — During Compress, the list pane says "No archive open" while work is running. Fix: show a "Compressing…" state when `Archive.creating`.
+3. `/home/shrinivaskumbhar/Documents/shani/shani-shell/shani/Modules/Authenticator/AuthenticatorWindow.qml:114` — Cancel leaves issuer/account and the secret setup key in the hidden form. Fix: clear all three fields on cancel.
+4. `/home/shrinivaskumbhar/Documents/shani/shani-shell/shani/Modules/Authenticator/AuthenticatorWindow.qml:140` — After a successful add only `key.text` is cleared; stale account text persists. Fix: clear issuer and account too.
+5. `/home/shrinivaskumbhar/Documents/shani/shani-shell/shani/Modules/Authenticator/AuthenticatorWindow.qml:47` — A missing `otp.py` (exit 2) is reported as "The keyring is not running". Fix: check stderr/tool presence to distinguish.
+6. `/home/shrinivaskumbhar/Documents/shani/shani-shell/shani/Modules/Feeds/FeedsWindow.qml:45` — "Next unread" lights when *any* feed has unread, but only the current feed is searched. Fix: enable only on current-feed unread, or scan all feeds.
+7. `/home/shrinivaskumbhar/Documents/shani/shani-shell/shani/Modules/Feeds/FeedsWindow.qml:118` — Empty tag field plus replace-semantics `settags` silently wipes existing tags. Fix: prefill with the current feed's tags.
+8. `/home/shrinivaskumbhar/Documents/shani/shani-shell/shani/Modules/Feeds/FeedsWindow.qml:111` — Remove deletes a subscription in one click. Fix: two-click confirm like Passwords.
+9. `/home/shrinivaskumbhar/Documents/shani/shani-shell/shani/Modules/Feeds/FeedsWindow.qml:46` — "Mark all read" tips implies all feeds; `markAll()` marks only the current one. Fix: relabel "Mark this feed read".
+10. `/home/shrinivaskumbhar/Documents/shani/shani-shell/shani/Modules/Passwords/PasswordsWindow.qml:117` — `run()` silently drops actions while `act.running`. Fix: disable action buttons or show "Still working…".
+11. `/home/shrinivaskumbhar/Documents/shani/shani-shell/shani/Modules/Passwords/PasswordsWindow.qml:240` — Audit labels are dead text; no way to reach a flagged entry. Fix: make labels buttons that set the search text.
+12. `/home/shrinivaskumbhar/Documents/shani/shani-shell/shani/Modules/Passwords/PasswordsWindow.qml:271` — "Run security check" is clickable while an audit is in flight. Fix: bind `enabled` to `!auditProc.running`.
+13. `/home/shrinivaskumbhar/Documents/shani/shani-shell/shani/Modules/Passwords/PasswordsWindow.qml:397` — GPG key creation accepts a one-character passphrase. Fix: require ≥8 characters.
+14. `/home/shrinivaskumbhar/Documents/shani/shani-shell/shani/Modules/Processes/Processes.qml:267` — Search stays visible in Users view but filters nothing (`:66`). Fix: hide/disable it when `byUser`.
+15. `/home/shrinivaskumbhar/Documents/shani/shani-shell/shani/Modules/Processes/Processes.qml:489` — "Apply nice" is enabled for out-of-range values that `TopProcesses.qml:47` rejects silently. Fix: validate −20..19 in `enabled`.
+
+Skipped: runtime/QML, live keyring, bsdtar and hardware verification; also omitted weaker overlaps already covered generically (Escape handling, clear buttons, clipboard clearing). Risk: fixes #6 and #14 change which items/feeds are reachable, so verify selection semantics before shipping.

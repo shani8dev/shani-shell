@@ -69,6 +69,16 @@ AppWindow {
         placeName = p.name; placeDesc = p.desc || ""; placeType = ""; placeHours = ""; placePhone = ""; placeWebsite = "";
         clearRoute(); z = 16; Ui.mapsZoom = 16;
     }
+    // the location buttons do nothing when location is off, GeoClue is absent
+    // or the helper failed: say which instead of leaving a silent click
+    property bool locationAsked: false
+    readonly property string locationNote: {
+        if (Location.running) return Tr.t("Find my location") + "…";
+        if (Location.error !== "") return Tr.t("Location") + ": " + Location.error;
+        if (!Settings.data.useLocation) return Tr.t("Type a city above, or turn on location in Settings > Privacy");
+        if (!Location.available) return Tr.t("Location") + ": " + Tr.t("Not found");
+        return "";
+    }
     property string searchError: ""
     property string searchField: ""
     property bool searching: false
@@ -92,6 +102,8 @@ AppWindow {
             return "";
         const from = win.fromOk ? (win.fromLat + "," + win.fromLon)
             : Location.available ? (Location.lat + "," + Location.lon) : "";
+        if (from === "")
+            return "";      // no start yet: the browser link would open from= empty
         return "https://www.openstreetmap.org/directions?from=" + encodeURIComponent(from) + "&to=" + encodeURIComponent(win.mapLat + "," + win.mapLon);
     }
     // the place found (the pin), and the way to it
@@ -114,6 +126,7 @@ AppWindow {
     property var routeSteps: []
     property real fromLat: 0                  // a typed start, when there is no location
     property real fromLon: 0
+    readonly property bool fromOk: fromLat !== 0 || fromLon !== 0
     property string routeFrom: ""
 
     function world() { return Math.pow(2, z) * tile; }
@@ -302,6 +315,7 @@ AppWindow {
         }
     }
     function recenter() {
+        locationAsked = true;
         if (Location.available && (Location.lat !== 0 || Location.lon !== 0)) {
             win.mapLat = Location.lat;
             win.mapLon = Location.lon;
@@ -344,9 +358,16 @@ AppWindow {
     // Nominatim geocode: search a place, zoom to it, describe it
     function geoCode(query) {
         const q = String(query || "").trim();
-        if (q === "" || searching)
+        if (q === "")
             return;
         searchError = "";
+        // a query typed while another search is in flight waits its turn; the
+        // old guard returned here, so the second search vanished
+        if (searching) {
+            pendingGeo = q;
+            geoThrottle.restart();
+            return;
+        }
         searchField = q;
         // a repeat is free: answer from the in-memory cache, no network
         if (Object.prototype.hasOwnProperty.call(win.geoCache, q)) {
@@ -393,7 +414,7 @@ AppWindow {
                     elide: Text.ElideRight
                 }
                 IconButton { icon: "mark-location"; size: Theme.px(28); tip: Tr.t("Recenter"); onClicked: win.recenter(); }
-                IconButton { icon: "view-refresh"; size: Theme.px(28); tip: Tr.t("Find my location"); onClicked: Location.refresh(); }
+                IconButton { icon: "view-refresh"; size: Theme.px(28); tip: Tr.t("Find my location"); onClicked: { win.locationAsked = true; Location.refresh(); } }
             }
 
             RowLayout {
@@ -439,6 +460,15 @@ AppWindow {
                 Layout.fillWidth: true
                 text: win.searchError
                 color: Theme.danger
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+                wrapMode: Text.WordWrap
+            }
+            Text {
+                visible: win.locationNote !== "" && (win.locationAsked || win.placeDesc === "" || Location.running || Location.error !== "")
+                Layout.fillWidth: true
+                text: win.locationNote
+                color: Location.error !== "" ? Theme.danger : Theme.dim
                 font.family: Theme.font
                 font.pixelSize: Theme.px(11) * Theme.fontScale
                 wrapMode: Text.WordWrap

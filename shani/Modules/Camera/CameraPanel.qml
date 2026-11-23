@@ -36,11 +36,14 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 Text {
+                    id: statusText
                     Layout.fillWidth: true
                     // what is happening; the window's header names the app
                     text: Camera.phase === "recording" ? "Recording · " + Camera.elapsed
                         : Camera.phase === "counting" ? "Photo in " + Camera.countdown + "…"
+                        : Camera.phase === "capturing" ? Tr.t("Saving photo…")
                         : ""
+                    Accessible.name: text
                     color: Theme.text
                     font.family: Theme.font
                     font.pixelSize: Theme.px(15) * Theme.fontScale
@@ -96,10 +99,14 @@ AppWindow {
                 Layout.preferredHeight: Theme.px(56)
                 radius: Theme.px(28)
                 color: Camera.phase === "recording" ? Theme.red : Theme.accent
+                // a shutter that cannot shoot must not look pressable: the
+                // service guards too, but the person needs to see why
+                enabled: Camera.available && Camera.phase === "idle"
+                opacity: enabled ? 1 : 0.5
                 Accessible.role: Accessible.Button
                 Accessible.name: shutterText.text
-                MouseArea { anchors.fill: parent; onClicked: Camera.shutter() }
-                KeyFocus { onActivated: Camera.shutter() }
+                MouseArea { anchors.fill: parent; enabled: parent.enabled; onClicked: Camera.shutter() }
+                KeyFocus { enabled: parent.enabled; onActivated: Camera.shutter() }
                 Text {
                     id: shutterText
                     anchors.centerIn: parent
@@ -160,6 +167,14 @@ AppWindow {
                 font.family: Theme.font
                 font.pixelSize: Theme.px(11) * Theme.fontScale
             }
+            Text {
+                Layout.fillWidth: true
+                visible: Camera.gallery.length === 0
+                text: Tr.t("No captures yet")
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
             ListView {
                 reuseItems: true
                 cacheBuffer: 400
@@ -173,6 +188,8 @@ AppWindow {
                     height: Theme.px(44)
                     radius: Theme.radiusSmall
                     color: galArea.containsMouse ? Theme.hover : "transparent"
+                    Accessible.role: Accessible.ListItem
+                    Accessible.name: modelData.name + ", " + modelData.when
                     RowLayout {
                         anchors.fill: parent
                         anchors.leftMargin: Theme.px(10)
@@ -187,6 +204,7 @@ AppWindow {
                         IconButton { icon: "edit-delete"; size: Theme.px(26); tip: Tr.t("Delete capture"); Accessible.name: Tr.t("Delete capture"); onClicked: Camera.trash(modelData.path) }
                     }
                     MouseArea { id: galArea; anchors.fill: parent; z: -1; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Viewer.open(modelData.path) }
+                    KeyFocus { onActivated: Viewer.open(modelData.path) }
                 }
             }
         }

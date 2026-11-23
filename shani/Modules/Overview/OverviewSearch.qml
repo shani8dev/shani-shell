@@ -29,6 +29,7 @@ PanelWindow {
     Region { id: pillRegion; item: pill; radius: pill.radius }
 
     function search(text) {
+        handOver.stop();   // a pending hand-over would toggle the launcher again 220 ms later
         typed = "";
         Niri.action("close-overview");
         Ui.toggleLauncher(text);
@@ -80,10 +81,20 @@ PanelWindow {
                 Niri.action(move);
             } else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter || e.key === Qt.Key_Escape) {
                 // Escape, or Enter with nothing typed: back to the window picked with the arrows
-                if (e.key === Qt.Key_Escape || win.typed === "")
+                if (e.key === Qt.Key_Escape || win.typed === "") {
+                    handOver.stop();
                     Niri.action("close-overview");
-                else
+                } else
                     win.search(win.typed);
+            } else if (e.key === Qt.Key_Backspace || e.key === Qt.Key_Delete) {
+                // there is no caret: Backspace takes the last character typed
+                if (win.typed === "")
+                    return;
+                win.typed = win.typed.slice(0, -1);
+                if (win.typed !== "")
+                    handOver.restart();
+                else
+                    handOver.stop();
             } else if (e.text && (e.text.trim() !== "" || win.typed !== "") && !(e.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))) {
                 win.typed += e.text;
                 handOver.restart();

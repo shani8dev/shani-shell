@@ -28,6 +28,9 @@ PanelWindow {
     property bool asking: false
     readonly property bool hasApproval: Chronoa.approval !== null
     readonly property bool working: Chronoa.busy || Chronoa.cueText !== "" || Chronoa.step !== ""
+    // an approval owns the card: a question field left open under it is
+    // invisible but still holds the exclusive keyboard focus
+    onHasApprovalChanged: if (hasApproval) { asking = false; askInput.text = ""; }
     // agent-status expressions for the mascot: pops out when working,
     // blinks faster when thinking, looks up when pondering, waves on connect,
     // and does a happy jump when a task finishes.
@@ -361,6 +364,10 @@ PanelWindow {
                 Accessible.role: Accessible.EditableText
                 Accessible.name: Tr.t("Ask Chronoa")
                 visible: win.mode === "ask"
+                // the one-shot forceActiveFocus() in the click handler runs
+                // before the field is visible; this binding makes focus follow
+                // the mode whenever it becomes "ask"
+                focus: win.mode === "ask"
                 Layout.fillWidth: true
                 color: Theme.text
                 selectionColor: Theme.accent
@@ -451,6 +458,8 @@ PanelWindow {
     Connections {
         target: Ui
         function onAskRequested() {
+            if (win.hasApproval)
+                return;
             win.asking = true;
             askInput.forceActiveFocus();
         }

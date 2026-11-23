@@ -34,7 +34,12 @@ def test_wiki_link_chips_resolve_notebook_qualified_targets():
 def test_delete_confirmation_does_not_survive_selection_change():
     assert "onSelectedNotebookChanged: win.confirmNotebook = false" in PANEL
     assert "target: Services.QuickNotes" in PANEL
-    assert "function onCurrentChanged() { win.confirmDelete = false }" in PANEL
+    # stronger than the original one-liner: a switch also drops a stale editor
+    # body and a history view that belonged to the previous note
+    handler = PANEL[PANEL.index("function onCurrentChanged()") :]
+    assert "win.confirmDelete = false;" in handler
+    assert 'win.note = "";' in handler
+    assert "win.showHistory = false;" in handler
 
 
 def test_editor_empty_state_and_disabled_without_a_note():

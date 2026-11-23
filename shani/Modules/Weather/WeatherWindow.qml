@@ -17,6 +17,14 @@ AppWindow {
     implicitWidth: Theme.px(640)
     implicitHeight: Theme.px(640)
     property bool locShown: false
+    // a typed city is only saveable once its coordinates are known (a 0,0
+    // place made the forecast stop), and only once: a second copy does nothing
+    readonly property bool currentCityReady: Settings.data.weatherCity !== ""
+        && (Settings.data.weatherLat !== 0 || Settings.data.weatherLon !== 0)
+    readonly property bool currentCitySaved: {
+        const n = String(Settings.data.weatherCity || "").trim().toLowerCase();
+        return n !== "" && Weather.places.some(p => String(p.name || "").trim().toLowerCase() === n);
+    }
 
     onVisibleChanged: if (visible) Weather.fetch()
 
@@ -134,7 +142,7 @@ AppWindow {
                         }
                     }
                     Text { Layout.fillWidth: true; visible: Weather.places.length === 0; text: Tr.t("No saved locations yet"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
-                    Button { text: Tr.t("Save the current city"); flat: true; enabled: Settings.data.weatherCity !== ""; onClicked: Weather.addPlace({ name: Settings.data.weatherCity, lat: Settings.data.weatherLat, lon: Settings.data.weatherLon }) }
+                    Button { text: Tr.t("Save the current city"); flat: true; enabled: win.currentCityReady && !win.currentCitySaved; onClicked: Weather.addPlace({ name: Settings.data.weatherCity, lat: Settings.data.weatherLat, lon: Settings.data.weatherLon }) }
                 }
             }
 
@@ -144,9 +152,11 @@ AppWindow {
                 visible: Weather.summary === ""
                 icon: Weather.error !== "" ? "dialog-warning" : "weather-few-clouds"
                 title: Weather.error !== "" ? Tr.t("Weather unavailable")
-                    : Weather.enabled ? Tr.t("Getting the weather…") : Tr.t("Which place?")
+                    : Weather.enabled || Location.running ? Tr.t("Getting the weather…") : Tr.t("Which place?")
                 subtitle: Weather.error !== "" ? Weather.error
                     : Weather.enabled ? Tr.t("It needs the internet (Open-Meteo)")
+                    : Location.running ? Tr.t("Find my location") + "…"
+                    : Location.error !== "" ? Location.error
                     : Tr.t("Type a city above, or turn on location in Settings > Privacy")
             }
 

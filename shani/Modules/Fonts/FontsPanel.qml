@@ -33,6 +33,7 @@ AppWindow {
     property string searchText: ""
     property var selectedFont: null
     property string selectedDetails: ""
+    property string detailsFor: ""     // file the pending fc-query belongs to
     readonly property string userFontRoot: (Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") || "") + "/.local/share") + "/fonts"
 
     function refresh() {
@@ -40,6 +41,12 @@ AppWindow {
         allFonts = [];
         selectedFont = null;
         selectedDetails = "";
+        detailsFor = "";
+        // no stale totals while fc-list is re-reading: the header hides and the
+        // "reading fonts" empty state speaks for itself
+        totalFonts = 0;
+        filteredCount = 0;
+        truncated = false;
         listFonts.running = true;
     }
     // filter all N fonts, not just the capped 400, then cap what the list shows
@@ -68,6 +75,7 @@ AppWindow {
             return;
         copyFamily(f.family);
         selectedFont = f;
+        detailsFor = f.file || "";
         if (!f.file) { selectedDetails = ""; return; }
         selectedDetails = Tr.t("Reading font details…");
         fontDetails.command = ["fc-query", "-f", "%{family[0]}|%{style[0]}|%{fullname[0]}|%{fontversion}", f.file];
@@ -81,8 +89,8 @@ AppWindow {
         installFontProc.command = ["sh", "-c", 'dest="${XDG_DATA_HOME:-$HOME/.local/share}/fonts"; mkdir -p "$dest" && cp -- "$1" "$dest/" && fc-cache -f >/dev/null 2>&1', "sh", path];
         installFontProc.running = true;
     }
-    onVisibleChanged: if (visible) refresh()
-    Component.onCompleted: if (visible) refresh()
+    onVisibleChanged: if (visible) { refresh(); searchField.forceActiveFocus() }
+    Component.onCompleted: if (visible) { refresh(); searchField.forceActiveFocus() }
 
     Process {
         id: listFonts
@@ -152,7 +160,9 @@ AppWindow {
         id: fontDetails
         stdout: StdioCollector {
             onStreamFinished: {
-                if (!win.selectedFont)
+                // a slow query for the previously selected font must not overwrite
+                // the details of the font now selected
+                if (!win.selectedFont || !win.detailsFor || win.selectedFont.file !== win.detailsFor)
                     return;
                 const p = text.trim().split("|");
                 if (p.length < 4) { win.selectedDetails = ""; return; }

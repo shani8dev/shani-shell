@@ -39,13 +39,21 @@ AppWindow {
     property string tagFilter: ""
     property bool showTrash: false
     property bool showHistory: false
+    // any narrowing at all: an empty list is "no match", not "no notes"
+    readonly property bool hasFilter: filterText !== "" || tagFilter !== "" || selectedNotebook !== ""
     Timer { id: deleteTimer; interval: 4000; onTriggered: win.confirmDelete = false }
     Timer { id: notebookTimer; interval: 4000; onTriggered: win.confirmNotebook = false }
     // a pending "tap again" belongs to the item it was armed on: switching
     // notes or notebooks must not delete the new selection on one tap
     Connections {
         target: Services.QuickNotes
-        function onCurrentChanged() { win.confirmDelete = false }
+        function onCurrentChanged() {
+            win.confirmDelete = false;
+            win.note = "";
+            // history belongs to the note it was opened for: restoring an old
+            // version after a switch would write it into the new note
+            win.showHistory = false;
+        }
     }
 
 
@@ -211,13 +219,13 @@ AppWindow {
                         visible: noteList.count === 0
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        icon: win.filterText !== "" ? "edit-find" : "text-x-generic"
-                        title: win.filterText !== "" ? Tr.t("No note matches") : Tr.t("No notes yet")
-                        subtitle: win.filterText !== ""
+                        icon: win.hasFilter ? "edit-find" : "text-x-generic"
+                        title: win.hasFilter ? Tr.t("No note matches") : Tr.t("No notes yet")
+                        subtitle: win.hasFilter
                             ? Tr.t("Try another word, or clear the filter")
                             : Tr.t("Notes save as you type — start one below")
-                        actionText: win.filterText !== "" ? Tr.t("Clear the filter") : ""
-                        onAction: win.filterText = ""
+                        actionText: win.hasFilter ? Tr.t("Clear the filter") : ""
+                        onAction: { win.filterText = ""; win.tagFilter = ""; win.selectedNotebook = ""; }
                     }
 
                     // sort order and #tags

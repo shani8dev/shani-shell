@@ -72,6 +72,14 @@ AppWindow {
                 win.hasDistrobox = !!r.distrobox;
                 win.containers = r.containers || [];
                 win.images = r.images || [];
+                // a vanished item must not keep an armed delete or an open log
+                // panel: a later container with the same name would inherit them
+                if (win.logsOf !== "" && !win.containers.some(c => c.name === win.logsOf)) {
+                    win.logsOf = "";
+                    win.logsText = "";
+                }
+                if (win.removing !== "" && win.removing !== "__prune__" && !win.containers.some(c => c.name === win.removing))
+                    win.removing = "";
                 Ui.containersList = win.containers.map(c => (c.box ? "box:" : "") + c.name + ":" + c.state);
                 Ui.containersImages = win.images.map(i => i.name);
             }
@@ -92,6 +100,7 @@ AppWindow {
     }
     function run(args, after) {
         if (act.running) return;
+        win.note = "";                 // a success note belongs to this action alone
         act.command = ["python3", win.tool].concat(args);
         act.after = after || null;
         act.running = true;
@@ -239,7 +248,8 @@ AppWindow {
                     IconButton { icon: "system-software-update"; size: Theme.px(26); tip: Tr.t("Update its packages"); enabled: !job.running; onClicked: win.startJob("upgrade " + brow.modelData.name, ["box-upgrade", brow.modelData.name]) }
                     IconButton {
                         visible: brow.modelData.state === "running"
-                        icon: "media-playback-stop"; size: Theme.px(26); tip: Tr.t("Stop"); onClicked: win.run(["stop", brow.modelData.name])
+                        icon: "media-playback-stop"; size: Theme.px(26); tip: Tr.t("Stop")
+                        onClicked: { const name = brow.modelData.name; win.run(["stop", name], r => { if (r.ok) win.note = Tr.t("Stopped %1", name); }); }
                     }
                     IconButton {
                         icon: win.removing === brow.modelData.name ? "edit-delete" : "window-close"
@@ -312,8 +322,14 @@ AppWindow {
                             color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
                         }
                     }
-                    IconButton { icon: crow.up ? "media-playback-stop" : "media-playback-start"; size: Theme.px(26); tip: crow.up ? Tr.t("Stop") : Tr.t("Start"); onClicked: win.run([crow.up ? "stop" : "start", crow.modelData.name]) }
-                    IconButton { visible: crow.up; icon: "view-refresh"; size: Theme.px(26); tip: Tr.t("Restart"); onClicked: win.run(["restart", crow.modelData.name]) }
+                    IconButton {
+                        icon: crow.up ? "media-playback-stop" : "media-playback-start"; size: Theme.px(26); tip: crow.up ? Tr.t("Stop") : Tr.t("Start")
+                        onClicked: {
+                            const verb = crow.up ? "stop" : "start", name = crow.modelData.name;
+                            win.run([verb, name], r => { if (r.ok) win.note = Tr.t("%1 %2", name, verb === "stop" ? Tr.t("stopped") : Tr.t("started")); });
+                        }
+                    }
+                    IconButton { visible: crow.up; icon: "view-refresh"; size: Theme.px(26); tip: Tr.t("Restart"); onClicked: { const name = crow.modelData.name; win.run(["restart", name], r => { if (r.ok) win.note = Tr.t("Restarted %1", name); }); } }
                     IconButton { icon: "text-x-generic"; size: Theme.px(26); tip: Tr.t("Logs"); onClicked: win.showLogs(crow.modelData.name) }
                     IconButton {
                         icon: win.removing === crow.modelData.name ? "edit-delete" : "window-close"

@@ -33,6 +33,11 @@ AppWindow {
     property var treeList: []
     property string procQuery: ""
     property string endSignal: "TERM"
+    // end confirmation is keyed by pid, not by a delegate row: a 2s refresh or
+    // a sort can recycle the row and must not retarget or silently drop it
+    property int confirmPid: -1
+    Timer { id: endConfirmTimer; interval: 3000; onTriggered: win.confirmPid = -1 }
+    onConfirmPidChanged: if (confirmPid > 0) endConfirmTimer.restart()
 
     // ---- click-to-sort (htop style): a header tap picks a key, tapping it
     // again flips the direction. The tree keeps parents above their children;
@@ -74,7 +79,11 @@ AppWindow {
         return Object.values(m).sort((a, b) => b.cpu - a.cpu);
     }
     readonly property var shownList: win.procQuery
-        ? win.treeList.filter(x => String(x.p.name || "").toLowerCase().includes(win.procQuery.toLowerCase()))
+        ? win.treeList
+            .filter(x => String(x.p.name || "").toLowerCase().includes(win.procQuery.toLowerCase()))
+            // a search is a flat hit list: keeping a child's tree indent when
+            // its parent did not match leaves an indented orphan in the result
+            .map(x => ({ p: x.p, indent: 0 }))
         : win.treeList
     function buildTree() {
         const procs = TopProcesses.list;
@@ -105,7 +114,10 @@ AppWindow {
     }
     Connections {
         target: TopProcesses
-        function onListChanged() { treeList = buildTree(); }
+        function onListChanged() {
+            treeList = buildTree();
+            if (win.confirmPid > 0 && !TopProcesses.list.some(p => p.pid === win.confirmPid)) win.confirmPid = -1;
+        }
         function onDiskIoChanged() { if (win.sortKey === "disk") treeList = buildTree(); }
     }
     property int detailPid: -1
@@ -343,11 +355,6 @@ AppWindow {
                     required property var modelData
                     readonly property int indent: modelData.indent
                     readonly property var p: modelData.p
-                    property bool confirming: false
-                    Timer { interval: 3000; running: procRow.confirming; onTriggered: procRow.confirming = false }
-                    // reuseItems recycles rows: a pending confirm must not carry
-                    // over to the different process this delegate now shows
-                    ListView.onReused: procRow.confirming = false
                     width: procList.width
                     height: Math.max(Theme.px(36), Theme.touchTarget)
                     spacing: Theme.px(6)
@@ -407,18 +414,27 @@ AppWindow {
                         onClicked: win.openDetails(procRow.p.pid)
                     }
                     Button {
-                        text: procRow.confirming ? Tr.t("Tap again") : Tr.t("End")
-                        kind: procRow.confirming ? "danger" : "plain"
+                        text: win.confirmPid === procRow.p.pid ? Tr.t("Tap again") : Tr.t("End")
+                        kind: win.confirmPid === procRow.p.pid ? "danger" : "plain"
                         flat: true
                         // ending the compositor or the shell takes the session down
                         enabled: !/^(niri|qs|quickshell|systemd|init)$/.test(procRow.p.name)
                         Accessible.name: Tr.t("End") + " " + procRow.p.name
                         onClicked: {
-                            if (procRow.confirming) TopProcesses.end(procRow.p.pid, win.endSignal);
-                            procRow.confirming = !procRow.confirming;
+                            if (win.confirmPid === procRow.p.pid) { TopProcesses.end(procRow.p.pid, win.endSignal); win.confirmPid = -1; }
+                            else win.confirmPid = procRow.p.pid;
                         }
                     }
                 }
+            }
+            Text {
+                visible: !win.byUser && win.procQuery !== "" && win.shownList.length === 0
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
+                text: Tr.t("No process matches \"%1\"", win.procQuery)
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
             // Users view: per-user totals from the same samples, read-only
             ListView {

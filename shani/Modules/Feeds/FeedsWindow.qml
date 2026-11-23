@@ -18,6 +18,13 @@ AppWindow {
     property string tagFilter: ""   // the category the feed list is narrowed to
     property bool savedShown: false // show the saved pile instead of a feed
 
+    // a feed or the saved pile must win over an old search: otherwise the list
+    // keeps showing search results and the click looks inert
+    function leaveSearch() {
+        articleSearch.text = "";
+        Feeds.search("");
+    }
+
     RowLayout {
         anchors.fill: parent
         anchors.margins: Theme.px(10)
@@ -83,7 +90,7 @@ AppWindow {
                         subtitle: (modelData.tags && modelData.tags.length ? modelData.tags.join(", ") + "  ·  " : "")
                                   + (modelData.unread > 0 ? Tr.t("%1 unread", modelData.unread) : "")
                         selected: Feeds.current === modelData.url
-                        onClicked: Feeds.open(modelData.url)
+                        onClicked: { win.leaveSearch(); Feeds.open(modelData.url) }
                     }
                 }
 
@@ -112,7 +119,8 @@ AppWindow {
                         text: Tr.t("Remove")
                         flat: true
                         enabled: Feeds.current !== ""
-                        onClicked: Feeds.remove(Feeds.current)
+                        // the service auto-opens another feed only when current is empty
+                        onClicked: { Feeds.remove(Feeds.current); Feeds.current = "" }
                     }
                 }
                 TextField {
@@ -133,7 +141,7 @@ AppWindow {
                         text: Tr.t("Saved")
                         flat: true
                         checked: win.savedShown
-                        onClicked: { win.savedShown = !win.savedShown; if (win.savedShown) Feeds.savedArticles() }
+                        onClicked: { win.leaveSearch(); win.savedShown = !win.savedShown; if (win.savedShown) Feeds.savedArticles() }
                     }
                 }
                 Text { text: Tr.t("Refresh"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
@@ -165,8 +173,8 @@ AppWindow {
                 }
                 Text {
                     Layout.fillWidth: true
-                    visible: Feeds.feeds.length === 0 && !Feeds.busy
-                    text: Tr.t("No feeds yet — add one above")
+                    visible: feedList.count === 0 && !Feeds.busy
+                    text: Feeds.feeds.length === 0 ? Tr.t("No feeds yet — add one above") : Tr.t("Nothing matches")
                     color: Theme.dim
                     wrapMode: Text.Wrap
                     font.family: Theme.font

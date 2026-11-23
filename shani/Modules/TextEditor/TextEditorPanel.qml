@@ -249,21 +249,47 @@ AppWindow {
         edit.text = text;
         edit.cursorPosition = pos;
         win.loading = false;
+        win.saveCaret();
         repaint.restart();
     }
     function undo() { win.showText(TextDocs.undo()); }
     function redo() { win.showText(TextDocs.redo()); }
 
+    // where the caret and selection were in each document, by path (or by tab
+    // for one not saved yet): switching tabs comes back to the same place
+    property var caretByDoc: ({})
+    function docKey() {
+        const d = TextDocs.current;
+        return d ? (d.path !== "" ? "file:" + d.path : "tab:" + TextDocs.active) : "";
+    }
+    function saveCaret() {
+        const k = win.docKey();
+        if (k === "") return;
+        win.caretByDoc[k] = { pos: edit.cursorPosition, start: edit.selectionStart, end: edit.selectionEnd };
+    }
+    // false: nothing was remembered, the caret starts at the top
+    function restoreCaret() {
+        const c = win.caretByDoc[win.docKey()];
+        if (!c) return false;
+        const n = edit.length;
+        edit.cursorPosition = Math.max(0, Math.min(c.pos, n));
+        const a = Math.min(c.start, c.end), b = Math.max(c.start, c.end);
+        if (b > a && b <= n)
+            edit.select(a, b);   // after the caret: assigning it would clear the selection
+        return true;
+    }
     // the document in front, into the editor
     function load() {
         win.loading = true;
         edit.text = TextDocs.current ? TextDocs.current.text : "";
-        win.loading = false;
-        edit.cursorPosition = 0;
         if (TextDocs.goToLine > 0) {
             win.goToLine(TextDocs.goToLine);
             TextDocs.goToLine = 0;
+        } else if (!win.restoreCaret()) {
+            edit.cursorPosition = 0;
         }
+        win.loading = false;
+        win.saveCaret();
         edit.forceActiveFocus();
     }
     function goToLine(n) {
@@ -314,6 +340,11 @@ AppWindow {
                           onPicked: paths => { if (paths.length) TextDocs.saveAs(paths[0]); } });
     }
     function save() {
+        // a read-only file is never written over: Save becomes Save as
+        if (TextDocs.current && TextDocs.current.readOnly) {
+            win.saveAs();
+            return;
+        }
         if (!TextDocs.save())
             win.saveAs();
     }
@@ -407,9 +438,16 @@ AppWindow {
         edit.select(i, i + Math.max(1, len));
     }
     readonly property int matches: win.matchOffsets.length
-    function replaceOne() {
+    // the selection is exactly one match of the find text, not merely text
+    // that contains one: Replace must not eat the letters around it
+    function selectionIsMatch() {
         const re = win.searchRegex(findField.text);
-        if (re && re.test(edit.selectedText)) {
+        if (!re || edit.selectedText === "") return false;
+        const m = re.exec(edit.selectedText);
+        return !!m && m.index === 0 && m[0].length === edit.selectedText.length;
+    }
+    function replaceOne() {
+        if (win.selectionIsMatch()) {
             const at = edit.selectionStart;
             edit.remove(edit.selectionStart, edit.selectionEnd);
             edit.insert(at, replaceField.text);
@@ -547,12 +585,19 @@ AppWindow {
                     onAccepted: win.find(true)
                     onTextChanged: win.matchIndex = -1
                     input.Keys.onEscapePressed: win.leave()
+                    // Shift+Enter goes to the previous match, as in every editor
+                    input.Keys.onPressed: e => {
+                        if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
+                            win.find(!(e.modifiers & Qt.ShiftModifier));
+                            e.accepted = true;
+                        }
+                    }
                 }
-                CheckBox { text: "Aa"; checked: win.caseSensitive; onCheckedChanged: win.caseSensitive = checked; ToolTip.text: "Match case" }
-                CheckBox { text: "W"; checked: win.wholeWord; onCheckedChanged: win.wholeWord = checked; ToolTip.text: "Whole word" }
-                CheckBox { text: ".*"; checked: win.useRegex; onCheckedChanged: win.useRegex = checked; ToolTip.text: "Regular expression" }
+                CheckBox { text: "Aa"; checked: win.caseSensitive; onCheckedChanged: win.caseSensitive = checked; ToolTip.text: "Match case"; Accessible.name: "Match case" }
+                CheckBox { text: "W"; checked: win.wholeWord; onCheckedChanged: win.wholeWord = checked; ToolTip.text: "Whole word"; Accessible.name: "Whole word" }
+                CheckBox { text: ".*"; checked: win.useRegex; onCheckedChanged: win.useRegex = checked; ToolTip.text: "Regular expression"; Accessible.name: "Regular expression" }
                 Text {
-                    text: findField.text === "" ? "" : win.matches === 0 ? Tr.t("Not found") : win.matches + " " + Tr.t("found")
+                    text: findField.text === "" ? "" : win.matches === 0 ? Tr.t("Not found") : (win.matchIndex >= 0 ? (win.matchIndex + 1) + "/" : "") + win.matches + " " + Tr.t("found")
                     color: win.matches === 0 && findField.text !== "" ? Theme.danger : Theme.dim
                     font.family: Theme.font
                     font.pixelSize: Theme.px(11) * Theme.fontScale
@@ -761,7 +806,12 @@ AppWindow {
                             if (win.shortcut(e)) e.accepted = true;
                         }
                         Keys.onEscapePressed: win.leave()
-                        onCursorPositionChanged: { if (win.multiCursor && !win.loading && !win.computingRects) win.clearExtraCursors() }
+                        onCursorPositionChanged: {
+                            if (win.loading || win.computingRects) return;
+                            win.saveCaret();
+                            if (win.multiCursor) win.clearExtraCursors();
+                        }
+                        onSelectedTextChanged: { if (!win.loading && !win.computingRects) win.saveCaret(); }
                     }
                     // draw the extra cursors (column selection) as thin overlays
                     Repeater {

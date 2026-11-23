@@ -106,12 +106,18 @@ AppWindow {
             reuseItems: true
             cacheBuffer: 400
             model: Studio.apps
+            Accessible.role: Accessible.List
+            Accessible.name: Tr.t("Your apps")
             delegate: Rectangle {
                 required property var modelData
                 width: appList.width
                 height: Theme.px(52)
                 radius: Theme.radiusSmall
-                color: rowArea.containsMouse ? Theme.hover : "transparent"
+                // the row says it is waiting for the second click, not only its tooltip
+                color: win.confirmDelete === modelData.name ? Theme.alpha(Theme.danger, 0.14)
+                     : rowArea.containsMouse ? Theme.hover : "transparent"
+                Accessible.role: Accessible.ListItem
+                Accessible.name: modelData.name + (win.confirmDelete === modelData.name ? ", " + Tr.t("Click again to delete") : "")
                 RowLayout {
                     anchors { fill: parent; margins: Theme.px(10) }
                     spacing: Theme.px(10)
@@ -120,7 +126,14 @@ AppWindow {
                         Layout.fillWidth: true
                         spacing: 0
                         Text { text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; elide: Text.ElideRight; Layout.fillWidth: true }
-                        Text { text: modelData.path; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; elide: Text.ElideMiddle; Layout.fillWidth: true }
+                        Text {
+                            text: win.confirmDelete === modelData.name ? Tr.t("Click again to delete") : modelData.path
+                            color: win.confirmDelete === modelData.name ? Theme.danger : Theme.dim
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            elide: Text.ElideMiddle
+                            Layout.fillWidth: true
+                        }
                     }
                     IconButton {
                         size: Theme.px(26)

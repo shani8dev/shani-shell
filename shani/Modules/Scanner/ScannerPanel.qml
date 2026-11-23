@@ -143,7 +143,7 @@ AppWindow {
                             subtitle: modelData.id
                             selected: win.device === modelData.id
                             trailing: win.device === modelData.id ? Tr.t("Chosen") : ""
-                            onClicked: win.device = modelData.id
+                            onClicked: { win.device = modelData.id; win.error = ""; }
                         }
                     }
                 }
@@ -178,7 +178,7 @@ AppWindow {
                         required property var modelData
                         text: modelData[1]
                         selected: win.resolution === modelData[0]
-                        onClicked: win.resolution = modelData[0]
+                        onClicked: { win.resolution = modelData[0]; win.error = ""; }
                     }
                 }
             }
@@ -191,7 +191,7 @@ AppWindow {
                         required property var modelData
                         text: modelData[1]
                         selected: win.format === modelData[0]
-                        onClicked: win.format = modelData[0]
+                        onClicked: { win.format = modelData[0]; win.error = ""; }
                     }
                 }
             }

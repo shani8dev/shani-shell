@@ -177,7 +177,7 @@ PanelWindow {
         anchors.top: parent.top
         anchors.topMargin: Theme.px(56)   // clear the top-centre Island
         anchors.horizontalCenter: parent.horizontalCenter
-        text: "Drag to measure  ·  Shift: straight line  ·  Right-click: clear  ·  Esc: close  ·  Ctrl+C: copy"
+        text: Tr.t("Drag to measure  ·  Shift: straight line  ·  Right-click: clear  ·  Esc: close  ·  Ctrl+C: copy")
         color: "#ffffff"
         font.family: Theme.font
         font.pixelSize: Theme.px(13) * Theme.fontScale
@@ -216,6 +216,8 @@ PanelWindow {
                 inputMethodHints: Qt.ImhDigitsOnly
                 font.family: Theme.font
                 font.pixelSize: Theme.px(13) * Theme.fontScale
+                Accessible.role: Accessible.EditableText
+                Accessible.name: Tr.t("DPI calibration")
                 onEditingFinished: {
                     Ruler.setDpi(text);
                     dpiInput.text = Ruler.dpi > 0 ? String(Ruler.dpi) : "";
@@ -241,5 +243,13 @@ PanelWindow {
     Shortcut {
         sequence: "Ctrl+C"
         onActivated: Ruler.copySize()
+    }
+    Shortcut {
+        sequence: "Delete"
+        onActivated: Ruler.clear()
+    }
+    Shortcut {
+        sequence: "Backspace"
+        onActivated: Ruler.clear()
     }
 }
