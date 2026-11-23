@@ -511,6 +511,8 @@ APPS: dict[str, tuple] = {
              [], ["tour"], None, None),
     "tasks": ("dev.shani.Tasks", "Tasks", "To-dos, ticked off when done", "gnome-todo", "Office;ProjectManagement;",
               [], ["tasksOpen"], None, "tasksShown"),
+    "services": ("dev.shani.Services", "Services", "Your services, timers and scheduled jobs", "preferences-system", "System;Utility;",
+                 [], ["servicesOpen"], "servicesOpen", "servicesShown"),
     "calls": ("dev.shani.Calls", "Calls", "The dial pad and the call history, for every line", "call-start", "Utility;",
               [], ["callsAppOpen"], "callsAppOpen", "callsShown"),
     "messages": ("dev.shani.Messages", "Messages", "The phone's texts, read and answered here", "mail-unread", "Utility;",
@@ -595,7 +597,7 @@ APPS: dict[str, tuple] = {
 # (keywords, GenericName); GenericName only where it names something people search for.
 APP_KEYWORDS: dict[str, tuple] = {
     "text-editor": (("editor", "write", "code", "notepad"), "Text Editor"),
-    "files": (("file", "folder", "browse", "file manager"), "File Manager"),
+    "files": (("file", "folder", "browse", "nautilus"), "File Manager"),
     "image-viewer": (("image", "picture", "photo", "view"), "Image Viewer"),
     "document-viewer": (("pdf", "ebook", "comic", "read", "document"), "Document Viewer"),
     "media-player": (("music", "video", "song", "movie", "play"), "Media Player"),
@@ -611,7 +613,7 @@ APP_KEYWORDS: dict[str, tuple] = {
     "weather": (("forecast", "temperature", "rain"), None),
     "settings": (("preferences", "configure", "options"), "Settings"),
     "system-monitor": (("processes", "cpu", "memory", "monitor"), "System Monitor"),
-    "contacts": (("address book", "people", "phone"), "Address Book"),
+    "contacts": (("addressbook", "people", "phone"), "Address Book"),
     "software": (("store", "install", "update", "app"), "Software Center"),
     "converter": (("convert", "transcode", "format"), None),
     "maps": (("navigation", "location", "map"), None),

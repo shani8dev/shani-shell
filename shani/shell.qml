@@ -162,6 +162,7 @@ ShellRoot {
     LazyLoader { active: Ui.notes; source: "Modules/Notes/NotesPanel.qml" }
     LazyLoader { active: Ui.feeds; source: "Modules/Feeds/FeedsWindow.qml" }
     LazyLoader { active: Ui.mail; source: "Modules/Mail/MailWindow.qml" }
+    LazyLoader { active: Ui.servicesApp; source: "Modules/Services/ServicesWindow.qml" }
     LazyLoader { active: Ui.calls; source: "Modules/Calls/CallsWindow.qml" }
     LazyLoader { active: Ui.messages; source: "Modules/Messages/MessagesWindow.qml" }
     LazyLoader { active: Ui.textEditor; source: "Modules/TextEditor/TextEditorPanel.qml" }
@@ -233,7 +234,7 @@ ShellRoot {
     }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [Link, Idle, InputPlumber, Ups, Polkit, NightLight, AutoRotate, Appearance, Firewall, Feeds, Mail, Tablet, Privacy, Updates, Drives, Disks, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WindowLook, Terminal, TerminalApp, TextMate, Keyring, WindowPreview, SmartReplies, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, PdfSigner, DiskUsage, WallpaperStyle, VideoTrimmer, Models, AIProviders, Studio]
+    readonly property var _services: [SysServices, Link, Idle, InputPlumber, Ups, Polkit, NightLight, AutoRotate, Appearance, Firewall, Feeds, Mail, Tablet, Privacy, Updates, Drives, Disks, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WindowLook, Terminal, TerminalApp, TextMate, Keyring, WindowPreview, SmartReplies, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, PdfSigner, DiskUsage, WallpaperStyle, VideoTrimmer, Models, AIProviders, Studio]
 
     // The test-only CalDAV hook reads a password from a file: keeping it out of
     // an IPC argument keeps it out of `ps`. Declared at root, not in IpcHandler;
@@ -408,6 +409,11 @@ ShellRoot {
             Ui.calls = true;
         }
         function callsClose() { Ui.calls = false; }
+        function servicesOpen() { Ui.closeAll(); Ui.servicesApp = true; }
+        function servicesClose() { Ui.servicesApp = false; }
+        function servicesUnit(name: string, action: string) { SysServices.unit(name, action); }
+        function servicesCronAdd(schedule: string, command: string) { SysServices.cronAdd(schedule, command); }
+        function servicesCronRemove(index: string) { SysServices.cronRemove(index); }
         // the zero-argument spellings: Quickshell's IPC reflection skips a
         // function whose parameter has no type, and a typed one cannot have a
         // default, so "open it with nothing" is its own name
@@ -1187,6 +1193,9 @@ ShellRoot {
                 callRecording: CallRecorder.recording,
                 callFile: CallRecorder.file,
                 cameraShown: Camera.open, notes: Ui.notes, feedsShown: Ui.feeds, mailShown: Ui.mail, textEditor: Ui.textEditor,
+                servicesShown: Ui.servicesApp, servicesTab: SysServices.tab,
+                servicesCount: SysServices.services.length, timersCount: SysServices.timers.length,
+                cronCount: SysServices.cron.length, servicesNote: SysServices.note,
                 callsShown: Ui.calls, callsCount: Link.calls.length, callsLines: Link.lines.join(','),
                 messagesShown: Ui.messages, messagesCount: Link.messages.length,
                 linkPhone: Link.phoneName, linkBackend: Link.backend,

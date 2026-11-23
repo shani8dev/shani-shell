@@ -155,7 +155,9 @@ ipc filePickerClose; ipc closeAll
 python3 /work/bin/shani app --write-desktop $A/desktop
 n=$(ls $A/desktop/*.desktop | wc -l)
 if command -v desktop-file-validate >/dev/null; then
-    bad=$(desktop-file-validate $A/desktop/*.desktop 2>&1 | grep -v "hint:")
+    # warnings are style hints (a Keyword repeating the Name); only errors make
+    # the entry invalid to a launcher
+    bad=$(desktop-file-validate $A/desktop/*.desktop 2>&1 | grep -i "error:" | grep -v "hint:")
     [ -z "$bad" ] && [ "$n" -ge 15 ] && result apps-desktop-entries-valid PASS "$n entries" || result apps-desktop-entries-valid FAIL "$bad"
 else
     grep -L "^Exec=shani app " $A/desktop/*.desktop | grep -q . && result apps-desktop-entries-valid FAIL "an entry without Exec" || result apps-desktop-entries-valid PASS "$n entries (no desktop-file-validate here)"

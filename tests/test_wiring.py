@@ -255,9 +255,11 @@ def test_every_surface_read_on_first_open_is_there():
     assert len(named) >= 20, "the pattern no longer matches shell.qml"
     assert [n for n in named if not (SHANI / n).is_file()] == []
     # and each is opened, for real, by the suite (dev/shell-parts/apps.sh or the main run)
+    # a new app may get its own part rather than being added to apps.sh
     opened = "".join(
-        (ROOT / f).read_text()
-        for f in ("dev/shell-parts/apps.sh", "bin/shani", "dev/shell-test.sh")
+        p.read_text()
+        for p in [ROOT / "bin/shani", ROOT / "dev/shell-test.sh"]
+        + sorted((ROOT / "dev/shell-parts").glob("*.sh"))
     )
     for flag in re.findall(r"LazyLoader \{ active: Ui\.(\w+); source:", shell):
         assert re.search(r"\b%s\b" % flag, opened, re.I), (

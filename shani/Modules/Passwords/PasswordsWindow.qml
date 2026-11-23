@@ -268,7 +268,7 @@ AppWindow {
             visible: win.tab === "passwords"
             Layout.fillWidth: true
             TextField { id: search; Layout.fillWidth: true; placeholderText: Tr.t("Find a password") }
-            Button { text: Tr.t("Run security check"); tip: Tr.t("Reads every keyring item to find weak or reused passwords"); onClicked: win.runAudit(); }
+            Button { text: Tr.t("Run security check"); onClicked: win.runAudit(); }
             Button { text: Tr.t("Add…"); onClicked: win.adding = !win.adding }
         }
         ColumnLayout {

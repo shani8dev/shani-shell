@@ -93,6 +93,7 @@ Singleton {
     property bool notes: false               // the Notes surface (Modules/Notes): notebooks + wiki links
     property bool feeds: false               // the Feeds reader (Modules/Feeds)
     property bool mail: false                // the Mail reader (Modules/Mail)
+    property bool servicesApp: false         // the Services app (Modules/Services): user units + cron
     property bool calls: false               // the Calls app (Modules/Calls): dial pad + history
     property bool messages: false            // the Messages app (Modules/Messages): the phone's texts
     property string callsNumber: ""          // the Calls app: the number the dial pad opens with

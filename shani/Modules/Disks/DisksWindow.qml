@@ -788,7 +788,6 @@ AppWindow {
                         id: scanText
                         width: parent.width
                         wrapMode: Text.Wrap
-                        selectable: true
                         text: Disks.scanResult ? (Disks.scanResult.output || Tr.t("Done")) : Tr.t("Working…")
                         color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale
                     }
