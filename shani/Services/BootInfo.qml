@@ -34,3 +34,4 @@ Singleton {
 
     Component.onCompleted: refresh()
 }
+
