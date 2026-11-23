@@ -17,16 +17,19 @@ ColumnLayout {
     spacing: Theme.px(12)
     property bool active: false
     readonly property var d: Settings.data
+    readonly property var adminCmd: (Quickshell.env("SHANI_ADMIN_TOOL") || "pkexec /usr/lib/shani-shell/shani-admin.py").split(" ")
     property string conn: ""              // the active connection's UUID
     property string connName: ""
     property string dns: ""               // its own DNS servers ("" = from the network)
     property string dnsSearch: ""         // DNS search suffixes of this connection
     property string note: ""
     property bool noteOk: false           // success notes are informational, not an error
+    property string resolvedNote: ""
+    property bool resolvedBusy: false
 
-    onActiveChanged: if (active) { readConn.running = true; readSaved(); readVpnAuto(); readCaps(); }
+    onActiveChanged: if (active) { readConn.running = true; readSaved(); readVpnAuto(); readCaps(); page.loadResolved(); }
     // made already active (a Settings category is a Loader): load now too
-    Component.onCompleted: if (active) { readConn.running = true; readSaved(); readVpnAuto(); readCaps(); }
+    Component.onCompleted: if (active) { readConn.running = true; readSaved(); readVpnAuto(); readCaps(); page.loadResolved(); }
 
     // ---- WWAN data cap (per SIM connection) ----------------------------------------
     // NetworkManager has no cap property, so the number is kept next to the
@@ -51,6 +54,28 @@ ColumnLayout {
         capsWrite.running = true;
     }
     Process { id: capsWrite }
+
+    function _rkv(text, key) {
+        const m = String(text || "").match(new RegExp("^\\s*" + key + "\\s*=\\s*(.*)$", "m"));
+        return m ? m[1].trim() : "";
+    }
+    Process { id: resolvedRead; command: ["cat", "/etc/systemd/resolved.conf.d/50-shani-shell.conf"]; stdout: StdioCollector { onStreamFinished: { resolvedDnsField.text = page._rkv(text, "DNS"); resolvedFallbackField.text = page._rkv(text, "FallbackDNS"); resolvedDotField.text = page._rkv(text, "DNSOverTLS"); resolvedDnssecField.text = page._rkv(text, "DNSSEC"); } } }
+    function loadResolved() { resolvedRead.running = false; resolvedRead.running = true; }
+    Process {
+        id: resolvedSaveProc; stdinEnabled: true; property string payload: ""
+        stderr: StdioCollector { id: resolvedErr }
+        onStarted: { write(payload + "\n"); stdinEnabled = false; }
+        onExited: code => { stdinEnabled = true; page.resolvedBusy = false; page.resolvedNote = code === 0 ? Tr.t("Resolved settings saved") : (resolvedErr.text.trim().split("\n").pop() || Tr.t("Could not save")); if (code === 0) page.loadResolved(); }
+    }
+    function saveResolved() {
+        const s = {};
+        const add = (k, t) => { const v = t.text.trim(); if (v !== "") s[k] = v; };
+        add("DNS", resolvedDnsField); add("FallbackDNS", resolvedFallbackField); add("DNSOverTLS", resolvedDotField); add("DNSSEC", resolvedDnssecField);
+        page.resolvedBusy = true; page.resolvedNote = "";
+        resolvedSaveProc.payload = JSON.stringify({ settings: s });
+        resolvedSaveProc.command = page.adminCmd.concat(["resolved-set"]);
+        resolvedSaveProc.running = true;
+    }
 
     // ---- proxy (applied by the Proxy service) ----------------------------------
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Data used"); visible: page.usage !== "" }
@@ -611,6 +636,27 @@ ColumnLayout {
             font.family: Theme.font
             font.pixelSize: Theme.px(11) * Theme.fontScale
         }
+        SectionTitle { Layout.fillWidth: true; text: Tr.t("System DNS resolver (systemd-resolved)") }
+        Text { Layout.fillWidth: true; text: Tr.t("Managed drop-in /etc/systemd/resolved.conf.d/50-shani-shell.conf. Restarted on save."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        GridLayout {
+            Layout.fillWidth: true; columns: 2; columnSpacing: Theme.px(8); rowSpacing: Theme.px(6)
+            Text { text: Tr.t("DNS"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: resolvedDnsField; Layout.fillWidth: true; placeholder: "1.1.1.1 9.9.9.9" }
+            Text { text: Tr.t("Fallback DNS"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: resolvedFallbackField; Layout.fillWidth: true; placeholder: "1.0.0.1" }
+            Text { text: Tr.t("DNS over TLS"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: resolvedDotField; Layout.fillWidth: true; placeholder: "no | yes | opportunistic" }
+            Text { text: Tr.t("DNSSEC"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: resolvedDnssecField; Layout.fillWidth: true; placeholder: "no | yes | allow-downgrade" }
+        }
+        RowLayout {
+            Layout.fillWidth: true; spacing: Theme.px(6)
+            Text { Layout.fillWidth: true; text: page.resolvedNote; color: page.resolvedNote.indexOf("saved") >= 0 ? Theme.accent : Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; visible: page.resolvedNote !== "" }
+            Item { Layout.fillWidth: true; visible: page.resolvedNote === "" }
+            Button { text: Tr.t("Reload"); enabled: !page.resolvedBusy; onClicked: page.loadResolved() }
+            Button { text: Tr.t("Save resolved"); kind: "primary"; enabled: !page.resolvedBusy; onClicked: page.saveResolved() }
+        }
+
         Button { text: Tr.t("Advanced connection settings…"); onClicked: { Ui.closeAll(); Net.editConnections(); } }
     }
 }

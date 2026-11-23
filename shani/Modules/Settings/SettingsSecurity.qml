@@ -21,8 +21,10 @@ ColumnLayout {
     property bool sudoersBusy: false
     property string aaNote: ""
     property bool aaBusy: false
-    onActiveChanged: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); }
-    Component.onCompleted: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); }
+    property string faillockNote: ""
+    property bool faillockBusy: false
+    onActiveChanged: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); page.loadFaillock(); page.loadLoginDefs(); }
+    Component.onCompleted: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); page.loadFaillock(); page.loadLoginDefs(); }
 
     readonly property var r: SecurityInfo.report || ({})
     readonly property var aa: r.apparmor || ({})
@@ -91,6 +93,55 @@ ColumnLayout {
         onExited: code => { stdinEnabled = true; page.aaBusy = false; page.aaNote = code === 0 ? Tr.t("AppArmor profile updated") : (aaErr.text.trim().split("\n").pop() || Tr.t("AppArmor change failed")); SecurityInfo.refresh(); }
     }
     function setAa(mode) { page.aaBusy = true; page.aaNote = ""; aaProc.payload = JSON.stringify({ profile: aaProfile.text.trim(), mode: mode }); aaProc.command = page.adminCmd.concat(["apparmor-set"]); aaProc.running = true; }
+
+    function _kv(text, key) {
+        const m = String(text || "").match(new RegExp("^\\s*" + key + "\\s*=\\s*(\\S+)", "m"));
+        return m ? m[1] : "";
+    }
+    property bool evenDenyRoot: false
+    Process { id: faillockRead; command: ["cat", "/etc/security/faillock.conf"]; stdout: StdioCollector { onStreamFinished: { denyField.text = page._kv(text, "deny"); unlockField.text = page._kv(text, "unlock_time"); failIntervalField.text = page._kv(text, "fail_interval"); page.evenDenyRoot = page._kv(text, "even_deny_root") === "1"; } } }
+    function loadFaillock() { faillockRead.running = false; faillockRead.running = true; }
+    Process {
+        id: faillockSaveProc; stdinEnabled: true; property string payload: ""
+        stderr: StdioCollector { id: faillockErr }
+        onStarted: { write(payload + "\n"); stdinEnabled = false; }
+        onExited: code => { stdinEnabled = true; page.faillockBusy = false; page.faillockNote = code === 0 ? Tr.t("Faillock policy saved") : (faillockErr.text.trim().split("\n").pop() || Tr.t("Could not save")); if (code === 0) page.loadFaillock(); }
+    }
+    function saveFaillock() {
+        const s = {};
+        const add = (k, t) => { const v = t.text.trim(); if (v !== "") s[k] = v; };
+        add("deny", denyField); add("unlock_time", unlockField); add("fail_interval", failIntervalField);
+        s.even_deny_root = page.evenDenyRoot;
+        page.faillockBusy = true; page.faillockNote = "";
+        faillockSaveProc.payload = JSON.stringify({ settings: s });
+        faillockSaveProc.command = page.adminCmd.concat(["faillock-set"]);
+        faillockSaveProc.running = true;
+    }
+
+    property string loginDefsNote: ""
+    property bool loginDefsBusy: false
+    function _ld(text, key) {
+        const m = String(text || "").match(new RegExp("^\\s*" + key + "\\s+(\\S+)", "m"));
+        return m ? m[1] : "";
+    }
+    Process { id: loginDefsRead; command: ["cat", "/etc/login.defs"]; stdout: StdioCollector { onStreamFinished: { passMaxField.text = page._ld(text, "PASS_MAX_DAYS"); passMinField.text = page._ld(text, "PASS_MIN_DAYS"); passWarnField.text = page._ld(text, "PASS_WARN_AGE"); loginRetriesField.text = page._ld(text, "LOGIN_RETRIES"); loginTimeoutField.text = page._ld(text, "LOGIN_TIMEOUT"); } } }
+    function loadLoginDefs() { loginDefsRead.running = false; loginDefsRead.running = true; }
+    Process {
+        id: loginDefsSaveProc; stdinEnabled: true; property string payload: ""
+        stderr: StdioCollector { id: loginDefsErr }
+        onStarted: { write(payload + "\n"); stdinEnabled = false; }
+        onExited: code => { stdinEnabled = true; page.loginDefsBusy = false; page.loginDefsNote = code === 0 ? Tr.t("Login defaults saved") : (loginDefsErr.text.trim().split("\n").pop() || Tr.t("Could not save")); if (code === 0) page.loadLoginDefs(); }
+    }
+    function saveLoginDefs() {
+        const s = {};
+        const add = (k, t) => { const v = t.text.trim(); if (v !== "") s[k] = v; };
+        add("PASS_MAX_DAYS", passMaxField); add("PASS_MIN_DAYS", passMinField); add("PASS_WARN_AGE", passWarnField);
+        add("LOGIN_RETRIES", loginRetriesField); add("LOGIN_TIMEOUT", loginTimeoutField);
+        page.loginDefsBusy = true; page.loginDefsNote = "";
+        loginDefsSaveProc.payload = JSON.stringify({ settings: s });
+        loginDefsSaveProc.command = page.adminCmd.concat(["login-defs-set"]);
+        loginDefsSaveProc.running = true;
+    }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Security") }
     Text { Layout.fillWidth: true; text: Tr.t("What the kernel, sign-in and audit subsystems report. Policy edits go through administrator authorisation."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
@@ -178,5 +229,49 @@ ColumnLayout {
         Item { Layout.fillWidth: true; visible: page.sudoersNote === "" }
         Button { text: Tr.t("Reload"); enabled: !page.sudoersBusy; onClicked: page.loadSudoers() }
         Button { text: Tr.t("Save sudo rules"); kind: "primary"; enabled: !page.sudoersBusy; onClicked: page.saveSudoers() }
+    }
+
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Account lockout (faillock)") }
+    Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/security/faillock.conf. Values apply to PAM faillock."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+    GridLayout {
+        Layout.fillWidth: true; columns: 2; columnSpacing: Theme.px(8); rowSpacing: Theme.px(6)
+        Text { text: Tr.t("Deny after failures"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        TextField { id: denyField; Layout.fillWidth: true; placeholder: "3" }
+        Text { text: Tr.t("Unlock time (s)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        TextField { id: unlockField; Layout.fillWidth: true; placeholder: "600" }
+        Text { text: Tr.t("Fail interval (s)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        TextField { id: failIntervalField; Layout.fillWidth: true; placeholder: "900" }
+        Text { text: Tr.t("Even deny root"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Button { text: page.evenDenyRoot ? Tr.t("Enabled") : Tr.t("Disabled"); onClicked: page.evenDenyRoot = !page.evenDenyRoot }
+    }
+    RowLayout {
+        Layout.fillWidth: true; spacing: Theme.px(6)
+        Text { Layout.fillWidth: true; text: page.faillockNote; color: page.faillockNote.indexOf("saved") >= 0 ? Theme.accent : Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; visible: page.faillockNote !== "" }
+        Item { Layout.fillWidth: true; visible: page.faillockNote === "" }
+        Button { text: Tr.t("Reload"); enabled: !page.faillockBusy; onClicked: page.loadFaillock() }
+        Button { text: Tr.t("Save faillock"); kind: "primary"; enabled: !page.faillockBusy; onClicked: page.saveFaillock() }
+    }
+
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Login defaults") }
+    Text { Layout.fillWidth: true; text: Tr.t("Managed keys in /etc/login.defs. Only the listed keys are changed."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+    GridLayout {
+        Layout.fillWidth: true; columns: 2; columnSpacing: Theme.px(8); rowSpacing: Theme.px(6)
+        Text { text: Tr.t("PASS_MAX_DAYS"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        TextField { id: passMaxField; Layout.fillWidth: true; placeholder: "99999" }
+        Text { text: Tr.t("PASS_MIN_DAYS"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        TextField { id: passMinField; Layout.fillWidth: true; placeholder: "0" }
+        Text { text: Tr.t("PASS_WARN_AGE"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        TextField { id: passWarnField; Layout.fillWidth: true; placeholder: "7" }
+        Text { text: Tr.t("LOGIN_RETRIES"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        TextField { id: loginRetriesField; Layout.fillWidth: true; placeholder: "5" }
+        Text { text: Tr.t("LOGIN_TIMEOUT"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        TextField { id: loginTimeoutField; Layout.fillWidth: true; placeholder: "60" }
+    }
+    RowLayout {
+        Layout.fillWidth: true; spacing: Theme.px(6)
+        Text { Layout.fillWidth: true; text: page.loginDefsNote; color: page.loginDefsNote.indexOf("saved") >= 0 ? Theme.accent : Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; visible: page.loginDefsNote !== "" }
+        Item { Layout.fillWidth: true; visible: page.loginDefsNote === "" }
+        Button { text: Tr.t("Reload"); enabled: !page.loginDefsBusy; onClicked: page.loadLoginDefs() }
+        Button { text: Tr.t("Save login defaults"); kind: "primary"; enabled: !page.loginDefsBusy; onClicked: page.saveLoginDefs() }
     }
 }

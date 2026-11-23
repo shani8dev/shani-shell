@@ -61,7 +61,17 @@ GUEST_MARKER = Path("/etc/shani/guest")
 FIRST_UID, LAST_UID = 1000, 60000
 ADMIN_GROUP = "wheel"
 # feature groups a person can be switched into (not wheel: the desktop owns that)
-MANAGED_GROUPS = {"sambashare", "libvirt", "kvm", "uucp", "video", "input", "realtime", "wireshark", "docker"}
+MANAGED_GROUPS = {
+    "sambashare",
+    "libvirt",
+    "kvm",
+    "uucp",
+    "video",
+    "input",
+    "realtime",
+    "wireshark",
+    "docker",
+}
 
 GREETD_CONFIG = Path("/etc/greetd/shani-niri.toml")
 AUTOLOGIN_CONFIG = Path("/etc/greetd/shani-niri-autologin.toml")
@@ -494,29 +504,78 @@ def guest(req: dict) -> dict:
 
 SSHD_DROPIN = Path("/etc/ssh/sshd_config.d/50-shani-shell.conf")
 PWQUALITY = Path("/etc/security/pwquality.conf")
-PW_KEYS = {"minlen","dcredit","ucredit","lcredit","ocredit","difok","minclass","maxrepeat","maxclassrepeat","enforce_for_root"}
+PW_KEYS = {
+    "minlen",
+    "dcredit",
+    "ucredit",
+    "lcredit",
+    "ocredit",
+    "difok",
+    "minclass",
+    "maxrepeat",
+    "maxclassrepeat",
+    "enforce_for_root",
+}
+FAILLOCK_CONF = Path("/etc/security/faillock.conf")
+FAILLOCK_KEYS = {
+    "deny": (0, 999),
+    "unlock_time": (0, 604800),
+    "fail_interval": (0, 604800),
+    "even_deny_root": None,
+}
+RESOLVED_DROPIN = Path("/etc/systemd/resolved.conf.d/50-shani-shell.conf")
+RESOLVED_KEYS = {
+    "DNS": "servers",
+    "FallbackDNS": "servers",
+    "DNSOverTLS": {"no", "yes", "opportunistic"},
+    "DNSSEC": {"no", "yes", "allow-downgrade"},
+}
+LOGIN_DEFS = Path("/etc/login.defs")
+LOGIN_DEFS_KEYS = {
+    "PASS_MAX_DAYS": (-1, 99999),
+    "PASS_MIN_DAYS": (-1, 99999),
+    "PASS_WARN_AGE": (-1, 99999),
+    "LOGIN_RETRIES": (1, 20),
+    "LOGIN_TIMEOUT": (1, 600),
+}
 
 
 def remote_access_get(_req: dict) -> dict:
     def on(name):
         try:
-            r = subprocess.run(["systemctl", "is-active", name], capture_output=True, text=True, timeout=5)
+            r = subprocess.run(
+                ["systemctl", "is-active", name],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
             return r.stdout.strip() == "active"
         except Exception:
             return False
-    cfg = {"PasswordAuthentication": "yes", "PubkeyAuthentication": "yes", "PermitRootLogin": "prohibit-password"}
+
+    cfg = {
+        "PasswordAuthentication": "yes",
+        "PubkeyAuthentication": "yes",
+        "PermitRootLogin": "prohibit-password",
+    }
     try:
-        for line in SSHD_DROPIN.read_text(encoding="utf-8", errors="replace").splitlines():
+        for line in SSHD_DROPIN.read_text(
+            encoding="utf-8", errors="replace"
+        ).splitlines():
             line = line.strip()
-            if not line or line.startswith("#"): continue
+            if not line or line.startswith("#"):
+                continue
             parts = line.split(None, 1)
             if len(parts) == 2 and parts[0] in cfg:
                 cfg[parts[0]] = parts[1]
     except OSError:
         pass
-    return {"enabled": on("sshd"), "password": cfg["PasswordAuthentication"].lower() == "yes",
-            "pubkey": cfg["PubkeyAuthentication"].lower() == "yes",
-            "root": cfg["PermitRootLogin"].lower() == "yes"}
+    return {
+        "enabled": on("sshd"),
+        "password": cfg["PasswordAuthentication"].lower() == "yes",
+        "pubkey": cfg["PubkeyAuthentication"].lower() == "yes",
+        "root": cfg["PermitRootLogin"].lower() == "yes",
+    }
 
 
 def remote_access_set(req: dict) -> dict:
@@ -532,20 +591,31 @@ def remote_access_set(req: dict) -> dict:
     # pre-validate on a temp file with sshd -t -f when available
     if shutil.which("sshd"):
         import tempfile
+
         with tempfile.NamedTemporaryFile("w", delete=False, encoding="utf-8") as tf:
             tf.write(content)
             tmp = tf.name
         try:
-            r = subprocess.run(["sshd", "-t", "-f", tmp], capture_output=True, text=True, timeout=10)
+            r = subprocess.run(
+                ["sshd", "-t", "-f", tmp], capture_output=True, text=True, timeout=10
+            )
             if r.returncode != 0:
-                raise Refused((r.stderr or r.stdout).strip().splitlines()[-1][:160] or "sshd rejected the config")
+                raise Refused(
+                    (r.stderr or r.stdout).strip().splitlines()[-1][:160]
+                    or "sshd rejected the config"
+                )
         finally:
             os.unlink(tmp)
     SSHD_DROPIN.write_text(content, encoding="utf-8")
     os.chmod(SSHD_DROPIN, 0o644)
     # reload sshd if active; enable/disable handled separately
     try:
-        subprocess.run(["systemctl", "reload-or-restart", "sshd"], capture_output=True, text=True, timeout=20)
+        subprocess.run(
+            ["systemctl", "reload-or-restart", "sshd"],
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
     except Exception:
         pass
     return remote_access_get(req)
@@ -554,7 +624,9 @@ def remote_access_set(req: dict) -> dict:
 def pwquality_get(_req: dict) -> dict:
     settings = {}
     try:
-        for line in PWQUALITY.read_text(encoding="utf-8", errors="replace").splitlines():
+        for line in PWQUALITY.read_text(
+            encoding="utf-8", errors="replace"
+        ).splitlines():
             s = line.strip()
             if not s or s.startswith("#") or s.startswith("[") or "=" not in s:
                 continue
@@ -609,7 +681,70 @@ def pwquality_set(req: dict) -> dict:
     return pwquality_get(req)
 
 
+def faillock_get(_req: dict) -> dict:
+    settings = {}
+    try:
+        for line in FAILLOCK_CONF.read_text(
+            encoding="utf-8", errors="replace"
+        ).splitlines():
+            s = line.strip()
+            if not s or s.startswith("#") or "=" not in s:
+                continue
+            k, v = s.split("=", 1)
+            k, v = k.strip(), v.strip()
+            if k in FAILLOCK_KEYS:
+                settings[k] = v
+    except OSError:
+        pass
+    return {"settings": settings, "path": str(FAILLOCK_CONF)}
+
+
+def faillock_set(req: dict) -> dict:
+    updates = req.get("settings") or {}
+    if not isinstance(updates, dict):
+        raise Refused("settings must be an object")
+    clean = {}
+    for k, v in updates.items():
+        if k not in FAILLOCK_KEYS:
+            raise Refused(f"unknown key: {k}")
+        spec = FAILLOCK_KEYS[k]
+        if spec is None:
+            clean[k] = "1" if str(v).lower() in ("1", "true", "yes", "on") else "0"
+        else:
+            try:
+                iv = int(v)
+            except Exception:
+                raise Refused(f"{k} must be an integer")
+            lo, hi = spec
+            if iv < lo or iv > hi:
+                raise Refused(f"{k} out of range {lo}-{hi}")
+            clean[k] = str(iv)
+    try:
+        lines = FAILLOCK_CONF.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        lines = []
+    seen = set()
+    out = []
+    for line in lines:
+        s = line.strip()
+        if s and not s.startswith("#") and "=" in s:
+            k = s.split("=", 1)[0].strip()
+            if k in clean:
+                out.append(f"{k} = {clean[k]}")
+                seen.add(k)
+                continue
+        out.append(line)
+    for k, v in clean.items():
+        if k not in seen:
+            out.append(f"{k} = {v}")
+    content = "\n".join(out).rstrip("\n") + "\n"
+    FAILLOCK_CONF.write_text(content, encoding="utf-8")
+    os.chmod(FAILLOCK_CONF, 0o644)
+    return faillock_get(req)
+
+
 import ipaddress
+
 
 def hosts_get(_req: dict) -> dict:
     try:
@@ -635,7 +770,9 @@ def hosts_set(req: dict) -> dict:
             raise Refused(f"line {i}: expected IP address")
         if len(parts) < 2:
             raise Refused(f"line {i}: expected at least one hostname")
-    Path("/etc/hosts").write_text("\n".join(lines).rstrip("\n") + "\n", encoding="utf-8")
+    Path("/etc/hosts").write_text(
+        "\n".join(lines).rstrip("\n") + "\n", encoding="utf-8"
+    )
     os.chmod("/etc/hosts", 0o644)
     return hosts_get(req)
 
@@ -659,14 +796,20 @@ def sudoers_set(req: dict) -> dict:
     content = "\n".join(text.splitlines()).rstrip("\n") + "\n" if text.strip() else ""
     if content:
         import tempfile
+
         with tempfile.NamedTemporaryFile("w", delete=False, encoding="utf-8") as tf:
             tf.write(content)
             tmp = tf.name
         try:
             os.chmod(tmp, 0o440)
-            r = subprocess.run(["visudo", "-c", "-f", tmp], capture_output=True, text=True, timeout=10)
+            r = subprocess.run(
+                ["visudo", "-c", "-f", tmp], capture_output=True, text=True, timeout=10
+            )
             if r.returncode != 0:
-                raise Refused((r.stderr or r.stdout).strip().splitlines()[-1][:200] or "visudo rejected the drop-in")
+                raise Refused(
+                    (r.stderr or r.stdout).strip().splitlines()[-1][:200]
+                    or "visudo rejected the drop-in"
+                )
         finally:
             os.unlink(tmp)
         SUDOERS_DROPIN.write_text(content, encoding="utf-8")
@@ -674,19 +817,25 @@ def sudoers_set(req: dict) -> dict:
         r = subprocess.run(["visudo", "-c"], capture_output=True, text=True, timeout=10)
         if r.returncode != 0:
             # rollback
-            try: SUDOERS_DROPIN.unlink()
-            except OSError: pass
+            try:
+                SUDOERS_DROPIN.unlink()
+            except OSError:
+                pass
             raise Refused("sudoers check failed after write; rolled back")
     else:
-        try: SUDOERS_DROPIN.unlink()
-        except OSError: pass
+        try:
+            SUDOERS_DROPIN.unlink()
+        except OSError:
+            pass
     return sudoers_get(req)
 
 
 def apparmor_set(req: dict) -> dict:
     profile = req.get("profile", "")
     mode = req.get("mode", "")
-    if not isinstance(profile, str) or not re.match(r"^[A-Za-z0-9_./:-]{1,256}$", profile):
+    if not isinstance(profile, str) or not re.match(
+        r"^[A-Za-z0-9_./:-]{1,256}$", profile
+    ):
         raise Refused("bad profile name")
     if mode not in ("enforce", "complain"):
         raise Refused("mode must be enforce or complain")
@@ -694,7 +843,9 @@ def apparmor_set(req: dict) -> dict:
     exe = shutil.which(cmd) or f"/usr/sbin/{cmd}"
     r = subprocess.run([exe, profile], capture_output=True, text=True, timeout=20)
     if r.returncode != 0:
-        raise Refused((r.stderr or r.stdout).strip().splitlines()[-1][:200] or f"{cmd} failed")
+        raise Refused(
+            (r.stderr or r.stdout).strip().splitlines()[-1][:200] or f"{cmd} failed"
+        )
     return {"profile": profile, "mode": mode}
 
 
@@ -706,7 +857,9 @@ MOD_NAME = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 def modprobe_blacklist_get(_req: dict) -> dict:
     mods = []
     try:
-        for line in MODPROBE_DROPIN.read_text(encoding="utf-8", errors="replace").splitlines():
+        for line in MODPROBE_DROPIN.read_text(
+            encoding="utf-8", errors="replace"
+        ).splitlines():
             s = line.strip()
             if s.startswith("blacklist "):
                 name = s.split(None, 1)[1].strip()
@@ -728,20 +881,26 @@ def modprobe_blacklist_set(req: dict) -> dict:
         if m not in clean:
             clean.append(m)
     if clean:
-        content = "# Managed by shani-shell\n" + "".join(f"blacklist {m}\ninstall {m} /bin/false\n" for m in clean)
+        content = "# Managed by shani-shell\n" + "".join(
+            f"blacklist {m}\ninstall {m} /bin/false\n" for m in clean
+        )
         MODPROBE_DROPIN.parent.mkdir(parents=True, exist_ok=True)
         MODPROBE_DROPIN.write_text(content, encoding="utf-8")
         os.chmod(MODPROBE_DROPIN, 0o644)
     else:
-        try: MODPROBE_DROPIN.unlink()
-        except OSError: pass
+        try:
+            MODPROBE_DROPIN.unlink()
+        except OSError:
+            pass
     return modprobe_blacklist_get(req)
 
 
 def modules_load_get(_req: dict) -> dict:
     mods = []
     try:
-        for line in MODULES_LOAD_DROPIN.read_text(encoding="utf-8", errors="replace").splitlines():
+        for line in MODULES_LOAD_DROPIN.read_text(
+            encoding="utf-8", errors="replace"
+        ).splitlines():
             s = line.strip()
             if s and not s.startswith("#") and MOD_NAME.match(s):
                 mods.append(s)
@@ -766,21 +925,30 @@ def modules_load_set(req: dict) -> dict:
         MODULES_LOAD_DROPIN.write_text(content, encoding="utf-8")
         os.chmod(MODULES_LOAD_DROPIN, 0o644)
     else:
-        try: MODULES_LOAD_DROPIN.unlink()
-        except OSError: pass
+        try:
+            MODULES_LOAD_DROPIN.unlink()
+        except OSError:
+            pass
     return modules_load_get(req)
 
 
 JOURNALD_DROPIN = Path("/etc/systemd/journald.conf.d/50-shani-shell.conf")
-JOURNALD_KEYS = {"Storage": {"persistent","volatile","auto","none"},
-                 "SystemMaxUse": None, "SystemKeepFree": None, "RuntimeMaxUse": None, "MaxRetentionSec": None}
+JOURNALD_KEYS = {
+    "Storage": {"persistent", "volatile", "auto", "none"},
+    "SystemMaxUse": None,
+    "SystemKeepFree": None,
+    "RuntimeMaxUse": None,
+    "MaxRetentionSec": None,
+}
 SIZE_RE = re.compile(r"^\d+[KMGTP]?$")
 
 
 def journald_get(_req: dict) -> dict:
     settings = {}
     try:
-        for line in JOURNALD_DROPIN.read_text(encoding="utf-8", errors="replace").splitlines():
+        for line in JOURNALD_DROPIN.read_text(
+            encoding="utf-8", errors="replace"
+        ).splitlines():
             s = line.strip()
             if not s or s.startswith("#") or s.startswith("[") or "=" not in s:
                 continue
@@ -811,14 +979,23 @@ def journald_set(req: dict) -> dict:
                 raise Refused(f"bad value for {k}")
         clean[k] = v
     if clean:
-        content = "# Managed by shani-shell\n[Journal]\n" + "".join(f"{k}={v}\n" for k, v in clean.items())
+        content = "# Managed by shani-shell\n[Journal]\n" + "".join(
+            f"{k}={v}\n" for k, v in clean.items()
+        )
         JOURNALD_DROPIN.parent.mkdir(parents=True, exist_ok=True)
         JOURNALD_DROPIN.write_text(content, encoding="utf-8")
         os.chmod(JOURNALD_DROPIN, 0o644)
     else:
-        try: JOURNALD_DROPIN.unlink()
-        except OSError: pass
-    subprocess.run(["systemctl", "restart", "systemd-journald"], capture_output=True, text=True, timeout=20)
+        try:
+            JOURNALD_DROPIN.unlink()
+        except OSError:
+            pass
+    subprocess.run(
+        ["systemctl", "restart", "systemd-journald"],
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
     return journald_get(req)
 
 
@@ -834,7 +1011,9 @@ def journald_vacuum(req: dict) -> dict:
     flag = "--vacuum-size=" + value if mode == "size" else "--vacuum-time=" + value
     r = subprocess.run(["journalctl", flag], capture_output=True, text=True, timeout=60)
     if r.returncode != 0:
-        raise Refused((r.stderr or r.stdout).strip().splitlines()[-1][:200] or "vacuum failed")
+        raise Refused(
+            (r.stderr or r.stdout).strip().splitlines()[-1][:200] or "vacuum failed"
+        )
     return {"ok": True, "output": (r.stdout or "").strip()[-400:]}
 
 
@@ -850,7 +1029,9 @@ SYSCTL_KEYS = {
 def sysctl_get(_req: dict) -> dict:
     settings = {}
     try:
-        for line in SYSCTL_DROPIN.read_text(encoding="utf-8", errors="replace").splitlines():
+        for line in SYSCTL_DROPIN.read_text(
+            encoding="utf-8", errors="replace"
+        ).splitlines():
             s = line.strip()
             if not s or s.startswith("#") or "=" not in s:
                 continue
@@ -864,7 +1045,11 @@ def sysctl_get(_req: dict) -> dict:
     live = {}
     for k in SYSCTL_KEYS:
         try:
-            live[k] = Path("/proc/sys/" + k.replace(".", "/")).read_text(encoding="utf-8").strip()
+            live[k] = (
+                Path("/proc/sys/" + k.replace(".", "/"))
+                .read_text(encoding="utf-8")
+                .strip()
+            )
         except OSError:
             pass
     return {"settings": settings, "live": live, "path": str(SYSCTL_DROPIN)}
@@ -887,14 +1072,20 @@ def sysctl_set(req: dict) -> dict:
             raise Refused(f"{k} out of range {lo}-{hi}")
         clean[k] = str(iv)
     if clean:
-        content = "# Managed by shani-shell\n" + "".join(f"{k} = {v}\n" for k, v in clean.items())
+        content = "# Managed by shani-shell\n" + "".join(
+            f"{k} = {v}\n" for k, v in clean.items()
+        )
         SYSCTL_DROPIN.parent.mkdir(parents=True, exist_ok=True)
         SYSCTL_DROPIN.write_text(content, encoding="utf-8")
         os.chmod(SYSCTL_DROPIN, 0o644)
-        subprocess.run(["sysctl", "--system"], capture_output=True, text=True, timeout=30)
+        subprocess.run(
+            ["sysctl", "--system"], capture_output=True, text=True, timeout=30
+        )
     else:
-        try: SYSCTL_DROPIN.unlink()
-        except OSError: pass
+        try:
+            SYSCTL_DROPIN.unlink()
+        except OSError:
+            pass
     return sysctl_get(req)
 
 
@@ -905,7 +1096,9 @@ NTP_TOKEN = re.compile(r"^[A-Za-z0-9.:_-]{1,253}$")
 def timesyncd_get(_req: dict) -> dict:
     vals = {"NTP": "", "FallbackNTP": ""}
     try:
-        for line in TIMESYNCD_DROPIN.read_text(encoding="utf-8", errors="replace").splitlines():
+        for line in TIMESYNCD_DROPIN.read_text(
+            encoding="utf-8", errors="replace"
+        ).splitlines():
             s = line.strip()
             if not s or s.startswith("#") or s.startswith("[") or "=" not in s:
                 continue
@@ -935,15 +1128,153 @@ def timesyncd_set(req: dict) -> dict:
                 raise Refused(f"bad {k} server: {t!r}")
         clean[k] = " ".join(toks)
     if clean:
-        content = "# Managed by shani-shell\n[Time]\n" + "".join(f"{k}={v}\n" for k, v in clean.items())
+        content = "# Managed by shani-shell\n[Time]\n" + "".join(
+            f"{k}={v}\n" for k, v in clean.items()
+        )
         TIMESYNCD_DROPIN.parent.mkdir(parents=True, exist_ok=True)
         TIMESYNCD_DROPIN.write_text(content, encoding="utf-8")
         os.chmod(TIMESYNCD_DROPIN, 0o644)
     else:
-        try: TIMESYNCD_DROPIN.unlink()
-        except OSError: pass
-    subprocess.run(["systemctl", "restart", "systemd-timesyncd"], capture_output=True, text=True, timeout=20)
+        try:
+            TIMESYNCD_DROPIN.unlink()
+        except OSError:
+            pass
+    subprocess.run(
+        ["systemctl", "restart", "systemd-timesyncd"],
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
     return timesyncd_get(req)
+
+
+def _resolved_server_token(tok: str) -> bool:
+    if NTP_TOKEN.match(tok):
+        return True
+    try:
+        ipaddress.ip_address(tok)
+        return True
+    except Exception:
+        return False
+
+
+def resolved_get(_req: dict) -> dict:
+    settings = {k: "" for k in RESOLVED_KEYS}
+    try:
+        for line in RESOLVED_DROPIN.read_text(
+            encoding="utf-8", errors="replace"
+        ).splitlines():
+            s = line.strip()
+            if not s or s.startswith("#") or s.startswith("[") or "=" not in s:
+                continue
+            k, v = s.split("=", 1)
+            k, v = k.strip(), v.strip()
+            if k in RESOLVED_KEYS:
+                settings[k] = v
+    except OSError:
+        pass
+    return {"settings": settings, "path": str(RESOLVED_DROPIN)}
+
+
+def resolved_set(req: dict) -> dict:
+    updates = req.get("settings") or {}
+    if not isinstance(updates, dict):
+        raise Refused("settings must be an object")
+    clean = {}
+    for k, v in updates.items():
+        if k not in RESOLVED_KEYS:
+            raise Refused(f"unknown key: {k}")
+        spec = RESOLVED_KEYS[k]
+        raw = str(v).strip()
+        if spec == "servers":
+            if not raw:
+                continue
+            toks = raw.split()
+            if len(toks) > 8:
+                raise Refused(f"too many {k} servers")
+            for t in toks:
+                if not _resolved_server_token(t):
+                    raise Refused(f"bad {k} server: {t!r}")
+            clean[k] = " ".join(toks)
+        else:
+            if raw not in spec:
+                raise Refused(f"bad value for {k}")
+            clean[k] = raw
+    if clean:
+        content = "# Managed by shani-shell\n[Resolve]\n" + "".join(
+            f"{k}={v}\n" for k, v in clean.items()
+        )
+        RESOLVED_DROPIN.parent.mkdir(parents=True, exist_ok=True)
+        RESOLVED_DROPIN.write_text(content, encoding="utf-8")
+        os.chmod(RESOLVED_DROPIN, 0o644)
+    else:
+        try:
+            RESOLVED_DROPIN.unlink()
+        except OSError:
+            pass
+    subprocess.run(
+        ["systemctl", "restart", "systemd-resolved"],
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+    return resolved_get(req)
+
+
+def login_defs_get(_req: dict) -> dict:
+    settings = {}
+    try:
+        for line in LOGIN_DEFS.read_text(
+            encoding="utf-8", errors="replace"
+        ).splitlines():
+            s = line.strip()
+            if not s or s.startswith("#"):
+                continue
+            parts = s.split()
+            if len(parts) >= 2 and parts[0] in LOGIN_DEFS_KEYS:
+                settings[parts[0]] = parts[1]
+    except OSError:
+        pass
+    return {"settings": settings, "path": str(LOGIN_DEFS)}
+
+
+def login_defs_set(req: dict) -> dict:
+    updates = req.get("settings") or {}
+    if not isinstance(updates, dict):
+        raise Refused("settings must be an object")
+    clean = {}
+    for k, v in updates.items():
+        if k not in LOGIN_DEFS_KEYS:
+            raise Refused(f"unknown key: {k}")
+        try:
+            iv = int(v)
+        except Exception:
+            raise Refused(f"{k} must be an integer")
+        lo, hi = LOGIN_DEFS_KEYS[k]
+        if iv < lo or iv > hi:
+            raise Refused(f"{k} out of range {lo}-{hi}")
+        clean[k] = str(iv)
+    try:
+        lines = LOGIN_DEFS.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError as e:
+        raise Refused(f"cannot read login.defs: {e}")
+    seen = set()
+    out = []
+    for line in lines:
+        s = line.strip()
+        if s and not s.startswith("#"):
+            parts = s.split()
+            if parts and parts[0] in clean:
+                out.append(f"{parts[0]}\t{clean[parts[0]]}")
+                seen.add(parts[0])
+                continue
+        out.append(line)
+    for k, v in clean.items():
+        if k not in seen:
+            out.append(f"{k}\t{v}")
+    LOGIN_DEFS.write_text("\n".join(out).rstrip("\n") + "\n", encoding="utf-8")
+    os.chmod(LOGIN_DEFS, 0o644)
+    return login_defs_get(req)
 
 
 COMMANDS = {
@@ -963,6 +1294,8 @@ COMMANDS = {
     "remote-access-set": remote_access_set,
     "pwquality-get": pwquality_get,
     "pwquality-set": pwquality_set,
+    "faillock-get": faillock_get,
+    "faillock-set": faillock_set,
     "hosts-get": hosts_get,
     "hosts-set": hosts_set,
     "sudoers-get": sudoers_get,
@@ -979,6 +1312,10 @@ COMMANDS = {
     "sysctl-set": sysctl_set,
     "timesyncd-get": timesyncd_get,
     "timesyncd-set": timesyncd_set,
+    "resolved-get": resolved_get,
+    "resolved-set": resolved_set,
+    "login-defs-get": login_defs_get,
+    "login-defs-set": login_defs_set,
 }
 
 
