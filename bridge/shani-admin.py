@@ -609,6 +609,37 @@ def pwquality_set(req: dict) -> dict:
     return pwquality_get(req)
 
 
+import ipaddress
+
+def hosts_get(_req: dict) -> dict:
+    try:
+        text = Path("/etc/hosts").read_text(encoding="utf-8", errors="replace")
+    except OSError as e:
+        return {"text": "", "error": str(e)}
+    return {"text": text}
+
+
+def hosts_set(req: dict) -> dict:
+    text = req.get("text", "")
+    if not isinstance(text, str) or len(text) > 65536:
+        raise Refused("hosts text too large")
+    lines = text.splitlines()
+    for i, line in enumerate(lines, 1):
+        s = line.strip()
+        if not s or s.startswith("#"):
+            continue
+        parts = s.split()
+        try:
+            ipaddress.ip_address(parts[0])
+        except Exception:
+            raise Refused(f"line {i}: expected IP address")
+        if len(parts) < 2:
+            raise Refused(f"line {i}: expected at least one hostname")
+    Path("/etc/hosts").write_text("\n".join(lines).rstrip("\n") + "\n", encoding="utf-8")
+    os.chmod("/etc/hosts", 0o644)
+    return hosts_get(req)
+
+
 COMMANDS = {
     "guest": guest,
     "wakeup": wakeup,
@@ -626,6 +657,8 @@ COMMANDS = {
     "remote-access-set": remote_access_set,
     "pwquality-get": pwquality_get,
     "pwquality-set": pwquality_set,
+    "hosts-get": hosts_get,
+    "hosts-set": hosts_set,
 }
 
 

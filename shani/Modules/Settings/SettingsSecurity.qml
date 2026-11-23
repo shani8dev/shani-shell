@@ -13,8 +13,11 @@ ColumnLayout {
     readonly property var adminCmd: (Quickshell.env("SHANI_ADMIN_TOOL") || "pkexec /usr/lib/shani-shell/shani-admin.py").split(" ")
     property string pwNote: ""
     property bool pwBusy: false
-    onActiveChanged: if (active) { SecurityInfo.refresh(); syncPw(); }
-    Component.onCompleted: if (active) { SecurityInfo.refresh(); syncPw(); }
+    property string hostsText: ""
+    property string hostsNote: ""
+    property bool hostsBusy: false
+    onActiveChanged: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); }
+    Component.onCompleted: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); }
 
     readonly property var r: SecurityInfo.report || ({})
     readonly property var aa: r.apparmor || ({})
@@ -52,6 +55,19 @@ ColumnLayout {
         pwSave.command = page.adminCmd.concat(["pwquality-set"]);
         pwSave.running = true;
     }
+
+    Process { id: hostsRead; command: ["cat", "/etc/hosts"]; stdout: StdioCollector { onStreamFinished: { page.hostsText = text; hostsEdit.text = text; } } }
+    function loadHosts() { hostsRead.running = false; hostsRead.running = true; }
+    Process {
+        id: hostsSaveProc
+        stdinEnabled: true
+        property string payload: ""
+        stdout: StdioCollector { id: hostsOut }
+        stderr: StdioCollector { id: hostsErr }
+        onStarted: { write(payload + "\n"); stdinEnabled = false; }
+        onExited: code => { stdinEnabled = true; page.hostsBusy = false; page.hostsNote = code === 0 ? Tr.t("Hosts saved") : (hostsErr.text.trim().split("\n").pop() || Tr.t("Could not save")); if (code === 0) page.loadHosts(); }
+    }
+    function saveHosts() { page.hostsBusy = true; page.hostsNote = ""; hostsSaveProc.payload = JSON.stringify({ text: page.hostsText }); hostsSaveProc.command = page.adminCmd.concat(["hosts-set"]); hostsSaveProc.running = true; }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Security") }
     Text { Layout.fillWidth: true; text: Tr.t("What the kernel, sign-in and audit subsystems report. Policy edits go through administrator authorisation."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
@@ -96,5 +112,25 @@ ColumnLayout {
         Layout.fillWidth: true; spacing: Theme.px(2)
         ListRow { Layout.fillWidth: true; interactive: false; icon: "document-open-recent"; title: Tr.t("auditd"); subtitle: au.active || Tr.t("unknown") }
         ListRow { Layout.fillWidth: true; interactive: false; icon: "document-open-recent"; title: Tr.t("enabled"); subtitle: au.enabled || Tr.t("unknown") }
+    }
+
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Hosts") }
+    Text { Layout.fillWidth: true; text: Tr.t("Static name mappings in /etc/hosts. Each line: IP address, then hostnames."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+    Rectangle {
+        Layout.fillWidth: true; Layout.preferredHeight: Theme.px(140)
+        radius: Theme.radiusSmall; color: Theme.surface1; border.width: 1; border.color: hostsEdit.activeFocus ? Theme.accent : Theme.stroke
+        TextEdit {
+            id: hostsEdit; anchors.fill: parent; anchors.margins: Theme.px(8)
+            color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale
+            wrapMode: TextEdit.NoWrap; selectByMouse: true
+            onTextChanged: if (page.hostsText !== text) page.hostsText = text
+        }
+    }
+    RowLayout {
+        Layout.fillWidth: true; spacing: Theme.px(6)
+        Text { Layout.fillWidth: true; text: page.hostsNote; color: page.hostsNote.indexOf("saved") >= 0 ? Theme.accent : Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; visible: page.hostsNote !== "" }
+        Item { Layout.fillWidth: true; visible: page.hostsNote === "" }
+        Button { text: Tr.t("Reload"); enabled: !page.hostsBusy; onClicked: page.loadHosts() }
+        Button { text: Tr.t("Save hosts"); kind: "primary"; enabled: !page.hostsBusy; onClicked: page.saveHosts() }
     }
 }
