@@ -710,9 +710,12 @@ PY
     close_all
 
     # ---- assistive touch (floating button) ----------------------------------------------
-    ipc smartTouch; sleep 1.5
+    # set it, don't toggle it: an earlier step may already have turned it on
+    settings_merge '{"assistiveTouch": true}'
+    sleep 1.5
     capture_current assistive-touch 0.5 "d['assistiveTouch']"
-    ipc smartTouch; sleep 0.5
+    settings_merge '{"assistiveTouch": false}'
+    sleep 0.5
     close_all
 
     # ---- flash alerts (edge glow on a notification; opt-in setting) ---------------------
