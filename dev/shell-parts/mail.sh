@@ -45,6 +45,17 @@ shot mail-list 0.3
 # ---- the message as it was sent: HTML rendered, remote images taken out -----
 waitfor "d['mailAttachments'] == ['readme.txt']" 6 \
     && result mail-lists-attachments PASS "$(q "['mailAttachments']")" || result mail-lists-attachments FAIL "$(q "['mailAttachments']")"
+
+# ---- the attachment is saved: the bridge decodes its bytes to the picked path
+ATT=$(mktemp /tmp/mail-attachment-XXXXXX); rm -f "$ATT"
+printf 'Shani shell readme.\n' >/tmp/mail-attachment-expected
+if python3 /work/bridge/mail.py saveattachment mail-1 0 "$ATT" >/tmp/mail-attachment.json 2>&1 \
+   && cmp -s "$ATT" /tmp/mail-attachment-expected; then
+    result mail-saves-an-attachment PASS "$(cat /tmp/mail-attachment.json)"
+else
+    result mail-saves-an-attachment FAIL "$(cat /tmp/mail-attachment.json 2>&1) $(cat "$ATT" 2>&1)"
+fi
+rm -f "$ATT" /tmp/mail-attachment-expected
 waitfor "d['mailShowHtml'] == True" 6 && result mail-shows-html PASS || result mail-shows-html FAIL "html $(q "['mailHtml']") chars, showHtml $(q "['mailShowHtml']")"
 
 # a word in the body, not in the title: the server (or the reader) finds it

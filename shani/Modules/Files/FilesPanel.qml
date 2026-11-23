@@ -734,11 +734,16 @@ AppWindow {
                                         font.family: Theme.font
                                         font.pixelSize: Theme.px(9) * Theme.fontScale
                                         anchors.verticalCenter: parent.verticalCenter
+                                        Accessible.role: Accessible.Button
+                                        Accessible.name: Tr.t("Folders next to %1").arg(modelData.name)
+                                        Accessible.onPressAction: win.openCrumbMenu(modelData.path, mapToItem(win, 0, 0))
                                         MouseArea {
                                             anchors.fill: parent
                                             cursorShape: Qt.PointingHandCursor
                                             onClicked: win.openCrumbMenu(modelData.path, mapToItem(win, 0, 0))
                                         }
+                                        // keys and a controller: Enter / Space lists the siblings, as the click
+                                        KeyFocus { name: Tr.t("Folders next to %1").arg(modelData.name); onActivated: win.openCrumbMenu(modelData.path, mapToItem(win, 0, 0)) }
                                     }
                                     Text {
                                         visible: index < win.crumbsModel.length - 1

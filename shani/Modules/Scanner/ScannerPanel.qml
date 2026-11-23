@@ -12,8 +12,18 @@ import qs.Services as Services
 AppWindow {
     id: win
     appName: "Document Scanner"
+    tools: [
+        IconButton {
+            size: Theme.px(30)
+            icon: "view-refresh"
+            tip: Tr.t("Look again")
+            enabled: !win.looking
+            onClicked: win.refreshDevices()
+        }
+    ]
     visible: Ui.scanner
     onGone: Ui.scanner = false
+    margins: 0
     implicitWidth: Theme.px(640)
     implicitHeight: Theme.px(620)
 
@@ -70,36 +80,62 @@ AppWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            spacing: Theme.px(10)
+            anchors.margins: Theme.px(16)
+            spacing: Theme.px(8)
 
-            RowLayout {
+            SectionTitle { Layout.fillWidth: true; text: Tr.t("Scanner") }
+
+            // ---- the scanners there are to choose from ----
+            Flickable {
+                id: deviceList
                 Layout.fillWidth: true
-                SectionTitle { Layout.fillWidth: true; text: Tr.t("Scanner") }
-                Text { visible: win.looking; text: Tr.t("Looking…"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-                IconButton { size: Theme.px(28); icon: "view-refresh"; tip: Tr.t("Look again"); enabled: !win.looking; onClicked: win.refreshDevices() }
-            }
-            Repeater {
-                model: win.devices
-                ListRow {
-                    required property var modelData
-                    Layout.fillWidth: true
+                // one device is a row; a dozen must scroll rather than eat the window.
+                // the content is never shorter than the view, so the states below
+                // (looking, none found) centre in what is on screen
+                Layout.preferredHeight: Math.max(Theme.px(44), Math.min(Theme.px(200), deviceCol.implicitHeight))
+                contentHeight: Math.max(height, deviceCol.implicitHeight)
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                ColumnLayout {
+                    id: deviceCol
+                    width: deviceList.width
+                    spacing: Theme.px(2)
+                    Repeater {
+                        model: win.devices
+                        ListRow {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            icon: "scanner"
+                            title: modelData.name
+                            subtitle: modelData.id
+                            selected: win.device === modelData.id
+                            trailing: win.device === modelData.id ? Tr.t("Chosen") : ""
+                            onClicked: win.device = modelData.id
+                        }
+                    }
+                }
+                RowLayout {
+                    anchors.centerIn: parent
+                    visible: win.looking
+                    spacing: Theme.px(8)
+                    Spinner { size: Theme.px(16) }
+                    Text {
+                        text: Tr.t("Looking…")
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                    }
+                }
+                EmptyState {
+                    anchors.centerIn: parent
+                    width: deviceList.width - Theme.px(32)
+                    visible: !win.looking && win.devices.length === 0
                     icon: "scanner"
-                    title: modelData.name
-                    subtitle: modelData.id
-                    trailing: win.device === modelData.id ? Tr.t("Chosen") : ""
-                    onClicked: win.device = modelData.id
+                    subtitle: Tr.t("No scanner found. Plug one in or turn it on; a network scanner needs to be on the same Wi-Fi.")
                 }
             }
-            Text {
-                Layout.fillWidth: true
-                visible: !win.looking && win.devices.length === 0
-                text: Tr.t("No scanner found. Plug one in or turn it on; a network scanner needs to be on the same Wi-Fi.")
-                color: Theme.dim
-                wrapMode: Text.Wrap
-                font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
-            }
 
+            // ---- the resolution and the file type, a chip each ----
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
@@ -131,8 +167,11 @@ AppWindow {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                Layout.minimumHeight: Theme.px(80)
                 radius: Theme.radiusSmall
                 color: Theme.surface1
+                border.width: 1
+                border.color: Theme.stroke
                 clip: true
                 Image {
                     anchors.fill: parent
@@ -143,14 +182,28 @@ AppWindow {
                     sourceSize: Qt.size(800, 800)
                     source: visible ? "file://" + win.lastScan.split("/").map(encodeURIComponent).join("/") : ""
                 }
+                ColumnLayout {
+                    anchors.centerIn: parent
+                    visible: win.scanning
+                    spacing: Theme.px(8)
+                    Spinner { Layout.alignment: Qt.AlignHCenter; size: Theme.px(28) }
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: Tr.t("Scanning…")
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                    }
+                }
                 EmptyState {
                     anchors.centerIn: parent
-                    visible: win.lastScan === "" || win.lastScan.endsWith(".pdf")
-                    icon: win.scanning ? "content-loading" : "scanner"
-                    title: win.scanning ? Tr.t("Scanning…") : win.lastScan !== "" ? win.lastScan.split("/").pop() : Tr.t("Nothing scanned yet")
+                    visible: !win.scanning && (win.lastScan === "" || win.lastScan.endsWith(".pdf"))
+                    icon: "scanner"
+                    title: win.lastScan === "" ? Tr.t("Nothing scanned yet") : win.lastScan.split("/").pop()
                     subtitle: win.lastScan === "" ? Tr.t("Scans are kept in Documents/Scans") : ""
                 }
             }
+
             Text {
                 Layout.fillWidth: true
                 visible: win.error !== ""
@@ -163,8 +216,17 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
-                Button { visible: win.lastScan !== ""; text: Tr.t("Open"); onClicked: Quickshell.execDetached(["gio", "open", win.lastScan]) }
-                Button { visible: win.lastScan !== ""; flat: true; text: Tr.t("Show in Files"); onClicked: Services.Files.show(win.folder) }
+                Button {
+                    visible: win.lastScan !== ""
+                    text: Tr.t("Open")
+                    onClicked: Quickshell.execDetached(["gio", "open", win.lastScan])
+                }
+                Button {
+                    visible: win.lastScan !== ""
+                    flat: true
+                    text: Tr.t("Show in Files")
+                    onClicked: Services.Files.show(win.folder)
+                }
                 Item { Layout.fillWidth: true }
                 Button {
                     kind: "primary"

@@ -181,6 +181,22 @@ AppWindow {
                                     else Services.QuickNotes.open(modelData.name, "");
                                 }
                             }
+                            // keys and a controller: Enter / Space opens this note, as the click
+                            KeyFocus {
+                                name: modelData.name + (modelData.notebook ? "  ·  " + modelData.notebook : "")
+                                onActivated: {
+                                    const slash = modelData.id.indexOf("/");
+                                    if (slash >= 0) Services.QuickNotes.open(modelData.id.slice(slash + 1), modelData.id.slice(0, slash));
+                                    else Services.QuickNotes.open(modelData.name, "");
+                                }
+                            }
+                            Accessible.role: Accessible.ListItem
+                            Accessible.name: modelData.name
+                            Accessible.onPressAction: {
+                                const slash = modelData.id.indexOf("/");
+                                if (slash >= 0) Services.QuickNotes.open(modelData.id.slice(slash + 1), modelData.id.slice(0, slash));
+                                else Services.QuickNotes.open(modelData.name, "");
+                            }
                         }
                     }
                     // nothing here: say why, and offer the thing that fills it

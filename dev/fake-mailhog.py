@@ -6,13 +6,20 @@ what was sent to /tmp/mail-sent.
     python3 fake-mailhog.py [port]
 
 MailHog's API is /api/v2/messages (list) and /api/v2/messages/<id> (one).
+
+An attachment is listed as {Name, Content-Type, Size} and carries its raw bytes
+base64 in "Content" - the same way the API's MIME field carries the message
+itself - so the reader can decode it and save it (readme.txt below).
 """
 
+import base64
 import json
 import socket
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+README = b"Shani shell readme.\n"
 
 MESSAGES = [
     {
@@ -33,7 +40,12 @@ MESSAGES = [
             "Text": "Thanks for installing ShaniOS.\n\nReply to this message to say hello.",
             "HTML": '<p>Thanks for installing <b>ShaniOS</b>.</p><p><img src="http://tracker.example/p.gif"></p>',
             "Attachments": [
-                {"Name": "readme.txt", "Content-Type": "text/plain", "Size": 412}
+                {
+                    "Name": "readme.txt",
+                    "Content-Type": "text/plain",
+                    "Size": len(README),
+                    "Content": base64.b64encode(README).decode("ascii"),
+                }
             ],
         },
     },

@@ -27,7 +27,7 @@ Commands, one JSON answer on stdout:
   flag <uid> <flag> <on> [folder]   e.g. \\Flagged for a star
   move <uid> <folder>   move to another folder (Archive)
   source <uid>          {"source": "..."}  the message as it arrived
-  saveattachment <uid> <index> <path> [folder]  decode one MIME part to a file
+  save <uid> <index> <dest> [folder]  decode one MIME part to a file
   setremote <0|1>       opt in to remote images in HTML mail
   delete <uid>          {"ok": true}
   send <to> <subject> <body> [cc] [bcc]
@@ -331,24 +331,48 @@ def mh_read(url, uid, cfg=None):
     return {"error": "no such message"}
 
 
+def mh_message(content):
+    """The body MailHog keeps, put back into a MIME message.
+
+    The API stores the headers and the body apart (Content.Headers,
+    Content.Body); joining them is what the email module can walk, and it is
+    where the parts live when Content.Attachments carries no bytes.
+    """
+    lines = []
+    for key, values in (content.get("Headers") or {}).items():
+        for value in values or []:
+            lines.append("%s: %s" % (key, decoded(value)))
+    body = content.get("Body") or ""
+    raw = "\r\n".join(lines) + "\r\n\r\n" + body
+    return email.message_from_string(raw, policy=email.policy.default)
+
+
 def mh_attachment_data(url, uid, index):
-    """(name, bytes) of one MailHog attachment; its API carries base64."""
+    """(name, bytes) of one MailHog attachment.
+
+    The API's Content.Attachments carries the bytes base64 in its "Content"
+    (MailHog's own MIME field is base64 too); a server that lists only
+    {Name, Content-Type, Size} still has the part in Content.Body, so that is
+    parsed as MIME when the list has no bytes for this index.
+    """
     data = mh_get(url, "/api/v2/messages?limit=100")
     for raw in data.get("messages") or data.get("items") or []:
         if str(raw.get("ID")) != uid:
             continue
-        atts = (raw.get("Content") or {}).get("Attachments") or []
-        if index < 0 or index >= len(atts):
-            return None
-        meta = atts[index] if isinstance(atts[index], dict) else {}
-        payload = meta.get("Content") or b""
-        if isinstance(payload, str):
-            try:
-                payload = base64.b64decode(payload)
-            except Exception:
-                payload = payload.encode("utf-8", "replace")
-        name = decoded(meta.get("Name") or meta.get("Filename") or "attachment")
-        return name, payload
+        content = raw.get("Content") or {}
+        atts = content.get("Attachments") or []
+        if 0 <= index < len(atts):
+            meta = atts[index] if isinstance(atts[index], dict) else {}
+            payload = meta.get("Content")
+            if isinstance(payload, str):
+                try:
+                    payload = base64.b64decode(payload)
+                except Exception:
+                    payload = payload.encode("utf-8", "replace")
+            if payload is not None:
+                name = decoded(meta.get("Name") or meta.get("Filename") or "attachment")
+                return name, payload
+        return attachment_data(mh_message(content), index)
     return None
 
 
@@ -605,10 +629,19 @@ def save_attachment(c, uid, index, path, folder="INBOX"):
     if not got:
         return {"error": "no such attachment"}
     name, payload = got
-    target = Path(path).expanduser()
-    target.parent.mkdir(parents=True, exist_ok=True)
-    with open(target, "wb") as fh:
-        fh.write(payload)
+    # the reader picks the path, not the attachment: a name with a separator or
+    # a parent hop is refused rather than quietly written where it points
+    if "/" in name or ".." in name:
+        return {"error": "attachment name is not safe to save"}
+    target = Path(path).expanduser() if path else None
+    if target is None or str(target) in ("", "."):
+        return {"error": "no path to save to"}
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with open(target, "wb") as fh:
+            fh.write(payload)
+    except OSError as exc:
+        return {"error": str(exc) or "could not write the attachment"}
     return {"ok": True, "name": name, "path": str(target), "size": len(payload)}
 
 
@@ -733,7 +766,7 @@ def main():
         if cmd == "source":
             print(json.dumps(mh_source(url, args[0]), ensure_ascii=False))
             return 0
-        if cmd == "saveattachment":
+        if cmd in ("save", "saveattachment"):
             if len(args) < 3:
                 print(json.dumps({"error": "saveattachment needs uid, index and path"}))
                 return 2
@@ -858,7 +891,7 @@ def main():
             )
         )
         return 0
-    if cmd == "saveattachment":
+    if cmd in ("save", "saveattachment"):
         if len(args) < 3:
             print(json.dumps({"error": "saveattachment needs uid, index and path"}))
             return 2

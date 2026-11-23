@@ -146,6 +146,16 @@ AppWindow {
         const c = cues.find(x => t >= x.start && t < x.end);
         return c ? c.text : "";
     }
+    // the chapter the playhead is in (or the last one before it): its row is lit
+    function chapterNow(c) {
+        const t = player.position / 1000;
+        let at = -1;
+        for (let i = 0; i < PlayQueue.chapters.length; i++) {
+            if (t >= PlayQueue.chapters[i].start) at = i;
+            else break;
+        }
+        return at >= 0 && PlayQueue.chapters[at] === c;
+    }
     function stamp(s) {
         const m = /(?:(\d+):)?(\d+):(\d+)[.,](\d+)/.exec(s);
         return m ? (Number(m[1] || 0) * 3600 + Number(m[2]) * 60 + Number(m[3]) + Number(m[4]) / 1000) : -1;
@@ -604,20 +614,49 @@ AppWindow {
                                     onClicked: { PlayQueue.setSubtitleShift(0); win.subShift = 0; }
                                 }
                             }
-                            // chapters, read from the file by ffprobe: jump to one
+                            // chapters, read from the file by ffprobe: pick one to jump to
                             SectionTitle { Layout.fillWidth: true; visible: PlayQueue.chapters.length > 0; text: Tr.t("Chapters") }
-                            Flow {
+                            ListView {
+                                id: chapterList
                                 Layout.fillWidth: true
                                 visible: PlayQueue.chapters.length > 0
-                                spacing: Theme.px(6)
-                                Repeater {
-                                    model: PlayQueue.chapters
-                                    Choice {
-                                        required property var modelData
-                                        text: modelData.title || PlayQueue.clock(modelData.at)
-                                        selected: false
-                                        onClicked: player.position = modelData.at * 1000
+                                implicitHeight: Math.min(180, PlayQueue.chapters.length * 30)
+                                clip: true
+                                boundsBehavior: Flickable.StopAtBounds
+                                model: PlayQueue.chapters
+                                delegate: Rectangle {
+                                    id: chapterRow
+                                    required property var modelData
+                                    required property int index
+                                    readonly property bool now: chapterNow(chapterRow.modelData)
+                                    width: chapterList.width
+                                    height: Theme.px(28)
+                                    radius: Theme.radiusSmall
+                                    color: chapterRow.now ? Theme.accentSoft : chapterArea.containsMouse ? Theme.hover : "transparent"
+                                    RowLayout {
+                                        anchors { fill: parent; leftMargin: Theme.px(8); rightMargin: Theme.px(8) }
+                                        spacing: Theme.px(8)
+                                        Text {
+                                            text: PlayQueue.clock(chapterRow.modelData.start)
+                                            color: chapterRow.now ? Theme.accent : Theme.dim
+                                            font.family: Theme.mono
+                                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                                            font.features: { "tnum": 1 }
+                                        }
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: chapterRow.modelData.title || Tr.t("Chapter %1", chapterRow.index + 1)
+                                            color: Theme.text
+                                            elide: Text.ElideRight
+                                            font.family: Theme.font
+                                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                                        }
                                     }
+                                    Accessible.role: Accessible.ListItem
+                                    Accessible.name: (chapterRow.modelData.title || Tr.t("Chapter %1", chapterRow.index + 1)) + ", " + PlayQueue.clock(chapterRow.modelData.start)
+                                    Accessible.onPressAction: player.position = chapterRow.modelData.start * 1000
+                                    MouseArea { id: chapterArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: player.position = chapterRow.modelData.start * 1000 }
+                                    KeyFocus { onActivated: player.position = chapterRow.modelData.start * 1000 }
                                 }
                             }
                         }

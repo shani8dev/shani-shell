@@ -75,6 +75,61 @@ Singleton {
     readonly property var recent: Object.keys(resumeAt).sort((a, b) => resumeAt[b] - resumeAt[a])
     function playRecent(path) { if (path) open(path); }
 
+    // ---- playlists of its own: the person's own lists, kept as JSON in the
+    // shell's state folder (like the resume points), each { name, paths }.
+    // The queue is session-only; these survive a restart. No m3u: a plain JSON
+    // list is the shell's own format and the Library reads it back directly.
+    property var playlists: []              // [{ name, paths: [] }]
+    function playlistNames() { return playlists.map(p => p.name); }
+    function findPlaylist(name) { return playlists.find(p => p.name === name) || null; }
+    function savePlaylist(name, paths) {
+        name = String(name || "").trim();
+        if (name === "" || !paths || paths.length === 0)
+            return false;
+        const list = paths.map(p => String(p));
+        const rest = playlists.filter(p => p.name !== name);
+        playlists = rest.concat([{ name: name, paths: list }]);
+        playlistStore.setText(JSON.stringify(playlists));
+        return true;
+    }
+    // the queue as it stands, under a name (the Library's "Save as playlist")
+    function saveQueueAs(name) { return root.savePlaylist(name, root.queue); }
+    function openPlaylist(name) {
+        const p = root.findPlaylist(name);
+        if (p && p.paths.length)
+            root.playList(p.paths, 0);
+    }
+    // add one file to a playlist (the playing one, by default), no duplicates
+    function addToPlaylist(name, path) {
+        const p = root.findPlaylist(name);
+        if (!p)
+            return false;
+        const one = String(path || root.current || "");
+        if (one === "" || p.paths.indexOf(one) >= 0)
+            return false;
+        const rest = playlists.filter(x => x.name !== name);
+        playlists = rest.concat([{ name: name, paths: p.paths.concat([one]) }]);
+        playlistStore.setText(JSON.stringify(playlists));
+        return true;
+    }
+    function addPlayingTo(name) { return root.addToPlaylist(name, root.current); }
+    function deletePlaylist(name) {
+        playlists = playlists.filter(p => p.name !== name);
+        playlistStore.setText(JSON.stringify(playlists));
+    }
+    FileView {
+        id: playlistStore
+        path: Quickshell.statePath("media-playlists.json")
+        printErrors: false                 // none yet: no list saved
+        onLoaded: {
+            try {
+                const v = JSON.parse(text()) || [];
+                // tolerate the old shape (a bare list of paths) by giving it a name
+                root.playlists = v.map(p => Array.isArray(p) ? { name: "", paths: p } : p).filter(p => p && p.name && p.paths);
+            } catch (e) {}
+        }
+    }
+
     // ---- A→B loop: jump back to A when the playhead passes B ----
     property real loopA: -1
     property real loopB: -1
@@ -86,6 +141,9 @@ Singleton {
     function loopJump(pos) { return loopActive && pos >= loopB ? loopA : -1; }
 
     // ---- chapters, from ffprobe when it is present ----
+    // [{ title, start, end }] in seconds. Read only for a file that can have
+    // them (a video): ffprobe answers with an empty list for the rest, and its
+    // absence degrades to no chapters rather than an error.
     property var chapters: []
     Process {
         id: chapterProc
@@ -93,8 +151,10 @@ Singleton {
             onStreamFinished: {
                 try {
                     const cs = (JSON.parse(text) || {}).chapters || [];
-                    root.chapters = cs.map(c => ({ at: parseFloat(c.start_time) || 0,
-                                                   title: (c.tags && c.tags.title) || "" }));
+                    root.chapters = cs.filter(c => c && isFinite(parseFloat(c.start_time)))
+                        .map(c => ({ title: (c.tags && c.tags.title) || "",
+                                     start: parseFloat(c.start_time) || 0,
+                                     end: parseFloat(c.end_time) || 0 }));
                 } catch (e) { root.chapters = []; }
             }
         }

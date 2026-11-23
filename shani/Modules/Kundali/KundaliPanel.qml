@@ -4,7 +4,6 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Controls
 import qs.Common
 import qs.Services as Services
 
@@ -57,57 +56,133 @@ AppWindow {
             anchors.margins: Theme.px(16)
             spacing: Theme.px(8)
 
+            // ---- a birth chart, or the day's panchang ----
             RowLayout {
                 Layout.fillWidth: true
-                spacing: Theme.px(4)
-                Button { text: Tr.t("Panchang"); checked: win.mode === "panchang"; onClicked: win.mode = "panchang" }
-                Button { text: Tr.t("Kundali"); checked: win.mode === "kundali"; onClicked: win.mode = "kundali" }
+                spacing: Theme.px(6)
+                Choice {
+                    text: Tr.t("Panchang")
+                    selected: win.mode === "panchang"
+                    onClicked: win.mode = "panchang"
+                }
+                Choice {
+                    text: Tr.t("Kundali")
+                    selected: win.mode === "kundali"
+                    onClicked: win.mode = "kundali"
+                }
+                Item { Layout.fillWidth: true }
             }
 
+            // ---- when ----
             RowLayout {
                 Layout.fillWidth: true
-                spacing: Theme.px(4)
-                TextField { Layout.fillWidth: true; placeholderText: Tr.t("Date, e.g. 1990-01-01"); text: win.dateInput; onTextChanged: win.dateInput = text }
-                TextField { Layout.preferredWidth: Theme.px(80); visible: win.mode === "kundali"; placeholderText: Tr.t("Time"); text: win.timeInput; onTextChanged: win.timeInput = text }
+                spacing: Theme.px(6)
+                TextField {
+                    Layout.fillWidth: true
+                    placeholderText: Tr.t("Date, e.g. 1990-01-01")
+                    text: win.dateInput
+                    onTextChanged: win.dateInput = text
+                    onAccepted: win.calculate()
+                }
+                TextField {
+                    Layout.preferredWidth: Theme.px(80)
+                    visible: win.mode === "kundali"
+                    placeholderText: Tr.t("Time")
+                    text: win.timeInput
+                    onTextChanged: win.timeInput = text
+                    onAccepted: win.calculate()
+                }
             }
 
+            // ---- where ----
             RowLayout {
                 Layout.fillWidth: true
-                spacing: Theme.px(4)
+                spacing: Theme.px(6)
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(2)
                     Text { text: Tr.t("Latitude"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-                    TextField { Layout.fillWidth: true; placeholderText: "28.6139"; text: win.latInput; onTextChanged: win.latInput = text }
+                    TextField {
+                        Layout.fillWidth: true
+                        placeholderText: "28.6139"
+                        label: Tr.t("Latitude")
+                        text: win.latInput
+                        onTextChanged: win.latInput = text
+                        onAccepted: win.calculate()
+                    }
                 }
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(2)
                     Text { text: Tr.t("Longitude"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-                    TextField { Layout.fillWidth: true; placeholderText: "77.2090"; text: win.lonInput; onTextChanged: win.lonInput = text }
+                    TextField {
+                        Layout.fillWidth: true
+                        placeholderText: "77.2090"
+                        label: Tr.t("Longitude")
+                        text: win.lonInput
+                        onTextChanged: win.lonInput = text
+                        onAccepted: win.calculate()
+                    }
                 }
             }
 
             Button {
                 Layout.fillWidth: true
+                kind: "primary"
                 text: win.loading ? Tr.t("Computing…") : Tr.t("Calculate")
                 enabled: !win.loading && win.dateInput !== ""
                 onClicked: win.calculate()
             }
 
-            ScrollView {
+            // ---- what came back: a card to read, and to copy out of ----
+            Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                TextArea {
-                    text: win.result
-                    placeholderText: Tr.t("Enter a date, then Calculate — tithi or the birth chart appears here")
-                    readOnly: true
-                    font.family: Theme.mono
-                    font.pixelSize: Theme.px(12)
-                    wrapMode: TextEdit.Wrap
+                Layout.minimumHeight: Theme.px(120)
+                radius: Theme.radiusSmall
+                color: Theme.surface1
+                border.width: 1
+                border.color: Theme.stroke
+                clip: true
+                Flickable {
+                    anchors.fill: parent
+                    anchors.margins: Theme.px(12)
+                    contentWidth: width
+                    contentHeight: outText.implicitHeight
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    TextEdit {
+                        id: outText
+                        width: parent.width
+                        readOnly: true
+                        selectByMouse: true
+                        wrapMode: TextEdit.Wrap
+                        text: win.result
+                        color: Theme.text
+                        selectionColor: Theme.accent
+                        font.family: Theme.mono
+                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        Accessible.role: Accessible.StaticText
+                        Accessible.name: Tr.t("Kundali")
+                    }
+                }
+                Spinner {
+                    anchors.centerIn: parent
+                    visible: win.loading
+                    size: Theme.px(24)
+                }
+                Text {
+                    anchors.centerIn: parent
+                    width: parent.width - Theme.px(32)
+                    visible: !win.loading && win.result === ""
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.Wrap
+                    text: Tr.t("Enter a date, then Calculate — tithi or the birth chart appears here")
+                    color: Theme.faint
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
                 }
             }
-
         }
     }
 

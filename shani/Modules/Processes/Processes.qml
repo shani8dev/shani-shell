@@ -317,7 +317,10 @@ AppWindow {
                         Layout.preferredWidth: modelData.width < 0 ? 0 : modelData.width
                         Accessible.role: Accessible.Button
                         Accessible.name: Tr.t("Sort by %1", modelData.label)
+                        Accessible.onPressAction: win.setSort(modelData.key)
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.setSort(modelData.key) }
+                        // keys and a controller: Enter / Space sorts by this column, once
+                        KeyFocus { name: Tr.t("Sort by %1", modelData.label); onActivated: win.setSort(modelData.key) }
                     }
                 }
             }

@@ -15,6 +15,7 @@ AppWindow {
     appName: "Password Generator"
     visible: Ui.passwordGenerator
     onGone: Ui.passwordGenerator = false
+    margins: 0
     implicitWidth: Theme.px(560)
     implicitHeight: Theme.px(560)
 
@@ -99,6 +100,7 @@ while True:
 
         ColumnLayout {
             anchors.fill: parent
+            anchors.margins: Theme.px(16)
             spacing: Theme.px(10)
 
             SectionTitle { Layout.fillWidth: true; text: Tr.t("A new password") }
@@ -108,7 +110,7 @@ while True:
                 radius: Theme.radiusSmall
                 color: Theme.surface1
                 border.width: 1
-                border.color: Theme.border
+                border.color: Theme.stroke
                 RowLayout {
                     anchors { fill: parent; leftMargin: Theme.px(14); rightMargin: Theme.px(8) }
                     spacing: Theme.px(8)
@@ -122,14 +124,23 @@ while True:
                         Accessible.role: Accessible.StaticText
                         Accessible.name: Tr.t("New password")
                     }
-                    IconButton { icon: "view-refresh"; tip: Tr.t("Another one"); onClicked: win.generate() }
-                    Button { kind: "primary"; text: Tr.t("Copy"); enabled: win.generated !== ""; onClicked: win.copy(win.generated, "password") }
+                    IconButton {
+                        icon: "view-refresh"
+                        tip: Tr.t("Another one")
+                        onClicked: win.generate()
+                    }
+                    Button {
+                        kind: "primary"
+                        text: Tr.t("Copy")
+                        enabled: win.generated !== ""
+                        onClicked: win.copy(win.generated, "password")
+                    }
                 }
             }
+            SectionTitle { Layout.fillWidth: true; text: Tr.t("Length") }
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
-                Text { text: Tr.t("Length"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; rightPadding: Theme.px(4); font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                 Repeater {
                     model: [12, 16, 20, 24, 32, 48]
                     Choice {
@@ -139,16 +150,38 @@ while True:
                         onClicked: { win.words = false; win.length = modelData; }
                     }
                 }
-                Choice { text: Tr.t("Words"); selected: win.words; onClicked: win.words = !win.words }
+                Choice {
+                    text: Tr.t("Words")
+                    selected: win.words
+                    onClicked: win.words = !win.words
+                }
             }
-            SwitchRow { Layout.fillWidth: true; visible: !win.words; text: Tr.t("Digits"); checked: win.digits; onToggled: on => win.digits = on }
-            SwitchRow { Layout.fillWidth: true; visible: !win.words; text: Tr.t("Symbols"); hint: Tr.t("a few sites refuse them"); checked: win.symbols; onToggled: on => win.symbols = on }
+            SwitchRow {
+                Layout.fillWidth: true
+                visible: !win.words
+                text: Tr.t("Digits")
+                checked: win.digits
+                onToggled: on => win.digits = on
+            }
+            SwitchRow {
+                Layout.fillWidth: true
+                visible: !win.words
+                text: Tr.t("Symbols")
+                hint: Tr.t("a few sites refuse them")
+                checked: win.symbols
+                onToggled: on => win.symbols = on
+            }
 
             RowLayout {
                 Layout.fillWidth: true
                 Layout.topMargin: Theme.px(6)
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("GPG keys") }
-                IconButton { size: Theme.px(28); icon: "view-refresh"; tip: Tr.t("Read again"); onClicked: win.refreshKeys() }
+                IconButton {
+                    size: Theme.px(28)
+                    icon: "view-refresh"
+                    tip: Tr.t("Read again")
+                    onClicked: win.refreshKeys()
+                }
             }
             ListView {
                 reuseItems: true
@@ -168,13 +201,12 @@ while True:
                     trailing: win.copied === modelData.id ? Tr.t("Copied") : Tr.t("Copy ID")
                     onClicked: win.copy(modelData.id, modelData.id)
                 }
-                Text {
-                    anchors.centerIn: parent
+                EmptyState {
                     visible: win.keysRead && keyList.count === 0
-                    text: Tr.t("No GPG keys on this computer")
-                    color: Theme.faint
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    anchors.centerIn: parent
+                    width: keyList.width - Theme.px(32)
+                    icon: "dialog-password"
+                    title: Tr.t("No GPG keys on this computer")
                 }
             }
             Button {

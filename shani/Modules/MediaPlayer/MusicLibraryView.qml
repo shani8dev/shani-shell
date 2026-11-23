@@ -12,7 +12,7 @@ import qs.Services
 Rectangle {
     id: lib
     color: Theme.bg
-    property string tab: "albums"          // albums | artists | songs | videos
+    property string tab: "albums"          // albums | artists | songs | videos | playlists
     onTabChanged: if (tab === "videos") MusicLibrary.scanVideos()
     property var album: null               // an album opened, or null
     property string artist: ""             // an artist chosen, or ""
@@ -38,7 +38,7 @@ Rectangle {
             spacing: Theme.px(6)
             IconButton { visible: lib.album !== null || lib.artist !== ""; size: Theme.px(30); icon: "go-previous"; tip: Tr.t("Back"); onClicked: { if (lib.album) lib.album = null; else lib.artist = ""; } }
             Repeater {
-                model: [["albums", Tr.t("Albums")], ["artists", Tr.t("Artists")], ["songs", Tr.t("Songs")], ["videos", Tr.t("Videos")]]
+                model: [["albums", Tr.t("Albums")], ["artists", Tr.t("Artists")], ["songs", Tr.t("Songs")], ["videos", Tr.t("Videos")], ["playlists", Tr.t("Playlists")]]
                 Choice {
                     required property var modelData
                     visible: lib.album === null
@@ -266,10 +266,89 @@ Rectangle {
             }
         }
 
+        // ---- playlists of its own: the person's own lists, kept across restarts ----
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            visible: lib.album === null && lib.tab === "playlists"
+            spacing: Theme.px(8)
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(8)
+                TextField {
+                    id: playlistField
+                    Layout.fillWidth: true
+                    placeholder: Tr.t("Name this playlist")
+                    label: Tr.t("Save the queue as a playlist")
+                }
+                Button {
+                    kind: "primary"
+                    text: Tr.t("Save queue")
+                    enabled: PlayQueue.queue.length > 0 && playlistField.text.trim() !== ""
+                    onClicked: {
+                        if (PlayQueue.saveQueueAs(playlistField.text.trim()))
+                            playlistField.text = "";
+                    }
+                }
+            }
+            ListView {
+                reuseItems: true
+                cacheBuffer: 400
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                spacing: 2
+                boundsBehavior: Flickable.StopAtBounds
+                model: PlayQueue.playlists
+                delegate: Rectangle {
+                    id: plRow
+                    required property var modelData
+                    required property int index
+                    width: ListView.view.width
+                    height: Theme.px(40)
+                    radius: Theme.radiusSmall
+                    color: plArea.containsMouse ? Theme.hover : "transparent"
+                    RowLayout {
+                        anchors { fill: parent; leftMargin: Theme.px(10); rightMargin: Theme.px(10) }
+                        spacing: Theme.px(8)
+                        Icon { name: "media-playlist"; size: Theme.px(18); color: Theme.accent }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 0
+                            Text { Layout.fillWidth: true; text: plRow.modelData.name; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.DemiBold }
+                            Text { Layout.fillWidth: true; text: plRow.modelData.paths.length + " " + (plRow.modelData.paths.length === 1 ? Tr.t("item") : Tr.t("items")); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        }
+                        IconButton { icon: "media-playback-start"; tip: Tr.t("Play this playlist"); size: Theme.px(28); onClicked: PlayQueue.openPlaylist(plRow.modelData.name) }
+                        IconButton { icon: "list-add"; tip: Tr.t("Add the playing file"); size: Theme.px(28); enabled: PlayQueue.current !== ""; onClicked: PlayQueue.addPlayingTo(plRow.modelData.name) }
+                        IconButton { icon: "edit-delete"; tip: Tr.t("Delete this playlist"); size: Theme.px(28); onClicked: PlayQueue.deletePlaylist(plRow.modelData.name) }
+                    }
+                    Accessible.role: Accessible.ListItem
+                    Accessible.name: plRow.modelData.name + ", " + plRow.modelData.paths.length + " " + Tr.t("items")
+                    MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: m => { if (m.button === Qt.LeftButton) PlayQueue.openPlaylist(plRow.modelData.name); }
+                        onPressAndHold: PlayQueue.deletePlaylist(plRow.modelData.name)
+                    }
+                    KeyFocus { name: plRow.modelData.name; onActivated: PlayQueue.openPlaylist(plRow.modelData.name) }
+                }
+            }
+            EmptyState {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                visible: PlayQueue.playlists.length === 0
+                icon: "media-playlist"
+                title: Tr.t("No playlists yet")
+                subtitle: Tr.t("Save the queue as a playlist, then open it here any time")
+            }
+        }
+
         EmptyState {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: lib.tab !== "videos" && !MusicLibrary.scanning && MusicLibrary.songs.length === 0
+            visible: lib.tab !== "videos" && lib.tab !== "playlists" && !MusicLibrary.scanning && MusicLibrary.songs.length === 0
             icon: "folder-music"
             title: Tr.t("No music yet")
             subtitle: Tr.t("Songs in your Music folder show here, by album and artist")
