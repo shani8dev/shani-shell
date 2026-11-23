@@ -32,7 +32,7 @@ Singleton {
         const usesSize = mode === "tiled" || mode === "floating";
         const size = (name, v) => {
             const n = Number(v) || 0;
-            if (n <= 0) return "";
+            if (n <= 0 || !isFinite(n)) return "";
             return n <= 1
                 ? "    default-" + name + " { proportion " + n.toFixed(4) + "; }"
                 : "    default-" + name + " { fixed " + Math.floor(n) + "; }";
@@ -54,6 +54,20 @@ Singleton {
             ""
         ].filter(x => x !== "").join("\n");
     }
+    // Niri applies every matching window-rule, so two blocks with the same
+    // (app, title) match would combine contradictory open-* settings. Keep only
+    // the newest edit for each match, at its original position.
+    function uniqueRules(rules) {
+        const seen = {};
+        const out = [];
+        for (const r of rules) {
+            const key = JSON.stringify([r.app || "", r.title || ""]);
+            if (seen[key] !== undefined) out[seen[key]] = r;
+            else { seen[key] = out.length; out.push(r); }
+        }
+        return out;
+    }
+
     // Niri's opening rules are global: apply this only to phone-only sessions,
     // never to a phone docked to a desktop monitor. Existing windows stay as-is.
     readonly property string phoneRule: FF.phoneOnly(FormFactor.screens)
@@ -63,7 +77,7 @@ Singleton {
     readonly property string kdl: Settings.loaded
         ? "// written by shani-shell: Settings > Windows > Per-app rules. Edits here are replaced.\n"
             + root.phoneRule
-            + Array.from(d.windowRules || []).map(r => root.kdlRule(r.app, r)).join("")
+            + root.uniqueRules(Array.from(d.windowRules || [])).map(r => root.kdlRule(r.app, r)).join("")
         : ""
 
     onKdlChanged: if (kdl) write.restart()

@@ -15,6 +15,7 @@ Scope {
     required property var modelData
     readonly property real uiScale: FormFactor.of(modelData.name).scale
     readonly property bool on: Settings.data.edgeSwipes && !Lock.locked
+        && !(GameMode.top && GameMode.top.fullscreen)   // a game's own edges are its own
         && ["tablet", "phone"].indexOf(FormFactor.of(modelData.name).profile) >= 0
     // four layer-shell surfaces, one per edge: Variants, not a Repeater, so the
     // windows are made the way every other surface is (tests/test_qml_patterns.py)

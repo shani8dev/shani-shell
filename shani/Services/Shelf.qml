@@ -14,16 +14,28 @@ Singleton {
     readonly property var items: parked.map(p => entry(p, true)).concat(recent.filter(r => parked.indexOf(r.path) < 0))
     function entry(p, isParked) {
         const name = p.split("/").pop();
-        return { path: p, name: name, image: /\.(png|jpe?g|webp|gif)$/i.test(p), parked: isParked };
+        return { path: p, name: name, image: /\.(png|jpe?g|webp|gif|avif|heic|heif|bmp|tiff?|svg)$/i.test(p), parked: isParked };
+    }
+    // only a file:// URI is encoded; a plain path (IPC, or a filename with a
+    // literal %) must survive as typed, and one bad escape must not drop them all
+    function cleanPath(p) {
+        const s = String(p);
+        if (s.indexOf("file://") === 0) {
+            const raw = s.slice(7);
+            try { return decodeURIComponent(raw); } catch (e) { return raw; }
+        }
+        return s;
     }
     // dropped on the dock's Shelf tile (or `qs ipc call shani shelfPark`)
     function park(paths) {
-        const add = [].concat(paths).map(p => String(p).replace(/^file:\/\//, "")).map(p => decodeURIComponent(p)).filter(p => p !== "");
-        root.parked = add.concat(root.parked.filter(p => add.indexOf(p) < 0)).slice(0, 50);
+        const add = [].concat(paths).map(cleanPath).filter(p => p !== "");
+        const unique = add.filter((p, i) => add.indexOf(p) === i);
+        root.parked = unique.concat(root.parked.filter(p => p !== "" && unique.indexOf(p) < 0)).slice(0, 50);
         store.setText(JSON.stringify(root.parked));
     }
     function unpark(path) {
-        root.parked = root.parked.filter(p => p !== path);
+        const p = cleanPath(path);
+        root.parked = root.parked.filter(x => x !== p);
         store.setText(JSON.stringify(root.parked));
     }
     FileView {
@@ -33,7 +45,7 @@ Singleton {
         onLoaded: { try { root.parked = JSON.parse(text()); } catch (e) {} }
     }
 
-    function refresh() { list.running = true; }
+    function refresh() { if (!list.running) list.running = true; }   // an older scan must not overwrite a newer one
 
     Process {
         id: list

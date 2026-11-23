@@ -20,18 +20,21 @@ Singleton {
     function suggest(n) {
         if (!enabled || !n || !n.hasInlineReply || asked[n.id] || Settings.data.notifHideContent)
             return;
-        const a = Object.assign({}, asked);
-        a[n.id] = true;
-        asked = a;
-        const message = (n.summary || "") + (n.body ? "\n" + n.body : "");
-        if (!message.trim())
+        const message = ((n.summary || "") + (n.body ? "\n" + n.body : "")).trim();
+        if (!message)
             return;
-        Bridge.send({
+        // three short replies need only the start of a long body: send less
+        const sent = Bridge.send({
             op: "write", id: "r" + n.id,
             instruction: "Suggest three short, natural replies to this message, each under eight words, one per line, "
                 + "without numbers or quotes. Write them in the language the message is written in.",
-            text: (n.appName ? n.appName + ": " : "") + message
+            text: (n.appName ? n.appName + ": " : "") + message.slice(0, 600)
         });
+        if (!sent)
+            return;     // bridge down: leave it unasked so a later card retries
+        const a = Object.assign({}, asked);
+        a[n.id] = true;
+        asked = a;
     }
 
     // a reply line as the model may write it: "1. Sure!", "- Sure!", "\"Sure!\""
@@ -42,10 +45,13 @@ Singleton {
     Connections {
         target: Bridge
         function onMessage(msg) {
-            if (msg.type !== "written" || String(msg.id).charAt(0) !== "r" || msg.error)
+            if (msg.type !== "written" || String(msg.id || "").charAt(0) !== "r" || msg.error)
                 return;
             const id = Number(String(msg.id).slice(1));
-            const lines = String(msg.text || "").split("\n").map(root.clean).filter(l => l && l.length <= 80);
+            if (!Number.isInteger(id) || id < 0)
+                return;             // "rubbish" is not one of our ids
+            const raw = String(msg.text || "").split("\n").map(root.clean);
+            const lines = raw.filter((l, i) => l && l.length <= 80 && raw.indexOf(l) === i);
             if (!lines.length)
                 return;
             const s = Object.assign({}, root.suggestions);

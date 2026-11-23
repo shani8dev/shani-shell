@@ -33,7 +33,7 @@ PanelWindow {
             y: 12
             spacing: Theme.px(8)
             Rectangle { width: Theme.px(8); height: Theme.px(8); radius: Theme.px(4); color: Theme.red; anchors.verticalCenter: parent.verticalCenter }
-            Text { text: Captions.source === "mic" ? "Live transcribe · saved to Documents/Transcripts" : "Live captions"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+            Text { text: Captions.error ? Captions.error : (Captions.source === "mic" ? "Live transcribe · saved to Documents/Transcripts" : "Live captions"); color: Captions.error ? Theme.red : Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
         }
         Text {
             anchors.fill: parent

@@ -68,6 +68,7 @@ PanelWindow {
         Keys.onPressed: e => {
             if (e.key === Qt.Key_Plus || e.key === Qt.Key_Equal) win.zoom = Math.min(6, win.zoom + 0.5);
             else if (e.key === Qt.Key_Minus) win.zoom = Math.max(1.5, win.zoom - 0.5);
+            else if (e.key === Qt.Key_R) win.grab();   // keyboard equivalent of the fresh-frame right-click
         }
     }
     MouseArea {
@@ -80,7 +81,10 @@ PanelWindow {
         onPressed: Hold.press(held)
         onPressAndHold: Hold.hold(held)
         onPositionChanged: m => win.at = Qt.point(m.x, m.y)
-        onWheel: w => win.zoom = Math.max(1.5, Math.min(6, win.zoom + (w.angleDelta.y > 0 ? 0.5 : -0.5)))
+        onWheel: w => {
+            if (w.angleDelta.y === 0) return;   // a horizontal-only scroll is not a zoom
+            win.zoom = Math.max(1.5, Math.min(6, win.zoom + (w.angleDelta.y > 0 ? 0.5 : -0.5)));
+        }
         onClicked: m => (Hold.swallowed(held) || m.button === Qt.RightButton) ? win.grab() : (Ui.magnifier = false)
     }
 
@@ -113,7 +117,7 @@ PanelWindow {
         Text {
             id: hint
             anchors.centerIn: parent
-            text: Tr.t("Magnifier %1×  ·  scroll to zoom  ·  right-click: fresh frame  ·  Esc to close").arg(win.zoom.toFixed(1))
+            text: Tr.t("Magnifier %1×  ·  scroll to zoom  ·  R / right-click: fresh frame  ·  Esc to close").arg(win.zoom.toFixed(1))
             color: Theme.text
             font.family: Theme.font
             font.pixelSize: Theme.px(12) * Theme.fontScale

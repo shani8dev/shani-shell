@@ -45,17 +45,27 @@ Singleton {
         const m = /^(\d\d?):(\d\d)$/.exec(hhmm || "");
         return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : -1;
     }
+    // one resolver for the timer and for edits: leaving a schedule must clear the
+    // tile's "warm now" state, and changing the times must take effect at once
+    function updateScheduledNow() {
+        if (root.schedule === "manual") { root.scheduledNow = false; return; }
+        const d = new Date(), now = d.getHours() * 60 + d.getMinutes();
+        const from = root.schedule === "sunset" ? 19 * 60 : root.minutes(Settings.data.nightLightFrom);
+        const to = root.schedule === "sunset" ? 6 * 60 + 30 : root.minutes(Settings.data.nightLightTo);
+        root.scheduledNow = from >= 0 && to >= 0 && (from < to ? now >= from && now < to : now >= from || now < to);
+    }
+    onScheduleChanged: root.updateScheduledNow()
+    Connections {
+        target: Settings.data
+        function onNightLightFromChanged() { root.updateScheduledNow(); }
+        function onNightLightToChanged() { root.updateScheduledNow(); }
+    }
     Timer {
         interval: 60000
         running: root.schedule !== "manual"
         repeat: true
         triggeredOnStart: true
-        onTriggered: {
-            const d = new Date(), now = d.getHours() * 60 + d.getMinutes();
-            const from = root.schedule === "sunset" ? 19 * 60 : root.minutes(Settings.data.nightLightFrom);
-            const to = root.schedule === "sunset" ? 6 * 60 + 30 : root.minutes(Settings.data.nightLightTo);
-            root.scheduledNow = from >= 0 && to >= 0 && (from < to ? now >= from && now < to : now >= from || now < to);
-        }
+        onTriggered: root.updateScheduledNow()
     }
     Process {
         running: true

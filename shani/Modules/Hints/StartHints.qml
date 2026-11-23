@@ -14,6 +14,8 @@ PanelWindow {
     readonly property var here: Niri.workspaces.find(w => w.is_focused) || null
     readonly property bool empty: here !== null && !Object.values(Niri.windows).some(w => w.workspace_id === here.id)
     visible: Settings.loaded && empty && !Settings.data.startHintsDone && Settings.data.launcherOpens < 5 && !Ui.launcher && !Niri.overviewOpen
+             // the first-login tour owns the screen; these two wait until it is done
+             && !Ui.tour && (!Settings.data.tourEnabled || Settings.data.tourSeen || !!Quickshell.env("SHANI_NO_TOUR"))
     implicitWidth: card.implicitWidth + 8
     implicitHeight: card.implicitHeight + 8
     color: "transparent"
@@ -44,6 +46,7 @@ PanelWindow {
                 model: [{ keys: "Super + Space", what: Tr.t("open an app, a file or a setting - just type") },
                         { keys: "Super + O", what: Tr.t("see every window and workspace") },
                         { keys: "Super + ,", what: Tr.t("Wi-Fi, sound, brightness and more") },
+                        { keys: "Super + S", what: Tr.t("read, scan or ask about anything on screen") },
                         { keys: "Super + Shift + /", what: Tr.t("every keyboard shortcut") }]
                 Row {
                     required property var modelData

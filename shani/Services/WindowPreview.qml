@@ -53,7 +53,10 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: {
                 const out = text.trim();
-                if (out !== "") {
+                // a capture from an earlier hover can finish after the pending
+                // fields moved to another window: never show its image with the
+                // new window's title/id (or resurrect it after clear())
+                if (out !== "" && out === cap.pendingFile) {
                     root.path = out;
                     root.title = cap.pendingTitle;
                     root.windowId = cap.pendingId;
@@ -68,6 +71,7 @@ Singleton {
         onTriggered: clear()
     }
     function clear() {
+        cap.pendingFile = "";          // invalidate any capture still in flight
         path = ""; title = ""; windowId = "";
         clearTimer.stop();
     }

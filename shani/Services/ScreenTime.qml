@@ -24,7 +24,8 @@ Singleton {
     property bool loaded: false
 
     function label(s) {
-        const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60);
+        let m = Math.round(s / 60), h = Math.floor(m / 60);
+        m -= h * 60;   // rounding 59m30s up must carry into the hour, not print "1 h 60 min"
         return h > 0 ? h + " h " + m + " min" : m + " min";
     }
     function appName(id) {
@@ -33,25 +34,32 @@ Singleton {
     }
 
     // every 15 s, the focused app gets the time since the last tick
+    property var lastTick: 0
     Timer {
         interval: 15000
         running: Settings.data.screenTime && root.loaded
         repeat: true
         onTriggered: {
+            const now = Date.now();
+            // count the time that actually passed, capped at one interval: a
+            // late wake (load, suspend) must not invent it, nor drop it when early
+            const secs = root.lastTick ? Math.round(Math.min(15000, now - root.lastTick) / 1000) : 15;
+            root.lastTick = now;
             const w = Niri.focusedWindow;
             if (!w || Lock.locked || Idle.dimmed)
                 return;
             const app = root.appName(w.app_id || "unknown");
             const d = Object.assign({}, root.days);
             const t = Object.assign({}, d[root.today] || {});
-            t[app] = (t[app] || 0) + 15;
+            t[app] = (t[app] || 0) + secs;
             d[root.today] = t;
-            // keep five weeks
-            for (const k of Object.keys(d).sort().slice(0, -35))
+            // keep five weeks of dates; the "already told" marker is not a day
+            const dates = Object.keys(d).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort();
+            for (const k of dates.slice(0, -35))
                 delete d[k];
             root.days = d;
             file.setText(JSON.stringify(d));
-            root.streak += 15;
+            root.streak += secs;
             root.wellbeing();
         }
     }
@@ -74,6 +82,11 @@ Singleton {
         }
         if (d.screenLimitMinutes > 0 && root.todayTotal >= d.screenLimitMinutes * 60 && root.limitToldFor !== root.today) {
             root.limitToldFor = root.today;
+            // persist the marker beside the days: a restart the same day must
+            // not repeat a reminder the person has already been given
+            const stored = Object.assign({}, root.days, { _told: root.today });
+            root.days = stored;
+            file.setText(JSON.stringify(stored));
             Quickshell.execDetached(["notify-send", "-a", "Wellbeing", "-u", "critical", "-i", "appointment-soon",
                 Tr.t("Today's screen time is up"), Tr.t("You set %1 a day. It is only a reminder — carry on if you need to.", root.label(d.screenLimitMinutes * 60))]);
         }
@@ -82,7 +95,14 @@ Singleton {
         id: file
         path: Quickshell.statePath("screen-time.json")
         printErrors: false
-        onLoaded: { try { root.days = JSON.parse(text()); } catch (e) {} root.loaded = true; }
+        onLoaded: {
+            try {
+                const stored = JSON.parse(text());
+                root.days = stored && typeof stored === "object" && !Array.isArray(stored) ? stored : {};
+                root.limitToldFor = stored && typeof stored._told === "string" ? stored._told : "";
+            } catch (e) {}
+            root.loaded = true;
+        }
         onLoadFailed: root.loaded = true
     }
     SystemClock { id: clock; precision: SystemClock.Minutes }

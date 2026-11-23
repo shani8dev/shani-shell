@@ -32,14 +32,16 @@ Variants {
                 readonly property string action: Settings.data[modelData.key] || "none"
                 screen: screenCorners.modelData
                 visible: action !== "none" && !Lock.locked && (Settings.data.hotCornersInFullscreen || !(GameMode.top && GameMode.top.fullscreen))
+                // a corner the pointer already left must not fire after lock/fullscreen hides it
+                onVisibleChanged: if (!visible) dwell.stop()
                 anchors {
                     top: modelData.top
                     bottom: !modelData.top
                     left: modelData.left
                     right: !modelData.left
                 }
-                implicitWidth: 2
-                implicitHeight: 2
+                implicitWidth: Theme.px(12)   // a 2 px corner is near-impossible to hit
+                implicitHeight: Theme.px(12)
                 color: "transparent"
                 exclusionMode: ExclusionMode.Ignore
                 WlrLayershell.namespace: "shani-hot-corner"

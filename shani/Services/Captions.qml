@@ -19,6 +19,7 @@ Singleton {
         ? Quickshell.env("HOME") + "/Documents/Transcripts/" + Qt.formatDateTime(started, "yyyy-MM-dd HH-mm") + ".txt" : ""
     property date started: new Date()
     property var lines: []               // the last few captions
+    property string error: ""            // a capture or transcript-write failure
     readonly property string text: lines.join(" ")
     readonly property string tool: Dictation.tool
 
@@ -28,6 +29,7 @@ Singleton {
         const was = on && source === from;
         on = false;
         lines = [];
+        error = "";
         source = from;
         started = new Date();
         // a tick later, so the recorder really stops and starts again with the new source
@@ -47,7 +49,14 @@ Singleton {
                 i=$(( (i + 1) % 8 ))
             done', "sh", root.tool, Settings.data.captionLanguage, String(root.source === "speakers"), root.transcript]
         stdout: SplitParser {
-            onRead: line => root.lines = root.lines.concat([line.trim()]).slice(-3)
+            onRead: line => {
+                if (!root.on) return;     // a killed chunk's subshell may still print
+                const t = line.trim();
+                if (t) root.lines = root.lines.concat([t]).slice(-3);
+            }
+        }
+        stderr: SplitParser {
+            onRead: line => { const t = line.trim(); if (t) root.error = t; }
         }
     }
 }

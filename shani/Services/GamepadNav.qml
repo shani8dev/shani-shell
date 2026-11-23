@@ -26,7 +26,9 @@ Singleton {
     readonly property var top: ToplevelManager.activeToplevel
     readonly property bool fullscreen: !!top && Boolean(top.fullscreen)
     // InputPlumber, when it manages the controllers, hands the presses over itself (Services/InputPlumber)
-    readonly property bool wanted: Settings.loaded && Settings.data.gamepadNav && controllers > 0 && !fullscreen && !InputPlumber.managing
+    // a locked session must not be driven by a pad: the actions below open the
+    // launcher, the assistant and workspaces without asking for the password
+    readonly property bool wanted: Settings.loaded && Settings.data.gamepadNav && controllers > 0 && !fullscreen && !InputPlumber.managing && !Lock.locked
     readonly property bool running: reader.running
     property string lastAction: ""        // for the tests
     // a controller drove the desktop lately (the reader says "active" every few seconds

@@ -15,6 +15,16 @@ Singleton {
     property int max: 0
     property int value: 0
     readonly property bool on: value > 0
+    // no reason to burn while the screen is dimmed or the session is locked;
+    // waking re-runs the mode, so auto re-reads the room and "on" uses the saved level
+    readonly property bool resting: Lock.locked || Idle.dimmed
+    Connections { target: Lock; function onLockedChanged() { root.applyRest(); } }
+    Connections { target: Idle; function onDimmedChanged() { root.applyRest(); } }
+    function applyRest() {
+        if (!root.available) return;
+        if (root.resting) root.setLevel(0);
+        else root.apply();
+    }
 
     // probe the device and its range
     Process {
@@ -49,6 +59,8 @@ Singleton {
     function setLevel(v) {
         if (!root.available || !root.device) return;
         const level = Math.max(0, Math.min(root.max, v));
+        // a light key or a late timer must not re-light a locked/dimmed session
+        if (level > 0 && root.resting) return;
         setProc.command = ["brightnessctl", "-d", root.device, "set", String(level)];
         setProc.running = true;
         root.value = level;
@@ -105,6 +117,12 @@ Singleton {
         repeat: true
         onTriggered: if ((Settings.data.kbdBacklight || "auto") === "auto") root.apply()
     }
-    Connections { target: Settings.data; function onKbdBacklightChanged() { root.apply(); } }
+    Connections {
+        target: Settings.data
+        function onKbdBacklightChanged() { root.apply(); }
+        // Settings > Keyboard & input picks Dim/Medium/Bright/Full; without this
+        // the choice was stored but the light did not change until a manual step
+        function onKbdBacklightLevelChanged() { root.apply(); }
+    }
     Connections { target: AmbientLight; function onSmoothLuxChanged() { if ((Settings.data.kbdBacklight || "auto") === "auto") root.apply(); } }
 }

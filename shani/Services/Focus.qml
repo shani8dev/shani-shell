@@ -11,7 +11,12 @@ Singleton {
     id: root
     readonly property var modes: Settings.data.focusModes
     property string scheduled: ""       // the mode whose schedule covers now
-    readonly property string active: Settings.data.focusMode !== "" ? Settings.data.focusMode : scheduled
+    // a hand choice wins until turned off - unless that mode was deleted or
+    // renamed in Settings: a dangling name must not disable every schedule
+    readonly property string active: {
+        const manual = Settings.data.focusMode;
+        return manual && modes.some(m => m.name === manual) ? manual : scheduled;
+    }
     readonly property var mode: modes.find(m => m.name === active) || null
     readonly property bool on: mode !== null
     readonly property bool nightLight: on && !!mode.nightLight
@@ -25,7 +30,10 @@ Singleton {
     }
     function minutes(hhmm) {
         const m = (hhmm || "").match(/^(\d{1,2}):(\d{2})$/);
-        return m ? Number(m[1]) * 60 + Number(m[2]) : -1;
+        if (!m) return -1;
+        const h = Number(m[1]), min = Number(m[2]);
+        if (h > 23 || min > 59) return -1;   // "25:70" made a window cover all day, or none
+        return h * 60 + min;
     }
     function inSchedule(sc, now) {
         if (!sc || !sc.on)
