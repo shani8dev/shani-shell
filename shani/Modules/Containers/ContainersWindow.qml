@@ -3,7 +3,7 @@
 // made from a chip, opened in your terminal, their apps put in your menu, upgraded,
 // removed; and your rootless Podman containers (start, stop, restart, logs, remove)
 // and images (remove, prune). Everything through bridge/containers.py, as you - no
-// administrator password. Cassini's Containers page stays the read-only inventory.
+// administrator password. The Containers app owns the live inventory.
 import Quickshell
 import Quickshell.Io
 import QtQuick

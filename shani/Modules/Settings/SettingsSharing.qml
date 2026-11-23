@@ -3,8 +3,8 @@
 // plugin, so it is here). Three things must hold, each shown and each fixable:
 // the file-sharing service runs, this account may share (group sambashare),
 // and it has a network password (Samba keeps its own). System-wide shares in
-// smb.conf are Cassini's (its SMB page); these are yours alone. Remote login
-// is the on/off GNOME also has; how sshd lets people in is Cassini's page.
+// smb.conf are managed by the system SMB configuration; these are yours alone. Remote login
+// is the on/off GNOME also has; sshd_config controls how people sign in.
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -157,7 +157,7 @@ ColumnLayout {
     SwitchRow {
         Layout.fillWidth: true
         text: Tr.t("Secure Shell (SSH)")
-        hint: page.sshOn ? "ssh " + page.user + "@" + page.host + ".local" : Tr.t("Off — sign-in rules are on Cassini's Remote access page")
+        hint: page.sshOn ? "ssh " + page.user + "@" + page.host + ".local" : Tr.t("Off — turn on to allow remote login over SSH")
         checked: page.sshOn
         onToggled: on => page.run(["pkexec", "systemctl", on ? "enable" : "disable", "--now", "sshd"], on ? Tr.t("Remote login is on") : Tr.t("Remote login is off"))
     }

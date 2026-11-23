@@ -24,9 +24,11 @@ ColumnLayout {
     property bool adding: false
     property string note: ""
     property bool busy: false
+    property var featureGroups: []        // [{name, desc, members}]
+    property var groupPeople: []
     readonly property bool iAmAdmin: me === "root" || (users.find(u => u.name === me) || {}).admin === true
 
-    function refresh() { list.running = true; }
+    function refresh() { list.running = true; groupsList.running = true; }
     onActiveChanged: if (active) refresh()
     // made already active (a Settings category is a Loader): load now too
     Component.onCompleted: if (active) refresh()
@@ -64,6 +66,18 @@ ColumnLayout {
             }
         }
         onStarted: { write(payload + "\n"); stdinEnabled = false; }
+    }
+    Process {
+        id: groupsList
+        command: ["python3", Quickshell.env("SHANI_GROUPS_TOOL") || "/usr/lib/shani-shell/groups.py", "list"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let d = {};
+                try { d = JSON.parse(text) || {}; } catch (e) { d = {}; }
+                page.featureGroups = Array.isArray(d.groups) ? d.groups : [];
+                page.groupPeople = Array.isArray(d.people) ? d.people : [];
+            }
+        }
     }
     function act(command, req) {
         busy = true;
@@ -204,6 +218,40 @@ ColumnLayout {
         font.family: Theme.font
         font.pixelSize: Theme.px(11) * Theme.fontScale
     }
+    // ---- feature groups: who may share, run VMs, use serial devices ---------
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Groups"); visible: page.featureGroups.length > 0 }
+    Text {
+        Layout.fillWidth: true
+        visible: page.featureGroups.length > 0
+        text: Tr.t("A group switches a feature on for a person. A change takes effect at their next sign-in.")
+        color: Theme.dim
+        wrapMode: Text.Wrap
+        font.family: Theme.font
+        font.pixelSize: Theme.px(11) * Theme.fontScale
+    }
+    Repeater {
+        model: page.featureGroups
+        ColumnLayout {
+            id: gcol
+            required property var modelData
+            Layout.fillWidth: true
+            spacing: Theme.px(2)
+            Text { text: gcol.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.Medium }
+            Text { Layout.fillWidth: true; text: gcol.modelData.desc; color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Repeater {
+                model: page.groupPeople
+                SwitchRow {
+                    required property string modelData
+                    Layout.fillWidth: true
+                    text: modelData
+                    checked: (gcol.modelData.members || []).indexOf(modelData) >= 0
+                    enabled: !page.busy && page.iAmAdmin
+                    onToggled: on => page.act("user-group", { username: modelData, group: gcol.modelData.name, member: on })
+                }
+            }
+        }
+    }
+
     // ---- the guest: a classroom board, a shared computer ---------------------
     SwitchRow {
         Layout.fillWidth: true

@@ -2,7 +2,7 @@
 // password (two-factor, TOTP). A click copies one. Adding one is pointing at
 // the QR code the website shows - on this screen - or typing its setup key.
 // The secrets are the keyring's (bridge/otp.py); the shell never keeps them.
-// Codes for signing in to this computer itself are Cassini's (Security).
+// Codes for signing in to this computer itself are managed in system sign-in settings.
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -220,7 +220,6 @@ AppWindow {
             }
             RowLayout {
                 Layout.fillWidth: true
-                Text { Layout.fillWidth: true; text: Tr.t("A code to sign in to this computer itself is set up in Cassini."); color: Theme.faint; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
     
             }
         }

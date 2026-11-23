@@ -1,8 +1,8 @@
 pragma Singleton
-// ShaniOS updates, from the same contract Cassini reads:
+// ShaniOS updates, read from shani-deploy:
 // `shani-deploy --status --check --json` (ok, update_available,
 // boot_markers.reboot_needed, current_slot). Checked at start and hourly;
-// "Open Cassini" is where updating actually happens.
+// The shell installs updates; this service reads the status.
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -27,7 +27,7 @@ Singleton {
         check();
     }
     // firmware (fwupd, LVFS): the devices with a newer release — told once per
-    // release, persisted across restarts; opens Cassini's Firmware page
+    // release, persisted across restarts; install offered in Settings > Updates
     property var firmware: []             // ["Thunderbolt Controller 1.2 → 1.3", …]
     property var firmwareTold: []
     FileView {
@@ -170,8 +170,6 @@ Singleton {
         if (!proc.running)
             proc.running = true;
     }
-    // Cassini's Updates page where Cassini is installed; otherwise the deploy
-    // itself in a terminal (pkexec: ShaniOS's polkit asks for your own password)
     function reviewWithChronoa() {
         if (!root.available && root.firmware.length === 0) return;
         const msg = root.firmware.length > 0

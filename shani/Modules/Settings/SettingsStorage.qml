@@ -2,7 +2,7 @@
 // the Trash, the thumbnails, each app's cache, downloads untouched for months,
 // Flatpak runtimes nothing uses (bridge/cleanup.py). Old downloads go to the
 // Trash, not away. The system's part (update images, old snapshots) is
-// Cassini's Maintenance, one button away; what fills the disk, Disk Usage.
+// Storage cleanup and what fills the disk.
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -184,7 +184,7 @@ ColumnLayout {
         Layout.fillWidth: true
         Text {
             Layout.fillWidth: true
-            text: Tr.t("Update images, old snapshots and the system's logs are cleaned in Cassini, with your password.")
+            text: Tr.t("Update images, old snapshots and the system's logs can take space; clean them up when you need room.")
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font

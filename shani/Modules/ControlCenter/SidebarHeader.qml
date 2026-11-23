@@ -258,14 +258,14 @@ ColumnLayout {
         }
     }
 
-    // ShaniOS updates (shani-deploy, as Cassini reads it)
+    // ShaniOS updates (shani-deploy)
     ListRow {
         Layout.fillWidth: true
         visible: Updates.attention
         icon: Updates.rebootNeeded ? "system-reboot" : "software-update-available"
         title: Updates.summary
-        subtitle: Tr.t("Open Cassini")
+        subtitle: Tr.t("Open Updates")
         selected: true
-        onClicked: { Ui.closeAll(); !Updates.available && !Updates.rebootNeeded && Updates.firmware.length ? Updates.openFirmware() : Updates.open(); }
+        onClicked: { Ui.closeAll(); Ui.settingsCat = "updates"; }
     }
 }

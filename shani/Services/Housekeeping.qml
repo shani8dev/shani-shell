@@ -82,8 +82,8 @@ Singleton {
     }
 
     // A disk that says it is failing (SMART, as UDisks reads it - no root
-    // needed): told once a day, with Cassini's Disk health page one click away.
-    // The details and the self-tests are Cassini's; this is only the warning.
+    // needed): told once a day, with the Disk health page one click away.
+    // The details and the self-tests live in Disk health; this is only the warning.
     property var failing: []              // drive models, for the tests
     Process {
         id: health

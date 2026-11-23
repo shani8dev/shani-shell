@@ -1,6 +1,6 @@
 // Settings > About: this computer — its name (which an administrator can
 // change here, through hostnamed and the polkit agent), the system, the
-// hardware — and Cassini for everything an administrator does beyond it.
+// hardware — and the rest of Settings for what you can change.
 import Quickshell
 import Quickshell.Io
 import QtQuick

@@ -1,4 +1,4 @@
-// Settings > Printers (Cassini hands its Printers page to this one inside the
+// Settings > Printers (the shell owns printers inside the
 // shell): the printers CUPS knows, which one is yours by default, a test page,
 // your waiting jobs, adding one and removing one (an administrator's, through
 // polkit). Adding: the printers on the network that announce themselves (CUPS's

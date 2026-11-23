@@ -1,7 +1,7 @@
 // Passwords and Keys (Seahorse parity): the passwords apps saved in the keyring
 // (oo7, through the Secret Service) - found, shown, copied, changed, deleted, or
 // a new one added - and your GPG keys - made, imported, exported, deleted. SSH
-// keys are Cassini's page. Everything goes through bridge/passwords.py; a secret is
+// keys are managed by the system. Everything goes through bridge/passwords.py; a secret is
 // shown only when asked, hidden again after half a minute, and copied through
 // wl-copy's stdin (never a command line); the clipboard is cleared after 45 s.
 import Quickshell

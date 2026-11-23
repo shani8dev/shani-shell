@@ -361,7 +361,7 @@ ColumnLayout {
     }
 
     // About: the machine (SettingsAbout - hardware, the name, ShaniOS's version,
-    // "More in Cassini"), then the shell's own settings and resetting them
+    // its own pages), then the shell's own settings and resetting them
     Loader {
         Layout.fillWidth: true
         active: page.cat === "about"

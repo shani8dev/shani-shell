@@ -226,9 +226,9 @@ Singleton {
             property var layoutByDock: ({})
             property int dockIconSize: 48            // Plank's and the macOS dock's size; the zoom peaks at about 1.6×
             // desktop-entry ids, in order; ones not installed are skipped
-            // what the image ships: Files, Vivaldi (Flatpak), the terminal, Cassini, Chronoa, Text Editor (Flatpak)
+            // what the image ships: Files, Vivaldi (Flatpak), the terminal, Chronoa, Text Editor (Flatpak)
             property string reopenApps: "ask"           // at sign-in, the apps open at the last one: ask | always | never
-            property list<string> dockPinned: ["dev.shani.Files", "com.vivaldi.Vivaldi", "foot", "dev.shani.cassini", "shani-chronoa", "dev.shani.TextEditor"]
+            property list<string> dockPinned: ["dev.shani.Files", "com.vivaldi.Vivaldi", "foot", "shani-chronoa", "dev.shani.TextEditor"]
             property string recordingsDir: ""   // "" -> $XDG_VIDEOS_DIR or ~/Videos/Recordings
 
             // idle stages, seconds; 0 turns a stage off. *Battery applies on battery.

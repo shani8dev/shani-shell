@@ -1,6 +1,6 @@
 pragma Singleton
 // The session's polkit authentication agent: without one, every privileged
-// action (Cassini updates, pkexec, mounting) fails silently in a niri session.
+// action (updates, pkexec, mounting) fails silently in a niri session.
 // Modules/Polkit draws the dialog for `flow`.
 //
 // When polkit offers several identities (root and the wheel members) it

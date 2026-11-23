@@ -1,7 +1,7 @@
 // Settings > Updates: what release this slot runs, what the channel offers, and
 // whether anything is waiting - the system update, a restart to finish one, or
 // firmware. Services/Updates.qml reads `shani-deploy --status --check --json`
-// (the same contract Cassini reads); this page only shows it. Installing is
+// (the same contract shani-deploy exposes); this page shows and installs it. Installing is
 // shani-deploy's, with authorisation, so the button hands over rather than
 // doing it here.
 import QtQuick

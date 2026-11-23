@@ -59,6 +59,8 @@ GUEST = "guest"
 GUEST_MARKER = Path("/etc/shani/guest")
 FIRST_UID, LAST_UID = 1000, 60000
 ADMIN_GROUP = "wheel"
+# feature groups a person can be switched into (not wheel: the desktop owns that)
+MANAGED_GROUPS = {"sambashare", "libvirt", "kvm", "uucp", "video", "input", "realtime", "wireshark", "docker"}
 
 GREETD_CONFIG = Path("/etc/greetd/shani-niri.toml")
 AUTOLOGIN_CONFIG = Path("/etc/greetd/shani-niri-autologin.toml")
@@ -207,6 +209,22 @@ def user_admin(req: dict) -> dict:
 def user_password(req: dict) -> dict:
     p = person(req.get("username", ""))
     run(["chpasswd"], stdin=f"{p.pw_name}:{password_ok(req.get('password'))}\n")
+    return {}
+
+
+def user_group(req: dict) -> dict:
+    p = person(req.get("username", ""))
+    group = req.get("group", "")
+    if group not in MANAGED_GROUPS:
+        raise Refused("not a group this tool manages")
+    try:
+        grp.getgrnam(group)
+    except KeyError:
+        raise Refused(f"{group} does not exist on this system")
+    if req.get("member"):
+        run(["gpasswd", "-a", p.pw_name, group])
+    else:
+        run(["gpasswd", "-d", p.pw_name, group])
     return {}
 
 
@@ -482,6 +500,7 @@ COMMANDS = {
     "user-remove": user_remove,
     "user-admin": user_admin,
     "user-password": user_password,
+    "user-group": user_group,
     "autologin": autologin,
     "power-keys": power_keys,
     "battery-limit": battery_limit,
