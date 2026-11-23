@@ -20,16 +20,16 @@ Singleton {
         "    keyboard {",
         // the person's layouts (none chosen: niri follows the system keymap,
         // localed) and xkb options: the layout switch, compose, Caps Lock
-        d.kbLayouts.length || root.xkbOptions ? "        xkb {" : "",
-        d.kbLayouts.length ? "            layout \"" + Array.from(d.kbLayouts).map(l => l.split("+")[0]).join(",") + "\"" : "",
-        d.kbLayouts.length ? "            variant \"" + Array.from(d.kbLayouts).map(l => l.split("+")[1] || "").join(",") + "\"" : "",
+        root.kbLayouts().length || root.xkbOptions ? "        xkb {" : "",
+        root.kbLayouts().length ? "            layout \"" + root.kbLayouts().map(l => l.split("+")[0]).join(",") + "\"" : "",
+        root.kbLayouts().length ? "            variant \"" + root.kbLayouts().map(l => l.split("+")[1] || "").join(",") + "\"" : "",
         root.xkbOptions ? "            options \"" + root.xkbOptions + "\"" : "",
-        d.kbLayouts.length || root.xkbOptions ? "        }" : "",
+        root.kbLayouts().length || root.xkbOptions ? "        }" : "",
         d.numlock ? "        numlock" : "",
         // each window keeps the layout it was typed in (an English editor, a Marathi chat)
         d.kbPerWindow ? "        track-layout \"window\"" : "",
-        "        repeat-delay " + d.keyRepeatDelay,
-        "        repeat-rate " + d.keyRepeatRate,
+        "        repeat-delay " + root.boundedInt(d.keyRepeatDelay, 0, 10000),
+        "        repeat-rate " + root.boundedInt(d.keyRepeatRate, 0, 1000),
         "    }",
         "    touchpad {",
         d.touchpadOff ? "        off" : "",
@@ -175,6 +175,16 @@ Singleton {
     function matrix(m) {
         const a = Array.from(m || []).map(Number);
         return a.length === 6 && a.every(x => isFinite(x)) ? "        calibration-matrix " + a.map(x => x.toFixed(6)).join(" ") : "";
+    }
+    // xkb ids only contain these; a stray quote from a hand-edited settings.json
+    // must not turn the whole input include into KDL niri refuses to load
+    function kbLayouts() {
+        return Array.from(d.kbLayouts || []).filter(l => /^[A-Za-z0-9_+_-]+$/.test(String(l || "")));
+    }
+    // niri refuses the whole include for an out-of-range repeat value
+    function boundedInt(v, lo, hi) {
+        const n = Math.round(Number(v));
+        return isFinite(n) ? Math.min(hi, Math.max(lo, n)) : lo;
     }
     // a niri spawn calling this shell's IPC (qs -p its directory: the installed one and a checkout's alike)
     function ipc(fn, arg) {

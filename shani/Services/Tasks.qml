@@ -22,6 +22,21 @@ Singleton {
     readonly property var done: tasks.filter(t => t.done)
     readonly property int dueToday: open.filter(t => t.due > 0 && t.due * 1000 < endOfToday()).length
     property var told: ({})
+    property var _dueSeen: ({})  // last due seen per uid, so a reschedule re-arms its reminder
+    // A changed due (here or in Thunderbird/Chronoa) or a removed task must not
+    // leave a stale "already told" flag that silences the next reminder.
+    function loadList(list) {
+        if (!Array.isArray(list)) return;
+        const seen = {};
+        for (const t of list) {
+            if (_dueSeen[t.uid] !== undefined && _dueSeen[t.uid] !== t.due && root.told[t.uid])
+                delete root.told[t.uid];
+            seen[t.uid] = t.due;
+        }
+        for (const uid in root.told) if (!(uid in seen)) delete root.told[uid];
+        _dueSeen = seen;
+        root.tasks = list;
+    }
 
     function endOfToday() { const d = new Date(); d.setHours(23, 59, 59, 999); return d.getTime(); }
     function refresh() {
@@ -35,7 +50,7 @@ Singleton {
             return;
         run(["add", JSON.stringify({ summary: s, due: due || 0, list: selectedList })]);
     }
-    function setDone(t, on) { run(["done", JSON.stringify({ uid: t.uid, list: t.list, done: on })]); }
+    function setDone(t, on) { if (!on) delete root.told[t.uid]; run(["done", JSON.stringify({ uid: t.uid, list: t.list, done: on })]); }
     function remove(t) { run(["delete", JSON.stringify({ uid: t.uid, list: t.list })]); }
     function rename(t, summary) { if (String(summary).trim() !== "") run(["edit", JSON.stringify({ uid: t.uid, list: t.list, summary: String(summary).trim() })]); }
     function setDue(t, due) { run(["edit", JSON.stringify({ uid: t.uid, list: t.list, due: due })]); }
@@ -72,7 +87,7 @@ Singleton {
     Process {
         id: reader
         command: ["python3", root.tool]
-        stdout: StdioCollector { onStreamFinished: { try { root.tasks = JSON.parse(text); root.available = true; } catch (e) {} } }
+        stdout: StdioCollector { onStreamFinished: { try { root.loadList(JSON.parse(text)); root.available = true; } catch (e) {} } }
         onExited: code => { if (code === 2) root.available = false; }
     }
     Process {
@@ -91,6 +106,7 @@ Singleton {
         interval: 60000
         running: root.open.length > 0
         repeat: true
+        triggeredOnStart: true
         onTriggered: {
             const now = Date.now() / 1000;
             for (const t of root.open) {

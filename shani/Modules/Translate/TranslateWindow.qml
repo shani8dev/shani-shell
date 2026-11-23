@@ -31,10 +31,15 @@ AppWindow {
     property bool statusOk: false
     property string batchCount: ""
     property string filePath: ""
+    // a request the person abandoned (edit, clear, language/mode/endpoint change)
+    // must never write its result into the pane
+    property int generation: 0
+    property bool restart: false
 
     function swap() {
         if (source === "auto")
             return;
+        win.cancel();
         const old = source;
         source = target;
         target = old;
@@ -42,9 +47,18 @@ AppWindow {
         if (input.text.trim() !== "") win.go();
     }
     function checkEndpoint() {
+        statusOk = false;               // the old answer belongs to the old endpoint
         statusText = Tr.t("Checking…");
         statusProc.command = ["sh", "-c", 'SHANI_TRANSLATE_URL="$1" python3 "$2" status', "sh", win.endpoint, win.tool];
         statusProc.running = true;
+    }
+    function setEndpoint(value) {
+        const v = (value || "").trim();
+        if (v === "" || v === win.endpoint) return;
+        win.cancel();
+        win.endpoint = v;
+        statusOk = false;
+        statusText = "";
     }
     Process {
         id: statusProc
@@ -77,10 +91,21 @@ AppWindow {
         });
     }
 
+    // drop the in-flight answer as well as the old text: a late onExited would
+    // otherwise repopulate a pane the person has already moved on from
+    function cancel() {
+        win.generation++;
+        win.restart = false;
+        win.working = false;
+        win.result = "";
+        win.error = "";
+    }
     function go() {
         const t = input.text.trim();
         if (t === "" || working)
             return;
+        // one Process at a time: overlapping runs would mix their stdout
+        if (runner.running) { win.restart = true; return; }
         working = true;
         error = "";
         result = "";
@@ -92,21 +117,26 @@ AppWindow {
             runner.command = ["sh", "-c", 'printf "%s" "$1" | python3 "$2" "$3" "$4" "$5" "$6"',
                               "sh", t, win.tool, cmd, win.target, win.source, win.mode === "file" ? "--html" : ""];
         }
+        runner.generation = ++win.generation;
         runner.running = true;
     }
     Process {
         id: runner
+        property int generation: 0
         stdout: StdioCollector { id: out }
         stderr: StdioCollector { id: err }
         onExited: code => {
-            win.working = false;
-            if (code === 0) {
-                if (win.mode === "batch") {
-                    win.batchCount = out.text.trim();
-                    win.result = Tr.t("Added %1 translations", win.batchCount);
-                } else win.result = out.text.trim();
-                win.error = "";
-            } else win.error = code === 2 ? Tr.t("The local model is not running — Chronoa starts it") : Tr.t("Could not translate");
+            if (win.generation === runner.generation) {
+                win.working = false;
+                if (code === 0) {
+                    if (win.mode === "batch") {
+                        win.batchCount = out.text.trim();
+                        win.result = Tr.t("Added %1 translations", win.batchCount);
+                    } else win.result = out.text.trim();
+                    win.error = "";
+                } else win.error = code === 2 ? Tr.t("The local model is not running — Chronoa starts it") : Tr.t("Could not translate");
+            }
+            if (win.restart) { win.restart = false; win.go(); }   // params changed mid-flight
         }
     }
 
@@ -128,9 +158,9 @@ AppWindow {
                     Layout.fillWidth: true
                     text: win.endpoint
                     label: Tr.t("Local model endpoint")
-                    onAccepted: win.endpoint = text.trim()
+                    onAccepted: win.setEndpoint(text)
                 }
-                Button { text: Tr.t("Use"); flat: true; onClicked: win.endpoint = endpointField.text.trim() }
+                Button { text: Tr.t("Use"); flat: true; onClicked: win.setEndpoint(endpointField.text) }
                 Button { text: Tr.t("Check"); flat: true; onClicked: win.checkEndpoint() }
                 Text {
                     text: win.statusText
@@ -144,9 +174,9 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
-                Choice { text: Tr.t("Text"); selected: win.mode === "text"; onClicked: win.mode = "text" }
-                Choice { text: Tr.t("Batch"); selected: win.mode === "batch"; onClicked: win.mode = "batch" }
-                Choice { text: Tr.t("File / HTML"); selected: win.mode === "file"; onClicked: win.mode = "file" }
+                Choice { text: Tr.t("Text"); selected: win.mode === "text"; onClicked: { win.cancel(); win.mode = "text" } }
+                Choice { text: Tr.t("Batch"); selected: win.mode === "batch"; onClicked: { win.cancel(); win.mode = "batch" } }
+                Choice { text: Tr.t("File / HTML"); selected: win.mode === "file"; onClicked: { win.cancel(); win.mode = "file" } }
                 Button { text: Tr.t("Open file…"); flat: true; onClicked: win.openFile() }
                 Text { Layout.fillWidth: true; text: win.filePath.split("/").pop(); color: Theme.faint; elide: Text.ElideMiddle; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale }
             }
@@ -173,7 +203,7 @@ AppWindow {
                             required property var modelData
                             text: modelData[1]
                             selected: win.source === modelData[0]
-                            onClicked: { win.source = modelData[0]; if (input.text.trim() !== "") win.go(); }
+                            onClicked: { win.cancel(); win.source = modelData[0]; if (input.text.trim() !== "") win.go(); }
                         }
                     }
                 }
@@ -190,7 +220,7 @@ AppWindow {
                         required property var modelData
                         text: modelData[1]
                         selected: win.target === modelData[0]
-                        onClicked: { win.target = modelData[0]; Settings.data.translateTo = modelData[0]; if (input.text.trim() !== "") win.go(); }
+                        onClicked: { win.cancel(); win.target = modelData[0]; Settings.data.translateTo = modelData[0]; if (input.text.trim() !== "") win.go(); }
                     }
                 }
             }
@@ -224,7 +254,7 @@ AppWindow {
                             Accessible.role: Accessible.EditableText
                             Accessible.name: Tr.t("Text to translate")
                             Keys.onPressed: e => { if ((e.modifiers & Qt.ControlModifier) && (e.key === Qt.Key_Return || e.key === Qt.Key_Enter)) { win.go(); e.accepted = true; } }
-                            onTextChanged: { if (win.result !== "") win.result = ""; }
+                            onTextChanged: win.cancel()     // also clears a stale error/answer
                             Text {
                                 visible: input.text === ""
                                 text: win.mode === "batch" ? Tr.t("One string per line — Ctrl+Enter translates") : Tr.t("Type or paste text — Ctrl+Enter translates")
@@ -249,6 +279,9 @@ AppWindow {
                             width: parent.width
                             readOnly: true
                             selectByMouse: true
+                            activeFocusOnTab: true          // keyboard/AT users can reach and select the answer
+                            Keys.onDownPressed: e => e.accepted = Ui.leaveAtEdge(outText, true)
+                            Keys.onUpPressed: e => e.accepted = Ui.leaveAtEdge(outText, false)
                             wrapMode: TextEdit.Wrap
                             text: win.error !== "" ? win.error : win.working ? Tr.t("Translating…") : win.result
                             color: win.error !== "" ? Theme.danger : Theme.text
@@ -273,9 +306,10 @@ AppWindow {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
                 Button { text: Tr.t("Paste"); flat: true; onClicked: { input.text = Quickshell.clipboardText || ""; win.go(); } }
-                Button { text: Tr.t("Clear"); flat: true; onClicked: { input.text = ""; win.result = ""; win.error = ""; } }
+                Button { text: Tr.t("Clear"); flat: true; onClicked: { win.cancel(); input.text = ""; } }
                 Item { Layout.fillWidth: true }
                 Text { text: Tr.t("On this computer — nothing is sent anywhere"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Button { text: Tr.t("Read aloud"); enabled: win.result !== "" && win.error === ""; onClicked: Speak.speaking ? Speak.stop() : Speak.speak(win.result) }
                 Button { text: Tr.t("Copy"); enabled: win.result !== "" && win.error === ""; onClicked: Quickshell.clipboardText = win.result }
                 Button { kind: "primary"; text: Tr.t("Translate"); enabled: input.text.trim() !== "" && !win.working; onClicked: win.go() }
             }

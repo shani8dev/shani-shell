@@ -18,12 +18,14 @@ Singleton {
             return null;
         const one = t.split("\n")[0].slice(0, 60);
         if (/^https?:\/\/\S+$/.test(t))
-            return { icon: "web-browser", text: "Open " + t.replace(/^https?:\/\//, "").slice(0, 40), run: () => Qt.openUrlExternally(t) };
+            // hide any user:password@ in the chip; the URL itself still opens unchanged
+            return { icon: "web-browser", text: "Open " + t.replace(/^https?:\/\//, "").replace(/^[^@/]+@/, "***@").slice(0, 40), run: () => Qt.openUrlExternally(t) };
         if (/^[\w.+-]+@[\w-]+\.[\w.-]+$/.test(t))
             return { icon: "mail-unread", text: "Email " + t, run: () => Qt.openUrlExternally("mailto:" + t) };
         // a number: Call lands on the Shani Link dial pad (Modem.callNumber
         // opens Phone first when a phone link is available, else tel:).
-        if (/^\+?[\d][\d\s-]{7,15}\d$/.test(t))
+        // a date or a card number fits the phone shape too — never offer to dial one
+        if (/^\+?[\d][\d\s-]{7,15}\d$/.test(t) && !/^(\d{1,4}[-/.]){2}\d{1,4}$|^\d{16}$/.test(t))
             return { icon: "call-start", text: "Call " + t, run: () => Modem.callNumber(t.replace(/[\s-]/g, "")) };
         if (/^#?[0-9a-f]{6}$/i.test(t))
             return { icon: "color-select", text: "Colour #" + t.replace("#", ""), color: "#" + t.replace("#", ""), run: () => {} };

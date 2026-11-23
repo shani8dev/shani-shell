@@ -53,6 +53,8 @@ PanelWindow {
     }
     Glass {
         id: blurCard
+        Accessible.role: Accessible.Dialog
+        Accessible.name: win.cards[win.step].title
         anchors.centerIn: parent
         width: Math.min(520, parent.width - 48)
         implicitHeight: col.implicitHeight + 48
@@ -127,6 +129,8 @@ PanelWindow {
                     }
                 }
                 Item { Layout.fillWidth: true }
+                // pointer and touch users have no Left key to go back with
+                Button { text: Tr.t("Back"); visible: win.step > 0; onClicked: if (win.step > 0) win.step-- }
                 Button { text: Tr.t("Skip"); visible: win.step < win.cards.length - 1; onClicked: win.finish() }
                 // the windows card: every key, in niri's own list
                 Button { visible: !!win.cards[win.step].shortcuts; text: Tr.t("All keyboard shortcuts"); onClicked: { win.finish(); Niri.action("show-hotkey-overlay"); } }

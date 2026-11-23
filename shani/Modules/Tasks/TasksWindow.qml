@@ -20,6 +20,8 @@ AppWindow {
     property bool showDone: false
     property string smartList: "all"  // all | today | upcoming | completed | nodate
     property var repeatTask: null     // the task whose repeat rule is being picked
+    property var editTask: null       // the task whose name is being renamed
+    property string sortBy: "due"     // due | name | priority (the bridge's own order is by due)
     readonly property var smartLists: [
         ["all", Tr.t("All")], ["today", Tr.t("Today")], ["upcoming", Tr.t("Upcoming")],
         ["completed", Tr.t("Completed")], ["nodate", Tr.t("No date")]
@@ -27,9 +29,10 @@ AppWindow {
     readonly property var repeatRules: [
         ["", Tr.t("Never")], ["daily", Tr.t("Daily")], ["weekly", Tr.t("Weekly")], ["monthly", Tr.t("Monthly")]
     ]
-    // delete asks first: two taps, the second within 4 s
-    property int confirmTask: -1
-    Timer { id: taskTimer; interval: 4000; onTriggered: win.confirmTask = -1 }
+    // delete asks first: two taps, the second within 4 s. Keyed by uid, not row
+    // index: a refresh or a filter change between the taps reorders the rows.
+    property string confirmTask: ""
+    Timer { id: taskTimer; interval: 4000; onTriggered: win.confirmTask = "" }
     onVisibleChanged: if (visible) Tasks.refresh()
 
     function at(days, hour) { const d = new Date(); d.setDate(d.getDate() + days); d.setHours(hour, 0, 0, 0); return Math.floor(d.getTime() / 1000); }
@@ -51,6 +54,26 @@ AppWindow {
             return;
         Tasks.add(field.text, win.dueChoice);
         field.text = "";
+    }
+
+    // the bridge already orders by due; offer the two other useful orders locally
+    function sorted(list) {
+        const a = (list || []).slice();
+        if (win.sortBy === "name")
+            a.sort((x, y) => String(x.summary).localeCompare(String(y.summary)));
+        if (win.sortBy === "priority")
+            a.sort((x, y) => (y.priority || 0) - (x.priority || 0) || String(x.summary).localeCompare(String(y.summary)));
+        return a;
+    }
+    function editIt(t) {
+        win.editTask = t;
+        renameField.text = t.summary;
+        Qt.callLater(() => { renameField.forceActiveFocus(); renameField.selectAll(); });
+    }
+    function saveRename() {
+        if (!win.editTask) return;
+        Tasks.rename(win.editTask, renameField.text);
+        win.editTask = null;
     }
 
     Item {
@@ -134,6 +157,39 @@ AppWindow {
                 IconButton { size: Theme.px(24); icon: "window-close"; tip: Tr.t("Cancel"); onClicked: win.repeatTask = null }
             }
 
+            // rename: opened from a row's pencil; the bridge's edit is otherwise uncalled
+            Flow {
+                Layout.fillWidth: true
+                visible: win.editTask !== null
+                spacing: Theme.px(6)
+                Text { text: Tr.t("Rename:"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                TextField {
+                    id: renameField
+                    Layout.fillWidth: true
+                    label: Tr.t("Task name")
+                    onAccepted: win.saveRename()
+                    Keys.onEscapePressed: e => { win.editTask = null; e.accepted = true; }
+                }
+                Button { kind: "primary"; text: Tr.t("Save"); enabled: renameField.text.trim() !== ""; onClicked: win.saveRename() }
+                IconButton { size: Theme.px(24); icon: "window-close"; tip: Tr.t("Cancel"); onClicked: win.editTask = null }
+            }
+
+            // sort: the bridge orders by due; these are the other useful views
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Text { text: Tr.t("Sort:"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Repeater {
+                    model: [["due", Tr.t("Due")], ["name", Tr.t("Name")], ["priority", Tr.t("Priority")]]
+                    Choice {
+                        required property var modelData
+                        text: modelData[1]
+                        selected: win.sortBy === modelData[0]
+                        onClicked: win.sortBy = modelData[0]
+                    }
+                }
+            }
+
             // smart lists: named views over the same tasks, no backend needed
             Flow {
                 Layout.fillWidth: true
@@ -159,8 +215,8 @@ AppWindow {
                 spacing: 2
                 boundsBehavior: Flickable.StopAtBounds
                 model: win.smartList === "all"
-                       ? (win.showDone ? Tasks.open.concat(Tasks.done) : Tasks.open)
-                       : Tasks.tasks.filter(t => win.inSmartList(t))
+                       ? win.sorted(win.showDone ? Tasks.open.concat(Tasks.done) : Tasks.open)
+                       : win.sorted(Tasks.tasks.filter(t => win.inSmartList(t)))
                 delegate: Rectangle {
                     id: row
                     required property var modelData
@@ -213,6 +269,12 @@ AppWindow {
                         }
                         IconButton {
                             size: Theme.px(28)
+                            icon: "document-edit"
+                            tip: Tr.t("Rename") + " " + row.modelData.summary
+                            onClicked: win.editIt(row.modelData)
+                        }
+                        IconButton {
+                            size: Theme.px(28)
                             icon: "view-refresh"
                             on: (Tasks.repeats[row.modelData.uid] || "") !== ""
                             tip: (Tasks.repeats[row.modelData.uid] || "")
@@ -223,12 +285,12 @@ AppWindow {
                         IconButton {
                             size: Theme.px(28)
                             icon: "user-trash"
-                            tip: win.confirmTask === row.index
+                            tip: win.confirmTask === row.modelData.uid
                                 ? Tr.t("Tap again to delete this task")
                                 : (Tr.t("Delete") + " " + row.modelData.summary)
                             onClicked: {
-                                if (win.confirmTask === row.index) { Tasks.remove(row.modelData); win.confirmTask = -1; }
-                                else { win.confirmTask = row.index; taskTimer.restart(); }
+                                if (win.confirmTask === row.modelData.uid) { Tasks.remove(row.modelData); win.confirmTask = ""; }
+                                else { win.confirmTask = row.modelData.uid; taskTimer.restart(); }
                             }
                         }
                     }

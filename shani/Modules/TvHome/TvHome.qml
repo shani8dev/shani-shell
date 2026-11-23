@@ -29,9 +29,12 @@ PanelWindow {
     // over the bar, the island and the dock (the 10-foot home is the whole screen);
     // the launcher, the screen keyboard and pop-ups, made after it, still open over it
     WlrLayershell.layer: WlrLayer.Overlay
+    // every TV output gets a home window; only the focused one takes the remote's
+    // keys (two Exclusive surfaces fight over each press on a second TV)
+    readonly property bool keysHere: !Niri.focusedOutput || Niri.focusedOutput === modelData.name
     // the home has the keys unless the shell's own overlays (the launcher, the
     // screen keyboard typing from the remote) are up over it
-    WlrLayershell.keyboardFocus: visible && !Ui.launcher && !Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: visible && keysHere && !Ui.launcher && !Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     // the shelves: { id, title, items: [{ label, icon, run() }] }; empty ones are left out
     // one card per app name: two entries of the same app (a Flatpak and the
@@ -48,7 +51,8 @@ PanelWindow {
                  run: () => { Launch.app(a.id); Ui.tvHome = false; } };
     }
     function settingsItem(label, icon, cat) {
-        return { key: "settings:" + cat, label: label, icon: icon, run: () => { Ui.tvHome = false; Ui.openSettings(cat); } };
+        return { key: "settings:" + cat, label: label, icon: icon,
+                 run: () => { win.settingsFromHome = true; Ui.tvHome = false; Ui.openSettings(cat); } };
     }
     readonly property var shelves: {
         const open = Niri.mru().filter(w => w.app_id && w.app_id !== "org.quickshell").slice(0, 12).map(w => {
@@ -89,7 +93,7 @@ PanelWindow {
     readonly property var current: shelves[Math.min(row, shelves.length - 1)] ? shelves[Math.min(row, shelves.length - 1)].items[colOf(Math.min(row, shelves.length - 1))] : null
     onCurrentChanged: if (visible) Ui.tvSelected = current ? current.key : ""
     onVisibleChanged: {
-        if (visible) { row = 0; Ui.tvSelected = current ? current.key : ""; Qt.callLater(() => keys.forceActiveFocus()); }
+        if (visible) { row = 0; Ui.tvSelected = current ? current.key : ""; if (keysHere) Qt.callLater(() => keys.forceActiveFocus()); }
     }
     function move(dr, dc) {
         if (!shelves.length) return;
@@ -104,6 +108,21 @@ PanelWindow {
     }
     function activate() { if (current) current.run(); }
 
+    // Settings closes itself with Ui.settingsOpen = false and never restores the
+    // home (the Quick Panel does): coming back from a category we opened should
+    // land on the home, not on a bare desktop with no window behind it
+    property bool settingsFromHome: false
+    Connections {
+        target: Ui
+        function onSettingsOpenChanged() {
+            if (Ui.settingsOpen || !win.settingsFromHome) return;
+            win.settingsFromHome = false;
+            if (FormFactor.tenFoot && !Lock.locked
+                && !Niri.mru().some(w => w.app_id && w.app_id !== "org.quickshell"))
+                Ui.tvHome = true;
+        }
+    }
+
     Rectangle {
         anchors.fill: parent
         color: Theme.bg
@@ -114,7 +133,6 @@ PanelWindow {
         anchors.fill: parent
         focus: true
         Keys.onPressed: e => {
-            Ui.keysActivated = true;
             switch (e.key) {
             case Qt.Key_Left: win.move(0, -1); break;
             case Qt.Key_Right: win.move(0, 1); break;
@@ -124,6 +142,11 @@ PanelWindow {
             case Qt.Key_Escape: case Qt.Key_Back: case Qt.Key_Backspace: if (win.shelves.length && win.shelves[0].id === "open") Ui.tvHome = false; break;
             default: return;
             }
+            // KeyFocus clears this after the control it opened has read it; do
+            // the same here, or the flag stays set and the next OSK toggle opens
+            // in remote mode however the person got there
+            Ui.keysActivated = true;
+            Qt.callLater(() => Ui.keysActivated = false);
             e.accepted = true;
         }
 
@@ -219,6 +242,12 @@ PanelWindow {
                                 required property var modelData
                                 required property int index
                                 readonly property bool here: shelf.active && index === cards.currentIndex
+                                function choose() {
+                                    win.row = shelf.index;
+                                    const m = Object.assign({}, win.cols);
+                                    m[shelf.modelData.id] = card.index;
+                                    win.cols = m;
+                                }
                                 y: Theme.px(8)
                                 width: shelf.modelData.big ? Theme.px(240) : Theme.px(150)
                                 height: shelf.modelData.big ? Theme.px(150) : Theme.px(124)
@@ -230,6 +259,9 @@ PanelWindow {
                                 Behavior on scale { NumberAnimation { duration: Theme.mot(120) } }
                                 Accessible.role: Accessible.Button
                                 Accessible.name: modelData.label
+                                // a screen reader must be able to open a card too, not
+                                // just hear its name (the same path as a mouse click)
+                                Accessible.onPressAction: { card.choose(); win.activate(); }
                                 Column {
                                     anchors.centerIn: parent
                                     width: parent.width - Theme.px(16)
@@ -261,8 +293,8 @@ PanelWindow {
                                 MouseArea {
                                     anchors.fill: parent
                                     hoverEnabled: true
-                                    onEntered: { win.row = shelf.index; const m = Object.assign({}, win.cols); m[shelf.modelData.id] = card.index; win.cols = m; }
-                                    onClicked: { win.row = shelf.index; const m = Object.assign({}, win.cols); m[shelf.modelData.id] = card.index; win.cols = m; win.activate(); }
+                                    onEntered: card.choose()
+                                    onClicked: { card.choose(); win.activate(); }
                                 }
                             }
                         }

@@ -46,7 +46,7 @@ export SHANI_SCRCPY=/work/dev/fake-scrcpy.sh SHANI_ADB=/work/dev/fake-adb.sh SHA
 # the shell's own apps, as the package installs them: their desktop entries
 # (the launcher's app list, the dock's and the switcher's icon for an app window)
 python3 /work/bin/shani app --write-desktop /root/.local/share/applications
-export SHANI_CHARACTERS_TOOL=/work/bridge/characters.py SHANI_LINK_TOOL=/work/bridge/link.py SHANI_SERVICES_TOOL=/work/bridge/services.py SHANI_CRONTAB=/work/dev/fake-crontab.sh SHANI_ZIPADD_TOOL=/work/bridge/zipadd.py SHANI_ARCHIVE_EXTRACT_TOOL=/work/bridge/zipcrypt.py
+export SHANI_CHARACTERS_TOOL=/work/bridge/characters.py SHANI_LINK_TOOL=/work/bridge/link.py SHANI_SERVICES_TOOL=/work/bridge/services.py SHANI_BOOTINFO_TOOL=/work/bridge/bootinfo.py SHANI_CRONTAB=/work/dev/fake-crontab.sh SHANI_ZIPADD_TOOL=/work/bridge/zipadd.py SHANI_ARCHIVE_EXTRACT_TOOL=/work/bridge/zipcrypt.py
 export SHANI_PDFFORM_TOOL=/work/bridge/pdfform.py SHANI_TIDY_TOOL=/work/bridge/tidy.py SHANI_BATTERY_TOOL=/work/bridge/battery.py SHANI_MPRIS_TOOL=/work/bridge/mpris-player.py SHANI_TASKS_TOOL=/work/bridge/tasks.py SHANI_MUSIC_LIBRARY_TOOL=/work/bridge/music-library.py SHANI_CLEANUP_TOOL=/work/bridge/cleanup.py SHANI_OTP_TOOL=/work/bridge/otp.py SHANI_NEARBY_TOOL=/work/bridge/nearby.py SHANI_CONVERT_TOOL=/work/bridge/convert.py
 # no sweep of the host's network from the test session; a stand-in firewall-cmd records what it is asked
 export SHANI_NEARBY_SUBNET=0 SHANI_NEARBY_PEERS=127.0.0.1:53399 SHANI_FIREWALL_CMD=/work/dev/fake-firewall-cmd.sh

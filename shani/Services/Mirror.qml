@@ -18,10 +18,14 @@ Singleton {
 
     function refresh() { if (available && !list.running) list.running = true; }
     function mirror(serial, wifi) {
+        // no scrcpy, or a serial the last scan no longer lists: don't claim it mirrored
+        if (!root.available || (devices.length > 0 && !devices.some(x => x.serial === serial)))
+            return false;
         const d = devices.find(x => x.serial === serial);
         last = serial;
         Quickshell.execDetached([root.scrcpy, "-s", serial, "--window-title", d ? d.name : serial, "--stay-awake"]
             .concat(wifi ? ["--tcpip"] : []));
+        return true;
     }
 
     Process {
@@ -34,11 +38,19 @@ Singleton {
         id: list
         command: [root.adb, "devices", "-l"]
         stdout: StdioCollector {
-            onStreamFinished: root.devices = text.split("\n").slice(1).map(l => l.trim().split(/\s+/))
-                .filter(f => f.length >= 2 && f[1] === "device").map(f => {
-                    const m = f.find(x => x.startsWith("model:"));
-                    return { serial: f[0], name: m ? m.slice(6).replace(/_/g, " ") : f[0], wifi: /:\d+$/.test(f[0]) };
-                })
+            onStreamFinished: {
+                const found = text.split("\n").slice(1).map(l => l.trim().split(/\s+/))
+                    .filter(f => f.length >= 2 && f[1] === "device").map(f => {
+                        const m = f.find(x => x.startsWith("model:"));
+                        return { serial: f[0], name: m ? m.slice(6).replace(/_/g, " ") : f[0], wifi: /:\d+$/.test(f[0]) };
+                    });
+                root.devices = found;
+                // the serial we last mirrored is gone: drop the stale "mirrored" state
+                if (root.last && !found.some(d => d.serial === root.last))
+                    root.last = "";
+            }
         }
+        // a dead adb daemon must not leave the previous scan's phones on screen
+        onExited: code => { if (code !== 0) root.devices = []; }
     }
 }

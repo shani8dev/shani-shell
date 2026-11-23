@@ -27,16 +27,25 @@ Singleton {
             onRead: line => {
                 let d;
                 try { d = JSON.parse(line); } catch (e) { return; }
+                if (!d || typeof d !== "object") return;   // "null" would throw on d.ready
                 if (d.ready) { root.ready = true; return; }
-                const k = (d.app || "").toLowerCase();
+                const k = String(d.app || "").toLowerCase();
                 if (!k) return;
                 const m = Object.assign({}, root.entries);
-                m[k] = Object.assign({}, m[k] || {}, d);
+                const e = Object.assign({}, m[k] || {});
+                for (const f of ["count", "countVisible", "progress", "progressVisible", "urgent"])
+                    if (d[f] !== undefined) e[f] = d[f];
+                m[k] = e;
                 root.entries = m;
             }
         }
-        // gone (the bus restarted): once more, a little later
-        onExited: retry.start()
+        // gone (the bus restarted): drop the old counts rather than leave them
+        // on the dock as if they were live, then try once more, a little later
+        onExited: {
+            root.ready = false;
+            root.entries = {};
+            retry.start()
+        }
     }
     Timer { id: retry; interval: 5000; onTriggered: bridge.running = true }
 }

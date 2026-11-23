@@ -234,7 +234,7 @@ ShellRoot {
     }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [SysServices, Link, Idle, InputPlumber, Ups, Polkit, NightLight, AutoRotate, Appearance, Firewall, Feeds, Mail, Tablet, Privacy, Updates, Drives, Disks, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WindowLook, Terminal, TerminalApp, TextMate, Keyring, WindowPreview, SmartReplies, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, PdfSigner, DiskUsage, WallpaperStyle, VideoTrimmer, Models, AIProviders, Studio]
+    readonly property var _services: [BootInfo, SysServices, Link, Idle, InputPlumber, Ups, Polkit, NightLight, AutoRotate, Appearance, Firewall, Feeds, Mail, Tablet, Privacy, Updates, Drives, Disks, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WindowLook, Terminal, TerminalApp, TextMate, Keyring, WindowPreview, SmartReplies, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, PdfSigner, DiskUsage, WallpaperStyle, VideoTrimmer, Models, AIProviders, Studio]
 
     // The test-only CalDAV hook reads a password from a file: keeping it out of
     // an IPC argument keeps it out of `ps`. Declared at root, not in IpcHandler;
@@ -1158,6 +1158,7 @@ ShellRoot {
                 captionSource: Captions.source,
                 transcript: Captions.transcript,
                 flashes: Ui.flashes, lastFlash: Ui.lastFlash,
+                bootAvailable: BootInfo.available, bootRows: BootInfo.rows.map(r => r.label + ": " + r.value), bootNote: BootInfo.note,
                 settingsCat: Ui.settingsCat, settingsOpen: Ui.settingsOpen, settingsCompact: Ui.settingsCompact, settingsShowingPage: Ui.settingsShowingPage,
                 pinned: Niri.pinned, badges: Notifs.perApp,
                 capsLock: LockKeys.caps, numLock: LockKeys.num,

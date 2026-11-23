@@ -33,13 +33,16 @@ Singleton {
     }
 
     function check() {
-        if (!stateLoaded || !versionProc.running)
+        if (stateLoaded && !versionProc.running)
             versionProc.running = true;
     }
 
     Process {
         id: versionProc
-        running: true
+        // decide only once the remembered version is known: a fast read of
+        // /etc/shani-version used to look like a first install and either
+        // swallowed the announcement or told it twice
+        running: root.stateLoaded
         command: ["sh", "-c", "cat /etc/shani-version 2>/dev/null"]
         stdout: StdioCollector {
             onStreamFinished: {
