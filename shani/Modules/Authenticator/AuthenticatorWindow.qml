@@ -221,7 +221,7 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 Text { Layout.fillWidth: true; text: Tr.t("A code to sign in to this computer itself is set up in Cassini."); color: Theme.faint; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-                Button { flat: true; text: Tr.t("Sign-in codes…"); onClicked: Quickshell.execDetached(["shani-cassini", "--section=totp"]) }
+    
             }
         }
     }

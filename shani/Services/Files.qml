@@ -1492,7 +1492,7 @@ Singleton {
         root.usbBusy = true;
         usbRun.running = true;
     }
-    function driveHealth() { Quickshell.execDetached(["shani-cassini", "--section=smart"]); }
+    function driveHealth() { Ui.closeAll(); Ui.models = true; }
     Process {
         id: usbRun
         property string what: ""

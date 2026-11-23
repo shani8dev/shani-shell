@@ -23,6 +23,14 @@ PanelWindow {
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
     BackgroundEffect.blurRegion: Settings.data.blur && visible ? cardRegion : null
     Region { id: cardRegion; item: card; radius: card.radius }
+    // a new offer must not inherit typed limits from the previous file's form
+    Connections {
+        target: FileActions
+        function onFilesChanged() {
+            if (!FileActions.files.length) return;
+            fMin.text = ""; fMax.text = ""; fW.text = ""; fH.text = "";
+        }
+    }
 
     Glass {
         id: card

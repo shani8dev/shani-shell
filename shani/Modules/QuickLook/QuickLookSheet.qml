@@ -24,7 +24,8 @@ PanelWindow {
     BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurArea : null
     Region { id: blurArea; item: card; radius: card.radius }
 
-    readonly property string url: QuickLook.path ? "file://" + QuickLook.path.split("/").map(encodeURIComponent).join("/") : ""
+    function fileUrl(p) { return "file://" + p.split("/").map(encodeURIComponent).join("/"); }
+    readonly property string url: QuickLook.path ? fileUrl(QuickLook.path) : ""
     readonly property var tints: Theme.dark
         ? ({ comment: "#8a93a0", string: "#8fd18a", number: "#f2a65a", keyword: "#6cb6ff", heading: "#ffd166", added: "#8fd18a", removed: "#ff8f8f" })
         : ({ comment: "#6a737d", string: "#1b7f3b", number: "#b35900", keyword: "#0550ae", heading: "#8a4b00", added: "#1b7f3b", removed: "#b3261e" })
@@ -101,7 +102,7 @@ PanelWindow {
                     anchors.fill: parent
                     anchors.margins: Theme.px(8)
                     visible: QuickLook.kind === "image" || (QuickLook.kind === "pdf" && QuickLook.page !== "")
-                    source: !visible ? "" : QuickLook.kind === "pdf" ? "file://" + QuickLook.page : win.url
+                    source: !visible ? "" : QuickLook.kind === "pdf" ? fileUrl(QuickLook.page) : win.url
                     fillMode: Image.PreserveAspectFit
                     asynchronous: true
                     smooth: true
@@ -120,7 +121,14 @@ PanelWindow {
                     anchors.fill: parent
                     visible: QuickLook.kind === "video"
                     fillMode: VideoOutput.PreserveAspectFit
-                    MouseArea { anchors.fill: parent; onClicked: player.playbackState === MediaPlayer.PlayingState ? player.pause() : player.play() }
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: player.playbackState === MediaPlayer.PlayingState ? player.pause() : player.play()
+                        Accessible.role: Accessible.Button
+                        Accessible.name: Tr.t("Play or pause")
+                        Accessible.onPressAction: player.playbackState === MediaPlayer.PlayingState ? player.pause() : player.play()
+                        KeyFocus { name: Tr.t("Play or pause"); onActivated: player.playbackState === MediaPlayer.PlayingState ? player.pause() : player.play() }
+                    }
                 }
                 ColumnLayout {
                     anchors.centerIn: parent
@@ -150,6 +158,7 @@ PanelWindow {
                         Accessible.role: Accessible.Button
                         Accessible.name: Tr.t("Play or pause")
                         Accessible.onPressAction: player.playbackState === MediaPlayer.PlayingState ? player.pause() : player.play()
+                        KeyFocus { name: Tr.t("Play or pause"); onActivated: player.playbackState === MediaPlayer.PlayingState ? player.pause() : player.play() }
                     }
                     Text {
                         Layout.alignment: Qt.AlignHCenter

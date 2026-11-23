@@ -21,9 +21,12 @@ PanelWindow {
     BackgroundEffect.blurRegion: visible && Settings.blurWanted ? lensRegion : null
     Region { id: lensRegion; item: card; radius: Theme.radiusLarge }
 
-    onVisibleChanged: if (visible) question.input.forceActiveFocus()
+    // deferred so the focus sink below cannot take focus after the field does
+    onVisibleChanged: if (visible) Qt.callLater(() => question.input.forceActiveFocus())
 
     MouseArea { objectName: "nav:pointer"; anchors.fill: parent; onClicked: Lens.close() }
+    // Escape closes from anywhere in the card, not only while the question has focus.
+    Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: Lens.close() }
 
     Glass {
         id: card
@@ -115,8 +118,8 @@ PanelWindow {
                 Button { text: Tr.t("Copy text"); enabled: Lens.text !== ""; onClicked: { Lens.copyText(); Lens.close(); } }
                 Button { text: Tr.t("Search"); enabled: Lens.text !== ""; onClicked: { Lens.search(); Lens.close(); } }
                 Button { text: Tr.t("Translate"); enabled: Lens.text !== ""; onClicked: { Lens.translate(); Lens.close(); } }
-                Button { text: Tr.t("Save image"); onClicked: { Lens.save(); Lens.close(); } }
-                Button { text: Tr.t("Open image"); onClicked: { Lens.openImage(); Lens.close(); } }
+                Button { text: Tr.t("Save image"); enabled: Lens.image !== ""; onClicked: { Lens.save(); Lens.close(); } }
+                Button { text: Tr.t("Open image"); enabled: Lens.image !== ""; onClicked: { Lens.openImage(); Lens.close(); } }
             }
 
             RowLayout {
@@ -125,8 +128,9 @@ PanelWindow {
                 TextField {
                     id: question
                     Layout.fillWidth: true
+                    Accessible.name: Tr.t("Ask Chronoa about this…")
                     placeholder: Tr.t("Ask Chronoa about this…")
-                    onAccepted: Lens.ask(text)
+                    onAccepted: if (Lens.phase === "ready") Lens.ask(text)
                     input.Keys.onEscapePressed: Lens.close()
                 }
                 Button { text: Tr.t("Ask Chronoa"); kind: "primary"; enabled: Lens.phase === "ready"; onClicked: Lens.ask(question.text) }

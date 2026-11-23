@@ -41,10 +41,11 @@ PanelWindow {
         canvas.requestPaint();
     }
     function undo() { strokes = strokes.slice(0, -1); Ui.annotateStrokes = strokes.length; canvas.requestPaint(); }
-    function clear() { strokes = []; Ui.annotateStrokes = 0; canvas.requestPaint(); }
+    function clear() { strokes = []; current = null; Ui.annotateStrokes = 0; canvas.requestPaint(); }
     function save() {
         // the hint hides first, so the picture is the screen and the drawing only
         hintShown = false;
+        hintBack.restart();
         const fmt = Settings.data.screenshotFormat === "jpeg" ? "jpeg" : Settings.data.screenshotFormat === "webp" ? "webp" : "png";
         const q = String(Math.max(1, Math.min(100, Settings.data.screenshotQuality)));
         const cf = Settings.data.clipboardOutputFormat === "jpeg" || Settings.data.clipboardOutputFormat === "webp" ? Settings.data.clipboardOutputFormat : fmt;
@@ -52,6 +53,10 @@ PanelWindow {
             'sleep 0.15; d="${2:-${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots}"; case "$d" in "~"*) d="$HOME${d#"~"}";; esac; mkdir -p "$d" || exit 1; b="$d/Drawing $(date "+%F %H-%M-%S")"; case "$3" in webp) t=$(mktemp "${d}/.draw-XXXXXX.png") || exit 1; grim -o "$1" "$t" || { rm -f "$t"; exit 1; }; f="$b.webp"; if command -v magick >/dev/null 2>&1; then magick "$t" -quality "$4" "$f"; elif command -v convert >/dev/null 2>&1; then convert "$t" -quality "$4" "$f"; else f="$b.png"; mv "$t" "$f"; fi; rm -f "$t"; [ -s "$f" ] || { f="$b.png"; };; jpeg) f="$b.jpg"; grim -o "$1" -t jpeg -q "$4" "$f" || exit 1;; *) f="$b.png"; grim -o "$1" "$f" || exit 1;; esac; if [ "$5" = "$3" ]; then wl-copy --type "image/$3" < "$f"; else t2=$(mktemp "${d}/.clip-XXXXXX"); if command -v magick >/dev/null 2>&1 && magick "$f" -quality "$4" "$t2" 2>/dev/null; then wl-copy --type "image/$5" < "$t2"; elif command -v convert >/dev/null 2>&1 && convert "$f" -quality "$4" "$t2" 2>/dev/null; then wl-copy --type "image/$5" < "$t2"; else wl-copy --type "image/$3" < "$f"; fi; rm -f "$t2"; fi; notify-send -a Screenshot -i "$f" "Drawing saved" "Saved and copied — ${f##*/}"',
             "sh", win.screen ? win.screen.name : "", Settings.data.screenshotDir || "", fmt, q, cf]));
     }
+    // the save only hid the toolbar for the capture: bring it back, or the
+    // colour/undo/save buttons stay gone for the rest of this session
+    // shortcut: fixed 700ms restore (capture script sleeps 0.15s then runs grim); raise if a large display captures slower
+    Timer { id: hintBack; interval: 700; onTriggered: win.hintShown = true }
 
     Canvas {
         id: canvas
@@ -129,7 +134,7 @@ PanelWindow {
             IconButton { icon: "draw-eraser"; tip: Tr.t("Erase") + " (E)"; onClicked: win.clear() }
             IconButton { icon: "document-save"; tip: Tr.t("Save") + " (S)"; onClicked: win.save() }
             Text {
-                text: Tr.t("  Shift: straight line  ·  Z undo  ·  E erase  ·  S save  ·  Esc close")
+                text: Tr.t("  1-5 colour  ·  Shift: straight line  ·  Z undo  ·  E erase  ·  S save  ·  Esc close")
                 color: Theme.text
                 font.family: Theme.font
                 font.pixelSize: Theme.px(12) * Theme.fontScale

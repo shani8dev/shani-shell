@@ -85,6 +85,8 @@ AppWindow {
             onRead: line => {
                 let e = null;
                 try { e = JSON.parse(line); } catch (err) { return; }
+                // a worker that outlives its job (cancel, retry) must not write into jobs[-1]
+                if (win.running < 0) return;
                 if (e.progress !== undefined) win.set(win.running, { progress: e.progress });
                 else if (e.done) win.set(win.running, { state: "done", out: e.done, progress: 1 });
                 else if (e.error) win.set(win.running, { state: "failed", error: e.error });
@@ -176,7 +178,7 @@ AppWindow {
                             Layout.fillWidth: true
                             Icon { name: row.modelData.kind === "video" ? "video-x-generic" : row.modelData.kind === "audio" ? "audio-x-generic" : "image-x-generic"; size: Theme.px(18); color: Theme.dim }
                             Text { Layout.fillWidth: true; text: row.modelData.path.split("/").pop(); color: Theme.text; elide: Text.ElideMiddle; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
-                            IconButton { size: Theme.px(26); visible: row.modelData.state !== "working"; icon: "window-close"; tip: Tr.t("Remove from the list"); onClicked: { const l = win.jobs.slice(); l.splice(row.index, 1); win.jobs = l; } }
+                            IconButton { size: Theme.px(26); visible: row.modelData.state !== "working"; icon: "window-close"; tip: Tr.t("Remove from the list"); onClicked: { if (row.index < win.running) win.running--; const l = win.jobs.slice(); l.splice(row.index, 1); win.jobs = l; } }
                             Button { flat: true; visible: row.modelData.state === "working"; text: Tr.t("Cancel"); onClicked: win.stop() }
                         }
                         // into what: a pick of what makes sense for this file
@@ -212,6 +214,12 @@ AppWindow {
                                 elide: Text.ElideMiddle
                                 font.family: Theme.font
                                 font.pixelSize: Theme.px(12) * Theme.fontScale
+                            }
+                            Button {
+                                visible: row.modelData.state === "failed"
+                                flat: true
+                                text: Tr.t("Retry")
+                                onClicked: win.set(row.index, { state: "ready", progress: 0, error: "", out: "" })
                             }
                             Button { visible: row.modelData.state === "done"; flat: true; text: Tr.t("Open"); onClicked: Quickshell.execDetached(["gio", "open", row.modelData.out]) }
                             Button { visible: row.modelData.state === "done"; flat: true; text: Tr.t("Show in Files"); onClicked: Files.show(row.modelData.out.replace(/\/[^/]*$/, "")) }

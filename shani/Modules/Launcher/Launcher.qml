@@ -67,7 +67,14 @@ PanelWindow {
         id: providerSearch
         property var terms: []
         command: ["python3", win.providersTool, "query"].concat(terms)
-        stdout: StdioCollector { onStreamFinished: { try { win.provided = JSON.parse(text); } catch (e) { win.provided = []; } } }
+        stdout: StdioCollector {
+            onStreamFinished: {
+                // a late answer from the previous query must not replace this one's
+                if (providerSearch.terms.join(" ") !== win.q.trim().split(/\s+/).join(" "))
+                    return;
+                try { win.provided = JSON.parse(text); } catch (e) { win.provided = []; }
+            }
+        }
     }
 
     // Quick Look (after macOS): the selected file previewed in the side pane —
@@ -166,7 +173,12 @@ PanelWindow {
             elif command -v fd >/dev/null; then fd -i -d 5 --max-results 15 -- "$q" "$@"
             else find "$@" -maxdepth 5 -not -path "*/.*" -iname "*$q*" 2>/dev/null | head -15; fi', "sh", query]
             .concat(Array.from(Settings.data.searchFolders).map(f => f.replace(/^~/, Quickshell.env("HOME"))))
-        stdout: StdioCollector { onStreamFinished: win.found = text.trim().split("\n").filter(x => x) }
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (fileSearch.query === win.q.trim())     // not a stale query's answer
+                    win.found = text.trim().split("\n").filter(x => x);
+            }
+        }
     }
     // inside files: the desktop's index (localsearch) when it runs; otherwise a
     // bounded ripgrep / grep over the folders people keep documents in
@@ -175,7 +187,12 @@ PanelWindow {
         property string query
         command: ["sh", "-c", 'q="$1"; shift; if command -v localsearch >/dev/null && localsearch status >/dev/null 2>&1; then localsearch search --limit 8 -- "$q" 2>/dev/null | sed -n "s|.*file://\\([^ ]*\\).*|\\1|p" | head -8 ; elif command -v rg >/dev/null; then rg -l -i -F --max-depth 4 --max-filesize 2M -- "$q" "$@" 2>/dev/null | head -8 ; else grep -rliF --exclude-dir=".*" -- "$q" "$@" 2>/dev/null | head -8 ; fi',"sh", query]
             .concat(Array.from(Settings.data.searchFolders).map(f => f.replace(/^~/, Quickshell.env("HOME"))))
-        stdout: StdioCollector { onStreamFinished: win.inside = text.trim().split("\n").filter(x => x).map(p => decodeURIComponent(p)) }
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (contentSearch.query === win.q.trim())  // not a stale query's answer
+                    win.inside = text.trim().split("\n").filter(x => x).map(p => decodeURIComponent(p));
+            }
+        }
     }
     // files by meaning (Chronoa's FindFiles): [{ path, excerpt }], and how it searched
     property var meaning: []
@@ -280,7 +297,7 @@ PanelWindow {
         const appItem = a => ({ kind: "app", app: a.icon, did: a.id, title: a.name,
             subtitle: (a.genericName || a.comment || "") + (nameCount[a.name] > 1 ? " · " + a.id : ""),
             run: () => win.launch(a) });
-        const fileItem = p => ({ kind: "file", icon: win.fileIcon(p), path: p, title: p.split("/").pop(), subtitle: p.replace(Quickshell.env("HOME"), "~"), run: () => Qt.openUrlExternally("file://" + p) });
+        const fileItem = p => ({ kind: "file", icon: win.fileIcon(p), path: p, title: p.split("/").pop(), subtitle: p.replace(Quickshell.env("HOME"), "~"), run: () => Qt.openUrlExternally(Files.uriOf(p)) });
 
         if (q === "") {
             const frequent = win.apps.filter(a => used(a) > 0).sort((a, b) => used(b) - used(a)).slice(0, 8);
@@ -551,6 +568,7 @@ PanelWindow {
     onVisibleChanged: {
         searchBar = false;
         if (visible) {
+            hoverArmed = false;     // a resting pointer must not steal the top result
             appear.restart();
             search.text = Ui.launcherQuery;
             sel = 0;
@@ -651,6 +669,14 @@ PanelWindow {
                         // Ctrl+P: pin or unpin a clipboard entry
                         if (e.key === Qt.Key_P && (e.modifiers & Qt.ControlModifier) && win.flat[win.sel] && win.flat[win.sel].pin) {
                             win.flat[win.sel].pin();
+                            e.accepted = true;
+                            return;
+                        }
+                        // Ctrl+C: a contact result offers its phone/email to copy,
+                        // but never when the person is copying selected query text
+                        if (e.key === Qt.Key_C && (e.modifiers & Qt.ControlModifier) && search.selectedText === ""
+                            && win.flat[win.sel] && win.flat[win.sel].copy) {
+                            win.flat[win.sel].copy();
                             e.accepted = true;
                             return;
                         }
@@ -851,7 +877,7 @@ PanelWindow {
                                             color: Theme.hover
                                             Image {
                                                 anchors.fill: parent
-                                                source: row.modelData.thumb ? "file://" + row.modelData.thumb : ""
+                                                source: Files.uriOf(row.modelData.thumb || "")
                                                 sourceSize: Qt.size(112, 72)
                                                 fillMode: Image.PreserveAspectCrop
                                                 asynchronous: true
@@ -956,7 +982,7 @@ PanelWindow {
                         color: Theme.hover
                         Image {
                             anchors.fill: parent
-                            source: win.lookPdfImage ? "file://" + win.lookPdfImage : ""
+                            source: Files.uriOf(win.lookPdfImage)
                             cache: false
                             fillMode: Image.PreserveAspectFit
                         }
@@ -970,7 +996,7 @@ PanelWindow {
                         color: Theme.hover
                         Image {
                             anchors.fill: parent
-                            source: imagePreview.visible ? "file://" + win.current.path : ""
+                            source: imagePreview.visible ? Files.uriOf(win.current.path) : ""
                             fillMode: Image.PreserveAspectFit
                             asynchronous: true
                             sourceSize: Qt.size(640, 360)

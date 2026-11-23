@@ -27,6 +27,10 @@ AppWindow {
         focus: win.visible
         // Esc walks back out of a folder first; only at the root does it close
         Keys.onEscapePressed: DiskUsage.history.length > 0 ? DiskUsage.back() : DiskUsage.close()
+        Keys.onBackPressed: if (DiskUsage.history.length > 0) DiskUsage.back()
+        Keys.onPressed: event => {
+            if (event.key === Qt.Key_F5) { DiskUsage.refresh(); event.accepted = true; }
+        }
     }
 
     Item {
@@ -114,7 +118,7 @@ AppWindow {
                             Text { visible: !modelData.head; text: DiskUsage.humanSize(modelData.size || 0); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                         }
                         Accessible.role: Accessible.CheckBox
-                        Accessible.name: modelData.path || ""
+                        Accessible.name: modelData.head ? Tr.t("%1 copies of %2", modelData.n, DiskUsage.humanSize(modelData.size)) : (modelData.path || "")
                         Accessible.checked: !modelData.head && DiskUsage.isMarked(modelData.path)
                         Accessible.onToggleAction: if (!modelData.head) DiskUsage.toggleMark(modelData.path)
                         Accessible.onPressAction: if (!modelData.head) DiskUsage.toggleMark(modelData.path)

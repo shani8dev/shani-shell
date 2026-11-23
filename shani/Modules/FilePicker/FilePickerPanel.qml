@@ -247,8 +247,10 @@ PanelWindow {
                         visible: list.count === 0
                         width: parent.width - 40
                         icon: "folder"
-                        title: Tr.t("This folder is empty")
-                        subtitle: Tr.t("Nothing to choose here")
+                        title: FilePicker.filters.length > 0 ? Tr.t("No matching files") : Tr.t("This folder is empty")
+                        subtitle: FilePicker.filters.length > 0
+                            ? Tr.t("No %1 files here").arg(FilePicker.filters.join(", "))
+                            : Tr.t("Nothing to choose here")
                     }
                 }
             }
@@ -268,7 +270,10 @@ PanelWindow {
                 Text {
                     Layout.fillWidth: true
                     visible: FilePicker.mode !== "save"
-                    text: FilePicker.error !== "" ? FilePicker.error : Tr.t("%1 items").arg(list.count)
+                    text: FilePicker.error !== "" ? FilePicker.error
+                        : FilePicker.multiple && FilePicker.selected.length > 0
+                            ? Tr.t("%1 of %2 selected").arg(FilePicker.selected.length).arg(list.count)
+                            : Tr.t("%1 items").arg(list.count)
                     color: FilePicker.error !== "" ? Theme.red : Theme.faint
                     elide: Text.ElideRight
                     font.family: Theme.font

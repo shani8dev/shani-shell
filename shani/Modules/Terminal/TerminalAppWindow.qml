@@ -26,6 +26,7 @@ AppWindow {
     property string snippetNote: ""
     property string hostQuery: ""
     property string hostNote: ""
+    property string editId: ""
     property string tunnelMode: "L"
     // advanced per-host ssh options, kept with the host in hosts JSON
     property string newHostProxyJump: ""
@@ -185,8 +186,11 @@ AppWindow {
                     anchors.centerIn: parent
                     visible: hostList.count === 0
                     icon: "folder-remote"
-                    title: Tr.t("No SSH hosts yet")
-                    subtitle: Tr.t("Add one to connect to remote machines. Also works with serial ports.")
+                    // a search that matches nothing is not an empty address book
+                    title: TerminalApp.hosts.length === 0 ? Tr.t("No SSH hosts yet") : Tr.t("No hosts match your search")
+                    subtitle: TerminalApp.hosts.length === 0
+                        ? Tr.t("Add one to connect to remote machines. Also works with serial ports.")
+                        : Tr.t("Try a different name, address or user.")
                 }
             }
 
@@ -274,7 +278,15 @@ AppWindow {
                         win.tab = "hosts";
                     }
                 }
-                Button { visible: win.tab === "add"; text: Tr.t("Cancel"); flat: true; onClicked: { win.tab = "hosts"; win.editId = ""; } }
+                Button {
+                    visible: win.tab === "add"; text: Tr.t("Cancel"); flat: true
+                    onClicked: {
+                        win.tab = "hosts"; win.editId = "";
+                        // a cancelled edit must not seed the next "Add host" with the old host's data
+                        win.newHostName = ""; win.newHostAddr = ""; win.newHostUser = ""; win.newHostPort = ""; win.newHostKey = "";
+                        win.newHostProxyJump = ""; win.newHostExtraOpts = ""; win.newHostForwardAgent = false; win.newHostX11 = false; win.newHostCompression = false;
+                    }
+                }
             }
         }
 

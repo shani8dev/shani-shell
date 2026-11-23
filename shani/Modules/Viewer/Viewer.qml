@@ -23,6 +23,12 @@ AppWindow {
     property int dragStartY: 0
     property real dragPanX: 0
     property real dragPanY: 0
+    property string trashConfirm: ""
+    // one tap arms, the next trashes — the toolbar button and Del share it
+    function askTrash() {
+        if (trashConfirm) { Viewer.trash(); trashConfirm = ""; }
+        else { trashConfirm = "trash"; trashConfirmTimer.restart(); }
+    }
     Timer { id: trashConfirmTimer; interval: 4000; onTriggered: win.trashConfirm = "" }
 
     Item {
@@ -48,7 +54,7 @@ AppWindow {
             else if (e.key === Qt.Key_G) Viewer.toggleGrid();
             else if (e.key === Qt.Key_T) Viewer.toggleThumbs();
             else if (e.key === Qt.Key_C) Viewer.copyPath();
-            else if (e.key === Qt.Key_Delete || e.key === Qt.Key_Backspace) Viewer.trash();
+            else if (e.key === Qt.Key_Delete || e.key === Qt.Key_Backspace) win.askTrash();
             else if (e.key === Qt.Key_O) Viewer.openWith();
             else if (e.key === Qt.Key_E) { if (Viewer.editing) Viewer.cancelEdit(); else Viewer.startEdit(); }
         }
@@ -366,10 +372,10 @@ AppWindow {
                         win.dragPanY = Viewer.panY;
                     }
                     onPositionChanged: m => {
-                        if (m.buttons & Qt.LeftButton) {
-                            Viewer.panX = win.dragPanX + (m.x - win.dragStartX);
-                            Viewer.panY = win.dragPanY + (m.y - win.dragStartY);
-                        }
+                        // at fit the picture is not draggable (the cursor says so)
+                        if (!(m.buttons & Qt.LeftButton) || Viewer.zoom <= 1.05) return;
+                        Viewer.panX = win.dragPanX + (m.x - win.dragStartX);
+                        Viewer.panY = win.dragPanY + (m.y - win.dragStartY);
                     }
                     onPressAndHold: Hold.hold(held)
                     onClicked: m => {
@@ -468,7 +474,7 @@ AppWindow {
                 spacing: Theme.px(4)
                 IconButton { icon: "edit-copy"; size: Theme.px(28); tip: Tr.t("Copy path (C)"); onClicked: Viewer.copyPath() }
                 IconButton { icon: "document-open"; size: Theme.px(28); tip: Tr.t("Open with… (O)"); onClicked: Viewer.openWith() }
-                IconButton { icon: "edit-delete"; size: Theme.px(28); tip: win.trashConfirm ? Tr.t("Tap again to trash") : Tr.t("Move to trash (Del)"); onClicked: { if (win.trashConfirm) { Viewer.trash(); win.trashConfirm = ""; } else { win.trashConfirm = "trash"; trashConfirmTimer.restart(); } } }
+                IconButton { icon: "edit-delete"; size: Theme.px(28); tip: win.trashConfirm ? Tr.t("Tap again to trash") : Tr.t("Move to trash (Del)"); onClicked: win.askTrash() }
                 Text {
                     Layout.fillWidth: true
                     text: Tr.t("← → to browse · wheel to zoom · R to turn · Esc closes")

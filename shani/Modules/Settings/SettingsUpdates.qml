@@ -104,6 +104,7 @@ ColumnLayout {
         spacing: Theme.px(6)
         Button {
             text: Tr.t("Check now")
+            enabled: !Updates.installing
             onClicked: Updates.check()
         }
         Item { Layout.fillWidth: true }
@@ -114,15 +115,57 @@ ColumnLayout {
             onClicked: Updates.reviewWithChronoa()
         }
         Button {
-            text: Tr.t("Install…")
+            text: Updates.installing ? Tr.t("Installing…") : Tr.t("Install now")
             kind: "primary"
-            enabled: Updates.available
-            onClicked: Updates.open()
+            enabled: Updates.available && !Updates.installing
+            onClicked: Updates.install()
         }
     }
+
+    // ---- the install itself, as it happens --------------------------------
+    ColumnLayout {
+        Layout.fillWidth: true
+        visible: Updates.installing || Updates.progress.length > 0 || Updates.note !== "" || Updates.installError !== ""
+        spacing: Theme.px(4)
+        Text {
+            Layout.fillWidth: true
+            visible: Updates.note !== ""
+            text: Updates.note
+            color: Theme.accent
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
+        Text {
+            Layout.fillWidth: true
+            visible: Updates.installError !== ""
+            text: Updates.installError
+            color: Theme.danger
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
+        ListView {
+            Layout.fillWidth: true
+            Layout.preferredHeight: Math.min(160, Updates.progress.length * 16 + 8)
+            visible: Updates.progress.length > 0
+            clip: true
+            model: Updates.progress
+            delegate: Text {
+                required property string modelData
+                width: ListView.view.width
+                text: modelData
+                color: Theme.dim
+                font.family: Theme.mono
+                font.pixelSize: Theme.px(10) * Theme.fontScale
+                elide: Text.ElideLeft
+            }
+        }
+    }
+
     Text {
         Layout.fillWidth: true
-        text: Tr.t("Installing asks for authorisation and keeps the other slot until the new one has booted well.")
+        text: Tr.t("Installing asks for authorisation, writes the other slot and leaves this one running until you restart.")
         color: Theme.dim
         wrapMode: Text.Wrap
         font.family: Theme.font

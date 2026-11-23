@@ -199,7 +199,7 @@ ColumnLayout {
             text: Tr.t("Update check")
             kind: "outline"
             implicitHeight: Theme.px(32)
-            onClicked: { Ui.closeAll(); Quickshell.execDetached(["shani-cassini", "--section=updates"]); }
+            onClicked: { Ui.closeAll(); Ui.settingsCat = "updates"; }
         }
         Button {
             text: Tr.t("System info")

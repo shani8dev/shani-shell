@@ -74,7 +74,8 @@ AppWindow {
     }
 
     function readJournal() {
-        if (!win.visible)
+        // don't let a 3 s follow tick restart a slow read and land stale rows
+        if (!win.visible || journal.running)
             return;
         win.loading = true;
         win.journalError = "";
@@ -118,7 +119,7 @@ AppWindow {
                         }
                     }
                     win.entries = out;
-                    win.journalError = out.length ? "" : "empty";
+                    win.journalError = win.journalError || (out.length ? "" : "empty");
                 } catch (e) {
                     win.entries = [];
                     win.journalError = "unreadable";
@@ -130,7 +131,7 @@ AppWindow {
         }
         onExited: code => {
             win.loading = false;
-            if (code !== 0 && win.journalError === "") win.journalError = "unreadable";
+            if (code !== 0 && (win.journalError === "" || win.journalError === "empty")) win.journalError = "unreadable";
         }
     }
 
@@ -218,6 +219,17 @@ AppWindow {
                         }
                     }
                 }
+            }
+
+            // a filter or search that matches nothing is not an empty journal
+            Text {
+                Layout.fillWidth: true
+                visible: win.shown.length === 0 && win.entries.length > 0 && !win.loading
+                horizontalAlignment: Text.AlignHCenter
+                text: Tr.t("No entries match this filter")
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
 
             // details for the clicked row

@@ -240,6 +240,20 @@ AppWindow {
             else if (e.key === Qt.Key_0) PdfViewer.setZoom(1);
         }
     }
+    // properties and panels belong to one document, strokes to one page:
+    // neither may survive opening another file or turning a page
+    Connections {
+        target: PdfViewer
+        function onFileChanged() {
+            PdfViewer.info = null;
+            win.extraPanel = "";
+            win.mergeSplitShown = false;
+            win.pdfAnnoMode = false;
+            win.clearMarks();
+            win.note = "";
+        }
+        function onPageChanged() { if (win.strokes.length) win.clearMarks(); }
+    }
     Item {
         id: blurCard
         anchors.fill: parent
@@ -273,7 +287,7 @@ AppWindow {
                 IconButton { icon: "draw-freehand"; size: Theme.px(28); tip: Tr.t("Mark up this page"); on: win.pdfAnnoMode; onClicked: { win.pdfAnnoMode = !win.pdfAnnoMode; } }
                 IconButton { icon: "weather-clear-night"; size: Theme.px(28); tip: Tr.t("Night mode"); on: PdfViewer.night; onClicked: PdfViewer.setNight(!PdfViewer.night) }
                 IconButton { icon: "format-text-direction-ltr"; size: Theme.px(28); tip: Tr.t("Read as text (select and copy)"); on: PdfViewer.textMode; onClicked: PdfViewer.textMode = !PdfViewer.textMode }
-                IconButton { icon: "edit-copy"; size: Theme.px(28); tip: Tr.t("Copy this page's text"); onClicked: PdfViewer.copyPageText() }
+                IconButton { icon: "edit-copy"; size: Theme.px(28); tip: Tr.t("Copy this page's text"); onClicked: win.note = PdfViewer.copyPageText() ? Tr.t("Copied this page's text") : Tr.t("This page has no text to copy") }
                 IconButton { icon: "document-properties"; size: Theme.px(28); tip: Tr.t("Document properties"); onClicked: PdfViewer.showInfo() }
                 // a form: fill it in, save a filled copy
                 Button {

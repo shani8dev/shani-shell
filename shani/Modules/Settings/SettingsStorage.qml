@@ -190,7 +190,7 @@ ColumnLayout {
             font.family: Theme.font
             font.pixelSize: Theme.px(11) * Theme.fontScale
         }
-        Button { text: Tr.t("System clean-up…"); onClicked: Quickshell.execDetached(["shani-cassini", "--section=maintenance"]) }
+
     }
 
     RowLayout {

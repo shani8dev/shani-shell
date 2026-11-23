@@ -41,7 +41,7 @@ AppWindow {
     // duplicates view
     property bool showDuplicates: false
 
-    onVisibleChanged: if (visible) Contacts.refresh()
+    onVisibleChanged: if (visible) { Contacts.refresh(); win.confirmDelete = ""; }
     Connections {
         target: Contacts
         function onVcardReady(text, name) { Qr.show(name || "Contact", text); }
@@ -66,8 +66,9 @@ AppWindow {
             mode: "open",
             title: Tr.t("Import vCard"),
             filters: ["vcf"],
+            multiple: true,
             onPicked: paths => {
-                if (paths && paths.length > 0) Contacts.importFile(paths[0]);
+                if (paths) paths.forEach(p => Contacts.importFile(p));
             }
         });
     }
@@ -461,6 +462,10 @@ AppWindow {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: win.showContact(modelData)
                 }
+                Accessible.role: Accessible.Button
+                Accessible.name: modelData.name || Tr.t("Unnamed")
+                Accessible.onPressAction: win.showContact(modelData)
+                KeyFocus { onActivated: win.showContact(modelData) }
             }
             EmptyState {
                 anchors.centerIn: parent

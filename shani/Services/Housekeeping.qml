@@ -115,7 +115,7 @@ Singleton {
             }
             root.failing = out;
             if (out.length)
-                Quickshell.execDetached(["sh", "-c", 'a=$(notify-send -a Drives -u critical -i drive-harddisk -A open="$3" "$1" "$2"); [ "$a" = open ] && exec shani-cassini --section=smart',
+                Quickshell.execDetached(["sh", "-c", 'a=$(notify-send -a Drives -u critical -i drive-harddisk -A open="$3" "$1" "$2"); [ "$a" = open ] && exec shani ipc call shani modelsOpen',
                     "sh", Tr.t("A disk may be failing"), Tr.t("%1 reports problems. Back up what matters now.", out.join(", ")), Tr.t("Disk health")]);
         }
     }

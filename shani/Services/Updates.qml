@@ -38,8 +38,65 @@ Singleton {
         onLoaded: { try { root.firmwareTold = JSON.parse(text()); } catch (e) { root.firmwareTold = []; } }
         onLoadFailed: root.firmwareTold = []
     }
-    // Cassini's Firmware page owns this (fwupd's devices and what LVFS offers)
-    function openFirmware() { Quickshell.execDetached(["shani-cassini", "--section=firmware"]); }   // gnome-firmware is not installed
+    // ---- installing ---------------------------------------------------------
+    // The shell does the update itself: shani-deploy through pkexec, so the
+    // shell's own polkit agent asks and the answer appears in the Island. The
+    // deploy writes the *other* slot and leaves this one running, so nothing
+    // here can break the session you are using.
+    property bool installing: false
+    property var progress: []             // the last lines of shani-deploy, newest last
+    property string installError: ""
+    property string note: ""              // the last outcome, shown once
+
+    function install() {
+        if (root.installing) return;
+        if (!root.available) {
+            root.note = Tr.t("There is no update to install.");
+            return;
+        }
+        root.installing = true;
+        root.progress = [];
+        root.installError = "";
+        installer.command = ["sh", "-c",
+            'command -v shani-deploy >/dev/null || exit 3; exec pkexec /usr/local/bin/shani-deploy',
+            "sh"];
+        installer.running = false;
+        installer.running = true;
+    }
+
+    Process {
+        id: installer
+        stdout: SplitParser {
+            onRead: line => {
+                const l = String(line).trim();
+                if (l === "") return;
+                root.progress = root.progress.concat([l]).slice(-40);
+            }
+        }
+        stderr: StdioCollector { id: installErr }
+        onExited: code => {
+            root.installing = false;
+            if (code === 0) {
+                root.note = Tr.t("The other slot is updated. Restart when you are ready.");
+                root.check();
+            } else if (code === 3) {
+                root.installError = Tr.t("shani-deploy is not installed.");
+            } else if (code === 126 || code === 127) {
+                root.installError = Tr.t("That needed administrator rights and was not given.");
+            } else {
+                root.installError = (installErr.text.trim().split("\n").pop()
+                    || (root.progress.length ? root.progress[root.progress.length - 1] : ""))
+                    || Tr.t("The update did not finish.");
+            }
+        }
+    }
+
+    // ---- firmware ----------------------------------------------------------
+    // fwupd's own GUI is not installed; the shell reads the updates and points
+    // at `fwupdmgr` for the ones that need a reboot.
+    function openFirmware() {
+        Quickshell.execDetached(["sh", "-c", "command -v fwupdmgr >/dev/null && exec fwupdmgr get-updates"]);
+    }
     Process {
         id: fw
         command: ["sh", "-c", "command -v fwupdmgr >/dev/null && fwupdmgr get-updates --json --no-unreported-check 2>/dev/null"]
@@ -81,10 +138,8 @@ Singleton {
         Chronoa.ask(msg);
     }
 
-    function open() {
-        Quickshell.execDetached(["sh", "-c", 'command -v shani-cassini >/dev/null && exec shani-cassini --section=updates
-            exec "$1" -e sh -c "pkexec /usr/local/bin/shani-deploy; echo; read -p \"Press Enter to close.\" x"', "sh", Settings.data.terminal]);
-    }
+    // kept for callers that asked for the old "open the updater" behaviour
+    function open() { root.install(); }
 
     Process {
         id: proc

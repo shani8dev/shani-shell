@@ -14,7 +14,6 @@ ColumnLayout {
     property bool active: false
     property var info: ({})
     property string renameError: ""
-    property bool hasCassini: false
     property var checks: []
     property string reportName: ""
     readonly property int passedChecks: page.checks.filter(c => c.ok).length
@@ -39,13 +38,12 @@ ColumnLayout {
             # what the card wants, so the driver is a name rather than a search
             echo "driverpkg=$(d=$(lspci -nnk 2>/dev/null | grep -A3 "VGA compatible controller" | grep -m1 "Kernel driver in use:" | sed -n "s/.*Kernel driver in use: //p"); case "$d" in nvidia) echo nvidia-open;; amdgpu|i915|xe) echo mesa;; *) echo "$d";; esac)"
             echo "session=niri $(niri --version 2>/dev/null | cut -d" " -f2) · Quickshell $(qs --version 2>/dev/null | head -1 | grep -o "[0-9][0-9.]*" | head -1)"
-            command -v shani-cassini >/dev/null && echo "cassini=yes"']
+            true']
         stdout: StdioCollector {
             onStreamFinished: {
                 const kv = {};
                 text.trim().split("\n").forEach(l => { const i = l.indexOf("="); if (i > 0) kv[l.slice(0, i)] = l.slice(i + 1); });
                 page.info = kv;
-                page.hasCassini = kv.cassini === "yes";
             }
         }
     }
@@ -202,11 +200,7 @@ ColumnLayout {
                 onPicked: paths => { if (paths.length) TextDocs.saveAs(paths[0]); }
             })
         }
-        Button {
-            visible: page.hasCassini
-            text: Tr.t("Open Cassini")
-            onClicked: { Ui.closeAll(); Quickshell.execDetached(["shani-cassini"]); }
-        }
+
     }
     // System health: one score, one line per check — Ananta Maintenance's checks
     // reduced to what a shell can read without touching anything.
@@ -267,34 +261,35 @@ ColumnLayout {
             }
         }
     }
-    // What these Settings leave to Cassini - each opens on its own page there,
-    // so nothing is in both places
-    SectionTitle { Layout.fillWidth: true; visible: page.hasCassini; text: Tr.t("More in Cassini") }
+    // The rest of the shell's Settings, one click away
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("More settings") }
     Flow {
         Layout.fillWidth: true
-        visible: page.hasCassini
         spacing: Theme.px(6)
         Repeater {
+            // where each belongs in *this* shell: a Settings category, or an app
             model: [
-                { label: Tr.t("Updates & going back"), id: "updates" },
+                { label: Tr.t("Updates & going back"), cat: "updates" },
                 { label: Tr.t("Update channel: %1", Updates.channel === "latest" ? Tr.t("Latest") : Tr.t("Stable")), id: "update-channel" },
-                { label: Tr.t("Firmware"), id: "firmware" },
-                { label: Tr.t("Disk space & clean-up"), id: "maintenance" },
-                { label: Tr.t("Disk health"), id: "smart" },
-                { label: Tr.t("Encryption"), id: "encryption" },
-                { label: Tr.t("Secure Boot"), id: "secureboot" },
-                { label: Tr.t("Firewall"), id: "firewall" },
-                { label: Tr.t("Services"), id: "services" },
-                { label: Tr.t("Boot & recovery"), id: "boot" }]
+                { label: Tr.t("Firmware"), cat: "updates" },
+                { label: Tr.t("Disk space & clean-up"), cat: "storage" },
+                { label: Tr.t("Disk health"), app: "models" },
+                { label: Tr.t("Firewall"), cat: "firewall" },
+                { label: Tr.t("Services"), app: "services" },
+                { label: Tr.t("Boot & recovery"), cat: "boot" }]
             Choice {
                 required property var modelData
                 text: modelData.label
                 onClicked: {
                     if (modelData.id === "update-channel") {
                         Updates.setChannel(Updates.channel === "latest" ? "stable" : "latest");
-                    } else {
+                    } else if (modelData.cat !== undefined) {
                         Ui.closeAll();
-                        Quickshell.execDetached(["shani-cassini", "--section=" + modelData.id]);
+                        Ui.settingsCat = modelData.cat;
+                    } else if (modelData.app === "models") {
+                        Ui.closeAll(); Ui.models = true;
+                    } else if (modelData.app === "services") {
+                        Ui.closeAll(); Ui.servicesApp = true;
                     }
                 }
             }

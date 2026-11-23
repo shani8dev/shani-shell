@@ -32,6 +32,7 @@ PanelWindow {
         Keys.onDownPressed: win.sel = Math.min(win.sel + 1, Share.targets.length - 1)
         Keys.onUpPressed: win.sel = Math.max(win.sel - 1, 0)
         Keys.onReturnPressed: if (win.sel >= 0) Share.choose(win.sel)
+        Keys.onEnterPressed: if (win.sel >= 0) Share.choose(win.sel)   // keypad Enter is Key_Enter, not Key_Return
     }
     Glass {
         id: blurCard

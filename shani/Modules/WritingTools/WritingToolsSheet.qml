@@ -135,7 +135,8 @@ PanelWindow {
                 Layout.fillWidth: true
                 visible: WritingTools.source !== ""
                 placeholder: Tr.t("Or say what to do — “make it sound excited”, “turn it into a tweet”…")
-                onAccepted: if (text.trim()) WritingTools.run(text.trim(), text.trim())
+                onAccepted: if (text.trim()) { WritingTools.run(text.trim(), text.trim()); text = ""; }
+                onVisibleChanged: if (!visible) text = ""
             }
 
             // Chronoa's version
@@ -168,12 +169,13 @@ PanelWindow {
             }
             RowLayout {
                 Layout.fillWidth: true
-                visible: WritingTools.result !== ""
+                // keep the row on error so a failed write can be retried from here
+                visible: WritingTools.result !== "" || WritingTools.error !== ""
                 spacing: Theme.px(8)
-                Button { flat: true; text: Tr.t("Try again"); onClicked: WritingTools.again() }
+                Button { flat: true; text: Tr.t("Try again"); enabled: !!WritingTools.lastInstruction; onClicked: WritingTools.again() }
                 Item { Layout.fillWidth: true }
-                Button { text: Tr.t("Copy"); onClicked: WritingTools.copy() }
-                Button { kind: "primary"; text: Tr.t("Replace") + "  ↵"; onClicked: WritingTools.replace() }
+                Button { text: Tr.t("Copy"); enabled: !!WritingTools.result; onClicked: WritingTools.copy() }
+                Button { kind: "primary"; text: Tr.t("Replace") + "  ↵"; enabled: !!WritingTools.result; onClicked: WritingTools.replace() }
             }
             Text {
                 Layout.fillWidth: true

@@ -202,7 +202,7 @@ AppWindow {
                 model: [["passwords", Tr.t("Passwords")], ["gpg", Tr.t("GPG keys")], ["passkeys", Tr.t("Passkeys")]]
                 Choice { required property var modelData; text: modelData[1]; selected: win.tab === modelData[0]; onClicked: win.tab = modelData[0] }
             }
-            Choice { text: Tr.t("SSH keys…"); onClicked: Quickshell.execDetached(["shani-cassini", "--section=sshkeys"]) }
+
             Item { Layout.fillWidth: true }
             IconButton { icon: "view-refresh"; size: Theme.px(28); tip: Tr.t("Read again"); onClicked: win.refresh() }
         }
