@@ -36,6 +36,7 @@ import json
 import os
 import pwd
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -491,6 +492,63 @@ def guest(req: dict) -> dict:
     return {}
 
 
+SSHD_DROPIN = Path("/etc/ssh/sshd_config.d/50-shani-shell.conf")
+
+
+def remote_access_get(_req: dict) -> dict:
+    def on(name):
+        try:
+            r = subprocess.run(["systemctl", "is-active", name], capture_output=True, text=True, timeout=5)
+            return r.stdout.strip() == "active"
+        except Exception:
+            return False
+    cfg = {"PasswordAuthentication": "yes", "PubkeyAuthentication": "yes", "PermitRootLogin": "prohibit-password"}
+    try:
+        for line in SSHD_DROPIN.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"): continue
+            parts = line.split(None, 1)
+            if len(parts) == 2 and parts[0] in cfg:
+                cfg[parts[0]] = parts[1]
+    except OSError:
+        pass
+    return {"enabled": on("sshd"), "password": cfg["PasswordAuthentication"].lower() == "yes",
+            "pubkey": cfg["PubkeyAuthentication"].lower() == "yes",
+            "root": cfg["PermitRootLogin"].lower() == "yes"}
+
+
+def remote_access_set(req: dict) -> dict:
+    vals = {
+        "PasswordAuthentication": "yes" if req.get("password", True) else "no",
+        "PubkeyAuthentication": "yes" if req.get("pubkey", True) else "no",
+        "PermitRootLogin": "yes" if req.get("root", False) else "prohibit-password",
+    }
+    content = "# Managed by shani-shell. sshd reads this drop-in after the main config;\n# a bad line here can be removed by deleting this file.\n"
+    for k, v in vals.items():
+        content += f"{k} {v}\n"
+    SSHD_DROPIN.parent.mkdir(parents=True, exist_ok=True)
+    # pre-validate on a temp file with sshd -t -f when available
+    if shutil.which("sshd"):
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", delete=False, encoding="utf-8") as tf:
+            tf.write(content)
+            tmp = tf.name
+        try:
+            r = subprocess.run(["sshd", "-t", "-f", tmp], capture_output=True, text=True, timeout=10)
+            if r.returncode != 0:
+                raise Refused((r.stderr or r.stdout).strip().splitlines()[-1][:160] or "sshd rejected the config")
+        finally:
+            os.unlink(tmp)
+    SSHD_DROPIN.write_text(content, encoding="utf-8")
+    os.chmod(SSHD_DROPIN, 0o644)
+    # reload sshd if active; enable/disable handled separately
+    try:
+        subprocess.run(["systemctl", "reload-or-restart", "sshd"], capture_output=True, text=True, timeout=20)
+    except Exception:
+        pass
+    return remote_access_get(req)
+
+
 COMMANDS = {
     "guest": guest,
     "wakeup": wakeup,
@@ -504,6 +562,8 @@ COMMANDS = {
     "autologin": autologin,
     "power-keys": power_keys,
     "battery-limit": battery_limit,
+    "remote-access-get": remote_access_get,
+    "remote-access-set": remote_access_set,
 }
 
 

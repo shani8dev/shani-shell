@@ -19,6 +19,10 @@ ColumnLayout {
     readonly property string user: Quickshell.env("USER") || ""
     property bool smbOn: false
     property bool sshOn: false
+    readonly property var adminCmd: (Quickshell.env("SHANI_ADMIN_TOOL") || "pkexec /usr/lib/shani-shell/shani-admin.py").split(" ")
+    property bool sshPassword: true
+    property bool sshPubkey: true
+    property bool sshRoot: false
     // remote desktop: niri cannot be reached over VNC or RDP; Sunshine captures
     // the screen through KMS (it needs cap_sys_admin) and Moonlight shows it on
     // another computer, a phone or a TV (niri discussion #680). Its user service
@@ -46,6 +50,7 @@ ColumnLayout {
             for u in app-dev.lizardbyte.app.Sunshine.service sunshine.service; do systemctl --user cat "$u" >/dev/null 2>&1 || continue
                 echo "sun=$u"; systemctl --user is-active -q "$u" && echo sunon=yes
                 getcap "$(command -v sunshine)" 2>/dev/null | grep -q cap_sys_admin && echo suncap=yes; break; done
+            f=/etc/ssh/sshd_config.d/50-shani-shell.conf; [ -r "$f" ] && grep -iE '^(PasswordAuthentication|PubkeyAuthentication|PermitRootLogin) ' "$f" | sed 's/^/sshd_/' || true
             command -v net >/dev/null && net usershare info 2>/dev/null']
         stdout: StdioCollector {
             onStreamFinished: {
@@ -57,6 +62,10 @@ ColumnLayout {
                 page.inGroup = /^group=yes$/m.test(text);
                 page.groupNext = /^groupnext=yes$/m.test(text);
                 page.host = (/^host=(.*)$/m.exec(text) || [])[1] || "";
+                const get = k => { const m = new RegExp("^sshd_" + k + "\\s+(\\S+)", "mi").exec(text); return m ? m[1].toLowerCase() : ""; };
+                page.sshPassword = get("PasswordAuthentication") !== "no";
+                page.sshPubkey = get("PubkeyAuthentication") !== "no";
+                page.sshRoot = get("PermitRootLogin") === "yes";
                 const out = [];
                 let cur = null;
                 for (const l of text.split("\n")) {
@@ -160,6 +169,35 @@ ColumnLayout {
         hint: page.sshOn ? "ssh " + page.user + "@" + page.host + ".local" : Tr.t("Off — turn on to allow remote login over SSH")
         checked: page.sshOn
         onToggled: on => page.run(["pkexec", "systemctl", on ? "enable" : "disable", "--now", "sshd"], on ? Tr.t("Remote login is on") : Tr.t("Remote login is off"))
+    }
+    ColumnLayout {
+        Layout.fillWidth: true
+        Layout.leftMargin: Theme.px(12)
+        visible: page.sshOn
+        spacing: Theme.px(2)
+        SwitchRow {
+            Layout.fillWidth: true
+            text: Tr.t("Allow password login")
+            hint: Tr.t("Turn off to allow keys only")
+            checked: page.sshPassword
+            onToggled: on => page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"),
+                JSON.stringify({ password: on, pubkey: page.sshPubkey, root: page.sshRoot }))
+        }
+        SwitchRow {
+            Layout.fillWidth: true
+            text: Tr.t("Allow key login")
+            checked: page.sshPubkey
+            onToggled: on => page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"),
+                JSON.stringify({ password: page.sshPassword, pubkey: on, root: page.sshRoot }))
+        }
+        SwitchRow {
+            Layout.fillWidth: true
+            text: Tr.t("Allow root login")
+            hint: Tr.t("Off is safer")
+            checked: page.sshRoot
+            onToggled: on => page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"),
+                JSON.stringify({ password: page.sshPassword, pubkey: page.sshPubkey, root: on }))
+        }
     }
 
     SwitchRow {
