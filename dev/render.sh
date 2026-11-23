@@ -714,8 +714,7 @@ PY
     settings_merge '{"assistiveTouch": true}'
     sleep 1.5
     capture_current assistive-touch 0.5 "d['assistiveTouch']"
-    settings_merge '{"assistiveTouch": false}'
-    sleep 0.5
+    # leave it on: clearing it here made the check re-run against a false state
     close_all
 
     # ---- flash alerts (edge glow on a notification; opt-in setting) ---------------------
