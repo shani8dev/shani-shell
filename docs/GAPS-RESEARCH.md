@@ -4836,3 +4836,222 @@ I read both gap files (1,885 + 4,577 lines) and the twenty-pass indexes first, t
 18. **[M×E] `Cast.available` only checks binary presence.** `Cast.qml:15-19` probes `command -v`/`flatpak info`, not the ScreenCast portal; if portal-wlr is missing the tile stays enabled and `open()` fails silently in a detached process. *Sketch:* probe the portal interface and surface a note in the tile subtitle.
 
 **Skipped / risk:** no runtime, D-Bus, portal, phone, or GPU verification — items 6/8/13/18 assume endpoints and CLI shapes read from source; item 15's false positive depends on how PipeWire labels virtual cameras. All findings are static; nothing edited.
+
+---
+
+# Twenty-second pass — VERBATIM agent reports
+
+## VERBATIM: Utility apps craft
+
+Read both gap files (21 passes) and skipped everything already listed (color-copy triple, ruler legend, characters copy, QR URI fallback, fonts unscaled size, calculator basics, clipboard-format/regex toggles). This pass tracked the utility surfaces end-to-end: `Services/{Calculator,Ruler,Color,Characters,Qr,WorldClock,FocusTimer}.qml`, their five `Modules/*` panels, `ClocksWindow`, `SidebarClock`, `Island`, and `bridge/characters.py`. Static only.
+
+## Utility apps craft — gaps ranked by value × ease
+
+**1. [BUG·high×trivial] Calculator `log()` is natural log, not base-10.** `Services/Calculator.qml:98-100` rewrites `ln(`→`log(` then every name→`Math.*`, so both `log` and `ln` become `Math.log` (natural). `Launcher/Calc.js:46-48` does the extra `Math.log→Math.log10` rewrite and `tests/test_calc_js.py:74-75` asserts `log(100)==2`; the Calculator window returns `4.605`. Sketch: add the same two rewrite lines in `calc()`.
+**2. [high×easy] No DEG/RAD/GRAD toggle.** Trig sends straight to `Math.sin/cos/tan` (`Services/Calculator.qml:99`; keys `Calculator.qml:43-48`) — radians only, no angle-unit state anywhere. Sketch: `angleUnit` property + converter wrapper on sin/cos/tan/asin/acos/atan.
+**3. [high×med] No `Ans` / multi-line expression.** Display is a single string (`Services/Calculator.qml:28-29`); `evaluate()` replaces it with the value (`:616-630`) with no previous-answer reference, so chained work must be retyped. Sketch: store `lastValue` and let `Ans` evaluate to it; keep the expression visible beside the result.
+**4. [med×easy] History is memory-only and recall loses the expression.** `history` is a var wiped on restart (`:37`, cap `:629`); `recallHistory` assigns `h.value`, not `h.expr` (`:491-500`), so clicking a row cannot re-edit it. Sketch: persist to `Settings.data.calcHistory` and recall `h.expr`.
+**5. [med×easy] Error handling is one generic word.** `error = "Error"` for every failure (`:618-622`); `reciprocal()` on zero is a silent no-op via the NaN guard (`:459-460`). Sketch: return a reason string from `calc()` (divide-by-zero/domain/overflow) and show `1/x → ∞`.
+**6. [BUG·med×easy] Ruler scale uses the wrong monitor.** `Services/Ruler.qml:37-41` takes `Displays.outputs[0].scale`, but the panel is pinned to `Niri.focusedOutput` (`RulerPanel.qml:18`) — mixed-DPI setups measure wrong. Sketch: derive ratio from the focused output's scale.
+**7. [med×easy] Ruler is pixels-only.** `sizeLabel()` (`Services/Ruler.qml:47-52`) emits `N × M px`; no DPI/physical-unit setting, no diagonal length or angle for the Shift line. Sketch: add cm/inch via a DPI calibration field.
+**8. [med×easy] Colours parse hex/RGB only — no HSV and no HSL input.** `parse()` handles `#rgb/#rrggbb/rgb()` (`:39-60`); HSL is output-only (`:71-93`); no HSV at all. Sketch: add `hsl()/hsv()` parse + `toHsvString()`.
+**9. [med×easy] No copy-format choice or colour window.** Pick always copies hex (`Services/Color.qml:164`), the sidebar tile (`SidebarTiles.qml:438-447`) is the whole UI, and there is no manual entry/harmony palette. Sketch: a small colour dialog with Hex/RGB/HSL/HSV fields and "copy as…" chips.
+**10. [med×trivial] Characters keeps no recents.** `last` holds only the single final copy (`Services/Characters.qml:25,32-36`). Sketch: push to a capped `Settings.data.recentChars`, shown as a leading row.
+**11. [low×easy] Category chips cover 6 of ~14 blocks.** `CharactersPanel.qml:50` hardcodes Symbols/Arrows/Math/Devanagari/Greek/Emoji while `bridge/characters.py:45-62` also indexes Hebrew, Arabic, Bengali… Malayalam. Sketch: build chips from the bridge's block list.
+**12. [high×easy] No search in the font list; capped at 400.** `FontsPanel.qml:87` slices `fc-list` output to 400 (`:88` warns "showing first 400"); the ListView (`:326-334`) has no filter field. Sketch: one TextField filtering `win.fonts` by family/style and search all N before slicing.
+**13. [low×med] No details for installed fonts, no system/user split.** `fc-query` runs only for an opened file (`:171-187`); list rows show preview + name only (`:337-382`), user installs go to `~/.local/share/fonts` (`:47`) but are not marked as such. Sketch: lazy `fc-query` on selection and a "user" badge.
+**14. [med×easy] QR cannot save/share, has no history or styling.** `Qr.qml:23-26` runs `qrencode` with fixed `-s 10 -m 2`; `QrView.qml:84-89` offers only "Copy details". No PNG save, no ECC/size/colour/logo options, no past codes (vCard/WiFi generation already exists via Contacts/`shareWifi`). Sketch: "Save PNG…" + share button and a recents list of `{title,text}`.
+**15. [high×med] Alarms are daily-only with no snooze.** `addAlarm` stores `{time,label}` (`WorldClock.qml:62-70`), the row literally says "Daily · rings once" (`ClocksWindow.qml:117`), and `checkAlarms()` just notifies once (`:78-88`): no weekday repeat, one-shot, enable toggle, or snooze. Sketch: extend the record to `{days,enabled}` and add a Snooze action to the notification.
+**16. [med×trivial] Alarm removal confirmation is inconsistent.** Clocks uses a two-tap confirm (`ClocksWindow.qml:119-123`), Sidebar removes on one click (`SidebarClock.qml:56-57`) — a stray click silently loses an alarm. Sketch: route SidebarClock through the same confirm state.
+**17. [med×easy] Countdown has presets only — no custom time, no pause/resume.** Chips are fixed 1–90 min (`ClocksWindow.qml:234`, "pick how long, no typing" at `:202`); `FocusTimer` exposes only `start()/stop()` (`FocusTimer.qml:17-30`). Sketch: add a duration field and `pause()/resume()` preserving `left`.
+**18. [med×easy] Stopwatch laps lack split times and are capped at 12.** `swLap()` stores only absolute `swDisplay` and trims to 12 (`WorldClock.qml:136-141`; list `:182-199`). Sketch: store `{total, delta}` and lift the cap.
+**19. [med×med] Finish notifications have no in-app dismissal.** Alarm/timer end via `notify-send` with a sound hint only (`WorldClock.qml:85-87`, `FocusTimer.qml:40-41`); no persistent ringing card, Stop/Snooze action, or sound choice — and a missed notification leaves no record. Sketch: a dismissible Island card driving `removeAlarm`/`FocusTimer.stop()`.
+
+Ranked sweet spot: **#1, #6, #16** are near-free correctness fixes; **#2, #12, #14, #15** are the highest-value craft additions.
+
+Skipped by design: everything in the 21 prior passes, plus font uninstall/hinting/DPI (already in GAPS §specialized subsystems) and camera QR scanning (already open). Risk: all findings are static; the `log()` mismatch is the only one I cross-checked against an existing test, the mixed-DPI Ruler case needs a two-monitor setup to confirm.
+
+## VERBATIM: Containers & Flatpak sandbox UX craft
+
+# 22nd pass — Containers & Flatpak sandbox UX craft (static only)
+
+All items below are **new angles** on an area last covered only at headline level. Skipped deliberately (already in GAPS): Flatseal editor existence, Software's read-only permission rows, `flatperm reset`, portal backend = FileChooser only, install-without-permission, `.app` sandboxing. Ranked by value × ease.
+
+## High value / low effort
+
+1. **"Remove unused" images has no confirmation at all** — `ContainersWindow.qml:348-352` runs `prune` (`podman image prune -f`) on one click, while container delete needs two clicks (`:308-311`). Most destructive action in the window is the least guarded. Sketch: reuse the two-click pattern + list images about to go.
+2. **Permission-denied is a dead end** — `SoftwareWindow.qml:203-205` maps a flatpak "permission denied" error to a text string only. Sketch: turn that string into a button → Settings › App permissions for that app id.
+3. **Podman installed but misconfigured looks like "no containers"** — `containers.py:54-58` silently swallows a failing `podman ps`; `ContainersWindow.qml:268-272` then says "No containers". Rootless subuid/io.systemd setup failures are invisible. Sketch: probe `podman info`, surface its error line.
+4. **Own-name D-Bus permissions can't be removed correctly** — `SettingsAppPermissions.qml:245-246,255-256` deletes every session/system bus row with `--no-talk-name` / `--system-no-talk-name`, even a `--own-name` entry (which prints as `org.foo=own`). The click silently fails. Sketch: track talk vs own per row, emit `--no-own-name`.
+5. **Exported toolbox app can't be un-exported** — `containers.py:148-153` only adds (`distrobox-export --app`); `ContainersWindow.qml:256-260` only offers "Add to menu". Sketch: `box-unexport` → `distrobox-export --app X --delete`.
+6. **Desktop-entry cache never refreshed after export/unexport** — `box-export` returns and the launcher's `DesktopEntries` model isn't signalled; new toolbox apps may not appear until shell restart. Sketch: watch `~/.local/share/applications` with `Gio.AppInfoMonitor` or notify the shell.
+7. **Stale delete confirmation never expires** — `win.removing` (`ContainersWindow.qml:37`) is armed on one click and persists indefinitely across tab switches. Sketch: clear it on `tab` change and after ~10 s.
+
+## High value / medium effort
+
+8. **No "enter shell" for Podman containers** — `enter()` only calls `distrobox enter` (`ContainersWindow.qml:114-117`); `containers.py:82-87` has no exec. Containers tab has no terminal action. Sketch: `xdg-terminal-exec podman exec -it NAME sh`.
+9. **No resource usage anywhere** — `containers.py:54-79` returns state/image/ports but no CPU, memory or disk; the UI shows only a text line (`:221,300`). Sketch: add `podman stats --no-stream`, render CPU/MEM bars on running rows.
+10. **No container creation (only toolbox creation)** — `containers.py:141-145` has `box-create` but no `podman run`; you can start/stop/remove but never make a plain container. Sketch: "New container" with image/name/ports → `podman run -d --name …`.
+11. **Missing portal backends are unlisted** — `niri-portals.conf:5-20` names Access/Notification/Secret/ScreenCast/Screenshot/FileChooser only; no Print, OpenURI, Inhibit or DynamicLauncher. GTK implements none of Print, so a Flatpak's print dialog has no backend. Sketch: document gap in-portal and route Print to CUPS directly.
+12. **No runtime/SDK visibility or "missing runtime" diagnosis** — `appstore.py:412-440` installed rows carry version/size/origin but no runtime; Software's app page (`SoftwareWindow.qml:424-450`) shows permissions only. A Flatpak that won't launch for a missing `org.freedesktop.Platform` version is unexplainable. Sketch: show `flatpak info` runtime/SDK and flag absent runtimes.
+13. **Home-sharing difference between the two systems is never explained** — `containers.py:3-5` says toolboxes share the real home; Flatpaks get a sandbox home in `~/.var/app`. A toolbox app and same-named Flatpak have opposite file visibility, with no warning in either surface. Sketch: one explainer line in Containers and in App permissions.
+14. **Toolbox creation is immediate and unexamined** — the distro chip + "New toolbox" (`ContainersWindow.qml:174-183`) starts `distrobox create --yes` (`containers.py:145`) with no review of the image tag or warning that it shares the home and downloads GBs. Sketch: confirmation sheet showing image + consequences.
+
+## Lower value / easy
+
+15. **Logs are a 300-line dead-end** — `containers.py:90-94` caps `--tail 300`, no follow/filter/download; the panel (`:314-335`) is a static `Text`. Sketch: Follow toggle + save-to-file.
+16. **Image-in-use detection compares tag strings** — `containers.py:74-78` marks an image used only if a container's `Image` string contains one of its tags; digest/ID mismatches show an in-use image as "unused" and offer to prune it. Sketch: compare image IDs.
+17. **No batch toolbox upgrade** — only a per-row update button (`ContainersWindow.qml:227`). Sketch: "Update all" looping `box-upgrade`.
+18. **No audit trail of container/permission changes** — `containers.py` and `flatperm.py` emit no history; a mistaken override or delete is untraceable. Sketch: append to a local JSONL log surfaced in Settings.
+19. **New toolbox cannot be explicitly started** — the boxes delegate shows Stop only while running (`ContainersWindow.qml:228-231`) and no Start; recovery relies on "Open" implicitly starting it. Sketch: explicit Start/Stop pair mirroring the Containers tab.
+20. **Raw state strings leak to users** — `state` is shown verbatim ("exited", "created") at `:221,300`. Sketch: map to "stopped"/"not started yet" via `Tr.t()`.
+
+**Skipped / risk:** did not re-file the seven already-recorded permission/portal items or re-check `.app` sandboxing. All verdicts are static; items 5–6 need a real `Gio.AppInfoMonitor`/distrobox run and item 11 needs a real portal caller to confirm fallback behaviour.
+
+## VERBATIM: Desktop widgets & extras
+
+## Desktop widgets & extras — 22nd-pass gap report (static, read-only)
+
+Active implementation is `shani-shell/shani/Modules/Background/{DesktopWidgets,MoreWidgets}.qml` — 8 widget types (clock, media, weather, stats, agenda, battery, note, world-clocks), toggled by 8 switches at `SettingsPage.qml:632-656`, stored as `Settings.qml:492` `list<string> desktopWidgets` and `Settings.qml:493` `deskPos: ({})`. Upstream Noctalia/Dux have far richer systems; those are the comparison, not the shipped code.
+
+### Ranked gaps
+
+1. **Note widget's click contradicts its promise — HIGH×trivial.** `MoreWidgets.qml:148-155` names it "opens it to edit" but `onOpen: Ui.toggleControlCenter()`; `Ui.qml:266` already has `openNotes()`. Sketch: `onOpen: Ui.openNotes()`.
+2. **No layout lock; every card is always draggable — HIGH×trivial.** `DesktopWidgets.qml:98-106,177-185,309-317,398-406` and `MoreWidgets.qml:70-78` attach `drag.target` unconditionally (8 px threshold). A slightly-off click moves a card. Sketch: `Settings.data.widgetsLocked` gating `drag.target`.
+3. **Widgets are keyboard/pad-dead despite Accessible actions — HIGH×med.** `DesktopWidgets.qml:58-69` sets `keyboardFocus: WlrKeyboardFocus.None` and has no `NavWindow`; `Ui.qml:454-472` `navAudit` only sees registered windows, so `dev/shell-parts/pad-reach.sh:19-25` "desktop" check cannot see the clock's click MouseAreas. `MoreWidgets.qml:39-59` registers but still `keyboardFocus: None` (`:56`). Sketch: add `NavWindow` + `KeyFocus` and Enter→`Accessible.onPressAction` to each card.
+4. **Positions are global by id, not per-monitor — HIGH×med.** `Settings.qml:493`; `DesktopWidgets.qml:47-51` `savePos` keys only by id; `MoreWidgets.qml:31-35` same. `Variants { model: Quickshell.screens }` (`:16`/`:15`) instantiates each enabled widget on *every* screen at the same coordinates; dragging one relocates all. Sketch: key `deskPos` by monitor name, or scope widgets to one screen.
+5. **No catalog, search, reorder or multiple instances — HIGH×med.** `SettingsPage.qml:632-656` is 8 raw toggles; `Common/Settings.qml:492` list is deduped by filter+concat; `SettingsIndex.js:40` indexes only one "desktop widgets" row. No add/remove on the desktop itself. Sketch: a widget browser page with search, add/duplicate/reorder cards (cf. dux-shell `DesktopWidgetBrowser.qml`).
+6. **No per-widget settings; all data sources/intervals hard-coded — HIGH×med-high.** `SettingsPage.qml:632-661` only global toggles; weather refresh 30 min (`Weather.qml:271-277`), stats 3 s (`SysStats.qml:28`), world clocks 30 s (`WorldClock.qml:36-42`). No per-widget transparency/size (only global `Common/Glass.qml:22`). Sketch: per-type config object + settings sheet, expose intervals.
+7. **Resolution changes are not handled — MED×med.** `DesktopWidgets.qml:23-46` clamps only on load / `onVisibleChanged`; `MoreWidgets.qml:23-30` only in `Component.onCompleted`. No `screen.width/heightChanged` handler, and clamped values are not written back, so cards land off-screen after a resize and snap back when resolution is restored. Sketch: re-clamp + persist on geometry change.
+8. **WorldClock polls even when its widget and calendar are closed — MED×small.** `WorldClock.qml:36-42` timer runs whenever any city is configured, spawning `sh -c date` per zone every 30 s; contrast `SysStats.qml:62-70` `wanted` gating. Sketch: gate on widget/calendar visibility.
+9. **Widget test coverage is on/off only — MED×small.** `dev/shell-test.sh:585-592` checks layer existence for agenda/note/clocks; nothing tests drag persistence, content, multi-monitor placement, or keyboard reach. Sketch: assert `deskPos` across a drag and include widget surfaces in `navAuditAll`.
+10. **Weather widget has no loading/error/stale state — MED×small.** `DesktopWidgets.qml:343` renders `""` when `temp` is NaN; `Weather.qml:203,267` silently swallow fetch errors; `:351` extracts the condition by splitting the display string `summary.split("°  ")[1]`. Sketch: show `—°` + "as of HH:mm"/error, add a `condition` property.
+11. **System monitor widget ignores most of its service — MED×small.** `DesktopWidgets.qml:412-457` shows only CPU/MEM bars + net rate; `SysStats.qml:19-26,30-47` exposes 60-point histories, per-core, temp, load/swap/PSI. Sketch: reuse `Common/Sparkline.qml` and show `temp` when `>0`.
+12. **No grid snap, collision avoidance or z-order control — MED×med.** Free absolute x/y (`DesktopWidgets.qml:258-259`, `MoreWidgets.qml:23-35`); overlapping cards stack by window creation order and cannot be reordered. Upstream has grid-snap (`noctalia-shell/.../DraggableDesktopWidget.qml:111-145`). Sketch: port grid-snap and a "raise/lower" context action.
+13. **Extras catalog is thin — MED×med.** Only 8 types (`DesktopWidgets.qml` + `MoreWidgets.qml`); no recent-files, launcher-shortcut, mini-month, quote/affirmation or to-do widget despite `Services/Tasks.qml` existing. Sketch: add a Tasks/today card reusing the existing service.
+14. **Agenda caps at four events with no overflow hint — LOW×trivial.** `MoreWidgets.qml:94,103-104` slices `upcoming.slice(0,4)`; clock shows only `[0]` (`DesktopWidgets.qml:125-134`). Sketch: append "+N more".
+15. **Media widget has no empty/art/seek-unavailable state — LOW×small.** `DesktopWidgets.qml:143-157` exists only when a player exists; `:191-202` empty art box, `:223-247` seek area disabled with no explanation. Sketch: placeholder icon and a "seek unavailable" hint.
+16. **No error boundary per widget — LOW×med.** All cards are in-process; an undefined `Agenda.upcoming` (`MoreWidgets.qml:94`) or malformed service value blanks a glass with no fallback; `savePos`'s `JSON.parse(JSON.stringify(...))` is unguarded (`DesktopWidgets.qml:48`). Sketch: defensive defaults + a `Loader` per card with onError fallback.
+17. **Settings search misses four widget names — LOW×trivial.** `SettingsIndex.js:40` words = "widget desktop clock weather stats media"; agenda/battery/note/world-clocks unsearchable. Sketch: extend the words string.
+18. **Widgets show on every workspace with no per-workspace control — LOW×med.** Bottom-layer `PanelWindow` (`DesktopWidgets.qml:58-69`, `MoreWidgets.qml:39-59`) is desktop-wide by design, but there is no opt-in to hide on selected workspaces. Sketch: filter on `Niri.workspaces` if a per-workspace desktop is wanted.
+
+### Scope note / risk
+
+Skipped per the skip-list: per-monitor wallpaper, first-screen-only desktop icons, unscaled widget size (a11y), basic widget config, clock/weather app internals, sticky notes, Island states. Primary risk: static-only — no runtime check that `Accessible.onPressAction` on a `keyboardFocus: None` surface is genuinely unusable, or that pixel positions corrupt on a real monitor hotplug.
+
+## VERBATIM: Automation & Hooks UX craft
+
+I've read both gap docs and the full automations/hooks stack. The earlier audits already cover the 5/6-item vocabularies, five-system fragmentation, import/export, dry-run, undo, unpermissioned `sh -c`, regex/subroutine absences, etc. — I skip those. Below are **new, UX-craft-specific** static findings with file:line evidence, ranked by value × ease.
+
+## Automation & Hooks UX craft — 22nd pass
+
+**1. [HIGH×HIGH][BUG] Startup hook almost never fires.** `Hooks.qml:108` runs `executeStartupHook()` on `Component.onCompleted` via `Qt.callLater`, but `Settings.loaded` (`Settings.qml:22`) only flips true after the async `FileView` read (`:144-155`); until then `Settings.data.hooks` is the default `{enabled:false}` (`:261`) and `_enabled()` (`Hooks.qml:21`) has no loaded guard. Sketch: `Connections { target: Settings; function onLoadedChanged() { if (loaded) executeStartupHook() } }`.
+
+**2. [HIGH×HIGH] Rules cannot be edited — only deleted.** The rule row (`SettingsAutomations.qml:56-63`) has one `IconButton` named `"edit-delete"` whose tip is "Remove" and whose handler only `splice()`s; changing one word in a rule means delete and rebuild the whole sentence from the Add form (`:100-283`). Sketch: add an edit button that loads the rule into the existing form.
+
+**3. [HIGH×HIGH] Hook commands cannot be read or edited in place.** `SettingsAutomations.qml:87-91` stores the command only as `placeholder`; `onAccepted` writes then clears `text`. To change a character you retype the entire command; "remove" is an undiscoverable Enter-on-empty (`:66-67`). Sketch: bind `text` to the stored value, add Save/Clear buttons and a set/unset visual state.
+
+**4. [MED-HIGH×HIGH] `fired` grows without bound.** `Automations.qml:23,54` does `fired = fired.concat(...)` on every firing, no cap, no timestamps, and it is copied into the state dump (`shell.qml:1095`). A minute rule accumulates entries for the whole session. Sketch: keep 50 `{at, rule}` records, drop oldest.
+
+**5. [MED-HIGH×MED] Enabling a paused rule suppresses a due action.** Any rules edit triggers `onRulesChanged → prime()` (`Automations.qml:80,69-73`), which sets `wasTrue[i]` from current `holds()`; a rule whose condition is already satisfied (resume a paused Wi-Fi rule, or add one while already on that Wi-Fi) never fires until the condition flips off and on. Sketch: prime only unchanged indices, or fire newly-enabled rules whose condition already holds.
+
+**6. [MED-HIGH×MED] Conflicting rules fire together; last write wins.** `check()` (`Automations.qml:56-65`) calls `act(r)` for every currently-true rule in array order — two "volume" rules on one event leave whichever is later in `settings.json`, with no priority, warning, or ordering cue. Sketch: surface firing order in the row and flag same-trigger/same-action conflicts on Add.
+
+**7. [MED×HIGH][SECURITY] `run` has no preflight or confirmation.** `Automations.qml:51` executes arbitrary `sh -c` as the full desktop user; the Add form (`:258-265,277-282`) accepts any string with no `sh -n` check and no "this will execute…" confirmation. Sketch: validate syntax at Add time and gate first save behind a plain-language confirmation.
+
+**8. [MED×HIGH][SECURITY] No execution timeout.** `Hooks.qml:27` and `Automations.qml:51` use fire-and-forget `execDetached`; a hanging command is never reaped, and `Common/Proc.qml:41,79` already implements timeout/debounce. Sketch: wrap in `timeout 10s sh -c …`.
+
+**9. [MED×HIGH] Duplicate rules are accepted.** Add (`SettingsAutomations.qml:277-282`) appends unconditionally; identical rules double the action (`run` twice — destructive; volume set twice). Sketch: refuse exact duplicates with a toast.
+
+**10. [MED×HIGH] Rule sentences are untranslated.** `sentence()` (`SettingsAutomations.qml:28-36`) concatenates English literals with no `Tr.t()`, so the rule list (`:58`) stays English in Marathi/Hindi even though the page chrome and empty state are translated. Sketch: build the sentence from `Tr.t()` tokens.
+
+**11. [MED×MED] Hook argument contract is inconsistent and mis-described.** `Hooks.qml:4-5` promises "$1/$2/$3 placeholders"; only `executeWallpaperHook` (`:31-40`) passes positional args, dark-mode/color-generation use naive `replace(/\$1/g,…)` (`:45,:64`), and lock/unlock/startup get none. Sketch: pass one `{event,value,time}` object as positional params for all six.
+
+**12. [MED×HIGH] No test / last-run / error for hooks.** Rules at least expose `fired` (`Automations.qml:23`); hooks discard everything (`Hooks.qml:25-29`), and the hook rows (`SettingsAutomations.qml:76-93`) have no "run now". Sketch: a Test button reusing `_exec` with captured stdout/stderr plus a `lastRun` field.
+
+**13. [MED×MED] Suspend/resume and logout are reachable but not exposed.** `Lock.qml:33-38` consumes logind's `sleep` message only to lock and discards resume; no listener for logout; network up/down collapses to Wi-Fi SSID equality (`Automations.qml:26,35`). Sketch: emit hook events from that existing Bridge-message path.
+
+**14. [MED×MED][DESTRUCTIVE] Defining a "run" rule grants persistent unattended command execution with no undo.** Combined with #5/#6/#9, a mistyped or malicious rule fires on every matching event with no visible record beyond the in-memory (uncapped) `fired`. Sketch: require a saved, named confirmation for `run` rules and surface last fire time.
+
+**15. [LOW-MED×MED] TimePicker ignores the 12/24h preference.** `Common/TimePicker.qml:9,16-17,60-87,94` always renders 24-hour `HH:MM` chips while the rest of the shell honours `Settings.data.use24h`. Sketch: render 12h + AM/PM when off, still store `HH:MM`.
+
+**16. [LOW-MED×LOW] Two competing notification-rule keys.** `hooks.notificationRules` (`Settings.qml:261`) is dead; the live store is `notifRules` (`:263`, read by `NotifsRules.qml:5`). The prior pass flagged the dead key but not the similarly-named live twin. Sketch: delete the dead key.
+
+**Skipped:** all items already in GAPS/GAPS-RESEARCH (vocab size, five systems, templates/import-export, dry-run, undo, phrase-only routines, macro recorder/named macro, hook cascade, rule-only scheduler, variables/if-else/wait). Static only — no runtime check that the startup-hook or re-prime behaviours actually manifest; #1/#5 are inferred from async-load and signal wiring and should be confirmed in the shell suite.
+
+## VERBATIM: Developer & logging tools UX craft
+
+# 22nd pass — Developer & logging tools UX craft
+
+Read both GAPS files first, then `Modules/Logs/LogsPanel.qml`, `Modules/Settings/SettingsDevTools.qml`, `bridge/system-report.py`, `Common/Log.qml`, `SettingsAbout.qml`, `shell.qml` IPC + `state()`, `bin/shani` and the `dev/` scripts. Skipped prior findings and the brief's list (Logs false empty state, system-report on-demand/no-opt-in, debug overlays, raw stderr broadly, developer-settings basics). Static only — no runtime.
+
+Ranked by value × ease:
+
+1. **Problem report is an unsaved scratch doc.** `SettingsAbout.qml:66-70` calls `TextDocs.newDoc()+setText()` with no filename/date; buffers are memory-only and session restore keeps only paths (`TextDocs.qml:79-83`). Sketch: prefill a dated title and offer "Save report…" before opening.
+2. **No copy/share of the full report.** `SettingsAbout.qml:183-189` "Copy details" copies only the short hardware summary, never the generated report. Sketch: add "Copy report"/"Save report" buttons beside "Problem report…".
+3. **`SHANI_LOG` is read once at startup.** `Log.qml:23-24` holds a `readonly` env filter; `:26-38` gate levels. Sketch: add `loggingSet(scope, level)` IPC so a scope can be raised live while reproducing a bug.
+4. **Log timestamps are time-only.** `LogsPanel.qml:62-67` `fmtTime` uses `"HH:mm:ss"` — a window spanning midnight, or an older boot, is undated. Sketch: show date (+ boot id) in the row header.
+5. **Messages are hard-cut to 140 chars.** `LogsPanel.qml:208` `slice(0,140)` with no inline expand; the details pane wraps (`:237-245`) but needs a click. Sketch: two-line wrap in the row with a "more" toggle.
+6. **Filter chips show no counts and aren't persisted.** `LogsPanel.qml:27,144-156` — category is in-memory state only. Sketch: per-chip match counts; persist last filter/query in Settings.
+7. **`system-report.run()` masks failures.** `system-report.py:23-31` prefers stdout over stderr and renders timeout/exception as `"(...)"`, so a missing tool and a real failure both look like `(nothing)`. Sketch: return `{ok, output, error}`, mark failed sections visibly.
+8. **No CLI entry for the report tool.** `system-report.py:141-147` is invoked only by `SettingsAbout.qml:63` via a hardcoded path; `bin/shani` has no `report` group. Sketch: `shani report` printing to stdout.
+9. **`shani logs` can only open/toggle/close.** `bin/shani:255-259`. Sketch: `shani logs --follow / -n N / --since / -u UNIT` for terminal debugging.
+10. **No dev/test-mode indicator.** `dev/session.sh:35-54` swaps dozens of `SHANI_*_TOOL` bridges/fakes; `Ui.qml` has no dev flag and `state()` (`shell.qml:1003`) exposes none. Sketch: a "Test session" bar chip when any override is set.
+11. **Uncaught QML errors have no in-product surface.** `dev/shell-test.sh:56` greps `qs.log` for `TypeError`/`ReferenceError`/etc.; the Logs panel reads only journalctl (`LogsPanel.qml:80`). Sketch: tail `qs.log` into a dev-only "Shell errors" tally.
+12. **No context navigation around an entry.** `LogsPanel.qml:103-112` stores a cursor but `:201` shows only a flat slice. Sketch: "±20 lines around this entry" via `journalctl --cursor=…`.
+13. **No keyboard path from search into the list.** `LogsPanel.qml:83` focuses the search field; `ListRow.qml:69` gives each row KeyFocus, so Tab walks up to 100 rows with no Up/Down or focus-first. Sketch: Down from search focuses the list; Up/Down move selection.
+14. **No "new entries" badge while paused.** `LogsPanel.qml:29,84-89` — switching Follow off stops the timer with no indication of what arrived. Sketch: buffer a pending count + "Jump to latest".
+15. **Fixed report depth and hostless logs.** `system-report.py:20` hardcodes `JOURNAL_LINES="100"` (no flag); `LogsPanel.qml:80` uses `--no-hostname`. Sketch: add `--lines N`, keep the host field.
+
+Skipped: the named skip-list items and all already-filed logs/diagnostics/dev-tooling gaps; #11 is adjacent to the filed "no in-shell diagnostics view" but narrows it to uncaught-error surfacing. Risk: all static — the report-lifecycle and dev-overrides claims assume `TextDocs`/`SHANI_*_TOOL` behave as the source implies; nothing was run.
+
+## VERBATIM: Audio system and TTS UX
+
+I've read both gap docs (1,885 + 4,838 lines) and all twenty-one pass indexes, then traced `Audio.qml`, `SidebarSliders.qml`, `Speak.qml`, `SystemSounds.qml`, `SoundFx.qml`, `SettingsSound.qml`, `SliderRow.qml`, `Osd.qml`, `Access.qml`, `Notifs.qml`, `bridge/shani_link/audio.py`, plus the shipped Piper TTS packages and Chronoa's `tts.py`/`voices.py`. Static only; nothing edited. Skip list honoured (notification-sound switches, alert volume/stream, TTS title-only, screen-share heuristic, dictation mute/capture/audio, BT colour-only) as well as all filed 9th-pass routing gaps (per-app output picker, AEC, mic monitoring, ducking, limiter, channel remap, echo-cancel, A2DP/HFP, graph viewer, TTS voice selection as such).
+
+## Ranked gaps (value × ease)
+
+1. **[H×M] Shell speech never reaches the neural TTS the image ships.** `Speak.qml:15-26` hardcodes `spd-say -w …` / `espeak-ng` for every speech surface; the same image installs `shani-piper-tts` + eight offline voices (`shani-pkgbuilds/shani-piper-tts/PKGBUILD:14`, `shani-piper-voice-{hi,mr,bn,te,ml,ur,ne}/PKGBUILD`) and Chronoa's four-engine dispatcher with pitch/tempo/rate (`shani-chronoa/…/tts.py:1-27`, `voices.py:48-70`). New integration gap beyond the filed "voice selection": two unrelated speech stacks. *Sketch: route `Speak.speak()` through `piper-tts --model <voice>` (or Chronoa's synthesizer IPC) with an engine/voice picker.*
+2. **[H×E · BUG] Balance is erased by the next volume change.** `Audio.qml:52-57` writes the scalar `sink.audio.volume`, which flattens the channel volumes that the balance code carefully sets via `pactl` at `:122-129`; `balanceApply` restarts only on balance/default-sink change (`:138,160`), never on volume change. *Sketch: re-apply balance in `onVolumeChanged`, or write channel volumes directly in `setVolume()`.*
+3. **[H×E] Over-amplification makes every volume readout wrong.** Slider value is `Audio.volume / Audio.maxVolume` (`SidebarSliders.qml:23`) and the row prints `value*100` (`SliderRow.qml:102`), so 150 % real volume reads 100 %; the OSD gets the raw 0–1.5 value, clamps the bar at 1.0 but prints 150 % (`Osd.qml:61,252,263`). *Sketch: pass real percent as a separate label and draw fill as `value/maxVolume`, with an ">100 %" marker.*
+4. **[M×M · BUG] Mono accessibility pins sound to the old device.** `Access.qml:39-43` loads a remap sink whose `master` is captured once and makes it default; `Audio.useSink()` (`:80-82`) and later hotplug switches never reload the remap, so output either stays on the original device or bypasses mono entirely. *Sketch: reload/unload `shani-mono` on `Audio.sink` change, updating `master`.*
+5. **[M×E] Spoken notifications ignore the notification's own silence hints.** `Notifs.qml:69-85` honours `suppress-sound`, `sound-file`, `sound-name` and critical urgency; `Speak.qml:38-43` sees the same `alerted` signal and only checks one global switch, so a "silent" app is still read aloud and critical alerts are spoken identically. *Sketch: skip `suppress-sound`, use a priority queue, and speak criticals with distinct wording.*
+6. **[M×E] TTS has no language mapping; Indian text is mangled.** `Speak.qml:25` passes no `-v`/voice to either engine; the shipped locales are Marathi/Hindi and Piper voices exist for them, but `speakNotifications`/selection use the default English voice. *Sketch: derive a voice from `Settings.locale`/`captionLanguage` and pass `espeak-ng -v`/`piper --model`.*
+7. **[M×E] System-sound coverage stops at six events.** `SystemSounds.qml:29-55` plays only charger in/out, drive add/remove, volume change and screenshot; no startup, shutdown, success, error, or session events despite the freedesktop theme being installed. *Sketch: call `event()` from session/lifecycle hooks with a small name→theme-file map.*
+8. **[M×E] Shell event sounds bypass quiet/DND.** Notifications are gated by DND and `Notifs.quiet` (presenting/fullscreen, `Notifs.qml:99-101`); `SystemSounds.play()` (`SystemSounds.qml:15-24,51,54`) has no such predicate, so volume clicks, shutter and charger sounds fire during a silent presentation. *Sketch: gate `play()` on the same `Notifs.quiet`/DND check.*
+9. **[M×E] Hotplug announcement misses sources and the first five seconds.** `Audio.qml:146-163` snapshots only `sinks` and ignores arrivals in the first 5 s; there is no `onSourceChanged`, so a Bluetooth headset mic's arrival is silent and early plug-in never says where sound went. *Sketch: track sources symmetrically and mark boot-time nodes from the initial snapshot instead of a time guard.*
+10. **[M×E] Input picker offers sources the shell cannot select.** `SidebarSliders.qml:95-105` lists every `Audio.sources` row; `SoundFx.qml:269-272,295-297` documents that Quickshell refuses monitor sources, leaving no default — the picker still lets a user choose one. *Sketch: filter monitor/effect nodes, or fall back to `pactl set-default-source` as SoundFx does.*
+11. **[M×M] DSP capability checks are inconsistent.** Compressor and spatialiser are probed (`SoundFx.qml:66-76`), but ebur128 loudness (`:143-156`), convolver (`:101-106`) and RNNoise (`:250`) are unconditional: a missing plugin fails the whole filter chain and every effect, with only a generic error in the Settings hint (`SettingsSound.qml:109`). *Sketch: probe each optional module and omit just that node.*
+12. **[M×E · BUG] TTS failure and queue are invisible.** `Speak.qml:12,34` derives "speaking" from `Process.running` with no `onExited`; a missing engine or failed command leaves the tile saying "Tap to stop" (`SidebarTiles.qml:349-351`) and no user-facing error, while a new utterance simply cuts the old one. *Sketch: emit an error on non-zero exit, show a toast/caption, and queue utterances.*
+13. **[M×E] RNNoise sensitivity is fixed.** `SoundFx.qml:250` hardcodes `"VAD Threshold (%)" = 50.0`; `SettingsSound.qml:273-280` exposes only on/off, so noisy rooms and quiet rooms get identical suppression. *Sketch: add a 0–100 % slider bound into the filter-chain control.*
+14. **[L×E] Volume wheel/key steps ignore the configured step.** `SettingsSound.qml:57-62` offers 2/5/10 %, but only `Audio.stepKey` uses it (`Audio.qml:62`); the bar wheel (`Bar.qml:766`) and slider wheel/arrow keys (`SliderRow.qml:83,95`) hardcode 5 %. *Sketch: bind all three to `Settings.data.volumeStep / 100`.*
+15. **[L×E] Mixer app rows misreport level.** `SidebarSliders.qml:79` picks `audio-volume-high` for any unmuted app, ignoring `modelData.audio.volume`; the device icon has four tiers (`Audio.qml:40-48`). *Sketch: reuse that tiering for app rows.*
+16. **[L×E] No visual equivalent to spoken output.** `Speak.qml:20` keeps the last utterance, but it is exported only through IPC (`shell.qml:1175`) — no caption for deaf users and no way to review what was read. *Sketch: show `Speak.last` in the read-aloud tile subtitle while speaking.*
+17. **[L×E] OSD volume labels are untranslated.** `Osd.qml:62,65` use literal "Muted"/"Microphone off"/"Microphone on" while the rest of the file uses `Tr.t()`. *Sketch: wrap the three strings in `Tr.t()`.*
+
+**Skipped / risk:** no runtime, PipeWire graph, real audio hardware or TTS playback was available, so the balance-flattening and monitor-source claims are inferred from Quickshell's volume/node semantics (the SoundFx comments corroborate the latter); re-check them with one live device before building. Items 4 and 11 touch shared DSP/a11y paths and could regress existing effect switching.
+
+## VERBATIM: App lifecycle & background daemons
+
+I've read both gap files and audited the app-lifecycle/daemon code paths statically. Findings below exclude everything the earlier passes already list (session lifecycle, crash handling/watchdog, session sync, idle stages, caffeine, closeApps, app restart/relaunch, systemd unit basics, startup time).
+
+## App lifecycle & background daemons — 16 new gaps (value × ease)
+
+1. **Force-close a shell app SIGKILLs the entire shell.** All ~45 shell app windows arrive from one `org.quickshell` process (`AppWindow.qml:7-9`); `Niri.forceCloseFocused()` kills `focusedWindow.pid` with `-9` (`Niri.qml:458-464`). "Close it anyway" on a stuck Text Editor kills the desktop. Sketch: detect shell windows (`ShellApps.idFor(title)` / shared pid) and set the owning `Ui` flag false instead. *Critical, trivial.*
+2. **Lock, sleep inhibition and ScreenSaver all ride the Chronoa bridge.** `chronoa-bridge.py:42-43,118-120,448-449` imports/starts `logind` + `screensaver` in-process; `Lock.qml:23,26,37` sends over `Bridge.qml:26`. One bridge crash disables locking *and* sleep inhibition — pass 9 covered the bridge dying, not this coupling. Sketch: split these D-Bus roles into their own supervised unit. *High, medium.*
+3. **Per-window close discards unsaved work.** `AppWindow.qml:103,153` set `visible=false` unconditionally; `TextDocs.unsaved` (`TextDocs.qml:29`) is read only by the state dump (`shell.qml:1197`). Pass 8 covered *logout*, not the X button. Sketch: a `canClose()` hook gating the close with Save/Discard. *High, medium.*
+4. **Minimise button minimises the wrong window.** `AppWindow.qml:151` → `Ui.qml:140-141` → `shell.qml:214` minimises `Niri.focusedWindow`, not `win`; the event-stream lag makes this racy. Sketch: pass the window's niri id into `Ui.minimise(id)`. *High, trivial.*
+5. **One instance per shell app; no per-workspace instances.** Every app is one `LazyLoader` on one `Ui` bool (`shell.qml:134-197`, ~69 booleans in `Ui.qml`); `Niri.appWindow()` returns the first MRU match (`Niri.qml:55`); `bin/shani:641-646` just calls `appRaise`. Sketch: key windows by instance/workspace, allow N loaders per app. *High, medium.*
+6. **No service-manager UI for the shell's own daemons.** Only whole-shell restart (`SettingsLook.qml:63`, `Appearance.qml:26`); SettingsAbout hands "Services" to Cassini (`SettingsAbout.qml:273`); Logs panel is journal-only (`LogsPanel.qml:80,201`). Sketch: a panel listing shani units + QML bridges with active/failed, Restart/Enable, journal link. *High, medium.*
+7. **Shell-app state is not restored on shell restart.** `Reopen.qml:52-59` only offers apps when boot/session id *changes*, and only desktop-entry apps (`:20-30`); a `systemctl restart shani-shell` resets every `Ui` flag. (Distinct from pass 6's layout gap and pass 9's editor-buffer gap.) Sketch: persist the open-Ui set at shutdown, restore in `Component.onCompleted`. *High, medium.*
+8. **Running indicators depend on fragile title parsing.** `ShellApps.js:63-68` recovers the app id by splitting `" — "` from `AppWindow.title` (`:40`); `Niri.own()` (`Niri.qml:48-53`) then rewrites `app_id`, and the dock groups on it (`Dock.qml:101-124`). Any app that sets its own title or a doc containing an em dash loses icon/name/running dot. Sketch: pass `appName` as the window's app_id property. *Medium, trivial.*
+9. **D-Bus-activated bridges have no supervision or crash record.** `portal.py` and `screensaver.py` are activated via `data/dbus/...service` (`bridge/portal.py` header, PKGBUILD `:178-180`), not units — only 3 shani units exist (`data/systemd/`). A crash means the next call gets no reply; nothing restarts or logs it. Sketch: give each a `Restart=on-failure` user unit. *Medium, medium.*
+10. **Reopen's saved list is deliberately not flushed as the session ends.** `Reopen.qml:85-94` saves only on a 5 s "calm" timer and comments that the final writes never land. Pass 8's flush gap lists PlayQueue/VoiceRecorder/TextDocs but not Reopen. *Medium, medium.*
+11. **No loading affordance on first app open.** `shell.qml:112-133` compiles lazily ("a mistake shows when it is opened"); the first click shows nothing until the QML compiles. Sketch: bind a brief "Opening…" chip to loader activity. *Medium, easy.*
+12. **Per-feature disable doesn't stop bridges.** ~53 services carry `running: true` (`LauncherEntries.qml:22-25` always listens even with no app using it); the shell instantiates ~100 singletons unconditionally (`shell.qml:236`). No registry maps a feature toggle to its bridge. *Medium, medium.*
+13. **Logs panel truncates and can't export.** `LogsPanel.qml:80` reads `-n 200`, `:201` slices 100 rows; no unit filter, no copy/export, despite per-row raw JSON (`:247-255`). Sketch: add a unit filter, paging and "Copy raw". *Low, easy.*
+14. **External apps survive shell crash; shell apps don't — with no explanation.** `launch-app.py:123-153` puts external apps in their own `systemd-run --scope`, but QML app windows die with the shell. Reopen's wording ("Reopen your apps?") doesn't distinguish them. Sketch: label shell-app windows in the reopen prompt. *Low, easy.*
+15. **AppWindow close is also a hidden middle-click gesture.** `AppWindow.qml:103` closes on middle-click with no confirmation and the same unsaved-state loss as #3. Sketch: remove it or route through `canClose()`. *Low, trivial.*
+16. **No "quit app" for shell apps.** Closing the window leaves service state alive in memory (PlayQueue/TextDocs/Camera); there is no full-quit that releases captures, timers or recorders per app. *Sketch: an app-context "Quit" that calls the service's close/stop.*
+
+**Skipped / risk:** static only — no niri/systemd runtime, no crash reproduction, and the QML `pid`/scope reasoning is inferred from window events; #1 in particular needs one real "force close on a shell app" test to confirm the pid is the process-wide one. No files changed.
