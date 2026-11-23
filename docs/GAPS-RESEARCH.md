@@ -4332,3 +4332,246 @@ Scope read: `SettingsPrinters.qml`, `Services/Printing.qml`, `PdfViewer.qml:523-
 | 19 | **Metered status has no connection-level visibility in the control centre.** The tile exposes only SSID/state (`SidebarTiles.qml:93-104`); "Limit background data" is buried in Settings (`SettingsNetwork.qml:210-216`), so downloads can stall with no visible reason. | Show a "Metered" chip on the Wi-Fi tile subtitle. |
 
 **Skipped / not checked:** hardware-verified portal capture, real `nmcli`/Quickshell enum values, whether `iw` is installed in the image, and runtime behavior of `notify-send -A` actions — all static findings only. Items #1/#3/#5 overlap at the "offline signal" seam; implement them as one `Net.online` plumbing change.
+
+---
+
+# Twentieth pass — VERBATIM agent reports
+
+## VERBATIM: Maps & navigation UX craft
+
+# 20th pass — Maps & navigation UX craft (static only)
+
+Read both gap docs first. Excluded everything already filed: the Maps→GNOME Maps list (`GAPS.md:966-973`: `limit=1`, transit, traffic, offline maps/eviction, map/night style, start/waypoint *markers*, reverse-geocode on long-press, alternative routes, keyboard pan/zoom, structured steps), metric-only distance (`GAPS-RESEARCH.md:31`), 429/503 handling (`:341`), tile-retry backoff (`:1882`), recenter no-op/no fit view (`:3800`), offline badge/no-message (`:1853`, `:4329`), scheme registration (`GAPS.md:1391`), and the named skip-list items. All evidence is from `shani/Modules/Maps/MapsPanel.qml` unless noted.
+
+## Highest value × ease
+
+1. **No "you are here" marker.** `Location.lat/lon` feed only the centre/route (`:79,276-279,141`); the sole map dot is the search pin (`:489-496`). *Sketch:* second `Rectangle` at `toScreen(Location.lat,Location.lon)`, blue, with an accuracy ring from `Location.accuracy` (`Services/Location.qml:18,43`).
+2. **No scale bar.** `grid` overlays only zoom + attribution (`:520-544`). *Sketch:* bottom-left ruler using `tile * n / (2^z * 156543 * cos(lat * π/180))` km, rebound on `z`/`mapLat`.
+3. **No compass / north-up badge / rotation.** No bearing state anywhere; drag/wheel/pinch only pan and zoom (`:498-518`). *Sketch:* small "N" badge that doubles as "reset north"; store a bearing if tilt is added later.
+4. **No map context menu or copy-coordinates.** `MouseArea` handles pan, wheel, double-click only (`:509-518`). *Sketch:* `onPressAndHold`/right-click → Drop pin, Copy lat/lon, Directions from here, Share view.
+5. **Pan has no inertia.** `panBy()` is applied only while the mouse is held (`:105-111,515`). *Sketch:* sample velocity in `onPositionChanged`, run a short decaying `Timer` after release.
+6. **No absolute ETA.** `duration()` always returns a relative "X min" (`:117-120`). *Sketch:* show "Arrive 16:42" = `new Date() + routeDuration*1000` beside distance at `:568`.
+7. **Saved places can't be managed.** `toggleSaved`/`goSaved` (`:52-71`) and the `Flow` chips (`:365-373`) have no per-row rename/remove; removal needs re-locating the pin. *Sketch:* long-press a chip → Rename/Remove; key by id rather than exact coords.
+8. **No destination field or waypoints.** Target is only the pin (`:143,145`); `fromField` is start-only (`:580-586`). *Sketch:* add To + waypoint list, join all coords with `;` in the OSRM URL.
+9. **No live suggestions.** Search fires only on `onAccepted`/button (`:345,347`) with a raw `q=` (`:301`). *Sketch:* debounced `onTextEdited` → Nominatim autocomplete popup, keep current single result as fallback.
+10. **[Likely bug] Wrong OSRM profile tokens.** `routeProfile` is `driving|foot|bike` (`:86`, choices `:556`); OSRM's demo server names profiles `driving|walking|cycling`. *Sketch:* switch tokens (keep a `SHANI_MAP_ROUTE_PROFILES` override); verify against the public server.
+
+## High value, medium effort
+
+11. **No navigation / follow / reroute mode.** Route is drawn once (`:464-487`); no `Connections` to `Location` after routing, no current-position tracking, no next-turn card, no off-route detection or arrival. *Sketch:* Follow toggle re-centres on `Location` and highlights the nearest step; re-call `directions()` when >50 m from the polyline.
+12. **No categories or "Search this area".** `geoCode()` sends only `q=` (`:301`); `panBy()` (`:105-111`) never re-searches. *Sketch:* category chips → `amenity=` query; add a button using Nominatim `viewbox`/`bounded` from current bounds.
+13. **No coordinate input.** "18.52, 73.85" is passed to Nominatim as free text (`:301`). *Sketch:* regex `^-?\d+(\.\d+)?,\s*-?\d+` → set `mapLat/mapLon/pinLat/pinLon` directly, label as "Coordinates".
+14. **Route steps are inert.** Delegate is plain `Text` (`:595-603`); the Canvas (`:464-487`) draws no step markers. *Sketch:* retain each step's OSRM waypoint, tap a row → pan there and draw a numbered marker.
+15. **Place detail stops at hours/phone/website.** Only three `extratags` keys are read (`:645-648`, rendered `:392-401`); no rating, photos, reviews or `wikipedia`/`wikidata` link. *Sketch:* show more extratags as rows plus one "Reviews & photos on OpenStreetMap" link-out.
+16. **No cache size / age readout.** `tileCache` (`:21`) and `fetch()` (`:204-227`) accumulate files with no accounting. *Sketch:* `find … | wc -l` + `du -sh`, shown as "124 tiles · 3.1 MB" with a Clear button (distinct from auto-eviction already filed).
+17. **No full-screen map.** `grid` (`:404-408`) is one row of a `ColumnLayout` with permanent search/details/directions rows. *Sketch:* "Hide panels" toggle collapsing the other rows so the map fills the window.
+
+## Quick craft fixes
+
+18. **Zoom is not cursor-anchored / no touch double-tap.** `zoomBy()` only changes `z` (`:112-115`); `onDoubleClicked` is mouse-only (`:517`). *Sketch:* convert cursor point to lat/lon before changing `z`, restore it after; add a double-tap recogniser for touch.
+19. **Geocoding is neither throttled nor cached.** `searching` guards only in-flight calls (`:295-298`); no min interval, no query→result cache. *Sketch:* 1 s rate limit + in-memory result map (Nominatim policy is ≤1 req/s).
+20. **No HiDPI tiles.** `tile` is fixed 256 (`:38`) and `tileUrl` (`:32`) has no `@2x` variant, so maps blur on scaled outputs. *Sketch:* request `@2x` tiles when the output scale is 2 and set logical tile size to 128.
+
+**Skipped/did not check:** runtime map rendering, real GeoClue/OSRM responses, and image/AT-SPI output — static only; all named skip-list items and the GNOME-Maps comparison list were excluded rather than re-filed. **Risk:** item 10 is inferred from OSRM's documented profile names, not observed; items 1/11 depend on `Location` refreshing more often than its hourly timer (`Location.qml:61-67`) — turn-by-turn needs a faster location source than the shell currently has.
+
+## VERBATIM: Creative tools craft
+
+I read both gap docs (1,266 + 4,334 lines), skipped every listed item, then read all seven module/service files plus `Common/Pen.js`, the screenshot action flow and the Viewer edit backend. Static only.
+
+## Twentieth-pass gaps — creative tools craft (ranked value × ease)
+
+**1. [H×H · BUG] VoiceRecorder "Save trimmed copy" never reports success.** `trimmedPathFor()` returns a fixed `*.trimmed.opus` (`Services/VoiceRecorder.qml:322-324`), and `onResultChanged` only accepts that exact name (`:369-374`), but `trimAudio()` → `cut()` → `outputFor()` now returns a *timestamped* `*.trimmed-<stamp>.opus` (`Services/VideoTrimmer.qml:286-296,61-69,271`). The comment at `:366-367` ("output name is deterministic") is stale after the overwrite fix. Sketch: have `trimAudio` return/emit the actual `result` and match on that, or pass a fixed name through.
+
+**2. [H×H · BUG] Renaming a take can silently change its format.** `cleanName()` appends the extension from the *current* `format` choice, not the file's own (`Services/VoiceRecorder.qml:255-260`). Rename an old `.flac` while Opus is selected → `X.flac.opus`; `whenOf()` (`:211`) and the `*.opus|*.flac` scan (`:223`) then mislabel or misfit it. Sketch: derive extension from `path.split(".").pop()`.
+
+**3. [M×H] Video Trimmer's frame-step buttons are permanently dead.** Both ◀ and ▶ are `enabled: false` (`VideoTrimmerPanel.qml:209,216`) while their `onClicked` handlers and the keyboard Left/Right path (`:33-34`) work. Sketch: enable them and bind `enabled` to `inputDuration > 0`.
+
+**4. [H×M] Whiteboard loses everything on close with no warning.** `pages` is memory-only (`Whiteboard.qml:26`); the close button just sets `Ui.whiteboard = false` (`:301`) and `onVisibleChanged` (`:38`) only restores focus. No autosave, no unsaved-changes confirm. Sketch: two-tap close when `Ui.whiteboardStrokes > 0`, reuse the save path.
+
+**5. [H×M] Voice Recorder has no duration limit or low-disk guard.** The 1 s elapsed timer is unbounded (`Services/VoiceRecorder.qml:200-205`); a forgotten take fills the partition. Screen Recorder already has an auto-stop pattern. Sketch: `maxSeconds` setting + disk-space probe → auto-stop with a notice.
+
+**6. [M×H] Only the newest 100 takes are visible.** `scan` pipes through `head -100` (`Services/VoiceRecorder.qml:223`); older recordings remain on disk but vanish from the UI. Sketch: drop the cap or add paging/recent filter.
+
+**7. [M×H] Annotate's pen width is hard-coded at 5 raw pixels and has no chooser.** `g.lineWidth = 5` (`Modules/Annotate/Annotate.qml:65`) — not `Theme.px`, so it is hairline on HiDPI, while Whiteboard and Viewer both offer three widths. Sketch: add thin/medium/thick `Choice`s like `Viewer.qml:451-454` and multiply by scale.
+
+**8. [H×M] Whiteboard is a fixed, screen-sized canvas — no pan/zoom.** Strokes store absolute x/y (`Whiteboard.qml:26,221`) and both the paper and Canvas just `anchors.fill: parent` (`:128-130`); anything off-screen cannot be reached or recovered. Sketch: a `Flickable`+zoom transform with strokes in board coordinates.
+
+**9. [M×H] Frame stepping assumes 30 fps for every video.** `frameStep: 1/30` (`Services/VideoTrimmer.qml:39`) while `probe()` fetches only `format=duration` (`:121`). Left/Right and I/O/S therefore land on wrong frames for 24/25/60 fps sources. Sketch: probe `r_frame_rate` and set `frameStep = 1/fps`.
+
+**10. [M×M] Whiteboard has no text tool.** Ink sizes, eraser, undo, pages exist (`:257-301`) but there is no text, shape or arrow — unlike the Viewer/Annotate tool set. Sketch: tap-to-place text stroke rendered in `onPaint` (`:133-161`), persisted with pages.
+
+**11. [M×H] Recording format/channels are not persisted.** Only `nextNumber` uses a `FileView` (`Services/VoiceRecorder.qml:49-55`); `format`/`channels` (`:38-39`) reset to Opus/mono on restart. Sketch: store all four in the same JSON.
+
+**12. [M×M] Whiteboard save fails silently and can stick "Saving…" forever.** The 120 ms page timer (`:70-87`) has no paint-completion guard, and `makePdf` has only a `StdioCollector` (`:98-112`) — no `onExited` error branch, so a missing PyMuPDF leaves `saving >= 0` and every later save blocked by `:60`. Sketch: add `onExited` → `saving = -1` + error notice.
+
+**13. [M×M] Video Trimmer has no visual preview or frame feedback.** The panel is numeric sliders and seconds fields only (`VideoTrimmerPanel.qml:140-225`); the playhead is scrubbed blind, with no thumbnail strip or play button for the selection. Sketch: `ffmpeg -ss … -frames:v 1` contact sheet behind the playhead (reuse `captureFrame`, `Services/VideoTrimmer.qml:227-236`).
+
+**14. [M×M] Segments may overlap or be out of order.** `addSegment()` just pushes (`Services/VideoTrimmer.qml:193-202`); no sort/merge/overlap check, so "Cut and join" can duplicate frames. Sketch: insert sorted, merge touching ranges, reject overlaps.
+
+**15. [M×M] Screenshot "Annotate" bypasses the shell's own annotation tools.** `annTool` defaults to `"satty"` and the action launches satty/swappy (`Services/Screenshots.qml:113,173-190`); the notification builds its action list without offering `Annotate.qml` or the native Viewer (`:123-126`) unless the setting is changed. Sketch: add an `annotate-native` action calling `Viewer.open/startEdit`.
+
+**16. [M×M] Trim output location cannot be chosen.** Output always sits beside the input (`Services/VideoTrimmer.qml:10,61-69`), unlike VoiceRecorder's export `FilePicker`. Sketch: add a save-dir choice to `outputFor()`/`cutSegments()`.
+
+**17. [L×H] Whiteboard eraser is whole-stroke and one fixed radius.** `eraseAt()` uses `Theme.px(18)` and deletes any stroke with a point in that box (`Whiteboard.qml:48-53`); no size control, no partial erase. Sketch: expose small/medium/large radius.
+
+**18. [L×M] Output folders are inconsistent across the four tools.** Whiteboard → `~/Documents/Whiteboards` (`Whiteboard.qml:83`), screenshots/drawings → Pictures (`Screenshots.qml:121`, `Annotate.qml:52`), takes → `~/Music/Voice Recorder` (`VoiceRecorder.qml:57-60`), trims → beside input. Sketch: one "creative output" folder root with per-type subfolders.
+
+**Skipped / risk:** all nineteen passes' items and the named skip list; no QML runtime, ffmpeg/pw-record or hardware here, so items 1, 2, 9, 12 are code-path verdicts needing a live check (especially the timestamp/name mismatch in #1).
+
+## VERBATIM: Notification production by apps
+
+# Twentieth pass — NOTIFICATION PRODUCTION (read-only, static)
+
+Read both GAPS files; honoured the skip list (consumption/gestures/DND/lock/flash/centre/overflow/mark-all-read/dock badge/notification→file). Focus: who *creates* notifications and with what. Architecture in one line: `Services/Notifs.qml` is a **receive-only** freedesktop daemon — ~60 producers hand-roll `notify-send` through `execDetached`; there is no `Notifs.post`, no producer helper, no `shani notify` CLI.
+
+## Ranked gaps (value × ease)
+
+1. **[H×easy] Converter completion is silent.** `Modules/Converter/ConverterWindow.qml:89-90,207-217` — `done`/`failed` only set inline row state; close the window and the finished file is never announced. Sketch: one `execDetached(["notify-send",…,Tr.t("Converted"),e.done])` at :89 with an `open` action.
+2. **[H×easy] Feed auto-refresh announces nothing.** `Services/Feeds.qml:88-96` (self-refresh timer), `:169` (refresh result) — new articles appear only inside the window. Sketch: in the `refresh` handler compare unread count, notify once per batch ("3 new stories in <feed>") with a `show` action.
+3. **[H×med] No single producer API.** Notifs.qml:1-2 has no post method; producers are scattered across `Services/*.qml` and `bridge/shani_link/*` using two mechanisms (raw D-Bus with hints vs bare `notify-send`, `notify.py:16-30`). Result: 8 app-name spellings ("Files", "Trim", "Signed", "Camera", "Screen recorder", "Shani", "Power", Tr.t("Power")), arbitrary icons, no shared dedup/hints/i18n path. Sketch: `Notifs.post({app,summary,body,icon,urgency,category,actions,group})` invoking `Notify`, migrate callers.
+4. **[H×med] QML producers set almost no metadata.** Of ~60 `notify-send` calls, only alarms/battery pass `-u critical` (`Power.qml:108`, `WorldClock.qml:86`, `FocusTimer.qml:40`); zero pass `desktop-entry`, `category`, `sound-name` or `-t`. The category hint is *read* once (`Notifs.qml:47`) but only bridges ever set it (`incoming_call.py:275`, `missed_call.py:73-78`). Sketch: route all posts through #3's hints helper with category + desktop-entry derived from the caller.
+5. **[H×med] Every reminder dies with the shell.** Calendar: `Agenda.qml:42,236-241` keeps `told` in memory, so a restart inside the lead window re-notifies the same event; all-day events excluded (`:236`). Timers/alarms ring only via a live `notify-send` (`WorldClock.qml:86`, `FocusTimer.qml:40`) — shell closed at alarm time means no alarm. Sketch: persist fired keys to `statePath()` and hand alarms to a systemd user timer when the shell is down.
+6. **[M×easy] Notification failures are invisible.** All shell posts use `execDetached` with no exit handling (e.g. `FileActions.qml:174`, `Camera.qml:156`); bridge D-Bus posts catch and log-only (`incoming_call.py:283`, `missed_call.py:81-82`, `map_notify.py:211`). No daemon/no bus = silent loss for every completion and prompt. Sketch: post helper checks status and falls back to an in-shell banner/toast.
+7. **[M×easy] `notify-send -A` with no expiry leaves orphaned waiters.** 21 QML sites use action buttons; none pass `-t` (`Camera.qml:156`, `Screenshots.qml:123` with 5 actions, `Thunderbolt.qml:49`, `Drives.qml:35`, `Reopen.qml:48`). Beyond the already-filed OBEX/approval cases, these Processes can wait forever. Sketch: add `-t 120000` plus a QML timer that dismisses.
+8. **[M×easy] No low-disk alert.** `Services/DiskUsage.qml` has no notification at all; the only storage alert is a nightly SMART warning (`Housekeeping.qml:54`, already filed). Full `/` or `~/` produces no notification. Sketch: threshold in the existing DiskUsage poll → one `notify-send -a Drives -u critical` per mount.
+9. **[M×easy] OS updates never announce availability.** `Updates.qml:47-61` notifies only for firmware; `check()` at `:66-69` sets `available` silently, discovered only by opening the page. Sketch: in the `shani-deploy --status` result, notify once per newly available version with `open`.
+10. **[M×easy] Archive extract/create silent in the Archives app.** `Services/Archive.qml` has no `notify-send`; `ArchivesWindow.qml:240-253` shows results inline only. The Files path *does* notify (`FileActions.qml:174`), so behaviour depends on entry point. Sketch: notify on Archive's `made`/`extractedTo` changes, reusing the FileActions wording.
+11. **[M×easy] Producer-side privacy not honoured.** `notifHideContent` gates display only (`NotificationCard.qml:24`, `SmartReplies.qml:21`); producers still put full message bodies on the bus and into plaintext history (`Modem.qml:97-98` SMS body, `map_notify.py:74-77`, persisted at `Notifs.qml:194`). Sketch: pass a `private:true` hint and store a redacted body when the setting is on.
+12. **[M×easy] Notification bodies go to the LLM without consent.** `Notifs.qml:173-177` sends up to 30 summaries *and bodies* to `Chronoa.ask()` on one toolbar click — but Chronoa has cloud fallback (filed). OTP codes and private messages can leave the machine. Sketch: opt-in confirmation + strip 4–8 digit codes and bodies by default.
+13. **[L×easy] Firewall emits no alerts.** `Services/Firewall.qml` has no notification path: disabling the firewall, a panic-mode switch, or blocked connections are silent. Sketch: notify on `enabled`/`panic` transitions with a `review` action.
+14. **[L×easy] Snoozed/older notices re-posted without provenance.** `Notifs.qml:162` re-posts snoozes with only app/icon (identity/action loss already filed); stored history is a flat summary (`:193-198`) with no event type or grouping key, so a producer cannot dedupe against it. Sketch: add a stable `event-id` hint carried through snooze/history.
+15. **[L×trivial] Success wording is untemplated.** `FileActions.qml:174` uses generic "Done" with a bare path as body; `VideoTrimmer.qml:331-342` alternates titles; `Recorder.qml:99,140` uses contractions. Makes rule matching and translation harder. Sketch: `Tr.t("%1 complete").arg(op)` + filename as body.
+
+## Already filed — confirmed still open (not re-ranked)
+
+- No `shani notify TITLE BODY` CLI (`bin/shani:34` GROUPS, no `notify` anywhere) — pass 13 item 1.
+- Mail new-message alert / IMAP IDLE absent (`Services/Mail.qml` no `notify-send`) — pass 13 item 4; Feeds/WebSub item 8; download layer gone (pass 7 item 10).
+- Model download notifies per line on failure (`Models.qml:80-82`) — pass 3; backup completion limited to manual job (`Backup.qml:113`) — pass 11; SMART re-notify — pass 10.
+- Bare English literals in success notices (Camera/Recorder/Calculator/Ruler) — pass 14 UX item 16; TTS title-only — pass 7 a11y item 9.
+
+**Skipped / not checked:** no QML runtime, notification daemon or live bus, so `-A` wait semantics and real metadata rendering are inferred from code and `notify-send --help` readings in earlier passes; nothing was edited. **Risk:** items 1/2/8/9 assume the existing polls are live (`Feeds` timer only runs when an interval is set, `Updates` every 6 h); if a producer is gated off in a given session, its notification gap is dormant rather than absent.
+
+## VERBATIM: Camera & capture UX craft
+
+I've read both gap files and all the camera source. Here is the twentieth-pass report — new territory only, skipping every listed item (bar/tray chip, CameraPanel copy, Photos share/copy-path, self-timer, shutter sound, MP4/JPG choices, gallery delete, composition grid, QR mode, kill-switch/uvcvideo, focus/zoom/exposure broad item, camera-in-Chronoa, studio effects, lock-screen live viewfinder, i18n/undo/terminology notices).
+
+## Camera & capture UX craft — 17 new gaps (value × ease ranked)
+
+1. **Video ignores the selected camera.** `pipewiresrc` is used with no `path`/`node-id` (`Camera.qml:176,193-194`), so the picker at `CameraPanel.qml:55-63` only affects stills (`:110`); video always records the default PipeWire node. Sketch: map `selected` → PipeWire node-id and pass `pipewiresrc path=<id>`.
+2. **Gallery timestamps are always blank.** `isoOf()` does `new Date("Photo 2026-11-23 05-02-09")` — invalid in JS — then `Qt.formatDateTime` (`Camera.qml:51,56-59`); every row's `when` is empty (`CameraPanel.qml:185`). Sketch: regex-parse `yyyy-MM-dd hh-mm-ss`, or use file mtime.
+3. **No output-folder choice.** `photosDir`/`videosDir` are `readonly`, hardwired to XDG Pictures/Videos + `/Camera` (`Camera.qml:23-24`). Sketch: settings keys, make them writable; re-scan on change.
+4. **No duration limit, size cap, or pause in video.** `seconds++` runs unbounded and the only exit is SIGINT stop (`Camera.qml:178-207`). Sketch: max-duration Timer + `filesink` cap, and SIGSTOP/SIGCONT for pause.
+5. **Capture notification has fewer actions than Screenshots'.** Photo offers only Open / Read with Lens (`Camera.qml:155-158`), while Screenshots offers Share / Annotate / Pin / OCR (`Screenshots.qml:123-126`). Sketch: add `-A share` and `-A edit` to `offer.cmd` and handle them.
+6. **Failed/partial video left on disk with no cause.** `onExited` prints "Video saved"/"Video stopped" by exit code only; a broken/zero-byte file stays and becomes `last` (`Camera.qml:200-205`). Sketch: stat-and-delete on failure, notify the actual reason.
+7. **No resolution / aspect-ratio choice.** `cam -c … -C 8 -s role=still,pixelformat=RGB888` hardcodes the stream (`Camera.qml:87-89`); no width/height, no 4:3 vs 16:9. Sketch: add `-s width=…,height=…` Choices.
+8. **No EXIF orientation or mirroring on stills.** PPM→PNG writes only IHDR/IDAT/IEND; raw sensor pixels, no rotation tag (`Camera.qml:91-109`). Selfies come out unmirrored/upside-down on rotated sensors. Sketch: apply sensor rotation, mirror front camera, write Exif.Orientation.
+9. **Eight frames captured, seven discarded.** `-C 8 … | sort | tail -1` (`Camera.qml:88-89`) — no HDR/night bracketing or burst. Sketch: keep all frames for a burst/HDR merge path.
+10. **No live preview inside the Camera window.** The "preview" is a separate `qcam` process (`Camera.qml:38-41`); `CameraPanel.qml` has no `Video`/PipeWire surface, so shutter, timer, picker and gallery sit in a different window from the image; zero on-image overlays. Sketch: embed a PipeWire video item and overlay controls.
+11. **Picker doesn't retarget an open preview; closing the panel orphans qcam.** `openViewfinder()` passes `-c <selected>` once (`Camera.qml:40`); changing `selected` (`:61`) or pressing Escape (`CameraPanel.qml:25`) leaves the old qcam running. Sketch: relaunch on `selected` change; tie qcam lifetime to `Camera.open`.
+12. **One generic failure message for every cause.** "No camera found" / "Connect a camera, or check the camera switch" (`CameraPanel.qml:131,142`) is shown for no device, kill-switch off, and camera held by another app — all gated by the same `available && Privacy.cameraEnabled` check (`Camera.qml:74,183`). Sketch: an enum reason bound to distinct text.
+13. **No real capability detection.** `cam -l` yields only `{index,name}` (`Camera.qml:216-221`); nothing about formats, resolutions, front/back role, or which device is busy. Sketch: parse `cam -l` detail / `v4l2-ctl --list-formats` into a capability record.
+14. **Fixed video knobs, no stabilization.** `vp8enc deadline=1 cpu-used=8` / `x264enc zerolatency` and plain `videoconvert` (`Camera.qml:189-194`) — no bitrate/quality choice or EIS. Sketch: bitrate Choices + a gst stabilizer element in the pipeline.
+15. **Mic source not selectable in the UI.** `audioSource: "pulsesrc"` is overridable only via the `cameraSources` test IPC (`Camera.qml:177`, `shell.qml:672`); the panel has just an on/off Mic toggle (`CameraPanel.qml:67`). Sketch: list PulseAudio sources as Choices.
+16. **Gallery is text-only.** Rows show filename/date (`CameraPanel.qml:170-190`) from an `ls -t` scan (`Camera.qml:47`), no thumbnails and no in-window video view. Sketch: `Image` thumbnails for stills, `Video` preview for clips.
+17. **Lock capture is photo-only and stores to the plain camera folder.** `lockPhoto()` calls `Camera.photo()` and keeps only the newest PNG in memory (`LockScreen.qml:38-48`), written to `~/Pictures/Camera` (`Camera.qml:23`). Sketch: a private/secure capture location and a 0-second timer override when locked.
+
+**Skipped / not checked:** the ~30 camera items already in GAPS/GAPS-RESEARCH (listed above), the broad focus/exposure/zoom item, and all runtime/hardware behaviour — findings are static only. **Risk:** #8 and #1 need a real libcamera/PipeWire device to confirm which node is default and what rotation `cam` reports; #10 is a large change (no QML PipeWire video element today).
+
+## VERBATIM: Messages and Calls apps UX
+
+I read both gap docs and traced all five surfaces (`MessagesWindow.qml`, `CallsWindow.qml`, `Services/Link.qml`, `bridge/link.py`, `bridge/modem.py`, `Services/Modem.qml`, `Services/Phone.qml`, `shani-link/phone.py`, Contacts detail sheet). Findings are static only — no runtime or modem/phone verification. I avoided the explicit skip list (SMS OTP copy, clipboard push, `--share-text`, `calls` closeApps flag, app existence, Contacts QR/drag).
+
+## Ranked gaps (value × ease)
+
+**Tier 1 — high value, cheap**
+
+1. **Opening a thread never clears unread.** `MessagesWindow.qml:44` renders `modelData.unread` as a `●`, but `Link.showThread()` (`Link.qml:42-46`) only fetches; the bridge emits `unread: not bool(m.read)` (`link.py:212`) and never writes it — `phone.thread_messages()` (`phone.py:540-542`) only cleans. The dot persists after reading. *Sketch:* add `link.py read <thread>` and call it in `showThread()`.
+2. **Cannot start a new conversation.** `messagesOpen(number)` only opens a thread when one already matches the number/name (`MessagesWindow.qml:23-28`); no match → nothing happens, even from Contacts. *Sketch:* on no hit, prefill composer with the number and open a new-thread editor.
+3. **Composer is a single-line `TextField`.** `MessagesWindow.qml:138-144` — `onAccepted` sends, so Enter sends and Shift+Enter is impossible; no multiline, emoji, or attachment affordance. *Sketch:* switch to `TextArea`, Enter-to-send / Shift+Enter-newline, plus emoji and attach buttons.
+4. **Thread is capped at 10 messages with no "load older."** `phone.py:540` hardcodes `limit=10`; `link.py:218-235` forwards no offset. *Sketch:* `thread <id> <device> <offset>` returning older chunks + a "Load older" row.
+5. **Links in bubbles are not clickable.** `MessagesWindow.qml:105-114` is a plain `Text` with no `textFormat`/link detection. *Sketch:* `textFormat: Text.StyledText` + `onLinkActivated: Qt.openUrlExternally(link)`.
+6. **No delete / mark-unread anywhere.** `MessagesWindow.qml` has no action on rows or bubbles; `link.py` exposes no delete command. *Sketch:* per-row and per-bubble overflow menu wired to a `delete <thread|message>` bridge command.
+7. **Drafts are lost on thread switch and send.** `Link.openDevice()` clears `thread`/`openThread` (`Link.qml:38-40`); `send()` zeroes `reply.text` with no per-thread store (`MessagesWindow.qml:162-167`). *Sketch:* `Link.drafts[thread]` map saved on switch, restored in `showThread()`.
+8. **Contacts has no "Text" action.** The phone detail sheet offers Call, Mail, Maps, QR only (`ContactsWindow.qml:538-575`), while `Phone.openMessages(number)` already exists (`Phone.qml:48-51`). *Sketch:* add a Text button calling `messagesOpen(number)`.
+
+**Tier 2 — high value, moderate effort**
+
+9. **No in-call UI in the Calls app at all.** `Modem.qml:16-18,81` tracks `call`/`callSeconds`/`callTime`, but `CallsWindow.qml` never binds them; `Link.hangup()` (`Link.qml:49`) is unused there. No timer, mute, speaker, hold, keypad, video, or hang-up. *Sketch:* active-call card bound to `Modem.call` with those controls and a `link.py callctl` verb.
+10. **Call waiting has no card.** `modem.py:44` decodes state `"waiting"` and emits it (`:141-150`), but `Modem.qml:63-73` just overwrites `root.call`; no hold/swap/merge. *Sketch:* render a waiting-call banner with Answer/Hold/Swap actions.
+11. **Recents are a flat, read-only list.** `CallsWindow.qml:131-149` — no search, missed-only filter, per-day grouping, or delete/clear; tapping a row only copies the number into the pad (`:145`). *Sketch:* search field + "Missed" chip + day-section delegates + clear/delete with undo.
+12. **Conversation list has no search or unread/pinned/archived filters.** `MessagesWindow.qml:32-47` binds `Link.messages` directly; the model carries only an `unread` bool (`Link.qml:24`). *Sketch:* filter field and filter chips over `Link.messages`.
+13. **Group/MMS threads render as one-to-one.** `link.py:198` keeps `addresses[0]`; send targets a single `(thread,)` (`:245`); thread rows have no sender field (`:228-234`, `Link.qml:25`). *Sketch:* keep all addresses, carry `sender` per message, show sender labels for group bubbles.
+14. **No delivery or read receipts.** Thread model is only `{text, when, incoming}` (`link.py:228-234`); `modem.py:160-165` emits "sent" immediately without watching `Sms.State`. *Sketch:* expose SMS state/read fields and render sent/delivered/read ticks.
+15. **Timestamps on every bubble; no grouping.** `MessagesWindow.qml:94-123` draws one bubble per message with its own `Link.when()` label and no day separator or consecutive-sender collapse. *Sketch:* group consecutive same-sender messages and put one time + a day header per group.
+16. **Send target/line is not selectable.** `Link.send()` (`Link.qml:47`) → `cmd_send()` always uses `_first_device()` (`link.py:238-248`), unlike dial which picks a line (`:251-268`). *Sketch:* add device/line args to `send` and a picker beside the composer.
+
+**Tier 3 — real but bigger**
+
+17. **No cross-app messaging flows.** `Link.share(path)` (`Link.qml:51`) sends a file to a *device*, not into a conversation; nothing attaches from Files/Photos, exports a thread, or shares a conversation to another app (`MessagesWindow.qml` throughout). *Sketch:* reuse the Files/Photos picker + `Link.send` attachment path and an export-to-file action.
+18. **Modem gaps: PUK, network selection, SMS-storage-full, airplane interaction.** `modem.py:43` knows `sim-puk` but `handle()` (`:155-180`) only sends PIN; `report()` (`:89-102`) reads operator/signal only; `scan()` always picks `modems[0]` (`:77-84`). No manual network register or storage-full notice. *Sketch:* add PUK, 3GPP Scan/Register, multi-SIM picker, and storage warnings into `ModemDialog.qml`.
+19. **No number blocking / spam control.** No block list exists in `Modem.qml` or `link.py`; incoming SMS/call notifications are unconditional (`Modem.qml:60-73,90-108`). *Sketch:* local block list filtered at the `sms`/`call` handlers, with a Settings page.
+20. **Message content on lock screen is only indirectly governed.** `notifHideContent` gates SmartReplies (`SmartReplies.qml:21`) and card previews, but modem SMS is posted with `notify-send` including the body (`Modem.qml:97-98`), bypassing the shell's own hide-content path. *Sketch:* suppress body / route through `Notifs` when hidden or locked.
+
+**Skipped / risk:** I did not re-file the shani-link GTK-side items already in the docs (dialog pad T9, backup/export store, speed dial, ring/find, SIP manager, device-per-card). Items 13–20 depend on shani-link/ModemManager capabilities I could only read statically — in particular #14 assumes the daemon exposes SMS state, and #20 assumes `notify-send` bypasses the shell's lock-screen content gate; both need a real device or a private-bus check before being trusted.
+
+## VERBATIM: File Properties & metadata UI depth
+
+# Twentieth-pass research — File Properties & metadata UI depth
+
+Static only. Scope: `Modules/Files/FilesPanel.qml` (props sheet at 2024–2107, preview 1286–1354), `bridge/files.py` (`props()` 1549–1608, `entry_of()` 100–114, `chmod_pairs()` 821–835, `rename()` 539–549), `Services/Files.qml` (738–748, 992–999), `Common/FileDirectory.qml`, `Services/PhotoMeta.qml`, `Modules/Photos/PhotosWindow.qml:467`, `bridge/music-library.py:70–94`.
+
+**Already present (not re-filed):** name via F2/rename dialog (`FilesPanel.qml:192,3155–3172`), size/folder counting, three dates, owner+group, mode string, a 3-bucket "who else can open it" + run-bit toggle (`2079–2105`), make/test checksums in the context menu (`3092–3094`), star/tags elsewhere, batch rename, escape-to-close (`38–57`), copy-path in context menu (`3113`).
+
+## Ranked gaps (value × ease)
+
+1. **Disk usage vs apparent size.** `props()` sums `st_size` (`files.py:1567,1576`); no `st_blocks`. Sparse files, small-file blocks and compression all report a misleading "Size". *Sketch:* add `blocks = st.st_blocks*512` and a "On disk" row; reuse `Files.humanSize`.
+2. **Media duration/codec/resolution absent from Properties.** Nothing in `props()` or the sheet; `music-library.py:70–94` already reads duration/tags via `ffprobe` and the player shows a `mediainfo` codec line, but neither is wired here. *Sketch:* add `ffprobe -show_entries format=duration:stream=codec_name,width,height` behind a 3 s timeout, shown as one "Media" row.
+3. **EXIF not in the Properties dialog.** `PhotoMeta.qml:30–41` reads 10 tags (camera, lens, exposure, ISO, focal, W×H) but the Files preview shows only camera+date (`FilesPanel.qml:1320–1330`) and only Photos' detail panel shows `PhotoMeta.details` (`PhotosWindow.qml:467`); `props()` never calls it. *Sketch:* in `showProps`, for an image path call `PhotoMeta.read(path)` and append its `details` rows.
+4. **GPS EXIF neither read nor removable.** `PhotoMeta.tags` has no `Exif.GPSInfo.*`; the process uses `exiv2 -g … -pv` (read-only, `PhotoMeta.qml:57`), no `exiv2 -M`/exiftool write path exists anywhere. A photo can silently carry home coords with no UI to reveal or strip them. *Sketch:* add GPS lat/long tags and a "Remove location" button calling `exiv2 -M'del Exif.GPSInfo.GPSLatitude' …` on a copy, with confirmation.
+5. **Symlink target never shown.** `props()` uses `os.lstat` (`files.py:1558`) so links are treated as opaque items; `symlink()` (`552–564`) only creates. "Where" shows the parent path but not where the link points or whether it is broken. *Sketch:* `os.readlink(p)` + `os.path.exists(p)` → "Link to / … target missing" row.
+6. **Multi-file Properties is count+size only.** `props()` fills detail fields only when `len(paths)==1` (`files.py:1584`); the sheet's rows then all filter out (`FilesPanel.qml:2058–2068`), so a 20-file selection shows name "%1 items", one size, no per-file list, no common-permission or type summary. *Sketch:* emit a `rows:[{name,size,type,mtime}]` array for N>1 and render a scrollable list with a "differs" marker per column.
+7. **No owner/group change.** Owner is a read-only text row (`FilesPanel.qml:2066`); no `chown` command in `files.py`. Permissions can change but ownership cannot. *Sketch:* `chown` command with a validated user:group field, polkit-gated for root-owned files.
+8. **No timestamp editing.** Changed/Created/Opened are display-only (`2063–2065`); no `utime`/`touch` in `files.py`. *Sketch:* date-time editors for mtime/atime via `os.utime`, preserving the other.
+9. **No inode / link count / device.** `out` in `props()` (`1577–1583`) omits `st_ino`, `st_nlink`, `st_dev`, so hard-linked files cannot be identified from the UI. *Sketch:* add an "Identity" row `inode … · N links` for single files.
+10. **"Created" is actually ctime on Linux.** `entry_of()` uses `st_ctime` as birth fallback (`files.py:102–104`), and `props()` only sets `btime` from `st_birthtime` (`1603–1605`), which ext4 does not provide. The label "Created" is wrong for most files. *Sketch:* label it "Changed (inode)" when the source is ctime, or omit the row.
+11. **MIME type is extension-guess only.** `mimetypes.guess_type(p)[0]` (`files.py:1600`) → "Kind" can be wrong for renamed or extensionless files. *Sketch:* sniff magic bytes (or reuse the `file --mime-type` probe already implied by the media MIME table).
+12. **Permissions UI is 3 presets, not rwx.** The Picks sets group=other together and only exposes `0/4/6` plus a run bit (`FilesPanel.qml:2085–2104`); `chmod_pairs` supports `0o7777` (`files.py:828`) but setuid/setgid/sticky and per-class write bits are unreachable, and there is no octal entry. *Sketch:* a 3×3 checkbox matrix plus an octal field validated 0–7777.
+13. **No batch edit from Properties.** `setRights` is called with a single `[path, mode]` pair (`FilesPanel.qml:2090,2103`); the multi-select path never reaches it. (Separate bulk-permissions action noted elsewhere still leaves the dialog itself inert.) *Sketch:* when `Files.selected.length>1`, apply the chosen rights to all selected paths with one `chmod-pairs` call.
+14. **Name not editable in the sheet.** Renaming only via F2/rename box (`FilesPanel.qml:192,3155`); the Properties header shows a plain Text (`2046–2054`). *Sketch:* make the header name a click-to-edit field reusing `beginRename`.
+15. **No text line/word count or PDF page count.** No helper in `props()`; relevant for "how big is this document" questions. *Sketch:* count lines for text/MIME text, `pdfinfo` pages for PDFs, behind a size cap.
+16. **No copy of full path / size / checksum from the sheet.** Only a close button (`FilesPanel.qml:2055`); "Where" shows the parent only (`2062`), and copy-path lives in the context menu (`3113`). *Sketch:* a small copy icon per row plus a "Copy full path" button writing `p.path`.
+17. **Vanished file shows a silent empty sheet.** `props()` swallows `OSError` with `continue` (`files.py:1559–1560`) and again with `pass` (`1606–1607`); a deleted single file renders "%1 items" with size 0 and no error. The sheet is also never refreshed when the directory watch fires — only after chmod (`Services/Files.qml:745`). *Sketch:* return `{"error": …}` from `props()` and show an inline "File no longer exists" state; re-run `showProps` on watch changes.
+18. **Fixed-width, non-scrolling sheet.** `width: Theme.px(420)`, `height: implicitHeight+28`, no ScrollView or tabs (`FilesPanel.qml:2033–2034`); adding the fields above would overflow small screens. *Sketch:* wrap the ColumnLayout in a ScrollView with `maximumHeight` and a General/Media/Permissions tab row.
+
+**Skipped by instruction:** star/tag metadata, batch-rename numbering, batch/bulk chmod, uri-list copy-path, checksum generation/verification, search ranking. **Risk:** all findings are static; EXIF-GPS stripping and chown need polkit/confirmation design, and `ffprobe`/`exiv2` are optional tools whose absence must degrade silently.
+
+## VERBATIM: Voice input & Chronoa assistant craft
+
+## Voice input & Chronoa assistant craft — 20th pass (static only)
+
+Skip list honoured: no Chronoa buttons/actions, Island Ask panel, mock, raw-RichText reply, ask hotkey, or setup default. Nine former passes' Chronoa/voice items excluded too.
+
+Ranked value × ease. `S` = security, `P` = privacy, `A` = accessibility.
+
+1. **[S] `deny` still becomes "Allow this once" via IPC.** `ChronoaPanel.qml:201-214` only exact-matches labels; any other decision (`deny`, `always`) falls through to `options[0]` = allow. `shell.qml:329-334` routes `chronoa approve <decision>` here when no card is open. The comment at `:208-212` even names this exact hazard. Sketch: match `deny`/`always` against option labels semantically; reject unknown decisions instead of granting.
+2. **[P] Dictation WAV is never deleted.** `Dictation.qml:16,40` writes a fixed `XDG_RUNTIME_DIR/shani-dictation.wav`; nothing removes it (`onExited` at `:60-64` only resets phase). `Captions.qml:44` deletes its chunks with `rm -f` — the omission is visible. Sketch: delete in `stt.onExited`, or use an O_EXCL temp file.
+3. Mic mute is ignored for dictation. `Dictation.qml:32-40` starts `pw-record` unconditionally; `Osk/Keyboard.qml:345` offers the mic key, but `Audio.micMuted` (used in `SidebarSliders.qml:34-37`) is never consulted. Sketch: refuse with "unmute the microphone first" while muted.
+4. Recorder exit status ignored. `Dictation.qml:41-47` moves to `transcribing` on *any* `rec.onExited`, so a denied/busy/missing mic still runs STT over a stale or empty WAV. Sketch: check `code !== 0` and surface the failure before STT.
+5. **[A] The level-driven listening halo is dead.** `Island.qml:112-118` reads `voice.enabled`/`voice.peak`, identifiers defined nowhere in the tree (`Island {}` is instantiated bare at `shell.qml:100`). A working meter already exists (`SidebarSliders.qml:44-49` `PwNodePeakMonitor`; `VoiceRecorder.qml:28,168-195`). Sketch: bind a real peak monitor to `Audio.source`.
+6. **[A] Chronoa mic/stop buttons are mouse-only glyphs.** `ChronoaPanel.qml:836-877` uses `Text "mic"`/`"■"` inside `MouseArea`s — no `Accessible.name/role`, no `KeyFocus`, no tooltip (only `TextInput` at `:811` is accessible). Sketch: use `IconButton` with names/key handlers.
+7. **[A] Approval buttons cannot be reached by keyboard.** `ChronoaPanel.qml:679-712` draws each option as a Rectangle + MouseArea; the only non-mouse route is the scriptable `approveLast`. Sketch: `KeyFocus`/Button with Accessible names per option.
+8. No interim transcript while listening. Backend events `agent_service.py:18-28` carry no partial-ASR event and `Chronoa.qml:72-105` has no case — a voice user cannot see or correct what was heard before the answer streams. Sketch: forward ASR partials as a dim "heard: …" row.
+9. No recording timeout or countdown. `Dictation.qml:38-48` runs `pw-record` with no bound (contrast `Captions.qml:43` `timeout -s INT 4`); the Island chip `:66` says only "tap to stop". Sketch: wrap in `timeout`, show remaining seconds.
+10. Engine chooser has no model picker/status. `SettingsPage.qml:1360-1372` offers Chronoa/Whisper, but `whisperModel` (`Settings.qml:464`) has no UI; `dictate.py:117-120,185-193` silently glob-discovers models and raises a terse "no speech model". Sketch: list installed ggml models + show "not downloaded".
+11. Capture ignores the selected input device. `Dictation.qml:40` and `Captions.qml:43` use default sources; `Audio.source` is honoured only in the control centre (`SidebarSliders.qml:45`). Sketch: pass `--target=<Audio.source>`.
+12. **[S] Transcribed text is typed blindly into whatever has focus.** `Dictation.qml:56` calls `wtype -- t + " "` with no target check (the secure-field gate exists only in the backend's `ui_driver`, not here). Sketch: verify focused window/field before typing.
+13. **[P] Room-transcription transcripts are unmanaged.** `Captions.qml:16-19,43-48` appends plain text to `~/Documents/Transcripts/<timestamp>.txt` indefinitely, with no retention, delete, export, or visible file path; mic mode can run forever. Sketch: cap length, expose file + retention setting.
+14. No visible listening cue for backend voice. `chronoa-bridge.py:338` maps mascot titles to a `listening` state, but `Island.qml:78-91` returns "Ask me anything" in that state (only `Dictation.phase` gets a chip at `:65`). Sketch: add a "Listening…" Island line for `Chronoa.state === "listening"`.
+15. **[A/S] Approvals are visual-only for voice users.** `ChronoaPanel.qml:614-726` renders the question as cards; no TTS via `Speak.qml`, so a hands-free user cannot know what they are permitting. Sketch: speak the approval title + options.
+16. Generic transcription error, no recovery. `Dictation.qml:59-64` shows one notify from stderr's last line; `dictate.py:190-201` distinguishes no-CLI/no-model/failure only in prose. Sketch: classify causes and offer "open Settings"/retry.
+17. **[P] Caption audio chunks can leak on abrupt stop.** `Captions.qml:39-46` writes `c0..c7.wav` and deletes only inside the success subshell; killing the Process leaves files. Sketch: `trap`/`finally` cleanup, or `timeout` with cleanup.
+18. Punctuation/no-speech handling is one-way. `dictate.py:151-155` strips all bracketed/parenthesised text (legitimate parentheticals included); `is_silent` returns `""` with no user signal that silence caused it. Sketch: annotate empties ("nothing heard") in the Island chip.
+19. Captions language is shared with voice typing. `SettingsPage.qml:1346-1357` has one "Captions and transcribe language" picker; already filed for dictation, but live captions of *speakers* have no independent setting. Sketch: separate `captionLanguage` from dictation language.
+20. Transcript cancellation leaves partial state. `ChronoaPanel.qml:173-189` appends streamed reply chunks with no per-turn cancel in the panel (filed at assistant level, not in the transcript widget); toggling the panel mid-stream keeps a half-bubble. Sketch: mark truncated turns explicitly.
+
+End lines — skipped: no runtime/QML verification, no backend code changes, and I did not re-check which of these the parallel chronoa repo already fixed. Risk: item 1 is a live permission bypass through the documented `chronoa approve` IPC, and item 2 leaves raw speech on disk indefinitely — both should be treated before the cosmetic ones.
