@@ -838,6 +838,66 @@ def journald_vacuum(req: dict) -> dict:
     return {"ok": True, "output": (r.stdout or "").strip()[-400:]}
 
 
+SYSCTL_DROPIN = Path("/etc/sysctl.d/50-shani-shell.conf")
+SYSCTL_KEYS = {
+    "vm.swappiness": (0, 200),
+    "fs.inotify.max_user_watches": (8192, 1048576),
+    "fs.inotify.max_user_instances": (128, 8192),
+    "kernel.sysrq": (0, 511),
+}
+
+
+def sysctl_get(_req: dict) -> dict:
+    settings = {}
+    try:
+        for line in SYSCTL_DROPIN.read_text(encoding="utf-8", errors="replace").splitlines():
+            s = line.strip()
+            if not s or s.startswith("#") or "=" not in s:
+                continue
+            k, v = s.split("=", 1)
+            k, v = k.strip(), v.strip()
+            if k in SYSCTL_KEYS:
+                settings[k] = v
+    except OSError:
+        pass
+    # also report live values
+    live = {}
+    for k in SYSCTL_KEYS:
+        try:
+            live[k] = Path("/proc/sys/" + k.replace(".", "/")).read_text(encoding="utf-8").strip()
+        except OSError:
+            pass
+    return {"settings": settings, "live": live, "path": str(SYSCTL_DROPIN)}
+
+
+def sysctl_set(req: dict) -> dict:
+    updates = req.get("settings") or {}
+    if not isinstance(updates, dict):
+        raise Refused("settings must be an object")
+    clean = {}
+    for k, v in updates.items():
+        if k not in SYSCTL_KEYS:
+            raise Refused(f"unknown key: {k}")
+        try:
+            iv = int(v)
+        except Exception:
+            raise Refused(f"{k} must be integer")
+        lo, hi = SYSCTL_KEYS[k]
+        if iv < lo or iv > hi:
+            raise Refused(f"{k} out of range {lo}-{hi}")
+        clean[k] = str(iv)
+    if clean:
+        content = "# Managed by shani-shell\n" + "".join(f"{k} = {v}\n" for k, v in clean.items())
+        SYSCTL_DROPIN.parent.mkdir(parents=True, exist_ok=True)
+        SYSCTL_DROPIN.write_text(content, encoding="utf-8")
+        os.chmod(SYSCTL_DROPIN, 0o644)
+        subprocess.run(["sysctl", "--system"], capture_output=True, text=True, timeout=30)
+    else:
+        try: SYSCTL_DROPIN.unlink()
+        except OSError: pass
+    return sysctl_get(req)
+
+
 COMMANDS = {
     "guest": guest,
     "wakeup": wakeup,
@@ -867,6 +927,8 @@ COMMANDS = {
     "journald-get": journald_get,
     "journald-set": journald_set,
     "journald-vacuum": journald_vacuum,
+    "sysctl-get": sysctl_get,
+    "sysctl-set": sysctl_set,
 }
 
 

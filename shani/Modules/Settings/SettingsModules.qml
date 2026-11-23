@@ -14,20 +14,29 @@ ColumnLayout {
     readonly property var adminCmd: (Quickshell.env("SHANI_ADMIN_TOOL") || "pkexec /usr/lib/shani-shell/shani-admin.py").split(" ")
     property var blacklist: []
     property var loadOnBoot: []
+    property var sysctl: ({})
+    property var sysctlLive: ({})
     property string note: ""
     property bool busy: false
 
     onActiveChanged: if (active) { KernelModules.refresh(); loadManaged(); }
     Component.onCompleted: if (active) { KernelModules.refresh(); loadManaged(); }
 
-    function loadManaged() { blRead.running = false; blRead.running = true; mlRead.running = false; mlRead.running = true; }
+    function loadManaged() { blRead.running = false; blRead.running = true; mlRead.running = false; mlRead.running = true; sysRead.running = false; sysRead.running = true; }
     Process { id: blRead; command: page.adminCmd.concat(["modprobe-blacklist-get"]); stdout: StdioCollector { onStreamFinished: { try { page.blacklist = (JSON.parse(text).modules) || []; } catch(e) {} } } }
     Process { id: mlRead; command: page.adminCmd.concat(["modules-load-get"]); stdout: StdioCollector { onStreamFinished: { try { page.loadOnBoot = (JSON.parse(text).modules) || []; } catch(e) {} } } }
+    Process { id: sysRead; command: page.adminCmd.concat(["sysctl-get"]); stdout: StdioCollector { onStreamFinished: { try { const d = JSON.parse(text); page.sysctl = d.settings || {}; page.sysctlLive = d.live || {}; } catch(e) {} } } }
 
     function saveManaged(cmd, modules) {
         page.busy = true; page.note = "";
         saveProc.payload = JSON.stringify({ modules: modules });
         saveProc.command = page.adminCmd.concat([cmd]);
+        saveProc.running = true;
+    }
+    function saveSysctl(settings) {
+        page.busy = true; page.note = "";
+        saveProc.payload = JSON.stringify({ settings: settings });
+        saveProc.command = page.adminCmd.concat(["sysctl-set"]);
         saveProc.running = true;
     }
     Process {
@@ -80,6 +89,18 @@ ColumnLayout {
     }
     Text { Layout.fillWidth: true; visible: page.note !== ""; text: page.note; color: page.note === Tr.t("Saved") ? Theme.accent : Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
 
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Kernel tuning (sysctl)") }
+    Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/sysctl.d/50-shani-shell.conf. Only allowlisted keys."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+    Repeater {
+        model: ["vm.swappiness", "fs.inotify.max_user_watches", "fs.inotify.max_user_instances", "kernel.sysrq"]
+        RowLayout {
+            required property var modelData
+            Layout.fillWidth: true; spacing: Theme.px(6)
+            Text { Layout.preferredWidth: Theme.px(220); text: modelData; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: sysField; Layout.fillWidth: true; placeholder: page.sysctlLive[modelData] || ""; text: page.sysctl[modelData] || "" }
+            Button { text: Tr.t("Save"); enabled: !page.busy && /^\d+$/.test(sysField.text.trim()); onClicked: { const o = Object.assign({}, page.sysctl); o[modelData] = sysField.text.trim(); page.saveSysctl(o); } }
+        }
+    }
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Loaded modules") }
     Text { Layout.fillWidth: true; text: Tr.t("%1 modules loaded. Read from /proc/modules; nothing here loads or unloads a running module.").arg(KernelModules.count); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
     TextField { Layout.fillWidth: true; placeholder: Tr.t("Filter modules…"); onTextChanged: page.query = text }

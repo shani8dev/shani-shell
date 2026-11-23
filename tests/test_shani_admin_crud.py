@@ -16,6 +16,7 @@ def load_admin(tmp_path, monkeypatch):
     sa.MODPROBE_DROPIN = tmp_path / "modprobe.d" / "50-shani-shell.conf"
     sa.MODULES_LOAD_DROPIN = tmp_path / "modules-load.d" / "50-shani-shell.conf"
     sa.JOURNALD_DROPIN = tmp_path / "journald.conf.d" / "50-shani-shell.conf"
+    sa.SYSCTL_DROPIN = tmp_path / "sysctl.d" / "50-shani-shell.conf"
     monkeypatch.setattr(sa.shutil, "which", lambda x: None)
     real_run = subprocess.run
     def fake_run(cmd, *a, **k):
@@ -126,3 +127,14 @@ def test_journald_set_and_vacuum(tmp_path, monkeypatch):
         sa.journald_vacuum({"mode": "size", "value": "bad;rm"})
     r = sa.journald_vacuum({"mode": "size", "value": "500M"})
     assert r["ok"] is True
+
+
+def test_sysctl_allowlist_and_range(tmp_path, monkeypatch):
+    sa = load_admin(tmp_path, monkeypatch)
+    r = sa.sysctl_set({"settings": {"vm.swappiness": 10}})
+    assert r["settings"]["vm.swappiness"] == "10"
+    assert "vm.swappiness = 10" in sa.SYSCTL_DROPIN.read_text()
+    with pytest.raises(Exception):
+        sa.sysctl_set({"settings": {"kernel.randomize_va_space": 0}})
+    with pytest.raises(Exception):
+        sa.sysctl_set({"settings": {"vm.swappiness": 999}})
