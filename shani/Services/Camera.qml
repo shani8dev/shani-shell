@@ -7,6 +7,7 @@ pragma Singleton
 // IPU6 and the like). The camera switch (Privacy.cameraEnabled) is respected.
 import Quickshell
 import Quickshell.Io
+import Quickshell.Services.Pipewire
 import QtQuick
 import qs.Common
 
@@ -35,12 +36,20 @@ Singleton {
         if (mode === "photo") photo();
         else video();
     }
+    // the viewfinder is a tracked process, not execDetached: its lifetime follows
+    // Camera.open, and a camera change retargets it instead of orphaning qcam
+    Process { id: viewfinder }
     function openViewfinder() {
-        if (Quickshell.env("SHANI_NO_VIEWFINDER")) return;
-        Quickshell.execDetached(["sh", "-c", 'command -v qcam >/dev/null && exec qcam ${1:+-c $1}; exec flatpak run org.gnome.Snapshot', "sh", selected >= 0 ? String(selected) : ""]);
+        if (!root.open || Quickshell.env("SHANI_NO_VIEWFINDER")) return;
+        viewfinder.running = false;
+        viewfinder.command = ["sh", "-c", 'command -v qcam >/dev/null && exec qcam ${1:+-c $1}; exec flatpak run org.gnome.Snapshot', "sh", selected >= 0 ? String(selected) : ""];
+        viewfinder.running = true;
     }
+    function stopViewfinder() { viewfinder.running = false; }
     function openCamera() { refresh(); open = true; }
-    function closeCamera() { open = false; }
+    function closeCamera() { open = false; stopViewfinder(); }
+    onOpenChanged: if (root.open) openViewfinder()
+    onSelectedChanged: if (root.open) openViewfinder()
     function scanGallery() { scanProc.running = true; }
     Process {
         id: scanProc
@@ -53,9 +62,13 @@ Singleton {
             }
         }
     }
+    // captures are named "Photo|Video yyyy-MM-dd hh-mm-ss.ext" by stamp(); that
+    // whole string is not a JS date, so pull out the numeric portion instead
     function isoOf(path) {
-        try { return Qt.formatDateTime(new Date(path.split("/").pop().replace(/\.(png|jpg|webm|mp4)$/,"")), "yyyy-MM-dd hh:mm:ss"); }
-        catch (e) { return ""; }
+        const m = /(\d{4})-(\d{2})-(\d{2})[ -](\d{2})-(\d{2})-(\d{2})/.exec(path.split("/").pop());
+        if (!m) return "";
+        const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+        return isNaN(d.getTime()) ? "" : Qt.formatDateTime(d, "yyyy-MM-dd hh:mm:ss");
     }
     // delete a capture from the in-window gallery (gio trash, so it can come back)
     function trash(path) {
@@ -175,6 +188,26 @@ PY
     // microphone; the tests point them at GStreamer's test pattern and tone
     property string videoSource: "pipewiresrc"
     property string audioSource: "pulsesrc"
+    // cam -l's index (the picker's key) is not a PipeWire node id. Match the
+    // selected camera to a video node by name; when nothing matches, leave
+    // pipewiresrc unqualified so PipeWire falls back to its default camera.
+    function selectedPwNodeId() {
+        const idx = root.selected >= 0 ? root.selected : (root.cameras[0] ? root.cameras[0].index : -1);
+        const cam = root.cameras.find(c => c.index === idx);
+        if (!cam) return 0;
+        const name = cam.name.toLowerCase();
+        const nodes = Pipewire.nodes.values.filter(n => (n.type & PwNodeType.VideoSource) === PwNodeType.VideoSource);
+        const hit = nodes.find(n => {
+            const target = ((n.name || "") + " " + ((n.properties || {})["node.description"] || "")).toLowerCase();
+            return name.length > 0 && target.indexOf(name) >= 0;
+        });
+        return hit ? hit.id : 0;
+    }
+    function videoSrc() {
+        if (root.videoSource !== "pipewiresrc") return root.videoSource;   // test/source override
+        const id = root.selectedPwNodeId();
+        return id > 0 ? "pipewiresrc path=" + id : "pipewiresrc";
+    }
     function video() {
         if (phase === "recording") {
             rec.signal(2);                // SIGINT: gst-launch -e finishes the file
@@ -190,6 +223,7 @@ PY
         const muxer = mp4 ? "mp4mux" : "webmmux";
         const aenc = mp4 ? "avenc_aac" : "opusenc";
         const mic = withAudio ? " $5 ! audioconvert ! $6 ! queue ! mux." : "";
+        const videoSource = root.videoSrc();   // resolved pipewiresrc for the selected camera
         rec.command = ["sh", "-c", 'mkdir -p "${1%/*}" && exec gst-launch-1.0 -e $2 ! videoconvert ! queue ! $3 ! $4 name=mux ! filesink location="$1"' + mic,
                        "sh", last, videoSource, venc, muxer, audioSource, aenc];
         SystemSounds.play("camera-shutter");

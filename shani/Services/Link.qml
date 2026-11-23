@@ -22,9 +22,12 @@ Singleton {
     property var calls: []               // [{ id, line, number, name, direction, missed, when, seconds }]
     property var contacts: []            // [{ name, numbers, emails }]
     property var messages: []            // [{ thread, name, number, text, when, unread }]
+    property bool messagesLoaded: false  // the latest "messages" answer has arrived
     property var thread: []              // [{ text, when, incoming }]
     property string threadName: ""       // who the open conversation is with
     property string openThread: ""       // its id, for the reply box
+    property var drafts: ({})            // unsent text, keyed by thread id
+    property string draft: ""            // the open thread's draft, for the composer
     property string note: ""
     property bool busy: false
 
@@ -35,14 +38,29 @@ Singleton {
 
     function refresh() { run("state", []); run("devices", []); run("calls", []) }
     function openDevice(id) {
+        if (root.openThread !== "") root.drafts[root.openThread] = root.draft;
         root.openThread = "";
         root.thread = [];
+        root.draft = "";
+        root.messagesLoaded = false;
         run("messages", id ? [id] : []);
     }
     function showThread(id, name) {
+        if (root.openThread !== "") root.drafts[root.openThread] = root.draft;
         root.openThread = id;
         root.threadName = name || "";
+        root.draft = root.drafts[id] || "";
+        root.messages = root.messages.map(m => m.thread === id ? Object.assign({}, m, { unread: false }) : m);
+        if (id && root.messages.some(m => m.thread === id)) run("read", [id]);
         run("thread", id ? [id, root.phone ? root.phone.id : ""] : []);
+    }
+    // a number with no thread yet: same composer, just addressed to the number
+    function startConversation(number) {
+        showThread(String(number || ""), String(number || ""));
+    }
+    function clearDraft() {
+        if (root.openThread !== "") delete root.drafts[root.openThread];
+        root.draft = "";
     }
     function send(text) { run("send", [root.openThread, String(text || "")]) }
     function dial(number) { run("dial", String(number || "").trim()) }
@@ -98,6 +116,7 @@ Singleton {
         } else if (what === "messages") {
             root.messages = Array.isArray(data) ? data : [];
             if (root.messages.length) root.showThread(root.messages[0].thread, root.messages[0].name || root.messages[0].number);
+            root.messagesLoaded = true;
         } else if (what === "thread") {
             root.thread = Array.isArray(data) ? data : [];
         } else if (what === "send") {

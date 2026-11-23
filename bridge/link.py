@@ -12,6 +12,7 @@ daemon can never disagree about what a device is called or what was said.
     link.py contacts [query]          [{name, numbers, emails}]
     link.py messages [device]         [{thread, name, number, text, when, unread}]
     link.py thread <thread> [device]  [{text, when, incoming}]
+    link.py read <thread>            {ok}
     link.py send <thread> <text>      {ok}
     link.py dial <number> [line]      {ok, line, error}
     link.py hangup [line]             {ok}
@@ -25,7 +26,9 @@ daemon can never disagree about what a device is called or what was said.
 from __future__ import annotations
 
 import json
+import os
 import sys
+from pathlib import Path
 from typing import Any
 
 NOT_INSTALLED = "shani-link is not installed"
@@ -182,6 +185,34 @@ def cmd_contacts(query: str = "") -> list[dict]:
         return []
 
 
+def _read_state_path() -> Path:
+    base = os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state")
+    return Path(base) / "shani-shell" / "link-read.json"
+
+
+def _read_state() -> set[str]:
+    """Threads the shell has marked read, persisted across bridge invocations."""
+    try:
+        data = json.loads(_read_state_path().read_text(encoding="utf-8"))
+        return {str(t) for t in data} if isinstance(data, list) else set()
+    except (OSError, ValueError):  # noqa: BLE001 - first run / unreadable state
+        return set()
+
+
+def cmd_read(thread: str) -> dict:
+    if phone is None:
+        return _ok(NOT_INSTALLED)
+    try:
+        path = _read_state_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        seen = _read_state()
+        seen.add(str(thread))
+        path.write_text(json.dumps(sorted(seen)), encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001 - a full disk must not read as a crash
+        return _ok(str(exc)[:160])
+    return _ok()
+
+
 def cmd_messages(device_id: str = "") -> list[dict]:
     if phone is None:
         return []
@@ -193,6 +224,7 @@ def cmd_messages(device_id: str = "") -> list[dict]:
         book = contacts_mod.book() if contacts_mod else None
     except Exception:  # noqa: BLE001
         return []
+    read_threads = _read_state()
     out = []
     for m in rows:
         number = (m.addresses or [""])[0]
@@ -209,7 +241,7 @@ def cmd_messages(device_id: str = "") -> list[dict]:
                 "number": number,
                 "text": (m.body or "").replace("\n", " ")[:200],
                 "when": int((m.date or 0) / 1000),
-                "unread": not bool(m.read),
+                "unread": (not bool(m.read)) and str(m.thread) not in read_threads,
             }
         )
     return out
@@ -330,6 +362,11 @@ def main() -> int:
                 ensure_ascii=False,
             )
         )
+    elif cmd == "read":
+        if not args:
+            print(json.dumps(_ok("read needs a thread")))
+            return 2
+        print(json.dumps(cmd_read(args[0]), ensure_ascii=False))
     elif cmd == "send":
         if len(args) < 2:
             print(json.dumps(_ok("send needs a thread and the text")))

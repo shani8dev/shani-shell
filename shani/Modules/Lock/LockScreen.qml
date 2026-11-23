@@ -9,6 +9,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Services.Pam
 import Quickshell.Services.Mpris
+import Quickshell.Services.Notifications
 import Quickshell.Widgets
 import QtQuick.Effects
 import QtQuick
@@ -27,6 +28,17 @@ Scope {
     // the camera from the lock screen (Android's, iOS's): a photo can be taken
     // without unlocking, and only the ones taken while locked are shown here
     property var lockPhotos: []
+    // previews follow the same silence/rule suppression as pop-ups: a muted app
+    // or one hidden by a rule must not reappear once lock previews are enabled
+    function previewable(n) {
+        const app = n.appName || "";
+        if (n.urgency === NotificationUrgency.Critical)
+            return true;
+        const verdict = Notifs._filterNotification(app, n.summary, n.body);
+        return verdict !== "block" && verdict !== "hide"
+            && Array.from(Settings.data.silentApps).indexOf(app) < 0;
+    }
+    readonly property var previews: Notifs.list.filter(n => root.previewable(n))
     // the screen keyboard, in the lock surface itself (no other surface shows over a
     // session lock): open by itself where there is no working keyboard to type on
     // (InputKinds: none, or a touchscreen), a tap on its button everywhere else -
@@ -257,15 +269,6 @@ Scope {
                     color: Theme.dim
                     font.family: Theme.font
                     font.pixelSize: Theme.px(14) * Theme.fontScale
-                }
-                // unread notifications count, when previews are on
-                Text {
-                    Layout.alignment: Qt.AlignHCenter
-                    visible: Settings.data.lockPreviews && Notifs.count > 0
-                    text: Notifs.count === 1 ? "1 notification" : Notifs.count + " notifications"
-                    color: Theme.dim
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
                 }
             }
 
@@ -529,11 +532,13 @@ Scope {
                     }
                     // the newest few, by title — only if the person chose that (Privacy)
                     Repeater {
-                        model: Settings.data.lockPreviews ? Notifs.list.slice(0, 3) : []
+                        model: Settings.data.lockPreviews ? root.previews.slice(0, 3) : []
                         Text {
                             required property var modelData
+                            readonly property bool hideContent: Settings.data.notifHideContent
+                            readonly property string app: modelData.appName || ""
                             Layout.fillWidth: true
-                            text: (modelData.appName ? modelData.appName + ": " : "") + modelData.summary
+                            text: hideContent ? app : (app ? app + ": " : "") + modelData.summary
                             color: Theme.text
                             elide: Text.ElideRight
                             font.family: Theme.font

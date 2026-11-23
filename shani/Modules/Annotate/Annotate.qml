@@ -61,7 +61,7 @@ PanelWindow {
             g.reset();
             g.lineCap = "round";
             g.lineJoin = "round";
-            g.lineWidth = 5;
+            g.lineWidth = Theme.px(5);
             for (const s of win.strokes.concat(win.current ? [win.current] : [])) {
                 g.strokeStyle = s.c;
                 g.beginPath();

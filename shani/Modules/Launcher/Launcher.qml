@@ -245,6 +245,9 @@ PanelWindow {
         const s = score(a.name, q);
         if (s > 0)
             return s;
+        // initials: "mp" finds Media Player, "sm" finds System Monitor
+        if (Fuzzy.initials(a.name).startsWith(q))
+            return 50;
         const g = ((a.genericName || "") + " " + [].concat(a.keywords || []).join(" ") + " " + [].concat(a.categories || []).join(" ")).toLowerCase();
         if (g.indexOf(q) >= 0)
             return 40;
@@ -446,7 +449,8 @@ PanelWindow {
 
         // a typo forgiven ("fierfox"), ranked below every exact, prefix and inside match
         const ranked = win.apps.map(a => { const s = win.appScore(a, ql); return { a: a, s: s > 0 ? s : Fuzzy.score(win.appWords[a.id], ql) }; }).filter(x => x.s > 0)
-            .map(x => ({ a: x.a, s: x.s + Math.min(15, used(x.a)) })).sort((x, y) => y.s - x.s).map(x => x.a);
+            // multiply the class score so usage only breaks ties inside a class
+            .map(x => ({ a: x.a, s: x.s * 1000 + Math.min(15, used(x.a)) })).sort((x, y) => y.s - x.s).map(x => x.a);
         if (ranked.length) {
             const items = [];
             ranked.slice(0, 12).forEach((a, i) => {

@@ -11,6 +11,11 @@ function words(text) {
     return String(text || "").toLowerCase().split(/[\s\-_.&/()]+/).filter(w => w.length > 1);
 }
 
+// first letters of the name's words: "Media Player" -> "mp", for acronym search
+function initials(text) {
+    return words(text).map(w => w[0]).join("");
+}
+
 // typos allowed for a query this long: none below 4 letters (too many look alike)
 function allowed(n) {
     return n < 4 ? 0 : n < 7 ? 1 : 2;

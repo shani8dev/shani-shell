@@ -17,15 +17,29 @@ AppWindow {
     implicitWidth: Theme.px(860)
     implicitHeight: Theme.px(620)
 
+    property string pendingNumber: ""   // a requested conversation, matched once messages arrive
+
     onVisibleChanged: if (visible) {
+        pendingNumber = Ui.messagesNumber.trim();
+        Ui.messagesNumber = "";
         Link.openDevice("");
-        // a number from the launcher, a notification's "Reply" or the phone tile
-        if (Ui.messagesNumber !== "") {
-            const want = Ui.messagesNumber;
-            Ui.messagesNumber = "";
-            const hit = Link.messages.find(m => m.number === want || (m.name || "") === want);
-            if (hit) Link.showThread(hit.thread, hit.name || hit.number);
-        }
+        win.tryPendingNumber();
+    }
+
+    // a number from the launcher, a notification's "Reply" or the phone tile:
+    // open its thread if there is one, otherwise a new composer addressed to it
+    function tryPendingNumber() {
+        if (pendingNumber === "" || !Link.messagesLoaded) return;
+        const want = pendingNumber;
+        pendingNumber = "";
+        const hit = Link.messages.find(m => m.number === want || (m.name || "") === want);
+        if (hit) Link.showThread(hit.thread, hit.name || hit.number);
+        else Link.startConversation(want);
+    }
+
+    Connections {
+        target: Link
+        function onMessagesLoadedChanged() { if (Link.messagesLoaded) win.tryPendingNumber(); }
     }
 
     // ---- the conversations --------------------------------------------------
@@ -139,6 +153,8 @@ AppWindow {
                 id: reply
                 Layout.fillWidth: true
                 enabled: Link.openThread !== ""
+                text: Link.draft
+                onTextChanged: { if (Link.draft !== text) Link.draft = text; }
                 placeholder: Tr.t("Write a text…")
                 onAccepted: win.send()
             }
@@ -163,6 +179,6 @@ AppWindow {
         const t = reply.text.trim();
         if (t === "" || Link.openThread === "") return;
         Link.send(t);
-        reply.text = "";
+        Link.clearDraft();
     }
 }

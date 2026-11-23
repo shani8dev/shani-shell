@@ -2059,9 +2059,11 @@ AppWindow {
                     propsBox.row(Tr.t("Kind"), propsBox.p.type === "folder" ? Tr.t("Folder") : propsBox.p.type),
                     propsBox.row(Tr.t("Size"), Files.humanSize(propsBox.p.size || 0) + (propsBox.p.partial ? " +" : "")
                         + ((propsBox.p.files || propsBox.p.dirs) ? "  ·  " + Tr.t("%1 files, %2 folders", propsBox.p.files || 0, propsBox.p.dirs || 0) : "")),
+                    propsBox.row(Tr.t("On disk"), Files.humanSize(propsBox.p.disk || 0)),
                     propsBox.row(Tr.t("Where"), propsBox.p.path ? FilePaths.parentOf(propsBox.p.path) : ""),
+                    propsBox.row(Tr.t("Link target"), propsBox.p.linkTarget ? propsBox.p.linkTarget + (propsBox.p.linkBroken ? "  ·  " + Tr.t("broken") : "") : ""),
                     propsBox.row(Tr.t("Changed"), propsBox.p.mtime ? Files.formatTime(propsBox.p.mtime) : ""),
-                    propsBox.row(Tr.t("Created"), propsBox.p.btime ? Files.formatTime(propsBox.p.btime) : ""),
+                    propsBox.row(propsBox.p.btimeIsCtime ? Tr.t("Changed (inode)") : Tr.t("Created"), propsBox.p.btime ? Files.formatTime(propsBox.p.btime) : ""),
                     propsBox.row(Tr.t("Opened"), propsBox.p.atime ? Files.formatTime(propsBox.p.atime) : ""),
                     propsBox.row(Tr.t("Owner"), propsBox.p.owner ? propsBox.p.owner + (propsBox.p.group && propsBox.p.group !== propsBox.p.owner ? " · " + propsBox.p.group : "") : ""),
                     propsBox.row(Tr.t("Permissions"), propsBox.p.mode || "")

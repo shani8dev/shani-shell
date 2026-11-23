@@ -591,6 +591,41 @@ APPS: dict[str, tuple] = {
                  [], ["settings"], None, "settingsOpen"),
 }
 
+# First-party apps have no upstream desktop entry to inherit search words from.
+# (keywords, GenericName); GenericName only where it names something people search for.
+APP_KEYWORDS: dict[str, tuple] = {
+    "text-editor": (("editor", "write", "code", "notepad"), "Text Editor"),
+    "files": (("file", "folder", "browse", "file manager"), "File Manager"),
+    "image-viewer": (("image", "picture", "photo", "view"), "Image Viewer"),
+    "document-viewer": (("pdf", "ebook", "comic", "read", "document"), "Document Viewer"),
+    "media-player": (("music", "video", "song", "movie", "play"), "Media Player"),
+    "archive-manager": (("zip", "tar", "7z", "extract", "unzip", "archive"), "Archive Manager"),
+    "mail": (("email", "inbox", "message"), "Mail Client"),
+    "feeds": (("rss", "atom", "news"), None),
+    "calendar": (("schedule", "event", "agenda", "appointments"), "Calendar"),
+    "notes": (("note", "memo", "notebook"), None),
+    "tasks": (("todo", "to-do", "reminder"), None),
+    "terminal-app": (("terminal", "shell", "console", "command", "ssh"), "Terminal"),
+    "calculator": (("sum", "math", "convert", "number"), "Calculator"),
+    "photos": (("photo", "picture", "image", "gallery"), None),
+    "weather": (("forecast", "temperature", "rain"), None),
+    "settings": (("preferences", "configure", "options"), "Settings"),
+    "system-monitor": (("processes", "cpu", "memory", "monitor"), "System Monitor"),
+    "contacts": (("address book", "people", "phone"), "Address Book"),
+    "software": (("store", "install", "update", "app"), "Software Center"),
+    "converter": (("convert", "transcode", "format"), None),
+    "maps": (("navigation", "location", "map"), None),
+    "clocks": (("alarm", "timer", "stopwatch", "time"), None),
+    "translate": (("translation", "language"), None),
+    "screenshot": (("capture", "screen"), None),
+    "disk-usage": (("disk", "space", "storage"), None),
+    "document-scanner": (("scan",), None),
+    "passwords": (("keyring", "credentials", "password"), None),
+    "authenticator": (("2fa", "otp", "two-factor"), None),
+    "logs": (("journal", "system log"), None),
+    "backup": (("restore", "snapshot"), None),
+}
+
 
 def _file_arg(arg: str) -> str:
     """A desktop entry's %u: a path, or a file:// URI, as an absolute path."""
@@ -604,9 +639,14 @@ def _file_arg(arg: str) -> str:
 def desktop_entry(name: str) -> str:
     desktop_id, title, comment, icon, categories, mimes, plain, with_file, _state = APPS[name]
     lines = ["[Desktop Entry]", "Type=Application", f"Name={title}", f"Comment={comment}", f"Icon={icon}",
-             f"Exec=shani app {name}" + (" %u" if with_file else ""), "Terminal=false", f"Categories={categories}",
-             # the shell draws it: there is no window for a startup notification to wait on
-             "StartupNotify=false"]
+             f"Exec=shani app {name}" + (" %u" if with_file else ""), "Terminal=false", f"Categories={categories}"]
+    if name in APP_KEYWORDS:
+        keywords, generic = APP_KEYWORDS[name]
+        if generic:
+            lines.append(f"GenericName={generic}")
+        lines.append("Keywords=" + ";".join(keywords) + ";")
+    # the shell draws it: there is no window for a startup notification to wait on
+    lines.append("StartupNotify=false")
     if mimes:
         lines.append("MimeType=" + ";".join(mimes) + ";")
     if plain is None:

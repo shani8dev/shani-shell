@@ -37,6 +37,28 @@ PanelWindow {
     onPageChanged: Ui.whiteboardPage = page
     onVisibleChanged: if (visible) Qt.callLater(() => keys.forceActiveFocus())
 
+    // no autosave: the board is memory-only until save() writes a PDF, so closing must confirm
+    property bool closeArmed: false
+    property bool closeAfterSave: false
+    property string note: ""
+    Timer { id: noteTimer; interval: 4000; onTriggered: { win.closeArmed = false; win.note = ""; } }
+    function dirty() { return Ui.whiteboardStrokes > 0 || pages.length > 1; }
+    function requestClose() {
+        if (closeAfterSave) return;                         // the save is already closing us
+        if (!closeArmed && dirty()) {
+            closeArmed = true;
+            note = Tr.t("Tap close again to save and close");
+            noteTimer.restart();
+            return;
+        }
+        closeArmed = false;
+        noteTimer.stop();
+        note = "";
+        if (!dirty()) { Ui.whiteboard = false; return; }
+        closeAfterSave = true;
+        save();                                             // the one path that writes a PDF
+    }
+
     function strokes() { return pages[page] || []; }
     // a stroke from elsewhere than a finger (the tests; a pen app later): as if drawn
     function addStroke(points) { setStrokes(strokes().concat([{ color: String(ink), width: thickness, points: points }])); }
@@ -55,6 +77,7 @@ PanelWindow {
     // saving: each page drawn on the canvas in turn and kept as a PNG, then the
     // PNGs made one PDF (PyMuPDF, already the shell's)
     property int saving: -1
+    property bool saveReported: false
     property string saveDir: ""
     function save() {
         if (saving >= 0) return;
@@ -98,16 +121,30 @@ PanelWindow {
     Process {
         id: makePdf
         stdout: StdioCollector {
+            id: pdfOut
             onStreamFinished: {
-                win.saving = -1;
                 const p = text.trim();
-                if (p === "") return;
+                if (p === "") return;                       // no PDF: onExited surfaces the failure
+                win.saveReported = true;
+                win.saving = -1;
                 win.savedTo = p;
                 win.saves++;
                 Ui.whiteboardSaved = p;
                 Quickshell.execDetached(["notify-send", "-a", Tr.t("Whiteboard"), "-i", "x-office-document",
                                          Tr.t("Whiteboard saved"), p.split("/").pop()]);
+                if (win.closeAfterSave) { win.closeAfterSave = false; Ui.whiteboard = false; }
             }
+        }
+        onExited: code => {
+            if (win.saveReported) { win.saveReported = false; return; }
+            if (win.saving < 0) return;
+            if (code === 0 && pdfOut.text.trim() !== "") return;   // the collector handles success
+            win.saving = -1;                                // never block every later save on one failure
+            win.closeAfterSave = false;
+            win.note = Tr.t("Save failed — is PyMuPDF installed?");
+            noteTimer.restart();
+            Quickshell.execDetached(["notify-send", "-a", Tr.t("Whiteboard"), "-i", "dialog-error",
+                                     Tr.t("Whiteboard save failed"), win.note]);
         }
     }
 
@@ -116,7 +153,7 @@ PanelWindow {
         anchors.fill: parent
         focus: true
         Keys.onPressed: e => {
-            if (e.key === Qt.Key_Escape) Ui.whiteboard = false;
+            if (e.key === Qt.Key_Escape) win.requestClose();
             else if (e.key === Qt.Key_Z && (e.modifiers & Qt.ControlModifier)) win.undo();
             else if (e.key === Qt.Key_S && (e.modifiers & Qt.ControlModifier)) win.save();
             else if (e.key === Qt.Key_PageDown || e.key === Qt.Key_Right) win.go(1);
@@ -298,7 +335,22 @@ PanelWindow {
                 IconButton { icon: "document-new"; size: Theme.px(40); anchors.verticalCenter: parent.verticalCenter; Accessible.name: Tr.t("New page"); onClicked: win.newPage() }
                 Rectangle { width: 1; height: Theme.px(36); color: Theme.border; anchors.verticalCenter: parent.verticalCenter }
                 IconButton { icon: "document-save"; size: Theme.px(40); anchors.verticalCenter: parent.verticalCenter; Accessible.name: Tr.t("Save as PDF"); onClicked: win.save() }
-                IconButton { icon: "window-close"; size: Theme.px(40); anchors.verticalCenter: parent.verticalCenter; Accessible.name: Tr.t("Close the whiteboard"); onClicked: Ui.whiteboard = false }
+                IconButton { icon: "window-close"; size: Theme.px(40); anchors.verticalCenter: parent.verticalCenter; Accessible.name: Tr.t("Close the whiteboard"); onClicked: win.requestClose() }
+            }
+        }
+
+        Glass {
+            visible: win.note !== ""
+            anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: Theme.px(20) }
+            width: noteText.implicitWidth + Theme.px(32)
+            height: noteText.implicitHeight + Theme.px(20)
+            strong: true
+            Text {
+                id: noteText
+                anchors.centerIn: parent
+                text: win.note
+                color: Theme.text
+                font.pixelSize: Theme.px(15) * Theme.fontScale
             }
         }
     }

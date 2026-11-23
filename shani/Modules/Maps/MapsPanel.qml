@@ -72,6 +72,21 @@ AppWindow {
     property string searchError: ""
     property string searchField: ""
     property bool searching: false
+    // Nominatim asks for ≤1 request/second and the same query rarely changes:
+    // remember answers in memory and queue a search that arrives too soon.
+    property var geoCache: ({})
+    property int lastGeoAt: 0
+    property string pendingGeo: ""
+    Timer {
+        id: geoThrottle
+        interval: 1000
+        onTriggered: {
+            if (win.searching) { geoThrottle.restart(); return; }
+            const q = win.pendingGeo;
+            win.pendingGeo = "";
+            if (q) win.geoCode(q);
+        }
+    }
     readonly property string routeUrl: {
         if (win.mapLat === 0 && win.mapLon === 0)
             return "";
@@ -83,7 +98,14 @@ AppWindow {
     property real pinLat: 0
     property real pinLon: 0
     property bool routeAsked: false
-    property string routeProfile: "driving"   // driving | foot | bike (OSRM's profiles)
+    property string routeProfile: "driving"   // UI tokens: driving | foot | bike
+    // OSRM's demo server names its profiles driving|walking|cycling. Keep the UI
+    // tokens and labels as they are, translate only when building the URL. The
+    // env override is three comma-separated tokens in driving, foot, bike order.
+    readonly property var routeProfiles: {
+        const p = (Quickshell.env("SHANI_MAP_ROUTE_PROFILES") || "driving,walking,cycling").split(",");
+        return { driving: p[0] || "driving", foot: p[1] || "walking", bike: p[2] || "cycling" };
+    }
     property bool routing: false
     property string routeError: ""
     property var route: []                    // [[lat, lon], ...]
@@ -142,7 +164,8 @@ AppWindow {
         if (!fromOk && !Location.available) { routeError = Tr.t("Where from? Type a start, or turn on location in Settings > Privacy"); return; }
         if (pinLat === 0 && pinLon === 0) { routeError = Tr.t("Search the place to go to first"); return; }
         routing = true;
-        const url = routeServer + "/route/v1/" + routeProfile + "/" + sLon + "," + sLat + ";" + pinLon + "," + pinLat + "?overview=full&geometries=geojson&steps=true";
+        const profile = win.routeProfiles[routeProfile] || routeProfile;
+        const url = routeServer + "/route/v1/" + profile + "/" + sLon + "," + sLat + ";" + pinLon + "," + pinLat + "?overview=full&geometries=geojson&steps=true";
         routeProc.command = ["curl", "-sf", "--max-time", "20", "-A", userAgent, url];
         routeProc.running = true;
     }
@@ -289,15 +312,55 @@ AppWindow {
         }
         Location.refresh();
     }
+    // apply one Nominatim result (display_name, lat, lon, type, class, extratags)
+    // — shared by the network and cache paths so the result shape stays identical
+    function applyGeoResult(r) {
+        const lat = parseFloat(r.lat);
+        const lon = parseFloat(r.lon);
+        if (!isFinite(lat) || !isFinite(lon)) {
+            win.searchError = Tr.t("No place found for that search");
+            return;
+        }
+        win.mapLat = lat;
+        win.mapLon = lon;
+        win.pinLat = lat;
+        win.pinLon = lon;
+        win.clearRoute();
+        win.z = 16;
+        Ui.mapsZoom = 16;
+        const name = String(r.display_name || win.searchField || "");
+        win.placeName = name.split(",")[0] || name;
+        win.placeDesc = name;
+        win.placeType = String(r.type || r.class || "");
+        const x = r.extratags || {};
+        win.placeHours = String(x.opening_hours || "");
+        win.placePhone = String(x.phone || x["contact:phone"] || "");
+        win.placeWebsite = String(x.website || x["contact:website"] || "");
+        Ui.mapsQuery = win.searchField;
+        Ui.mapsPlace = name;
+        Ui.mapsLat = lat;
+        Ui.mapsLon = lon;
+    }
     // Nominatim geocode: search a place, zoom to it, describe it
     function geoCode(query) {
         const q = String(query || "").trim();
         if (q === "" || searching)
             return;
         searchError = "";
-        searching = true;
         searchField = q;
-        // fields: display_name, lat, lon, type, class
+        // a repeat is free: answer from the in-memory cache, no network
+        if (Object.prototype.hasOwnProperty.call(win.geoCache, q)) {
+            win.applyGeoResult(win.geoCache[q]);
+            return;
+        }
+        // Nominatim's policy: at most one request per second — queue anything sooner
+        if (Date.now() - lastGeoAt < 1000) {
+            pendingGeo = q;
+            geoThrottle.restart();
+            return;
+        }
+        searching = true;
+        lastGeoAt = Date.now();
         const url = win.searchUrl + "?format=jsonv2&limit=1&extratags=1&accept-language=" + encodeURIComponent(Tr.lang || "en") + "&q=" + encodeURIComponent(q);
         geoProc.command = ["curl", "-sf", "--max-time", "10", "-H", "User-Agent: " + win.userAgent, url];
         geoProc.running = true;
@@ -494,6 +557,28 @@ AppWindow {
                     color: Theme.accent
                     border.width: 3; border.color: "white"
                 }
+                // "you are here": a blue dot distinct from the search pin, with a
+                // translucent ring sized from GeoClue's accuracy so a coarse fix
+                // reads as coarse. Both use the same toScreen() projection.
+                Rectangle {
+                    id: hereDot
+                    readonly property var at: win.toScreen(Location.lat, Location.lon)
+                    // metres per screen pixel at this latitude/zoom (256 px tiles)
+                    readonly property real mPerPx: 156543.03392 * Math.cos(win.mapLat * Math.PI / 180) / Math.pow(2, win.z)
+                    readonly property real ringR: Math.max(Theme.px(10), Math.min(Theme.px(80), Location.accuracy / mPerPx))
+                    visible: Location.available && (Location.lat !== 0 || Location.lon !== 0)
+                    x: at.x - ringR; y: at.y - ringR
+                    width: ringR * 2; height: ringR * 2
+                    radius: ringR
+                    color: Theme.alpha("#1e90ff", 0.18)
+                    border.width: 1; border.color: Theme.alpha("#1e90ff", 0.6)
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: Theme.px(12); height: Theme.px(12); radius: Theme.px(6)
+                        color: "#1e90ff"
+                        border.width: 2; border.color: "white"
+                    }
+                }
                 // two fingers: a level in or out each time they double or halve their distance
                 PinchHandler {
                     target: null
@@ -624,32 +709,12 @@ AppWindow {
                         return;
                     }
                     const r = arr[0];
-                    const lat = parseFloat(r.lat);
-                    const lon = parseFloat(r.lon);
-                    if (!isFinite(lat) || !isFinite(lon)) {
-                        win.searchError = Tr.t("No place found for that search");
-                        return;
-                    }
-                    // Nominatim fields: display_name, lat, lon, type, class
-                    win.mapLat = lat;
-                    win.mapLon = lon;
-                    win.pinLat = lat;
-                    win.pinLon = lon;
-                    win.clearRoute();
-                    win.z = 16;
-                    Ui.mapsZoom = 16;
-                    const name = String(r.display_name || win.searchField || "");
-                    win.placeName = name.split(",")[0] || name;
-                    win.placeDesc = name;
-                    win.placeType = String(r.type || r.class || "");
-                    const x = r.extratags || {};
-                    win.placeHours = String(x.opening_hours || "");
-                    win.placePhone = String(x.phone || x["contact:phone"] || "");
-                    win.placeWebsite = String(x.website || x["contact:website"] || "");
-                    Ui.mapsQuery = win.searchField;
-                    Ui.mapsPlace = name;
-                    Ui.mapsLat = lat;
-                    Ui.mapsLon = lon;
+                    const c = Object.assign({}, win.geoCache);
+                    c[win.searchField] = r;              // remember this answer
+                    const keys = Object.keys(c);
+                    if (keys.length > 32) delete c[keys[0]];   // keep the cache small
+                    win.geoCache = c;
+                    win.applyGeoResult(r);
                 } catch (e) {
                     win.searchError = Tr.t("Search failed — check the network and try again");
                 }

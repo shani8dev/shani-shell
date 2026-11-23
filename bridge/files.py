@@ -97,18 +97,27 @@ IMAGE_EXTS = {
 # ---- listing ----------------------------------------------------------------
 
 
+def birth_time(st):
+    """(milliseconds, is_ctime) — Linux has no st_birthtime, so the value most
+    callers treat as "created" is really ctime (inode change time); the flag
+    lets the UI label it honestly instead of calling it a birth date."""
+    birth = getattr(st, "st_birthtime", None)
+    if birth:
+        return int(birth * 1000), False
+    return int(st.st_ctime * 1000), True
+
+
 def entry_of(name, path, st, is_dir):
     ext = os.path.splitext(name)[1].lower()
-    # Linux often has no st_birthtime: ctime is the closest the platform gives
-    # for "date created" (inode change time) and is always present.
-    birth = getattr(st, "st_birthtime", None) or st.st_ctime
+    btime, btime_is_ctime = birth_time(st)
     return {
         "name": name,
         "path": path,
         "isDir": is_dir,
         "size": 0 if is_dir else int(st.st_size),
         "mtime": int(st.st_mtime * 1000),
-        "btime": int(birth * 1000),
+        "btime": btime,
+        "btimeIsCtime": btime_is_ctime,
         "ext": ext,
         "image": ext in IMAGE_EXTS,
     }
@@ -1551,7 +1560,7 @@ def props(paths, seconds=3.0):
     import grp
     import pwd
 
-    total, files, dirs, partial = 0, 0, 0, False
+    total, disk, files, dirs, partial = 0, 0, 0, 0, False
     end = time.monotonic() + seconds
     for p in paths:
         try:
@@ -1564,7 +1573,9 @@ def props(paths, seconds=3.0):
                 dirs += len(ds)
                 for f in fs:
                     try:
-                        total += os.lstat(os.path.join(here, f)).st_size
+                        fst = os.lstat(os.path.join(here, f))
+                        total += fst.st_size
+                        disk += getattr(fst, "st_blocks", 0) * 512
                         files += 1
                     except OSError:
                         pass
@@ -1574,8 +1585,10 @@ def props(paths, seconds=3.0):
         else:
             files += 1
             total += st.st_size
+            disk += getattr(st, "st_blocks", 0) * 512
     out = {
         "size": total,
+        "disk": disk,
         "files": files,
         "dirs": dirs,
         "partial": partial,
@@ -1600,9 +1613,10 @@ def props(paths, seconds=3.0):
                     else (mimetypes.guess_type(p)[0] or "file"),
                 }
             )
-            birth = getattr(st, "st_birthtime", None)
-            if birth:
-                out["btime"] = int(birth * 1000)
+            out["btime"], out["btimeIsCtime"] = birth_time(st)
+            if stat_mod.S_ISLNK(st.st_mode):
+                out["linkTarget"] = os.readlink(p)
+                out["linkBroken"] = not os.path.exists(p)
         except (OSError, KeyError):
             pass
     return out
