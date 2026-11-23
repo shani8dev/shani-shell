@@ -70,6 +70,7 @@ Rectangle {
 
                 Accessible.role: Accessible.PageTab
                 Accessible.name: segment.modelData
+                Accessible.selected: segment.index === tabs.currentIndex
                 Accessible.onPressAction: tabs.activated(segment.index)
             }
         }

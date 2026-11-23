@@ -239,6 +239,23 @@ def sender(value):
     return (decoded(name) or addr or "").strip()
 
 
+def search_rank(row, q):
+    """Relevance of a hit: subject outranks sender, which outranks the body."""
+    return (
+        (3 if q in (row.get("subject") or "").lower() else 0)
+        + (2 if q in (row.get("from") or "").lower() else 0)
+        + (1 if q in (row.get("snippet") or "").lower() else 0)
+    )
+
+
+def date_rank(row):
+    """Sortable timestamp from a Date header; an unreadable date sorts oldest."""
+    try:
+        return parsedate_to_datetime(row.get("date") or "").timestamp()
+    except Exception:
+        return 0
+
+
 # ---- mailhog ---------------------------------------------------------------
 
 
@@ -281,13 +298,15 @@ def mh_search(url, query):
     q = (query or "").strip().lower()
     if not q:
         return mh_messages(url, "INBOX")
-    return [
+    hits = [
         m
         for m in mh_messages(url, "INBOX")
         if q in m["from"].lower()
         or q in m["subject"].lower()
         or q in (m.get("snippet") or "").lower()
     ]
+    hits.sort(key=lambda m: (search_rank(m, q), date_rank(m)), reverse=True)
+    return hits
 
 
 def mh_read(url, uid, cfg=None):
@@ -405,9 +424,11 @@ def imap_connect(c):
     # any credentials are sent. Never LOGIN in the clear to a remote server.
     implicit = imap.get("ssl", port == 993)
     if implicit:
-        box = imaplib.IMAP4_SSL(host, port, ssl_context=ssl.create_default_context())
+        box = imaplib.IMAP4_SSL(
+            host, port, ssl_context=ssl.create_default_context(), timeout=TIMEOUT
+        )
     else:
-        box = imaplib.IMAP4(host, port)
+        box = imaplib.IMAP4(host, port, timeout=TIMEOUT)
         if not local:
             box.ehlo()
             if box.has_capability("STARTTLS"):
@@ -516,6 +537,8 @@ def imap_search(c, query, folder="INBOX"):
                     "unread": False,
                 }
             )
+        ql = q.lower()
+        out.sort(key=lambda m: (search_rank(m, ql), date_rank(m)), reverse=True)
         return out
     finally:
         try:

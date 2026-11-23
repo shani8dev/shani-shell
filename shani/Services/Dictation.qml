@@ -34,13 +34,19 @@ Singleton {
         phase = "recording";
         rec.running = true;
     }
+    // Raw speech must not outlive the transcription (or a cancelled run).
+    function dropWav() {
+        Quickshell.execDetached(["rm", "-f", "--", root.wav]);
+    }
 
     Process {
         id: rec
         command: ["pw-record", "--rate", "16000", "--channels", "1", "--format", "s16", root.wav]
         onExited: (code, status) => {
-            if (root.phase !== "recording")
+            if (root.phase !== "recording") {
+                root.dropWav();     // cancelled: no STT will read the file
                 return;
+            }
             root.phase = "transcribing";
             stt.command = ["python3", root.tool, root.lang(), root.wav];
             stt.running = true;
@@ -58,6 +64,7 @@ Singleton {
         }
         stderr: StdioCollector { onStreamFinished: root.error = text.trim().split("\n").pop() || "" }
         onExited: code => {
+            root.dropWav();
             root.phase = "idle";
             if (code !== 0)
                 Quickshell.execDetached(["notify-send", "-a", "Voice typing", "-i", "audio-input-microphone", "Could not transcribe", root.error]);

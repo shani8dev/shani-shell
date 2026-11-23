@@ -194,23 +194,37 @@ PanelWindow {
         panel.approve(turnId, label);
     }
 
+    // Classify an option label by meaning. Deny words win: "Never allow" must
+    // not be read as an allowance just because it contains "allow".
+    function optionKind(label) {
+        const s = String(label).toLowerCase();
+        if (/\b(deny|reject|cancel|refuse|never|no|don't|dont|block)\b/.test(s)) return "deny";
+        if (/\b(always|session|permanent|forever)\b/.test(s)) return "always";
+        if (/\b(once|allow|approve|yes)\b/.test(s)) return "once";
+        return "";
+    }
+
     // The option an IpcHandler decision code means, for the row that is open.
-    // A caller may pass the option label itself (that is what the Agent
-    // contract takes); otherwise "deny"/"always" pick by meaning and anything
-    // else is the first option.
+    // Clicks and the Agent contract pass the exact label, which wins. The
+    // scriptable path passes a code: match it by meaning and NEVER fall back to
+    // options[0], or `approve deny` would grant "Allow this once".
     function optionFor(row, decision) {
         const options = JSON.parse(row.optionsJson || "[]");
-        if (options.length === 0)
-            return decision;
-        // Exact label match first (e.g. "Allow for this session" == "Allow for this session")
         if (options.indexOf(decision) >= 0)
             return decision;
-        // No exact label match: forward the first offered option rather
-        // than guessing from a regex. A regex that maps "deny" onto a label
-        // containing "allow" is how a denial becomes an allowance, and direct
-        // clicks already pass the exact label, so this path is only the
-        // scriptable approveLast() one.
-        return options[0];
+        const code = String(decision || "").toLowerCase().trim();
+        const kind =
+              /^(deny|reject|cancel|refuse|no|never)$/.test(code) ? "deny"
+            : /^(always|allow always|allow forever|permanent)$/.test(code) ? "always"
+            : /^(once|allow|allow once|yes|approve)$/.test(code) ? "once"
+            : "deny";                       // unknown: fail closed, never grant
+        const chosen = options.find(o => optionKind(o) === kind);
+        if (chosen !== undefined)
+            return chosen;
+        // No option of that kind: deny rather than send the backend something
+        // it could read as an allowance.
+        const deny = options.find(o => optionKind(o) === "deny");
+        return deny !== undefined ? deny : "deny";
     }
 
     // The panel is scriptable (and a future "press A to allow" binding): the

@@ -20,7 +20,7 @@ import qs.Common
 Singleton {
     id: root
     readonly property var rules: Settings.data.automations
-    property var fired: []              // "when=is → then arg", for the tests
+    property var fired: []              // last 50 firings: { at, rule }, for the tests
     property var wasTrue: ({})          // rule index → condition last seen true
 
     readonly property string wifiNow: Net.activeWifi ? Net.activeWifi.name : ""
@@ -51,7 +51,8 @@ Singleton {
         case "run": Quickshell.execDetached(["sh", "-c", a]); break;
         default: return;
         }
-        fired = fired.concat([r.when + "=" + r.is + " → " + r.then + " " + a]);
+        // keep a bounded, timestamped record instead of growing forever
+        fired = fired.concat([{ at: new Date().toISOString(), rule: r.when + "=" + r.is + " → " + r.then + " " + a }]).slice(-50);
     }
     function check() {
         if (!Settings.loaded) return;

@@ -55,12 +55,16 @@ Singleton {
             return "network-wireless-disabled";
         if (!activeWifi)
             return "network-wireless-offline";
+        // connected to Wi-Fi but the connectivity check finds no internet:
+        // a portal has its own warning glyph, so exclude it here
+        if (!online && !portal)
+            return "network-wireless-offline";
         const s = signal;
         return s > 0.75 ? "network-wireless-signal-excellent" : s > 0.5 ? "network-wireless-signal-good"
              : s > 0.25 ? "network-wireless-signal-ok" : "network-wireless-signal-weak";
     }
     readonly property string label: airplane ? "Airplane mode" : portal ? "Sign-in needed" : wiredConnected ? "Wired"
-        : activeWifi ? activeWifi.name : (wifiEnabled ? "Not connected" : "Wi-Fi off")
+        : activeWifi && !online ? Tr.t("No internet") : activeWifi ? activeWifi.name : (wifiEnabled ? "Not connected" : "Wi-Fi off")
 
     function setWifi(on) {
         Networking.wifiEnabled = on;

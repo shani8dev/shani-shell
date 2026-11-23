@@ -59,7 +59,8 @@ ColumnLayout {
                 checked: modelData.on !== false
                 onToggled: on => { const l = page.rulesCopy(); l[index].on = on; page.setRules(l); }
             }
-            IconButton { icon: "edit-delete"; tip: Tr.t("Remove"); onClicked: { const l = page.rulesCopy(); l.splice(index, 1); page.setRules(l); } }
+            IconButton { icon: "document-edit"; tip: Tr.t("Edit"); onClicked: page.loadRule(modelData, index) }
+            IconButton { icon: "edit-delete"; tip: Tr.t("Remove"); onClicked: { if (page.editIndex >= 0) page.resetForm(); const l = page.rulesCopy(); l.splice(index, 1); page.setRules(l); } }
         }
     }
 
@@ -97,13 +98,35 @@ ColumnLayout {
         Settings.data.hooks = h;          // a new object: the settings file is written
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Add an automation") }
+    SectionTitle { Layout.fillWidth: true; text: page.editIndex >= 0 ? Tr.t("Edit automation") : Tr.t("Add an automation") }
     property string when: "wifi"
     property string is: ""
     property string then: "focus"
     property string arg: ""
+    property int editIndex: -1          // >= 0: the form is editing this rule instead of adding one
     readonly property var w: whens.find(x => x.id === when)
     readonly property var t: thens.find(x => x.id === then)
+
+    function loadRule(r, i) {
+        page.when = r.when; page.is = r.is || "";
+        page.then = r.then; page.arg = r.arg || "";
+        page.editIndex = i;
+    }
+    function resetForm() {
+        page.editIndex = -1;
+        page.is = page.w.choices ? page.w.choices[0] : "";
+        page.arg = page.t.choices ? page.t.choices()[0] : "";
+    }
+    function saveRule() {
+        const l = page.rulesCopy();
+        const rule = { when: page.when, is: page.is, then: page.then, arg: page.arg };
+        if (page.editIndex >= 0 && page.editIndex < l.length)
+            Object.assign(l[page.editIndex], rule);   // keep the rule's on state and position
+        else
+            l.push(Object.assign({ on: true }, rule));
+        page.setRules(l);
+        page.resetForm();
+    }
     Flow {
         Layout.fillWidth: true
         spacing: Theme.px(6)
@@ -271,14 +294,19 @@ ColumnLayout {
         font.family: Theme.font
         font.pixelSize: Theme.px(11) * Theme.fontScale
     }
-    Button {
-        text: Tr.t("Add")
-        kind: "primary"
-        enabled: page.is !== "" && (page.arg !== "" || page.then === "focus")
-        onClicked: {
-            page.setRules(page.rulesCopy().concat([{ when: page.when, is: page.is, then: page.then, arg: page.arg, on: true }]));
-            page.is = page.w.choices ? page.w.choices[0] : "";
-            page.arg = page.t.choices ? page.t.choices()[0] : "";
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.px(6)
+        Button {
+            text: page.editIndex >= 0 ? Tr.t("Save") : Tr.t("Add")
+            kind: "primary"
+            enabled: page.is !== "" && (page.arg !== "" || page.then === "focus")
+            onClicked: page.saveRule()
+        }
+        Button {
+            visible: page.editIndex >= 0
+            text: Tr.t("Cancel")
+            onClicked: page.resetForm()
         }
     }
 }

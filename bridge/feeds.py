@@ -316,7 +316,11 @@ def cmd_next_unread(c, url, current=""):
 
 
 def cmd_search(c, query):
-    """One flat result list from every cached feed, newest first."""
+    """One flat result list from every cached feed, best match first.
+
+    A title hit outranks one buried in the summary or body; a hit in the feed's
+    name is a weaker signal. Equal scores fall back to newest first.
+    """
     q = (query or "").strip().lower()
     if not q:
         return []
@@ -327,11 +331,14 @@ def cmd_search(c, query):
         feed = known.get(url, {})
         title = e.get("title") or feed.get("title") or url
         for i in e.get("items", []):
+            title_hit = q in i.get("title", "").lower()
+            feed_hit = q in title.lower()
             hay = " ".join(
                 (i.get("title", ""), i.get("summary", ""), i.get("text", ""))
             ).lower()
-            if q not in hay:
+            if not (title_hit or feed_hit or q in hay):
                 continue
+            score = (3 if title_hit else 0) + (1 if feed_hit else 0)
             row = dict(i)
             row.update(
                 {
@@ -340,9 +347,9 @@ def cmd_search(c, query):
                     "read": (url + "|" + i["id"]) in read,
                 }
             )
-            out.append(row)
-    out.sort(key=lambda r: r.get("date") or "", reverse=True)
-    return out
+            out.append((score, row))
+    out.sort(key=lambda pair: (pair[0], pair[1].get("date") or ""), reverse=True)
+    return [row for _, row in out]
 
 
 def cmd_settags(url, raw):

@@ -15,6 +15,8 @@ Singleton {
     function play(name) {
         if (!Settings.data.systemSounds)
             return;
+        if (Notifs.dnd || Notifs.quiet)
+            return;
         if (name === "audio-volume-change" && Settings.data.soundVolumeChange === false)
             return;
         if (name === "camera-shutter" && Settings.data.soundScreenshot === false)

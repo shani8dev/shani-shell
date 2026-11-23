@@ -20,6 +20,8 @@ ColumnLayout {
         Behavior on color { ColorAnimation { duration: Theme.anim } }
         Accessible.role: Accessible.Button
         Accessible.name: Tr.t("Advanced") + (root.hint ? ": " + root.hint : "")
+        Accessible.checkable: true
+        Accessible.checked: root.open
         Accessible.onPressAction: root.open = !root.open
         RowLayout {
             anchors.fill: parent

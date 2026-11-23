@@ -779,6 +779,14 @@ Variants {
                     Icon { visible: Idle.caffeine || Idle.keptAwake; name: "preferences-desktop-screensaver"; size: Theme.px(15); color: Theme.amber; anchors.verticalCenter: parent.verticalCenter }
                     Icon { visible: Net.vpnActive || Net.tailscaleUp; name: "network-vpn"; size: Theme.px(15); color: Theme.text; anchors.verticalCenter: parent.verticalCenter }
                     Icon {
+                        visible: Net.hotspotOn
+                        name: "network-wireless-hotspot"
+                        size: Theme.px(15)
+                        color: Theme.amber
+                        anchors.verticalCenter: parent.verticalCenter
+                        Accessible.name: Tr.t("Hotspot is on")
+                    }
+                    Icon {
                         name: Net.icon
                         size: Theme.px(15)
                         color: Net.portal ? Theme.amber : Theme.text
@@ -805,6 +813,7 @@ Variants {
                     }
                     Icon { visible: Audio.micMuted && Audio.source !== null; name: "microphone-sensitivity-muted"; size: Theme.px(15); color: Theme.red; anchors.verticalCenter: parent.verticalCenter }
                     Icon {
+                        visible: !Settings.data.hideVolumeGlyph
                         name: Audio.icon
                         size: Theme.px(15)
                         color: Theme.text
@@ -876,13 +885,18 @@ Variants {
                         font.pixelSize: Theme.px(11) * Theme.fontScale
                         anchors.verticalCenter: parent.verticalCenter
                     }
-                    // an update waiting: a dot on the clock
+                    // an update waiting: a dot on the clock, one tap to open Updates
                     Rectangle {
                         visible: Updates.attention
                         width: Theme.px(6); height: Theme.px(6)
                         radius: Theme.px(3)
                         color: Theme.amber
                         anchors.verticalCenter: parent.verticalCenter
+                        Accessible.role: Accessible.Button
+                        Accessible.name: Tr.t("Updates available - open")
+                        // a child MouseArea takes the tap before the clock's own Chip click
+                        MouseArea { anchors.fill: parent; anchors.margins: -4; onClicked: Updates.open() }
+                        KeyFocus { name: Tr.t("Updates available - open"); onActivated: Updates.open() }
                     }
                 }
 

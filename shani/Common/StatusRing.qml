@@ -62,7 +62,10 @@ Item {
         anchors.fill: parent
     }
 
-    // The number is in the centre slot, so a screen reader reads it from there.
+    // AT reads a progress bar's value from the item's own `value` property
+    // (the attached property has no value setter); these bounds make it a range.
+    property real minimumValue: 0
+    property real maximumValue: 1
     Accessible.role: Accessible.ProgressBar
-    Accessible.name: ring.label
+    Accessible.name: ring.label !== "" ? ring.label : Tr.t("Progress")
 }

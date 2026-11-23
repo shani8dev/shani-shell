@@ -325,30 +325,98 @@ function resetSection(d, defaults, cat) {
     }
 }
 
-// typed words → matching entries, best first (limit 8)
+// a token matches a list when it prefixes one of the words
+function _startsWith(words, token) {
+    for (var i = 0; i < words.length; i++)
+        if (words[i].indexOf(token) === 0)
+            return true;
+    return false;
+}
+
+function _words(text) {
+    return String(text || "").toLowerCase().split(/[\s&,-]+/).filter(function (w) { return w.length > 0; });
+}
+
+// fewest one-character edits between a token and any prefix of a word (99 = far).
+// The first letter must agree: typos rarely hit it, and it keeps this cheap.
+function _editNear(token, word) {
+    if (!word || token.charAt(0) !== word.charAt(0))
+        return 99;
+    var m = token.length, n = word.length;
+    var prev = new Array(n + 1), cur = new Array(n + 1), i, j;
+    for (j = 0; j <= n; j++) prev[j] = j;
+    for (i = 1; i <= m; i++) {
+        cur[0] = i;
+        for (j = 1; j <= n; j++) {
+            cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1,
+                prev[j - 1] + (token.charAt(i - 1) === word.charAt(j - 1) ? 0 : 1));
+        }
+        var swap = prev; prev = cur; cur = swap;
+    }
+    var best = 99;
+    for (j = 1; j <= n; j++) best = Math.min(best, prev[j]);
+    return best;
+}
+
+// typo fallback: "wallpapr" finds "wallpaper". No typos for <4 letters, one up
+// to 6, two beyond - so short tokens do not match half the dictionary.
+function _fuzzy(words, token) {
+    var allowed = token.length < 4 ? 0 : token.length < 7 ? 1 : 2;
+    if (!allowed)
+        return false;
+    for (var i = 0; i < words.length; i++)
+        if (_editNear(token, words[i]) <= allowed)
+            return true;
+    return false;
+}
+
+// lower-cased search fields, built once (matches() runs on every keystroke)
+var _fields = null;
+function _prepare() {
+    if (_fields)
+        return;
+    _fields = entries.map(function (e) {
+        var label = _words(e.label);
+        var keywords = _words(e.words);
+        var hints = _words(e.hint);
+        return { label: (e.label || "").toLowerCase(), labelWords: label,
+                 kw: keywords, hint: hints, all: label.concat(keywords).concat(hints) };
+    });
+}
+
+// typed words → matching entries, best first (limit 8).
+// label prefix (3) > keyword (2) > hint (1) > typo (0). Every token must match;
+// an entry ranks by its weakest token, and ties keep declaration order.
 function matches(query) {
     var q = (query || "").trim().toLowerCase();
     if (!q)
         return [];
+    _prepare();
     var tokens = q.split(/\s+/).filter(function (t) { return t.length > 0; });
-    var out = [];
+    var scored = [];
     for (var i = 0; i < entries.length; i++) {
-        var e = entries[i];
-        var hay = (e.label + " " + (e.hint || "") + " " + (e.words || "")).toLowerCase();
-        var ok = true;
+        var f = _fields[i];
+        var worst = 3, ok = true;
         for (var j = 0; j < tokens.length; j++) {
-            var found = false;
-            var words = hay.split(/[\s&,-]+/);
-            for (var w = 0; w < words.length; w++) {
-                if (words[w].indexOf(tokens[j]) === 0) { found = true; break; }
-            }
-            if (!found) { ok = false; break; }
+            var t = tokens[j], s;
+            if (f.label.indexOf(t) === 0)
+                s = 3;
+            else if (_startsWith(f.labelWords, t) || _startsWith(f.kw, t))
+                s = 2;
+            else if (_startsWith(f.hint, t))
+                s = 1;
+            else if (_fuzzy(f.all, t))
+                s = 0;              // below every exact hit
+            else { ok = false; break; }
+            if (s < worst) worst = s;
         }
         if (ok)
-            out.push(e);
-        if (out.length >= 8)
-            break;
+            scored.push({ entry: entries[i], score: worst, order: i });
     }
+    scored.sort(function (a, b) { return b.score - a.score || a.order - b.order; });
+    var out = [];
+    for (var k = 0; k < scored.length && k < 8; k++)
+        out.push(scored[k].entry);
     return out;
 }
 
