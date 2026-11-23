@@ -24,6 +24,8 @@ AppWindow {
     property bool keysRead: false
     property string generated: ""
     property bool generatedHidden: false
+    property bool generateFailed: false
+    property bool wordsFallback: false
     property int length: 20
     property bool symbols: true
     property bool digits: true
@@ -32,8 +34,11 @@ AppWindow {
 
     // ---- a password, from the system's randomness ----
     function generate() {
+        win.generateFailed = false;
+        win.wordsFallback = false;
         gen.command = ["python3", "-c", `import secrets, string, sys
 n, sym, dig, words = int(sys.argv[1]), sys.argv[2] == "1", sys.argv[3] == "1", sys.argv[4] == "1"
+fallback = False
 if words:
     try:
         pool = [w.strip() for w in open("/usr/share/dict/words") if w.strip().isalpha() and w.strip().islower() and 4 <= len(w.strip()) <= 8]
@@ -42,22 +47,38 @@ if words:
     if len(pool) > 2000:
         print("-".join(secrets.choice(pool) for _ in range(max(4, n // 5))))
         sys.exit(0)
+    fallback = True
 alphabet = string.ascii_letters + (string.digits if dig else "") + ("!@#$%^&*()-_=+[]{};:,.?" if sym else "")
 while True:
     pw = "".join(secrets.choice(alphabet) for _ in range(n))
     # one of each kind asked for, so no site refuses it
     if (not dig or any(c.isdigit() for c in pw)) and (not sym or any(not c.isalnum() for c in pw)) and any(c.islower() for c in pw) and any(c.isupper() for c in pw):
-        print(pw)
+        print(("FALLBACK:" if fallback else "") + pw)
         break`, String(win.length), win.symbols ? "1" : "0", win.digits ? "1" : "0", win.words ? "1" : "0"];
         gen.running = true;
     }
     Process {
         id: gen
         stdout: StdioCollector { onStreamFinished: {
-            win.generated = text.trim();
+            const out = text.trim();
+            if (out.startsWith("FALLBACK:")) {
+                win.wordsFallback = true;
+                win.generated = out.slice("FALLBACK:".length);
+            } else {
+                win.wordsFallback = false;
+                win.generated = out;
+            }
             win.generatedHidden = false;
-            hideTimer.restart();
+            win.generateFailed = win.generated === "";
+            if (!win.generateFailed)
+                hideTimer.restart();
         } }
+        onExited: code => {
+            if (code !== 0) {
+                win.generateFailed = true;
+                win.generated = "";
+            }
+        }
     }
     // like the Passwords window: a generated secret is not left on screen
     Timer { id: hideTimer; interval: 30000; onTriggered: win.generatedHidden = true }
@@ -124,13 +145,21 @@ while True:
                     spacing: Theme.px(8)
                     Text {
                         Layout.fillWidth: true
-                        text: win.copied === "password" ? Tr.t("Copied") : (win.generatedHidden ? "••••••••" : win.generated)
-                        color: Theme.text
+                        text: win.copied === "password" ? Tr.t("Copied")
+                            : win.generateFailed ? Tr.t("Could not generate a password")
+                            : (win.generatedHidden ? "••••••••" : win.generated)
+                        color: win.generateFailed ? Theme.dim : Theme.text
                         elide: Text.ElideRight
                         font.family: Theme.mono
                         font.pixelSize: Theme.px(17) * Theme.fontScale
                         Accessible.role: Accessible.StaticText
                         Accessible.name: Tr.t("New password")
+                    }
+                    IconButton {
+                        visible: win.generated !== "" && !win.generateFailed
+                        icon: win.generatedHidden ? "view-visible" : "view-hidden"
+                        tip: win.generatedHidden ? Tr.t("Reveal password") : Tr.t("Hide password")
+                        onClicked: { win.generatedHidden = !win.generatedHidden; if (!win.generatedHidden) hideTimer.restart(); }
                     }
                     IconButton {
                         icon: "view-refresh"
@@ -140,7 +169,7 @@ while True:
                     Button {
                         kind: "primary"
                         text: Tr.t("Copy")
-                        enabled: win.generated !== ""
+                        enabled: win.generated !== "" && !win.generateFailed
                         onClicked: win.copy(win.generated, "password")
                     }
                 }
@@ -163,6 +192,15 @@ while True:
                     selected: win.words
                     onClicked: win.words = !win.words
                 }
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: win.wordsFallback
+                text: Tr.t("Word list unavailable; using a character password")
+                color: Theme.dim
+                wrapMode: Text.Wrap
+                font.family: Theme.font
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
             SwitchRow {
                 Layout.fillWidth: true

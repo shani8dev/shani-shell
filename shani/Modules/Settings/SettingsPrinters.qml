@@ -25,9 +25,14 @@ ColumnLayout {
     property var found: null             // [{ name, uri }] while adding; null = not adding
     property bool finding: false
     property var pendingAuth: null       // credentials stored after lpadmin succeeds
-    onActiveChanged: if (active) { list.running = true; optsRead.running = true; }
+    readonly property var adminCmd: (Quickshell.env("SHANI_ADMIN_TOOL") || "pkexec /usr/lib/shani-shell/shani-admin.py").split(" ")
+    property bool cupsBrowsed: false
+    property bool cupsBrowsedLoaded: false
+    onActiveChanged: if (active) { list.running = true; optsRead.running = true; cbGet.running = false; cbGet.running = true; }
     // made already active (a Settings category is a Loader): load now too
-    Component.onCompleted: if (active) { list.running = true; optsRead.running = true; }
+    Component.onCompleted: if (active) { list.running = true; optsRead.running = true; cbGet.running = false; cbGet.running = true; }
+    Process { id: cbGet; command: page.adminCmd.concat(["cups-browsed-get"]); stdout: StdioCollector { onStreamFinished: { try { const d = JSON.parse(text); page.cupsBrowsed = !!d.enabled; page.cupsBrowsedLoaded = true; } catch(e) {} } } }
+    Process { id: cbSet; stdinEnabled: true; property string payload: ""; onStarted: { write(payload + "\n"); stdinEnabled = false; } onExited: code => { stdinEnabled = true; cbGet.running = false; cbGet.running = true; if (code !== 0) page.note = Tr.t("Could not change printer discovery"); } }
 
     function run(cmd, done) { act.command = cmd; act.done = done || ""; act.running = true; }
     // each printer's defaults for you (system-config-printer's Printer Options):
@@ -149,6 +154,14 @@ ColumnLayout {
     }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Printers") }
+    SwitchRow {
+        Layout.fillWidth: true
+        visible: page.cupsBrowsedLoaded
+        text: Tr.t("Discover network printers automatically")
+        hint: Tr.t("cups-browsed service")
+        checked: page.cupsBrowsed
+        onToggled: on => { cbSet.payload = JSON.stringify({ enabled: on }); cbSet.command = page.adminCmd.concat(["cups-browsed-set"]); cbSet.running = true; }
+    }
     Text {
         visible: !page.cups || page.printers.length === 0
         Layout.fillWidth: true

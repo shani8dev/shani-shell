@@ -18,6 +18,8 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     mask: Region {}
+    Accessible.role: Accessible.AlertMessage
+    Accessible.name: Ui.lastFlash ? Tr.t("Alert: %1").arg(Ui.lastFlash) : Tr.t("Alert")
 
     // Rate guard: a burst of alerts must not strobe. Ignore restarts inside
     // one second, cap at 12 flashes/minute, and dim flashes after the first few.
@@ -43,6 +45,12 @@ PanelWindow {
             Ui.lastFlash = n ? (n.summary || "") : "";
             glow.peak = win.flashesThisMinute > 3 ? 0.35 : 0.9;
             pulse.restart();
+        }
+    }
+    Connections {
+        target: Settings.data
+        function onFlashAlertsChanged() {
+            if (!Settings.data.flashAlerts) { pulse.stop(); glow.opacity = 0; }
         }
     }
     Rectangle {

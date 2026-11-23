@@ -54,6 +54,7 @@ PanelWindow {
                 radius: Theme.px(12)
                 color: "white"
                 Image {
+                    id: qrImage
                     anchors.fill: parent
                     anchors.margins: Theme.px(10)
                     source: Qr.image ? "file://" + Qr.image + "?" + Qr.rev : ""
@@ -61,6 +62,14 @@ PanelWindow {
                     fillMode: Image.PreserveAspectFit
                     Accessible.role: Accessible.Graphic
                     Accessible.name: "QR code: " + Qr.title
+                }
+                Text {
+                    anchors.centerIn: parent
+                    visible: qrImage.status === Image.Error
+                    text: Tr.t("QR code unavailable")
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
                 }
             }
             Text {
@@ -84,12 +93,14 @@ PanelWindow {
             Button {
                 Layout.alignment: Qt.AlignHCenter
                 visible: Qr.text !== ""
+                enabled: Qr.text !== ""
                 text: Tr.t("Copy details")
                 onClicked: Quickshell.clipboardText = Qr.text
             }
             Button {
                 Layout.alignment: Qt.AlignHCenter
                 visible: Qr.shown
+                enabled: Qr.image !== ""
                 text: Tr.t("Save PNG…")
                 onClicked: FilePicker.open({
                     mode: "save",

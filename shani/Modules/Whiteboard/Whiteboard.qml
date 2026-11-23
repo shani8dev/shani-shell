@@ -40,8 +40,9 @@ PanelWindow {
     // no autosave: the board is memory-only until save() writes a PDF, so closing must confirm
     property bool closeArmed: false
     property bool closeAfterSave: false
+    property bool clearArmed: false
     property string note: ""
-    Timer { id: noteTimer; interval: 4000; onTriggered: { win.closeArmed = false; win.note = ""; } }
+    Timer { id: noteTimer; interval: 4000; onTriggered: { win.closeArmed = false; win.clearArmed = false; win.note = ""; } }
     function dirty() { return Ui.whiteboardStrokes > 0 || pages.length > 1; }
     function requestClose() {
         if (closeAfterSave) return;                         // the save is already closing us
@@ -61,12 +62,24 @@ PanelWindow {
 
     function strokes() { return pages[page] || []; }
     // a stroke from elsewhere than a finger (the tests; a pen app later): as if drawn
-    function addStroke(points) { setStrokes(strokes().concat([{ color: String(ink), width: thickness, points: points }])); }
+    function addStroke(points) { if (saving >= 0) return; setStrokes(strokes().concat([{ color: String(ink), width: thickness, points: points }])); }
     function setStrokes(s) { const p = pages.slice(); p[page] = s; pages = p; counted(); canvas.requestPaint(); }
-    function undo() { setStrokes(strokes().slice(0, -1)); }
-    function clearPage() { setStrokes([]); }
-    function newPage() { const p = pages.slice(); p.splice(page + 1, 0, []); pages = p; page = page + 1; canvas.requestPaint(); }
-    function go(d) { page = Math.max(0, Math.min(pages.length - 1, page + d)); canvas.requestPaint(); }
+    function undo() { if (saving >= 0) return; clearArmed = false; setStrokes(strokes().slice(0, -1)); }
+    function clearPage() {
+        if (saving >= 0) return;
+        if (!clearArmed && strokes().length > 0) {
+            clearArmed = true;
+            note = Tr.t("Tap clear again to erase this page");
+            noteTimer.restart();
+            return;
+        }
+        clearArmed = false;
+        noteTimer.stop();
+        note = "";
+        setStrokes([]);
+    }
+    function newPage() { if (saving >= 0) return; clearArmed = false; const p = pages.slice(); p.splice(page + 1, 0, []); pages = p; page = page + 1; canvas.requestPaint(); }
+    function go(d) { if (saving >= 0) return; clearArmed = false; page = Math.max(0, Math.min(pages.length - 1, page + d)); canvas.requestPaint(); }
     // a stroke the eraser touched goes whole (the board's eraser, not a pixel rubber)
     function eraseAt(x, y) {
         const r = Theme.px(18);
@@ -156,6 +169,9 @@ PanelWindow {
             if (e.key === Qt.Key_Escape) win.requestClose();
             else if (e.key === Qt.Key_Z && (e.modifiers & Qt.ControlModifier)) win.undo();
             else if (e.key === Qt.Key_S && (e.modifiers & Qt.ControlModifier)) win.save();
+            else if (e.key === Qt.Key_E && !(e.modifiers & Qt.ControlModifier)) { win.erasing = !win.erasing; win.clearArmed = false; }
+            else if (e.key === Qt.Key_N && !(e.modifiers & Qt.ControlModifier)) win.newPage();
+            else if (e.key === Qt.Key_Delete || e.key === Qt.Key_Backspace) win.clearPage();
             else if (e.key === Qt.Key_PageDown || e.key === Qt.Key_Right) win.go(1);
             else if (e.key === Qt.Key_PageUp || e.key === Qt.Key_Left) win.go(-1);
             else return;
@@ -316,7 +332,7 @@ PanelWindow {
                         Rectangle { anchors.centerIn: parent; width: Theme.px(parent.modelData) + 2; height: width; radius: width / 2; color: Theme.text }
                         Accessible.role: Accessible.Button
                         Accessible.name: Tr.t("Line width %1 px", modelData) + (Math.abs(win.thickness - Theme.px(modelData)) < 0.5 ? " " + Tr.t("selected") : "")
-                        MouseArea { anchors.fill: parent; onClicked: win.thickness = Theme.px(parent.modelData) }
+                        MouseArea { anchors.fill: parent; onClicked: { win.thickness = Theme.px(parent.modelData); win.erasing = false; } }
                     }
                 }
                 Rectangle { width: 1; height: Theme.px(36); color: Theme.border; anchors.verticalCenter: parent.verticalCenter }

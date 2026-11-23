@@ -34,8 +34,10 @@ Variants {
             Image {
                 anchors.fill: parent
                 fillMode: Image.PreserveAspectCrop
+                asynchronous: true
                 sourceSize: Qt.size(parent.width, parent.height)
                 source: Theme.wallpaper ? "file://" + Theme.wallpaper : ""
+                visible: status !== Image.Error
             }
         }
     }
@@ -62,7 +64,6 @@ Variants {
         }
 
         // two images, so a change fades from the old picture to the new one
-        property string shown: ""
         readonly property string wanted: {
             if (Settings.data.wallpaperPerMonitor) {
                 const perMon = Settings.data.wallpapersByMonitor || {};
@@ -107,6 +108,8 @@ Variants {
             focus: visible
             onVisibleChanged: if (visible) Ui.focusFirst(deskMenu)
             Keys.onEscapePressed: deskMenu.visible = false
+            Accessible.role: Accessible.Menu
+            Accessible.name: Tr.t("Desktop menu")
             strong: true
             radius: Theme.px(12)
             z: 11
@@ -136,14 +139,19 @@ Variants {
             }
         }
         function swap() {
-            const next = a.opacity > 0.5 ? b : a;
             const src = wanted ? "file://" + wanted : "";
+            if (!src) {
+                a.opacity = 0; b.opacity = 0;
+                a.source = ""; b.source = "";
+                return;
+            }
+            const next = a.opacity > 0.5 ? b : a;
             if (next.source == src) {
                 // the hidden image already holds that exact file: assigning the
                 // same source is a no-op and Ready never fires again — clear it
                 // first so the toggle always completes (and fades)
                 next.source = "";
-                Qt.callLater(() => next.source = src);
+                Qt.callLater(() => { if (wanted) next.source = "file://" + wanted; });
             } else {
                 next.source = src;
             }
@@ -156,7 +164,11 @@ Variants {
             asynchronous: true
             sourceSize: Qt.size(parent.width, parent.height)
             opacity: 0
-            onStatusChanged: if (status === Image.Ready) { opacity = 1; b.opacity = 0; }
+            onStatusChanged: {
+                const want = wanted ? "file://" + wanted : "";
+                if (status === Image.Ready && source === want) { opacity = 1; b.opacity = 0; }
+                else if (status === Image.Error) { opacity = 0; source = ""; }
+            }
             Behavior on opacity { NumberAnimation { duration: Theme.anim * 4 } }
         }
         Image {
@@ -166,7 +178,11 @@ Variants {
             asynchronous: true
             sourceSize: Qt.size(parent.width, parent.height)
             opacity: 0
-            onStatusChanged: if (status === Image.Ready) { opacity = 1; a.opacity = 0; }
+            onStatusChanged: {
+                const want = wanted ? "file://" + wanted : "";
+                if (status === Image.Ready && source === want) { opacity = 1; a.opacity = 0; }
+                else if (status === Image.Error) { opacity = 0; source = ""; }
+            }
             Behavior on opacity { NumberAnimation { duration: Theme.anim * 4 } }
         }
 

@@ -105,7 +105,7 @@ AppWindow {
                     width: devList.width
                     icon: win.icon(modelData.deviceType)
                     title: modelData.alias
-                    subtitle: Nearby.pending.length ? Tr.t("Click to choose files first") : [modelData.deviceModel, modelData.ip].filter(x => x).join("  ·  ")
+                    subtitle: Nearby.pending.length ? [modelData.deviceModel, modelData.ip].filter(x => x).join("  ·  ") : Tr.t("Click to choose files first")
                     trailing: Nearby.pending.length ? Tr.t("Send") : ""
                     onClicked: Nearby.pending.length ? Nearby.sendTo(modelData.fingerprint) : win.pick()
                 }
@@ -132,17 +132,19 @@ AppWindow {
                         Layout.fillWidth: true
                         text: tr.modelData.state === "failed" ? Tr.t("Not sent: %1").arg(tr.modelData.error)
                             : tr.modelData.state === "done" ? (tr.modelData.direction === "send" ? Tr.t("Sent") : Tr.t("Received into Downloads/Nearby"))
-                            : (tr.modelData.total ? Tr.t("Sending to %1: %2%").arg(tr.modelData.alias || "").arg(Math.round(100 * tr.modelData.done / tr.modelData.total)) : Tr.t("Waiting for them to accept…"))
+                            : tr.modelData.direction === "receive"
+                                ? (tr.modelData.total ? Tr.t("Receiving: %1%").arg(Math.round(100 * tr.modelData.done / tr.modelData.total)) : Tr.t("Receiving…"))
+                                : (tr.modelData.total ? Tr.t("Sending to %1: %2%").arg(tr.modelData.alias || "").arg(Math.round(100 * tr.modelData.done / tr.modelData.total)) : Tr.t("Waiting for them to accept…"))
                         color: tr.modelData.state === "failed" ? Theme.danger : Theme.dim
                         elide: Text.ElideRight
                         font.family: Theme.font
                         font.pixelSize: Theme.px(12) * Theme.fontScale
                     }
                     Button {
-                        visible: tr.modelData.state === "done" && tr.modelData.direction === "receive"
+                        visible: tr.modelData.state === "done" && tr.modelData.direction === "receive" && (tr.modelData.files || []).length > 0
                         flat: true
                         text: Tr.t("Show")
-                        onClicked: Files.show((tr.modelData.files || [""])[0].replace(/\/[^/]*$/, ""))
+                        onClicked: Files.show(tr.modelData.files[0].replace(/\/[^/]*$/, ""))
                     }
                     IconButton {
                         visible: !["done", "failed"].includes(tr.modelData.state)
@@ -153,7 +155,13 @@ AppWindow {
                     }
                 }
             }
-            Text { Layout.fillWidth: true; visible: Nearby.note !== ""; text: Nearby.note; color: Theme.danger; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            RowLayout {
+                Layout.fillWidth: true
+                visible: Nearby.note !== ""
+                spacing: Theme.px(6)
+                Text { Layout.fillWidth: true; text: Nearby.note; color: Theme.danger; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                IconButton { size: Theme.px(22); icon: "window-close"; tip: Tr.t("Dismiss"); onClicked: Nearby.note = "" }
+            }
 
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.border }
             SwitchRow {

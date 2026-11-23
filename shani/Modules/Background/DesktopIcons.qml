@@ -27,7 +27,7 @@ PanelWindow {
     color: "transparent"
     WlrLayershell.namespace: "shani-desktop-icons"
     WlrLayershell.layer: WlrLayer.Bottom
-    WlrLayershell.keyboardFocus: renaming !== "" ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: (renaming !== "" || selected !== "") ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
     visible: Settings.loaded && Settings.data.desktopIcons && !Lock.locked && !Niri.overviewOpen && entries.length > 0
     mask: Region { item: menu.visible || stack.visible ? whole : iconsArea }
 
@@ -94,6 +94,25 @@ PanelWindow {
         }
         return out;
     }
+    onEntriesChanged: {
+        const keys = {};
+        for (const e of entries) keys[e.key] = true;
+        if (selected !== "" && !keys[selected]) selected = "";
+        if (renaming !== "") {
+            let found = false;
+            for (const e of entries) if (e.path === renaming) { found = true; break; }
+            if (!found) renaming = "";
+        }
+        if (menu.visible) {
+            let found = false;
+            for (const e of entries) if (e.path === menu.target) { found = true; break; }
+            if (!found) menu.visible = false;
+        }
+        if (stack.visible && stack.entry) {
+            if (!keys[stack.entry.key]) { stack.visible = false; stack.entry = null; }
+            else for (const e of entries) if (e.key === stack.entry.key) { stack.entry = e; break; }
+        }
+    }
     // the next free slot: down the left, clear of the dock, then the next column
     function slot(i) {
         const rows = Math.max(1, Math.floor((win.height - win.startY - 110) / win.cell));
@@ -135,8 +154,26 @@ PanelWindow {
         win.renaming = "";
     }
 
-    Item { id: whole; anchors.fill: parent }
-    MouseArea { objectName: "nav:pointer"; anchors.fill: parent; visible: menu.visible || stack.visible; onClicked: { menu.visible = false; stack.visible = false; } }
+    Item {
+        id: whole
+        anchors.fill: parent
+        focus: win.selected !== "" && win.renaming === ""
+        Keys.onPressed: e => {
+            if (win.renaming !== "") return;
+            const entry = win.entries.find(en => en.key === win.selected);
+            if (e.key === Qt.Key_Escape) { win.selected = ""; menu.visible = false; stack.visible = false; }
+            else if (!entry) { win.selected = ""; }
+            else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) win.activate(entry);
+            else if (e.key === Qt.Key_F2 && entry.type === "file") win.renaming = entry.path;
+            else if ((e.key === Qt.Key_Delete || e.key === Qt.Key_Backspace) && entry.type === "file") {
+                Quickshell.execDetached(["gio", "trash", entry.path]);
+                win.selected = "";
+            }
+            else return;
+            e.accepted = true;
+        }
+    }
+    MouseArea { objectName: "nav:pointer"; anchors.fill: parent; visible: menu.visible || stack.visible || win.selected !== ""; onClicked: { menu.visible = false; stack.visible = false; win.selected = ""; } }
 
     // the icons' bounding box: the input mask
     Item {
@@ -219,6 +256,7 @@ PanelWindow {
                     text: ic.modelData.name
                     onVisibleChanged: if (visible) input.forceActiveFocus()
                     onAccepted: win.rename(ic.modelData.path, text)
+                    Keys.onEscapePressed: win.renaming = ""
                 }
                 MouseArea {
                     id: area

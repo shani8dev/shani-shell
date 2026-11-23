@@ -23,6 +23,8 @@ PanelWindow {
     WlrLayershell.namespace: "shani-start-hints"
     WlrLayershell.layer: WlrLayer.Bottom
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    Accessible.role: Accessible.Pane
+    Accessible.name: Tr.t("Start hints")
 
     Glass {
         id: card

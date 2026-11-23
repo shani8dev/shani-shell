@@ -33,8 +33,9 @@ Variants {
             opacity: 0
             // in, slowly - never a jump to black
             NumberAnimation on opacity { id: fadeIn; running: false; from: 0; to: 1; duration: Theme.mot(900); easing.type: Easing.OutCubic }
-            Connections { target: cover; function onVisibleChanged() { if (cover.visible) { stage.opacity = 0; fadeIn.restart(); cover.drift(); } } }
-            Component.onCompleted: if (cover.visible) { stage.opacity = 0; fadeIn.restart(); cover.drift(); }   // made on first use, already visible
+            function resetPhotos() { a.source = ""; b.source = ""; stage.onA = true; }
+            Connections { target: cover; function onVisibleChanged() { if (cover.visible) { stage.resetPhotos(); stage.opacity = 0; fadeIn.restart(); cover.drift(); } } }
+            Component.onCompleted: if (cover.visible) { stage.resetPhotos(); stage.opacity = 0; fadeIn.restart(); cover.drift(); }   // made on first use, already visible
 
             // ---- clock: the wallpaper, drifting closer
             Image {
@@ -63,6 +64,7 @@ Variants {
             property int shownA: 0
             property bool onA: true
             function nextPhoto() {
+                if (pics.count <= 0) return;
                 const i = Math.floor(Math.random() * pics.count);
                 if (onA) b.source = pics.get(i, "fileUrl"); else a.source = pics.get(i, "fileUrl");
                 onA = !onA;
@@ -96,6 +98,17 @@ Variants {
                     font.family: Theme.font
                     font.pixelSize: Theme.px(22) * Theme.fontScale
                 }
+            }
+
+            Text {
+                visible: ScreenSaver.preview
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: Theme.px(28)
+                text: Tr.t("Press any key or click to dismiss")
+                color: Qt.rgba(1, 1, 1, 0.7)
+                font.family: Theme.font
+                font.pixelSize: Theme.px(14) * Theme.fontScale
             }
         }
         // a step somewhere else each minute (burn-in), at most a sixth of the screen

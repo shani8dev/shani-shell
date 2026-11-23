@@ -26,6 +26,19 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
+    function clampToScreen() {
+        const sw = win.screen ? win.screen.width : 1920;
+        const sh = win.screen ? win.screen.height : 1080;
+        const w = win.implicitWidth;
+        const h = win.implicitHeight;
+        Settings.data.touchX = Math.max(0, Math.min(sw - w, Settings.data.touchX));
+        Settings.data.touchY = Math.max(0, Math.min(sh - h, Settings.data.touchY));
+    }
+    Component.onCompleted: clampToScreen()
+    onScreenChanged: clampToScreen()
+    onImplicitWidthChanged: clampToScreen()
+    onImplicitHeightChanged: clampToScreen()
+
     Rectangle {
         id: blurCard
         anchors.fill: parent
@@ -33,6 +46,8 @@ PanelWindow {
         color: Theme.alpha(Theme.bg, 0.55)
         border.width: 2
         border.color: Theme.alpha(Theme.accent, 0.8)
+        scale: touchArea.pressed && !touchArea.moved ? 0.92 : 1.0
+        Behavior on scale { NumberAnimation { duration: Theme.mot(80) } }
         Rectangle {
             anchors.centerIn: parent; width: Theme.px(26); height: Theme.px(26); radius: Theme.px(13)
             color: Theme.alpha(Theme.accent, 0.85)
@@ -46,8 +61,10 @@ PanelWindow {
         }
         Accessible.role: Accessible.Button
         Accessible.name: Tr.t("Smart touch: open the Ring")
+        Accessible.onPressAction: Ui.openRingAt(Settings.data.touchX + win.implicitWidth / 2, Settings.data.touchY + win.implicitHeight / 2)
     }
     MouseArea {
+        id: touchArea
         anchors.fill: parent
         property point grab
         property bool moved: false
@@ -57,9 +74,9 @@ PanelWindow {
             if (Math.abs(dx) + Math.abs(dy) < 6 && !moved)
                 return;
             moved = true;
-            Settings.data.touchX = Math.max(0, Math.min((win.screen ? win.screen.width : 1920) - 56, Settings.data.touchX + dx));
-            Settings.data.touchY = Math.max(0, Math.min((win.screen ? win.screen.height : 1080) - 56, Settings.data.touchY + dy));
+            Settings.data.touchX = Math.max(0, Math.min((win.screen ? win.screen.width : 1920) - win.implicitWidth, Settings.data.touchX + dx));
+            Settings.data.touchY = Math.max(0, Math.min((win.screen ? win.screen.height : 1080) - win.implicitHeight, Settings.data.touchY + dy));
         }
-        onReleased: if (!moved) Ui.openRingAt(Settings.data.touchX + 28, Settings.data.touchY + 28)
+        onReleased: if (!moved) Ui.openRingAt(Settings.data.touchX + win.implicitWidth / 2, Settings.data.touchY + win.implicitHeight / 2)
     }
 }

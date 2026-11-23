@@ -23,6 +23,8 @@ ColumnLayout {
     property bool sshPassword: true
     property bool sshPubkey: true
     property bool sshRoot: false
+    property string sshAllowUsers: ""
+    property string sshAllowGroups: ""
     // remote desktop: niri cannot be reached over VNC or RDP; Sunshine captures
     // the screen through KMS (it needs cap_sys_admin) and Moonlight shows it on
     // another computer, a phone or a TV (niri discussion #680). Its user service
@@ -66,6 +68,9 @@ ColumnLayout {
                 page.sshPassword = get("PasswordAuthentication") !== "no";
                 page.sshPubkey = get("PubkeyAuthentication") !== "no";
                 page.sshRoot = get("PermitRootLogin") === "yes";
+                const raw = k => { const m = new RegExp("^sshd_" + k + "\\s+(.*)", "mi").exec(text); return m ? m[1].trim() : ""; };
+                page.sshAllowUsers = raw("AllowUsers"); page.sshAllowGroups = raw("AllowGroups");
+                sshAllowUsersField.text = page.sshAllowUsers; sshAllowGroupsField.text = page.sshAllowGroups;
                 const out = [];
                 let cur = null;
                 for (const l of text.split("\n")) {
@@ -181,14 +186,14 @@ ColumnLayout {
             hint: Tr.t("Turn off to allow keys only")
             checked: page.sshPassword
             onToggled: on => page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"),
-                JSON.stringify({ password: on, pubkey: page.sshPubkey, root: page.sshRoot }))
+                JSON.stringify({ password: on, pubkey: page.sshPubkey, root: page.sshRoot, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim() }))
         }
         SwitchRow {
             Layout.fillWidth: true
             text: Tr.t("Allow key login")
             checked: page.sshPubkey
             onToggled: on => page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"),
-                JSON.stringify({ password: page.sshPassword, pubkey: on, root: page.sshRoot }))
+                JSON.stringify({ password: page.sshPassword, pubkey: on, root: page.sshRoot, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim() }))
         }
         SwitchRow {
             Layout.fillWidth: true
@@ -196,8 +201,13 @@ ColumnLayout {
             hint: Tr.t("Off is safer")
             checked: page.sshRoot
             onToggled: on => page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"),
-                JSON.stringify({ password: page.sshPassword, pubkey: page.sshPubkey, root: on }))
+                JSON.stringify({ password: page.sshPassword, pubkey: page.sshPubkey, root: on, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim() }))
         }
+        Text { text: Tr.t("Allow users (space separated, empty = all)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        TextField { id: sshAllowUsersField; Layout.fillWidth: true; placeholder: page.user }
+        Text { text: Tr.t("Allow groups (space separated, empty = all)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        TextField { id: sshAllowGroupsField; Layout.fillWidth: true; placeholder: "wheel" }
+        Button { text: Tr.t("Save allow list"); onClicked: page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"), JSON.stringify({ password: page.sshPassword, pubkey: page.sshPubkey, root: page.sshRoot, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim() })) }
     }
 
     SwitchRow {

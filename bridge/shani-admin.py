@@ -557,6 +557,8 @@ def remote_access_get(_req: dict) -> dict:
         "PasswordAuthentication": "yes",
         "PubkeyAuthentication": "yes",
         "PermitRootLogin": "prohibit-password",
+        "AllowUsers": "",
+        "AllowGroups": "",
     }
     try:
         for line in SSHD_DROPIN.read_text(
@@ -575,7 +577,25 @@ def remote_access_get(_req: dict) -> dict:
         "password": cfg["PasswordAuthentication"].lower() == "yes",
         "pubkey": cfg["PubkeyAuthentication"].lower() == "yes",
         "root": cfg["PermitRootLogin"].lower() == "yes",
+        "allowUsers": cfg["AllowUsers"],
+        "allowGroups": cfg["AllowGroups"],
     }
+
+
+_SSH_NAME = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
+
+
+def _ssh_names(raw: str, label: str) -> str:
+    raw = str(raw or "").strip()
+    if not raw:
+        return ""
+    toks = raw.split()
+    if len(toks) > 32:
+        raise Refused(f"too many {label}")
+    for t in toks:
+        if not _SSH_NAME.match(t):
+            raise Refused(f"bad {label}: {t!r}")
+    return " ".join(toks)
 
 
 def remote_access_set(req: dict) -> dict:
@@ -584,9 +604,15 @@ def remote_access_set(req: dict) -> dict:
         "PubkeyAuthentication": "yes" if req.get("pubkey", True) else "no",
         "PermitRootLogin": "yes" if req.get("root", False) else "prohibit-password",
     }
+    allow_users = _ssh_names(req.get("allowUsers", ""), "AllowUsers")
+    allow_groups = _ssh_names(req.get("allowGroups", ""), "AllowGroups")
     content = "# Managed by shani-shell. sshd reads this drop-in after the main config;\n# a bad line here can be removed by deleting this file.\n"
     for k, v in vals.items():
         content += f"{k} {v}\n"
+    if allow_users:
+        content += f"AllowUsers {allow_users}\n"
+    if allow_groups:
+        content += f"AllowGroups {allow_groups}\n"
     SSHD_DROPIN.parent.mkdir(parents=True, exist_ok=True)
     # pre-validate on a temp file with sshd -t -f when available
     if shutil.which("sshd"):
@@ -1279,6 +1305,46 @@ def login_defs_set(req: dict) -> dict:
     return login_defs_get(req)
 
 
+def _unit_active(name: str) -> bool:
+    try:
+        r = subprocess.run(["systemctl", "is-active", name], capture_output=True, text=True, timeout=5)
+        return r.stdout.strip() == "active"
+    except Exception:
+        return False
+
+
+def _unit_enabled(name: str) -> bool:
+    try:
+        r = subprocess.run(["systemctl", "is-enabled", name], capture_output=True, text=True, timeout=5)
+        return r.stdout.strip() in ("enabled", "static")
+    except Exception:
+        return False
+
+
+def fstrim_get(_req: dict) -> dict:
+    return {"enabled": _unit_enabled("fstrim.timer"), "active": _unit_active("fstrim.timer")}
+
+
+def fstrim_set(req: dict) -> dict:
+    on = bool(req.get("enabled"))
+    r = subprocess.run(["systemctl", "enable" if on else "disable", "--now", "fstrim.timer"], capture_output=True, text=True, timeout=20)
+    if r.returncode != 0:
+        raise Refused((r.stderr or r.stdout).strip().splitlines()[-1][:200] or "fstrim.timer change failed")
+    return fstrim_get(req)
+
+
+def cups_browsed_get(_req: dict) -> dict:
+    return {"enabled": _unit_enabled("cups-browsed.service"), "active": _unit_active("cups-browsed.service")}
+
+
+def cups_browsed_set(req: dict) -> dict:
+    on = bool(req.get("enabled"))
+    r = subprocess.run(["systemctl", "enable" if on else "disable", "--now", "cups-browsed.service"], capture_output=True, text=True, timeout=20)
+    if r.returncode != 0:
+        raise Refused((r.stderr or r.stdout).strip().splitlines()[-1][:200] or "cups-browsed change failed")
+    return cups_browsed_get(req)
+
+
 COMMANDS = {
     "guest": guest,
     "wakeup": wakeup,
@@ -1318,6 +1384,10 @@ COMMANDS = {
     "resolved-set": resolved_set,
     "login-defs-get": login_defs_get,
     "login-defs-set": login_defs_set,
+    "fstrim-get": fstrim_get,
+    "fstrim-set": fstrim_set,
+    "cups-browsed-get": cups_browsed_get,
+    "cups-browsed-set": cups_browsed_set,
 }
 
 

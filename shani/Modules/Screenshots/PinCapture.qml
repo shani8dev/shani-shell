@@ -16,7 +16,7 @@ PanelWindow {
     // floating window, not fullscreen — positioned by the user
     WlrLayershell.namespace: "shani-pin-capture"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
     implicitWidth: Theme.px(480)
@@ -27,10 +27,12 @@ PanelWindow {
 
     // keyboard: Esc closes the pin
     Item {
+        id: keyHandler
         anchors.fill: parent
         focus: win.visible
         Keys.onEscapePressed: { Screenshots.pinned = false; Screenshots.pinnedPath = ""; }
     }
+    onVisibleChanged: if (visible) keyHandler.forceActiveFocus()
 
     Glass {
         id: card
@@ -68,27 +70,43 @@ PanelWindow {
             }
 
             // the screenshot image
-            Image {
-                id: shot
+            Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                fillMode: Image.PreserveAspectFit
-                source: Screenshots.pinnedPath !== "" ? "file://" + Screenshots.pinnedPath : ""
-                asynchronous: true
-                cache: false
-                MouseArea {
+
+                Image {
+                    id: shot
                     anchors.fill: parent
-                    acceptedButtons: Qt.LeftButton | Qt.RightButton
-                    onClicked: mouse => {
-                        if (mouse.button === Qt.RightButton) {
-                            Quickshell.execDetached(["sh", "-c", 'printf %s "$1" | wl-copy', "sh", Screenshots.pinnedPath]);
-                        } else {
-                            Quickshell.execDetached(["xdg-open", Screenshots.pinnedPath]);
+                    fillMode: Image.PreserveAspectFit
+                    source: Screenshots.pinnedPath !== "" ? "file://" + Screenshots.pinnedPath : ""
+                    asynchronous: true
+                    cache: false
+                    sourceSize.width: Math.max(1, Math.round(width))
+                    sourceSize.height: Math.max(1, Math.round(height))
+                    visible: status !== Image.Error
+                    MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        onClicked: mouse => {
+                            if (mouse.button === Qt.RightButton) {
+                                Quickshell.execDetached(["sh", "-c", 'printf %s "$1" | wl-copy', "sh", Screenshots.pinnedPath]);
+                            } else {
+                                Quickshell.execDetached(["xdg-open", Screenshots.pinnedPath]);
+                            }
                         }
+                        // Qt fires `clicked` for both clicks of a double-click, so a
+                        // separate handler opened the image twice over. Left-click above
+                        // already opens it once.
                     }
-                    // Qt fires `clicked` for both clicks of a double-click, so a
-                    // separate handler opened the image twice over. Left-click above
-                    // already opens it once.
+                }
+
+                Text {
+                    anchors.centerIn: parent
+                    visible: shot.status === Image.Error
+                    text: Tr.t("Screenshot not found")
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
                 }
             }
 

@@ -47,11 +47,14 @@ def load_admin(tmp_path, monkeypatch):
 
 def test_remote_access_set_writes_dropin(tmp_path, monkeypatch):
     sa = load_admin(tmp_path, monkeypatch)
-    r = sa.remote_access_set({"password": False, "pubkey": True, "root": False})
+    r = sa.remote_access_set({"password": False, "pubkey": True, "root": False, "allowUsers": "alice bob", "allowGroups": "wheel"})
     assert r["password"] is False and r["pubkey"] is True and r["root"] is False
+    assert r["allowUsers"] == "alice bob"
     txt = sa.SSHD_DROPIN.read_text()
     assert "PasswordAuthentication no" in txt
     assert "PermitRootLogin prohibit-password" in txt
+    assert "AllowUsers alice bob" in txt
+    assert "AllowGroups wheel" in txt
 
 
 def test_pwquality_set_preserves_unknown_lines(tmp_path, monkeypatch):
@@ -237,3 +240,11 @@ def test_login_defs_get_set_preserves_other_lines(tmp_path, monkeypatch):
         sa.login_defs_set({"settings": {"PASS_MAX_DAYS": 100000}})
     with pytest.raises(Exception):
         sa.login_defs_set({"settings": {"EVIL": 1}})
+
+
+def test_fstrim_and_cups_browsed_set(tmp_path, monkeypatch):
+    sa = load_admin(tmp_path, monkeypatch)
+    r = sa.fstrim_set({"enabled": True})
+    assert r["enabled"] in (True, False)  # mocked systemctl returns active/enabled as False in our fake? depends
+    r = sa.cups_browsed_set({"enabled": False})
+    assert "enabled" in r

@@ -14,7 +14,10 @@ ColumnLayout {
     id: page
     spacing: Theme.px(8)
     property bool active: false
-    onActiveChanged: if (active) scan()
+    readonly property var adminCmd: (Quickshell.env("SHANI_ADMIN_TOOL") || "pkexec /usr/lib/shani-shell/shani-admin.py").split(" ")
+    property bool fstrimEnabled: false
+    property bool fstrimLoaded: false
+    onActiveChanged: if (active) { scan(); fstrimGet.running = false; fstrimGet.running = true; }
 
     readonly property string tool: Quickshell.env("SHANI_CLEANUP_TOOL") || "/usr/lib/shani-shell/cleanup.py"
     property var found: null
@@ -39,7 +42,9 @@ ColumnLayout {
         page.clean(what, arg, label);
     }
     Timer { id: askTimer; interval: 4000; onTriggered: page.asking = "" }
-    Component.onCompleted: scan()
+    Component.onCompleted: { scan(); fstrimGet.running = false; fstrimGet.running = true; }
+    Process { id: fstrimGet; command: page.adminCmd.concat(["fstrim-get"]); stdout: StdioCollector { onStreamFinished: { try { const d = JSON.parse(text); page.fstrimEnabled = !!d.enabled; page.fstrimLoaded = true; } catch(e) {} } } }
+    Process { id: fstrimSet; stdinEnabled: true; property string payload: ""; onStarted: { write(payload + "\n"); stdinEnabled = false; } onExited: code => { stdinEnabled = true; fstrimGet.running = false; fstrimGet.running = true; if (code !== 0) page.done = Tr.t("Could not change SSD trim"); } }
     Process {
         id: scanner
         command: ["python3", page.tool, "scan"]
@@ -160,6 +165,16 @@ ColumnLayout {
         action: Tr.t("Remove")
         working: page.busy === "flatpak"
         onGo: page.clean("flatpak", "", Tr.t("unused runtimes removed"))
+    }
+
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("SSD maintenance") }
+    SwitchRow {
+        Layout.fillWidth: true
+        visible: page.fstrimLoaded
+        text: Tr.t("Trim SSD weekly (fstrim.timer)")
+        hint: Tr.t("Keeps SSD performance steady; safe to leave on")
+        checked: page.fstrimEnabled
+        onToggled: on => { fstrimSet.payload = JSON.stringify({ enabled: on }); fstrimSet.command = page.adminCmd.concat(["fstrim-set"]); fstrimSet.running = true; }
     }
 
     SectionTitle { Layout.fillWidth: true; visible: !!page.found && page.found.caches.length > 0; text: Tr.t("App caches") }

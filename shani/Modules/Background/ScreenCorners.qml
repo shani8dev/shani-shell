@@ -28,8 +28,11 @@ Variants {
                 WlrLayershell.namespace: "shani-corner"
                 WlrLayershell.layer: WlrLayer.Top
                 WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+                Accessible.ignored: true
                 Canvas {
                     anchors.fill: parent
+                    antialiasing: true
+                    Accessible.ignored: true
                     onPaint: {
                         const c = getContext("2d"), r = corner.r;
                         const cx = corner.modelData.left ? r : 0, cy = corner.modelData.top ? r : 0;
