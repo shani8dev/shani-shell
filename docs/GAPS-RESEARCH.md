@@ -4575,3 +4575,264 @@ Ranked value × ease. `S` = security, `P` = privacy, `A` = accessibility.
 20. Transcript cancellation leaves partial state. `ChronoaPanel.qml:173-189` appends streamed reply chunks with no per-turn cancel in the panel (filed at assistant level, not in the transcript widget); toggling the panel mid-stream keeps a half-bubble. Sketch: mark truncated turns explicitly.
 
 End lines — skipped: no runtime/QML verification, no backend code changes, and I did not re-check which of these the parallel chronoa repo already fixed. Risk: item 1 is a live permission bypass through the documented `chronoa approve` IPC, and item 2 leaves raw speech on disk indefinitely — both should be treated before the cosmetic ones.
+
+---
+
+# Twenty-first pass — VERBATIM agent reports
+
+## VERBATIM: Theme & appearance craft
+
+dive into the theme/appearance sources. Twenty-pass skip list honored (no re-reports of Theme.qml px/fontScale, type scale, icon themes, per-monitor wallpaper, wallpaper style, dark-toggle, accent token, transparency/material, high-contrast, green theme, palettes). All findings static; no QML runtime.
+
+## Theme & appearance craft — new gaps, ranked by value × ease
+
+1. **[H×E] "Reduce transparency" doesn't stop compositor blur.** `Settings.blurWanted` = `data.blur && !(reduceTransparencyOnBattery && onBattery)` (`Common/Settings.qml:21`) ignores `data.reduceTransparency`. ~30 surfaces bind `BackgroundEffect.blurRegion: Settings.blurWanted && …` (`Bar.qml:136`, `AppWindow.qml:45`, `Launcher.qml:39`…); the toggle only swaps `Glass`'s fill (`Glass.qml:22-27`, `Theme.qml:139-141`). Cards go opaque but blur still burns GPU behind them. *Sketch: add `&& !data.reduceTransparency && !data.highContrast` to `blurWanted`.*
+2. **[H×E] No "follow system theme" mode.** `darkSchedule` is only `manual|sunset|custom` (`Settings.qml:514`, `SettingsPage.qml:816`). `Appearance.qml:115-119` only *writes* `color-scheme`; nothing reads it or `prefers-color-scheme`. *Sketch: add a "system" mode with a `gsettings monitor` like `WallpaperSync.qml:23-43`.*
+3. **[H×E] Slideshow / theme Apply erase per-style wallpapers (data loss).** Both set `wallpaperLight=""`, `wallpaperDark=""` on a wallpaper change (`Appearance.qml:101-103`, `WallpaperStyle.qml:65-67`), destroying separately-set light/dark pictures. *Sketch: store a dedicated `slideshowWallpaper`/`themeWallpaper` key; never clear the style fields.*
+4. **[H×M] Accessible accent machinery exists but is dead code.** `Common/Accents.js:58-81` derives 8 harmonized accents with 4.5:1-validated inks; only `tests/test_shell_helpers.py:243` calls it. `Theme.qml:80-88` instead uses 9 static hex pairs + HSL heuristics; there is no custom color input (`SettingsPage.qml:670-711`). *Sketch: add a color field, call `Accents.derive()`, use its container/ink tokens.*
+5. **[M×E] Wallpaper snaps while the palette cross-fades.** Theme colors blend via `darkT` over 300 ms (`Theme.qml:29-30`), but wallpaper selection uses the instant `dark` (`Theme.qml:95`), consumed by `Wallpaper.qml:38,72`. *Sketch: switch the wallpaper at `darkT≈0.5`, or drive the existing two-image fade from `darkT`.*
+6. **[M×E] `animationSpeed` is a dead knob.** Exposed at `SettingsPage.qml:1320-1321`, default at `Settings.qml:245`, read nowhere; the theme fade hardcodes 300 ms (`ThemeFade.js:23`, `Theme.qml:30`). *Sketch: `fadeMs(reduceMotion, speed)` and pass `Settings.data.animationSpeed`.*
+7. **[M×E] Quantizer URL breaks on non-space special chars.** `Theme.qml:50` only does `.replace(/ /g,"%20")`; a wallpaper path with `#`, `?`, `%` or unicode yields a bad `file://` URL, quantizer returns nothing, accent silently falls back to `chosen` (`:74-76`). `Wallpaper.qml:184` and `SettingsWallpaperStyle.qml:41` already encode per segment. *Sketch: use `split("/").map(encodeURIComponent).join("/")`.*
+8. **[M×E] No contrast validation of the accent against surfaces.** `Theme.qml:92` checks ink *on* the accent only; nothing checks accent vs `bg`/`accentSoft`. Light yellow `#f8e45c` on light `bg` is ~1.2:1, so `accentLine`/accent-tinted text is unreadable. *Sketch: on accent pick, `Contrast.ratio(accent,bg)` → warn or auto-darken.*
+9. **[M×M] No blur-availability detection or fallback.** Every surface requests `BackgroundEffect` (niri `ext-background-effect`), but no capability check exists; the only gate is a manual env override in `ChronoaPanel.qml:46`. `Theme.glass` alpha 0.68 assumes blur is live (`Theme.qml:139-141`) — without the protocol, thin glass over a bright wallpaper is hard to read. *Sketch: detect support; raise glass alpha / force opaque when unavailable.*
+10. **[M×E] Blur is a single boolean with no levels.** `Settings.qml:174` `blur: true`; no strength/size control anywhere, so "subtle vs heavy" and the performance trade-off are one-size. *Sketch: add a `blurStrength` token feeding region geometry or fewer blur regions on large panels.*
+11. **[M×E] Shuffle reshuffles every tick; no back/history.** `Appearance.qml:93-100` Fisher-Yates on each trigger, so `slide` and "previous" are meaningless; no recent-wallpaper list. *Sketch: shuffle once per cycle, keep a history stack with a "previous wallpaper" action.*
+12. **[M×M] Saved themes are path-fragile.** `WallpaperStyle.qml:73-91` stores `{name, image, palette}`; `loadTheme` just reopens `image` — move/delete the photo and the theme is dead, though its palette snapshot is still stored. *Sketch: materialize the palette without re-reading the image, or bundle the image into a theme dir.*
+13. **[M×M] No undo/revert of an applied theme.** `WallpaperStyle.apply()` (`:53-70`) flips wallpaper, clears style fields, enables adaptive palette and reloads matugen in one shot; the only recovery is manually reloading a previously saved theme. *Sketch: snapshot pre-apply theme keys and offer "Revert".*
+14. **[L×H] No per-app theme override.** `Theme.qml:16` is one global singleton; `AppWindow.qml:44-45,94` reads it directly. No way to force light/dark or an accent for one app. *Sketch: per-desktop metadata override read by AppWindow.*
+15. **[L×E] Control rows don't reflow at large UI scale.** `SettingsLook.qml:83-91` puts 7 corner choices + a fixed `Theme.px(80)` label in one `RowLayout`; unlike the accent swatches' `Flow` (`SettingsPage.qml:666`), it overflows at high `Ui.uiScale`. *Sketch: swap that `RowLayout` for `Flow`.*
+16. **[L×E] Live wallpaper audio is force-muted.** `Wallpaper.qml:187` `AudioOutput { muted: true }` with no per-video option. *Sketch: a per-wallpaper "play sound" toggle.*
+
+**Skipped / risk:** all verdicts are static; blur-protocol absence, contrast ratios and high-scale overflow need one live session or compositor check to confirm. I did not re-report the twenty-pass items, so a "no theme export/import" claim remains filed even though saved themes now exist internally.
+
+## VERBATIM: Updates & software management UX
+
+## UPDATES & SOFTWARE MANAGEMENT UX — 21st-pass findings
+
+All static. `GAPS.md`/`GAPS-RESEARCH.md` already note: OS-update availability never announced, firmware notification, OS-update no-history/last-checked/reboot-defer/metered-warning, shani-deploy handoff, package install unavailable, Flatpakref/AppImage signature gaps, devel/no-restart permission gaps. Skipped. **Also note GAPS.md:510-520 and :760 are stale** — version history, add-ons, repo enable/disable, ODRS, featured, screenshots and age warning are all *in code* (`SoftwareWindow.qml:362-417,547-581`; `appstore.py:152-197,241-322`).
+
+### Ranked (value × ease)
+
+1. **[BUG] Update-channel toggle can never select "latest".** `SettingsAbout.qml:266` compares `Updates.channel === "latest"`, but `:280` passes `"beta"`; `Updates.qml:21` only accepts `stable|latest` and coerces `beta→stable`. Every click is a no-op. `Common/Settings.qml:434` comment ("stable or beta") confirms the drift. Sketch: compare/pass `"latest"`.
+2. **[BUG] Flatpak app updates never reach Updates.attention or any notification.** `SoftwareWindow.qml:41` computes `updates` but uses it only as a tab label (`:170`); `Updates.qml:17` attention = OS available || reboot || firmware. App updates are discoverable only by opening Software. Sketch: publish pending count to a service and notify once per new version.
+3. **[BUG] Leftover removal's two-click state is undeclared and never times out.** `win.removingLeftover` is used at `SoftwareWindow.qml:510-512` but only `win.removing` is declared (`:40`) and reset by `removeTimer` (`:35`). State persists across tabs indefinitely. Sketch: declare property; reset both in `removeTimer`.
+4. **[BUG] Live search leaves stale results and hides its 3-char floor.** `SoftwareWindow.qml:212` fires only at ≥3 chars with 450 ms debounce; `ask()` queue (`:70-92`) has no generation token, so deleting back to 2 chars keeps old results and no hint explains the silence. Sketch: add monotonically increasing search id, ignore older callbacks, show "type 3+ characters".
+5. **No cancel for a running install/remove/update.** `SoftwareWindow.qml:129-154` `jobProc` has no kill; every button is merely disabled (`enabled: !jobProc.running`, `:334,337,458,482`). A hung Flatpak call traps the user. Sketch: Cancel button → `jobProc.kill()` + reset state.
+6. **No free-space preflight before install/update.** `appstore.py:658-684` sends `install/update/update-all` straight to `stream()`; `SoftwareWindow.qml:337,458,482` never checks space. Full disk → mid-job failure with raw stderr. Sketch: compare required size to `os.statvfs` free space, confirm first.
+7. **No download/install size shown before installing.** `info()` (`appstore.py:384-409`) has no size field; the app page (`SoftwareWindow.qml:318-337`) shows no size, while the *installed* list does (`:480`). Sketch: add size from `flatpak info`/AppStream to `info()`; render "X MB download · Y MB installed".
+8. **"Update all" updates everything with no confirmation or scope.** `SoftwareWindow.qml:458` directly runs `["update-all"]`; the count at `:41` isn't expanded anywhere. Sketch: confirmation listing the apps and total size before `runJob`.
+9. **Common failures shown as raw bridge stderr.** `SoftwareWindow.qml:202-207` maps only "Flatpak missing" and "permission denied"; `appstore.py:469-471` keeps only the last output line as `error`. ENOSPC, offline, app-not-found all surface untranslated. Sketch: map errno/network patterns to friendly copy + Retry.
+10. **ODRS reviews fetched live, uncached, on every app page.** `appstore.py:248-287`, called from `info():407`, uses a 3 s `urlopen` each open; the AppStream index is cached (`:202-220`) but reviews aren't. Sketch: cache by app id + mtime like the index.
+11. **No way to hold back a broken app update.** `appstore.py:683-684` `update-all` has no exclusion; `SoftwareWindow.qml:482` has no pin/hold. Sketch: "Skip this version" persisted in state, filtered from `remote-ls --updates` results.
+12. **No offline or catalogue-age affordance.** `SoftwareWindow.qml:255` says only "fetch Flathub's list" when results are empty; `appstore.py:202-220` caches but never exposes the AppStream mtime; `odrs()` silently returns zero. Sketch: show "Catalogue refreshed <date>" + a clear offline banner.
+13. **App page is near-empty for installed apps absent from AppStream.** `appstore.py:387-394` fallback returns only `id/name/installed`; QML page `:318-450` then has no description, screenshots, rating, or version history. Common for side-loaded/other-remote apps. Sketch: enrich fallback from `flatpak info`.
+14. **No automatic app updates / quiet hours / metered or battery gating.** `Updates.qml:102-108` checks OS state hourly but nothing auto-updates Flatpaks; `SoftwareWindow.qml:458` is manual-only. Sketch: opt-in timer with quiet-hours, metered-connection and battery checks.
+15. **Repository management is enable/disable only.** `SoftwareWindow.qml:547-581` + `appstore.py:325-344,648-655`: no add/remove remote by name+URL from the UI. Sketch: Add Remote / Remove Remote with confirmation.
+16. **Binary sizes mislabeled KB/MB/GB.** `SoftwareWindow.qml:157` divides by 1024 but prints decimal units (same defect filed for Files, not Software). Sketch: KiB/MiB/GiB.
+17. **No installed-app inventory export or app-update log.** `installed()` (`appstore.py:412-441`) is read only into the UI; nothing records that an app was updated or from which version. Sketch: append update results to a JSON log; add "Export installed list" button.
+
+**Skipped/not checked:** all skip-list items above; no runtime/QML/flatpak/fwupd verification (stand-in tests in `dev/shell-parts/software.sh` only cover search, category, page, install progress, leftovers). **Risk:** #1 is a user-visible dead control; #3/#4 are small but real state bugs. Everything else is a gap, not a regression.
+
+## VERBATIM: Input methods & multilingual text entry
+
+Read-only research complete — no files changed. Both gap documents were read first; all twenty passes' listed items (incl. the fifth-pass "Input methods and multilingual text entry" section and the third-pass "no RTL mirroring") were excluded. The codebase already has deep fcitx5 + OSK + handwriting/dictation work, so the gaps below are craft-level residual issues found by reading code, not missing subsystems.
+
+## Ranked gaps (value × ease)
+
+**1. [H×E] OSK auto-show misses most text fields.** `Ui.trackTextInput` is called only in `shani/Common/TextField.qml:58-60` and `shani/Modules/Launcher/Launcher.qml:630-631`. Every `TextArea`/`TextEdit` body — `NotesPanel.qml:353`, `TextEditorPanel.qml:700,715`, `MailWindow.qml:364,417`, `TranslateWindow.qml:213,247`, `ChronoaPanel.qml:809`, `WritingToolsSheet.qml:156` — leaves `Ui.textInput` null, so `Ui.textFocus` (`Common/Ui.qml:175`) stays false and `Osk.qml:151` never raises the keyboard on tablet/gamepad.
+*Sketch:* attach the same three focus handlers to those editors (or track `activeFocus` globally).
+
+**2. [H×E] Fresh-install IME poll counter reads the wrong profile path.** `Ime.qml:50` watches only `~/.config/fcitx5/profile`; the shipped two-method profile is installed to `/etc/xdg/fcitx5/profile` (`dev/session.sh:106`). `onLoadFailed` sets `methods=0` (`Ime.qml:55`), so the 2 s poll (`Ime.qml:69`) never starts and the bar/CC label goes stale after Ctrl+Space.
+*Sketch:* also FileView the XDG system profile.
+
+**3. [M×E] fcitx5 death leaves a stale IME label.** `Ime.qml:37-40` only updates `current`/`running` on stdout; `fcitx5-remote -n` exiting non-zero leaves the last method and `running:true` forever; `stop()`/`start()` (`:29-30`) never clear it.
+*Sketch:* clear on `onExited` with no output.
+
+**4. [H×E] "Next input method" shortcut is dead when fcitx5 is absent.** `dev/niri/session.kdl:179 Mod+I` → `shell.qml:367 Ime.toggle()` → `fcitx5-remote -t` (`Ime.qml:26`) with no fallback, while the Control Centre tile falls back to niri layout switching (`SidebarTiles.qml:529`).
+*Sketch:* mirror the tile's fallback inside `Ime.toggle()`.
+
+**5. [M×E] IME start/stop have no UI caller.** `Ime.start()`/`stop()` (`Ime.qml:29-30`) are unused; only `configure()` is wired (`SidebarTiles.qml:530`). A crashed/disabled fcitx5 cannot be restarted from the shell.
+*Sketch:* add an "Enable input method" tile action.
+
+**6. [H×M] OSK/fcitx5 have no hand-off.** `Osk.qml:4-5` claims coexistence, but `press()` (`:284`) wtype's Devanagari/layout keysyms into the field *while* fcitx5 phonetic interprets the same stream; nothing suspends it.
+*Sketch:* suspend fcitx5 while OSK is shown, or commit OSK text via clipboard paste.
+
+**7. [H×M] Remote OSK exposes password text.** The draft renders as 20px clear text (`Keyboard.qml:255-258`) regardless of the focused field's `echoMode` (`TextField.qml:45`); `typed`/`draft`/`lastCommitted` are dumped into state (`shell.qml:1111-1113`).
+*Sketch:* mask draft for secrets; drop typed text from state dumps.
+
+**8. [H×M] Smart matras only see OSK-generated characters.** `Osk.qml:281-282` checks `typed`, updated only at `:285`, reset only on show/toggle. A hardware-typed consonant before an OSK vowel forms no matra; stale `typed` from a previous field can mis-convert.
+*Sketch:* reset on text-focus change and read the real preceding character via selection/AT-SPI.
+
+**9. [M×E] xkb symbols page is hard-coded English and drops the number row.** `Keyboard.qml:67-68` returns the hand-made English symbols for every xkb layout; `osk-layout.py:26-31` reads the AE number row but `Keyboard.qml:72` does `rows.slice(1)`.
+*Sketch:* render `Osk.current.rows[0]` on the symbols page.
+
+**10. [M×E] Level-3/4 xkb symbols are unreachable.** `osk-layout.py:58,80-82` reads only levels 0/1; `Osk.qml:253-256` applies sticky Ctrl/Alt only to ASCII letters/named keys, so AltGr characters (€, Indic digits) cannot be typed.
+*Sketch:* parse level 2/3 keysyms and add an AltGr mode.
+
+**11. [M×E] Dictation ignores the active IME.** `Dictation.qml:20-25` derives language from `Osk.lang`/`current.langs[0]`, never `Ime.current`, so Mod+I to Hindi still transcribes English; it also always appends a trailing space (`:56`).
+*Sketch:* prefer the m17n code from `Ime.current`; make the trailing space optional.
+
+**12. [M×E] IME indicator blank for non-m17n methods.** `Ime.qml:18-24` maps only `m17n_<lang>_` and `keyboard-<x>`; `pinyin`, `anthy`, `libime:*` → `""` → bar chip hidden (`Bar.qml:771`). The hardcoded script map also omits Arabic/Hebrew/Chinese.
+*Sketch:* fall back to the first token of `current` plus a generic icon.
+
+**13. [M×E] No inputMethodHints for non-secret fields.** `TextField.qml:47` sets hints only for secrets; `IntValidator` fields at `TextEditorPanel.qml:584` and `CalendarPanel.qml:1256` have none, so the OSK never offers a numeric keypad or an `@` key for mail fields.
+*Sketch:* expose a `mode` property mapping to `ImhDigitsOnly`/`ImhEmail`/`ImhUrl`.
+
+**14. [M×M] Handwriting has no error/timeout surface.** `Osk.qml:56-75` has no `onExited`; `reading = reader.running` (`:45`) means a slow Tesseract (30 s in `handwriting.py:48`) leaves "Reading…" indefinitely, and a missing `magick` (`:37-38`) returns empty rows silently.
+*Sketch:* clear state and toast on failure.
+
+**15. [M×M] Handwriting text is inserted with no correction step.** `Osk.qml:72` wtype's Tesseract output straight into the app; recognition errors are uneditable before insertion.
+*Sketch:* stage into the remote draft field for confirm/edit.
+
+**16. [M×M] OSK has fixed height and no split/resize.** `Keyboard.qml:22` is `min(300, 60% screen)` with no resize handle or split preset — limiting on wide tablets (distinct from the already-listed "no one-handed mode").
+*Sketch:* add a height setting plus a split preset.
+
+**17. [L×M] No transliteration in mixed-script search.** No transliteration code exists in the tree (grep finds only `Ime.qml` comments); typing "namaste" in the launcher cannot find a "नमस्ते" note, contact or file.
+*Sketch:* reuse the m17n itrans table as a romanization bridge for launcher ranking.
+
+**Context, not re-filed:** RTL/bidi was already in the third-pass a11y list ("no RTL mirroring"); the only mirroring in the tree remains per-message-bubble `layoutDirection` (`MessagesWindow.qml:98`), and bidi controls are merely stripped in `bridge/shani_link/phone.py:229`. Emoji pages, candidate windows/preedit, spellcheck, swipe/one-handed, and Indic handwriting OCR degradation were all in earlier passes and are skipped here.
+
+**Skipped / risk:** Static reading only — no QML runtime, real fcitx5, touchscreen, or multi-monitor verification; items 2, 6 and 8 depend on fcitx5/Qt/AT-SPI behavior that could not be observed here.
+
+## VERBATIM: Disk & storage management UX craft
+
+# 21st pass — Disk & storage management UX craft (static only)
+
+**Scope read:** `Modules/Disks/DisksWindow.qml`, `Services/Disks.qml`, `bridge/disks.py`, `Services/Drives.qml`, `Services/DiskUsage.qml`+`.js`, `Modules/DiskUsage/DiskUsagePanel.qml`, `bridge/dupes.py`, `bridge/drives.py`, `bridge/files.py`, Files USB/drive surfaces, `Plugged.qml`/`plugwatch.py`, `data/systemd` (no mount units exist).
+
+**Not re-reported (already built):** proportional partition bar, SMART detail dialog + self-tests, job progress/cancel, mount options, benchmark, take-ownership, detach-loop, erase/format/encrypt/install-stick; Files' image write/backup/mount/unlock/passphrase; DiskUsage's treemap/biggest/duplicates/trash-review.
+
+## Ranked gaps (value × ease)
+
+1. **[DATA-LOSS] Disks will erase/format/encrypt the running system disk.** Buttons gated only by a 4-second double-click; no `removable` check, no "type the device name" gate that the Files USB dialog uses. `DisksWindow.qml:140-297,430-433`; `disks.py:85-187` accepts any path vs `drives.py:141-145` + `FilesPanel.qml:2783-2797`. *Sketch: require removable, or typed `/dev/…` confirm for non-removable.*
+2. **[DATA-LOSS] Disks encrypt passphrase = 4 chars, typed once, no recovery warning.** A typo is permanent loss; the Files vault/USB dialogs ask twice and warn. `DisksWindow.qml:239-266` (min length only) vs `FilesPanel.qml:2581-2603,2775-2776`. *Sketch: confirm field, stronger minimum, "no way back" line.*
+3. **Mount but no Unmount in Disks.** `Mount` shows only when unmounted, `Eject` only when removable — a mounted internal partition cannot be unmounted here despite `Disks.unmount()` existing. `DisksWindow.qml:427-428`; `Disks.qml:87-90`. *Sketch: add Unmount button.*
+4. **Partitions are non-interactive chips.** Format/mount/SMART always target the whole disk; you cannot select a partition row. `DisksWindow.qml:362-383,459-465`. *Sketch: make child chips selectable, pass child path to actions.*
+5. **No hotplug refresh in the Disks app.** List refreshes on open and after writes only; `udisksctl monitor` lives in another service. `Disks.qml:27-29,44` vs `Drives.qml:124-131`. *Sketch: connect monitor → `refresh()`.*
+6. **Read-only SMART/health/benchmark demand polkit.** The file says "no root needed" but all three go through the `pkexec` writer. `Disks.qml:7` vs `:63-76,131`. *Sketch: run unprivileged, fall back to pkexec on EACCES.*
+7. **Plain USB mass storage gets no autoplay notice and no Files refresh.** `plugwatch.py:109-127` returns `None` for non-MTP/gphoto2 sticks, so `storageRev` never bumps and `Files.qml:1350` never reloads Devices; `Plugged.qml:130-148` has no `drive`/`usb` greeting. *Sketch: emit a `drive` kind + "Open in Files" action, refresh from Drives' monitor.*
+8. **Raw stderr as errors.** ENOSPC, read-only FS, EIO and "target busy" surface as a bare last stderr line, with no next step. `Disks.qml:202-205`; `Files.qml:1392-1395`; `files.py:1314-1317`. *Sketch: map errno strings to plain messages + action.*
+9. **[DATA-LOSS] Label change requires a full reformat.** No standalone relabel tool; relabelling destroys data. `DisksWindow.qml:431`; `disks.py:110-136`. *Sketch: add `relabel` (e2label/dosfslabel/xfs_admin).*
+10. **No filesystem check/repair or bad-block scan.** Not in the command set or any action row. `disks.py:334-410`; `DisksWindow.qml:426-455`. *Sketch: add read-only `fsck -n` and `badblocks -n` with confirm.*
+11. **Format is quick-only.** Erase offers Quick/Secure but format is always bare `mkfs.*`; no zero-first, verify, or FS-specific options. `DisksWindow.qml:179-221`; `disks.py:110-136`. *Sketch: add a "full format" choice.*
+12. **No type/protocol column.** No NVMe/SATA/USB/SD or SSD/HDD; lsblk isn't asked for `TRAN`/`ROTA`; icon only marks removable. `Disks.qml:139`; `disks.py:49`; `DisksWindow.qml:336`. *Sketch: add columns + a subtitle.*
+13. **No per-filesystem used/free/% full.** Disk list shows only device size and partition bytes; no usage bar. `DisksWindow.qml:350-354,414-418`. *Sketch: pull `df`/udisks usage, draw used/free.*
+14. **SMART self-test has no progress/ETA/completion notice.** `remaining` is parsed but never rendered; no polling or notification. `disks.py:214-226`; `DisksWindow.qml:535-555`. *Sketch: poll smart on a timer, show remaining %, notify on finish.*
+15. **Temperature has no threshold alert or trend.** Raw number only; no colour at 50/60 °C, no sparkline, no per-attribute FAIL flags or prediction. `DisksWindow.qml:490-494,532-538`. *Sketch: colour + sparkline + flag failing attributes.*
+16. **[DATA-LOSS] Two divergent encrypt/unlock models.** Disks can create LUKS volumes but has no Unlock action — it closes the mapping at the end; unlocking only exists in Files/Drives. `disks.py:139-172`; `DisksWindow.qml:426-455`; `Files.qml:1366-1388`. *Sketch: add Disks "Unlock…" or link to Files.*
+17. **DiskUsage footer understates total.** Capped at 200 entries, `totalSize` sums only shown entries — no "other" bucket. `DiskUsage.qml:30,86`; `DiskUsagePanel.qml:229`. *Sketch: add an "other (N)" bucket from device free space.*
+18. **No cache/junk cleanup suggestions.** Views are only map/big/dupes; no `~/.cache`, old downloads, package cache or trash size. `DiskUsage.qml:123-126`; `Drives.qml:61-91` (`du -d2` only). *Sketch: add a Cleanup view of known junk paths.*
+
+*Lower value:* no unmount-on-lock/logout (no hook in `Lock.qml`/session; `Drives.eject` is click-only); no disk-usage history/trend (`Drives.scanStorage` is one-shot); size units inconsistent — DiskUsage divides by 1024 but labels "GB" vs Disks' decimal `/1e9` (`DiskUsage.qml:168-171` vs `DisksWindow.qml:31-38`).
+
+Skipped per your list (storage bar/badge, SMART nightly warning, expand/free-space, low-disk alert, gocryptfs, setup partitions, app existence) and all GAPS.md Disks items. Static only — no runtime or real-device verification; the data-loss severity of #1 assumes a user can select an internal disk, which the code permits but I did not exercise.
+
+## VERBATIM: Document workflows craft
+
+I've read both gap docs (all 20 passes) and the document-workflow source. Below are 17 **new** gaps — none appear in GAPS.md/GAPS-RESEARCH.md. Static only; line numbers from the current tree.
+
+## 21st pass — Document Workflows craft
+
+### PDF Signer
+
+1. **Placement preview does not match the saved result (High×High).** The overlay sits at raw `x/y` on a `PreserveAspectFit` image inset by 10 px (`Modules/PdfSigner/PdfSignerPanel.qml:98-119`), but save composites at `+x+y` on a 150-dpi render (`Services/PdfSigner.qml:136-146`); fill text previews at `textSize*0.6` px (`Panel:129`) but saves at `-pointsize textSize` points (`Service:146`). *Sketch: map screen→page coordinates through one shared transform, use one size unit.*
+2. **Saving silently destroys the existing signed copy (High×High).** Output path is fixed to `name - signed.pdf` (`Services/PdfSigner.qml:42-46`) and `img2pdf -o`/`cp`/`pdfunite` overwrite it (`:154-166`). Re-signing loses the prior file. *Sketch: timestamp suffix or a two-tap overwrite confirm.*
+3. **The signed copy is rasterized, losing text/vector/search (High×Med).** Every page is `pdftoppm -r 150`→PNG then rebuilt via img2pdf/gs (`Services/PdfSigner.qml:136,150-166`), so the result is no longer selectable/searchable and loses links, bookmarks and form fields. Distinct from the already-fixed page-*count* loss. *Sketch: stamp through PyMuPDF (`pdfform.py`) over the original pages.*
+4. **No signature presets or creation (Med×Med).** Only one default path `~/Documents/Signature.png` plus a file picker (`Service:40,98-99`; `Panel:152-164`). No named presets, no draw/type a signature. *Sketch: a presets list stored beside the notes/assets, chosen in the panel.*
+
+### Notes
+
+5. **Control-centre Notes delete is one click, no confirm/undo (High×High).** `Modules/ControlCenter/SidebarNotes.qml:195-200` calls `QuickNotes.remove()` directly, while the Notes window requires two taps (`NotesPanel.qml:294-307`). *Sketch: reuse the two-tap pattern in both surfaces.*
+6. **Deleting a notebook is `rm -rf` with no trash (High×High).** `QuickNotes.qml:373-386` (reached from `NotesPanel.qml:99-102`) permanently removes the folder and every note, bypassing `.trash`. *Sketch: move the folder into `.trash` like single notes.*
+7. **Locking leaves earlier plaintext history on disk (High×Med, security).** `snapshot()` writes dated plaintext copies into `.history` (`:527-538`); `lockNote()` only encrypts the current `.md` (`:738-754`), so pre-lock history stays readable. *Sketch: encrypt or purge `.history/<id>-*` on lock.*
+8. **No external-change detection; 600 ms autosave overwrites out-of-band edits (High×Med).** `FileView` reads only on path change/reload (`:149-164`) despite the "outside edit is shown" comment; `set()`/save timer (`:207-237`) then rewrites `root.text` over changes made by Chronoa or another editor. *Sketch: stat watcher + Reload/Discard banner, as Text Editor's open-probe but for the live note.*
+9. **Renaming a note orphans its history/trash (Med×Med).** `rename()` only `mv`s the `.md` (`:260-292`); history keys come from the old id (`:531-536`). *Sketch: rename `<old-key>-*` history and `.trash` entries too.*
+10. **Wiki links cannot express aliases or `[[Note#Heading]]` (Med×High).** The regex takes the whole inner text as a filename (`QuickNotes.qml:440-460`; `NotesPanel.qml:397-402`) and `valid()` (`:242`) keeps `#`/`|`, so such links create notes literally named that. *Sketch: split `target|label` and `target#anchor`, resolve anchor to a line.*
+11. **Notes editors have fixed font size/wrap (Med×High).** `NotesPanel.qml:361-362` hard-codes 14 px monospace; `SidebarNotes.qml:278-279` 12 px. Text Editor has size controls; Notes has none. *Sketch: reuse `Settings.data.textEditorFontSize` with a Notes override.*
+
+### Text Editor
+
+12. **Regex replace ignores `$1`/`$2` capture groups (Med×High).** `replaceAll()` uses `replace(re, () => replaceField.text)`, so backreferences are inserted literally (`Modules/TextEditor/TextEditorPanel.qml:420-428`). *Sketch: pass `replaceField.text` directly, or replace `$$`/`$n` manually after matching.*
+13. **Ctrl+F does not seed the find field from the selection (Med×High).** `shortcut()` (`:440`) only sets `finding = true` and focuses the empty field (`:541-548`). *Sketch: `findField.text = edit.selectedText` before focusing.*
+14. **No tab/space mode or tab width (Med×Med).** Indent is a hard-coded 4 spaces (`:107-119`), `tabStopDistance` is derived from font size (`:736`), and Tab is claimed by snippet expansion (`:756-758`), so there is no literal-tab or "indent selection" path. *Sketch: add `indentMode`/`indentWidth` settings and Shift+Tab outdent.*
+15. **Read-only is auto-only; oversized files get no read-only fallback (Med×High).** `readOnly` is set solely from the write probe (`Services/TextDocs.qml:143,160-169`); a >2 MB file is refused with no "view only" option despite the property existing (`TextEditorPanel.qml:722`). *Sketch: offer "Open read-only" on the refusal, and a user toggle.*
+16. **Line bookmarks are lost across restarts (Low-Med×High).** `toggleBookmark()` stores them on the in-memory doc (`:61-69`) but `saveSession()` writes only `{paths, active}` (`TextDocs.qml:79-83`). *Sketch: include `bookmarks` in the session JSON.*
+
+### Export / cross-app
+
+17. **No document app produces rich-text clipboard (Med×Med).** Highlights already render to HTML (`Highlight.js:100-131`) and Notes to HTML (`QuickNotes.qml:392-414`), but the only clipboard path is plain text (`PdfViewer.qml:206-211`, native Ctrl+C elsewhere). Distinct from the already-listed *portal* dropping rich text. *Sketch: put `text/html` beside `text/plain` via `wl-copy -t` on Copy.*
+
+**Skipped:** every prior-pass item (Markdown preview, TextEditor session/autosave/external-change, editor bookmarks-as-feature, Note HTML export, Signer page-count fix, print flows, etc.) and all runtime verification. **Risk:** #3 would need a PyMuPDF overlay step (not a one-liner); the coordinate and font-size mismatches in #1 are inferred from the two code paths, not measured in a QML session.
+
+## VERBATIM: Accessibility deep dive
+
+# Twenty-first-pass gap research — accessibility craft (screen reader & inclusive design)
+
+Read both gap docs and skipped all twenty passes' items plus the parent's named list. Static only; no QML runtime, Orca or testbed. Findings below are **new** or materially deeper than what is filed.
+
+## High value × low ease
+
+**1. Every `PageTab` is announced without its selected state.** `Common/SegmentedTabs.qml:71-73` sets `Accessible.role: PageTab`, `name`, `onPressAction` — no `Accessible.selected`. Selection is visual only (thumb x at `:23`, text colour at `:49`). The harness *can* read this (`a11y_client.py:432` collects `selected` on page tabs), so it is invisible only because the control never sets it. Sketch: `Accessible.selected: segment.index === tabs.currentIndex`.
+
+**2. `StatusRing` is a `ProgressBar` with no value.** `Common/StatusRing.qml:66-67` exposes role + `name: ring.label` (default `""`), and the comment at `:65` assumes "the number is in the centre slot, so a screen reader reads it from there" — AT reads a progress bar's name/value, not arbitrary children. `progress bar` is not even in the lint's `CONTROL_ROLES` (`a11y_client.py:196-199`). Sketch: `Accessible.value: ring.value` and require a `label` from callers.
+
+**3. Disclosure buttons announce no expanded/collapsed state.** `Common/Advanced.qml:21-23` exposes `Accessible.Button` + name + press action, toggles `inner.visible` at `:38`, but never sets a checkable/expanded state. Orca says "Advanced: Proxy, DNS servers, button" whether open or shut. Sketch: `Accessible.checkable: true; Accessible.checked: root.open`.
+
+**4. Radio-chip groups lose their question.** `Common/Picks.qml:18-28` renders a plain `Text` label and `Choice` delegates; `Common/Choice.qml:14-17` names each chip only with its value ("100%", "Blue"). AT hears "radio button, Blue" with no idea what is being chosen. Sketch: give the label an `id` and set `Accessible.labelledBy: picks.labelItem` on each `Choice`.
+
+**5. The shape that fixes colour-blindness is invisible to screen readers.** `Common/StatusGlyph.qml:80` sets `Accessible.ignored: true` on the ✓/!/✕/i glyph. It is the only non-colour status cue, used in `Common/InfoBanner.qml:38-43` and `SettingsAbout.qml:229` (`tone: ok ? "ok" : "error"` with no text). Sighted colour-blind users get the shape; AT users get nothing when the glyph stands alone. Sketch: expose `Accessible.name` from `tone` and drop `ignored` when there is no adjacent title.
+
+**6. The window-layout palette is gesture-only.** `Bar.qml:576-583`: the maximise `IconButton` has `onPressAndHold: Ui.toggleWindowLayouts()` but no `hasMenu: true` (contrast the three buttons at `:183`, `:620`, `:839`). `IconButton.qml:90-92` maps the Menu/Shift+F10 key to `rightClicked` only when `hasMenu`, so a keyboard, switch or AT user cannot open the palette the tip advertises at `:579`. Sketch: add `hasMenu: true; onRightClicked: Ui.toggleWindowLayouts()`.
+
+**7. TextField errors are on the wrong AT object.** `Common/TextField.qml:28` puts `Accessible.description: root.error` on the outer `Rectangle`, which has **no Accessible role**. The focusable control is `TextInput` at `:31-55` (role `EditableText`, name, labelledBy) — it has no description and no live region, so navigating to a field with an error reads nothing about it. Sketch: move the description binding onto `input`.
+
+**8. Busy state is silent.** `Common/Button.qml:12,65,78-83` replaces the label with a `Spinner` when `busy`; `Spinner.qml:43` is `Accessible.ignored` and `Accessible.name` stays `root.text`. AT reports "Save, button" throughout a long save with no working indication. Sketch: expose a busy state / append "working" to the name while `busy`.
+
+**9. The screen-reader-only label is a second, duplicate AT node.** `Common/TextField.qml:30` creates a named `Text` purely for `Accessible.labelledBy` (`:54`), but it keeps a default `StaticText` role and `Accessible.name: text` while the `TextInput` at `:49` carries the same name. Two named objects for one field is a plausible double announcement ("Email, Email, entry"). Sketch: `Accessible.ignored: true` on `a11yLabel`.
+
+**10. Accessibility settings assert tokens, not outcomes.** `dev/shell-test.sh:1129` passes `a11y-large-text` when `fontScale == 1.25`; `:1131` passes `a11y-high-contrast` when `d['bg'] == '#000000'`. Neither checks a single rendered control: every `* Theme.fontScale` multiplier could be deleted and both checks stay green. `dev/a11y-tree.py:21-27` prints only role/name/checked — no value, selected, expanded or live-region state. Sketch: assert AT state/geometry of one labelled control after each toggle.
+
+**Medium value × low ease**
+
+**11. Large text still misses 16 font sizes.** Beyond the already-filed `GamepadVisual`/`DesktopWidgets`/`NotificationCard`/`MediaPlayerWindow`, unscaled sizes remain at `AppIcon.qml:40`, `Avatar.qml:32`, `Dock.qml:677,704`, `NotesPanel.qml:362`, `PdfSigner.qml:129`, `SoftwareWindow.qml:299`, `FontsPanel.qml:226,235`, `SettingsLook.qml:125`. Dock/workspace numerals and note text are real content, not decoration. Sketch: multiply by `Theme.fontScale`.
+
+**12. High contrast leaves the accent family alone.** `Theme.qml:100-159` overrides bg/text/dim/faint/glass/card/surface tokens for `contrast`, but `accent`, `accentSoft`, `accentLine`, `accentHover`, `danger`, `amber`, `blue` are untouched. `ListRow.qml:26` uses `accentSoft` as a *selected row background* while `:46` paints the title in `accent` — ~18 % accent over pure black in HC mode. Sketch: give `contrast` variants of the accent tokens, or force selected rows to `stroke`/`text`.
+
+**13. Hardcoded palettes bypass the HC token entirely.** Syntax colours are literal light/dark pairs in `TextEditorPanel.qml:226-227` and `QuickLookSheet.qml:29-30`; `DiskUsagePanel.qml:178` picks `Theme.dark ? "#ffffff" : "#1a1a1a"` (ignores `contrast`); `Whiteboard.qml:31-33` and `PdfSignerPanel.qml:129,694` hardcode inks. High contrast therefore does not reach whole app surfaces. Sketch: route these through `Theme.text`/`Theme.text`-derived roles.
+
+**14. AT-SPI lint checks names only, and only a fixed role set.** `a11y_client.py:533-549` fails solely on empty names in `CONTROL_ROLES` (`:196-199`); `progress bar`, `heading`, `image`, `static text` are absent, and no test inspects `checked`/`selected`/`value`/`expanded`. `test_qml_a11y.py` likewise checks only that a `Accessible.name` string exists (`:58-63,155-172`), so `Accessible.name: ring.label` with an empty label passes. Sketch: add value/state assertions and a "role without a state" rule.
+
+**15. Toast announcements are low priority and absent on creation.** `Common/Toast.qml:29` uses `Qt.accessibleAnnounce(message, Qt.LowPriority)`; `:32` sets up a toast present at construction without announcing at all. Many screen readers drop low-priority events. Sketch: use normal priority and announce in `onCompleted`.
+
+**16. Decorative header icon leaks.** `AppWindow.qml:109-115` is a plain `Image` with no `Accessible.ignored`, while the adjacent title texts at `:125,134` are explicitly ignored. AT gets an unnamed image alongside the already-named window frame. Sketch: `Accessible.ignored: true` on the header icon.
+
+**Skipped / not checked:** no Orca session, qmllint, AT-SPI walk, or 2× layout measurement; contrast ratios #12/#13 are reasoned from token definitions, not sampled pixels. I did not re-file any item named in either gap doc or the parent's skip list.
+
+**Risk:** #1–#4 and #7 touch shared `Common/` controls — adding state properties must not create duplicate AT actions (`Choice`/`SwitchRow` already expose both press and toggle actions). #6 adds a second handler to the bar maximise button; verify `onRightClicked` does not also fire on a plain click.
+
+## VERBATIM: Screen sharing & phone link UX
+
+I read both gap files (1,885 + 4,577 lines) and the twenty-pass indexes first, then traced `bridge/portal.py`, `Portal.qml`, `niri-portals.conf`, `Cast.qml`, `Recorder.qml`, `SidebarTiles/SidebarDetails.qml`, `Bar.qml`, `Island.qml`, `Services/Nearby.qml`, `Modules/Nearby/NearbyWindow.qml`, `bridge/nearby.py`, `Services/Phone.qml`, `Services/Link.qml`, `bridge/link.py`, `SettingsSharing.qml`, `Audio.qml`, `Niri.qml`, and shani-link's `screen_stream.py`, `screen_share.py`, `tether.py`, `phone.py`, `service.py`. Static only. Skip list honoured (recorder chip, cast consent, clipboard push, `--share-text`, Nearby basic flow, BT colour-only, peripheral battery, location/chamera chips); also excluded already-filed items: Sunshine's command-leak wording, portal-wlr remote-desktop control, dynamic-cast actions, GTK pages not surfaced, pairing wizard, BT codec/profiles/trust/rename/FTP/OBEX history, Nearby last-3 history, `notify-send -A` without expiry.
+
+## Ranked gaps (value × ease)
+
+1. **[H×E] Opening the Bluetooth panel silently makes the machine discoverable.** `SidebarDetails.qml:133-136` sets `discoverable = visible && enabled` for the whole time the panel is open — no explicit consent, no timeout. *Sketch:* separate "Discoverable for 2 minutes" toggle with countdown, default off.
+2. **[H×E] Per-device phone battery/charging is read then thrown away.** `bridge/link.py:52-68` returns `battery`+`charging`; `Link.qml:21` carries them; no QML reads either. Tile shows only KDE Connect's charge %, no charging state (`SidebarTiles.qml:193`, `Phone.qml:92`). *Sketch:* "72% · charging" on each Link device row and the tile.
+3. **[H×E] Sunshine pairing leaves the shell.** `SettingsSharing.qml:162-166` "Pair a device…" is just `xdg-open https://localhost:47990/pin` — self-signed-cert warning in an external browser, no PIN/copy/expiry in-shell. *Sketch:* read Sunshine's PIN endpoint, render a card with Copy + expiry.
+4. **[H×E] Cast tile is a one-shot launcher, not a stateful control.** `Cast.qml:9-19` exposes only `available`/`open()`; `SidebarTiles.qml:371-381` sets no `on`, subtitle hard-coded "Miracast", repeat clicks relaunch. *Sketch:* track cast state, show receiver name, second click disconnects.
+5. **[H×M] Nearby cannot send or receive text/links.** `bridge/nearby.py:10-14` ops are file-only; `NearbyWindow.qml:22-25` only opens `FilePicker`. LocalSend v2 has a text path. *Sketch:* `sendText` op + "Send a note/link" row; incoming text → confirm → clipboard.
+6. **[H×M] No receiver selection for Cast.** `Cast.qml:12-14` blindly execs gnome-network-displays despite supporting Miracast *and* Chromecast (`:2-4`), while the tile says only "Miracast" (`SidebarTiles.qml:376`). *Sketch:* enumerate Network Displays receivers over D-Bus → QML chooser before launch.
+7. **[H×M] Remote desktop has no session list, disconnect, or "being watched" cue.** `SettingsSharing.qml:153-166` only enables/disables the user unit; no bar chip, client count, or control action. *Sketch:* poll Sunshine clients; "Remote desktop in use" chip + Disconnect.
+8. **[H×M] No UI for using the phone's internet (reverse tethering).** `shani-link/tether.py:32-117` and D-Bus `Tether`/`UsbTether`/`WifiTether` (`service.py:100-104,331-341`) exist; shell only has outbound Wi-Fi hotspot (`Net.qml:76-82`) and `bridge/link.py:9-19` has no tether verb. *Sketch:* `link.py tether <on|off|state>` + Network tile.
+9. **[M×E] "Sharing" chip stops every cast with one click.** `Bar.qml:691-697` → `Niri.qml:243-263` loops all `session_id`s and calls `stop-cast` on each — no list, attribution, or confirm. *Sketch:* menu from `niri msg -j casts` with per-cast stop.
+10. **[M×E] Concurrent Nearby offers go unanswered when the window is closed.** `Nearby.qml:113-115` `if (running) return` means only the first offer gets the `-w` notification; the rest wait for the window or the 60 s timeout (`nearby.py:71`). *Sketch:* queue notifications sequentially, repost after each answer.
+11. **[M×E] Three destructive sharing actions are one-click.** KDE Connect unpair (`SidebarDetails.qml:429-435`), BT Forget (`:161-167`), usershare delete (`SettingsSharing.qml:187`) — no confirm/undo. *Sketch:* reuse the shell's two-tap pattern; Undo re-adds the share.
+12. **[M×E] No file/link send action on the Phone card.** `SidebarDetails.qml:441-443` offers only Ring/Ping/Send clipboard; `Link.share()` (`Link.qml:51`) has zero QML callers; shani-link can share URLs via `--share-link` (`phone.py:179,194`). *Sketch:* "Send file" + "Open link on phone" rows; let `Link.share` accept a URL.
+13. **[M×E] Phone-cast quality/framerate/audio are fixed by transport.** `screen_stream.py:72-76,1047-1050` hardcodes 8 fps/400 kbit (BT) and 24 fps/4 Mbit (USB); no CLI flag (`:1540-1572`); GTK page has only Start/Window/Stop/Touch (`screen_share.py:219-229`); desktop-audio pipeline exists but is not a choice (`:578-584`). *Sketch:* `--fps/--bitrate/--audio` + a QML quality row.
+14. **[M×M] Nearby devices are never remembered or trusted.** `nearby.py:210-226` keeps `known` in-process and the bridge dies with the window (`Nearby.qml:78-79`); no alias rename, trusted badge, or auto-accept. *Sketch:* persist fingerprint→alias/trust JSON; show a "Known" chip while keeping per-transfer confirm.
+15. **[M×M] Screen-share detection is a property heuristic.** `Audio.qml:34-38` treats any VideoSource without `device.api` as a cast; OBS virtual cam or shani-link's phone-as-webcam can trigger a false "Sharing" chip and forced quiet (`Notifs.qml:108`). *Sketch:* correlate with `niri msg -j casts` sessions instead.
+16. **[M×M] Remote desktop is buried in Settings › Sharing.** No tile in `SidebarTiles.qml:46`'s known list; only `SettingsSharing.qml:153-166`. *Sketch:* Control Center tile flipping the same user unit with active state.
+17. **[L×E] Failed Nearby transfers have no retry.** `NearbyWindow.qml:141-153` hides Cancel for done/failed and offers no retry. *Sketch:* "Retry" re-queues `pending` to the same fingerprint.
+18. **[M×E] `Cast.available` only checks binary presence.** `Cast.qml:15-19` probes `command -v`/`flatpak info`, not the ScreenCast portal; if portal-wlr is missing the tile stays enabled and `open()` fails silently in a detached process. *Sketch:* probe the portal interface and surface a note in the tile subtitle.
+
+**Skipped / risk:** no runtime, D-Bus, portal, phone, or GPU verification — items 6/8/13/18 assume endpoints and CLI shapes read from source; item 15's false positive depends on how PipeWire labels virtual cameras. All findings are static; nothing edited.
