@@ -6,6 +6,7 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs.Common
 
 Singleton {
     id: root
@@ -30,6 +31,16 @@ Singleton {
     // ask the network again (a phone that just opened the app), then list
     function search() { if (root.available) run(["--refresh"]); }
     function refresh() { if (root.available) list.running = true; }
+
+    // link.py devices already carry charge + charging for every device; render
+    // both so the charging flag is no longer read and thrown away (a row with no
+    // battery result shows nothing).
+    function batteryText(dev) {
+        if (!dev || typeof dev.battery !== "number" || dev.battery < 0)
+            return "";
+        return Math.max(0, Math.min(100, dev.battery)) + "%"
+            + (dev.charging ? " · " + Tr.t("charging") : "");
+    }
 
     // Shani Link pages (shani-link-app, dev.shani.Link.App): the Phone page
     // holds the dial pad, Messages, Contacts, Music, Files and Remote. The

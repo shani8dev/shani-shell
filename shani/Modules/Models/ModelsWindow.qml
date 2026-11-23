@@ -274,8 +274,13 @@ AppWindow {
             standardButtons: Dialog.No | Dialog.Yes
             visible: win.connectId !== ""
             onAccepted: {
+                if (win.connectKey.trim() === "") return; // Connect is disabled until a key is typed
                 AIProviders.connect(win.connectId, (AIProviders.available.find(a => a.id === win.connectId) || {}).name, win.connectKey, win.connectEndpoint);
                 win.connectId = "";
+            }
+            Component.onCompleted: {
+                const yes = connectDialog.standardButton(Dialog.Yes);
+                if (yes) yes.enabled = Qt.binding(() => win.connectKey.trim() !== "");
             }
             contentItem: ColumnLayout {
                 spacing: Theme.px(12)
@@ -294,6 +299,15 @@ AppWindow {
                     secret: true
                     text: win.connectKey
                     onTextChanged: win.connectKey = text
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: win.connectKey.trim() === ""
+                    text: Tr.t("Enter an API key to enable Connect")
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    wrapMode: Text.Wrap
                 }
                 TextField {
                     Layout.fillWidth: true

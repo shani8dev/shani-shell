@@ -21,6 +21,9 @@ ColumnLayout {
         Layout.fillWidth: true
         icon: Audio.icon
         value: Audio.volume / Audio.maxVolume
+        // the row prints value*100; with over-amplification that understates the
+        // level, so name the real percent here (tip + accessible name)
+        label: Tr.t("Volume %1%", Audio.realPercent)
         muted: Audio.muted
         hasDetail: true
         expanded: Ui.expanded === "audio"

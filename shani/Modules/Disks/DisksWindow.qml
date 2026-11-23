@@ -23,6 +23,7 @@ AppWindow {
     // form fields
     property string formFsType: "ext4"
     property string formLabel: ""
+    property string formNewLabel: ""
     property string formPassphrase: ""
     property string formPassphrase2: ""
     property string formConfirm: ""
@@ -37,6 +38,22 @@ AppWindow {
         if (n >= 1e6) return (n / 1e6).toFixed(1) + " MB";
         if (n >= 1e3) return (n / 1e3).toFixed(1) + " KB";
         return n + " B";
+    }
+
+    // type/protocol subtitle: NVMe/SATA/USB/SD plus SSD/HDD for whole disks
+    function diskKind(d) {
+        if (!d) return "";
+        const transport = String(d.transport || "").toUpperCase();
+        const kind = d.type !== "disk" ? String(d.type || "").toUpperCase()
+            : d.rotational ? Tr.t("HDD") : Tr.t("SSD");
+        return transport ? transport + " · " + kind : kind;
+    }
+
+    function smartEta() {
+        if (Disks.smartTestPercent <= 0) return "—";
+        const elapsed = Date.now() - Number(Disks.smartTestStarted);
+        const left = elapsed * (100 - Disks.smartTestPercent) / Disks.smartTestPercent;
+        return Math.max(1, Math.round(left / 60000)) + " min";
     }
 
     // Destructive ops: removable media are allowed with the two-click confirm;
@@ -408,6 +425,13 @@ AppWindow {
                             Layout.fillWidth: true
                         }
                         Text {
+                            text: win.diskKind(modelData)
+                            color: Theme.faint
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            elide: Text.ElideRight
+                        }
+                        Text {
                             text: modelData.size
                             color: Theme.dim
                             font.family: Theme.font
@@ -503,6 +527,31 @@ AppWindow {
                         Layout.fillWidth: true
                         spacing: Theme.px(6)
                         Button { text: Tr.t("SMART details…"); flat: true; onClicked: { Disks.smartDetails(modelData.path); smartDialog.open(); } }
+                        Button {
+                            text: Tr.t("Relabel…"); flat: true
+                            enabled: !Disks.busy && !Disks.deviceIsSystem(modelData.path)
+                            onClicked: { win.formNewLabel = modelData.label || ""; win.confirmAction = ""; relabelDialog.open(); }
+                        }
+                        Button {
+                            text: win.confirmAction === "fsck-" + modelData.path ? Tr.t("Tap again to confirm") : Tr.t("Check filesystem")
+                            flat: true
+                            enabled: !Disks.busy && !Disks.deviceIsSystem(modelData.path)
+                            onClicked: {
+                                if (win.confirmAction === "fsck-" + modelData.path) {
+                                    win.confirmAction = ""; Disks.fsck(modelData.path); scanDialog.open();
+                                } else { win.confirmAction = "fsck-" + modelData.path; confirmTimer.restart(); }
+                            }
+                        }
+                        Button {
+                            text: win.confirmAction === "badblocks-" + modelData.path ? Tr.t("Tap again to confirm") : Tr.t("Bad blocks")
+                            flat: true
+                            enabled: !Disks.busy && !Disks.deviceIsSystem(modelData.path)
+                            onClicked: {
+                                if (win.confirmAction === "badblocks-" + modelData.path) {
+                                    win.confirmAction = ""; Disks.badblocks(modelData.path); scanDialog.open();
+                                } else { win.confirmAction = "badblocks-" + modelData.path; confirmTimer.restart(); }
+                            }
+                        }
                         Button {
                             text: Tr.t("Mount options…"); flat: true
                             visible: !(modelData.mountpoints && modelData.mountpoints.length > 0)
@@ -607,6 +656,23 @@ AppWindow {
                         model: smartCol.info.tests || []
                         Text { required property var modelData; Layout.fillWidth: true; text: modelData.type + " · " + modelData.status + " · " + modelData.hours + " h"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(9) * Theme.fontScale }
                     }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: Disks.smartTestDevice !== ""
+                        wrapMode: Text.Wrap
+                        text: Disks.smartTestRemaining >= 0
+                            ? Tr.t("Self-test %1 — %2% done · about %3 left", Disks.smartTestKind, Math.round(Disks.smartTestPercent), win.smartEta())
+                            : Tr.t("Self-test %1 — starting…", Disks.smartTestKind)
+                        color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Theme.px(5)
+                        visible: Disks.smartTestDevice !== ""
+                        radius: Theme.px(2)
+                        color: Theme.alpha(Theme.text, 0.15)
+                        Rectangle { width: parent.width * Disks.smartTestPercent / 100; height: parent.height; radius: parent.radius; color: Theme.accent }
+                    }
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Theme.px(6)
@@ -644,6 +710,88 @@ AppWindow {
                     placeholder: "ro,noauto,uid=1000,gid=1000"
                     text: win.mountOptions
                     onTextChanged: win.mountOptions = text
+                }
+            }
+        }
+
+        // ---- relabel: metadata only, no reformat -----------------------------------
+        Dialog {
+            id: relabelDialog
+            anchors.centerIn: parent
+            width: Math.min(win.width * 0.85, Theme.px(440))
+            title: Tr.t("Change label · %1", win.selectedDisk ? win.selectedDisk.path : "")
+            modal: true
+            standardButtons: Dialog.Close
+            contentItem: ColumnLayout {
+                spacing: Theme.px(8)
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    text: Tr.t("Changing the label updates filesystem metadata only — your data is kept.")
+                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+                TextField {
+                    Layout.fillWidth: true
+                    placeholder: Tr.t("New label")
+                    label: Tr.t("New label")
+                    text: win.formNewLabel
+                    onTextChanged: win.formNewLabel = text
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(8)
+                    Button {
+                        text: win.confirmAction.indexOf("relabel-") === 0 ? Tr.t("Tap again to confirm") : Tr.t("Change label")
+                        kind: "outline"
+                        enabled: win.formNewLabel.trim() !== ""
+                        onClicked: {
+                            const key = "relabel-" + (win.selectedDisk ? win.selectedDisk.path : "");
+                            if (win.confirmAction === key) {
+                                Disks.relabel(win.selectedDisk.path, win.formNewLabel.trim());
+                                win.confirmAction = "";
+                                relabelDialog.close();
+                            } else { win.confirmAction = key; confirmTimer.restart(); }
+                        }
+                    }
+                    Text {
+                        text: win.confirmAction.indexOf("relabel-") === 0 ? Tr.t("Click again to confirm") : Tr.t("Label is changed in place, without reformatting")
+                        color: win.confirmAction.indexOf("relabel-") === 0 ? Theme.red : Theme.dim
+                        font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    }
+                }
+            }
+        }
+
+        // ---- read-only scan output (fsck -n / badblocks -n) ------------------------
+        Dialog {
+            id: scanDialog
+            anchors.centerIn: parent
+            width: Math.min(win.width * 0.9, Theme.px(560))
+            height: Math.min(win.height * 0.8, Theme.px(480))
+            title: Tr.t("Scan results · %1", win.selectedDisk ? win.selectedDisk.path : "")
+            modal: true
+            standardButtons: Dialog.Close
+            contentItem: ColumnLayout {
+                spacing: Theme.px(6)
+                Text {
+                    Layout.fillWidth: true
+                    text: Disks.scanResult ? (Disks.scanResult.command === "fsck" ? Tr.t("Filesystem check") : Tr.t("Bad-block scan")) : Tr.t("Running…")
+                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                }
+                Flickable {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+                    contentHeight: scanText.implicitHeight
+                    ScrollBar.vertical: ScrollBar {}
+                    Text {
+                        id: scanText
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        selectable: true
+                        text: Disks.scanResult ? (Disks.scanResult.output || Tr.t("Done")) : Tr.t("Working…")
+                        color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale
+                    }
                 }
             }
         }

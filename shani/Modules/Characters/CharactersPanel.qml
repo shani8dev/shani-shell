@@ -42,12 +42,13 @@ AppWindow {
                 onTextChanged: Characters.search(text)
             }
 
-            // quick categories, one tap each
+            // quick categories, one tap each — the Unicode blocks the bridge
+            // indexes (bridge/characters.py RANGES), not just the first six
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
                 Repeater {
-                    model: ["Symbols", "Arrows", "Math", "Devanagari", "Greek", "Emoji"]
+                    model: ["Symbols", "Arrows", "Math", "Currency", "Latin", "Greek", "Cyrillic", "Hebrew", "Arabic", "Devanagari", "Bengali", "Tamil", "Telugu", "Malayalam", "Emoji"]
                     Choice {
                         required property string modelData
                         text: modelData

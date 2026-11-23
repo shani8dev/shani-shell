@@ -2,6 +2,9 @@
 """disks — disk management for the shell, through pkexec.
 
     disks.py list                   JSON array of block devices (lsblk)
+    disks.py relabel DEVICE LABEL   change a filesystem label in place (no reformat)
+    disks.py fsck DEVICE            read-only filesystem check (fsck -n)
+    disks.py badblocks DEVICE       non-destructive bad-block scan (badblocks -n)
     disks.py health DEVICE          JSON object with SMART health (smartctl)
     disks.py erase-quick DEVICE     wipe filesystem signatures (wipefs -a)
     disks.py erase-secure DEVICE    zero the first 100 MB (dd)
@@ -12,6 +15,7 @@
     disks.py install-stick DEVICE ISO
                                     write an ISO to a USB drive (dd)
     disks.py smart DEVICE            full SMART attribute table + self-test log
+    disks.py smart-status DEVICE     remaining % of a running self-test (poll)
     disks.py smart-test DEVICE short|long|conveyance
                                     start a SMART self-test
     disks.py benchmark DEVICE        read-only sequential read speed
@@ -27,6 +31,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -123,6 +128,94 @@ def passphrase_ok(passphrase: str) -> bool:
     return len(passphrase or "") >= 8
 
 
+def device_fstype(device: str) -> str:
+    r = run(["lsblk", "-no", "FSTYPE", device])
+    return (
+        (r.stdout.strip().splitlines() or [""])[0].strip() if r.returncode == 0 else ""
+    )
+
+
+def relabel(device: str, label: str) -> int:
+    """Change a filesystem label in place — no reformat, no data loss."""
+    if _block_running_root(device):
+        return 1
+    label = str(label or "").strip()
+    if not label or len(label) > 256 or any(ord(c) < 32 for c in label):
+        print(json.dumps({"error": "Invalid label"}))
+        return 1
+    fstype = device_fstype(device).lower()
+    tools = {
+        "ext2": ["e2label", device, label],
+        "ext3": ["e2label", device, label],
+        "ext4": ["e2label", device, label],
+        "vfat": ["dosfslabel", device, label],
+        "fat16": ["dosfslabel", device, label],
+        "fat32": ["dosfslabel", device, label],
+        "xfs": ["xfs_admin", "-L", label, device],
+        "btrfs": ["btrfs", "filesystem", "label", device, label],
+        "exfat": ["exfatlabel", device, label],
+        "ntfs": ["ntfslabel", device, label],
+    }
+    cmd = tools.get(fstype)
+    if not cmd:
+        print(
+            json.dumps(
+                {
+                    "error": "Relabel is not supported for %s"
+                    % (fstype or "this filesystem")
+                }
+            )
+        )
+        return 1
+    if not shutil.which(cmd[0]):
+        print(json.dumps({"error": "%s is not installed" % cmd[0]}))
+        return 1
+    r = run(cmd)
+    if r.returncode != 0:
+        print(
+            json.dumps(
+                {"error": (r.stderr.strip().splitlines() or ["relabel failed"])[-1]}
+            )
+        )
+        return 1
+    print(json.dumps({"ok": True, "label": label}))
+    return 0
+
+
+def fsck_check(device: str) -> int:
+    """Read-only filesystem check — fsck -n never repairs anything."""
+    if _block_running_root(device):
+        return 1
+    r = run(["fsck", "-n", device])
+    print(
+        json.dumps(
+            {
+                "ok": True,
+                "code": r.returncode,
+                "output": (r.stdout + "\n" + r.stderr).strip() or "No issues reported",
+            }
+        )
+    )
+    return 0
+
+
+def badblocks_scan(device: str) -> int:
+    """Non-destructive bad-block scan — -n writes test patterns but keeps data."""
+    if _block_running_root(device):
+        return 1
+    r = run(["badblocks", "-n", "-s", device])
+    print(
+        json.dumps(
+            {
+                "ok": True,
+                "code": r.returncode,
+                "output": (r.stdout + "\n" + r.stderr).strip() or "No bad blocks found",
+            }
+        )
+    )
+    return 0
+
+
 def list_disks() -> int:
     """Print lsblk JSON for the shell to parse."""
     r = run(
@@ -131,7 +224,7 @@ def list_disks() -> int:
             "-J",
             "-p",
             "-o",
-            "NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS,LABEL,MODEL,RM,HOTPLUG,RO",
+            "NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS,LABEL,MODEL,RM,HOTPLUG,RO,TRAN,ROTA",
         ]
     )
     if r.returncode != 0:
@@ -340,6 +433,39 @@ def smart_details(device: str) -> int:
     return 0
 
 
+def smart_status(device: str) -> int:
+    """Cheap poll: is a self-test running, and how much is left?"""
+    if not shutil.which("smartctl"):
+        print(json.dumps({"error": "smartctl is not installed (smartmontools)"}))
+        return 1
+    r = run(["smartctl", "-a", "-j", device])
+    try:
+        data = json.loads(r.stdout)
+    except json.JSONDecodeError:
+        print(json.dumps({"error": "could not parse smartctl output"}))
+        return 1
+    table = (
+        data.get("ata_smart_self_test_log", {}).get("standard", {}).get("table") or []
+    )
+    entry = table[0] if table else {}
+    status = (entry.get("status") or {}).get("string", "") or ""
+    progress = entry.get("progress") if isinstance(entry.get("progress"), dict) else {}
+    remaining_txt = str(progress.get("remaining", "") or "")
+    match = re.search(r"(\d+)", remaining_txt)
+    remaining = int(match.group(1)) if match else -1
+    print(
+        json.dumps(
+            {
+                "ok": True,
+                "active": "in progress" in status.lower(),
+                "remaining": remaining,
+                "status": status,
+            }
+        )
+    )
+    return 0
+
+
 def smart_test(device: str, kind: str) -> int:
     """Start a short, extended/long or conveyance SMART self-test."""
     kinds = {
@@ -432,9 +558,11 @@ def take_ownership(device: str) -> int:
 def main(argv: list[str]) -> int:
     if len(argv) < 2:
         print(
-            "usage: disks.py list | health DEVICE | erase-quick DEVICE | "
+            "usage: disks.py list | relabel DEVICE LABEL | fsck DEVICE | "
+            "badblocks DEVICE | health DEVICE | erase-quick DEVICE | "
             "erase-secure DEVICE | format DEVICE FSTYPE [LABEL] | "
-            "encrypt DEVICE FSTYPE PASSPHRASE | install-stick DEVICE ISO",
+            "encrypt DEVICE FSTYPE PASSPHRASE | install-stick DEVICE ISO | "
+            "smart-status DEVICE | smart-test DEVICE TYPE",
             file=sys.stderr,
         )
         return 2
@@ -442,6 +570,24 @@ def main(argv: list[str]) -> int:
 
     if cmd == "list":
         return list_disks()
+
+    if cmd == "relabel":
+        if len(argv) < 4:
+            print("relabel needs a device and a label", file=sys.stderr)
+            return 2
+        return relabel(argv[2], argv[3])
+
+    if cmd == "fsck":
+        if len(argv) < 3:
+            print("fsck needs a device", file=sys.stderr)
+            return 2
+        return fsck_check(argv[2])
+
+    if cmd == "badblocks":
+        if len(argv) < 3:
+            print("badblocks needs a device", file=sys.stderr)
+            return 2
+        return badblocks_scan(argv[2])
 
     if cmd == "health":
         if len(argv) < 3:
@@ -485,6 +631,12 @@ def main(argv: list[str]) -> int:
             print("smart needs a device", file=sys.stderr)
             return 2
         return smart_details(argv[2])
+
+    if cmd == "smart-status":
+        if len(argv) < 3:
+            print("smart-status needs a device", file=sys.stderr)
+            return 2
+        return smart_status(argv[2])
 
     if cmd == "smart-test":
         if len(argv) < 4:

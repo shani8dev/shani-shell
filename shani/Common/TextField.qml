@@ -13,6 +13,8 @@ Rectangle {
     property alias placeholderText: root.placeholder
     property string label: ""          // what a screen reader calls it; the placeholder when empty
     property bool secret: false
+    // "" (default) | "digits" | "email" | "url": the OSK's input hints
+    property string mode: ""
     // Ananta's PasswordField: a long secret is impossible to check for typos
     // when it is always masked, so a secret field carries a show/hide eye.
     property bool revealed: false
@@ -44,7 +46,7 @@ Rectangle {
         font.letterSpacing: input.echoMode === TextInput.Password && input.text !== "" ? 1.5 : 0
         echoMode: root.secret && !root.revealed ? TextInput.Password : TextInput.Normal
         passwordCharacter: "•"
-        inputMethodHints: root.secret ? (Qt.ImhSensitiveData | Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase) : Qt.ImhNone
+        inputMethodHints: root.secret ? (Qt.ImhSensitiveData | Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase) : (root.mode === "digits" ? Qt.ImhDigitsOnly : root.mode === "email" ? Qt.ImhEmailCharactersOnly : root.mode === "url" ? Qt.ImhUrlCharactersOnly : Qt.ImhNone)
         Accessible.role: Accessible.EditableText
         Accessible.name: root.label || root.placeholder
         // Qt gives a password field no accessible name at all (measured, Qt 6.12:

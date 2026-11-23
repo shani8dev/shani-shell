@@ -117,7 +117,8 @@ ColumnLayout {
     Text {
         visible: page.conflict !== ""
         Layout.fillWidth: true
-        text: Tr.t("That one is already taken: %1. Try another.").arg(page.conflict)
+        // name what owns the key (title/app) and show the exact combo it stole
+        text: Tr.t("That one is already taken: %1. Try another.").arg(page.conflict + " (" + page.pretty(page.combo) + ")")
         color: Theme.danger
         font.family: Theme.font
         font.pixelSize: Theme.px(12) * Theme.fontScale

@@ -20,9 +20,14 @@ AppWindow {
     readonly property string pictures: Quickshell.env("XDG_PICTURES_DIR") || (Quickshell.env("HOME") + "/Pictures")
     property var photos: []           // [{ path, time (s), month "November 2026" }]
     property bool scanning: false
+    // These three stay window-local on purpose: persisting them needs keys in
+    // Common/Settings.qml's JsonAdapter (or slots in the Common Ui singleton), neither of
+    // which this file owns. Assigning an undeclared Settings.data key throws at
+    // runtime and can take the shell down, so they reset each time Photos opens.
     property string filter: "all"     // all | camera | screenshots
     property string groupBy: "month"  // day | month | year
     property string sortOrder: "newest"  // newest | oldest | name
+    property string searchText: ""    // filename / path / tag substring
     property bool importBusy: false
     property string importNote: ""
     property var selected: []         // multi-select: batch trash / album add
@@ -31,7 +36,9 @@ AppWindow {
     property var meta: ({})           // path -> { rating, tags }, kept in shani-photos/meta.json
     readonly property var shown: photos.filter(p =>
         (filter === "all" || (filter === "camera" ? /\/Camera\/|\/DCIM\/|\/camera\//i.test(p.path) : /\/Screenshot/i.test(p.path))) &&
-        (activeAlbum === "" || activeAlbum === "all" || albums.find(a => a.name === activeAlbum)?.members?.includes(p.path)))
+        (activeAlbum === "" || activeAlbum === "all" || albums.find(a => a.name === activeAlbum)?.members?.includes(p.path)) &&
+        (searchText.trim() === "" || String(p.path).toLowerCase().indexOf(searchText.trim().toLowerCase()) >= 0 ||
+         tagsOf(p.path).toLowerCase().indexOf(searchText.trim().toLowerCase()) >= 0))
     // [{ key, items: [...] }] — the key is a day, a month or a year. The sort
     // order is applied here (not in scan's `sort -rn`) so it works for every
     // grouping; same-key groups are merged so a name sort cannot split a month.
@@ -233,6 +240,13 @@ AppWindow {
                         selected: win.sortOrder === modelData[0]
                         onClicked: win.sortOrder = modelData[0]
                     }
+                }
+                TextField {
+                    id: photoSearch
+                    Layout.preferredWidth: Theme.px(180)
+                    placeholder: Tr.t("Search photos…")
+                    text: win.searchText
+                    onTextChanged: win.searchText = text
                 }
                 Item { Layout.fillWidth: true }
                 // ---- albums ----
@@ -437,7 +451,7 @@ AppWindow {
                     anchors.centerIn: parent
                     visible: !win.scanning && win.shown.length === 0
                     icon: "folder-pictures"
-                    title: Tr.t("No photos yet")
+                    title: win.searchText.trim() !== "" ? Tr.t("No photos match that search") : Tr.t("No photos yet")
                     subtitle: Tr.t("Pictures in %1 show here — the camera's and the screenshots too").arg(win.pictures.replace(Quickshell.env("HOME"), "~"))
                 }
             }

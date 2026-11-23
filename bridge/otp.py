@@ -57,6 +57,25 @@ def b32decode(secret: str) -> bytes:
     return key
 
 
+MIN_SECRET_CHARS = 16  # 80 bits: authenticator apps issue at least this many
+
+
+def validate_secret(secret: str) -> str:
+    """Check a setup key before storing it; return it upper case, unpunctuated.
+    Raises ValueError with a clear message on a typo."""
+    s = secret.replace(" ", "").replace("-", "").upper()
+    if not s:
+        raise ValueError("the setup key is empty")
+    if not re.fullmatch(r"[A-Z2-7]+", s):
+        raise ValueError("the setup key must use only letters A-Z and digits 2-7")
+    if len(s) < MIN_SECRET_CHARS:
+        raise ValueError(
+            f"the setup key is too short (at least {MIN_SECRET_CHARS} characters)"
+        )
+    b32decode(s)  # refuse bad padding
+    return s
+
+
 def totp(
     key: bytes, at: float, period: int = 30, digits: int = 6, algorithm: str = "SHA1"
 ) -> str:
@@ -104,10 +123,11 @@ def parse(text: str) -> dict:
         raise ValueError(f"unknown algorithm {entry['algorithm']}")
     if entry["digits"] not in (6, 7, 8) or not 10 <= entry["period"] <= 300:
         raise ValueError("digits must be 6 to 8 and the period 10 to 300 seconds")
-    b32decode(entry["secret"])  # refuses a secret that is not base32
+    entry["secret"] = validate_secret(
+        entry["secret"]
+    )  # refuse a typo before storing it
     if not entry["issuer"] and not entry["account"]:
         raise ValueError("the code needs a name (an issuer or an account)")
-    entry["secret"] = entry["secret"].replace(" ", "").upper()
     return entry
 
 

@@ -21,11 +21,14 @@ Singleton {
     property var snapshots: []
     // restore target: the selected snapshot's name
     property string restoring: ""
+    property string restoreTarget: ""     // folder the restore job writes into
+    property bool loading: false          // home-list / backups queries still in flight
     readonly property string summary: drive
 
-    function refresh() { if (available) { homeList.running = true; backups.running = true; } }
+    function refresh() { if (available) { loading = true; homeList.running = true; backups.running = true; } }
     function open(page) { Quickshell.execDetached([root.tool, "open", page || "home"]); }
     function backupNow() {
+        if (running) return;  // single-flight: a second restic job would contend for the repo lock
         if (!driveSetUp) { open("backups"); return; }
         job.running = true;
     }
@@ -41,6 +44,18 @@ Singleton {
         // folder, which is not what either button promises.
         root.open(what === "files" ? "home" : "home");
         restoring = "";
+    }
+
+    // Shell-driven restore with completion feedback. The bridge exposes
+    // `shani-backup restore <target> --snapshot <id> --json` (cli.py), so this
+    // runs it as a job and notifies with an "Open result" action. The panel
+    // buttons still open the GUI so users can pick individual files; this path
+    // is for scripted restores that need a shell-level completion signal.
+    function restoreTo(snapshot, target) {
+        if (restoreJob.running) return;  // one restore at a time
+        root.restoring = snapshot || "";
+        root.restoreTarget = target || ((Quickshell.env("HOME") || "/tmp") + "/Restored/" + root.restoring);
+        restoreJob.running = true;
     }
 
     function formatBytes(n) {
@@ -69,6 +84,7 @@ Singleton {
         command: [root.tool, "home", "list", "--json"]
         stdout: StdioCollector {
             onStreamFinished: {
+                root.loading = false;
                 try {
                     const d = JSON.parse(text);
                     const n = d.ok ? d.snapshots.length : -1;
@@ -90,6 +106,7 @@ Singleton {
         command: [root.tool, "backups", "--json"]
         stdout: StdioCollector {
             onStreamFinished: {
+                root.loading = false;
                 try {
                     const d = JSON.parse(text);
                     root.driveSetUp = !!(d.repository && d.set_up);
@@ -114,6 +131,36 @@ Singleton {
                 code === 0 ? Tr.t("Backup finished") : Tr.t("Backup failed"),
                 code === 0 ? Tr.t("Your home folder is on the backup drive") : (err || Tr.t("Open Shani Backup to see why"))]);
             root.refresh();
+        }
+    }
+    Process {
+        id: restoreJob
+        command: [root.tool, "restore", root.restoreTarget, "--snapshot", root.restoring, "--json"]
+        stdout: StdioCollector { id: restoreOut }
+        onExited: code => {
+            const target = root.restoreTarget;
+            let err = "";
+            try { err = JSON.parse(restoreOut.text).error || ""; } catch (e) {}
+            root.restoring = "";
+            root.restoreTarget = "";
+            const ok = code === 0;
+            restoreNote.path = target;
+            restoreNote.command = ["notify-send", "-a", "Backup", "-i", ok ? "drive-harddisk" : "dialog-error"]
+                .concat(ok ? ["-A", "open=" + Tr.t("Open result")] : [])
+                .concat([ok ? Tr.t("Restore finished") : Tr.t("Restore failed"),
+                         ok ? (err || Tr.t("Restored into %1", target)) : (err || Tr.t("Open Shani Backup to see why"))]);
+            restoreNote.running = false;
+            restoreNote.running = true;
+            root.refresh();
+        }
+    }
+    // notify-send -A blocks until the button is pressed; the collector opens
+    // the restored folder when the user picks "Open result".
+    Process {
+        id: restoreNote
+        property string path: ""
+        stdout: StdioCollector {
+            onStreamFinished: { if (text.trim() === "open") Qt.openUrlExternally("file://" + restoreNote.path); }
         }
     }
     // asked when someone looks (the control centre, Settings > Backup), not on

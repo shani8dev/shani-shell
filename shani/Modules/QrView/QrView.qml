@@ -87,6 +87,18 @@ PanelWindow {
                 text: Tr.t("Copy details")
                 onClicked: Quickshell.clipboardText = Qr.text
             }
+            Button {
+                Layout.alignment: Qt.AlignHCenter
+                visible: Qr.shown
+                text: Tr.t("Save PNG…")
+                onClicked: FilePicker.open({
+                    mode: "save",
+                    title: Tr.t("Save QR code"),
+                    defaultName: "shani-qr.png",
+                    filters: ["png"],
+                    onPicked: paths => { if (paths.length) Qr.saveTo(paths[0]); }
+                })
+            }
         }
     }
 }

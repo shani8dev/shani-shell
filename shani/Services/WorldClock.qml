@@ -5,10 +5,11 @@ pragma Singleton
 // a surface that shows the clocks is open and a city is chosen; once all of
 // them are closed (or none is chosen), no process is spawned.
 //
-// Alarms live in Settings.alarms ({ time "HH:MM", label }; the check is
-// minute-granular, so it wakes on the minute boundary like Automations and
-// Focus, not on a fixed poll) and ring once through notify-send, the same
-// path the focus timer rings through.
+// Alarms live in Settings.alarms ({ time "HH:MM", label, days?, enabled? }:
+// optional weekday repeat and on/off); the check is minute-granular, so it
+// wakes on the minute boundary like Automations and Focus, not on a fixed poll.
+// They ring once through notify-send, the same path snooze and the focus timer
+// use.
 //
 // The stopwatch (start / pause / reset / laps) is the sidebar's, and
 // counts in the foreground only while it is running.
@@ -63,16 +64,26 @@ Singleton {
     }
 
     // ---- alarms -------------------------------------------------------------
-    // [{ time "HH:MM", label }] in Settings; each rings once for its minute,
-    // with the same critical notify-send the focus timer uses
+    // Settings.data.alarms holds { time "HH:MM", label, days?, enabled? }.
+    // days is JS weekday numbers (0=Sun .. 6=Sat); missing/empty means every
+    // day and missing enabled means on, so old {time,label} records still fire.
     readonly property var alarms: Settings.data.alarms
     property var lastFired: ""             // the minute it last rang, so it rings once
-    function addAlarm(time, label) {
+    function alarmDays(a) {
+        return (a && Array.isArray(a.days) && a.days.length) ? a.days.map(Number) : [0, 1, 2, 3, 4, 5, 6];
+    }
+    function alarmFiresOn(a, date) {
+        return !!a && a.enabled !== false && alarmDays(a).indexOf(date.getDay()) >= 0;
+    }
+    function addAlarm(time, label, days, enabled) {
         const t = String(time || "").trim();
         if (!/^([01]?\d|2[0-3]):[0-5]\d$/.test(t))
             return false;
+        const rec = { time: t.padStart(5, "0"), label: String(label || "").trim() || t.padStart(5, "0"), enabled: enabled !== false };
+        if (Array.isArray(days) && days.length)
+            rec.days = days.map(Number).filter(d => d >= 0 && d <= 6);
         const list = Array.from(Settings.data.alarms || []);
-        list.push({ time: t.padStart(5, "0"), label: String(label || "").trim() || t.padStart(5, "0") });
+        list.push(rec);
         Settings.data.alarms = list;
         return true;
     }
@@ -83,16 +94,46 @@ Singleton {
             Settings.data.alarms = list;
         }
     }
+    function ring(summary, body) {
+        Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "Alarms", "-i", "alarm-symbolic", "-h", "string:sound-name:alarm-clock-elapsed", summary, body]);
+    }
     function checkAlarms() {
         if (!Settings.loaded) return;
         const now = Qt.formatTime(new Date(), "HH:mm");
         if (now === lastFired) return;
-        const hits = (Settings.data.alarms || []).filter(a => a.time === now);
+        const today = new Date();
+        const hits = (Settings.data.alarms || []).filter(a => a.time === now && alarmFiresOn(a, today));
         if (hits.length === 0) return;
         lastFired = now;
         for (const hit of hits)
-            Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "Alarms", "-i", "alarm-symbolic", "-h", "string:sound-name:alarm-clock-elapsed",
-                "⏰ " + (hit.label || hit.time), "Alarm for " + now]);
+            ring("⏰ " + (hit.label || hit.time), Tr.t("Alarm for %1", now));
+    }
+
+    // Snooze re-notifies through the same notify-send path. The list is in
+    // memory only (like the stopwatch) and the timer runs while one is pending.
+    property var snoozes: []
+    function snooze(label, minutes) {
+        const m = Math.max(1, Math.round(Number(minutes) || 9));
+        const list = Array.from(root.snoozes || []);
+        list.push({ at: Date.now() + m * 60000, label: String(label || "") });
+        root.snoozes = list;
+        snoozeTick.restart();
+    }
+    function checkSnoozes() {
+        if (!root.snoozes || root.snoozes.length === 0) return;
+        const now = Date.now();
+        const due = root.snoozes.filter(s => s.at <= now);
+        if (due.length === 0) return;
+        root.snoozes = root.snoozes.filter(s => s.at > now);
+        for (const s of due)
+            ring(Tr.t("Snoozed alarm"), s.label || Tr.t("Alarm"));
+        if (root.snoozes.length === 0) snoozeTick.stop();
+    }
+    Timer {
+        id: snoozeTick
+        interval: 30000
+        repeat: true
+        onTriggered: root.checkSnoozes()
     }
     // minute-granular (“HH:MM”), so like Automations and Focus the wake is
     // the minute boundary itself, re-armed for the next one

@@ -45,6 +45,7 @@ PanelWindow {
         onPressAndHold: Ruler.clear()
         onPressed: function(mouse) {
             if (mouse.button === Qt.LeftButton) {
+                Ruler.straight = (mouse.modifiers & Qt.ShiftModifier) !== 0;
                 Ruler.startX = mouse.x;
                 Ruler.startY = mouse.y;
                 Ruler.endX = mouse.x;
@@ -58,19 +59,11 @@ PanelWindow {
             Ruler.cursorX = mouse.x;
             Ruler.cursorY = mouse.y;
             if (Ruler.hasStart) {
-                if (mouse.modifiers & Qt.ShiftModifier) {
-                    // straight line: horizontal or vertical, whichever is longer
-                    if (Math.abs(mouse.x - Ruler.startX) >= Math.abs(mouse.y - Ruler.startY)) {
-                        Ruler.endX = mouse.x;
-                        Ruler.endY = Ruler.startY;
-                    } else {
-                        Ruler.endX = Ruler.startX;
-                        Ruler.endY = mouse.y;
-                    }
-                } else {
-                    Ruler.endX = mouse.x;
-                    Ruler.endY = mouse.y;
-                }
+                // Shift draws a straight line in any direction, so its
+                // diagonal length and angle are the measurement
+                Ruler.straight = (mouse.modifiers & Qt.ShiftModifier) !== 0;
+                Ruler.endX = mouse.x;
+                Ruler.endY = mouse.y;
             }
         }
         onReleased: function(mouse) {
@@ -94,22 +87,35 @@ PanelWindow {
             }
             // cursor crosshair (dashed)
             drawCrosshair(ctx, width, height, Ruler.cursorX, Ruler.cursorY, true);
-            // measurement rectangle
+            // a Shift drag is a line; any other drag stays a rectangle
             if (Ruler.hasStart) {
-                var x0 = Math.min(Ruler.startX, Ruler.endX);
-                var y0 = Math.min(Ruler.startY, Ruler.endY);
-                var rw = Math.abs(Ruler.endX - Ruler.startX);
-                var rh = Math.abs(Ruler.endY - Ruler.startY);
-                // translucent fill
-                ctx.fillStyle = "rgba(255, 208, 0, 0.12)";
-                ctx.fillRect(x0, y0, rw, rh);
-                // border (dark wide under bright thin)
-                ctx.strokeStyle = "rgba(0, 0, 0, 0.6)";
-                ctx.lineWidth = 3;
-                ctx.strokeRect(x0 + 0.5, y0 + 0.5, Math.round(rw), Math.round(rh));
-                ctx.strokeStyle = "rgba(255, 212, 0, 1.0)";
-                ctx.lineWidth = 1;
-                ctx.strokeRect(x0 + 0.5, y0 + 0.5, Math.round(rw), Math.round(rh));
+                if (Ruler.straight) {
+                    ctx.strokeStyle = "rgba(0, 0, 0, 0.6)";
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(Ruler.startX, Ruler.startY); ctx.lineTo(Ruler.endX, Ruler.endY);
+                    ctx.stroke();
+                    ctx.strokeStyle = "rgba(255, 212, 0, 1.0)";
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(Ruler.startX, Ruler.startY); ctx.lineTo(Ruler.endX, Ruler.endY);
+                    ctx.stroke();
+                } else {
+                    var x0 = Math.min(Ruler.startX, Ruler.endX);
+                    var y0 = Math.min(Ruler.startY, Ruler.endY);
+                    var rw = Math.abs(Ruler.endX - Ruler.startX);
+                    var rh = Math.abs(Ruler.endY - Ruler.startY);
+                    // translucent fill
+                    ctx.fillStyle = "rgba(255, 208, 0, 0.12)";
+                    ctx.fillRect(x0, y0, rw, rh);
+                    // border (dark wide under bright thin)
+                    ctx.strokeStyle = "rgba(0, 0, 0, 0.6)";
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(x0 + 0.5, y0 + 0.5, Math.round(rw), Math.round(rh));
+                    ctx.strokeStyle = "rgba(255, 212, 0, 1.0)";
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(x0 + 0.5, y0 + 0.5, Math.round(rw), Math.round(rh));
+                }
             }
         }
         function drawCrosshair(ctx, w, h, cx, cy, dashed) {
@@ -136,6 +142,7 @@ PanelWindow {
             function onCursorXChanged() { crosshair.requestPaint(); }
             function onCursorYChanged() { crosshair.requestPaint(); }
             function onHasStartChanged() { crosshair.requestPaint(); }
+            function onStraightChanged() { crosshair.requestPaint(); }
             function onEndXChanged() { crosshair.requestPaint(); }
             function onEndYChanged() { crosshair.requestPaint(); }
         }
@@ -157,7 +164,7 @@ PanelWindow {
         Text {
             id: badge
             anchors.centerIn: parent
-            text: Ruler.sizeLabel()
+            text: Ruler.sizeLabel() + (Ruler.hasSecond ? "\n" + Ruler.lineLabel() : "")
             color: "#ffffff"
             font.family: Theme.font
             font.pixelSize: Theme.px(15) * Theme.fontScale
@@ -177,6 +184,53 @@ PanelWindow {
         // dark shadow for readability over any background
         style: Text.Outline
         styleColor: Qt.rgba(0, 0, 0, 0.6)
+    }
+
+    // DPI calibration: 0 (the default) keeps px only; a real DPI adds cm/in
+    Row {
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: Theme.px(24)
+        anchors.horizontalCenter: parent.horizontalCenter
+        spacing: Theme.px(8)
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: Tr.t("DPI calibration:")
+            color: "#ffffff"
+            font.family: Theme.font
+            font.pixelSize: Theme.px(13) * Theme.fontScale
+            style: Text.Outline
+            styleColor: Qt.rgba(0, 0, 0, 0.6)
+        }
+        Rectangle {
+            width: Theme.px(76)
+            height: Theme.px(28)
+            radius: Theme.px(5)
+            color: Qt.rgba(0.08, 0.08, 0.1, 0.85)
+            border.color: Qt.rgba(1, 1, 1, 0.35)
+            TextInput {
+                id: dpiInput
+                anchors.fill: parent
+                anchors.margins: Theme.px(4)
+                text: Ruler.dpi > 0 ? String(Ruler.dpi) : ""
+                color: "#ffffff"
+                inputMethodHints: Qt.ImhDigitsOnly
+                font.family: Theme.font
+                font.pixelSize: Theme.px(13) * Theme.fontScale
+                onEditingFinished: {
+                    Ruler.setDpi(text);
+                    dpiInput.text = Ruler.dpi > 0 ? String(Ruler.dpi) : "";
+                }
+            }
+        }
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: Ruler.dpi > 0 ? Tr.t("cm / in shown") : Tr.t("Set DPI for cm/in")
+            color: "#ffffff"
+            font.family: Theme.font
+            font.pixelSize: Theme.px(12) * Theme.fontScale
+            style: Text.Outline
+            styleColor: Qt.rgba(0, 0, 0, 0.6)
+        }
     }
 
     // keys

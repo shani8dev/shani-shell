@@ -13,6 +13,7 @@ Singleton {
     property string text: ""
     property string image: ""             // the PNG, while shown
     property int rev: 0
+    property int seq: 0                   // monotonic counter: a unique path per render
     readonly property bool shown: image !== ""
 
     function show(title, text) {
@@ -20,7 +21,10 @@ Singleton {
             return;
         root.title = title;
         root.text = text;
-        const out = (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/shani-qr.png";
+        root.seq++;
+        // unique per render so two consecutive shares never overwrite each
+        // other (a viewer left open used to show the newer code)
+        const out = (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/shani-qr-" + root.seq + "-" + Date.now() + ".png";
         make.command = ["qrencode", "-o", out, "-s", "10", "-m", "2", "--", text];
         make.out = out;
         make.running = true;
@@ -30,6 +34,22 @@ Singleton {
         id: make
         property string out
         onExited: code => { if (code === 0) { root.rev++; root.image = make.out; } }
+    }
+
+    // Save the current PNG to a destination the person chose via FilePicker
+    // (argv slots, no shell). Silent when there is nothing rendered yet.
+    function saveTo(path) {
+        if (!path || !image)
+            return;
+        saveProc.command = ["cp", "-f", image, path];
+        saveProc.running = true;
+    }
+    Process {
+        id: saveProc
+        onExited: code => {
+            Quickshell.execDetached(["notify-send", "-a", "QR code",
+                code === 0 ? Tr.t("QR code saved") : Tr.t("Could not save QR code")]);
+        }
     }
 
     // the Wi-Fi in use, as phones read it: WIFI:T:WPA;S:<name>;P:<password>;;

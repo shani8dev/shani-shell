@@ -183,7 +183,9 @@ AppWindow {
 
             Text {
                 Layout.fillWidth: true
-                text: Feeds.query !== "" ? Tr.t("Search results")
+                // While a search is in flight the old results are still in the
+                // model: say so instead of claiming the results have arrived.
+                text: Feeds.query !== "" ? (Feeds.busy ? Tr.t("Searching…") : Tr.t("Search results"))
                     : win.savedShown ? Tr.t("Saved articles")
                     : (Feeds.feeds.filter(f => f.url === Feeds.current)[0] || {}).title || Tr.t("Articles")
                 color: Theme.text
@@ -230,7 +232,7 @@ AppWindow {
             }
             Text {
                 Layout.fillWidth: true
-                visible: itemList.count === 0
+                visible: itemList.count === 0 && !Feeds.busy
                 text: Feeds.query !== "" ? Tr.t("No articles match that search")
                     : win.savedShown ? Tr.t("Nothing saved yet")
                     : Tr.t("Nothing in this feed yet")

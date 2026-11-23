@@ -9,6 +9,7 @@ Rectangle {
     property real size: Theme.px(32)
     property color iconColor: on ? Theme.accentInk : Theme.text
     property string tip: ""
+    property string keys: ""               // a shortcut badge shown in the tip, kept out of its prose
     signal clicked()
     signal rightClicked()
     signal pressAndHold()               // a long press: the window-layout picker on the bar's maximise
@@ -91,5 +92,5 @@ Rectangle {
     // keyboard and controller: Enter / Space click, the Menu key right-clicks
     KeyFocus { enabled: root.enabled && root.visible; menuable: root.hasMenu; onActivated: root.clicked(); onMenu: root.rightClicked() }
     // what it is, on hover: the tip, else the name a screen reader says
-    Hint { text: root.tip !== "" ? root.tip : root.Accessible.name }
+    Hint { text: root.tip !== "" ? root.tip : root.Accessible.name; keys: root.keys }
 }

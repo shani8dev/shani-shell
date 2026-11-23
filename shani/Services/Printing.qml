@@ -4,17 +4,33 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs.Common
 
 Singleton {
     id: root
     property int jobs: 0
     property string lastPrint: ""          // last file sent via printFile, for the tests
+    property string lastError: ""          // why printFile refused a file, for the UI
     function openQueue() { Quickshell.execDetached(["sh", "-c", "command -v system-config-printer >/dev/null && exec system-config-printer; exec xdg-open http://localhost:631/jobs/"]); }
+    // `lp` can only spool things it can render: PDFs, pictures and plain text.
+    // FileActions calls printFile for its catch-all "other" kind too, which
+    // would hand a .zip/.deb/.iso to lp. No synchronous MIME probe exists here
+    // (gio info is a Process), so allowlist the printable extensions by name.
+    function printable(path) {
+        const ext = (path.split("/").pop().split(".").pop() || "").toLowerCase();
+        return ["pdf", "png", "jpg", "jpeg", "gif", "bmp", "tif", "tiff", "webp", "heic", "heif", "avif",
+                "txt", "text", "md", "log", "csv", "rtf", "html", "htm", "xml", "json"].indexOf(ext) >= 0;
+    }
     // print one file (the PDF reader's print button): CUPS `lp` is the whole
     // backend — no print_file daemon to build — and lpstat above reports it.
     function printFile(path) {
+        lastError = "";
         if (!path)
             return false;
+        if (!printable(path)) {
+            lastError = Tr.t("This file type cannot be printed");
+            return false;
+        }
         lastPrint = path;
         Quickshell.execDetached(["lp", "--", path]);
         return true;

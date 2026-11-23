@@ -9,8 +9,15 @@ import QtQuick
 Singleton {
     id: root
     property bool available: false
-    function open() {
-        Quickshell.execDetached(["sh", "-c", "command -v gnome-network-displays >/dev/null && exec gnome-network-displays; exec flatpak run org.gnome.NetworkDisplays"]);
+    // shortcut: "active" means the Network Displays window is running, not that
+    // a sink is connected — that session state lives in Niri, not in this file.
+    readonly property bool active: session.running
+    function open() { if (!session.running) session.running = true; }
+    function stop() { if (session.running) session.running = false; }
+    Process {
+        id: session
+        running: false
+        command: ["sh", "-c", "command -v gnome-network-displays >/dev/null && exec gnome-network-displays; exec flatpak run org.gnome.NetworkDisplays"]
     }
     Process {
         running: true

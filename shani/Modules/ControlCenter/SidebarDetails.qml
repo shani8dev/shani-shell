@@ -166,16 +166,43 @@ ColumnLayout {
     }
 
     ColumnLayout {
+        id: btPanel
         visible: Ui.expanded === "bluetooth" && sidebar.bt !== null
         Layout.fillWidth: true
         spacing: 2
-        // while open: searching, and visible to others (so a phone can find this computer)
-        onVisibleChanged: if (sidebar.bt) {
-            sidebar.bt.discovering = visible && sidebar.bt.enabled;
-            sidebar.bt.discoverable = visible && sidebar.bt.enabled;
+        property bool discoverWanted: false     // explicit opt-in, off by default
+        property int discoverLeft: 0            // seconds left in the 2-minute window
+        // searching while the panel is open is harmless; discoverability is not
+        onVisibleChanged: if (sidebar.bt) sidebar.bt.discovering = visible && sidebar.bt.enabled
+        function setDiscoverable(on) {
+            discoverWanted = on;
+            discoverLeft = on ? 120 : 0;
+            if (sidebar.bt) sidebar.bt.discoverable = on;
+        }
+        Timer {
+            id: discoverTimer
+            interval: 1000
+            repeat: true
+            running: btPanel.discoverLeft > 0
+            onTriggered: {
+                btPanel.discoverLeft--;
+                if (btPanel.discoverLeft <= 0 && sidebar.bt) {
+                    sidebar.bt.discoverable = false;
+                    btPanel.discoverWanted = false;
+                }
+            }
         }
         SectionTitle {
             text: sidebar.bt && sidebar.bt.discovering ? "Bluetooth · searching" : "Bluetooth"
+        }
+        SwitchRow {
+            Layout.fillWidth: true
+            enabled: sidebar.bt && sidebar.bt.enabled
+            text: Tr.t("Discoverable for 2 minutes")
+            hint: btPanel.discoverWanted ? Tr.t("Others can find this computer for %1 s more").arg(btPanel.discoverLeft)
+                                 : Tr.t("Off — others cannot find this computer")
+            checked: btPanel.discoverWanted
+            onToggled: on => setDiscoverable(on)
         }
         Repeater {
             model: Bluetooth.devices.values.slice().sort((a, b) => (b.connected - a.connected) || (b.paired - a.paired))
@@ -447,7 +474,7 @@ ColumnLayout {
         visible: Ui.expanded === "phone" && Phone.available
         Layout.fillWidth: true
         spacing: 2
-        onVisibleChanged: if (visible) Phone.search()
+        onVisibleChanged: if (visible) { Phone.search(); Link.refresh(); }
         SectionTitle {
             text: Tr.t("Phones · KDE Connect")
             IconButton { icon: "view-refresh"; size: Theme.px(24); Accessible.name: Tr.t("Search again"); onClicked: Phone.search() }
@@ -457,6 +484,7 @@ ColumnLayout {
             ColumnLayout {
                 id: devRow
                 required property var modelData
+                readonly property var linkDev: Link.devices.find(d => d.id === devRow.modelData.id)
                 Layout.fillWidth: true
                 spacing: 2
                 ListRow {
@@ -464,6 +492,7 @@ ColumnLayout {
                     icon: "phone"
                     title: devRow.modelData.name
                     subtitle: devRow.modelData.paired ? (devRow.modelData.reachable ? "Connected" : "Paired · not nearby") : "Nearby · click to pair"
+                    trailing: Phone.batteryText(devRow.linkDev)
                     selected: devRow.modelData.paired && devRow.modelData.reachable
                     onClicked: if (!devRow.modelData.paired) Phone.pair(devRow.modelData.id)
                     IconButton {

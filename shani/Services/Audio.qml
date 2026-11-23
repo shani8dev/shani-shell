@@ -16,6 +16,9 @@ Singleton {
     // `undefined !== null` is true, so the check has to be truthiness
     readonly property bool ready: Pipewire.ready && !!sink && !!sink.audio
     readonly property real volume: ready ? sink.audio.volume : 0
+    // the true level (up to maxVolume); the slider's fill is volume/maxVolume,
+    // so its own value*100 readout understates over-amplified levels
+    readonly property int realPercent: Math.round(volume * 100)
     readonly property bool muted: ready ? sink.audio.muted : true
     readonly property bool micMuted: source && source.audio ? source.audio.muted : true
     readonly property real micVolume: micNode && micNode.audio ? micNode.audio.volume : 0
@@ -111,6 +114,8 @@ Singleton {
     // alone); re-applied when the default device changes.
     readonly property int balance: Settings.data.audioBalance
     property int balanceApplied: 0
+    // pactl itself changes the volume; ignore that echo, or re-applying loops
+    property bool balanceWriting: false
     Timer {
         id: balanceApply
         interval: 120
@@ -126,16 +131,19 @@ Singleton {
                              b > 0 ? other : v + "%",
                              b > 0 ? v + "%" : other];
             pactl.running = true;
+            root.balanceWriting = true;
             root.balanceApplied = b;
         }
     }
-    Process { id: pactl }
+    Process { id: pactl; onExited: root.balanceWriting = false }
     function setBalance(b) {
         const t = Math.max(-100, Math.min(100, Math.round(b)));
         if (t !== Settings.data.audioBalance)
             Settings.data.audioBalance = t;
     }
     onBalanceChanged: balanceApply.restart()
+    // a scalar volume write flattens the channel volumes that carry the balance
+    onVolumeChanged: { if (!root.balanceWriting) balanceApply.restart(); }
     // the sound moving to a device that just arrived (headphones plugged in, a
     // Bluetooth headset connected): WirePlumber switches by itself, and the OSD
     // says where it went. A switch made by hand to a device already there is not news.

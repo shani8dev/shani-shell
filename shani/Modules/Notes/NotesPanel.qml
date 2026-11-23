@@ -29,6 +29,7 @@ AppWindow {
 
     property string filterText: ""
     property string selectedNotebook: ""
+    onSelectedNotebookChanged: win.confirmNotebook = false
     property string lockMode: ""            // "" | "set" | "check" — the passphrase box
     property string lockPass: ""
     // delete asks first: a note is a file on disk, and there is no undo
@@ -40,6 +41,12 @@ AppWindow {
     property bool showHistory: false
     Timer { id: deleteTimer; interval: 4000; onTriggered: win.confirmDelete = false }
     Timer { id: notebookTimer; interval: 4000; onTriggered: win.confirmNotebook = false }
+    // a pending "tap again" belongs to the item it was armed on: switching
+    // notes or notebooks must not delete the new selection on one tap
+    Connections {
+        target: Services.QuickNotes
+        function onCurrentChanged() { win.confirmDelete = false }
+    }
 
 
     Item {
@@ -288,8 +295,8 @@ AppWindow {
                             lockField.forceActiveFocus();
                         }
                     }
-                    Button { text: Tr.t("Export HTML"); enabled: Services.QuickNotes.current !== ""; onClicked: Services.QuickNotes.exportHtml() }
-                    Button { text: Tr.t("Print"); enabled: Services.QuickNotes.current !== ""; onClicked: Services.QuickNotes.printNote() }
+                    Button { text: Tr.t("Export HTML"); enabled: Services.QuickNotes.current !== "" && (!Services.QuickNotes.locked || Services.QuickNotes.unlocked); onClicked: Services.QuickNotes.exportHtml() }
+                    Button { text: Tr.t("Print"); enabled: Services.QuickNotes.current !== "" && (!Services.QuickNotes.locked || Services.QuickNotes.unlocked); onClicked: Services.QuickNotes.printNote() }
                     // the note is a file on disk: ask before it goes
                     Button {
                         text: win.confirmDelete ? Tr.t("Tap again to delete") : Tr.t("Delete")
@@ -306,6 +313,19 @@ AppWindow {
                             }
                         }
                     }
+                }
+
+                // With no note open the editor would swallow typing and the
+                // save timer would drop it: say so, and offer the way out.
+                EmptyState {
+                    visible: Services.QuickNotes.current === ""
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    icon: "text-x-generic"
+                    title: Tr.t("No note selected")
+                    subtitle: Tr.t("Pick a note on the left, or start a new one")
+                    actionText: Tr.t("New note")
+                    onAction: Services.QuickNotes.create(Tr.t("Untitled"), win.selectedNotebook)
                 }
 
                 // An outside editor changed the file: autosave is stopped until
@@ -374,12 +394,13 @@ AppWindow {
 
                 // Text editor
                 ScrollView {
+                    visible: Services.QuickNotes.current !== ""
                     Layout.fillWidth: true
                     Layout.fillHeight: true
 
                     TextArea {
                         id: editor
-                        enabled: !Services.QuickNotes.locked || Services.QuickNotes.unlocked
+                        enabled: Services.QuickNotes.current !== "" && (!Services.QuickNotes.locked || Services.QuickNotes.unlocked)
                         text: Services.QuickNotes.text
                         onTextChanged: {
                             if (text !== Services.QuickNotes.text) Services.QuickNotes.text = text;
@@ -424,7 +445,9 @@ AppWindow {
                         model: Services.QuickNotes.links()
                         delegate: Button {
                             text: "[[" + modelData + "]]"
-                            onClicked: Services.QuickNotes.open(modelData, "")
+                            // one argument: open() then splits "notebook/note"
+                            // and finds a bare name wherever it lives
+                            onClicked: Services.QuickNotes.open(modelData)
                         }
                     }
                 }

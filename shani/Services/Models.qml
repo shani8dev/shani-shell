@@ -34,9 +34,10 @@ Singleton {
 
     // check if a model fits in available memory
     function fitsInRam(sizeStr) {
-        const m = /([\d.]+)\s*GB/.exec(sizeStr || "");
-        if (!m) return true;
-        const gb = parseFloat(m[1]);
+        const m = /([\d.]+)\s*(GB|MB|GiB|MiB)/i.exec(String(sizeStr || ""));
+        if (!m) return false; // unknown size: don't claim it fits
+        if (root.ramAvailable <= 0) return true; // RAM unknown: don't block downloads
+        const gb = parseFloat(m[1]) / (/^(MB|MiB)$/i.test(m[2]) ? 1024 : 1);
         // model needs ~1.5x its size in RAM (weights + context)
         return gb * 1.5 <= root.ramAvailable;
     }
@@ -55,14 +56,15 @@ Singleton {
                     const lines = text.trim().split("\n");
                     const models = [];
                     for (const line of lines) {
-                        // ollama list format: "NAME  ID  SIZE  MODIFIED"
-                        const parts = line.trim().split(/\s+/);
-                        if (parts.length >= 3 && parts[0] !== "NAME") {
+                        // ollama list: "NAME  ID  SIZE  MODIFIED" — SIZE is
+                        // two tokens ("2.0 GB"), so split() alone truncates it.
+                        const m = /^(\S+)\s+\S+\s+([\d.]+\s*(?:GB|MB|GiB|MiB|B))\b/i.exec(line.trim());
+                        if (m) {
                             models.push({
-                                name: parts[0],
-                                size: parts[2],
+                                name: m[1],
+                                size: m[2].replace(/\s+/g, " "),
                                 source: "ollama",
-                                path: parts[0],
+                                path: m[1],
                             });
                         }
                     }
@@ -84,10 +86,16 @@ Singleton {
     }
 
     // remove an installed model
+    Timer { id: removeRefresh; interval: 1500; onTriggered: root.refresh() }
+
     function remove(name) {
         Quickshell.execDetached(["sh", "-c",
             'ollama rm "$1" 2>&1 && notify-send -a Models "Removed $1"'
         , "sh", name]);
-        Qt.callLater(root.refresh);
+        // shortcut: a 1.5s re-read can be too slow on slow disks, use a rm
+        // Process onStreamFinished callback instead; refreshing immediately
+        // leaves the deleted row on screen until the next manual refresh
+        root.installed = root.installed.filter(m => m.name !== name);
+        removeRefresh.restart();
     }
 }

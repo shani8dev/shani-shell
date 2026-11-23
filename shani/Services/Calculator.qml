@@ -32,6 +32,11 @@ Singleton {
     property bool shown: false         // the panel is open (Modules/Calculator/Calculator.qml)
     property bool justEvaluated: false // after "=", a digit starts fresh instead of appending
 
+    // Angle unit for trig (DEG default, also RAD/GRAD). The panel toggle that
+    // drives setAngleUnit() lives with the shell app files; until it lands, a
+    // caller can bind a DEG/RAD/GRAD selector to this property directly.
+    property string angleUnit: "deg"   // deg | rad | grad
+
     property real memory: 0             // the memory register (MC/MR/M+/M-)
     property bool hasMemory: false
     property var history: []            // [{expr, value}] newest first, capped at 20
@@ -51,6 +56,11 @@ Singleton {
     function open() { shown = true; }
     function close() { shown = false; }
     function toggle() { shown = !shown; }
+    function setAngleUnit(u) {
+        const s = String(u || "").toLowerCase();
+        if (["deg", "rad", "grad"].indexOf(s) >= 0)
+            angleUnit = s;
+    }
 
     // 5! and (…)! as factorial calls, including nested parentheses.
     function rewriteFact(s) {
@@ -98,7 +108,8 @@ Singleton {
         // log is base 10 and ln is natural, as on every calculator. Math.log
         // is the natural one, so after prefixing: log → log10, ln → Math.log.
         const js = src.replace(/\bpi\b/gi, "PI").replace(/\be\b/g, "E")
-            .replace(/\b(sqrt|sin|cos|tan|asin|acos|atan|log|ln|exp|abs|round|floor|ceil|pow|min|max)\b/gi, m => "Math." + m.toLowerCase())
+            .replace(/\b(sin|cos|tan|asin|acos|atan)\b/gi, m => "_" + m.toLowerCase())
+            .replace(/\b(sqrt|log|ln|exp|abs|round|floor|ceil|pow|min|max)\b/gi, m => "Math." + m.toLowerCase())
             .replace(/Math\.log\(/g, "Math.log10(")
             .replace(/Math\.ln\(/g, "Math.log(")
             .replace(/\bPI\b/g, "Math.PI").replace(/\bE\b/g, "Math.E")
@@ -168,7 +179,23 @@ Singleton {
             const bnot = function (a) { return ~(Math.floor(a) | 0); };
             const lsh = function (a, n) { return (Math.floor(a) | 0) << (Math.floor(n) & 31); };
             const rsh = function (a, n) { return (Math.floor(a) | 0) >> (Math.floor(n) & 31); };
-            const v = Function("fact", "npr", "ncr", "fv", "pv", "rate", "sl", "ddb", "band", "bor", "bxor", "bnot", "lsh", "rsh", '"use strict"; return (' + js + ");")(fact, npr, ncr, fv, pv, rate, sl, ddb, band, bor, bxor, bnot, lsh, rsh);
+            // trig through the angle unit (DEG default, RAD, GRAD): the wrappers
+            // close over `root` so they read angleUnit at evaluation time.
+            const toRad = function (x) {
+                const u = String(root.angleUnit || "deg").toLowerCase();
+                return u === "rad" ? x : u === "grad" ? x * Math.PI / 200 : x * Math.PI / 180;
+            };
+            const fromRad = function (x) {
+                const u = String(root.angleUnit || "deg").toLowerCase();
+                return u === "rad" ? x : u === "grad" ? x * 200 / Math.PI : x * 180 / Math.PI;
+            };
+            const _sin = function (x) { return Math.sin(toRad(x)); };
+            const _cos = function (x) { return Math.cos(toRad(x)); };
+            const _tan = function (x) { return Math.tan(toRad(x)); };
+            const _asin = function (x) { return fromRad(Math.asin(x)); };
+            const _acos = function (x) { return fromRad(Math.acos(x)); };
+            const _atan = function (x) { return fromRad(Math.atan(x)); };
+            const v = Function("fact", "npr", "ncr", "fv", "pv", "rate", "sl", "ddb", "band", "bor", "bxor", "bnot", "lsh", "rsh", "_sin", "_cos", "_tan", "_asin", "_acos", "_atan", '"use strict"; return (' + js + ");")(fact, npr, ncr, fv, pv, rate, sl, ddb, band, bor, bxor, bnot, lsh, rsh, _sin, _cos, _tan, _asin, _acos, _atan);
             return typeof v === "number" && isFinite(v) ? Number(v.toPrecision(12)) : null;
         } catch (e) {
             return null;

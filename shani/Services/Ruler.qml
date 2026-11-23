@@ -30,6 +30,7 @@ Singleton {
     property real ratio: 1.0        // screenshot pixels per logical pixel
     property int screenW: 0
     property int screenH: 0
+    property real dpi: 0            // calibration from the panel; 0 = unknown -> px only
 
     // grim captures real pixels while the frozen image is shown in logical
     // coordinates: derive the ratio from the output we are drawing on instead
@@ -40,15 +41,64 @@ Singleton {
     }
     Component.onCompleted: { root.ratio = root.outputScale; }
 
+    // calibration survives a restart; no file (or a bad one) keeps px-only
+    readonly property string configPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/shani-shell/ruler.json"
+    FileView {
+        id: calib
+        path: root.configPath
+        printErrors: false
+        onLoaded: {
+            try {
+                const n = Number((JSON.parse(text() || "{}") || {}).dpi);
+                root.dpi = isFinite(n) && n > 0 ? n : 0;
+            } catch (e) { root.dpi = 0; }
+        }
+    }
+    function setDpi(v) {
+        const n = Number(v);
+        root.dpi = isFinite(n) && n > 0 ? n : 0;
+        calib.setText(JSON.stringify({ dpi: root.dpi }));
+    }
+    Process {
+        running: true
+        command: ["sh", "-c", 'mkdir -p "${1%/*}"', "sh", root.configPath]
+    }
+
     // the measured size, in screenshot pixels
     readonly property int measuredW: hasStart && endX !== startX ? Math.round(Math.abs(endX - startX) * ratio) : 0
     readonly property int measuredH: hasStart && endY !== startY ? Math.round(Math.abs(endY - startY) * ratio) : 0
 
+    // physical units are opt-in: px stays the default until a DPI is calibrated
+    function physLabel(w, h) {
+        if (root.dpi <= 0) return "";
+        const cm = v => (v / root.dpi * 2.54).toFixed(1);
+        const inch = v => (v / root.dpi).toFixed(2);
+        return h > 0 ? cm(w) + " × " + cm(h) + " cm / " + inch(w) + " × " + inch(h) + " in"
+                     : cm(w) + " cm / " + inch(w) + " in";
+    }
+    function withUnits(px, w, h) {
+        const phys = physLabel(w, h);
+        return phys ? px + "  (" + phys + ")" : px;
+    }
     function sizeLabel() {
         if (measuredW === 0 && measuredH === 0) return "";
-        if (measuredH === 0) return measuredW + " px";
-        if (measuredW === 0) return measuredH + " px";
-        return measuredW + " × " + measuredH + " px";
+        if (measuredH === 0) return withUnits(measuredW + " px", measuredW, 0);
+        if (measuredW === 0) return withUnits(measuredH + " px", measuredH, 0);
+        return withUnits(measuredW + " × " + measuredH + " px", measuredW, measuredH);
+    }
+
+    // with a second point there is a line: its real length and angle, whether
+    // the drag was a rectangle diagonal or a free-angle Shift line
+    readonly property bool hasSecond: hasStart && (endX !== startX || endY !== startY)
+    readonly property int diagonalPx: hasSecond
+        ? Math.round(Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2)) * ratio) : 0
+    readonly property real lineAngle: {
+        if (!hasSecond) return 0;
+        const a = Math.atan2(endY - startY, endX - startX) * 180 / Math.PI;
+        return a < 0 ? a + 180 : a;               // 0..180, an undirected line
+    }
+    function lineLabel() {
+        return hasSecond ? Tr.t("%1 px diagonal · %2°", diagonalPx, lineAngle.toFixed(1)) : "";
     }
 
     function capture() {

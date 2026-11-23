@@ -22,6 +22,7 @@ AppWindow {
     property var accounts: []
     property bool available: true
     property string note: ""
+    readonly property string unlockNote: Tr.t("Unlock the key in the terminal…")
     property bool adding: false
     property string removing: ""                // an id asked once, removed on the second
     property string copied: ""
@@ -76,6 +77,8 @@ AppWindow {
         // the key's codes behind a password: ykman asks for it in a terminal (never on a
         // command line) and remembers it, so the codes read from then on
         if (a.locked) {
+            win.note = win.unlockNote;
+            unlockTimer.restart();
             Quickshell.execDetached([Settings.data.terminal || "footclient", "-e", "sh", "-c",
                 'ykman oath access remember; echo; read -p "Done - press Enter to close." x']);
             return;
@@ -92,6 +95,8 @@ AppWindow {
     }
     Timer { id: copiedTimer; interval: 1500; onTriggered: win.copied = "" }
     Timer { id: removeTimer; interval: 4000; onTriggered: win.removing = "" }
+    // the terminal opens on its own: don't leave "unlock the key" hanging forever
+    Timer { id: unlockTimer; interval: 60000; onTriggered: { if (win.note === win.unlockNote) win.note = ""; } }
 
     Item {
         anchors.fill: parent
@@ -157,7 +162,7 @@ AppWindow {
                     MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.copy(row.modelData) }
                     KeyFocus { name: (row.modelData.issuer || row.modelData.account) + ", " + row.modelData.code; onActivated: win.copy(row.modelData) }
                     Accessible.role: Accessible.Button
-                    Accessible.name: (row.modelData.issuer || row.modelData.account) + ": " + row.modelData.code.split("").join(" ")
+                    Accessible.name: (row.modelData.issuer || row.modelData.account) + ": " + row.modelData.code.split("").join(" ") + ", " + Tr.t("%1 seconds left").arg(row.secondsLeft)
                     RowLayout {
                         anchors { fill: parent; leftMargin: Theme.px(14); rightMargin: Theme.px(8) }
                         spacing: Theme.px(12)
@@ -181,10 +186,14 @@ AppWindow {
                             Text { visible: !!row.modelData.issuer && !!row.modelData.account; text: row.modelData.account; color: Theme.faint; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                         }
                         // the time left on this code
-                        Item {
+                        StatusRing {
                             Layout.preferredWidth: Theme.px(30)
                             Layout.preferredHeight: Theme.px(30)
-                            Rectangle { anchors.fill: parent; radius: Theme.px(15); color: "transparent"; border.width: 3; border.color: Theme.surface3 }
+                            size: Theme.px(30)
+                            thickness: Theme.px(3)
+                            value: row.secondsLeft / row.modelData.period
+                            color: row.secondsLeft <= 5 ? Theme.danger : Theme.accent
+                            label: Tr.t("%1 seconds left").arg(row.secondsLeft)
                             Text { anchors.centerIn: parent; text: row.secondsLeft; color: row.secondsLeft <= 5 ? Theme.danger : Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.features: { "tnum": 1 } }
                         }
                         IconButton {

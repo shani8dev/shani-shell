@@ -24,6 +24,7 @@ ColumnLayout {
     property var devices: []             // the addresses the printers already set up print to
     property var found: null             // [{ name, uri }] while adding; null = not adding
     property bool finding: false
+    property var pendingAuth: null       // credentials stored after lpadmin succeeds
     onActiveChanged: if (active) { list.running = true; optsRead.running = true; }
     // made already active (a Settings category is a Loader): load now too
     Component.onCompleted: if (active) { list.running = true; optsRead.running = true; }
@@ -91,6 +92,20 @@ ColumnLayout {
             page.note = code === 0 ? act.done : (actErr.text.trim().split("\n").pop() || Tr.t("That did not work"));
             list.running = true;
             optsRead.running = true;
+            // lpoptions is per-user, so the credentials are stored only once
+            // the administrator's lpadmin has created the queue
+            const a = page.pendingAuth;
+            page.pendingAuth = null;
+            if (code === 0 && a) {
+                authStore.command = ["lpoptions", "-p", a.name, "-o", "auth-info=" + a.user + ":" + a.password];
+                authStore.running = true;
+            }
+        }
+    }
+    Process {
+        id: authStore
+        onExited: code => {
+            if (code !== 0) page.note = Tr.t("Printer added, but the credentials could not be saved");
         }
     }
 
@@ -123,10 +138,14 @@ ColumnLayout {
         if (!s) return "";
         return /^[a-z]+:\/\//.test(s) ? s : "ipp://" + s + "/ipp/print";
     }
-    function add(name, uri) {
+    function add(name, uri, user, password) {
         if (!uri) return;
         page.found = null;
-        page.run(["pkexec", "lpadmin", "-p", queueName(name), "-E", "-v", uri, "-m", "everywhere"], Tr.t("%1 added", name));
+        const q = queueName(name);
+        const args = ["pkexec", "lpadmin", "-p", q, "-E", "-v", uri, "-m", "everywhere"];
+        if (user && password) args.push("-o", "auth-info-required=username,password");
+        page.run(args, Tr.t("%1 added", name));
+        page.pendingAuth = (user && password) ? { name: q, user: user, password: password } : null;
     }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Printers") }
@@ -230,14 +249,32 @@ ColumnLayout {
             spacing: Theme.px(6)
             Repeater {
                 model: page.found || []
-                Choice { required property var modelData; text: modelData.name; onClicked: page.add(modelData.name, modelData.uri) }
+                Choice {
+                    required property var modelData
+                    text: modelData.name
+                    onClicked: page.add(modelData.name, modelData.uri, userField.text.trim(), passField.text)
+                }
             }
         }
         RowLayout {
             Layout.fillWidth: true
             spacing: Theme.px(6)
-            TextField { id: addr; Layout.fillWidth: true; placeholderText: Tr.t("Address, e.g. 192.168.1.20"); onAccepted: page.add(text.trim(), page.uriOf(text)) }
-            Button { text: Tr.t("Add"); enabled: addr.text.trim() !== ""; onClicked: page.add(addr.text.trim(), page.uriOf(addr.text)) }
+            TextField { id: addr; Layout.fillWidth: true; placeholderText: Tr.t("Address, e.g. 192.168.1.20"); onAccepted: page.add(text.trim(), page.uriOf(text), userField.text.trim(), passField.text) }
+            Button { text: Tr.t("Add"); enabled: addr.text.trim() !== ""; onClicked: page.add(addr.text.trim(), page.uriOf(addr.text), userField.text.trim(), passField.text) }
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            TextField { id: userField; Layout.fillWidth: true; placeholderText: Tr.t("Username (optional)") }
+            TextField { id: passField; Layout.fillWidth: true; placeholderText: Tr.t("Password (optional)"); secret: true }
+        }
+        Text {
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+            text: Tr.t("Credentials are saved in your CUPS settings (~/.cups/lpoptions).")
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
         }
     }
     Text {

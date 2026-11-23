@@ -48,7 +48,7 @@ AppWindow {
 
             // timeline
             Text {
-                visible: Backup.snapshots.length === 0
+                visible: !Backup.loading && Backup.snapshots.length === 0
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
                 text: Backup.driveSetUp ? Tr.t("No snapshots yet") : Tr.t("No backup drive set up")

@@ -31,6 +31,9 @@ ColumnLayout {
     property var shares: []               // [{ name, path, write }]
     property string host: ""
     property string note: ""
+    property string pairUrl: "https://localhost:47990/pin"
+    property string pairPin: ""
+    property bool pairLoading: false
     onActiveChanged: if (active) state.running = true
     // made already active (a Settings category is a Loader): load now too
     Component.onCompleted: if (active) state.running = true
@@ -80,6 +83,15 @@ ColumnLayout {
             page.note = code === 0 ? act.done : (actErr.text.trim().split("\n").pop() || Tr.t("That did not work"));
             state.running = true;
         }
+    }
+
+    // Sunshine's /pin page is HTTPS with a self-signed certificate. Read the PIN
+    // through the shell so pairing never lands in a browser certificate warning.
+    Process {
+        id: pinProc
+        command: ["sh", "-c", 'curl -sk --max-time 6 https://localhost:47990/pin 2>/dev/null | sed -e "s/<[^>]*>/ /g" | grep -oE "[0-9]{4,8}" | head -1']
+        stdout: StdioCollector { onStreamFinished: page.pairPin = text.trim() }
+        onExited: code => { page.pairLoading = false; if (code !== 0) page.pairPin = ""; }
     }
 
     // Nearby Share (LocalSend): found by phones and computers here, for this session only
@@ -159,10 +171,53 @@ ColumnLayout {
         checked: page.sunOn
         onToggled: on => page.run(["systemctl", "--user", on ? "enable" : "disable", "--now", page.sunUnit], on ? Tr.t("Remote desktop is on") : Tr.t("Remote desktop is off"))
     }
-    Button {
+    ColumnLayout {
         visible: page.sunUnit !== "" && page.sunOn
-        text: Tr.t("Pair a device…")
-        onClicked: Quickshell.execDetached(["xdg-open", "https://localhost:47990/pin"])
+        Layout.fillWidth: true
+        spacing: Theme.px(6)
+        Button {
+            text: Tr.t("Get pairing PIN")
+            enabled: !page.pairLoading
+            onClicked: { page.pairLoading = true; page.pairPin = ""; pinProc.running = false; pinProc.running = true; }
+        }
+        Text {
+            visible: page.pairPin !== ""
+            Layout.fillWidth: true
+            text: Tr.t("Pairing PIN: %1").arg(page.pairPin)
+            color: Theme.text
+            font.family: Theme.font
+            font.pixelSize: Theme.px(15) * Theme.fontScale
+        }
+        Text {
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+            text: (page.pairPin !== "" ? Tr.t("Enter this in Moonlight within 30 seconds; if it expires, get the PIN again. ")
+                                       : "") + Tr.t("Pairing page: %1 (self-signed certificate — a browser will warn).").arg(page.pairUrl)
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
+        Button {
+            text: page.pairPin !== "" ? Tr.t("Copy PIN") : Tr.t("Copy pairing address")
+            onClicked: Quickshell.clipboardText = page.pairPin !== "" ? page.pairPin : page.pairUrl
+        }
+    }
+
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Cast this screen") }
+    Text {
+        visible: Cast.available
+        Layout.fillWidth: true
+        wrapMode: Text.WordWrap
+        text: Cast.active ? Tr.t("Casting — GNOME Network Displays is sharing this screen")
+                          : Tr.t("Off — share this screen with a TV or Chromecast")
+        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+    }
+    RowLayout {
+        visible: Cast.available
+        Layout.fillWidth: true
+        spacing: Theme.px(8)
+        Button { text: Tr.t("Cast…"); enabled: !Cast.active; onClicked: { Ui.closeAll(); Cast.open(); } }
+        Button { visible: Cast.active; text: Tr.t("Stop casting"); onClicked: Cast.stop() }
     }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Shared folders") }

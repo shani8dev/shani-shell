@@ -72,7 +72,7 @@ AppWindow {
                     label: Tr.t("App description")
                     text: win.description
                     onTextChanged: win.description = text
-                    onAccepted: { Studio.generate(win.description); win.description = ""; }
+                    onAccepted: { if (Studio.busy) return; Studio.generate(win.description); win.description = ""; }
                 }
                 Button {
                     text: Studio.busy ? Tr.t("Working…") : Tr.t("Generate")

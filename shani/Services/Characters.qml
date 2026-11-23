@@ -23,6 +23,12 @@ Singleton {
     property bool loaded: false     // one answer has come back
     property string query: ""       // the last query asked for
     property string last: ""        // the char last copied (for the tests)
+    // A capped most-recently-used list of copied entries ([{ch,name,cat,cp}],
+    // newest first). A future recents row in the panel can bind to it; the
+    // service keeps it in memory so recents survive browsing but reset on
+    // shell restart, like `last` already does.
+    property var recents: []
+    readonly property int recentLimit: 12
 
     function search(q) {
         query = String(q || "").trim();
@@ -33,6 +39,8 @@ Singleton {
         if (!entry || !entry.ch) return;
         Quickshell.clipboardText = entry.ch;
         last = entry.ch;
+        // newest first, dedupe by character, capped — ready for a recents row
+        recents = [entry].concat(recents.filter(e => e.ch !== entry.ch)).slice(0, root.recentLimit);
         Quickshell.execDetached(["notify-send", "-a", "Characters", entry.ch, entry.name || ""]);
     }
     Timer {

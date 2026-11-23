@@ -13,10 +13,17 @@ import qs.Common
 
 Singleton {
     id: root
-    property var disks: []            // [{ name, path, model, size, type, mountpoints, fstype, label, children, removable, hotplug, ro, majmin }]
+    property var disks: []            // [{ name, path, model, size, type, transport, rotational, mountpoints, fstype, label, children, removable, hotplug, ro, majmin }]
     property var health: ({})         // { "/dev/sda": { overall, temp, hours, ... } }
     property var smart: ({})          // the full report for the SMART dialog
     property var benchmarkResult: null // { mbps, seconds, bytes }
+    property var scanResult: null     // { ok, output } for fsck / badblocks
+    // SMART self-test progress: polled while a test runs, then cleared
+    property string smartTestDevice: ""
+    property string smartTestKind: ""
+    property int smartTestRemaining: -1 // percentage left, -1 when idle
+    property real smartTestPercent: 0
+    property var smartTestStarted: 0
     property real jobProgress: -1
     property string jobLabel: ""
     property string error: ""
@@ -48,6 +55,23 @@ Singleton {
         run(["format", device, fstype, label || ""]);
     }
 
+    // Relabel: change a filesystem label in place (no reformat, no data loss)
+    function relabel(device, label) {
+        root.scanResult = null;
+        run(["relabel", device, String(label || "")]);
+    }
+
+    // Read-only scans: fsck -n and badblocks -n. Results stream back as JSON
+    // and are shown in the scan dialog; neither can repair or overwrite data.
+    function fsck(device) {
+        root.scanResult = null;
+        run(["fsck", device]);
+    }
+    function badblocks(device) {
+        root.scanResult = null;
+        run(["badblocks", device]);
+    }
+
     // Encrypt: LUKS format + open + create filesystem inside
     // fstype: the filesystem to create inside the encrypted container
     function encrypt(device, fstype, passphrase) {
@@ -67,9 +91,61 @@ Singleton {
         run(["smart", device]);
     }
     // short / long / conveyance: a fixed set, never a typed command string
+    property var pendingSmartTest: null
     function smartTest(device, kind) {
         if (["short", "long", "extended", "conveyance"].indexOf(kind) < 0) return;
+        root.pendingSmartTest = { device: device, kind: kind };
         run(["smart-test", device, kind]);
+    }
+    // called once the bridge confirms the test actually started
+    function startSmartPolling() {
+        const p = root.pendingSmartTest;
+        if (!p) return;
+        root.smartTestDevice = p.device;
+        root.smartTestKind = p.kind;
+        root.smartTestStarted = Date.now();
+        root.smartTestRemaining = -1;
+        root.smartTestPercent = 0;
+        smartPollTimer.start();
+        root.pollSmartTest();
+    }
+    function pollSmartTest() {
+        if (!root.smartTestDevice) return;
+        smartPoller.command = [root.tool, "smart-status", root.smartTestDevice];
+        if (!smartPoller.running) smartPoller.running = true;
+    }
+    function finishSmartTest(message) {
+        if (!root.smartTestDevice) return;
+        smartPollTimer.stop();
+        root.smartTestDevice = "";
+        root.smartTestRemaining = -1;
+        root.smartTestPercent = 100;
+        root.pendingSmartTest = null;
+        Quickshell.execDetached(["notify-send", "-a", Tr.t("Disks"), "-i", "drive-harddisk", message]);
+    }
+    Timer {
+        id: smartPollTimer
+        interval: 5000
+        repeat: true
+        onTriggered: root.pollSmartTest()
+    }
+    Process {
+        id: smartPoller
+        command: []
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r;
+                try { r = JSON.parse(text); } catch (e) { return; }
+                if (r.error) { root.finishSmartTest(Tr.t("SMART self-test status unavailable")); return; }
+                if (!r.active) { root.finishSmartTest(Tr.t("SMART self-test finished")); return; }
+                const left = Number(r.remaining);
+                root.smartTestRemaining = left >= 0 ? left : -1;
+                root.smartTestPercent = left >= 0 ? Math.max(0, Math.min(100, 100 - left)) : 0;
+            }
+        }
+        onExited: code => {
+            if (code !== 0) root.finishSmartTest(Tr.t("SMART self-test status unavailable"));
+        }
     }
     function benchmark(device) {
         run(["benchmark", device]);
@@ -136,7 +212,7 @@ Singleton {
     // ---- listing ----------------------------------------------------------------
     Process {
         id: lister
-        command: ["lsblk", "-J", "-b", "-p", "-o", "NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS,LABEL,MODEL,RM,HOTPLUG,RO"]
+        command: ["lsblk", "-J", "-b", "-p", "-o", "NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS,LABEL,MODEL,RM,HOTPLUG,RO,TRAN,ROTA"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -148,6 +224,8 @@ Singleton {
                         size: root.humanSize(d.size || 0),
                         bytes: Number(d.size) || 0,
                         type: d.type || "disk",       // disk, part, loop, rom
+                        transport: d.tran || "",      // sata, nvme, usb, sd …
+                        rotational: d.rota === 1 || d.rota === "1",
                         fstype: d.fstype || "",
                         label: d.label || "",
                         mountpoints: d.mountpoints || [],
@@ -191,14 +269,26 @@ Singleton {
                     if (cmd === "smart") root.smart = r;
                 } else if (cmd === "benchmark") {
                     root.benchmarkResult = r;
+                } else if (cmd === "fsck" || cmd === "badblocks") {
+                    root.scanResult = { command: cmd, device: dev, ok: r.ok !== false, output: String(r.output || "") };
+                } else if (cmd === "relabel") {
+                    root.scanResult = { command: cmd, device: dev, ok: !!r.ok,
+                        output: r.error || Tr.t("Label changed to %1", r.label || "") };
+                } else if (cmd === "smart-test" && r.ok) {
+                    Qt.callLater(root.startSmartPolling);
                 }
             }
         }
         onExited: code => {
+            const cmd0 = String(root.currentArgs[0] || "");
             root.busy = false;
             root.jobProgress = -1;
             root.jobLabel = "";
             root.currentArgs = [];
+            if (cmd0 === "smart-test" && code !== 0) {
+                root.pendingSmartTest = null;
+                smartPollTimer.stop();
+            }
             if (code !== 0 && code !== 1)   // 1 = polkit dismissed, not an error
                 root.error = writeErr.text.trim().split("\n").pop() || Tr.t("The operation failed");
             else

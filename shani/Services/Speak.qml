@@ -3,6 +3,7 @@ pragma Singleton
 // given — read aloud by speech-dispatcher, the engine Orca uses; espeak-ng
 // when speech-dispatcher is not there.
 import Quickshell
+import Quickshell.Services.Notifications
 import Quickshell.Io
 import QtQuick
 import qs.Common
@@ -38,8 +39,16 @@ Singleton {
     Connections {
         target: Notifs
         function onAlerted(n) {
-            if (Settings.data.speakNotifications)
-                root.speak((n.appName ? n.appName + ": " : "") + (n.summary || ""));
+            if (!Settings.data.speakNotifications)
+                return;
+            // a notification asking for no sound asks for no speech too
+            if ((n.hints || {})["suppress-sound"])
+                return;
+            const text = (n.appName ? n.appName + ": " : "") + (n.summary || "");
+            if (n.urgency === NotificationUrgency.Critical)
+                root.speak(Tr.t("Important alert") + ": " + text);
+            else
+                root.speak(text);
         }
     }
     // the primary selection: what is highlighted right now, in any app

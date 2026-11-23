@@ -20,24 +20,58 @@ AppWindow {
     implicitWidth: Theme.px(640)
     implicitHeight: Theme.px(600)
 
-    property var fonts: []        // [{ family, style }]
+    property var fonts: []        // the filtered, capped subset the list shows
+    property var allFonts: []     // every font fc-list found, before filtering
     property var familyNames: ({})  // every installed family name -> true
     property string preview: previewField.text ? previewField.text : Tr.t("The quick brown fox jumps over the lazy dog 1234567890")
     property int previewSize: 15  // 10..48 pt, the size slider
     property string installNote: ""
     property bool installing: false
-    property bool truncated: false   // more fonts than the list shows
+    property bool truncated: false   // more matched fonts than the list shows
     property int totalFonts: 0
+    property int filteredCount: 0
+    property string searchText: ""
+    property var selectedFont: null
+    property string selectedDetails: ""
+    readonly property string userFontRoot: (Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") || "") + "/.local/share") + "/fonts"
 
     function refresh() {
         fonts = [];
+        allFonts = [];
+        selectedFont = null;
+        selectedDetails = "";
         listFonts.running = true;
+    }
+    // filter all N fonts, not just the capped 400, then cap what the list shows
+    function applyFilter() {
+        const q = searchText.trim().toLowerCase();
+        const matched = q ? allFonts.filter(f =>
+            (f.family || "").toLowerCase().indexOf(q) >= 0 ||
+            (f.style || "").toLowerCase().indexOf(q) >= 0) : allFonts;
+        filteredCount = matched.length;
+        fonts = matched.slice(0, 400);
+        truncated = matched.length > 400;
+        if (selectedFont && matched.indexOf(selectedFont) < 0) {
+            selectedFont = null;
+            selectedDetails = "";
+        }
     }
     function copyFamily(family) {
         if (!family)
             return;
         Quickshell.clipboardText = family;
         Quickshell.execDetached(["notify-send", "-a", "Fonts", family]);
+    }
+    // a row click still copies the family; it also queries just that one font
+    function selectFont(f) {
+        if (!f)
+            return;
+        copyFamily(f.family);
+        selectedFont = f;
+        if (!f.file) { selectedDetails = ""; return; }
+        selectedDetails = Tr.t("Reading font details…");
+        fontDetails.command = ["fc-query", "-f", "%{family[0]}|%{style[0]}|%{fullname[0]}|%{fontversion}", f.file];
+        fontDetails.running = true;
     }
     function installFont(path) {
         if (!path || win.installing)
@@ -52,41 +86,49 @@ AppWindow {
 
     Process {
         id: listFonts
-        command: ["fc-list", ":", "family", "style"]
+        command: ["fc-list", ":", "family", "style", "file"]
         stdout: StdioCollector {
             onStreamFinished: {
                 const seen = {};
                 const out = [];
                 const lines = text.split("\n");
                 for (const line of lines) {
-                    if (!line || line.indexOf(":") < 0)
+                    if (!line)
                         continue;
+                    // "file: Family:style=Regular …" — file, then family, then style
                     const ci = line.indexOf(":");
-                    const family = line.slice(0, ci).trim();
+                    if (ci < 0)
+                        continue;
+                    const file = line.slice(0, ci).trim();
+                    const rest = line.slice(ci + 1).trim();
+                    const si = rest.indexOf(":style=");
+                    const family = (si >= 0 ? rest.slice(0, si) : rest.split(":")[0]).trim();
                     if (!family)
                         continue;
-                    // "Family:style=Regular …" — the style after "style=" (or the tail)
                     let style = "";
-                    const si = line.indexOf("style=");
                     if (si >= 0)
-                        style = line.slice(si + 6).split(",")[0].trim();
-                    else
-                        style = line.slice(ci + 1).split(",")[0].trim();
+                        style = rest.slice(si + 7).split(",")[0].trim();
+                    else {
+                        const st = rest.indexOf("style=");
+                        if (st >= 0)
+                            style = rest.slice(st + 6).split(",")[0].trim();
+                    }
                     const key = family + "\0" + style;
                     if (seen[key])
                         continue;
                     seen[key] = true;
-                    out.push({ family: family, style: style });
+                    out.push({ family: family, style: style, file: file,
+                               user: file.indexOf(win.userFontRoot + "/") === 0 || file.indexOf("/.local/share/fonts/") >= 0 });
                 }
                 out.sort((a, b) => a.family.toLowerCase().localeCompare(b.family.toLowerCase()));
-                // every family name there is (fc-list gives "Family,Family Regular"; the
-                // list below is cut to 400): what "Installed" is judged by
+                // every family name there is, even for fonts beyond the 400 shown:
+                // this is what "Installed" is judged by
                 const names = {};
                 for (const f of out) for (const n of f.family.split(",")) names[n.trim()] = true;
                 win.familyNames = names;
-                win.fonts = out.slice(0, 400);
-                win.truncated = out.length > 400;
+                win.allFonts = out;
                 win.totalFonts = out.length;
+                win.applyFilter();
             }
         }
     }
@@ -101,6 +143,23 @@ AppWindow {
                 win.refresh();
             } else {
                 win.installNote = Tr.t("Could not install this font file");
+            }
+        }
+    }
+
+    // one lazy fc-query for the selected row: family, style, full name, version
+    Process {
+        id: fontDetails
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (!win.selectedFont)
+                    return;
+                const p = text.trim().split("|");
+                if (p.length < 4) { win.selectedDetails = ""; return; }
+                const v = parseInt(p[3]) || 0;
+                win.selectedDetails = [p[0], p[1], p[2],
+                    v ? Tr.t("version %1", (v / 65536).toFixed(2).replace(/\.?0+$/, "")) : ""]
+                    .filter(x => x).join(" · ");
             }
         }
     }
@@ -135,7 +194,9 @@ AppWindow {
                 spacing: Theme.px(8)
                 Item { Layout.fillWidth: true }
                 Text {
-                    text: win.fonts.length ? Tr.t("%1 styles", win.fonts.length) : ""
+                    text: win.totalFonts ? (win.searchText !== ""
+                        ? Tr.t("%1 of %2 styles", win.filteredCount, win.totalFonts)
+                        : Tr.t("%1 styles", win.totalFonts)) : ""
                     color: Theme.faint
                     font.family: Theme.mono
                     font.pixelSize: Theme.px(10) * Theme.fontScale
@@ -146,6 +207,15 @@ AppWindow {
                     tip: Tr.t("Refresh")
                     onClicked: win.refresh()
                 }
+            }
+
+            TextField {
+                id: searchField
+                objectName: "font-search"
+                Layout.fillWidth: true
+                placeholder: Tr.t("Search fonts by family or style")
+                label: Tr.t("Search fonts")
+                onTextChanged: win.searchText = text
             }
 
             // a font file opened from Files (GNOME Font Viewer parity): the font in its
@@ -323,6 +393,34 @@ AppWindow {
                 }
             }
 
+            Rectangle {
+                id: detailCard
+                objectName: "font-details"
+                Layout.fillWidth: true
+                visible: win.selectedFont !== null
+                implicitHeight: detailText.implicitHeight + Theme.px(12)
+                radius: Theme.radiusSmall
+                color: Theme.surface1
+                border.width: 1
+                border.color: Theme.stroke
+                Text {
+                    id: detailText
+                    anchors.fill: parent
+                    anchors.margins: Theme.px(6)
+                    text: {
+                        if (!win.selectedFont) return "";
+                        const f = win.selectedFont;
+                        const head = f.family + (f.style ? " · " + f.style : "")
+                            + (f.user ? "  [" + Tr.t("User-installed") + "]" : "");
+                        return win.selectedDetails ? head + "\n" + win.selectedDetails : head;
+                    }
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    wrapMode: Text.Wrap
+                }
+            }
+
             ListView {
                 reuseItems: true
                 cacheBuffer: 400
@@ -341,10 +439,10 @@ AppWindow {
                     width: list.width
                     height: Math.max(52, win.previewSize * 2 + 22)
                     radius: Theme.px(10)
-                    color: rowArea.containsMouse ? Theme.hover : "transparent"
+                    color: rowArea.containsMouse ? Theme.hover : (win.selectedFont === row.modelData ? Theme.surface1 : "transparent")
                     Accessible.role: Accessible.Button
                     Accessible.name: row.modelData.family + (row.modelData.style ? ", " + row.modelData.style : "")
-                    Accessible.onPressAction: win.copyFamily(row.modelData.family)
+                    Accessible.onPressAction: win.selectFont(row.modelData)
 
                     ColumnLayout {
                         anchors.fill: parent
@@ -359,13 +457,24 @@ AppWindow {
                             font.family: row.modelData.family
                             font.pixelSize: win.previewSize * Theme.fontScale
                         }
-                        Text {
+                        RowLayout {
                             Layout.fillWidth: true
-                            text: row.modelData.family + (row.modelData.style ? " · " + row.modelData.style : "")
-                            color: Theme.faint
-                            elide: Text.ElideRight
-                            font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            spacing: Theme.px(6)
+                            Text {
+                                Layout.fillWidth: true
+                                text: row.modelData.family + (row.modelData.style ? " · " + row.modelData.style : "")
+                                color: Theme.faint
+                                elide: Text.ElideRight
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                            }
+                            Text {
+                                visible: row.modelData.user === true
+                                text: Tr.t("User")
+                                color: Theme.accent
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(9) * Theme.fontScale
+                            }
                         }
                     }
                     MouseArea {
@@ -373,11 +482,11 @@ AppWindow {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: win.copyFamily(row.modelData.family)
+                        onClicked: win.selectFont(row.modelData)
                     }
                     KeyFocus {
                         name: row.modelData.family
-                        onActivated: win.copyFamily(row.modelData.family)
+                        onActivated: win.selectFont(row.modelData)
                     }
                 }
             }
@@ -386,8 +495,8 @@ AppWindow {
                 Layout.fillWidth: true
                 visible: win.fonts.length === 0 && !listFonts.running
                 icon: "preferences-desktop-font"
-                title: Tr.t("No fonts listed")
-                subtitle: Tr.t("fc-list found nothing — is fontconfig installed?")
+                title: win.searchText !== "" ? Tr.t("No matching fonts") : Tr.t("No fonts listed")
+                subtitle: win.searchText !== "" ? Tr.t("Try a different search") : Tr.t("fc-list found nothing — is fontconfig installed?")
             }
 
             EmptyState {
@@ -402,7 +511,7 @@ AppWindow {
             Text {
                 Layout.fillWidth: true
                 visible: win.truncated
-                text: Tr.t("Showing the first %1 of %2 styles").arg(win.fonts.length).arg(win.totalFonts)
+                text: Tr.t("Showing the first %1 of %2 styles").arg(win.fonts.length).arg(win.filteredCount)
                 color: Theme.dim
                 horizontalAlignment: Text.AlignHCenter
                 font.family: Theme.font

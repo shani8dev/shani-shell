@@ -30,21 +30,44 @@ Singleton {
         stdout: StdioCollector { onStreamFinished: root.agentFound = text.trim() }
     }
     function find(name) { return pads.find(p => p.name === name) || (name === "ai" ? aiPad : null); }
+    // the pad's window, if it is running (appId is what its command sets)
+    function windowFor(name) {
+        const pad = find(name);
+        return pad && pad.appId ? Object.values(Niri.windows || {}).find(x => x.app_id === pad.appId) : null;
+    }
+    // a minimised pad lives on niri's hidden workspace, so its workspace_id
+    // differs from the one in front - that is the visible state callers want
+    function isVisible(name) {
+        const w = windowFor(name);
+        const here = (Niri.workspaces || []).find(x => x.is_focused);
+        return !!w && !!here && w.workspace_id === here.id;
+    }
+    function show(name) {
+        const w = windowFor(name);
+        if (!w) return false;
+        Niri.restore(w.id);
+        last = "shown";
+        return true;
+    }
+    function hide(name) {
+        const w = windowFor(name);
+        if (!w) return false;
+        Niri.minimise(w.id);
+        last = "hidden";
+        return true;
+    }
     function toggle(name) {
-        const pad = find(name || "terminal");
+        const key = name || "terminal";
+        const pad = find(key);
         if (!pad)
             return;
-        const w = Object.values(Niri.windows).find(x => x.app_id === pad.appId);
-        const here = Niri.workspaces.find(x => x.is_focused);
+        const w = windowFor(key);
         if (!w) {
             last = "started";
             Quickshell.execDetached(["sh", "-c", pad.command]);
-        } else if (w.id === Niri.focusedWindowId && here && w.workspace_id === here.id) {
-            last = "hidden";
-            Niri.minimise(w.id);
-        } else {
-            last = "shown";
-            Niri.restore(w.id);
-        }
+        } else if (isVisible(key) && w.id === Niri.focusedWindowId)
+            hide(key);
+        else
+            show(key);
     }
 }

@@ -33,8 +33,12 @@ AppWindow {
     property string format: "png"
     property bool looking: false
     property bool scanning: false
+    property bool cancelled: false
     property string lastScan: ""
     property string error: ""
+    // scanimage has no --format=pdf (pnm/tiff/png/jpeg only): pdfform.py's
+    // topdf wraps the PNG scan into a one-page PDF when PyMuPDF is installed.
+    readonly property string pdfTool: Quickshell.env("SHANI_PDFFORM_TOOL") || "/usr/lib/shani-shell/pdfform.py"
     readonly property string folder: (Quickshell.env("XDG_DOCUMENTS_DIR") || (Quickshell.env("HOME") + "/Documents")) + "/Scans"
 
     function refreshDevices() { looking = true; error = ""; deviceProc.running = true; }
@@ -50,26 +54,55 @@ AppWindow {
         }
         onExited: win.looking = false
     }
+    // killing the process fires onExited; cancelled keeps it from overwriting
+    // the note we already gave for a Cancel or a watchdog timeout
+    function stopScan(note) {
+        watchdog.stop();
+        cancelled = true;
+        scanProc.running = false;
+        scanning = false;
+        if (note) error = note;
+    }
     function scan() {
         if (device === "" || scanning)
             return;
         scanning = true;
+        cancelled = false;
         error = "";
-        const out = folder + "/Scan " + Qt.formatDateTime(new Date(), "yyyy-MM-dd hh.mm.ss") + "." + (format === "jpeg" ? "jpg" : format);
+        const ext = format === "jpeg" ? "jpg" : format;
+        const out = folder + "/Scan " + Qt.formatDateTime(new Date(), "yyyy-MM-dd HH.mm.ss") + "." + ext;
         scanProc.target = out;
-        scanProc.command = ["sh", "-c", 'mkdir -p "${4%/*}" && scanimage --device-name="$1" --resolution="$2" --format="$3" --output-file="$4.part" && mv -f "$4.part" "$4"',
-                            "sh", device, String(resolution), format, out];
+        scanProc.pdf = format === "pdf";
+        if (format === "pdf") {
+            const png = out.slice(0, -4) + ".png";
+            scanProc.command = ["sh", "-c",
+                'mkdir -p "${5%/*}" && scanimage --device-name="$1" --resolution="$2" --format=png --output-file="$5.part" && mv -f "$5.part" "$5" && python3 "$4" topdf "$3" "$5" && rm -f "$5"',
+                "sh", device, String(resolution), pdfTool, out, png];
+        } else {
+            scanProc.command = ["sh", "-c", 'mkdir -p "${4%/*}" && scanimage --device-name="$1" --resolution="$2" --format="$3" --output-file="$4.part" && mv -f "$4.part" "$4"',
+                                "sh", device, String(resolution), format, out];
+        }
+        watchdog.restart();
         scanProc.running = true;
     }
     Process {
         id: scanProc
         property string target: ""
+        property bool pdf: false
         stderr: StdioCollector { id: scanErr }
         onExited: code => {
+            if (win.cancelled) return;
+            watchdog.stop();
             win.scanning = false;
             if (code === 0) win.lastScan = scanProc.target;
-            else win.error = Tr.t("The scanner reported a problem");
+            else win.error = scanProc.pdf ? Tr.t("Could not make the PDF; the PNG scan was kept (PyMuPDF may be missing)")
+                                          : Tr.t("The scanner reported a problem");
         }
+    }
+    Timer {
+        id: watchdog
+        interval: 120000
+        onTriggered: win.stopScan(Tr.t("The scan took too long and was stopped"))
     }
     Component.onCompleted: refreshDevices()
 
@@ -226,6 +259,12 @@ AppWindow {
                     flat: true
                     text: Tr.t("Show in Files")
                     onClicked: Services.Files.show(win.folder)
+                }
+                Button {
+                    visible: win.scanning
+                    flat: true
+                    text: Tr.t("Cancel")
+                    onClicked: win.stopScan(Tr.t("Scan cancelled"))
                 }
                 Item { Layout.fillWidth: true }
                 Button {
