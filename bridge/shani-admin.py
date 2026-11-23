@@ -683,6 +683,21 @@ def sudoers_set(req: dict) -> dict:
     return sudoers_get(req)
 
 
+def apparmor_set(req: dict) -> dict:
+    profile = req.get("profile", "")
+    mode = req.get("mode", "")
+    if not isinstance(profile, str) or not re.match(r"^[A-Za-z0-9_./:-]{1,256}$", profile):
+        raise Refused("bad profile name")
+    if mode not in ("enforce", "complain"):
+        raise Refused("mode must be enforce or complain")
+    cmd = "aa-enforce" if mode == "enforce" else "aa-complain"
+    exe = shutil.which(cmd) or f"/usr/sbin/{cmd}"
+    r = subprocess.run([exe, profile], capture_output=True, text=True, timeout=20)
+    if r.returncode != 0:
+        raise Refused((r.stderr or r.stdout).strip().splitlines()[-1][:200] or f"{cmd} failed")
+    return {"profile": profile, "mode": mode}
+
+
 COMMANDS = {
     "guest": guest,
     "wakeup": wakeup,
@@ -704,6 +719,7 @@ COMMANDS = {
     "hosts-set": hosts_set,
     "sudoers-get": sudoers_get,
     "sudoers-set": sudoers_set,
+    "apparmor-set": apparmor_set,
 }
 
 

@@ -19,6 +19,8 @@ ColumnLayout {
     property string sudoersText: ""
     property string sudoersNote: ""
     property bool sudoersBusy: false
+    property string aaNote: ""
+    property bool aaBusy: false
     onActiveChanged: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); }
     Component.onCompleted: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); }
 
@@ -82,6 +84,14 @@ ColumnLayout {
     }
     function saveSudoers() { page.sudoersBusy = true; page.sudoersNote = ""; sudoersSaveProc.payload = JSON.stringify({ text: page.sudoersText }); sudoersSaveProc.command = page.adminCmd.concat(["sudoers-set"]); sudoersSaveProc.running = true; }
 
+    Process {
+        id: aaProc; stdinEnabled: true; property string payload: ""
+        stderr: StdioCollector { id: aaErr }
+        onStarted: { write(payload + "\n"); stdinEnabled = false; }
+        onExited: code => { stdinEnabled = true; page.aaBusy = false; page.aaNote = code === 0 ? Tr.t("AppArmor profile updated") : (aaErr.text.trim().split("\n").pop() || Tr.t("AppArmor change failed")); SecurityInfo.refresh(); }
+    }
+    function setAa(mode) { page.aaBusy = true; page.aaNote = ""; aaProc.payload = JSON.stringify({ profile: aaProfile.text.trim(), mode: mode }); aaProc.command = page.adminCmd.concat(["apparmor-set"]); aaProc.running = true; }
+
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Security") }
     Text { Layout.fillWidth: true; text: Tr.t("What the kernel, sign-in and audit subsystems report. Policy edits go through administrator authorisation."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
 
@@ -94,6 +104,14 @@ ColumnLayout {
         ListRow { Layout.fillWidth: true; interactive: false; icon: "security-high"; title: Tr.t("Service"); subtitle: aa.active || Tr.t("unknown") }
         ListRow { Layout.fillWidth: true; interactive: false; icon: "security-high"; title: Tr.t("Profiles"); subtitle: aa.profiles ? Tr.t("%1 loaded, %2 enforcing", Object.keys(aa.profiles).length, aa.enforcing || 0) : (aa.note || Tr.t("No profile report available")) }
     }
+
+    RowLayout {
+        Layout.fillWidth: true; spacing: Theme.px(6)
+        TextField { id: aaProfile; Layout.fillWidth: true; placeholder: Tr.t("Profile name (from aa-status)") }
+        Button { text: Tr.t("Complain"); enabled: !page.aaBusy && aaProfile.text.trim() !== ""; onClicked: page.setAa("complain") }
+        Button { text: Tr.t("Enforce"); kind: "primary"; enabled: !page.aaBusy && aaProfile.text.trim() !== ""; onClicked: page.setAa("enforce") }
+    }
+    Text { Layout.fillWidth: true; visible: page.aaNote !== ""; text: page.aaNote; color: page.aaNote.indexOf("failed") >= 0 ? Theme.danger : Theme.accent; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Password policy") }
     ListRow { Layout.fillWidth: true; interactive: false; icon: "dialog-password"; title: Tr.t("pwquality config"); subtitle: pw.present ? pw.file : Tr.t("No /etc/security/pwquality.conf") }
