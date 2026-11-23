@@ -64,7 +64,8 @@ def test_settings_quick_ops_are_real():
     s = read("shani/Modules/Settings/SettingsPage.qml")
     assert "quick-op.log" not in s
     assert "Backup.backupNow()" in s
-    assert "shani-cassini" in s
+    # the update result opens our own Updates page, not another app
+    assert 'Ui.settingsCat = "updates"' in s
     assert "SysStats.cpu * 100" in s
 
 
