@@ -421,6 +421,14 @@ ColumnLayout {
         Button { visible: page.u2f.registered > 0; kind: "danger"; text: Tr.t("Remove my keys"); onClicked: page.u2fDo("remove") }
     }
 
+    Text {
+        Layout.fillWidth: true
+        text: Tr.t("Your sign-in password may also unlock the keyring that keeps saved passwords. Changing it here does not change the keyring: if apps stop remembering secrets, open Passwords and Keys and change the keyring password to match.")
+        color: Theme.dim
+        wrapMode: Text.Wrap
+        font.family: Theme.font
+        font.pixelSize: Theme.px(11) * Theme.fontScale
+    }
     Button {
         text: Tr.t("Change password…")
         onClicked: {

@@ -112,12 +112,42 @@ ColumnLayout {
                     enabled: !page.busy
                     onToggled: on => page.act("autologin", { username: on ? urow.modelData.name : "" })
                 }
-                TextField {
+                RowLayout {
                     Layout.fillWidth: true
                     visible: urow.modelData.name !== page.me
-                    placeholder: "New password for " + urow.modelData.name
-                    secret: true
-                    onAccepted: if (text !== "") { page.act("user-password", { username: urow.modelData.name, password: text }); text = ""; }
+                    spacing: Theme.px(6)
+                    TextField {
+                        id: pw1
+                        Layout.fillWidth: true
+                        placeholder: "New password for " + urow.modelData.name
+                        secret: true
+                        onAccepted: pwSet.clicked()
+                    }
+                    TextField {
+                        id: pw2
+                        Layout.fillWidth: true
+                        placeholder: Tr.t("Repeat the new password")
+                        secret: true
+                        onAccepted: pwSet.clicked()
+                    }
+                    Button {
+                        id: pwSet
+                        text: Tr.t("Set password")
+                        enabled: !page.busy && pw1.text !== "" && pw1.text === pw2.text
+                        onClicked: {
+                            page.act("user-password", { username: urow.modelData.name, password: pw1.text });
+                            pw1.text = ""; pw2.text = "";
+                        }
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: urow.modelData.name !== page.me && pw2.text !== "" && pw1.text !== pw2.text
+                    text: Tr.t("The two passwords do not match.")
+                    color: Theme.danger
+                    wrapMode: Text.Wrap
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 RowLayout {
                     id: removeRow
@@ -179,7 +209,7 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: page.iAmAdmin
         text: Tr.t("Guest")
-        hint: Tr.t("anyone can sign in as Guest without a password; everything they leave is wiped when they sign out")
+        hint: Tr.t("anyone can sign in as Guest without a password; everything they leave is wiped when they sign out — turning this off deletes the Guest account and its files")
         checked: page.guest !== ""
         enabled: !page.busy && page.me !== page.guest
         onToggled: on => page.act("guest", { on: on })

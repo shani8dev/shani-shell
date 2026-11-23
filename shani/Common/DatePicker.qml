@@ -46,6 +46,28 @@ ColumnLayout {
         IconButton { icon: "go-next"; tip: Tr.t("Next month"); size: Theme.px(26); onClicked: current = new Date(current.getFullYear(), current.getMonth() + 1, 1) }
     }
 
+    // reach a distant month/year directly, without clicking through dozens of months
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.px(6)
+        TextField {
+            id: jumpMonth
+            Layout.fillWidth: true
+            placeholder: Tr.t("Jump to month — YYYY-MM")
+            onAccepted: {
+                const m = /^(\d{4})-(\d\d)$/.exec(jumpMonth.text.trim());
+                if (m && +m[1] >= 100 && +m[2] >= 1 && +m[2] <= 12) {
+                    root.current = new Date(+m[1], +m[2] - 1, 1);
+                    jumpMonth.text = "";
+                }
+            }
+        }
+        Button {
+            text: Tr.t("Go")
+            onClicked: jumpMonth.accepted()
+        }
+    }
+
     GridLayout {
         Layout.fillWidth: true
         columns: 7
@@ -157,11 +179,17 @@ ColumnLayout {
             placeholder: Tr.t("Custom date — YYYY-MM-DD, e.g. 2026-11-04")
             onAccepted: {
                 const d = customDate.text.trim();
-                if (/^\d{4}-\d\d-\d\d$/.test(d)) {
-                    root.value = d;
-                    root.picked(d);
-                    customDate.text = "";
-                }
+                const m = /^(\d{4})-(\d\d)-(\d\d)$/.exec(d);
+                if (!m)
+                    return;
+                // the regex alone accepts 2026-02-31; only a real day can be set
+                const parsed = new Date(+m[1], +m[2] - 1, +m[3]);
+                if (parsed.getFullYear() !== +m[1] || parsed.getMonth() !== +m[2] - 1 || parsed.getDate() !== +m[3])
+                    return;
+                root.value = d;
+                root.picked(d);
+                root.current = parsed;
+                customDate.text = "";
             }
         }
         Button {

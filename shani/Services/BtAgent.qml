@@ -14,6 +14,7 @@ Singleton {
     readonly property string tool: Quickshell.env("SHANI_BT_AGENT") || defaultTool
     property var ask: null              // { ask: confirm|authorize|pin|passkey, id, device, passkey? }
     property var show: null             // { show: passkey|pin, device, passkey|pin, entered? }
+    property string agentError: ""      // why bt-agent.py exited, when it did so unexpectedly
 
     function answer(ok, value) {
         if (!ask)
@@ -28,12 +29,26 @@ Singleton {
         running: Bluetooth.defaultAdapter !== null || root.tool !== root.defaultTool
         command: ["python3", root.tool]
         stdinEnabled: true
+        stderr: StdioCollector { id: agentErr }
+        onExited: code => {
+            root.agentError = agentErr.text.trim();
+            // an adapter going away is a normal stop; a crash while it is up is not
+            if (code !== 0 && root.agentError !== "" && (Bluetooth.defaultAdapter !== null || root.tool !== root.defaultTool))
+                Quickshell.execDetached(["notify-send", "-a", "Bluetooth", "-i", "dialog-error",
+                    "Bluetooth pairing unavailable", root.agentError.slice(0, 160)]);
+        }
         stdout: SplitParser {
             onRead: line => {
                 let m;
                 try { m = JSON.parse(line); } catch (e) { return; }
-                if (m.ask)
+                if (m.ask) {
+                    // a stale passkey display would mask the prompt (and its
+                    // button would answer the wrong ask) — clear it first
+                    root.show = null;
+                    if (root.ask)
+                        root.answer(false); // don't strand the previous BlueZ request
                     root.ask = m;
+                }
                 else if (m.show)
                     root.show = m;
                 else if (m.cancel) {

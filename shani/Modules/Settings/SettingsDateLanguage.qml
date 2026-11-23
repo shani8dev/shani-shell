@@ -23,8 +23,10 @@ ColumnLayout {
     property string zoneError: ""
     property var locales: []
     property string lang: ""              // LANG in locale.conf ("" = the system's)
-    // the language this session started with: a different choice needs a new sign-in
-    readonly property string langAtLogin: Quickshell.env("LANG") || ""
+    // the language this session started with: a different choice needs a new sign-in.
+    // locale.conf may hold "en_IN.utf8" while LANG at login is "en_IN.UTF-8": compare
+    // language/region only, so an encoding spelling alone is not a false log-out prompt
+    readonly property string langAtLogin: (Quickshell.env("LANG") || "").replace(/\..*$/, "")
     property string formats: ""           // LC_TIME and the other formats; "" = as the language
     property string preview: ""
     readonly property string localeConf: (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config") + "/locale.conf"
@@ -41,6 +43,7 @@ ColumnLayout {
         zoneList.running = true;
         localeList.running = true;
         conf.reload();
+        refreshPreview();
     }
     onActiveChanged: if (active) refresh()
     // made already active (a Settings category is a Loader): load now too
@@ -226,8 +229,9 @@ ColumnLayout {
             text().split("\n").forEach(l => { const m = l.match(/^\s*([A-Z_]+)=["']?([^"']*)["']?\s*$/); if (m) kv[m[1]] = m[2]; });
             page.lang = kv.LANG || "";
             page.formats = kv.LC_TIME && kv.LC_TIME !== kv.LANG ? kv.LC_TIME : "";
+            page.refreshPreview();
         }
-        onLoadFailed: { page.lang = ""; page.formats = ""; }
+        onLoadFailed: { page.lang = ""; page.formats = ""; page.refreshPreview(); }
     }
     function writeConf(lang, formats) {
         const lines = ["# written by shani-shell: Settings > Date & language; read at sign-in"];
@@ -240,12 +244,15 @@ ColumnLayout {
         saveConf.running = true;
     }
     Process { id: saveConf; onExited: conf.reload() }
-    // how dates and numbers look in the chosen formats
-    Process {
-        id: sample
-        running: page.active
-        command: ["sh", "-c", 'export LC_ALL="$1"; date "+%A, %x  %X"; printf "%\'.2f\\n" 1234567.89', "sh", page.formats || page.lang || "C.UTF-8"]
-        stdout: StdioCollector { onStreamFinished: page.preview = text.trim().split("\n").join("   ·   ") }
+    // how dates and numbers look in the chosen formats. Proc.run restarts on
+    // every call, so the sample follows a new language/formats choice at once
+    // (a Process whose command changes while running would stay on the old one)
+    function refreshPreview() {
+        if (!page.active)
+            return;
+        Proc.run("date-language-preview",
+            ["sh", "-c", 'export LC_ALL="$1"; date "+%A, %x  %X"; printf "%\'.2f\\n" 1234567.89', "sh", page.formats || page.lang || "C.UTF-8"],
+            out => { page.preview = out.trim().split("\n").join("   ·   "); }, 0);
     }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Language & region") }
@@ -271,10 +278,12 @@ ColumnLayout {
         placeholder: Tr.t("Search — मराठी, Deutsch, en_IN…")
     }
     Repeater {
-        model: page.choosing === "" ? [] : page.locales.filter(l => {
+        // the empty entry lets someone undo a choice and go back to the system's
+        // language (or formats), instead of being stuck with the last one picked
+        model: page.choosing === "" ? [] : [""].concat(page.locales.filter(l => {
             const q = localeSearch.text.trim().toLowerCase();
             return q === "" || l.toLowerCase().indexOf(q) >= 0 || page.niceLocale(l).toLowerCase().indexOf(q) >= 0;
-        }).slice(0, 10)
+        }).slice(0, 10))
         ListRow {
             required property string modelData
             Layout.fillWidth: true
@@ -327,7 +336,7 @@ ColumnLayout {
         font.family: Theme.font
         font.pixelSize: Theme.px(11) * Theme.fontScale
     }    Button {
-        visible: page.lang !== "" && page.lang !== page.langAtLogin
+        visible: page.lang !== "" && page.lang.replace(/\..*$/, "") !== page.langAtLogin
         text: Tr.t("Log out now, to finish")
         onClicked: Power.logout()
     }

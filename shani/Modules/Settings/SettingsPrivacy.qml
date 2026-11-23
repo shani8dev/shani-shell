@@ -16,7 +16,12 @@ ColumnLayout {
     property bool active: false
     readonly property var d: Settings.data
     property var grants: []               // [{ table, id, app, perms }]
-    onActiveChanged: if (active) perms.running = true
+    property string confirming: ""        // the destructive action waiting for a second tap
+    function confirmThen(kind, fn) {
+        if (page.confirming === kind) { page.confirming = ""; fn(); }
+        else page.confirming = kind;
+    }
+    onActiveChanged: { if (active) perms.running = true; else page.confirming = ""; }
     // made already active (a Settings category is a Loader): load now too
     Component.onCompleted: if (active) perms.running = true
     readonly property var names: ({ "devices/camera": "Camera", "devices/microphone": "Microphone", "devices/speakers": "Speakers",
@@ -162,7 +167,15 @@ ColumnLayout {
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Recent files") }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Remember recently used files"); hint: Tr.t("for apps' Recent lists"); checked: page.d.rememberRecent; onToggled: on => page.d.rememberRecent = on }
-    Button { text: Tr.t("Clear the recent files list"); onClicked: Housekeeping.clearRecent() }
+    RowLayout {
+        spacing: Theme.px(6)
+        Button {
+            text: page.confirming === "recent" ? Tr.t("Tap again to clear the recent files list") : Tr.t("Clear the recent files list")
+            kind: page.confirming === "recent" ? "danger" : "plain"
+            onClicked: page.confirmThen("recent", () => Housekeeping.clearRecent())
+        }
+        Button { visible: page.confirming === "recent"; text: Tr.t("Cancel"); onClicked: page.confirming = "" }
+    }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Trash") }
     RowLayout {
@@ -178,10 +191,26 @@ ColumnLayout {
             }
         }
     }
-    Button { text: Tr.t("Empty the trash now"); onClicked: Housekeeping.emptyTrash() }
+    RowLayout {
+        spacing: Theme.px(6)
+        Button {
+            text: page.confirming === "trash" ? Tr.t("Tap again to empty the trash") : Tr.t("Empty the trash now")
+            kind: page.confirming === "trash" ? "danger" : "plain"
+            onClicked: page.confirmThen("trash", () => Housekeeping.emptyTrash())
+        }
+        Button { visible: page.confirming === "trash"; text: Tr.t("Cancel"); onClicked: page.confirming = "" }
+    }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Clipboard") }
-    Button { text: Tr.t("Clear clipboard history"); onClicked: Clipboard.wipe() }
+    RowLayout {
+        spacing: Theme.px(6)
+        Button {
+            text: page.confirming === "clipboard" ? Tr.t("Tap again to clear clipboard history") : Tr.t("Clear clipboard history")
+            kind: page.confirming === "clipboard" ? "danger" : "plain"
+            onClicked: page.confirmThen("clipboard", () => Clipboard.wipe())
+        }
+        Button { visible: page.confirming === "clipboard"; text: Tr.t("Cancel"); onClicked: page.confirming = "" }
+    }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("What apps may use") }
     Text {
@@ -214,9 +243,17 @@ ColumnLayout {
             }
         }
     }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Location services") }
+    SwitchRow {
+        Layout.fillWidth: true
+        text: Tr.t("Use my location")
+        hint: Tr.t("GeoClue2 — weather and night light can use where this computer is; apps still ask separately")
+        checked: page.d.useLocation
+        onToggled: on => { page.d.useLocation = on; if (on && Location.refresh) Location.refresh(); }
+    }
     Text {
         Layout.fillWidth: true
-        text: Tr.t("Location for the weather comes from the city you type under Personalisation — the shell does not locate this computer.")
+        text: Tr.t("With this off, the weather uses the city typed under Personalisation. This does not change the camera, microphone or location you grant to an individual app above.")
         color: Theme.faint
         wrapMode: Text.Wrap
         font.family: Theme.font

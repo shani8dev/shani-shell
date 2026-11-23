@@ -28,8 +28,17 @@ Singleton {
     readonly property string tool: Quickshell.env("SHANI_PLUGWATCH_TOOL") || "/usr/lib/shani-shell/plugwatch.py"
     readonly property string mountsTool: Quickshell.env("SHANI_MOUNTS_TOOL") || "/usr/lib/shani-shell/mounts.py"
     property var seen: ({})               // kind + key: greeted this session
+    property var askers: ({})             // pending notify-send actions, by kind + key
     property int greeted: 0               // for the tests
     property string last: ""              // the last greeting's title
+    function forgetAsker(kind, key) {
+        const id = kind + "\n" + key;
+        if (askers[id]) {
+            const a = Object.assign({}, askers);
+            delete a[id];
+            askers = a;
+        }
+    }
     // bumped when a controller or a security key comes or goes: pages re-read
     property int controllerRev: 0
     property int keyRev: 0
@@ -48,6 +57,14 @@ Singleton {
         if (e.event === "screens") {
             Displays.rescan();
             return;
+        }
+        // a device that left must not leave a clickable action for a gone device
+        if (e.event === "remove") {
+            const id = e.kind + "\n" + e.key;
+            if (root.askers[id]) {
+                root.askers[id].destroy();
+                root.forgetAsker(e.kind, e.key);
+            }
         }
         if (e.kind === "controller") {
             controllerRev++;
@@ -69,11 +86,6 @@ Singleton {
 
     function greet(kind, name, key) {
         const id = kind + "\n" + key;
-        if (seen[id] || !Settings.data.plugGreetings || Lock.locked)
-            return;
-        const s = Object.assign({}, seen);
-        s[id] = true;
-        seen = s;
         let title = "", body = "", icon = "", actions = [];
         if (kind === "monitor") {
             title = Tr.t("%1 plugged in", name);
@@ -114,16 +126,27 @@ Singleton {
             body = typeof m.body === "function" ? m.body(name) : m.body;
             icon = m.icon;
             actions = m.action ? [m.action] : [];
-            if (m.arrived)
-                m.arrived(name);
         } else
             return;
+        // side effects first: a braille display must turn the screen reader on
+        // even at the lock screen or with greetings off. The wording above was
+        // built from the state before arrival, so "said once" still reads right.
+        if (!seen[id] && more[kind] && more[kind].arrived)
+            more[kind].arrived(name);
+        if (seen[id] || !Settings.data.plugGreetings || Lock.locked)
+            return;
+        const s = Object.assign({}, seen);
+        s[id] = true;
+        seen = s;
         greeted++;
         last = title;
         const argv = ["notify-send", "-a", Tr.t("Devices"), "-i", icon];
         for (const a of actions)
             argv.push("-A", a[0] + "=" + a[1]);
-        asker.createObject(root, { command: argv.concat([title, body]), kind: kind, key: key, name: name, running: true });
+        const p = asker.createObject(root, { command: argv.concat([title, body]), kind: kind, key: key, name: name, running: true });
+        const a = Object.assign({}, askers);
+        a[id] = p;
+        askers = a;
     }
 
     // the rest: one sentence and (at most) one action each
@@ -140,6 +163,8 @@ Singleton {
         "midi": { icon: "audio-x-generic", body: Tr.t("A MIDI device. Apps can use it now.") },
         "serial": { icon: "utilities-terminal", body: name => Tr.t("Arduino or serial device connected - %1", name.split(" - ").pop()), action: ["copy", Tr.t("Copy the port name")] },
         "cardreader": { icon: "auth-smartcard", body: Tr.t("Card reader ready.") },
+        // plain USB mass storage: bumping storageRev above reloads Files' Devices
+        "drive": { icon: "drive-removable-media", body: Tr.t("A USB drive. Its files are in Files."), action: ["files", Tr.t("Open in Files")] },
         // a braille display is a person who reads by touch: the screen reader comes on at once
         "braille": { icon: "preferences-desktop-accessibility", action: ["undo", Tr.t("Undo")],
             body: () => Settings.data.screenReader ? Tr.t("A braille display. The screen reader is on.") : Tr.t("A braille display. The screen reader is now on."),
@@ -205,8 +230,12 @@ Singleton {
                 Ui.scanner = true;
             }
         }
-        else if (action === "files")
-            Quickshell.execDetached(["python3", root.mountsTool, "open", kind === "camera" ? "gphoto2" : kind === "iphone" ? "afc" : "mtp"]);
+        else if (action === "files") {
+            if (kind === "drive")
+                Files.show("");              // a plain stick is already a gvfs volume; Files lists it under Devices
+            else
+                Quickshell.execDetached(["python3", root.mountsTool, "open", kind === "camera" ? "gphoto2" : kind === "iphone" ? "afc" : "mtp"]);
+        }
         else if (kind === "capture" && action === "camera") {
             // likewise: the camera app, or the shell's Camera
             if (DesktopEntries.byId("org.gnome.Snapshot"))
@@ -236,7 +265,7 @@ Singleton {
                         root.act(proc.kind, proc.key, a, proc.name);
                 }
             }
-            onExited: destroy()
+            onExited: { root.forgetAsker(proc.kind, proc.key); destroy(); }
         }
     }
 
