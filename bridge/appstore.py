@@ -12,6 +12,9 @@ Lever's jobs), through the `flatpak` command and Flathub's own catalogue.
     appstore.py install|remove|update <id>  prints {"progress": 0..100, "line"} as it goes, then {"ok"}
     appstore.py install-ref <file>          a .flatpakref (a website's "Install" link), with progress
     appstore.py update-all
+    appstore.py skipped                     [app ids held back with "Skip this version"]
+    appstore.py skip <id> on|off            hold back / resume an app's updates
+    appstore.py catalogue                   {"refreshed": <date>, "ageDays": <int>}: AppStream age
     appstore.py leftovers                   [{"id", "path", "size"}]: ~/.var/app folders of apps no
                                             longer installed (Warehouse's "Leftover data")
     appstore.py leftover-remove <id>        that folder to the trash
@@ -45,6 +48,7 @@ CACHE = os.path.join(
     "shani-shell",
     "appstore-index.json",
 )
+SKIPPED = os.path.join(os.path.dirname(CACHE), "appstore-skipped.json")
 APPDIR = os.path.join(HOME, "Applications")
 DESKTOP_DIR = os.path.join(
     os.environ.get("XDG_DATA_HOME") or os.path.join(HOME, ".local/share"),
@@ -218,6 +222,39 @@ def index() -> list[dict]:
         json.dump({"source": path, "mtime": mtime, "apps": apps}, f)
     os.replace(tmp, CACHE)
     return apps
+
+
+def catalogue() -> dict:
+    import datetime
+
+    path = appstream_file()
+    if not path or not os.path.exists(path):
+        return {"refreshed": "", "ageDays": None}
+    day = datetime.datetime.fromtimestamp(os.path.getmtime(path)).date()
+    return {"refreshed": day.isoformat(), "ageDays": (datetime.date.today() - day).days}
+
+
+# apps held back by "Skip this version": a tiny state file beside the index
+def skipped() -> set:
+    try:
+        with open(SKIPPED, encoding="utf-8") as f:
+            return {x for x in json.load(f) if isinstance(x, str)}
+    except (OSError, ValueError):
+        return set()
+
+
+def skip(app_id: str, on: bool) -> list:
+    ids = skipped()
+    if on:
+        ids.add(app_id)
+    else:
+        ids.discard(app_id)
+    os.makedirs(os.path.dirname(SKIPPED), exist_ok=True)
+    tmp = SKIPPED + ".part"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(sorted(ids), f)
+    os.replace(tmp, SKIPPED)
+    return sorted(ids)
 
 
 def _installed_ids() -> set:
@@ -413,12 +450,13 @@ def installed() -> list[dict]:
     r = _run(
         "list", "--app", "--columns=application,name,version,origin,installation,size"
     )
+    held = skipped()
     ups = {
         l.split("\t")[0].strip()
         for l in _run(
             "remote-ls", "--updates", "--app", "--columns=application"
         ).stdout.splitlines()
-        if l.strip()
+        if l.strip() and l.split("\t")[0].strip() not in held
     }
     icons = {a["id"]: a["icon"] for a in index()}
     out = []
@@ -681,7 +719,30 @@ def main(argv: list[str]) -> int:
                     return 0 if stream(verb + [name, args[0]]) == 0 else 1
                 return 0 if stream(verb + [args[0]]) == 0 else 1
         elif cmd == "update-all":
-            return 0 if stream(["update", "-y", "--noninteractive"]) == 0 else 1
+            # only the unheld apps: flatpak's "update everything" has no exclude
+            held = skipped()
+            ids = sorted(
+                l.split("\t")[0].strip()
+                for l in _run(
+                    "remote-ls", "--updates", "--app", "--columns=application"
+                ).stdout.splitlines()
+                if l.strip() and l.split("\t")[0].strip() not in held
+            )
+            if not ids:
+                print(json.dumps({"ok": True}))
+                return 0
+            return 0 if stream(["update", "-y", "--noninteractive"] + ids) == 0 else 1
+        elif cmd == "skipped":
+            out = sorted(skipped())
+        elif (
+            cmd == "skip"
+            and len(args) == 2
+            and _safe_id(args[0])
+            and args[1] in ("on", "off")
+        ):
+            out = skip(args[0], args[1] == "on")
+        elif cmd == "catalogue":
+            out = catalogue()
         elif cmd == "leftovers":
             out = leftovers()
         elif cmd == "leftover-remove" and len(args) == 1:

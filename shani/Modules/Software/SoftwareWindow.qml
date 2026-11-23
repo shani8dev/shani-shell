@@ -33,6 +33,7 @@ AppWindow {
     property var remotes: []
     property bool busy: false
     Timer { id: removeTimer; interval: 4000; onTriggered: { win.removing = ""; win.removingLeftover = ""; } }
+    Timer { id: confirmTimer; interval: 4000; onTriggered: win.confirmUpdateAll = false }
     property string job: ""                   // the app a job runs for
     property real progress: -1
     property string jobLine: ""
@@ -40,6 +41,9 @@ AppWindow {
     property string removing: ""
     property string removingLeftover: ""
     readonly property int updates: installedApps.filter(a => a.update).length
+    property bool confirmUpdateAll: false        // two-tap confirm, armed for a few seconds
+    property var skippedIds: []                  // apps held back with "Skip this version"
+    property var catalogue: ({})                 // {refreshed, ageDays} from the bridge
 
     readonly property var categories: [["AudioVideo", Tr.t("Music and video")], ["Development", Tr.t("Developer tools")], ["Education", Tr.t("Learning")],
                                        ["Game", Tr.t("Games")], ["Graphics", Tr.t("Graphics")], ["Network", Tr.t("Internet")], ["Office", Tr.t("Office")],
@@ -59,6 +63,8 @@ AppWindow {
     function start() {
         Qt.callLater(win.takeRef);
         ask(["installed"], r => { win.installedApps = Array.isArray(r) ? r : []; Ui.softwareInstalled = win.installedApps.map(a => a.id); });
+        ask(["skipped"], r => { win.skippedIds = Array.isArray(r) ? r : []; });
+        ask(["catalogue"], r => { win.catalogue = r && !r.error ? r : ({}); });
         if (!win.results.length) showCategory("Utility");
         win.loadFeatured();
     }
@@ -156,6 +162,19 @@ AppWindow {
     function loadLeftovers() { ask(["leftovers"], r => { win.leftovers = Array.isArray(r) ? r : []; Ui.softwareLeftovers = win.leftovers.map(l => l.id); }); }
     function loadAppImages() { ask(["appimages"], r => { win.appimages = Array.isArray(r) ? r : []; Ui.softwareAppImages = win.appimages.map(a => a.name + (a.added ? ":added" : "")); }); }
     function human(n) { return n >= 1073741824 ? (n / 1073741824).toFixed(1) + " GB" : n >= 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.round(n / 1024) + " KB"; }
+    // flatpak's size column, added up so "Update all" can say how big it is
+    function bytesOf(s) {
+        const m = /^([\d.]+)\s*(B|KB|MB|GB)$/i.exec(String(s || "").trim());
+        return m ? parseFloat(m[1]) * ({ b: 1, kb: 1024, mb: 1048576, gb: 1073741824 })[m[2].toLowerCase()] : 0;
+    }
+    function updateSize() {
+        let total = 0, known = 0;
+        for (const a of installedApps) {
+            const b = a.update ? win.bytesOf(a.size) : 0;
+            if (b) { total += b; known++; }
+        }
+        return known > 0 && known === win.updates ? win.human(Math.round(total)) : "";
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -180,6 +199,34 @@ AppWindow {
             }
             Item { Layout.fillWidth: true }
             IconButton { icon: "view-refresh"; size: Theme.px(28); tip: Tr.t("Fetch Flathub's list again"); onClicked: win.runJob(["refresh"], "") }
+        }
+        // the catalogue this window is showing, and when it was last fetched
+        Rectangle {
+            visible: !Net.online || (win.catalogue.ageDays !== null && win.catalogue.ageDays > 30)
+            Layout.fillWidth: true
+            Layout.preferredHeight: Theme.px(32)
+            radius: Theme.px(6)
+            color: Theme.alpha(Theme.amber, 0.15)
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.px(6)
+                spacing: Theme.px(6)
+                Text { text: "⚠"; color: Theme.amber; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: !Net.online
+                        ? Tr.t("Offline — showing the catalogue saved on this device. Installing and updating need internet.")
+                        : Tr.t("The app catalogue is %1 days old — refresh it for the latest apps.", win.catalogue.ageDays)
+                    color: Theme.amber; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+            }
+        }
+        Text {
+            visible: !!win.catalogue.refreshed
+            Layout.fillWidth: true
+            text: Tr.t("Catalogue refreshed %1", win.catalogue.refreshed)
+            color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
         }
         // a job under way: how far, flatpak's own words
         ColumnLayout {
@@ -456,7 +503,31 @@ AppWindow {
             visible: win.tab === "installed"
             Layout.fillWidth: true
             Text { Layout.fillWidth: true; text: win.updates ? Tr.t("%1 apps can be updated", win.updates) : Tr.t("Everything is up to date"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-            Button { visible: win.updates > 0; kind: "primary"; text: Tr.t("Update all"); enabled: !jobProc.running; onClicked: win.runJob(["update-all"], "all") }
+            Button {
+                visible: win.updates > 0
+                kind: win.confirmUpdateAll ? "danger" : "primary"
+                text: win.confirmUpdateAll ? Tr.t("Click again to update all") : Tr.t("Update all")
+                enabled: !jobProc.running
+                onClicked: {
+                    if (win.confirmUpdateAll) { win.confirmUpdateAll = false; win.runJob(["update-all"], "all"); }
+                    else { win.confirmUpdateAll = true; confirmTimer.restart(); }
+                }
+            }
+        }
+        Rectangle {
+            visible: win.confirmUpdateAll && win.updates > 0
+            Layout.fillWidth: true
+            Layout.preferredHeight: Theme.px(80)
+            radius: Theme.px(6)
+            color: Theme.alpha(Theme.danger, 0.12)
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.px(8)
+                spacing: 2
+                Text { Layout.fillWidth: true; text: Tr.t("Update %1 apps:", win.updates); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.DemiBold }
+                Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: installedApps.filter(a => a.update).map(a => a.name).join(", "); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { Layout.fillWidth: true; visible: win.updateSize() !== ""; text: Tr.t("Total size: %1", win.updateSize()); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            }
         }
         ListView {
             reuseItems: true
@@ -481,6 +552,13 @@ AppWindow {
                     Text { Layout.fillWidth: true; elide: Text.ElideRight; text: [irow.modelData.version, irow.modelData.size, irow.modelData.installation === "user" ? Tr.t("just for you") : Tr.t("for everyone")].filter(x => x).join("  ·  "); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                 }
                 Button { visible: irow.modelData.update; text: Tr.t("Update"); enabled: !jobProc.running; onClicked: win.runJob(["update", irow.modelData.id], irow.modelData.id) }
+                Button {
+                    visible: irow.modelData.update || win.skippedIds.indexOf(irow.modelData.id) >= 0
+                    flat: true
+                    enabled: !jobProc.running
+                    text: win.skippedIds.indexOf(irow.modelData.id) >= 0 ? Tr.t("Resume updates") : Tr.t("Skip this version")
+                    onClicked: win.ask(["skip", irow.modelData.id, win.skippedIds.indexOf(irow.modelData.id) >= 0 ? "off" : "on"], () => win.start())
+                }
                 Button { text: Tr.t("Details"); flat: true; onClicked: { win.tab = "explore"; win.openApp(irow.modelData.id); } }
             }
         }

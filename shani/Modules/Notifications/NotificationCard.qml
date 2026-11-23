@@ -279,6 +279,29 @@ Glass {
                         font.family: Theme.font
                         font.pixelSize: Theme.px(11) * Theme.fontScale
                     }
+                    // critical: a word as well as the red tint, so urgency does not
+                    // depend on colour alone (a11y) - distinct from the edge/tint
+                    Rectangle {
+                        visible: root.critical
+                        Layout.alignment: Qt.AlignVCenter
+                        implicitHeight: urgentLabel.implicitHeight + Theme.px(6)
+                        implicitWidth: urgentLabel.implicitWidth + Theme.px(12)
+                        radius: Theme.px(6)
+                        color: Theme.alpha(Theme.red, 0.16)
+                        border.width: 1
+                        border.color: Theme.alpha(Theme.red, 0.5)
+                        Text {
+                            id: urgentLabel
+                            anchors.centerIn: parent
+                            text: Tr.t("Urgent")
+                            color: Theme.red
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.weight: Font.DemiBold
+                        }
+                        Accessible.role: Accessible.StaticText
+                        Accessible.name: Tr.t("Urgent")
+                    }
                     // more: Snooze and Ask Chronoa (in the header, not a row of their own)
                     IconButton {
                         icon: "view-more"

@@ -42,6 +42,23 @@ Singleton {
         return 0;
     }
     property var popups: []          // newest last
+    // "why didn't I get that?": the last few notices kept out of the pop-ups,
+    // with the reason, so the notification centre can explain them. Newest last.
+    property var suppressed: []      // [{ app, summary, reason, time }]
+    function _noteSuppressed(n, reason) {
+        suppressed = suppressed.concat([{ app: n.appName || "", summary: n.summary || "",
+                                          reason: reason, time: Date.now() }]).slice(-8);
+    }
+    // the reason keys, as text a centre or banner can show verbatim (Tr.t: localised)
+    function suppressionText(reason) {
+        return ({ "silent-app": Tr.t("The app is muted"),
+                  "hidden": Tr.t("A rule hid the notification"),
+                  "blocked": Tr.t("A rule blocked the notification"),
+                  "quiet": Tr.t("You were presenting or in a fullscreen app"),
+                  "locked": Tr.t("The screen was locked"),
+                  "dnd": Tr.t("Do Not Disturb is on"),
+                  "focus": Tr.t("A focus mode is on") })[reason] || "";
+    }
     // an incoming call from any app (Chronoa's phone over Bluetooth, a VoIP app):
     // the freedesktop "call.incoming" category, newest first; the Island carries it
     readonly property var incomingCall: list.find(n => n.hints && n.hints["category"] === "call.incoming") || null
@@ -267,6 +284,7 @@ Singleton {
             // it in the sidebar without a pop-up - critical ones always come through
             const verdict = n.urgency === NotificationUrgency.Critical ? "" : root._filterNotification(app, n.summary, n.body);
             if (verdict === "block") {
+                root._noteSuppressed(n, "blocked");
                 n.dismiss();
                 return;
             }
@@ -278,14 +296,21 @@ Singleton {
             // back but the apps allowed through it; a focus mode, all but the apps
             // it allows; the lock screen holds them too when dndWhileLocked is on;
             // critical urgency always comes through
-            const silent = Array.from(Settings.data.silentApps).indexOf(app) >= 0 || verdict === "hide";
+            const silentApp = app && Array.from(Settings.data.silentApps).indexOf(app) >= 0;
+            const silent = silentApp || verdict === "hide";
             const throughDnd = Array.from(Settings.data.dndAllowedApps).indexOf(app) >= 0;
             const lockedOut = Settings.data.dndWhileLocked && Lock.locked && !throughDnd;
+            const focusOut = !Focus.allows(app);
             if (n.urgency === NotificationUrgency.Critical
-                || (!silent && !root.quiet && !lockedOut && (root.dnd ? throughDnd : Focus.allows(app))))
+                || (!silent && !root.quiet && !lockedOut && (root.dnd ? throughDnd : !focusOut)))
             {
                 root.popups = root.popups.concat([n]).slice(-4);
                 root.alerted(n);
+            } else if (n.urgency !== NotificationUrgency.Critical) {
+                // the first matching reason is the one that kept it from popping
+                root._noteSuppressed(n, silentApp ? "silent-app" : verdict === "hide" ? "hidden"
+                    : root.quiet ? "quiet" : lockedOut ? "locked"
+                    : root.dnd ? "dnd" : focusOut ? "focus" : "silent-app");
             }
             n.closed.connect(() => root.popups = root.popups.filter(p => p !== n));
         }

@@ -45,6 +45,7 @@ AppWindow {
     property string removing: ""              // asked once, gone on the second click
     property string changing: ""              // the item whose secret is being changed
     property bool adding: false
+    property var duplicate: null              // existing item found when adding the same site/label
     property bool newKey: false
     // password audit: computed in the bridge (which can reveal secrets) and
     // returned as counts/labels only. Computing it here from `items` always
@@ -149,6 +150,44 @@ AppWindow {
         const parts = [a.username || a.user || a.account || "", a.server || a.host || a.site || a.url || a.ssid || a.service || a["xdg:schema"] || ""];
         return parts.filter(x => x).join("  ·  ");
     }
+    // only a real web address is worth an "open in browser" action - never file:, javascript:, etc.
+    function siteUrl(i) {
+        const a = i.attributes || {};
+        const v = a.url || a.site || "";
+        return /^https?:\/\/\S+$/i.test(v) ? v : "";
+    }
+    // an entry with the same label or site is probably the password being added twice
+    function duplicateFor(label) {
+        const key = (label || "").trim().toLowerCase();
+        if (key === "") return null;
+        return win.items.find(i => {
+            const a = i.attributes || {};
+            return (i.label || "").trim().toLowerCase() === key
+                || (a.site || "").trim().toLowerCase() === key
+                || (a.url || "").trim().toLowerCase() === key;
+        }) || null;
+    }
+    function doAdd(onDone) {
+        const label = newLabel.text.trim();
+        const attrs = { site: label };
+        if (newUser.text.trim()) attrs.username = newUser.text.trim();
+        const secret = newSecret.text;
+        win.run(["add", win.defaultCollection, label], JSON.stringify({ attributes: attrs, secret: secret }),
+                r => { if (r.ok) { win.adding = false; newLabel.text = ""; newUser.text = ""; newSecret.text = ""; win.duplicate = null; if (onDone) onDone(); } });
+    }
+    function saveNew() {
+        const dup = duplicateFor(newLabel.text);
+        if (dup) { win.duplicate = dup; return; }
+        win.duplicate = null;
+        win.doAdd();
+    }
+    function replaceDuplicate() {
+        const dup = win.duplicate;
+        win.duplicate = null;
+        if (!dup) return;
+        // add first, then remove the old entry: a failed add must never destroy it
+        win.doAdd(() => win.run(["delete", dup.path], "", () => {}));
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -246,12 +285,26 @@ AppWindow {
                     kind: "primary"
                     text: Tr.t("Save")
                     enabled: newLabel.text.trim() !== "" && newSecret.text !== "" && win.defaultCollection !== ""
-                    onClicked: {
-                        const attrs = { site: newLabel.text.trim() };
-                        if (newUser.text.trim()) attrs.username = newUser.text.trim();
-                        win.run(["add", win.defaultCollection, newLabel.text.trim()], JSON.stringify({ attributes: attrs, secret: newSecret.text }),
-                                r => { if (r.ok) { win.adding = false; newLabel.text = ""; newUser.text = ""; newSecret.text = ""; } });
-                    }
+                    onClicked: win.saveNew()
+                }
+            }
+            ColumnLayout {
+                visible: win.duplicate !== null
+                Layout.fillWidth: true
+                spacing: Theme.px(4)
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: Tr.t("You already have a password saved for %1.", win.duplicate ? win.duplicate.label : "")
+                    color: Theme.amber
+                    font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Item { Layout.fillWidth: true }
+                    Button { text: Tr.t("Cancel"); flat: true; onClicked: win.duplicate = null }
+                    Button { text: Tr.t("Save a copy"); flat: true; onClicked: { win.duplicate = null; win.doAdd(); } }
+                    Button { kind: "primary"; text: Tr.t("Replace"); onClicked: win.replaceDuplicate() }
                 }
             }
         }
@@ -294,6 +347,13 @@ AppWindow {
                     }
                     IconButton { icon: win.shownPath === prow.modelData.path ? "view-conceal" : "view-reveal"; size: Theme.px(26); tip: win.shownPath === prow.modelData.path ? Tr.t("Hide %1", prow.modelData.label) : Tr.t("Show %1", prow.modelData.label); onClicked: win.reveal(prow.modelData) }
                     IconButton { icon: "edit-copy"; size: Theme.px(26); tip: Tr.t("Copy the password for %1", prow.modelData.label); onClicked: win.copy(prow.modelData) }
+                    IconButton {
+                        visible: win.siteUrl(prow.modelData) !== ""
+                        icon: "web-browser"
+                        size: Theme.px(26)
+                        tip: Tr.t("Open site in browser")
+                        onClicked: Qt.openUrlExternally(win.siteUrl(prow.modelData))
+                    }
                     IconButton { icon: "document-edit"; size: Theme.px(26); tip: Tr.t("Change it"); onClicked: win.changing = win.changing === prow.modelData.path ? "" : prow.modelData.path }
                     IconButton {
                         icon: win.removing === prow.modelData.path ? "edit-delete" : "window-close"
@@ -369,9 +429,20 @@ AppWindow {
                     }
                 }
                 IconButton {
-                    icon: "document-export"; size: Theme.px(26); tip: Tr.t("Save its public key in your home folder")
-                    onClicked: win.run(["gpg-export", krow.modelData.id, Quickshell.env("HOME") + "/" + (krow.modelData.uid.split("<")[0].trim().replace(/[^\w.-]+/g, "_") || krow.modelData.id) + ".asc"],
-                                       "", r => { if (r.path) win.note = Tr.t("Saved as %1", r.path.split("/").pop()); })
+                    icon: "document-export"; size: Theme.px(26); tip: Tr.t("Export public key…")
+                    onClicked: {
+                        const uid = krow.modelData.uid || "";
+                        const name = (uid.split("<")[0].trim().replace(/[^\w.-]+/g, "_") || krow.modelData.id) + ".asc";
+                        FilePicker.open({ mode: "save", title: Tr.t("Export public key"), defaultName: name, filters: ["asc"],
+                            onPicked: paths => {
+                                if (!paths.length) return;
+                                win.run(["gpg-export", krow.modelData.id, paths[0]], "", r => {
+                                    if (r.path) win.note = Tr.t("Saved as %1", r.path.split("/").pop());
+                                    else if (r.code === "exists") { win.error = ""; win.note = Tr.t("A file with that name already exists. Choose a different name."); }
+                                });
+                            }
+                        });
+                    }
                 }
                 IconButton {
                     icon: win.removing === krow.modelData.id ? "edit-delete" : "window-close"

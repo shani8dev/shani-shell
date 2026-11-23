@@ -1571,6 +1571,14 @@ Singleton {
         return root._entries[p] || null;
     }
 
+    // sum of the selected entries' sizes, for the status line
+    function selectedSize() {
+        let total = 0;
+        for (const p of root.selected)
+            total += Number((root.entryFor(p) || {}).size) || 0;
+        return total;
+    }
+
     // the panel hands over what it is showing, so a lookup by path is cheap
     property var _entries: ({})
     property int entryCount: 0

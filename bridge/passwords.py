@@ -255,7 +255,11 @@ def gpg_new(name: str, email: str, password: str) -> dict:
 
 def gpg_export(key: str, out: str) -> dict:
     if os.path.lexists(out):
-        return {"error": "%s is there already" % os.path.basename(out)}
+        # `code` lets the UI map this to a translated note instead of showing raw CLI text
+        return {
+            "error": "%s is there already" % os.path.basename(out),
+            "code": "exists",
+        }
     r = subprocess.run(
         ["gpg", "--batch", "--armor", "--export", key], capture_output=True, timeout=60
     )

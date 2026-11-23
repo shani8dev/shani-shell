@@ -88,6 +88,7 @@ Singleton {
         if (singleOut.running) singleOut.running = false;
         if (hardOne.running) hardOne.running = false;
         if (extractor.running) extractor.running = false;
+        if (spaceProbe.running) spaceProbe.running = false;
         if (maker.running) maker.running = false;
         if (appender.running) appender.running = false;
         root.reading = false;
@@ -95,6 +96,7 @@ Singleton {
         root.creating = false;
         root.appending = false;
         root.extractWhenRead = false;
+        root.probeThenExtract = false;
     }
     function close() {
         cancel();
@@ -320,6 +322,13 @@ Singleton {
         const parent = paths[0].substring(0, paths[0].lastIndexOf("/")) || "/";
         const stem = (name || defaultName(paths)).replace(/\//g, "-");
         const pw = pass !== undefined ? pass : root.newPass;
+        // A tar is a container with no encryption of its own. Silently dropping
+        // a requested password would hand back an archive anyone can read, so
+        // refuse instead of writing one that only looks protected.
+        if (pw && ext !== "zip" && ext !== "7z") {
+            root.error = Tr.t("A password cannot protect a tar archive — use ZIP or 7z");
+            return;
+        }
         root.error = "";
         root.made = "";
         root.creating = true;
@@ -425,12 +434,47 @@ Singleton {
     }
 
     // into a new folder beside the archive, or inside `where` when one is given
+    property bool probeThenExtract: false  // a size/space preflight is in flight
+    property string probeWhere: ""        // where to extract once the preflight says yes
     function extract(where) {
-        if (root.file === "" || root.extracting || root.entries.length === 0)
+        if (root.file === "" || root.extracting || root.probeThenExtract || root.entries.length === 0)
             return;
         if (root.single) { extractSingle(where || root.file.substring(0, root.file.lastIndexOf("/")), ""); return; }
         root.error = "";
         root.extractedTo = "";
+        // Write nothing until the destination has been checked: free bytes
+        // there, and the archive's own size, are compared with the expanded
+        // size summed from the headers. A bomb (huge expanded size from a tiny
+        // file) or a full disk is refused with words, not a half-filled disk.
+        root.probeThenExtract = true;
+        root.probeWhere = where || "";
+        spaceProbe.command = ["sh", "-c", 'printf "%s %s\\n" "$(df -PB1 -- "$1" | tail -1 | awk "{print \\$4}")" "$(stat -c %s -- "$2" || echo 0)"',
+                              "sh", where || root.file.substring(0, root.file.lastIndexOf("/")), root.file];
+        spaceProbe.running = true;
+    }
+    Process {
+        id: spaceProbe
+        stdout: StdioCollector { id: probeOut }
+        onExited: code => {
+            if (!root.probeThenExtract) return;
+            root.probeThenExtract = false;
+            const nums = probeOut.text.trim().split(/\s+/);
+            const free = parseInt(nums[0]) || 0;
+            const arc = parseInt(nums[1]) || 0;
+            const exp = root.totalSize;   // cumulative expected size from the headers
+            if (exp > free) {
+                root.error = Tr.t("Not enough free space to extract this archive");
+                return;
+            }
+            // a tiny archive claiming a huge expanded size is a decompression bomb
+            if (arc > 0 && exp > arc * 100 && exp > 104857600) {
+                root.error = Tr.t("Refusing to extract: this archive looks like a decompression bomb");
+                return;
+            }
+            root.extractNow(root.probeWhere);
+        }
+    }
+    function extractNow(where) {
         root.extracting = true;
         const parent = where || root.file.substring(0, root.file.lastIndexOf("/"));
         const stem = root.name.replace(/\.(tar\.(gz|xz|zst|bz2|lz4|lzma)|tgz|txz|tbz2|[A-Za-z0-9]+)$/, "") || "archive";

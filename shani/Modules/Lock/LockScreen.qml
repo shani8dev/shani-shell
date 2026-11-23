@@ -551,6 +551,20 @@ Scope {
                         Layout.alignment: Qt.AlignHCenter
                         Layout.topMargin: 2
                         spacing: Theme.px(16)
+                        // DND is worth knowing about before unlocking: a chip with
+                        // its auto-off time, when there is one (Notifs.dndUntilText)
+                        Row {
+                            visible: Notifs.dnd
+                            spacing: Theme.px(5)
+                            Icon { name: "notifications-disabled"; size: Theme.px(14); color: Theme.amber; anchors.verticalCenter: parent.verticalCenter }
+                            Text {
+                                text: Tr.t("DND on") + (Notifs.dndUntilText ? "  " + Notifs.dndUntilText : "")
+                                color: Theme.amber
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                Accessible.name: Tr.t("Do Not Disturb is on") + (Notifs.dndUntilText ? " " + Notifs.dndUntilText : "")
+                            }
+                        }
                         Row {
                             visible: Notifs.count > 0
                             spacing: Theme.px(5)

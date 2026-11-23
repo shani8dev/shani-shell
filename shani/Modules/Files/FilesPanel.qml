@@ -196,6 +196,52 @@ AppWindow {
         }
     }
 
+    // Ctrl+Space: take the keyboard-focused file in or out of the selection.
+    // Plain Space stays Quick Look (the delegates' KeyFocus handles that).
+    Shortcut {
+        sequence: "Ctrl+Space"
+        onActivated: { if (Files.current) Files.select(Files.current, "toggle"); }
+    }
+
+    // Shift+arrow: extend from the anchor to where focus lands. The shared
+    // KeyFocus does not pass arrow modifiers on, so the range runs through this
+    // window instead (moving focus first, then selecting the focused path).
+    function extendSelection(key) {
+        const kf = win.activeFocusItem;
+        if (!kf || kf.peekable !== true || typeof kf.move !== "function")
+            return;
+        const n = key === Qt.Key_Up ? -(kf.columns || 1)
+                : key === Qt.Key_Down ? (kf.columns || 1)
+                : key === Qt.Key_Left ? -1 : 1;
+        const anchor = Files.current;
+        kf.move(n);                       // the newly focused delegate sets Files.current
+        const focused = Files.current;
+        if (focused === anchor || Files.entryPaths().indexOf(focused) < 0)
+            return;
+        Files.current = anchor;           // select() ranges from where the keys were
+        Files.select(focused, "range");
+    }
+    Shortcut {
+        sequences: ["Shift+Left"]
+        enabled: !!(win.activeFocusItem && win.activeFocusItem.peekable === true)
+        onActivated: win.extendSelection(Qt.Key_Left)
+    }
+    Shortcut {
+        sequences: ["Shift+Right"]
+        enabled: !!(win.activeFocusItem && win.activeFocusItem.peekable === true)
+        onActivated: win.extendSelection(Qt.Key_Right)
+    }
+    Shortcut {
+        sequences: ["Shift+Up"]
+        enabled: !!(win.activeFocusItem && win.activeFocusItem.peekable === true)
+        onActivated: win.extendSelection(Qt.Key_Up)
+    }
+    Shortcut {
+        sequences: ["Shift+Down"]
+        enabled: !!(win.activeFocusItem && win.activeFocusItem.peekable === true)
+        onActivated: win.extendSelection(Qt.Key_Down)
+    }
+
     onVisibleChanged: {
         if (!visible)
             return;
@@ -1080,7 +1126,7 @@ AppWindow {
                             if (Files.freeBytes >= 0)
                                 parts.push(Tr.t("%1 free").arg(Files.humanSize(Files.freeBytes)));
                             if (Files.selected.length > 0)
-                                parts.push(Tr.t("%1 selected").arg(Files.selected.length));
+                                parts.push(Tr.t("%1 selected · %2").arg(Files.selected.length).arg(Files.humanSize(Files.selectedSize())));
                             if (Files.error !== "")
                                 parts.push(Files.error);
                             return parts.join("  ·  ");

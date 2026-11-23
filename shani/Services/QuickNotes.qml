@@ -52,6 +52,10 @@ Singleton {
     property var historyList: []
     property string sortBy: Settings.data.notesSortBy || "updated"
     property var previews: ({})
+    // out-of-band edit detection: the stamp of the file when we last read or
+    // wrote it, and whether it has since changed (blocks the autosave)
+    property string readStamp: ""
+    property bool diskChanged: false
 
     // ---- export / print / sync (Gnote parity) ------------------------------
     property string lastExported: ""   // last .html written by exportHtml(), for `state`
@@ -159,6 +163,8 @@ Singleton {
             // an outside edit (Chronoa, a text editor) is shown; when it
             // is empty and the open note is new, that stays empty too
             root.text = text();
+            root.diskChanged = false;
+            statBaseline.running = true;   // remember this version of the file
         }
         onLoadFailed: root.loaded = true
     }
@@ -195,6 +201,7 @@ Singleton {
         root.lockError = "";
         root.text = "";
         root.pass = "";          // one unlocked note at a time
+        root.diskChanged = false;
         if (isLocked(n)) {
             root.locked = true;
             root.unlocked = false;
@@ -229,12 +236,54 @@ Singleton {
                 noteCrypto.running = true;
                 return;
             }
-            const dirPath = root.currentNotebook === "" ? root.dir : root.dir + "/" + root.currentNotebook;
-            Quickshell.execDetached(["mkdir", "-p", dirPath]);
-            root.snapshot();   // keep the previous body before overwriting it
-            file.setText(root.text);
-            root.syncTimer.restart();   // local-first, then mirror to the cloud mount
+            // Never overwrite an outside edit (Chronoa, another editor):
+            // compare the current file stamp with the one we read. The stat
+            // callback performs the write only when they still match.
+            statCheck.running = true;
         }
+    }
+    // mtime+size of the file at the moment we read or last wrote it
+    Process {
+        id: statBaseline
+        command: ["sh", "-c", 'stat -c "%Y-%s" -- "$1" 2>/dev/null || echo 0', "sh", root.path]
+        stdout: StdioCollector { onStreamFinished: root.readStamp = text.trim() }
+    }
+    Process {
+        id: statCheck
+        command: ["sh", "-c", 'stat -c "%Y-%s" -- "$1" 2>/dev/null || echo 0', "sh", root.path]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (root.readStamp !== "" && text.trim() !== root.readStamp) {
+                    save.stop();               // stop autosaving; the UI offers Reload/Discard
+                    root.diskChanged = true;
+                    return;
+                }
+                root.performSave();
+            }
+        }
+    }
+    function performSave() {
+        if (root.current === "")
+            return;
+        const dirPath = root.currentNotebook === "" ? root.dir : root.dir + "/" + root.currentNotebook;
+        Quickshell.execDetached(["mkdir", "-p", dirPath]);
+        root.snapshot();   // keep the previous body before overwriting it
+        file.setText(root.text);
+        root.syncTimer.restart();   // local-first, then mirror to the cloud mount
+        statBaseline.running = true;   // our write is the new baseline
+    }
+    // the user chose the version on disk: drop our in-memory edits
+    function reloadFromDisk() {
+        if (root.current === "")
+            return;
+        save.stop();
+        root.diskChanged = false;
+        file.reload();
+    }
+    // the user chose our in-memory text: write it over the outside edit
+    function discardExternalChange() {
+        root.diskChanged = false;
+        root.performSave();
     }
 
     // ---- create / rename / delete --------------------------------------------
@@ -730,6 +779,12 @@ Singleton {
             markUnlocked(noteId(root.current, root.currentNotebook));
             root.lockError = "";
         } else if (noteCrypto.mode === "lock") {
+            // the helper encrypts only the current .md; earlier .history
+            // snapshots of this note are still plaintext. Remove them so a
+            // locked note leaves no readable body on disk.
+            const original = String(noteCrypto.newName).replace(/\.locked$/, "");
+            const key = noteId(original, root.currentNotebook).replace("/", "__");
+            Quickshell.execDetached(["sh", "-c", 'rm -f -- "$1"/"$2"-*.md', "sh", root.historyDir, key]);
             root.current = noteCrypto.newName;
             root.pass = noteCrypto.pendingPass;
             root.text = "";

@@ -308,6 +308,33 @@ AppWindow {
                     }
                 }
 
+                // An outside editor changed the file: autosave is stopped until
+                // the person picks a side, so their edits are never overwritten.
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.px(8)
+                    Layout.rightMargin: Theme.px(8)
+                    visible: Services.QuickNotes.diskChanged
+                    implicitHeight: conflictRow.implicitHeight + Theme.px(12)
+                    color: Theme.surface1
+                    radius: Theme.radiusSmall
+                    RowLayout {
+                        id: conflictRow
+                        anchors { fill: parent; margins: Theme.px(6) }
+                        spacing: Theme.px(6)
+                        Text {
+                            Layout.fillWidth: true
+                            text: Tr.t("This note changed on disk while you were editing. Reload to use the disk version, or Discard to keep your edits.")
+                            color: Theme.text
+                            wrapMode: Text.Wrap
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                        }
+                        Button { text: Tr.t("Reload"); onClicked: Services.QuickNotes.reloadFromDisk() }
+                        Button { text: Tr.t("Discard"); onClicked: Services.QuickNotes.discardExternalChange() }
+                    }
+                }
+
                 // A locked note asks for its passphrase before the body appears.
                 Rectangle {
                     Layout.fillWidth: true

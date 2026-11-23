@@ -42,6 +42,9 @@ Singleton {
     // last session's open files, kept in XDG state so the editor reopens them
     readonly property string sessionFile: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/shani/text-editor-session.json"
     property bool restoring: false
+    // bookmarks from the last session, keyed by path, applied as each file loads
+    // (opens are async, so they cannot be attached in onLoaded itself)
+    property var pendingBookmarks: ({})
 
     // TextArea is not made for big files; past this the editor says so
     readonly property int maxBytes: 2 * 1024 * 1024
@@ -68,6 +71,15 @@ Singleton {
         else { d.bookmarks.push(line); d.bookmarks.sort((a, b) => a - b); }
         root.touch();
     }
+    // take the restored bookmark list for a path (once), or an empty one
+    function takeBookmarks(path) {
+        const b = root.pendingBookmarks[path];
+        if (Array.isArray(b)) {
+            delete root.pendingBookmarks[path];
+            return b.slice();
+        }
+        return [];
+    }
     function nextBookmark(from, delta) {
         const list = root.bookmarks();
         if (list.length === 0) return from;
@@ -78,8 +90,13 @@ Singleton {
 
     function saveSession() {
         if (root.restoring || sessionView.path === "") return;
-        const paths = root.docs.filter(d => d.path !== "").map(d => d.path);
-        sessionView.setText(JSON.stringify({ paths: paths, active: root.active }));
+        const paths = [], bookmarks = {};
+        root.docs.forEach(d => {
+            if (d.path === "") return;
+            paths.push(d.path);
+            if (d.bookmarks && d.bookmarks.length) bookmarks[d.path] = d.bookmarks.slice();
+        });
+        sessionView.setText(JSON.stringify({ paths: paths, active: root.active, bookmarks: bookmarks }));
     }
     function restoreSession() {
         root.restoring = true;
@@ -93,6 +110,8 @@ Singleton {
         onLoaded: {
             let data = {};
             try { data = JSON.parse(text()); } catch (e) { data = {}; }
+            const b = data.bookmarks;
+            root.pendingBookmarks = b && typeof b === "object" && !Array.isArray(b) ? b : {};
             const paths = Array.isArray(data.paths) ? data.paths : [];
             paths.forEach(p => root.open(p));
             root.restoring = false;
@@ -155,7 +174,7 @@ Singleton {
                 const path = probe.want;
                 if (a[0] === "new") {
                     // a name that is not there yet: an empty document that Save creates
-                    root.docs = root.docs.concat([{ path: path, name: root.nameOf(path), text: "", eol: "\n", modified: false, readOnly: false }]);
+                    root.docs = root.docs.concat([{ path: path, name: root.nameOf(path), text: "", eol: "\n", modified: false, readOnly: false, bookmarks: root.takeBookmarks(path) }]);
                     root.show(root.docs.length - 1);
                 } else if (a[0] === "file" && parseInt(a[1]) > root.maxBytes)
                     root.fail(Tr.t("Too big to edit here") + ": " + root.nameOf(path));
@@ -189,7 +208,7 @@ Singleton {
             const eol = raw.indexOf("\r\n") >= 0 ? "\r\n" : "\n";
             // an empty "Untitled" nobody typed in gives its place to the file
             const keep = root.docs.filter(d => !(d.path === "" && d.text === "" && !d.modified));
-            root.docs = keep.concat([{ path: p, name: root.nameOf(p), text: raw.replace(/\r\n/g, "\n"), eol: eol, modified: false, readOnly: readOnly }]);
+            root.docs = keep.concat([{ path: p, name: root.nameOf(p), text: raw.replace(/\r\n/g, "\n"), eol: eol, modified: false, readOnly: readOnly, bookmarks: root.takeBookmarks(p) }]);
             root.show(root.docs.length - 1);
         }
         onLoadFailed: root.fail(Tr.t("Cannot be read") + ": " + root.nameOf(String(path)))

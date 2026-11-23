@@ -421,7 +421,9 @@ AppWindow {
         const re = win.searchRegex(findField.text);
         if (!re) return;
         win.loading = true;
-        edit.text = edit.text.replace(re, () => replaceField.text);
+        // pass the string directly: JS String.replace expands $1/$2 captures (and
+        // $$ to a literal $); a function replacement would insert them literally
+        edit.text = edit.text.replace(re, replaceField.text);
         win.loading = false;
         TextDocs.setText(edit.text);
         repaint.restart();
@@ -437,7 +439,7 @@ AppWindow {
         else if (e.key === Qt.Key_O) win.pick();
         else if (e.key === Qt.Key_N) TextDocs.newDoc();
         else if (e.key === Qt.Key_W) win.closeTab(TextDocs.active);
-        else if (e.key === Qt.Key_F) { win.finding = true; win.replacing = false; findField.input.forceActiveFocus(); }
+        else if (e.key === Qt.Key_F) { win.finding = true; win.replacing = false; findField.text = edit.selectedText; findField.input.forceActiveFocus(); }
         else if (e.key === Qt.Key_H) { win.finding = true; win.replacing = true; findField.input.forceActiveFocus(); }
         else if (e.key === Qt.Key_B) win.toggleBookmark();
         else if (e.key === Qt.Key_G) win.openGoto();

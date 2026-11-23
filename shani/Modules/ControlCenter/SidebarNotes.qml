@@ -28,6 +28,8 @@ ColumnLayout {
     property bool renaming: false
     property bool nbNewVisible: false
     property bool nbRenaming: false
+    property bool confirmDelete: false
+    Timer { id: deleteTimer; interval: 4000; onTriggered: root.confirmDelete = false }
     readonly property var shown: {
         const ids = new Set(QuickNotes.search(query).map(n => n.id || n.name).concat(QuickNotes.contentHits));
         let all = QuickNotes.notes.filter(n => ids.has(n.id || n.name) || ids.has(n.name));
@@ -195,8 +197,17 @@ ColumnLayout {
             IconButton {
                 icon: "edit-delete"
                 size: Theme.px(26)
-                tip: Tr.t("Delete this note")
-                onClicked: QuickNotes.remove(QuickNotes.current, QuickNotes.currentNotebook)
+                tip: root.confirmDelete ? Tr.t("Tap again to delete") : Tr.t("Delete this note")
+                onClicked: {
+                    if (QuickNotes.current === "") return;
+                    if (root.confirmDelete) {
+                        QuickNotes.remove(QuickNotes.current, QuickNotes.currentNotebook);
+                        root.confirmDelete = false;
+                    } else {
+                        root.confirmDelete = true;
+                        deleteTimer.restart();
+                    }
+                }
             }
             IconButton {
                 icon: "document-save"

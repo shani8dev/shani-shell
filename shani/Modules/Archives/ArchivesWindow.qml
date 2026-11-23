@@ -16,6 +16,17 @@ AppWindow {
     implicitWidth: Theme.px(720)
     implicitHeight: Theme.px(620)
 
+    // A password you mistype locks you out of your own archive for good, so
+    // make it be entered twice and have a floor before Create is even enabled.
+    readonly property bool passVisible: Archive.format === "zip" || Archive.format === "7z"
+    readonly property bool passOk: !win.passVisible || archPass.text === ""
+        || (archPass.text.length >= 4 && archPass.text === archPassConfirm.text)
+    readonly property string passHint: !win.passVisible || archPass.text === "" ? ""
+        : archPass.text.length < 4 ? Tr.t("Password must be at least 4 characters")
+        : archPass.text !== archPassConfirm.text ? Tr.t("Passwords do not match") : ""
+
+    function clearPass() { Archive.newPass = ""; archPassConfirm.text = ""; }
+
     function pick() {
         FilePicker.open({ mode: "open", title: Tr.t("Open an archive"), filters: Archive.types,
                           startPath: Archive.file !== "" ? Archive.file.substring(0, Archive.file.lastIndexOf("/")) : (Quickshell.env("HOME") + "/Downloads"),
@@ -106,23 +117,42 @@ AppWindow {
                             required property var modelData
                             text: modelData.label
                             selected: Archive.format === modelData.ext
-                            onClicked: Archive.format = modelData.ext
+                            onClicked: {
+                                Archive.format = modelData.ext;
+                                // a tar cannot carry a password: drop a stale one
+                                // instead of letting Create refuse it later
+                                if (!win.passVisible) win.clearPass();
+                            }
                         }
                     }
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    visible: Archive.format === "zip" || Archive.format === "7z"
+                    visible: win.passVisible
                     spacing: Theme.px(8)
                     Text { text: Tr.t("Password"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                     TextField {
                         id: archPass
                         Layout.fillWidth: true
                         secret: true
-                        placeholder: Tr.t("none — anyone can open it")
+                        placeholder: Tr.t("at least 4 characters, or empty for none")
                         text: Archive.newPass
                         onTextChanged: Archive.newPass = text
                     }
+                    TextField {
+                        id: archPassConfirm
+                        Layout.fillWidth: true
+                        secret: true
+                        placeholder: Tr.t("Confirm password")
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: win.passHint !== ""
+                    text: win.passHint
+                    color: Theme.danger
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
                 RowLayout {
                     Layout.fillWidth: true
@@ -134,9 +164,12 @@ AppWindow {
                     }
                     Button {
                         kind: "primary"
-                        enabled: !Archive.creating
+                        enabled: !Archive.creating && win.passOk
                         text: Archive.creating ? Tr.t("Compressing…") : Tr.t("Create")
-                        onClicked: Archive.create(Archive.toCompress, Archive.format, archName.text.trim())
+                        onClicked: {
+                            Archive.create(Archive.toCompress, Archive.format, archName.text.trim());
+                            win.clearPass();  // never leave a secret in the UI or in Archive.newPass
+                        }
                     }
                 }
                 RowLayout {
