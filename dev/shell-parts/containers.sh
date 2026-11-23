@@ -24,6 +24,7 @@ if [ -f "$A11Y" ]; then
     waitfor "'web:exited' in d['containersList']" 8 && result containers-stop PASS || result containers-stop FAIL "$(q "['containersList']")"
     timeout 20 python3 "$A11Y" press "radio button:^Images$" >/dev/null 2>&1
     timeout 20 python3 "$A11Y" press "button:^Remove unused$" >/dev/null 2>&1
+    timeout 20 python3 "$A11Y" press "button:^Click again: remove unused images$" >/dev/null 2>&1
     waitfor "'docker.io/library/old:1' not in d['containersImages'] and len(d['containersImages']) == 2" 8 && result containers-prune PASS || result containers-prune FAIL "$(q "['containersImages']")"
 fi
 [ -s /tmp/fake-podman/errors ] && { echo "  the stand-in failed:"; cat /tmp/fake-podman/errors; }

@@ -32,12 +32,13 @@ AppWindow {
     property var featured: []
     property var remotes: []
     property bool busy: false
-    Timer { id: removeTimer; interval: 4000; onTriggered: win.removing = "" }
+    Timer { id: removeTimer; interval: 4000; onTriggered: { win.removing = ""; win.removingLeftover = ""; } }
     property string job: ""                   // the app a job runs for
     property real progress: -1
     property string jobLine: ""
     property string error: ""
     property string removing: ""
+    property string removingLeftover: ""
     readonly property int updates: installedApps.filter(a => a.update).length
 
     readonly property var categories: [["AudioVideo", Tr.t("Music and video")], ["Development", Tr.t("Developer tools")], ["Education", Tr.t("Learning")],
@@ -509,7 +510,7 @@ AppWindow {
                 Button {
                     text: win.removingLeftover === lrow.modelData.id ? Tr.t("Click again to remove") : Tr.t("Move to the trash")
                     enabled: !jobProc.running
-                    onClicked: { if (win.removingLeftover === lrow.modelData.id) { win.removingLeftover = ""; win.ask(["leftover-remove", lrow.modelData.id], () => win.loadLeftovers()); } else win.removingLeftover = lrow.modelData.id; }
+                    onClicked: { if (win.removingLeftover === lrow.modelData.id) { win.removingLeftover = ""; removeTimer.stop(); win.ask(["leftover-remove", lrow.modelData.id], () => win.loadLeftovers()); } else { win.removingLeftover = lrow.modelData.id; removeTimer.restart(); } }
                 }
             }
         }

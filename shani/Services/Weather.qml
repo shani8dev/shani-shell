@@ -128,6 +128,7 @@ Singleton {
     property var forecast: []
     // next 24 hourly points: [{ hour, temp, code }] — hour is "HH:00"
     property var hourly: []
+    property string error: ""              // "" when the last look-up/fetch worked
     // WMO weather codes, as Open-Meteo reports them
     function describe(c) {
         return c === 0 ? "Clear" : c <= 2 ? "Partly cloudy" : c === 3 ? "Overcast" : c <= 48 ? "Fog"
@@ -199,8 +200,11 @@ Singleton {
                     const r = JSON.parse(text).results[0];
                     Settings.data.weatherLat = r.latitude;
                     Settings.data.weatherLon = r.longitude;
+                    root.error = "";
                     root.fetch();
-                } catch (e) {}
+                } catch (e) {
+                    root.error = Tr.t("Could not look up that place — check your internet connection");
+                }
             }
         }
     }
@@ -211,6 +215,7 @@ Singleton {
                 try {
                     const rootObj = JSON.parse(text);
                     const c = rootObj.current;
+                    root.error = "";
                     root.temp = c.temperature_2m;
                     root.code = c.weather_code;
                     root.feelsLike = c.apparent_temperature;
@@ -264,7 +269,9 @@ Singleton {
                         root.hourly = hours;
                         root.dayparts = root.buildDayparts(h);
                     }
-                } catch (e) {}
+                } catch (e) {
+                    root.error = Tr.t("Could not get the weather — check your internet connection");
+                }
             }
         }
     }

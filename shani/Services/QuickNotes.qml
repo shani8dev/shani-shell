@@ -370,11 +370,16 @@ Singleton {
         }
         refresh();
     }
+    // deleting a notebook moves its whole folder into .trash (the same place
+    // single notes go) under a unique name, so it can be put back by hand
     function deleteNotebook(name) {
         const n = validNotebook(name);
         if (n === "")
             return;
-        Quickshell.execDetached(["sh", "-c", 'rm -rf -- "$1/$2"', "sh", root.dir, n]);
+        const stamp = Qt.formatDateTime(new Date(), "yyyyMMdd-HHmmss-zzz");
+        const dest = root.trashDir + "/notebook-" + n + "-" + stamp;
+        Quickshell.execDetached(["sh", "-c", 'mkdir -p "$1" && mv -f -- "$2" "$3"', "sh",
+            root.trashDir, root.dir + "/" + n, dest]);
         if (root.currentNotebook === n) {
             root.current = "";
             root.currentNotebook = "";

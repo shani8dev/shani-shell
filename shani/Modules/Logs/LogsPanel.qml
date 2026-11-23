@@ -23,6 +23,7 @@ AppWindow {
 
     // parsed journal entries: [{ time, pri, cat, unit, id, msg, cursor, raw }]
     property var entries: []
+    property bool loading: false            // true from readJournal() until the process finishes
     property string journalError: ""        // "" when the last read worked
     property string filter: "all"           // all | kernel | user | app | hardware
     property string query: ""
@@ -75,6 +76,8 @@ AppWindow {
     function readJournal() {
         if (!win.visible)
             return;
+        win.loading = true;
+        win.journalError = "";
         // 200 most recent entries; the Process is the only thing that runs,
         // and only while the panel is open (onVisibleChanged + follow timer).
         journal.command = ["journalctl", "--no-pager", "--no-hostname", "-n", "200", "-o", "json"];
@@ -92,6 +95,7 @@ AppWindow {
         id: journal
         stdout: StdioCollector {
             onStreamFinished: {
+                win.loading = false;
                 try {
                     const out = [];
                     const body = String(text || "").trim();
@@ -124,7 +128,10 @@ AppWindow {
         stderr: StdioCollector {
             onStreamFinished: { if (String(text || "").trim() !== "") win.journalError = String(text || "").trim().split("\n")[0]; }
         }
-        onExited: code => { if (code !== 0 && win.journalError === "") win.journalError = "unreadable"; }
+        onExited: code => {
+            win.loading = false;
+            if (code !== 0 && win.journalError === "") win.journalError = "unreadable";
+        }
     }
 
     Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: Ui.logs = false }
@@ -175,7 +182,7 @@ AppWindow {
             // fallback: journal empty or unreadable
             EmptyState {
                 Layout.fillWidth: true
-                visible: win.entries.length === 0
+                visible: win.entries.length === 0 && !win.loading
                 icon: "dialog-warning"
                 title: Tr.t("No logs available")
                 subtitle: win.journalError === "empty" ? Tr.t("The journal is empty right now — entries appear as the system logs them")

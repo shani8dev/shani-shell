@@ -13,12 +13,14 @@ your home folder, its apps in your menu.
     containers.py box-create <name> <image>   prints flatpak-style progress lines, then {"ok"}
     containers.py box-apps <name>       [{"id", "name"}]: the apps inside that could join the menu
     containers.py box-export <name> <app-id>   that app in your menu (distrobox-export)
+    containers.py box-unexport <name> <app-id> that app gone from your menu (--delete)
     containers.py box-upgrade <name>    its own packages updated (distrobox upgrade)
     containers.py box-remove <name>     the toolbox and what it put in the menu
 
 All as you (rootless): no administrator password. Opening one in a terminal is the
 shell's (xdg-terminal-exec distrobox enter NAME). SHANI_PODMAN / SHANI_DISTROBOX (tests).
 """
+
 from __future__ import annotations
 
 import json
@@ -40,7 +42,9 @@ def _has(cmd) -> bool:
 
 
 def _run(cmd, *args, timeout=60):
-    return subprocess.run(cmd + list(args), capture_output=True, text=True, timeout=timeout)
+    return subprocess.run(
+        cmd + list(args), capture_output=True, text=True, timeout=timeout
+    )
 
 
 def _err(r, fallback):
@@ -48,7 +52,12 @@ def _err(r, fallback):
 
 
 def listing() -> dict:
-    out = {"podman": _has(PODMAN), "distrobox": _has(DISTROBOX), "containers": [], "images": []}
+    out = {
+        "podman": _has(PODMAN),
+        "distrobox": _has(DISTROBOX),
+        "containers": [],
+        "images": [],
+    }
     if not out["podman"]:
         return out
     r = _run(PODMAN, "ps", "-a", "--format", "json")
@@ -59,12 +68,21 @@ def listing() -> dict:
     for c in cs:
         labels = c.get("Labels") or {}
         names = c.get("Names") or [c.get("Name", "")]
-        out["containers"].append({
-            "id": (c.get("Id") or "")[:12], "name": names[0] if names else "", "image": c.get("Image", ""),
-            "state": (c.get("State") or "").lower(), "created": c.get("Created", 0),
-            "box": labels.get("manager") == "distrobox",
-            "ports": ", ".join("%s→%s" % (p.get("host_port"), p.get("container_port")) for p in (c.get("Ports") or []) if p.get("host_port")),
-        })
+        out["containers"].append(
+            {
+                "id": (c.get("Id") or "")[:12],
+                "name": names[0] if names else "",
+                "image": c.get("Image", ""),
+                "state": (c.get("State") or "").lower(),
+                "created": c.get("Created", 0),
+                "box": labels.get("manager") == "distrobox",
+                "ports": ", ".join(
+                    "%s→%s" % (p.get("host_port"), p.get("container_port"))
+                    for p in (c.get("Ports") or [])
+                    if p.get("host_port")
+                ),
+            }
+        )
     out["containers"].sort(key=lambda c: (not c["box"], c["name"].lower()))
     r = _run(PODMAN, "images", "--format", "json")
     try:
@@ -74,15 +92,27 @@ def listing() -> dict:
     used = {c["image"] for c in out["containers"]}
     for i in ims:
         tags = i.get("Names") or i.get("RepoTags") or []
-        out["images"].append({"id": (i.get("Id") or "")[:12], "name": tags[0] if tags else "<none>", "size": i.get("Size", 0),
-                               "created": i.get("Created", 0), "used": any(t in used for t in tags)})
+        out["images"].append(
+            {
+                "id": (i.get("Id") or "")[:12],
+                "name": tags[0] if tags else "<none>",
+                "size": i.get("Size", 0),
+                "created": i.get("Created", 0),
+                "used": any(t in used for t in tags),
+            }
+        )
     return out
 
 
 def act(verb: str, name: str) -> dict:
     if not NAME.match(name or ""):
         return {"error": "not a container name: %s" % name}
-    args = {"start": ["start"], "stop": ["stop", "-t", "10"], "restart": ["restart"], "remove": ["rm", "-f"]}[verb]
+    args = {
+        "start": ["start"],
+        "stop": ["stop", "-t", "10"],
+        "restart": ["restart"],
+        "remove": ["rm", "-f"],
+    }[verb]
     r = _run(PODMAN, *args, name, timeout=120)
     return {"ok": True} if r.returncode == 0 else _err(r, "podman %s failed" % verb)
 
@@ -95,7 +125,9 @@ def logs(name: str) -> dict:
 
 
 def stream(cmd) -> int:
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+    p = subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
+    )
     last = ""
     for raw in p.stdout:
         for line in raw.replace("\r", "\n").splitlines():
@@ -104,17 +136,25 @@ def stream(cmd) -> int:
                 last = line
                 print(json.dumps({"line": line[:200]}), flush=True)
     rc = p.wait()
-    print(json.dumps({"ok": True} if rc == 0 else {"error": last or "failed"}), flush=True)
+    print(
+        json.dumps({"ok": True} if rc == 0 else {"error": last or "failed"}), flush=True
+    )
     return rc
 
 
 def box_apps(name: str) -> list[dict]:
     """The .desktop files inside the toolbox (read with podman exec - no distrobox
     start-up), the ones a person would open: not hidden, not NoDisplay."""
-    r = _run(PODMAN, "exec", name, "sh", "-c",
-             'for f in /usr/share/applications/*.desktop; do [ -f "$f" ] || continue; '
-             'grep -qi "^NoDisplay=true" "$f" && continue; printf "%s\\t%s\\n" "${f##*/}" "$(sed -n "s/^Name=//p" "$f" | head -1)"; done',
-             timeout=60)
+    r = _run(
+        PODMAN,
+        "exec",
+        name,
+        "sh",
+        "-c",
+        'for f in /usr/share/applications/*.desktop; do [ -f "$f" ] || continue; '
+        'grep -qi "^NoDisplay=true" "$f" && continue; printf "%s\\t%s\\n" "${f##*/}" "$(sed -n "s/^Name=//p" "$f" | head -1)"; done',
+        timeout=60,
+    )
     out = []
     for line in r.stdout.splitlines():
         if "\t" in line:
@@ -133,29 +173,85 @@ def main(argv: list[str]) -> int:
         elif cmd == "logs" and len(args) == 1:
             r = logs(args[0])
         elif cmd == "image-remove" and len(args) == 1:
-            rr = _run(PODMAN, "rmi", args[0]) if re.match(r"^[0-9a-f]{6,64}$", args[0]) else None
-            r = {"ok": True} if rr and rr.returncode == 0 else (_err(rr, "not removed") if rr else {"error": "not an image id"})
+            rr = (
+                _run(PODMAN, "rmi", args[0])
+                if re.match(r"^[0-9a-f]{6,64}$", args[0])
+                else None
+            )
+            r = (
+                {"ok": True}
+                if rr and rr.returncode == 0
+                else (_err(rr, "not removed") if rr else {"error": "not an image id"})
+            )
         elif cmd == "prune":
             rr = _run(PODMAN, "image", "prune", "-f", timeout=300)
-            r = {"ok": True, "removed": len([l for l in rr.stdout.splitlines() if l.strip()])} if rr.returncode == 0 else _err(rr, "not pruned")
+            r = (
+                {
+                    "ok": True,
+                    "removed": len([l for l in rr.stdout.splitlines() if l.strip()]),
+                }
+                if rr.returncode == 0
+                else _err(rr, "not pruned")
+            )
         elif cmd == "box-create" and len(args) == 2:
             if not NAME.match(args[0]) or not IMAGE.match(args[1]):
                 r = {"error": "a name of letters, digits, - and _; and an image"}
             else:
-                return 0 if stream(DISTROBOX + ["create", "--yes", "--name", args[0], "--image", args[1]]) == 0 else 1
+                return (
+                    0
+                    if stream(
+                        DISTROBOX
+                        + ["create", "--yes", "--name", args[0], "--image", args[1]]
+                    )
+                    == 0
+                    else 1
+                )
         elif cmd == "box-apps" and len(args) == 1:
             r = box_apps(args[0]) if NAME.match(args[0]) else {"error": "not a name"}
-        elif cmd == "box-export" and len(args) == 2:
+        elif cmd in ("box-export", "box-unexport") and len(args) == 2:
             if not NAME.match(args[0]) or not re.match(r"^[A-Za-z0-9_.+-]+$", args[1]):
                 r = {"error": "not a name"}
             else:
-                rr = _run(DISTROBOX, "enter", args[0], "--", "distrobox-export", "--app", args[1], timeout=300)
-                r = {"ok": True} if rr.returncode == 0 else _err(rr, "not added to the menu")
+                unexport = cmd == "box-unexport"
+                tail = ["--delete"] if unexport else []
+                rr = _run(
+                    DISTROBOX,
+                    "enter",
+                    args[0],
+                    "--",
+                    "distrobox-export",
+                    "--app",
+                    args[1],
+                    *tail,
+                    timeout=300,
+                )
+                r = (
+                    {"ok": True}
+                    if rr.returncode == 0
+                    else _err(
+                        rr,
+                        "not removed from the menu"
+                        if unexport
+                        else "not added to the menu",
+                    )
+                )
         elif cmd == "box-upgrade" and len(args) == 1:
-            return 0 if NAME.match(args[0]) and stream(DISTROBOX + ["upgrade", args[0]]) == 0 else 1
+            return (
+                0
+                if NAME.match(args[0]) and stream(DISTROBOX + ["upgrade", args[0]]) == 0
+                else 1
+            )
         elif cmd == "box-remove" and len(args) == 1:
-            rr = _run(DISTROBOX, "rm", "--force", args[0], timeout=180) if NAME.match(args[0]) else None
-            r = {"ok": True} if rr and rr.returncode == 0 else (_err(rr, "not removed") if rr else {"error": "not a name"})
+            rr = (
+                _run(DISTROBOX, "rm", "--force", args[0], timeout=180)
+                if NAME.match(args[0])
+                else None
+            )
+            r = (
+                {"ok": True}
+                if rr and rr.returncode == 0
+                else (_err(rr, "not removed") if rr else {"error": "not a name"})
+            )
         else:
             print(__doc__.strip().split("\n\n")[1], file=sys.stderr)
             return 2

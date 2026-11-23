@@ -144,8 +144,8 @@ AppWindow {
             }
             Text {
                 Layout.fillWidth: true
-                visible: Mail.messages.length === 0
-                text: Tr.t("Nothing in this folder")
+                visible: Mail.messages.length === 0 && !Mail.busy
+                text: Mail.query !== "" ? Tr.t("No matches for %1", Mail.query) : Tr.t("Nothing in this folder")
                 color: Theme.dim
                 font.family: Theme.font
                 font.pixelSize: Theme.px(11) * Theme.fontScale
@@ -180,6 +180,7 @@ AppWindow {
                     Layout.fillWidth: true
                     visible: Mail.subject !== ""
                     text: Mail.subject
+                    textFormat: Text.PlainText
                     color: Theme.text
                     wrapMode: Text.Wrap
                     font.family: Theme.font
@@ -192,6 +193,7 @@ AppWindow {
                     Layout.fillWidth: true
                     visible: Mail.from !== ""
                     text: Mail.from
+                    textFormat: Text.PlainText
                     color: Theme.dim
                     font.family: Theme.font
                     font.pixelSize: Theme.px(12) * Theme.fontScale

@@ -22,6 +22,9 @@ ColumnLayout {
     property string alarmLabel: ""
     property bool adding: false
     readonly property var alarms: Array.from(WorldClock.alarms || [])
+    // a row asks before it removes an alarm: two taps, the second within 4 s
+    property int confirmAlarm: -1
+    Timer { id: alarmTimer; interval: 4000; onTriggered: root.confirmAlarm = -1 }
 
     RowLayout {
         Layout.fillWidth: true
@@ -53,8 +56,12 @@ ColumnLayout {
                 icon: "alarm"
                 title: modelData.time + (modelData.label ? " — " + modelData.label : "")
                 subtitle: Tr.t("Daily · rings once at this time")
-                trailing: Tr.t("Remove")
-                onClicked: WorldClock.removeAlarm(index)
+                // tapping the row asks first: a stray click must not lose an alarm
+                trailing: root.confirmAlarm === index ? Tr.t("Tap again to remove") : Tr.t("Remove")
+                onClicked: {
+                    if (root.confirmAlarm === index) { WorldClock.removeAlarm(index); root.confirmAlarm = -1; alarmTimer.restart(); }
+                    else { root.confirmAlarm = index; alarmTimer.restart(); }
+                }
             }
         }
     }

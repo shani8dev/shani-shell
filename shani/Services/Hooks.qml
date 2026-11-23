@@ -104,6 +104,12 @@ Singleton {
         }
     }
 
-    // startup
-    Component.onCompleted: Qt.callLater(executeStartupHook)
+    // startup: Settings loads asynchronously, so its hook config is not ready
+    // in Component.onCompleted; run once when Settings finishes loading.
+    Connections {
+        target: Settings
+        function onLoadedChanged() {
+            if (Settings.loaded) executeStartupHook();
+        }
+    }
 }

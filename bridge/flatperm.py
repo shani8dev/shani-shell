@@ -50,7 +50,7 @@ PORTALS = {
 # what may be passed to `flatpak override`: its own flags, nothing else
 FLAG = re.compile(
     r"^--(no)?(share|unshare|socket|nosocket|device|nodevice|allow|disallow|filesystem|nofilesystem|persist|"
-    r"env|unset-env|talk-name|no-talk-name|own-name|system-talk-name|system-no-talk-name|system-own-name)(=\S.*)?$"
+    r"env|unset-env|talk-name|no-talk-name|own-name|no-own-name|system-talk-name|system-no-talk-name|system-own-name|system-no-own-name)(=\S.*)?$"
 )
 
 

@@ -173,7 +173,8 @@ PanelWindow {
     Process {
         id: contentSearch
         property string query
-        command: ["sh", "-c", 'q="$1"; d="$HOME/Documents $HOME/Desktop $HOME/Downloads"; if command -v localsearch >/dev/null && localsearch status >/dev/null 2>&1; then localsearch search --limit 8 -- "$q" 2>/dev/null | sed -n "s|.*file://\\([^ ]*\\).*|\\1|p" | head -8 ; elif command -v rg >/dev/null; then rg -l -i -F --max-depth 4 --max-filesize 2M -- "$q" $d 2>/dev/null | head -8 ; else grep -rliF --exclude-dir=".*" -- "$q" $d 2>/dev/null | head -8 ; fi',"sh", query]
+        command: ["sh", "-c", 'q="$1"; shift; if command -v localsearch >/dev/null && localsearch status >/dev/null 2>&1; then localsearch search --limit 8 -- "$q" 2>/dev/null | sed -n "s|.*file://\\([^ ]*\\).*|\\1|p" | head -8 ; elif command -v rg >/dev/null; then rg -l -i -F --max-depth 4 --max-filesize 2M -- "$q" "$@" 2>/dev/null | head -8 ; else grep -rliF --exclude-dir=".*" -- "$q" "$@" 2>/dev/null | head -8 ; fi',"sh", query]
+            .concat(Array.from(Settings.data.searchFolders).map(f => f.replace(/^~/, Quickshell.env("HOME"))))
         stdout: StdioCollector { onStreamFinished: win.inside = text.trim().split("\n").filter(x => x).map(p => decodeURIComponent(p)) }
     }
     // files by meaning (Chronoa's FindFiles): [{ path, excerpt }], and how it searched

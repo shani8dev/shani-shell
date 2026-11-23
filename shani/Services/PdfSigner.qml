@@ -8,7 +8,8 @@ pragma Singleton
 // composites the signature (and the text, when there is any) onto it with
 // ImageMagick `convert` at those offsets, then turns the result into a
 // PDF — img2pdf when there is one, Ghostscript (`gs`) otherwise — named
-// "* - signed.pdf" beside the original. The original is never touched.
+// "* - signed <timestamp>.pdf" beside the original, so saving again never
+// overwrites an earlier signed copy. The original is never touched.
 // Shown by Modules/PdfSigner/PdfSignerPanel.qml until closed.
 import Quickshell
 import Quickshell.Io
@@ -38,11 +39,15 @@ Singleton {
     readonly property string pageLabel: PdfViewer.label
 
     function defaultSignature() { return (Quickshell.env("HOME") || "/tmp") + "/Documents/Signature.png"; }
-    // the signed copy goes beside the original: "doc.pdf" -> "doc - signed.pdf"
+    // the signed copy goes beside the original with a timestamp so a second
+    // save never destroys the first: "doc.pdf" -> "doc - signed 20261123-143022-456.pdf"
     function pdfSignerPathFor(pdf) {
         if (!pdf)
             return "";
-        return /\.pdf$/i.test(pdf) ? pdf.replace(/\.pdf$/i, " - signed.pdf") : pdf + " - signed.pdf";
+        const stamp = Qt.formatDateTime(new Date(), "yyyyMMdd-HHmmss-zzz");
+        return /\.pdf$/i.test(pdf)
+            ? pdf.replace(/\.pdf$/i, " - signed " + stamp + ".pdf")
+            : pdf + " - signed " + stamp + ".pdf";
     }
 
     // ---- open: an argument, a folder's last PDF, or what PdfViewer has -----
@@ -108,7 +113,8 @@ Singleton {
     // pdftoppm renders the current page (PdfViewer.page), `convert`
     // composites the signature at +x+y (resized by scale) and annotates
     // the fill text at +textX+textY, then img2pdf / Ghostscript makes
-    // the PDF. The output is beside the original: "* - signed.pdf".
+    // the PDF. The output is a fresh timestamped "* - signed ….pdf" beside
+    // the original, so an earlier signed copy is never overwritten.
     function save() {
         if (!file || saving)
             return;

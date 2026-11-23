@@ -43,11 +43,23 @@ AppWindow {
     property string jobLine: ""
     readonly property var boxes: containers.filter(c => c.box)
     readonly property var others: containers.filter(c => !c.box)
+    property var exportedApps: []          // "box:app" keys put in the menu this session
+    onTabChanged: win.removing = ""        // an armed confirmation must not survive a tab switch
+    onRemovingChanged: if (removing !== "") confirmTimer.restart()
+    function exported(box, id) { return win.exportedApps.indexOf(box + ":" + id) >= 0; }
+    function toggleExport(box, id, name) {
+        const key = box + ":" + id;
+        if (win.exported(box, id))
+            win.run(["box-unexport", box, id], r => { if (r.ok) { win.exportedApps = win.exportedApps.filter(x => x !== key); Ui.containersExported = ""; win.note = Tr.t("%1 left your menu", name); } });
+        else
+            win.run(["box-export", box, id], r => { if (r.ok) { win.exportedApps = win.exportedApps.concat(key); Ui.containersExported = id; win.note = Tr.t("%1 is in your menu", name); } });
+    }
 
     function refresh() { lister.running = true; }
     onVisibleChanged: if (visible) refresh()
     Component.onCompleted: refresh()
     Timer { interval: 5000; repeat: true; running: win.visible && !job.running; onTriggered: win.refresh() }
+    Timer { id: confirmTimer; interval: 8000; onTriggered: win.removing = "" }
 
     Process {
         id: lister
@@ -254,9 +266,8 @@ AppWindow {
                             Layout.fillWidth: true
                             Text { Layout.fillWidth: true; elide: Text.ElideRight; text: arow.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                             Button {
-                                text: Tr.t("Add to menu")
-                                onClicked: win.run(["box-export", brow.modelData.name, arow.modelData.id],
-                                                   r => { if (r.ok) { win.note = Tr.t("%1 is in your menu", arow.modelData.name); Ui.containersExported = arow.modelData.id; } })
+                                text: win.exported(brow.modelData.name, arow.modelData.id) ? Tr.t("Remove from menu") : Tr.t("Add to menu")
+                                onClicked: win.toggleExport(brow.modelData.name, arow.modelData.id, arow.modelData.name)
                             }
                         }
                     }
@@ -346,9 +357,14 @@ AppWindow {
                 color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
             }
             Button {
-                text: Tr.t("Remove unused")
+                text: win.removing === "__prune__" ? Tr.t("Click again: remove unused images") : Tr.t("Remove unused")
                 enabled: win.images.some(i => !i.used)
-                onClicked: win.run(["prune"], r => { if (r.ok) win.note = Tr.t("%1 images removed", r.removed); })
+                onClicked: {
+                    if (win.removing === "__prune__") {
+                        win.removing = "";
+                        win.run(["prune"], r => { if (r.ok) win.note = Tr.t("%1 images removed", r.removed); });
+                    } else win.removing = "__prune__";
+                }
             }
         }
         ListView {

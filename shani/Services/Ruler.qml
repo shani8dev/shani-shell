@@ -35,7 +35,7 @@ Singleton {
     // coordinates: derive the ratio from the output we are drawing on instead
     // of leaving it at 1.0 (which made "real pixels" false on scaled screens).
     readonly property real outputScale: {
-        const o = Displays.outputs[0];
+        const o = Displays.outputs.find(o => o.name === Niri.focusedOutput) || Displays.outputs[0];
         return o && o.scale > 0 ? o.scale : 1.0;
     }
     Component.onCompleted: { root.ratio = root.outputScale; }

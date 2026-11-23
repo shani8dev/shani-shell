@@ -563,6 +563,7 @@ PanelWindow {
                                 }
                                 Text {
                                     id: asstText
+                                    textFormat: Text.PlainText
                                     anchors.left: parent.left
                                     anchors.right: parent.right
                                     anchors.top: parent.top

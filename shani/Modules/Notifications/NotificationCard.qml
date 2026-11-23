@@ -27,9 +27,9 @@ Glass {
     property bool more: false            // Snooze and Ask Chronoa shown ("⋯" pressed)
     readonly property bool critical: notification && notification.urgency === NotificationUrgency.Critical
     readonly property string appName: notification ? (notification.appName || "Notification") : ""
-    // Notification bodies come from arbitrary apps. StyledText can load remote
-    // images through <img src>, so strip those tags before rendering.
-    function safeBody(body) { return String(body || "").replace(/<\s*img\b[^>]*>/gi, ""); }
+    // Notification bodies come from arbitrary apps. Rendered as Text.PlainText,
+    // Qt shows tags literally; HTML-escaping here would display "&amp;" to the user.
+    function safeBody(body) { return String(body || ""); }
     function openLink(link) {
         if (/^(https?:\/\/|mailto:)/i.test(link)) Qt.openUrlExternally(link);
     }
@@ -314,16 +314,14 @@ Glass {
                     Layout.fillWidth: true
                     visible: !root.hideContent && text !== ""
                     text: root.hideContent ? "" : root.safeBody(root.notification ? root.notification.body : "")
-                    textFormat: Text.StyledText
+                    textFormat: Text.PlainText
                     color: Theme.dim
-                    linkColor: Theme.accent
                     wrapMode: Text.Wrap
                     maximumLineCount: root.popup ? 3 : 6
                     elide: Text.ElideRight
                     lineHeight: 1.1
                     font.family: Theme.font
                     font.pixelSize: Theme.px(12.5) * Theme.fontScale
-                    onLinkActivated: link => root.openLink(link)
                 }
             }
         }

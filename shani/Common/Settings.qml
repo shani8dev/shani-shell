@@ -18,7 +18,7 @@ Singleton {
 
     // blur behind the chrome: the toggle, minus the battery rule — a solid
     // background costs no pixels, and on battery every blurred surface is watts
-    readonly property bool blurWanted: data.blur && !(data.reduceTransparencyOnBattery && PowerState.onBattery)
+    readonly property bool blurWanted: data.blur && !(data.reduceTransparencyOnBattery && PowerState.onBattery) && !data.reduceTransparency && !data.highContrast
     property bool loaded: false
     // Our own write is not news: reloading it could undo a change made since
     // (measured: a quick on-then-off came back on). Not a time window — a late

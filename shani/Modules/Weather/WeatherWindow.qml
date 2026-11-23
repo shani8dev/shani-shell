@@ -142,9 +142,12 @@ AppWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 visible: Weather.summary === ""
-                icon: "weather-few-clouds"
-                title: Weather.enabled ? Tr.t("Getting the weather…") : Tr.t("Which place?")
-                subtitle: Weather.enabled ? Tr.t("It needs the internet (Open-Meteo)") : Tr.t("Type a city above, or turn on location in Settings > Privacy")
+                icon: Weather.error !== "" ? "dialog-warning" : "weather-few-clouds"
+                title: Weather.error !== "" ? Tr.t("Weather unavailable")
+                    : Weather.enabled ? Tr.t("Getting the weather…") : Tr.t("Which place?")
+                subtitle: Weather.error !== "" ? Weather.error
+                    : Weather.enabled ? Tr.t("It needs the internet (Open-Meteo)")
+                    : Tr.t("Type a city above, or turn on location in Settings > Privacy")
             }
 
             // ---- now ----

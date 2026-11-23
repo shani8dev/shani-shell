@@ -77,6 +77,8 @@ ColumnLayout {
     function mine(list, x) { return !!perms && ((perms.changed || {})[list] || []).indexOf(x) >= 0; }
     // a switch: on/off are override's own pair of flags
     function flip(on, yes, no, value) { call(["set", open, (on ? yes : no) + "=" + value]); }
+    // a bus name is shown as "talk" or "own"; removing it needs the matching no-flag
+    function busNoFlag(system, value) { return (system ? "--system-no-" : "--no-") + (value === "own" ? "own-name" : "talk-name"); }
 
     // the switches, in Flatseal's sections: [list, value, on-flag, off-flag, label, hint]
     readonly property var sections: [
@@ -243,7 +245,7 @@ ColumnLayout {
                         required property string modelData
                         Layout.fillWidth: true
                         Text { Layout.fillWidth: true; elide: Text.ElideMiddle; text: modelData + "  ·  " + page.perms.session[modelData]; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
-                        IconButton { icon: "window-close"; size: Theme.px(22); tip: Tr.t("No longer"); onClicked: page.call(["set", page.open, "--no-talk-name=" + modelData]) }
+                        IconButton { icon: "window-close"; size: Theme.px(22); tip: Tr.t("No longer"); onClicked: page.call(["set", page.open, page.busNoFlag(false, page.perms.session[modelData]) + "=" + modelData]) }
                     }
                 }
                 Text { visible: arow.isOpen && page.perms && Object.keys(page.perms.system || {}).length > 0; text: Tr.t("System bus names"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; Layout.topMargin: Theme.px(8) }
@@ -253,7 +255,7 @@ ColumnLayout {
                         required property string modelData
                         Layout.fillWidth: true
                         Text { Layout.fillWidth: true; elide: Text.ElideMiddle; text: modelData + "  ·  " + page.perms.system[modelData]; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
-                        IconButton { icon: "window-close"; size: Theme.px(22); tip: Tr.t("No longer"); onClicked: page.call(["set", page.open, "--system-no-talk-name=" + modelData]) }
+                        IconButton { icon: "window-close"; size: Theme.px(22); tip: Tr.t("No longer"); onClicked: page.call(["set", page.open, page.busNoFlag(true, page.perms.system[modelData]) + "=" + modelData]) }
                     }
                 }
                 RowLayout {

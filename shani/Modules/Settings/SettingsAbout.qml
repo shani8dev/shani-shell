@@ -277,7 +277,7 @@ ColumnLayout {
                 text: modelData.label
                 onClicked: {
                     if (modelData.id === "update-channel") {
-                        Updates.setChannel(Updates.channel === "beta" ? "stable" : "beta");
+                        Updates.setChannel(Updates.channel === "latest" ? "stable" : "latest");
                     } else {
                         Ui.closeAll();
                         Quickshell.execDetached(["shani-cassini", "--section=" + modelData.id]);

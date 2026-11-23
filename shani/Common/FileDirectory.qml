@@ -58,6 +58,11 @@ QtObject {
     function reload() {
         root.error = "";
         root.loading = true;
+        // drop the previous folder's rows before the watcher answers, so a
+        // navigation never leaves stale filenames on screen
+        root._all = [];
+        root.entries.clear();
+        root.total = 0;
         root.watcher.running = false;
         Qt.callLater(function () {
             root.watcher.command = root.watchCommand;

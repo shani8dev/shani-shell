@@ -151,7 +151,7 @@ Variants {
             defaultX: 300; defaultY: 64
             cardWidth: 240
             cardHeight: Math.min(220, Math.max(90, noteText.implicitHeight + 46))
-            onOpen: Ui.toggleControlCenter()
+            onOpen: Ui.openNotes()
             Column {
                 anchors.fill: parent
                 anchors.margins: Theme.px(14)
