@@ -34,6 +34,8 @@ AppWindow {
         // or the page chosen with a way back (docs/FORM-FACTORS.md, breakpoints)
         readonly property bool compact: FF.widthClass(width) === "compact"
         property bool showingPage: true
+        property string crumbSubpage: ""     // an optional third crumb for a drill-in
+        function crumbBack() { winRoot.showingPage = false; }  // one level back; Escape still closes the window
         onCompactChanged: Ui.settingsCompact = compact
         Component.onCompleted: Ui.settingsCompact = compact
         onShowingPageChanged: Ui.settingsShowingPage = showingPage
@@ -211,12 +213,42 @@ AppWindow {
                     text: "← " + Tr.t("Categories")
                     onClicked: winRoot.showingPage = false
                 }
-                Text {
-                    text: page.catTitle
-                    color: Theme.text
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(24) * Theme.fontScale
-                    font.weight: Font.DemiBold
+                // breadcrumb: Settings › category [› subpage]. The "Settings"
+                // crumb goes back one level to the categories; Escape still
+                // closes the whole window (Keys.onEscapePressed above).
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    Text {
+                        id: crumbSettings
+                        text: Tr.t("Settings")
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(13) * Theme.fontScale
+                        Accessible.role: Accessible.Link
+                        Accessible.name: text
+                        Accessible.onPressAction: winRoot.crumbBack()
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: winRoot.crumbBack() }
+                        KeyFocus { name: crumbSettings.text; onActivated: winRoot.crumbBack() }
+                    }
+                    Text { text: "›"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                    Text {
+                        text: page.catTitle
+                        color: Theme.text
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(24) * Theme.fontScale
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideRight
+                        Layout.fillWidth: true
+                    }
+                    Text { visible: winRoot.crumbSubpage !== ""; text: "›"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                    Text {
+                        visible: winRoot.crumbSubpage !== ""
+                        text: winRoot.crumbSubpage
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(13) * Theme.fontScale
+                    }
                 }
                 SettingsPage {
                     id: page

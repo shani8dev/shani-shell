@@ -16,6 +16,7 @@ ColumnLayout {
     property string renameError: ""
     property bool hasCassini: false
     property var checks: []
+    property string reportName: ""
     readonly property int passedChecks: page.checks.filter(c => c.ok).length
     readonly property real healthScore: page.checks.length ? page.passedChecks / page.checks.length : 0
     onActiveChanged: if (active) { facts.running = true; healthProc.running = true; }
@@ -63,8 +64,13 @@ ColumnLayout {
         command: ["python3", Quickshell.env("SHANI_REPORT_TOOL") || "/usr/lib/shani-shell/system-report.py"]
         stdout: StdioCollector {
             onStreamFinished: {
+                const now = new Date();
+                const p = n => ("0" + n).slice(-2);
+                page.reportName = "shani-report-" + now.getFullYear() + p(now.getMonth() + 1) + p(now.getDate()) + "-" + p(now.getHours()) + p(now.getMinutes()) + ".txt";
                 TextDocs.newDoc();
                 TextDocs.setText(text);
+                // a dated title rather than "Untitled": the buffer is memory-only
+                if (TextDocs.current) { TextDocs.current.name = page.reportName; TextDocs.touch(); }
                 TextDocs.revision++;
                 Ui.closeAll();
                 Ui.textEditor = true;
@@ -187,6 +193,14 @@ ColumnLayout {
             text: Tr.t("Problem report…")
             enabled: !reportProc.running
             onClicked: reportProc.running = true
+        }
+        Button {
+            text: Tr.t("Save report…")
+            enabled: page.reportName !== ""
+            onClicked: FilePicker.open({
+                mode: "save", title: Tr.t("Save report…"), defaultName: page.reportName, filters: ["txt", "md"],
+                onPicked: paths => { if (paths.length) TextDocs.saveAs(paths[0]); }
+            })
         }
         Button {
             visible: page.hasCassini

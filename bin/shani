@@ -707,6 +707,16 @@ def _cmd_doctor(_args) -> int:
     return subprocess.run([exe]).returncode
 
 
+def _cmd_report(_args) -> int:
+    """Print the read-only problem report on stdout, like `shani doctor`."""
+    import os
+    here = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "bridge", "system-report.py"))
+    if not os.path.isfile(here):
+        print("system-report is not available here", file=sys.stderr)
+        return 1
+    return subprocess.run([sys.executable, here]).returncode
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog=PROG,
@@ -722,6 +732,9 @@ def build_parser() -> argparse.ArgumentParser:
     # the doctor, forwarded
     p = sub.add_parser("doctor", help="check the tools the shell needs")
     p.set_defaults(func=_cmd_doctor)
+    # the read-only problem report, printed to stdout
+    p = sub.add_parser("report", help="print a read-only problem report")
+    p.set_defaults(func=_cmd_report)
     # the shell's own apps, the way a desktop entry starts them
     p = sub.add_parser("app", help="open one of the shell's apps, with a file if it takes one (no name: list them)")
     p.add_argument("name", nargs="?")

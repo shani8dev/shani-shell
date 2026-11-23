@@ -163,12 +163,32 @@ ColumnLayout {
         current: Settings.data.powerKeyByLogind ? page.powerKey : "suspend"
         onPicked: v => { Settings.data.powerKeyByLogind = true; Settings.touch("powerKeyByLogind"); page.save({ powerKey: v }); }
     }
-    Picks {
+    // the firmware accepts every integer 50-100, not just four named steps
+    RowLayout {
         visible: page.limit > 0
-        label: Tr.t("Stop charging at (keeps the battery healthy when mostly plugged in)")
-        options: [{ label: "60 %", value: "60" }, { label: "80 %", value: "80" }, { label: "90 %", value: "90" }, { label: Tr.t("Full"), value: "100" }]
-        current: String(page.limit)
-        onPicked: v => page.saveLimit(parseInt(v))
+        Layout.fillWidth: true
+        spacing: Theme.px(8)
+        Text {
+            text: Tr.t("Stop charging at (keeps the battery healthy when mostly plugged in)")
+            color: Theme.text
+            font.family: Theme.font
+            font.pixelSize: Theme.px(13) * Theme.fontScale
+            wrapMode: Text.Wrap
+            Layout.fillWidth: true
+        }
+        TextField {
+            id: limitField
+            Layout.preferredWidth: Theme.px(80)
+            label: Tr.t("Charge limit in percent")
+            placeholder: Tr.t("50 to 100")
+            text: String(page.limit)
+            input.validator: IntValidator { bottom: 50; top: 100 }
+            input.onEditingFinished: {
+                const v = parseInt(text, 10);
+                if (v >= 50 && v <= 100 && v !== page.limit) page.saveLimit(v);
+            }
+        }
+        Text { text: "%"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
     }
     Picks {
         visible: page.powerLimitSteps.length > 1

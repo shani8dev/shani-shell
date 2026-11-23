@@ -22,6 +22,7 @@ ColumnLayout {
     property string dns: ""               // its own DNS servers ("" = from the network)
     property string dnsSearch: ""         // DNS search suffixes of this connection
     property string note: ""
+    property bool noteOk: false           // success notes are informational, not an error
 
     onActiveChanged: if (active) { readConn.running = true; readSaved(); readVpnAuto(); readCaps(); }
     // made already active (a Settings category is a Loader): load now too
@@ -80,7 +81,25 @@ ColumnLayout {
     Process {
         id: setDns
         stderr: StdioCollector { id: dnsErr }
-        onExited: code => { page.note = code === 0 ? "" : (dnsErr.text.trim().split("\n").pop() || "not changed"); readConn.running = true; }
+        onExited: code => {
+            if (code !== 0) {
+                page.noteOk = false;
+                page.note = dnsErr.text.trim().split("\n").pop() || Tr.t("not changed");
+                readConn.running = true;
+            } else
+                dnsVerify.running = true;   // reconnect is not proof the new resolver works
+        }
+    }
+    // one bounded lookup after applying, so a bad DNS address is not silent
+    Process {
+        id: dnsVerify
+        command: ["sh", "-c", "sleep 1; timeout 5 getent hosts example.com >/dev/null 2>&1"]
+        onExited: code => {
+            page.noteOk = code === 0;
+            page.note = code === 0 ? Tr.t("DNS applied — a test lookup worked")
+                                   : Tr.t("DNS applied, but a test lookup failed — check the server addresses");
+            readConn.running = true;
+        }
     }
     // servers: IPv4 and IPv6 addresses, space between ("" = the network's own). Both
     // families are set, so a network with IPv6 does not ask its own DNS around it.
@@ -587,7 +606,7 @@ ColumnLayout {
             Layout.fillWidth: true
             visible: page.note !== ""
             text: page.note
-            color: Theme.danger
+            color: page.noteOk ? Theme.text : Theme.danger
             wrapMode: Text.Wrap
             font.family: Theme.font
             font.pixelSize: Theme.px(11) * Theme.fontScale

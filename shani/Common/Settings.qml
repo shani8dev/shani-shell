@@ -492,6 +492,7 @@ Singleton {
             property bool deskStacks: false            // pile the desktop's files by kind (macOS's stacks)
             property list<string> desktopWidgets: ["clock"]
             property var deskPos: ({})
+            property bool widgetsLocked: false         // stop accidental drags moving a desktop widget card
             property bool overAmplify: false          // volume up to 150 %
             property int audioBalance: 0               // left/right, −100 … 100 (Audio)
             property bool reduceTransparency: false    // the chrome opaque (Accessibility)

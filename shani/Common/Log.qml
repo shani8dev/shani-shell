@@ -37,13 +37,18 @@ Singleton {
         return named || parts.length === 0;
     }
 
+    // date as well as time: the shell runs for days, across midnight and boots
+    function fmtTime(d) {
+        return Qt.formatDateTime(d || new Date(), "MM-dd HH:mm:ss");
+    }
+
     function write(name, level, args) {
         if (!root.wants(name, level))
             return;
         const parts = [];
         for (const a of args)
             parts.push(typeof a === "string" ? a : JSON.stringify(a));
-        console.log("[" + name + "] " + parts.join(" "));
+        console.log("[" + fmtTime(new Date()) + " " + name + "] " + parts.join(" "));
     }
 
     // a logger bound to one name: log.warn("…"), log.info("…"), log.debug("…")

@@ -16,6 +16,9 @@ Singleton {
     property var call: null               // the call in progress: { path, number, state, incoming }
     property int callSeconds: 0
     readonly property string callTime: Math.floor(callSeconds / 60) + ":" + String(callSeconds % 60).padStart(2, "0")
+    property var waitingCall: null          // a second call, waiting while one is up
+    property bool muted: false              // live-call controls, echoed by the bridge
+    property bool speaker: false
     property string error: ""
     property var lastSms: null
     readonly property bool canCall: modem !== null && modem.voice && modem.locked === ""
@@ -25,8 +28,13 @@ Singleton {
     function unlock(pin) { error = ""; send({ pin: pin }); }
     function text(to, body) { error = ""; send({ sms: { to: to, text: body } }); }
     function dial(number) { error = ""; send({ call: number }); }
-    function answer() { if (call) send({ answer: call.path }); }
+    function answer() { if (call) answerCall(call.path); }
+    function answerCall(path) { if (path) send({ answer: path }); }
     function hangup() { if (call) send({ hangup: call.path }); }
+    // the modem has no ModemManager verb for these: the bridge echoes them back
+    function callctl(action, on) { send({ callctl: { action: action, on: on !== false } }); }
+    function setMute(on) { root.muted = !!on; callctl("mute", root.muted); }
+    function setSpeaker(on) { root.speaker = !!on; callctl("speaker", root.speaker); }
     // a number to call: the modem when it can, otherwise Chronoa (a phone over Bluetooth)
     // a number to call: shani-link's dial pad, filled in (it picks the line - landline,
     // phone or this modem - and nothing is dialled until Call is pressed)
@@ -61,16 +69,37 @@ Singleton {
                     root.lastSms = m.sms;
                     smsComp.createObject(root, { sms: m.sms });
                 } else if (m.call) {
-                    if (m.call.state === "terminated") {
-                        root.call = null;
+                    const c = m.call;
+                    if (c.state === "terminated") {
+                        if (root.call && root.call.path === c.path) {
+                            root.call = null;
+                            root.callSeconds = 0;
+                            root.muted = false;
+                            root.speaker = false;
+                        } else if (root.waitingCall && root.waitingCall.path === c.path)
+                            root.waitingCall = null;
                         return;
                     }
-                    const fresh = !root.call || root.call.path !== m.call.path;
-                    root.call = m.call;
+                    // a waiting call must not replace the one already up
+                    if (c.state === "waiting") {
+                        if (!root.call || root.call.path !== c.path)
+                            root.waitingCall = c;
+                        return;
+                    }
+                    if (c.state === "held") {
+                        if (root.call && root.call.path === c.path) root.call = c;
+                        return;
+                    }
+                    const fresh = !root.call || root.call.path !== c.path;
+                    if (root.waitingCall && root.waitingCall.path === c.path) root.waitingCall = null;
+                    root.call = c;
                     // ringing is shani-link's notification (it owns calls on every line):
                     // ringing here as well put two on screen for one call
                     if (fresh)
                         root.callSeconds = 0;
+                } else if (m.callctl) {
+                    if (m.callctl.action === "mute") root.muted = m.callctl.on;
+                    else if (m.callctl.action === "speaker") root.speaker = m.callctl.on;
                 } else if (m.error)
                     root.error = m.error;
                 else if (m.sent)

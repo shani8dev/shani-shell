@@ -20,14 +20,21 @@ RowLayout {
     // The slider's semantics live on the row, not on the track: Qt reads the
     // value off this object's own `value` property (there is no Accessible.value
     // to set - assigning one is an error), so Orca can name and read it.
+    // A human label first, else derive one from the icon (what the keyboard
+    // used to do inline): AT, the icon button's tip and the keys say the same.
+    property string label: ""
+    readonly property string readableName: root.label !== "" ? root.label
+        : /volume|audio|speaker/.test(root.icon) ? Tr.t("Volume")
+        : /mic/.test(root.icon) ? Tr.t("Microphone")
+        : /bright|display/.test(root.icon) ? Tr.t("Brightness") : root.icon
     Accessible.role: Accessible.Slider
-    Accessible.name: root.icon
+    Accessible.name: root.readableName
 
     spacing: Theme.px(8)
 
     IconButton {
         icon: root.icon
-        tip: root.icon
+        tip: root.readableName
         size: Theme.px(34)
         iconColor: root.muted ? Theme.dim : Theme.text
         onClicked: root.iconClicked()
@@ -88,9 +95,8 @@ RowLayout {
         }
         // keyboard and controller: Left / Right move it by 5 %
         KeyFocus {
-            // what it sets, said plainly: the icon names it
-            name: root.Accessible.name || (/volume|audio|speaker/.test(root.icon) ? Tr.t("Volume") : /mic/.test(root.icon) ? Tr.t("Microphone")
-                : /bright|display/.test(root.icon) ? Tr.t("Brightness") : root.icon)
+            // what it sets, said plainly: one name for keys and screen readers
+            name: root.readableName
             slider: true
             onStep: dir => root.moved(Math.max(0, Math.min(1, root.value + dir * 0.05)))
             onActivated: root.iconClicked()

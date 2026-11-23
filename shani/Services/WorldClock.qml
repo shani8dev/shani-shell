@@ -2,7 +2,8 @@ pragma Singleton
 // Other cities' clocks on the control centre's calendar (Settings > Date &
 // language picks the zones). Read where the kernel keeps them — /usr/share/
 // zoneinfo via `date`, so DST just works — and refreshed every 30 s only while
-// any city is chosen; none chosen, nothing runs.
+// a surface that shows the clocks is open and a city is chosen; once all of
+// them are closed (or none is chosen), no process is spawned.
 //
 // Alarms live in Settings.alarms ({ time "HH:MM", label }; the check is
 // minute-granular, so it wakes on the minute boundary like Automations and
@@ -20,6 +21,14 @@ Singleton {
     id: root
     property var clocks: []   // [{ zone, city, time }]
 
+    // same shape as SysStats.wanted: polling is only worth a `date` process per
+    // zone while a clock surface is actually visible
+    readonly property bool wanted: Settings.loaded
+        && Settings.data.worldClocks.length > 0
+        && (Array.from(Settings.data.desktopWidgets).indexOf("clocks") >= 0
+            || Settings.data.barWorldClock || Ui.clocks || Ui.calendar || Ui.controlCenter)
+    onWantedChanged: if (wanted) root.refresh()
+
     Process {
         id: read
         // "$@" is the zones; the leading "" is $0 (a shell -c argument, not a zone)
@@ -35,10 +44,10 @@ Singleton {
     }
     Timer {
         interval: 30000
-        running: Settings.loaded && Settings.data.worldClocks.length > 0
+        running: root.wanted
         repeat: true
         triggeredOnStart: true
-        onTriggered: read.running = Settings.data.worldClocks.length > 0
+        onTriggered: read.running = root.wanted
     }
     // settings load after us (or the person picks a city now)
     Connections {
@@ -50,8 +59,7 @@ Singleton {
         function onWorldClocksChanged() { root.refresh(); }
     }
     function refresh() {
-        if (Settings.loaded && Settings.data.worldClocks.length > 0)
-            read.running = true;
+        if (root.wanted) read.running = true;
     }
 
     // ---- alarms -------------------------------------------------------------

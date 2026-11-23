@@ -51,6 +51,13 @@ Singleton {
         // the bridge restarted: what it held went with it (it sends the list again on connecting)
         function onConnectedChanged() { if (!Bridge.connected) root.appInhibitors = []; }
     }
+    // niri forwards the kernel's lid switch to TabletMode through the shell's
+    // switchEvent IPC: opening the lid is presence, so re-arm the stages rather
+    // than leaving the screen dimmed/locked with no other input.
+    Connections {
+        target: TabletMode
+        function onLidClosedChanged() { if (!TabletMode.lidClosed) root.activity(); }
+    }
     readonly property bool lockIdle: lockMon.isIdle
 
     function setCaffeine(on) {
@@ -122,5 +129,24 @@ Singleton {
         seconds: root.suspendAfter
         on: !root.awake
         onIdle: Power.suspend()
+    }
+    // a 30 s heads-up before the idle sleep: notify-send -A waits for the click
+    // and prints the action's key, which re-arms every stage (Cancel).
+    Stage {
+        id: suspendWarnMon
+        seconds: root.suspendAfter - 30
+        on: !root.awake && root.suspendAfter > 30
+        onIdle: root.warnSuspend()
+    }
+    Process {
+        id: suspendWarn
+        stdout: StdioCollector { onStreamFinished: if (text.trim() === "cancel") root.activity() }
+    }
+    function warnSuspend() {
+        if (suspendWarn.running) return;
+        suspendWarn.command = ["notify-send", "-a", Tr.t("Power"), "-i", "dialog-warning",
+            "-A", "cancel=" + Tr.t("Cancel suspend"),
+            Tr.t("Suspending in 30 seconds"), Tr.t("The computer has been idle. It will sleep soon.")];
+        suspendWarn.running = true;
     }
 }

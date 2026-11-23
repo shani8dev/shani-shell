@@ -16,6 +16,10 @@ Variants {
     Scope {
         id: scr
         required property var modelData
+        // shortcut: Settings.qml's adapter is outside this change's file ownership, so
+        // the lock flag is read defensively here; declare widgetsLocked in Settings.qml
+        // (plus a SettingsPage toggle) to persist it and make it settable from the UI.
+        property bool widgetsLocked: Settings.data.widgetsLocked === true
         readonly property real sw: modelData ? modelData.width : 1920
         readonly property real sh: modelData ? modelData.height : 1080
         readonly property bool bottomBar: FormFactor.barEdge(modelData ? modelData.name : "") === "bottom"
@@ -70,7 +74,7 @@ Variants {
                 MouseArea {
                     id: dragArea
                     anchors.fill: parent
-                    drag.target: glass
+                    drag.target: widgetsLocked ? null : glass
                     drag.threshold: 8
                     cursorShape: Qt.PointingHandCursor
                     onClicked: cw.open()

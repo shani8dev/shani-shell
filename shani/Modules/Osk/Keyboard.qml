@@ -167,6 +167,31 @@ PanelWindow {
         function onShownChanged() { win.cursor = null; win.cursorAt = Qt.point(0, 0); }
     }
 
+    // The remote draft is drawn by the OSK itself, so it never inherits the
+    // target field's echoMode. Mirror it: shell fields register with
+    // Ui.textInput (Common/TextField.qml), whose echoMode says if it is a secret.
+    // Limits: fields outside the shell never register, and the OSK's exclusive
+    // keyboard focus can clear Ui.textInput right after it opens, so latch the
+    // secret state on focus-in and fall back to Ui.promptKeyboard. shell.qml
+    // still copies the raw draft/typed text into state dumps — that needs a
+    // shell.qml change, which is out of scope here.
+    property bool draftSecret: false
+    readonly property bool targetIsSecret: draftSecret || Ui.promptKeyboard ||
+        (Ui.textInput !== null && Ui.textInput.echoMode !== TextInput.Normal)
+    readonly property string shownDraft: Osk.draft === "" ? "" :
+        (targetIsSecret ? "•".repeat(Osk.draft.length) : Osk.draft)
+    Connections {
+        target: Ui
+        function onTextInputChanged() {
+            if (Ui.textInput && Ui.textInput.echoMode !== TextInput.Normal)
+                win.draftSecret = true;
+        }
+    }
+    Connections {
+        target: Osk
+        function onRemoteChanged() { if (!Osk.remote) win.draftSecret = false; }
+    }
+
     onVisibleChanged: if (visible) boardIn.restart()
     // the remote's keys, in remote mode: the same moves as a controller's
     Item {
@@ -252,7 +277,7 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.left: parent.left
                     anchors.leftMargin: Theme.px(14)
-                    text: Osk.draft === "" ? Tr.t("Type with the arrows and OK · Done sends it · Back cancels") : Osk.draft + "▏"
+                    text: Osk.draft === "" ? Tr.t("Type with the arrows and OK · Done sends it · Back cancels") : win.shownDraft + "▏"
                     color: Osk.draft === "" ? Theme.dim : Theme.text
                     font.family: Theme.font
                     font.pixelSize: (Osk.draft === "" ? 14 : 20) * Theme.fontScale

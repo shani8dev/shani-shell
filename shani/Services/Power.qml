@@ -192,7 +192,29 @@ Singleton {
         if (s === "auto" && hasBattery && canSuspendThenHibernate) return "suspend-then-hibernate";
         return "suspend";
     }
-    function suspend() { Quickshell.execDetached(["systemctl", root.sleepVerb]); }
+    // Power actions can be refused (an inhibitor, bad swap, a driver). Run them
+    // in a Process so a refusal says *why* instead of the menu just closing with
+    // nothing happening; a successful action takes the machine down before its
+    // exit is ever seen.
+    Process {
+        id: powerAction
+        property string verb: ""
+        stderr: StdioCollector { id: powerErr }
+        onExited: code => {
+            if (code === 0) return;
+            const why = powerErr.text.trim().split("\n").pop();
+            if (!why) return;                 // killed by the sleep itself, not refused
+            Quickshell.execDetached(["notify-send", "-u", "critical", "-a", Tr.t("Power"), "-i", "dialog-error",
+                Tr.t("Could not %1", powerAction.verb), why]);
+        }
+    }
+    function runAction(argv, verb) {
+        if (powerAction.running) return;
+        powerAction.verb = verb;
+        powerAction.command = argv;
+        powerAction.running = true;
+    }
+    function suspend() { root.runAction(["systemctl", root.sleepVerb], Tr.t("suspend")); }
     Process {
         running: true
         command: ["sh", "-c", 'for m in CanSuspendThenHibernate CanHybridSleep; do busctl call org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager $m 2>/dev/null || echo no; done']
@@ -206,10 +228,10 @@ Singleton {
     }
     // hibernate only where logind says it can (swap large enough, resume configured)
     property bool canHibernate: false
-    function hibernate() { Quickshell.execDetached(["systemctl", "hibernate"]); }
+    function hibernate() { root.runAction(["systemctl", "hibernate"], Tr.t("hibernate")); }
     // into the firmware's own setup (UEFI) — where logind says it can
     property bool canFirmwareSetup: false
-    function rebootToFirmware() { Quickshell.execDetached(["systemctl", "reboot", "--firmware-setup"]); }
+    function rebootToFirmware() { root.runAction(["systemctl", "reboot", "--firmware-setup"], Tr.t("reboot to firmware setup")); }
     Process {
         running: true
         command: ["sh", "-c", 'busctl call org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager CanRebootToFirmwareSetup 2>/dev/null']
@@ -220,7 +242,7 @@ Singleton {
         command: ["sh", "-c", 'busctl call org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager CanHibernate 2>/dev/null']
         stdout: StdioCollector { onStreamFinished: root.canHibernate = text.trim() === 's "yes"' }
     }
-    function reboot() { Quickshell.execDetached(["systemctl", "reboot"]); }
-    function poweroff() { Quickshell.execDetached(["systemctl", "poweroff"]); }
+    function reboot() { root.runAction(["systemctl", "reboot"], Tr.t("reboot")); }
+    function poweroff() { root.runAction(["systemctl", "poweroff"], Tr.t("power off")); }
     function logout() { Niri.action("quit", "--skip-confirmation"); }
 }

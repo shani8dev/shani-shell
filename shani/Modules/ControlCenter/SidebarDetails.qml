@@ -24,8 +24,28 @@ ColumnLayout {
         spacing: 2
         onVisibleChanged: Net.scan(visible)
         property string pending: ""     // network waiting for a password
-        property string failed: ""      // the one whose password was refused
+        property string failed: ""      // the network that failed to connect
+        property string failedReason: "" // friendly copy + one next step for that failure
         property bool hiddenOpen: false
+        property bool hiddenDetailsOpen: false  // raw nmcli error only on request
+
+        // Quickshell's ConnectionFailReason is a numeric enum (1 = NoSecrets,
+        // 3 = supplicant failed, 4 = auth timeout, 5 = SSID not found); message
+        // strings are also recognised so the copy survives a backend change.
+        function failureText(reason) {
+            const r = String(reason);
+            if (r === "1" || /secret|password|passphrase|psk|key/i.test(r))
+                return Tr.t("Wrong password — check it and try again");
+            if (r === "3" || /supplicant|802\.1x|eap|rejected/i.test(r))
+                return Tr.t("Sign-in was rejected (802.1X) — check the username and password");
+            if (r === "4" || r === "5" || /timeout|range|not found|lost|ssid/i.test(r))
+                return Tr.t("Network out of range — move closer and try again");
+            if (/dhcp|lease|address/i.test(r))
+                return Tr.t("Couldn't get an address from the router — try again");
+            if (r === "2" || /disconnect/i.test(r))
+                return Tr.t("Connection dropped — try again");
+            return Tr.t("Couldn't connect — try again");
+        }
 
         SectionTitle {
             text: Tr.t("Wi-Fi networks")
@@ -52,11 +72,12 @@ ColumnLayout {
                     icon: modelData.signalStrength > 0.75 ? "network-wireless-signal-excellent" : modelData.signalStrength > 0.5 ? "network-wireless-signal-good" : modelData.signalStrength > 0.25 ? "network-wireless-signal-ok" : "network-wireless-signal-weak"
                     title: modelData.name
                     subtitle: modelData.connected ? "Connected" : modelData.stateChanging ? "Connecting…"
-                        : wifiList.failed === modelData.name ? "Couldn’t connect — check the password"
+                        : wifiList.failed === modelData.name ? (wifiList.failedReason || Tr.t("Couldn't connect — try again"))
                         : (modelData.known ? "Saved" : netRow.secured ? "" : "Open network")
                     selected: modelData.connected
                     onClicked: {
                         wifiList.failed = "";
+                        wifiList.failedReason = "";
                         if (modelData.connected)
                             modelData.disconnect();
                         else if (modelData.known || !netRow.secured)
@@ -77,6 +98,7 @@ ColumnLayout {
                     target: netRow.modelData
                     function onConnectionFailed(reason) {
                         wifiList.failed = netRow.modelData.name;
+                        wifiList.failedReason = wifiList.failureText(reason);
                         if (netRow.secured)
                             wifiList.pending = netRow.modelData.name;
                     }
@@ -101,6 +123,24 @@ ColumnLayout {
             title: Tr.t("Hidden network…")
             subtitle: Net.hiddenStatus === "connecting" ? "Connecting…" : Net.hiddenStatus.startsWith("failed") ? Net.hiddenStatus.slice(8) : ""
             onClicked: wifiList.hiddenOpen = !wifiList.hiddenOpen
+        }
+        // the raw nmcli line is useful for bug reports, but not as a status line
+        ListRow {
+            visible: Net.hiddenStatus.startsWith("failed") && Net.hiddenRaw !== ""
+            Layout.fillWidth: true
+            icon: "dialog-information"
+            title: Tr.t("Show error details")
+            onClicked: wifiList.hiddenDetailsOpen = !wifiList.hiddenDetailsOpen
+        }
+        Text {
+            visible: wifiList.hiddenDetailsOpen && Net.hiddenRaw !== ""
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.px(40)
+            text: Net.hiddenRaw
+            color: Theme.dim
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
         }
         TextField {
             id: hiddenSsid

@@ -23,6 +23,8 @@ AppWindow {
     // phone's when there is no landline or modem
     property string line: Link.lines.length ? Link.lines[0] : ""
     property string dialed: ""              // the number being called
+    property string callSearch: ""          // recents filter, lowercased
+    property bool missedOnly: false
 
     onVisibleChanged: if (visible) { Link.refresh(); if (Ui.callsNumber !== "") { number.text = Ui.callsNumber; Ui.callsNumber = ""; } }
 
@@ -33,6 +35,102 @@ AppWindow {
         anchors { top: parent.top; left: parent.left; margins: Theme.px(16) }
         width: Theme.px(300)
         spacing: Theme.px(10)
+
+        // ---- the call in progress -------------------------------------------------
+        // shani-link rings the call; this is the shell's own live view of it, with
+        // Mute/Speaker on the bridge's callctl verb and Hang up on the call itself.
+        Glass {
+            visible: Modem.call !== null
+            Layout.fillWidth: true
+            Layout.preferredHeight: Theme.px(104)
+            solid: true
+            ColumnLayout {
+                anchors { fill: parent; margins: Theme.px(10) }
+                spacing: Theme.px(4)
+                RowLayout {
+                    Layout.fillWidth: true
+                    Text {
+                        Layout.fillWidth: true
+                        text: Modem.call ? (Modem.call.name || Modem.call.number || Tr.t("Unknown")) : ""
+                        color: Theme.text
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(13) * Theme.fontScale
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideRight
+                    }
+                    Text {
+                        text: Modem.callTime
+                        color: Theme.accent
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(13) * Theme.fontScale
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(4)
+                    Button {
+                        Layout.fillWidth: true
+                        text: Tr.t("Mute")
+                        checked: Modem.muted
+                        onClicked: Modem.setMute(!Modem.muted)
+                    }
+                    Button {
+                        Layout.fillWidth: true
+                        text: Tr.t("Speaker")
+                        checked: Modem.speaker
+                        onClicked: Modem.setSpeaker(!Modem.speaker)
+                    }
+                    Button {
+                        Layout.fillWidth: true
+                        text: Tr.t("Hang up")
+                        kind: "danger"
+                        onClicked: Modem.hangup()
+                    }
+                }
+            }
+        }
+
+        // a second call arrived: keep the first one up and offer the usual three
+        Glass {
+            visible: Modem.waitingCall !== null
+            Layout.fillWidth: true
+            Layout.preferredHeight: Theme.px(80)
+            solid: true
+            ColumnLayout {
+                anchors { fill: parent; margins: Theme.px(8) }
+                spacing: Theme.px(4)
+                Text {
+                    Layout.fillWidth: true
+                    text: Tr.t("Call waiting") + ": " + (Modem.waitingCall ? (Modem.waitingCall.name || Modem.waitingCall.number || Tr.t("Unknown")) : "")
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(4)
+                    Button {
+                        Layout.fillWidth: true
+                        text: Tr.t("Answer")
+                        kind: "primary"
+                        enabled: Modem.waitingCall !== null
+                        onClicked: Modem.answerCall(Modem.waitingCall.path)
+                    }
+                    Button {
+                        Layout.fillWidth: true
+                        text: Tr.t("Hold")
+                        onClicked: Modem.callctl("hold")
+                    }
+                    Button {
+                        Layout.fillWidth: true
+                        text: Tr.t("Swap")
+                        onClicked: Modem.callctl("swap")
+                    }
+                }
+            }
+        }
 
         Text {
             text: Tr.t("Calls")
@@ -128,33 +226,58 @@ AppWindow {
     }
 
     // ---- the history --------------------------------------------------------
-    ListView {
+    ColumnLayout {
         anchors { top: parent.top; bottom: parent.bottom; right: parent.right; margins: Theme.px(16) }
         width: win.width - Theme.px(350)
-        clip: true
-        spacing: Theme.px(2)
-        model: Link.calls
-        delegate: ListRow {
-            required property var modelData
-            width: ListView.view.width
-            icon: modelData.missed ? "call-missed" : (modelData.direction === "in" ? "call-start" : "call-end")
-            title: modelData.name || modelData.number || Tr.t("Unknown")
-            subtitle: [modelData.line, Link.when(modelData.when),
-                       modelData.seconds > 0 ? Link.clock(modelData.seconds) : ""].filter(x => x).join("  ·  ")
-            selected: false
-            onClicked: { number.text = modelData.number; }
-            extra: RowLayout {
-                Button { text: Tr.t("Call"); flat: true; onClicked: { win.line = modelData.line || win.line; number.text = modelData.number; win.call() } }
+        spacing: Theme.px(8)
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            TextField {
+                id: recentsSearch
+                Layout.fillWidth: true
+                placeholder: Tr.t("Search calls")
+                onTextChanged: win.callSearch = text.trim().toLowerCase()
+            }
+            Choice {
+                text: Tr.t("Missed only")
+                selected: win.missedOnly
+                onClicked: win.missedOnly = !win.missedOnly
             }
         }
-        // nothing to show is not an error
-        Text {
-            anchors.centerIn: parent
-            visible: Link.calls.length === 0
-            text: Tr.t("No calls yet")
-            color: Theme.dim
-            font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+
+        ListView {
+            id: recents
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            clip: true
+            spacing: Theme.px(2)
+            // the filter is over the existing Link.calls model, not a new store
+            model: Link.calls.filter(c => (!win.missedOnly || c.missed)
+                   && (win.callSearch === "" || (c.name || c.number || "").toLowerCase().indexOf(win.callSearch) >= 0))
+            delegate: ListRow {
+                required property var modelData
+                width: ListView.view.width
+                icon: modelData.missed ? "call-missed" : (modelData.direction === "in" ? "call-start" : "call-end")
+                title: modelData.name || modelData.number || Tr.t("Unknown")
+                subtitle: [modelData.line, Link.when(modelData.when),
+                           modelData.seconds > 0 ? Link.clock(modelData.seconds) : ""].filter(x => x).join("  ·  ")
+                selected: false
+                onClicked: { number.text = modelData.number; }
+                extra: RowLayout {
+                    Button { text: Tr.t("Call"); flat: true; onClicked: { win.line = modelData.line || win.line; number.text = modelData.number; win.call() } }
+                }
+            }
+            // nothing to show is not an error
+            Text {
+                anchors.centerIn: parent
+                visible: recents.count === 0
+                text: win.callSearch !== "" || win.missedOnly ? Tr.t("No calls match") : Tr.t("No calls yet")
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(12) * Theme.fontScale
+            }
         }
     }
 }

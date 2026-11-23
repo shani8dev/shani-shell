@@ -26,7 +26,7 @@ Singleton {
     function toggle() { Quickshell.execDetached(["fcitx5-remote", "-t"]); recheck.restart(); }
     Timer { id: recheck; interval: 800; onTriggered: query.running = true }   // fcitx5 needs a moment after a switch or a start
     function configure() { Quickshell.execDetached(["fcitx5-configtool"]); }
-    function stop() { Quickshell.execDetached(["fcitx5-remote", "-e"]); recheck.restart(); }
+    function stop() { Quickshell.execDetached(["fcitx5-remote", "-e"]); root.current = ""; root.running = false; recheck.restart(); }
     function start() { Quickshell.execDetached(["fcitx5", "-d", "--replace"]); recheck.restart(); }
 
     Process {
@@ -34,9 +34,18 @@ Singleton {
         // fcitx5-remote answers nothing (and fails) when fcitx5 is not running
         command: ["fcitx5-remote", "-n"]
         stdout: StdioCollector {
+            id: queryOut
             onStreamFinished: {
                 root.current = text.trim();
                 root.running = root.current !== "";
+            }
+        }
+        onExited: {
+            // stdout only updates on success; with no answer fcitx5 has died,
+            // so drop the stale method label and running state here
+            if (!queryOut.text.trim()) {
+                root.current = "";
+                root.running = false;
             }
         }
     }
@@ -46,13 +55,31 @@ Singleton {
     // two or more it is asked every 2 s (fcitx5-remote has no watch mode, and
     // Ctrl+Space switches inside fcitx5 without telling anyone).
     property int methods: 0
+    property int _userMethods: -1                // -1: no readable user profile
+    property int _systemMethods: -1
+    function countMethods(t) { return (t.match(/^\[Groups\/\d+\/Items\/\d+\]/mg) || []).length; }
+    // fcitx5 prefers the user profile, falling back to the system one; keep
+    // both counts so one view's load-failure cannot zero out the other's result
+    function updateMethods() {
+        root.methods = _userMethods >= 0 ? _userMethods : (_systemMethods >= 0 ? _systemMethods : 0);
+    }
     FileView {
         path: (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config") + "/fcitx5/profile"
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
-        onLoaded: { root.methods = (text().match(/^\[Groups\/\d+\/Items\/\d+\]/mg) || []).length; query.running = true; }
-        onLoadFailed: root.methods = 0
+        onLoaded: { root._userMethods = root.countMethods(text()); root.updateMethods(); query.running = true; }
+        onLoadFailed: { root._userMethods = -1; root.updateMethods(); }
+    }
+    FileView {
+        // fresh installs ship the two-method profile here, not in ~/.config;
+        // watch it too or the 2 s poll never starts until fcitx5 writes a copy
+        path: (Quickshell.env("XDG_CONFIG_DIRS") || "/etc/xdg").split(":")[0] + "/fcitx5/profile"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: { root._systemMethods = root.countMethods(text()); root.updateMethods(); query.running = true; }
+        onLoadFailed: { root._systemMethods = -1; root.updateMethods(); }
     }
     // ...but only while someone is typing: the method changes by a key (Ctrl+Space),
     // so after 20 s with no input it cannot have changed, and the poll rests; the

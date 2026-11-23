@@ -58,5 +58,8 @@ def test_accessibility_wins():
     shell = read("shani/shell.qml")
     assert "Qt.accessibleAnnounce(message" in toast
     assert "Accessible.role: Accessible.Slider" in slider
-    assert "Accessible.name: root.icon" in slider
+    # the slider now exposes a human-readable name, falling back to the icon-derived
+    # one only when no label was supplied (pass-18 a11y fix)
+    assert "Accessible.name: root.readableName" in slider
+    assert "property string label" in slider
     assert 'sequences: ["Meta+Alt+S"]' in shell

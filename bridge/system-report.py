@@ -21,18 +21,40 @@ JOURNAL_LINES = "100"
 
 
 def run(cmd, timeout=10):
-    """Run a read-only command; say plainly when it is missing or fails."""
+    """Run a read-only command; return {ok, output, error}, never a bare string.
+
+    A missing tool, a timeout and a non-zero exit are failures, distinct from
+    a command that succeeded with empty output.
+    """
     if not shutil.which(cmd[0]):
-        return f"({cmd[0]} is not available)"
+        return {"ok": False, "output": "", "error": f"{cmd[0]} is not available"}
     try:
         p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     except (OSError, subprocess.TimeoutExpired) as e:
-        return f"({e})"
-    return (p.stdout or p.stderr).strip() or "(nothing)"
+        return {"ok": False, "output": "", "error": str(e)}
+    output = (p.stdout or p.stderr).strip()
+    if p.returncode != 0:
+        return {
+            "ok": False,
+            "output": output,
+            "error": (p.stderr or p.stdout).strip() or f"exit {p.returncode}",
+        }
+    return {"ok": True, "output": output, "error": ""}
+
+
+def text(result):
+    """Render a runner result as report text, marking failures visibly."""
+    if isinstance(result, str):  # injected runners in the tests return plain strings
+        return result.strip() or "(nothing)"
+    body = (result.get("output") or "").strip()
+    if result.get("ok"):
+        return body or "(nothing)"
+    err = (result.get("error") or "").strip() or "failed"
+    return "[FAILED: " + err + "]" + ("\n" + body if body else "")
 
 
 def section(title, body):
-    return f"## {title}\n\n{body.strip() or '(nothing)'}\n"
+    return f"## {title}\n\n{text(body)}\n"
 
 
 def report(runner=run):
@@ -48,8 +70,8 @@ def report(runner=run):
         pass
 
     version = os_release.get("PRETTY_NAME") or os_release.get("VERSION_ID") or "unknown"
-    host = runner(["hostnamectl", "hostname"])
-    kernel = runner(["uname", "-r"])
+    host = text(runner(["hostnamectl", "hostname"]))
+    kernel = text(runner(["uname", "-r"]))
 
     out = [
         "# Shani Shell problem report\n",
@@ -63,8 +85,8 @@ def report(runner=run):
             "\n".join(
                 [
                     f"Computer: {host}",
-                    f"Uptime: {runner(['uptime', '-p'])}",
-                    f"Session: niri {runner(['niri', '--version'])} · Quickshell {runner(['qs', '--version'])}",
+                    f"Uptime: {text(runner(['uptime', '-p']))}",
+                    f"Session: niri {text(runner(['niri', '--version']))} · Quickshell {text(runner(['qs', '--version']))}",
                 ]
             ),
         )
@@ -80,14 +102,16 @@ def report(runner=run):
             "Hardware",
             "\n".join(
                 [
-                    runner(
-                        [
-                            "sh",
-                            "-c",
-                            'sed -n "s/^model name\\s*: //p" /proc/cpuinfo | head -1; nproc',
-                        ]
+                    text(
+                        runner(
+                            [
+                                "sh",
+                                "-c",
+                                'sed -n "s/^model name\\s*: //p" /proc/cpuinfo | head -1; nproc',
+                            ]
+                        )
                     ),
-                    runner(["lspci", "-nn"]),
+                    text(runner(["lspci", "-nn"])),
                 ]
             ),
         )

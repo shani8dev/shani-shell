@@ -18,6 +18,10 @@ A modem that has no Voice interface simply never reports "voice": true, and
 the shell routes calls elsewhere (Chronoa, a phone over Bluetooth). Call
 *audio* is the hardware's: ModemManager starts and ends the call, it does not
 carry the sound.
+
+  Live controls (mute, speaker, hold, swap) have no ModemManager method — the
+  audio and the switching are the modem hardware's. The bridge acknowledges
+  them so the shell can show which mode is on.
 """
 
 from __future__ import annotations
@@ -38,10 +42,32 @@ I_SMS = MM + ".Sms"
 I_CALL = MM + ".Call"
 
 # MMModemState, MMModemLock, MMCallState, MMSmsState, MMSmsPduType
-STATES = {-1: "failed", 0: "unknown", 1: "initializing", 2: "locked", 3: "disabled", 4: "disabling", 5: "enabling",
-          6: "enabled", 7: "searching", 8: "registered", 9: "disconnecting", 10: "connecting", 11: "connected"}
+STATES = {
+    -1: "failed",
+    0: "unknown",
+    1: "initializing",
+    2: "locked",
+    3: "disabled",
+    4: "disabling",
+    5: "enabling",
+    6: "enabled",
+    7: "searching",
+    8: "registered",
+    9: "disconnecting",
+    10: "connecting",
+    11: "connected",
+}
 LOCKS = {0: "", 1: "", 2: "sim-pin", 3: "sim-pin2", 4: "sim-puk", 5: "sim-puk2"}
-CALL_STATES = {0: "unknown", 1: "dialing", 2: "ringing-out", 3: "ringing-in", 4: "active", 5: "held", 6: "waiting", 7: "terminated"}
+CALL_STATES = {
+    0: "unknown",
+    1: "dialing",
+    2: "ringing-out",
+    3: "ringing-in",
+    4: "active",
+    5: "held",
+    6: "waiting",
+    7: "terminated",
+}
 SMS_RECEIVED, PDU_DELIVER = 3, 1
 
 
@@ -57,21 +83,43 @@ class Modem:
         self.ifaces: dict[str, dict] = {}
         self.calls: dict[str, dict] = {}
         self.told_sms: set[str] = set()
+        self.callctl: dict[str, bool] = {}
 
     # ---- reading ----------------------------------------------------------------
     def call(self, path, iface, method, args=None, sig=None):
-        return self.bus.call_sync(MM, path, iface, method, args, GLib.VariantType(sig) if sig else None,
-                                  Gio.DBusCallFlags.NONE, 20000, None)
+        return self.bus.call_sync(
+            MM,
+            path,
+            iface,
+            method,
+            args,
+            GLib.VariantType(sig) if sig else None,
+            Gio.DBusCallFlags.NONE,
+            20000,
+            None,
+        )
 
     def props(self, path: str, iface: str) -> dict:
         try:
-            return self.call(path, "org.freedesktop.DBus.Properties", "GetAll", GLib.Variant("(s)", (iface,)), "(a{sv})").unpack()[0]
+            return self.call(
+                path,
+                "org.freedesktop.DBus.Properties",
+                "GetAll",
+                GLib.Variant("(s)", (iface,)),
+                "(a{sv})",
+            ).unpack()[0]
         except GLib.Error:
             return {}
 
     def scan(self) -> None:
         try:
-            objs = self.call(ROOT, "org.freedesktop.DBus.ObjectManager", "GetManagedObjects", None, "(a{oa{sa{sv}}})").unpack()[0]
+            objs = self.call(
+                ROOT,
+                "org.freedesktop.DBus.ObjectManager",
+                "GetManagedObjects",
+                None,
+                "(a{oa{sa{sv}}})",
+            ).unpack()[0]
         except GLib.Error:
             objs = {}
         modems = sorted(p for p, i in objs.items() if I_MODEM in i)
@@ -90,22 +138,28 @@ class Modem:
         m = self.ifaces.get(I_MODEM, {})
         q = m.get("SignalQuality") or (0, False)
         numbers = m.get("OwnNumbers") or []
-        emit({"modem": {
-            "path": self.path,
-            "state": STATES.get(m.get("State", 0), "unknown"),
-            "locked": LOCKS.get(m.get("UnlockRequired", 0), "locked"),
-            "operator": self.ifaces.get(I_3GPP, {}).get("OperatorName", ""),
-            "signal": int(q[0]) if isinstance(q, tuple) else 0,
-            "number": numbers[0] if numbers else "",
-            "voice": I_VOICE in self.ifaces,
-            "messaging": I_MSG in self.ifaces,
-        }})
+        emit(
+            {
+                "modem": {
+                    "path": self.path,
+                    "state": STATES.get(m.get("State", 0), "unknown"),
+                    "locked": LOCKS.get(m.get("UnlockRequired", 0), "locked"),
+                    "operator": self.ifaces.get(I_3GPP, {}).get("OperatorName", ""),
+                    "signal": int(q[0]) if isinstance(q, tuple) else 0,
+                    "number": numbers[0] if numbers else "",
+                    "voice": I_VOICE in self.ifaces,
+                    "messaging": I_MSG in self.ifaces,
+                }
+            }
+        )
 
     def list_calls(self) -> list[str]:
         if I_VOICE not in self.ifaces:
             return []
         try:
-            return list(self.call(self.path, I_VOICE, "ListCalls", None, "(ao)").unpack()[0])
+            return list(
+                self.call(self.path, I_VOICE, "ListCalls", None, "(ao)").unpack()[0]
+            )
         except GLib.Error:
             return []
 
@@ -136,15 +190,28 @@ class Modem:
         if p.get("PduType") != PDU_DELIVER or p.get("State") != SMS_RECEIVED:
             return
         self.told_sms.add(path)
-        emit({"sms": {"path": path, "from": p.get("Number", ""), "text": p.get("Text", ""), "time": p.get("Timestamp", "")}})
+        emit(
+            {
+                "sms": {
+                    "path": path,
+                    "from": p.get("Number", ""),
+                    "text": p.get("Text", ""),
+                    "time": p.get("Timestamp", ""),
+                }
+            }
+        )
 
     def on_call(self, path: str) -> None:
         p = self.props(path, I_CALL)
         if not p:
             self.calls.pop(path, None)
             return
-        c = {"path": path, "number": p.get("Number", ""), "state": CALL_STATES.get(p.get("State", 0), "unknown"),
-             "incoming": p.get("Direction", 0) == 1}
+        c = {
+            "path": path,
+            "number": p.get("Number", ""),
+            "state": CALL_STATES.get(p.get("State", 0), "unknown"),
+            "incoming": p.get("Direction", 0) == 1,
+        }
         if self.calls.get(path) != c:
             self.calls[path] = c
             emit({"call": c})
@@ -155,17 +222,39 @@ class Modem:
     def handle(self, msg: dict) -> None:
         try:
             if "pin" in msg:
-                self.call(self.sim, I_SIM, "SendPin", GLib.Variant("(s)", (str(msg["pin"]),)))
+                self.call(
+                    self.sim, I_SIM, "SendPin", GLib.Variant("(s)", (str(msg["pin"]),))
+                )
                 self.scan()
             elif "sms" in msg:
                 s = msg["sms"]
-                path = self.call(self.path, I_MSG, "Create", GLib.Variant(
-                    "(a{sv})", ({"number": GLib.Variant("s", s["to"]), "text": GLib.Variant("s", s["text"])},)), "(o)").unpack()[0]
+                path = self.call(
+                    self.path,
+                    I_MSG,
+                    "Create",
+                    GLib.Variant(
+                        "(a{sv})",
+                        (
+                            {
+                                "number": GLib.Variant("s", s["to"]),
+                                "text": GLib.Variant("s", s["text"]),
+                            },
+                        ),
+                    ),
+                    "(o)",
+                ).unpack()[0]
                 self.call(path, I_SMS, "Send")
                 emit({"sent": {"to": s["to"]}})
             elif "call" in msg:
-                path = self.call(self.path, I_VOICE, "CreateCall", GLib.Variant(
-                    "(a{sv})", ({"number": GLib.Variant("s", msg["call"])},)), "(o)").unpack()[0]
+                path = self.call(
+                    self.path,
+                    I_VOICE,
+                    "CreateCall",
+                    GLib.Variant(
+                        "(a{sv})", ({"number": GLib.Variant("s", msg["call"])},)
+                    ),
+                    "(o)",
+                ).unpack()[0]
                 self.call(path, I_CALL, "Start")
                 self.on_call(path)
             elif "answer" in msg:
@@ -174,6 +263,14 @@ class Modem:
             elif "hangup" in msg:
                 self.call(msg["hangup"], I_CALL, "Hangup")
                 self.on_call(msg["hangup"])
+            elif "callctl" in msg:
+                ctl = msg["callctl"]
+                action = ctl["action"]
+                if action not in ("mute", "speaker", "hold", "swap"):
+                    raise KeyError(action)
+                on = bool(ctl.get("on", True))
+                self.callctl[action] = on
+                emit({"callctl": {"action": action, "on": on}})
         except GLib.Error as e:
             emit({"error": e.message.split(": ")[-1]})
         except (KeyError, TypeError):
@@ -187,7 +284,9 @@ def main() -> int:
         print(f"modem: no system bus: {e.message}", file=sys.stderr)
         return 1
     modem = Modem(bus)
-    bus.signal_subscribe(MM, None, None, None, None, Gio.DBusSignalFlags.NONE, modem.on_signal, None)
+    bus.signal_subscribe(
+        MM, None, None, None, None, Gio.DBusSignalFlags.NONE, modem.on_signal, None
+    )
     modem.scan()
     loop = GLib.MainLoop()
 
@@ -202,8 +301,12 @@ def main() -> int:
             pass
         return True
 
-    GLib.io_add_watch(GLib.IOChannel.unix_new(sys.stdin.fileno()), GLib.PRIORITY_DEFAULT,
-                      GLib.IO_IN | GLib.IO_HUP | GLib.IO_ERR, on_stdin)
+    GLib.io_add_watch(
+        GLib.IOChannel.unix_new(sys.stdin.fileno()),
+        GLib.PRIORITY_DEFAULT,
+        GLib.IO_IN | GLib.IO_HUP | GLib.IO_ERR,
+        on_stdin,
+    )
     loop.run()
     return 0
 

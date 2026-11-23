@@ -395,7 +395,8 @@ ColumnLayout {
     // Toast notification: brief feedback when a setting is changed
     property string toastMsg: ""
     property var toastUndo: undefined
-    // the window shows the toast (a layout child cannot float over the page)
+    // a layout child cannot float over the page, so the toast is hosted by the
+    // window (or by this page in the control centre, see the Toast below)
     function undoToast() {
         if (toastUndo !== undefined && typeof toastUndo === "object" && toastUndo.key in d)
             d[toastUndo.key] = toastUndo.value;
@@ -411,6 +412,39 @@ ColumnLayout {
     }
     Timer { id: toastTimer; interval: 400; onTriggered: if (toastMsg !== "") toastShow.start(); }
     Timer { id: toastShow; interval: 5000; onTriggered: toastMsg = ""; }
+    // The Settings window hosts its own Toast (a layout child cannot float over
+    // the page). In the control centre there is no window, so the same feedback
+    // is rendered here instead; only one of the two ever has a message.
+    Toast {
+        message: !page.inWindow ? page.toastMsg : ""
+        showUndo: page.toastUndo !== undefined
+        onUndo: page.undoToast()
+        z: 20
+    }
+
+    // Control centre: a category open has no window header. Say where we are
+    // and give a crumb back to the grid (the window has its own breadcrumb).
+    RowLayout {
+        Layout.fillWidth: true
+        visible: page.cat !== "" && !page.inWindow
+        spacing: Theme.px(6)
+        Button {
+            flat: true
+            text: Tr.t("Settings")
+            Accessible.name: Tr.t("Settings")
+            onClicked: Ui.settingsCat = ""
+        }
+        Text { text: "›"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+        Text {
+            text: page.catTitle
+            color: Theme.text
+            font.family: Theme.font
+            font.pixelSize: Theme.px(13) * Theme.fontScale
+            font.weight: Font.DemiBold
+            elide: Text.ElideRight
+            Layout.fillWidth: true
+        }
+    }
 
     // Recently changed settings rail
     ColumnLayout {

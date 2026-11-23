@@ -17,6 +17,10 @@ Variants {
     Scope {
         id: scr
         required property var modelData
+        // shortcut: Settings.qml's adapter is outside this change's file ownership, so
+        // the lock flag is read defensively here; declare widgetsLocked in Settings.qml
+        // (plus a SettingsPage toggle) to persist it and make it settable from the UI.
+        property bool widgetsLocked: Settings.data.widgetsLocked === true
 
         // positions: remembered, or the sensible default, then clamped so a card
         // stays on the screen, clear of the bar above and the dock below
@@ -98,7 +102,7 @@ Variants {
                 MouseArea {
                     id: clockDrag
                     anchors.fill: parent
-                    drag.target: clockCard
+                    drag.target: widgetsLocked ? null : clockCard
                     drag.threshold: 8
                     cursorShape: Qt.PointingHandCursor
                     onClicked: Ui.openClocks("")
@@ -177,7 +181,7 @@ Variants {
                 MouseArea {
                     id: mediaDrag
                     anchors.fill: parent
-                    drag.target: mediaCard
+                    drag.target: widgetsLocked ? null : mediaCard
                     drag.threshold: 8
                     cursorShape: Qt.PointingHandCursor
                     onClicked: Ui.toggleControlCenter()
@@ -309,7 +313,7 @@ Variants {
                 MouseArea {
                     id: weatherDrag
                     anchors.fill: parent
-                    drag.target: weatherCard
+                    drag.target: widgetsLocked ? null : weatherCard
                     drag.threshold: 8
                     cursorShape: Qt.PointingHandCursor
                     onClicked: Weather.enabled ? Ui.openWeather() : Ui.openSettings("personal")
@@ -382,7 +386,7 @@ Variants {
                 id: statsCard
                 x: 1650; y: 900
                 width: Theme.px(212)
-                height: Theme.px(104)
+                height: Theme.px(156)
                 radius: Theme.radiusLarge
                 elevation: "soft"
 
@@ -398,7 +402,7 @@ Variants {
                 MouseArea {
                     id: statsDrag
                     anchors.fill: parent
-                    drag.target: statsCard
+                    drag.target: widgetsLocked ? null : statsCard
                     drag.threshold: 8
                     cursorShape: Qt.PointingHandCursor
                     onClicked: { const was = Ui.processes; Ui.closeAll(); Ui.processes = !was; }
@@ -408,7 +412,7 @@ Variants {
                 Column {
                     anchors.fill: parent
                     anchors.margins: Theme.px(14)
-                    spacing: Theme.px(10)
+                    spacing: Theme.px(6)
                     Repeater {
                         model: [
                             { label: "cpu", value: SysStats.cpu, tint: Theme.accent },
@@ -448,6 +452,21 @@ Variants {
                                 horizontalAlignment: Text.AlignRight
                             }
                         }
+                    }
+                    // the System Monitor keeps 60 CPU samples; draw that history here
+                    // instead of letting it go unused in this small card
+                    Sparkline {
+                        width: parent.width
+                        height: Theme.px(28)
+                        values: SysStats.cpuHistory
+                        color: Theme.accent
+                    }
+                    Text {
+                        visible: SysStats.temp > 0
+                        text: Tr.t("CPU %1°C", Math.round(SysStats.temp))
+                        color: Theme.dim
+                        font.family: Theme.mono
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
                     }
                     Text {
                         text: "↓ " + SysStats.rate(SysStats.rxRate) + "  ↑ " + SysStats.rate(SysStats.txRate)

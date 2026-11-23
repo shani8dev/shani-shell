@@ -102,16 +102,35 @@ Singleton {
     }
     // a network that does not broadcast its name; the password goes in on
     // nmcli's stdin (--ask), never on a command line other users can read
-    property string hiddenStatus: ""     // "", "connecting", "failed: …", "connected"
+    property string hiddenStatus: ""     // "", "connecting", "failed: <friendly>", "connected"
+    property string hiddenRaw: ""        // last nmcli stderr line, for the "Show error details" row
     function connectHidden(ssid, psk) {
         hiddenStatus = "connecting";
+        hiddenRaw = "";
         hidden.command = ["sh", "-c", 'printf "%s\n" "$2" | nmcli --ask device wifi connect "$1" hidden yes', "sh", ssid, psk];
         hidden.running = true;
+    }
+    // nmcli's last stderr line belongs in a bug report, not on the status line
+    function hiddenFailure(raw) {
+        const r = String(raw || "");
+        if (/secret|password|passphrase|psk|key/i.test(r))
+            return Tr.t("Wrong password — check it and try again");
+        if (/range|not found|no network|ssid/i.test(r))
+            return Tr.t("Network not in range — move closer and try again");
+        if (/dhcp|lease|address|timeout/i.test(r))
+            return Tr.t("Couldn't get an address from the network — try again");
+        if (/auth|802\.1x|eap|rejected/i.test(r))
+            return Tr.t("Sign-in was rejected — check the network's username and password");
+        return Tr.t("Couldn't connect to the hidden network — try again");
     }
     Process {
         id: hidden
         stderr: StdioCollector { id: hiddenErr }
-        onExited: code => root.hiddenStatus = code === 0 ? "connected" : "failed: " + (hiddenErr.text.trim().split("\n").pop() || "could not connect")
+        onExited: code => {
+            const raw = hiddenErr.text.trim().split("\n").pop() || "";
+            root.hiddenRaw = code === 0 ? "" : raw;
+            root.hiddenStatus = code === 0 ? "connected" : "failed: " + root.hiddenFailure(raw);
+        }
     }
     // mobile data: a cellular modem (ModemManager) as NetworkManager sees it
     property bool hasModem: false
