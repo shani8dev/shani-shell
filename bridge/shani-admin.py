@@ -698,6 +698,79 @@ def apparmor_set(req: dict) -> dict:
     return {"profile": profile, "mode": mode}
 
 
+MODPROBE_DROPIN = Path("/etc/modprobe.d/50-shani-shell.conf")
+MODULES_LOAD_DROPIN = Path("/etc/modules-load.d/50-shani-shell.conf")
+MOD_NAME = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
+def modprobe_blacklist_get(_req: dict) -> dict:
+    mods = []
+    try:
+        for line in MODPROBE_DROPIN.read_text(encoding="utf-8", errors="replace").splitlines():
+            s = line.strip()
+            if s.startswith("blacklist "):
+                name = s.split(None, 1)[1].strip()
+                if MOD_NAME.match(name):
+                    mods.append(name)
+    except OSError:
+        pass
+    return {"modules": mods, "path": str(MODPROBE_DROPIN)}
+
+
+def modprobe_blacklist_set(req: dict) -> dict:
+    mods = req.get("modules") or []
+    if not isinstance(mods, list):
+        raise Refused("modules must be a list")
+    clean = []
+    for m in mods:
+        if not isinstance(m, str) or not MOD_NAME.match(m):
+            raise Refused(f"bad module name: {m!r}")
+        if m not in clean:
+            clean.append(m)
+    if clean:
+        content = "# Managed by shani-shell\n" + "".join(f"blacklist {m}\ninstall {m} /bin/false\n" for m in clean)
+        MODPROBE_DROPIN.parent.mkdir(parents=True, exist_ok=True)
+        MODPROBE_DROPIN.write_text(content, encoding="utf-8")
+        os.chmod(MODPROBE_DROPIN, 0o644)
+    else:
+        try: MODPROBE_DROPIN.unlink()
+        except OSError: pass
+    return modprobe_blacklist_get(req)
+
+
+def modules_load_get(_req: dict) -> dict:
+    mods = []
+    try:
+        for line in MODULES_LOAD_DROPIN.read_text(encoding="utf-8", errors="replace").splitlines():
+            s = line.strip()
+            if s and not s.startswith("#") and MOD_NAME.match(s):
+                mods.append(s)
+    except OSError:
+        pass
+    return {"modules": mods, "path": str(MODULES_LOAD_DROPIN)}
+
+
+def modules_load_set(req: dict) -> dict:
+    mods = req.get("modules") or []
+    if not isinstance(mods, list):
+        raise Refused("modules must be a list")
+    clean = []
+    for m in mods:
+        if not isinstance(m, str) or not MOD_NAME.match(m):
+            raise Refused(f"bad module name: {m!r}")
+        if m not in clean:
+            clean.append(m)
+    if clean:
+        content = "# Managed by shani-shell\n" + "".join(f"{m}\n" for m in clean)
+        MODULES_LOAD_DROPIN.parent.mkdir(parents=True, exist_ok=True)
+        MODULES_LOAD_DROPIN.write_text(content, encoding="utf-8")
+        os.chmod(MODULES_LOAD_DROPIN, 0o644)
+    else:
+        try: MODULES_LOAD_DROPIN.unlink()
+        except OSError: pass
+    return modules_load_get(req)
+
+
 COMMANDS = {
     "guest": guest,
     "wakeup": wakeup,
@@ -720,6 +793,10 @@ COMMANDS = {
     "sudoers-get": sudoers_get,
     "sudoers-set": sudoers_set,
     "apparmor-set": apparmor_set,
+    "modprobe-blacklist-get": modprobe_blacklist_get,
+    "modprobe-blacklist-set": modprobe_blacklist_set,
+    "modules-load-get": modules_load_get,
+    "modules-load-set": modules_load_set,
 }
 
 

@@ -13,6 +13,8 @@ def load_admin(tmp_path, monkeypatch):
     sa.PWQUALITY = tmp_path / "pwquality.conf"
     sa.SUDOERS_DROPIN = tmp_path / "sudoers.d" / "50-shani-shell"
     sa.SUDOERS_DROPIN.parent.mkdir(parents=True, exist_ok=True)
+    sa.MODPROBE_DROPIN = tmp_path / "modprobe.d" / "50-shani-shell.conf"
+    sa.MODULES_LOAD_DROPIN = tmp_path / "modules-load.d" / "50-shani-shell.conf"
     monkeypatch.setattr(sa.shutil, "which", lambda x: None)
     real_run = subprocess.run
     def fake_run(cmd, *a, **k):
@@ -88,3 +90,24 @@ def test_apparmor_set_validates(tmp_path, monkeypatch):
         sa.apparmor_set({"profile": "/usr/bin/foo", "mode": "nope"})
     r = sa.apparmor_set({"profile": "/usr/bin/foo", "mode": "complain"})
     assert r["mode"] == "complain"
+
+
+def test_modprobe_blacklist_crud(tmp_path, monkeypatch):
+    sa = load_admin(tmp_path, monkeypatch)
+    r = sa.modprobe_blacklist_set({"modules": ["nouveau", "pcspkr"]})
+    assert r["modules"] == ["nouveau", "pcspkr"]
+    txt = sa.MODPROBE_DROPIN.read_text()
+    assert "blacklist nouveau" in txt
+    assert "install pcspkr /bin/false" in txt
+    r = sa.modprobe_blacklist_set({"modules": []})
+    assert r["modules"] == []
+    assert not sa.MODPROBE_DROPIN.exists()
+
+
+def test_modules_load_crud(tmp_path, monkeypatch):
+    sa = load_admin(tmp_path, monkeypatch)
+    r = sa.modules_load_set({"modules": ["vfio-pci", "kvm"]})
+    assert r["modules"] == ["vfio-pci", "kvm"]
+    assert "vfio-pci\n" in sa.MODULES_LOAD_DROPIN.read_text()
+    with pytest.raises(Exception):
+        sa.modules_load_set({"modules": ["bad;name"]})
