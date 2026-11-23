@@ -399,7 +399,7 @@ Scope {
             Glass {
                 id: nowPlaying
                 readonly property var player: Media.current
-                visible: Settings.data.lockScreenMedia && player !== null && player.trackTitle !== ""
+                visible: Settings.data.lockScreenMedia && !!(player && (player.trackTitle || player.identity))
                 strong: true
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
@@ -418,7 +418,7 @@ Scope {
                         color: Theme.hover
                         Image {
                             anchors.fill: parent
-                            source: nowPlaying.player ? nowPlaying.player.trackArtUrl : ""
+                            source: nowPlaying.player ? (nowPlaying.player.trackArtUrl || "") : ""
                             fillMode: Image.PreserveAspectCrop
                             asynchronous: true
                         }
@@ -427,7 +427,7 @@ Scope {
                         Layout.fillWidth: true
                         Text {
                             width: parent.width
-                            text: nowPlaying.player ? nowPlaying.player.trackTitle : ""
+                            text: nowPlaying.player ? (nowPlaying.player.trackTitle || nowPlaying.player.identity || Tr.t("Unknown track")) : ""
                             color: Theme.text
                             elide: Text.ElideRight
                             font.family: Theme.font
@@ -436,16 +436,16 @@ Scope {
                         }
                         Text {
                             width: parent.width
-                            text: nowPlaying.player ? nowPlaying.player.trackArtist : ""
+                            text: nowPlaying.player ? (nowPlaying.player.trackArtist || "") : ""
                             color: Theme.dim
                             elide: Text.ElideRight
                             font.family: Theme.font
                             font.pixelSize: Theme.px(11) * Theme.fontScale
                         }
                     }
-                    IconButton { icon: "media-skip-backward"; tip: Tr.t("Previous"); size: Theme.px(30); onClicked: nowPlaying.player.previous() }
-                    IconButton { icon: nowPlaying.player && nowPlaying.player.isPlaying ? "media-playback-pause" : "media-playback-start"; tip: nowPlaying.player && nowPlaying.player.isPlaying ? Tr.t("Pause") : Tr.t("Play"); size: Theme.px(34); on: true; onClicked: nowPlaying.player.togglePlaying() }
-                    IconButton { icon: "media-skip-forward"; tip: Tr.t("Next"); size: Theme.px(30); onClicked: nowPlaying.player.next() }
+                    IconButton { icon: "media-skip-backward"; tip: Tr.t("Previous"); size: Theme.px(30); enabled: nowPlaying.player && nowPlaying.player.canGoPrevious; onClicked: nowPlaying.player.previous() }
+                    IconButton { icon: nowPlaying.player && nowPlaying.player.isPlaying ? "media-playback-pause" : "media-playback-start"; tip: nowPlaying.player && nowPlaying.player.isPlaying ? Tr.t("Pause") : Tr.t("Play"); size: Theme.px(34); on: true; enabled: nowPlaying.player && nowPlaying.player.canControl; onClicked: nowPlaying.player.togglePlaying() }
+                    IconButton { icon: "media-skip-forward"; tip: Tr.t("Next"); size: Theme.px(30); enabled: nowPlaying.player && nowPlaying.player.canGoNext; onClicked: nowPlaying.player.next() }
                 }
             }
 
@@ -538,7 +538,7 @@ Scope {
                             readonly property bool hideContent: Settings.data.notifHideContent
                             readonly property string app: modelData.appName || ""
                             Layout.fillWidth: true
-                            text: hideContent ? app : (app ? app + ": " : "") + modelData.summary
+                            text: hideContent ? app : (app ? app + ": " : "") + (modelData.summary || "")
                             color: Theme.text
                             elide: Text.ElideRight
                             font.family: Theme.font

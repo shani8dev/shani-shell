@@ -25,7 +25,9 @@ Variants {
         BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurArea : null
         Region { id: blurArea; item: card; radius: card.radius }
         WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: modelData === Quickshell.screens[0] ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+        // the modal must be answerable without a click, on whichever screen is in use
+        property bool keyScreen: modelData === (Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0])
+        WlrLayershell.keyboardFocus: keyScreen && !Lock.locked ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
         Glass {
             id: card
@@ -34,6 +36,9 @@ Variants {
             strong: true
             radius: Theme.radiusLarge
             focus: true
+            onVisibleChanged: if (visible && win.keyScreen) forceActiveFocus()
+            Accessible.role: Accessible.Dialog
+            Accessible.name: Tr.t("Keep these display settings?")
             Keys.onEscapePressed: Displays.revert()
             Keys.onReturnPressed: Displays.keep()
             ColumnLayout {
@@ -50,6 +55,7 @@ Variants {
                 Text {
                     Layout.fillWidth: true
                     text: Tr.t("Going back to the previous ones in %1 s.").arg(Displays.countdown)
+                    Accessible.name: text
                     color: Theme.dim
                     font.family: Theme.font
                     font.pixelSize: Theme.px(12) * Theme.fontScale

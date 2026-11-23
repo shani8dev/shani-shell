@@ -27,8 +27,32 @@ PanelWindow {
     Binding { target: Ui; property: "promptKeyboard"; value: win.kb && win.visible; when: win.visible }
     onVisibleChanged: if (visible) { pass.input.forceActiveFocus(); kb = InputKinds.typesOnScreen; }
 
+    // polkit can replace the flow while this window is still up: a password
+    // typed for the previous action (or a field left unmasked) must never
+    // carry into the next one
+    Connections {
+        target: Polkit
+        function onFlowChanged() {
+            pass.text = "";
+            pass.revealed = false;
+            pass.input.forceActiveFocus();
+        }
+    }
+    function submitPass() {
+        if (!win.flow)
+            return;
+        win.flow.submit(pass.text);
+        pass.text = "";
+        pass.revealed = false;
+    }
+    function cancelPass() {
+        if (win.flow)
+            win.flow.cancelAuthenticationRequest();
+    }
+
     Glass {
         id: blurCard
+        Keys.onEscapePressed: win.cancelPass()
         strong: true
         anchors.centerIn: parent
         anchors.verticalCenterOffset: win.kb ? -parent.height * 0.18 : 0
@@ -79,10 +103,7 @@ PanelWindow {
                 visible: win.flow && win.flow.isResponseRequired
                 placeholder: win.flow ? (win.flow.inputPrompt || "Password").replace(/:\s*$/, "") : "Password"
                 secret: win.flow ? !win.flow.responseVisible : true
-                onAccepted: {
-                    win.flow.submit(text);
-                    text = "";
-                }
+                onAccepted: win.submitPass()
             }
             IconButton { icon: "input-keyboard"; size: Theme.px(32); on: win.kb; tip: win.kb ? Tr.t("Hide keyboard") : Tr.t("Screen keyboard"); onClicked: win.kb = !win.kb }
             }
@@ -107,14 +128,11 @@ PanelWindow {
             RowLayout {
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
-                Button { text: Tr.t("Cancel"); onClicked: win.flow.cancelAuthenticationRequest() }
+                Button { text: Tr.t("Cancel"); onClicked: win.cancelPass() }
                 Button {
                     text: Tr.t("Authenticate")
                     kind: "primary"
-                    onClicked: {
-                        win.flow.submit(pass.text);
-                        pass.text = "";
-                    }
+                    onClicked: win.submitPass()
                 }
             }
         }
@@ -126,7 +144,7 @@ PanelWindow {
         anchors.horizontalCenter: parent.horizontalCenter
         width: Math.min(900, parent.width - 36)
         target: pass.input
-        onEntered: { win.flow.submit(pass.text); pass.text = ""; }
+        onEntered: win.submitPass()
         onHideRequested: win.kb = false
     }
 }

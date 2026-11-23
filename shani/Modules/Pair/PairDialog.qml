@@ -13,6 +13,31 @@ PanelWindow {
     readonly property var show: BtAgent.show
     readonly property bool typed: ask !== null && (ask.ask === "pin" || ask.ask === "passkey")
     visible: (ask !== null || show !== null) && !Lock.locked
+    property int lastCodeAsk: -1
+
+    // BlueZ rejects a bad code with no word back to the shell, so refuse an
+    // empty or non-numeric entry here and say why in the field itself
+    function submitCode() {
+        if (!ask)
+            return;
+        const v = code.text.trim();
+        if (typed) {
+            if (v === "") { code.error = "Enter the code first"; return; }
+            if (ask.ask === "passkey" && !/^\d+$/.test(v)) { code.error = "Use digits only"; return; }
+        }
+        code.error = "";
+        BtAgent.answer(true, v);
+    }
+    Connections {
+        target: BtAgent
+        function onAskChanged() {
+            if (ask && ask.id !== win.lastCodeAsk) {
+                win.lastCodeAsk = ask.id;
+                code.text = "";
+                code.error = "";
+            }
+        }
+    }
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     anchors.top: true
     margins.top: 80
@@ -29,6 +54,7 @@ PanelWindow {
 
     Glass {
         id: card
+        Keys.onEscapePressed: win.show ? BtAgent.dismiss() : BtAgent.answer(false)
         width: parent.width
         implicitHeight: col.implicitHeight + 36
         strong: true
@@ -80,7 +106,8 @@ PanelWindow {
                 visible: win.typed
                 placeholder: Tr.t("Code")
                 onVisibleChanged: if (visible) { text = ""; input.forceActiveFocus(); }
-                onAccepted: BtAgent.answer(true, text.trim())
+                onTextChanged: if (text !== "") error = ""
+                onAccepted: win.submitCode()
             }
             RowLayout {
                 Layout.alignment: Qt.AlignRight
@@ -93,7 +120,7 @@ PanelWindow {
                     visible: win.ask !== null
                     kind: "primary"
                     text: win.ask && win.ask.ask === "authorize" ? "Allow" : "Pair"
-                    onClicked: BtAgent.answer(true, code.text.trim())
+                    onClicked: win.submitCode()
                 }
             }
         }

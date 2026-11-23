@@ -34,12 +34,23 @@ PanelWindow {
         fill.restart();
         away.restart();
     }
+    // the cable pulled mid-animation: stop claiming it is charging, let the
+    // "On battery" notice own the moment instead of a card that lingers 2 s
+    function stop() {
+        shown = false;
+        fill.stop();
+        away.stop();
+    }
     Timer { interval: 4000; running: true; onTriggered: win.armed = true }
     Timer { id: away; interval: 2600; onTriggered: win.shown = false }
     NumberAnimation { id: fill; target: win; property: "level"; from: 0; to: Math.max(0.02, Power.percent); duration: Theme.mot(1100); easing.type: Easing.OutCubic }
     Connections {
         target: Power
-        function onOnBatteryChanged() { if (win.armed && Power.hasBattery && !Power.onBattery) win.play(); }
+        function onOnBatteryChanged() {
+            if (!win.armed || !Power.hasBattery) return;
+            if (Power.onBattery) win.stop();
+            else win.play();
+        }
     }
     // the tests and the showcase
     Connections { target: Ui; function onChargingPreviewChanged() { if (Ui.chargingPreview) { Ui.chargingPreview = false; win.play(); } } }
@@ -80,7 +91,7 @@ PanelWindow {
         Column {
             anchors.centerIn: ring
             spacing: 2
-            Icon { anchors.horizontalCenter: parent.horizontalCenter; name: "battery-level-100-charged"; size: Theme.px(26); color: Theme.accent }
+            Icon { anchors.horizontalCenter: parent.horizontalCenter; name: Power.batteryIcon; size: Theme.px(26); color: Theme.accent }
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: Math.round(win.level * 100) + "%"
@@ -95,7 +106,7 @@ PanelWindow {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
             anchors.bottomMargin: Theme.px(14)
-            text: Power.timeLeft || Tr.t("Charging")
+            text: Power.charging && Power.timeLeft ? Power.timeLeft : Tr.t("Charging")
             color: Theme.dim
             font.family: Theme.font
             font.pixelSize: Theme.px(12) * Theme.fontScale

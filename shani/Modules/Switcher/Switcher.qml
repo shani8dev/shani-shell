@@ -69,11 +69,13 @@ PanelWindow {
     }
 
     function open(back) {
-        list = Niri.mru();
+        // the hidden "minimised" workspace is not part of the switcher (the dock hides it too)
+        list = Niri.mru().filter(w => !Niri.isMinimised(w));
         // One app on screen has one tile, and Alt+Tab with one tile goes
         // nowhere: the tiles are its windows instead, so two terminals still
         // swap. The G toggle stays as it was for a real mix of apps.
-        grouped = win.buildGroups().length > 1;
+        if (win.buildGroups().length <= 1)
+            grouped = false;
         sel = list.length > 1 ? (back ? list.length - 1 : 1) : 0;
         win.clampSel();
         Ui.switcher = true;
@@ -140,7 +142,8 @@ PanelWindow {
             e.accepted = true;
         }
         Keys.onReleased: e => {
-            if (e.key === Qt.Key_Alt || e.key === Qt.Key_Super_L || e.key === Qt.Key_Meta)
+            // Escape / a background click cancels: a later modifier release must not switch
+            if (Ui.switcher && (e.key === Qt.Key_Alt || e.key === Qt.Key_Super_L || e.key === Qt.Key_Meta))
                 win.commit();
         }
     }

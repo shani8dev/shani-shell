@@ -139,6 +139,9 @@ PanelWindow {
                             : Qt.point(width / 2, height / 2);
             Ui.ringAt = Qt.point(-1, -1);
             keys.forceActiveFocus();
+        } else {
+            dwell.stop();               // a pending dwell must not act after dismissal
+            stack = [];                 // ringDepth must not outlive the ring
         }
     }
 
@@ -189,6 +192,8 @@ PanelWindow {
         id: dwell
         interval: 420
         onTriggered: {
+            if (!win.visible)
+                return;
             const it = win.items[win.hot];
             if (it && it.children && it.children.length > 0)
                 win.choose(win.hot);

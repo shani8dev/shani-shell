@@ -48,4 +48,27 @@ PanelWindow {
         acceptedDevices: Calibrate.kind === "tablet" ? PointerDevice.Stylus : PointerDevice.TouchScreen
         onTapped: p => Calibrate.touched(p.position.x / win.width, p.position.y / win.height)
     }
+    // A way out for the finger or pen being calibrated: these devices often
+    // have no keyboard, so Escape alone cannot cancel a bad first touch.
+    // Declared after the full-screen handler so its own tap wins the grab.
+    Rectangle {
+        anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: Theme.px(16) }
+        width: Math.max(cancelLabel.implicitWidth + Theme.px(24), Theme.touchTarget)
+        height: Math.max(Theme.px(36), Theme.touchTarget)
+        radius: height / 2
+        color: Theme.alpha(Theme.bg, 0.85)
+        border.width: 1
+        border.color: Theme.accent
+        Accessible.role: Accessible.Button
+        Accessible.name: Tr.t("Cancel")
+        Text {
+            id: cancelLabel
+            anchors.centerIn: parent
+            text: Tr.t("Cancel")
+            color: Theme.text
+            font.family: Theme.font
+            font.pixelSize: Theme.px(14) * Theme.fontScale
+        }
+        TapHandler { onTapped: Calibrate.cancel("cancelled") }
+    }
 }

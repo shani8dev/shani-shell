@@ -51,8 +51,8 @@ Scope {
         function onCountdownChanged() {
             if (Screenshots.countdown > 0)
                 root.show("applets-screenshooter", -1, Tr.t("Screenshot in %1").arg(Screenshots.countdown), "label");
-            else
-                root.shown = false;          // gone before the picture is taken
+            else if (root.icon === "applets-screenshooter")
+                root.shown = false;          // our countdown ends before the picture; don't cut another OSD
         }
     }
     Connections {
@@ -166,17 +166,22 @@ Scope {
     // A new monitor or an output refresh is not a scale change; remember the
     // focused output's last scale and show only when it moved.
     property real lastScale: -1
+    property string lastScaleOutput: ""
     Connections {
         target: Displays
         function onOutputsChanged() {
             const o = Displays.outputs.find(x => x.name === Niri.focusedOutput);
             if (!o) {
                 root.lastScale = -1;
+                root.lastScaleOutput = "";
                 return;
             }
-            if (root.lastScale >= 0 && Math.abs(o.scale - root.lastScale) > 0.01)
+            // another screen's scale is not a change on this one
+            const same = root.lastScaleOutput === Niri.focusedOutput;
+            if (same && root.lastScale >= 0 && Math.abs(o.scale - root.lastScale) > 0.01)
                 root.show("zoom-in", -1, "Scale: " + o.scale + "x", "label");
             root.lastScale = o.scale;
+            root.lastScaleOutput = Niri.focusedOutput;
         }
     }
 
@@ -259,7 +264,7 @@ Scope {
 
                 // Percentage text (for sliders)
                 Text {
-                    visible: root.kind === "slider" && root.label !== "Muted" && !root.label.startsWith("Microphone")
+                    visible: root.kind === "slider" && root.label !== "Muted" && !root.label.startsWith("Microphone") && !root.label.endsWith("%")
                     text: Math.round(root.value * 100) + "%"
                     color: Theme.text
                     font.family: Theme.font

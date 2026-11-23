@@ -49,6 +49,21 @@ PanelWindow {
                      run: () => { Ui.quickPanel = false; Niri.action("close-window", "--id", String(app.id)); } });
         return r;
     }
+    // `rows` is rebuilt whenever a level or device changes. Feeding that new JS
+    // array straight to the Repeater destroys every delegate on each adjust, so
+    // a slider press loses its MouseArea after the first step. Keep the model as
+    // plain indices - it only changes when rows are added or removed.
+    property var rowIndexes: []
+    onRowsChanged: {
+        if (rows.length > 0)
+            sel = Math.min(sel, rows.length - 1);
+        if (rowIndexes.length === rows.length)
+            return;
+        const idx = [];
+        for (let i = 0; i < rows.length; i++)
+            idx.push(i);
+        rowIndexes = idx;
+    }
     property int sel: 0
     readonly property var current: rows[Math.min(sel, rows.length - 1)] || null
     onCurrentChanged: Ui.quickSelected = visible && current ? current.key : ""
@@ -126,29 +141,32 @@ PanelWindow {
                 }
 
                 Repeater {
-                    model: win.rows
+                    model: win.rowIndexes
                     delegate: Rectangle {
                         id: row
-                        required property var modelData
+                        required property int modelData
                         required property int index
+                        // data is looked up live: the Repeater model stays put while a
+                        // level is being dragged, but these values still track services
+                        readonly property var rowData: win.rows[modelData]
                         readonly property bool here: index === win.sel
                         width: parent.width
-                        height: modelData.value >= 0 ? Theme.px(72) : Theme.px(52)
+                        height: rowData.value >= 0 ? Theme.px(72) : Theme.px(52)
                         radius: Theme.px(12)
                         color: here ? Theme.accentSoft : "transparent"
                         border.width: here ? Theme.px(2) : 0
                         border.color: Theme.accent
-                        Accessible.role: modelData.value >= 0 ? Accessible.Slider : Accessible.Button
-                        Accessible.name: modelData.label
+                        Accessible.role: rowData.value >= 0 ? Accessible.Slider : Accessible.Button
+                        Accessible.name: rowData.label
                         Row {
                             id: head
                             x: Theme.px(12)
-                            y: modelData.value >= 0 ? Theme.px(10) : (parent.height - height) / 2
+                            y: rowData.value >= 0 ? Theme.px(10) : (parent.height - height) / 2
                             spacing: Theme.px(10)
-                            Icon { name: row.modelData.icon; size: Theme.px(20); anchors.verticalCenter: parent.verticalCenter }
+                            Icon { name: row.rowData.icon; size: Theme.px(20); anchors.verticalCenter: parent.verticalCenter }
                             Text {
                                 width: row.width - Theme.px(110)
-                                text: row.modelData.label
+                                text: row.rowData.label
                                 color: Theme.text
                                 elide: Text.ElideRight
                                 font.pixelSize: Theme.px(15) * Theme.fontScale
@@ -158,21 +176,21 @@ PanelWindow {
                         Text {
                             anchors { right: parent.right; rightMargin: Theme.px(14) }
                             y: head.y + (head.height - height) / 2
-                            text: row.modelData.text
+                            text: row.rowData.text
                             color: Theme.dim
                             font.pixelSize: Theme.px(14) * Theme.fontScale
                         }
                         // a level: a track to drag along, as well as Left / Right
                         Rectangle {
                             id: track
-                            visible: row.modelData.value >= 0
+                            visible: row.rowData.value >= 0
                             anchors { left: parent.left; right: parent.right; margins: Theme.px(14) }
                             y: parent.height - Theme.px(20)
                             height: Theme.px(6)
                             radius: height / 2
                             color: Theme.alpha(Theme.text, 0.15)
                             Rectangle {
-                                width: parent.width * Math.max(0, Math.min(1, row.modelData.value))
+                                width: parent.width * Math.max(0, Math.min(1, row.rowData.value))
                                 height: parent.height
                                 radius: parent.radius
                                 color: Theme.accent
@@ -180,14 +198,14 @@ PanelWindow {
                         }
                         MouseArea {
                             anchors.fill: parent
-                            onPressed: m => { win.sel = row.index; if (row.modelData.value >= 0) setTo(m.x); }
-                            onPositionChanged: m => { if (pressed && row.modelData.value >= 0) setTo(m.x); }
-                            onClicked: if (row.modelData.value < 0 && row.modelData.run) row.modelData.run()
+                            onPressed: m => { win.sel = row.index; if (row.rowData.value >= 0) setTo(m.x); }
+                            onPositionChanged: m => { if (pressed && row.rowData.value >= 0) setTo(m.x); }
+                            onClicked: if (row.rowData.value < 0 && row.rowData.run) row.rowData.run()
                             // dragging a level: as many steps as it takes to get there
                             function setTo(x) {
                                 const want = Math.max(0, Math.min(1, (x - track.x) / track.width));
-                                const steps = Math.round((want - row.modelData.value) / 0.05);
-                                if (steps !== 0 && row.modelData.adjust) row.modelData.adjust(steps);
+                                const steps = Math.round((want - row.rowData.value) / 0.05);
+                                if (steps !== 0 && row.rowData.adjust) row.rowData.adjust(steps);
                             }
                         }
                     }

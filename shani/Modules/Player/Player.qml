@@ -565,6 +565,14 @@ PanelWindow {
                 Layout.fillWidth: true
                 visible: Media.players.length > 0
                 spacing: 2
+                ListRow {
+                    Layout.fillWidth: true
+                    icon: "media-playback-start"
+                    title: Tr.t("Auto")
+                    subtitle: Tr.t("Follow the active player")
+                    selected: !Settings.data.preferredPlayer
+                    onClicked: Settings.data.preferredPlayer = ""
+                }
                 Repeater {
                     model: Media.players
                     ListRow {

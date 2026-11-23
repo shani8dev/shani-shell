@@ -124,6 +124,10 @@ PanelWindow {
         }
         return out;
     }
+    // uninstalling an app (or its last window going away) can drop the cell a
+    // menu was open on. Without this the stale index keeps menuFor >= 0: the
+    // dock stays shown, keeps the whole-surface input mask and never hides.
+    onItemsChanged: if (menuFor >= items.length) menuFor = -1
 
     // parabolic zoom: base (44 px by default) up to about 1.6× right under the
     // pointer, falling off over about two icons either side
@@ -336,6 +340,10 @@ PanelWindow {
                 id: cell
                 required property var modelData
                 required property int index
+                // the pinned list's index, not the visible row's: a pin with no
+                // desktop entry (uninstalled) or one AppFilter hides is skipped
+                // above, so cell.index drifts while the real list does not
+                readonly property int pinIndex: Settings.data.dockPinned.indexOf(modelData.entry ? modelData.entry.id : modelData.id)
                 readonly property bool focused: modelData.windows.some(w => w.id === Niri.focusedWindowId)
                 // the app's own count (LauncherEntry) when it gives one, else its notifications
                 readonly property var launcherEntry: LauncherEntries.of(modelData.entry, modelData.id)
@@ -345,6 +353,10 @@ PanelWindow {
                 Accessible.name: (modelData.entry ? modelData.entry.name : modelData.id)
                     + (badge ? ", " + (badge === 1 ? Tr.t("1 notification") : Tr.t("%1 notifications", badge)) : "")
                     + (progress >= 0 ? ", " + Tr.t("%1% done", Math.round(progress * 100)) : "")
+                    // the dots are drawn, not spoken: say how many windows and
+                    // whether this one is a pin, so the reader matches the eye
+                    + (modelData.windows.length ? ", " + (modelData.windows.length === 1 ? Tr.t("1 window") : Tr.t("%1 windows", modelData.windows.length)) : "")
+                    + (modelData.pinned ? ", " + Tr.t("Pinned") : "")
                 Accessible.onPressAction: win.activate(modelData)
                 // the cell's centre in the row, at base size (stable, so the curve does not chase itself)
                 readonly property real restCenter: controls.width + row.spacing + index * (win.base + row.spacing) + win.base / 2
@@ -569,8 +581,8 @@ PanelWindow {
                                 { label: "Open on " + (Gpu.other ? Gpu.other.name.split(" ").slice(0, 3).join(" ") : "the other GPU"), show: !!cell.modelData.entry && Gpu.hasChoice,
                                   run: () => { Gpu.launchOnOther(cell.modelData.entry.id); bounce.restart(); } },
                                 { label: cell.modelData.pinned ? "Unpin from dock" : "Pin to dock", show: !!cell.modelData.entry, run: () => win.togglePin(cell.modelData) },
-                                { label: Tr.t("Move left"), show: cell.modelData.pinned && cell.index > 0, run: () => win.movePin(cell.modelData, -1) },
-                                { label: Tr.t("Move right"), show: cell.modelData.pinned && cell.index < Settings.data.dockPinned.length - 1, run: () => win.movePin(cell.modelData, 1) },
+                                { label: Tr.t("Move left"), show: cell.modelData.pinned && cell.pinIndex > 0, run: () => win.movePin(cell.modelData, -1) },
+                                { label: Tr.t("Move right"), show: cell.modelData.pinned && cell.pinIndex < Settings.data.dockPinned.length - 1, run: () => win.movePin(cell.modelData, 1) },
                                 { label: cell.modelData.windows.length > 1 ? "Close " + cell.modelData.windows.length + " windows" : "Close window", sep: true, danger: true, show: cell.modelData.windows.length > 0, run: () => win.closeAll(cell.modelData) }
                             ].filter(x => x.show)
                             Rectangle {
@@ -611,7 +623,9 @@ PanelWindow {
                 }
                 ToolTipText {
                     visible: area.containsMouse && win.menuFor < 0
-                    text: cell.modelData.entry ? cell.modelData.entry.name : cell.modelData.id
+                    text: (cell.modelData.entry ? cell.modelData.entry.name : cell.modelData.id)
+                        + (cell.modelData.windows.length ? " — " + (cell.modelData.windows.length === 1 ? Tr.t("1 window") : Tr.t("%1 windows", cell.modelData.windows.length)) : "")
+                        + (cell.modelData.pinned ? " · " + Tr.t("Pinned") : "")
                 }
             }
         }
@@ -719,6 +733,8 @@ PanelWindow {
                 : count > 0 ? Tr.t("Trash: %1 - drop files here, right-click to empty").arg(count === 1 ? Tr.t("1 item") : Tr.t("%1 items").arg(count))
                 : Tr.t("Trash is empty - drop files here")
             Accessible.name: Tr.t("Trash")
+                + (count ? ", " + (count === 1 ? Tr.t("1 item") : Tr.t("%1 items").arg(count)) : "")
+                + (arming ? ", " + Tr.t("Right-click again to empty the trash") : "")
             on: trashDrop.containsDrag || arming
             onActivated: Qt.openUrlExternally("trash:///")
             readonly property string trashDir: (Quickshell.env("XDG_DATA_HOME") || Quickshell.env("HOME") + "/.local/share") + "/Trash/files"

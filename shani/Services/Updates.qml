@@ -14,6 +14,10 @@ Singleton {
     property bool available: false
     property bool rebootNeeded: false
     property string slot: ""
+    property string version: ""          // the release on this slot (/etc/shani-version)
+    property string remoteStable: ""     // what the stable channel offers
+    property string remoteLatest: ""     // what the latest channel offers
+    readonly property string candidate: root.channel === "latest" ? root.remoteLatest : root.remoteStable
     readonly property bool attention: available || rebootNeeded || firmware.length > 0
     // shani-deploy channels: "stable" (default) | "latest" — see shani-deploy/scripts/shani-deploy.sh
     readonly property string channel: Settings.data.updateChannel || "stable"
@@ -93,6 +97,10 @@ Singleton {
                     root.available = !!s.update_available;
                     root.rebootNeeded = !!(s.boot_markers && s.boot_markers.reboot_needed);
                     root.slot = s.current_slot || "";
+                    root.version = s.version || "";
+                    const remote = s.remote || {};
+                    root.remoteStable = remote.stable || "";
+                    root.remoteLatest = remote.latest || "";
                 } catch (e) {
                     root.known = false;
                 }

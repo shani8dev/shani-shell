@@ -40,6 +40,9 @@ ColumnLayout {
         label: Tr.t("Search notifications")
         text: filter
         onTextChanged: filter = text
+        // the field hides itself when the total drops to five or fewer; without
+        // this the old query keeps hiding rows with no field left to clear it
+        onVisibleChanged: if (!visible) filter = ""
     }
     Text {
         visible: Notifs.count === 0 && Notifs.earlier.length === 0
@@ -95,6 +98,9 @@ ColumnLayout {
                 }
                 Button {
                     text: Tr.t("Clear")
+                    // every group has a "Clear" button; name the app so a screen
+                    // reader can tell which stack a press will empty
+                    Accessible.name: Tr.t("Clear all from %1").arg(group.modelData.app)
                     onClicked: group.modelData.items.slice().forEach(n => n.dismiss())
                 }
             }
@@ -123,7 +129,11 @@ ColumnLayout {
             font.pixelSize: Theme.px(11) * Theme.fontScale
             font.weight: Font.DemiBold
         }
-        Button { text: Tr.t("Clear"); onClicked: Notifs.forgetEarlier() }
+        Button {
+            text: Tr.t("Clear")
+            Accessible.name: Tr.t("Clear all earlier notifications")
+            onClicked: Notifs.forgetEarlier()
+        }
     }
     Repeater {
         model: Notifs.earlier.filter(e => filter === "" || (e.app + " " + e.summary + " " + (e.body || "")).toLowerCase().indexOf(filter.toLowerCase()) >= 0)
@@ -134,6 +144,8 @@ ColumnLayout {
             title: modelData.summary
             subtitle: modelData.app + " · " + Qt.formatDateTime(new Date(modelData.time), Settings.data.use24h ? "ddd HH:mm" : "ddd h:mm AP")
                 + (modelData.body ? " - " + modelData.body : "")
+            // a tap forgets this row; say so to a screen reader, not just in the Hint
+            Accessible.description: subtitle + ". " + Tr.t("Click to clear it")
             onClicked: Notifs.forgetEarlier(modelData)
             Hint { text: Tr.t("From before the restart - click to clear it") }
         }
