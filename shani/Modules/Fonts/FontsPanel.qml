@@ -34,7 +34,10 @@ AppWindow {
     property var selectedFont: null
     property string selectedDetails: ""
     property string detailsFor: ""     // file the pending fc-query belongs to
+    property string copiedFamily: ""
     readonly property string userFontRoot: (Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") || "") + "/.local/share") + "/fonts"
+
+    Timer { id: copiedTimer; interval: 1800; onTriggered: win.copiedFamily = "" }
 
     function refresh() {
         fonts = [];
@@ -42,6 +45,9 @@ AppWindow {
         selectedFont = null;
         selectedDetails = "";
         detailsFor = "";
+        installNote = "";
+        copiedFamily = "";
+        copiedTimer.stop();
         // no stale totals while fc-list is re-reading: the header hides and the
         // "reading fonts" empty state speaks for itself
         totalFonts = 0;
@@ -67,6 +73,8 @@ AppWindow {
         if (!family)
             return;
         Quickshell.clipboardText = family;
+        copiedFamily = family;
+        copiedTimer.restart();
         Quickshell.execDetached(["notify-send", "-a", "Fonts", family]);
     }
     // a row click still copies the family; it also queries just that one font
@@ -303,7 +311,7 @@ AppWindow {
                         Layout.fillWidth: true
                         visible: fileCard.ready
                         text: "ABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz\n0123456789 .,;:!?&@()"
-                        font.family: fileFont.name; font.pixelSize: Theme.px(16)
+                        font.family: fileFont.name; font.pixelSize: Theme.px(16) * Theme.fontScale
                         color: Theme.text; wrapMode: Text.Wrap
                     }
                     Repeater {
@@ -312,7 +320,7 @@ AppWindow {
                             required property int modelData
                             Layout.fillWidth: true
                             text: win.preview
-                            font.family: fileFont.name; font.pixelSize: Theme.px(modelData)
+                            font.family: fileFont.name; font.pixelSize: Theme.px(modelData) * Theme.fontScale
                             color: Theme.text; elide: Text.ElideRight
                         }
                     }
@@ -529,8 +537,9 @@ AppWindow {
             }
             Text {
                 Layout.fillWidth: true
-                text: Tr.t("Click a font to copy its family name · Esc closes")
-                color: Theme.faint
+                text: win.copiedFamily !== "" ? Tr.t("Copied %1 · Esc closes", win.copiedFamily)
+                    : Tr.t("Click a font to copy its family name · Esc closes")
+                color: win.copiedFamily !== "" ? Theme.accent : Theme.faint
                 horizontalAlignment: Text.AlignHCenter
                 font.family: Theme.font
                 font.pixelSize: Theme.px(10) * Theme.fontScale

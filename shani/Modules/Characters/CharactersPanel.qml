@@ -83,6 +83,13 @@ AppWindow {
                 cellHeight: 76
                 model: Characters.results
                 boundsBehavior: Flickable.StopAtBounds
+                Accessible.role: Accessible.List
+                Accessible.name: Tr.t("Character results")
+
+                Connections {
+                    target: Characters
+                    function onResultsChanged() { grid.contentY = 0 }
+                }
 
                 delegate: Rectangle {
                     id: cell
@@ -155,8 +162,10 @@ AppWindow {
             Item { Layout.fillWidth: true }
             Text {
                 Layout.fillWidth: true
-                text: Characters.results.length ? Tr.t("Click a character to copy it · Esc closes") : Tr.t("Searching Unicode…")
-                color: Theme.faint
+                text: win.copiedLabel !== "" ? Tr.t("Copied %1 · Esc closes", win.copiedLabel)
+                    : Characters.results.length ? Tr.t("Click a character to copy it · Enter copies first · Esc closes")
+                    : (Characters.loaded ? Tr.t("No results") : Tr.t("Searching Unicode…"))
+                color: win.copiedLabel !== "" ? Theme.accent : Theme.faint
                 horizontalAlignment: Text.AlignHCenter
                 font.family: Theme.font
                 font.pixelSize: Theme.px(10) * Theme.fontScale
