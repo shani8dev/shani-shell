@@ -42,6 +42,7 @@ Variants {
         }
     }
     PanelWindow {
+        id: wallpaperWin
         screen: scr.modelData
         anchors { top: true; bottom: true; left: true; right: true }
         exclusionMode: ExclusionMode.Ignore
@@ -108,7 +109,7 @@ Variants {
             focus: visible
             onVisibleChanged: if (visible) Ui.focusFirst(deskMenu)
             Keys.onEscapePressed: deskMenu.visible = false
-            Accessible.role: Accessible.Menu
+            Accessible.role: Accessible.Pane
             Accessible.name: Tr.t("Desktop menu")
             strong: true
             radius: Theme.px(12)
@@ -139,7 +140,7 @@ Variants {
             }
         }
         function swap() {
-            const src = wanted ? "file://" + wanted : "";
+            const src = wallpaperWin.wanted ? "file://" + wallpaperWin.wanted : "";
             if (!src) {
                 a.opacity = 0; b.opacity = 0;
                 a.source = ""; b.source = "";
@@ -151,7 +152,7 @@ Variants {
                 // same source is a no-op and Ready never fires again — clear it
                 // first so the toggle always completes (and fades)
                 next.source = "";
-                Qt.callLater(() => { if (wanted) next.source = "file://" + wanted; });
+                Qt.callLater(() => { if (wallpaperWin.wanted) next.source = "file://" + wallpaperWin.wanted; });
             } else {
                 next.source = src;
             }
@@ -165,7 +166,7 @@ Variants {
             sourceSize: Qt.size(parent.width, parent.height)
             opacity: 0
             onStatusChanged: {
-                const want = wanted ? "file://" + wanted : "";
+                const want = wallpaperWin.wanted ? "file://" + wallpaperWin.wanted : "";
                 if (status === Image.Ready && source === want) { opacity = 1; b.opacity = 0; }
                 else if (status === Image.Error) { opacity = 0; source = ""; }
             }
@@ -179,7 +180,7 @@ Variants {
             sourceSize: Qt.size(parent.width, parent.height)
             opacity: 0
             onStatusChanged: {
-                const want = wanted ? "file://" + wanted : "";
+                const want = wallpaperWin.wanted ? "file://" + wallpaperWin.wanted : "";
                 if (status === Image.Ready && source === want) { opacity = 1; a.opacity = 0; }
                 else if (status === Image.Error) { opacity = 0; source = ""; }
             }
