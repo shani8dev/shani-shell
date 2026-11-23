@@ -15,6 +15,7 @@ def load_admin(tmp_path, monkeypatch):
     sa.SUDOERS_DROPIN.parent.mkdir(parents=True, exist_ok=True)
     sa.MODPROBE_DROPIN = tmp_path / "modprobe.d" / "50-shani-shell.conf"
     sa.MODULES_LOAD_DROPIN = tmp_path / "modules-load.d" / "50-shani-shell.conf"
+    sa.JOURNALD_DROPIN = tmp_path / "journald.conf.d" / "50-shani-shell.conf"
     monkeypatch.setattr(sa.shutil, "which", lambda x: None)
     real_run = subprocess.run
     def fake_run(cmd, *a, **k):
@@ -111,3 +112,17 @@ def test_modules_load_crud(tmp_path, monkeypatch):
     assert "vfio-pci\n" in sa.MODULES_LOAD_DROPIN.read_text()
     with pytest.raises(Exception):
         sa.modules_load_set({"modules": ["bad;name"]})
+
+
+def test_journald_set_and_vacuum(tmp_path, monkeypatch):
+    sa = load_admin(tmp_path, monkeypatch)
+    r = sa.journald_set({"settings": {"Storage": "persistent", "SystemMaxUse": "500M"}})
+    assert r["settings"]["Storage"] == "persistent"
+    txt = sa.JOURNALD_DROPIN.read_text()
+    assert "[Journal]" in txt and "SystemMaxUse=500M" in txt
+    with pytest.raises(Exception):
+        sa.journald_set({"settings": {"Storage": "bad"}})
+    with pytest.raises(Exception):
+        sa.journald_vacuum({"mode": "size", "value": "bad;rm"})
+    r = sa.journald_vacuum({"mode": "size", "value": "500M"})
+    assert r["ok"] is True

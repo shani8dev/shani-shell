@@ -771,6 +771,73 @@ def modules_load_set(req: dict) -> dict:
     return modules_load_get(req)
 
 
+JOURNALD_DROPIN = Path("/etc/systemd/journald.conf.d/50-shani-shell.conf")
+JOURNALD_KEYS = {"Storage": {"persistent","volatile","auto","none"},
+                 "SystemMaxUse": None, "SystemKeepFree": None, "RuntimeMaxUse": None, "MaxRetentionSec": None}
+SIZE_RE = re.compile(r"^\d+[KMGTP]?$")
+
+
+def journald_get(_req: dict) -> dict:
+    settings = {}
+    try:
+        for line in JOURNALD_DROPIN.read_text(encoding="utf-8", errors="replace").splitlines():
+            s = line.strip()
+            if not s or s.startswith("#") or s.startswith("[") or "=" not in s:
+                continue
+            k, v = s.split("=", 1)
+            k, v = k.strip(), v.strip()
+            if k in JOURNALD_KEYS:
+                settings[k] = v
+    except OSError:
+        pass
+    return {"settings": settings, "path": str(JOURNALD_DROPIN)}
+
+
+def journald_set(req: dict) -> dict:
+    updates = req.get("settings") or {}
+    if not isinstance(updates, dict):
+        raise Refused("settings must be an object")
+    clean = {}
+    for k, v in updates.items():
+        if k not in JOURNALD_KEYS:
+            raise Refused(f"unknown key: {k}")
+        v = str(v).strip()
+        allowed = JOURNALD_KEYS[k]
+        if allowed is not None:
+            if v not in allowed:
+                raise Refused(f"bad value for {k}")
+        else:
+            if not SIZE_RE.match(v):
+                raise Refused(f"bad value for {k}")
+        clean[k] = v
+    if clean:
+        content = "# Managed by shani-shell\n[Journal]\n" + "".join(f"{k}={v}\n" for k, v in clean.items())
+        JOURNALD_DROPIN.parent.mkdir(parents=True, exist_ok=True)
+        JOURNALD_DROPIN.write_text(content, encoding="utf-8")
+        os.chmod(JOURNALD_DROPIN, 0o644)
+    else:
+        try: JOURNALD_DROPIN.unlink()
+        except OSError: pass
+    subprocess.run(["systemctl", "restart", "systemd-journald"], capture_output=True, text=True, timeout=20)
+    return journald_get(req)
+
+
+def journald_vacuum(req: dict) -> dict:
+    mode = req.get("mode")
+    value = str(req.get("value", "")).strip()
+    if mode not in ("size", "time"):
+        raise Refused("mode must be size or time")
+    if mode == "size" and not SIZE_RE.match(value):
+        raise Refused("bad size")
+    if mode == "time" and not re.match(r"^\d+[smhdwMy]?$", value):
+        raise Refused("bad time")
+    flag = "--vacuum-size=" + value if mode == "size" else "--vacuum-time=" + value
+    r = subprocess.run(["journalctl", flag], capture_output=True, text=True, timeout=60)
+    if r.returncode != 0:
+        raise Refused((r.stderr or r.stdout).strip().splitlines()[-1][:200] or "vacuum failed")
+    return {"ok": True, "output": (r.stdout or "").strip()[-400:]}
+
+
 COMMANDS = {
     "guest": guest,
     "wakeup": wakeup,
@@ -797,6 +864,9 @@ COMMANDS = {
     "modprobe-blacklist-set": modprobe_blacklist_set,
     "modules-load-get": modules_load_get,
     "modules-load-set": modules_load_set,
+    "journald-get": journald_get,
+    "journald-set": journald_set,
+    "journald-vacuum": journald_vacuum,
 }
 
 
