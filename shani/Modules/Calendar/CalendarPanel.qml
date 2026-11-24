@@ -140,11 +140,30 @@ AppWindow {
     function isSameDay(a, b) {
         return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
     }
-    function hasEvents(day) {
-        return Agenda.events.some(e => {
+    function eventsOnDay(day) {
+        return Agenda.events.filter(e => {
             const s = new Date(e.start * 1000);
             return s.getFullYear() === month.getFullYear() && s.getMonth() === month.getMonth() && s.getDate() === day;
         });
+    }
+    function hasEvents(day) { return eventsOnDay(day).length > 0; }
+    // EDS events carry no "type": a holiday is an event on a calendar whose name
+    // says so (the usual "Holidays" subscription); every other event is a
+    // reminder. The cell paints both, as the CuboCore calendar plugin does.
+    readonly property int cellDotCap: 3
+    function isHolidayEvent(e) { return /holiday/i.test(String(e.calendar || "")); }
+    function cellReminders(day) { return eventsOnDay(day).filter(e => !isHolidayEvent(e)); }
+    function cellHolidays(day) { return eventsOnDay(day).filter(e => isHolidayEvent(e)); }
+    function cellDotCount(day) { return Math.min(cellDotCap, cellReminders(day).length); }
+    function cellOverflow(day) { return Math.max(0, cellReminders(day).length - cellDotCap); }
+    function cellA11yName(day) {
+        if (day <= 0) return "";
+        let s = Qt.formatDate(new Date(month.getFullYear(), month.getMonth(), day), "dddd d MMMM yyyy");
+        const r = cellReminders(day).length, h = cellHolidays(day).length;
+        if (r || h) s += ", " + Tr.t("has events");
+        if (r) s += ", " + Tr.t("Reminders") + ": " + r;
+        if (h) s += ", " + "Holiday" + ": " + h;
+        return s;
     }
     // title search lives on Agenda (so IPC `calendarSearch` uses the same box)
     readonly property var dayEvents: Agenda.events.filter(e => isSameDay(new Date(e.start * 1000), selectedDate))
@@ -849,7 +868,7 @@ AppWindow {
                         radius: Theme.px(8)
                         color: isSelected ? Theme.accent : isToday ? Theme.accentSoft : "transparent"
                         Accessible.role: isWeek ? Accessible.StaticText : Accessible.Button
-                        Accessible.name: isWeek ? Tr.t("Week %1").arg(modelData.week) : Qt.formatDate(new Date(win.month.getFullYear(), win.month.getMonth(), day), "dddd d MMMM yyyy") + (day > 0 && win.hasEvents(day) ? ", " + Tr.t("has events") : "")
+                        Accessible.name: isWeek ? Tr.t("Week %1").arg(modelData.week) : win.cellA11yName(day)
                         Text {
                             anchors.centerIn: parent
                             visible: parent.day > 0 || parent.isWeek
@@ -859,15 +878,42 @@ AppWindow {
                             font.pixelSize: Theme.px(11) * Theme.fontScale
                             font.weight: parent.isSelected || parent.isToday ? Font.DemiBold : Font.Normal
                         }
-                        Rectangle {
-                            visible: !parent.isWeek && win.hasEvents(parent.day)
+                        Row {
+                            // compact markers painted into the day cell itself;
+                            // decorative — the cell's Accessible.name carries it
+                            id: cellMarkers
+                            visible: !parent.isWeek && (win.cellReminders(parent.day).length > 0 || win.cellHolidays(parent.day).length > 0)
                             anchors.horizontalCenter: parent.horizontalCenter
                             anchors.bottom: parent.bottom
-                            anchors.bottomMargin: Theme.px(3)
-                            width: Theme.px(5)
-                            height: Theme.px(5)
-                            radius: 2.5
-                            color: parent.isSelected ? Theme.accentInk : Theme.accent
+                            anchors.bottomMargin: Theme.px(2)
+                            spacing: Theme.px(2)
+                            Accessible.ignored: true
+                            Repeater {
+                                model: win.cellDotCount(cellMarkers.parent.day)
+                                Rectangle {
+                                    width: Theme.px(5); height: Theme.px(5)
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    radius: width / 2
+                                    color: cellMarkers.parent.isSelected ? Theme.accentInk : Theme.accent
+                                    Accessible.ignored: true
+                                }
+                            }
+                            Text {
+                                visible: win.cellOverflow(cellMarkers.parent.day) > 0
+                                text: "+" + win.cellOverflow(cellMarkers.parent.day)
+                                color: cellMarkers.parent.isSelected ? Theme.accentInk : Theme.accent
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(8) * Theme.fontScale
+                                Accessible.ignored: true
+                            }
+                            Rectangle {
+                                visible: win.cellHolidays(cellMarkers.parent.day).length > 0
+                                width: Theme.px(5); height: Theme.px(5)
+                                anchors.verticalCenter: parent.verticalCenter
+                                rotation: 45
+                                color: cellMarkers.parent.isSelected ? Theme.accentInk : Theme.amber
+                                Accessible.ignored: true
+                            }
                         }
                         MouseArea {
                             visible: !parent.isWeek
@@ -882,6 +928,15 @@ AppWindow {
                         }
                     }
                 }
+            }
+            Text {
+                // legend for the cell markers above (the day cell is clickable)
+                visible: win.view === "month"
+                Layout.fillWidth: true
+                text: "● " + Tr.t("Reminders") + "    ◆ Holidays    +n more"
+                color: Theme.faint
+                font.family: Theme.font
+                font.pixelSize: Theme.px(10) * Theme.fontScale
             }
 
             // ---- week timetable: 7-day grid with hour rows -------------------
