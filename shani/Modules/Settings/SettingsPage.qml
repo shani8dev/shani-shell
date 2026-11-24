@@ -671,29 +671,21 @@ ColumnLayout {
                 }
 
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("On the desktop") }
-                SwitchRow { Layout.fillWidth: true; text: Tr.t("Clock"); hint: Tr.t("time, date and the next event"); checked: Array.from(page.d.desktopWidgets).indexOf("clock") >= 0
-                    onToggled: on => { const rest = Array.from(page.d.desktopWidgets).filter(w => w !== "clock"); page.d.desktopWidgets = on ? rest.concat(["clock"]) : rest }
-                }
-                SwitchRow { Layout.fillWidth: true; text: Tr.t("Now playing"); hint: Tr.t("art, title and a seek bar while something plays"); checked: Array.from(page.d.desktopWidgets).indexOf("media") >= 0
-                    onToggled: on => { const rest = Array.from(page.d.desktopWidgets).filter(w => w !== "media"); page.d.desktopWidgets = on ? rest.concat(["media"]) : rest }
-                }
-                SwitchRow { Layout.fillWidth: true; text: Tr.t("Weather"); hint: Tr.t("needs a city set just below"); checked: Array.from(page.d.desktopWidgets).indexOf("weather") >= 0
-                    onToggled: on => { const rest = Array.from(page.d.desktopWidgets).filter(w => w !== "weather"); page.d.desktopWidgets = on ? rest.concat(["weather"]) : rest }
-                }
-                SwitchRow { Layout.fillWidth: true; text: Tr.t("System monitor"); hint: Tr.t("cpu and memory levels, the network's throughput"); checked: Array.from(page.d.desktopWidgets).indexOf("stats") >= 0
-                    onToggled: on => { const rest = Array.from(page.d.desktopWidgets).filter(w => w !== "stats"); page.d.desktopWidgets = on ? rest.concat(["stats"]) : rest }
-                }
-                SwitchRow { Layout.fillWidth: true; text: Tr.t("Agenda"); hint: Tr.t("the next events from your calendar"); checked: Array.from(page.d.desktopWidgets).indexOf("agenda") >= 0
-                    onToggled: on => { const rest = Array.from(page.d.desktopWidgets).filter(w => w !== "agenda"); page.d.desktopWidgets = on ? rest.concat(["agenda"]) : rest }
-                }
-                SwitchRow { Layout.fillWidth: true; text: Tr.t("Battery"); hint: Tr.t("the charge and time left (on a laptop)"); checked: Array.from(page.d.desktopWidgets).indexOf("battery") >= 0
-                    onToggled: on => { const rest = Array.from(page.d.desktopWidgets).filter(w => w !== "battery"); page.d.desktopWidgets = on ? rest.concat(["battery"]) : rest }
-                }
-                SwitchRow { Layout.fillWidth: true; text: Tr.t("Note"); hint: Tr.t("your quick note from the control centre"); checked: Array.from(page.d.desktopWidgets).indexOf("note") >= 0
-                    onToggled: on => { const rest = Array.from(page.d.desktopWidgets).filter(w => w !== "note"); page.d.desktopWidgets = on ? rest.concat(["note"]) : rest }
-                }
-                SwitchRow { Layout.fillWidth: true; text: Tr.t("World clocks"); hint: Tr.t("the cities you picked under the calendar"); checked: Array.from(page.d.desktopWidgets).indexOf("clocks") >= 0
-                    onToggled: on => { const rest = Array.from(page.d.desktopWidgets).filter(w => w !== "clocks"); page.d.desktopWidgets = on ? rest.concat(["clocks"]) : rest }
+                // one catalogue row per widget: name, what it shows, what it
+                // needs, and the same toggle as before
+                Repeater {
+                    model: WidgetRegistry.catalog
+                    SwitchRow {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        text: Tr.t(WidgetRegistry.labelFor(modelData.id))
+                        hint: Tr.t(WidgetRegistry.descFor(modelData.id)) + (WidgetRegistry.noteFor(modelData.id) ? " · " + Tr.t(WidgetRegistry.noteFor(modelData.id)) : "")
+                        checked: Array.from(page.d.desktopWidgets).indexOf(modelData.id) >= 0
+                        onToggled: on => {
+                            const rest = Array.from(page.d.desktopWidgets).filter(w => w !== modelData.id);
+                            page.d.desktopWidgets = on ? rest.concat([modelData.id]) : rest;
+                        }
+                    }
                 }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Files on the desktop"); hint: Tr.t("what is in your Desktop folder - nothing shows while it is empty"); checked: page.d.desktopIcons; onToggled: on => page.d.desktopIcons = on }
                 SwitchRow { Layout.fillWidth: true; visible: page.d.desktopIcons; text: Tr.t("Use stacks"); hint: Tr.t("pile the files by kind - images, screenshots, documents …"); checked: page.d.deskStacks; onToggled: on => page.d.deskStacks = on }

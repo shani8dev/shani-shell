@@ -49,6 +49,8 @@ Variants {
             property real cardWidth: 220
             property real cardHeight: 120
             property string name: ""
+            // the catalogue answers what this card is, wherever it is placed
+            property string hint: WidgetRegistry.descFor(key)
             signal open()
             default property alias content: glass.data
             screen: scr.modelData
@@ -70,6 +72,7 @@ Variants {
                 Component.onCompleted: scr.place(glass, cw.key, cw.defaultX, cw.defaultY)
                 Accessible.role: Accessible.Button
                 Accessible.name: cw.name
+                Accessible.description: Tr.t(cw.hint)
                 Accessible.onPressAction: cw.open()
                 MouseArea {
                     id: dragArea
@@ -79,6 +82,9 @@ Variants {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: cw.open()
                     onReleased: if (dragArea.drag.active) scr.save(glass, cw.key)
+                }
+                Hint {
+                    text: Tr.t(WidgetRegistry.labelFor(cw.key)) + " · " + Tr.t(cw.hint)
                 }
             }
         }
@@ -102,7 +108,7 @@ Variants {
                 anchors.fill: parent
                 anchors.margins: Theme.px(14)
                 spacing: Theme.px(6)
-                Label { text: Tr.t("Coming up"); color: Theme.dim; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold }
+                Label { text: Tr.t(WidgetRegistry.labelFor("agenda")); color: Theme.dim; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold }
                 Label { visible: Agenda.upcoming.length === 0; text: Agenda.available ? Tr.t("Nothing in the calendar") : Tr.t("Add a calendar in Settings > Your account"); color: Theme.dim }
                 Repeater {
                     model: Agenda.upcoming.slice(0, 4)
@@ -160,7 +166,7 @@ Variants {
                 anchors.fill: parent
                 anchors.margins: Theme.px(14)
                 spacing: Theme.px(6)
-                Label { text: Tr.t("Note"); color: Theme.dim; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold }
+                Label { text: Tr.t(WidgetRegistry.labelFor("note")); color: Theme.dim; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold }
                 Text {
                     id: noteText
                     width: parent.width
@@ -178,7 +184,7 @@ Variants {
         // ---- world clocks
         Card {
             key: "clocks"
-            name: Tr.t("World clocks")
+            name: Tr.t(WidgetRegistry.labelFor("clocks"))
             defaultX: scr.sw - 260; defaultY: 420
             cardWidth: 236
             cardHeight: 44 + Math.max(1, WorldClock.clocks.length) * 26
@@ -188,7 +194,7 @@ Variants {
                 anchors.fill: parent
                 anchors.margins: Theme.px(14)
                 spacing: Theme.px(4)
-                Label { text: Tr.t("World clocks"); color: Theme.dim; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold }
+                Label { text: Tr.t(WidgetRegistry.labelFor("clocks")); color: Theme.dim; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold }
                 Label { visible: WorldClock.clocks.length === 0; text: Tr.t("Pick cities under the calendar"); color: Theme.dim }
                 Repeater {
                     model: WorldClock.clocks
