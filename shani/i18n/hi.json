@@ -1580,5 +1580,6 @@
  "Pinned screenshot": "पिन किया गया स्क्रीनशॉट",
  "Screenshot not found": "स्क्रीनशॉट नहीं मिला",
  "Erase": "मिटाएँ",
- "  1-5 colour  ·  Shift: straight line  ·  Z undo  ·  E erase  ·  S save  ·  Esc close": "  1-5 रंग  ·  Shift: सीधी रेखा  ·  Z पूर्ववत  ·  E मिटाएँ  ·  S सहेजें  ·  Esc बंद करें"
+ "  1-5 colour  ·  Shift: straight line  ·  Z undo  ·  E erase  ·  S save  ·  Esc close": "  1-5 रंग  ·  Shift: सीधी रेखा  ·  Z पूर्ववत  ·  E मिटाएँ  ·  S सहेजें  ·  Esc बंद करें",
+ "Use a file name, not a path": "फ़ाइल का नाम दें, पथ नहीं"
 }
