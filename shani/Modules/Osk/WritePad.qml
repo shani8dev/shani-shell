@@ -10,7 +10,9 @@ import "Handwriting.js" as HW
 
 Item {
     id: pad
-    readonly property int rows: 2
+    // compact mode rules one row instead of two: less height, and everything
+    // written still lands in one line (no row breaks to lose)
+    readonly property int rows: Osk.compact ? 1 : 2
     readonly property real rowHeight: height / rows
     property var strokes: []               // [[{x, y, p}]]
     property var current: []

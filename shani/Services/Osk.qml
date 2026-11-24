@@ -37,6 +37,51 @@ Singleton {
     }
     function used() { if (ctrl === 1) ctrl = 0; if (alt === 1) alt = 0; }
 
+    // ---- the keyboard's own controls ---------------------------------------
+    // The ⚙ key on the keyboard is the only control (Settings has no OSK page).
+    // Settings.data's JsonAdapter only accepts keys declared in Common/Settings.qml,
+    // which the keyboard does not own, so these three live in a sibling file in
+    // the same config dir. Defaults are declared on the adapter below.
+    readonly property string prefsDir: {
+        const p = Settings.path;
+        return p.substring(0, p.lastIndexOf("/"));
+    }
+    readonly property string prefsPath: root.prefsDir + "/osk.json"
+    FileView {
+        id: prefsFile
+        path: root.prefsPath
+        atomicWrites: true
+        printErrors: false
+        JsonAdapter {
+            id: prefs
+            property string size: "fixed"
+            property real panelOpacity: 1
+            property bool suggestions: true
+        }
+    }
+    property string size: prefs.size === "compact" ? "compact" : "fixed"
+    property real panelOpacity: {
+        const v = Number(prefs.panelOpacity);
+        return v >= 0.55 && v <= 1 ? v : 1;
+    }
+    property bool suggestions: prefs.suggestions !== false
+    readonly property bool compact: size === "compact"
+    function savePrefs() {
+        prefs.size = root.size;
+        prefs.panelOpacity = root.panelOpacity;
+        prefs.suggestions = root.suggestions;
+        Quickshell.execDetached(["mkdir", "-p", root.prefsDir]);
+        prefsFile.writeAdapter();
+    }
+    function toggleSize() { root.size = compact ? "fixed" : "compact"; savePrefs(); }
+    function cycleOpacity() {
+        const steps = [1, 0.85, 0.7];
+        const at = steps.findIndex(v => Math.abs(v - root.panelOpacity) < 0.01);
+        root.panelOpacity = steps[(at + 1) % steps.length];
+        savePrefs();
+    }
+    function toggleSuggestions() { root.suggestions = !root.suggestions; savePrefs(); }
+
     // handwriting: rows of strokes read on this machine (Tesseract), typed in order
     readonly property string writeTool: Quickshell.env("SHANI_HANDWRITING_TOOL") || "/usr/lib/shani-shell/handwriting.py"
     // the Tesseract language handwriting is read in (WriteLang.js: the hand-made ones,
@@ -75,6 +120,59 @@ Singleton {
         }
     }
     property string typed: ""               // the last few characters sent (for tests and smart matras)
+
+    // ---- word suggestions --------------------------------------------------
+    // A bounded, built-in list: no download, no dictionary service, no learning.
+    // It only knows these common English words, and only the English layout.
+    readonly property var suggestionWords: (
+        "about above after again against all almost along already also always among another any are around "
+        + "ask back be because been before being below best between both but by call can come could day "
+        + "different do does done down during each early easy end enough even ever every few find first "
+        + "five for from get give go good got great had has have he her here hello help him his how if in "
+        + "into is it its just keep kind know last late learn left less let like little long look made make many may "
+        + "me might more most much must my need never new next no not now of off often on once one only "
+        + "or other our out over own people perhaps place put quite rather right said same say see seem "
+        + "she should show since small so some someone something still such take than that the their them "
+        + "then there these they thing think this those though through time to together too try two under "
+        + "until up us use very want was way we well were what when where which while who why will with "
+        + "without would write year yes yet you your"
+    ).split(" ")
+    readonly property int maxSuggestions: 5
+    property string dismissedWord: ""       // the × hides this word, not every word
+
+    function currentWord() {
+        const m = String(typed).match(/[A-Za-z]+$/);
+        return m ? m[0].toLowerCase() : "";
+    }
+    function suggestionsFor(word) {
+        const w = String(word || "").toLowerCase();
+        if (w.length < 2)
+            return [];
+        const out = root.suggestionWords.filter(x => x.length > w.length && x.startsWith(w));
+        out.sort((a, b) => a.length - b.length || a.localeCompare(b));
+        return out.slice(0, root.maxSuggestions);
+    }
+    function dismissSuggestions() { root.dismissedWord = root.currentWord(); }
+    // Replace the word under the cursor. Remote mode edits its own draft;
+    // otherwise wtype deletes the word and types the replacement in one go.
+    function applySuggestion(word) {
+        const w = root.currentWord();
+        if (!w || !word)
+            return;
+        if (remote) {
+            draft = draft.slice(0, draft.length - w.length) + word + " ";
+            typed = draft.slice(-16);
+        } else {
+            const args = ["wtype"];
+            for (let i = 0; i < w.length; i++)
+                args.push("-k", "BackSpace");
+            args.push("--", word + " ");
+            Quickshell.execDetached(args);
+            typed = (typed.slice(0, typed.length - w.length) + word + " ").slice(-16);
+        }
+        root.dismissedWord = "";
+        shift = false;
+    }
 
     // Layouts: "en" and "mr" are drawn by hand (mr with smart matras); any
     // other entry is an xkb layout id ("in+tam", "ru", "ara" …), generated
@@ -167,6 +265,7 @@ Singleton {
         }
         shown = !shown;
         typed = "";
+        dismissedWord = "";
         padDriven = false;
         remote = false;
     }
@@ -183,6 +282,7 @@ Singleton {
             return;                          // the lock screen has its own keyboard
         draft = "";
         typed = "";
+        dismissedWord = "";
         remote = true;
         padDriven = true;
         shown = true;

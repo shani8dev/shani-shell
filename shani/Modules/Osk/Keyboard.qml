@@ -19,7 +19,12 @@ PanelWindow {
     // remote mode takes the keys (arrows, OK, Back); otherwise never, so the
     // app's field keeps the focus and the keys type into it
     WlrLayershell.keyboardFocus: Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-    implicitHeight: Math.min(Osk.remote ? 360 : 300, screen ? Math.floor(screen.height * 0.6) : 300)
+    // compact keeps every key but makes each row shorter; the fixed size is
+    // the original full keyboard. Remote keeps its own taller draft line.
+    implicitHeight: {
+        const full = Osk.remote ? 360 : (Osk.compact ? 232 : 300);
+        return Math.min(full, screen ? Math.floor(screen.height * 0.6) : full);
+    }
     exclusiveZone: implicitHeight
     Binding { target: Osk; property: "height"; value: win.visible ? win.height : 0 }
     Binding { target: Osk; property: "output"; value: win.visible && win.screen ? win.screen.name : "" }
@@ -86,6 +91,8 @@ PanelWindow {
 
     // the language list, over the keys: each language, and adding one in Settings
     property bool langMenu: false
+    // the keyboard's own size / opacity / suggestions controls (Settings has no OSK page)
+    property bool oskMenu: false
     function langName(id) { return (layouts[id] && layouts[id].name) || (Osk.xkb[id] && Osk.xkb[id].name) || id; }
 
     function tap(k) {
@@ -164,7 +171,7 @@ PanelWindow {
             else
                 win.cursor.tapped();
         }
-        function onShownChanged() { win.cursor = null; win.cursorAt = Qt.point(0, 0); }
+        function onShownChanged() { win.cursor = null; win.cursorAt = Qt.point(0, 0); win.langMenu = false; win.oskMenu = false; }
     }
 
     // The remote draft is drawn by the OSK itself, so it never inherits the
@@ -224,6 +231,43 @@ PanelWindow {
         anchors.margins: Theme.px(8)
         anchors.bottomMargin: Theme.px(6)
         radius: Theme.radiusLarge
+        opacity: Osk.panelOpacity
+        Behavior on opacity { NumberAnimation { duration: Theme.mot(140) } }
+
+        Glass {
+            visible: win.oskMenu
+            z: 6
+            strong: true
+            radius: Theme.px(14)
+            x: 12
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: Theme.px(70)
+            width: Theme.px(320)
+            height: menuCol.implicitHeight + 16
+            Column {
+                id: menuCol
+                x: 8; y: 8
+                width: parent.width - 16
+                ListRow {
+                    width: menuCol.width
+                    icon: "input-keyboard"
+                    title: Osk.compact ? Tr.t("Keyboard: compact") : Tr.t("Keyboard: fixed")
+                    onClicked: Osk.toggleSize()
+                }
+                ListRow {
+                    width: menuCol.width
+                    icon: "preferences-desktop"
+                    title: Tr.t("Keyboard opacity: %1%", Math.round(Osk.panelOpacity * 100))
+                    onClicked: Osk.cycleOpacity()
+                }
+                ListRow {
+                    width: menuCol.width
+                    icon: "edit-find"
+                    title: Osk.suggestions ? Tr.t("Word suggestions: on") : Tr.t("Word suggestions: off")
+                    onClicked: Osk.toggleSuggestions()
+                }
+            }
+        }
 
         Glass {
             visible: win.langMenu
@@ -262,8 +306,8 @@ PanelWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: Theme.px(10)
-            spacing: Theme.px(6)
+            anchors.margins: Theme.px(Osk.compact ? 6 : 10)
+            spacing: Theme.px(Osk.compact ? 4 : 6)
 
             // remote mode: what is being typed, before it goes to the app
             Rectangle {
@@ -281,6 +325,45 @@ PanelWindow {
                     color: Osk.draft === "" ? Theme.dim : Theme.text
                     font.family: Theme.font
                     font.pixelSize: (Osk.draft === "" ? 14 : 20) * Theme.fontScale
+                }
+            }
+
+            // inline word suggestions, above the keys: a small bounded English
+            // list in Osk, not a dictionary service. The × hides this word only.
+            Rectangle {
+                id: suggestionBar
+                readonly property string word: Osk.currentWord()
+                readonly property var picks: Osk.suggestionsFor(word)
+                visible: Osk.suggestions && Osk.lang === "en" && Osk.page === "letters" &&
+                         Osk.dismissedWord !== word && picks.length > 0
+                Layout.fillWidth: true
+                Layout.preferredHeight: visible ? Theme.px(34) : 0
+                radius: Theme.px(10)
+                color: Theme.alpha(Theme.text, 0.04)
+                border.color: Theme.stroke
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: Theme.px(3)
+                    spacing: Theme.px(4)
+                    Repeater {
+                        model: suggestionBar.picks
+                        Key {
+                            required property string modelData
+                            Layout.preferredWidth: Theme.px(130)
+                            Layout.fillHeight: true
+                            label: modelData
+                            accessibleName: Tr.t("Use %1", modelData)
+                            onTapped: Osk.applySuggestion(modelData)
+                        }
+                    }
+                    Item { Layout.fillWidth: true }
+                    Key {
+                        Layout.preferredWidth: Theme.px(34)
+                        Layout.fillHeight: true
+                        label: "×"
+                        accessibleName: Tr.t("Dismiss suggestions")
+                        onTapped: Osk.dismissSuggestions()
+                    }
                 }
             }
 
@@ -346,6 +429,8 @@ PanelWindow {
                 Key { Layout.preferredWidth: Theme.px(80); Layout.fillHeight: true; label: "WRITE"; accent: Osk.page === "write"; onTapped: Osk.page = Osk.page === "write" ? "letters" : "write"; accessibleName: Tr.t("Write by hand") }
                 Key { Layout.preferredWidth: Theme.px(80); Layout.fillHeight: true; label: Osk.ctrl === 2 ? "Ctrl ●" : "Ctrl"; accent: Osk.ctrl > 0; onTapped: Osk.tapMod("ctrl") }
                 Key { Layout.preferredWidth: Theme.px(80); Layout.fillHeight: true; label: Osk.alt === 2 ? "Alt ●" : "Alt"; accent: Osk.alt > 0; onTapped: Osk.tapMod("alt") }
+                // size, opacity and suggestions, without leaving the keyboard
+                Key { Layout.preferredWidth: Theme.px(70); Layout.fillHeight: true; label: "⚙"; accessibleName: Tr.t("Keyboard options"); accent: win.oskMenu; onTapped: { win.langMenu = false; win.oskMenu = !win.oskMenu; } }
                 Key { Layout.preferredWidth: Theme.px(90); Layout.fillHeight: true; label: "⇧"; visible: Osk.isXkb; accent: Osk.shift; onTapped: Osk.shift = !Osk.shift }
                 // the globe (Gboard's): a tap - the next language, or the list when there is
                 // only one (so adding one is never hidden); held - the list
@@ -356,8 +441,8 @@ PanelWindow {
                     label: Osk.languages.length > 1 ? "LANG " + win.nextSample : "LANG"
                     accessibleName: Tr.t("Keyboard language")
                     holdable: true
-                    onTapped: Osk.languages.length > 1 ? Osk.nextLanguage() : (win.langMenu = !win.langMenu)
-                    onHeld: win.langMenu = true
+                    onTapped: { win.oskMenu = false; Osk.languages.length > 1 ? Osk.nextLanguage() : (win.langMenu = !win.langMenu); }
+                    onHeld: { win.oskMenu = false; win.langMenu = true; }
                 }
                 // voice typing: tap, speak, tap again — the words land where the keys would
                 Key {
