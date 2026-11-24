@@ -111,3 +111,10 @@ def test_derive_of_the_preset_gives_a_readable_accent_ink():
         }
         assert case["inkIsBlueSlotInk"]
         assert case["ratio"] >= 4.5, case
+
+
+def test_preset_is_selectable_not_just_previewed():
+    """The swatch must apply, not only preview: Theme.accents needs the key."""
+    theme = (ROOT / "shani/Common/Theme.qml").read_text(encoding="utf-8")
+    assert '"CuboCore blue":' in theme
+    assert "#12608a" in theme and "#0986d3" in theme

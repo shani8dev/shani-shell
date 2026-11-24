@@ -84,7 +84,10 @@ Singleton {
         yellow: ["#c88800", "#f8e45c"],
         orange: ["#bc3e18", "#ff7f50"],   // the brand amber: deep on light, Saturn coral on dark
         red: ["#e01b24", "#f66151"],
-        pink: ["#d56199", "#f49ac1"], purple: ["#9141ac", "#dc8add"], slate: ["#6f8396", "#9aa8b8"]
+        pink: ["#d56199", "#f49ac1"], purple: ["#9141ac", "#dc8add"], slate: ["#6f8396", "#9aa8b8"],
+        // CuboCore blue: paperde Dark.conf accent #12608a / highlight #0986d3,
+        // previewed by Accents.js PRESETS ("CuboCore blue") and selectable here.
+        "CuboCore blue": ["#12608a", "#0986d3"]
     })
     readonly property color chosen: mix((accents[Settings.data.accentName] || accents.orange)[0], (accents[Settings.data.accentName] || accents.orange)[1])
     readonly property color accent: Settings.data.accentFromWallpaper ? picked : chosen
