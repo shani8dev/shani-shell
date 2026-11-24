@@ -247,7 +247,6 @@ AppWindow {
         return rows;
     }
     readonly property var previewRows: win.markdownPreview ? win.markdownRows(edit.text) : []
-    Timer { id: dbgTimer; interval: 500; repeat: true; running: win.markdownPreview; onTriggered: console.log("DBGX", win.previewRows.length, mdFlick.width, mdFlick.height, mdFlick.visible, mdColumn.width, mdColumn.height, mdColRepeater.count) }
     // only local navigation targets: never hand a document's javascript: to the shell
     function openMarkdownLink(url) {
         if (/^(https?:\/\/|mailto:)/i.test(url)) Qt.openUrlExternally(url);
@@ -1244,82 +1243,6 @@ AppWindow {
                         }
                     }
 
-                    // ---- rendered Markdown: a mode switch over the same area -----
-                    Flickable {
-                        id: mdFlick
-                        visible: win.markdownPreview && TextDocs.docs.length > 0
-                        focus: win.markdownPreview
-                        activeFocusOnTab: true
-                        anchors {
-                            left: gutter.right; right: parent.right; top: parent.top; bottom: parent.bottom
-                            margins: Theme.px(8); leftMargin: gutter.visible ? 0 : 8
-                            rightMargin: rightAnchor.width + Theme.px(8)
-                        }
-                        contentWidth: mdColumn.width
-                        contentHeight: mdColumn.height
-                        clip: true
-                        boundsBehavior: Flickable.StopAtBounds
-                        Accessible.role: Accessible.Document
-                        Accessible.name: Tr.t("Markdown preview")
-                        Accessible.description: Tr.t("Rendered view of the current document; Page Up and Page Down scroll")
-                        Keys.onPressed: e => {
-                            let dy = 0;
-                            if (e.key === Qt.Key_PageDown) dy = height * 0.8;
-                            else if (e.key === Qt.Key_PageUp) dy = -height * 0.8;
-                            else if (e.key === Qt.Key_Down) dy = Theme.px(40);
-                            else if (e.key === Qt.Key_Up) dy = -Theme.px(40);
-                            else return;
-                            contentY = Math.max(0, Math.min(contentHeight - height, contentY + dy));
-                            e.accepted = true;
-                        }
-                        Column {
-                            id: mdColumn
-                            width: mdFlick.width
-                            spacing: Theme.px(4)
-                            Repeater {
-                                id: mdColRepeater
-                                model: win.previewRows
-                                Item {
-                                    required property var modelData
-                                    width: mdColumn.width
-                                    readonly property int indent: modelData.depth * Theme.px(16)
-                                    height: modelData.kind === "blank" ? Theme.px(8)
-                                          : modelData.kind === "rule" ? Theme.px(12)
-                                          : rowText.implicitHeight + (modelData.kind === "code" || modelData.kind === "quote" ? Theme.px(12) : 0)
-                                    Rectangle {
-                                        anchors.fill: parent
-                                        visible: modelData.kind === "code" || modelData.kind === "quote"
-                                        color: Theme.hover
-                                        radius: Theme.radiusSmall
-                                    }
-                                    Rectangle {
-                                        visible: modelData.kind === "quote"
-                                        x: indent; y: Theme.px(4); width: 2; height: parent.height - Theme.px(8)
-                                        color: Theme.accent
-                                    }
-                                    Text {
-                                        id: rowText
-                                        anchors {
-                                            left: parent.left; leftMargin: Theme.px(4) + indent
-                                            right: parent.right; rightMargin: Theme.px(4)
-                                            verticalCenter: parent.verticalCenter
-                                        }
-                                        text: modelData.html
-                                        textFormat: Text.RichText
-                                        wrapMode: Text.Wrap
-                                        color: modelData.kind === "quote" ? Theme.dim : Theme.text
-                                        font.family: modelData.mono ? Theme.mono : Theme.font
-                                        font.pixelSize: win.fontSize * Theme.fontScale * modelData.size
-                                        font.bold: !!modelData.bold
-                                        Accessible.role: modelData.kind === "heading" ? Accessible.Heading : Accessible.StaticText
-                                        Accessible.name: modelData.html.replace(/<[^>]*>/g, "")
-                                        onLinkActivated: url => win.openMarkdownLink(url)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
                     // ---- right dock: split reading pane + line overview ---------
                     Item {
                         id: rightAnchor
@@ -1408,6 +1331,86 @@ AppWindow {
                                     const line = Math.max(1, Math.min(edit.lineCount,
                                         Math.round(mouseY / Math.max(1, minimap.height) * edit.lineCount)));
                                     win.goToLine(line);
+                                }
+                            }
+                        }
+                    }
+                }
+                // ---- rendered Markdown: a mode switch over the same area -----
+                Flickable {
+                    id: mdFlick
+                    visible: win.markdownPreview && TextDocs.docs.length > 0
+                    focus: win.markdownPreview
+                    activeFocusOnTab: true
+                    anchors {
+                        left: gutter.right; right: parent.right; top: parent.top; bottom: parent.bottom
+                        margins: Theme.px(8); leftMargin: gutter.visible ? 0 : 8
+                        rightMargin: rightAnchor.width + Theme.px(8)
+                    }
+                    contentWidth: mdColumn.width
+                    contentHeight: mdColumn.height
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    Accessible.role: Accessible.Document
+                    Accessible.name: Tr.t("Markdown preview")
+                    Accessible.description: Tr.t("Rendered view of the current document; Page Up and Page Down scroll")
+                    Keys.onPressed: e => {
+                        let dy = 0;
+                        if (e.key === Qt.Key_PageDown) dy = height * 0.8;
+                        else if (e.key === Qt.Key_PageUp) dy = -height * 0.8;
+                        else if (e.key === Qt.Key_Down) dy = Theme.px(40);
+                        else if (e.key === Qt.Key_Up) dy = -Theme.px(40);
+                        else return;
+                        contentY = Math.max(0, Math.min(contentHeight - height, contentY + dy));
+                        e.accepted = true;
+                    }
+                    Column {
+                        id: mdColumn
+                        width: mdFlick.width
+                        spacing: Theme.px(4)
+                        Repeater {
+                            model: win.previewRows
+                            Item {
+                                required property var modelData
+                                width: mdColumn.width
+                                readonly property int indent: modelData.depth * Theme.px(16)
+                                height: modelData.kind === "blank" ? Theme.px(8)
+                                      : modelData.kind === "rule" ? Theme.px(12)
+                                      : rowText.implicitHeight + (modelData.kind === "code" || modelData.kind === "quote" ? Theme.px(12) : 0)
+                                Rectangle {
+                                    anchors.fill: parent
+                                    visible: modelData.kind === "code" || modelData.kind === "quote"
+                                    color: Theme.hover
+                                    radius: Theme.radiusSmall
+                                }
+                                Rectangle {
+                                    visible: modelData.kind === "quote"
+                                    x: indent; y: Theme.px(4); width: 2; height: parent.height - Theme.px(8)
+                                    color: Theme.accent
+                                }
+                                Rectangle {
+                                    visible: modelData.kind === "rule"
+                                    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
+                                    height: 1
+                                    color: Theme.border
+                                }
+                                Text {
+                                    id: rowText
+                                    anchors {
+                                        left: parent.left; leftMargin: Theme.px(4) + indent
+                                        right: parent.right; rightMargin: Theme.px(4)
+                                        verticalCenter: parent.verticalCenter
+                                    }
+                                    text: modelData.html
+                                    textFormat: Text.RichText
+                                    wrapMode: Text.Wrap
+                                    color: modelData.kind === "quote" ? Theme.dim : Theme.text
+                                    font.family: modelData.mono ? Theme.mono : Theme.font
+                                    font.pixelSize: win.fontSize * Theme.fontScale * modelData.size
+                                    font.bold: !!modelData.bold
+                                    Accessible.role: modelData.kind === "heading" ? Accessible.Heading : Accessible.StaticText
+                                    Accessible.name: modelData.html.replace(/<[^>]*>/g, "")
+                                    onLinkActivated: url => win.openMarkdownLink(url)
                                 }
                             }
                         }
