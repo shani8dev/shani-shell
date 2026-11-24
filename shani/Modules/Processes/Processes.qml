@@ -147,7 +147,10 @@ AppWindow {
             }
         }
         // roots: ppid <= 1 (init/systemd) or ppid not in our list
-        const roots = win.sortRows(procs.filter(p => p.ppid <= 1 || !byPid[p.ppid]));
+        // a root is any process whose parent is not in the list. `p.ppid <= 1`
+        // also matched every child of PID 1, listing them once flat and once
+        // under systemd; byPid has no 0 entry, so PID 1 itself stays a root.
+        const roots = win.sortRows(procs.filter(p => !byPid[p.ppid]));
         for (const p of roots) {
             out.push({ p: p, indent: 0 });
             walk(1, p.pid);
@@ -234,7 +237,7 @@ AppWindow {
             SectionTitle {
                 Layout.fillWidth: true
                 Layout.margins: Theme.px(4)
-                text: "System overview"
+                text: Tr.t("System overview")
                 Accessible.name: Tr.t("System info")
             }
             RowLayout {

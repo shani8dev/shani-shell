@@ -47,6 +47,7 @@ AppWindow {
         IconButton { size: Theme.px(30); icon: "applications-graphics"; tip: Tr.t("Syntax colours"); on: win.colours; onClicked: { win.colours = !win.colours; Settings.data.textEditorColours = win.colours; } },
         IconButton { size: Theme.px(30); icon: "zoom-out"; tip: Tr.t("Smaller text") + " (Ctrl+-)"; onClicked: win.fontSize = Math.max(8, win.fontSize - 1) },
         IconButton { size: Theme.px(30); icon: "zoom-in"; tip: Tr.t("Larger text") + " (Ctrl++)"; onClicked: win.fontSize = Math.min(28, win.fontSize + 1) },
+        IconButton { size: Theme.px(30); icon: "text-x-generic"; tip: Tr.t("Markdown preview") + " (Ctrl+Shift+M)"; keys: "Ctrl+Shift+M"; accessibleName: Tr.t("Markdown preview"); on: win.markdownPreview; onClicked: win.toggleMarkdownPreview() },
         IconButton { size: Theme.px(30); icon: "preferences-desktop-font"; tip: Tr.t("Editor font"); onClicked: fontDialog.open() }
     ]
     implicitWidth: Theme.px(1000)
@@ -83,6 +84,7 @@ AppWindow {
     }
     property bool finding: false
     property bool replacing: false
+    property bool markdownPreview: false   // rendered view of the current document (Ctrl+Shift+M)
     // find options
     property bool caseSensitive: false
     property bool wholeWord: false
@@ -134,11 +136,37 @@ AppWindow {
 
     // ---- typing helpers: auto-close brackets/quotes and smart indent ----------
     function closeOf(ch) { return ch === "(" ? ")" : ch === "[" ? "]" : ch === "{" ? "}" : ch; }
+    // keep the file's own indent unit: a tab-indented file gets tabs back
+    function indentUnit(indent) { return indent.indexOf("\t") >= 0 ? "\t" : "    "; }
+    // what Enter inserts: the line's leading whitespace, one level deeper after
+    // an opener; if a closer is already on the next line, leave an empty body
+    function indentOnEnter(line, next) {
+        const indent = (line.match(/^[ \t]*/) || [""])[0];
+        const extra = /[\{\[\(]\s*$/.test(line) ? win.indentUnit(indent) : "";
+        if (extra && (next === "}" || next === "]" || next === ")"))
+            return "\n" + indent + extra + "\n" + indent;
+        return "\n" + indent + extra;
+    }
     function handleAutoclose(e) {
         const t = edit.text, p = edit.cursorPosition, c = e.text;
-        if (c.length === 1 && "([{\"'".indexOf(c) >= 0) {
-            edit.insert(p, c + closeOf(c));
+        const a = edit.selectionStart, b = edit.selectionEnd;
+        if (c.length === 1 && ")]}".indexOf(c) >= 0 && b === a && t.charAt(p) === c) {
+            // stepping over an auto-inserted closer must not stack another one
             edit.cursorPosition = p + 1;
+            e.accepted = true;
+            return true;
+        }
+        if (c.length === 1 && "([{\"'".indexOf(c) >= 0) {
+            const close = closeOf(c);
+            if (b > a) {
+                // wrap the selection instead of throwing it behind the pair
+                edit.insert(b, close);
+                edit.insert(a, c);
+                edit.select(a + 1, b + 1);
+            } else {
+                edit.insert(p, c + close);
+                edit.cursorPosition = p + 1;
+            }
             e.accepted = true;
             return true;
         }
@@ -152,21 +180,81 @@ AppWindow {
         }
         if (e.key === Qt.Key_Return && !(e.modifiers & Qt.ControlModifier) && !(e.modifiers & Qt.ShiftModifier)) {
             const lineStart = t.lastIndexOf("\n", p - 1) + 1;
-            const line = t.slice(lineStart, p);
-            const indent = (line.match(/^[ \t]*/) || [""])[0];
-            const extra = /[\{\[\(]\s*$/.test(line) ? "    " : "";
-            const next = t.charAt(p);
-            if (extra && (next === "}" || next === "]" || next === ")")) {
-                edit.insert(p, "\n" + indent + extra + "\n" + indent);
-                edit.cursorPosition = p + 1 + indent.length + extra.length;
-            } else {
-                edit.insert(p, "\n" + indent + extra);
-                edit.cursorPosition = p + 1 + indent.length + extra.length;
-            }
+            const ins = win.indentOnEnter(t.slice(lineStart, p), t.charAt(p));
+            const bodyEnd = ins.indexOf("\n", 1);   // caret stops before a pre-existing closer
+            edit.insert(p, ins);
+            edit.cursorPosition = p + (bodyEnd >= 0 ? bodyEnd : ins.length);
             e.accepted = true;
             return true;
         }
         return false;
+    }
+
+    // ---- Markdown preview: a dependency-free subset, rendered as plain rows ---
+    // Escaped first so a document can never inject its own tags. Links are last
+    // so emphasis inside their label is handled, and their href stays escaped.
+    function markdownInline(s) {
+        let out = String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
+        out = out.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+        out = out.replace(/(^|[^*])\*([^*]+)\*/g, "$1<i>$2</i>");
+        out = out.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2">$1</a>');
+        return out;
+    }
+    function mdRow(kind, html, extra) {
+        const row = { kind: kind, html: html, level: 0, depth: 0, size: 1, mono: false };
+        if (extra) for (const key in extra) row[key] = extra[key];
+        return row;
+    }
+    // headings, paragraphs, -/* / 1. lists, quotes, fenced code, rules, blanks
+    function markdownRows(text) {
+        const rows = [];
+        const lines = String(text).split("\n");
+        let fenced = false;
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (/^\s*```/.test(line)) {
+                fenced = !fenced;
+                rows.push(mdRow("blank", ""));
+                continue;
+            }
+            if (fenced) { rows.push(mdRow("code", markdownInline(line), { mono: true, size: 0.92 })); continue; }
+            if (line.trim() === "") { rows.push(mdRow("blank", "")); continue; }
+            const heading = line.match(/^(#{1,6})\s+(.*)$/);
+            if (heading) {
+                const sizes = [1.7, 1.45, 1.25, 1.12, 1.04, 1];
+                rows.push(mdRow("heading", markdownInline(heading[2]),
+                                { level: heading[1].length, size: sizes[heading[1].length - 1], bold: true }));
+                continue;
+            }
+            if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) { rows.push(mdRow("rule", "")); continue; }
+            const bullet = line.match(/^(\s*)[-+*]\s+(.*)$/);
+            if (bullet) {
+                rows.push(mdRow("list", "• " + markdownInline(bullet[2]),
+                                { depth: Math.min(4, Math.floor(bullet[1].length / 2)) }));
+                continue;
+            }
+            const ordered = line.match(/^(\s*)(\d+)[.)]\s+(.*)$/);
+            if (ordered) {
+                rows.push(mdRow("list", ordered[2] + ". " + markdownInline(ordered[3]),
+                                { depth: Math.min(4, Math.floor(ordered[1].length / 2)) }));
+                continue;
+            }
+            const quote = line.match(/^\s*>\s?(.*)$/);
+            if (quote) { rows.push(mdRow("quote", markdownInline(quote[1]))); continue; }
+            rows.push(mdRow("para", markdownInline(line)));
+        }
+        return rows;
+    }
+    readonly property var previewRows: win.markdownPreview ? win.markdownRows(edit.text) : []
+    Timer { id: dbgTimer; interval: 500; repeat: true; running: win.markdownPreview; onTriggered: console.log("DBGX", win.previewRows.length, mdFlick.width, mdFlick.height, mdFlick.visible, mdColumn.width, mdColumn.height, mdColRepeater.count) }
+    // only local navigation targets: never hand a document's javascript: to the shell
+    function openMarkdownLink(url) {
+        if (/^(https?:\/\/|mailto:)/i.test(url)) Qt.openUrlExternally(url);
+    }
+    function toggleMarkdownPreview() {
+        win.markdownPreview = !win.markdownPreview;
+        if (!win.markdownPreview) edit.forceActiveFocus();
     }
 
     // ---- multiple cursors / column selection ----------------------------------
@@ -560,6 +648,7 @@ AppWindow {
         else if (e.key === Qt.Key_H) { win.finding = true; win.replacing = true; if (edit.selectedText !== "") findField.text = edit.selectedText; findField.input.forceActiveFocus(); }
         else if (e.key === Qt.Key_B) win.toggleBookmark();
         else if (e.key === Qt.Key_G) win.openGoto();
+        else if (e.key === Qt.Key_M && shift) win.toggleMarkdownPreview();
         else if (e.key === Qt.Key_Plus || e.key === Qt.Key_Equal) win.fontSize = Math.min(28, win.fontSize + 1);
         else if (e.key === Qt.Key_Minus) win.fontSize = Math.max(8, win.fontSize - 1);
         else if (e.key === Qt.Key_0) win.fontSize = 13;
@@ -994,7 +1083,7 @@ AppWindow {
                 // line numbers: beside unwrapped text, where a line is a row
                 Item {
                     id: gutter
-                    visible: win.lineNumbers
+                    visible: win.lineNumbers && !win.markdownPreview
                     width: visible ? numbers.implicitWidth + 16 : 0
                     anchors { left: sidebar.right; top: parent.top; bottom: parent.bottom }
                     clip: true
@@ -1020,7 +1109,7 @@ AppWindow {
                 }
                 Flickable {
                     id: flick
-                    visible: TextDocs.docs.length > 0
+                    visible: TextDocs.docs.length > 0 && !win.markdownPreview
                     anchors {
                         left: gutter.right; right: parent.right; top: parent.top; bottom: parent.bottom
                         margins: Theme.px(8); leftMargin: gutter.visible ? 0 : 8
@@ -1152,6 +1241,82 @@ AppWindow {
                             color: Theme.accent
                             visible: edit.activeFocus
                             z: 5
+                        }
+                    }
+
+                    // ---- rendered Markdown: a mode switch over the same area -----
+                    Flickable {
+                        id: mdFlick
+                        visible: win.markdownPreview && TextDocs.docs.length > 0
+                        focus: win.markdownPreview
+                        activeFocusOnTab: true
+                        anchors {
+                            left: gutter.right; right: parent.right; top: parent.top; bottom: parent.bottom
+                            margins: Theme.px(8); leftMargin: gutter.visible ? 0 : 8
+                            rightMargin: rightAnchor.width + Theme.px(8)
+                        }
+                        contentWidth: mdColumn.width
+                        contentHeight: mdColumn.height
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        Accessible.role: Accessible.Document
+                        Accessible.name: Tr.t("Markdown preview")
+                        Accessible.description: Tr.t("Rendered view of the current document; Page Up and Page Down scroll")
+                        Keys.onPressed: e => {
+                            let dy = 0;
+                            if (e.key === Qt.Key_PageDown) dy = height * 0.8;
+                            else if (e.key === Qt.Key_PageUp) dy = -height * 0.8;
+                            else if (e.key === Qt.Key_Down) dy = Theme.px(40);
+                            else if (e.key === Qt.Key_Up) dy = -Theme.px(40);
+                            else return;
+                            contentY = Math.max(0, Math.min(contentHeight - height, contentY + dy));
+                            e.accepted = true;
+                        }
+                        Column {
+                            id: mdColumn
+                            width: mdFlick.width
+                            spacing: Theme.px(4)
+                            Repeater {
+                                id: mdColRepeater
+                                model: win.previewRows
+                                Item {
+                                    required property var modelData
+                                    width: mdColumn.width
+                                    readonly property int indent: modelData.depth * Theme.px(16)
+                                    height: modelData.kind === "blank" ? Theme.px(8)
+                                          : modelData.kind === "rule" ? Theme.px(12)
+                                          : rowText.implicitHeight + (modelData.kind === "code" || modelData.kind === "quote" ? Theme.px(12) : 0)
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        visible: modelData.kind === "code" || modelData.kind === "quote"
+                                        color: Theme.hover
+                                        radius: Theme.radiusSmall
+                                    }
+                                    Rectangle {
+                                        visible: modelData.kind === "quote"
+                                        x: indent; y: Theme.px(4); width: 2; height: parent.height - Theme.px(8)
+                                        color: Theme.accent
+                                    }
+                                    Text {
+                                        id: rowText
+                                        anchors {
+                                            left: parent.left; leftMargin: Theme.px(4) + indent
+                                            right: parent.right; rightMargin: Theme.px(4)
+                                            verticalCenter: parent.verticalCenter
+                                        }
+                                        text: modelData.html
+                                        textFormat: Text.RichText
+                                        wrapMode: Text.Wrap
+                                        color: modelData.kind === "quote" ? Theme.dim : Theme.text
+                                        font.family: modelData.mono ? Theme.mono : Theme.font
+                                        font.pixelSize: win.fontSize * Theme.fontScale * modelData.size
+                                        font.bold: !!modelData.bold
+                                        Accessible.role: modelData.kind === "heading" ? Accessible.Heading : Accessible.StaticText
+                                        Accessible.name: modelData.html.replace(/<[^>]*>/g, "")
+                                        onLinkActivated: url => win.openMarkdownLink(url)
+                                    }
+                                }
+                            }
                         }
                     }
 

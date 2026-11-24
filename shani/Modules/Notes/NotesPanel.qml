@@ -374,7 +374,7 @@ AppWindow {
                     Button { text: "Code"; enabled: editor.enabled; onClicked: win.wrapSelection("`", "`") }
                     Button { text: Tr.t("Checklist"); enabled: Services.QuickNotes.current !== "" && editor.enabled; onClicked: win.insertChecklist() }
                     Button { text: "Earlier versions"; enabled: Services.QuickNotes.current !== ""; onClicked: win.openHistory() }
-                    Button { text: "Trash…"; enabled: true; onClicked: { win.showTrash = !win.showTrash; Services.QuickNotes.trashList.running = true; } }
+                    Button { text: Tr.t("Trash…"); enabled: true; onClicked: { win.showTrash = !win.showTrash; Services.QuickNotes.trashList.running = true; } }
                     Button { text: Tr.t("Attach…"); enabled: Services.QuickNotes.current !== "" && editor.enabled; onClicked: Services.QuickNotes.attachFile() }
                     Button {
                         text: Services.QuickNotes.locked

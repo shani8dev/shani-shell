@@ -1609,5 +1609,22 @@
  "Release notes are not installed on this computer.": "इस कंप्यूटर पर रिलीज़ नोट्स इंस्टॉल नहीं हैं।",
  "No release notes yet.": "अभी कोई रिलीज़ नोट्स नहीं है।",
  "Show only the latest notes": "केवल नवीनतम नोट्स दिखाएँ",
- "See all past notes": "सभी पुराने नोट्स देखें"
+ "See all past notes": "सभी पुराने नोट्स देखें",
+ "%1 PSI %2%": "%1 PSI %2%",
+ "Code block": "कोड ब्लॉक",
+ "Dismiss %1 notifications from %2": "%2 से %1 सूचनाएँ हटाएँ",
+ "Link %1": "लिंक %1",
+ "Load 1/5/15": "लोड 1/5/15",
+ "Load average": "औसत लोड",
+ "Markdown preview": "मार्कडाउन पूर्वावलोकन",
+ "PSI stalls": "PSI रुकावटें",
+ "Permanently delete every trashed note": "ट्रैश की सभी नोट्स स्थायी रूप से हटाएँ",
+ "Rendered view of the current document; Page Up and Page Down scroll": "वर्तमान दस्तावेज़ का प्रस्तुत दृश्य; Page Up/Page Down से स्क्रॉल करें",
+ "Restore note %1": "नोट %1 बहाल करें",
+ "System overview": "सिस्टम अवलोकन",
+ "System pressure": "सिस्टम दबाव",
+ "System pressure meters": "सिस्टम दबाव मीटर",
+ "Trash…": "ट्रैश…",
+ "Version %1": "संस्करण %1",
+ "Wiki link %1": "विकी लिंक %1"
 }
