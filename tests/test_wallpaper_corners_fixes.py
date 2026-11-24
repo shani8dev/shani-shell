@@ -27,7 +27,7 @@ def test_wallpaper_stale_load_guard():
     t = read(WALLPAPER)
     # a late Ready from an older source must not replace the current wallpaper
     assert 'wallpaperWin.wanted ? "file://" + wallpaperWin.wanted : ""' in t
-    assert "status === Image.Ready && source === want" in t
+    assert "status === Image.Ready && source == want" in t
 
 
 def test_wallpaper_error_handling_hides_broken_image():
@@ -59,3 +59,11 @@ def test_wallpaper_desktop_menu_accessible():
     t = read(WALLPAPER)
     assert "Accessible.role: Accessible.Pane" in t
     assert 'Accessible.name: Tr.t("Desktop menu")' in t
+
+
+def test_wallpaper_ready_guard_uses_loose_url_comparison():
+    """Image.source is a QML url type; === against a JS string never matches,
+    so the late-load guard must use == to let the image become visible."""
+    t = read(WALLPAPER)
+    assert "status === Image.Ready && source == want" in t
+    assert "source === want" not in t

@@ -167,7 +167,7 @@ Variants {
             opacity: 0
             onStatusChanged: {
                 const want = wallpaperWin.wanted ? "file://" + wallpaperWin.wanted : "";
-                if (status === Image.Ready && source === want) { opacity = 1; b.opacity = 0; }
+                if (status === Image.Ready && source == want) { opacity = 1; b.opacity = 0; }
                 else if (status === Image.Error) { opacity = 0; source = ""; }
             }
             Behavior on opacity { NumberAnimation { duration: Theme.anim * 4 } }
@@ -181,7 +181,7 @@ Variants {
             opacity: 0
             onStatusChanged: {
                 const want = wallpaperWin.wanted ? "file://" + wallpaperWin.wanted : "";
-                if (status === Image.Ready && source === want) { opacity = 1; a.opacity = 0; }
+                if (status === Image.Ready && source == want) { opacity = 1; a.opacity = 0; }
                 else if (status === Image.Error) { opacity = 0; source = ""; }
             }
             Behavior on opacity { NumberAnimation { duration: Theme.anim * 4 } }
