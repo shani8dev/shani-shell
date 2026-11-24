@@ -21,6 +21,8 @@ ColumnLayout {
     property bool sudoersBusy: false
     property string aaNote: ""
     property bool aaBusy: false
+    property bool auditdOn: false
+    property bool auditdLoaded: false
     property string faillockNote: ""
     property bool faillockBusy: false
     onActiveChanged: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); page.loadFaillock(); page.loadLoginDefs(); }
@@ -77,6 +79,8 @@ ColumnLayout {
     function saveHosts() { page.hostsBusy = true; page.hostsNote = ""; hostsSaveProc.payload = JSON.stringify({ text: page.hostsText }); hostsSaveProc.command = page.adminCmd.concat(["hosts-set"]); hostsSaveProc.running = true; }
 
     Process { id: sudoersRead; command: ["sh","-c","cat /etc/sudoers.d/50-shani-shell 2>/dev/null || true"]; stdout: StdioCollector { onStreamFinished: { page.sudoersText = text; sudoersEdit.text = text; } } }
+    Process { id: auditdRead; command: ["sh","-c","systemctl is-active auditd 2>/dev/null || true"]; stdout: StdioCollector { onStreamFinished: { page.auditdOn = text.trim() === "active"; page.auditdLoaded = true; } } }
+    Process { id: auditdSet; stdinEnabled: true; property string payload: ""; onStarted: { write(payload + "\n"); stdinEnabled = false; } onExited: code => { stdinEnabled = true; auditdRead.running = false; auditdRead.running = true; SecurityInfo.refresh(); if (code !== 0) page.aaNote = Tr.t("Could not change auditd"); } }
     function loadSudoers() { sudoersRead.running = false; sudoersRead.running = true; }
     Process {
         id: sudoersSaveProc; stdinEnabled: true; property string payload: ""
@@ -194,6 +198,7 @@ ColumnLayout {
         Layout.fillWidth: true; spacing: Theme.px(2)
         ListRow { Layout.fillWidth: true; interactive: false; icon: "document-open-recent"; title: Tr.t("auditd"); subtitle: au.active || Tr.t("unknown") }
         ListRow { Layout.fillWidth: true; interactive: false; icon: "document-open-recent"; title: Tr.t("enabled"); subtitle: au.enabled || Tr.t("unknown") }
+        SwitchRow { Layout.fillWidth: true; visible: page.auditdLoaded; text: Tr.t("Enable auditd"); hint: Tr.t("System audit logging service"); checked: page.auditdOn; onToggled: on => { auditdSet.payload = JSON.stringify({ enabled: on }); auditdSet.command = page.adminCmd.concat(["auditd-set"]); auditdSet.running = true; } }
     }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Hosts") }

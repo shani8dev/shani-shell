@@ -25,6 +25,9 @@ ColumnLayout {
     property bool sshRoot: false
     property string sshAllowUsers: ""
     property string sshAllowGroups: ""
+    property bool sshTcpForwarding: true
+    property bool sshX11Forwarding: false
+    property string sshMaxAuthTries: "6"
     // remote desktop: niri cannot be reached over VNC or RDP; Sunshine captures
     // the screen through KMS (it needs cap_sys_admin) and Moonlight shows it on
     // another computer, a phone or a TV (niri discussion #680). Its user service
@@ -70,7 +73,11 @@ ColumnLayout {
                 page.sshRoot = get("PermitRootLogin") === "yes";
                 const raw = k => { const m = new RegExp("^sshd_" + k + "\\s+(.*)", "mi").exec(text); return m ? m[1].trim() : ""; };
                 page.sshAllowUsers = raw("AllowUsers"); page.sshAllowGroups = raw("AllowGroups");
+                page.sshTcpForwarding = get("AllowTcpForwarding") !== "no";
+                page.sshX11Forwarding = get("X11Forwarding") === "yes";
+                page.sshMaxAuthTries = raw("MaxAuthTries") || "6";
                 sshAllowUsersField.text = page.sshAllowUsers; sshAllowGroupsField.text = page.sshAllowGroups;
+                sshMaxAuthTriesField.text = page.sshMaxAuthTries;
                 const out = [];
                 let cur = null;
                 for (const l of text.split("\n")) {
@@ -186,14 +193,14 @@ ColumnLayout {
             hint: Tr.t("Turn off to allow keys only")
             checked: page.sshPassword
             onToggled: on => page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"),
-                JSON.stringify({ password: on, pubkey: page.sshPubkey, root: page.sshRoot, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim() }))
+                JSON.stringify({ password: on, pubkey: page.sshPubkey, root: page.sshRoot, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim(), tcpForwarding: page.sshTcpForwarding, x11Forwarding: page.sshX11Forwarding, maxAuthTries: sshMaxAuthTriesField.text.trim() || "6" }))
         }
         SwitchRow {
             Layout.fillWidth: true
             text: Tr.t("Allow key login")
             checked: page.sshPubkey
             onToggled: on => page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"),
-                JSON.stringify({ password: page.sshPassword, pubkey: on, root: page.sshRoot, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim() }))
+                JSON.stringify({ password: page.sshPassword, pubkey: on, root: page.sshRoot, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim(), tcpForwarding: page.sshTcpForwarding, x11Forwarding: page.sshX11Forwarding, maxAuthTries: sshMaxAuthTriesField.text.trim() || "6" }))
         }
         SwitchRow {
             Layout.fillWidth: true
@@ -201,13 +208,16 @@ ColumnLayout {
             hint: Tr.t("Off is safer")
             checked: page.sshRoot
             onToggled: on => page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"),
-                JSON.stringify({ password: page.sshPassword, pubkey: page.sshPubkey, root: on, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim() }))
+                JSON.stringify({ password: page.sshPassword, pubkey: page.sshPubkey, root: on, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim(), tcpForwarding: page.sshTcpForwarding, x11Forwarding: page.sshX11Forwarding, maxAuthTries: sshMaxAuthTriesField.text.trim() || "6" }))
         }
+        SwitchRow { Layout.fillWidth: true; text: Tr.t("Allow TCP forwarding"); checked: page.sshTcpForwarding; onToggled: on => { page.sshTcpForwarding = on; page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"), JSON.stringify({ password: page.sshPassword, pubkey: page.sshPubkey, root: page.sshRoot, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim(), tcpForwarding: on, x11Forwarding: page.sshX11Forwarding, maxAuthTries: sshMaxAuthTriesField.text.trim() || "6" })); } }
+        SwitchRow { Layout.fillWidth: true; text: Tr.t("Allow X11 forwarding"); checked: page.sshX11Forwarding; onToggled: on => { page.sshX11Forwarding = on; page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"), JSON.stringify({ password: page.sshPassword, pubkey: page.sshPubkey, root: page.sshRoot, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim(), tcpForwarding: page.sshTcpForwarding, x11Forwarding: on, maxAuthTries: sshMaxAuthTriesField.text.trim() || "6" })); } }
+        RowLayout { Layout.fillWidth: true; spacing: Theme.px(6); Text { text: Tr.t("Max auth tries"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale } TextField { id: sshMaxAuthTriesField; Layout.preferredWidth: Theme.px(80); placeholder: "6" } }
         Text { text: Tr.t("Allow users (space separated, empty = all)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
         TextField { id: sshAllowUsersField; Layout.fillWidth: true; placeholder: page.user }
         Text { text: Tr.t("Allow groups (space separated, empty = all)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
         TextField { id: sshAllowGroupsField; Layout.fillWidth: true; placeholder: "wheel" }
-        Button { text: Tr.t("Save allow list"); onClicked: page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"), JSON.stringify({ password: page.sshPassword, pubkey: page.sshPubkey, root: page.sshRoot, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim() })) }
+        Button { text: Tr.t("Save allow list"); onClicked: page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"), JSON.stringify({ password: page.sshPassword, pubkey: page.sshPubkey, root: page.sshRoot, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim(), tcpForwarding: page.sshTcpForwarding, x11Forwarding: page.sshX11Forwarding, maxAuthTries: sshMaxAuthTriesField.text.trim() || "6" })) }
     }
 
     SwitchRow {

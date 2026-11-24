@@ -559,6 +559,9 @@ def remote_access_get(_req: dict) -> dict:
         "PermitRootLogin": "prohibit-password",
         "AllowUsers": "",
         "AllowGroups": "",
+        "AllowTcpForwarding": "yes",
+        "X11Forwarding": "no",
+        "MaxAuthTries": "6",
     }
     try:
         for line in SSHD_DROPIN.read_text(
@@ -579,6 +582,9 @@ def remote_access_get(_req: dict) -> dict:
         "root": cfg["PermitRootLogin"].lower() == "yes",
         "allowUsers": cfg["AllowUsers"],
         "allowGroups": cfg["AllowGroups"],
+        "tcpForwarding": cfg["AllowTcpForwarding"].lower() == "yes",
+        "x11Forwarding": cfg["X11Forwarding"].lower() == "yes",
+        "maxAuthTries": cfg["MaxAuthTries"],
     }
 
 
@@ -603,7 +609,16 @@ def remote_access_set(req: dict) -> dict:
         "PasswordAuthentication": "yes" if req.get("password", True) else "no",
         "PubkeyAuthentication": "yes" if req.get("pubkey", True) else "no",
         "PermitRootLogin": "yes" if req.get("root", False) else "prohibit-password",
+        "AllowTcpForwarding": "yes" if req.get("tcpForwarding", True) else "no",
+        "X11Forwarding": "yes" if req.get("x11Forwarding", False) else "no",
     }
+    try:
+        mat = int(req.get("maxAuthTries", 6))
+    except Exception:
+        raise Refused("MaxAuthTries must be an integer")
+    if mat < 1 or mat > 10:
+        raise Refused("MaxAuthTries out of range 1-10")
+    vals["MaxAuthTries"] = str(mat)
     allow_users = _ssh_names(req.get("allowUsers", ""), "AllowUsers")
     allow_groups = _ssh_names(req.get("allowGroups", ""), "AllowGroups")
     content = "# Managed by shani-shell. sshd reads this drop-in after the main config;\n# a bad line here can be removed by deleting this file.\n"
@@ -1345,6 +1360,18 @@ def cups_browsed_set(req: dict) -> dict:
     return cups_browsed_get(req)
 
 
+def auditd_get(_req: dict) -> dict:
+    return {"enabled": _unit_enabled("auditd.service"), "active": _unit_active("auditd.service")}
+
+
+def auditd_set(req: dict) -> dict:
+    on = bool(req.get("enabled"))
+    r = subprocess.run(["systemctl", "enable" if on else "disable", "--now", "auditd.service"], capture_output=True, text=True, timeout=20)
+    if r.returncode != 0:
+        raise Refused((r.stderr or r.stdout).strip().splitlines()[-1][:200] or "auditd change failed")
+    return auditd_get(req)
+
+
 COMMANDS = {
     "guest": guest,
     "wakeup": wakeup,
@@ -1388,6 +1415,8 @@ COMMANDS = {
     "fstrim-set": fstrim_set,
     "cups-browsed-get": cups_browsed_get,
     "cups-browsed-set": cups_browsed_set,
+    "auditd-get": auditd_get,
+    "auditd-set": auditd_set,
 }
 
 
