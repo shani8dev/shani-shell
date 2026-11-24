@@ -150,12 +150,24 @@ PanelWindow {
         printErrors: false
         onFileChanged: reload()
         onLoaded: {
+            const raw = text();
             const out = [];
-            const re = /<bookmark href="file:\/\/([^"]+)"[^>]*modified="([^"]+)"/g;
+            // one bookmark at a time: dates are on the element, the app that
+            // opened it (when the writer recorded one) is in its metadata child
+            const tagRe = /<bookmark[\s][^>]*>/g;
             let m;
-            while ((m = re.exec(text())) !== null) {
-                const path = decodeURIComponent(m[1]);
-                out.push({ path: path, name: path.split("/").pop(), when: m[2] });
+            while ((m = tagRe.exec(raw)) !== null) {
+                const tag = m[0];
+                const href = tag.match(/href="file:\/\/([^"]+)"/);
+                if (!href) continue;
+                const when = (tag.match(/\bmodified="([^"]+)"/) || tag.match(/\badded="([^"]+)"/)
+                              || tag.match(/\bvisited="([^"]+)"/) || [])[1] || "";
+                // the block between this tag and the next bookmark holds its metadata
+                const next = /<bookmark[\s]/.exec(raw.slice(tagRe.lastIndex));
+                const stop = next ? tagRe.lastIndex + next.index : raw.length;
+                const app = (/<bookmark:application\b[^>]*\bname="([^"]+)"/.exec(raw.slice(tagRe.lastIndex, stop)) || [])[1] || "";
+                const path = decodeURIComponent(href[1]);
+                out.push({ path: path, name: path.split("/").pop(), when: when, app: app });
             }
             win.recent = out.sort((a, b) => a.when < b.when ? 1 : -1).slice(0, 40);
         }
@@ -279,6 +291,47 @@ PanelWindow {
         return path.indexOf(".") < 0 ? "folder" : "text-x-generic";
     }
 
+    // Recent files read like CuboCore's activities view: one group per day,
+    // newest first. xbel times are ISO, so a day is the local calendar day.
+    function recentDayKey(v) {
+        const d = typeof v === "string" ? new Date(v) : v;
+        if (!d || isNaN(d.getTime())) return "";
+        return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    }
+    function recentDayLabel(key, todayKey, yesterdayKey) {
+        if (key === todayKey) return Tr.t("Today");
+        if (key === yesterdayKey) return Tr.t("Yesterday");
+        const p = key.split("-").map(Number);
+        return Qt.formatDate(new Date(p[0], p[1] - 1, p[2]), "d MMM");
+    }
+    // Undated entries keep one flat "Recent files" group: nothing is dropped,
+    // and no day is guessed for them. That is also the whole fallback when a
+    // writer records no dates at all.
+    function groupRecent(entries, perGroup) {
+        const now = new Date();
+        const todayKey = win.recentDayKey(now);
+        const yesterdayKey = win.recentDayKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1));
+        const groups = [];
+        const byKey = {};
+        let other = null;
+        for (const r of entries) {
+            const key = win.recentDayKey(r.when);
+            if (!key) {
+                if (!other) other = { key: "", label: Tr.t("Recent files"), items: [] };
+                if (other.items.length < perGroup) other.items.push(r);
+                continue;
+            }
+            let g = byKey[key];
+            if (!g) {
+                g = { key: key, label: win.recentDayLabel(key, todayKey, yesterdayKey), items: [] };
+                byKey[key] = g;
+                groups.push(g);
+            }
+            if (g.items.length < perGroup) g.items.push(r);
+        }
+        return groups.concat(other ? [other] : []);
+    }
+
     // parental controls' blocked apps are left out (AppFilter)
     readonly property var apps: DesktopEntries.applications.values.filter(a => !a.noDisplay && AppFilter.allowed(a.id))
     readonly property var appWords: { const m = {}; for (const a of apps) m[a.id] = Fuzzy.words(a.name + " " + (a.genericName || "")); return m; }
@@ -297,14 +350,17 @@ PanelWindow {
         const appItem = a => ({ kind: "app", app: a.icon, did: a.id, title: a.name,
             subtitle: (a.genericName || a.comment || "") + (nameCount[a.name] > 1 ? " · " + a.id : ""),
             run: () => win.launch(a) });
-        const fileItem = p => ({ kind: "file", icon: win.fileIcon(p), path: p, title: p.split("/").pop(), subtitle: p.replace(Quickshell.env("HOME"), "~"), run: () => Qt.openUrlExternally(Files.uriOf(p)) });
+        // `app` is only ever the name xbel's bookmark:application metadata gave us;
+        // without it the subtitle is just the path (no guessing from extensions)
+        const fileItem = (p, app) => ({ kind: "file", icon: win.fileIcon(p), path: p, title: p.split("/").pop(), subtitle: (app ? app + " · " : "") + p.replace(Quickshell.env("HOME"), "~"), run: () => Qt.openUrlExternally(Files.uriOf(p)) });
 
         if (q === "") {
             const frequent = win.apps.filter(a => used(a) > 0).sort((a, b) => used(b) - used(a)).slice(0, 8);
             if (frequent.length)
                 out.push({ title: Tr.t("Frequent"), grid: true, items: frequent.map(appItem) });
-            if (win.recent.length)
-                out.push({ title: Tr.t("Recent files"), items: win.recent.slice(0, 6).map(r => fileItem(r.path)) });
+            for (const g of win.groupRecent(win.recent.slice(0, 18), 6))
+                out.push({ title: g.key ? Tr.t("Recent files") + " · " + g.label : g.label,
+                           items: g.items.map(r => fileItem(r.path, r.app)) });
             const all = win.apps.filter(a => win.category === "All" || [].concat(a.categories || []).indexOf(win.category) >= 0)
                 .sort((a, b) => a.name.localeCompare(b.name));
             out.push({ title: Tr.t("All apps"), grid: true, chips: true, items: all.map(appItem) });
