@@ -136,6 +136,34 @@ AppWindow {
         return total > 0 && used / total > 0.9 ? Theme.amber : Theme.accent;
     }
 
+    // ---- System overview ---------------------------------------------------
+    // One entry point to the details that live in other surfaces. Every number
+    // below is a value SysStats already samples, and every button opens an
+    // existing shell surface through the same API the launcher uses: no second
+    // poller, no second reader and no new window of our own.
+    readonly property var overviewLinks: [
+            { label: Tr.t("Disks"), action: "disks" },
+            { label: Tr.t("Disk usage"), action: "diskUsage" },
+            { label: Tr.t("Battery & wellbeing"), action: "power" },
+            { label: Tr.t("About this computer"), action: "about" }
+        ]
+    function openOverviewLink(action) {
+        switch (action) {
+        case "disks":
+            Ui.closeAll(); Ui.disks = true; Disks.refresh();
+            break;
+        case "diskUsage":
+            DiskUsage.open();
+            break;
+        case "power":
+            Ui.openSettings("power");
+            break;
+        case "about":
+            Ui.openSettings("about");
+            break;
+        }
+    }
+
     Item {
         id: card
         anchors.fill: parent
@@ -147,7 +175,60 @@ AppWindow {
             SectionTitle {
                 Layout.fillWidth: true
                 Layout.margins: Theme.px(4)
-                text: "CPU " + Math.round(SysStats.cpu * 100) + " %  ·  " + Tr.t("memory") + " " + Math.round(SysStats.mem * 100) + "%"
+                text: "System overview"
+                Accessible.name: Tr.t("System info")
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Repeater {
+                    model: [
+                        { label: Tr.t("CPU"), value: Math.round(SysStats.cpu * 100) + "%", tint: Theme.accent },
+                        { label: Tr.t("Memory"), value: Math.round(SysStats.mem * 100) + "%", tint: Theme.blue },
+                        { label: Tr.t("Disk I/O"), value: SysStats.rate(SysStats.diskReadRate + SysStats.diskWriteRate), tint: Theme.blue },
+                        { label: Tr.t("Network"), value: SysStats.rate(SysStats.rxRate + SysStats.txRate), tint: Theme.amber },
+                        { label: Tr.t("CPU temperature"), value: SysStats.temp > 0 ? Math.round(SysStats.temp) + "°" : "—", tint: Theme.accent },
+                        { label: Tr.t("Load"), value: SysStats.load1.toFixed(2), tint: Theme.text }
+                    ]
+                    ColumnLayout {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        spacing: Theme.px(1)
+                        Text {
+                            text: modelData.label
+                            color: Theme.dim
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(9) * Theme.fontScale
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                        }
+                        Text {
+                            text: modelData.value
+                            color: modelData.tint
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.features: { "tnum": 1 }
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                            Accessible.name: modelData.label + " " + text
+                        }
+                    }
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Repeater {
+                    model: win.overviewLinks
+                    Button {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        kind: "outline"
+                        text: modelData.label
+                        Accessible.name: Tr.t("Open %1", modelData.label)
+                        onClicked: win.openOverviewLink(modelData.action)
+                    }
+                }
             }
             // the last minute, from the samples SysStats already takes while
             // this window is open — no extra poller, and nothing draws at idle
