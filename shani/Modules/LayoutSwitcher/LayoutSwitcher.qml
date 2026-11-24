@@ -126,6 +126,7 @@ PanelWindow {
     component Mini: Rectangle {
         id: mini
         property var s: ({})
+        Accessible.ignored: true
         readonly property real u: width / 160          // drawn on a 160×100 screen
         readonly property var wd: s.desktopWidgets || []
         radius: 6 * u
@@ -201,7 +202,7 @@ PanelWindow {
         anchors.fill: parent
         focus: root.visible
         Keys.onEscapePressed: root.cancel()
-        Keys.onReturnPressed: root.tried ? root.keep() : root.tryOn(root.sel)
+        Keys.onReturnPressed: { if (!root.tried) root.tryOn(root.sel); root.keep(); }
         Keys.onLeftPressed: root.tryOn((root.sel + root.presets.length - 1) % root.presets.length)
         Keys.onRightPressed: root.tryOn((root.sel + 1) % root.presets.length)
         Keys.onUpPressed: root.tryOn((root.sel + root.presets.length - 3) % root.presets.length)

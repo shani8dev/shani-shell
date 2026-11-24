@@ -15,6 +15,8 @@ import "../../Common/Gestures.js" as Hold
 PanelWindow {
     NavWindow {}     // known to the keys-and-controller reach check (Ui.navAuditAll)
     id: win
+    Accessible.role: Accessible.Dialog
+    Accessible.name: Tr.t("Ring menu")
     visible: Ui.ring
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     anchors { top: true; bottom: true; left: true; right: true }
@@ -34,6 +36,7 @@ PanelWindow {
     property var stack: []                    // [{ items, center }] for the rings behind this one
     property var items: root()
     onStackChanged: Ui.ringDepth = stack.length
+    onItemsChanged: if (hot >= items.length) hot = -1
     property int hot: -1
     readonly property var player: Media.current
 
@@ -83,7 +86,7 @@ PanelWindow {
                 { label: Tr.t("Suspend"), icon: "weather-clear-night", act: () => Power.suspend() },
                 { label: Tr.t("Log out"), icon: "system-log-out", act: () => Power.logout() }
             ] }
-        ];
+        ].filter(it => it.act || (it.children && it.children.length > 0));
     }
 
     function sliceAt(x, y) {
@@ -115,6 +118,12 @@ PanelWindow {
         } else if (it.act) {
             run(it.act);
         }
+    }
+    function moveHot(step) {
+        if (items.length === 0)
+            return;
+        hot = hot < 0 ? (step > 0 ? 0 : items.length - 1)
+                      : (hot + step + items.length) % items.length;
     }
     function back() {
         if (stack.length === 0) {
@@ -150,11 +159,23 @@ PanelWindow {
         anchors.fill: parent
         focus: true
         Keys.onEscapePressed: win.back()
-        // 1..8 pick a slice by number, for keyboard use
+        // 1..8 pick a slice by number; arrows move the highlight, Enter/Space acts
         Keys.onPressed: e => {
-            const n = e.key - Qt.Key_1;
-            if (n >= 0 && n < win.items.length)
-                win.choose(n);
+            if (e.key === Qt.Key_Left || e.key === Qt.Key_Up) {
+                win.moveHot(-1);
+                e.accepted = true;
+            } else if (e.key === Qt.Key_Right || e.key === Qt.Key_Down) {
+                win.moveHot(1);
+                e.accepted = true;
+            } else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter || e.key === Qt.Key_Space) {
+                if (win.hot >= 0)
+                    win.choose(win.hot);
+                e.accepted = true;
+            } else {
+                const n = e.key - Qt.Key_1;
+                if (n >= 0 && n < win.items.length)
+                    win.choose(n);
+            }
         }
     }
 
@@ -248,6 +269,11 @@ PanelWindow {
             required property int index
             readonly property point at: win.slicePos(index, win.radius)
             readonly property bool isHot: win.hot === index
+            Accessible.role: Accessible.Button
+            Accessible.name: (modelData.label || "")
+                + (modelData.children ? ", " + Tr.t("submenu") : "")
+            Accessible.focused: isHot
+            Accessible.onPressAction: win.choose(index)
             x: at.x - width / 2
             y: at.y - height / 2
             width: isHot ? 64 : 54

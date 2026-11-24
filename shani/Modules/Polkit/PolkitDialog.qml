@@ -25,7 +25,22 @@ PanelWindow {
     // the screen keyboard: by itself without a working keyboard (InputKinds), a tap away always
     property bool kb: false
     Binding { target: Ui; property: "promptKeyboard"; value: win.kb && win.visible; when: win.visible }
-    onVisibleChanged: if (visible) { pass.input.forceActiveFocus(); kb = InputKinds.typesOnScreen; }
+    function focusPrompt() {
+        if (pass.visible)
+            pass.input.forceActiveFocus();
+        else
+            cancelBtn.forceActiveFocus();
+    }
+    onVisibleChanged: {
+        if (visible) {
+            win.focusPrompt();
+            kb = InputKinds.typesOnScreen;
+        } else {
+            pass.text = "";
+            pass.revealed = false;
+            kb = false;
+        }
+    }
 
     // polkit can replace the flow while this window is still up: a password
     // typed for the previous action (or a field left unmasked) must never
@@ -35,23 +50,36 @@ PanelWindow {
         function onFlowChanged() {
             pass.text = "";
             pass.revealed = false;
-            pass.input.forceActiveFocus();
+            win.focusPrompt();
+        }
+        function onErrorChanged() {
+            if (Polkit.error !== "" && win.visible) {
+                pass.text = "";
+                pass.revealed = false;
+                win.focusPrompt();
+            }
         }
     }
     function submitPass() {
-        if (!win.flow)
+        if (!win.flow || !win.flow.isResponseRequired)
+            return;
+        if (pass.text.trim() === "")
             return;
         win.flow.submit(pass.text);
         pass.text = "";
         pass.revealed = false;
     }
     function cancelPass() {
+        pass.text = "";
+        pass.revealed = false;
         if (win.flow)
             win.flow.cancelAuthenticationRequest();
     }
 
     Glass {
         id: blurCard
+        Accessible.role: Accessible.Dialog
+        Accessible.name: Tr.t("Authentication required")
         Keys.onEscapePressed: win.cancelPass()
         strong: true
         anchors.centerIn: parent
@@ -128,10 +156,11 @@ PanelWindow {
             RowLayout {
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
-                Button { text: Tr.t("Cancel"); onClicked: win.cancelPass() }
+                Button { id: cancelBtn; text: Tr.t("Cancel"); onClicked: win.cancelPass() }
                 Button {
                     text: Tr.t("Authenticate")
                     kind: "primary"
+                    enabled: win.flow && win.flow.isResponseRequired && pass.text.trim() !== ""
                     onClicked: win.submitPass()
                 }
             }

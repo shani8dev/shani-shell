@@ -21,15 +21,17 @@ Scope {
     property bool armed: false
     property real saidUntil: 0       // a label that volume changes must not cover yet
     property string kind: "slider"   // "slider" | "toggle" | "label" | "icon"
+    property bool toggleOn: false
 
-    function show(icon, value, label, kind) {
+    function show(icon, value, label, kind, toggleOn) {
         Ui.osdLabel = label;
-        if (!armed)
+        if (!armed || Lock.locked)
             return;
         root.icon = icon;
         root.value = (value === undefined) ? -1 : value;
         root.label = label || "";
         root.kind = kind || (root.value >= 0 ? "slider" : "label");
+        root.toggleOn = !!toggleOn;
         shown = true;
         hide.restart();
     }
@@ -39,8 +41,12 @@ Scope {
 
     // ---- Audio / volume ----
     Connections {
+        target: Lock
+        function onLockedChanged() { if (Lock.locked) root.shown = false; }
+    }
+    Connections {
         target: Settings.data
-        function onTouchpadOffChanged() { root.show("input-touchpad", -1, Settings.data.touchpadOff ? Tr.t("Touchpad off") : Tr.t("Touchpad on"), "toggle"); }
+        function onTouchpadOffChanged() { root.show("input-touchpad", -1, Settings.data.touchpadOff ? Tr.t("Touchpad off") : Tr.t("Touchpad on"), "toggle", Settings.data.touchpadOff); }
     }
     Connections {
         target: KbdBacklight
@@ -59,14 +65,14 @@ Scope {
         target: Audio
         // the new device's own volume arrives with the switch: the switch is what to say
         function onVolumeChanged() { if (Date.now() > root.saidUntil) root.show(Audio.icon, Audio.volume, "", "slider"); }
-        function onMutedChanged() { root.show(Audio.icon, Audio.muted ? 0 : Audio.volume, Audio.muted ? "Muted" : "", "slider"); }
+        function onMutedChanged() { if (Date.now() > root.saidUntil) root.show(Audio.icon, Audio.muted ? 0 : Audio.volume, Audio.muted ? Tr.t("Muted") : "", "slider"); }
         function onMicMutedChanged() {
             root.show(Audio.micMuted ? "microphone-sensitivity-muted" : "audio-input-microphone", -1,
-                      Audio.micMuted ? "Microphone off" : "Microphone on", "toggle");
+                      Audio.micMuted ? Tr.t("Microphone off") : Tr.t("Microphone on"), "toggle", !Audio.micMuted);
         }
         function onSwitchedToNew(name) { root.show("audio-headphones", -1, Tr.t("Sound: %1", name), "label"); root.saidUntil = Date.now() + 1500; }
         function onMicVolumeChanged() {
-            root.show("audio-input-microphone", Audio.micVolume, "", "slider");
+            if (Date.now() > root.saidUntil) root.show("audio-input-microphone", Audio.micVolume, "", "slider");
         }
     }
 
@@ -81,12 +87,12 @@ Scope {
         target: AmbientLight
         function onAvailableChanged() {
             root.show("display-brightness-auto", -1,
-                      AmbientLight.available ? "Ambient light sensor found" : "No ambient light sensor", "label");
+                      AmbientLight.available ? Tr.t("Ambient light sensor found") : Tr.t("No ambient light sensor"), "label");
         }
         function onEnabledChanged() {
-            const what = AmbientLight.available ? "Ambient brightness" : "Adaptive brightness";
+            const what = AmbientLight.available ? Tr.t("Ambient brightness") : Tr.t("Adaptive brightness");
             root.show("display-brightness-auto", -1,
-                      AmbientLight.enabled ? what + " on" : what + " off", "toggle");
+                      AmbientLight.enabled ? Tr.t("%1 on", what) : Tr.t("%1 off", what), "toggle", AmbientLight.enabled);
         }
         function onTargetBrightnessChanged() {
             if (AmbientLight.available && AmbientLight.enabled) {
@@ -99,8 +105,8 @@ Scope {
     // ---- Caps Lock / Num Lock (the keyboard may have no light for them) ----
     Connections {
         target: LockKeys
-        function onCapsChanged() { if (LockKeys.known) root.show("input-keyboard", -1, LockKeys.caps ? "Caps Lock on" : "Caps Lock off", "toggle"); }
-        function onNumChanged() { if (LockKeys.known) root.show("input-keyboard", -1, LockKeys.num ? "Num Lock on" : "Num Lock off", "toggle"); }
+        function onCapsChanged() { if (LockKeys.known) root.show("input-keyboard", -1, LockKeys.caps ? Tr.t("Caps Lock on") : Tr.t("Caps Lock off"), "toggle", LockKeys.caps); }
+        function onNumChanged() { if (LockKeys.known) root.show("input-keyboard", -1, LockKeys.num ? Tr.t("Num Lock on") : Tr.t("Num Lock off"), "toggle", LockKeys.num); }
     }
 
     // ---- Keyboard layout ----
@@ -122,7 +128,7 @@ Scope {
         target: NightLight
         function onActiveChanged() {
             root.show("night-light", -1,
-                      NightLight.active ? "Night light on" : "Night light off", "toggle");
+                      NightLight.active ? Tr.t("Night light on") : Tr.t("Night light off"), "toggle", NightLight.active);
         }
     }
 
@@ -131,7 +137,7 @@ Scope {
         target: Power
         function onOnBatteryChanged() {
             if (Power.hasBattery && Power.onBattery)
-                root.show(Power.batteryIcon, -1, "On battery · " + Math.round(Power.percent * 100) + "%", "label");
+                root.show(Power.batteryIcon, -1, Tr.t("On battery · %1%", Math.round(Power.percent * 100)), "label");
         }
     }
 
@@ -140,7 +146,7 @@ Scope {
         target: Notifs
         function onDndChanged() {
             root.show("notifications-disabled", -1,
-                      Notifs.dnd ? "Do not disturb on" : "Do not disturb off", "toggle");
+                      Notifs.dnd ? Tr.t("Do not disturb on") : Tr.t("Do not disturb off"), "toggle", Notifs.dnd);
         }
     }
 
@@ -149,7 +155,7 @@ Scope {
         target: Idle
         function onCaffeineChanged() {
             root.show("preferences-desktop-screensaver", -1,
-                      Idle.caffeine ? "Caffeine on" : "Caffeine off", "toggle");
+                      Idle.caffeine ? Tr.t("Caffeine on") : Tr.t("Caffeine off"), "toggle", Idle.caffeine);
         }
     }
 
@@ -158,7 +164,7 @@ Scope {
         target: Focus
         function onActiveChanged() {
             root.show("focus-windows", -1,
-                      Focus.on ? "Focus: " + Focus.active : "Focus off", "label");
+                      Focus.on ? Tr.t("Focus: %1", Focus.active) : Tr.t("Focus off"), "label");
         }
     }
 
@@ -179,7 +185,7 @@ Scope {
             // another screen's scale is not a change on this one
             const same = root.lastScaleOutput === Niri.focusedOutput;
             if (same && root.lastScale >= 0 && Math.abs(o.scale - root.lastScale) > 0.01)
-                root.show("zoom-in", -1, "Scale: " + o.scale + "x", "label");
+                root.show("zoom-in", -1, Tr.t("Scale: %1x", o.scale), "label");
             root.lastScale = o.scale;
             root.lastScaleOutput = Niri.focusedOutput;
         }
@@ -190,7 +196,7 @@ Scope {
         target: Brightness
         function onTorchOnChanged() {
             root.show("weather-clear", -1,
-                      Brightness.torchOn ? "Flashlight on" : "Flashlight off", "toggle");
+                      Brightness.torchOn ? Tr.t("Flashlight on") : Tr.t("Flashlight off"), "toggle", Brightness.torchOn);
         }
     }
 
@@ -199,7 +205,7 @@ Scope {
         target: Net
         function onOnlineChanged() {
             root.show(Net.online ? "network-wireless" : "network-wireless-offline", -1,
-                      Net.online ? "Connected" : "Disconnected", "label");
+                      Net.online ? Tr.t("Connected") : Tr.t("Disconnected"), "label");
         }
     }
 
@@ -208,7 +214,7 @@ Scope {
         target: Power
         function onLowAndDischargingChanged() {
             if (Power.lowAndDischarging) {
-                root.show("power-profile-power-saver", -1, "Battery saver on", "toggle");
+                root.show("power-profile-power-saver", -1, Tr.t("Battery saver on"), "toggle", true);
             }
         }
     }
@@ -238,6 +244,10 @@ Scope {
             width: Theme.px(320)
             height: Theme.px(52)
             radius: Theme.px(26)
+            Accessible.role: Accessible.AlertMessage
+            Accessible.name: root.kind === "slider" && root.label === ""
+                             ? Math.round(root.value * 100) + "%"
+                             : root.label
             RowLayout {
                 anchors.fill: parent
                 anchors.leftMargin: Theme.px(18)
@@ -262,9 +272,9 @@ Scope {
                     }
                 }
 
-                // Percentage text (for sliders)
+                // Percentage text (for sliders without a label override)
                 Text {
-                    visible: root.kind === "slider" && root.label !== "Muted" && !root.label.startsWith("Microphone") && !root.label.endsWith("%")
+                    visible: root.kind === "slider" && root.label === "" && !root.label.endsWith("%")
                     text: Math.round(root.value * 100) + "%"
                     color: Theme.text
                     font.family: Theme.font
@@ -279,9 +289,9 @@ Scope {
                     Layout.preferredWidth: Theme.px(36)
                     Layout.preferredHeight: Theme.px(20)
                     radius: Theme.px(10)
-                    color: root.label.indexOf(" on") >= 0 ? Theme.accent : Theme.hover
+                    color: root.toggleOn ? Theme.accent : Theme.hover
                     Rectangle {
-                        x: root.label.indexOf(" on") >= 0 ? parent.width - width - 2 : 2
+                        x: root.toggleOn ? parent.width - width - 2 : 2
                         y: 2
                         width: Theme.px(16)
                         height: Theme.px(16)

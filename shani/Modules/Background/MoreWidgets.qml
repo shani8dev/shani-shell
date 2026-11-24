@@ -74,7 +74,7 @@ Variants {
                 MouseArea {
                     id: dragArea
                     anchors.fill: parent
-                    drag.target: widgetsLocked ? null : glass
+                    drag.target: scr.widgetsLocked ? null : glass
                     drag.threshold: 8
                     cursorShape: Qt.PointingHandCursor
                     onClicked: cw.open()

@@ -393,7 +393,7 @@ def test_round2_hig_fixes_are_wired():
             "flick.contentY = 0",
             "ScrollBar.vertical: ScrollBar",
         ],
-        "shani/Modules/Osd/Osd.qml": ["margins.bottom: 180", 'root.label !== "Muted"'],
+        "shani/Modules/Osd/Osd.qml": ["margins.bottom: 180", 'Tr.t("Muted")'],
         "shani/Modules/Settings/SettingsWindow.qml": [
             "policy: ScrollBar.AlwaysOn",
             "needle: page.query",
@@ -431,9 +431,7 @@ def test_round3_accessibility_and_harness_fixes_are_wired():
     root = Path(__file__).resolve().parent.parent
     checks = {
         "shani/Modules/Osd/Osd.qml": ["mask: Region {}"],
-        "shani/Modules/Processes/Processes.qml": [
-            "ListView.onReused: procRow.confirming = false"
-        ],
+        "shani/Modules/Processes/Processes.qml": ["win.confirmPid = -1"],
         "shani/Modules/Whiteboard/Whiteboard.qml": ["inkNames", "Line width %1 px"],
         "shani/Modules/Captions/CaptionBar.qml": ["Theme.text : Theme.dim"],
         "shani/Common/TextField.qml": ["top: input.bottom"],
@@ -464,7 +462,7 @@ def test_round4_image_recheck_fixes_are_wired():
         "shani/Modules/Annotate/Annotate.qml": ["MouseArea", "edit-undo"],
         "shani/Modules/Island/Island.qml": ['kind: "plain"'],
         "shani/Modules/Share/ShareSheet.qml": ["property int sel: -1"],
-        "shani/Modules/Osd/Osd.qml": ['root.label.startsWith("Microphone")'],
+        "shani/Modules/Osd/Osd.qml": ['Tr.t("Microphone off")'],
         "shani/Modules/Chronoa/ChronoaPanel.qml": ["Theme.px(12) * Theme.fontScale"],
         "shani/Common/Choice.qml": [
             "font.weight: root.selected ? Font.DemiBold : Font.Normal"

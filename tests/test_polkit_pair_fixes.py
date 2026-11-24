@@ -33,14 +33,14 @@ def test_polkit_clears_the_password_when_a_new_flow_replaces_the_old_one():
     handler = block(src, "function onFlowChanged()")
     assert 'pass.text = "";' in handler
     assert "pass.revealed = false;" in handler
-    assert "pass.input.forceActiveFocus();" in handler
+    assert "win.focusPrompt();" in handler
 
 
 def test_polkit_submits_and_cancels_through_guarded_helpers():
     """No submit path may touch a null flow, and none may leave a secret revealed."""
     src = POLKIT.read_text()
     submit = block(src, "function submitPass()")
-    assert "if (!win.flow)" in submit
+    assert "!win.flow" in submit
     assert "win.flow.submit(pass.text);" in submit
     assert 'pass.text = "";' in submit
     assert "pass.revealed = false;" in submit
@@ -94,3 +94,78 @@ def test_pair_clears_a_stale_code_when_a_new_request_arrives():
     assert "win.lastCodeAsk = ask.id;" in handler
     assert 'code.text = "";' in handler
     assert 'code.error = "";' in handler
+
+
+def test_polkit_cancel_and_submit_clear_secrets_and_guard_empty_submit():
+    """Cancel/submit must never leave a secret, and empty/irrelevant submits are refused."""
+    src = POLKIT.read_text()
+    submit = block(src, "function submitPass()")
+    assert "if (!win.flow || !win.flow.isResponseRequired)" in submit
+    assert 'if (pass.text.trim() === "")' in submit
+    assert "win.flow.submit(pass.text);" in submit
+    assert 'pass.text = "";' in submit
+    assert "pass.revealed = false;" in submit
+
+    cancel = block(src, "function cancelPass()")
+    assert 'pass.text = "";' in cancel
+    assert "pass.revealed = false;" in cancel
+    assert "win.flow.cancelAuthenticationRequest();" in cancel
+
+    # Authenticate is only meaningful when a response is required and typed
+    assert (
+        'enabled: win.flow && win.flow.isResponseRequired && pass.text.trim() !== ""'
+        in src
+    )
+    # hiding the dialog must not leave the secret behind
+    assert "onVisibleChanged:" in src
+    assert "else {" in src
+
+
+def test_polkit_refocuses_and_clears_password_on_auth_failure():
+    """A wrong password should be cleared and the prompt refocused for retry."""
+    src = POLKIT.read_text()
+    handler = block(src, "function onErrorChanged()")
+    assert 'Polkit.error !== ""' in handler
+    assert "win.visible" in handler
+    assert 'pass.text = "";' in handler
+    assert "pass.revealed = false;" in handler
+    assert "win.focusPrompt();" in handler
+
+
+def test_polkit_focus_and_accessibility_for_prompt_modes():
+    """Fingerprint-only prompts need focus on a visible control; dialog is announced."""
+    src = POLKIT.read_text()
+    focus = block(src, "function focusPrompt()")
+    assert "if (pass.visible)" in focus
+    assert "pass.input.forceActiveFocus();" in focus
+    assert "cancelBtn.forceActiveFocus();" in focus
+    assert "id: cancelBtn" in src
+    assert "Accessible.role: Accessible.Dialog" in src
+    assert 'Accessible.name: Tr.t("Authentication required")' in src
+
+
+def test_pair_dialog_focuses_actions_and_announces_itself_for_keyboard_at():
+    """Non-typed pairing prompts must be keyboard reachable without a mouse."""
+    src = PAIR.read_text()
+    focus = block(src, "function focusPrompt()")
+    assert "if (win.typed)" in focus
+    assert "code.input.forceActiveFocus();" in focus
+    assert "primaryBtn.forceActiveFocus();" in focus
+    assert "closeBtn.forceActiveFocus();" in focus
+    assert "onVisibleChanged: if (visible) win.focusPrompt()" in src
+    assert "Qt.callLater(win.focusPrompt);" in src
+    assert "id: closeBtn" in src
+    assert "id: primaryBtn" in src
+    assert "Accessible.role: Accessible.Dialog" in src
+    assert 'Accessible.name: Tr.t("Bluetooth pairing")' in src
+
+
+def test_pair_show_code_displays_expiry_countdown():
+    """A displayed pairing code should warn before BtAgent's 60s expiry drops it."""
+    src = PAIR.read_text()
+    assert "property int showSecsLeft: 60" in src
+    assert "id: showCountdown" in src
+    assert "repeat: true" in src
+    assert "running: win.show !== null && win.visible" in src
+    assert "win.showSecsLeft = 60;" in src
+    assert "Expires in %1s" in src

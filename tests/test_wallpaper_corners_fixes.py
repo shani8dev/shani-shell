@@ -26,7 +26,7 @@ def test_wallpaper_empty_clears_both_images():
 def test_wallpaper_stale_load_guard():
     t = read(WALLPAPER)
     # a late Ready from an older source must not replace the current wallpaper
-    assert 'const want = wanted ? "file://" + wanted : "";' in t
+    assert 'wallpaperWin.wanted ? "file://" + wallpaperWin.wanted : ""' in t
     assert "status === Image.Ready && source === want" in t
 
 
@@ -57,5 +57,5 @@ def test_screen_corners_decorative_and_antialiased():
 
 def test_wallpaper_desktop_menu_accessible():
     t = read(WALLPAPER)
-    assert "Accessible.role: Accessible.Menu" in t
+    assert "Accessible.role: Accessible.Pane" in t
     assert 'Accessible.name: Tr.t("Desktop menu")' in t

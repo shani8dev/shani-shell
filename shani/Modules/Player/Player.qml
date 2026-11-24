@@ -108,7 +108,7 @@ PanelWindow {
         if (!path)
             return;
         if (win.player && win.player.openUri)
-            win.player.openUri("file://" + encodeURI(path));
+            win.player.openUri("file://" + path.split("/").map(s => encodeURIComponent(s)).join("/"));
         else
             Quickshell.execDetached(["xdg-open", path]);
     }
@@ -171,7 +171,24 @@ PanelWindow {
     }
 
     MouseArea { objectName: "nav:pointer"; anchors.fill: parent; onClicked: Ui.player = false }
-    Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: Ui.player = false }
+    Item {
+        anchors.fill: parent
+        focus: win.visible
+        Keys.onEscapePressed: Ui.player = false
+        Keys.onPressed: e => {
+            if (e.key === Qt.Key_Space) {
+                if (win.player && win.player.canControl)
+                    win.player.togglePlaying();
+                e.accepted = true;
+            } else if (e.key === Qt.Key_Left || e.key === Qt.Key_Right) {
+                if (win.player && win.player.canSeek && win.player.length > 0) {
+                    const dir = e.key === Qt.Key_Left ? -1 : 1;
+                    win.seekTo(Math.max(0, Math.min(1, (win.shown + dir * 10) / Math.max(1, win.player.length))));
+                }
+                e.accepted = true;
+            }
+        }
+    }
 
     Glass {
         id: card
@@ -589,7 +606,7 @@ PanelWindow {
 
             Text {
                 Layout.fillWidth: true
-                text: Tr.t("Esc closes · Left/Right seeks 10s · drag the seek bar")
+                text: Tr.t("Esc closes · Space play/pause · Left/Right seeks 10s · drag the seek bar")
                 color: Theme.faint
                 horizontalAlignment: Text.AlignHCenter
                 font.family: Theme.font

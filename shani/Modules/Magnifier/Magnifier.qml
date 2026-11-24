@@ -14,7 +14,7 @@ import "../../Common/Gestures.js" as Hold
 
 PanelWindow {
     id: win
-    visible: Ui.magnifier && ready
+    visible: Ui.magnifier && ready && !Lock.locked
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
@@ -22,10 +22,16 @@ PanelWindow {
     WlrLayershell.namespace: "shani-magnifier"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: (visible) && !Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    Accessible.role: Accessible.Window
+    Accessible.name: Tr.t("Magnifier %1×").arg(win.zoom.toFixed(1))
 
     property real zoom: 2.5
     property point at: Qt.point(width / 2, height / 2)
     readonly property real size: Theme.px(320)
+
+    function clampAt(p) {
+        return Qt.point(Math.max(0, Math.min(width, p.x)), Math.max(0, Math.min(height, p.y)));
+    }
 
     // the frame comes from grim, taken before the window maps (Ui.magnifier
     // flips on once it is written) — Quickshell's ScreencopyView needs dmabuf
@@ -46,7 +52,13 @@ PanelWindow {
         target: Ui
         function onMagnifierChanged() { if (Ui.magnifier) win.grab(); }
     }
-    onVisibleChanged: if (visible) keys.forceActiveFocus();
+    Connections {
+        target: Lock
+        function onLockedChanged() { if (Lock.locked) Ui.magnifier = false; }
+    }
+    onVisibleChanged: if (visible) { keys.forceActiveFocus(); win.at = win.clampAt(win.at); }
+    onWidthChanged: win.at = win.clampAt(win.at)
+    onHeightChanged: win.at = win.clampAt(win.at)
     // made when opened (shell.qml's LazyLoader): the first frame is taken now
     Component.onCompleted: if (Ui.magnifier) grab()
 
@@ -80,7 +92,7 @@ PanelWindow {
         property var held: Hold.state()
         onPressed: Hold.press(held)
         onPressAndHold: Hold.hold(held)
-        onPositionChanged: m => win.at = Qt.point(m.x, m.y)
+        onPositionChanged: m => win.at = win.clampAt(Qt.point(m.x, m.y))
         onWheel: w => {
             if (w.angleDelta.y === 0) return;   // a horizontal-only scroll is not a zoom
             win.zoom = Math.max(1.5, Math.min(6, win.zoom + (w.angleDelta.y > 0 ? 0.5 : -0.5)));

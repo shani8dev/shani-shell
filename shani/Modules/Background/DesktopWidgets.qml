@@ -36,7 +36,7 @@ Variants {
                 "media": { x: 24, y: Math.max(12, sh - h - bottomGap) },
                 "stats": { x: Math.max(12, sw - w - 24), y: Math.max(12, sh - h - bottomGap) }
             };
-            return scr.clampPos(id, Settings.data.deskPos[id] || defaults[id], w, h, sw, sh);
+            return scr.clampPos(id, (Settings.data.deskPos || {})[id] || defaults[id], w, h, sw, sh);
         }
         // clear of the bar, whichever edge it is on: a bar at the bottom (a
         // board) is a floor for a card, one at the top a ceiling
@@ -137,7 +137,7 @@ Variants {
                     font.pixelSize: Theme.px(10) * Theme.fontScale
                 }
                 Accessible.role: Accessible.Button
-                Accessible.name: "Clock, opens the control centre"
+                Accessible.name: Tr.t("Clock, opens the control centre")
                 Accessible.onPressAction: Ui.openClocks("")
             }
         }
@@ -247,7 +247,10 @@ Variants {
                                 anchors.fill: parent
                                 enabled: mediaWin.player && mediaWin.player.canSeek && mediaWin.player.length > 0
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: me => mediaWin.player.position = mediaWin.player.length * (me.x / parent.width)
+                                onClicked: me => {
+                                if (mediaWin.player && mediaWin.player.length > 0)
+                                    mediaWin.player.position = mediaWin.player.length * (me.x / parent.width);
+                            }
                             }
                         }
                         // elapsed and total, tucked over the seek bar's ends
@@ -275,12 +278,12 @@ Variants {
                         anchors.verticalCenter: parent.verticalCenter
                         icon: mediaWin.player && mediaWin.player.isPlaying ? "media-playback-pause" : "media-playback-start"
                         size: Theme.px(30)
-                        onClicked: mediaWin.player.togglePlaying()
-                        Accessible.name: "Play or pause"
+                        onClicked: if (mediaWin.player) mediaWin.player.togglePlaying()
+                        Accessible.name: Tr.t("Play or pause")
                     }
                 }
                 Accessible.role: Accessible.Button
-                Accessible.name: "Now playing, opens the control centre"
+                Accessible.name: Tr.t("Now playing, opens the control centre")
                 Accessible.onPressAction: Ui.toggleControlCenter()
             }
         }
@@ -369,7 +372,7 @@ Variants {
                     }
                 }
                 Accessible.role: Accessible.Button
-                Accessible.name: "Weather, opens personalisation settings"
+                Accessible.name: Weather.enabled ? Tr.t("Weather, opens the weather app") : Tr.t("Weather, opens personalisation settings")
                 Accessible.onPressAction: Weather.enabled ? Ui.openWeather() : Ui.openSettings("personal")
             }
         }
@@ -476,7 +479,7 @@ Variants {
                     }
                 }
                 Accessible.role: Accessible.Button
-                Accessible.name: "System monitor, opens processes"
+                Accessible.name: Tr.t("System monitor, opens processes")
                 Accessible.onPressAction: { const was = Ui.processes; Ui.closeAll(); Ui.processes = !was; }
             }
         }

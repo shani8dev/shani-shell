@@ -81,6 +81,8 @@ PanelWindow {
         // near-opaque: over a game, the bar and the game must not show through the words
         color: Theme.alpha(Theme.bg, 0.97)
         border.color: Theme.border
+        Accessible.role: Accessible.Dialog
+        Accessible.name: Tr.t("Quick panel")
 
         // a finger swipes it away (right); the mouse and the pen keep their drags
         DragHandler {
@@ -148,7 +150,7 @@ PanelWindow {
                         required property int index
                         // data is looked up live: the Repeater model stays put while a
                         // level is being dragged, but these values still track services
-                        readonly property var rowData: win.rows[modelData]
+                        readonly property var rowData: win.rows[modelData] || ({ key: "", label: "", icon: "", value: -1, text: "", adjust: null, run: null })
                         readonly property bool here: index === win.sel
                         width: parent.width
                         height: rowData.value >= 0 ? Theme.px(72) : Theme.px(52)
@@ -158,6 +160,12 @@ PanelWindow {
                         border.color: Theme.accent
                         Accessible.role: rowData.value >= 0 ? Accessible.Slider : Accessible.Button
                         Accessible.name: rowData.label
+                        Accessible.description: rowData.value < 0 ? (rowData.text || "") : ""
+                        Accessible.selected: here
+                        Accessible.onPressAction: {
+                            if (rowData.run) rowData.run();
+                            else if (rowData.adjust) rowData.adjust(1);
+                        }
                         Row {
                             id: head
                             x: Theme.px(12)

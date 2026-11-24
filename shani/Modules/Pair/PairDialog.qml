@@ -36,6 +36,22 @@ PanelWindow {
                 code.text = "";
                 code.error = "";
             }
+            if (ask)
+                Qt.callLater(win.focusPrompt);
+        }
+    }
+    property int showSecsLeft: 60
+    Timer {
+        id: showCountdown
+        interval: 1000
+        repeat: true
+        running: win.show !== null && win.visible
+        onTriggered: { if (win.showSecsLeft > 0) win.showSecsLeft--; }
+    }
+    onShowChanged: {
+        if (show) {
+            win.showSecsLeft = 60;
+            Qt.callLater(win.focusPrompt);
         }
     }
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
@@ -52,8 +68,20 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: (typed) && !Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
 
+    function focusPrompt() {
+        if (win.typed)
+            code.input.forceActiveFocus();
+        else if (win.ask)
+            primaryBtn.forceActiveFocus();
+        else
+            closeBtn.forceActiveFocus();
+    }
+    onVisibleChanged: if (visible) win.focusPrompt()
+
     Glass {
         id: card
+        Accessible.role: Accessible.Dialog
+        Accessible.name: Tr.t("Bluetooth pairing")
         Keys.onEscapePressed: win.show ? BtAgent.dismiss() : BtAgent.answer(false)
         width: parent.width
         implicitHeight: col.implicitHeight + 36
@@ -98,7 +126,15 @@ PanelWindow {
                 font.family: Theme.mono
                 font.pixelSize: Theme.px(30) * Theme.fontScale
                 font.letterSpacing: 6
-                Accessible.name: "Pairing code " + text.split("").join(" ")
+                Accessible.name: Tr.t("Pairing code") + " " + text.split("").join(" ")
+            }
+            Text {
+                Layout.alignment: Qt.AlignHCenter
+                visible: win.show !== null
+                text: Tr.t("Expires in %1s").arg(win.showSecsLeft)
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
             TextField {
                 id: code
@@ -113,13 +149,15 @@ PanelWindow {
                 Layout.alignment: Qt.AlignRight
                 spacing: Theme.px(8)
                 Button {
-                    text: win.show ? "Close" : "Cancel"
+                    id: closeBtn
+                    text: win.show ? Tr.t("Close") : Tr.t("Cancel")
                     onClicked: win.show ? BtAgent.dismiss() : BtAgent.answer(false)
                 }
                 Button {
+                    id: primaryBtn
                     visible: win.ask !== null
                     kind: "primary"
-                    text: win.ask && win.ask.ask === "authorize" ? "Allow" : "Pair"
+                    text: win.ask && win.ask.ask === "authorize" ? Tr.t("Allow") : Tr.t("Pair")
                     onClicked: win.submitCode()
                 }
             }

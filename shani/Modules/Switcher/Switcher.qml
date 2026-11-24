@@ -98,6 +98,8 @@ PanelWindow {
         Niri.action("close-window", "--id", w.id);
         win.list = win.list.filter(x => x !== w);
         win.clampSel();
+        if (win.count() === 0)
+            Ui.switcher = false;
     }
     function closeApp() {
         const ws = win.appWindows();
@@ -107,6 +109,17 @@ PanelWindow {
             Niri.action("close-window", "--id", w.id);
         win.list = win.list.filter(x => ws.indexOf(x) < 0);
         win.clampSel();
+        if (win.count() === 0)
+            Ui.switcher = false;
+    }
+    function pruneStale() {
+        const before = win.list.length;
+        win.list = win.list.filter(w => Niri.windows[w.id]);
+        if (win.list.length !== before) {
+            win.clampSel();
+            if (win.count() === 0)
+                Ui.switcher = false;
+        }
     }
 
     Connections {
@@ -116,6 +129,13 @@ PanelWindow {
                 win.step(back ? -1 : 1);
             else
                 win.open(back);
+        }
+    }
+    Connections {
+        target: Niri
+        function onWindowsChanged() {
+            if (Ui.switcher)
+                win.pruneStale();
         }
     }
 
@@ -128,6 +148,10 @@ PanelWindow {
                 win.step(1);
             else if (e.key === Qt.Key_Backtab || e.key === Qt.Key_Left || e.key === Qt.Key_Up)
                 win.step(-1);
+            else if (e.key === Qt.Key_Home)
+                win.sel = 0;
+            else if (e.key === Qt.Key_End)
+                win.sel = Math.max(0, win.count() - 1);
             else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter)
                 win.commit();
             else if (e.key === Qt.Key_Escape)
@@ -158,6 +182,7 @@ PanelWindow {
         height: Theme.px(200)
         radius: Theme.radiusLarge
 
+        MouseArea { anchors.fill: parent }
         Text {
             visible: win.count() === 0
             anchors.centerIn: parent
