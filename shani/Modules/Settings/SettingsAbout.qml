@@ -261,6 +261,11 @@ ColumnLayout {
             }
         }
     }
+    // What's new: the shipped release notes, read here rather than in an
+    // external editor. Older versions in the same file get a disclosure.
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("What changed") }
+    SettingsReleaseNotes { Layout.fillWidth: true }
+
     // The rest of the shell's Settings, one click away
     SectionTitle { Layout.fillWidth: true; text: Tr.t("More settings") }
     Flow {
