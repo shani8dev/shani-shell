@@ -3528,7 +3528,9 @@ AppWindow {
                     dir.query = Files.searchDeep ? "" : text;
                     deepTimer.restart();
                 }
-                Keys.onEscapePressed: win.toggleFilters()
+                // let the Glass popover own Escape; toggling here made the
+                // event propagate and toggle a second time, leaving it open
+                Keys.onEscapePressed: { win.toggleFilters(); event.accepted = true; }
             }
             Text {
                 Layout.fillWidth: true

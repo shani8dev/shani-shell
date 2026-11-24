@@ -21,8 +21,8 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: !Services.ReleaseNotes.loaded || Services.ReleaseNotes.failed || page.empty
         text: !Services.ReleaseNotes.loaded ? Tr.t("Loading…")
-            : Services.ReleaseNotes.failed ? "Release notes are not installed on this computer."
-            : "No release notes yet."
+            : Services.ReleaseNotes.failed ? Tr.t("Release notes are not installed on this computer.")
+            : Tr.t("No release notes yet.")
         color: Theme.dim
         wrapMode: Text.Wrap
         font.family: Theme.font
@@ -127,7 +127,7 @@ ColumnLayout {
     Button {
         visible: page.sections.length > 1
         flat: true
-        text: page.showPast ? "Show only the latest notes" : "See all past notes"
+        text: page.showPast ? Tr.t("Show only the latest notes") : Tr.t("See all past notes")
         Accessible.name: text
         onClicked: page.showPast = !page.showPast
     }

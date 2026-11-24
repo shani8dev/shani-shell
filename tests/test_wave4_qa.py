@@ -624,7 +624,9 @@ def test_clocks_save_alarm_survives_an_alarm_removed_while_editing():
         "cancelAlarmEdit: function () {} };\n"
         "var WorldClock = { updateAlarm: function () { return true; }, "
         "setAlarmGroup: function () {}, addAlarm: function () {}, alarms: [] };\n"
+        + "win.saveAlarm = "
         + source_of(src(CLOCKS), "saveAlarm")
+        + ";\n"
         + """
 try { win.saveAlarm(); process.stdout.write(JSON.stringify({ threw: false })); }
 catch (e) { process.stdout.write(JSON.stringify({ threw: true, err: String(e) })); }"""
@@ -708,7 +710,11 @@ def test_release_notes_messages_are_translatable():
         "Show only the latest notes",
         "See all past notes",
     ):
-        assert literal not in s, f"hardcoded user-facing string: {literal!r}"
+        # the literal is fine INSIDE Tr.t("..."); only a raw text: value is bad.
+        assert f'Tr.t("{literal}")' in s, f"string is not translated: {literal!r}"
+        assert not re.search(
+            r'(?:text|Accessible\.name):\s*"' + re.escape(literal) + '"', s
+        ), f"hardcoded user-facing string: {literal!r}"
         assert f'Tr.t("{literal}")' in s or not re.search(
             r'^\s*(?:text|tip):\s*"' + re.escape(literal), s, flags=re.M
         ), f"{literal!r} is not Tr.t-wrapped"
