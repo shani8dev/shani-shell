@@ -43,7 +43,8 @@ ColumnLayout {
     }
     Timer { id: askTimer; interval: 4000; onTriggered: page.asking = "" }
     Component.onCompleted: { scan(); fstrimGet.running = false; fstrimGet.running = true; }
-    Process { id: fstrimGet; command: page.adminCmd.concat(["fstrim-get"]); stdout: StdioCollector { onStreamFinished: { try { const d = JSON.parse(text); page.fstrimEnabled = !!d.enabled; page.fstrimLoaded = true; } catch(e) {} } } }
+    // read-only status: no pkexec, so the toggle is never hidden behind an auth prompt
+    Process { id: fstrimGet; command: ["sh", "-c", "systemctl is-enabled fstrim.timer 2>/dev/null || true"]; stdout: StdioCollector { onStreamFinished: { page.fstrimEnabled = text.trim() === "enabled" || text.trim() === "static"; page.fstrimLoaded = true; } } }
     Process { id: fstrimSet; stdinEnabled: true; property string payload: ""; onStarted: { write(payload + "\n"); stdinEnabled = false; } onExited: code => { stdinEnabled = true; fstrimGet.running = false; fstrimGet.running = true; if (code !== 0) page.done = Tr.t("Could not change SSD trim"); } }
     Process {
         id: scanner
@@ -167,7 +168,7 @@ ColumnLayout {
         onGo: page.clean("flatpak", "", Tr.t("unused runtimes removed"))
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("SSD maintenance") }
+    SectionTitle { Layout.fillWidth: true; visible: page.fstrimLoaded; text: Tr.t("SSD maintenance") }
     SwitchRow {
         Layout.fillWidth: true
         visible: page.fstrimLoaded

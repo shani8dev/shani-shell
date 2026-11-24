@@ -97,7 +97,7 @@ ColumnLayout {
             required property var modelData
             Layout.fillWidth: true; spacing: Theme.px(6)
             Text { Layout.preferredWidth: Theme.px(220); text: modelData; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
-            TextField { id: sysField; Layout.fillWidth: true; placeholder: page.sysctlLive[modelData] || ""; text: page.sysctl[modelData] || "" }
+            TextField { id: sysField; Layout.fillWidth: true; placeholder: (page.sysctlLive && page.sysctlLive[modelData]) || ""; text: (page.sysctl && page.sysctl[modelData]) || "" }
             Button { text: Tr.t("Save"); enabled: !page.busy && /^\d+$/.test(sysField.text.trim()); onClicked: { const o = Object.assign({}, page.sysctl); o[modelData] = sysField.text.trim(); page.saveSysctl(o); } }
         }
     }

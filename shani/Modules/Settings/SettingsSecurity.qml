@@ -262,7 +262,7 @@ ColumnLayout {
             required property var modelData
             Layout.fillWidth: true; spacing: Theme.px(6)
             Text { Layout.preferredWidth: Theme.px(160); text: modelData.k; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
-            TextField { id: cdVal; Layout.fillWidth: true; text: page.coredump[modelData.k] || ""; placeholder: modelData.ph }
+            TextField { id: cdVal; Layout.fillWidth: true; text: (page.coredump && page.coredump[modelData.k]) || ""; placeholder: modelData.ph }
             Button { text: Tr.t("Save"); onClicked: page.saveCoredump(modelData.k, cdVal.text.trim()) }
         }
     }

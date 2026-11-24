@@ -31,7 +31,8 @@ ColumnLayout {
     onActiveChanged: if (active) { list.running = true; optsRead.running = true; cbGet.running = false; cbGet.running = true; }
     // made already active (a Settings category is a Loader): load now too
     Component.onCompleted: if (active) { list.running = true; optsRead.running = true; cbGet.running = false; cbGet.running = true; }
-    Process { id: cbGet; command: page.adminCmd.concat(["cups-browsed-get"]); stdout: StdioCollector { onStreamFinished: { try { const d = JSON.parse(text); page.cupsBrowsed = !!d.enabled; page.cupsBrowsedLoaded = true; } catch(e) {} } } }
+    // read-only status: no pkexec, so the toggle never waits on an auth prompt
+    Process { id: cbGet; command: ["sh", "-c", "systemctl is-enabled cups-browsed.service 2>/dev/null || true"]; stdout: StdioCollector { onStreamFinished: { page.cupsBrowsed = text.trim() === "enabled" || text.trim() === "static"; page.cupsBrowsedLoaded = true; } } }
     Process { id: cbSet; stdinEnabled: true; property string payload: ""; onStarted: { write(payload + "\n"); stdinEnabled = false; } onExited: code => { stdinEnabled = true; cbGet.running = false; cbGet.running = true; if (code !== 0) page.note = Tr.t("Could not change printer discovery"); } }
 
     function run(cmd, done) { act.command = cmd; act.done = done || ""; act.running = true; }
