@@ -10,6 +10,7 @@
 // Ctrl+Shift+T reopen the last closed tab.
 // The image's default for text files (dev.shani.TextEditor.desktop).
 import Quickshell
+import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
@@ -40,7 +41,8 @@ AppWindow {
         IconButton { size: Theme.px(30); icon: "view-list"; tip: Tr.t("Line numbers"); on: win.lineNumbers; onClicked: win.lineNumbers = !win.lineNumbers },
         IconButton { size: Theme.px(30); icon: "applications-graphics"; tip: Tr.t("Syntax colours"); on: win.colours; onClicked: { win.colours = !win.colours; Settings.data.textEditorColours = win.colours; } },
         IconButton { size: Theme.px(30); icon: "zoom-out"; tip: Tr.t("Smaller text") + " (Ctrl+-)"; onClicked: win.fontSize = Math.max(8, win.fontSize - 1) },
-        IconButton { size: Theme.px(30); icon: "zoom-in"; tip: Tr.t("Larger text") + " (Ctrl++)"; onClicked: win.fontSize = Math.min(28, win.fontSize + 1) }
+        IconButton { size: Theme.px(30); icon: "zoom-in"; tip: Tr.t("Larger text") + " (Ctrl++)"; onClicked: win.fontSize = Math.min(28, win.fontSize + 1) },
+        IconButton { size: Theme.px(30); icon: "preferences-desktop-font"; tip: Tr.t("Editor font"); onClicked: fontDialog.open() }
     ]
     implicitWidth: Theme.px(1000)
     implicitHeight: Theme.px(720)
@@ -48,6 +50,32 @@ AppWindow {
     property bool wordWrap: true
     property bool lineNumbers: true
     property real fontSize: Settings.data.textEditorFontSize || 13
+    // ---- font family ------------------------------------------------------------
+    // Settings.data's JsonAdapter only accepts keys declared in Common/Settings.qml,
+    // which the editor does not own, so the chosen family lives beside settings.json
+    // (the same pattern as Services/Osk.qml).
+    readonly property string fontPrefsDir: {
+        const p = Settings.path;
+        return p.substring(0, p.lastIndexOf("/"));
+    }
+    readonly property string fontPrefsPath: fontPrefsDir + "/text-editor-font.json"
+    readonly property var fontFamilies: ["Monospace (default)"].concat(Array.from(Qt.fontFamilies()))
+    property string fontFamily: fontPrefs.family || Theme.mono
+    function setFontFamily(f) {
+        fontPrefs.family = f === Theme.mono || f === "" ? "" : f;
+        Quickshell.execDetached(["mkdir", "-p", win.fontPrefsDir]);
+        fontPrefsFile.writeAdapter();
+    }
+    FileView {
+        id: fontPrefsFile
+        path: win.fontPrefsPath
+        atomicWrites: true
+        printErrors: false
+        JsonAdapter {
+            id: fontPrefs
+            property string family: ""
+        }
+    }
     property bool finding: false
     property bool replacing: false
     // find options
@@ -804,7 +832,7 @@ AppWindow {
                         selectedTextColor: Theme.accentInk
                         selectByMouse: true
                         persistentSelection: true
-                        font.family: Theme.mono
+                        font.family: win.fontFamily
                         font.pixelSize: win.fontSize * Theme.fontScale
                         tabStopDistance: 4 * font.pixelSize * 0.6
                         Accessible.role: Accessible.EditableText
@@ -883,6 +911,43 @@ AppWindow {
                     font.pixelSize: Theme.px(11) * Theme.fontScale
                     font.features: { "tnum": 1 }
                 }
+            }
+        }
+    }
+
+    // ---- editor font picker ------------------------------------------------------
+    Dialog {
+        id: fontDialog
+        anchors.centerIn: parent
+        width: Math.min(win.width * 0.6, Theme.px(380))
+        title: Tr.t("Editor font")
+        modal: true
+        standardButtons: Dialog.Close
+        onOpened: fontCombo.currentIndex = win.fontFamily === Theme.mono ? 0 : Math.max(0, win.fontFamilies.indexOf(win.fontFamily))
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: Theme.px(10)
+            Text {
+                Layout.fillWidth: true
+                text: Tr.t("Font family")
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+            ComboBox {
+                id: fontCombo
+                Layout.fillWidth: true
+                model: win.fontFamilies
+                Accessible.name: Tr.t("Font family")
+                onActivated: i => win.setFontFamily(i === 0 ? "" : win.fontFamilies[i])
+            }
+            Text {
+                Layout.fillWidth: true
+                text: "Aa Bb Cc 0123  { }  =>  var x = 1;" + (win.fontFamily === Theme.mono ? "" : "  ·  " + win.fontFamily)
+                color: Theme.text
+                font.family: win.fontFamily
+                font.pixelSize: win.fontSize * Theme.fontScale
+                wrapMode: Text.Wrap
             }
         }
     }
