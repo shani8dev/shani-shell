@@ -45,6 +45,11 @@ Singleton {
     // bookmarks from the last session, keyed by path, applied as each file loads
     // (opens are async, so they cannot be attached in onLoaded itself)
     property var pendingBookmarks: ({})
+    property string lastPath: ""          // path of the last open attempt (the error state's Retry)
+    property string folder: ""            // the project folder shown in the editor sidebar
+    property var recentFiles: []          // most recently opened paths, newest first
+    readonly property int maxRecent: 20
+    onFolderChanged: if (!root.restoring) saveSession()
 
     // TextArea is not made for big files; past this the editor says so
     readonly property int maxBytes: 2 * 1024 * 1024
@@ -88,6 +93,40 @@ Singleton {
         return list[list.length - 1];
     }
 
+    // ---- recent files, tab groups and the syntax override ----------------------
+    // The MRU is written with the session, so Open recent survives a restart.
+    function noteRecent(path) {
+        if (!path) return;
+        const r = root.recentFiles.filter(p => p !== path);
+        r.unshift(path);
+        root.recentFiles = r.slice(0, root.maxRecent);
+        if (!root.restoring) saveSession();
+    }
+    function openRecent(path) { root.open(path); }
+    // a tab belongs to the folder its file lives in; unsaved tabs share Scratch
+    function groupOf(doc) {
+        if (!doc) return "";
+        if (!doc.path) return doc.group || "Scratch";
+        const i = doc.path.lastIndexOf("/");
+        return i > 0 ? doc.path.substring(0, i) : "/";
+    }
+    function groups() {
+        const out = [];
+        root.docs.forEach(d => { const g = root.groupOf(d); if (out.indexOf(g) < 0) out.push(g); });
+        return out;
+    }
+    function showGroup(g) {
+        const i = root.docs.findIndex(d => root.groupOf(d) === g);
+        if (i >= 0) root.show(i);
+    }
+    // an explicit highlighter choice for a document (auto-detected when empty)
+    function setSyntax(i, lang) {
+        const d = root.docs[i];
+        if (!d) return;
+        d.syntax = lang || "";
+        root.touch();
+    }
+
     function saveSession() {
         if (root.restoring || sessionView.path === "") return;
         const paths = [], bookmarks = {};
@@ -96,7 +135,8 @@ Singleton {
             paths.push(d.path);
             if (d.bookmarks && d.bookmarks.length) bookmarks[d.path] = d.bookmarks.slice();
         });
-        sessionView.setText(JSON.stringify({ paths: paths, active: root.active, bookmarks: bookmarks }));
+        sessionView.setText(JSON.stringify({ paths: paths, active: root.active, bookmarks: bookmarks,
+                                              recent: root.recentFiles.slice(0, root.maxRecent), folder: root.folder }));
     }
     function restoreSession() {
         root.restoring = true;
@@ -112,6 +152,10 @@ Singleton {
             try { data = JSON.parse(text()); } catch (e) { data = {}; }
             const b = data.bookmarks;
             root.pendingBookmarks = b && typeof b === "object" && !Array.isArray(b) ? b : {};
+            // a missing or malformed field falls back to the empty/default value
+            root.recentFiles = Array.isArray(data.recent)
+                ? data.recent.filter(p => typeof p === "string" && p !== "").slice(0, root.maxRecent) : [];
+            root.folder = typeof data.folder === "string" ? data.folder : "";
             const paths = Array.isArray(data.paths) ? data.paths : [];
             paths.forEach(p => root.open(p));
             root.restoring = false;
@@ -153,6 +197,7 @@ Singleton {
             path = (Quickshell.env("HOME") || "") + "/" + path;
         root.error = "";
         root.goToLine = line;
+        root.lastPath = path;
         const at = indexOf(path);
         if (at >= 0) {
             show(at);
@@ -175,6 +220,7 @@ Singleton {
                 if (a[0] === "new") {
                     // a name that is not there yet: an empty document that Save creates
                     root.docs = root.docs.concat([{ path: path, name: root.nameOf(path), text: "", eol: "\n", modified: false, readOnly: false, bookmarks: root.takeBookmarks(path) }]);
+                    root.noteRecent(path);
                     root.show(root.docs.length - 1);
                 } else if (a[0] === "file" && parseInt(a[1]) > root.maxBytes)
                     root.fail(Tr.t("Too big to edit here") + ": " + root.nameOf(path));
@@ -209,6 +255,7 @@ Singleton {
             // an empty "Untitled" nobody typed in gives its place to the file
             const keep = root.docs.filter(d => !(d.path === "" && d.text === "" && !d.modified));
             root.docs = keep.concat([{ path: p, name: root.nameOf(p), text: raw.replace(/\r\n/g, "\n"), eol: eol, modified: false, readOnly: readOnly, bookmarks: root.takeBookmarks(p) }]);
+            root.noteRecent(p);
             root.show(root.docs.length - 1);
         }
         onLoadFailed: root.fail(Tr.t("Cannot be read") + ": " + root.nameOf(String(path)))
@@ -281,6 +328,7 @@ Singleton {
         d.name = nameOf(path);
         d.readOnly = false;
         touch();
+        noteRecent(path);
         save();
     }
 

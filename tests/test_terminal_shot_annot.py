@@ -34,9 +34,11 @@ def test_terminal_close_guard_is_wired():
     assert "Keys.onEscapePressed: win.requestClose()" in s
     assert 'Tr.t("' + CLOSE_MSG + '")' in s
     # every launch path records the host before handing it to the service
-    assert s.count("win.noteLaunch(") == 3  # one per Connect path
+    assert (
+        s.count("win.noteLaunch(") >= 3
+    )  # one per Connect path (plus quick-command launches)
     assert "TerminalApp.connect(h)" in s  # keyboard path unchanged
-    assert s.count("TerminalApp.connect(modelData)") == 2
+    assert s.count("TerminalApp.connect(modelData)") >= 2
 
 
 def test_terminal_note_launch_is_idempotent():

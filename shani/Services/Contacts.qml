@@ -34,6 +34,28 @@ Singleton {
         return [Tr.t("All")].concat(Object.keys(seen).sort());
     }
 
+    // GNOME Contacts' smart lists: views computed from the cards, not saved
+    // groups, so they stay useful in an address book nobody has curated.
+    readonly property var smartListNames: [Tr.t("Favourites"), Tr.t("No phone"), Tr.t("No email")]
+    function isSmartList(name) { return smartListNames.indexOf(name) >= 0; }
+    function contactsInList(name) {
+        if (!name || name === Tr.t("All")) return contacts.slice();
+        if (name === Tr.t("Favourites")) return favoriteContacts.slice();
+        if (name === Tr.t("No phone"))
+            return contacts.filter(c => !(c.phones || []).some(p => String(p.number || "").trim() !== ""));
+        if (name === Tr.t("No email"))
+            return contacts.filter(c => !(c.emails || []).some(e => String(e.address || "").trim() !== ""));
+        return listContactsInGroup(name);
+    }
+    function countInList(name) { return contactsInList(name).length; }
+    function groupCount(group) { return contacts.filter(c => (c.groups || []).indexOf(group) >= 0).length; }
+
+    // A short-lived success line beside the error: an import that wrote zero
+    // cards and one that wrote five used to look identical in the window.
+    property string notice: ""
+    Timer { id: noticeTimer; interval: 5000; onTriggered: root.notice = "" }
+    function say(message) { root.notice = message || ""; if (root.notice) noticeTimer.restart(); }
+
     // the list, filtered by query (contacts.py does the matching)
     readonly property var shown: contacts
 
@@ -88,11 +110,14 @@ Singleton {
     // one write at a time, then the list again (same pattern as Tasks.qml)
     property var _queue: []
     function run(args) { _queue = _queue.concat([args]); next(); }
+    property string _lastAction: ""
     function next() {
         if (writer.running || _queue.length === 0)
             return;
         busy = true;
-        writer.command = ["python3", root.tool].concat(_queue[0]);
+        const args = _queue[0];
+        root._lastAction = args[0] || "";
+        writer.command = ["python3", root.tool].concat(args);
         _queue = _queue.slice(1);
         writer.running = true;
     }
@@ -143,25 +168,36 @@ Singleton {
         id: exportProc
         stdout: StdioCollector {
             onStreamFinished: {
-                if (text.trim() === "") return;
+                if (text.trim() === "") {
+                    root.error = Tr.t("There are no contacts to export");
+                    return;
+                }
                 exportView.path = root.exportPath;
                 exportView.setText(text);
             }
         }
     }
-    FileView { id: exportView; path: ""; printErrors: false }
+    FileView {
+        id: exportView
+        path: ""
+        printErrors: false
+        onSaved: root.say(Tr.t("Contacts exported"))
+    }
 
     // import a .vcf file (drag onto the window, or a file picker)
     function importFile(path) {
+        if (!path) { root.error = Tr.t("No file was chosen"); return; }
         run(["import", path]);
     }
 
     // find contacts that look like duplicates (same name or same phone/email)
-    // returns pairs of uids that should be merged
+    // returns pairs of uids that should be merged. Your own card is never a
+    // candidate: folding it into somebody else changes who "me" is.
     function findDuplicates() {
         const seen = {};
         const dups = [];
         for (const c of contacts) {
+            if (c.self) continue;
             const key = (c.name || "").toLowerCase().replace(/\s+/g, "");
             if (key && seen[key]) {
                 dups.push([seen[key], c.uid]);
@@ -196,12 +232,15 @@ Singleton {
         return unique;
     }
 
-    // merge two contacts: keep the first's uid, add any missing phones/emails from the second, delete the second
+    // merge two contacts: keep the first's uid, add everything the second had,
+    // delete the second. The old merge sent only a name/phones/emails payload,
+    // so given/family, groups, favourite and photo were silently wiped.
+    property var lastMerge: null   // { keeper, removed } — one-step unlink after a merge
     function merge(uidA, uidB) {
+        if (!uidA || !uidB || uidA === uidB) return;
         const a = contacts.find(c => c.uid === uidA);
         const b = contacts.find(c => c.uid === uidB);
-        if (!a || !b) return;
-        // merge phones/emails not already in a
+        if (!a || !b || a.self || b.self) return;
         const phones = (a.phones || []).slice();
         for (const p of (b.phones || [])) {
             if (!phones.some(x => x.number === p.number)) phones.push(p);
@@ -210,9 +249,32 @@ Singleton {
         for (const e of (b.emails || [])) {
             if (!emails.some(x => x.address === e.address)) emails.push(e);
         }
-        // write the merged contact as a new entry with a's uid, then delete b
-        run(["edit", JSON.stringify({ uid: uidA, name: a.name, phones: phones, emails: emails })]);
-        run(["delete", JSON.stringify({ uid: uidB })]);
+        const groups = (a.groups || []).slice();
+        for (const g of (b.groups || [])) {
+            if (groups.indexOf(g) < 0) groups.push(g);
+        }
+        root.lastMerge = { keeper: JSON.parse(JSON.stringify(a)), removed: JSON.parse(JSON.stringify(b)) };
+        root.run(["edit", JSON.stringify({ uid: uidA, name: a.name || b.name,
+            given: a.given || b.given || "", family: a.family || b.family || "",
+            phones: phones, emails: emails, groups: groups,
+            favorite: !!a.favorite || !!b.favorite, avatar: a.avatar || b.avatar || "" })]);
+        root.run(["delete", JSON.stringify({ uid: uidB })]);
+        root.say(Tr.t("Merged %1 into %2", b.name || "", a.name || ""));
+    }
+
+    // Undo / unlink: restore both cards exactly as they were. Only the last
+    // merge is reversible; a self card is never merged in the first place.
+    function undoMerge() {
+        const m = root.lastMerge;
+        if (!m) return;
+        root.lastMerge = null;
+        const k = m.keeper;
+        const r = m.removed;
+        root.run(["edit", JSON.stringify(k)]);
+        root.run(["add", JSON.stringify({ name: r.name, given: r.given || "", family: r.family || "",
+            phones: r.phones || [], emails: r.emails || [], groups: r.groups || [],
+            favorite: !!r.favorite, avatar: r.avatar || "" })]);
+        root.say(Tr.t("Merge undone — the cards are separate again"));
     }
 
     Process {
@@ -232,10 +294,16 @@ Singleton {
 
     Process {
         id: writer
+        stdout: StdioCollector { id: writeOut }
         stderr: StdioCollector { id: writeErr }
         onExited: code => {
             root.busy = false;
             root.error = code === 0 ? "" : (writeErr.text.trim().split("\n").pop() || Tr.t("Could not save the contact"));
+            if (code === 0 && root._lastAction === "import") {
+                let count = 0;
+                try { count = Number(JSON.parse(writeOut.text.trim()).count) || 0; } catch (e) {}
+                root.say(Tr.t("Imported %1 contact%2", count, count === 1 ? "" : "s"));
+            }
             root.refresh();
             root.next();
         }

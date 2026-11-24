@@ -29,6 +29,11 @@ AppWindow {
         IconButton { size: Theme.px(30); icon: "edit-undo"; tip: Tr.t("Undo") + " (Ctrl+Z)"; enabled: TextDocs.canUndo; onClicked: win.undo() },
         IconButton { size: Theme.px(30); icon: "edit-redo"; tip: Tr.t("Redo") + " (Ctrl+Shift+Z)"; enabled: TextDocs.canRedo; onClicked: win.redo() },
         IconButton { size: Theme.px(30); icon: "document-open"; tip: Tr.t("Open") + " (Ctrl+O)"; onClicked: win.pick() },
+        IconButton { size: Theme.px(30); icon: "document-open-recent"; tip: "Open recent (Ctrl+R)"; onClicked: recentDialog.open() },
+        IconButton { size: Theme.px(30); icon: "folder-open"; tip: "Project folder (Ctrl+K, O)"; on: win.sidebarOpen; onClicked: { if (TextDocs.folder === "") win.pickFolder(); else win.sidebarOpen = !win.sidebarOpen; } },
+        IconButton { size: Theme.px(30); icon: "edit-find-in"; tip: "Find in files (Ctrl+Shift+F)"; on: win.findFilesOpen; onClicked: win.openFindFiles() },
+        IconButton { size: Theme.px(30); icon: "view-split-left-right"; tip: "Split view (Ctrl+K, D)"; on: win.splitView; onClicked: win.splitView = !win.splitView },
+        IconButton { size: Theme.px(30); icon: "applications-graphics"; tip: "Syntax language"; onClicked: syntaxDialog.open() },
         Button { text: Tr.t("Save"); kind: TextDocs.current && TextDocs.current.modified ? "primary" : "plain"; enabled: TextDocs.current !== null && !TextDocs.saving; onClicked: win.save() },
         Button { text: Tr.t("Save as…"); flat: true; onClicked: win.saveAs() },
         IconButton { size: Theme.px(30); icon: "edit-find"; tip: Tr.t("Find") + " (Ctrl+F)"; on: win.finding; onClicked: { win.finding = !win.finding; if (win.finding) findField.input.forceActiveFocus(); } },
@@ -89,6 +94,16 @@ AppWindow {
     property int confirmClose: -1         // the tab asked to close with changes: a second click closes it
     property var lastClosed: null         // { index, doc } of the last tab closed — Ctrl+Shift+T puts it back
     property bool loading: false          // the editor is being filled, not typed in
+    // ---- IDE-style additions: project, MRU, groups, split, chords ---------------
+    property bool sidebarOpen: false
+    property bool splitView: false
+    property bool findFilesOpen: false
+    property string findFilesQuery: ""
+    property var findFilesResults: []
+    property bool findingFiles: false
+    property string activeGroup: ""       // "" shows every tab; otherwise one folder
+    property string chord: ""             // a pressed Ctrl+K, waiting for its second key
+    readonly property var syntaxes: Object.keys(Highlight.langs).sort()
     // ---- snippets: type a trigger, press Tab to expand ----
     readonly property var snippets: [
         { trigger: "if", body: "if () {\n    \n}" },
@@ -256,7 +271,10 @@ AppWindow {
 
     // ---- syntax colours ----------------------------------------------------------
     property bool colours: Settings.data.textEditorColours !== false
-    readonly property string lang: TextDocs.current ? Highlight.langFor(TextDocs.current.path, TextDocs.current.text.substring(0, 120).split("\n")[0]) : "text"
+    // an explicit choice on the document wins over extension / shebang detection
+    readonly property string lang: TextDocs.current && TextDocs.current.syntax && TextDocs.current.syntax !== ""
+        ? TextDocs.current.syntax
+        : (TextDocs.current ? Highlight.langFor(TextDocs.current.path, TextDocs.current.text.substring(0, 120).split("\n")[0]) : "text")
     // not for plain text (nothing to colour), nor for a very long file (each
     // change colours the whole text again)
     readonly property bool coloured: colours && lang !== "text" && edit.length <= 200000
@@ -519,13 +537,17 @@ AppWindow {
     }
 
     function shortcut(e) {
+        // a chord's second key does not carry Ctrl (VS Code's Ctrl+K, X)
+        if (win.chord !== "" && win.handleChord(e)) return true;
         const ctrl = e.modifiers & Qt.ControlModifier, shift = e.modifiers & Qt.ShiftModifier;
         if (!ctrl)
             return false;
+        if (e.key === Qt.Key_K && !shift) { win.chord = "K"; chordTimer.restart(); return true; }
         if (e.key === Qt.Key_S) { if (shift) win.saveAs(); else win.save(); }
         else if (e.key === Qt.Key_Z) { if (shift) win.redo(); else win.undo(); }
         else if (e.key === Qt.Key_Y) win.redo();
         else if (e.key === Qt.Key_O) win.pick();
+        else if (e.key === Qt.Key_R) recentDialog.open();
         else if (e.key === Qt.Key_N) TextDocs.newDoc();
         else if (e.key === Qt.Key_W) win.closeTab(TextDocs.active);
         else if (e.key === Qt.Key_T && shift) win.reopenTab();
@@ -533,18 +555,21 @@ AppWindow {
             TextDocs.show((TextDocs.active + (shift ? -1 : 1) + TextDocs.docs.length) % TextDocs.docs.length);
         else if ((e.key === Qt.Key_PageDown || e.key === Qt.Key_PageUp) && TextDocs.docs.length > 1)
             TextDocs.show((TextDocs.active + (e.key === Qt.Key_PageDown ? 1 : -1) + TextDocs.docs.length) % TextDocs.docs.length);
-        else if (e.key === Qt.Key_F) { win.finding = true; win.replacing = false; findField.text = edit.selectedText; findField.input.forceActiveFocus(); }
+        else if (e.key === Qt.Key_F && !shift) { win.finding = true; win.replacing = false; findField.text = edit.selectedText; findField.input.forceActiveFocus(); }
+        else if (e.key === Qt.Key_F && shift) win.openFindFiles();
         else if (e.key === Qt.Key_H) { win.finding = true; win.replacing = true; if (edit.selectedText !== "") findField.text = edit.selectedText; findField.input.forceActiveFocus(); }
         else if (e.key === Qt.Key_B) win.toggleBookmark();
         else if (e.key === Qt.Key_G) win.openGoto();
         else if (e.key === Qt.Key_Plus || e.key === Qt.Key_Equal) win.fontSize = Math.min(28, win.fontSize + 1);
         else if (e.key === Qt.Key_Minus) win.fontSize = Math.max(8, win.fontSize - 1);
         else if (e.key === Qt.Key_0) win.fontSize = 13;
+        else if (e.key === Qt.Key_BracketRight || e.key === Qt.Key_BracketLeft) win.jumpBrace();
         else return false;
         return true;
     }
     // Escape leaves the find bar; the window is closed like any other (Mod+Q, its button)
     function leave() {
+        win.chord = "";
         if (win.finding) {
             win.finding = false;
             edit.forceActiveFocus();
@@ -552,6 +577,117 @@ AppWindow {
             Ui.textEditor = false;
         }
     }
+
+    // ---- project folder ---------------------------------------------------------
+    // FileDirectory is the shell's own watched listing, already used by the file
+    // chooser: the sidebar sees files made elsewhere without a manual refresh.
+    FileDirectory { id: dirModel; path: TextDocs.folder }
+
+    function pickFolder() {
+        FilePicker.open({ mode: "folder", title: "Open a project folder",
+                          startPath: TextDocs.folder || "",
+                          onPicked: paths => { if (paths.length) win.openFolder(paths[0]); } });
+    }
+    function openFolder(path) { TextDocs.folder = path; win.sidebarOpen = true; }
+    function openSidebarEntry(e) {
+        if (!e) return;
+        if (e.isDir) TextDocs.folder = e.path;
+        else TextDocs.open(e.path);
+    }
+
+    // ---- find in files ----------------------------------------------------------
+    // grep is given its arguments directly (no shell string), so a query with
+    // spaces or quotes cannot become a command. -F keeps the query literal.
+    Process {
+        id: fileSearch
+        stdout: SplitParser {
+            onRead: line => {
+                const m = String(line).match(/^([^:]+):(\d+):(.*)$/);
+                if (!m || win.findFilesResults.length >= 200) return;
+                win.findFilesResults = win.findFilesResults.concat([
+                    { path: m[1], line: parseInt(m[2], 10), text: m[3] }
+                ]);
+            }
+        }
+        onExited: win.findingFiles = false
+    }
+    function findInFiles(q) {
+        win.findFilesQuery = q;
+        win.findFilesResults = [];
+        win.findingFiles = false;
+        if (q.trim() === "" || TextDocs.folder === "") return;
+        win.findingFiles = true;
+        fileSearch.command = ["grep", "-rnIF", "--exclude-dir=.git", "-e", q, TextDocs.folder];
+        fileSearch.running = true;
+    }
+    // open() resets goToLine from its argument, so carry the line in "+N path"
+    function openResult(r) { TextDocs.open("+" + r.line + " " + r.path); }
+    function openFindFiles() {
+        win.findFilesOpen = true;
+        findFilesField.text = win.findFilesQuery;
+        findFilesField.input.forceActiveFocus();
+    }
+
+    // ---- syntax selection, brace jump, block indent -----------------------------
+    function setSyntax(name) {
+        if (TextDocs.active < 0) return;
+        TextDocs.setSyntax(TextDocs.active, name || "");
+        repaint.restart();
+    }
+    // Ctrl+] toggles between a bracket and the one it encloses
+    function jumpBrace() {
+        const p = win.matchBrace(edit.cursorPosition);
+        if (p < 0) return false;
+        edit.cursorPosition = p;
+        return true;
+    }
+    // Tab / Shift+Tab on selected lines indents or unindents the whole block
+    function indentSelection(outward) {
+        const t = edit.text, a = edit.selectionStart, b = edit.selectionEnd;
+        if (b <= a) return false;
+        const first = t.lastIndexOf("\n", a - 1) + 1;
+        let last = t.indexOf("\n", b);
+        if (last < 0) last = t.length;
+        const block = t.substring(first, last);
+        let delta = 0;
+        const changed = block.split("\n").map(line => {
+            if (outward) {
+                const m = line.match(/^ {1,4}/);
+                if (!m) return line;
+                delta -= m[0].length;
+                return line.substring(m[0].length);
+            }
+            delta += 4;
+            return "    " + line;
+        }).join("\n");
+        if (changed === block) return false;
+        win.loading = true;
+        edit.text = t.substring(0, first) + changed + t.substring(last);
+        edit.select(Math.max(first, a + delta), Math.min(edit.text.length, b + delta));
+        win.loading = false;
+        TextDocs.setText(edit.text);
+        repaint.restart();
+        return true;
+    }
+
+    // ---- two-key chords (Ctrl+K, then a letter) ---------------------------------
+    function handleChord(e) {
+        if (win.chord !== "K") return false;
+        win.chord = "";
+        chordTimer.stop();
+        if (e.key === Qt.Key_O) win.pickFolder();
+        else if (e.key === Qt.Key_F) win.openFindFiles();
+        else if (e.key === Qt.Key_B) win.sidebarOpen = !win.sidebarOpen;
+        else if (e.key === Qt.Key_D) win.splitView = !win.splitView;
+        else if (e.key === Qt.Key_L) syntaxDialog.open();
+        else return false;
+        e.accepted = true;
+        return true;
+    }
+    Timer { id: chordTimer; interval: 2500; onTriggered: win.chord = "" }
+
+    function retryOpen() { if (TextDocs.lastPath !== "") TextDocs.open(TextDocs.lastPath); }
+    function dismissError() { TextDocs.error = ""; }
 
     Item {
         id: card
@@ -581,6 +717,7 @@ AppWindow {
                             required property int index
                             readonly property bool front: TextDocs.active === index
                             readonly property bool asking: win.confirmClose === index
+                            visible: win.activeGroup === "" || TextDocs.groupOf(tab.modelData) === win.activeGroup
                             width: tabText.implicitWidth + 50
                             height: Theme.px(32)
                             radius: Theme.radiusSmall
@@ -616,6 +753,41 @@ AppWindow {
                         }
                     }
                 }
+            }
+
+            // ---- tab groups: one chip per folder, filtering the tab strip ----
+            RowLayout {
+                Layout.fillWidth: true
+                visible: TextDocs.groups().length > 1
+                spacing: Theme.px(6)
+                Repeater {
+                    model: TextDocs.groups()
+                    Choice {
+                        required property var modelData
+                        text: modelData === "Scratch" ? "Unsaved" : modelData.split("/").pop()
+                        selected: win.activeGroup === modelData
+                                  || (win.activeGroup === "" && modelData === TextDocs.groupOf(TextDocs.current))
+                        onClicked: { win.activeGroup = modelData; TextDocs.showGroup(modelData); }
+                    }
+                }
+                Button { text: "All tabs"; flat: true; checked: win.activeGroup === ""; onClicked: win.activeGroup = "" }
+            }
+
+            // ---- a failed open is a state with its own way out ------------------
+            RowLayout {
+                Layout.fillWidth: true
+                visible: TextDocs.error !== ""
+                spacing: Theme.px(8)
+                Text {
+                    Layout.fillWidth: true
+                    text: TextDocs.error
+                    color: Theme.danger
+                    wrapMode: Text.Wrap
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+                Button { text: "Retry"; onClicked: win.retryOpen() }
+                Button { text: "Dismiss"; flat: true; onClicked: win.dismissError() }
             }
 
             EmptyState {
@@ -724,12 +896,107 @@ AppWindow {
                 border.color: Theme.border
                 clip: true
 
+                // ---- project sidebar: the folder's files, watched live ----------
+                Rectangle {
+                    id: sidebar
+                    visible: win.sidebarOpen
+                    width: visible ? Theme.px(220) : 0
+                    anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                    z: 3
+                    color: Theme.surface1
+                    border.width: 1
+                    border.color: Theme.border
+                    clip: true
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: Theme.px(6)
+                        spacing: Theme.px(6)
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text {
+                                Layout.fillWidth: true
+                                text: TextDocs.folder.split("/").pop()
+                                color: Theme.text
+                                elide: Text.ElideMiddle
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                            }
+                            IconButton { size: Theme.px(24); icon: "folder-open"; tip: "Open another folder"; onClicked: win.pickFolder() }
+                            IconButton { size: Theme.px(24); icon: "window-close"; tip: "Hide sidebar"; onClicked: win.sidebarOpen = false }
+                        }
+                        TextField {
+                            id: sidebarFilter
+                            Layout.fillWidth: true
+                            placeholder: "Filter files"
+                            label: "Filter files"
+                            onTextChanged: dirModel.query = text
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            visible: dirModel.error !== ""
+                            text: dirModel.error
+                            color: Theme.danger
+                            wrapMode: Text.Wrap
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                        }
+                        ListView {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            visible: dirModel.error === "" && TextDocs.folder !== ""
+                            model: dirModel.entries
+                            clip: true
+                            delegate: Item {
+                                required property var modelData
+                                width: ListView.view.width
+                                height: Theme.px(26)
+                                Accessible.role: Accessible.ListItem
+                                Accessible.name: modelData.name + (modelData.isDir ? ", folder" : ", file")
+                                Accessible.onPressAction: win.openSidebarEntry(modelData)
+                                Rectangle { anchors.fill: parent; color: fileArea.containsMouse ? Theme.hover : "transparent" }
+                                Text {
+                                    anchors { left: parent.left; leftMargin: Theme.px(8); verticalCenter: parent.verticalCenter }
+                                    width: parent.width - Theme.px(16)
+                                    text: (modelData.isDir ? "▸ " : "  ") + modelData.name
+                                    color: Theme.text
+                                    elide: Text.ElideRight
+                                    font.family: Theme.font
+                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                }
+                                MouseArea {
+                                    id: fileArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: win.openSidebarEntry(modelData)
+                                }
+                            }
+                        }
+                        EmptyState {
+                            visible: TextDocs.folder === "" && dirModel.error === ""
+                            Layout.fillWidth: true
+                            icon: "folder-open"
+                            title: "No folder open"
+                            subtitle: "Open a project folder to browse its files"
+                            actionText: "Open folder"
+                            onAction: win.pickFolder()
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            visible: TextDocs.folder !== "" && dirModel.entries.count === 0 && !dirModel.loading && dirModel.error === ""
+                            text: "No files here"
+                            color: Theme.dim
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                        }
+                    }
+                }
+
                 // line numbers: beside unwrapped text, where a line is a row
                 Item {
                     id: gutter
                     visible: win.lineNumbers
                     width: visible ? numbers.implicitWidth + 16 : 0
-                    anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                    anchors { left: sidebar.right; top: parent.top; bottom: parent.bottom }
                     clip: true
                     Text {
                         id: numbers
@@ -754,7 +1021,11 @@ AppWindow {
                 Flickable {
                     id: flick
                     visible: TextDocs.docs.length > 0
-                    anchors { left: gutter.right; right: parent.right; top: parent.top; bottom: parent.bottom; margins: Theme.px(8); leftMargin: gutter.visible ? 0 : 8 }
+                    anchors {
+                        left: gutter.right; right: parent.right; top: parent.top; bottom: parent.bottom
+                        margins: Theme.px(8); leftMargin: gutter.visible ? 0 : 8
+                        rightMargin: rightAnchor.width + Theme.px(8)
+                    }
                     contentWidth: edit.width
                     contentHeight: edit.height
                     clip: true
@@ -856,6 +1127,9 @@ AppWindow {
                             }
                             if (!win.multiCursor && !(e.modifiers & Qt.ControlModifier) && !(e.modifiers & Qt.AltModifier)
                                     && win.handleAutoclose(e)) return;
+                            if (e.key === Qt.Key_Tab && !(e.modifiers & Qt.ControlModifier) && edit.selectionEnd > edit.selectionStart) {
+                                if (win.indentSelection(!!(e.modifiers & Qt.ShiftModifier))) { e.accepted = true; return; }
+                            }
                             if (e.key === Qt.Key_Tab && !(e.modifiers & Qt.ShiftModifier) && !(e.modifiers & Qt.ControlModifier)) {
                                 if (win.trySnippet()) { e.accepted = true; return; }
                             }
@@ -878,6 +1152,99 @@ AppWindow {
                             color: Theme.accent
                             visible: edit.activeFocus
                             z: 5
+                        }
+                    }
+
+                    // ---- right dock: split reading pane + line overview ---------
+                    Item {
+                        id: rightAnchor
+                        anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
+                        width: (splitPane.visible ? splitPane.width : 0) + (minimap.visible ? minimap.width : 0)
+                        z: 3
+
+                        // a mirrored reading pane of the same document; a click
+                        // moves the primary caret, so one file can be read ahead
+                        Rectangle {
+                            id: splitPane
+                            visible: win.splitView && TextDocs.docs.length > 0
+                            width: visible ? Math.min(Theme.px(420), win.width * 0.4) : 0
+                            anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                            color: Theme.surface1
+                            border.width: 1
+                            border.color: Theme.border
+                            clip: true
+                            Accessible.role: Accessible.EditableText
+                            Accessible.name: "Split view"
+                            Accessible.description: "A mirrored reading pane of this document"
+                            Flickable {
+                                id: mirrorFlick
+                                anchors.fill: parent
+                                anchors.margins: Theme.px(8)
+                                contentWidth: mirror.width
+                                contentHeight: mirror.height
+                                clip: true
+                                boundsBehavior: Flickable.StopAtBounds
+                                contentY: flick.contentY
+                                Text {
+                                    id: mirror
+                                    width: mirrorFlick.width
+                                    text: win.coloured ? paint.text : edit.text
+                                    textFormat: win.coloured ? Text.RichText : Text.PlainText
+                                    color: Theme.text
+                                    font: edit.font
+                                    wrapMode: win.wordWrap ? Text.Wrap : Text.NoWrap
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: {
+                                        const y = mouseY + mirrorFlick.contentY - Theme.px(8);
+                                        const line = Math.max(1, Math.min(edit.lineCount,
+                                            Math.floor(y / Math.max(1, edit.font.pixelSize * 1.6)) + 1));
+                                        win.goToLine(line);
+                                        edit.forceActiveFocus();
+                                    }
+                                }
+                            }
+                        }
+
+                        // line overview: one tick per line (sampled on long files)
+                        Item {
+                            id: minimap
+                            visible: win.lineNumbers && TextDocs.docs.length > 0
+                            width: visible ? Theme.px(48) : 0
+                            anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
+                            Accessible.role: Accessible.List
+                            Accessible.name: "Line overview"
+                            Accessible.description: "Click a line to jump there"
+                            Rectangle { anchors.fill: parent; color: Theme.surface1; border.width: 1; border.color: Theme.border }
+                            Repeater {
+                                model: Math.min(edit.lineCount, 120)
+                                Rectangle {
+                                    readonly property real frac: index / Math.max(1, edit.lineCount)
+                                    readonly property int sample: Math.min(edit.lineCount - 1, Math.round(frac * edit.lineCount))
+                                    x: 2
+                                    y: frac * minimap.height
+                                    width: Math.max(2, Math.min(minimap.width - 6, String(edit.text.split("\n")[sample] || "").length * 0.55))
+                                    height: Math.max(1, minimap.height / Math.max(1, edit.lineCount) - 1)
+                                    color: Theme.alpha(Theme.accent, 0.5)
+                                }
+                            }
+                            Rectangle {
+                                y: flick.contentHeight > 0 ? flick.contentY / flick.contentHeight * minimap.height : 0
+                                width: minimap.width
+                                height: flick.contentHeight > 0 ? Math.max(6, flick.height / flick.contentHeight * minimap.height) : minimap.height
+                                color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.10)
+                                border.width: 1
+                                border.color: Theme.accentLine
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: {
+                                    const line = Math.max(1, Math.min(edit.lineCount,
+                                        Math.round(mouseY / Math.max(1, minimap.height) * edit.lineCount)));
+                                    win.goToLine(line);
+                                }
+                            }
                         }
                     }
                 }
@@ -913,6 +1280,180 @@ AppWindow {
                     font.pixelSize: Theme.px(11) * Theme.fontScale
                     font.features: { "tnum": 1 }
                 }
+            }
+        }
+    }
+
+    // ---- open recent / quick switcher --------------------------------------------
+    Dialog {
+        id: recentDialog
+        anchors.centerIn: parent
+        width: Math.min(win.width * 0.7, Theme.px(460))
+        height: Math.min(win.height * 0.7, Theme.px(420))
+        title: "Open recent"
+        modal: false
+        standardButtons: Dialog.Close
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: Theme.px(8)
+            TextField {
+                id: recentFilter
+                Layout.fillWidth: true
+                placeholder: "Filter recent files"
+                label: "Filter recent files"
+            }
+            ListView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                model: TextDocs.recentFiles.filter(p => recentFilter.text === "" || p.toLowerCase().indexOf(recentFilter.text.toLowerCase()) >= 0)
+                delegate: Item {
+                    required property var modelData
+                    width: ListView.view.width
+                    height: Theme.px(30)
+                    Accessible.role: Accessible.ListItem
+                    Accessible.name: modelData
+                    Accessible.onPressAction: win.openRecent(modelData)
+                    Text {
+                        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
+                        anchors.leftMargin: Theme.px(8)
+                        text: modelData
+                        color: Theme.text
+                        elide: Text.ElideMiddle
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: { win.openRecent(modelData); recentDialog.close(); }
+                    }
+                }
+            }
+            EmptyState {
+                visible: TextDocs.recentFiles.length === 0
+                Layout.fillWidth: true
+                icon: "document-open-recent"
+                title: "No recent files"
+                subtitle: "Files you open show up here"
+            }
+        }
+    }
+
+    // ---- find in files -----------------------------------------------------------
+    Dialog {
+        id: findFilesDialog
+        anchors.centerIn: parent
+        width: Math.min(win.width * 0.8, Theme.px(560))
+        height: Math.min(win.height * 0.75, Theme.px(460))
+        title: "Find in files"
+        modal: false
+        standardButtons: Dialog.Close
+        onOpened: findFilesField.input.forceActiveFocus()
+        onClosed: win.findFilesOpen = false
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: Theme.px(8)
+            RowLayout {
+                Layout.fillWidth: true
+                TextField {
+                    id: findFilesField
+                    Layout.fillWidth: true
+                    placeholder: "Search the project folder"
+                    label: "Find in files"
+                    onAccepted: win.findInFiles(text)
+                }
+                Button { text: "Search"; onClicked: win.findInFiles(findFilesField.text) }
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: TextDocs.folder === ""
+                text: "Open a project folder first (Ctrl+K, O)"
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: win.findingFiles
+                text: "Searching…"
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+            ListView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                visible: TextDocs.folder !== "" && win.findFilesResults.length > 0
+                clip: true
+                model: win.findFilesResults
+                delegate: Item {
+                    required property var modelData
+                    width: ListView.view.width
+                    height: Theme.px(40)
+                    Accessible.role: Accessible.ListItem
+                    Accessible.name: modelData.text + ", " + modelData.path + ", line " + modelData.line
+                    Accessible.onPressAction: win.openResult(modelData)
+                    Column {
+                        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; leftMargin: Theme.px(8) }
+                        Text {
+                            text: modelData.text
+                            color: Theme.text
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                        }
+                        Text {
+                            text: modelData.path + ":" + modelData.line
+                            color: Theme.dim
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                        }
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: { win.openResult(modelData); findFilesDialog.close(); }
+                    }
+                }
+            }
+            EmptyState {
+                visible: TextDocs.folder !== "" && !win.findingFiles && win.findFilesQuery !== "" && win.findFilesResults.length === 0
+                Layout.fillWidth: true
+                icon: "edit-find"
+                title: "Not found"
+                subtitle: "No matches in this folder"
+            }
+        }
+    }
+
+    // ---- syntax language override -------------------------------------------------
+    Dialog {
+        id: syntaxDialog
+        anchors.centerIn: parent
+        width: Math.min(win.width * 0.5, Theme.px(340))
+        title: "Syntax language"
+        modal: true
+        standardButtons: Dialog.Close
+        onOpened: syntaxCombo.currentIndex = Math.max(0, win.syntaxes.indexOf(win.lang))
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: Theme.px(10)
+            Text {
+                Layout.fillWidth: true
+                text: "Highlight as"
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+            ComboBox {
+                id: syntaxCombo
+                Layout.fillWidth: true
+                model: win.syntaxes
+                Accessible.name: "Syntax language"
+                onActivated: i => win.setSyntax(win.syntaxes[i])
+            }
+            Button {
+                text: "Automatic (from file type)"
+                flat: true
+                onClicked: { win.setSyntax(""); syntaxDialog.close(); }
             }
         }
     }

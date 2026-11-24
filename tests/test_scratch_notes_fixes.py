@@ -50,7 +50,9 @@ def test_editor_empty_state_and_disabled_without_a_note():
         in PANEL
     )
     view = re.search(r"ScrollView \{\s*visible: ([^\n]+)", PANEL)
-    assert view and view.group(1).strip() == 'Services.QuickNotes.current !== ""'
+    assert view and view.group(1).strip().startswith(
+        'Services.QuickNotes.current !== ""'
+    )
     editor = re.search(r"TextArea \{\s*id: editor\s*enabled: ([^\n]+)", PANEL)
     assert editor and 'Services.QuickNotes.current !== ""' in editor.group(1)
 

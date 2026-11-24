@@ -22,7 +22,7 @@ def test_terminal_exposes_test_import_and_search():
     s = read("shani/Modules/Terminal/TerminalAppWindow.qml")
     assert "TerminalApp.testConnection(modelData" in s
     assert "TerminalApp.importKey(paths[0]" in s
-    assert "hostQuery" in s and ".includes(win.hostQuery.toLowerCase())" in s
+    assert "hostQuery" in s and "win.hostQuery.trim().toLowerCase()" in s
 
 
 def test_processes_can_find_a_process():

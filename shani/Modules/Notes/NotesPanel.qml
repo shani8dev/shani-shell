@@ -39,6 +39,15 @@ AppWindow {
     property string tagFilter: ""
     property bool showTrash: false
     property bool showHistory: false
+    // knowledge-base surfaces: a reading view, link neighbours and a move tray
+    property bool previewMode: false
+    property bool showBacklinks: false
+    property bool showMove: false
+    property string selectedTemplate: ""
+    property string targetNotebook: ""
+    property string statusText: ""
+    property int historyIndex: -1
+    readonly property string currentId: Services.QuickNotes.noteId(Services.QuickNotes.current, Services.QuickNotes.currentNotebook)
     // any narrowing at all: an empty list is "no match", not "no notes"
     readonly property bool hasFilter: filterText !== "" || tagFilter !== "" || selectedNotebook !== ""
     Timer { id: deleteTimer; interval: 4000; onTriggered: win.confirmDelete = false }
@@ -50,6 +59,11 @@ AppWindow {
         function onCurrentChanged() {
             win.confirmDelete = false;
             win.note = "";
+            win.historyIndex = -1;
+            win.targetNotebook = "";
+            win.statusText = "";
+            win.showBacklinks = false;
+            win.showMove = false;
             // history belongs to the note it was opened for: restoring an old
             // version after a switch would write it into the new note
             win.showHistory = false;
@@ -121,8 +135,9 @@ AppWindow {
 
                     // Search across note bodies
                     TextField {
+                        id: bodyField
                         Layout.fillWidth: true
-                        placeholderText: Tr.t("Search note text (Enter)…")
+                        placeholderText: Tr.t("Search note text (tag: notebook: name: \"phrase\")…")
                         onAccepted: {
                             win.bodyQuery = String(text).trim();
                             Services.QuickNotes.searchBodies(win.bodyQuery);
@@ -144,6 +159,17 @@ AppWindow {
                         }
                     }
 
+                    // A body search that found nothing is different from "no notes":
+                    // say so, instead of leaving the person with an empty sidebar.
+                    EmptyState {
+                        visible: win.bodyQuery !== "" && Services.QuickNotes.bodyResults.length === 0
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Theme.px(90)
+                        icon: "edit-find"
+                        title: Tr.t("No note contains that text")
+                        subtitle: Tr.t("Try tag:, notebook:, name: or a quoted phrase")
+                    }
+
                     // Notes list
                     ListView {
                         id: noteList
@@ -152,10 +178,7 @@ AppWindow {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         clip: true
-                        model: Services.QuickNotes.sortedNotes(Services.QuickNotes.notes.filter(n =>
-                            (win.selectedNotebook === "" || n.notebook === win.selectedNotebook)
-                            && (win.filterText === "" || n.name.toLowerCase().indexOf(win.filterText.toLowerCase()) >= 0)
-                            && (win.tagFilter === "" || Services.QuickNotes.contentHits.indexOf(n.id) >= 0)))
+                        model: Services.QuickNotes.sortedNotes(Services.QuickNotes.filterNotes(win.filterText, win.selectedNotebook, win.tagFilter))
                         delegate: Rectangle {
                             required property var modelData
                             width: noteList.width
@@ -169,7 +192,8 @@ AppWindow {
                                 Text {
                                     id: noteText
                                     Layout.fillWidth: true
-                                    text: modelData.name + (modelData.notebook ? "  ·  " + modelData.notebook : "")
+                                    text: (Services.QuickNotes.isPinned(modelData.id) ? "★ " : "")
+                                          + modelData.name + (modelData.notebook ? "  ·  " + modelData.notebook : "")
                                     color: Theme.text
                                     font.family: Theme.font
                                     font.pixelSize: Theme.px(12) * Theme.fontScale
@@ -207,7 +231,8 @@ AppWindow {
                                 }
                             }
                             Accessible.role: Accessible.ListItem
-                            Accessible.name: modelData.name
+                            Accessible.name: modelData.name + (Services.QuickNotes.isPinned(modelData.id) ? ", " + Tr.t("pinned") : "")
+                                             + (modelData.notebook ? ", " + modelData.notebook : "")
                             Accessible.onPressAction: {
                                 const slash = modelData.id.indexOf("/");
                                 if (slash >= 0) Services.QuickNotes.open(modelData.id.slice(slash + 1), modelData.id.slice(0, slash));
@@ -255,6 +280,52 @@ AppWindow {
                                 selected: win.tagFilter === modelData
                                 onClicked: { win.tagFilter = modelData; Services.QuickNotes.searchBodies("#" + modelData.replace(/^#/, "")); }
                             }
+                        }
+                    }
+
+                    // Templates (Obsidian's core Templates plugin): pick one,
+                    // then make a note whose body is already filled in.
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: Theme.px(4)
+                        Repeater {
+                            model: Services.QuickNotes.templates()
+                            Choice {
+                                required property string modelData
+                                text: modelData
+                                selected: win.selectedTemplate === modelData
+                                onClicked: win.selectedTemplate = modelData
+                                Accessible.name: Tr.t("Template %1").arg(modelData)
+                            }
+                        }
+                    }
+                    Button {
+                        Layout.fillWidth: true
+                        text: win.selectedTemplate === "" ? Tr.t("Pick a template…")
+                                                          : Tr.t("New from %1 template").arg(win.selectedTemplate)
+                        enabled: win.selectedTemplate !== ""
+                        onClicked: win.newFromTemplate()
+                    }
+
+                    // Tag management: add one to the open note, or remove the
+                    // tag selected in the chips above.
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.px(4)
+                        TextField {
+                            id: tagField
+                            Layout.fillWidth: true
+                            placeholder: Tr.t("Add a #tag")
+                            onAccepted: win.addTagFromField()
+                        }
+                        Button { text: Tr.t("Add tag"); enabled: tagField.text !== ""; onClicked: win.addTagFromField() }
+                        IconButton {
+                            size: Theme.px(28)
+                            icon: "list-remove"
+                            tip: win.tagFilter === "" ? Tr.t("Select a tag above to remove it")
+                                                      : Tr.t("Remove tag %1").arg(win.tagFilter)
+                            enabled: win.tagFilter !== ""
+                            onClicked: win.removeSelectedTag()
                         }
                     }
 
@@ -338,6 +409,55 @@ AppWindow {
                     }
                 }
 
+                // Knowledge-base actions get their own row: reading view,
+                // pin, links, versions, moving and both export formats.
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Theme.px(40)
+                    spacing: Theme.px(4)
+                    Layout.margins: Theme.px(8)
+                    Button {
+                        text: win.previewMode ? Tr.t("Edit") : Tr.t("Preview")
+                        enabled: Services.QuickNotes.current !== ""
+                        Accessible.name: win.previewMode ? Tr.t("Switch to raw Markdown") : Tr.t("Switch to rendered preview")
+                        onClicked: win.previewMode = !win.previewMode
+                    }
+                    Button {
+                        text: Services.QuickNotes.isPinned(win.currentId) ? Tr.t("Unpin") : Tr.t("Pin")
+                        enabled: Services.QuickNotes.current !== ""
+                        Accessible.name: Services.QuickNotes.isPinned(win.currentId) ? Tr.t("Unpin this note") : Tr.t("Pin this note")
+                        onClicked: {
+                            Services.QuickNotes.togglePin(win.currentId);
+                            win.statusText = Services.QuickNotes.isPinned(win.currentId) ? Tr.t("Note pinned") : Tr.t("Note unpinned");
+                        }
+                    }
+                    Button {
+                        text: Tr.t("Backlinks")
+                        enabled: Services.QuickNotes.current !== ""
+                        onClicked: { win.showBacklinks = !win.showBacklinks; if (win.showBacklinks) Services.QuickNotes.updateBacklinks(); }
+                    }
+                    Button {
+                        text: Tr.t("Move…")
+                        enabled: Services.QuickNotes.current !== ""
+                        onClicked: win.showMove = !win.showMove
+                    }
+                    Button { text: Tr.t("Export MD"); enabled: Services.QuickNotes.current !== ""; onClicked: Services.QuickNotes.exportMarkdownDialog() }
+                }
+
+                // One line of feedback for pin/tag/export actions and gpg
+                // errors: the rest of the window never has to guess why.
+                Text {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.px(8)
+                    visible: win.statusText !== "" || Services.QuickNotes.lockError !== ""
+                    text: Services.QuickNotes.lockError !== "" ? Services.QuickNotes.lockError : win.statusText
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    wrapMode: Text.Wrap
+                    Accessible.role: Accessible.StatusBar
+                }
+
                 // With no note open the editor would swallow typing and the
                 // save timer would drop it: say so, and offer the way out.
                 EmptyState {
@@ -417,7 +537,7 @@ AppWindow {
 
                 // Text editor
                 ScrollView {
-                    visible: Services.QuickNotes.current !== ""
+                    visible: Services.QuickNotes.current !== "" && !win.previewMode
                     Layout.fillWidth: true
                     Layout.fillHeight: true
 
@@ -459,6 +579,33 @@ AppWindow {
                     }
                 }
 
+                // Reading view: Obsidian's Ctrl+E reading/raw toggle. Only
+                // wiki: and http(s): links are activated; a note cannot make
+                // the shell open an arbitrary URL scheme.
+                ScrollView {
+                    visible: win.previewMode && Services.QuickNotes.current !== ""
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+                    Text {
+                        width: parent ? parent.width : 0
+                        textFormat: Text.RichText
+                        text: Services.QuickNotes.markdownHtml()
+                        color: Theme.text
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(14)
+                        wrapMode: Text.Wrap
+                        Accessible.role: Accessible.Document
+                        Accessible.name: Tr.t("Preview of %1").arg(Services.QuickNotes.current)
+                        onLinkActivated: link => {
+                            if (link.indexOf("wiki:") === 0)
+                                Services.QuickNotes.jumpTo(link.slice(5));
+                            else if (link.indexOf("http://") === 0 || link.indexOf("https://") === 0)
+                                Quickshell.execDetached(["xdg-open", link]);
+                        }
+                    }
+                }
+
                 // Wiki links
                 Flow {
                     Layout.fillWidth: true
@@ -468,9 +615,9 @@ AppWindow {
                         model: Services.QuickNotes.links()
                         delegate: Button {
                             text: "[[" + modelData + "]]"
-                            // one argument: open() then splits "notebook/note"
-                            // and finds a bare name wherever it lives
-                            onClicked: Services.QuickNotes.open(modelData)
+                            // jumpTo finds the note wherever it lives and
+                            // creates an empty stub when it does not exist yet
+                            onClicked: Services.QuickNotes.jumpTo(modelData)
                         }
                     }
                 }
@@ -506,12 +653,35 @@ AppWindow {
                 Rectangle {
                     visible: win.showHistory
                     Layout.fillWidth: true
-                    Layout.preferredHeight: Theme.px(120)
+                    Layout.preferredHeight: Theme.px(180)
                     radius: Theme.radiusSmall
                     color: Theme.surface1
                     ColumnLayout {
                         anchors { fill: parent; margins: Theme.px(4) }
-                        Text { text: "Earlier versions"; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text { Layout.fillWidth: true; text: Tr.t("Earlier versions"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                            Button { text: Tr.t("Previous"); enabled: win.historyIndex > 0; onClicked: win.stepVersion(-1) }
+                            Button { text: Tr.t("Next"); enabled: win.historyIndex >= 0 && win.historyIndex < Services.QuickNotes.historyList.length - 1; onClicked: win.stepVersion(1) }
+                            Button {
+                                text: Tr.t("Restore this version")
+                                enabled: win.historyIndex >= 0
+                                onClicked: {
+                                    Services.QuickNotes.restoreVersion(Services.QuickNotes.historyList[win.historyIndex]);
+                                    win.showHistory = false;
+                                }
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: Services.QuickNotes.versionPreview
+                            color: Theme.dim
+                            font.family: Theme.mono
+                            font.pixelSize: Theme.px(10)
+                            maximumLineCount: 3
+                            elide: Text.ElideRight
+                            Accessible.name: Tr.t("Version preview")
+                        }
                         ListView {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
@@ -521,7 +691,101 @@ AppWindow {
                                 required property string modelData
                                 width: ListView.view.width
                                 text: modelData.split("/").pop()
-                                onClicked: { Services.QuickNotes.restoreVersion(modelData); win.showHistory = false; }
+                                onClicked: { win.historyIndex = index; Services.QuickNotes.previewVersion(modelData); }
+                            }
+                        }
+                        EmptyState {
+                            visible: Services.QuickNotes.historyList.length === 0
+                            Layout.fillWidth: true
+                            icon: "document-open-recent"
+                            title: Tr.t("No earlier versions yet")
+                            subtitle: Tr.t("A copy is kept each time the note is saved")
+                        }
+                    }
+                }
+
+                // Obsidian's backlinks pane: notes that point here via [[...]].
+                Rectangle {
+                    visible: win.showBacklinks
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Theme.px(120)
+                    radius: Theme.radiusSmall
+                    color: Theme.surface1
+                    ColumnLayout {
+                        anchors { fill: parent; margins: Theme.px(4) }
+                        Text { text: Tr.t("Notes linking here"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        ListView {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            clip: true
+                            model: Services.QuickNotes.backlinkResults
+                            delegate: ItemDelegate {
+                                required property string modelData
+                                width: ListView.view.width
+                                text: modelData
+                                Accessible.name: Tr.t("Backlink from %1").arg(modelData)
+                                onClicked: Services.QuickNotes.open(modelData)
+                            }
+                        }
+                        EmptyState {
+                            visible: Services.QuickNotes.backlinkResults.length === 0
+                            Layout.fillWidth: true
+                            icon: "edit-find"
+                            title: Tr.t("No notes link here yet")
+                            subtitle: Tr.t("Write [[%1]] in another note").arg(Services.QuickNotes.current)
+                        }
+                    }
+                }
+
+                // Move/copy between notebooks (folders), without a file manager.
+                Rectangle {
+                    visible: win.showMove
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Theme.px(90)
+                    radius: Theme.radiusSmall
+                    color: Theme.surface1
+                    ColumnLayout {
+                        anchors { fill: parent; margins: Theme.px(4) }
+                        Flow {
+                            Layout.fillWidth: true
+                            spacing: Theme.px(4)
+                            Choice {
+                                text: Tr.t("Top level")
+                                selected: win.targetNotebook === ""
+                                onClicked: win.targetNotebook = ""
+                            }
+                            Repeater {
+                                model: Services.QuickNotes.notebooks
+                                Choice {
+                                    required property string modelData
+                                    text: modelData
+                                    selected: win.targetNotebook === modelData
+                                    onClicked: win.targetNotebook = modelData
+                                }
+                            }
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Button {
+                                text: Tr.t("Move here")
+                                enabled: win.targetNotebook !== Services.QuickNotes.currentNotebook
+                                onClicked: {
+                                    if (Services.QuickNotes.moveToNotebook(Services.QuickNotes.current, Services.QuickNotes.currentNotebook, win.targetNotebook))
+                                        win.statusText = Tr.t("Note moved");
+                                    else
+                                        win.statusText = Tr.t("Move refused — a note with that name is already there");
+                                    win.showMove = false;
+                                }
+                            }
+                            Button {
+                                text: Tr.t("Copy here")
+                                onClicked: {
+                                    if (Services.QuickNotes.copyToNotebook(Services.QuickNotes.current, Services.QuickNotes.currentNotebook, win.targetNotebook))
+                                        win.statusText = Tr.t("Note copied");
+                                    else
+                                        win.statusText = Tr.t("Copy refused — a note with that name is already there");
+                                    win.showMove = false;
+                                }
                             }
                         }
                     }
@@ -657,6 +921,61 @@ AppWindow {
         titleField.text = Services.QuickNotes.current;
     }
 
+    /// Step through the visible note list without leaving the keyboard.
+    function stepNote(delta) {
+        const m = noteList.model;
+        if (!m || m.length === 0) return false;
+        let i = 0;
+        while (i < m.length && m[i].id !== win.currentId) i++;
+        const at = Math.max(0, Math.min(m.length - 1, (i >= m.length ? 0 : i) + delta));
+        const n = m[at];
+        if (!n) return false;
+        const slash = n.id.indexOf("/");
+        if (slash >= 0) Services.QuickNotes.open(n.id.slice(slash + 1), n.id.slice(0, slash));
+        else Services.QuickNotes.open(n.name, "");
+        return true;
+    }
+    /// Walk the dated versions after reading one; restore is a separate act.
+    function stepVersion(delta) {
+        const h = Services.QuickNotes.historyList;
+        if (!h.length) return false;
+        win.historyIndex = Math.max(0, Math.min(h.length - 1, win.historyIndex + delta));
+        Services.QuickNotes.previewVersion(h[win.historyIndex]);
+        return true;
+    }
+    function newFromTemplate() {
+        if (win.selectedTemplate === "") return false;
+        const ok = Services.QuickNotes.createFromTemplate(win.selectedTemplate, Tr.t("Untitled"), win.selectedNotebook);
+        win.statusText = ok ? Tr.t("Created from %1 template").arg(win.selectedTemplate)
+                            : Tr.t("A note with that name already exists");
+        return ok;
+    }
+    function addTagFromField() {
+        if (!Services.QuickNotes.addTag(tagField.text)) {
+            win.statusText = Tr.t("Use a tag of letters, numbers, - or _");
+            return false;
+        }
+        tagField.text = "";
+        win.statusText = "";
+        return true;
+    }
+    function removeSelectedTag() {
+        if (win.tagFilter === "") return false;
+        const ok = Services.QuickNotes.removeTag(win.tagFilter);
+        win.statusText = ok ? Tr.t("Removed tag %1").arg(win.tagFilter)
+                            : Tr.t("That tag is not in this note");
+        return ok;
+    }
+
     Shortcut { sequence: "Ctrl+N"; onActivated: Services.QuickNotes.create(Tr.t("Untitled"), win.selectedNotebook) }
     Shortcut { sequence: "Ctrl+F"; onActivated: filterField.forceActiveFocus() }
+    Shortcut { sequence: "Ctrl+E"; onActivated: win.previewMode = !win.previewMode }
+    Shortcut { sequence: "Ctrl+B"; onActivated: win.wrapSelection("**", "**") }
+    Shortcut { sequence: "Ctrl+I"; onActivated: win.wrapSelection("*", "*") }
+    Shortcut { sequence: "Ctrl+K"; onActivated: win.wrapSelection("[[", "]]") }
+    Shortcut { sequence: "Ctrl+Shift+P"; onActivated: Services.QuickNotes.togglePin(win.currentId) }
+    Shortcut { sequence: "Ctrl+Shift+F"; onActivated: bodyField.forceActiveFocus() }
+    Shortcut { sequence: "Ctrl+Shift+T"; onActivated: tagField.forceActiveFocus() }
+    Shortcut { sequence: "Alt+Down"; onActivated: win.stepNote(1) }
+    Shortcut { sequence: "Alt+Up"; onActivated: win.stepNote(-1) }
 }

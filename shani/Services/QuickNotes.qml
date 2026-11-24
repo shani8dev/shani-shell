@@ -117,6 +117,9 @@ Singleton {
         nbList.running = true;
         trashList.running = true;
         previewProc.running = true;
+        pinnedList.running = true;      // pins are metadata, read from .pinned
+        templateList.running = true;    // templates are .md files in .templates
+        tagList.running = true;         // tags across every note, not just the open one
     }
     Process {
         id: previewProc
@@ -202,6 +205,8 @@ Singleton {
         root.text = "";
         root.pass = "";          // one unlocked note at a time
         root.diskChanged = false;
+        root.versionPreview = "";   // a preview belongs to the note it was opened for
+        root.backlinkResults = [];
         if (isLocked(n)) {
             root.locked = true;
             root.unlocked = false;
@@ -528,10 +533,14 @@ Singleton {
     Process {
         id: grepBodies
         property string query: ""
+        property string rawQuery: ""      // operators are applied after grep
         command: ["sh", "-c", 'd="$1"; q="$2"; [ "$q" = "" ] && exit 0; grep -liF -- "$q" "$d"/*.md "$d"/*/*.md 2>/dev/null | while read -r f; do rel=${f#"$d"/}; printf "%s\\n" "${rel%.md}"; done', "sh", root.dir, query]
         stdout: StdioCollector {
             onStreamFinished: {
-                const hits = text.trim().split("\n").filter(s => s !== "");
+                const p = root.parseQuery(grepBodies.rawQuery);
+                // the plain term is grepped on disk; tag:/notebook:/name: and
+                // -exclusions narrow those hits using the note metadata map
+                const hits = text.trim().split("\n").filter(s => s !== "" && root.matchesOperators(s, p, ""));
                 root.contentHits = hits;
                 // browseable results, not just results[0]
                 root.bodyResults = hits.map(id => {
@@ -546,12 +555,15 @@ Singleton {
         // a query that changes leaves the last answer behind unless it is
         // dropped first: the launcher would show "found in content" for a word
         // nobody typed any more
-        if (grepBodies.query !== String(q || "").trim()) {
+        const raw = String(q || "").trim();
+        const term = root.searchBodyTerm(raw);   // first plain/exact term only
+        if (grepBodies.query !== term) {
             root.contentHits = [];
             root.bodyResults = [];
         }
-        grepBodies.query = String(q || "").trim();
-        if (grepBodies.query !== "")
+        grepBodies.query = term;
+        grepBodies.rawQuery = raw;
+        if (term !== "")
             grepBodies.running = true;
         else {
             root.contentHits = [];
@@ -657,11 +669,18 @@ Singleton {
     // ---- sorting --------------------------------------------------------------
     function sortedNotes(list) {
         const arr = (list || root.notes).slice();
-        if (root.sortBy === "title")
-            return arr.sort((a, b) => String(a.name).localeCompare(String(b.name)));
-        if (root.sortBy === "created")
-            return arr.sort((a, b) => String(a.id).localeCompare(String(b.id)));
-        return arr.sort((a, b) => b.mtime - a.mtime);   // updated: newest first
+        const by = root.sortBy === "title"
+            ? (a, b) => String(a.name).localeCompare(String(b.name))
+            : root.sortBy === "created"
+                ? (a, b) => String(a.id).localeCompare(String(b.id))
+                : (a, b) => b.mtime - a.mtime;   // updated: newest first
+        // Pins stay at the top in every sort order, as in GNOME Notes and
+        // Obsidian; otherwise the chosen order decides.
+        return arr.sort((a, b) => {
+            const pa = root.isPinned(a.id) ? 0 : 1;
+            const pb = root.isPinned(b.id) ? 0 : 1;
+            return pa !== pb ? pa - pb : by(a, b);
+        });
     }
 
     // ---- checklists -----------------------------------------------------------
@@ -823,4 +842,353 @@ Singleton {
         noteCrypto.running = true;
     }
 
+    // ---- knowledge base: pins, templates, preview, links, tags, search --------
+    // Pins are metadata in <notes>/.pinned (one id per line), never written into
+    // a note body. They survive a restart and float to the top of every sort.
+    readonly property string pinnedFile: root.dir + "/.pinned"
+    property var pinned: []
+    Process {
+        id: pinnedList
+        command: ["sh", "-c", 'f="$1"; [ -f "$f" ] && cat -- "$f" || true', "sh", root.pinnedFile]
+        stdout: StdioCollector {
+            onStreamFinished: root.pinned = text.trim().split("\n").filter(s => s !== "")
+        }
+    }
+    Process {
+        id: pinnedWrite
+        stdout: StdioCollector {}
+        stderr: StdioCollector {}
+    }
+    function isPinned(id) { return root.pinned.indexOf(String(id || "")) >= 0; }
+    function togglePin(id) {
+        const key = String(id || "");
+        if (key === "") return false;
+        const list = root.pinned.slice();
+        const i = list.indexOf(key);
+        if (i >= 0) list.splice(i, 1);
+        else list.push(key);
+        root.pinned = list;
+        pinnedWrite.command = ["sh", "-c", 'printf "%s\\n" "$2" > "$1"', "sh", root.pinnedFile, list.join("\n")];
+        pinnedWrite.running = true;
+        return i < 0;
+    }
+
+    // Templates: three built-ins plus any .md the person puts in .templates.
+    // A new note is written from the template before it is opened, so the
+    // editor never races an empty FileView and overwrites the template body.
+    readonly property string templatesDir: root.dir + "/.templates"
+    property var templateFiles: []
+    Process {
+        id: templateList
+        command: ["sh", "-c", 'd="$1"; mkdir -p "$d"; for f in "$d"/*.md; do [ -e "$f" ] && basename "${f%.md}"; done | sort', "sh", root.templatesDir]
+        stdout: StdioCollector {
+            onStreamFinished: root.templateFiles = text.trim().split("\n").filter(s => s !== "")
+        }
+    }
+    function templates() {
+        const builtin = ["Meeting", "Journal", "Checklist"];
+        return builtin.concat(root.templateFiles.filter(t => builtin.indexOf(t) < 0));
+    }
+    function templateBody(name) {
+        const t = String(name || "");
+        if (t === "Meeting")
+            return "# Meeting\n\n- Date: \n- Attendees: \n\n## Agenda\n\n- \n\n## Notes\n\n## Action items\n\n- [ ] \n";
+        if (t === "Journal")
+            return "# " + Qt.formatDateTime(new Date(), "yyyy-MM-dd") + "\n\n## Today\n\n## Gratitude\n\n## Tomorrow\n";
+        if (t === "Checklist")
+            return "# Checklist\n\n- [ ] \n- [ ] \n";
+        return "";   // a custom template is a file on disk
+    }
+    Process {
+        id: templateCreate
+        property string pendingName: ""
+        property string pendingNotebook: ""
+        stdout: StdioCollector {}
+        stderr: StdioCollector {}
+        onExited: code => {
+            if (code !== 0 || pendingName === "") return;
+            root.open(pendingName, pendingNotebook);
+            root.refresh();
+        }
+    }
+    function createFromTemplate(template, name, notebook) {
+        const n = valid(name);
+        const t = valid(template);
+        if (n === "" || t === "") return false;
+        const nb = validNotebook(notebook === undefined || notebook === null ? root.currentNotebook : notebook);
+        if (notes.some(x => x.name === n && x.notebook === nb)) return false;
+        const dirPath = nb === "" ? root.dir : root.dir + "/" + nb;
+        const body = templateBody(t);
+        templateCreate.pendingName = n;
+        templateCreate.pendingNotebook = nb;
+        // the template body is a shell argument, never interpolated into the
+        // command, so quotes and backticks in a note cannot run anything
+        templateCreate.command = body !== ""
+            ? ["sh", "-c", 'mkdir -p "$1" && printf "%s" "$2" > "$3"', "sh", dirPath, body, notePath(n, nb)]
+            : ["sh", "-c", 'mkdir -p "$1" && cp -f -- "$2" "$3"', "sh", dirPath, root.templatesDir + "/" + t + ".md", notePath(n, nb)];
+        templateCreate.running = true;
+        return true;
+    }
+
+    // Markdown preview: a deliberate small subset rendered as Qt rich text.
+    // Raw HTML from a note is escaped; only our own wiki:/http(s) links are
+    // activated by the surface, so a note cannot open an arbitrary scheme.
+    function markdownInline(s) {
+        let out = escapeHtml(s);
+        out = out.replace(/`([^`]+)`/g, "<font face='monospace'>$1</font>");
+        out = out.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+        out = out.replace(/\*([^*]+)\*/g, "<i>$1</i>");
+        out = out.replace(/\[\[([^\[\]]+)\]\]/g, "<a href='wiki:$1'>[[$1]]</a>");
+        out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "<a href='$2'>$1</a>");
+        return out;
+    }
+    function markdownHtml(md) {
+        const lines = String(md === undefined ? root.text : md).split("\n");
+        let out = "", list = false, code = false;
+        lines.forEach(line => {
+            if (/^\s*```/.test(line)) {
+                if (list) { out += "</ul>"; list = false; }
+                out += code ? "</pre>" : "<pre>";
+                code = !code;
+                return;
+            }
+            if (code) { out += escapeHtml(line) + "\n"; return; }
+            const h = /^(#{1,6})\s+(.*)$/.exec(line);
+            if (h) {
+                if (list) { out += "</ul>"; list = false; }
+                const level = Math.min(h[1].length, 6);
+                out += "<h" + level + ">" + markdownInline(h[2]) + "</h" + level + ">";
+                return;
+            }
+            if (/^\s*[-*+]\s+/.test(line)) {
+                if (!list) { out += "<ul>"; list = true; }
+                const item = line.replace(/^\s*[-*+]\s+/, "")
+                    .replace(/^\[([ xX])\]\s*/, (m, c) => c.toLowerCase() === "x" ? "☑ " : "☐ ");
+                out += "<li>" + markdownInline(item) + "</li>";
+                return;
+            }
+            if (list) { out += "</ul>"; list = false; }
+            if (/^\s*>\s?/.test(line)) {
+                out += "<blockquote>" + markdownInline(line.replace(/^\s*>\s?/, "")) + "</blockquote>";
+                return;
+            }
+            if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) { out += "<hr>"; return; }
+            out += String(line).trim() === "" ? "<br>" : "<p>" + markdownInline(line) + "</p>";
+        });
+        if (list) out += "</ul>";
+        if (code) out += "</pre>";
+        return out;
+    }
+
+    // Backlinks: every note naming the open one in [[wiki links]]. The needle
+    // is a grep argument, not shell text, so a note name is never a command.
+    property var backlinkResults: []
+    property string backlinkTarget: ""
+    readonly property string backlinkScript: 'd="$1"; needle="$2"; [ "$needle" = "" ] && exit 0; grep -liF -- "$needle" "$d"/*.md "$d"/*/*.md 2>/dev/null | while read -r f; do rel=${f#"$d"/}; printf "%s\\n" "${rel%.md}"; done'
+    Process {
+        id: backlinkProc
+        property string targetId: ""
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.backlinkResults = text.trim().split("\n").filter(s => s !== "" && s !== backlinkProc.targetId);
+            }
+        }
+    }
+    function backlinks(id) {
+        const key = String(id || noteId(root.current, root.currentNotebook) || "");
+        if (key === "") { root.backlinkResults = []; return root.backlinkResults; }
+        root.backlinkTarget = key;
+        const slash = key.indexOf("/");
+        const name = slash >= 0 ? key.slice(slash + 1) : key;
+        backlinkProc.targetId = key;
+        backlinkProc.command = ["sh", "-c", root.backlinkScript, "sh", root.dir, "[[" + name + "]]"];
+        backlinkProc.running = true;
+        return root.backlinkResults;
+    }
+    function updateBacklinks() {
+        if (root.current === "") { root.backlinkResults = []; return; }
+        return root.backlinks(noteId(root.current, root.currentNotebook));
+    }
+
+    // Version preview: history() still lists the dated copies; a version can
+    // now be read before it replaces the note, and stepped through with keys.
+    property string versionPreview: ""
+    FileView {
+        id: versionView
+        path: ""
+        printErrors: false
+        onLoaded: root.versionPreview = text()
+        onLoadFailed: root.versionPreview = Tr.t("This version could not be read")
+    }
+    function previewVersion(path) {
+        if (!path) { root.versionPreview = ""; return; }
+        versionView.path = String(path);
+        versionView.reload();
+    }
+
+    // Tags: the current note's tags() drives the chips; tagList collects the
+    // tags of every note with its id so search operators and the tag picker
+    // work across the whole vault, not just the open note.
+    property var noteTags: ({})
+    property var allTagsList: []
+    Process {
+        id: tagList
+        command: ["sh", "-c", 'd="$1"; for f in "$d"/*.md "$d"/*/*.md; do [ -e "$f" ] || continue; rel=${f#"$d"/}; t=$(grep -hoE "#[A-Za-z0-9_-]+" -- "$f" | sort -u | paste -sd, -); printf "%s\\t%s\\n" "${rel%.md}" "$t"; done', "sh", root.dir]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const byNote = {}, all = {};
+                text.trim().split("\n").forEach(line => {
+                    const i = line.indexOf("\t");
+                    if (i <= 0) return;
+                    byNote[line.slice(0, i)] = line.slice(i + 1);
+                    line.slice(i + 1).split(",").forEach(t => { if (t !== "") all[t] = true; });
+                });
+                root.noteTags = byNote;
+                root.allTagsList = Object.keys(all).sort();
+            }
+        }
+    }
+    function validTag(tag) {
+        const m = /^#?([A-Za-z0-9_-]+)$/.exec(String(tag || "").trim());
+        return m ? "#" + m[1] : "";
+    }
+    function addTag(tag) {
+        const t = validTag(tag);
+        if (t === "" || root.current === "" || tags().indexOf(t) >= 0) return false;
+        set(String(root.text).replace(/\s*$/, "") + "\n" + t);
+        return true;
+    }
+    function removeTag(tag) {
+        const t = validTag(tag);
+        if (t === "" || root.current === "") return false;
+        const before = String(root.text);
+        const after = before.split("\n").map(line =>
+            line.replace(new RegExp(t + "(?![A-Za-z0-9_-])", "g"), "").replace(/\s+$/, "")).join("\n");
+        if (after === before) return false;
+        set(after);
+        return true;
+    }
+
+    // Search operators: "two words", tag:x, notebook:x, name:x and -excluded.
+    // Quoted phrases and the operators narrow name/notebook/preview/tag data;
+    // searchBodies() sends only the first plain term to grep and applies the
+    // same predicate to its hits, so body search and the list agree.
+    function parseQuery(q) {
+        const out = { text: [], tags: [], notebooks: [], names: [], exclude: [], exact: [] };
+        const tokens = String(q || "").match(/"[^"]*"|\S+/g) || [];
+        tokens.forEach(raw => {
+            const t = String(raw).trim();
+            if (t.length > 2 && t.charAt(0) === '"' && t.charAt(t.length - 1) === '"') {
+                out.exact.push(t.slice(1, -1).toLowerCase());
+                return;
+            }
+            if (t.length > 1 && t.charAt(0) === "-") {
+                out.exclude.push(t.slice(1).toLowerCase());
+                return;
+            }
+            const op = /^(tag|notebook|name):(.+)$/i.exec(t);
+            if (op) {
+                const v = op[2].toLowerCase().replace(/^#/, "");
+                const kind = op[1].toLowerCase();
+                if (kind === "tag") out.tags.push(v);
+                else if (kind === "notebook") out.notebooks.push(v);
+                else out.names.push(v);
+                return;
+            }
+            out.text.push(t.toLowerCase());
+        });
+        return out;
+    }
+    function searchBodyTerm(q) {
+        const p = root.parseQuery(q);
+        if (p.exact.length) return p.exact[0];
+        if (p.text.length) return p.text[0];
+        if (p.tags.length) return "#" + p.tags[0];    // tag:x alone finds tagged notes
+        return "";
+    }
+    function matchesOperators(id, p, notebook, tagFilter) {
+        const key = String(id || "");
+        const slash = key.indexOf("/");
+        const name = slash >= 0 ? key.slice(slash + 1) : key;
+        const nb = slash >= 0 ? key.slice(0, slash) : "";
+        const hay = (name + " " + nb + " " + (root.previews[key] || "")).toLowerCase();
+        const tags = (root.noteTags[key] || "").toLowerCase();
+        if (notebook && nb !== notebook) return false;
+        const tf = String(tagFilter || "").replace(/^#/, "").toLowerCase();
+        if (tf !== "" && tags.indexOf("#" + tf) < 0) return false;
+        if (p.tags.some(t => tags.indexOf("#" + t) < 0)) return false;
+        if (p.notebooks.some(v => nb.toLowerCase().indexOf(v) < 0)) return false;
+        if (p.names.some(v => name.toLowerCase().indexOf(v) < 0)) return false;
+        if (p.exact.some(e => hay.indexOf(e) < 0)) return false;
+        if (p.text.some(t => hay.indexOf(t) < 0)) return false;
+        if (p.exclude.some(x => hay.indexOf(x) >= 0 || tags.indexOf("#" + x) >= 0)) return false;
+        return true;
+    }
+    function filterNotes(q, notebook, tagFilter) {
+        const p = root.parseQuery(q);
+        const nb = validNotebook(notebook || "");
+        return notes.filter(n => root.matchesOperators(n.id, p, nb, tagFilter));
+    }
+
+    // Markdown export is a copy of the plaintext (also for a locked note);
+    // HTML export above stays as it was. Both go through a native save dialog.
+    property string lastExportedMd: ""
+    FileView {
+        id: mdExportView
+        path: ""
+        printErrors: false
+    }
+    function exportMarkdown(dest) {
+        if (root.current === "") return "";
+        const target = dest ? String(dest)
+            : notePath(root.current, root.currentNotebook).replace(/\.md$/, ".md");
+        if (target === "") return "";
+        mdExportView.path = target;
+        mdExportView.setText(root.text);
+        root.lastExportedMd = target;
+        return target;
+    }
+    function exportMarkdownDialog() {
+        if (root.current === "") return;
+        FilePicker.open({ mode: "save", title: Tr.t("Export note as Markdown"),
+            defaultName: root.current + ".md", filters: ["md", "txt"],
+            onPicked: paths => { if (paths.length) root.exportMarkdown(paths[0]); } });
+    }
+
+    // Notebooks are folders: move changes the path, copy keeps the original.
+    // Both refuse an existing destination, so nothing is silently overwritten.
+    Process {
+        id: noteMove
+        property bool reloadOpen: false
+        stdout: StdioCollector {}
+        stderr: StdioCollector {}
+        onExited: code => {
+            if (code === 0 && reloadOpen) file.reload();
+            reloadOpen = false;
+            root.refresh();
+        }
+    }
+    function changeNotebook(name, fromNotebook, toNotebook, move) {
+        const n = valid(name);
+        const from = validNotebook(fromNotebook);
+        const to = validNotebook(toNotebook);
+        if (n === "" || from === to) return false;
+        if (notes.some(x => x.name === n && x.notebook === to)) return false;
+        const dirPath = to === "" ? root.dir : root.dir + "/" + to;
+        noteMove.command = ["sh", "-c", 'mkdir -p "$1" && ' + (move ? 'mv -f -- "$2" "$3"' : 'cp -f -- "$2" "$3"'),
+                            "sh", dirPath, notePath(n, from), notePath(n, to)];
+        noteMove.reloadOpen = move && root.current === n && root.currentNotebook === from;
+        if (noteMove.reloadOpen) {
+            save.stop();
+            root.currentNotebook = to;
+        }
+        noteMove.running = true;
+        return true;
+    }
+    function moveToNotebook(name, fromNotebook, toNotebook) {
+        return root.changeNotebook(name, fromNotebook, toNotebook, true);
+    }
+    function copyToNotebook(name, fromNotebook, toNotebook) {
+        return root.changeNotebook(name, fromNotebook, toNotebook, false);
+    }
 }

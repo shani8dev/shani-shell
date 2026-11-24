@@ -33,6 +33,7 @@ AppWindow {
     property bool showDetail: false
     property bool showGroupField: false
     property string groupFilter: Tr.t("All")
+    property int currentIndex: -1          // keyboard selection, keyed by uid not row index
 
     // delete asks first: two taps, the second within 4 s
     property string confirmDelete: ""
@@ -42,9 +43,12 @@ AppWindow {
     property bool showDuplicates: false
 
     onVisibleChanged: if (visible) { Contacts.refresh(); win.confirmDelete = ""; }
+    // a new filter is a new list: an old row index must not survive it
+    onGroupFilterChanged: win.currentIndex = -1
     Connections {
         target: Contacts
         function onVcardReady(text, name) { Qr.show(name || "Contact", text); }
+        function onQueryChanged() { win.currentIndex = -1; }
     }
     function setPhone(i, key, value) {
         const rows = win.editPhones.map(x => Object.assign({}, x));
@@ -56,13 +60,38 @@ AppWindow {
     }
     function showContact(c) {
         if (!c) return;
+        const rows = win.visibleContacts();
+        const at = rows.findIndex(x => x.uid === c.uid);
+        if (at >= 0) win.currentIndex = at;
         win.detailUid = c.uid;
         win.showDetail = true;
     }
     function visibleContacts() {
         if (win.groupFilter === Tr.t("Favourites")) return Contacts.favoriteContacts;
+        if (Contacts.isSmartList(win.groupFilter)) return Contacts.contactsInList(win.groupFilter);
         return win.groupFilter === Tr.t("All") ? Contacts.shown
             : Contacts.listContactsInGroup(win.groupFilter);
+    }
+    // arrows walk the visible list in both directions and wrap; Enter opens it
+    function step(delta) {
+        const rows = win.visibleContacts();
+        if (!rows.length) return;
+        const i = win.currentIndex;
+        win.currentIndex = i < 0 ? (delta > 0 ? 0 : rows.length - 1) : (i + delta + rows.length) % rows.length;
+        list.positionViewAtIndex(win.currentIndex, ListView.Contain);
+    }
+    function newContact() {
+        win.mode = "add"; win.editName = ""; win.editPhone = ""; win.editEmail = "";
+        win.editUid = ""; win.editGroups = ""; win.editPhones = []; win.editEmails = [];
+        win.avatarPath = ""; win.showGroupField = false; win.currentIndex = -1;
+    }
+    // Apple Contacts / GNOME Contacts both hand a number straight to Messages
+    function messageContact(c) {
+        if (!c) return;
+        const numbers = (c.phones || []).map(p => String(p.number || "").trim()).filter(n => n !== "");
+        if (!numbers.length) { Contacts.say(Tr.t("This contact has no phone number")); return; }
+        Ui.messagesNumber = numbers[0];
+        Ui.messages = true;
     }
     function copyText(value) {
         const s = String(value || "").trim();
@@ -82,7 +111,9 @@ AppWindow {
         });
     }
 
-    // Esc: leave edit mode first, then duplicates, then close
+    // Esc: leave detail / edit mode first, then duplicates, then close.
+    // Ctrl+F and Ctrl+N are the standard find/new shortcuts; arrows and Enter
+    // walk the visible list without ever reaching an unseen row.
     Item {
         anchors.fill: parent
         focus: win.visible
@@ -91,6 +122,19 @@ AppWindow {
             else if (win.mode !== "list") win.mode = "list";
             else if (win.showDuplicates) win.showDuplicates = false;
             else Ui.contacts = false;
+        }
+        Keys.onPressed: e => {
+            if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_F) {
+                searchField.forceActiveFocus(); e.accepted = true;
+            } else if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_N) {
+                win.newContact(); e.accepted = true;
+            } else if (win.mode === "list" && !win.showDuplicates && (e.key === Qt.Key_Down || e.key === Qt.Key_Up)) {
+                win.step(e.key === Qt.Key_Down ? 1 : -1); e.accepted = true;
+            } else if (win.mode === "list" && !win.showDuplicates && e.key === Qt.Key_Return && win.currentIndex >= 0) {
+                const rows = win.visibleContacts();
+                if (rows[win.currentIndex]) win.showContact(rows[win.currentIndex]);
+                e.accepted = true;
+            }
         }
     }
 
@@ -138,7 +182,7 @@ AppWindow {
                 visible: win.mode === "list" && !win.showDuplicates
                 text: Tr.t("New contact")
                 kind: "primary"
-                onClicked: { win.mode = "add"; win.editName = ""; win.editPhone = ""; win.editEmail = ""; win.editUid = ""; win.editGroups = ""; win.editPhones = []; win.editEmails = []; win.avatarPath = ""; win.showGroupField = false; }
+                onClicked: win.newContact()
             }
             Button {
                 visible: win.mode !== "list"
@@ -323,6 +367,12 @@ AppWindow {
                 }
             }
             Button {
+                text: Tr.t("Undo last merge")
+                flat: true
+                enabled: !!Contacts.lastMerge
+                onClicked: Contacts.undoMerge()
+            }
+            Button {
                 text: Tr.t("Done")
                 flat: true
                 onClicked: win.showDuplicates = false
@@ -362,10 +412,10 @@ AppWindow {
             Layout.fillWidth: true
             spacing: Theme.px(6)
             Repeater {
-                model: [Tr.t("All"), Tr.t("Favourites")].concat(Contacts.allGroups.slice(1))
+                model: [Tr.t("All"), Tr.t("Favourites"), Tr.t("No phone"), Tr.t("No email")].concat(Contacts.allGroups.slice(1))
                 Choice {
                     required property string modelData
-                    text: modelData
+                    text: modelData + "  " + Contacts.countInList(modelData)
                     selected: win.groupFilter === modelData
                     onClicked: win.groupFilter = modelData
                 }
@@ -381,6 +431,9 @@ AppWindow {
             reuseItems: true
             cacheBuffer: 400
             model: win.visibleContacts()
+            currentIndex: win.currentIndex
+            Accessible.role: Accessible.List
+            Accessible.name: Tr.t("Contacts")
             delegate: Rectangle {
                 required property var modelData
                 width: list.width
@@ -392,6 +445,7 @@ AppWindow {
                     anchors.leftMargin: Theme.px(8)
                     anchors.rightMargin: Theme.px(6)
                     spacing: Theme.px(10)
+                    z: 2                 // the icon actions must win over the row's z:1 click catcher
                     Rectangle {
                         width: Theme.px(30); height: Theme.px(30)
                         radius: width / 2
@@ -434,6 +488,13 @@ AppWindow {
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                         }
+                    }
+                    IconButton {
+                        size: Theme.px(28)
+                        icon: "mail-unread"
+                        accessibleName: Tr.t("Message %1", modelData.name || "")
+                        tip: Tr.t("Message %1", modelData.name || "")
+                        onClicked: win.messageContact(modelData)
                     }
                     IconButton {
                         size: Theme.px(28)
@@ -489,6 +550,27 @@ AppWindow {
         }
 
         // ---- footer ----
+        Text {
+            visible: Contacts.notice !== ""
+            Layout.fillWidth: true
+            text: Contacts.notice
+            color: Theme.accent
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+            Accessible.role: Accessible.StatusBar
+            Accessible.name: Contacts.notice
+        }
+        Text {
+            visible: Contacts.error !== ""
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            text: Contacts.error
+            color: Theme.red
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+            Accessible.role: Accessible.StatusBar
+            Accessible.name: Contacts.error
+        }
         Text {
             visible: win.mode === "list" && !win.showDuplicates
             Layout.fillWidth: true
@@ -607,6 +689,12 @@ AppWindow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
                     Button { text: "QR code"; flat: true; onClicked: Contacts.vcard(win.detailUid, detailCol.c.name || "Contact") }
+                    Button {
+                        text: Tr.t("Message…")
+                        flat: true
+                        enabled: (detailCol.c.phones || []).length > 0
+                        onClicked: win.messageContact(detailCol.c)
+                    }
                     Button { Layout.fillWidth: true; text: Tr.t("Close"); onClicked: win.showDetail = false }
                     Button {
                         Layout.fillWidth: true; text: Tr.t("Edit"); kind: "primary"

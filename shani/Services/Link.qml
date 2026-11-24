@@ -30,6 +30,9 @@ Singleton {
     property string draft: ""            // the open thread's draft, for the composer
     property string note: ""
     property bool busy: false
+    property string search: ""           // conversation filter, owned by the Messages window
+    property string sendState: ""        // "" | "sending" | "sent" | "error" — the composer's delivery line
+    property var lastSend: null          // { thread, text } of the last attempted send
 
     // the first paired, reachable device: "the phone" of the tile, the Shelf and
     // the dial pad when nothing is named
@@ -43,13 +46,16 @@ Singleton {
         root.thread = [];
         root.draft = "";
         root.messagesLoaded = false;
+        root.saveDrafts();
         run("messages", id ? [id] : []);
     }
     function showThread(id, name) {
         if (root.openThread !== "") root.drafts[root.openThread] = root.draft;
+        if (root.openThread !== id) root.sendState = "";   // an old "Sent" belongs to the old thread
         root.openThread = id;
         root.threadName = name || "";
         root.draft = root.drafts[id] || "";
+        root.saveDrafts();
         root.messages = root.messages.map(m => m.thread === id ? Object.assign({}, m, { unread: false }) : m);
         if (id && root.messages.some(m => m.thread === id)) run("read", [id]);
         run("thread", id ? [id, root.phone ? root.phone.id : ""] : []);
@@ -58,12 +64,66 @@ Singleton {
     function startConversation(number) {
         showThread(String(number || ""), String(number || ""));
     }
+
+    // Drafts must outlive the shell: Apple Messages and WhatsApp both keep an
+    // unsent line when the app closes. A FileView writes the JSON atomically,
+    // never through argv or a shell string.
+    readonly property string draftsPath: Quickshell.statePath("message-drafts.json")
+    FileView {
+        id: draftStore
+        path: root.draftsPath
+        printErrors: false
+        onLoaded: {
+            let data = null;
+            try { data = JSON.parse(text()); } catch (e) {}
+            root.drafts = data && typeof data === "object" && !Array.isArray(data) ? data : ({});
+        }
+        onLoadFailed: root.drafts = ({})
+    }
+    Timer { id: draftTimer; interval: 600; onTriggered: draftStore.setText(JSON.stringify(root.drafts)) }
+    function saveDrafts() { draftTimer.restart(); }
+    function setDraft(text) {
+        if (root.openThread !== "") root.drafts[root.openThread] = text;
+        root.draft = text;
+        root.saveDrafts();
+    }
     function clearDraft() {
         if (root.openThread !== "") delete root.drafts[root.openThread];
         root.draft = "";
+        root.saveDrafts();
     }
-    function send(text) { run("send", [root.openThread, String(text || "")]) }
-    function dial(number) { run("dial", String(number || "").trim()) }
+
+    // A number from a notification may carry spaces, a country code or be the
+    // contact's name; all still mean the same thread to the phone.
+    function digitsOf(value) { return String(value || "").replace(/\D/g, ""); }
+    function matchesParty(m, want) {
+        const w = String(want || "").trim();
+        if (!w) return false;
+        if ((m.name || "") === w || (m.number || "") === w) return true;
+        const d = digitsOf(w);
+        return d.length >= 5 && d === digitsOf(m.number);
+    }
+    // search covers the sender, number and the latest snippet; a full body
+    // search needs the bridge to send every thread's text, which MAP cannot.
+    function visibleConversations(query) {
+        const needle = String(query || "").trim().toLowerCase();
+        if (!needle) return root.messages;
+        return root.messages.filter(m => [m.name, m.number, m.text]
+            .some(v => String(v || "").toLowerCase().indexOf(needle) >= 0));
+    }
+
+    function send(text) {
+        const t = String(text || "").trim();
+        if (t === "" || root.openThread === "") return;
+        root.lastSend = { thread: root.openThread, text: t };
+        root.sendState = "sending";
+        run("send", [root.openThread, t]);
+    }
+    function dial(number) {
+        const n = String(number || "").trim();
+        if (!n) { root.note = Tr.t("No number to call"); return; }
+        run("dial", n);
+    }
     function hangup() { run("hangup", []) }
     function ring() { run("ring", []) }
     function share(path) { run("share", [root.phone ? root.phone.id : "", String(path || "")]) }
@@ -121,6 +181,9 @@ Singleton {
             root.thread = Array.isArray(data) ? data : [];
         } else if (what === "send") {
             root.note = data && data.error ? data.error : Tr.t("Text sent");
+            // The bridge knows only ok/error; real delivered/read receipts are
+            // not exposed by MAP or KDE Connect, so do not invent ticks for them.
+            root.sendState = data && data.error ? "error" : "sent";
             if (!data || !data.error) root.openDevice(root.phone ? root.phone.id : "");
         } else if (what === "dial") {
             root.note = data && data.error ? data.error : Tr.t("Calling…");

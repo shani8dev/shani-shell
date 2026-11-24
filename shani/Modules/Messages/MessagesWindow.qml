@@ -4,6 +4,7 @@
 //
 // bridge/link.py does the talking (shani_link.phone: GSConnect, KDE Connect, or
 // plain Bluetooth through MAP); the window is only a view.
+import Quickshell
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
@@ -19,6 +20,7 @@ AppWindow {
 
     property string pendingNumber: ""   // a requested conversation, matched once messages arrive
     property string retryText: ""       // last send's text, kept until the bridge replies
+    property string search: ""          // conversation filter, name / number / last line
 
     onVisibleChanged: if (visible) {
         pendingNumber = Ui.messagesNumber.trim();
@@ -33,9 +35,15 @@ AppWindow {
         if (pendingNumber === "" || !Link.messagesLoaded) return;
         const want = pendingNumber;
         pendingNumber = "";
-        const hit = Link.messages.find(m => m.number === want || (m.name || "") === want);
+        const hit = Link.messages.find(m => Link.matchesParty(m, want));
         if (hit) Link.showThread(hit.thread, hit.name || hit.number);
         else Link.startConversation(want);
+        // a notification's "Reply" should land in the composer, not on a row
+        Qt.callLater(() => reply.forceActiveFocus());
+    }
+    function copyText(value) {
+        const s = String(value || "").trim();
+        if (s) Quickshell.clipboardText = s;
     }
 
     Connections {
@@ -54,33 +62,80 @@ AppWindow {
         }
     }
 
+    // Escape unwinds the search, then the thread, then the window; Ctrl+F
+    // reaches the same search field Contacts and Mail put there.
+    Item {
+        anchors.fill: parent
+        focus: win.visible
+        Keys.onEscapePressed: {
+            if (win.search !== "") { searchBox.text = ""; win.search = ""; }
+            else if (Link.openThread !== "") Link.openDevice(Link.phone ? Link.phone.id : "");
+            else Ui.messages = false;
+        }
+        Keys.onPressed: e => {
+            if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_F) {
+                searchBox.forceActiveFocus(); e.accepted = true;
+            }
+        }
+    }
+
     // ---- the conversations --------------------------------------------------
+    TextField {
+        id: searchBox
+        objectName: "messageSearch"
+        anchors { top: parent.top; left: parent.left; margins: Theme.px(12) }
+        width: Theme.px(256)
+        placeholder: Tr.t("Search conversations")
+        label: Tr.t("Search conversations")
+        onTextChanged: win.search = text
+    }
     ListView {
         id: list
-        anchors { top: parent.top; bottom: parent.bottom; left: parent.left; margins: Theme.px(12) }
+        anchors { top: searchBox.bottom; topMargin: Theme.px(6); bottom: parent.bottom; left: parent.left; leftMargin: Theme.px(12) }
         width: Theme.px(280)
         clip: true
         spacing: Theme.px(2)
-        model: Link.messages
+        model: Link.visibleConversations(win.search)
+        Accessible.role: Accessible.List
+        Accessible.name: Tr.t("Conversations")
         delegate: ListRow {
             required property var modelData
             width: ListView.view.width
             icon: "mail-unread"
             title: modelData.name || modelData.number || Tr.t("Unknown")
             subtitle: (modelData.unread ? "● " : "") + modelData.text
+            trailing: modelData.unread ? Tr.t("Unread") : ""
             selected: Link.openThread === modelData.thread
             onClicked: Link.showThread(modelData.thread, modelData.name || modelData.number)
+            IconButton {
+                size: Theme.px(24)
+                icon: "call-start"
+                accessibleName: Tr.t("Call %1", modelData.name || modelData.number || "")
+                onClicked: Link.dial(modelData.number || "")
+            }
+            IconButton {
+                size: Theme.px(24)
+                icon: "edit-copy"
+                accessibleName: Tr.t("Copy number of %1", modelData.name || modelData.number || "")
+                onClicked: win.copyText(modelData.number)
+            }
         }
-        Text {
+        EmptyState {
             anchors.centerIn: parent
-            visible: Link.messages.length === 0
-            text: Link.placesCalls ? Tr.t("No conversations") : Tr.t("No phone is connected")
-            color: Theme.dim
-            wrapMode: Text.Wrap
-            width: parent.width - Theme.px(30)
-            horizontalAlignment: Text.AlignHCenter
-            font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            width: parent.width - Theme.px(24)
+            visible: list.count === 0
+            icon: !Link.messagesLoaded ? "view-refresh" : !Link.phone ? "call-start"
+                : win.search !== "" ? "edit-find" : "mail-unread"
+            title: !Link.messagesLoaded ? Tr.t("Loading conversations…")
+                : !Link.phone ? Tr.t("No phone is connected")
+                : win.search !== "" ? Tr.t("Nothing matches %1", win.search)
+                : Tr.t("No conversations")
+            subtitle: !Link.messagesLoaded ? Tr.t("Waiting for the phone to answer")
+                : !Link.phone ? Tr.t("Pair a phone in Settings › Phone")
+                : win.search !== "" ? Tr.t("Try a name, a number or a word from the last message")
+                : Tr.t("Messages you send and receive will appear here")
+            actionText: win.search !== "" ? Tr.t("Clear search") : ""
+            onAction: { searchBox.text = ""; win.search = ""; }
         }
     }
 
@@ -119,6 +174,8 @@ AppWindow {
             clip: true
             spacing: Theme.px(6)
             model: Link.thread
+            Accessible.role: Accessible.List
+            Accessible.name: Tr.t("Conversation")
             onCountChanged: if (count > 0) Qt.callLater(() => thread.positionViewAtEnd())
             delegate: RowLayout {
                 required property var modelData
@@ -150,13 +207,13 @@ AppWindow {
                 }
                 Item { Layout.fillWidth: true }
             }
-            Text {
+            EmptyState {
                 anchors.centerIn: parent
-                visible: Link.thread.length === 0 && Link.openThread !== ""
-                text: Tr.t("Nothing said yet")
-                color: Theme.dim
-                font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                width: parent.width - Theme.px(24)
+                visible: thread.count === 0 && Link.openThread !== ""
+                icon: "mail-unread"
+                title: Tr.t("Nothing said yet")
+                subtitle: Tr.t("Write the first message below")
             }
         }
 
@@ -166,11 +223,13 @@ AppWindow {
             spacing: Theme.px(6)
             TextField {
                 id: reply
+                objectName: "messageReply"
                 Layout.fillWidth: true
                 enabled: Link.openThread !== ""
                 text: Link.draft
-                onTextChanged: { if (Link.draft !== text) Link.draft = text; }
+                onTextChanged: { if (Link.draft !== text) Link.setDraft(text); }
                 placeholder: Tr.t("Write a text…")
+                label: Tr.t("Message to %1").arg(Link.threadName || Tr.t("this conversation"))
                 onAccepted: win.send()
             }
             Button {
@@ -181,12 +240,34 @@ AppWindow {
             }
         }
         Text {
+            visible: Link.sendState !== ""
+            text: Link.sendState === "sending" ? Tr.t("Sending…")
+                : Link.sendState === "sent" ? Tr.t("Sent")
+                : Link.sendState === "error" ? Tr.t("Not sent — tap Send to retry") : ""
+            color: Link.sendState === "error" ? Theme.danger : Theme.faint
+            font.family: Theme.font
+            font.pixelSize: Theme.px(10) * Theme.fontScale
+            Accessible.role: Accessible.StatusBar
+            Accessible.name: text
+        }
+        Text {
+            visible: Link.draft !== "" && Link.sendState !== "sending"
+            text: Tr.t("Draft saved for this conversation")
+            color: Theme.faint
+            font.family: Theme.font
+            font.pixelSize: Theme.px(10) * Theme.fontScale
+            Accessible.role: Accessible.StatusBar
+            Accessible.name: text
+        }
+        Text {
             visible: Link.note !== ""
             text: Link.note
             color: Theme.danger
             wrapMode: Text.Wrap
             font.family: Theme.font
             font.pixelSize: Theme.px(11) * Theme.fontScale
+            Accessible.role: Accessible.StatusBar
+            Accessible.name: Link.note
         }
     }
 

@@ -58,7 +58,7 @@ def widgets(kind):
 def names(body):
     """The accessible names a control offers itself."""
     out = []
-    for m in re.finditer(r"Accessible\.name\s*:\s*([^\n]+)", body):
+    for m in re.finditer(r"(?:Accessible\.name|accessibleName)\s*:\s*([^\n]+)", body):
         out.append(m.group(1).strip())
     return out
 
