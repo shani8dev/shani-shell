@@ -414,6 +414,112 @@ AppWindow {
                     }
                 }
             }
+            // ---- Network usage --------------------------------------------------
+            // vnStat's own day/month history, read once when this window opens
+            // (NetUsage.refresh()). The live rates above are left as they were.
+            ColumnLayout {
+                id: netUsageSection
+                Layout.fillWidth: true
+                spacing: Theme.px(4)
+                readonly property real dayMax: {
+                    let m = 0;
+                    for (const d of NetUsage.days) m = Math.max(m, d.total);
+                    return m;
+                }
+                Connections { target: win; function onVisibleChanged() { if (win.visible) NetUsage.refresh(); } }
+                // the LazyLoader creates this section when the monitor opens:
+                // ask once here; onVisibleChanged covers a later close/reopen
+                Component.onCompleted: NetUsage.refresh()
+
+                SectionTitle {
+                    Layout.fillWidth: true
+                    Layout.margins: Theme.px(4)
+                    text: Tr.t("Network usage")
+                    Accessible.name: Tr.t("Network usage from vnStat")
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: NetUsage.available
+                    text: Tr.t("This month %1 · last 7 days %2").arg(Theme.bytes(NetUsage.monthTotal)).arg(Theme.bytes(NetUsage.weekTotal))
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.features: { "tnum": 1 }
+                    Accessible.name: text
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: !NetUsage.available
+                    text: Tr.t("No vnStat data yet — network usage appears once vnStat has a day of history.")
+                    color: Theme.dim
+                    wrapMode: Text.Wrap
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: NetUsage.interfaces.length > 1
+                    spacing: Theme.px(6)
+                    Text { text: Tr.t("Interface:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    Repeater {
+                        model: NetUsage.interfaces
+                        Choice {
+                            required property var modelData
+                            text: modelData
+                            selected: NetUsage.selected === modelData
+                            onClicked: NetUsage.selectInterface(modelData)
+                        }
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: NetUsage.available && NetUsage.days.length > 0
+                    spacing: Theme.px(4)
+                    Repeater {
+                        model: NetUsage.days
+                        ColumnLayout {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            spacing: Theme.px(2)
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: Theme.px(46)
+                                radius: Theme.px(3)
+                                color: Theme.pressed
+                                Rectangle {
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.bottom: parent.bottom
+                                    height: parent.height * (netUsageSection.dayMax > 0 ? Math.max(0.03, modelData.total / netUsageSection.dayMax) : 0)
+                                    radius: parent.radius
+                                    color: Theme.accent
+                                    Accessible.name: Tr.t("%1: %2", modelData.date, Theme.bytes(modelData.total))
+                                }
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: modelData.date.slice(5)
+                                color: Theme.dim
+                                horizontalAlignment: Text.AlignHCenter
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(9) * Theme.fontScale
+                                elide: Text.ElideRight
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: Theme.bytes(modelData.total)
+                                color: Theme.faint
+                                horizontalAlignment: Text.AlignHCenter
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(9) * Theme.fontScale
+                                font.features: { "tnum": 1 }
+                                elide: Text.ElideRight
+                            }
+                        }
+                    }
+                }
+            }
             SectionTitle {
                 Layout.fillWidth: true
                 Layout.margins: Theme.px(4)
