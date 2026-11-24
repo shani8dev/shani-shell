@@ -19,6 +19,7 @@
   files.py restore <name>...       # out of the trash, back where it came from
   files.py empty-trash [<name>...] # for good: those, or everything
   files.py search <dir> <words>    # in that folder and every folder under it, by name
+  files.py tree <dir> [--out <file>]      # folder tree as text (also --tree <dir> --out <file>)
   files.py props <path>...         # size (folders counted through), dates, owner, rights
   files.py batch-rename <pattern> <path>...   # "Holiday #" -> Holiday 1.jpg, Holiday 2.jpg ...
   files.py bookmark-add <path> | bookmark-remove <path>   # GTK's bookmarks file
@@ -373,6 +374,104 @@ def sort_entries(entries, sort_key="name", desc=False, filters=(), limit=0, offs
 def natural_key(name):
     """file2 before file10: the digit runs compare as numbers."""
     return [int(p) if p.isdigit() else p.lower() for p in re.split(r"(\d+)", name)]
+
+
+# ---- folder tree as text -------------------------------------------------------
+
+TREE_MAX_DEPTH = 20
+TREE_MAX_ENTRIES = 2000
+
+
+def tree_lines(root, max_depth=TREE_MAX_DEPTH, max_entries=TREE_MAX_ENTRIES):
+    """A `tree`-style rendering, as lines: dirs first, natural sort, symlink
+    loops deduped, and both depth and entry count capped. Pure - no writing."""
+    root = os.path.abspath(os.path.expanduser(root or ""))
+    lines = [root]
+    folders = files = total = 0
+    seen = {os.path.realpath(root)}
+    truncated = [False]
+
+    def walk(path, prefix, depth):
+        nonlocal folders, files, total
+        if depth >= max_depth or total >= max_entries:
+            truncated[0] = True
+            return
+        try:
+            with os.scandir(path) as it:
+                children = list(it)
+        except OSError:
+            return
+        children.sort(
+            key=lambda d: (not d.is_dir(follow_symlinks=True), natural_key(d.name))
+        )
+        for i, de in enumerate(children):
+            if total >= max_entries:
+                truncated[0] = True
+                break
+            total += 1
+            last = i == len(children) - 1 or total >= max_entries
+            branch = "└── " if last else "├── "
+            try:
+                is_dir = de.is_dir(follow_symlinks=True)
+            except OSError:
+                is_dir = False
+            if not is_dir:
+                files += 1
+                lines.append(prefix + branch + de.name)
+                continue
+            folders += 1
+            real = os.path.realpath(de.path)
+            if real in seen:
+                lines.append(prefix + branch + de.name + " [loop]")
+                continue
+            seen.add(real)
+            lines.append(prefix + branch + de.name)
+            walk(de.path, prefix + ("    " if last else "│   "), depth + 1)
+
+    walk(root, "", 0)
+    if truncated[0]:
+        lines.append("… (truncated)")
+    lines.append("")
+    lines.append(
+        "%d folder%s, %d file%s"
+        % (folders, "" if folders == 1 else "s", files, "" if files == 1 else "s")
+    )
+    return {
+        "lines": lines,
+        "text": "\n".join(lines) + "\n",
+        "root": root,
+        "folders": folders,
+        "files": files,
+        "truncated": truncated[0],
+    }
+
+
+def save_tree(root, out):
+    """Write the tree to `out` via argv (never a shell), atomically."""
+    result = tree_lines(root)
+    target = os.path.abspath(os.path.expanduser(out or ""))
+    if not out or os.path.isdir(target):
+        return {"error": "choose a file to save the tree to"}
+    folder = os.path.dirname(target)
+    if not os.path.isdir(folder):
+        return {"error": "that folder does not exist"}
+    fd, tmp = tempfile.mkstemp(prefix=".shani-tree-", dir=folder)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(result["text"])
+        os.replace(tmp, target)
+    except OSError as e:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        return {"error": getattr(e, "strerror", None) or str(e)}
+    return {
+        "saved": target,
+        "folders": result["folders"],
+        "files": result["files"],
+        "truncated": result["truncated"],
+    }
 
 
 def stat_path(path):
@@ -2053,6 +2152,17 @@ def main(argv):
                     )
                 )
             )
+        elif cmd in ("tree", "--tree") and args:
+            out = ""
+            rest = []
+            for i, a in enumerate(args[1:]):
+                if a.startswith("--out="):
+                    out = a.split("=", 1)[1]
+                elif a == "--out" and i + 2 < len(args):
+                    out = args[i + 2]
+                elif not a.startswith("--"):
+                    rest.append(a)
+            print(json.dumps(save_tree(args[0], out or (rest[0] if rest else ""))))
         elif cmd == "props" and args:
             print(json.dumps(props(args)))
         elif cmd == "batch-rename" and len(args) >= 2:

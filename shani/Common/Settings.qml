@@ -529,6 +529,8 @@ Singleton {
             // whether the hidden files and the preview are shown
             property string filesViewMode: "grid"
             property bool filesSearchDeep: false          // Files' search goes through the folders under this one too
+            property string filesSearchCategory: "all"    // Files: the chosen chip under the search box
+            property var filesSearchHistory: []            // Files: last searches, newest first (deduped, capped)
             property var filesRecentServers: []           // Files: servers connected to before, newest first (clicked, not typed again)
             property var filesRecentDests: []             // Files: Copy to… / Move to… folders used lately, newest first
             property var fileTabs: []                      // Files: open tabs, restored on restart (Services/Files)

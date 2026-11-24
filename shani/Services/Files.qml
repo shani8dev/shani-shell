@@ -1328,11 +1328,59 @@ Singleton {
         });
     }
 
+    // ---- Save folder tree as text…: argv only, no shell interpolation -------------
+    Process {
+        id: treeProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r = {};
+                try { r = JSON.parse(text); } catch (e) { r = { error: text.trim() || Tr.t("That did not work") }; }
+                if (r.error) { root.error = r.error; root.note = r.error; }
+                else { root.error = ""; root.note = Tr.t("Folder tree saved: %1", FilePaths.baseName(r.saved || "")); }
+            }
+        }
+        onExited: code => { if (code !== 0 && !root.error) root.error = Tr.t("Could not save the folder tree"); }
+    }
+    function saveTree(dir, out) {
+        if (!dir || !out) return;
+        root.error = "";
+        treeProc.command = ["python3", root.tool, "tree", dir, "--out", out];
+        treeProc.running = true;
+    }
+
     // ---- search through the folder and every folder under it ----------------------
     property string searchText: ""           // the search box's words (IPC sets them too)
     property bool searchDeep: Settings.data.filesSearchDeep === true
     function setSearchDeep(on) { root.searchDeep = on; Settings.data.filesSearchDeep = on; }
     function searchPath(words) { return "search:" + words + "\t" + (root.path.startsWith("/") ? root.path : root.home); }
+
+    // the category chips under the search box: backend extension filters, plus a
+    // folders-only flag the surface applies (a filter cannot hide the folders)
+    property string activeCategory: Settings.data.filesSearchCategory || "all"
+    property var activeFilters: []
+    property bool foldersOnly: false
+    function setSearchCategory(id, filters, foldersOnly) {
+        root.activeCategory = id;
+        root.activeFilters = filters || [];
+        root.foldersOnly = foldersOnly === true;
+        Settings.data.filesSearchCategory = id;
+    }
+
+    // last queries, newest first: one store, deduped case-insensitively and capped
+    readonly property int searchHistoryMax: 8
+    property var searchHistory: (Settings.data.filesSearchHistory || []).slice(0, 8)
+    function rememberSearch(words) {
+        const q = String(words || "").trim();
+        if (q.length < 2) return;
+        const old = (root.searchHistory || []).filter(x => x && x.toLowerCase() !== q.toLowerCase());
+        const history = [q].concat(old).slice(0, root.searchHistoryMax);
+        root.searchHistory = history;
+        Settings.data.filesSearchHistory = history;
+    }
+    function clearSearchHistory() {
+        root.searchHistory = [];
+        Settings.data.filesSearchHistory = [];
+    }
 
     // ---- the places ------------------------------------------------------------
     function loadPlaces() {

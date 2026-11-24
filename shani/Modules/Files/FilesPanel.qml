@@ -14,6 +14,7 @@
 // be put back.
 import Quickshell
 import QtQuick
+import QtQuick.Dialogs
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
@@ -303,14 +304,55 @@ AppWindow {
     // ---- the folder being shown ------------------------------------------------
     // the search box's words, settled (a new search per keystroke would walk the tree each time)
     property string deepWords: ""
-    Timer { id: deepTimer; interval: 400; onTriggered: win.deepWords = searchBox.text.trim().length >= 2 ? searchBox.text.trim() : "" }
+    Timer {
+        id: deepTimer
+        interval: 400
+        onTriggered: {
+            const words = searchBox.text.trim();
+            win.deepWords = words.length >= 2 && Files.searchDeep && Files.path.startsWith("/") ? words : "";
+            Files.rememberSearch(words);
+        }
+    }
     readonly property bool searchingDeep: Files.searchDeep && deepWords !== "" && Files.path.startsWith("/")
+
+    // the chips under the search box: extension sets go to FileDirectory.filters
+    // (which always keeps folders); "Folders" also needs a surface-side filter.
+    readonly property var searchCategories: [
+        { id: "all", label: Tr.t("All"), filters: [], foldersOnly: false },
+        { id: "folders", label: Tr.t("Folders"), filters: [], foldersOnly: true },
+        { id: "images", label: Tr.t("Images"), filters: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg", "avif", "heic", "tif", "tiff", "ico"], foldersOnly: false },
+        { id: "media", label: Tr.t("Media"), filters: ["mp3", "flac", "wav", "ogg", "m4a", "aac", "opus", "mp4", "mkv", "webm", "mov", "avi", "m4v", "flv", "wmv"], foldersOnly: false },
+        { id: "documents", label: Tr.t("Documents"), filters: ["pdf", "doc", "docx", "odt", "rtf", "xls", "xlsx", "ods", "ppt", "pptx", "odp", "epub", "djvu"], foldersOnly: false },
+        { id: "text", label: Tr.t("Text"), filters: ["txt", "md", "json", "yaml", "yml", "toml", "xml", "csv", "log", "ini", "conf", "sh", "py", "js", "ts", "qml", "c", "cpp", "h", "java", "go", "rs", "html", "css"], foldersOnly: false }
+    ]
+    function applyCategory(id) {
+        const cat = win.searchCategories.find(c => c.id === id) || win.searchCategories[0];
+        Files.setSearchCategory(cat.id, cat.filters, cat.foldersOnly);
+        win.sync();                  // folders-only hides files without a backend filter
+        win.syncSplit();
+    }
+    Component.onCompleted: win.applyCategory(Files.activeCategory)
+
+    // entries the surface actually shows after the folders-only filter
+    property var visibleEntries: []
+    property var splitVisibleEntries: []
+    function visibleFrom(model) {
+        const out = [];
+        for (let i = 0; i < model.count; i++) {
+            const e = model.get(i);
+            if (!Files.foldersOnly || e.isDir)
+                out.push(e);
+        }
+        return out;
+    }
+
     FileDirectory {
         id: dir
         path: win.searchingDeep ? Files.searchPath(win.deepWords) : Files.path
         includeHidden: Files.showHidden
         sortKey: Files.sortKey
         sortDesc: Files.sortDesc
+        filters: Files.activeFilters
         onListed: win.sync()
     }
 
@@ -321,6 +363,7 @@ AppWindow {
         includeHidden: Files.showHidden
         sortKey: Files.sortKey
         sortDesc: Files.sortDesc
+        filters: Files.activeFilters
         onListed: {
             if (Files.splitActive)
                 win.syncSplit();
@@ -336,28 +379,18 @@ AppWindow {
     // the service keeps the paths and the entries, so a range selection and a
     // lookup by path follow what is on screen
     function sync() {
-        const paths = [];
-        const entries = [];
-        for (let i = 0; i < dir.entries.count; i++) {
-            const e = dir.entries.get(i);
-            paths.push(e.path);
-            entries.push(e);
-        }
-        Files.setPaths(paths);
+        const entries = win.visibleFrom(dir.entries);
+        win.visibleEntries = entries;
+        Files.setPaths(entries.map(e => e.path));
         Files.setEntries(entries);
         // a picture shows itself; the rest may have a thumbnail (a video, a PDF, an office file)
         Files.requestThumbs(entries.filter(e => !e.isDir && !e.image).map(e => e.path));
     }
 
     function syncSplit() {
-        const paths = [];
-        const entries = [];
-        for (let i = 0; i < splitDir.entries.count; i++) {
-            const e = splitDir.entries.get(i);
-            paths.push(e.path);
-            entries.push(e);
-        }
-        Files.setSplitPaths(paths);
+        const entries = win.visibleFrom(splitDir.entries);
+        win.splitVisibleEntries = entries;
+        Files.setSplitPaths(entries.map(e => e.path));
         Files.setSplitEntries(entries);
     }
 
@@ -485,6 +518,28 @@ AppWindow {
                 IconButton { icon: "folder-new"; size: Theme.px(30); tip: Tr.t("New folder"); onClicked: win.openNewFolder() }
                 IconButton { icon: "edit-clear-all"; size: Theme.px(30); tip: Tr.t("Tidy this folder: files into folders by kind"); onClicked: Tidy.plan(Files.path) }
                 IconButton { icon: "view-refresh"; size: Theme.px(30); tip: Tr.t("Refresh (F5)"); onClicked: dir.reload() }
+            }
+
+            // search categories: the chips feed the listing's extension filters
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Text {
+                    text: Tr.t("Show:")
+                    color: Theme.faint
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                }
+                Repeater {
+                    model: win.searchCategories
+                    Choice {
+                        required property var modelData
+                        text: modelData.label
+                        selected: Files.activeCategory === modelData.id
+                        onClicked: win.applyCategory(modelData.id)
+                    }
+                }
+                Item { Layout.fillWidth: true }
             }
 
             // split pane toolbar
@@ -920,7 +975,7 @@ AppWindow {
                             anchors.fill: parent
                             anchors.margins: Theme.px(6)
                             visible: Files.viewMode === "grid"
-                            model: dir.entries
+                            model: win.visibleEntries
                             cellWidth: Math.round(124 * Files.zoom)
                             cellHeight: Math.round(112 * Files.zoom)
                             boundsBehavior: Flickable.StopAtBounds
@@ -1047,7 +1102,7 @@ AppWindow {
                             anchors.fill: parent
                             anchors.margins: Theme.px(4)
                             visible: Files.viewMode === "list"
-                            model: dir.entries
+                            model: win.visibleEntries
                             spacing: 1
                             boundsBehavior: Flickable.StopAtBounds
                             clip: true
@@ -1161,7 +1216,7 @@ AppWindow {
                         // nothing here
                         EmptyState {
                             anchors.centerIn: parent
-                            visible: dir.entries.count === 0 && !dir.loading
+                            visible: win.visibleEntries.length === 0 && !dir.loading
                             width: parent.width - 40
                             icon: "folder"
                             title: dir.error !== "" ? Tr.t("This folder could not be opened") : Tr.t("This folder is empty")
@@ -1169,7 +1224,7 @@ AppWindow {
                         }
                         Text {
                             anchors.centerIn: parent
-                            visible: dir.loading && dir.entries.count === 0
+                            visible: dir.loading && win.visibleEntries.length === 0
                             text: Tr.t("Loading…")
                             color: Theme.dim
                             font.family: Theme.font
@@ -1181,7 +1236,7 @@ AppWindow {
                     Text {
                         Layout.fillWidth: true
                         text: {
-                            const parts = [Tr.t("%1 items").arg(dir.entries.count)];
+                            const parts = [Tr.t("%1 items").arg(win.visibleEntries.length)];
                             if (Files.freeBytes >= 0)
                                 parts.push(Tr.t("%1 free").arg(Files.humanSize(Files.freeBytes)));
                             if (Files.selected.length > 0)
@@ -1268,7 +1323,7 @@ AppWindow {
                             GridView {
                                 anchors.fill: parent
                                 anchors.margins: Theme.px(6)
-                                model: splitDir.entries
+                                model: win.splitVisibleEntries
                                 cellWidth: 110
                                 cellHeight: 100
                                 boundsBehavior: Flickable.StopAtBounds
@@ -1351,7 +1406,7 @@ AppWindow {
 
                             EmptyState {
                                 anchors.centerIn: parent
-                                visible: splitDir.entries.count === 0 && !splitDir.loading
+                                visible: win.splitVisibleEntries.length === 0 && !splitDir.loading
                                 width: parent.width - 40
                                 icon: "folder"
                                 title: Tr.t("This folder is empty")
@@ -1362,7 +1417,7 @@ AppWindow {
                         Text {
                             Layout.fillWidth: true
                             text: {
-                                const parts = [Tr.t("%1 items").arg(splitDir.entries.count)];
+                                const parts = [Tr.t("%1 items").arg(win.splitVisibleEntries.length)];
                                 if (Files.splitSelected.length > 0)
                                     parts.push(Tr.t("%1 selected").arg(Files.splitSelected.length));
                                 return parts.join("  ·  ");
@@ -1879,9 +1934,52 @@ AppWindow {
                     id: batchField
                     Layout.fillWidth: true
                     label: Tr.t("New names")
-                    onAccepted: { batchBox.visible = false; Files.batchRename(text, win.batchPaths); }
+                    onAccepted: win.commitBatchRename(text)
                 }
-                Button { text: Tr.t("Rename"); kind: "primary"; onClicked: { batchBox.visible = false; Files.batchRename(batchField.text, win.batchPaths); } }
+                Button { text: Tr.t("Rename"); kind: "primary"; onClicked: win.commitBatchRename(batchField.text) }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Text {
+                    text: Tr.t("Case:")
+                    color: Theme.faint
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                }
+                Choice { text: Tr.t("As typed"); selected: win.batchCase === ""; onClicked: win.batchCase = "" }
+                Choice { text: Tr.t("lower"); selected: win.batchCase === "lower"; onClicked: win.batchCase = "lower" }
+                Choice { text: Tr.t("UPPER"); selected: win.batchCase === "upper"; onClicked: win.batchCase = "upper" }
+                Choice { text: Tr.t("Capitalize Each Word"); selected: win.batchCase === "title"; onClicked: win.batchCase = "title" }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(8)
+                TextField {
+                    id: batchFindField
+                    Layout.fillWidth: true
+                    label: Tr.t("Find")
+                    onTextChanged: win.batchFind = text
+                }
+                TextField {
+                    id: batchReplaceField
+                    Layout.fillWidth: true
+                    label: Tr.t("Replace with")
+                    onTextChanged: win.batchReplace = text
+                }
+                Choice {
+                    text: Tr.t("Regex")
+                    selected: win.batchRegex
+                    onClicked: win.batchRegex = !win.batchRegex
+                }
+            }
+            Text {
+                visible: win.batchRegexInvalid
+                Layout.fillWidth: true
+                text: Tr.t("That regular expression is not valid")
+                color: Theme.red
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
             Repeater {
                 model: win.batchPreview(batchField.text)
@@ -3017,6 +3115,43 @@ AppWindow {
         Connections { target: Files; function onNoteChanged() { noteTimer.restart(); } }
     }
 
+    // last searches, on focus: the same store the service persists, no second copy
+    Glass {
+        id: searchHistoryBox
+        parent: win.contentItem
+        visible: searchBox.activeFocus && searchBox.text === "" && Files.searchHistory.length > 0 && !Files.props && !batchBox.visible
+        z: 29
+        strong: true
+        solid: true
+        radius: Theme.px(12)
+        width: Math.max(Theme.px(240), searchBox.width)
+        height: historyCol.implicitHeight + Theme.px(16)
+        x: searchBox.mapToItem(win.contentItem, 0, searchBox.height).x
+        y: searchBox.mapToItem(win.contentItem, 0, searchBox.height).y + Theme.px(4)
+        ColumnLayout {
+            id: historyCol
+            anchors.fill: parent
+            anchors.margins: Theme.px(8)
+            spacing: Theme.px(2)
+            Repeater {
+                model: Files.searchHistory.slice(0, Files.searchHistoryMax)
+                Button {
+                    required property string modelData
+                    Layout.fillWidth: true
+                    flat: true
+                    text: modelData
+                    onClicked: { searchBox.text = modelData; searchBox.forceActiveFocus(); }
+                }
+            }
+            Button {
+                Layout.fillWidth: true
+                flat: true
+                text: Tr.t("Clear search history")
+                onClicked: Files.clearSearchHistory()
+            }
+        }
+    }
+
     // ---- the pieces that need the window ------------------------------------------
     property var menuEntry: null
     property string typed: ""                // type to find: what was typed so far
@@ -3153,6 +3288,8 @@ AppWindow {
             items.push({ label: Tr.t("Select all"), icon: "edit-select-all", danger: false, run: () => Files.selectAll() });
             items.push({ label: Tr.t("Turn the selection over"), icon: "edit-select-invert", danger: false, run: () => Files.invertSelection() });
             items.push({ label: Tr.t("Select Items Matching…"), icon: "edit-find", danger: false, run: () => win.openMatch() });
+            if (e.path.startsWith("/"))
+                items.push({ label: Tr.t("Save folder tree as text…"), icon: "document-save-as", danger: false, run: () => win.askSaveTree(e.path) });
             items.push({ label: Tr.t("Properties"), icon: "document-properties", danger: false, run: () => Files.showProps([e.path]) });
             return items;
         }
@@ -3242,20 +3379,66 @@ AppWindow {
     Timer { id: confirmTimer; interval: 4000; onTriggered: { win.confirmEmpty = false; win.confirmDelete = ""; } }
 
     property var batchPaths: []
+    property string batchCase: ""              // "", "lower", "upper", "title"
+    property string batchFind: ""
+    property string batchReplace: ""
+    property bool batchRegex: false
+    function batchRegexValid(pattern) {
+        try { new RegExp(pattern, "g"); return true; } catch (err) { return false; }
+    }
+    readonly property bool batchRegexInvalid: win.batchRegex && win.batchFind !== "" && !win.batchRegexValid(win.batchFind)
+
+    // one transform for the pattern, so the preview and the real rename agree
+    function batchTransform(text) {
+        let out = String(text || "");
+        if (win.batchFind) {
+            if (win.batchRegex && win.batchRegexValid(win.batchFind))
+                out = out.replace(new RegExp(win.batchFind, "g"), win.batchReplace);
+            else
+                out = out.split(win.batchFind).join(win.batchReplace);
+        }
+        if (win.batchCase === "upper")
+            out = out.toUpperCase();
+        else if (win.batchCase === "lower")
+            out = out.toLowerCase();
+        else if (win.batchCase === "title") {
+            let titled = "";
+            let beginning = true;
+            for (const ch of out) {
+                if (/\s/.test(ch)) { titled += ch; beginning = true; }
+                else if (/[A-Za-z]/.test(ch)) { titled += beginning ? ch.toUpperCase() : ch.toLowerCase(); beginning = false; }
+                else titled += ch;                 // digits and punctuation do not end a word
+            }
+            out = titled;
+        }
+        return out;
+    }
     function beginBatchRename(paths) {
         win.batchPaths = paths;
         batchField.text = Tr.t("Name") + " #";
+        batchFindField.text = "";
+        batchReplaceField.text = "";
+        win.batchFind = "";
+        win.batchReplace = "";
+        win.batchCase = "";
+        win.batchRegex = false;
         batchBox.visible = true;
         batchField.forceActiveFocus();
         batchField.selectAll();
     }
+    function commitBatchRename(pattern) {
+        if (win.batchRegexInvalid) { Files.error = Tr.t("That regular expression is not valid"); return; }
+        batchBox.visible = false;
+        Files.batchRename(win.batchTransform(pattern), win.batchPaths);
+    }
     // what "Holiday #" makes of the chosen files, as files.py batch-rename will
     function batchPreview(pattern) {
+        const newPattern = win.batchTransform(pattern);
         const w = String(win.batchPaths.length).length;
         return win.batchPaths.slice(0, 3).map((p, i) => {
             const base = FilePaths.baseName(p), dot = base.lastIndexOf(".");
             const num = String(i + 1).padStart(w, "0");
-            return (pattern.indexOf("#") >= 0 ? pattern.split("#").join(num) : pattern + " " + num).trim() + (dot > 0 ? base.slice(dot) : "");
+            return (newPattern.indexOf("#") >= 0 ? newPattern.split("#").join(num) : newPattern + " " + num).trim() + (dot > 0 ? base.slice(dot) : "");
         });
     }
 
@@ -3290,5 +3473,30 @@ AppWindow {
         if (!Files.validName(name))
             return;
         Files.makeFolder(name);
+    }
+
+    // ---- Save folder tree as text… (background menu): a native save picker -------
+    property string treeSaveDir: ""
+    function askSaveTree(dir) {
+        treeSaveDir = dir;
+        treeDlg.open();
+    }
+    // made on first use: a native dialog holds the shell while its D-Bus waits
+    Loader {
+        id: treeDlg
+        active: false
+        function open() { active = true; item.open(); }
+        sourceComponent: FileDialog {
+            title: Tr.t("Save folder tree as text…")
+            fileMode: FileDialog.SaveFile
+            currentFolder: "file://" + win.treeSaveDir
+            selectedFile: "file://" + win.treeSaveDir.replace(/\/$/, "") + "/folder-tree.txt"
+            nameFilters: [Tr.t("Text files") + " (*.txt)", Tr.t("All files") + " (*)"]
+            onAccepted: {
+                const path = selectedFile.toString().replace(/^file:\/\//, "");
+                Files.saveTree(win.treeSaveDir, path);
+                win.treeSaveDir = "";
+            }
+        }
     }
 }
