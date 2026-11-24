@@ -9,7 +9,7 @@ import QtQuick
 Singleton {
     id: root
     // label, desc and note are untranslated source strings: callers pass them
-    // through Tr.t(). `need` drives isAvailable(); `service` is the singleton
+    // through the translation helper. `need` drives isAvailable(); `service` is the singleton
     // the widget already reads (named here, never instantiated here).
     readonly property var catalog: [
         {

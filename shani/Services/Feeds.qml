@@ -38,14 +38,46 @@ Singleton {
     property string pendingArticle: ""  // an article to show once its feed's items arrive
     property bool autoShow: true        // select the first article after opening a feed
 
+    // reading preferences: a compact article and a chosen order are window-local
+    // on purpose — like sort in NetNewsWire, they do not touch the bridge cache
+    property string readerMode: "full"  // full | compact
+    property string sortOrder: "newest" // newest | oldest | title
+    property string articleUrl: ""      // the feed the open article came from, so
+                                        // save/read act on it even from a search
+
+    function setReaderMode(mode) { root.readerMode = mode === "compact" ? "compact" : "full" }
+    function setSort(order) { root.sortOrder = order === "oldest" || order === "title" ? order : "newest" }
+
+    // sort a view's rows without disturbing the cache: search, saved and a feed
+    // all get the same order. Title reads A→Z; dates read newest first by default.
+    function sorted(items) {
+        const list = Array.isArray(items) ? items.slice() : [];
+        const key = row => root.sortOrder === "title" ? String(row.title || "") : String(row.date || "");
+        list.sort((a, b) => { const x = key(a), y = key(b); return x < y ? -1 : x > y ? 1 : 0; });
+        return root.sortOrder === "newest" ? list.reverse() : list;
+    }
+
+    // the tag chips double as groups: this is the editable field's value too
+    function tagsFor(url) {
+        const f = root.feeds.filter(x => x.url === url)[0];
+        return f && f.tags ? f.tags.join(", ") : "";
+    }
+    function unreadTotal() { return root.feeds.reduce((n, f) => n + (f.unread || 0), 0) }
+
     function refresh() { run("list", []) }
     function open(url) { current = url; article = ""; pendingArticle = ""; autoShow = true; run("items", [url]) }
     function openArticleAt(url, id) { current = url; article = ""; pendingArticle = id; autoShow = false; run("items", [url]) }
-    function show(url, id) { openId = id; run("article", [url, id]) }
+    function show(url, id) { articleUrl = url; openId = id; run("article", [url, id]) }
     function markRead(url, id) { if (id) run("markread", [url, id], false) }
     function markUnread(url, id) { if (id) run("markunread", [url, id], false) }
     function nextUnread() { if (current) run("nextunread", [current, openId]) }
-    function markAll() { run("markall", current ? [current] : [], false) }
+    // with no feed there is no safe scope: the bridge's no-argument form marks
+    // *everything*, which is never what a header button in one pane means
+    function markAll(url) {
+        const target = url || root.current;
+        if (!target) { root.note = Tr.t("Pick a feed first"); return; }
+        run("markall", [target], false);
+    }
     function add(url, title) { run("add", title ? [url, title] : [url]) }
     function remove(url) { run("remove", [url]) }
     function update() { run("refresh", []) }
@@ -156,7 +188,8 @@ Singleton {
                 root.pendingArticle = "";
                 root.show(root.current, id);
             } else if (root.autoShow && root.items.length) {
-                root.show(root.current, root.items[0].id);
+                const first = root.sorted(root.items)[0];
+                root.show(root.current, first.id);
             }
             root.autoShow = true;
         } else if (what === "article") {
@@ -168,6 +201,12 @@ Singleton {
             root.markRead(root.current, root.openId);
         } else if (what === "add" || what === "refresh" || what === "remove") {
             root.refresh();
+        } else if (what === "markread") {
+            // opening an article marks it read: the header count and every
+            // view showing that row must see the new state, not just the cache
+            root.refresh();
+            root.savedArticles();
+            if (root.query) root.search(root.query);
         } else if (what === "status") {
             root.refreshMinutes = (data && data.interval) || 0;
         } else if (what === "interval") {
@@ -188,17 +227,27 @@ Singleton {
             root.refresh();
             if (root.current) { root.autoShow = false; run("items", [root.current]) }
         } else if (what === "markunread") {
-            if (data && data.id) root.items = root.items.map(i =>
-                i.id === data.id ? Object.assign({}, i, { read: false }) : i);
+            if (data && data.id) {
+                const url = data.url || root.current;
+                root.items = root.items.map(i =>
+                    i.id === data.id && (!url || i.url === url || root.current === url)
+                        ? Object.assign({}, i, { read: false }) : i);
+            }
+            // the same article can be on screen in a feed, the saved pile or a
+            // search: keep all three honest instead of only the feed list
             root.refresh();
+            root.savedArticles();
+            if (root.query) root.search(root.query);
         } else if (what === "save") {
             if (data && data.id) {
                 root.items = root.items.map(i =>
-                    i.id === data.id ? Object.assign({}, i, { saved: !!data.saved }) : i);
+                    i.id === data.id && (!data.url || root.current === data.url || i.url === data.url)
+                        ? Object.assign({}, i, { saved: !!data.saved }) : i);
                 if (root.openId === data.id) root.articleSaved = !!data.saved;
             }
             root.note = data && data.saved ? Tr.t("Saved for later") : Tr.t("Removed from saved");
             root.savedArticles();
+            if (root.query) root.search(root.query);
         } else if (what === "saved") {
             root.saved = Array.isArray(data) ? data : [];
         } else if (what === "search") {

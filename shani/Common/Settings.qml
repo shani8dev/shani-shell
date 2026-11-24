@@ -534,6 +534,8 @@ Singleton {
             property var filesRecentServers: []           // Files: servers connected to before, newest first (clicked, not typed again)
             property var filesRecentDests: []             // Files: Copy to… / Move to… folders used lately, newest first
             property var fileTabs: []                      // Files: open tabs, restored on restart (Services/Files)
+            property var filesClosedTabs: []               // Files: recently closed tabs for Ctrl+Shift+T restore
+            property string filesGridCaption: "off"        // Files: grid tile caption - off | size | date
             property var radioFavourites: []              // Media Player > Radio: stations kept, [{ uuid, name, url, favicon, tags, country, codec, bitrate }]
             property string liveTvSource: ""              // Media Player > Live TV: the M3U URL or file last loaded
             property bool pdfNight: false                 // Document Viewer: pages shown inverted (night mode)

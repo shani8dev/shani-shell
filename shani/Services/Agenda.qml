@@ -29,7 +29,9 @@ Singleton {
     // what everything shows: the events of the calendars not hidden
     readonly property var events: hidden.length ? allEvents.filter(e => hidden.indexOf(e.calendar) < 0) : allEvents
     property bool available: false
-    property string search: ""            // title filter for the Calendar surface
+    property string loadError: ""         // why the read failed, for the Calendar's error state
+    property string writeError: ""        // outcome of the last add / edit / delete, shown in the editor
+    property string search: ""            // full-event filter for the Calendar surface
     // the calendars there are ([{ name, uid, color, readOnly }], agenda.py
     // calendars), the ones the person chose not to see (by name, kept in
     // Settings) and the one a new event goes to ("" = the first one)
@@ -247,11 +249,17 @@ Singleton {
                         root.loadedDays = days;
                     }
                     root.available = true;
-                } catch (e) {}
+                    root.loadError = "";
+                } catch (e) {
+                    root.loadError = Tr.t("Could not read the calendar");
+                }
             }
         }
         onExited: code => {
-            if (code === 2) root.available = false;
+            if (code === 2) {
+                root.available = false;
+                root.loadError = Tr.t("No calendar service — add an online account or install the EDS bindings");
+            }
             // queued ranges first, then a plain refresh requested while busy
             if (root._pending.length) {
                 const next = root._pending[0];
@@ -269,13 +277,18 @@ Singleton {
         // exit 0: done over EDS. Anything else: no calendar service here, so
         // ask Chronoa's calendar_edit skill in words and refresh either way.
         onExited: code => {
-            if (code !== 0 && fallback !== "") {
-                if (!Bridge.send({ op: "ask", text: fallback }))
+            if (code === 0) root.writeError = "";
+            else if (fallback !== "") {
+                if (!Bridge.send({ op: "ask", text: fallback })) {
+                    root.writeError = Tr.t("Not saved — no calendar service and Chronoa is not connected");
                     Quickshell.execDetached(["notify-send", "-a", "Calendar", "-i", "x-office-calendar", "No calendar service",
                         "EDS is unavailable and Chronoa is not connected; the change was not saved."]);
-                else
+                } else {
+                    root.writeError = Tr.t("Handed to Chronoa — EDS is unavailable here");
                     quclock.restart();
-            }
+                }
+            } else
+                root.writeError = Tr.t("The calendar rejected the change");
             root.refresh();
         }
     }

@@ -29,6 +29,8 @@ Singleton {
     property string query: ""         // what the search box is looking for
     property bool busy: false
     property string note: ""
+    property bool error: false         // a server failure: drives the offline/error banner
+    property var draft: null           // { to, cc, bcc, subject, body } kept across window closes
 
     // an IMAP date string -> "10:00" today, "21 Nov" otherwise
     function when(value) {
@@ -43,7 +45,19 @@ Singleton {
     function refresh() { run("folders", []) }
     function open(name) { folder = name; run("list", [name]) }
     function read(uid) { if (uid) { openUid = uid; run("read", [uid, root.folder]) } }
-    function markRead(uid) { if (uid) run("markread", [uid, root.folder], false) }
+    // Marking read changes both the row and the folder badge. Do it locally so
+    // the badge refreshes without re-listing the folder (which would lose the
+    // message being read); the bridge call still carries the change to the server.
+    function markRead(uid) {
+        if (!uid) return;
+        const row = root.messages.find(m => m.uid === uid);
+        if (row && row.unread) {
+            root.messages = root.messages.map(m => m.uid === uid ? Object.assign({}, m, { unread: false }) : m);
+            root.folders = root.folders.map(f => f.name === root.folder
+                ? Object.assign({}, f, { unread: Math.max(0, (f.unread || 0) - 1) }) : f);
+        }
+        run("markread", [uid, root.folder], false);
+    }
     function remove(uid) { if (uid) run("delete", [uid, root.folder]) }
     function markUnread(uid) { if (uid) run("markunread", [uid, root.folder]) }
     function flag(uid, name, on) { if (uid) run("flag", [uid, name, on ? "1" : "0", root.folder]) }
@@ -59,8 +73,15 @@ Singleton {
         run("send", args);
     }
     // a word in the sender, the subject or the body: the server looks (IMAP
-    // SEARCH), or the reader does when the server cannot
-    function search(q) { root.query = q; run("search", q ? [q, root.folder] : [root.folder]) }
+    // SEARCH), or the reader does when the server cannot. An empty query must
+    // still be sent as an empty argument, otherwise the folder name becomes the
+    // search term and the list empties out when the user clears the box.
+    function search(q) { root.query = q; run("search", [q || "", root.folder]) }
+
+    // compose drafts live in the singleton so closing and reopening the window
+    // does not throw away a half-written message
+    function saveDraft(d) { root.draft = d || null; root.note = Tr.t("Draft saved") }
+    function clearDraft() { root.draft = null }
 
     // 412 -> "412 B", ivar 12345 -> "12.3 kB": the same units the archive and
     // disk usage views use, so an attachment reads like a file
@@ -94,9 +115,10 @@ Singleton {
 
     function finished(what, text, code) {
         busy = false;
-        if (code !== 0) { root.note = Tr.t("The mail server could not answer"); return; }
+        if (code !== 0) { root.error = true; root.note = Tr.t("The mail server could not answer"); return; }
         let data = null;
-        try { data = JSON.parse(text); } catch (e) { root.note = Tr.t("The mail server sent something unreadable"); return; }
+        try { data = JSON.parse(text); } catch (e) { root.error = true; root.note = Tr.t("The mail server sent something unreadable"); return; }
+        root.error = false;
         if (what === "state") {
             root.kind = (data && data.kind) || "";
             root.account = (data && data.account) || ({});
@@ -111,7 +133,7 @@ Singleton {
             if (root.messages.length) root.read(root.messages[0].uid);
             else { root.openUid = ""; root.subject = ""; root.from = ""; }
         } else if (what === "read") {
-            if (data && data.error) { root.note = data.error; return; }
+            if (data && data.error) { root.error = true; root.note = data.error; return; }
             root.source = "";
             root.from = (data && data.from) || "";
             root.subject = (data && data.subject) || "";
@@ -124,6 +146,7 @@ Singleton {
         } else if (what === "search") {
             root.messages = Array.isArray(data) ? data : [];
             if (root.messages.length) root.read(root.messages[0].uid);
+            else { root.openUid = ""; root.subject = ""; root.from = ""; root.body = ""; }
         } else if (what === "delete") {
             root.refresh();
         } else if (what === "markunread" || what === "flag" || what === "move") {
@@ -137,7 +160,8 @@ Singleton {
             root.remoteImages = !!(data && data.remote);
             if (root.openUid) root.read(root.openUid);
         } else if (what === "send") {
-            root.note = data && data.error ? data.error : Tr.t("Message sent");
+            if (data && data.error) { root.error = true; root.note = data.error; }
+            else root.note = Tr.t("Message sent");
         }
     }
 

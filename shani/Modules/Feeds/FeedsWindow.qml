@@ -25,6 +25,74 @@ AppWindow {
         Feeds.search("");
     }
 
+    // single keypresses must not eat letters typed into the three fields
+    function isEditing() {
+        const f = win.activeFocusItem;
+        return !!f && (f.objectName === "feedEdit" || f.objectName === "articleSearch" || f.objectName === "tagEdit");
+    }
+
+    // the keyboard walks what is on screen, not the cache: a search or the
+    // saved pile has its own feed column, which is why rows carry `url`
+    function visibleArticles() {
+        if (Feeds.query !== "") return Feeds.sorted(Feeds.searchResults);
+        if (win.savedShown) return Feeds.sorted(Feeds.saved);
+        return Feeds.sorted(Feeds.items.filter(i => Feeds.showRead || !i.read));
+    }
+    function step(delta) {
+        const rows = win.visibleArticles();
+        if (!rows.length) return;
+        let idx = -1;
+        for (let i = 0; i < rows.length; i++) {
+            if (rows[i].id === Feeds.openId && (rows[i].url || Feeds.current) === (Feeds.articleUrl || Feeds.current)) { idx = i; break; }
+        }
+        idx = idx < 0 ? (delta > 0 ? 0 : rows.length - 1) : (idx + delta + rows.length) % rows.length;
+        const row = rows[idx];
+        if (Feeds.query !== "" || win.savedShown) Feeds.openArticleAt(row.url || Feeds.current, row.id);
+        else Feeds.show(Feeds.current, row.id);
+    }
+    function toggleRead() {
+        if (!Feeds.openId) return;
+        const row = win.visibleArticles().filter(a => a.id === Feeds.openId)[0];
+        const url = Feeds.articleUrl || Feeds.current;
+        if (row && row.read) Feeds.markUnread(url, Feeds.openId);
+        else Feeds.markRead(url, Feeds.openId);
+    }
+    function feedCount(tag) {
+        return Feeds.feeds.filter(f => tag === "" || (f.tags || []).indexOf(tag) >= 0).length;
+    }
+
+    // a newly opened feed (including the auto-opened first one) gets its own
+    // tags in the field, so editing them is one keystroke away, not a fresh type
+    Connections {
+        target: Feeds
+        function onCurrentChanged() {
+            if (tagField && Feeds.current !== "") tagField.text = Feeds.tagsFor(Feeds.current);
+        }
+    }
+
+    Item {
+        anchors.fill: parent
+        focus: true
+        Keys.onPressed: e => {
+            if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_F) {
+                articleSearch.forceActiveFocus();
+                e.accepted = true;
+                return;
+            }
+            if (win.isEditing()) return;
+            let handled = true;
+            if (e.key === Qt.Key_J || e.key === Qt.Key_N) win.step(1);
+            else if (e.key === Qt.Key_K || e.key === Qt.Key_P) win.step(-1);
+            else if (e.key === Qt.Key_R) win.toggleRead();
+            else if (e.key === Qt.Key_F) Feeds.toggleSave(Feeds.articleUrl || Feeds.current, Feeds.openId);
+            else if (e.key === Qt.Key_Escape) {
+                if (Feeds.query !== "") win.leaveSearch();
+                else if (win.savedShown) win.savedShown = false;
+                else handled = false;
+            } else handled = false;
+            if (handled) e.accepted = true;
+        }
+
     RowLayout {
         anchors.fill: parent
         anchors.margins: Theme.px(10)
@@ -48,10 +116,17 @@ AppWindow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
                     Text { text: Tr.t("Feeds"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(14) * Theme.fontScale; font.weight: Font.DemiBold }
+                    Text {
+                        text: Tr.t("%1 unread", Feeds.unreadTotal())
+                        color: Feeds.unreadTotal() > 0 ? Theme.accent : Theme.faint
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        Accessible.name: text
+                    }
                     Item { Layout.fillWidth: true }
-                    IconButton { icon: "go-next"; tip: Tr.t("Next unread"); size: Theme.px(26); enabled: Feeds.feeds.some(f => f.unread > 0); onClicked: Feeds.nextUnread() }
-                    IconButton { icon: "mail-mark-read"; tip: Tr.t("Mark all read"); size: Theme.px(26); enabled: Feeds.items.length > 0; onClicked: Feeds.markAll() }
-                    IconButton { icon: "view-refresh"; tip: Tr.t("Refresh"); size: Theme.px(26); on: Feeds.busy; onClicked: Feeds.update() }
+                    IconButton { icon: "go-next"; tip: Tr.t("Next unread"); accessibleName: Tr.t("Next unread article"); size: Theme.px(26); enabled: Feeds.feeds.some(f => f.unread > 0); onClicked: Feeds.nextUnread() }
+                    IconButton { icon: "mail-mark-read"; tip: Tr.t("Mark all read"); accessibleName: Tr.t("Mark this feed read"); size: Theme.px(26); enabled: Feeds.current !== "" && !win.savedShown && Feeds.query === ""; onClicked: Feeds.markAll(Feeds.current) }
+                    IconButton { icon: "view-refresh"; tip: Tr.t("Refresh"); accessibleName: Tr.t("Refresh feeds"); size: Theme.px(26); on: Feeds.busy; onClicked: Feeds.update() }
                 }
 
                 // tags double as categories: pick one to narrow the list
@@ -60,7 +135,7 @@ AppWindow {
                     spacing: Theme.px(6)
                     visible: Feeds.tags.length > 0
                     Choice {
-                        text: Tr.t("All")
+                        text: Tr.t("All") + "  " + win.feedCount("")
                         selected: win.tagFilter === ""
                         onClicked: win.tagFilter = ""
                     }
@@ -68,7 +143,7 @@ AppWindow {
                         model: Feeds.tags
                         Choice {
                             required property var modelData
-                            text: modelData
+                            text: modelData + "  " + win.feedCount(modelData)
                             selected: win.tagFilter === modelData
                             onClicked: win.tagFilter = modelData
                         }
@@ -81,6 +156,8 @@ AppWindow {
                     Layout.fillHeight: true
                     clip: true
                     spacing: 2
+                    Accessible.role: Accessible.List
+                    Accessible.name: Tr.t("Feeds")
                     model: Feeds.feeds.filter(f => win.tagFilter === "" || (f.tags || []).indexOf(win.tagFilter) >= 0)
                     delegate: ListRow {
                         required property var modelData
@@ -89,6 +166,7 @@ AppWindow {
                         title: modelData.title
                         subtitle: (modelData.tags && modelData.tags.length ? modelData.tags.join(", ") + "  ·  " : "")
                                   + (modelData.unread > 0 ? Tr.t("%1 unread", modelData.unread) : "")
+                        trailing: modelData.unread > 0 ? String(modelData.unread) : ""
                         selected: Feeds.current === modelData.url
                         // a feed wins over the saved pile too: otherwise the
                         // click looks inert while the list stays on Saved
@@ -98,6 +176,8 @@ AppWindow {
 
                 TextField {
                     id: addField
+                    objectName: "feedEdit"
+                    label: Tr.t("Feed address")
                     Layout.fillWidth: true
                     placeholder: Tr.t("Feed address…")
                     onAccepted: { if (text.trim() !== "") { Feeds.add(text.trim()); text = "" } }
@@ -127,6 +207,8 @@ AppWindow {
                 }
                 TextField {
                     id: tagField
+                    objectName: "tagEdit"
+                    label: Tr.t("Tags for this feed")
                     Layout.fillWidth: true
                     placeholder: Tr.t("Tags for this feed…")
                     enabled: Feeds.current !== ""
@@ -140,7 +222,7 @@ AppWindow {
                     Button { text: Tr.t("Import…"); flat: true; onClicked: Feeds.importDialog() }
                     Button { text: Tr.t("Export…"); flat: true; enabled: Feeds.feeds.length > 0; onClicked: Feeds.exportDialog() }
                     Button {
-                        text: Tr.t("Saved")
+                        text: Tr.t("Saved") + "  " + Feeds.saved.length
                         flat: true
                         checked: win.savedShown
                         onClicked: { win.leaveSearch(); win.savedShown = !win.savedShown; if (win.savedShown) Feeds.savedArticles() }
@@ -172,6 +254,18 @@ AppWindow {
                     wrapMode: Text.Wrap
                     font.family: Theme.font
                     font.pixelSize: Theme.px(11) * Theme.fontScale
+                    Accessible.role: Accessible.StaticText
+                    Accessible.name: text
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: !Net.online
+                    text: Tr.t("Offline — showing cached articles")
+                    color: Theme.dim
+                    wrapMode: Text.Wrap
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    Accessible.name: text
                 }
                 Text {
                     Layout.fillWidth: true
@@ -206,15 +300,43 @@ AppWindow {
             }
             TextField {
                 id: articleSearch
+                objectName: "articleSearch"
+                label: Tr.t("Search all articles")
                 Layout.fillWidth: true
                 placeholder: Tr.t("Search all articles…")
                 onAccepted: Feeds.search(text.trim())
                 onTextChanged: if (text.trim() === "" && Feeds.query !== "") Feeds.search("")
             }
+            Text {
+                Layout.fillWidth: true
+                visible: Feeds.query !== "" && !Feeds.busy
+                text: Tr.t("%1 results", itemList.count)
+                color: Theme.faint
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+                Accessible.name: text
+            }
             Choice {
                 text: Tr.t("Show read")
                 selected: Feeds.showRead
                 onClicked: Feeds.showRead = !Feeds.showRead
+            }
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Repeater {
+                    model: [
+                        [Tr.t("Newest"), "newest"],
+                        [Tr.t("Oldest"), "oldest"],
+                        [Tr.t("Title"), "title"]
+                    ]
+                    Choice {
+                        required property var modelData
+                        text: modelData[0]
+                        selected: Feeds.sortOrder === modelData[1]
+                        onClicked: Feeds.setSort(modelData[1])
+                    }
+                }
             }
             ListView {
                 id: itemList
@@ -222,9 +344,11 @@ AppWindow {
                 Layout.fillHeight: true
                 clip: true
                 spacing: 2
-                model: Feeds.query !== "" ? Feeds.searchResults
-                    : win.savedShown ? Feeds.saved
-                    : Feeds.items.filter(i => Feeds.showRead || !i.read)
+                model: Feeds.query !== "" ? Feeds.sorted(Feeds.searchResults)
+                    : win.savedShown ? Feeds.sorted(Feeds.saved)
+                    : Feeds.sorted(Feeds.items.filter(i => Feeds.showRead || !i.read))
+                Accessible.role: Accessible.List
+                Accessible.name: Tr.t("Articles")
                 ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                 delegate: ListRow {
                     required property var modelData
@@ -254,83 +378,129 @@ AppWindow {
         }
 
         // ---- the article -----------------------------------------------------
-        Flickable {
-            id: reader
+        ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            clip: true
-            contentHeight: body.height
-            boundsBehavior: Flickable.StopAtBounds
-            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+            spacing: Theme.px(4)
 
-            ColumnLayout {
-                id: body
-                width: reader.width
-                spacing: Theme.px(10)
-
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
                 Text {
-                    Layout.fillWidth: true
-                    visible: Feeds.article === ""
-                    text: Tr.t("Pick an article")
+                    text: Tr.t("Reader")
                     color: Theme.dim
-                    wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+                Choice {
+                    text: Tr.t("Compact")
+                    selected: Feeds.readerMode === "compact"
+                    onClicked: Feeds.setReaderMode("compact")
+                }
+                Choice {
+                    text: Tr.t("Full")
+                    selected: Feeds.readerMode === "full"
+                    onClicked: Feeds.setReaderMode("full")
+                }
+                Item { Layout.fillWidth: true }
+                Text {
+                    visible: !Net.online
+                    text: Tr.t("Offline")
+                    color: Theme.faint
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    Accessible.name: text
                 }
                 Text {
-                    Layout.fillWidth: true
-                    visible: Feeds.article !== ""
-                    text: Feeds.articleTitle
-                    color: Theme.text
-                    wrapMode: Text.Wrap
-                    textFormat: Text.PlainText
+                    text: Tr.t("j/k move · r unread · f save")
+                    color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(20) * Theme.fontScale
-                    font.weight: Font.DemiBold
-                    maximumLineCount: 3
-                    elide: Text.ElideRight
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    Accessible.name: text
                 }
-                Text {
-                    Layout.fillWidth: true
-                    visible: Feeds.article !== ""
-                    text: Feeds.article
-                    color: Theme.text
-                    wrapMode: Text.Wrap
-                    textFormat: Text.PlainText
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(14) * Theme.fontScale
+            }
+
+            Flickable {
+                id: reader
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                contentHeight: body.height
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+                ColumnLayout {
+                    id: body
+                    width: reader.width
+                    spacing: Theme.px(Feeds.readerMode === "compact" ? 6 : 10)
+
+                    Text {
+                        Layout.fillWidth: true
+                        visible: Feeds.article === ""
+                        text: Tr.t("Pick an article")
+                        color: Theme.dim
+                        wrapMode: Text.Wrap
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(13) * Theme.fontScale
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: Feeds.article !== ""
+                        text: Feeds.articleTitle
+                        color: Theme.text
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(Feeds.readerMode === "compact" ? 16 : 20) * Theme.fontScale
+                        font.weight: Font.DemiBold
+                        maximumLineCount: 3
+                        elide: Text.ElideRight
+                        Accessible.role: Accessible.Heading
+                        Accessible.name: Feeds.articleTitle
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: Feeds.article !== ""
+                        text: Feeds.article
+                        color: Theme.text
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(Feeds.readerMode === "compact" ? 12 : 14) * Theme.fontScale
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.px(6)
+                        visible: Feeds.openId !== ""
+                        Button {
+                            visible: Feeds.articleLink !== ""
+                            text: Tr.t("Open in a browser")
+                            kind: "outline"
+                            onClicked: Qt.openUrlExternally(Feeds.articleLink)
+                        }
+                        Button {
+                            text: Feeds.articleSaved ? Tr.t("Saved") : Tr.t("Save for later")
+                            flat: true
+                            checked: Feeds.articleSaved
+                            onClicked: Feeds.toggleSave(Feeds.articleUrl || Feeds.current, Feeds.openId)
+                        }
+                        Button {
+                            text: Tr.t("Mark unread")
+                            flat: true
+                            onClicked: Feeds.markUnread(Feeds.articleUrl || Feeds.current, Feeds.openId)
+                        }
+                        Button {
+                            visible: Feeds.articleEnclosure !== ""
+                            text: Tr.t("Open episode")
+                            kind: "outline"
+                            onClicked: Qt.openUrlExternally(Feeds.articleEnclosure)
+                        }
+                        Item { Layout.fillWidth: true }
+                    }
+                    Item { Layout.preferredHeight: 20 }
                 }
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: Theme.px(6)
-                    visible: Feeds.openId !== ""
-                    Button {
-                        visible: Feeds.articleLink !== ""
-                        text: Tr.t("Open in a browser")
-                        kind: "outline"
-                        onClicked: Qt.openUrlExternally(Feeds.articleLink)
-                    }
-                    Button {
-                        text: Feeds.articleSaved ? Tr.t("Saved") : Tr.t("Save for later")
-                        flat: true
-                        checked: Feeds.articleSaved
-                        onClicked: Feeds.toggleSave(Feeds.current, Feeds.openId)
-                    }
-                    Button {
-                        text: Tr.t("Mark unread")
-                        flat: true
-                        onClicked: Feeds.markUnread(Feeds.current, Feeds.openId)
-                    }
-                    Button {
-                        visible: Feeds.articleEnclosure !== ""
-                        text: Tr.t("Open episode")
-                        kind: "outline"
-                        onClicked: Qt.openUrlExternally(Feeds.articleEnclosure)
-                    }
-                    Item { Layout.fillWidth: true }
-                }
-                Item { Layout.preferredHeight: 20 }
             }
         }
+    }
     }
 }

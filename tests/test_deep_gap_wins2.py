@@ -39,4 +39,5 @@ def test_calendar_import_and_quick_add():
     s = read("shani/Modules/Calendar/CalendarPanel.qml")
     assert "Agenda.importFile(paths[0])" in s
     assert 'Tr.t("Quick add' in s
-    assert "_parseNaturalDateTime(entry)" in s
+    # the parser now anchors relative phrases on the selected day
+    assert "_parseNaturalDateTime(entry, selectedDate)" in s

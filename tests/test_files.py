@@ -366,6 +366,18 @@ def test_nothing_is_deleted_by_the_file_manager():
     )
     assert "mkstemp" in main_seg and "os.unlink(tmp)" in main_seg
     deleting.pop("main", None)
+    # save_tree writes a tree export to a mkstemp beside the target and, on
+    # error, removes only that temp file — same safe pattern as main/thumb_for
+    st = ast.get_source_segment(
+        bridge,
+        next(
+            f
+            for f in ast.walk(tree)
+            if isinstance(f, ast.FunctionDef) and f.name == "save_tree"
+        ),
+    )
+    assert "mkstemp" in st and "os.unlink(tmp)" in st
+    deleting.pop("save_tree", None)
     # connect_sshfs takes back only the mount point it made, when sshfs failed - and
     # rmdir removes an empty folder only
     assert deleting.pop("connect_sshfs", None) in (None, ["rmdir"])
@@ -414,11 +426,18 @@ def test_recent_files_are_the_ones_opened_lately_newest_first(tmp_path):
 def test_compare_save_keeps_the_old_version_in_the_trash(tmp_path):
     target = tmp_path / "merged.txt"
     target.write_text("the old text")
-    r = subprocess.run([sys.executable, str(BRIDGE), "compare-save", str(target)],
-                       input="the new text", capture_output=True, text=True, timeout=20)
+    r = subprocess.run(
+        [sys.executable, str(BRIDGE), "compare-save", str(target)],
+        input="the new text",
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
     out = json.loads(r.stdout)
-    assert not list(tmp_path.glob(".shani-compare-*"))  # no temp file left behind either way
-    if "error" in out:   # a container's /tmp has no trash: the original must stay
+    assert not list(
+        tmp_path.glob(".shani-compare-*")
+    )  # no temp file left behind either way
+    if "error" in out:  # a container's /tmp has no trash: the original must stay
         assert target.read_text() == "the old text"
     else:
         assert out["saved"] == str(target)

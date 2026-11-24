@@ -41,7 +41,8 @@ def test_feeds_mark_all():
     win = read("shani/Modules/Feeds/FeedsWindow.qml")
     assert 'cmd == "markall"' in bridge
     assert 'read = c.setdefault("read", {})' in bridge
-    assert "function markAll()" in svc
+    # scope-safe mark-all now takes a feed URL (empty is a no-op, not a global wipe)
+    assert "function markAll(" in svc
     assert "Mark all read" in win
 
 

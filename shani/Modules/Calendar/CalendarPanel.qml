@@ -37,7 +37,17 @@ AppWindow {
     onVisibleChanged: if (visible) { Agenda.refresh(); win.view = Ui.calendarView || "month"; win.ensureRange(); }
     Connections { target: Ui; function onCalendarViewChanged() { win.view = Ui.calendarView || "month"; } }
 
-    Item { anchors.fill: parent; focus: win.visible; Keys.onEscapePressed: { if (win.editor) win.closeEditor(); else Ui.calendar = false; } }
+    Item {
+        anchors.fill: parent
+        focus: win.visible
+        Keys.onEscapePressed: { if (win.editor) win.closeEditor(); else Ui.calendar = false; }
+        // Keys from the grid's KeyFocus delegates bubble up to here. Arrows move
+        // the selection; Home/End/PageUp/PageDown are the calendar conventions.
+        Keys.onPressed: event => {
+            if (event.key === Qt.Key_Escape) return;
+            if (win.handleCalendarKey(event.key)) event.accepted = true;
+        }
+    }
 
     property date today: new Date()
     property int offset: 0
@@ -145,6 +155,14 @@ AppWindow {
         return needle === "" || ["summary", "location", "description"].some(k =>
             String(e[k] || "").toLowerCase().indexOf(needle) >= 0);
     })
+    // GNOME/KDE/Apple search the whole calendar, not only the selected day;
+    // every typed word must match somewhere in the event.
+    readonly property bool searchActive: Agenda.search.trim() !== ""
+    readonly property var searchTerms: Agenda.search.toLowerCase().trim().split(/\s+/).filter(t => t !== "")
+    readonly property var searchResults: searchTerms.length === 0 ? [] : Agenda.events.filter(e => {
+        const hay = ["summary", "location", "description"].map(k => String(e[k] || "").toLowerCase()).join(" ");
+        return searchTerms.every(t => hay.indexOf(t) >= 0);
+    })
     readonly property var monthEvents: Agenda.events.filter(e => {
         const s = new Date(e.start * 1000);
         return s.getFullYear() === month.getFullYear() && s.getMonth() === month.getMonth();
@@ -169,6 +187,43 @@ AppWindow {
         offset = 0;
         selectedDate = new Date();
     }
+    // Arrow keys step one day / one week; keep the shown period containing the
+    // new selection instead of leaving a selected day off screen.
+    function stepSelected(delta) {
+        const d = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate() + delta);
+        selectedDate = d;
+        if (view === "day") {
+            offset = (d.getFullYear() - today.getFullYear()) * 12 + d.getMonth() - today.getMonth();
+        } else if (view === "week") {
+            const days = Math.round((d - weekStart) / 86400000);
+            if (days < 0) offset += Math.ceil(days / 7);
+            else if (days >= 7) offset += Math.floor(days / 7);
+        } else if (view === "year") {
+            if (d.getFullYear() !== month.getFullYear()) offset += d.getFullYear() - month.getFullYear();
+        } else {
+            const dm = (d.getFullYear() - month.getFullYear()) * 12 + d.getMonth() - month.getMonth();
+            if (dm !== 0) offset += dm;
+        }
+    }
+    function selectMonthEnd() {
+        if (view === "week") selectedDate = weekDays[6];
+        else if (view === "year") selectedDate = new Date(month.getFullYear(), 11, 31);
+        else selectedDate = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+    }
+    function handleCalendarKey(key) {
+        if (win.editor || win.viewing) return false;
+        switch (key) {
+            case Qt.Key_Left:  win.stepSelected(-1); return true;
+            case Qt.Key_Right: win.stepSelected(1);  return true;
+            case Qt.Key_Up:    win.stepSelected(-7); return true;
+            case Qt.Key_Down:  win.stepSelected(7);  return true;
+            case Qt.Key_Home:  win.goToday(); return true;
+            case Qt.Key_End:   win.selectMonthEnd(); return true;
+            case Qt.Key_PageUp:   win.stepView(-1); return true;
+            case Qt.Key_PageDown: win.stepView(1); return true;
+        }
+        return false;
+    }
     property bool pickingDate: false
     // Jump straight to a date: paging twelve months to reach last February
     // is not what a calendar app does.
@@ -191,7 +246,7 @@ AppWindow {
         selectedDate = new Date(month.getFullYear(), month.getMonth(), day);
     }
     function stepView(delta) {
-        if (view === "week")
+        if (view === "week" || view === "agenda")
             offset += delta;
         else if (view === "year")
             offset += delta * 12;
@@ -203,19 +258,20 @@ AppWindow {
             stepMonth(delta);   // keep the selected day inside the shown month
     }
     function viewLabel() {
+        if (view === "agenda") return Tr.t("Agenda");
         if (view === "week") return weekLabel;
         if (view === "year") return String(month.getFullYear());
         if (view === "day") return Qt.formatDate(selectedDate, "dddd d MMMM yyyy");
         return Qt.formatDate(month, "MMMM yyyy");
     }
     function prevTip() {
-        if (view === "week") return Tr.t("Previous week");
+        if (view === "week" || view === "agenda") return Tr.t("Previous week");
         if (view === "day") return Tr.t("Previous day");
         if (view === "year") return Tr.t("Previous year");
         return Tr.t("Previous month");
     }
     function nextTip() {
-        if (view === "week") return Tr.t("Next week");
+        if (view === "week" || view === "agenda") return Tr.t("Next week");
         if (view === "day") return Tr.t("Next day");
         if (view === "year") return Tr.t("Next year");
         return Tr.t("Next month");
@@ -235,6 +291,11 @@ AppWindow {
         } else if (view === "month") {
             from = new Date(month.getFullYear(), month.getMonth(), 1);
             to = new Date(month.getFullYear(), month.getMonth() + 1, 1);
+        } else if (view === "agenda") {
+            // two weeks behind and four ahead: "Earlier" must have real content
+            const a = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 14 + offset * 7);
+            from = a;
+            to = new Date(a.getFullYear(), a.getMonth(), a.getDate() + 42);
         } else {  // day and week both show a week at a time
             from = weekStart;
             to = new Date(weekDays[6].getFullYear(), weekDays[6].getMonth(), weekDays[6].getDate() + 1);
@@ -282,24 +343,71 @@ AppWindow {
     function selectWeekDay(col) { selectedDate = weekDays[col]; }
     function dayEventsForHour(hour) { return shownEvents.filter(e => !e.allDay && new Date(e.start * 1000).getHours() === hour); }
 
+    function isReadOnly(e) {
+        if (!e) return false;
+        const cal = Agenda.calendars.find(c => c.name === e.calendar);
+        return !!(cal && cal.readOnly);
+    }
+    // Drag a chip onto another day / hour. Only the date changes: duration,
+    // calendar, guests, repeat, alarm and zone travel with the event.
+    function moveEventTo(e, day, hour, asAllDay) {
+        if (!e || win.isReadOnly(e)) {
+            formError = Tr.t("That calendar is read-only — the event was not moved");
+            return;
+        }
+        const allDay = asAllDay === true ? true : !!e.allDay;
+        const dur = Math.max(3600, (e.end || (e.start + 3600)) - e.start);
+        const s = new Date(e.start * 1000);
+        const ns = allDay
+            ? new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime() / 1000
+            : new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, s.getMinutes()).getTime() / 1000;
+        Agenda.editEvent({ uid: e.uid, summary: e.summary || "", start: ns, end: ns + dur,
+            location: e.location || "", description: e.description || "", rrule: e.rrule || "",
+            alarm: Number(e.alarm || 0), timezone: e.timezone || "", attendees: e.attendees || [],
+            allDay: allDay, calendar: e.calendar || "" });
+        formError = "";
+        Agenda.refresh();
+    }
+    // An agenda row shows the event's day first, then its detail sheet.
+    function showDayOf(e) {
+        if (!e) return;
+        Ui.calendarView = "day";
+        win.view = "day";
+        win.goToDate(Qt.formatDate(new Date(e.start * 1000), "yyyy-MM-dd"));
+    }
+    // The agenda's "Earlier" section is the overdue list: events that ended,
+    // newest first, inside the window ensureRange() just loaded.
+    property bool showEarlier: true
+    readonly property var agendaUpcoming: Agenda.events.filter(e => (e.end || e.start) * 1000 > Date.now())
+    readonly property var agendaEarlier: Agenda.events.filter(e => (e.end || e.start) * 1000 <= Date.now()).slice(-12).reverse()
+
     // ---- event editor ------------------------------------------------------
     property bool editor: false
     property var editingEvent: null     // the event being edited, null = new
     property bool fAllDay: false
+    property string fSavedTimeA: ""     // clock put aside while all-day is on
+    property string fSavedTimeB: ""
     property string formError: ""
+    property bool confirmDelete: false  // deleting is a two-step, deliberate action
+    property string quickError: ""
     // click to view first; the edit form is a deliberate second step
     property bool viewing: false
     property var viewingEvent: null
     // repeat / end-repeat and this event's own reminder and zone
     property string fRepeat: "NONE"     // NONE | DAILY | WEEKLY | MONTHLY | YEARLY
+    property int fRepeatInterval: 1     // every N days/weeks/months/years
+    property string fByDay: ""          // MO,TU,… for a weekly repeat
+    readonly property var repeatDays: ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
     property string fRepeatUntil: ""    // yyyy-MM-dd
     property bool repeatTouched: false  // the person edited the repeat controls
+    // a richer rule is kept verbatim, but say so rather than hide the controls
+    readonly property bool complexRule: {
+        const r = String((win.viewingEvent || win.editingEvent)?.rrule || "").toUpperCase();
+        return r !== "" && !win.repeatTouched && /(COUNT|BYMONTHDAY|BYSETPOS|BYMONTH|WKST)/.test(r);
+    }
     property int fAlarm: 0              // minutes before; 0 = no alarm
     property string fZone: "local"
-    readonly property bool readOnlyEvent: !!(
-        (win.editingEvent || win.viewingEvent) &&
-        Agenda.calendars.find(c => c.name === ((win.editingEvent || win.viewingEvent) || {}).calendar && c.readOnly)
-    )
+    readonly property bool readOnlyEvent: win.isReadOnly(win.editingEvent || win.viewingEvent)
 
     function viewEvent(e) {
         if (!e) return;
@@ -313,12 +421,13 @@ AppWindow {
         win.viewingEvent = null;
         win.openEditor(e);
     }
-    // The form only understands FREQ + UNTIL. If the event had a richer RRULE
-    // (BYDAY, INTERVAL, COUNT …) and the person did not touch the repeat
+    // The form owns FREQ, INTERVAL, BYDAY and UNTIL. If the event had a richer
+    // RRULE (COUNT, BYMONTHDAY …) and the person did not touch the repeat
     // controls, return the original verbatim instead of silently flattening it.
     function ruleFromForm() {
         if (win.fRepeat === "NONE") return "";
-        const built = "FREQ=" + win.fRepeat +
+        const built = "FREQ=" + win.fRepeat + ";INTERVAL=" + Math.max(1, Math.min(99, win.fRepeatInterval)) +
+            (win.fRepeat === "WEEKLY" && win.fByDay !== "" ? ";BYDAY=" + win.fByDay : "") +
             (win.fRepeatUntil !== "" ? ";UNTIL=" + win.fRepeatUntil.replace(/-/g, "") + "T235959" : "");
         const original = String((win.viewingEvent || win.editingEvent)?.rrule || "");
         if (original !== "" && !win.repeatTouched) return original;
@@ -328,9 +437,21 @@ AppWindow {
         const r = String(rule || "").toUpperCase();
         const f = r.match(/FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/);
         win.fRepeat = f ? f[1] : "NONE";
+        const iv = r.match(/INTERVAL=(\d+)/);
+        win.fRepeatInterval = iv ? Math.max(1, Math.min(99, Number(iv[1]))) : 1;
+        const bd = r.match(/BYDAY=((?:MO|TU|WE|TH|FR|SA|SU)(?:,(?:MO|TU|WE|TH|FR|SA|SU))*)/);
+        win.fByDay = bd ? bd[1] : "";
         const u = r.match(/UNTIL=(\d{8})/);
         win.fRepeatUntil = u ? u[1].slice(0, 4) + "-" + u[1].slice(4, 6) + "-" + u[1].slice(6, 8) : "";
         win.repeatTouched = false;  // a fresh edit form starts from the event's rule
+    }
+    function toggleRepeatDay(day) {
+        const days = win.fByDay ? win.fByDay.split(",") : [];
+        const i = days.indexOf(day);
+        if (i >= 0) days.splice(i, 1);
+        else days.push(day);
+        win.fByDay = days.sort((a, b) => win.repeatDays.indexOf(a) - win.repeatDays.indexOf(b)).join(",");
+        win.repeatTouched = true;
     }
 
     function _fmtDate(d) { return Qt.formatDate(d, "yyyy-MM-dd"); }
@@ -338,6 +459,7 @@ AppWindow {
     function openEditor(e) {
         editingEvent = e || null;
         formError = "";
+        confirmDelete = false;
         if (e) {
             const s = new Date(e.start * 1000), en = new Date(e.end * 1000);
             fTitle.text = e.summary || "";
@@ -368,9 +490,26 @@ AppWindow {
             fTimeB.text = _fmtTime(en);
             fAllDay = false;
         }
+        fSavedTimeA = fTimeA.text;
+        fSavedTimeB = fTimeB.text;
         editor = true;
     }
-    function closeEditor() { editor = false; formError = ""; }
+    function closeEditor() { editor = false; formError = ""; confirmDelete = false; }
+    // Switching an event between all-day and timed must not destroy its clock:
+    // stash it while the all-day toggle uses 00:00–23:59, then put it back.
+    function toggleAllDay() {
+        if (fAllDay) {
+            fTimeA.text = fSavedTimeA !== "" ? fSavedTimeA : "09:00";
+            fTimeB.text = fSavedTimeB !== "" ? fSavedTimeB : "10:00";
+            fAllDay = false;
+        } else {
+            fSavedTimeA = fTimeA.text;
+            fSavedTimeB = fTimeB.text;
+            fTimeA.text = "00:00";
+            fTimeB.text = "23:59";
+            fAllDay = true;
+        }
+    }
     // "yyyy-MM-dd" + "HH:mm" -> seconds, or NaN
     function _parseDateTime(dateText, timeText) {
         const d = String(dateText || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -393,15 +532,18 @@ AppWindow {
     }
     // Natural language parser: "lunch Friday at noon", "meeting tomorrow at 3pm",
     // "team call next tuesday 2:30pm", etc. Returns epoch seconds or NaN.
-    function _parseNaturalDateTime(text) {
+    // Relative words are anchored on the selected day (GNOME Calendar's quick
+    // add does the same), not on a hidden "now" that may be months away.
+    function _parseNaturalDateTime(text, anchor) {
         const s = String(text || "").trim();
         if (s === "")
             return NaN;
+        const base = anchor instanceof Date ? anchor : selectedDate;
         // Match an ISO date first
         const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
         if (iso) {
             const t = s.match(/(\d{1,2}):(\d{2})/);
-            return _parseDateTime(iso[0], t ? t[0].replace(":", ":") : "00:00");
+            return _parseDateTime(iso[0], t ? String(t[1]).padStart(2, "0") + ":" + t[2] : "00:00");
         }
         // Now/today/tomorrow
         let dayOffset = 0;
@@ -417,7 +559,7 @@ AppWindow {
         if (wdMatch) {
             const wd = weekdays.indexOf(wdMatch[1].toLowerCase());
             if (wd >= 0) {
-                targetDay = new Date().getDay();
+                targetDay = base.getDay();
                 const diff = (wd - targetDay + 7) % 7;
                 if (/^next/i.test(s)) dayOffset = diff + 7;
                 else if (/^last/i.test(s)) dayOffset = diff - 7;
@@ -429,7 +571,7 @@ AppWindow {
         if (inMatch) {
             const n = parseInt(inMatch[1]);
             const unit = inMatch[2].toLowerCase();
-            const d = new Date();
+            const d = new Date(base.getTime());
             if (unit === "week") d.setDate(d.getDate() + n * 7);
             else if (unit === "month") d.setMonth(d.getMonth() + n);
             else d.setDate(d.getDate() + n);
@@ -443,7 +585,7 @@ AppWindow {
             return NaN;
         }
         // Compute the date
-        const d = new Date();
+        const d = new Date(base.getTime());
         d.setDate(d.getDate() + dayOffset);
         d.setHours(0, 0, 0, 0);
         // Extract time: "at 3pm", "at 3:30pm", "noon", "5:30", "5pm", "3:00"
@@ -482,8 +624,8 @@ AppWindow {
         const start = _parseDateTime(fDateA.text, fTimeA.text);
         const end = _parseDateTime(fDateB.text, fTimeB.text);
         // Try natural language parsing as a fallback
-        const natStart = isNaN(start) ? _parseNaturalDateTime(fTitle.text + " " + fDateA.text + " " + fTimeA.text) : start;
-        const natEnd = isNaN(end) ? _parseNaturalDateTime(fTitle.text + " " + fDateB.text + " " + fTimeB.text) : end;
+        const natStart = isNaN(start) ? _parseNaturalDateTime(fTitle.text + " " + fDateA.text + " " + fTimeA.text, selectedDate) : start;
+        const natEnd = isNaN(end) ? _parseNaturalDateTime(fTitle.text + " " + fDateB.text + " " + fTimeB.text, selectedDate) : end;
         if (isNaN(natStart) || isNaN(natEnd) || natEnd <= natStart) {
             formError = Tr.t("Check the dates and times (end after start)");
             return;
@@ -509,9 +651,32 @@ AppWindow {
         closeEditor();
         Agenda.refresh();
     }
+    // Quick add fails loudly: an unparsed phrase used to vanish without a word.
+    function quickAdd(text) {
+        const entry = String(text || "").trim();
+        if (entry === "") {
+            quickError = Tr.t("Type something like “lunch Friday at noon”");
+            return false;
+        }
+        const start = _parseNaturalDateTime(entry, selectedDate);
+        if (isNaN(start)) {
+            quickError = Tr.t("Could not read a date — try “meeting tomorrow at 3pm” or yyyy-MM-dd");
+            return false;
+        }
+        quickError = "";
+        Agenda.addEvent({ summary: entry, start: start, end: start + 3600,
+            location: "", attendees: [], allDay: false,
+            calendar: Agenda.selectedCalendar || "", uid: "" });
+        return true;
+    }
     function deleteEditor() {
-        if (!editingEvent)
+        if (!editingEvent || win.readOnlyEvent)
             return;
+        if (!win.confirmDelete) {
+            win.confirmDelete = true;
+            formError = Tr.t("Click Delete again to remove this event");
+            return;
+        }
         Agenda.deleteEvent({ summary: editingEvent.summary, start: editingEvent.start, end: editingEvent.end,
             location: editingEvent.location, allDay: editingEvent.allDay,
             calendar: editingEvent.calendar, uid: editingEvent.uid });
@@ -522,6 +687,13 @@ AppWindow {
     Item {
         id: card
         anchors.fill: parent
+        focus: win.visible
+        // Key events from the grid's delegates bubble up to the card. Escape is
+        // left to the window Shortcut so the detail sheet closes from anywhere.
+        Keys.onPressed: event => {
+            if (event.key === Qt.Key_Escape) return;
+            if (win.handleCalendarKey(event.key)) event.accepted = true;
+        }
         ColumnLayout {
             id: col
             anchors.fill: parent
@@ -534,16 +706,10 @@ AppWindow {
                 Layout.fillWidth: true
                 visible: !win.editor
                 placeholder: Tr.t("Quick add — “lunch Friday at noon”, Enter to save")
-                onAccepted: {
-                    const entry = String(text).trim();
-                    const start = _parseNaturalDateTime(entry);
-                    if (entry !== "" && !isNaN(start)) {
-                        Agenda.addEvent({ summary: entry, start: start, end: start + 3600,
-                            location: "", attendees: [], allDay: false,
-                            calendar: Agenda.selectedCalendar || "", uid: "" });
-                        clear();
-                    }
-                }
+                label: Tr.t("Quick add")
+                error: win.quickError
+                onTextChanged: win.quickError = ""
+                onAccepted: { if (win.quickAdd(text)) clear(); }
             }
 
             RowLayout {
@@ -553,6 +719,12 @@ AppWindow {
                 Choice { text: Tr.t("Week"); selected: win.view === "week"; onClicked: { Ui.calendarView = "week"; Agenda.refresh(); } }
                 Choice { text: Tr.t("Day"); selected: win.view === "day"; onClicked: { Ui.calendarView = "day"; Agenda.refresh(); } }
                 Choice { text: Tr.t("Year"); selected: win.view === "year"; onClicked: { Ui.calendarView = "year"; Agenda.refresh(); } }
+                Choice {
+                    text: Tr.t("Agenda")
+                    selected: win.view === "agenda"
+                    Accessible.name: Tr.t("Agenda: upcoming and earlier events")
+                    onClicked: { Ui.calendarView = "agenda"; Agenda.refresh(); }
+                }
                 Choice {
                     text: Moon.glyph(win.today) + " " + Tr.t("Panchang")
                     selected: false
@@ -568,6 +740,7 @@ AppWindow {
                 Button {
                     visible: !win.editor
                     text: Tr.t("New event")
+                    Accessible.name: Tr.t("New event")
                     kind: "primary"
                     onClicked: win.openEditor(null)
                 }
@@ -617,6 +790,26 @@ AppWindow {
                 IconButton { icon: "go-next"; size: Theme.px(28); tip: win.nextTip(); onClicked: win.stepView(1) }
             }
 
+            // Read failures are not the same as an empty calendar: say why.
+            Rectangle {
+                visible: !win.editor && Agenda.loadError !== ""
+                Layout.fillWidth: true
+                implicitHeight: loadErrText.implicitHeight + Theme.px(10)
+                radius: Theme.radiusSmall
+                color: Theme.surface1
+                border.width: 1
+                border.color: Theme.danger
+                Text {
+                    id: loadErrText
+                    anchors { fill: parent; margins: Theme.px(5) }
+                    wrapMode: Text.Wrap
+                    text: Agenda.loadError
+                    color: Theme.danger
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+            }
+
             GridLayout {
                 visible: win.view === "month"
                 Layout.fillWidth: true
@@ -656,7 +849,7 @@ AppWindow {
                         radius: Theme.px(8)
                         color: isSelected ? Theme.accent : isToday ? Theme.accentSoft : "transparent"
                         Accessible.role: isWeek ? Accessible.StaticText : Accessible.Button
-                        Accessible.name: isWeek ? Tr.t("Week %1").arg(modelData.week) : Qt.formatDate(new Date(win.month.getFullYear(), win.month.getMonth(), day), "dddd d MMMM yyyy")
+                        Accessible.name: isWeek ? Tr.t("Week %1").arg(modelData.week) : Qt.formatDate(new Date(win.month.getFullYear(), win.month.getMonth(), day), "dddd d MMMM yyyy") + (day > 0 && win.hasEvents(day) ? ", " + Tr.t("has events") : "")
                         Text {
                             anchors.centerIn: parent
                             visible: parent.day > 0 || parent.isWeek
@@ -766,6 +959,16 @@ AppWindow {
                             implicitHeight: Math.max(22, _evs.length * 18 + 4)
                             radius: Theme.px(6)
                             color: "transparent"
+                            // drop here to make the dragged event all-day
+                            DropArea {
+                                anchors.fill: parent
+                                keys: ["shani-event"]
+                                onDropped: {
+                                    const e = drag.source && drag.source.dragEvent;
+                                    if (e) win.moveEventTo(e, win.weekDays[allDayCell.index], 0, true);
+                                    drop.acceptProposedAction();
+                                }
+                            }
                             ColumnLayout {
                                 anchors.fill: parent
                                 spacing: 2
@@ -778,8 +981,13 @@ AppWindow {
                                         implicitHeight: Theme.px(16)
                                         radius: Theme.px(4)
                                         color: Theme.alpha(calColor, 0.45)
+                                        property var dragEvent: modelData
+                                        Drag.active: chipDrag.drag.active
+                                        Drag.keys: ["shani-event"]
+                                        Drag.hotSpot.x: width / 2
+                                        Drag.hotSpot.y: height / 2
                                         Accessible.role: Accessible.Button
-                                        Accessible.name: modelData.summary
+                                        Accessible.name: modelData.summary + " · " + Tr.t("All day") + " — " + Tr.t("drag to another day")
                                         Rectangle {
                                             anchors { left: parent.left; top: parent.top; bottom: parent.bottom; leftMargin: 1; topMargin: 1; bottomMargin: 1 }
                                             width: Theme.px(3)
@@ -796,7 +1004,16 @@ AppWindow {
                                             font.family: Theme.font
                                             font.pixelSize: Theme.px(9) * Theme.fontScale
                                         }
-                                        MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.viewEvent(modelData) }
+                                        MouseArea {
+                                            id: chipDrag
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            drag.target: parent
+                                            drag.threshold: Theme.px(8)
+                                            onClicked: win.viewEvent(modelData)
+                                            onReleased: { if (parent) { parent.x = 0; parent.y = 0; } }
+                                        }
                                         KeyFocus { onActivated: win.viewEvent(modelData) }
                                     }
                                 }
@@ -844,6 +1061,16 @@ AppWindow {
                                         color: "transparent"
                                         border.width: 1
                                         border.color: Theme.stroke
+                                        // drop on a day/hour cell to reschedule
+                                        DropArea {
+                                            anchors.fill: parent
+                                            keys: ["shani-event"]
+                                            onDropped: {
+                                                const e = drag.source && drag.source.dragEvent;
+                                                if (e) win.moveEventTo(e, win.weekDays[hourCell.index], hourRow.hour, false);
+                                                drop.acceptProposedAction();
+                                            }
+                                        }
                                         Rectangle {
                                             visible: win.view === "week" && win.isNowHour(hourRow.hour)
                                             anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: parent.height * win.nowFraction() }
@@ -864,8 +1091,13 @@ AppWindow {
                                                     implicitHeight: Theme.px(14)
                                                     radius: Theme.px(3)
                                                     color: Theme.alpha(calColor, 0.45)
+                                                    property var dragEvent: modelData
+                                                    Drag.active: hourDrag.drag.active
+                                                    Drag.keys: ["shani-event"]
+                                                    Drag.hotSpot.x: width / 2
+                                                    Drag.hotSpot.y: height / 2
                                                     Accessible.role: Accessible.Button
-                                                    Accessible.name: modelData.summary + " " + win.zoneTime(modelData.start)
+                                                    Accessible.name: modelData.summary + " " + win.zoneTime(modelData.start) + (modelData.calendar ? " · " + modelData.calendar : "") + " — " + Tr.t("drag to another day or hour")
                                                     Rectangle {
                                                         anchors { left: parent.left; top: parent.top; bottom: parent.bottom; leftMargin: 1; topMargin: 1; bottomMargin: 1 }
                                                         width: Theme.px(3)
@@ -882,7 +1114,16 @@ AppWindow {
                                                         font.family: Theme.font
                                                         font.pixelSize: Theme.px(9) * Theme.fontScale
                                                     }
-                                                    MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.viewEvent(modelData) }
+                                                    MouseArea {
+                                                        id: hourDrag
+                                                        anchors.fill: parent
+                                                        hoverEnabled: true
+                                                        cursorShape: Qt.PointingHandCursor
+                                                        drag.target: parent
+                                                        drag.threshold: Theme.px(8)
+                                                        onClicked: win.viewEvent(modelData)
+                                                        onReleased: { if (parent) { parent.x = 0; parent.y = 0; } }
+                                                    }
                                                     KeyFocus { onActivated: win.viewEvent(modelData) }
                                                 }
                                             }
@@ -1093,6 +1334,57 @@ AppWindow {
                 }
             }
 
+            // ---- agenda: upcoming and "earlier" (overdue) events -------------
+            ColumnLayout {
+                visible: win.view === "agenda"
+                Layout.fillWidth: true
+                spacing: Theme.px(4)
+                Text {
+                    Layout.fillWidth: true
+                    text: Tr.t("Upcoming (%1)").arg(win.agendaUpcoming.length)
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.weight: Font.DemiBold
+                }
+                Repeater {
+                    model: win.agendaUpcoming.slice(0, 20)
+                    ListRow {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        icon: "x-office-calendar"
+                        title: modelData.summary
+                        subtitle: Agenda.when(modelData) + (modelData.location ? " · " + modelData.location : "") + (modelData.calendar ? " · " + modelData.calendar : "") + (modelData.allDay ? " · " + Tr.t("All day") : "")
+                        onClicked: { win.showDayOf(modelData); win.viewEvent(modelData); }
+                    }
+                }
+                EmptyState {
+                    visible: win.agendaUpcoming.length === 0
+                    icon: "x-office-calendar"
+                    title: Tr.t("Nothing upcoming")
+                    subtitle: Agenda.available ? Tr.t("New events appear here") : Tr.t("Add a calendar in Settings > Your account")
+                }
+                Choice {
+                    Layout.fillWidth: true
+                    text: win.showEarlier ? Tr.t("Hide earlier") : Tr.t("Show earlier (%1)").arg(win.agendaEarlier.length)
+                    selected: win.showEarlier
+                    Accessible.name: text
+                    onClicked: win.showEarlier = !win.showEarlier
+                }
+                Repeater {
+                    visible: win.showEarlier
+                    model: win.agendaEarlier
+                    ListRow {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        icon: "x-office-calendar"
+                        title: modelData.summary
+                        subtitle: Tr.t("Ended") + " " + Agenda.when(modelData) + (modelData.calendar ? " · " + modelData.calendar : "") + (modelData.allDay ? " · " + Tr.t("All day") : "")
+                        onClicked: { win.showDayOf(modelData); win.viewEvent(modelData); }
+                    }
+                }
+            }
+
             Rectangle {
                 Layout.fillWidth: true
                 implicitHeight: 1
@@ -1225,17 +1517,38 @@ AppWindow {
                 error: text !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(text.trim()) ? Tr.t("Use yyyy-MM-dd") : ""
                 onAccepted: { if (win.goToDate(text)) text = "" }
             }
-            TextField {
-                id: searchField
+            RowLayout {
                 visible: !win.editor
                 Layout.fillWidth: true
-                placeholder: Tr.t("Search title, place or notes")
-                label: Tr.t("Search title, place or notes")
-                onTextChanged: { if (text !== Agenda.search) Agenda.search = text; }
+                spacing: Theme.px(6)
+                TextField {
+                    id: searchField
+                    Layout.fillWidth: true
+                    placeholder: Tr.t("Search title, place or notes")
+                    label: Tr.t("Search title, place or notes")
+                    onTextChanged: { if (text !== Agenda.search) Agenda.search = text; }
+                }
+                IconButton {
+                    visible: searchField.text !== ""
+                    icon: "edit-clear"
+                    size: Theme.px(22)
+                    tip: Tr.t("Clear search")
+                    Accessible.name: Tr.t("Clear search")
+                    onClicked: { searchField.text = ""; Agenda.search = ""; }
+                }
             }
             Connections { target: Agenda; function onSearchChanged() { if (Agenda.search !== searchField.text) searchField.text = Agenda.search; } }
 
-            // ---- the day's events (or the editor) --------------------------
+            Text {
+                visible: !win.editor && win.searchActive
+                Layout.fillWidth: true
+                text: Tr.t("%1 matches across all calendars").arg(win.searchResults.length)
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+
+            // ---- the day's events, all-calendar matches, or the editor ------
             Flickable {
                 visible: !win.editor
                 Layout.fillWidth: true
@@ -1249,21 +1562,24 @@ AppWindow {
                     width: parent.width
                     spacing: 2
                     Repeater {
-                        model: win.shownEvents
+                        model: win.searchActive ? win.searchResults : win.shownEvents
                         ListRow {
                             required property var modelData
                             Layout.fillWidth: true
                             icon: "x-office-calendar"
                             title: modelData.summary
                             subtitle: Agenda.when(modelData) + (modelData.location ? " · " + modelData.location : "") + (modelData.calendar ? " · " + modelData.calendar : "") + (modelData.allDay ? " · " + Tr.t("All day") : "")
-                            onClicked: win.viewEvent(modelData)
+                            onClicked: {
+                                if (win.searchActive) win.showDayOf(modelData);
+                                win.viewEvent(modelData)
+                            }
                         }
                     }
                     EmptyState {
-                        visible: win.shownEvents.length === 0
+                        visible: (win.searchActive ? win.searchResults.length : win.shownEvents.length) === 0
                         icon: "x-office-calendar"
                         title: Agenda.search !== "" ? Tr.t("No matches") : Tr.t("Nothing that day")
-                        subtitle: Agenda.search !== "" ? Tr.t("Try another search") : Agenda.available ? Tr.t("No events for this day") : Tr.t("Add a calendar in Settings > Your account")
+                        subtitle: Agenda.search !== "" ? Tr.t("Try another search") : Agenda.loadError !== "" ? Agenda.loadError : Agenda.available ? Tr.t("No events for this day") : Tr.t("Add a calendar in Settings > Your account")
                         actionText: Agenda.available ? Tr.t("Refresh") : ""
                         onAction: Agenda.refresh()
                     }
@@ -1353,6 +1669,51 @@ AppWindow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
                     TextField {
+                        Layout.preferredWidth: Theme.px(90)
+                        placeholder: "2"
+                        label: Tr.t("Repeat every N periods")
+                        text: String(win.fRepeatInterval)
+                        enabled: win.fRepeat !== "NONE"
+                        input.validator: IntValidator { bottom: 1; top: 99 }
+                        onTextChanged: { const n = parseInt(text, 10); win.fRepeatInterval = isNaN(n) || n < 1 ? 1 : n; win.repeatTouched = true; }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: win.fRepeat === "WEEKLY"
+                        text: Tr.t("On") + " " + (win.fByDay === "" ? Tr.t("the event's day") : win.fByDay)
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                    }
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    visible: win.fRepeat === "WEEKLY"
+                    spacing: Theme.px(4)
+                    Repeater {
+                        model: win.repeatDays
+                        Choice {
+                            required property string modelData
+                            text: modelData
+                            selected: win.fByDay.split(",").indexOf(modelData) >= 0
+                            Accessible.name: Tr.t("Repeat on %1").arg(modelData)
+                            onClicked: win.toggleRepeatDay(modelData)
+                        }
+                    }
+                }
+                Text {
+                    visible: win.complexRule
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    text: Tr.t("This event has a repeat rule the form cannot fully edit. Changing the controls replaces it.")
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    TextField {
                         Layout.preferredWidth: Theme.px(150)
                         placeholder: "End repeat yyyy-MM-dd"
                         label: "End repeat"
@@ -1413,7 +1774,12 @@ AppWindow {
                     spacing: Theme.px(6)
                     TextField { id: fDateA; Layout.preferredWidth: Theme.px(110); placeholder: "2026-11-08"; label: Tr.t("Start date (yyyy-MM-dd)") }
                     TextField { id: fTimeA; Layout.preferredWidth: Theme.px(70); placeholder: "09:00"; label: Tr.t("Start time (HH:mm)"); enabled: !win.fAllDay }
-                    Button { text: win.fAllDay ? Tr.t("All-day: on") : Tr.t("All-day: off"); kind: "outline"; onClicked: win.fAllDay = !win.fAllDay }
+                    Button {
+                        text: win.fAllDay ? Tr.t("All-day: on") : Tr.t("All-day: off")
+                        Accessible.name: Tr.t("Toggle all-day; the original time is kept")
+                        kind: "outline"
+                        onClicked: win.toggleAllDay()
+                    }
                 }
                 RowLayout {
                     Layout.fillWidth: true
@@ -1429,19 +1795,34 @@ AppWindow {
                     font.family: Theme.font
                     font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
+                Text {
+                    visible: Agenda.writeError !== ""
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    text: Agenda.writeError
+                    color: Theme.accent
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(8)
                     Button { Layout.fillWidth: true; text: Tr.t("Save"); kind: "primary"; enabled: !win.readOnlyEvent; onClicked: win.saveEditor() }
                     Button { Layout.fillWidth: true; text: Tr.t("Cancel"); onClicked: win.closeEditor() }
-                    Button { visible: win.editingEvent !== null; text: Tr.t("Delete"); kind: "danger"; onClicked: win.deleteEditor() }
+                    Button {
+                        visible: win.editingEvent !== null
+                        text: win.confirmDelete ? Tr.t("Confirm delete") : Tr.t("Delete")
+                        kind: "danger"
+                        enabled: !win.readOnlyEvent
+                        onClicked: win.deleteEditor()
+                    }
                 }
             }
 
             Text {
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
-                text: win.editor ? Tr.t("Esc closes the form") : Tr.t("Esc closes · title returns to today · click an event to edit it")
+                text: win.editor ? Tr.t("Esc closes the form") : Tr.t("Esc closes · arrows move · Home today · PageUp/Down change period · drag an event to reschedule")
                 color: Theme.dim
                 font.family: Theme.font
                 font.pixelSize: Theme.px(11) * Theme.fontScale

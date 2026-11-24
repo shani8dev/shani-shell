@@ -30,10 +30,15 @@ def test_mail_subject_and_from_are_plain_text():
 def test_mail_empty_state_ignores_busy_and_reports_search():
     # fix 2: "Nothing in this folder" must not show while a load/search is in
     # flight, and a query with no hits says so instead.
-    empty = _block(MAIL, "visible: Mail.messages.length === 0")
+    # the empty state now uses the filtered/visible list, with a separate
+    # loading Text for the busy case
+    empty = _block(MAIL, "visible: !Mail.busy && win.visibleMessages().length === 0")
     assert "!Mail.busy" in empty
     assert "Mail.query" in empty
     assert "No matches for" in empty
+    assert "Loading mail" in _block(
+        MAIL, "visible: Mail.busy && Mail.messages.length === 0"
+    )
 
 
 def test_notification_body_is_plain_text_without_html_escaping():

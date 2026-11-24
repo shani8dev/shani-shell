@@ -21,6 +21,9 @@ Singleton {
     readonly property var open: tasks.filter(t => !t.done)
     readonly property var done: tasks.filter(t => t.done)
     readonly property int dueToday: open.filter(t => t.due > 0 && t.due * 1000 < endOfToday()).length
+    function startOfToday() { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }
+    function isOverdue(t) { return !!t && !t.done && t.due > 0 && t.due * 1000 < startOfToday(); }
+    readonly property int overdueCount: open.filter(t => isOverdue(t)).length
     property var told: ({})
     property var _dueSeen: ({})  // last due seen per uid, so a reschedule re-arms its reminder
     // A changed due (here or in Thunderbird/Chronoa) or a removed task must not
@@ -44,16 +47,32 @@ Singleton {
         if (!listReader.running) listReader.running = true;
         if (!repeatReader.running) repeatReader.running = true;
     }
-    function add(summary, due) {
+    function add(summary, due, priority) {
         const s = String(summary || "").trim();
         if (s === "")
             return;
-        run(["add", JSON.stringify({ summary: s, due: due || 0, list: selectedList })]);
+        // bridge add writes PRIORITY; edit does not, so a priority is chosen at creation.
+        const p = Number(priority) > 0 ? Number(priority) : 0;
+        run(["add", JSON.stringify({ summary: s, due: due || 0, list: selectedList, priority: p })]);
     }
-    function setDone(t, on) { if (!on) delete root.told[t.uid]; run(["done", JSON.stringify({ uid: t.uid, list: t.list, done: on })]); }
-    function remove(t) { run(["delete", JSON.stringify({ uid: t.uid, list: t.list })]); }
+    function setDone(t, on) { if (!t || !t.uid) return; if (!on) delete root.told[t.uid]; run(["done", JSON.stringify({ uid: t.uid, list: t.list, done: on })]); }
+    function remove(t) { if (!t || !t.uid) return; run(["delete", JSON.stringify({ uid: t.uid, list: t.list })]); }
     function rename(t, summary) { if (String(summary).trim() !== "") run(["edit", JSON.stringify({ uid: t.uid, list: t.list, summary: String(summary).trim() })]); }
     function setDue(t, due) { run(["edit", JSON.stringify({ uid: t.uid, list: t.list, due: due })]); }
+    // bridge edit takes DESCRIPTION; this was the one task field with no UI caller.
+    function setNotes(t, notes) {
+        if (!t || !t.uid) return;
+        run(["edit", JSON.stringify({ uid: t.uid, list: t.list, notes: String(notes || "") })]);
+    }
+    // bulk actions go through the same serial write queue, so no write is lost.
+    function setDoneMany(list, on) {
+        const a = Array.isArray(list) ? list : [];
+        for (const t of a) setDone(t, on);
+    }
+    function removeMany(list) {
+        const a = Array.isArray(list) ? list : [];
+        for (const t of a) remove(t);
+    }
     // accept either a task or a bare uid: setRepeat(task, "weekly")
     function setRepeat(t, rule) {
         const uid = typeof t === "string" ? t : (t && t.uid);
@@ -62,6 +81,7 @@ Singleton {
             return;
         run(["repeat", JSON.stringify({ uid: uid, list: list || "", rule: String(rule).trim().toLowerCase() })]);
     }
+    function asObject(v) { return v && typeof v === "object" && !Array.isArray(v) ? v : {}; }
 
     // one write at a time, then the list again
     property var _queue: []
@@ -93,12 +113,13 @@ Singleton {
     Process {
         id: listReader
         command: ["python3", root.tool, "lists"]
-        stdout: StdioCollector { onStreamFinished: { try { root.lists = JSON.parse(text); } catch (e) {} } }
+        // a corrupt or unexpected reply must not become a model of one big object
+        stdout: StdioCollector { onStreamFinished: { try { const p = JSON.parse(text); root.lists = Array.isArray(p) ? p : []; } catch (e) { root.lists = []; } } }
     }
     Process {
         id: repeatReader
         command: ["sh", "-c", 'cat "$1" 2>/dev/null || printf "{}"', "sh", root.repeatsPath]
-        stdout: StdioCollector { onStreamFinished: { try { root.repeats = JSON.parse(text); } catch (e) {} } }
+        stdout: StdioCollector { onStreamFinished: { try { root.repeats = asObject(JSON.parse(text)); } catch (e) { root.repeats = {}; } } }
     }
     // read at the start and every ten minutes; due ones told once
     Timer { interval: 10 * 60000; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
