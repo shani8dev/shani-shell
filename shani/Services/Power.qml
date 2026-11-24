@@ -25,7 +25,7 @@ Singleton {
     // Glass cannot import Services (Common → Services would be a cycle), so the
     // battery state for it is mirrored into Common/PowerState
     onOnBatteryChanged: { PowerState.onBattery = onBattery; if (onBattery) slowToldThisPlug = false; }
-    Component.onCompleted: PowerState.onBattery = onBattery
+    Component.onCompleted: { PowerState.onBattery = onBattery; root.checkTimeWarnings(root.secondsLeft); }
     // a charger too slow for this computer (Charger.js): told once each time it is
     // plugged in. Event-driven: UPower's state changes start a one-shot check, no polling.
     readonly property bool drainingPluggedIn: hasBattery && !onBattery && battery.state === UPowerDeviceState.Discharging
@@ -98,6 +98,7 @@ Singleton {
     // passes Do Not Disturb). logind's own critical action still applies.
     property int warned: 100
     onPercentChanged: {
+        root.checkTimeWarnings(root.secondsLeft);  // percentage is UPower's reliable tick; timeToEmpty may not notify
         if (!hasBattery || charging) {
             warned = 100;
             return;
@@ -111,6 +112,33 @@ Singleton {
         } else if (p <= 15 && warned > 15) {
             warned = 15;
             Quickshell.execDetached(["notify-send", "-a", "Power", "-i", "battery-level-10", "Battery low", p + "% left" + (timeLeft ? " · " + timeLeft : "")]);
+        }
+    }
+
+    // time-to-empty warnings (CuboCore-style), once per discharge. UPower's
+    // estimate drives this — no timer and no poller: secondsLeft follows it and
+    // falls to 0 on charging / no battery, re-arming both notices. A rise back
+    // past ten minutes is a new discharge (replug, battery changed); jitter
+    // around the thresholds must not re-arm, or the one-shots would repeat.
+    readonly property real secondsLeft: hasBattery && !charging && !full ? (battery.timeToEmpty || 0) : 0
+    property bool told5min: false
+    property bool told1min: false
+    onSecondsLeftChanged: root.checkTimeWarnings(secondsLeft)
+    onBatteryChanged: { told5min = false; told1min = false; root.checkTimeWarnings(root.secondsLeft); }
+    function checkTimeWarnings(s) {
+        if (!hasBattery || charging || full || !(s > 0) || s > 600) {
+            told5min = false;               // no battery, on the charger, or a new run
+            told1min = false;
+            return;
+        }
+        if (s <= 300 && !told5min) {
+            told5min = true;
+            Quickshell.execDetached(["notify-send", "-a", "Power", "-i", "battery-caution", "About 5 minutes left", "Plug in soon — the battery estimate is running out."]);
+        }
+        if (s <= 60 && !told1min) {
+            told1min = true;
+            // critical urgency passes Do Not Disturb, like the 7 % warning.
+            Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "Power", "-i", "battery-level-0", "About a minute left", "Plug in now — the battery is about to run out."]);
         }
     }
 
