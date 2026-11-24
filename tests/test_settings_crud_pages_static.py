@@ -15,6 +15,9 @@ PAGES = [
     ROOT / "shani/Modules/Settings/SettingsModules.qml",
     ROOT / "shani/Modules/Settings/SettingsDateLanguage.qml",
     ROOT / "shani/Modules/Settings/SettingsSharing.qml",
+    ROOT / "shani/Modules/Settings/SettingsPowerKeys.qml",
+    ROOT / "shani/Modules/Settings/SettingsStorage.qml",
+    ROOT / "shani/Modules/Settings/SettingsPrinters.qml",
 ]
 
 
@@ -61,7 +64,14 @@ def test_journal_page_has_journald_crud_hooks():
 
 def test_security_page_has_security_crud_hooks():
     text = _read(ROOT / "shani/Modules/Settings/SettingsSecurity.qml")
-    for needle in ["pwquality-set", "hosts-set", "sudoers-set", "apparmor-set"]:
+    for needle in [
+        "pwquality-set",
+        "hosts-set",
+        "sudoers-set",
+        "apparmor-set",
+        "coredump-set",
+        "audit-profile-set",
+    ]:
         assert needle in text, f"SettingsSecurity.qml missing {needle}"
 
 
@@ -79,5 +89,51 @@ def test_date_language_page_has_ntp_hook():
 
 def test_sharing_page_has_remote_access_hook():
     text = _read(ROOT / "shani/Modules/Settings/SettingsSharing.qml")
-    for needle in ["remote-access-set", "PasswordAuthentication", "PermitRootLogin"]:
+    for needle in [
+        "remote-access-set",
+        "PasswordAuthentication",
+        "PermitRootLogin",
+        "AllowUsers",
+        "AllowGroups",
+        "MaxAuthTries",
+    ]:
         assert needle in text, f"SettingsSharing.qml missing {needle}"
+
+
+def test_security_page_has_audit_profile_selector():
+    text = _read(ROOT / "shani/Modules/Settings/SettingsSecurity.qml")
+    for needle in ["Audit profile", "audit-profile-set", "off", "minimal", "baseline"]:
+        assert needle in text, f"SettingsSecurity.qml missing {needle}"
+
+
+def test_security_page_has_coredump_hooks():
+    text = _read(ROOT / "shani/Modules/Settings/SettingsSecurity.qml")
+    for needle in ["coredump-set", "Coredumps", "ProcessSizeMax"]:
+        assert needle in text, f"SettingsSecurity.qml missing {needle}"
+
+
+def test_power_keys_page_has_logind_and_sleep_hooks():
+    text = _read(ROOT / "shani/Modules/Settings/SettingsPowerKeys.qml")
+    for needle in [
+        "Lid & idle (logind)",
+        "logind.conf.d/50-shani-shell.conf",
+        "HandleLidSwitch",
+        "IdleActionSec",
+        "Sleep (systemd-sleep)",
+        "sleep.conf.d/50-shani-shell.conf",
+        "SuspendState",
+        "HibernateDelaySec",
+    ]:
+        assert needle in text, f"SettingsPowerKeys.qml missing {needle}"
+
+
+def test_storage_page_has_fstrim_hook():
+    text = _read(ROOT / "shani/Modules/Settings/SettingsStorage.qml")
+    for needle in ["fstrim-set", "fstrim.timer"]:
+        assert needle in text, f"SettingsStorage.qml missing {needle}"
+
+
+def test_printers_page_has_cups_browsed_hook():
+    text = _read(ROOT / "shani/Modules/Settings/SettingsPrinters.qml")
+    for needle in ["cups-browsed-set", "cups-browsed"]:
+        assert needle in text, f"SettingsPrinters.qml missing {needle}"
