@@ -57,9 +57,12 @@ Singleton {
             property string size: "fixed"
             property real panelOpacity: 1
             property bool suggestions: true
+            property string hand: "center"       // center | left | right
         }
     }
     property string size: prefs.size === "compact" ? "compact" : "fixed"
+    // a persisted hand preference; anything on disk we do not know is centered
+    property string hand: prefs.hand === "left" || prefs.hand === "right" ? prefs.hand : "center"
     property real panelOpacity: {
         const v = Number(prefs.panelOpacity);
         return v >= 0.55 && v <= 1 ? v : 1;
@@ -70,6 +73,7 @@ Singleton {
         prefs.size = root.size;
         prefs.panelOpacity = root.panelOpacity;
         prefs.suggestions = root.suggestions;
+        prefs.hand = root.hand;
         Quickshell.execDetached(["mkdir", "-p", root.prefsDir]);
         prefsFile.writeAdapter();
     }
@@ -81,6 +85,60 @@ Singleton {
         savePrefs();
     }
     function toggleSuggestions() { root.suggestions = !root.suggestions; savePrefs(); }
+    function cycleHand() {
+        const sides = ["center", "left", "right"];
+        root.hand = sides[(sides.indexOf(root.hand) + 1) % sides.length];
+        savePrefs();
+    }
+
+    // ---- paste and held-key repeat ------------------------------------------
+    // paste never goes through a shell: the clipboard is one argv element, so
+    // quotes, $() and newlines in it are typed, never interpreted.
+    function paste() {
+        const text = String(Quickshell.clipboardText || "");
+        if (text === "" || Lock.locked)
+            return;
+        if (remote) {                         // the draft, not the app
+            draft += text;
+            typed = draft.slice(-16);
+            return;
+        }
+        Quickshell.execDetached(["wtype", "--", text]);
+        typed = (typed + text).slice(-16);
+    }
+
+    // repeat is input, not motion: it ignores reduceMotion and its timers are
+    // stopped whenever no key is held, so an idle keyboard runs nothing.
+    readonly property int repeatDelay: 400
+    readonly property int repeatInterval: 80
+    property string repeatKey: ""
+    function startRepeat(key) {
+        if (!key || Lock.locked)
+            return;
+        repeatKey = key;
+        repeatDelayTimer.restart();
+    }
+    function stopRepeat() {
+        repeatKey = "";
+        repeatDelayTimer.stop();
+        repeatTick.stop();
+    }
+    Timer {
+        id: repeatDelayTimer
+        interval: root.repeatDelay
+        onTriggered: {
+            if (root.repeatKey === "")
+                return;
+            root.press(root.repeatKey);
+            repeatTick.restart();
+        }
+    }
+    Timer {
+        id: repeatTick
+        interval: root.repeatInterval
+        repeat: true
+        onTriggered: if (root.repeatKey !== "") root.press(root.repeatKey)
+    }
 
     // handwriting: rows of strokes read on this machine (Tesseract), typed in order
     readonly property string writeTool: Quickshell.env("SHANI_HANDWRITING_TOOL") || "/usr/lib/shani-shell/handwriting.py"
@@ -254,7 +312,8 @@ Singleton {
             }
         }
     }
-    onShownChanged: if (!shown) autoShown = false
+    onShownChanged: if (!shown) { autoShown = false; root.stopRepeat(); }
+    onRemoteChanged: if (remote) root.stopRepeat()
 
     function toggle() {
         // opened with keys (a remote's OK on the Quick Settings tile, the

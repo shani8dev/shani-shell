@@ -227,9 +227,21 @@ PanelWindow {
         id: board
         transform: Translate { id: boardRise }
         strong: true
-        anchors.fill: parent
-        anchors.margins: Theme.px(8)
+        // one-handed mode narrows the board to 82% and pins it to one side;
+        // center keeps the full 8 px-inset width. Both are reached by a thumb.
+        readonly property bool oneHanded: Osk.hand !== "center"
+        readonly property real fullWidth: parent.width - 2 * Theme.px(8)
+        readonly property real boardWidth: oneHanded ? Math.round(fullWidth * 0.82) : fullWidth
+        width: boardWidth
+        // the target uses boardWidth, not the animating width, so x and width
+        // run the same short move instead of chasing each other
+        x: Osk.hand === "right" ? parent.width - Theme.px(8) - boardWidth : Theme.px(8)
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.topMargin: Theme.px(8)
         anchors.bottomMargin: Theme.px(6)
+        Behavior on width { NumberAnimation { duration: Theme.mot(140) } }
+        Behavior on x { NumberAnimation { duration: Theme.mot(140) } }
         radius: Theme.radiusLarge
         opacity: Osk.panelOpacity
         Behavior on opacity { NumberAnimation { duration: Theme.mot(140) } }
@@ -265,6 +277,12 @@ PanelWindow {
                     icon: "edit-find"
                     title: Osk.suggestions ? Tr.t("Word suggestions: on") : Tr.t("Word suggestions: off")
                     onClicked: Osk.toggleSuggestions()
+                }
+                ListRow {
+                    width: menuCol.width
+                    icon: "input-keyboard"
+                    title: Tr.t("Keyboard") + ": " + (Osk.hand === "left" ? Tr.t("Left") : Osk.hand === "right" ? Tr.t("Right") : Tr.t("Center"))
+                    onClicked: Osk.cycleHand()
                 }
             }
         }
@@ -408,6 +426,10 @@ PanelWindow {
                         Key {
                             required property var modelData
                             readonly property string ch: Osk.shift ? modelData.s : modelData.n
+                            // held single characters repeat; ⌫ repeats as a named
+                            // key, while the shift key and multi-codepoint keys do not
+                            repeatKey: modelData.n === "⌫" ? "BackSpace"
+                                : (modelData.n !== "⇧" && modelData.n.length === 1 ? ch : "")
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             Layout.preferredWidth: ch === "⇧" || ch === "⌫" ? 150 : 100
@@ -454,6 +476,23 @@ PanelWindow {
                     danger: Dictation.phase === "recording"
                     onTapped: Dictation.toggle()
                 }
+                // paste types the clipboard through the same wtype path as any key
+                Key {
+                    Layout.preferredWidth: Theme.px(64)
+                    Layout.fillHeight: true
+                    icon: "edit-paste"
+                    accessibleName: Tr.t("Paste")
+                    onTapped: Osk.paste()
+                }
+                // one-handed: shift the board left or right, tap again for center
+                Key {
+                    Layout.preferredWidth: Theme.px(64)
+                    Layout.fillHeight: true
+                    label: Osk.hand === "left" ? "◧" : (Osk.hand === "right" ? "◨" : "↔")
+                    accessibleName: Tr.t("Keyboard") + ": " + (Osk.hand === "left" ? Tr.t("Left") : Osk.hand === "right" ? Tr.t("Right") : Tr.t("Center"))
+                    accent: Osk.hand !== "center"
+                    onTapped: Osk.cycleHand()
+                }
                 Key { Layout.fillWidth: true; Layout.fillHeight: true; label: win.layoutName; dim: true; onTapped: Osk.press("space") }
                 Key { Layout.preferredWidth: Theme.px(130); Layout.fillHeight: true; label: Osk.remote ? Tr.t("Done") : "⏎"; accent: true; onTapped: Osk.remote ? Osk.commit() : Osk.press("Return") }
                 // hide it to see the whole screen; the floating button (OskButton) or the bar brings it back
@@ -473,6 +512,7 @@ PanelWindow {
         signal tapped()
         signal held()
         property bool holdable: false      // has something to show when held: waits for the release
+        property string repeatKey: ""      // non-empty: holding this key repeats it
 
         Accessible.role: Accessible.Button
         property string accessibleName: ""
@@ -505,7 +545,15 @@ PanelWindow {
             id: area
             anchors.fill: parent
             // a key types on press (fast typing); one that can be held waits for the release
-            onPressed: if (!key.holdable) key.tapped()
+            onPressed: {
+                if (!key.holdable) {
+                    key.tapped();
+                    if (key.repeatKey !== "")
+                        Osk.startRepeat(key.repeatKey);
+                }
+            }
+            onReleased: Osk.stopRepeat()
+            onCanceled: Osk.stopRepeat()
             onClicked: if (key.holdable) key.tapped()
             pressAndHoldInterval: 450
             onPressAndHold: if (key.holdable) key.held()
