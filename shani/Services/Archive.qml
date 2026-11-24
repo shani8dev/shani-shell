@@ -55,6 +55,18 @@ Singleton {
     readonly property string singleExt: { const m = /\.([A-Za-z0-9]+)$/.exec(name); return m && singleExts.indexOf(m[1]) >= 0 ? m[1] : ""; }
     readonly property var types: ["zip", "tar", "gz", "tgz", "xz", "txz", "zst", "bz2", "tbz2", "7z", "iso", "rar", "cpio", "jar", "apk", "deb", "rpm", "cab", "lz4", "lzma"]
 
+    // ---- entry selection + taking several entries out at once -------------
+    // Only paths that are actually listed can be selected, and a path is never
+    // held twice (a filtered list and a Ctrl/Shift-click can overlap).
+    property var selection: []            // the chosen entry paths, in list order
+    property string selectionAnchor: ""   // where a Shift-click range starts
+    property var batchPaths: []           // the deduped queue for "extract selected"
+    property int batchIndex: 0            // next entry to take out
+    property var batchDone: []            // paths that came out
+    property var batchFailed: []          // [{ path, error }], one per bad entry
+    property string batchSummary: ""      // what the window reports at the end
+    property bool modified: false         // this archive changed since it was opened
+
     function open(arg) {
         root.shown = true;
         let path = String(arg || "").trim();
@@ -73,6 +85,9 @@ Singleton {
         root.needsPassword = false;
         root.single = false;
         root.toCompress = [];
+        root.abortBatch();
+        root.clearSelection();
+        root.modified = false;          // a reopened file is the saved one
         list();
     }
     function list() {
@@ -83,6 +98,7 @@ Singleton {
     // a window can go away while a job is still running; stop it here, not in
     // the UI, so closing is the same as cancelling for every caller
     function cancel() {
+        root.abortBatch();
         if (lister.running) lister.running = false;
         if (singleSize.running) singleSize.running = false;
         if (singleOut.running) singleOut.running = false;
@@ -105,6 +121,42 @@ Singleton {
         needsPassword = false;
         retry = "";
         newPass = "";
+        clearSelection();
+        modified = false;
+    }
+
+    // ---- selection ---------------------------------------------------------
+    function isSelected(path) { return root.selection.indexOf(path) >= 0; }
+    function clearSelection() { root.selection = []; root.selectionAnchor = ""; }
+    // The visible list is the authority: a hidden entry cannot be selected and
+    // a path repeated in the input is only held once. This is the one place a
+    // selection array is built, so every way in is deduped the same way.
+    function setSelection(paths, visible) {
+        const allowed = visible && visible.length !== undefined ? visible : root.entries.map(e => e.path);
+        const chosen = [];
+        for (const p of (paths || []))
+            if (allowed.indexOf(p) >= 0 && chosen.indexOf(p) < 0) chosen.push(p);
+        root.selection = chosen;
+        root.selectionAnchor = chosen.length ? chosen[chosen.length - 1] : "";
+    }
+    function selectAll(visible) { root.setSelection(visible, visible); }
+    function selectEntry(path, mode, visible) {
+        const paths = visible && visible.length !== undefined ? visible : root.entries.map(e => e.path);
+        if (paths.indexOf(path) < 0) return;
+        if (mode === "range") {
+            const anchor = paths.indexOf(root.selectionAnchor) >= 0 ? root.selectionAnchor : path;
+            const a = paths.indexOf(anchor), b = paths.indexOf(path);
+            root.setSelection(paths.slice(Math.min(a, b), Math.max(a, b) + 1), paths);
+            return;
+        }
+        if (mode === "toggle") {
+            const chosen = root.selection.slice();
+            const at = chosen.indexOf(path);
+            if (at >= 0) chosen.splice(at, 1); else chosen.push(path);
+            root.setSelection(chosen, paths);   // keeps the anchor on a selected entry
+            return;
+        }
+        root.setSelection([path], paths);
     }
 
     Process {
@@ -243,6 +295,7 @@ Singleton {
         root.error = "";
         if (root.retry === "list") list();
         else if (root.retry === "extract") extract("");
+        else if (root.retry === "batch") { root.retry = ""; root.extracting = true; root.nextBatch(); }
         else if (root.retry.indexOf("one:") === 0) extractOne(root.retry.slice(4));
     }
 
@@ -259,6 +312,7 @@ Singleton {
         }
         root.error = "";
         root.extractedTo = "";
+        root.batchSummary = "";
         root.extracting = true;
         hardOne.target = entry;
         hardOne.payload = root.pass + "\n";
@@ -291,6 +345,113 @@ Singleton {
         }
     }
 
+    // ---- several selected entries, into one folder -------------------------
+    // A batch is a queue, not a loop of extractOne(): that call is asynchronous
+    // and refuses to run while another extraction is in flight. Each entry goes
+    // through the same hardened reader as "extract one"; one bad entry is
+    // recorded and the next still runs. A wrong password pauses the queue at
+    // that entry, so Unlock resumes without redoing the ones already out.
+    function abortBatch() {
+        if (batchOne.running) batchOne.running = false;
+        root.extracting = false;
+        root.probeThenExtract = false;
+        root.batchPaths = [];
+        root.batchIndex = 0;
+        root.batchDone = [];
+        root.batchFailed = [];
+        root.batchSummary = "";
+        root.probeKind = "";
+        root.probeSize = 0;
+    }
+    function batchRefused(why) {
+        root.error = why;
+        root.batchSummary = Tr.t("Nothing") + " — " + why;
+        root.batchPaths = [];
+        root.batchIndex = 0;
+        root.probeKind = "";
+    }
+    function extractSelected(paths, where) {
+        const allowed = root.entries.map(e => e.path);
+        const wanted = [];
+        for (const p of (paths || []))
+            if (allowed.indexOf(p) >= 0 && wanted.indexOf(p) < 0) wanted.push(p);
+        if (!wanted.length || root.file === "" || root.extracting || root.probeThenExtract)
+            return;
+        if (root.single) { extractSingle(where || root.file.substring(0, root.file.lastIndexOf("/")), ""); return; }
+        root.abortBatch();
+        root.error = "";
+        root.extractedTo = "";
+        root.batchPaths = wanted;
+        let bytes = 0;
+        for (const p of wanted) {
+            const e = root.entries.find(x => x.path === p);
+            bytes += e ? e.size : 0;          // uncompressed size of just these entries
+        }
+        root.probeSize = bytes;
+        root.probeKind = "batch";
+        root.probeThenExtract = true;
+        root.probeWhere = where || root.file.substring(0, root.file.lastIndexOf("/"));
+        spaceProbe.command = ["sh", "-c", 'printf "%s %s\\n" "$(df -PB1 -- "$1" | tail -1 | awk "{print \\$4}")" "$(stat -c %s -- "$2" || echo 0)"',
+                              "sh", root.probeWhere, root.file];
+        spaceProbe.running = true;
+    }
+    function batchExtractNow() {
+        root.extracting = true;
+        root.nextBatch();
+    }
+    function nextBatch() {
+        if (root.batchIndex >= root.batchPaths.length) { root.finishBatch(); return; }
+        const entry = root.batchPaths[root.batchIndex];
+        batchOne.payload = root.pass + "\n";
+        batchOne.command = ["sh", "-c", 'p=$1; t=$(mktemp -d "$p/.shani-extract.XXXXXX") || exit 1
+            python3 "$2" extract "$3" "$t/x" "$4" || { s=$?; rm -rf "$t"; exit $s; }
+            n=${4##*/}; case "$n" in *.*) b=${n%.*}; e=.${n##*.};; *) b=$n; e=;; esac
+            d="$p/$n"; i=2; while [ -e "$d" ]; do d="$p/$b ($i)$e"; i=$((i+1)); done
+            mv -- "$t/x/$4" "$d" && rm -rf "$t" && printf "%s" "$d"',
+            "sh", root.probeWhere, root.extractTool, root.file, entry];
+        batchOne.stdinEnabled = true;
+        batchOne.running = true;
+    }
+    function finishBatch() {
+        root.extracting = false;
+        const done = root.batchDone.length, failed = root.batchFailed.length;
+        root.batchSummary = Tr.t("%1 selected").arg(done + failed) + " — " + Tr.t("Done") + ": " + done
+            + (failed ? "  ·  " + Tr.t("%1 failed").arg(failed) : "");
+        root.extractedTo = root.probeWhere;
+        if (failed)
+            root.error = root.batchFailed.map(x => x.path + ": " + x.error).join("  ·  ");
+        root.batchPaths = [];
+        root.batchIndex = 0;
+        root.probeKind = "";
+    }
+    Process {
+        id: batchOne
+        property string payload: ""
+        stdinEnabled: true
+        onStarted: { write(payload); payload = ""; stdinEnabled = false; }
+        stdout: StdioCollector { id: oneBatchOut }
+        stderr: StdioCollector { id: oneBatchErr }
+        onExited: code => {
+            if (root.batchIndex >= root.batchPaths.length) return;   // cancelled mid-entry
+            const lines = oneBatchOut.text.trim().split("\n");
+            let result = {};
+            try { result = JSON.parse(lines[0]) || {}; } catch (e) {}
+            const entry = root.batchPaths[root.batchIndex];
+            if ((result && result.wrongPassword) || /passphrase|encrypt/i.test(oneBatchErr.text)) {
+                root.needsPassword = true;
+                root.error = root.passphrase ? Tr.t("That password is not right") : "";
+                root.retry = "batch";
+                root.extracting = false;
+                return;                     // stay on this entry until Unlock
+            }
+            if (code === 0) root.batchDone.push(entry);
+            else root.batchFailed.push({ path: entry,
+                error: (result && result.error) || oneBatchErr.text.trim().split("\n").pop() || Tr.t("Could not extract") });
+            root.batchIndex++;
+            root.nextBatch();
+        }
+    }
+
     // Compress: the chosen files into one archive beside them, under a free name
     property bool extractWhenRead: false  // Files' "Extract here": as soon as the list is in
     function extractHere(path) { open(path); extractWhenRead = true; }
@@ -308,6 +469,9 @@ Singleton {
         made = "";
         error = "";
         newPass = "";
+        root.abortBatch();
+        root.clearSelection();
+        root.modified = false;
         shown = true;
     }
     function defaultName(paths) {
@@ -427,6 +591,7 @@ Singleton {
                         : (why || Tr.t("Could not add to the archive"));
                     return;
                 }
+                root.modified = true;       // the file on disk changed; reopen to refresh
                 root.list();
             } else
                 root.error = Tr.t("Could not add to the archive") + ": " + (appendErr.text.trim().split("\n").pop() || "");
@@ -436,12 +601,17 @@ Singleton {
     // into a new folder beside the archive, or inside `where` when one is given
     property bool probeThenExtract: false  // a size/space preflight is in flight
     property string probeWhere: ""        // where to extract once the preflight says yes
+    property string probeKind: ""         // "extract" (whole archive) | "batch" (selected entries)
+    property real probeSize: 0            // uncompressed size of the selected entries
     function extract(where) {
         if (root.file === "" || root.extracting || root.probeThenExtract || root.entries.length === 0)
             return;
         if (root.single) { extractSingle(where || root.file.substring(0, root.file.lastIndexOf("/")), ""); return; }
         root.error = "";
         root.extractedTo = "";
+        root.batchSummary = "";
+        root.probeKind = "extract";
+        root.probeSize = root.totalSize;
         // Write nothing until the destination has been checked: free bytes
         // there, and the archive's own size, are compared with the expanded
         // size summed from the headers. A bomb (huge expanded size from a tiny
@@ -461,16 +631,22 @@ Singleton {
             const nums = probeOut.text.trim().split(/\s+/);
             const free = parseInt(nums[0]) || 0;
             const arc = parseInt(nums[1]) || 0;
-            const exp = root.totalSize;   // cumulative expected size from the headers
+            const exp = root.probeKind === "batch" ? root.probeSize : root.totalSize;
+            // totalSize is the cumulative expected size from the headers
             if (exp > free) {
-                root.error = Tr.t("Not enough free space to extract this archive");
+                const why = Tr.t("Not enough free space to extract this archive");
+                root.error = why;
+                if (root.probeKind === "batch") root.batchRefused(why);
                 return;
             }
             // a tiny archive claiming a huge expanded size is a decompression bomb
             if (arc > 0 && exp > arc * 100 && exp > 104857600) {
-                root.error = Tr.t("Refusing to extract: this archive looks like a decompression bomb");
+                const why = Tr.t("Refusing to extract: this archive looks like a decompression bomb");
+                root.error = why;
+                if (root.probeKind === "batch") root.batchRefused(why);
                 return;
             }
+            if (root.probeKind === "batch") { root.batchExtractNow(); return; }
             root.extractNow(root.probeWhere);
         }
     }

@@ -34,10 +34,19 @@ AppWindow {
         if (q === "") return Archive.entries;
         return Archive.entries.filter(e => e.path.toLowerCase().indexOf(q) >= 0);
     }
-    readonly property bool busy: Archive.reading || Archive.extracting || Archive.creating || Archive.appending
+    readonly property var visiblePaths: win.visibleEntries.map(e => e.path)
+    readonly property bool busy: Archive.reading || Archive.extracting || Archive.creating || Archive.appending || Archive.probeThenExtract
 
     function clearPass() { Archive.newPass = ""; archPassConfirm.text = ""; }
     function clearPrompt() { pw.text = ""; }
+
+    function selectAllVisible() { Archive.selectAll(win.visiblePaths); }
+    function extractSelectedTo() {
+        if (!Archive.selection.length || win.busy) return;
+        FilePicker.open({ mode: "folder", title: Tr.t("Extract into"),
+                          startPath: Archive.file.substring(0, Archive.file.lastIndexOf("/")),
+                          onPicked: paths => { if (paths.length) Archive.extractSelected(Archive.selection, paths[0]); } });
+    }
 
     function pick() {
         FilePicker.open({ mode: "open", title: Tr.t("Open an archive"), filters: Archive.types,
@@ -56,6 +65,8 @@ AppWindow {
         Keys.onPressed: e => {
             if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_O) { win.pick(); e.accepted = true; }
             else if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_E) { Archive.extract(""); e.accepted = true; }
+            else if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_A) { win.selectAllVisible(); e.accepted = true; }
+            else if (e.key === Qt.Key_Escape && Archive.selection.length) { Archive.clearSelection(); e.accepted = true; }
             else if (e.key === Qt.Key_Escape) { Archive.close(); e.accepted = true; }
         }
 
@@ -84,10 +95,18 @@ AppWindow {
                         visible: Archive.file !== ""
                         text: Archive.reading ? Tr.t("Reading…")
                             : Archive.entries.length + " " + Tr.t("items") + "  ·  " + Archive.human(Archive.totalSize) + " " + Tr.t("when extracted")
+                              + (Archive.selection.length ? "  ·  " + Tr.t("%1 selected").arg(Archive.selection.length) : "")
+                              + (Archive.modified ? "  ·  " + Tr.t("Changed this session") : "")
                         color: Theme.dim
                         font.family: Theme.font
                         font.pixelSize: Theme.px(11) * Theme.fontScale
                     }
+                }
+                Button {
+                    visible: Archive.modified
+                    text: Tr.t("Reload")
+                    flat: true
+                    onClicked: Archive.open(Archive.file)
                 }
                 Button { text: Tr.t("Open…"); flat: true; onClicked: win.pick() }
                 Button {
@@ -231,6 +250,25 @@ AppWindow {
                     font.pixelSize: Theme.px(11) * Theme.fontScale
                     font.features: { "tnum": 1 }
                 }
+                IconButton {
+                    icon: "edit-select-all"
+                    size: Theme.px(24)
+                    tip: Tr.t("Select all")
+                    enabled: win.visibleEntries.length > 0 && !win.busy
+                    onClicked: win.selectAllVisible()
+                }
+                IconButton {
+                    icon: "edit-clear-all"
+                    size: Theme.px(24)
+                    visible: Archive.selection.length > 0
+                    tip: Tr.t("Clear")
+                    onClicked: Archive.clearSelection()
+                }
+                Button {
+                    text: Tr.t("%1 selected").arg(Archive.selection.length) + " · " + Tr.t("Extract into")
+                    enabled: Archive.selection.length > 0 && !win.busy
+                    onClicked: win.extractSelectedTo()
+                }
             }
             Rectangle {
                 Layout.fillWidth: true
@@ -250,37 +288,70 @@ AppWindow {
                     spacing: 1
                     boundsBehavior: Flickable.StopAtBounds
                     model: win.visibleEntries
-                    delegate: RowLayout {
+                    delegate: Item {
                         id: row
                         required property var modelData
                         readonly property int depth: modelData.path.split("/").length - 1
+                        readonly property bool chosen: Archive.isSelected(row.modelData.path)
                         width: list.width
                         height: Theme.px(26)
-                        spacing: Theme.px(8)
-                        Item { implicitWidth: row.depth * 14; implicitHeight: 1 }
-                        Icon { name: row.modelData.dir ? "folder" : "text-x-generic"; size: Theme.px(16); color: row.modelData.dir ? Theme.accent : Theme.dim }
-                        Text {
-                            Layout.fillWidth: true
-                            text: row.modelData.path.split("/").pop()
-                            color: Theme.text
-                            elide: Text.ElideMiddle
-                            font.family: Theme.font
-                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: Theme.radiusSmall
+                            color: row.chosen ? Theme.alpha(Theme.accent, 0.14)
+                                : (rowArea.containsMouse ? Theme.hover : "transparent")
                         }
-                        Text {
-                            text: row.modelData.dir ? "" : Archive.human(row.modelData.size)
-                            color: Theme.faint
-                            font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
-                            font.features: { "tnum": 1 }
+                        // below the controls: a click on the checkbox or the
+                        // extract button is theirs, a click elsewhere is ours
+                        MouseArea {
+                            id: rowArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: mouse => {
+                                const ctrl = (mouse.modifiers & Qt.ControlModifier) !== 0;
+                                const shift = (mouse.modifiers & Qt.ShiftModifier) !== 0;
+                                Archive.selectEntry(row.modelData.path, shift ? "range" : (ctrl ? "toggle" : "single"), win.visiblePaths);
+                            }
                         }
-                        // just this one, beside the archive
-                        IconButton {
-                            size: Theme.px(24)
-                            icon: "document-save"
-                            tip: Tr.t("Extract only this")
-                            enabled: !Archive.extracting
-                            onClicked: Archive.extractOne(row.modelData.path)
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: Theme.px(3)
+                            spacing: Theme.px(8)
+                            Choice {
+                                selected: row.chosen
+                                text: row.chosen ? "✓" : ""
+                                implicitWidth: Theme.px(16)
+                                implicitHeight: Theme.px(16)
+                                Accessible.role: Accessible.CheckBox
+                                Accessible.name: row.modelData.path
+                                onClicked: Archive.selectEntry(row.modelData.path, "toggle", win.visiblePaths)
+                            }
+                            Item { implicitWidth: row.depth * 14; implicitHeight: 1 }
+                            Icon { name: row.modelData.dir ? "folder" : "text-x-generic"; size: Theme.px(16); color: row.modelData.dir ? Theme.accent : Theme.dim }
+                            Text {
+                                Layout.fillWidth: true
+                                text: row.modelData.path.split("/").pop()
+                                color: Theme.text
+                                elide: Text.ElideMiddle
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                            }
+                            Text {
+                                text: row.modelData.dir ? "" : Archive.human(row.modelData.size)
+                                color: Theme.faint
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.features: { "tnum": 1 }
+                            }
+                            // just this one, beside the archive
+                            IconButton {
+                                size: Theme.px(24)
+                                icon: "document-save"
+                                tip: Tr.t("Extract only this")
+                                enabled: !Archive.extracting
+                                onClicked: Archive.extractOne(row.modelData.path)
+                            }
                         }
                     }
                 }
@@ -331,6 +402,26 @@ AppWindow {
                     visible: Archive.extractedTo !== ""
                     text: Tr.t("Show the folder")
                     onClicked: Files.show(Archive.extractedTo)
+                }
+            }
+            // one result for the whole batch: a failed entry is listed but the
+            // ones that came out are not undone, and the folder is still there
+            InfoBanner {
+                Layout.fillWidth: true
+                visible: Archive.batchSummary !== ""
+                tone: Archive.batchFailed.length ? "warn" : "ok"
+                iconName: Archive.batchFailed.length ? "dialog-warning" : "dialog-ok"
+                title: Tr.t("Batch")
+                text: Archive.batchSummary + (Archive.batchFailed.length ? "\n" + Archive.error : "")
+                Button {
+                    visible: Archive.extractedTo !== ""
+                    text: Tr.t("Show the folder")
+                    onClicked: Files.show(Archive.extractedTo)
+                }
+                Button {
+                    text: Tr.t("Dismiss")
+                    flat: true
+                    onClicked: { Archive.batchSummary = ""; Archive.batchDone = []; Archive.batchFailed = []; Archive.error = ""; }
                 }
             }
 
