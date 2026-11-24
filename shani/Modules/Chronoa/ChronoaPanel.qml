@@ -887,7 +887,7 @@ PanelWindow {
                         MouseArea {
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: panel.action("stop-speaking")
+                            onClicked: panel.action("toggle-listening")
                         }
                     }
 

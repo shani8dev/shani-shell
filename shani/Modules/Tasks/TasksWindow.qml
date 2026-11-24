@@ -298,14 +298,20 @@ AppWindow {
                 EmptyState {
                     anchors.centerIn: parent
                     visible: list.count === 0
-                    icon: "emblem-ok"
-                    title: !Tasks.available ? Tr.t("No task lists here") : Tr.t("Nothing to do")
-                    subtitle: !Tasks.available ? Tr.t("Evolution Data Server keeps them; it is not running") : Tr.t("Add one above")
+                    icon: Tasks.tasks.length > 0 ? "edit-find" : "emblem-ok"
+                    title: !Tasks.available ? Tr.t("No task lists here")
+                         : Tasks.tasks.length > 0 ? Tr.t("No matching tasks")
+                         : Tr.t("Nothing to do")
+                    subtitle: !Tasks.available ? Tr.t("Evolution Data Server keeps them; it is not running")
+                            : Tasks.tasks.length > 0 ? Tr.t("Try a different list or show done tasks")
+                            : Tr.t("Add one above")
+                    actionText: Tasks.available && Tasks.tasks.length === 0 ? Tr.t("Add a task") : ""
+                    onAction: field.forceActiveFocus()
                 }
             }
             Button {
                 Layout.fillWidth: true
-                visible: Tasks.done.length > 0
+                visible: Tasks.done.length > 0 && win.smartList === "all"
                 flat: true
                 text: win.showDone ? Tr.t("Hide done") : Tr.t("Show done") + " (" + Tasks.done.length + ")"
                 onClicked: win.showDone = !win.showDone

@@ -15,6 +15,9 @@ AppWindow {
     implicitWidth: Theme.px(860)
     implicitHeight: Theme.px(640)
 
+    property int confirmCron: -1
+    Timer { id: cronConfirmTimer; interval: 4000; onTriggered: win.confirmCron = -1 }
+
     tools: [
         IconButton { icon: "view-refresh"; tip: Tr.t("Refresh"); size: Theme.px(26); on: SysServices.busy; onClicked: SysServices.refresh() }
     ]
@@ -44,7 +47,7 @@ AppWindow {
             Layout.fillWidth: true
             visible: SysServices.note !== ""
             text: SysServices.note
-            color: Theme.danger
+            color: SysServices.note === Tr.t("Saved") || SysServices.note === Tr.t("Job removed") ? Theme.dim : Theme.danger
             wrapMode: Text.Wrap
             font.family: Theme.font
             font.pixelSize: Theme.px(11) * Theme.fontScale
@@ -52,6 +55,7 @@ AppWindow {
 
         // ---- services -------------------------------------------------------
         ListView {
+            id: serviceList
             Layout.fillWidth: true
             Layout.fillHeight: true
             visible: SysServices.tab === "services"
@@ -61,19 +65,40 @@ AppWindow {
             delegate: ListRow {
                 required property var modelData
                 width: ListView.view.width
+                interactive: false
                 icon: modelData.active === "active" ? "dialog-ok" : "dialog-information"
                 title: modelData.unit
                 subtitle: [modelData.active, modelData.enabled, modelData.description].filter(x => x).join("  ·  ")
                 extra: RowLayout {
                     spacing: Theme.px(4)
-                    Button { text: modelData.active === "active" ? Tr.t("Stop") : Tr.t("Start"); flat: true; onClicked: SysServices.unit(modelData.unit, modelData.active === "active" ? "stop" : "start") }
-                    Button { text: modelData.enabled === "enabled" ? Tr.t("Disable") : Tr.t("Enable"); flat: true; onClicked: SysServices.unit(modelData.unit, modelData.enabled === "enabled" ? "disable" : "enable") }
+                    Button {
+                        text: modelData.active === "active" ? Tr.t("Stop") : Tr.t("Start")
+                        flat: true
+                        enabled: !SysServices.busy
+                        Accessible.name: (modelData.active === "active" ? Tr.t("Stop") : Tr.t("Start")) + " " + modelData.unit
+                        onClicked: SysServices.unit(modelData.unit, modelData.active === "active" ? "stop" : "start")
+                    }
+                    Button {
+                        text: modelData.enabled === "enabled" ? Tr.t("Disable") : Tr.t("Enable")
+                        flat: true
+                        enabled: !SysServices.busy
+                        Accessible.name: (modelData.enabled === "enabled" ? Tr.t("Disable") : Tr.t("Enable")) + " " + modelData.unit
+                        onClicked: SysServices.unit(modelData.unit, modelData.enabled === "enabled" ? "disable" : "enable")
+                    }
                 }
+            }
+            EmptyState {
+                anchors.centerIn: parent
+                visible: serviceList.count === 0 && !SysServices.busy
+                icon: "dialog-information"
+                title: Tr.t("No services")
+                subtitle: Tr.t("No user services were found on this system")
             }
         }
 
         // ---- timers ---------------------------------------------------------
         ListView {
+            id: timerList
             Layout.fillWidth: true
             Layout.fillHeight: true
             visible: SysServices.tab === "timers"
@@ -83,19 +108,40 @@ AppWindow {
             delegate: ListRow {
                 required property var modelData
                 width: ListView.view.width
+                interactive: false
                 icon: "preferences-system-time"
                 title: modelData.unit
                 subtitle: [modelData.next, modelData.left, modelData.description].filter(x => x).join("  ·  ")
                 extra: RowLayout {
                     spacing: Theme.px(4)
-                    Button { text: Tr.t("Stop"); flat: true; onClicked: SysServices.unit(modelData.unit, "stop") }
-                    Button { text: Tr.t("Disable"); flat: true; onClicked: SysServices.unit(modelData.unit, "disable") }
+                    Button {
+                        text: Tr.t("Stop")
+                        flat: true
+                        enabled: !SysServices.busy
+                        Accessible.name: Tr.t("Stop") + " " + modelData.unit
+                        onClicked: SysServices.unit(modelData.unit, "stop")
+                    }
+                    Button {
+                        text: Tr.t("Disable")
+                        flat: true
+                        enabled: !SysServices.busy
+                        Accessible.name: Tr.t("Disable") + " " + modelData.unit
+                        onClicked: SysServices.unit(modelData.unit, "disable")
+                    }
                 }
+            }
+            EmptyState {
+                anchors.centerIn: parent
+                visible: timerList.count === 0 && !SysServices.busy
+                icon: "preferences-system-time"
+                title: Tr.t("No timers")
+                subtitle: Tr.t("No user timers are scheduled")
             }
         }
 
         // ---- cron: the C and D of CRUD -------------------------------------
         ListView {
+            id: cronList
             Layout.fillWidth: true
             Layout.fillHeight: true
             visible: SysServices.tab === "cron"
@@ -105,10 +151,33 @@ AppWindow {
             delegate: ListRow {
                 required property var modelData
                 width: ListView.view.width
+                interactive: false
                 icon: "preferences-system-time"
                 title: modelData.line
                 subtitle: Tr.t("Entry %1", modelData.index + 1)
-                extra: Button { text: Tr.t("Remove"); flat: true; kind: "danger"; onClicked: SysServices.cronRemove(modelData.index) }
+                extra: Button {
+                    text: win.confirmCron === modelData.index ? Tr.t("Tap again to remove") : Tr.t("Remove")
+                    flat: true
+                    kind: "danger"
+                    enabled: !SysServices.busy
+                    Accessible.name: (win.confirmCron === modelData.index ? Tr.t("Tap again to remove") : Tr.t("Remove")) + " " + modelData.line
+                    onClicked: {
+                        if (win.confirmCron === modelData.index) {
+                            SysServices.cronRemove(modelData.index);
+                            win.confirmCron = -1;
+                        } else {
+                            win.confirmCron = modelData.index;
+                            cronConfirmTimer.restart();
+                        }
+                    }
+                }
+            }
+            EmptyState {
+                anchors.centerIn: parent
+                visible: cronList.count === 0 && !SysServices.busy
+                icon: "preferences-system-time"
+                title: Tr.t("No scheduled jobs")
+                subtitle: Tr.t("Add a cron job below to run a command on a schedule")
             }
         }
 

@@ -28,6 +28,7 @@ AppWindow {
     property bool permsLoading: false
     property var installedApps: []
     property var leftovers: []
+    property bool leftoversLoaded: false
     property var appimages: []
     property var featured: []
     property var remotes: []
@@ -98,14 +99,17 @@ AppWindow {
         }
     }
     function search(words) {
+        win.error = "";
         win.showing = "search:" + words;
         ask(["search", words], r => { win.results = Array.isArray(r) ? r : []; Ui.softwareResults = win.results.map(a => a.id); });
     }
     function showCategory(c) {
+        win.error = "";
         win.showing = "category:" + c;
         ask(["category", c], r => { win.results = Array.isArray(r) ? r : []; Ui.softwareResults = win.results.map(a => a.id); });
     }
     function openApp(id) {
+        win.error = "";
         ask(["info", id], r => {
             if (r && !r.error) { win.app = r; Ui.softwareApp = r.id; win.loadPerms(id); }
         });
@@ -159,7 +163,10 @@ AppWindow {
             if (win.tab === "leftovers") win.loadLeftovers();
         }
     }
-    function loadLeftovers() { ask(["leftovers"], r => { win.leftovers = Array.isArray(r) ? r : []; Ui.softwareLeftovers = win.leftovers.map(l => l.id); }); }
+    function loadLeftovers() {
+        win.leftoversLoaded = false;
+        ask(["leftovers"], r => { win.leftovers = Array.isArray(r) ? r : []; win.leftoversLoaded = true; Ui.softwareLeftovers = win.leftovers.map(l => l.id); });
+    }
     function loadAppImages() { ask(["appimages"], r => { win.appimages = Array.isArray(r) ? r : []; Ui.softwareAppImages = win.appimages.map(a => a.name + (a.added ? ":added" : "")); }); }
     function human(n) { return n >= 1073741824 ? (n / 1073741824).toFixed(1) + " GB" : n >= 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.round(n / 1024) + " KB"; }
     // flatpak's size column, added up so "Update all" can say how big it is
@@ -194,7 +201,7 @@ AppWindow {
                     required property var modelData
                     text: modelData[1]
                     selected: win.tab === modelData[0]
-                    onClicked: { win.tab = modelData[0]; win.app = null; if (modelData[0] === "leftovers") win.loadLeftovers(); if (modelData[0] === "appimages") win.loadAppImages(); if (modelData[0] === "repositories") win.loadRemotes(); }
+                    onClicked: { win.tab = modelData[0]; win.app = null; win.confirmUpdateAll = false; confirmTimer.stop(); if (modelData[0] === "leftovers") win.loadLeftovers(); if (modelData[0] === "appimages") win.loadAppImages(); if (modelData[0] === "repositories") win.loadRemotes(); }
                 }
             }
             Item { Layout.fillWidth: true }
@@ -377,6 +384,7 @@ AppWindow {
                     }
                     Button { visible: !!appCol.a.installed; text: Tr.t("Open"); onClicked: Quickshell.execDetached(["flatpak", "run", appCol.a.id]) }
                     Button {
+                        visible: !!appCol.a.installed
                         kind: "danger"
                         text: win.removing === appCol.a.id ? Tr.t("Click again to remove") : Tr.t("Remove")
                         enabled: !jobProc.running
@@ -565,7 +573,7 @@ AppWindow {
 
         // ---- Leftovers (Warehouse) ----
         Text {
-            visible: win.tab === "leftovers"
+            visible: win.tab === "leftovers" && (win.leftoversLoaded || win.leftovers.length > 0)
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
             text: win.leftovers.length ? Tr.t("What apps you removed left behind in your home folder (their settings and data):") : Tr.t("Removed apps left nothing behind.")

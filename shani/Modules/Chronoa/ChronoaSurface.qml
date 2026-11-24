@@ -28,26 +28,37 @@ Scope {
     Connections {
         target: Chronoa
         function onUserAsked(text) {
-            panel.addUser(text);
+            const t = String(text || "").trim();
+            if (t !== "")
+                panel.addUser(t);
         }
         function onSystem(text) {
-            panel.addSystem(text);
+            const t = String(text || "").trim();
+            if (t !== "")
+                panel.addSystem(t);
         }
         function onTurn(e) {
-            if (e.event === "tool")
-                panel.addTool(e.text);
-            else if (e.event === "tool_done")
+            if (!e || !e.event)
+                return;
+            const text = String(e.text || "");
+            if (e.event === "tool") {
+                if (text !== "")
+                    panel.addTool(text);
+            } else if (e.event === "tool_done") {
                 panel.finishTool(e.ok);
-            else if (e.event === "reply")
-                panel.appendReply(e.text);
-            else if (e.event === "approval")
-                panel.addApproval(e.id, e.text, e.detail, e.options);
-            else if (e.event === "approval_closed")
-                panel.closeApproval(e.id);
-            else if (e.event === "notice" || e.event === "error")
-                panel.addSystem(e.text);
-            else if (e.event === "done")
+            } else if (e.event === "reply") {
+                if (text !== "")
+                    panel.appendReply(text);
+            } else if (e.event === "approval") {
+                panel.addApproval(String(e.id || ""), text, String(e.detail || ""), e.options);
+            } else if (e.event === "approval_closed") {
+                panel.closeApproval(String(e.id || ""));
+            } else if (e.event === "notice" || e.event === "error") {
+                if (text !== "")
+                    panel.addSystem(text);
+            } else if (e.event === "done") {
                 panel.endReply();
+            }
         }
     }
 

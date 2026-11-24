@@ -72,9 +72,9 @@ PanelWindow {
         ];
         const power = [
             { key: "power:suspend", label: Tr.t("Sleep"), icon: "system-suspend", run: () => { Ui.tvHome = false; Power.suspend(); } },
-            { key: "power:reboot", label: Tr.t("Restart"), icon: "system-reboot", run: () => Power.reboot() },
-            { key: "power:poweroff", label: Tr.t("Power off"), icon: "system-shutdown", run: () => Power.poweroff() },
-            { key: "power:logout", label: Tr.t("Sign out"), icon: "system-log-out", run: () => Power.logout() }
+            { key: "power:reboot", label: Tr.t("Restart"), icon: "system-reboot", run: () => { Ui.tvHome = false; Power.reboot(); } },
+            { key: "power:poweroff", label: Tr.t("Power off"), icon: "system-shutdown", run: () => { Ui.tvHome = false; Power.poweroff(); } },
+            { key: "power:logout", label: Tr.t("Sign out"), icon: "system-log-out", run: () => { Ui.tvHome = false; Power.logout(); } }
         ];
         return [
             { id: "open", title: Tr.t("Open now"), big: true, items: open },
@@ -94,7 +94,14 @@ PanelWindow {
     onCurrentChanged: if (visible) Ui.tvSelected = current ? current.key : ""
     onVisibleChanged: {
         if (visible) { row = 0; Ui.tvSelected = current ? current.key : ""; if (keysHere) Qt.callLater(() => keys.forceActiveFocus()); }
+        else Ui.tvSelected = "";
     }
+    onShelvesChanged: {
+        if (!shelves.length) { row = 0; return; }
+        if (row >= shelves.length) row = shelves.length - 1;
+        if (row < 0) row = 0;
+    }
+    onKeysHereChanged: if (keysHere && visible) Qt.callLater(() => keys.forceActiveFocus())
     function move(dr, dc) {
         if (!shelves.length) return;
         if (dr) {
@@ -258,7 +265,8 @@ PanelWindow {
                                 scale: here ? 1.06 : 1.0
                                 Behavior on scale { NumberAnimation { duration: Theme.mot(120) } }
                                 Accessible.role: Accessible.Button
-                                Accessible.name: modelData.label
+                                Accessible.name: modelData.subtitle && modelData.subtitle !== modelData.label
+                                    ? modelData.label + " — " + modelData.subtitle : modelData.label
                                 // a screen reader must be able to open a card too, not
                                 // just hear its name (the same path as a mouse click)
                                 Accessible.onPressAction: { card.choose(); win.activate(); }

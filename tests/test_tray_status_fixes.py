@@ -43,7 +43,7 @@ def test_hotspot_has_a_persistent_bar_indicator():
         bar.index("Icon { visible: Net.vpnActive") : bar.index(
             "Icon { visible: Net.vpnActive"
         )
-        + 500
+        + 700
     ]
     assert "visible: Net.hotspotOn" in cluster
     assert '"network-wireless-hotspot"' in cluster

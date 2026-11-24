@@ -55,6 +55,7 @@ PanelWindow {
         id: blurCard
         Accessible.role: Accessible.Dialog
         Accessible.name: win.cards[win.step].title
+        Accessible.description: Tr.t("Step %1 of %2").arg(win.step + 1).arg(win.cards.length)
         anchors.centerIn: parent
         width: Math.min(520, parent.width - 48)
         implicitHeight: col.implicitHeight + 48
@@ -134,7 +135,7 @@ PanelWindow {
                 Button { text: Tr.t("Skip"); visible: win.step < win.cards.length - 1; onClicked: win.finish() }
                 // the windows card: every key, in niri's own list
                 Button { visible: !!win.cards[win.step].shortcuts; text: Tr.t("All keyboard shortcuts"); onClicked: { win.finish(); Niri.action("show-hotkey-overlay"); } }
-                Button { kind: "primary"; text: win.step < win.cards.length - 1 ? "Next" : "Start"; onClicked: win.next() }
+                Button { kind: "primary"; text: win.step < win.cards.length - 1 ? Tr.t("Next") : Tr.t("Start"); onClicked: win.next() }
             }
         }
     }

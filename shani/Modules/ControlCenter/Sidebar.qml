@@ -23,11 +23,13 @@ import "../../Common/Gestures.js" as G
 PanelWindow {
     id: win
     screen: Ui.screen
+    Accessible.role: Accessible.Pane
+    Accessible.name: Tr.t("Control centre")
     // a phone: the sidebar is a shade that covers the screen, so while it is
     // closed it must not be there at all - a transparent window would still
     // take the taps meant for the desktop
     readonly property bool narrow: FormFactor.focused.profile === "phone"
-    visible: Ui.controlCenter || (!narrow && slide.x < width)
+    visible: Ui.controlCenter || (!narrow && slide.x < width) || (narrow && slide.y < win.height - 1)
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
@@ -39,6 +41,8 @@ PanelWindow {
     WlrLayershell.keyboardFocus: Ui.controlCenter ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     BackgroundEffect.blurRegion: Settings.blurWanted && Ui.controlCenter ? sideRegion : null
     Region { id: sideRegion; item: slide; radius: Theme.radiusLarge }
+
+    NavWindow {}     // known to the keys-and-controller reach check (Ui.navAuditAll)
 
     readonly property var player: Media.current
     // the compass reads only while this is open
@@ -87,10 +91,24 @@ PanelWindow {
         Behavior on opacity { NumberAnimation { duration: Ui.controlCenter ? Theme.animEnter / 2 : Theme.animExit } }
         focus: Ui.controlCenter
         Keys.onEscapePressed: Ui.closeAll()
+        Keys.onPressed: (e) => {
+            if (e.key === Qt.Key_Home) { flick.contentY = 0; e.accepted = true; }
+            else if (e.key === Qt.Key_End) { flick.contentY = Math.max(0, flick.contentHeight - flick.height); e.accepted = true; }
+        }
         // opened: the keyboard (or a controller) starts on the first control
         // focusFirst can scroll the first control into view and push the clock
         // header off the top; always open at the top of the panel
-        Connections { target: Ui; function onControlCenterChanged() { if (Ui.controlCenter) { Ui.focusFirst(slide); flick.contentY = 0; } } }
+        Connections {
+            target: Ui
+            function onControlCenterChanged() {
+                if (Ui.controlCenter) {
+                    Ui.focusFirst(slide);
+                    flick.contentY = 0;
+                } else {
+                    win.confirm = "";      // stale two-click power confirm must not survive a close
+                }
+            }
+        }
 
         MouseArea { anchors.fill: parent; objectName: "nav:pointer" }   // swallow clicks so they don't close
         // A shade exits down; a desktop sidebar exits right. Keep vertical

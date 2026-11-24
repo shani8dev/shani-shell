@@ -75,11 +75,30 @@ PanelWindow {
     Connections { target: hover; function onHoveredChanged() { if (!hover.hovered) win.revealed = false; } }
     Timer { interval: 250; running: edgeHover.hovered && !win.revealed; onTriggered: win.revealed = true }
     property int menuFor: -1            // the cell whose right-click menu is open
+    property string menuAppId: ""       // the app the open menu belongs to (survives reorder)
+    property Item menuAnchor: null      // tile focus to restore when the menu closes
     property real menuHeight: 0         // the open menu's, which grows with an app's windows and actions
+    function setMenu(index, anchor) {
+        if (index >= 0 && index < win.items.length) {
+            win.menuFor = index;
+            win.menuAppId = win.items[index].id;
+            if (anchor !== undefined)
+                win.menuAnchor = anchor;
+        } else {
+            const a = win.menuAnchor;
+            win.menuFor = -1;
+            win.menuAppId = "";
+            win.menuAnchor = null;
+            if (a && a.visible && a.enabled)
+                Qt.callLater(() => { if (a.visible && a.enabled) a.forceActiveFocus(Qt.TabFocusReason); });
+        }
+    }
     // `qs ipc call shell dockMenu <app>` opens an app's menu as a right-click would (the tests)
     Connections {
         target: Ui
-        function onDockMenuChanged() { win.menuFor = Ui.dockMenu ? win.items.findIndex(x => x.id === Ui.dockMenu || (x.entry && x.entry.id === Ui.dockMenu)) : -1; }
+        function onDockMenuChanged() {
+            win.setMenu(Ui.dockMenu ? win.items.findIndex(x => x.id === Ui.dockMenu || (x.entry && x.entry.id === Ui.dockMenu)) : -1);
+        }
     }
     // when hidden only a 4 px strip at the bottom edge takes input
     mask: Region { item: win.menuFor >= 0 ? whole : win.shown ? zone : edge }
@@ -125,9 +144,20 @@ PanelWindow {
         return out;
     }
     // uninstalling an app (or its last window going away) can drop the cell a
-    // menu was open on. Without this the stale index keeps menuFor >= 0: the
-    // dock stays shown, keeps the whole-surface input mask and never hides.
-    onItemsChanged: if (menuFor >= items.length) menuFor = -1
+    // menu was open on, and a reorder can move its index. Track by app id so
+    // the menu follows its app, or closes when the app is gone.
+    // onItemsChanged: if (menuFor >= items.length) menuFor = -1
+    onItemsChanged: {
+        if (menuFor < 0)
+            return;
+        if (menuFor < items.length && items[menuFor].id === menuAppId)
+            return;
+        const i = menuAppId ? items.findIndex(x => x.id === menuAppId) : -1;
+        if (i >= 0)
+            menuFor = i;
+        else
+            setMenu(-1);
+    }
 
     // parabolic zoom: base (44 px by default) up to about 1.6× right under the
     // pointer, falling off over about two icons either side
@@ -159,7 +189,12 @@ PanelWindow {
         }
         const ids = it.windows.filter(w => !Niri.isMinimised(w)).map(w => w.id).sort((a, b) => a - b);
         const cur = ids.indexOf(Niri.focusedWindowId);
-        Niri.action("focus-window", "--id", ids[cur < 0 ? 0 : (cur + 1) % ids.length]);
+        const targetId = ids[cur < 0 ? 0 : (cur + 1) % ids.length];
+        const target = Niri.windows[targetId];
+        if (target)
+            Niri.focusWin(target);
+        else
+            Niri.action("focus-window", "--id", targetId);
     }
     // move a pinned app one place along the pinned list
     function movePin(it, by) {
@@ -204,7 +239,7 @@ PanelWindow {
         objectName: "nav:pointer"          // a click outside closes the menu; Escape does with keys
         anchors.fill: parent
         visible: win.menuFor >= 0
-        onClicked: win.menuFor = -1
+        onClicked: win.setMenu(-1)
     }
 
     // input: the base plus the space a zoomed icon rises into
@@ -253,13 +288,13 @@ PanelWindow {
 
     Connections {
         target: Ui
-        function onDockFocusChanged() { if (Ui.dockFocus) Ui.focusFirst(row); else win.menuFor = -1; }
+        function onDockFocusChanged() { if (Ui.dockFocus) Ui.focusFirst(row); else win.setMenu(-1); }
     }
     Row {
         id: row
         focus: Ui.dockFocus
         // Escape: a menu first, then the dock gives the keyboard back
-        Keys.onEscapePressed: { if (win.menuFor >= 0) win.menuFor = -1; else Ui.dockFocus = false; }
+        Keys.onEscapePressed: { if (win.menuFor >= 0) win.setMenu(-1); else Ui.dockFocus = false; }
         anchors.horizontalCenter: dock.horizontalCenter
         anchors.bottom: dock.bottom
         anchors.bottomMargin: (dock.height - win.base) / 2
@@ -440,10 +475,12 @@ PanelWindow {
                     Repeater {
                         model: Math.min(3, cell.modelData.windows.length)
                         Rectangle {
-                            width: cell.focused ? 14 : 5
+                            required property int index
+                            readonly property bool activePip: cell.focused && index === 0
+                            width: activePip ? 14 : 5
                             height: Theme.px(4)
                             radius: 2
-                            color: cell.focused ? Theme.accent : Theme.dim
+                            color: activePip ? Theme.accent : Theme.dim
                             Rectangle {
                                 anchors.centerIn: parent
                                 width: parent.width + 6
@@ -508,7 +545,7 @@ PanelWindow {
                     cursorShape: Qt.PointingHandCursor
                     onEntered: hoverPeek.forceActive()
                     onExited: hoverPeek.cancel()
-                    onPressAndHold: win.menuFor = cell.index
+                    onPressAndHold: win.setMenu(cell.index, tileFocus)
                     onWheel: w => {
                         const ids = cell.modelData.windows.filter(x => !Niri.isMinimised(x)).map(x => x.id).sort((p, q) => p - q);
                         if (!ids.length)
@@ -518,7 +555,7 @@ PanelWindow {
                     }
                     onClicked: e => {
                         if (e.button === Qt.RightButton)
-                            win.menuFor = win.menuFor === cell.index ? -1 : cell.index;
+                            win.setMenu(win.menuFor === cell.index ? -1 : cell.index, tileFocus);
                         else if (e.button === Qt.MiddleButton && cell.modelData.entry) {
                             Launch.app(cell.modelData.entry.id);
                             bounce.restart();
@@ -544,11 +581,12 @@ PanelWindow {
                 }
                 // keyboard and controller: Enter opens or focuses it, Menu (X) its menu
                 KeyFocus {
+                    id: tileFocus
                     name: cell.Accessible.name
                     radius: Theme.px(12)
                     onActivated: { win.activate(cell.modelData); Ui.dockFocus = false; }
                     menuable: true
-                    onMenu: { win.menuFor = cell.index; Ui.focusFirst(menuBox); }
+                    onMenu: { win.setMenu(cell.index, tileFocus); Ui.focusFirst(menuBox); }
                 }
                 // the right-click menu: what can be done with this app
                 Glass {
@@ -564,6 +602,8 @@ PanelWindow {
                     anchors.bottom: parent.top
                     anchors.bottomMargin: Theme.px(16)
                     z: 10
+                    Accessible.role: Accessible.Pane
+                    Accessible.name: cell.modelData.entry ? cell.modelData.entry.name : cell.modelData.id
                     Column {
                         id: menuCol
                         x: 6
@@ -599,7 +639,7 @@ PanelWindow {
                                 color: item.containsMouse ? Theme.hover : "transparent"
                                 Accessible.role: Accessible.MenuItem
                                 Accessible.name: modelData.label
-                                Accessible.onPressAction: { modelData.run(); win.menuFor = -1; }
+                                Accessible.onPressAction: { modelData.run(); win.setMenu(-1); tileFocus.forceActiveFocus(Qt.TabFocusReason); }
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter
                                     x: 10
@@ -614,9 +654,10 @@ PanelWindow {
                                     id: item
                                     anchors.fill: parent
                                     hoverEnabled: true
-                                    onClicked: { parent.modelData.run(); win.menuFor = -1; }
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: { parent.modelData.run(); win.setMenu(-1); tileFocus.forceActiveFocus(Qt.TabFocusReason); }
                                 }
-                                KeyFocus { radius: Theme.px(8); onActivated: { parent.modelData.run(); win.menuFor = -1; } }
+                                KeyFocus { radius: Theme.px(8); onActivated: { parent.modelData.run(); win.setMenu(-1); tileFocus.forceActiveFocus(Qt.TabFocusReason); } }
                             }
                         }
                     }

@@ -59,7 +59,7 @@ Variants {
         property bool revealed: false
         Connections { target: barHover; function onHoveredChanged() { if (!barHover.hovered) bar.revealed = false; } }
         Timer { interval: 250; running: barEdgeHover.hovered && !bar.revealed; onTriggered: bar.revealed = true }
-        onShownChanged: Hiding.setBarShown(output, shown)
+        onShownChanged: { Hiding.setBarShown(output, shown); if (!shown) bar.trayOpen = false; }
         // workspace suggestion (floating windows that this window could sit beside)
         readonly property var otherFloating: Object.values(Niri.windows).filter(w => w.is_floating && w !== Niri.focusedWindow)
         readonly property string suggestion: otherFloating.length ? Tr.t("Put this window beside %1", otherFloating[0].title || otherFloating[0].app_id) : ""
@@ -378,6 +378,8 @@ Variants {
                                 font.family: Theme.font
                                 font.pixelSize: Theme.px(11) * Theme.fontScale
                                 maximumLength: 24
+                                Accessible.role: Accessible.EditableText
+                                Accessible.name: Tr.t("Rename workspace %1", parent.index + 1)
                                 onVisibleChanged: if (visible) { forceActiveFocus(); selectAll(); }
                                 onAccepted: { Niri.renameWorkspace(parent.modelData, text); bar.renamingWs = -1; }
                                 Keys.onEscapePressed: bar.renamingWs = -1
@@ -800,6 +802,7 @@ Variants {
                     pill: true
                     hint: Tr.t("Quick settings: Wi-Fi, sound, battery and more - scroll here for the volume")
                     hintKeys: "Super + ,"
+                    scrollable: true
                     onClicked: Ui.toggleControlCenter()
                     onScrolled: d => Audio.step(d * 0.05)
                     onMiddleClicked: Audio.toggleMute()
@@ -813,9 +816,9 @@ Variants {
                         font.pixelSize: Theme.px(11) * Theme.fontScale
                         anchors.verticalCenter: parent.verticalCenter
                     }
-                    Icon { visible: Focus.on; name: Focus.mode ? Focus.mode.icon : ""; size: Theme.px(15); color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
-                    Icon { visible: Idle.caffeine || Idle.keptAwake; name: "preferences-desktop-screensaver"; size: Theme.px(15); color: Theme.amber; anchors.verticalCenter: parent.verticalCenter }
-                    Icon { visible: Net.vpnActive || Net.tailscaleUp; name: "network-vpn"; size: Theme.px(15); color: Theme.text; anchors.verticalCenter: parent.verticalCenter }
+                    Icon { visible: Focus.on; name: Focus.mode ? Focus.mode.icon : ""; size: Theme.px(15); color: Theme.accent; anchors.verticalCenter: parent.verticalCenter; Accessible.name: Tr.t("Focus mode") }
+                    Icon { visible: Idle.caffeine || Idle.keptAwake; name: "preferences-desktop-screensaver"; size: Theme.px(15); color: Theme.amber; anchors.verticalCenter: parent.verticalCenter; Accessible.name: Idle.caffeine ? Tr.t("Caffeine on") : Tr.t("Keeping awake") }
+                    Icon { visible: Net.vpnActive || Net.tailscaleUp; name: "network-vpn"; size: Theme.px(15); color: Theme.text; anchors.verticalCenter: parent.verticalCenter; Accessible.name: Net.tailscaleUp ? Tr.t("Tailscale connected") : Tr.t("VPN connected") }
                     Icon {
                         visible: Net.hotspotOn
                         name: "network-wireless-hotspot"
@@ -848,8 +851,9 @@ Variants {
                         size: Theme.px(15)
                         color: Bluetooth.devices.values.some(d => d.connected) ? Theme.accent : Theme.text
                         anchors.verticalCenter: parent.verticalCenter
+                        Accessible.name: Bluetooth.devices.values.some(d => d.connected) ? Tr.t("Bluetooth connected") : Tr.t("Bluetooth on")
                     }
-                    Icon { visible: Audio.micMuted && Audio.source !== null; name: "microphone-sensitivity-muted"; size: Theme.px(15); color: Theme.red; anchors.verticalCenter: parent.verticalCenter }
+                    Icon { visible: Audio.micMuted && Audio.source !== null; name: "microphone-sensitivity-muted"; size: Theme.px(15); color: Theme.red; anchors.verticalCenter: parent.verticalCenter; Accessible.name: Tr.t("Microphone muted") }
                     Icon {
                         visible: !Settings.data.hideVolumeGlyph
                         name: Audio.icon
@@ -1032,6 +1036,10 @@ Variants {
             property bool inDrawer: false
             implicitWidth: Theme.px(26)
             implicitHeight: Theme.px(26)
+
+            Accessible.role: Accessible.Button
+            Accessible.name: trayBtn.modelData.tooltipTitle || trayBtn.modelData.title || trayBtn.modelData.id || ""
+            Accessible.onPressAction: trayBtn.press(Qt.LeftButton)
             Rectangle {
                 anchors.fill: parent
                 radius: Theme.px(8)

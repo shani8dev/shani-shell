@@ -18,6 +18,7 @@ Rectangle {
     property string hint: ""          // what it is and does, on hover
     property string hintKeys: ""      // its keyboard shortcut, shown beside it
     property bool pill: false         // a soft filled pill even at rest: says "this is a button" (quick settings, the clock)
+    property bool scrollable: false   // left / right scroll it from the keyboard (volume)
     signal middleClicked()
     signal scrolled(int dir)
 
@@ -66,6 +67,6 @@ Rectangle {
         onWheel: w => root.scrolled(w.angleDelta.y > 0 ? 1 : -1)
     }
     // keyboard: Enter clicks, Menu right-clicks, Left / Right scroll (a volume chip's way)
-    KeyFocus { name: root.Accessible.name || root.hint || root.label; menuable: root.hasMenu; onActivated: root.clicked(); onMenu: root.rightClicked() }
+    KeyFocus { name: root.Accessible.name || root.hint || root.label; slider: root.scrollable; menuable: root.hasMenu; onActivated: root.clicked(); onMenu: root.rightClicked(); onStep: dir => root.scrolled(dir) }
     Hint { text: root.hint; keys: root.hintKeys }
 }
