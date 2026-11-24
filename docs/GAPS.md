@@ -322,6 +322,8 @@ Each needs real hardware or shani-testbed:
 
 ## Built since the last pass
 
+- **Admin / security policy (shani-admin, test-covered)** — SSH keys CRUD (`bridge/sshkeys.py`, `test_sshkeys_bridge.py`), feature-group membership CRUD (`bridge/groups.py`, `shani-admin.py user-group`, `test_groups_bridge.py`), remote-access sshd drop-in, pwquality, `/etc/hosts`, sudoers drop-in (visudo-checked), AppArmor profile mode (enforce/complain), modprobe blacklist, modules-load, sysctl allowlist, journald config + vacuum, timesyncd NTP, faillock, resolved drop-in, narrow login.defs keys, fstrim.timer, cups-browsed, auditd toggle, logind drop-in, and coredump drop-in (`bridge/shani-admin.py`, `tests/test_shani_admin_crud.py`). Settings surfaces: Security and Journal pages (`SettingsSecurity.qml`, `SettingsJournal.qml`). Not claimed: AppArmor confinement for shell-launched apps/bridges, or broader policy beyond these managed keys/drop-ins.
+
 - **Weather advisories** — rain, wind and heat read out of the forecast the
   shell already fetches; open-meteo has no warning feed, and these say so.
 - **Mail** (Modules/Mail, bridge/mail.py) — IMAP and SMTP for a real account,
