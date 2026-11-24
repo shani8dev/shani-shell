@@ -1,8 +1,9 @@
 pragma Singleton
-// CPU, memory, network throughput and the CPU's temperature for the bar, read
-// straight from /proc and the kernel's hwmon sensors (no helper script), one
-// sample every interval. Also the System Monitor numbers: per-core use,
-// per-interface network rates, uptime, threads, clock speed and handles.
+// CPU, memory, network and disk throughput plus the CPU's temperature for the
+// bar, read straight from /proc and the kernel's hwmon sensors (no helper
+// script), one sample every interval. Also the System Monitor numbers: per-core
+// use, per-interface network rates, uptime, threads, clock speed and handles,
+// and the root/home capacity from an occasional df.
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -16,6 +17,8 @@ Singleton {
     property var last: null
     property real rxRate: 0         // bytes/s, summed over real interfaces
     property real txRate: 0
+    property real diskReadRate: 0   // bytes/s over whole disks, from /proc/diskstats
+    property real diskWriteRate: 0
     // short histories for the System Monitor's sparklines: the sampling timer
     // below already runs while a stats surface is open, so this costs no poller
     property var cpuHistory: []
@@ -45,6 +48,12 @@ Singleton {
     property real psiCpu: 0              // % of time tasks stalled on CPU (avg10)
     property real psiMem: 0              // % stalled on memory
     property real psiIo: 0               // % stalled on I/O
+    // filesystem capacity (bytes, from df -B1 on / and /home), refreshed slowly
+    property real rootTotal: 0
+    property real rootUsed: 0
+    property real homeTotal: 0
+    property real homeUsed: 0
+    property bool homeSameDevice: true   // /home lives on / — no second bar needed
     readonly property string uptimeStr: {
         const s = Math.floor(root.uptimeSec);
         const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
@@ -59,12 +68,49 @@ Singleton {
         return (bps / 1048576).toFixed(1) + " MB/s";
     }
 
+    // whole devices only: partitions repeat their parent's sectors, so adding
+    // both would double-count. loop/ram/dm are virtual plumbing, not spindles.
+    readonly property string diskDevicePattern: "^(sd[a-z]|nvme[0-9]+n[0-9]+|vd[a-z]|mmcblk[0-9]+)$"
+    property var lastDisk: null          // { read, write, t } — for timestamp deltas
+    function parseDisk(text) {
+        const re = new RegExp(root.diskDevicePattern);
+        let read = 0, write = 0;
+        for (const line of String(text).split("\n")) {
+            const f = line.trim().split(/\s+/);
+            if (f.length < 10 || !re.test(f[2]))
+                continue;
+            read += Number(f[5]) || 0;    // sectors read
+            write += Number(f[9]) || 0;   // sectors written
+        }
+        return { read: read, write: write };
+    }
+    // df prints one row per distinct filesystem: a duplicate second row means
+    // /home is mounted on /, so a second capacity bar would be the same number.
+    function parseCapacity(text) {
+        const lines = String(text).trim().split("\n").filter(x => x.trim() !== "");
+        if (lines.length < 2)
+            return;
+        const r = lines[1].trim().split(/\s+/);
+        const h = lines.length > 2 ? lines[2].trim().split(/\s+/) : r;
+        if (r.length < 4 || h.length < 4)
+            return;
+        root.rootTotal = Number(r[1]) || 0;
+        root.rootUsed = Number(r[2]) || 0;
+        root.homeTotal = Number(h[1]) || 0;
+        root.homeUsed = Number(h[2]) || 0;
+        root.homeSameDevice = r[1] === h[1] && r[2] === h[2] && r[3] === h[3];
+    }
+
     // sampled only while something shows it (the bar's chips, the stats widget,
     // the process list, the overview): every sample wakes the shell and redrew
     // six surfaces, 30 ms/s of an idle desktop for numbers nobody was looking at
     readonly property bool wanted: Settings.data.showSysStats || Settings.data.showNetSpeed || Ui.processes || Niri.overviewOpen
         || Array.from(Settings.data.desktopWidgets).indexOf("stats") >= 0
-    onWantedChanged: if (!wanted) { root.last = null; root.lastNet = null; root.lastCores = null; root.lastNetDev = null; }
+    onWantedChanged: if (!wanted) {
+        root.last = null; root.lastNet = null; root.lastCores = null; root.lastNetDev = null;
+        // no sample to difference against when a stats surface opens again
+        root.lastDisk = null; root.diskReadRate = 0; root.diskWriteRate = 0;
+    }
     Timer {
         interval: root.interval
         running: root.wanted
@@ -74,6 +120,7 @@ Singleton {
             stat.reload();
             meminfo.reload();
             netdev.reload();
+            diskStats.reload();
             uptimeView.reload();
             loadavg.reload();
             fileNr.reload();
@@ -189,6 +236,36 @@ Singleton {
             root.lastNetDev = { t: now };
             for (const name of Object.keys(cur)) root.lastNetDev[name] = cur[name];
         }
+    }
+    FileView {
+        id: diskStats
+        path: "/proc/diskstats"
+        onLoaded: {
+            const cur = root.parseDisk(text());
+            const now = Date.now();
+            if (root.lastDisk) {
+                const dt = (now - root.lastDisk.t) / 1000;
+                if (dt > 0) {
+                    root.diskReadRate = Math.max(0, (cur.read - root.lastDisk.read) * 512 / dt);
+                    root.diskWriteRate = Math.max(0, (cur.write - root.lastDisk.write) * 512 / dt);
+                }
+            }
+            root.lastDisk = { read: cur.read, write: cur.write, t: now };
+        }
+    }
+    // capacity moves slowly and df forks: once a minute, only while wanted
+    Timer {
+        id: capacityTick
+        interval: 60000
+        running: root.wanted
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: if (!dfProc.running) dfProc.running = true
+    }
+    Process {
+        id: dfProc
+        command: ["df", "-B1", "--output=target,size,used,avail", "/", "/home"]
+        stdout: StdioCollector { onStreamFinished: root.parseCapacity(text) }
     }
     FileView {
         id: uptimeView

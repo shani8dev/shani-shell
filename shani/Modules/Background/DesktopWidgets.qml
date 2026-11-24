@@ -389,9 +389,11 @@ Variants {
                 id: statsCard
                 x: 1650; y: 900
                 width: Theme.px(212)
-                height: Theme.px(156)
+                height: Theme.px(176)
                 radius: Theme.radiusLarge
                 elevation: "soft"
+                readonly property real rootUsedPct: SysStats.rootTotal > 0
+                    ? Math.min(1, SysStats.rootUsed / SysStats.rootTotal) : 0
 
                 Component.onCompleted: {
                     const p = scr.loadPos("stats", width, height);
@@ -421,7 +423,9 @@ Variants {
                         // a glance tells you a resource is high, not just its number
                         model: [
                             { label: "cpu", value: SysStats.cpu, tint: SysStats.cpu > 0.85 ? Theme.amber : Theme.accent },
-                            { label: "mem", value: SysStats.mem, tint: SysStats.mem > 0.9 ? Theme.amber : Theme.blue }
+                            { label: "mem", value: SysStats.mem, tint: SysStats.mem > 0.9 ? Theme.amber : Theme.blue },
+                            { label: "disk", value: statsCard.rootUsedPct,
+                              tint: statsCard.rootUsedPct > 0.9 ? Theme.amber : Theme.accent }
                         ]
                         Row {
                             required property var modelData

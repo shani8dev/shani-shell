@@ -131,6 +131,10 @@ AppWindow {
         if (b < 1073741824) return (b / 1048576).toFixed(1) + " MB";
         return (b / 1073741824).toFixed(1) + " GB";
     }
+    // the same >0.9 amber threshold the bar's chips and the desktop widget use
+    function capacityTint(used, total) {
+        return total > 0 && used / total > 0.9 ? Theme.amber : Theme.accent;
+    }
 
     Item {
         id: card
@@ -167,6 +171,22 @@ AppWindow {
                     spacing: Theme.px(2)
                     Text { text: Tr.t("Network"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
                     Sparkline { Layout.fillWidth: true; values: SysStats.netHistory.map(x => x.rx + x.tx); color: Theme.amber }
+                }
+                // whole-disk rates from the same 3 s sample, no extra poller
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(2)
+                    Text { text: Tr.t("Disk I/O"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    Text {
+                        text: "↓ " + SysStats.rate(SysStats.diskReadRate)
+                        color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.features: { "tnum": 1 }; elide: Text.ElideRight; Layout.fillWidth: true
+                    }
+                    Text {
+                        text: "↑ " + SysStats.rate(SysStats.diskWriteRate)
+                        color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.features: { "tnum": 1 }; elide: Text.ElideRight; Layout.fillWidth: true
+                    }
                 }
             }
             // --- system ---------------------------------------------------
@@ -224,6 +244,48 @@ AppWindow {
                                     width: Theme.px(48); height: Theme.px(6); radius: Theme.px(3); color: Theme.pressed; anchors.verticalCenter: parent.verticalCenter
                                     Rectangle { width: parent.width * Math.min(1, Math.max(0, modelData.value / 100)); height: parent.height; radius: parent.radius; color: Theme.amber }
                                 }
+                            }
+                        }
+                    }
+                    // root / home capacity from df, once a minute; home is
+                    // omitted when it shares root's filesystem (same numbers)
+                    Repeater {
+                        model: [
+                            { label: Tr.t("Root"), used: SysStats.rootUsed, total: SysStats.rootTotal,
+                              show: SysStats.rootTotal > 0 },
+                            { label: Tr.t("Home"), used: SysStats.homeUsed, total: SysStats.homeTotal,
+                              show: SysStats.homeTotal > 0 && !SysStats.homeSameDevice }
+                        ]
+                        Row {
+                            required property var modelData
+                            visible: modelData.show
+                            spacing: Theme.px(6)
+                            Text {
+                                text: modelData.label
+                                color: Theme.dim
+                                width: Theme.px(34)
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                            Rectangle {
+                                width: Theme.px(120); height: Theme.px(6); radius: 3
+                                color: Theme.pressed
+                                anchors.verticalCenter: parent.verticalCenter
+                                Rectangle {
+                                    width: parent.width * Math.min(1, Math.max(0,
+                                        modelData.total > 0 ? modelData.used / modelData.total : 0))
+                                    height: parent.height
+                                    radius: parent.radius
+                                    color: win.capacityTint(modelData.used, modelData.total)
+                                }
+                            }
+                            Text {
+                                text: Math.round((modelData.total > 0 ? modelData.used / modelData.total : 0) * 100) + "%"
+                                color: Theme.dim
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(9) * Theme.fontScale
+                                anchors.verticalCenter: parent.verticalCenter
                             }
                         }
                     }
