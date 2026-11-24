@@ -20,6 +20,10 @@ AppWindow {
     implicitHeight: Math.max(320, Math.min(900, col.implicitHeight + 40))
 
     property string manualPath: ""
+    // the bridge writes beside the input by default; when set, the finished
+    // cut is moved here so the destination is chosen, not guessed
+    property string exportPath: ""
+    property string exportError: ""
     readonly property real span: VideoTrimmer.inputDuration > 0 ? VideoTrimmer.inputDuration : 60
     readonly property bool shortcutsOn: !pathField.activeFocus && !startField.activeFocus && !endField.activeFocus
 
@@ -47,6 +51,50 @@ AppWindow {
             title: Tr.t("Choose a video to trim")
             nameFilters: [Tr.t("Video files") + " (*.mp4 *.webm *.mov *.mkv *.avi)"]
             onAccepted: VideoTrimmer.open(selectedFile.toString().replace(/^file:\/\//, ""))
+        }
+    }
+
+    // "Save as…" is an explicit destination; the bridge's own name is only
+    // the suggested default, so a second cut cannot silently overwrite it.
+    function pickExport() {
+        const suggested = VideoTrimmer.outputFor(VideoTrimmer.input).split("/").pop();
+        FilePicker.open({
+            mode: "save",
+            title: Tr.t("Save as…"),
+            defaultName: suggested || "trimmed.mp4",
+            filters: ["mp4", "webm", "opus"],
+            startPath: VideoTrimmer.input ? Files.parentOf(VideoTrimmer.input) : "",
+            onPicked: paths => {
+                if (!paths.length) return;
+                win.exportPath = paths[0];
+                win.exportError = "";
+                if (VideoTrimmer.segments.length >= 2) VideoTrimmer.cutSegments();
+                else VideoTrimmer.cut();
+            }
+        });
+    }
+
+    // the bridge already names and writes the file; move it to the picked
+    // destination and keep result in sync so Open / Trash use the same path
+    Connections {
+        target: VideoTrimmer
+        function onResultChanged() {
+            if (!win.exportPath || !VideoTrimmer.result || VideoTrimmer.result === win.exportPath)
+                return;
+            moveProc.destination = win.exportPath;
+            moveProc.command = ["mv", "-f", "--", VideoTrimmer.result, win.exportPath];
+            moveProc.running = true;
+        }
+    }
+    Process {
+        id: moveProc
+        property string destination: ""
+        onExited: code => {
+            if (code === 0) {
+                VideoTrimmer.result = moveProc.destination;
+                win.exportPath = "";
+                win.exportError = "";
+            } else win.exportError = Tr.t("Could not save");
         }
     }
 
@@ -285,7 +333,7 @@ AppWindow {
                 Layout.alignment: Qt.AlignHCenter
                 text: VideoTrimmer.cutting ? Tr.t("Joining…") : Tr.t("Cut and join segments")
                 enabled: !VideoTrimmer.cutting && VideoTrimmer.segments.length >= 2 && VideoTrimmer.available
-                onClicked: VideoTrimmer.cutSegments()
+                onClicked: { win.exportPath = ""; VideoTrimmer.cutSegments() }
             }
 
             // ---- progress and cancel for a running cut -----------------------
@@ -301,21 +349,41 @@ AppWindow {
                     Rectangle { width: parent.width * VideoTrimmer.progress; height: parent.height; radius: Theme.px(4); color: Theme.accent }
                 }
                 Text { text: Math.round(VideoTrimmer.progress * 100) + "%"; color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
-                Button { text: Tr.t("Cancel"); kind: "danger"; onClicked: VideoTrimmer.cancelCut() }
+                Button { text: Tr.t("Cancel"); kind: "danger"; onClicked: { win.exportPath = ""; VideoTrimmer.cancelCut() } }
             }
 
-            Button {
+            RowLayout {
                 Layout.alignment: Qt.AlignHCenter
-                text: VideoTrimmer.cutting ? Tr.t("Cutting…") : Tr.t("Cut")
-                kind: "primary"
-                enabled: VideoTrimmer.input !== "" && !VideoTrimmer.cutting && VideoTrimmer.end > VideoTrimmer.start && VideoTrimmer.available
-                onClicked: VideoTrimmer.cut()
+                spacing: Theme.px(8)
+                Button {
+                    text: VideoTrimmer.cutting ? Tr.t("Cutting…") : Tr.t("Cut")
+                    kind: "primary"
+                    enabled: VideoTrimmer.input !== "" && !VideoTrimmer.cutting && VideoTrimmer.end > VideoTrimmer.start && VideoTrimmer.available
+                    onClicked: { win.exportPath = ""; VideoTrimmer.cut() }
+                }
+                Button {
+                    text: Tr.t("Save as…")
+                    Accessible.name: Tr.t("Save trimmed copy")
+                    enabled: VideoTrimmer.input !== "" && !VideoTrimmer.cutting && VideoTrimmer.available
+                    onClicked: win.pickExport()
+                }
             }
 
             Text {
                 Layout.fillWidth: true
-                visible: VideoTrimmer.error !== ""
-                text: VideoTrimmer.error
+                visible: win.exportPath !== ""
+                text: Tr.t("Save trimmed copy") + ": " + win.exportPath
+                color: Theme.dim
+                font.family: Theme.mono
+                font.pixelSize: Theme.px(10) * Theme.fontScale
+                elide: Text.ElideMiddle
+                Accessible.name: Tr.t("Save trimmed copy")
+            }
+
+            Text {
+                Layout.fillWidth: true
+                visible: VideoTrimmer.error !== "" || win.exportError !== ""
+                text: VideoTrimmer.error !== "" ? VideoTrimmer.error : win.exportError
                 color: Theme.red
                 horizontalAlignment: Text.AlignHCenter
                 font.family: Theme.font

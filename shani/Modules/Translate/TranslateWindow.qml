@@ -23,6 +23,7 @@ AppWindow {
     property string result: ""
     property string error: ""
     property bool working: false
+    property bool copied: false     // a copy is silent otherwise: show it on the button
     // source language, mode and the local model's endpoint
     property string source: "auto"
     property string mode: "text"            // text | batch | file
@@ -110,6 +111,7 @@ AppWindow {
         win.working = false;
         win.result = "";
         win.error = "";
+        win.copied = false;
     }
     function go() {
         const t = input.text.trim();
@@ -321,7 +323,13 @@ AppWindow {
                 Item { Layout.fillWidth: true }
                 Text { text: Tr.t("On this computer — nothing is sent anywhere"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                 Button { text: Tr.t("Read aloud"); enabled: win.result !== "" && win.error === ""; onClicked: Speak.speaking ? Speak.stop() : Speak.speak(win.result) }
-                Button { text: Tr.t("Copy"); enabled: win.result !== "" && win.error === ""; onClicked: Quickshell.clipboardText = win.result }
+                Button {
+                    text: win.copied ? Tr.t("Copied") : Tr.t("Copy")
+                    Accessible.name: Tr.t("Copy")
+                    enabled: win.result !== "" && win.error === ""
+                    onClicked: { Quickshell.clipboardText = win.result; win.copied = true; copiedTimer.restart() }
+                }
+                Timer { id: copiedTimer; interval: 1800; onTriggered: win.copied = false }
                 Button { kind: "primary"; text: Tr.t("Translate"); enabled: input.text.trim() !== "" && !win.working; onClicked: win.go() }
             }
         }
