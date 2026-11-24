@@ -200,9 +200,15 @@ FEATURES = [
     ("Screen casting", ["shani-deploy"], "shani-deploy", "shani-deploy"),
     (
         "Privilege escalation",
-        ["pkexec", "systemctl"],
-        "polkit systemd",
-        "policykit-1 systemd",
+        ["pkexec", "systemctl", "sudo", "visudo"],
+        "polkit systemd sudo",
+        "policykit-1 systemd sudo",
+    ),
+    (
+        "Security (AppArmor)",
+        ["aa-status", "aa-enforce"],
+        "apparmor",
+        "apparmor apparmor-utils",
     ),
 ]
 
