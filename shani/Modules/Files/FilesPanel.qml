@@ -710,6 +710,8 @@ AppWindow {
                             onClicked: Files.open(Files.home + "/.local/share/Trash/files")
                         }
                     }
+                    // Speed Dial: the shell's own named shortcuts, grouped in sections
+                    SpeedDialPanel { Layout.fillWidth: true }
                     // drives, phones, cameras and network places (gio): open - mounting first
                     // when needed - and eject; the computer's other drives below them
                     ColumnLayout {
