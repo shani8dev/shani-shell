@@ -56,12 +56,35 @@ AppWindow {
         return Tr.t("%1 d ago", Math.floor(s / 86400));
     }
 
-    onVisibleChanged: if (visible) TerminalApp.refresh()
+    // ssh/picocom run in their own windows, so the shell cannot tell whether a
+    // session is still up; "launched from here this time" is the honest proxy
+    property var openedHosts: []
+    property bool confirmingClose: false
+    Timer { id: unconfirmClose; interval: 4000; onTriggered: win.confirmingClose = false }
+    function noteLaunch(host) {
+        if (host && host.id !== undefined && win.openedHosts.indexOf(host.id) < 0)
+            win.openedHosts = win.openedHosts.concat([host.id]);
+    }
+    function requestClose() {
+        if (win.openedHosts.length > 0 && !win.confirmingClose) {
+            win.confirmingClose = true;
+            unconfirmClose.restart();
+            return;
+        }
+        win.confirmingClose = false;
+        win.openedHosts = [];
+        Ui.terminalApp = false;
+    }
+
+    onVisibleChanged: {
+        if (visible) TerminalApp.refresh();
+        else { win.confirmingClose = false; win.openedHosts = []; unconfirmClose.stop(); }
+    }
 
     Item {
         anchors.fill: parent
         focus: win.visible
-        Keys.onEscapePressed: Ui.terminalApp = false
+        Keys.onEscapePressed: win.requestClose()
         // keyboard-first host navigation, as in a real terminal (arrows + Enter, / to find)
         Keys.onPressed: e => {
             if (win.tab !== "hosts" || hostList.count === 0) return;
@@ -69,7 +92,7 @@ AppWindow {
             else if (e.key === Qt.Key_Up) { hostList.currentIndex = Math.max(0, hostList.currentIndex - 1); e.accepted = true; }
             else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
                 const h = hostList.model[hostList.currentIndex];
-                if (h) TerminalApp.connect(h);
+                if (h) { win.noteLaunch(h); TerminalApp.connect(h); }
                 e.accepted = true;
             } else if (e.key === Qt.Key_Slash && hostSearch.visible) {
                 hostSearch.forceActiveFocus(); e.accepted = true;
@@ -123,6 +146,18 @@ AppWindow {
             }
         }
 
+        // a second Esc is required before the manager closes while a session
+        // launched from here may still be up in its own window
+        Text {
+            visible: win.confirmingClose
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            text: Tr.t("A connection is open in another window — press Esc again to close")
+            color: Theme.danger
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
+
         // ---- hosts tab ----
         ColumnLayout {
             visible: win.tab === "hosts" || win.tab === "add"
@@ -149,7 +184,7 @@ AppWindow {
                             Text { text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.DemiBold }
                             Text { text: modelData.user + "@" + modelData.host + (modelData.port !== 22 ? ":" + modelData.port : ""); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
                         }
-                        Button { text: Tr.t("Connect"); kind: "primary"; onClicked: TerminalApp.connect(modelData) }
+                        Button { text: Tr.t("Connect"); kind: "primary"; onClicked: { win.noteLaunch(modelData); TerminalApp.connect(modelData) } }
                         Button { text: Tr.t("Test"); enabled: !TerminalApp.busy && modelData.type !== "serial"; onClicked: TerminalApp.testConnection(modelData, (ok, msg) => win.hostNote = (ok === "ok" ? Tr.t("Connected to %1", modelData.name) : Tr.t("Test failed: %1", msg))) }
                         IconButton { icon: "folder-remote"; size: Theme.px(26); tip: Tr.t("Browse files on this host"); onClicked: Files.connectServer("ssh://" + modelData.user + "@" + modelData.host + ":" + modelData.port + "/", "", "", "") }
                         IconButton { icon: "go-previous"; tip: Tr.t("Edit"); onClicked: win.editHost(modelData) }
@@ -200,7 +235,7 @@ AppWindow {
                             Text { text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; elide: Text.ElideRight; Layout.fillWidth: true }
                             Text { text: modelData.user + "@" + modelData.host + (modelData.port !== 22 ? ":" + modelData.port : "") + (modelData.key ? " · " + Tr.t("key") : "") + (modelData.lastConnected ? " · " + Tr.t("Used %1", win.relativeTime(modelData.lastConnected)) : "") + (modelData.status === "failed" ? " · " + Tr.t("Unreachable") : modelData.status === "ok" ? " · " + Tr.t("Reachable") : ""); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; elide: Text.ElideRight; Layout.fillWidth: true }
                         }
-                        Button { text: Tr.t("Connect"); kind: "outline"; onClicked: TerminalApp.connect(modelData) }
+                        Button { text: Tr.t("Connect"); kind: "outline"; onClicked: { win.noteLaunch(modelData); TerminalApp.connect(modelData) } }
                         Button { text: Tr.t("Test"); enabled: !TerminalApp.busy && modelData.type !== "serial"; onClicked: TerminalApp.testConnection(modelData, (ok, msg) => win.hostNote = (ok === "ok" ? Tr.t("Connected to %1", modelData.name) : Tr.t("Test failed: %1", msg))) }
                         IconButton { icon: "folder-remote"; size: Theme.px(26); tip: Tr.t("Browse files on this host"); onClicked: Files.connectServer("ssh://" + modelData.user + "@" + modelData.host + ":" + modelData.port + "/", "", "", "") }
                         IconButton { icon: "edit-copy"; size: Theme.px(26); tip: Tr.t("Copy address"); onClicked: { const addr = modelData.user + "@" + modelData.host; Quickshell.clipboardText = addr; win.hostNote = Tr.t("Copied %1", addr) } }
