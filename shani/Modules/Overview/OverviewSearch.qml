@@ -4,7 +4,10 @@
 // into the launcher with what was typed - and the keys niri's overview is
 // driven with keep working: arrows move between windows and workspaces, Enter
 // takes the one picked, Esc leaves. The dock stays, with its workspace tiles.
+// A first-run strip under the field teaches the gestures that reach the
+// window tools; it goes away for good at its ×.
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
@@ -19,7 +22,7 @@ PanelWindow {
     anchors.top: true
     margins.top: 58
     implicitWidth: Theme.px(620)
-    implicitHeight: Theme.px(64)
+    implicitHeight: Theme.px(64) + (hints.visible ? hints.implicitHeight + Theme.px(8) : 0)
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "shani-overview-search"
@@ -27,6 +30,36 @@ PanelWindow {
     WlrLayershell.keyboardFocus: (visible) && !Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     BackgroundEffect.blurRegion: Settings.blurWanted ? pillRegion : null
     Region { id: pillRegion; item: pill; radius: pill.radius }
+
+    // Settings.data's JsonAdapter only accepts keys declared in Common/Settings.qml,
+    // which this module does not own (that file is being changed elsewhere), so the
+    // one dismissal flag lives in a sibling file in the same config dir, the way
+    // Services/Osk.qml keeps its own controls. Defaults are declared on the adapter.
+    readonly property string hintsDir: {
+        const p = Settings.path;
+        return p.substring(0, p.lastIndexOf("/"));
+    }
+    FileView {
+        id: hintsFile
+        path: win.hintsDir + "/gesture-hints.json"
+        watchChanges: true
+        atomicWrites: true
+        printErrors: false
+        JsonAdapter { id: hintsPrefs; property bool dismissed: false }
+    }
+    // five at most, so the strip stays one short block under the search field
+    readonly property var gestureTips: [
+        { keys: "Super+Alt+←/→", what: Tr.t("Snap left") },
+        { keys: "Hold zoom", what: Tr.t("Window layout") },
+        { keys: "Hover", what: Tr.t("Preview") },
+        { keys: "Right-click dock", what: Tr.t("Switch windows") },
+        { keys: "Middle-click dock", what: Tr.t("New window") }
+    ]
+    function dismissHints() {
+        hintsPrefs.dismissed = true;
+        Quickshell.execDetached(["mkdir", "-p", win.hintsDir]);
+        hintsFile.writeAdapter();
+    }
 
     function search(text) {
         handOver.stop();   // a pending hand-over would toggle the launcher again 220 ms later
@@ -42,8 +75,11 @@ PanelWindow {
 
     Glass {
         id: pill
-        anchors.fill: parent
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
         anchors.margins: Theme.px(4)
+        height: Theme.px(56)
         strong: true
         radius: height / 2
         RowLayout {
@@ -69,9 +105,74 @@ PanelWindow {
         MouseArea { anchors.fill: parent; cursorShape: Qt.IBeamCursor; onClicked: win.search("") }
     }
 
+    // Only bindings that exist are taught: Super+Alt+Arrow is bound in
+    // shani-desktop-niri's config, the bar's zoom button opens layouts on a
+    // long press, HoverPeek previews dock tiles and files, and the dock's
+    // right-click lists an app's windows (its middle click opens a NEW window).
+    Glass {
+        id: hints
+        visible: !hintsPrefs.dismissed
+        anchors.top: pill.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.margins: Theme.px(4)
+        implicitWidth: grid.implicitWidth + Theme.px(16)
+        implicitHeight: grid.implicitHeight + Theme.px(12)
+        radius: Theme.radiusSmall
+        elevation: "none"
+        Grid {
+            id: grid
+            anchors.centerIn: parent
+            columns: 2
+            columnSpacing: Theme.px(16)
+            rowSpacing: Theme.px(6)
+            Repeater {
+                model: win.gestureTips
+                Row {
+                    required property var modelData
+                    spacing: Theme.px(8)
+                    Rectangle {
+                        width: Theme.px(104)
+                        height: Theme.px(20)
+                        radius: Theme.px(5)
+                        color: Theme.alpha(Theme.text, 0.09)
+                        Text {
+                            anchors.centerIn: parent
+                            text: parent.parent.modelData.keys
+                            color: Theme.text
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.weight: Font.Medium
+                        }
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: parent.modelData.what
+                        color: Theme.text
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                    }
+                }
+            }
+        }
+        IconButton {
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.margins: Theme.px(4)
+            icon: "window-close"
+            size: Theme.px(18)
+            tip: Tr.t("Hide the navigation hints")
+            accessibleName: Tr.t("Hide the navigation hints")
+            onClicked: win.dismissHints()
+        }
+        // the button takes Tab; Escape must still leave the overview from it
+        Keys.onEscapePressed: Niri.action("close-overview")
+    }
+
     Item {
         id: keys
         focus: true
+        activeFocusOnTab: true
         Accessible.role: Accessible.EditableText
         Accessible.name: Tr.t("Search")
         Keys.onPressed: e => {
