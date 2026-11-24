@@ -26,6 +26,9 @@ ColumnLayout {
     property string auditProfile: "unknown"
     property bool auditProfileBusy: false
     property string auditProfileNote: ""
+    // "off" removes the shell-managed rules file: ask for a second click
+    property string confirmingAudit: ""
+    Timer { id: auditConfirmTimer; interval: 4000; onTriggered: page.confirmingAudit = "" }
     property var coredump: ({})
     property string faillockNote: ""
     property bool faillockBusy: false
@@ -44,6 +47,13 @@ ColumnLayout {
         lcredit.text = s.lcredit || ""; ocredit.text = s.ocredit || "";
     }
     Connections { target: SecurityInfo; function onReportChanged() { page.syncPw(); } }
+
+    // policy fields are optional, but a value that is there must be a whole number
+    function wholeNumberError(t) {
+        const v = t.text.trim();
+        return v !== "" && !/^\d+$/.test(v) ? Tr.t("Use a whole number") : "";
+    }
+    property bool pwValid: [minlen, difok, dcredit, ucredit, lcredit, ocredit].every(f => /^\s*$|^\d+$/.test(f.text))
 
     Process {
         id: pwSave
@@ -187,7 +197,15 @@ ColumnLayout {
     Text { Layout.fillWidth: true; text: Tr.t("What the kernel, sign-in and audit subsystems report. Policy edits go through administrator authorisation."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Kernel security (LSM)") }
-    Text { Layout.fillWidth: true; text: (r.lsm && r.lsm.length) ? r.lsm.join(", ") : Tr.t("Could not read /sys/kernel/security/lsm."); color: Theme.text; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+    Text { Layout.fillWidth: true; visible: !!(r.lsm && r.lsm.length); text: r.lsm && r.lsm.length ? r.lsm.join(", ") : ""; color: Theme.text; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+    InfoBanner {
+        Layout.fillWidth: true
+        visible: !r.lsm || !r.lsm.length
+        tone: "warn"
+        title: Tr.t("The kernel did not report its security modules")
+        text: Tr.t("This can be normal in a container or a locked-down kernel. The checks below still work.")
+        Button { text: Tr.t("Retry"); onClicked: SecurityInfo.refresh() }
+    }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("AppArmor") }
     ColumnLayout {
@@ -210,23 +228,23 @@ ColumnLayout {
     GridLayout {
         Layout.fillWidth: true; columns: 2; columnSpacing: Theme.px(8); rowSpacing: Theme.px(6)
         Text { text: Tr.t("Minimum length"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: minlen; Layout.fillWidth: true; placeholder: "8" }
+        TextField { id: minlen; Layout.fillWidth: true; placeholder: "8"; error: page.wholeNumberError(minlen) }
         Text { text: Tr.t("Different from old (difok)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: difok; Layout.fillWidth: true; placeholder: "1" }
+        TextField { id: difok; Layout.fillWidth: true; placeholder: "1"; error: page.wholeNumberError(difok) }
         Text { text: Tr.t("Digits (dcredit)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: dcredit; Layout.fillWidth: true; placeholder: "0" }
+        TextField { id: dcredit; Layout.fillWidth: true; placeholder: "0"; error: page.wholeNumberError(dcredit) }
         Text { text: Tr.t("Uppercase (ucredit)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: ucredit; Layout.fillWidth: true; placeholder: "0" }
+        TextField { id: ucredit; Layout.fillWidth: true; placeholder: "0"; error: page.wholeNumberError(ucredit) }
         Text { text: Tr.t("Lowercase (lcredit)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: lcredit; Layout.fillWidth: true; placeholder: "0" }
+        TextField { id: lcredit; Layout.fillWidth: true; placeholder: "0"; error: page.wholeNumberError(lcredit) }
         Text { text: Tr.t("Other (ocredit)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: ocredit; Layout.fillWidth: true; placeholder: "0" }
+        TextField { id: ocredit; Layout.fillWidth: true; placeholder: "0"; error: page.wholeNumberError(ocredit) }
     }
     RowLayout {
         Layout.fillWidth: true; spacing: Theme.px(6)
         Text { Layout.fillWidth: true; text: page.pwNote; color: page.pwNote.indexOf("saved") >= 0 ? Theme.accent : Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; visible: page.pwNote !== "" }
         Item { Layout.fillWidth: true; visible: page.pwNote === "" }
-        Button { text: Tr.t("Save policy"); kind: "primary"; enabled: !page.pwBusy; onClicked: page.savePw() }
+        Button { text: Tr.t("Save policy"); kind: "primary"; enabled: !page.pwBusy && page.pwValid; onClicked: page.savePw() }
     }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Audit") }
@@ -244,10 +262,18 @@ ColumnLayout {
             model: ["off", "minimal", "baseline"]
             Button {
                 required property string modelData
-                text: Tr.t(modelData)
-                kind: page.auditProfile === modelData ? "primary" : "plain"
+                text: page.confirmingAudit === modelData ? Tr.t("Tap again to remove rules") : Tr.t(modelData)
+                kind: page.auditProfile === modelData ? "primary" : (page.confirmingAudit === modelData ? "danger" : "plain")
                 enabled: !page.auditProfileBusy
-                onClicked: page.saveAuditProfile(modelData)
+                onClicked: {
+                    if (modelData === "off" && page.auditProfile !== "off" && page.confirmingAudit !== "off") {
+                        page.confirmingAudit = "off";
+                        auditConfirmTimer.restart();
+                        return;
+                    }
+                    page.confirmingAudit = "";
+                    page.saveAuditProfile(modelData);
+                }
             }
         }
         Item { Layout.fillWidth: true }

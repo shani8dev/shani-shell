@@ -21,6 +21,7 @@ ColumnLayout {
     property string defaultName: ""
     property bool cups: true
     property string note: ""
+    property bool noteOk: false
     property var devices: []             // the addresses the printers already set up print to
     property var found: null             // [{ name, uri }] while adding; null = not adding
     property bool finding: false
@@ -96,6 +97,7 @@ ColumnLayout {
         stderr: StdioCollector { id: actErr }
         onExited: code => {
             page.note = code === 0 ? act.done : (actErr.text.trim().split("\n").pop() || Tr.t("That did not work"));
+            page.noteOk = code === 0;
             list.running = true;
             optsRead.running = true;
             // lpoptions is per-user, so the credentials are stored only once
@@ -111,7 +113,7 @@ ColumnLayout {
     Process {
         id: authStore
         onExited: code => {
-            if (code !== 0) page.note = Tr.t("Printer added, but the credentials could not be saved");
+            if (code !== 0) { page.note = Tr.t("Printer added, but the credentials could not be saved"); page.noteOk = false; }
         }
     }
 
@@ -159,7 +161,7 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: page.cupsBrowsedLoaded
         text: Tr.t("Discover network printers automatically")
-        hint: Tr.t("cups-browsed service")
+        hint: Tr.t("Finds printers announced on your local network")
         checked: page.cupsBrowsed
         onToggled: on => { cbSet.payload = JSON.stringify({ enabled: on }); cbSet.command = page.adminCmd.concat(["cups-browsed-set"]); cbSet.running = true; }
     }
@@ -214,6 +216,13 @@ ColumnLayout {
                 }
             }
             // your defaults for it: paper, two-sided, colour; and whether others on the network may use it
+            Text {
+                Layout.fillWidth: true
+                text: Tr.t("Your defaults for this printer")
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
@@ -291,13 +300,10 @@ ColumnLayout {
             font.pixelSize: Theme.px(11) * Theme.fontScale
         }
     }
-    Text {
-        visible: page.note !== ""
+    InfoBanner {
         Layout.fillWidth: true
-        wrapMode: Text.WordWrap
+        visible: page.note !== ""
+        tone: page.noteOk ? "ok" : "error"
         text: page.note
-        color: Theme.dim
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
 }

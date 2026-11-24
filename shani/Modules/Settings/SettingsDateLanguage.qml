@@ -324,15 +324,29 @@ ColumnLayout {
     }
     // the system's own: the login screen, the console, and anyone without their own
     property string systemLocaleNote: ""
+    property bool systemLocaleOk: false
+    // affects every account and the login screen, not just this one
+    property bool confirmingSystemLocale: false
+    Timer { id: systemLocaleConfirmTimer; interval: 4000; onTriggered: page.confirmingSystemLocale = false }
     Process {
         id: systemLocale
         stderr: StdioCollector { id: sysLocErr }
-        onExited: code => page.systemLocaleNote = code === 0 ? "Set for the whole system." : (sysLocErr.text.trim().split("\n").pop() || "not changed")
+        onExited: code => {
+            page.systemLocaleNote = code === 0 ? "Set for the whole system." : (sysLocErr.text.trim().split("\n").pop() || "not changed")
+            page.systemLocaleOk = code === 0;
+        }
     }
     Button {
         visible: page.lang !== ""
-        text: Tr.t("Use for everyone and the login screen")
+        text: page.confirmingSystemLocale ? Tr.t("Tap again for everyone") : Tr.t("Use for everyone and the login screen")
+        kind: page.confirmingSystemLocale ? "danger" : "plain"
         onClicked: {
+            if (!page.confirmingSystemLocale) {
+                page.confirmingSystemLocale = true;
+                systemLocaleConfirmTimer.restart();
+                return;
+            }
+            page.confirmingSystemLocale = false;
             const args = ["localectl", "set-locale", "LANG=" + page.lang];
             if (page.formats)
                 for (const k of ["LC_TIME", "LC_NUMERIC", "LC_MONETARY", "LC_MEASUREMENT", "LC_PAPER"])
@@ -345,7 +359,7 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: page.systemLocaleNote !== ""
         text: page.systemLocaleNote
-        color: page.systemLocaleNote.startsWith("Set") ? Theme.dim : Theme.danger
+        color: page.systemLocaleOk ? Theme.accent : Theme.danger
         wrapMode: Text.Wrap
         font.family: Theme.font
         font.pixelSize: Theme.px(11) * Theme.fontScale

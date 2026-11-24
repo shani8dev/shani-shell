@@ -19,6 +19,10 @@ ColumnLayout {
     property string rateLimitIntervalSec: ""
     property string rateLimitBurst: ""
     property string note: ""
+    property bool noteOk: false
+    // Storage=none stops keeping logs on disk: a second click makes it deliberate
+    property string confirmingStorage: ""
+    Timer { id: storageConfirmTimer; interval: 4000; onTriggered: page.confirmingStorage = "" }
     property bool busy: false
     property string logText: ""
 
@@ -51,7 +55,7 @@ ColumnLayout {
         id: setProc; stdinEnabled: true; property string payload: ""
         stderr: StdioCollector { id: setErr }
         onStarted: { write(payload + "\n"); stdinEnabled = false; }
-        onExited: code => { stdinEnabled = true; page.busy = false; page.note = code === 0 ? Tr.t("Journal settings saved") : (setErr.text.trim().split("\n").pop() || Tr.t("Could not save")); if (code === 0) load(); }
+        onExited: code => { stdinEnabled = true; page.busy = false; page.note = code === 0 ? Tr.t("Journal settings saved") : (setErr.text.trim().split("\n").pop() || Tr.t("Could not save")); page.noteOk = code === 0; if (code === 0) load(); }
     }
     function save() {
         page.busy = true; page.note = "";
@@ -66,7 +70,7 @@ ColumnLayout {
         stdout: StdioCollector { id: vacOut }
         stderr: StdioCollector { id: vacErr }
         onStarted: { write(payload + "\n"); stdinEnabled = false; }
-        onExited: code => { stdinEnabled = true; page.busy = false; page.note = code === 0 ? (vacOut.text.trim().split("\n").pop() || Tr.t("Vacuum complete")) : (vacErr.text.trim().split("\n").pop() || Tr.t("Vacuum failed")); }
+        onExited: code => { stdinEnabled = true; page.busy = false; page.note = code === 0 ? (vacOut.text.trim().split("\n").pop() || Tr.t("Vacuum complete")) : (vacErr.text.trim().split("\n").pop() || Tr.t("Vacuum failed")); page.noteOk = code === 0; }
     }
     function vacuum() { page.busy = true; page.note = ""; vacProc.payload = JSON.stringify({ mode: "size", value: vacField.text.trim() || "500M" }); vacProc.command = page.adminCmd.concat(["journald-vacuum"]); vacProc.running = true; }
     Process { id: logProc; command: ["journalctl", "-n", "80", "--no-pager", "-o", "short"]; stdout: StdioCollector { onStreamFinished: page.logText = text } }
@@ -80,13 +84,30 @@ ColumnLayout {
         Layout.fillWidth: true; spacing: Theme.px(6)
         Repeater {
             model: ["auto", "persistent", "volatile", "none"]
-            Choice { required property var modelData; text: modelData; selected: page.storage === modelData; onClicked: page.storage = modelData }
+            Choice {
+                required property var modelData
+                text: page.confirmingStorage === modelData ? Tr.t("Tap again to stop storing") : modelData
+                danger: page.confirmingStorage === modelData
+                selected: page.storage === modelData
+                onClicked: {
+                    if (modelData === "none" && page.storage !== "none" && page.confirmingStorage !== "none") {
+                        page.confirmingStorage = "none";
+                        storageConfirmTimer.restart();
+                        return;
+                    }
+                    page.confirmingStorage = "";
+                    page.storage = modelData;
+                }
+            }
         }
     }
     RowLayout {
         Layout.fillWidth: true; spacing: Theme.px(6)
         Text { text: Tr.t("System max use"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: maxUseField; Layout.fillWidth: true; placeholder: "500M" }
+        TextField {
+            id: maxUseField; Layout.fillWidth: true; placeholder: "500M"
+            error: maxUseField.text.trim() !== "" && !/^\d+(\.\d+)?\s*[KMGT]?$/i.test(maxUseField.text.trim()) ? Tr.t("Use a size like 500M or 2G") : ""
+        }
     }
     Text { text: Tr.t("Forward to syslog"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
     RowLayout {
@@ -115,20 +136,37 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true; spacing: Theme.px(6)
         Text { text: Tr.t("Rate limit interval"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: rateLimitIntervalField; Layout.fillWidth: true; placeholder: "30s" }
+        TextField {
+            id: rateLimitIntervalField; Layout.fillWidth: true; placeholder: "30s"
+            error: rateLimitIntervalField.text.trim() !== "" && !/^\d+\s*(ms|min|s|m|h|d|w)?$/i.test(rateLimitIntervalField.text.trim()) ? Tr.t("Use a time like 30s or 5min") : ""
+        }
     }
     RowLayout {
         Layout.fillWidth: true; spacing: Theme.px(6)
         Text { text: Tr.t("Rate limit burst"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: rateLimitBurstField; Layout.fillWidth: true; placeholder: "10000" }
+        TextField {
+            id: rateLimitBurstField; Layout.fillWidth: true; placeholder: "10000"
+            error: rateLimitBurstField.text.trim() !== "" && !/^\d+$/.test(rateLimitBurstField.text.trim()) ? Tr.t("Use a whole number") : ""
+        }
     }
     RowLayout {
         Layout.fillWidth: true; spacing: Theme.px(6)
-        TextField { id: vacField; Layout.fillWidth: true; placeholder: Tr.t("Vacuum to size, e.g. 500M") }
-        Button { text: Tr.t("Vacuum"); enabled: !page.busy; onClicked: page.vacuum() }
-        Button { text: Tr.t("Save"); kind: "primary"; enabled: !page.busy; onClicked: page.save() }
+        TextField {
+            id: vacField; Layout.fillWidth: true; placeholder: Tr.t("Vacuum to size, e.g. 500M")
+            error: vacField.text.trim() !== "" && !/^\d+(\.\d+)?\s*[KMGT]?$/i.test(vacField.text.trim()) ? Tr.t("Use a size like 500M or 2G") : ""
+        }
+        Button { text: Tr.t("Vacuum"); enabled: !page.busy && (/^\s*$|^\d+(\.\d+)?\s*[KMGT]?$/i).test(vacField.text.trim()); onClicked: page.vacuum() }
+        Button { text: Tr.t("Save"); kind: "primary"; enabled: !page.busy && page.policyValid; onClicked: page.save() }
     }
-    Text { Layout.fillWidth: true; visible: page.note !== ""; text: page.note; color: page.note.indexOf("failed") >= 0 || page.note.indexOf("Could not") >= 0 ? Theme.danger : Theme.accent; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+    property bool policyValid: /^\s*$|^\d+(\.\d+)?\s*[KMGT]?$/i.test(maxUseField.text.trim())
+        && (/^\s*$|^\d+\s*(ms|min|s|m|h|d|w)?$/i).test(rateLimitIntervalField.text.trim())
+        && /^\s*$|^\d+$/.test(rateLimitBurstField.text.trim())
+    InfoBanner {
+        Layout.fillWidth: true
+        visible: page.note !== ""
+        tone: page.noteOk ? "ok" : "error"
+        text: page.note
+    }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Recent log") }
     RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } Button { text: Tr.t("Refresh"); onClicked: page.loadLog() } }

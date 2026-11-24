@@ -17,6 +17,7 @@ ColumnLayout {
     property var sysctl: ({})
     property var sysctlLive: ({})
     property string note: ""
+    property bool noteOk: false
     property bool busy: false
 
     onActiveChanged: if (active) { KernelModules.refresh(); loadManaged(); }
@@ -43,7 +44,7 @@ ColumnLayout {
         id: saveProc; stdinEnabled: true; property string payload: ""
         stderr: StdioCollector { id: saveErr }
         onStarted: { write(payload + "\n"); stdinEnabled = false; }
-        onExited: code => { stdinEnabled = true; page.busy = false; page.note = code === 0 ? Tr.t("Saved") : (saveErr.text.trim().split("\n").pop() || Tr.t("Could not save")); page.loadManaged(); KernelModules.refresh(); }
+        onExited: code => { stdinEnabled = true; page.busy = false; page.note = code === 0 ? Tr.t("Saved") : (saveErr.text.trim().split("\n").pop() || Tr.t("Could not save")); page.noteOk = code === 0; page.loadManaged(); KernelModules.refresh(); }
     }
 
     readonly property var shown: {
@@ -58,8 +59,12 @@ ColumnLayout {
     Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/modprobe.d/50-shani-shell.conf. Blacklisted modules are prevented from loading."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
     RowLayout {
         Layout.fillWidth: true; spacing: Theme.px(6)
-        TextField { id: blAdd; Layout.fillWidth: true; placeholder: Tr.t("Module name to blacklist") }
-        Button { text: Tr.t("Add"); kind: "primary"; enabled: !page.busy && /^[A-Za-z0-9_-]+$/.test(blAdd.text.trim()); onClicked: { const n = blAdd.text.trim(); if (page.blacklist.indexOf(n) < 0) page.saveManaged("modprobe-blacklist-set", page.blacklist.concat([n])); blAdd.text = ""; } }
+        TextField {
+            id: blAdd; Layout.fillWidth: true; placeholder: Tr.t("Module name to blacklist")
+            error: blAdd.text.trim() !== "" && (!/^[A-Za-z0-9_-]+$/.test(blAdd.text.trim()) || page.blacklist.indexOf(blAdd.text.trim()) >= 0)
+                ? Tr.t("Use a new name: letters, numbers, - or _") : ""
+        }
+        Button { text: Tr.t("Add"); kind: "primary"; enabled: !page.busy && /^[A-Za-z0-9_-]+$/.test(blAdd.text.trim()) && page.blacklist.indexOf(blAdd.text.trim()) < 0; onClicked: { const n = blAdd.text.trim(); if (page.blacklist.indexOf(n) < 0) page.saveManaged("modprobe-blacklist-set", page.blacklist.concat([n])); blAdd.text = ""; } }
     }
     Repeater {
         model: page.blacklist
@@ -75,8 +80,12 @@ ColumnLayout {
     Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/modules-load.d/50-shani-shell.conf."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
     RowLayout {
         Layout.fillWidth: true; spacing: Theme.px(6)
-        TextField { id: mlAdd; Layout.fillWidth: true; placeholder: Tr.t("Module name to load at boot") }
-        Button { text: Tr.t("Add"); kind: "primary"; enabled: !page.busy && /^[A-Za-z0-9_-]+$/.test(mlAdd.text.trim()); onClicked: { const n = mlAdd.text.trim(); if (page.loadOnBoot.indexOf(n) < 0) page.saveManaged("modules-load-set", page.loadOnBoot.concat([n])); mlAdd.text = ""; } }
+        TextField {
+            id: mlAdd; Layout.fillWidth: true; placeholder: Tr.t("Module name to load at boot")
+            error: mlAdd.text.trim() !== "" && (!/^[A-Za-z0-9_-]+$/.test(mlAdd.text.trim()) || page.loadOnBoot.indexOf(mlAdd.text.trim()) >= 0)
+                ? Tr.t("Use a new name: letters, numbers, - or _") : ""
+        }
+        Button { text: Tr.t("Add"); kind: "primary"; enabled: !page.busy && /^[A-Za-z0-9_-]+$/.test(mlAdd.text.trim()) && page.loadOnBoot.indexOf(mlAdd.text.trim()) < 0; onClicked: { const n = mlAdd.text.trim(); if (page.loadOnBoot.indexOf(n) < 0) page.saveManaged("modules-load-set", page.loadOnBoot.concat([n])); mlAdd.text = ""; } }
     }
     Repeater {
         model: page.loadOnBoot
@@ -87,8 +96,6 @@ ColumnLayout {
             Button { text: Tr.t("Remove"); enabled: !page.busy; onClicked: { const a = page.loadOnBoot.slice(); a.splice(index, 1); page.saveManaged("modules-load-set", a); } }
         }
     }
-    Text { Layout.fillWidth: true; visible: page.note !== ""; text: page.note; color: page.note === Tr.t("Saved") ? Theme.accent : Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Kernel tuning (sysctl)") }
     Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/sysctl.d/50-shani-shell.conf. Only allowlisted keys."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
     Repeater {
@@ -97,9 +104,18 @@ ColumnLayout {
             required property var modelData
             Layout.fillWidth: true; spacing: Theme.px(6)
             Text { Layout.preferredWidth: Theme.px(220); text: modelData; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
-            TextField { id: sysField; Layout.fillWidth: true; placeholder: (page.sysctlLive && page.sysctlLive[modelData]) || ""; text: (page.sysctl && page.sysctl[modelData]) || "" }
+            TextField {
+                id: sysField; Layout.fillWidth: true; placeholder: (page.sysctlLive && page.sysctlLive[modelData]) || ""; text: (page.sysctl && page.sysctl[modelData]) || ""
+                error: sysField.text.trim() !== "" && !/^\d+$/.test(sysField.text.trim()) ? Tr.t("Use a whole number") : ""
+            }
             Button { text: Tr.t("Save"); enabled: !page.busy && /^\d+$/.test(sysField.text.trim()); onClicked: { const o = Object.assign({}, page.sysctl); o[modelData] = sysField.text.trim(); page.saveSysctl(o); } }
         }
+    }
+    InfoBanner {
+        Layout.fillWidth: true
+        visible: page.note !== ""
+        tone: page.noteOk ? "ok" : "error"
+        text: page.note
     }
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Loaded modules") }
     Text { Layout.fillWidth: true; text: Tr.t("%1 modules loaded. Read from /proc/modules; nothing here loads or unloads a running module.").arg(KernelModules.count); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }

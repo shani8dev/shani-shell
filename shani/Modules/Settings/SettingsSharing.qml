@@ -40,6 +40,7 @@ ColumnLayout {
     property var shares: []               // [{ name, path, write }]
     property string host: ""
     property string note: ""
+    property bool noteOk: false
     property string pairUrl: "https://localhost:47990/pin"
     property string pairPin: ""
     property bool pairLoading: false
@@ -102,6 +103,7 @@ ColumnLayout {
         onExited: code => {
             stdinEnabled = true;
             page.note = code === 0 ? act.done : (actErr.text.trim().split("\n").pop() || Tr.t("That did not work"));
+            page.noteOk = code === 0;
             state.running = true;
         }
     }
@@ -166,7 +168,10 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         spacing: Theme.px(8)
-        TextField { id: pw; Layout.fillWidth: true; secret: true; placeholder: Tr.t("Network password for your shares"); label: Tr.t("Network password") }
+        TextField {
+            id: pw; Layout.fillWidth: true; secret: true; placeholder: Tr.t("Network password for your shares"); label: Tr.t("Network password")
+            error: pw.text.length > 0 && pw.text.length < 4 ? Tr.t("At least 4 characters") : ""
+        }
         Button {
             text: Tr.t("Set")
             enabled: pw.text.length >= 4
@@ -270,6 +275,13 @@ ColumnLayout {
                           : Tr.t("Off — share this screen with a TV or Chromecast")
         color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
     }
+    Text {
+        visible: !Cast.available
+        Layout.fillWidth: true
+        wrapMode: Text.Wrap
+        text: Tr.t("Casting is not available on this computer.")
+        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+    }
     RowLayout {
         visible: Cast.available
         Layout.fillWidth: true
@@ -325,11 +337,10 @@ ColumnLayout {
             }
         }
     }
-    Text {
-        visible: page.note !== ""
+    InfoBanner {
         Layout.fillWidth: true
-        wrapMode: Text.WordWrap
+        visible: page.note !== ""
+        tone: page.noteOk ? "ok" : "error"
         text: page.note
-        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
     }
 }

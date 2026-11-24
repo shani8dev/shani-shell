@@ -232,6 +232,9 @@ ColumnLayout {
             required property var modelData
             Layout.fillWidth: true
             spacing: 2
+            // forgetting a network is not undoable: the password must be typed again
+            property bool confirmingForget: false
+            Timer { id: forgetTimer; interval: 4000; onTriggered: net.confirmingForget = false }
             RowLayout {
                 Layout.fillWidth: true
                 Icon { name: net.modelData.type === "802-11-wireless" ? "network-wireless" : net.modelData.type === "gsm" ? "network-cellular" : net.modelData.type === "bluetooth" ? "bluetooth-active" : "network-wired"; size: Theme.px(18); color: Theme.dim }
@@ -244,9 +247,18 @@ ColumnLayout {
                     font.pixelSize: Theme.px(13) * Theme.fontScale
                 }
                 Button {
-                    text: Tr.t("Forget")
-                    Accessible.name: Tr.t("Forget") + " " + (net.modelData.name || net.modelData.type || net.modelData.uuid)
-                    onClicked: page.modify(net.modelData.uuid, ["delete"])
+                    text: net.confirmingForget ? Tr.t("Tap again to forget") : Tr.t("Forget")
+                    kind: net.confirmingForget ? "danger" : "plain"
+                    Accessible.name: text + " " + (net.modelData.name || net.modelData.type || net.modelData.uuid)
+                    onClicked: {
+                        if (net.confirmingForget) {
+                            page.modify(net.modelData.uuid, ["delete"]);
+                            net.confirmingForget = false;
+                        } else {
+                            net.confirmingForget = true;
+                            forgetTimer.restart();
+                        }
+                    }
                 }
             }
             SwitchRow {
