@@ -211,6 +211,25 @@ ColumnLayout {
             onToggled: on => page.saveWake(modelData.path, on)
         }
     }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Lid & idle (logind)") }
+    Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/systemd/logind.conf.d/50-shani-shell.conf. Values: suspend, lock, ignore, poweroff, hibernate, hybrid-sleep, suspend-then-hibernate."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+    Repeater {
+        model: ["HandleLidSwitch","HandleLidSwitchExternalPower","HandleLidSwitchDocked","IdleAction"]
+        RowLayout {
+            required property var modelData
+            Layout.fillWidth: true; spacing: Theme.px(6)
+            Text { Layout.preferredWidth: Theme.px(220); text: modelData; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: lidVal; Layout.fillWidth: true; text: page.logind[modelData] || ""; placeholder: "suspend" }
+            Button { text: Tr.t("Save"); onClicked: page.saveLogind(modelData, lidVal.text.trim()) }
+        }
+    }
+    RowLayout {
+        Layout.fillWidth: true; spacing: Theme.px(6)
+        Text { Layout.preferredWidth: Theme.px(220); text: "IdleActionSec"; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        TextField { id: idleSec; Layout.fillWidth: true; text: page.logind["IdleActionSec"] || ""; placeholder: "300" }
+        Button { text: Tr.t("Save"); onClicked: page.saveLogind("IdleActionSec", idleSec.text.trim()) }
+    }
+
     Text {
         Layout.fillWidth: true
         visible: page.note !== ""

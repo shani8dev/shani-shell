@@ -23,6 +23,8 @@ def load_admin(tmp_path, monkeypatch):
     sa.TIMESYNCD_DROPIN = tmp_path / "timesyncd.conf.d" / "50-shani-shell.conf"
     sa.RESOLVED_DROPIN = tmp_path / "resolved.conf.d" / "50-shani-shell.conf"
     sa.LOGIN_DEFS = tmp_path / "login.defs"
+    sa.LOGIND_DROPIN = tmp_path / "logind.conf.d" / "50-shani-shell.conf"
+    sa.COREDUMP_DROPIN = tmp_path / "coredump.conf.d" / "50-shani-shell.conf"
     monkeypatch.setattr(sa.shutil, "which", lambda x: "/usr/bin/" + x if x in ("visudo", "aa-enforce", "aa-complain") else None)
     real_exists = sa.os.path.exists
     monkeypatch.setattr(sa.os.path, "exists", lambda pth: True if str(pth) in ("/usr/bin/visudo", "/usr/bin/aa-enforce", "/usr/bin/aa-complain") else real_exists(pth))
@@ -258,3 +260,18 @@ def test_auditd_set_shape(tmp_path, monkeypatch):
     sa = load_admin(tmp_path, monkeypatch)
     r = sa.auditd_set({"enabled": True})
     assert "enabled" in r and "active" in r
+
+
+def test_logind_and_coredump_crud(tmp_path, monkeypatch):
+    sa = load_admin(tmp_path, monkeypatch)
+    r = sa.logind_set({"settings": {"HandleLidSwitch": "suspend", "IdleAction": "lock", "IdleActionSec": 300}})
+    assert r["settings"]["HandleLidSwitch"] == "suspend"
+    txt = sa.LOGIND_DROPIN.read_text()
+    assert "[Login]" in txt and "IdleActionSec=300" in txt
+    with pytest.raises(Exception):
+        sa.logind_set({"settings": {"HandleLidSwitch": "explode"}})
+    r = sa.coredump_set({"settings": {"Storage": "none", "ProcessSizeMax": "0"}})
+    assert r["settings"]["Storage"] == "none"
+    assert "Storage=none" in sa.COREDUMP_DROPIN.read_text()
+    with pytest.raises(Exception):
+        sa.coredump_set({"settings": {"Storage": "bad"}})

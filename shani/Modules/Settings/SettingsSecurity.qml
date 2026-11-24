@@ -23,6 +23,7 @@ ColumnLayout {
     property bool aaBusy: false
     property bool auditdOn: false
     property bool auditdLoaded: false
+    property var coredump: ({})
     property string faillockNote: ""
     property bool faillockBusy: false
     onActiveChanged: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); page.loadFaillock(); page.loadLoginDefs(); }
@@ -81,6 +82,9 @@ ColumnLayout {
     Process { id: sudoersRead; command: ["sh","-c","cat /etc/sudoers.d/50-shani-shell 2>/dev/null || true"]; stdout: StdioCollector { onStreamFinished: { page.sudoersText = text; sudoersEdit.text = text; } } }
     Process { id: auditdRead; command: ["sh","-c","systemctl is-active auditd 2>/dev/null || true"]; stdout: StdioCollector { onStreamFinished: { page.auditdOn = text.trim() === "active"; page.auditdLoaded = true; } } }
     Process { id: auditdSet; stdinEnabled: true; property string payload: ""; onStarted: { write(payload + "\n"); stdinEnabled = false; } onExited: code => { stdinEnabled = true; auditdRead.running = false; auditdRead.running = true; SecurityInfo.refresh(); if (code !== 0) page.aaNote = Tr.t("Could not change auditd"); } }
+    Process { id: coredumpRead; command: ["sh","-c","f=/etc/systemd/coredump.conf.d/50-shani-shell.conf; [ -r \"$f\" ] && grep -v '^#' \"$f\" | grep '=' || true"]; stdout: StdioCollector { onStreamFinished: { const o={}; for (const l of text.split("\n")) { const m=l.match(/^([^=]+)=(.*)$/); if(m) o[m[1].trim()]=m[2].trim(); } page.coredump=o; } } }
+    Process { id: coredumpSet; stdinEnabled: true; property string payload: ""; stderr: StdioCollector { id: coredumpErr } onStarted: { write(payload+"\n"); stdinEnabled=false; } onExited: code => { stdinEnabled=true; coredumpRead.running=false; coredumpRead.running=true; page.aaNote = code===0 ? Tr.t("Coredump settings saved") : (coredumpErr.text.trim().split("\n").pop()||Tr.t("Could not save")); } }
+    function saveCoredump(key, value) { const o=Object.assign({}, page.coredump); o[key]=value; coredumpSet.payload=JSON.stringify({settings:o}); coredumpSet.command=page.adminCmd.concat(["coredump-set"]); coredumpSet.running=true; }
     function loadSudoers() { sudoersRead.running = false; sudoersRead.running = true; }
     Process {
         id: sudoersSaveProc; stdinEnabled: true; property string payload: ""
@@ -199,6 +203,19 @@ ColumnLayout {
         ListRow { Layout.fillWidth: true; interactive: false; icon: "document-open-recent"; title: Tr.t("auditd"); subtitle: au.active || Tr.t("unknown") }
         ListRow { Layout.fillWidth: true; interactive: false; icon: "document-open-recent"; title: Tr.t("enabled"); subtitle: au.enabled || Tr.t("unknown") }
         SwitchRow { Layout.fillWidth: true; visible: page.auditdLoaded; text: Tr.t("Enable auditd"); hint: Tr.t("System audit logging service"); checked: page.auditdOn; onToggled: on => { auditdSet.payload = JSON.stringify({ enabled: on }); auditdSet.command = page.adminCmd.concat(["auditd-set"]); auditdSet.running = true; } }
+    }
+
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Coredumps") }
+    Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/systemd/coredump.conf.d/50-shani-shell.conf."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+    Repeater {
+        model: [{k:"Storage",ph:"none"},{k:"ProcessSizeMax",ph:"0"},{k:"MaxUse",ph:"1G"}]
+        RowLayout {
+            required property var modelData
+            Layout.fillWidth: true; spacing: Theme.px(6)
+            Text { Layout.preferredWidth: Theme.px(160); text: modelData.k; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: cdVal; Layout.fillWidth: true; text: page.coredump[modelData.k] || ""; placeholder: modelData.ph }
+            Button { text: Tr.t("Save"); onClicked: page.saveCoredump(modelData.k, cdVal.text.trim()) }
+        }
     }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Hosts") }

@@ -1372,6 +1372,115 @@ def auditd_set(req: dict) -> dict:
     return auditd_get(req)
 
 
+LOGIND_DROPIN = Path("/etc/systemd/logind.conf.d/50-shani-shell.conf")
+LOGIND_KEYS = {
+    "HandleLidSwitch": {"ignore","poweroff","reboot","halt","kexec","suspend","hibernate","hybrid-sleep","suspend-then-hibernate","lock"},
+    "HandleLidSwitchExternalPower": {"ignore","poweroff","reboot","halt","kexec","suspend","hibernate","hybrid-sleep","suspend-then-hibernate","lock"},
+    "HandleLidSwitchDocked": {"ignore","poweroff","reboot","halt","kexec","suspend","hibernate","hybrid-sleep","suspend-then-hibernate","lock"},
+    "IdleAction": {"ignore","poweroff","reboot","halt","kexec","suspend","hibernate","hybrid-sleep","suspend-then-hibernate","lock"},
+}
+LOGIND_INT_KEYS = {"IdleActionSec": (0, 86400)}
+
+
+def logind_get(_req: dict) -> dict:
+    settings = {}
+    try:
+        for line in LOGIND_DROPIN.read_text(encoding="utf-8", errors="replace").splitlines():
+            s = line.strip()
+            if not s or s.startswith("#") or s.startswith("[") or "=" not in s:
+                continue
+            k, v = s.split("=", 1)
+            k, v = k.strip(), v.strip()
+            if k in LOGIND_KEYS or k in LOGIND_INT_KEYS:
+                settings[k] = v
+    except OSError:
+        pass
+    return {"settings": settings, "path": str(LOGIND_DROPIN)}
+
+
+def logind_set(req: dict) -> dict:
+    updates = req.get("settings") or {}
+    if not isinstance(updates, dict):
+        raise Refused("settings must be an object")
+    clean = {}
+    for k, v in updates.items():
+        if k in LOGIND_KEYS:
+            v = str(v).strip()
+            if v not in LOGIND_KEYS[k]:
+                raise Refused(f"bad value for {k}")
+            clean[k] = v
+        elif k in LOGIND_INT_KEYS:
+            try:
+                iv = int(v)
+            except Exception:
+                raise Refused(f"{k} must be integer")
+            lo, hi = LOGIND_INT_KEYS[k]
+            if iv < lo or iv > hi:
+                raise Refused(f"{k} out of range")
+            clean[k] = str(iv)
+        else:
+            raise Refused(f"unknown key: {k}")
+    if clean:
+        content = "# Managed by shani-shell\n[Login]\n" + "".join(f"{k}={v}\n" for k, v in clean.items())
+        LOGIND_DROPIN.parent.mkdir(parents=True, exist_ok=True)
+        LOGIND_DROPIN.write_text(content, encoding="utf-8")
+        os.chmod(LOGIND_DROPIN, 0o644)
+    else:
+        try: LOGIND_DROPIN.unlink()
+        except OSError: pass
+    subprocess.run(["systemctl", "restart", "systemd-logind"], capture_output=True, text=True, timeout=20)
+    return logind_get(req)
+
+
+COREDUMP_DROPIN = Path("/etc/systemd/coredump.conf.d/50-shani-shell.conf")
+COREDUMP_KEYS = {"Storage": {"none","external","journal"}, "Compress": {"yes","no"}}
+COREDUMP_SIZE_KEYS = {"ProcessSizeMax": None, "ExternalSizeMax": None, "JournalSizeMax": None, "MaxUse": None, "KeepFree": None}
+
+
+def coredump_get(_req: dict) -> dict:
+    settings = {}
+    try:
+        for line in COREDUMP_DROPIN.read_text(encoding="utf-8", errors="replace").splitlines():
+            s = line.strip()
+            if not s or s.startswith("#") or s.startswith("[") or "=" not in s:
+                continue
+            k, v = s.split("=", 1)
+            k, v = k.strip(), v.strip()
+            if k in COREDUMP_KEYS or k in COREDUMP_SIZE_KEYS:
+                settings[k] = v
+    except OSError:
+        pass
+    return {"settings": settings, "path": str(COREDUMP_DROPIN)}
+
+
+def coredump_set(req: dict) -> dict:
+    updates = req.get("settings") or {}
+    if not isinstance(updates, dict):
+        raise Refused("settings must be an object")
+    clean = {}
+    for k, v in updates.items():
+        v = str(v).strip()
+        if k in COREDUMP_KEYS:
+            if v not in COREDUMP_KEYS[k]:
+                raise Refused(f"bad value for {k}")
+            clean[k] = v
+        elif k in COREDUMP_SIZE_KEYS:
+            if not SIZE_RE.match(v):
+                raise Refused(f"bad value for {k}")
+            clean[k] = v
+        else:
+            raise Refused(f"unknown key: {k}")
+    if clean:
+        content = "# Managed by shani-shell\n[Coredump]\n" + "".join(f"{k}={v}\n" for k, v in clean.items())
+        COREDUMP_DROPIN.parent.mkdir(parents=True, exist_ok=True)
+        COREDUMP_DROPIN.write_text(content, encoding="utf-8")
+        os.chmod(COREDUMP_DROPIN, 0o644)
+    else:
+        try: COREDUMP_DROPIN.unlink()
+        except OSError: pass
+    return coredump_get(req)
+
+
 COMMANDS = {
     "guest": guest,
     "wakeup": wakeup,
@@ -1417,6 +1526,10 @@ COMMANDS = {
     "cups-browsed-set": cups_browsed_set,
     "auditd-get": auditd_get,
     "auditd-set": auditd_set,
+    "logind-get": logind_get,
+    "logind-set": logind_set,
+    "coredump-get": coredump_get,
+    "coredump-set": coredump_set,
 }
 
 
