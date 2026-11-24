@@ -30,7 +30,19 @@ PanelWindow {
         ? ({ comment: "#8a93a0", string: "#8fd18a", number: "#f2a65a", keyword: "#6cb6ff", heading: "#ffd166", added: "#8fd18a", removed: "#ff8f8f" })
         : ({ comment: "#6a737d", string: "#1b7f3b", number: "#b35900", keyword: "#0550ae", heading: "#8a4b00", added: "#1b7f3b", removed: "#b3261e" })
 
-    onVisibleChanged: if (!visible) player.stop()
+    onVisibleChanged: {
+        if (!visible) { player.stop(); win.metaShown = false; }
+        else win.loadMeta();
+    }
+    // "More info" reads the same bridge the rest of the shell uses; the path is
+    // checked again on the way back so a fast Left/Right cannot show the
+    // previous file's details under the new file's name.
+    property bool metaShown: false
+    function loadMeta() {
+        const path = QuickLook.path;
+        if (path) FileMeta.get(path);
+    }
+    Connections { target: QuickLook; function onPathChanged() { win.metaShown = false; win.loadMeta(); } }
 
     MouseArea { anchors.fill: parent; onClicked: QuickLook.close() }
     Item {
@@ -105,6 +117,90 @@ PanelWindow {
                 IconButton { icon: "folder-open"; tip: Tr.t("Show in Files"); onClicked: { Files.show(QuickLook.path); QuickLook.close(); } }
                 Button { kind: "primary"; text: Tr.t("Open"); onClicked: QuickLook.openIt() }
                 IconButton { icon: "window-close"; tip: Tr.t("Close") + " (Space)"; onClicked: QuickLook.close() }
+            }
+
+            // More info: the file's own facts, in label/value rows
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(8)
+                Button {
+                    flat: true
+                    checked: win.metaShown
+                    text: win.metaShown ? Tr.t("Less info") : Tr.t("More info")
+                    Accessible.name: text
+                    onClicked: { win.metaShown = !win.metaShown; if (win.metaShown) win.loadMeta(); }
+                }
+                Text {
+                    visible: win.metaShown && FileMeta.loading
+                    text: Tr.t("Reading…")
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+                Item { Layout.fillWidth: true }
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.max(Theme.px(110), Math.min(metaFlick.contentHeight + Theme.px(16), Theme.px(170)))
+                visible: win.metaShown
+                radius: Theme.radiusSmall
+                color: Theme.alpha(Theme.surface1, 0.6)
+                border.width: 1
+                border.color: Theme.border
+                clip: true
+                Flickable {
+                    id: metaFlick
+                    anchors.fill: parent
+                    anchors.margins: Theme.px(8)
+                    visible: FileMeta.rows.length > 0
+                    contentHeight: metaCol.implicitHeight
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    ColumnLayout {
+                        id: metaCol
+                        width: parent.width
+                        spacing: Theme.px(4)
+                        Repeater {
+                            model: FileMeta.rows
+                            RowLayout {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                spacing: Theme.px(8)
+                                Text {
+                                    Layout.preferredWidth: Theme.px(96)
+                                    text: modelData.label
+                                    color: Theme.dim
+                                    font.family: Theme.font
+                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: modelData.value
+                                    color: Theme.text
+                                    wrapMode: Text.WrapAnywhere
+                                    font.family: Theme.font
+                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                }
+                            }
+                        }
+                    }
+                }
+                Text {
+                    anchors.centerIn: parent
+                    visible: win.metaShown && FileMeta.loading
+                    text: Tr.t("Reading file details…")
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                }
+                EmptyState {
+                    anchors.centerIn: parent
+                    width: parent.width - Theme.px(32)
+                    visible: win.metaShown && !FileMeta.loading && FileMeta.rows.length === 0
+                    icon: "document-properties"
+                    title: FileMeta.error || Tr.t("No details for this file")
+                    subtitle: FileMeta.error ? "" : Tr.t("Nothing more to show about this file")
+                }
             }
 
             // what it holds

@@ -312,6 +312,7 @@ AppWindow {
     }
     property bool streamShown: false
     property bool recentShown: false
+    property bool infoShown: false
     property bool goError: false
     property bool streamError: false
     function louder(by) { PlayQueue.muted = false; PlayQueue.volume = Math.max(0, Math.min(1, PlayQueue.volume + by)); }
@@ -468,6 +469,14 @@ AppWindow {
                             elide: Text.ElideRight
                             font.family: Theme.font
                             font.pixelSize: Theme.px(11) * Theme.fontScale
+                            // the one-line header opens the whole answer
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: win.infoShown = !win.infoShown
+                                Accessible.role: Accessible.Button
+                                Accessible.name: Tr.t("Media properties")
+                            }
                         }
                         Text {
                             Layout.fillWidth: true
@@ -795,6 +804,64 @@ AppWindow {
                             Text { visible: PlayQueue.recent.length === 0; text: Tr.t("Nothing watched yet"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                         }
                     }
+
+                    // ---- media properties: the probe MediaInfo already did, expanded ----
+                    Rectangle {
+                        objectName: "media:properties"
+                        anchors { left: parent.left; bottom: parent.bottom; margins: Theme.px(12) }
+                        visible: win.infoShown && !win.mini
+                        width: Theme.px(320)
+                        implicitHeight: Math.min(infoCol.implicitHeight + 24, parent.height - 100)
+                        radius: Theme.radiusSmall
+                        color: Theme.alpha(Theme.bg, 0.96)
+                        border.width: 1
+                        border.color: Theme.border
+                        MouseArea { anchors.fill: parent; objectName: "nav:pointer" }   // swallows clicks on the card
+                        ColumnLayout {
+                            id: infoCol
+                            x: 12; y: 12
+                            width: parent.width - 24
+                            spacing: Theme.px(6)
+                            RowLayout {
+                                Layout.fillWidth: true
+                                SectionTitle { Layout.fillWidth: true; text: Tr.t("Media properties") }
+                                IconButton { icon: "window-close"; size: Theme.px(24); tip: Tr.t("Close"); onClicked: win.infoShown = false }
+                            }
+                            Repeater {
+                                model: MediaInfo.details
+                                RowLayout {
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    spacing: Theme.px(8)
+                                    Text {
+                                        Layout.preferredWidth: Theme.px(96)
+                                        text: modelData.label
+                                        color: Theme.dim
+                                        font.family: Theme.font
+                                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: modelData.value
+                                        color: Theme.text
+                                        wrapMode: Text.WrapAnywhere
+                                        font.family: Theme.font
+                                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    }
+                                }
+                            }
+                            EmptyState {
+                                Layout.fillWidth: true
+                                visible: MediaInfo.details.length === 0
+                                icon: "document-properties"
+                                title: MediaInfo.loading ? Tr.t("Reading media properties…")
+                                    : !MediaInfo.available ? Tr.t("MediaInfo is not installed")
+                                    : PlayQueue.current === "" ? Tr.t("Nothing playing")
+                                    : Tr.t("No media properties")
+                                subtitle: !MediaInfo.available && !MediaInfo.loading ? Tr.t("Install mediainfo to see what a file is made of") : ""
+                            }
+                        }
+                    }
                 }
 
                 // ---- where it is: click or drag to seek ----
@@ -944,6 +1011,13 @@ AppWindow {
                         }
                         // keys and a controller: Left / Right a step quieter / louder
                         KeyFocus { slider: true; onStep: dir => win.louder(dir * 0.05) }
+                    }
+                    IconButton {
+                        icon: "document-properties"
+                        tip: Tr.t("Media properties")
+                        visible: PlayQueue.current !== ""
+                        on: win.infoShown
+                        onClicked: win.infoShown = !win.infoShown
                     }
                     IconButton {
                         icon: "media-view-subtitles"

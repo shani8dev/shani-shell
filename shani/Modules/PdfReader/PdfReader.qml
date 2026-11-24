@@ -31,6 +31,19 @@ AppWindow {
             onPicked: paths => { if (paths && paths.length) PdfViewer.saveAttachment(index, paths[0]); }
         });
     }
+    // the page is already rendered to a PNG; save that, without a second render
+    function savePageImage() {
+        if (!PdfViewer.current) { win.note = Tr.t("There is no page to save"); return; }
+        const base = (PdfViewer.name || "page").replace(/\.[^.]+$/, "");
+        FilePicker.open({
+            mode: "save",
+            title: Tr.t("Save this page as an image"),
+            defaultName: base + "-page-" + (PdfViewer.page + 1) + ".png",
+            startPath: (Quickshell.env("HOME") || "") + "/Pictures",
+            filters: ["png"],
+            onPicked: paths => { if (paths && paths.length) PdfViewer.savePageImage(paths[0]); }
+        });
+    }
     // merge / split: the service already has merge() and split(); this is the
     // UI that fills their arguments. Paths arrive from FilePicker, never from
     // a string typed into a command line.
@@ -250,6 +263,12 @@ AppWindow {
     // neither may survive opening another file or turning a page
     Connections {
         target: PdfViewer
+        function onPageSaveStateChanged() {
+            if (PdfViewer.pageSaveState === "ok")
+                win.note = Tr.t("Saved %1", PdfViewer.pageSavePath.split("/").pop());
+            else if (PdfViewer.pageSaveState === "error")
+                win.note = PdfViewer.pageSaveError || Tr.t("Could not save this page");
+        }
         function onFileChanged() {
             // the service drops its query on open(); the fields must not keep
             // showing the previous document's search and page number
@@ -298,6 +317,7 @@ AppWindow {
                 IconButton { icon: "weather-clear-night"; size: Theme.px(28); tip: Tr.t("Night mode"); on: PdfViewer.night; onClicked: PdfViewer.setNight(!PdfViewer.night) }
                 IconButton { icon: "format-text-direction-ltr"; size: Theme.px(28); tip: Tr.t("Read as text (select and copy)"); on: PdfViewer.textMode; onClicked: PdfViewer.textMode = !PdfViewer.textMode }
                 IconButton { icon: "edit-copy"; size: Theme.px(28); tip: Tr.t("Copy this page's text"); onClicked: win.note = PdfViewer.copyPageText() ? Tr.t("Copied this page's text") : Tr.t("This page has no text to copy") }
+                IconButton { icon: "document-save-as"; size: Theme.px(28); tip: Tr.t("Save this page as image…"); enabled: PdfViewer.current !== ""; onClicked: win.savePageImage() }
                 IconButton { icon: "document-properties"; size: Theme.px(28); tip: Tr.t("Document properties"); onClicked: PdfViewer.showInfo() }
                 // a form: fill it in, save a filled copy
                 Button {

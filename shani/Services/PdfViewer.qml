@@ -158,6 +158,32 @@ Singleton {
     property var pageTexts: []              // per-page plain text (pdftotext -layout), for the fallback
     property string printState: ""          // last print result (via lp)
     property string searchState: ""         // last search status, for the tests
+    // ---- save the page on screen as a picture -------------------------------
+    // The page is already a rendered PNG; copy it, never render a second time.
+    property string pageSaveState: ""       // "" | ok | error
+    property string pageSavePath: ""
+    property string pageSaveError: ""
+    function savePageImage(out) {
+        pageSaveState = ""; pageSavePath = ""; pageSaveError = "";
+        if (!current || !out) {
+            pageSaveError = Tr.t("There is no page to save");
+            pageSaveState = "error";
+            return false;
+        }
+        pageCopy.target = out;
+        pageCopy.command = ["cp", "--", current, out];
+        pageCopy.running = true;
+        return true;
+    }
+    Process {
+        id: pageCopy
+        property string target: ""
+        onExited: code => {
+            root.pageSavePath = pageCopy.target;
+            root.pageSaveError = code === 0 ? "" : Tr.t("Could not save this page");
+            root.pageSaveState = code === 0 ? "ok" : "error";
+        }
+    }
     // search options (Evince/_okular parity): off by default, as before
     property bool caseSensitive: false
     property bool wholeWord: false
@@ -266,6 +292,7 @@ Singleton {
         attachmentNote = "";
         printState = "";
         searchState = "";
+        pageSaveState = ""; pageSavePath = ""; pageSaveError = "";
         formFields = [];
         formValues = {};
         formShown = false;
@@ -388,6 +415,7 @@ Singleton {
         annotations = [];
         searchText = "";
         searchIndex = -1;
+        pageSaveState = ""; pageSavePath = ""; pageSaveError = "";
         _dropUnlocked();
         Ui.pdfReader = false;
     }
