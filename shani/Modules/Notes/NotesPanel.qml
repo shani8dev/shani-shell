@@ -32,7 +32,7 @@ AppWindow {
     onSelectedNotebookChanged: win.confirmNotebook = false
     property string lockMode: ""            // "" | "set" | "check" — the passphrase box
     property string lockPass: ""
-    // delete asks first: a note is a file on disk, and there is no undo
+    // delete asks first: a note is a file on disk; it goes to Trash, not rm
     property bool confirmDelete: false
     property bool confirmNotebook: false
     property string bodyQuery: ""
@@ -579,30 +579,22 @@ AppWindow {
                     }
                 }
 
-                // Reading view: Obsidian's Ctrl+E reading/raw toggle. Only
-                // wiki: and http(s): links are activated; a note cannot make
-                // the shell open an arbitrary URL scheme.
+                // Reading view: Obsidian's Ctrl+E reading/raw toggle. The
+                // parser only produces wiki:/http(s): link targets, and the
+                // view draws everything as PlainText, so markup in a note
+                // cannot become markup in the shell.
                 ScrollView {
                     visible: win.previewMode && Services.QuickNotes.current !== ""
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     clip: true
-                    Text {
+                    NotesMarkdown {
                         width: parent ? parent.width : 0
-                        textFormat: Text.RichText
-                        text: Services.QuickNotes.markdownHtml()
-                        color: Theme.text
-                        font.family: Theme.font
-                        font.pixelSize: Theme.px(14)
-                        wrapMode: Text.Wrap
+                        markdown: Services.QuickNotes.text
                         Accessible.role: Accessible.Document
                         Accessible.name: Tr.t("Preview of %1").arg(Services.QuickNotes.current)
-                        onLinkActivated: link => {
-                            if (link.indexOf("wiki:") === 0)
-                                Services.QuickNotes.jumpTo(link.slice(5));
-                            else if (link.indexOf("http://") === 0 || link.indexOf("https://") === 0)
-                                Quickshell.execDetached(["xdg-open", link]);
-                        }
+                        onWikiLink: name => Services.QuickNotes.jumpTo(name)
+                        onWebLink: url => Quickshell.execDetached(["xdg-open", url])
                     }
                 }
 
@@ -691,6 +683,7 @@ AppWindow {
                                 required property string modelData
                                 width: ListView.view.width
                                 text: modelData.split("/").pop()
+                                Accessible.name: Tr.t("Version %1").arg(modelData.split("/").pop())
                                 onClicked: { win.historyIndex = index; Services.QuickNotes.previewVersion(modelData); }
                             }
                         }
@@ -800,8 +793,14 @@ AppWindow {
                         anchors { fill: parent; margins: Theme.px(4) }
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { Layout.fillWidth: true; text: "Trash"; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-                            Button { text: "Empty the trash"; flat: true; enabled: Services.QuickNotes.trashed.length > 0; onClicked: Services.QuickNotes.emptyTrash() }
+                            Text { Layout.fillWidth: true; text: Tr.t("Trash"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                            Button {
+                                text: Tr.t("Empty the trash")
+                                flat: true
+                                enabled: Services.QuickNotes.trashed.length > 0
+                                Accessible.name: Tr.t("Permanently delete every trashed note")
+                                onClicked: Services.QuickNotes.emptyTrash()
+                            }
                         }
                         ListView {
                             Layout.fillWidth: true
@@ -812,6 +811,7 @@ AppWindow {
                                 required property string modelData
                                 width: ListView.view.width
                                 text: modelData
+                                Accessible.name: Tr.t("Restore note %1").arg(modelData)
                                 onClicked: { Services.QuickNotes.restore(modelData); win.showTrash = false; }
                             }
                         }
