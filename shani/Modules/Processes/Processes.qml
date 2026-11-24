@@ -414,6 +414,113 @@ AppWindow {
                     }
                 }
             }
+            // ---- Hardware sensors ------------------------------------------------
+            // One row per readable hwmon input. The bridge is only polled while
+            // this window is open (Sensors.wanted), and an empty tree is not a
+            // failure: say so instead of drawing a blank section. The list
+            // scrolls so a machine with 20 inputs cannot push the tree away.
+            function sensorSeverity(level) {
+                return level >= 2 ? Tr.t("Critical") : level >= 1 ? Tr.t("Near maximum") : Tr.t("Normal");
+            }
+            SectionTitle {
+                Layout.fillWidth: true
+                Layout.margins: Theme.px(4)
+                text: Tr.t("Sensors")
+                Accessible.name: Tr.t("Hardware sensors")
+            }
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.margins: Theme.px(4)
+                spacing: Theme.px(3)
+                Flickable {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Sensors.sensors.length > 0 || Sensors.error !== "" || (!Sensors.answered && Sensors.loading) ? Theme.px(120) : Theme.px(18)
+                    contentWidth: width
+                    contentHeight: sensorRows.implicitHeight
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    ColumnLayout {
+                        id: sensorRows
+                        width: parent.width
+                        spacing: Theme.px(3)
+                        Repeater {
+                            model: Sensors.sensors
+                            RowLayout {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                spacing: Theme.px(8)
+                                Text {
+                                    text: modelData.label || modelData.name || Tr.t("Sensor")
+                                    color: Theme.text
+                                    font.family: Theme.font
+                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    elide: Text.ElideRight
+                                    Layout.fillWidth: true
+                                    Accessible.name: Tr.t("Sensor %1", text)
+                                }
+                                Rectangle {
+                                    Layout.preferredWidth: Theme.px(48)
+                                    Layout.preferredHeight: Theme.px(5)
+                                    Layout.alignment: Qt.AlignVCenter
+                                    radius: Theme.px(3)
+                                    color: Theme.pressed
+                                    property int sev: modelData.level || 0
+                                    Rectangle {
+                                        width: parent.width * (parent.sev + 1) / 3
+                                        height: parent.height
+                                        radius: parent.radius
+                                        color: parent.sev >= 2 ? Theme.red : parent.sev >= 1 ? Theme.amber : Theme.blue
+                                    }
+                                    Accessible.name: Tr.t("Severity: %1", col.sensorSeverity(modelData.level || 0))
+                                }
+                                Text {
+                                    text: (typeof modelData.value === "number" ? modelData.value : 0) + " " + (modelData.unit || "")
+                                    color: modelData.level >= 2 ? Theme.red : modelData.level >= 1 ? Theme.amber : Theme.text
+                                    font.family: Theme.font
+                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    font.features: { "tnum": 1 }
+                                    Layout.rightMargin: Theme.px(2)
+                                    Accessible.name: Tr.t("%1 %2, %3", modelData.label || modelData.name || "", text, col.sensorSeverity(modelData.level || 0))
+                                }
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            visible: Sensors.answered && Sensors.error === "" && Sensors.sensors.length === 0
+                            text: Tr.t("No hardware sensors found.")
+                            color: Theme.dim
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            visible: !Sensors.loading && Sensors.error !== ""
+                            text: Sensors.error
+                            color: Theme.amber
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            wrapMode: Text.Wrap
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            visible: Sensors.loading && !Sensors.answered && Sensors.sensors.length === 0
+                            text: Tr.t("Reading sensors…")
+                            color: Theme.faint
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                        }
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: Sensors.sensors.length > 0
+                    text: Tr.t("Temperatures in °C · voltages in V · fans in RPM · amber at maximum, red at critical")
+                    color: Theme.faint
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(9) * Theme.fontScale
+                    wrapMode: Text.Wrap
+                }
+            }
             // ---- Network usage --------------------------------------------------
             // vnStat's own day/month history, read once when this window opens
             // (NetUsage.refresh()). The live rates above are left as they were.
