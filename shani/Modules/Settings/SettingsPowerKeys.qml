@@ -230,6 +230,19 @@ ColumnLayout {
         Button { text: Tr.t("Save"); onClicked: page.saveLogind("IdleActionSec", idleSec.text.trim()) }
     }
 
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Sleep (systemd-sleep)") }
+    Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/systemd/sleep.conf.d/50-shani-shell.conf."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+    Repeater {
+        model: [{k:"SuspendState",ph:"mem"},{k:"HibernateState",ph:"disk"},{k:"HybridSleepState",ph:"disk"},{k:"HibernateDelaySec",ph:"1800"}]
+        RowLayout {
+            required property var modelData
+            Layout.fillWidth: true; spacing: Theme.px(6)
+            Text { Layout.preferredWidth: Theme.px(180); text: modelData.k; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: slVal; Layout.fillWidth: true; text: page.sleep[modelData.k] || ""; placeholder: modelData.ph }
+            Button { text: Tr.t("Save"); onClicked: page.saveSleep(modelData.k, slVal.text.trim()) }
+        }
+    }
+
     Text {
         Layout.fillWidth: true
         visible: page.note !== ""

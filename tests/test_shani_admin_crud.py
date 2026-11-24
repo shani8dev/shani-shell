@@ -25,6 +25,7 @@ def load_admin(tmp_path, monkeypatch):
     sa.LOGIN_DEFS = tmp_path / "login.defs"
     sa.LOGIND_DROPIN = tmp_path / "logind.conf.d" / "50-shani-shell.conf"
     sa.COREDUMP_DROPIN = tmp_path / "coredump.conf.d" / "50-shani-shell.conf"
+    sa.SLEEP_DROPIN = tmp_path / "sleep.conf.d" / "50-shani-shell.conf"
     sa.AUDIT_RULES_FILE = tmp_path / "audit" / "rules.d" / "50-shani-shell.rules"
     monkeypatch.setattr(
         sa.shutil,
@@ -378,3 +379,12 @@ def test_audit_profile_reload_failure(tmp_path, monkeypatch):
     monkeypatch.setattr(sa.subprocess, "run", fail_run)
     with pytest.raises(sa.Refused, match="load failed"):
         sa.audit_profile_set({"profile": "minimal"})
+
+
+def test_sleep_crud(tmp_path, monkeypatch):
+    sa = load_admin(tmp_path, monkeypatch)
+    r = sa.sleep_set({"settings": {"SuspendState": "mem", "HibernateDelaySec": 1800}})
+    assert r["settings"]["SuspendState"] == "mem"
+    assert "HibernateDelaySec=1800" in sa.SLEEP_DROPIN.read_text()
+    with pytest.raises(Exception):
+        sa.sleep_set({"settings": {"SuspendState": "bad"}})

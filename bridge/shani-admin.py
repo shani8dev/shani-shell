@@ -1692,6 +1692,66 @@ def coredump_set(req: dict) -> dict:
     return coredump_get(req)
 
 
+SLEEP_DROPIN = Path("/etc/systemd/sleep.conf.d/50-shani-shell.conf")
+SLEEP_STATE_KEYS = {
+    "SuspendState": {"mem", "standby", "freeze", "disk"},
+    "HibernateState": {"disk", "platform", "shutdown"},
+    "HybridSleepState": {"disk", "platform", "shutdown"},
+}
+SLEEP_INT_KEYS = {"HibernateDelaySec": (0, 86400)}
+
+
+def sleep_get(_req: dict) -> dict:
+    settings = {}
+    try:
+        for line in SLEEP_DROPIN.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or line.startswith("[") or "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            k, v = k.strip(), v.strip()
+            if k in SLEEP_STATE_KEYS or k in SLEEP_INT_KEYS:
+                settings[k] = v
+    except OSError:
+        pass
+    return {"settings": settings, "path": str(SLEEP_DROPIN)}
+
+
+def sleep_set(req: dict) -> dict:
+    updates = req.get("settings") or {}
+    if not isinstance(updates, dict):
+        raise Refused("settings must be an object")
+    clean = {}
+    for k, v in updates.items():
+        if k in SLEEP_STATE_KEYS:
+            v = str(v).strip()
+            if v not in SLEEP_STATE_KEYS[k]:
+                raise Refused(f"bad value for {k}")
+            clean[k] = v
+        elif k in SLEEP_INT_KEYS:
+            try:
+                iv = int(v)
+            except Exception:
+                raise Refused(f"{k} must be integer")
+            lo, hi = SLEEP_INT_KEYS[k]
+            if iv < lo or iv > hi:
+                raise Refused(f"{k} out of range")
+            clean[k] = str(iv)
+        else:
+            raise Refused(f"unknown key: {k}")
+    if clean:
+        content = "# Managed by shani-shell\n[Sleep]\n" + "".join(f"{k}={v}\n" for k, v in clean.items())
+        SLEEP_DROPIN.parent.mkdir(parents=True, exist_ok=True)
+        SLEEP_DROPIN.write_text(content, encoding="utf-8")
+        os.chmod(SLEEP_DROPIN, 0o644)
+    else:
+        try:
+            SLEEP_DROPIN.unlink()
+        except OSError:
+            pass
+    return sleep_get(req)
+
+
 COMMANDS = {
     "guest": guest,
     "wakeup": wakeup,
@@ -1744,6 +1804,8 @@ COMMANDS = {
     "logind-set": logind_set,
     "coredump-get": coredump_get,
     "coredump-set": coredump_set,
+    "sleep-get": sleep_get,
+    "sleep-set": sleep_set,
 }
 
 
