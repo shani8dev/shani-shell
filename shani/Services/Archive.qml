@@ -444,9 +444,11 @@ Singleton {
                 root.extracting = false;
                 return;                     // stay on this entry until Unlock
             }
-            if (code === 0) root.batchDone.push(entry);
-            else root.batchFailed.push({ path: entry,
-                error: (result && result.error) || oneBatchErr.text.trim().split("\n").pop() || Tr.t("Could not extract") });
+            // assign new arrays so bindings on .length update without relying on
+            // a separate property being reassigned later
+            if (code === 0) root.batchDone = root.batchDone.concat([entry]);
+            else root.batchFailed = root.batchFailed.concat([{ path: entry,
+                error: (result && result.error) || oneBatchErr.text.trim().split("\n").pop() || Tr.t("Could not extract") }]);
             root.batchIndex++;
             root.nextBatch();
         }

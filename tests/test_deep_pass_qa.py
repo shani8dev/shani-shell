@@ -116,8 +116,10 @@ def test_ctrl_shift_f2_reaches_batch_rename_with_one_selection():
         if "Qt.Key_F2" in line and line.strip().startswith("if (")
     ]
     assert len(lines) == 2, lines
-    single = next(c for c in lines if "ShiftModifier" not in c)
-    batch = next(c for c in lines if "ShiftModifier" in c)
+    # the plain-F2 branch is the one guarded with `!control`; the batch one
+    # requires ControlModifier. Both now mention ShiftModifier (the fix).
+    single = next(c for c in lines if "!control" in c)
+    batch = next(c for c in lines if c is not single)
     cond = lambda line: re.match(r"if \((.*)\) \{", line).group(1)
     prog = """
 var Qt = { Key_F2: 1, ShiftModifier: 2, ControlModifier: 4 };

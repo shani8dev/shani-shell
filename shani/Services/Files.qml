@@ -60,6 +60,19 @@ Singleton {
     property bool sortDesc: Settings.data.filesSortDesc === true
     property bool showHidden: Settings.data.filesShowHidden === true
     property bool showPreview: Settings.data.filesShowPreview !== false
+    // Finder's View Options: what a grid tile says under its name
+    property string gridCaption: ["off", "size", "date"].indexOf(Settings.data.filesGridCaption) >= 0 ? Settings.data.filesGridCaption : "off"
+    function setGridCaption(which) {
+        if (["off", "size", "date"].indexOf(which) < 0) return;
+        root.gridCaption = which;
+        Settings.data.filesGridCaption = which;
+        const labels = { off: Tr.t("No captions"), size: Tr.t("File size"), date: Tr.t("Modification date") };
+        root.note = Tr.t("Grid captions: %1", labels[which]);
+    }
+    function cycleGridCaption() {
+        const all = ["off", "size", "date"];
+        root.setGridCaption(all[(all.indexOf(root.gridCaption) + 1) % all.length]);
+    }
 
     // ---- split view: two panes side by side ---------------
     property bool splitActive: false
@@ -309,6 +322,26 @@ Singleton {
         root.selected = root.entryPaths();
     }
 
+    // Dolphin/Finder's "select all of this kind": the extension of the file
+    // under the cursor (or of the first chosen one), over the current listing.
+    function selectByType() {
+        const at = (root.current && root.entryFor(root.current)) ? root.current
+                 : (root.selected.length ? root.selected[0] : "");
+        const e = root.entryFor(at);
+        if (!e) return 0;
+        const ext = p => {
+            const m = /(\.[^.\/]+)$/.exec(p || "");
+            return m ? m[1].toLowerCase() : "";
+        };
+        const wanted = ext(e.name);
+        const hits = root.entryPaths().filter(p => {
+            const x = root.entryFor(p);
+            return !!x && x.isDir === !!e.isDir && ext(x.name) === wanted;
+        });
+        if (hits.length) root.selected = hits;
+        return hits.length;
+    }
+
     function clearSelection() {
         root.selected = [];
     }
@@ -451,6 +484,19 @@ Singleton {
         root.splitActive = true;
     }
 
+    // Exchange the two panes without losing either folder or its selection.
+    // open() keeps the history honest: the split folder becomes the main one.
+    function swapSplit() {
+        if (!root.splitActive || !root.splitPath || root.splitPath === root.path) return false;
+        const other = root.splitPath;
+        const otherSelected = root.splitSelected.slice();
+        root.splitSelected = root.selected.slice();
+        root.splitPath = root.path;
+        root.open(other);
+        root.selected = otherSelected;
+        return true;
+    }
+
     function toggleSplitViewMode() {
         root.splitViewMode = root.splitViewMode === "grid" ? "list" : "grid";
     }
@@ -467,7 +513,9 @@ Singleton {
 
     function selectSplit(p, mode) {
         if (!p) return;
-        const s = root._splitPaths;
+        // copy before mutating: assigning the same array back does not fire the
+        // change signal, so delegates bound to _splitPaths would go stale
+        const s = root._splitPaths.slice();
         if (mode === "single") { root._splitPaths = [p]; root.splitSelected = [p]; return; }
         if (mode === "toggle") {
             const i = s.indexOf(p);
@@ -754,10 +802,13 @@ Singleton {
     // ---- tabs: each its own folder; the one on screen is Files.path ------------------
     property var tabs: []                    // the other tabs' folders; [] = one tab (no tab bar)
     property int tabIndex: 0
+    property var closedTabs: []              // folders of tabs closed lately, newest last
+    readonly property int closedTabMax: 10
     readonly property var tabPaths: tabs.length ? tabs.map((p, i) => i === tabIndex ? root.path : p) : [root.path]
     // persist tabs across restarts (Settings.data.fileTabs)
     onTabIndexChanged: if (Settings.loaded) saveTabs()
     onTabsChanged: if (Settings.loaded) saveTabs()
+    onClosedTabsChanged: if (Settings.loaded) Settings.data.filesClosedTabs = root.closedTabs.slice(-root.closedTabMax)
     function saveTabs() {
         if (root.tabs.length > 1)
             Settings.data.fileTabs = root.tabPaths;
@@ -766,6 +817,8 @@ Singleton {
     }
     function restoreTabs() {
         const saved = Settings.data.fileTabs;
+        const closed = Settings.data.filesClosedTabs;
+        if (closed && Array.isArray(closed)) root.closedTabs = closed.slice(-root.closedTabMax);
         if (saved && Array.isArray(saved) && saved.length > 0) {
             root.tabs = saved.slice(1);
             root.tabIndex = 0;
@@ -781,8 +834,8 @@ Singleton {
         root.open(all[root.tabIndex]);
     }
     function switchTab(i) {
-        if (!root.tabs.length || i < 0 || i >= root.tabs.length || i === root.tabIndex) return;
         const all = root.tabPaths.slice();
+        if (i < 0 || i >= all.length || i === root.tabIndex) return;
         root.tabs = all;
         root.tabIndex = i;
         root.open(all[i]);
@@ -791,11 +844,65 @@ Singleton {
         const all = root.tabPaths.slice();
         if (all.length <= 1) { root.hide(); return; }
         const at = i === undefined ? root.tabIndex : i;
+        if (at < 0 || at >= all.length) return;
+        root.closedTabs = root.closedTabs.concat([all[at]]).slice(-root.closedTabMax);
         all.splice(at, 1);
         const next = Math.min(at <= root.tabIndex ? Math.max(0, root.tabIndex - (at < root.tabIndex ? 1 : 0)) : root.tabIndex, all.length - 1);
         root.tabs = all.length > 1 ? all : [];
         root.tabIndex = all.length > 1 ? next : 0;
         root.open(all[all.length > 1 ? next : 0]);
+    }
+    // Ctrl+Shift+T, as in a browser or a recent Nautilus: bring the last closed tab back
+    function reopenClosedTab() {
+        if (!root.closedTabs.length) { root.note = Tr.t("No closed tabs to restore"); return false; }
+        const at = root.closedTabs[root.closedTabs.length - 1];
+        root.closedTabs = root.closedTabs.slice(0, -1);
+        root.newTab(at);
+        return true;
+    }
+    // tabs can be dragged (Finder/Dolphin) and have their own small context menu
+    function moveTab(from, to) {
+        const all = root.tabPaths.slice();
+        if (from < 0 || from >= all.length || to < 0 || to >= all.length || from === to) return false;
+        const folder = all.splice(from, 1)[0];
+        const current = root.tabIndex;
+        all.splice(to, 0, folder);
+        let next = current;
+        if (from === current) next = to;
+        else if (from < current && to >= current) next--;
+        else if (from > current && to <= current) next++;
+        root.tabs = all.length > 1 ? all : [];
+        root.tabIndex = all.length > 1 ? next : 0;
+        if (from === current) root.open(folder);   // the folder on screen did not change
+        return true;
+    }
+    function duplicateTab(i) {
+        const all = root.tabPaths.slice();
+        const at = i === undefined ? root.tabIndex : i;
+        if (at < 0 || at >= all.length) return false;
+        all.splice(at + 1, 0, all[at]);
+        root.tabs = all;
+        root.tabIndex = at + 1;
+        root.open(all[at + 1]);
+        return true;
+    }
+    function closeOtherTabs(i) {
+        const all = root.tabPaths.slice();
+        if (i < 0 || i >= all.length) return false;
+        const keep = all[i];
+        root.tabIndex = 0;
+        root.tabs = [];
+        root.open(keep);
+        return true;
+    }
+    function closeTabsToRight(i) {
+        const all = root.tabPaths.slice();
+        if (i < 0 || i >= all.length || i >= all.length - 1) return false;
+        all.splice(i + 1);
+        root.tabs = all.length > 1 ? all : [];
+        if (root.tabIndex > i) { root.tabIndex = i; root.open(all[i]); }
+        else root.tabIndex = Math.min(root.tabIndex, all.length - 1);
+        return true;
     }
 
     // ---- thumbnails: a video's frame, a PDF's first page (files.py thumbs) -----------
@@ -988,6 +1095,15 @@ Singleton {
     // ---- bookmarks: GTK's file, so GTK apps' sidebars have them too ---------------
     function isBookmarked(p) { return root.places.some(x => x.bookmark && x.path === p); }
     function setBookmark(p, on) { run([on ? "bookmark-add" : "bookmark-remove", p], () => root.loadPlaces()); }
+    // Ctrl+D in Nautilus/Finder: bookmark (or unbookmark) the folder on screen
+    function toggleBookmark(p) {
+        const at = p || (root.path.startsWith("/") ? root.path : "");
+        if (!at) return false;
+        const on = !root.isBookmarked(at);
+        root.setBookmark(at, on);
+        root.note = on ? Tr.t("Added to the sidebar") : Tr.t("Removed from the sidebar");
+        return on;
+    }
 
     // ---- Properties ------------------------------------------------------------------
     property var props: null                 // what files.py props answered, while shown
@@ -1318,7 +1434,12 @@ Singleton {
     // ---- several renamed at once: "Holiday #" -> Holiday 1, Holiday 2 ... ------------
     function batchRename(pattern, paths) {
         const ps = paths && paths.length ? paths : root.selected.slice();
-        if (ps.length < 2 || !pattern.trim()) return;
+        const name = String(pattern || "").trim();
+        // a batch name stays in the folder: no path separators, no . or ..
+        if (ps.length < 2 || !FilePaths.validName(name) || name.indexOf("\\") >= 0) {
+            root.error = Tr.t("Use a file name, not a path");
+            return;
+        }
         run(["batch-rename", pattern].concat(ps), r => {
             root.error = r.error || "";
             if (r.pairs && r.pairs.length) {

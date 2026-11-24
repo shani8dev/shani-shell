@@ -231,7 +231,8 @@ AppWindow {
                     return;
                 }
             }
-            if (event.key === Qt.Key_F2 && Files.selected.length === 1) {
+            // plain F2 only: the batch shortcut below owns Ctrl+Shift+F2
+            if (event.key === Qt.Key_F2 && !control && !(event.modifiers & Qt.ShiftModifier) && Files.selected.length === 1) {
                 win.beginRename(Files.selected[0]);
                 event.accepted = true;
                 return;

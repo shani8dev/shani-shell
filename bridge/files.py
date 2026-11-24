@@ -1724,7 +1724,16 @@ def props(paths, seconds=3.0):
 def batch_rename(pattern, paths):
     """ "Holiday #" -> "Holiday 01.jpg", "Holiday 02.jpg" ... in the order given; the
     extension stays; "#" missing: the number goes after the name. Never over a file
-    that is not among those being renamed."""
+    that is not among those being renamed, and never outside the source folder."""
+    pattern = str(pattern or "")
+    if (
+        not pattern.strip()
+        or pattern.strip() in (".", "..")
+        or "/" in pattern
+        or "\\" in pattern
+        or os.path.isabs(pattern.strip())
+    ):
+        return {"error": "use a file name, not a path", "pairs": []}
     width = max(1, len(str(len(paths))))
     plan, taken = [], set()
     for i, p in enumerate(paths, 1):
@@ -1732,7 +1741,11 @@ def batch_rename(pattern, paths):
         _, ext = os.path.splitext(base)
         num = str(i).zfill(width)
         name = pattern.replace("#", num) if "#" in pattern else f"{pattern} {num}"
+        if name.strip() in (".", "..") or "/" in name or "\\" in name:
+            return {"error": "use a file name, not a path", "pairs": []}
         target = os.path.join(d, name.strip() + ext)
+        if os.path.dirname(target) != d:
+            return {"error": "a name cannot leave the folder", "pairs": []}
         if target in taken:
             return {"error": "two of them would get the same name", "pairs": []}
         taken.add(target)

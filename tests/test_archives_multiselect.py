@@ -194,8 +194,9 @@ def test_batch_extract_is_a_queue_not_a_loop_of_extract_one():
 def test_failed_entry_is_recorded_and_the_rest_still_run():
     q = read(SERVICE)
     exited = q.split("id: batchOne", 1)[1].split("\n    }", 1)[0]
-    assert "root.batchFailed.push(" in exited
-    assert "root.batchDone.push(entry);" in exited
+    # assign new arrays so .length bindings update (no in-place mutation)
+    assert "root.batchFailed = root.batchFailed.concat(" in exited
+    assert "root.batchDone = root.batchDone.concat(" in exited
     assert "root.batchIndex++;" in exited
     assert 'root.retry = "batch";' in exited  # a wrong password pauses here
     assert "root.extracting = false;" in exited

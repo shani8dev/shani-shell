@@ -207,7 +207,9 @@ AppWindow {
         edit.forceActiveFocus();
     }
     function insertAtCursors(str) {
-        if (!multiCursor || str === "") return false;
+        // works with zero extra cursors too: insertDateTime() and callers must
+        // not silently no-op when the person is editing with a single cursor
+        if (str === "") return false;
         const all = Array.from(new Set([edit.cursorPosition].concat(extraCursors))).sort((a, b) => a - b);
         let t = edit.text;
         for (let i = all.length - 1; i >= 0; i--) {
