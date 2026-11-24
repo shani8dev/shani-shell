@@ -1507,5 +1507,20 @@
  "your quick note from the control centre": "कंट्रोल सेंटर से आपका क्विक नोट",
  "· tap a day to change": "· बदलने को दिन टैप करें",
  "· tap to change": "· बदलने को टैप करें",
- "↵ send    esc close    ·    tools ask before they change anything": "↵ भेजें    esc बंद करें    ·    टूल कुछ भी बदलने से पहले पूछते हैं"
+ "↵ send    esc close    ·    tools ask before they change anything": "↵ भेजें    esc बंद करें    ·    टूल कुछ भी बदलने से पहले पूछते हैं",
+ "%1 apps and %2 places will open now.": "%1 ऐप्स और %2 स्थान अभी खुलेंगे।",
+ "%1 apps, %2 places": "%1 ऐप्स, %2 स्थान",
+ "Name this session": "इस सत्र का नाम दें",
+ "No session called %1": "%1 नाम का कोई सत्र नहीं है",
+ "No sessions saved yet": "अभी कोई सत्र सहेजा नहीं गया",
+ "Restore %1": "%1 बहाल करें",
+ "Restore %1?": "%1 बहाल करें?",
+ "Restoring %1": "%1 बहाल किया जा रहा है",
+ "Save current": "अभी वाला सहेजें",
+ "Save your apps and documents under a name, then bring them all back at once.": "अपने ऐप्स और दस्तावेज़ों को नाम देकर सहेजें, फिर एक साथ वापस खोलें।",
+ "Session removed": "सत्र हटाया गया",
+ "Session saved": "सत्र सहेजा गया",
+ "Sessions": "सत्र",
+ "This cannot be undone.": "इसे वापस नहीं किया जा सकता।",
+ "Use a name of 1 to 60 characters, without / or \\": "1 से 60 अक्षरों का नाम दें, जिसमें / या \\ न हो"
 }

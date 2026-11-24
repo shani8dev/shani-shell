@@ -17,10 +17,50 @@ ColumnLayout {
     readonly property var d: Settings.data
     readonly property string userDir: (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config") + "/autostart"
     property var entries: []              // [{ file, name, on, mine }]
-    onActiveChanged: if (active) refresh()
+    // named sessions: the draft name, the note, and the action waiting on a tap
+    property string note: ""
+    property string noteTone: "ok"
+    property string confirmName: ""
+    property string confirmAction: ""
+    property var confirmSession: null
+    Timer { id: noteTimer; interval: 5000; onTriggered: page.note = "" }
+    onActiveChanged: if (active) refresh(); else { page.confirmName = ""; page.note = ""; }
     // made already active (a Settings category is a Loader): load now too
     Component.onCompleted: if (active) refresh()
     function refresh() { list.running = true; }
+
+    function when(iso) {
+        const d = new Date(iso);
+        return isNaN(d.getTime()) ? "" : Qt.formatDateTime(d, "dd MMM yyyy hh:mm");
+    }
+    function saveSession() {
+        if (Sessions.saveCurrent(sessionName.text)) {
+            sessionName.text = "";
+            page.note = Tr.t("Session saved");
+            page.noteTone = "ok";
+        } else {
+            page.note = Sessions.error;
+            page.noteTone = "warn";
+        }
+        noteTimer.restart();
+    }
+    function ask(action, session) {
+        page.confirmAction = action;
+        page.confirmName = session.name;
+        page.confirmSession = session;
+        page.note = "";
+    }
+    function answer(yes) {
+        if (yes) {
+            const ok = page.confirmAction === "restore" ? Sessions.restore(page.confirmName) : Sessions.remove(page.confirmName);
+            page.note = ok ? (page.confirmAction === "restore" ? Tr.t("Restoring %1").arg(page.confirmName) : Tr.t("Session removed")) : Sessions.error;
+            page.noteTone = ok ? "ok" : "warn";
+            noteTimer.restart();
+        }
+        page.confirmName = "";
+        page.confirmAction = "";
+        page.confirmSession = null;
+    }
 
     // one line each: file<TAB>name<TAB>hidden(true|false)<TAB>user|system — the user's copy wins
     Process {
@@ -69,6 +109,63 @@ ColumnLayout {
             }
         }
     }
+    SectionTitle { Layout.fillWidth: true; text: Tr.t("Sessions") }
+    Text {
+        Layout.fillWidth: true
+        text: Tr.t("Save your apps and documents under a name, then bring them all back at once.")
+        color: Theme.dim
+        wrapMode: Text.Wrap
+        font.family: Theme.font
+        font.pixelSize: Theme.px(11) * Theme.fontScale
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.px(6)
+        TextField {
+            id: sessionName
+            Layout.fillWidth: true
+            placeholder: Tr.t("Name this session")
+            error: sessionName.text.trim() !== "" && !Sessions.validName(sessionName.text) ? Tr.t("Use a name of 1 to 60 characters, without / or \\") : ""
+            onAccepted: page.saveSession()
+        }
+        Button { kind: "primary"; text: Tr.t("Save current"); enabled: Sessions.validName(sessionName.text); onClicked: page.saveSession() }
+    }
+    InfoBanner {
+        Layout.fillWidth: true
+        visible: Sessions.list().length === 0
+        tone: "info"
+        text: Tr.t("No sessions saved yet")
+    }
+    Repeater {
+        model: Sessions.list()
+        ListRow {
+            required property var modelData
+            Layout.fillWidth: true
+            icon: "view-restore"
+            title: modelData.name
+            subtitle: Tr.t("%1 apps, %2 places").arg(modelData.apps.length).arg(modelData.paths.length) + (page.when(modelData.savedAt) ? " · " + page.when(modelData.savedAt) : "")
+            Button { flat: true; text: Tr.t("Restore"); Accessible.name: Tr.t("Restore %1").arg(modelData.name); onClicked: page.ask("restore", modelData) }
+            Button { flat: true; kind: "danger"; text: Tr.t("Remove"); Accessible.name: Tr.t("Remove %1?").arg(modelData.name); onClicked: page.ask("remove", modelData) }
+        }
+    }
+    InfoBanner {
+        Layout.fillWidth: true
+        visible: page.confirmName !== ""
+        tone: page.confirmAction === "remove" ? "warn" : "accent"
+        iconName: page.confirmAction === "remove" ? "edit-delete" : "view-restore"
+        title: (page.confirmAction === "remove" ? Tr.t("Remove %1?") : Tr.t("Restore %1?")).arg(page.confirmName)
+        text: page.confirmAction === "remove" ? Tr.t("This cannot be undone.")
+              : Tr.t("%1 apps and %2 places will open now.").arg(page.confirmSession ? page.confirmSession.apps.length : 0).arg(page.confirmSession ? page.confirmSession.paths.length : 0)
+        Button { flat: true; text: Tr.t("Cancel"); onClicked: page.answer(false) }
+        Button { kind: page.confirmAction === "remove" ? "danger" : "primary"; text: page.confirmAction === "remove" ? Tr.t("Remove") : Tr.t("Restore"); onClicked: page.answer(true) }
+    }
+    InfoBanner {
+        Layout.fillWidth: true
+        visible: page.note !== "" && page.confirmName === ""
+        tone: page.noteTone
+        text: page.note
+    }
+
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Startup apps") }
     Repeater {
         model: page.entries

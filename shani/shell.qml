@@ -234,7 +234,7 @@ ShellRoot {
     }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [BootInfo, SshKeys, KernelModules, SecurityInfo, SysServices, Link, Idle, InputPlumber, Ups, Polkit, NightLight, AutoRotate, Appearance, Firewall, Feeds, Mail, Tablet, Privacy, Updates, Drives, Disks, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WindowLook, Terminal, TerminalApp, TextMate, Keyring, WindowPreview, SmartReplies, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, PdfSigner, DiskUsage, WallpaperStyle, VideoTrimmer, Models, AIProviders, Studio]
+    readonly property var _services: [BootInfo, SshKeys, KernelModules, SecurityInfo, SysServices, Link, Idle, InputPlumber, Ups, Polkit, NightLight, AutoRotate, Appearance, Firewall, Feeds, Mail, Tablet, Privacy, Updates, Drives, Disks, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, Sessions, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WindowLook, Terminal, TerminalApp, TextMate, Keyring, WindowPreview, SmartReplies, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, PdfSigner, DiskUsage, WallpaperStyle, VideoTrimmer, Models, AIProviders, Studio]
 
     // The test-only CalDAV hook reads a password from a file: keeping it out of
     // an IPC argument keeps it out of `ps`. Declared at root, not in IpcHandler;
@@ -937,6 +937,10 @@ ShellRoot {
         function pinWindow(id: int) { Niri.togglePinned(id); }
         // the tests: what the next sign-in would offer, offered now
         function reopenOffer() { Reopen.offer(Reopen.saved); }
+        // named sessions (Settings > Default apps > Sessions), also driven by tests
+        function sessionSave(name: string): string { return Sessions.saveCurrent(name) ? "ok" : Sessions.error; }
+        function sessionRestore(name: string): string { return Sessions.restore(name) ? "ok" : Sessions.error; }
+        function sessionRemove(name: string): string { return Sessions.remove(name) ? "ok" : "no session called " + name; }
         function mirrorPhone(serial: string) { Mirror.mirror(serial, false); }
         function appFilterRefresh() { AppFilter.refresh(); }
         // windows by a loose name (title or app id), for scripts and a phone over SSH:
@@ -1179,6 +1183,8 @@ ShellRoot {
                 launcherEntries: LauncherEntries.entries, launcherEntryReady: LauncherEntries.ready,
                 mirrorDevices: Mirror.devices.map(d => d.name), mirrored: Mirror.last,
                 reopenSaved: Reopen.saved, reopenOffered: Reopen.offered, reopenSession: Reopen.session,
+                sessionsListed: Sessions.list().map(s => [s.name, s.apps.length, s.paths.length, s.savedAt]),
+                sessionLastRestored: Sessions.lastRestored,
                 tour: Ui.tour || (Settings.loaded && !Settings.data.tourSeen && !Quickshell.env("SHANI_NO_TOUR")),
                 btAsk: BtAgent.ask ? BtAgent.ask.ask + ":" + BtAgent.ask.device : "",
                 btShow: BtAgent.show ? BtAgent.show.device : "",

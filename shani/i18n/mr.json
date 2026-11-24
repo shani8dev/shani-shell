@@ -1507,5 +1507,20 @@
  "your quick note from the control centre": "कंट्रोल सेंटरमधून तुमची झटपट नोंद",
  "· tap a day to change": "· बदलण्यासाठी दिवस टॅप करा",
  "· tap to change": "· बदलण्यासाठी टॅप करा",
- "↵ send    esc close    ·    tools ask before they change anything": "↵ पाठवा    esc बंद करा    ·    टूल्स काहीही बदलण्याआधी विचारतात"
+ "↵ send    esc close    ·    tools ask before they change anything": "↵ पाठवा    esc बंद करा    ·    टूल्स काहीही बदलण्याआधी विचारतात",
+ "%1 apps and %2 places will open now.": "%1 अॅप्स व %2 ठिकाणे आता उघडतील.",
+ "%1 apps, %2 places": "%1 अॅप्स, %2 ठिकाणे",
+ "Name this session": "या सत्राला नाव द्या",
+ "No session called %1": "%1 नावाचे कोणतेही सत्र नाही",
+ "No sessions saved yet": "अजून कोणतेही सत्र जतन केलेले नाही",
+ "Restore %1": "%1 पुन्हा उघडा",
+ "Restore %1?": "%1 पुन्हा उघडायचे?",
+ "Restoring %1": "%1 पुनर्संचयित करीत आहे",
+ "Save current": "सध्याचे जतन करा",
+ "Save your apps and documents under a name, then bring them all back at once.": "तुमचे अॅप्स व कागदपत्रे नाव देऊन जतन करा, मग एकाच वेळी पुन्हा उघडा.",
+ "Session removed": "सत्र काढले",
+ "Session saved": "सत्र जतन केले",
+ "Sessions": "सत्रे",
+ "This cannot be undone.": "हे परत करता येत नाही.",
+ "Use a name of 1 to 60 characters, without / or \\": "१ ते ६० अक्षरांचे नाव द्या, त्यात / किंवा \\ नसावे"
 }
