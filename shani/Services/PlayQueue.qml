@@ -43,6 +43,16 @@ Singleton {
     property real volume: 1
     property bool muted: false
     property real rate: 1
+    // MPRIS and the CLI can ask for anything: clamp here so a NaN never reaches
+    // AudioOutput (Math.min(1, NaN) is NaN, and a NaN volume stays NaN)
+    function clampVolume(v) {
+        const n = Number(v);
+        return isFinite(n) ? Math.max(0, Math.min(1, n)) : 0;
+    }
+    function clampSeek(seconds, length) {
+        const n = Number(seconds), end = Number(length);
+        return Math.max(0, Math.min(isFinite(end) && end > 0 ? end : 0, isFinite(n) ? n : 0));
+    }
 
     // ---- where each long video or song was left: it starts there again ----
     // (over two minutes long, more than ten seconds in, not near the end;
@@ -191,6 +201,9 @@ Singleton {
     property bool mini: false
     signal miniRequested(bool on)
     property string cue: ""               // the subtitle line on screen now
+    // the player's key legend, in one place: a hint area can show it and the
+    // button tips repeat the same keys without having to guess them
+    readonly property string keyHints: "Space play/pause · ← → seek · M mute · F fullscreen · P/N playlist"
     property int audioTrackCount: 0
     property string tagLine: ""           // the song's own title and artist, when read from the file
     property string coverShown: ""
@@ -374,8 +387,8 @@ Singleton {
                 else if (c.op === "stop") { root.pauseRequested(); root.seekRequested(0); }
                 else if (c.op === "next") root.next();
                 else if (c.op === "previous") root.previous();
-                else if (c.op === "seek") root.seekRequested(Number(c.to) || 0);
-                else if (c.op === "volume") { root.muted = false; root.volume = Math.max(0, Math.min(1, Number(c.value))); }
+                else if (c.op === "seek") root.seekRequested(clampSeek(c.to, root.duration));
+                else if (c.op === "volume") { root.muted = false; root.volume = clampVolume(c.value); }
                 else if (c.op === "rate") root.rate = Math.max(0.25, Math.min(4, Number(c.value) || 1));
                 else if (c.op === "loop") root.repeat = c.value === "Track" ? "one" : c.value === "Playlist" ? "all" : "off";
                 else if (c.op === "shuffle") root.shuffle = !!c.value;
