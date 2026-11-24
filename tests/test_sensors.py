@@ -176,7 +176,8 @@ def test_processes_has_a_sensors_section_below_the_overview():
     p = read(PROCESSES)
     # the earlier overview / disk row and the concurrent network-usage section
     # must survive: this wave only adds a section below them
-    assert 'text: "System overview"' in p
+    # the overview label is translated (Tr.t) but the key stays the same
+    assert "System overview" in p
     assert 'Tr.t("Disk I/O")' in p and "SysStats.diskReadRate" in p
     assert 'text: Tr.t("Network usage")' in p
     assert 'text: Tr.t("Sensors")' in p

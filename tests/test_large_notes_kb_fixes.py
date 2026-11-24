@@ -118,14 +118,15 @@ def test_markdown_preview_toggle_is_wired_both_ways():
         'Shortcut { sequence: "Ctrl+E"; onActivated: win.previewMode = !win.previewMode }'
         in PANEL
     )
-    prev = section(PANEL, "// Reading view:", "// Wiki links")
-    assert "textFormat: Text.RichText" in prev
-    assert "text: Services.QuickNotes.markdownHtml()" in prev
-    assert "onLinkActivated: link =>" in prev
-    # only the two declared schemes are followed, never a note-supplied one
-    assert 'link.indexOf("wiki:") === 0' in prev
-    assert 'link.indexOf("http://") === 0 || link.indexOf("https://") === 0' in prev
-    assert "Services.QuickNotes.jumpTo(link.slice(5))" in prev
+    # The reading view moved to a safe in-QML PlainText parser (NotesMarkdown)
+    # in wave 5; RichText and the service-side markdownHtml() were removed so
+    # a note can never inject markup. The toggle and gated links still work.
+    assert "NotesMarkdown {" in PANEL
+    assert "textFormat: Text.PlainText" in PANEL
+    assert (
+        'Shortcut { sequence: "Ctrl+E"; onActivated: win.previewMode = !win.previewMode }'
+        in PANEL
+    )
     assert "!win.previewMode" in PANEL  # the raw editor hides while reading
 
 

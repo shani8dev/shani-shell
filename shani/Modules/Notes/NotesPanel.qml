@@ -8,6 +8,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import qs.Common
 import qs.Services as Services
+import qs.Modules.Notes
 
 AppWindow {
     id: win
