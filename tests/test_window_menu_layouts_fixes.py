@@ -35,9 +35,13 @@ def test_window_menu_escape_closes_app_submenu_first():
 
 def test_window_menu_home_end_keyboard_navigation():
     qml = read("shani/Modules/WindowMenu/WindowMenu.qml")
-    assert "Keys.onHomePressed: win.sel = 0" in qml
-    assert "Keys.onEndPressed: win.sel = Math.max(0, win.entries.length - 1)" in qml
-    assert "if (win.entries.length > 0) win.run(win.entries[win.sel].id)" in qml
+    # Qt 6 has no Keys.onHomePressed/onEndPressed; navigation lives in onPressed
+    assert "Keys.onPressed:" in qml
+    assert "event.key === Qt.Key_Home" in qml
+    assert "event.key === Qt.Key_End" in qml
+    assert "win.sel = 0" in qml
+    assert "win.sel = Math.max(0, win.entries.length - 1)" in qml
+    assert "win.run(win.entries[win.sel].id)" in qml
 
 
 def test_window_layouts_tiles_are_keyboard_accessible():

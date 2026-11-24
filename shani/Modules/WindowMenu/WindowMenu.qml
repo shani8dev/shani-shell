@@ -143,11 +143,16 @@ PanelWindow {
             if (win.openMenu >= 0) { win.openMenu = -1; win.expanded = ({}); }
             else Ui.windowMenu = false;
         }
-        Keys.onDownPressed: win.sel = Math.min(win.sel + 1, win.entries.length - 1)
-        Keys.onUpPressed: win.sel = Math.max(win.sel - 1, 0)
-        Keys.onHomePressed: win.sel = 0
-        Keys.onEndPressed: win.sel = Math.max(0, win.entries.length - 1)
-        Keys.onReturnPressed: if (win.entries.length > 0) win.run(win.entries[win.sel].id)
+        Keys.onPressed: {
+            if (event.key === Qt.Key_Down) win.sel = Math.min(win.sel + 1, win.entries.length - 1)
+            else if (event.key === Qt.Key_Up) win.sel = Math.max(win.sel - 1, 0)
+            else if (event.key === Qt.Key_Home) win.sel = 0
+            else if (event.key === Qt.Key_End) win.sel = Math.max(0, win.entries.length - 1)
+            else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                if (win.entries.length > 0) win.run(win.entries[win.sel].id)
+            } else return;
+            event.accepted = true;
+        }
     }
     MouseArea { objectName: "nav:pointer"; anchors.fill: parent; onClicked: Ui.windowMenu = false }   // a click outside closes; Escape does with keys
 

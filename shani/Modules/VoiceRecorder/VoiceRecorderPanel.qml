@@ -31,8 +31,8 @@ AppWindow {
         id: playback
         audioOutput: AudioOutput {}
         // a take that ended (or failed to load) must not leave a dead bar behind
-        onStatusChanged: {
-            if (playback.status === MediaPlayer.EndOfMedia || playback.status === MediaPlayer.InvalidMedia)
+        onMediaStatusChanged: {
+            if (playback.mediaStatus === MediaPlayer.EndOfMedia || playback.mediaStatus === MediaPlayer.InvalidMedia)
                 win.inlinePlay = "";
         }
     }
