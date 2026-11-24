@@ -39,6 +39,7 @@ AppWindow {
         focus: win.visible
         // Escape goes back a folder first, and out of the surface at the top
         Keys.onEscapePressed: {
+            if (win.filterShown) { win.toggleFilters(); return; }
             if (renameBox.visible || newFolderBox.visible || batchBox.visible || Files.props || Files.comparison || Files.syncAsk || Files.usb || Files.unlockFor || Files.locker || (Files.cloudAsk && !Files.cloudAdding) || win.serveAsk !== "" || Files.conflictAsk || Files.copyTo || Files.historyShown || Files.deleteAsk.length) {
                 renameBox.visible = false;
                 newFolderBox.visible = false;
@@ -193,6 +194,12 @@ AppWindow {
             }
             if (control && !alt && event.key === Qt.Key_Z) {
                 Files.undo();
+                event.accepted = true;
+                return;
+            }
+            // Ctrl+Shift+F: the finer filter popover, next to the type chips
+            if (control && (event.modifiers & Qt.ShiftModifier) && event.key === Qt.Key_F) {
+                win.toggleFilters();
                 event.accepted = true;
                 return;
             }
@@ -363,6 +370,79 @@ AppWindow {
     }
     Component.onCompleted: win.applyCategory(Files.activeCategory)
 
+    // ---- the finer filter popover (date / size / content) -------------------------
+    // Type is not redefined here: the chips above and the popover's Type row share
+    // win.searchCategories and applyCategory, so there is one source of truth.
+    property bool filterShown: false
+    property string dateFilter: "any"     // any | today | 7days | 30days
+    property string sizeFilter: "any"     // any | small | medium | large
+
+    // The Content box drives the settled deep search the toolbar already uses:
+    // files.py's search() calls inside(), a bounded ripgrep over file text (argv,
+    // --max-filesize 20M, --max-count 1, 4 s and a result cap; grep fallback).
+    // So "contains" needs no new bridge command: it is time-boxed in the bridge
+    // and a hung worker is ended by the service's watchdog.
+    readonly property string contentQuery: Files.searchDeep ? searchBox.text.trim() : ""
+
+    // one count for the badge and Clear filters, so no filter stays invisible
+    function computeActiveFilterCount(category, date, size, content) {
+        return (category !== "all" ? 1 : 0) + (date !== "any" ? 1 : 0)
+             + (size !== "any" ? 1 : 0) + (content !== "" ? 1 : 0);
+    }
+    readonly property int activeFilterCount: win.computeActiveFilterCount(Files.activeCategory, win.dateFilter, win.sizeFilter, win.contentQuery)
+    readonly property bool hasAnyFilter: win.activeFilterCount > 0 || searchBox.text.trim() !== ""
+
+    // pure predicates: argument-driven so the suite can run them in node
+    function filterDateCutoff(preset, nowMs) {
+        if (preset === "today") {
+            const d = new Date(nowMs);
+            d.setHours(0, 0, 0, 0);
+            return d.getTime();
+        }
+        if (preset === "7days") return nowMs - 7 * 86400000;
+        if (preset === "30days") return nowMs - 30 * 86400000;
+        return 0;                        // "any"
+    }
+    function filterSizeBounds(preset) {
+        if (preset === "small") return [0, 1024 * 1024 - 1];              // < 1 MB
+        if (preset === "medium") return [1024 * 1024, 100 * 1024 * 1024]; // 1-100 MB
+        if (preset === "large") return [100 * 1024 * 1024 + 1, -1];       // > 100 MB
+        return [-1, -1];                                                  // "any"
+    }
+    function entryPassesFilters(entry, nowMs, filters, foldersOnly) {
+        if (!entry) return false;
+        if (foldersOnly && !entry.isDir) return false;
+        if (!foldersOnly && !entry.isDir && filters && filters.length) {
+            const ext = "." + String(entry.name || "").split(".").pop().toLowerCase();
+            const wanted = filters.map(f => f.charAt(0) === "." ? f.toLowerCase() : "." + f.toLowerCase());
+            if (wanted.indexOf(ext) < 0) return false;
+        }
+        if (entry.isDir) return true;    // folders survive date/size so navigation is never cut
+        const cutoff = win.filterDateCutoff(win.dateFilter, nowMs);
+        if (cutoff && !(entry.mtime >= cutoff)) return false;
+        const bounds = win.filterSizeBounds(win.sizeFilter);
+        if (bounds[0] >= 0 && !(entry.size >= bounds[0])) return false;
+        if (bounds[1] >= 0 && !(entry.size <= bounds[1])) return false;
+        return true;
+    }
+    function setDateFilter(which) { win.dateFilter = which; win.sync(); win.syncSplit(); }
+    function setSizeFilter(which) { win.sizeFilter = which; win.sync(); win.syncSplit(); }
+    function clearAllFilters() {
+        win.dateFilter = "any";
+        win.sizeFilter = "any";
+        searchBox.text = "";
+        Files.setSearchDeep(false);
+        dir.query = "";
+        win.applyCategory("all");        // resets type and syncs both panes
+        win.filterShown = false;
+        keys.forceActiveFocus();
+    }
+    function toggleFilters() {
+        win.filterShown = !win.filterShown;
+        if (win.filterShown) filterBox.forceActiveFocus();
+        else keys.forceActiveFocus();
+    }
+
     // entries the surface actually shows after the folders-only filter
     property var visibleEntries: []
     property var splitVisibleEntries: []
@@ -370,7 +450,8 @@ AppWindow {
         const out = [];
         for (let i = 0; i < model.count; i++) {
             const e = model.get(i);
-            if (!Files.foldersOnly || e.isDir)
+            if ((!Files.foldersOnly || e.isDir)
+                    && win.entryPassesFilters(e, Date.now(), Files.activeFilters, Files.foldersOnly))
                 out.push(e);
         }
         return out;
@@ -570,6 +651,39 @@ AppWindow {
                         text: modelData.label
                         selected: Files.activeCategory === modelData.id
                         onClicked: win.applyCategory(modelData.id)
+                    }
+                }
+                // the finer filters: type stays with the chips above; this opens date, size and content
+                Item {
+                    Layout.preferredWidth: Math.max(Theme.px(34), Theme.touchTarget)
+                    Layout.preferredHeight: Math.max(Theme.px(34), Theme.touchTarget)
+                    IconButton {
+                        id: filterBtn
+                        anchors.fill: parent
+                        icon: "view-filter"
+                        size: Theme.px(30)
+                        on: win.filterShown || win.activeFilterCount > 0
+                        tip: win.activeFilterCount ? Tr.t("Filters · %1 active (Ctrl+Shift+F)").arg(win.activeFilterCount) : Tr.t("Filters (Ctrl+Shift+F)")
+                        accessibleName: win.activeFilterCount ? Tr.t("Filters, %1 active").arg(win.activeFilterCount) : Tr.t("Filters")
+                        onClicked: win.toggleFilters()
+                    }
+                    Rectangle {
+                        visible: win.activeFilterCount > 0
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                        anchors.margins: 1
+                        width: Theme.px(15)
+                        height: width
+                        radius: width / 2
+                        color: Theme.accent
+                        Text {
+                            anchors.centerIn: parent
+                            text: String(win.activeFilterCount)
+                            color: Theme.accentInk
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(9) * Theme.fontScale
+                            font.weight: Font.DemiBold
+                        }
                     }
                 }
                 Item { Layout.fillWidth: true }
@@ -1304,17 +1418,20 @@ AppWindow {
                             width: parent.width - 40
                             icon: "folder"
                             title: dir.error !== "" ? Tr.t("This folder could not be opened")
-                                 : (searchBox.text !== "" || Files.activeFilters.length || Files.foldersOnly) ? Tr.t("Nothing matches this view")
+                                 : win.hasAnyFilter ? Tr.t("Nothing matches this view")
                                  : Tr.t("This folder is empty")
                             subtitle: dir.error !== "" ? dir.error : Tr.t("Nothing to show here")
                             actionText: dir.error !== "" ? Tr.t("Retry")
-                                        : (searchBox.text !== "" || Files.activeFilters.length || Files.foldersOnly) ? Tr.t("Clear filters")
+                                        : win.hasAnyFilter ? Tr.t("Clear filters")
                                         : Tr.t("New folder")
                             onAction: {
                                 if (dir.error !== "") dir.reload();
-                                else if (searchBox.text !== "" || Files.activeFilters.length || Files.foldersOnly) {
+                                else if (win.hasAnyFilter) {
+                                    win.dateFilter = "any";
+                                    win.sizeFilter = "any";
+                                    Files.setSearchDeep(false);
                                     searchBox.text = "";
-                                    win.applyCategory("all");
+                                    win.applyCategory("all");   // the type chips go back to All too
                                 } else win.openNewFolder();
                             }
                             Accessible.name: title + " · " + subtitle
@@ -3295,6 +3412,147 @@ AppWindow {
         }
     }
 
+    // ---- the finer filter popover: date / size / content, beside the type chips -------
+    // Translucent Glass on purpose: no opaque card over the folder listing.
+    Glass {
+        id: filterBox
+        parent: win.contentItem
+        visible: win.filterShown
+        z: 29
+        strong: true
+        radius: Theme.px(12)
+        width: Theme.px(390)
+        height: filterCol.implicitHeight + Theme.px(20)
+        x: Math.min(Math.max(8, filterBtn.mapToItem(win.contentItem, 0, filterBtn.height).x), win.width - width - 8)
+        y: Math.min(filterBtn.mapToItem(win.contentItem, 0, filterBtn.height).y + Theme.px(4), win.height - height - 8)
+        focus: visible
+        Accessible.role: Accessible.Dialog
+        Accessible.name: Tr.t("File filters")
+        Keys.onPressed: event => {
+            if (event.key === Qt.Key_Escape) { win.toggleFilters(); event.accepted = true; }
+        }
+        ColumnLayout {
+            id: filterCol
+            anchors.fill: parent
+            anchors.margins: Theme.px(10)
+            spacing: Theme.px(8)
+            RowLayout {
+                Layout.fillWidth: true
+                Text {
+                    Layout.fillWidth: true
+                    text: win.activeFilterCount ? Tr.t("Filters · %1 active").arg(win.activeFilterCount) : Tr.t("Filters")
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.weight: Font.DemiBold
+                }
+                IconButton { icon: "window-close"; size: Theme.px(24); tip: Tr.t("Close filters"); onClicked: win.toggleFilters() }
+            }
+            // Type: the very same chips and applyCategory the toolbar uses - no second model
+            Text {
+                text: Tr.t("Type · choose with the chips above")
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(10) * Theme.fontScale
+            }
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Repeater {
+                    model: win.searchCategories
+                    Choice {
+                        required property var modelData
+                        text: modelData.label
+                        selected: Files.activeCategory === modelData.id
+                        onClicked: win.applyCategory(modelData.id)
+                    }
+                }
+            }
+            Text {
+                text: Tr.t("Date modified")
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(10) * Theme.fontScale
+                Layout.topMargin: Theme.px(4)
+            }
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Repeater {
+                    model: [["any", Tr.t("Any time")], ["today", Tr.t("Today")], ["7days", Tr.t("Last 7 days")], ["30days", Tr.t("Last 30 days")]]
+                    Choice {
+                        required property var modelData
+                        text: modelData[1]
+                        selected: win.dateFilter === modelData[0]
+                        onClicked: win.setDateFilter(modelData[0])
+                    }
+                }
+            }
+            Text {
+                text: Tr.t("Size")
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(10) * Theme.fontScale
+                Layout.topMargin: Theme.px(4)
+            }
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Repeater {
+                    model: [["any", Tr.t("Any size")], ["small", Tr.t("Under 1 MB")], ["medium", Tr.t("1-100 MB")], ["large", Tr.t("Over 100 MB")]]
+                    Choice {
+                        required property var modelData
+                        text: modelData[1]
+                        selected: win.sizeFilter === modelData[0]
+                        onClicked: win.setSizeFilter(modelData[0])
+                    }
+                }
+            }
+            Text {
+                text: Tr.t("Content contains")
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(10) * Theme.fontScale
+                Layout.topMargin: Theme.px(4)
+            }
+            TextField {
+                id: contentField
+                Layout.fillWidth: true
+                placeholder: Tr.t("Words inside a file (3 or more letters)")
+                label: Tr.t("Content contains")
+                text: searchBox.text
+                onTextChanged: {
+                    if (text === searchBox.text) return;
+                    if (text.trim() !== "" && !Files.searchDeep) Files.setSearchDeep(true);
+                    searchBox.text = text;
+                    dir.query = Files.searchDeep ? "" : text;
+                    deepTimer.restart();
+                }
+                Keys.onEscapePressed: win.toggleFilters()
+            }
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                text: Tr.t("Looks through this folder and the ones inside it, matching file names and text inside files.")
+                color: Theme.faint
+                font.family: Theme.font
+                font.pixelSize: Theme.px(10) * Theme.fontScale
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.topMargin: Theme.px(4)
+                Button {
+                    text: Tr.t("Clear filters")
+                    flat: true
+                    enabled: win.hasAnyFilter
+                    onClicked: win.clearAllFilters()
+                }
+                Item { Layout.fillWidth: true }
+                Button { text: Tr.t("Done"); kind: "primary"; onClicked: win.toggleFilters() }
+            }
+        }
+    }
+
     // ---- the keyboard shortcut sheet (Ctrl+/ or ?) -----------------------------------
     Glass {
         id: shortcutSheet
@@ -3484,6 +3742,7 @@ AppWindow {
         { key: "Ctrl+L", label: Tr.t("Type a path") },
         { key: "Ctrl+D", label: Tr.t("Bookmark this folder") },
         { key: "Ctrl+H", label: Tr.t("Show hidden files") },
+        { key: "Ctrl+Shift+F", label: Tr.t("The finer filters") },
         { key: "Ctrl+A / Ctrl+Shift+I", label: Tr.t("Select all / invert the selection") },
         { key: "Ctrl+Shift+Y", label: Tr.t("Select all of this type") },
         { key: "Ctrl+Alt+N", label: Tr.t("Split view") },
