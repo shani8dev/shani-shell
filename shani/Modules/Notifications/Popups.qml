@@ -54,18 +54,33 @@ PanelWindow {
         return key || "other";
     }
     function groupPopups() {
-        const out = [], byKey = {};
+        const out = [], byKey = {}, byName = {};
         for (const n of Notifs.popups.slice().reverse()) {   // newest first
             // a critical one (an incoming call) is never folded into a stack:
             // its red edge and Urgent label must be seen, not counted
-            const key = n && n.urgency === NotificationUrgency.Critical
-                ? "critical:" + n.id : win.appKey(n);
-            if (!byKey[key]) {
-                byKey[key] = { key: key, name: n.appName || Tr.t("Notification"),
-                               icon: n.appIcon || "", desktopEntry: n.desktopEntry || "", items: [] };
-                out.push(byKey[key]);
+            const critical = n && n.urgency === NotificationUrgency.Critical;
+            const key = critical ? "critical:" + n.id : win.appKey(n);
+            const name = String((n && n.appName) || "").toLowerCase();
+            const desktop = String((n && n.desktopEntry) || "").toLowerCase();
+            let g = byKey[key];
+            // one app can send a desktop id on one notice and only its name on
+            // the next. Notifs.perApp indexes both, so do the same here instead
+            // of showing two stacks for the same app.
+            if (!g && !critical)
+                g = (name && byName[name]) || (desktop && byName[desktop]);
+            if (g) {
+                byKey[key] = g;
+            } else {
+                g = { key: key, name: n.appName || Tr.t("Notification"),
+                      icon: n.appIcon || "", desktopEntry: n.desktopEntry || "", items: [] };
+                out.push(g);
+                byKey[key] = g;
             }
-            byKey[key].items.push(n);
+            if (!critical) {
+                if (name) byName[name] = g;
+                if (desktop) byName[desktop] = g;
+            }
+            g.items.push(n);
         }
         // a stack whose last notification expired must not linger, open or not
         return out.filter(g => g.items.length > 0);
@@ -81,6 +96,18 @@ PanelWindow {
     function toggleGroup(key) {
         const e = Object.assign({}, win.expanded);
         e[key] = !e[key];
+        win.expanded = e;
+    }
+    // Clear all of an app's stacked popups in one press. A critical notice is
+    // never in a stack (it has its own key), but never sweep one away by mistake.
+    function dismissGroup(g) {
+        if (!g)
+            return;
+        for (const n of g.items.slice())
+            if (n && n.urgency !== NotificationUrgency.Critical)
+                n.dismiss();
+        const e = Object.assign({}, win.expanded);
+        delete e[g.key];
         win.expanded = e;
     }
 
@@ -168,6 +195,12 @@ PanelWindow {
                     Layout.fillWidth: true
                     implicitHeight: stackHead.implicitHeight + Theme.px(10)
                     radius: Theme.radiusLarge
+                    // under the row: the dismiss button on top must get its own clicks
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: win.toggleGroup(stack.modelData.key)
+                    }
                     RowLayout {
                         id: stackHead
                         anchors.fill: parent
@@ -209,11 +242,12 @@ PanelWindow {
                             font.family: Theme.font
                             font.pixelSize: Theme.px(14) * Theme.fontScale
                         }
-                    }
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: win.toggleGroup(stack.modelData.key)
+                        IconButton {
+                            icon: "window-close"
+                            size: Theme.px(18)
+                            accessibleName: Tr.t("Dismiss %1 notifications from %2", stack.modelData.items.length, stack.modelData.name)
+                            onClicked: win.dismissGroup(stack.modelData)
+                        }
                     }
                     Accessible.role: Accessible.Button
                     Accessible.name: stack.stackName
