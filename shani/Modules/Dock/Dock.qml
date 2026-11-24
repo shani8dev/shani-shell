@@ -293,8 +293,19 @@ PanelWindow {
     Row {
         id: row
         focus: Ui.dockFocus
-        // Escape: a menu first, then the dock gives the keyboard back
-        Keys.onEscapePressed: { if (win.menuFor >= 0) win.setMenu(-1); else Ui.dockFocus = false; }
+        // Escape: a menu first, then the dock gives the keyboard back; Home/End jump to the ends
+        Keys.onPressed: e => {
+            if (e.key === Qt.Key_Escape) {
+                if (win.menuFor >= 0) win.setMenu(-1); else Ui.dockFocus = false;
+            } else if (e.key === Qt.Key_Home) {
+                Ui.focusFirst(row);
+            } else if (e.key === Qt.Key_End) {
+                const last = row.nextItemInFocusChain(false);
+                if (last) last.forceActiveFocus(Qt.TabFocusReason);
+            } else
+                return;
+            e.accepted = true;
+        }
         anchors.horizontalCenter: dock.horizontalCenter
         anchors.bottom: dock.bottom
         anchors.bottomMargin: (dock.height - win.base) / 2
@@ -490,6 +501,15 @@ PanelWindow {
                                 z: -1
                             }
                         }
+                    }
+                    // the pips stop at three: say how many more windows there are
+                    Text {
+                        visible: cell.modelData.windows.length > 3
+                        text: "+" + (cell.modelData.windows.length - 3)
+                        color: Theme.text
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(9) * Theme.fontScale
+                        font.weight: Font.DemiBold
                     }
                 }
 

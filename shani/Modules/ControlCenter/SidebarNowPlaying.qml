@@ -107,6 +107,13 @@ ColumnLayout {
                     Layout.preferredHeight: Theme.px(13)
                     color: "transparent"
                     readonly property real len: sidebar.player ? sidebar.player.length : 0
+                    // Qt reads a Slider's value off the object's own `value`
+                    // property - assigning Accessible.value would be an error
+                    property real value: len > 0 ? np.shown / len : 0
+                    Accessible.role: Accessible.Slider
+                    Accessible.name: Tr.t("Position") + " "
+                        + Math.floor(np.shown / 60) + ":" + String(Math.floor(np.shown % 60)).padStart(2, "0")
+                        + " / " + Math.floor(len / 60) + ":" + String(Math.floor(len % 60)).padStart(2, "0")
                     Text {
                         anchors { left: parent.left; bottom: parent.bottom }
                         text: Math.floor(np.shown / 60) + ":" + String(Math.floor(np.shown % 60)).padStart(2, "0")
@@ -137,13 +144,25 @@ ColumnLayout {
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: me => sidebar.player.position = sidebar.player.length * (me.x / parent.width)
+                        // follow the pointer while held, not only on release: dragging scrubs
+                        function seekTo(x) {
+                            const pos = Math.max(0, Math.min(len, len * (x / width)));
+                            sidebar.player.position = pos;
+                            np.shown = pos;   // keep the bar honest while paused (its timer is off)
+                        }
+                        onPressed: me => seekTo(me.x)
+                        onPositionChanged: me => { if (pressed) seekTo(me.x); }
+                        onClicked: me => seekTo(me.x)
                     }
                     // keyboard and controller: Left / Right seek 10 s
                     KeyFocus {
                         name: Tr.t("Position")
                         slider: true
-                        onStep: dir => sidebar.player.position = Math.max(0, Math.min(sidebar.player.length, sidebar.player.position + dir * 10))
+                        onStep: dir => {
+                            const pos = Math.max(0, Math.min(sidebar.player.length, sidebar.player.position + dir * 10));
+                            sidebar.player.position = pos;
+                            np.shown = pos;
+                        }
                     }
                 }
                 Row {

@@ -72,10 +72,13 @@ ColumnLayout {
             const groups = [];
             for (const n of Notifs.list) {
                 if (q && (n.appName + " " + n.summary + " " + n.body).toLowerCase().indexOf(q) < 0) continue;
-                const key = n.appName || "Notifications";
-                let g = groups.find(x => x.app === key);
+                // group by the desktop entry when present, as Popups.appKey does,
+                // so one app's two notification kinds do not split into two groups;
+                // keep app as the human name the header and Clear button speak
+                const key = n.desktopEntry || n.appName || "Notifications";
+                let g = groups.find(x => x.key === key);
                 if (!g)
-                    groups.push(g = { app: key, items: [] });
+                    groups.push(g = { key: key, app: n.appName || "Notifications", items: [] });
                 g.items.push(n);
             }
             return groups;

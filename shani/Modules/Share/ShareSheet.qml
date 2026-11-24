@@ -33,12 +33,19 @@ PanelWindow {
         Keys.onUpPressed: win.sel = Math.max(win.sel - 1, 0)
         Keys.onReturnPressed: if (win.sel >= 0) Share.choose(win.sel)
         Keys.onEnterPressed: if (win.sel >= 0) Share.choose(win.sel)   // keypad Enter is Key_Enter, not Key_Return
+        // Up/Down walk one at a time; Home/End jump to the first or last target
+        Keys.onPressed: e => {
+            if (e.key === Qt.Key_Home) win.sel = 0
+            else if (e.key === Qt.Key_End) win.sel = Share.targets.length - 1
+            else return
+            e.accepted = true
+        }
     }
     Glass {
         id: blurCard
         anchors.centerIn: parent
         width: Theme.px(380)
-        implicitHeight: col.implicitHeight + 32
+        implicitHeight: Math.min(col.implicitHeight + 32, parent.height - 80)
         strong: true
         radius: Theme.radiusLarge
         MouseArea { anchors.fill: parent }       // clicks inside do not close it
@@ -68,16 +75,30 @@ PanelWindow {
                 font.weight: Font.DemiBold
             }
             Item { implicitHeight: Theme.px(4) }
-            Repeater {
-                model: Share.targets
-                ListRow {
-                    required property var modelData
-                    required property int index
-                    Layout.fillWidth: true
-                    icon: modelData.icon
-                    title: modelData.label
-                    selected: index === win.sel
-                    onClicked: Share.choose(index)
+            Flickable {
+                id: targetFlick
+                Layout.fillWidth: true
+                // the card is capped above; many Bluetooth targets now scroll
+                implicitHeight: Math.min(targetsCol.implicitHeight, win.height - 160)
+                contentWidth: width
+                contentHeight: targetsCol.implicitHeight
+                clip: true
+                ColumnLayout {
+                    id: targetsCol
+                    width: targetFlick.width
+                    spacing: Theme.px(4)
+                    Repeater {
+                        model: Share.targets
+                        ListRow {
+                            required property var modelData
+                            required property int index
+                            Layout.fillWidth: true
+                            icon: modelData.icon
+                            title: modelData.label
+                            selected: index === win.sel
+                            onClicked: Share.choose(index)
+                        }
+                    }
                 }
             }
         }

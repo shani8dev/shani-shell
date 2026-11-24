@@ -25,6 +25,9 @@ PanelWindow {
     BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurArea : null
     Region { id: blurArea; item: card; radius: card.radius }
 
+    // encode each path segment so '#', '?' or '%' in a filename still loads
+    function fileUrl(p) { return "file://" + p.split("/").map(encodeURIComponent).join("/"); }
+
     // keyboard: Esc closes the pin
     Item {
         id: keyHandler
@@ -78,7 +81,7 @@ PanelWindow {
                     id: shot
                     anchors.fill: parent
                     fillMode: Image.PreserveAspectFit
-                    source: Screenshots.pinnedPath !== "" ? "file://" + Screenshots.pinnedPath : ""
+                    source: Screenshots.pinnedPath !== "" ? fileUrl(Screenshots.pinnedPath) : ""
                     asynchronous: true
                     cache: false
                     sourceSize.width: Math.max(1, Math.round(width))

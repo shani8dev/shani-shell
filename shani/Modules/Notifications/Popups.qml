@@ -67,13 +67,15 @@ PanelWindow {
             }
             byKey[key].items.push(n);
         }
-        return out;
+        // a stack whose last notification expired must not linger, open or not
+        return out.filter(g => g.items.length > 0);
     }
-    // every popup at once: the ones critical (which never leave by themselves)
-    // and the rest; they stay in the sidebar's history as each card's X would
+    // every popup at once: critical ones (incoming calls) stay - they never
+    // leave by themselves and must be handled on their own card, not swept away
     function clearPopups() {
         for (const n of Notifs.popups.slice())
-            n.dismiss();
+            if (n && n.urgency !== NotificationUrgency.Critical)
+                n.dismiss();
         win.expanded = ({});
     }
     function toggleGroup(key) {

@@ -217,7 +217,8 @@ PanelWindow {
                 readonly property int windowCount: isGroup ? cell.modelData.windows.length : 1
                 readonly property string title: isGroup
                     ? (cell.entry ? cell.entry.name : cell.appId)
-                    : (cell.modelData.title || cell.appId)
+                    // read the live window: the MRU snapshot keeps a stale title after a rename
+                    : ((Niri.windows[cell.modelData.id] || cell.modelData).title || cell.appId)
                 width: Theme.px(120)
                 height: Theme.px(144)
                 radius: Theme.px(16)
@@ -281,8 +282,10 @@ PanelWindow {
                     hoverEnabled: true
                     onEntered: win.sel = cell.index
                     onClicked: win.commit()
+                    onWheel: w => win.step(w.angleDelta.y < 0 ? 1 : -1)
                 }
                 Accessible.role: Accessible.Button
+                Accessible.focused: index === win.sel
                 Accessible.name: cell.title + (cell.isGroup && cell.windowCount > 1 ? ", " + Tr.t("%1 windows", cell.windowCount) : "")
                 KeyFocus {
                     name: cell.Accessible.name

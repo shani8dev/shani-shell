@@ -41,6 +41,23 @@ PanelWindow {
         Keys.onLeftPressed: QuickLook.step(-1)
         Keys.onRightPressed: QuickLook.step(1)
         Keys.onReturnPressed: QuickLook.openIt()
+        // Home/End jump to the ends of the sibling list the header counts
+        function jumpTo(i) {
+            const cur = QuickLook.list.indexOf(QuickLook.path);
+            if (cur >= 0) QuickLook.step(i - cur);
+        }
+        Keys.onPressed: e => {
+            if (e.key === Qt.Key_Home) { if (QuickLook.list.length) jumpTo(0); e.accepted = true; return }
+            if (e.key === Qt.Key_End) { if (QuickLook.list.length) jumpTo(QuickLook.list.length - 1); e.accepted = true; return }
+            if (QuickLook.kind !== "text") return;
+            const d = Theme.px(40), maxY = Math.max(0, listingFlick.contentHeight - listingFlick.height);
+            if (e.key === Qt.Key_Up) listingFlick.contentY = Math.max(0, listingFlick.contentY - d)
+            else if (e.key === Qt.Key_Down) listingFlick.contentY = Math.min(maxY, listingFlick.contentY + d)
+            else if (e.key === Qt.Key_PageUp) listingFlick.contentY = Math.max(0, listingFlick.contentY - listingFlick.height)
+            else if (e.key === Qt.Key_PageDown) listingFlick.contentY = Math.min(maxY, listingFlick.contentY + listingFlick.height)
+            else return;
+            e.accepted = true;
+        }
     }
 
     Glass {
@@ -201,6 +218,7 @@ PanelWindow {
                     }
                 }
                 Flickable {
+                    id: listingFlick
                     anchors.fill: parent
                     anchors.margins: Theme.px(12)
                     visible: QuickLook.kind === "text" && QuickLook.text !== ""

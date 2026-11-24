@@ -60,3 +60,9 @@ def test_dangling_manual_mode_does_not_disable_schedules():
     assert "const manual = Settings.data.focusMode" in active
     assert "modes.some(m => m.name === manual)" in active
     assert "? manual : scheduled" in active
+
+
+def test_today_guards_the_clock_date_against_a_startup_undefined():
+    """clock.date is undefined until the SystemClock is up; handing that to
+    Qt.formatDate assigns undefined to a string and warns at shell start."""
+    assert "clock && clock.date ? clock.date : new Date()" in SCREEN
