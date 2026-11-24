@@ -498,6 +498,17 @@ ShellRoot {
                         font.pixelSize: 13 * Theme.fontScale
                         font.weight: root.error !== "" ? Font.DemiBold : Font.Normal
                     }
+                    // an error on its own is a dead end: say what to do next,
+                    // the way GDM and the loginwindow do after a wrong password
+                    Text {
+                        Layout.fillWidth: true
+                        visible: root.error !== "" && !root.asked
+                        text: "Check what you typed and try again."
+                        color: root.dimColor
+                        wrapMode: Text.Wrap
+                        font.family: Theme.font
+                        font.pixelSize: 12 * Theme.fontScale
+                    }
 
                     RowLayout {
                         Layout.fillWidth: true

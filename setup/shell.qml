@@ -1112,9 +1112,9 @@ ShellRoot {
                                     Layout.fillWidth: true
                                     wrapMode: Text.Wrap
                                     text: root.t("adminNote")
-                                    color: Theme.faint
+                                    color: Theme.dim
                                     font.family: Theme.font
-                                    font.pixelSize: 11 * Theme.fontScale
+                                    font.pixelSize: 12 * Theme.fontScale
                                 }
 
                                 Rectangle {
@@ -1135,7 +1135,7 @@ ShellRoot {
                                             text: root.t("summary")
                                             color: Theme.dim
                                             font.family: Theme.font
-                                            font.pixelSize: 10 * Theme.fontScale
+                                            font.pixelSize: 11 * Theme.fontScale
                                             font.weight: Font.DemiBold
                                         }
                                         Text {
@@ -1144,7 +1144,7 @@ ShellRoot {
                                             text: root.t("language") + ": " + (root.locale ? root.niceLocale(root.locale) : "—")
                                             color: Theme.text
                                             font.family: Theme.font
-                                            font.pixelSize: 10 * Theme.fontScale
+                                            font.pixelSize: 11 * Theme.fontScale
                                         }
                                         Text {
                                             Layout.fillWidth: true
@@ -1152,7 +1152,7 @@ ShellRoot {
                                             text: root.t("layouts") + ": " + root.keymap.map(root.layoutName).join(", ")
                                             color: Theme.text
                                             font.family: Theme.font
-                                            font.pixelSize: 10 * Theme.fontScale
+                                            font.pixelSize: 11 * Theme.fontScale
                                         }
                                         Text {
                                             Layout.fillWidth: true
@@ -1160,7 +1160,7 @@ ShellRoot {
                                             text: root.t("zone") + ": " + root.timezone.replace(/_/g, " ")
                                             color: Theme.text
                                             font.family: Theme.font
-                                            font.pixelSize: 10 * Theme.fontScale
+                                            font.pixelSize: 11 * Theme.fontScale
                                         }
                                         Text {
                                             Layout.fillWidth: true
@@ -1168,7 +1168,7 @@ ShellRoot {
                                             text: root.t("computer") + ": " + (root.hostname || "—")
                                             color: Theme.text
                                             font.family: Theme.font
-                                            font.pixelSize: 10 * Theme.fontScale
+                                            font.pixelSize: 11 * Theme.fontScale
                                         }
                                     }
                                 }
@@ -1319,10 +1319,13 @@ ShellRoot {
                             visible: text !== ""
                             text: root.status.startsWith("error: ") ? root.status.slice(7)
                                 : root.pageId === "account" ? root.accountProblem : ""
-                            color: root.status.startsWith("error") ? Theme.danger : Theme.dim
+                            // a disabled Start with no loud reason reads as a bug:
+                            // validation problems get the same red as a failed apply,
+                            // and a size that stays readable over the blurred wallpaper
+                            color: root.status.startsWith("error") || root.accountProblem !== "" ? Theme.danger : Theme.dim
                             wrapMode: Text.Wrap
                             font.family: Theme.font
-                            font.pixelSize: 12 * Theme.fontScale
+                            font.pixelSize: 13 * Theme.fontScale
                             font.weight: root.status.startsWith("error") || root.accountProblem !== "" ? Font.DemiBold : Font.Normal
                         }
 

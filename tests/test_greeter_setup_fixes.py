@@ -44,3 +44,21 @@ def test_greeter_clock_uses_system_locale():
     assert "Qt.formatDate(clock.date, root.clockLocale, Locale.LongFormat)" in g
     assert '"HH:mm"' not in g
     assert '"dddd, d MMMM"' not in g
+
+
+def test_setup_validation_error_is_loud():
+    s = read("setup/shell.qml")
+    # a disabled Start must say why, in red, not in dim footnote text
+    assert (
+        'root.status.startsWith("error") || root.accountProblem !== "" ? Theme.danger : Theme.dim'
+        in s
+    )
+    start = s.index('text: root.t("adminNote")')
+    block = s[start : start + 240]
+    assert "color: Theme.dim" in block
+    assert "font.pixelSize: 12 * Theme.fontScale" in block
+
+
+def test_greeter_error_offers_a_next_step():
+    g = read("greeter/shell.qml")
+    assert 'text: "Check what you typed and try again."' in g
