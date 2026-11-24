@@ -96,12 +96,16 @@ AppWindow {
         win.selected = win.selected.indexOf(path) < 0 ? win.selected.concat([path]) : win.selected.filter(p => p !== path);
     }
     function clearSelect() { win.selected = []; }
+    // Ctrl+A: every photo in the current view, not just the loaded tiles
+    function selectAll() { win.selected = win.shown.map(p => p.path); }
     function trashSelected() {
-        if (!win.selected.length) return;
-        const paths = win.selected.slice();
+        // with no batch selection, Delete acts on the photo whose details are shown
+        const paths = win.selected.length ? win.selected.slice() : (win.detailPath ? [win.detailPath] : []);
+        if (!paths.length) return;
         Files.trash(paths, r => {
             if (r && r.error) win.importNote = Tr.t("Could not move to trash: %1", r.error);
             win.selected = [];
+            if (paths.indexOf(win.detailPath) >= 0) win.detailPath = "";
             win.scan();
         });
     }
@@ -206,6 +210,23 @@ AppWindow {
         anchors.fill: parent
         focus: true
         Keys.onEscapePressed: Ui.photos = false
+        Keys.onPressed: event => {
+            // a text field keeps Ctrl+A and Delete for its own text
+            if (photoSearch.activeFocus || albumField.activeFocus || tagsField.activeFocus)
+                return;
+            const control = (event.modifiers & Qt.ControlModifier) !== 0;
+            // Ctrl+A selects everything on screen (Finder / Nautilus / Dolphin)
+            if (control && event.key === Qt.Key_A) {
+                win.selectAll();
+                event.accepted = true;
+                return;
+            }
+            // Delete moves the selection - or the detailed photo - to the trash
+            if (event.key === Qt.Key_Delete && (win.selected.length > 0 || win.detailPath !== "")) {
+                win.trashSelected();
+                event.accepted = true;
+            }
+        }
 
         ColumnLayout {
             anchors.fill: parent

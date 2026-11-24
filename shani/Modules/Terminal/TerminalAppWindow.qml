@@ -62,6 +62,19 @@ AppWindow {
         anchors.fill: parent
         focus: win.visible
         Keys.onEscapePressed: Ui.terminalApp = false
+        // keyboard-first host navigation, as in a real terminal (arrows + Enter, / to find)
+        Keys.onPressed: e => {
+            if (win.tab !== "hosts" || hostList.count === 0) return;
+            if (e.key === Qt.Key_Down) { hostList.currentIndex = Math.min(hostList.count - 1, hostList.currentIndex + 1); e.accepted = true; }
+            else if (e.key === Qt.Key_Up) { hostList.currentIndex = Math.max(0, hostList.currentIndex - 1); e.accepted = true; }
+            else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
+                const h = hostList.model[hostList.currentIndex];
+                if (h) TerminalApp.connect(h);
+                e.accepted = true;
+            } else if (e.key === Qt.Key_Slash && hostSearch.visible) {
+                hostSearch.forceActiveFocus(); e.accepted = true;
+            }
+        }
     }
 
     ColumnLayout {
@@ -81,6 +94,16 @@ AppWindow {
             }
             Item { Layout.fillWidth: true }
             Button { text: Tr.t("Refresh"); flat: true; onClicked: TerminalApp.refresh() }
+            Button {
+                text: Tr.t("Add host"); kind: "primary"; flat: true
+                onClicked: {
+                    win.editId = "";
+                    win.newHostName = ""; win.newHostAddr = ""; win.newHostUser = ""; win.newHostPort = ""; win.newHostKey = "";
+                    win.newHostProxyJump = ""; win.newHostExtraOpts = "";
+                    win.newHostForwardAgent = false; win.newHostX11 = false; win.newHostCompression = false;
+                    win.tab = "add";
+                }
+            }
             Button {
                 text: Tr.t("Import hosts…"); flat: true
                 onClicked: FilePicker.open({ mode: "open", title: Tr.t("Hosts JSON"), onPicked: paths => { if (paths.length) TerminalApp.importHosts(paths[0]); } })
@@ -141,6 +164,7 @@ AppWindow {
 
             // find a host by name, address or user
             TextField {
+                id: hostSearch
                 Layout.fillWidth: true
                 visible: TerminalApp.hosts.length > 3
                 placeholder: Tr.t("Find a host…")
@@ -156,13 +180,16 @@ AppWindow {
                 clip: true
                 reuseItems: true
                 cacheBuffer: 400
+                currentIndex: 0
+                onCurrentIndexChanged: if (currentIndex >= 0) positionViewAtIndex(currentIndex, ListView.Contain)
                 model: TerminalApp.hosts.filter(h => !win.hostQuery || [h.name, h.host, h.user].some(x => String(x || "").toLowerCase().includes(win.hostQuery.toLowerCase())))
                 delegate: Rectangle {
+                    id: hostRow
                     required property var modelData
                     width: hostList.width
                     height: Theme.px(52)
                     radius: Theme.radiusSmall
-                    color: rowArea.containsMouse ? Theme.hover : "transparent"
+                    color: hostList.currentItem === hostRow ? Theme.alpha(Theme.accent, 0.14) : (rowArea.containsMouse ? Theme.hover : "transparent")
                     RowLayout {
                         anchors { fill: parent; margins: Theme.px(8) }
                         spacing: Theme.px(8)
@@ -176,6 +203,7 @@ AppWindow {
                         Button { text: Tr.t("Connect"); kind: "outline"; onClicked: TerminalApp.connect(modelData) }
                         Button { text: Tr.t("Test"); enabled: !TerminalApp.busy && modelData.type !== "serial"; onClicked: TerminalApp.testConnection(modelData, (ok, msg) => win.hostNote = (ok === "ok" ? Tr.t("Connected to %1", modelData.name) : Tr.t("Test failed: %1", msg))) }
                         IconButton { icon: "folder-remote"; size: Theme.px(26); tip: Tr.t("Browse files on this host"); onClicked: Files.connectServer("ssh://" + modelData.user + "@" + modelData.host + ":" + modelData.port + "/", "", "", "") }
+                        IconButton { icon: "edit-copy"; size: Theme.px(26); tip: Tr.t("Copy address"); onClicked: { const addr = modelData.user + "@" + modelData.host; Quickshell.clipboardText = addr; win.hostNote = Tr.t("Copied %1", addr) } }
                         IconButton { icon: "object-select"; size: Theme.px(26); tip: modelData.pinned ? Tr.t("Unpin") : Tr.t("Pin"); onClicked: TerminalApp.togglePin(modelData.id) }
                         IconButton { icon: "go-previous"; size: Theme.px(26); tip: Tr.t("Edit"); onClicked: win.editHost(modelData) }
                         IconButton { icon: "edit-clear-all"; size: Theme.px(26); tip: Tr.t("Delete"); onClicked: TerminalApp.deleteHost(modelData.id) }

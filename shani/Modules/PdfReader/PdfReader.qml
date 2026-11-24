@@ -2,7 +2,8 @@
 // sidebar, text search (pdftotext -bbox, word highlighted over the page,
 // with a jump-to-page box as well), outline/bookmarks, fit-width/fit-page,
 // continuous scroll option, rotation, print button (lp via Printing).
-// poppler's PNGs in ~/.cache/shani-pdf, ← → or wheel to turn, Esc closes.
+// poppler's PNGs in ~/.cache/shani-pdf, ← → or wheel to turn, Esc closes,
+// Ctrl+O opens a file (also offered in the empty/error state).
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -18,6 +19,10 @@ AppWindow {
     property string extraPanel: ""
     property bool mergeSplitShown: false
     function toggleExtra(name) { extraPanel = extraPanel === name ? "" : name; }
+    function pick() {
+        FilePicker.open({ mode: "open", filters: ["pdf"], title: "Open a PDF",
+                          onPicked: paths => { if (paths && paths.length) PdfViewer.open(paths[0]); } });
+    }
     function saveAttachment(index, name) {
         FilePicker.open({
             mode: "save",
@@ -228,7 +233,8 @@ AppWindow {
         Keys.onRightPressed: PdfViewer.nextPage()
         Keys.onLeftPressed: PdfViewer.prevPage()
         Keys.onPressed: e => {
-            if (e.key === Qt.Key_PageDown) PdfViewer.nextPage();
+            if (e.key === Qt.Key_O && (e.modifiers & Qt.ControlModifier)) win.pick();
+            else if (e.key === Qt.Key_PageDown) PdfViewer.nextPage();
             else if (e.key === Qt.Key_PageUp) PdfViewer.prevPage();
             else if (e.key === Qt.Key_R && (e.modifiers & Qt.ShiftModifier)) PdfViewer.rotateCCW();
             else if (e.key === Qt.Key_R) PdfViewer.rotate();
@@ -245,6 +251,10 @@ AppWindow {
     Connections {
         target: PdfViewer
         function onFileChanged() {
+            // the service drops its query on open(); the fields must not keep
+            // showing the previous document's search and page number
+            if (searchField) searchField.text = "";
+            if (jumpField) jumpField.text = "";
             PdfViewer.info = null;
             win.extraPanel = "";
             win.mergeSplitShown = false;
@@ -305,6 +315,7 @@ AppWindow {
 
             // search bar: find text (pdftotext -bbox) + jump-to-page box
             RowLayout {
+                visible: PdfViewer.shown
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
                 TextField {
@@ -767,13 +778,25 @@ AppWindow {
                             }
                             Button { Layout.alignment: Qt.AlignHCenter; kind: "primary"; text: Tr.t("Unlock"); enabled: pdfPass.text !== ""; onClicked: PdfViewer.unlockWith(pdfPass.text) }
                         }
-                        Text {
+                        ColumnLayout {
                             visible: !PdfViewer.loading && PdfViewer.current === "" && !PdfViewer.needsPassword
                             anchors.centerIn: parent
-                            text: PdfViewer.error !== "" ? PdfViewer.error : Tr.t("No pages yet")
-                            color: Theme.dim
-                            font.family: Theme.font
-                            font.pixelSize: Theme.px(13) * Theme.fontScale
+                            width: Math.max(Theme.px(120), Math.min(parent.width - Theme.px(40), Theme.px(300)))
+                            spacing: Theme.px(8)
+                            Text {
+                                Layout.fillWidth: true
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.Wrap
+                                text: PdfViewer.error !== "" ? PdfViewer.error : Tr.t("No pages yet")
+                                color: Theme.dim
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(13) * Theme.fontScale
+                            }
+                            Button {
+                                Layout.alignment: Qt.AlignHCenter
+                                text: Tr.t("Open")
+                                onClicked: win.pick()
+                            }
                         }
                     }
 

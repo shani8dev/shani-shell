@@ -136,6 +136,15 @@ AppWindow {
                 e.accepted = true;
                 return;
             }
+            // Ctrl+V pastes the way typing does: every character still goes
+            // through press(), so the service's whitelist stays in charge.
+            if (e.key === Qt.Key_V && (e.modifiers & Qt.ControlModifier)) {
+                const pasted = String(Quickshell.clipboardText || "").replace(/\s+/g, "");
+                for (const ch of pasted)
+                    Services.Calculator.press(ch);
+                e.accepted = true;
+                return;
+            }
             // typing goes to the calculator as the keys do (the converter's
             // and the financial/programming value fields have their own
             // focus, so they are not disturbed). In Programming, A-F are
@@ -243,6 +252,25 @@ AppWindow {
                             else
                                 Services.Calculator.press(modelData.key);
                         }
+                    }
+                }
+            }
+
+            // ---- angle unit (DEG/RAD/GRAD) -----------------------------------
+            // GNOME Calculator and KCalc put the angle switch beside the trig
+            // keys; the service already evaluates through angleUnit.
+            RowLayout {
+                visible: win.tab === "scientific"
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Text { text: Tr.t("Angle"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Repeater {
+                    model: ["deg", "rad", "grad"]
+                    Choice {
+                        required property string modelData
+                        text: modelData.toUpperCase()
+                        selected: Services.Calculator.angleUnit === modelData
+                        onClicked: Services.Calculator.setAngleUnit(modelData)
                     }
                 }
             }
@@ -548,13 +576,24 @@ AppWindow {
                         spacing: 2
                         Repeater {
                             model: Services.Calculator.history
-                            Button {
+                            RowLayout {
                                 required property var modelData
                                 required property int index
                                 Layout.fillWidth: true
-                                text: modelData.expr + " = " + modelData.value
-                                kind: "plain"
-                                onClicked: Services.Calculator.recallHistory(index)
+                                spacing: Theme.px(4)
+                                Button {
+                                    Layout.fillWidth: true
+                                    text: modelData.expr + " = " + modelData.value
+                                    kind: "plain"
+                                    onClicked: Services.Calculator.recallHistory(index)
+                                }
+                                Button {
+                                    text: "⧉"
+                                    onClicked: {
+                                        Quickshell.clipboardText = modelData.expr + " = " + modelData.value;
+                                        Quickshell.execDetached(["notify-send", "-a", "Calculator", Tr.t("Copied expression")]);
+                                    }
+                                }
                             }
                         }
                     }

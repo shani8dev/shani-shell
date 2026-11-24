@@ -79,6 +79,7 @@ AppWindow {
 
                     // Search
                     TextField {
+                        id: filterField
                         Layout.fillWidth: true
                         placeholderText: Tr.t("Filter note names…")
                         text: win.filterText
@@ -280,7 +281,21 @@ AppWindow {
                     spacing: Theme.px(4)
                     Layout.margins: Theme.px(8)
 
-                    Label { text: Services.QuickNotes.current || Tr.t("No note selected"); font.bold: true; Layout.fillWidth: true }
+                    // The title is the note's file name: rename it here, as
+                    // every other note app lets you, instead of in a file manager.
+                    TextField {
+                        id: titleField
+                        Layout.fillWidth: true
+                        placeholderText: Tr.t("No note selected")
+                        label: Tr.t("Note title")
+                        text: Services.QuickNotes.current
+                        enabled: Services.QuickNotes.current !== ""
+                        onAccepted: win.renameCurrent(text)
+                        Connections {
+                            target: Services.QuickNotes
+                            function onCurrentChanged() { titleField.text = Services.QuickNotes.current; }
+                        }
+                    }
                     Button { text: "B"; enabled: editor.enabled; onClicked: win.wrapSelection("**", "**") }
                     Button { text: "I"; enabled: editor.enabled; onClicked: win.wrapSelection("*", "*") }
                     Button { text: "H"; enabled: editor.enabled; onClicked: win.prefixLine("# ") }
@@ -631,4 +646,17 @@ AppWindow {
         editor.insert(editor.cursorPosition, "![](" + paste.name + ")");
         win.note = Tr.t("Image added");
     }
+
+    /// Rename the open note; the title field shows the real name again even
+    /// when the service refuses a duplicate or an empty one.
+    function renameCurrent(name) {
+        const old = Services.QuickNotes.current;
+        const n = String(name || "").trim();
+        if (old !== "" && n !== "" && n !== old)
+            Services.QuickNotes.rename(old, n, Services.QuickNotes.currentNotebook);
+        titleField.text = Services.QuickNotes.current;
+    }
+
+    Shortcut { sequence: "Ctrl+N"; onActivated: Services.QuickNotes.create(Tr.t("Untitled"), win.selectedNotebook) }
+    Shortcut { sequence: "Ctrl+F"; onActivated: filterField.forceActiveFocus() }
 }

@@ -59,6 +59,15 @@ AppWindow {
         win.detailUid = c.uid;
         win.showDetail = true;
     }
+    function visibleContacts() {
+        if (win.groupFilter === Tr.t("Favourites")) return Contacts.favoriteContacts;
+        return win.groupFilter === Tr.t("All") ? Contacts.shown
+            : Contacts.listContactsInGroup(win.groupFilter);
+    }
+    function copyText(value) {
+        const s = String(value || "").trim();
+        if (s) Quickshell.clipboardText = s;
+    }
     function openExternal(url) { Quickshell.execDetached(["xdg-open", url]); }
 
     function pickImport() {
@@ -353,7 +362,7 @@ AppWindow {
             Layout.fillWidth: true
             spacing: Theme.px(6)
             Repeater {
-                model: Contacts.allGroups
+                model: [Tr.t("All"), Tr.t("Favourites")].concat(Contacts.allGroups.slice(1))
                 Choice {
                     required property string modelData
                     text: modelData
@@ -371,7 +380,7 @@ AppWindow {
             clip: true
             reuseItems: true
             cacheBuffer: 400
-            model: win.groupFilter === Tr.t("All") ? Contacts.shown : Contacts.listContactsInGroup(win.groupFilter)
+            model: win.visibleContacts()
             delegate: Rectangle {
                 required property var modelData
                 width: list.width
@@ -471,8 +480,11 @@ AppWindow {
                 anchors.centerIn: parent
                 visible: list.count === 0 && !Contacts.busy
                 icon: "contact-new"
-                title: Contacts.query !== "" ? Tr.t("No matches for %1", Contacts.query) : Tr.t("No contacts yet")
-                subtitle: Contacts.query !== "" ? Tr.t("Try a different name or number") : Tr.t("Add one above, or import a .vcf file")
+                title: Contacts.query !== "" ? Tr.t("No matches for %1", Contacts.query)
+                    : win.groupFilter === Tr.t("Favourites") ? Tr.t("No favourites yet") : Tr.t("No contacts yet")
+                subtitle: Contacts.query !== "" ? Tr.t("Try a different name or number")
+                    : win.groupFilter === Tr.t("Favourites") ? Tr.t("Star a contact to see it here")
+                    : Tr.t("Add one above, or import a .vcf file")
             }
         }
 
@@ -547,6 +559,12 @@ AppWindow {
                         Layout.fillWidth: true
                         Icon { name: "call-start"; size: Theme.px(18); color: Theme.dim }
                         Text { Layout.fillWidth: true; text: (modelData.type || "cell") + ": " + (modelData.number || ""); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; elide: Text.ElideRight }
+                        IconButton {
+                            size: Theme.px(24)
+                            icon: "edit-copy"
+                            tip: Tr.t("Copy number")
+                            onClicked: win.copyText(modelData.number)
+                        }
                         Button { text: "Call"; flat: true; onClicked: win.openExternal("tel:" + (modelData.number || "")) }
                     }
                 }
@@ -557,8 +575,20 @@ AppWindow {
                         Layout.fillWidth: true
                         Icon { name: "mail-unread"; size: Theme.px(18); color: Theme.dim }
                         Text { Layout.fillWidth: true; text: (modelData.type || "home") + ": " + (modelData.address || ""); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; elide: Text.ElideRight }
+                        IconButton {
+                            size: Theme.px(24)
+                            icon: "edit-copy"
+                            tip: Tr.t("Copy address")
+                            onClicked: win.copyText(modelData.address)
+                        }
                         Button { text: "Mail"; flat: true; onClicked: win.openExternal("mailto:" + (modelData.address || "")) }
                     }
+                }
+                Button {
+                    text: Tr.t("Copy name")
+                    flat: true
+                    enabled: !!((detailCol.c.name || ""))
+                    onClicked: win.copyText(detailCol.c.name)
                 }
                 Button {
                     text: "Open in Maps"

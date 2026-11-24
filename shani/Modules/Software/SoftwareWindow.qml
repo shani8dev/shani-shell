@@ -44,6 +44,8 @@ AppWindow {
     readonly property int updates: installedApps.filter(a => a.update).length
     property bool confirmUpdateAll: false        // two-tap confirm, armed for a few seconds
     property var skippedIds: []                  // apps held back with "Skip this version"
+    property string installedQuery: ""           // filter the Installed list
+    property bool updatesOnly: false             // show only apps with an update
     property var catalogue: ({})                 // {refreshed, ageDays} from the bridge
 
     readonly property var categories: [["AudioVideo", Tr.t("Music and video")], ["Development", Tr.t("Developer tools")], ["Education", Tr.t("Learning")],
@@ -522,6 +524,23 @@ AppWindow {
                 }
             }
         }
+        RowLayout {
+            visible: win.tab === "installed"
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            TextField {
+                id: installedSearch
+                Layout.fillWidth: true
+                placeholder: Tr.t("Find installed apps…")
+                text: win.installedQuery
+                onTextChanged: win.installedQuery = text
+            }
+            Choice {
+                text: Tr.t("Updates only")
+                selected: win.updatesOnly
+                onClicked: win.updatesOnly = !win.updatesOnly
+            }
+        }
         Rectangle {
             visible: win.confirmUpdateAll && win.updates > 0
             Layout.fillWidth: true
@@ -546,7 +565,11 @@ AppWindow {
             Layout.fillHeight: true
             clip: true
             spacing: 2
-            model: win.installedApps
+            model: win.installedApps.filter(a =>
+                (!win.updatesOnly || a.update) &&
+                (!win.installedQuery ||
+                 String(a.name || a.id || "").toLowerCase().includes(win.installedQuery.toLowerCase()) ||
+                 String(a.id || "").toLowerCase().includes(win.installedQuery.toLowerCase())))
             delegate: RowLayout {
                 id: irow
                 required property var modelData
@@ -568,6 +591,13 @@ AppWindow {
                     onClicked: win.ask(["skip", irow.modelData.id, win.skippedIds.indexOf(irow.modelData.id) >= 0 ? "off" : "on"], () => win.start())
                 }
                 Button { text: Tr.t("Details"); flat: true; onClicked: { win.tab = "explore"; win.openApp(irow.modelData.id); } }
+            }
+            EmptyState {
+                anchors.centerIn: parent
+                visible: ilist.count === 0
+                icon: "applications-other"
+                title: win.installedQuery || win.updatesOnly ? Tr.t("No apps match your filter") : Tr.t("No apps installed yet")
+                subtitle: win.installedQuery || win.updatesOnly ? Tr.t("Try a different name or turn off Updates only.") : Tr.t("Find apps in Explore and install one.")
             }
         }
 

@@ -20,6 +20,7 @@ AppWindow {
     onTabChanged: Ui.clocksTab = tab
     property string alarmTime: Qt.formatTime(new Date(Date.now() + 3600000), "HH:mm")
     property string alarmLabel: ""
+    property int lastTimerMinutes: 0
     readonly property var alarms: Array.from(WorldClock.alarms || [])
     // an alarm removed elsewhere shifts every index: drop a pending confirmation
     // so the second tap cannot delete a different alarm
@@ -27,6 +28,16 @@ AppWindow {
     // a row asks before it removes an alarm: two taps, the second within 4 s
     property int confirmAlarm: -1
     Timer { id: alarmTimer; interval: 4000; onTriggered: win.confirmAlarm = -1 }
+
+    // flip an alarm on/off without losing its label or repeat days: the
+    // service's addAlarm() takes both, removeAlarm() takes only an index.
+    function toggleAlarm(index) {
+        const list = Array.from(win.alarms || []);
+        if (index < 0 || index >= list.length) return;
+        const item = list[index];
+        list.splice(index, 1);
+        WorldClock.addAlarm(item.time, item.label, Array.isArray(item.days) ? item.days : [], item.enabled === false);
+    }
 
     Item {
         anchors.fill: parent
@@ -117,12 +128,16 @@ AppWindow {
                         Layout.fillWidth: true
                         icon: "alarm"
                         title: modelData.time + (modelData.label ? " — " + modelData.label : "")
-                        subtitle: Tr.t("Daily · rings once at this time")
+                        subtitle: (Array.isArray(modelData.days) && modelData.days.length ? Tr.t("Repeats") : Tr.t("Daily")) + " · " + (modelData.enabled === false ? Tr.t("Off") : Tr.t("On"))
                         // tapping the row asks first: a stray click must not lose an alarm
                         trailing: win.confirmAlarm === index ? Tr.t("Tap again to remove") : Tr.t("Remove")
                         onClicked: {
                             if (win.confirmAlarm === index) { WorldClock.removeAlarm(index); win.confirmAlarm = -1; alarmTimer.restart(); }
                             else { win.confirmAlarm = index; alarmTimer.restart(); }
+                        }
+                        Button {
+                            text: modelData.enabled === false ? Tr.t("On") : Tr.t("Off")
+                            onClicked: win.toggleAlarm(index)
                         }
                     }
                 }
@@ -239,16 +254,26 @@ AppWindow {
                             required property int modelData
                             text: modelData + " " + Tr.t("min")
                             selected: FocusTimer.running && FocusTimer.total === modelData * 60
-                            onClicked: FocusTimer.start(modelData)
+                            onClicked: { win.lastTimerMinutes = modelData; FocusTimer.start(modelData); }
                         }
                     }
                 }
-                Button {
+                RowLayout {
                     Layout.fillWidth: true
-                    visible: FocusTimer.running
-                    kind: "danger"
-                    text: Tr.t("Stop the timer")
-                    onClicked: FocusTimer.stop()
+                    spacing: Theme.px(6)
+                    Button {
+                        Layout.fillWidth: true
+                        visible: win.lastTimerMinutes > 0
+                        text: Tr.t("Restart %1 min").arg(win.lastTimerMinutes)
+                        onClicked: FocusTimer.start(win.lastTimerMinutes)
+                    }
+                    Button {
+                        Layout.fillWidth: true
+                        visible: FocusTimer.running
+                        kind: "danger"
+                        text: Tr.t("Stop the timer")
+                        onClicked: FocusTimer.stop()
+                    }
                 }
                 Text {
                     Layout.fillWidth: true

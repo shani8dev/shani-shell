@@ -138,7 +138,13 @@ AppWindow {
     }
     // title search lives on Agenda (so IPC `calendarSearch` uses the same box)
     readonly property var dayEvents: Agenda.events.filter(e => isSameDay(new Date(e.start * 1000), selectedDate))
-    readonly property var shownEvents: dayEvents.filter(e => Agenda.search === "" || String(e.summary || "").toLowerCase().indexOf(Agenda.search.toLowerCase()) >= 0)
+    // GNOME Calendar / KOrganizer search the whole event, not just its title:
+    // a place or a word in the notes is often what you remember.
+    readonly property var shownEvents: dayEvents.filter(e => {
+        const needle = Agenda.search.toLowerCase();
+        return needle === "" || ["summary", "location", "description"].some(k =>
+            String(e[k] || "").toLowerCase().indexOf(needle) >= 0);
+    })
     readonly property var monthEvents: Agenda.events.filter(e => {
         const s = new Date(e.start * 1000);
         return s.getFullYear() === month.getFullYear() && s.getMonth() === month.getMonth();
@@ -162,6 +168,24 @@ AppWindow {
     function goToday() {
         offset = 0;
         selectedDate = new Date();
+    }
+    property bool pickingDate: false
+    // Jump straight to a date: paging twelve months to reach last February
+    // is not what a calendar app does.
+    function goToDate(text) {
+        const m = String(text || "").trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!m) return false;
+        const y = Number(m[1]), mo = Number(m[2]) - 1, d = Number(m[3]);
+        const dt = new Date(y, mo, d);
+        if (dt.getFullYear() !== y || dt.getMonth() !== mo || dt.getDate() !== d) return false;
+        if (view === "week") {
+            const a = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            offset = Math.round((dt - a) / (7 * 86400000));
+        } else
+            offset = (dt.getFullYear() - today.getFullYear()) * 12 + dt.getMonth() - today.getMonth();
+        selectedDate = dt;
+        pickingDate = false;
+        return true;
     }
     function selectDay(day) {
         selectedDate = new Date(month.getFullYear(), month.getMonth(), day);
@@ -235,6 +259,13 @@ AppWindow {
         const c = Agenda.colorOf(cal);
         if (!c) return Theme.accent;
         try { Qt.color(c); return c; } catch (e) { return Theme.accent; }
+    }
+    // An all-day event has its own date; it is not necessarily "Today".
+    function detailWhen(e) {
+        if (!e || !e.start) return "";
+        const day = Qt.formatDate(new Date(e.start * 1000), "ddd d MMM yyyy");
+        return e.allDay ? day + " · " + Tr.t("All day")
+                        : day + " · " + win.zoneTime(e.start) + " – " + win.zoneTime(e.end || 0);
     }
     // the week on screen: seven days from its first, which follows "week starts on"
     readonly property date weekStart: new Date(weekAnchor.getFullYear(), weekAnchor.getMonth(),
@@ -532,7 +563,8 @@ AppWindow {
                     }
                 }
                 Item { Layout.fillWidth: true }
-                Choice { text: Tr.t("Today"); onClicked: win.goToday() }
+                Choice { text: Tr.t("Go to date…"); selected: win.pickingDate; onClicked: { win.pickingDate = !win.pickingDate; if (win.pickingDate) dateField.forceActiveFocus(); } }
+                Choice { text: Tr.t("Today"); onClicked: { win.goToday(); win.pickingDate = false; } }
                 Button {
                     visible: !win.editor
                     text: Tr.t("New event")
@@ -1185,11 +1217,20 @@ AppWindow {
                 Connections { target: Agenda; function onAccountBusyChanged() { if (!Agenda.accountBusy && Agenda.accountError === "") { win.addingAccount = false; accPass.text = ""; } } }
             }
             TextField {
+                id: dateField
+                visible: !win.editor && win.pickingDate
+                Layout.fillWidth: true
+                placeholder: Tr.t("Jump to date (yyyy-MM-dd)")
+                label: Tr.t("Jump to date (yyyy-MM-dd)")
+                error: text !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(text.trim()) ? Tr.t("Use yyyy-MM-dd") : ""
+                onAccepted: { if (win.goToDate(text)) text = "" }
+            }
+            TextField {
                 id: searchField
                 visible: !win.editor
                 Layout.fillWidth: true
-                placeholder: Tr.t("Search events by title")
-                label: Tr.t("Search events by title")
+                placeholder: Tr.t("Search title, place or notes")
+                label: Tr.t("Search title, place or notes")
                 onTextChanged: { if (text !== Agenda.search) Agenda.search = text; }
             }
             Connections { target: Agenda; function onSearchChanged() { if (Agenda.search !== searchField.text) searchField.text = Agenda.search; } }
@@ -1214,7 +1255,7 @@ AppWindow {
                             Layout.fillWidth: true
                             icon: "x-office-calendar"
                             title: modelData.summary
-                            subtitle: Agenda.when(modelData) + (modelData.location ? " · " + modelData.location : "") + (modelData.calendar ? " · " + modelData.calendar : "")
+                            subtitle: Agenda.when(modelData) + (modelData.location ? " · " + modelData.location : "") + (modelData.calendar ? " · " + modelData.calendar : "") + (modelData.allDay ? " · " + Tr.t("All day") : "")
                             onClicked: win.viewEvent(modelData)
                         }
                     }
@@ -1437,9 +1478,7 @@ AppWindow {
                     }
                     Text {
                         Layout.fillWidth: true
-                        text: (win.viewingEvent || {}).allDay ? Tr.t("Today")
-                            : Qt.formatDate(new Date((win.viewingEvent || {}).start * 1000), "ddd d MMM yyyy") + " · " + win.zoneTime((win.viewingEvent || {}).start || 0)
-                              + " – " + win.zoneTime((win.viewingEvent || {}).end || 0)
+                        text: win.detailWhen(win.viewingEvent)
                         color: Theme.dim
                         font.family: Theme.font
                         font.pixelSize: Theme.px(12) * Theme.fontScale

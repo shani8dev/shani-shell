@@ -16,6 +16,28 @@ AppWindow {
     implicitHeight: Theme.px(680)
 
     property bool starred: (Mail.messages.find(m => m.uid === Mail.openUid) || {}).starred || false
+    // the list is a view over Mail.messages, sorted here rather than asking the
+    // server for a new order: the bridge already hands us the whole folder
+    property string sortField: "date"
+    property bool sortNewest: true
+
+    function visibleMessages() {
+        const rows = Mail.messages.slice();
+        const key = row => win.sortField === "subject" ? String(row.subject || "").toLowerCase()
+            : win.sortField === "from" ? String(row.from || "").toLowerCase()
+            : (Date.parse(row.date) || 0);
+        rows.sort((a, b) => {
+            const ka = key(a), kb = key(b);
+            const c = typeof ka === "number" && typeof kb === "number" ? ka - kb : String(ka).localeCompare(String(kb));
+            return win.sortNewest ? -c : c;
+        });
+        return rows;
+    }
+
+    function markAllRead() {
+        Mail.messages.forEach(m => { if (m.unread) Mail.markRead(m.uid); });
+        Mail.refresh();
+    }
 
     function saveAttachment(index, name) {
         FilePicker.open({
@@ -116,13 +138,43 @@ AppWindow {
             Layout.fillHeight: true
             spacing: Theme.px(4)
 
-            Text {
+            RowLayout {
                 Layout.fillWidth: true
-                text: Mail.folder
-                color: Theme.text
-                font.family: Theme.font
-                font.pixelSize: Theme.px(13) * Theme.fontScale
-                font.weight: Font.DemiBold
+                spacing: Theme.px(6)
+                Text {
+                    Layout.fillWidth: true
+                    text: Mail.folder
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.weight: Font.DemiBold
+                }
+                Button {
+                    text: Tr.t("Mark all read")
+                    flat: true
+                    enabled: Mail.messages.some(m => m.unread)
+                    onClicked: win.markAllRead()
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(4)
+                Repeater {
+                    model: [["date", Tr.t("Date")], ["from", Tr.t("From")], ["subject", Tr.t("Subject")]]
+                    Choice {
+                        required property var modelData
+                        text: modelData[1]
+                        selected: win.sortField === modelData[0]
+                        onClicked: win.sortField = modelData[0]
+                    }
+                }
+                Button {
+                    text: win.sortField === "date"
+                        ? (win.sortNewest ? Tr.t("Newest") : Tr.t("Oldest"))
+                        : (win.sortNewest ? Tr.t("Z–A") : Tr.t("A–Z"))
+                    flat: true
+                    onClicked: win.sortNewest = !win.sortNewest
+                }
             }
             ListView {
                 id: list
@@ -130,7 +182,7 @@ AppWindow {
                 Layout.fillHeight: true
                 clip: true
                 spacing: 2
-                model: Mail.messages
+                model: win.visibleMessages()
                 ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                 delegate: ListRow {
                     required property var modelData
@@ -138,6 +190,7 @@ AppWindow {
                     icon: modelData.unread ? "mail-unread" : "mail-read"
                     title: modelData.subject
                     subtitle: Mail.when(modelData.date) + (modelData.from ? "  ·  " + modelData.from : "")
+                    trailing: modelData.starred ? "★" : ""
                     selected: Mail.openUid === modelData.uid
                     onClicked: Mail.read(modelData.uid)
                 }

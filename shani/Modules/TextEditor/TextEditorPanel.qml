@@ -6,7 +6,8 @@
 // Every action is a button with its shortcut in the tooltip - Ctrl+N new,
 // Ctrl+O open, Ctrl+S save, Ctrl+Shift+S save as, Ctrl+W close the tab,
 // Ctrl+Z undo, Ctrl+Shift+Z / Ctrl+Y redo, Ctrl+F find, Ctrl+H replace,
-// Ctrl +/-/0 text size.
+// Ctrl +/-/0 text size, Ctrl+Tab / Ctrl+PgUp/PgDn switch tabs,
+// Ctrl+Shift+T reopen the last closed tab.
 // The image's default for text files (dev.shani.TextEditor.desktop).
 import Quickshell
 import QtQuick
@@ -57,6 +58,7 @@ AppWindow {
     property bool gotoOpen: false
     property string themeChoice: ""
     property int confirmClose: -1         // the tab asked to close with changes: a second click closes it
+    property var lastClosed: null         // { index, doc } of the last tab closed — Ctrl+Shift+T puts it back
     property bool loading: false          // the editor is being filled, not typed in
     // ---- snippets: type a trigger, press Tab to expand ----
     readonly property var snippets: [
@@ -355,7 +357,20 @@ AppWindow {
             return;
         }
         win.confirmClose = -1;
+        // keep the doc object itself: its text, history and bookmarks survive,
+        // so reopening is a true undo of the close (also for an unsaved tab)
+        win.lastClosed = { index: i, doc: TextDocs.docs[i] };
         TextDocs.close(i);
+    }
+    function reopenTab() {
+        const last = win.lastClosed;
+        if (!last || !last.doc) return;
+        win.lastClosed = null;
+        const at = Math.min(last.index, TextDocs.docs.length);
+        const list = TextDocs.docs.slice();
+        list.splice(at, 0, last.doc);
+        TextDocs.docs = list;
+        TextDocs.show(at);
     }
     Timer { id: confirmTimer; interval: 4000; onTriggered: win.confirmClose = -1 }
 
@@ -477,8 +492,13 @@ AppWindow {
         else if (e.key === Qt.Key_O) win.pick();
         else if (e.key === Qt.Key_N) TextDocs.newDoc();
         else if (e.key === Qt.Key_W) win.closeTab(TextDocs.active);
+        else if (e.key === Qt.Key_T && shift) win.reopenTab();
+        else if (e.key === Qt.Key_Tab && TextDocs.docs.length > 1)
+            TextDocs.show((TextDocs.active + (shift ? -1 : 1) + TextDocs.docs.length) % TextDocs.docs.length);
+        else if ((e.key === Qt.Key_PageDown || e.key === Qt.Key_PageUp) && TextDocs.docs.length > 1)
+            TextDocs.show((TextDocs.active + (e.key === Qt.Key_PageDown ? 1 : -1) + TextDocs.docs.length) % TextDocs.docs.length);
         else if (e.key === Qt.Key_F) { win.finding = true; win.replacing = false; findField.text = edit.selectedText; findField.input.forceActiveFocus(); }
-        else if (e.key === Qt.Key_H) { win.finding = true; win.replacing = true; findField.input.forceActiveFocus(); }
+        else if (e.key === Qt.Key_H) { win.finding = true; win.replacing = true; if (edit.selectedText !== "") findField.text = edit.selectedText; findField.input.forceActiveFocus(); }
         else if (e.key === Qt.Key_B) win.toggleBookmark();
         else if (e.key === Qt.Key_G) win.openGoto();
         else if (e.key === Qt.Key_Plus || e.key === Qt.Key_Equal) win.fontSize = Math.min(28, win.fontSize + 1);

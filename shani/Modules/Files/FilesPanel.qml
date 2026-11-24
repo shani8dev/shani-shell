@@ -85,6 +85,18 @@ AppWindow {
                 event.accepted = true;
                 return;
             }
+            // Ctrl+H: show or hide dotfiles (Nautilus / Dolphin / Finder)
+            if (control && !alt && event.key === Qt.Key_H) {
+                Files.toggleHidden();
+                event.accepted = true;
+                return;
+            }
+            // Ctrl+Shift+N: a new folder here (Nautilus / Finder)
+            if (control && !alt && (event.modifiers & Qt.ShiftModifier) && event.key === Qt.Key_N) {
+                win.openNewFolder();
+                event.accepted = true;
+                return;
+            }
             if (control && event.key === Qt.Key_A) {
                 Files.selectAll();
                 event.accepted = true;
@@ -405,6 +417,15 @@ AppWindow {
                         const order = ["name", "size", "mtime", "btime", "type"];
                         Files.setSort(order[(order.indexOf(Files.sortKey) + 1) % order.length]);
                     }
+                }
+                // the sort key button above cycles keys; this one reverses them.
+                // setSort with the current key is the service's own toggle, so the
+                // choice is kept in Settings like every other sort change.
+                IconButton {
+                    icon: Files.sortDesc ? "view-sort-ascending" : "view-sort-descending"
+                    size: Theme.px(30)
+                    tip: Tr.t("Sort direction: %1 (click to reverse)", Files.sortDesc ? Tr.t("descending") : Tr.t("ascending"))
+                    onClicked: Files.setSort(Files.sortKey)
                 }
                 IconButton {
                     icon: Files.showHidden ? "view-reveal" : "view-conceal"

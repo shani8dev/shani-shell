@@ -48,7 +48,7 @@ def test_recorder_rename_escape_cancels_only_the_edit():
 def test_recorder_inline_playback_has_no_stale_bar():
     # end of media, closing the panel, renaming and trashing a playing take
     # all clear the inline playback bar
-    assert "playback.status === MediaPlayer.EndOfMedia" in REC
+    assert "playback.mediaStatus === MediaPlayer.EndOfMedia" in REC
     assert 'else { playback.stop(); win.inlinePlay = ""; }' in REC
     assert REC.count("win.inlinePlay === row.modelData.path") >= 3
     assert REC.count('win.inlinePlay = "";') >= 4
