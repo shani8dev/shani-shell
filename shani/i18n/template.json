@@ -1634,6 +1634,8 @@
  "Hold for window layout · Click to maximise": "",
  "Hold still…": "",
  "Holds %1 Wh of the %2 Wh it held new": "",
+ "Holiday": "",
+ "Holidays": "",
  "Home": "",
  "Home network": "",
  "Host %1, %2": "",
@@ -4566,6 +4568,7 @@
  "min KB": "",
  "minimise animations": "",
  "mirrored": "",
+ "more": "",
  "music": "",
  "muted": "",
  "name": "",
@@ -4760,9 +4763,5 @@
  "↑/↓ select · Enter connect · / find · Ctrl+F find · Ctrl+1…4 tab · Ctrl+Tab next tab · Ctrl+T tunnels · F2 test · Delete remove (twice) · Esc close": "",
  "→ char": "",
  "→ code": "",
- "↵ send    esc close    ·    tools ask before they change anything": "",
- "Holiday": "",
- "Holidays": "",
- "more": "",
- "the new one is named \\\"name (2)\\\"": ""
+ "↵ send    esc close    ·    tools ask before they change anything": ""
 }
