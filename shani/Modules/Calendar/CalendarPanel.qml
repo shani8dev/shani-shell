@@ -162,7 +162,7 @@ AppWindow {
         const r = cellReminders(day).length, h = cellHolidays(day).length;
         if (r || h) s += ", " + Tr.t("has events");
         if (r) s += ", " + Tr.t("Reminders") + ": " + r;
-        if (h) s += ", " + "Holiday" + ": " + h;
+        if (h) s += ", " + Tr.t("Holiday") + ": " + h;
         return s;
     }
     // title search lives on Agenda (so IPC `calendarSearch` uses the same box)
@@ -933,7 +933,7 @@ AppWindow {
                 // legend for the cell markers above (the day cell is clickable)
                 visible: win.view === "month"
                 Layout.fillWidth: true
-                text: "● " + Tr.t("Reminders") + "    ◆ Holidays    +n more"
+                text: "● " + Tr.t("Reminders") + "    ◆ " + Tr.t("Holidays") + "    +n " + Tr.t("more")
                 color: Theme.faint
                 font.family: Theme.font
                 font.pixelSize: Theme.px(10) * Theme.fontScale
