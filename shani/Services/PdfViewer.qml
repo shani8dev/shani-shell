@@ -554,7 +554,7 @@ Singleton {
         if (hits.length > 0) {
             searchIndex = 0;
             highlight = hits[0];
-            page = hits[0].page;
+            goTo(hits[0].page);      // a search jump is a visit: Back can undo it
             searchState = hits.length + " found";
         } else if (pageTexts.length > 0) {
             // fallback: jump through the pages whose -layout text holds the term
@@ -566,7 +566,7 @@ Singleton {
             searchIndex = 0;
             if (pagesWith.length > 0) {
                 highlight = searchMatches[0];
-                page = pagesWith[0];
+                goTo(pagesWith[0]);   // the fallback's page jump is a visit too
                 searchState = pagesWith.length + " pages";
             } else {
                 searchState = Tr.t("Not found");
@@ -587,7 +587,7 @@ Singleton {
         }
         searchIndex = (searchIndex + 1) % searchMatches.length;
         highlight = searchMatches[searchIndex];
-        page = highlight.page;
+        goTo(highlight.page);
     }
     function findPrev() {
         if (!searchMatches.length)
@@ -598,7 +598,7 @@ Singleton {
         }
         searchIndex = (searchIndex - 1 + searchMatches.length) % searchMatches.length;
         highlight = searchMatches[searchIndex];
-        page = highlight.page;
+        goTo(highlight.page);
     }
     function clearSearch() {
         searchText = "";
@@ -609,13 +609,37 @@ Singleton {
     }
 
     // ---- print (CUPS `lp`, via the Printing.printFile backend) ---------------
-    function printFile() {
-        if (!file)
-            return;
-        Printing.printFile(root.pdf || file);       // an e-book prints from its PDF copy
-        printState = "printing " + name;
+    // CUPS takes a 1-based `page-ranges=1-3,5` option. The range never reaches a
+    // shell: it is checked here and handed to lp as its own argument.
+    function validPageRange(text, count) {
+        const s = String(text === undefined || text === null ? "" : text).trim();
+        if (s === "") return true;                  // empty prints the whole document
+        if (!/^\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*$/.test(s)) return false;
+        for (const part of s.split(",")) {
+            const b = part.split("-").map(Number);
+            const from = b[0], to = b.length > 1 ? b[1] : b[0];
+            if (from < 1 || to > count || from > to) return false;
+        }
+        return true;
+    }
+    function printFile(range) {
+        if (!file) return false;
+        const spec = String(range === undefined || range === null ? "" : range).trim();
+        if (!validPageRange(spec, pages.length)) {
+            printState = "invalid page range";
+            return false;
+        }
+        if (spec) {
+            // an e-book prints from its PDF copy, like the no-range path
+            Quickshell.execDetached(["lp", "-o", "page-ranges=" + spec, "--", root.pdf || file]);
+            printState = "printing " + name + " " + spec;
+        } else {
+            Printing.printFile(root.pdf || file);
+            printState = "printing " + name;
+        }
         printProc.command = ["sh", "-c", "lpstat -o 2>/dev/null | grep -c . || true"];
         printProc.running = true;
+        return true;
     }
 
     // ---- merge / split ----

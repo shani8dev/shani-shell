@@ -18,6 +18,7 @@ AppWindow {
     // one extras panel at a time: bookmarks, links, attachments, annotations
     property string extraPanel: ""
     property bool mergeSplitShown: false
+    property bool printShown: false
     function toggleExtra(name) { extraPanel = extraPanel === name ? "" : name; }
     function pick() {
         FilePicker.open({ mode: "open", filters: ["pdf"], title: "Open a PDF",
@@ -239,10 +240,57 @@ AppWindow {
         }
     }
 
+    // print options: CUPS accepts a page range; validate it in the service
+    // before it becomes an `lp -o page-ranges=…` argument
+    Glass {
+        id: printBox
+        parent: win.contentItem
+        visible: win.printShown
+        z: 41
+        strong: true
+        solid: true
+        radius: Theme.px(12)
+        width: Math.min(parent.width - 40, Theme.px(400))
+        height: printCol.implicitHeight + 28
+        anchors.centerIn: parent
+        ColumnLayout {
+            id: printCol
+            anchors.fill: parent
+            anchors.margins: Theme.px(14)
+            spacing: Theme.px(8)
+            RowLayout {
+                Layout.fillWidth: true
+                Text {
+                    Layout.fillWidth: true
+                    text: Tr.t("Print") + (PdfViewer.name !== "" ? "  ·  " + PdfViewer.name : "")
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(14) * Theme.fontScale
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideMiddle
+                }
+                IconButton { icon: "window-close"; size: Theme.px(24); tip: Tr.t("Close"); onClicked: win.printShown = false }
+            }
+            TextField {
+                id: printRangeField
+                Layout.fillWidth: true
+                placeholder: Tr.t("Page range (e.g. 1-5), or all")
+                label: Tr.t("Page range")
+            }
+            Button {
+                Layout.fillWidth: true
+                kind: "primary"
+                text: Tr.t("Print")
+                enabled: PdfViewer.validPageRange(printRangeField.text, PdfViewer.pageCount)
+                onClicked: { PdfViewer.printFile(printRangeField.text); win.printShown = false; }
+            }
+        }
+    }
+
     Item {
         anchors.fill: parent
         focus: win.visible
-        Keys.onEscapePressed: PdfViewer.info !== null ? PdfViewer.info = null : PdfViewer.close()
+        Keys.onEscapePressed: printShown ? printShown = false : (PdfViewer.info !== null ? PdfViewer.info = null : PdfViewer.close())
         Keys.onRightPressed: PdfViewer.nextSpread()
         Keys.onLeftPressed: PdfViewer.prevSpread()
         Keys.onPressed: e => {
@@ -254,6 +302,8 @@ AppWindow {
             else if (e.key === Qt.Key_F) PdfViewer.setFit("page");
             else if (e.key === Qt.Key_W) PdfViewer.setFit("width");
             else if (e.key === Qt.Key_P) PdfViewer.printFile();
+            else if (e.key === Qt.Key_BracketLeft) PdfViewer.navBack();
+            else if (e.key === Qt.Key_BracketRight) PdfViewer.navForward();
             else if (e.key === Qt.Key_Plus || e.key === Qt.Key_Equal) PdfViewer.setZoom(PdfViewer.zoom * 1.25);
             else if (e.key === Qt.Key_Minus) PdfViewer.setZoom(PdfViewer.zoom / 1.25);
             else if (e.key === Qt.Key_0) PdfViewer.setZoom(1);
@@ -277,6 +327,7 @@ AppWindow {
             PdfViewer.info = null;
             win.extraPanel = "";
             win.mergeSplitShown = false;
+            win.printShown = false;
             win.pdfAnnoMode = false;
             win.clearMarks();
             win.note = "";
@@ -297,8 +348,8 @@ AppWindow {
                 spacing: Theme.px(6)
                 IconButton { icon: "go-first"; size: Theme.px(28); tip: Tr.t("First page"); onClicked: PdfViewer.firstPage() }
                 IconButton { icon: "go-previous"; size: Theme.px(28); tip: Tr.t("Previous page"); onClicked: PdfViewer.prevSpread() }
-                IconButton { icon: "edit-undo"; size: Theme.px(28); tip: Tr.t("Back"); enabled: PdfViewer.canNavBack; onClicked: PdfViewer.navBack() }
-                IconButton { icon: "edit-redo"; size: Theme.px(28); tip: Tr.t("Forward"); enabled: PdfViewer.canNavForward; onClicked: PdfViewer.navForward() }
+                IconButton { icon: "edit-undo"; size: Theme.px(28); tip: Tr.t("Back"); keys: "["; enabled: PdfViewer.canNavBack; onClicked: PdfViewer.navBack() }
+                IconButton { icon: "edit-redo"; size: Theme.px(28); tip: Tr.t("Forward"); keys: "]"; enabled: PdfViewer.canNavForward; onClicked: PdfViewer.navForward() }
                 Text {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
@@ -312,7 +363,7 @@ AppWindow {
                 IconButton { icon: "go-next"; size: Theme.px(28); tip: Tr.t("Next page"); onClicked: PdfViewer.nextSpread() }
                 IconButton { icon: "go-last"; size: Theme.px(28); tip: Tr.t("Last page"); onClicked: PdfViewer.lastPage() }
                 IconButton { icon: "document-open"; size: Theme.px(28); tip: Tr.t("Toggle thumbnails"); on: PdfViewer.showSidebar; onClicked: PdfViewer.toggleSidebar() }
-                IconButton { icon: "printer"; size: Theme.px(28); tip: Tr.t("Print (P)"); onClicked: PdfViewer.printFile() }
+                IconButton { icon: "printer"; size: Theme.px(28); tip: Tr.t("Print (P)"); on: win.printShown; onClicked: win.printShown = !win.printShown }
                 IconButton { icon: "draw-freehand"; size: Theme.px(28); tip: Tr.t("Mark up this page"); on: win.pdfAnnoMode; onClicked: { win.pdfAnnoMode = !win.pdfAnnoMode; } }
                 IconButton { icon: "weather-clear-night"; size: Theme.px(28); tip: Tr.t("Night mode"); on: PdfViewer.night; onClicked: PdfViewer.setNight(!PdfViewer.night) }
                 IconButton { icon: "format-text-direction-ltr"; size: Theme.px(28); tip: Tr.t("Read as text (select and copy)"); on: PdfViewer.textMode; onClicked: PdfViewer.textMode = !PdfViewer.textMode }
@@ -1035,7 +1086,7 @@ AppWindow {
                                         Layout.fillWidth: true
                                         placeholder: Tr.t("Bookmark name")
                                         label: Tr.t("Bookmark name")
-                                        text: PdfViewer.label || Tr.t("Page %1", PdfViewer.page + 1)
+                                        text: Tr.t("Page %1", PdfViewer.page + 1)
                                     }
                                     Button {
                                         Layout.fillWidth: true
@@ -1055,6 +1106,9 @@ AppWindow {
                                                 font.pixelSize: Theme.px(11) * Theme.fontScale
                                                 elide: Text.ElideRight
                                                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: PdfViewer.goTo(modelData.page) }
+                                                Accessible.role: Accessible.Button
+                                                Accessible.name: Tr.t("Bookmark page %1", modelData.page + 1) + " · " + modelData.title
+                                                KeyFocus { onActivated: PdfViewer.goTo(modelData.page) }
                                             }
                                             IconButton { icon: "list-remove"; size: Theme.px(20); tip: Tr.t("Remove bookmark"); onClicked: PdfViewer.removeBookmark(modelData.page) }
                                         }
@@ -1134,6 +1188,9 @@ AppWindow {
                                                 font.pixelSize: Theme.px(11) * Theme.fontScale
                                                 wrapMode: Text.Wrap
                                                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: PdfViewer.goTo(modelData.page) }
+                                                Accessible.role: Accessible.Button
+                                                Accessible.name: modelData.type + " · " + Tr.t("page %1", modelData.page + 1)
+                                                KeyFocus { onActivated: PdfViewer.goTo(modelData.page) }
                                             }
                                         }
                                     }
