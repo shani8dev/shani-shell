@@ -26,10 +26,12 @@ ColumnLayout {
     property bool noteOk: false           // success notes are informational, not an error
     property string resolvedNote: ""
     property bool resolvedBusy: false
+    property bool btServiceEnabled: false
+    property bool btServiceLoaded: false
 
-    onActiveChanged: if (active) { readConn.running = true; readSaved(); readVpnAuto(); readCaps(); page.loadResolved(); }
+    onActiveChanged: if (active) { readConn.running = true; readSaved(); readVpnAuto(); readCaps(); page.loadResolved(); btGet.running = false; btGet.running = true; }
     // made already active (a Settings category is a Loader): load now too
-    Component.onCompleted: if (active) { readConn.running = true; readSaved(); readVpnAuto(); readCaps(); page.loadResolved(); }
+    Component.onCompleted: if (active) { readConn.running = true; readSaved(); readVpnAuto(); readCaps(); page.loadResolved(); btGet.running = false; btGet.running = true; }
 
     // ---- WWAN data cap (per SIM connection) ----------------------------------------
     // NetworkManager has no cap property, so the number is kept next to the
@@ -76,6 +78,8 @@ ColumnLayout {
         resolvedSaveProc.command = page.adminCmd.concat(["resolved-set"]);
         resolvedSaveProc.running = true;
     }
+    Process { id: btGet; command: page.adminCmd.concat(["bluetooth-get"]); stdout: StdioCollector { onStreamFinished: { try { const d = JSON.parse(text); page.btServiceEnabled = !!d.enabled; page.btServiceLoaded = true; } catch(e) {} } } }
+    Process { id: btSet; stdinEnabled: true; property string payload: ""; onStarted: { write(payload + "\n"); stdinEnabled = false; } onExited: code => { stdinEnabled = true; btGet.running = false; btGet.running = true; } }
 
     // ---- proxy (applied by the Proxy service) ----------------------------------
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Data used"); visible: page.usage !== "" }
@@ -499,6 +503,14 @@ ColumnLayout {
         hint: Tr.t("the adapter powers on when you log in")
         checked: page.d.bluetoothOnBoot
         onToggled: on => page.d.bluetoothOnBoot = on
+    }
+    SwitchRow {
+        Layout.fillWidth: true
+        visible: Bluetooth.defaultAdapter !== null && page.btServiceLoaded
+        text: Tr.t("Bluetooth service")
+        hint: Tr.t("bluetooth.service enabled and running")
+        checked: page.btServiceEnabled
+        onToggled: on => { btSet.payload = JSON.stringify({ enabled: on }); btSet.command = page.adminCmd.concat(["bluetooth-set"]); btSet.running = true; }
     }
     ColumnLayout {
         Layout.fillWidth: true

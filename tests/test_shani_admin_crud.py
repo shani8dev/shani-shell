@@ -200,6 +200,48 @@ def test_journald_set_and_vacuum(tmp_path, monkeypatch):
     assert r["ok"] is True
 
 
+def test_journald_new_keys(tmp_path, monkeypatch):
+    sa = load_admin(tmp_path, monkeypatch)
+    r = sa.journald_set(
+        {
+            "settings": {
+                "ForwardToSyslog": "no",
+                "Compress": "yes",
+                "Seal": "no",
+                "RateLimitIntervalSec": "30s",
+                "RateLimitBurst": "500",
+            }
+        }
+    )
+    s = r["settings"]
+    assert s["ForwardToSyslog"] == "no"
+    assert s["Compress"] == "yes"
+    assert s["Seal"] == "no"
+    assert s["RateLimitIntervalSec"] == "30s"
+    assert s["RateLimitBurst"] == "500"
+    txt = sa.JOURNALD_DROPIN.read_text()
+    assert "ForwardToSyslog=no" in txt
+    assert "RateLimitBurst=500" in txt
+    r = sa.journald_set({"settings": {"RateLimitIntervalSec": "30"}})
+    assert r["settings"]["RateLimitIntervalSec"] == "30"
+    with pytest.raises(Exception):
+        sa.journald_set({"settings": {"ForwardToSyslog": "maybe"}})
+    with pytest.raises(Exception):
+        sa.journald_set({"settings": {"Compress": "1"}})
+    with pytest.raises(Exception):
+        sa.journald_set({"settings": {"Seal": "off"}})
+    with pytest.raises(Exception):
+        sa.journald_set({"settings": {"RateLimitIntervalSec": "30min"}})
+    with pytest.raises(Exception):
+        sa.journald_set({"settings": {"RateLimitIntervalSec": "bad;rm"}})
+    with pytest.raises(Exception):
+        sa.journald_set({"settings": {"RateLimitBurst": "-1"}})
+    with pytest.raises(Exception):
+        sa.journald_set({"settings": {"RateLimitBurst": "100001"}})
+    with pytest.raises(Exception):
+        sa.journald_set({"settings": {"RateLimitBurst": "abc"}})
+
+
 def test_sysctl_allowlist_and_range(tmp_path, monkeypatch):
     sa = load_admin(tmp_path, monkeypatch)
     r = sa.sysctl_set({"settings": {"vm.swappiness": 10}})
@@ -302,6 +344,16 @@ def test_fstrim_and_cups_browsed_set(tmp_path, monkeypatch):
     )  # mocked systemctl returns active/enabled as False in our fake? depends
     r = sa.cups_browsed_set({"enabled": False})
     assert "enabled" in r
+
+
+def test_bluetooth_get_set(tmp_path, monkeypatch):
+    sa = load_admin(tmp_path, monkeypatch)
+    r = sa.bluetooth_get({})
+    assert "enabled" in r and "active" in r
+    r = sa.bluetooth_set({"enabled": True})
+    assert "enabled" in r and "active" in r
+    r = sa.bluetooth_set({"enabled": False})
+    assert "enabled" in r and "active" in r
 
 
 def test_auditd_set_shape(tmp_path, monkeypatch):

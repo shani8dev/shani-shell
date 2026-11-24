@@ -978,12 +978,18 @@ def modules_load_set(req: dict) -> dict:
 JOURNALD_DROPIN = Path("/etc/systemd/journald.conf.d/50-shani-shell.conf")
 JOURNALD_KEYS = {
     "Storage": {"persistent", "volatile", "auto", "none"},
-    "SystemMaxUse": None,
-    "SystemKeepFree": None,
-    "RuntimeMaxUse": None,
-    "MaxRetentionSec": None,
+    "SystemMaxUse": "size",
+    "SystemKeepFree": "size",
+    "RuntimeMaxUse": "size",
+    "MaxRetentionSec": "size",
+    "ForwardToSyslog": {"yes", "no"},
+    "Compress": {"yes", "no"},
+    "Seal": {"yes", "no"},
+    "RateLimitIntervalSec": "rl_interval",
+    "RateLimitBurst": "rl_burst",
 }
 SIZE_RE = re.compile(r"^\d+[KMGTP]?$")
+RL_INTERVAL_RE = re.compile(r"^\d+s?$")
 
 
 def journald_get(_req: dict) -> dict:
@@ -1013,13 +1019,24 @@ def journald_set(req: dict) -> dict:
         if k not in JOURNALD_KEYS:
             raise Refused(f"unknown key: {k}")
         v = str(v).strip()
-        allowed = JOURNALD_KEYS[k]
-        if allowed is not None:
-            if v not in allowed:
+        spec = JOURNALD_KEYS[k]
+        if isinstance(spec, set):
+            if v not in spec:
                 raise Refused(f"bad value for {k}")
-        else:
+        elif spec == "size":
             if not SIZE_RE.match(v):
                 raise Refused(f"bad value for {k}")
+        elif spec == "rl_interval":
+            if not RL_INTERVAL_RE.match(v):
+                raise Refused(f"bad value for {k}")
+        elif spec == "rl_burst":
+            if not re.match(r"^\d+$", v):
+                raise Refused(f"bad value for {k}")
+            n = int(v)
+            if n < 0 or n > 100000:
+                raise Refused(f"bad value for {k}")
+        else:
+            raise Refused(f"bad value for {k}")
         clean[k] = v
     if clean:
         content = "# Managed by shani-shell\n[Journal]\n" + "".join(
@@ -1386,6 +1403,29 @@ def cups_browsed_set(req: dict) -> dict:
     return cups_browsed_get(req)
 
 
+def bluetooth_get(_req: dict) -> dict:
+    return {
+        "enabled": _unit_enabled("bluetooth.service"),
+        "active": _unit_active("bluetooth.service"),
+    }
+
+
+def bluetooth_set(req: dict) -> dict:
+    on = bool(req.get("enabled"))
+    r = subprocess.run(
+        ["systemctl", "enable" if on else "disable", "--now", "bluetooth.service"],
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+    if r.returncode != 0:
+        raise Refused(
+            (r.stderr or r.stdout).strip().splitlines()[-1][:200]
+            or "bluetooth.service change failed"
+        )
+    return bluetooth_get(req)
+
+
 AUDIT_RULES_FILE = Path("/etc/audit/rules.d/50-shani-shell.rules")
 AUDIT_PROFILE_NAMES = ("off", "minimal", "baseline")
 AUDIT_PROFILE_MARKER = "# shani-shell-profile: "
@@ -1704,9 +1744,16 @@ SLEEP_INT_KEYS = {"HibernateDelaySec": (0, 86400)}
 def sleep_get(_req: dict) -> dict:
     settings = {}
     try:
-        for line in SLEEP_DROPIN.read_text(encoding="utf-8", errors="replace").splitlines():
+        for line in SLEEP_DROPIN.read_text(
+            encoding="utf-8", errors="replace"
+        ).splitlines():
             line = line.strip()
-            if not line or line.startswith("#") or line.startswith("[") or "=" not in line:
+            if (
+                not line
+                or line.startswith("#")
+                or line.startswith("[")
+                or "=" not in line
+            ):
                 continue
             k, v = line.split("=", 1)
             k, v = k.strip(), v.strip()
@@ -1740,7 +1787,9 @@ def sleep_set(req: dict) -> dict:
         else:
             raise Refused(f"unknown key: {k}")
     if clean:
-        content = "# Managed by shani-shell\n[Sleep]\n" + "".join(f"{k}={v}\n" for k, v in clean.items())
+        content = "# Managed by shani-shell\n[Sleep]\n" + "".join(
+            f"{k}={v}\n" for k, v in clean.items()
+        )
         SLEEP_DROPIN.parent.mkdir(parents=True, exist_ok=True)
         SLEEP_DROPIN.write_text(content, encoding="utf-8")
         os.chmod(SLEEP_DROPIN, 0o644)
@@ -1795,6 +1844,8 @@ COMMANDS = {
     "fstrim-set": fstrim_set,
     "cups-browsed-get": cups_browsed_get,
     "cups-browsed-set": cups_browsed_set,
+    "bluetooth-get": bluetooth_get,
+    "bluetooth-set": bluetooth_set,
     "auditd-get": auditd_get,
     "auditd-set": auditd_set,
     "audit-profile-list": audit_profile_list,

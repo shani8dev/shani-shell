@@ -13,6 +13,11 @@ ColumnLayout {
     readonly property var adminCmd: (Quickshell.env("SHANI_ADMIN_TOOL") || "pkexec /usr/lib/shani-shell/shani-admin.py").split(" ")
     property string storage: "auto"
     property string maxUse: ""
+    property string forwardToSyslog: "yes"
+    property string compress: "yes"
+    property string seal: "yes"
+    property string rateLimitIntervalSec: ""
+    property string rateLimitBurst: ""
     property string note: ""
     property bool busy: false
     property string logText: ""
@@ -21,8 +26,25 @@ ColumnLayout {
     Component.onCompleted: if (active) { load(); loadLog(); }
 
     Process {
-        id: getProc; command: ["sh","-c","f=/etc/systemd/journald.conf.d/50-shani-shell.conf; [ -r \"$f\" ] && grep -E '^(Storage|SystemMaxUse)=' \"$f\" || true"]
-        stdout: StdioCollector { onStreamFinished: { let st="auto", mu=""; for (const l of text.split("\n")) { if (l.startsWith("Storage=")) st=l.slice(8).trim(); if (l.startsWith("SystemMaxUse=")) mu=l.slice(13).trim(); } page.storage=st; page.maxUse=mu; maxUseField.text=mu; } }
+        id: getProc; command: ["sh","-c","f=/etc/systemd/journald.conf.d/50-shani-shell.conf; [ -r \"$f\" ] && grep -E '^(Storage|SystemMaxUse|ForwardToSyslog|Compress|Seal|RateLimitIntervalSec|RateLimitBurst)=' \"$f\" || true"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let st="auto", mu="", fwd="yes", cmp="yes", seal="yes", rli="", rlb="";
+                for (const l of text.split("\n")) {
+                    if (l.startsWith("Storage=")) st=l.slice(8).trim();
+                    if (l.startsWith("SystemMaxUse=")) mu=l.slice(13).trim();
+                    if (l.startsWith("ForwardToSyslog=")) fwd=l.slice(16).trim();
+                    if (l.startsWith("Compress=")) cmp=l.slice(9).trim();
+                    if (l.startsWith("Seal=")) seal=l.slice(5).trim();
+                    if (l.startsWith("RateLimitIntervalSec=")) rli=l.slice(21).trim();
+                    if (l.startsWith("RateLimitBurst=")) rlb=l.slice(16).trim();
+                }
+                page.storage=st; page.maxUse=mu; maxUseField.text=mu;
+                page.forwardToSyslog=fwd; page.compress=cmp; page.seal=seal;
+                page.rateLimitIntervalSec=rli; rateLimitIntervalField.text=rli;
+                page.rateLimitBurst=rlb; rateLimitBurstField.text=rlb;
+            }
+        }
     }
     function load() { getProc.running = false; getProc.running = true; }
     Process {
@@ -31,7 +53,14 @@ ColumnLayout {
         onStarted: { write(payload + "\n"); stdinEnabled = false; }
         onExited: code => { stdinEnabled = true; page.busy = false; page.note = code === 0 ? Tr.t("Journal settings saved") : (setErr.text.trim().split("\n").pop() || Tr.t("Could not save")); if (code === 0) load(); }
     }
-    function save() { page.busy = true; page.note = ""; setProc.payload = JSON.stringify({ settings: { Storage: page.storage, SystemMaxUse: maxUseField.text.trim() || "500M" } }); setProc.command = page.adminCmd.concat(["journald-set"]); setProc.running = true; }
+    function save() {
+        page.busy = true; page.note = "";
+        const s = { Storage: page.storage, SystemMaxUse: maxUseField.text.trim() || "500M", ForwardToSyslog: page.forwardToSyslog, Compress: page.compress, Seal: page.seal };
+        const rli = rateLimitIntervalField.text.trim(); if (rli !== "") s.RateLimitIntervalSec = rli;
+        const rlb = rateLimitBurstField.text.trim(); if (rlb !== "") s.RateLimitBurst = rlb;
+        setProc.payload = JSON.stringify({ settings: s });
+        setProc.command = page.adminCmd.concat(["journald-set"]); setProc.running = true;
+    }
     Process {
         id: vacProc; stdinEnabled: true; property string payload: ""
         stdout: StdioCollector { id: vacOut }
@@ -58,6 +87,40 @@ ColumnLayout {
         Layout.fillWidth: true; spacing: Theme.px(6)
         Text { text: Tr.t("System max use"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
         TextField { id: maxUseField; Layout.fillWidth: true; placeholder: "500M" }
+    }
+    Text { text: Tr.t("Forward to syslog"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+    RowLayout {
+        Layout.fillWidth: true; spacing: Theme.px(6)
+        Repeater {
+            model: ["yes", "no"]
+            Choice { required property var modelData; text: modelData; selected: page.forwardToSyslog === modelData; onClicked: page.forwardToSyslog = modelData }
+        }
+    }
+    Text { text: Tr.t("Compress"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+    RowLayout {
+        Layout.fillWidth: true; spacing: Theme.px(6)
+        Repeater {
+            model: ["yes", "no"]
+            Choice { required property var modelData; text: modelData; selected: page.compress === modelData; onClicked: page.compress = modelData }
+        }
+    }
+    Text { text: Tr.t("Seal"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+    RowLayout {
+        Layout.fillWidth: true; spacing: Theme.px(6)
+        Repeater {
+            model: ["yes", "no"]
+            Choice { required property var modelData; text: modelData; selected: page.seal === modelData; onClicked: page.seal = modelData }
+        }
+    }
+    RowLayout {
+        Layout.fillWidth: true; spacing: Theme.px(6)
+        Text { text: Tr.t("Rate limit interval"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        TextField { id: rateLimitIntervalField; Layout.fillWidth: true; placeholder: "30s" }
+    }
+    RowLayout {
+        Layout.fillWidth: true; spacing: Theme.px(6)
+        Text { text: Tr.t("Rate limit burst"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        TextField { id: rateLimitBurstField; Layout.fillWidth: true; placeholder: "10000" }
     }
     RowLayout {
         Layout.fillWidth: true; spacing: Theme.px(6)
