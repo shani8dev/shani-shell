@@ -110,8 +110,15 @@ def objects(text: str, kind: str):
 
 
 def tr_strings(text: str):
-    """Every literal Tr.t("...") key in a source file."""
-    return set(re.findall(r'Tr\.t\(\s*"((?:[^"\\]|\\.)*)"\s*\)', text))
+    """Every literal Tr.t("...") key in a source file.
+
+    Unescape the way tools/i18n.py does: a `\\"` in QML source is a plain `"`
+    in the catalog key, so this must agree with test_i18n's extractor.
+    """
+    return set(
+        m.replace('\\"', '"').replace("\\\\", "\\")
+        for m in re.findall(r'Tr\.t\(\s*"((?:[^"\\]|\\.)*)"\s*\)', text)
+    )
 
 
 # ---------------------------------------------------------------------------
