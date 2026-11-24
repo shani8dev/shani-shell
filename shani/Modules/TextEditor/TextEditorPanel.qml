@@ -33,6 +33,7 @@ AppWindow {
         IconButton { size: Theme.px(30); icon: "edit-find"; tip: Tr.t("Find") + " (Ctrl+F)"; on: win.finding; onClicked: { win.finding = !win.finding; if (win.finding) findField.input.forceActiveFocus(); } },
         IconButton { size: Theme.px(30); icon: "bookmark-new"; tip: "Toggle bookmark (Ctrl+B)"; onClicked: win.toggleBookmark() },
         IconButton { size: Theme.px(30); icon: "go-jump"; tip: "Go to line (Ctrl+G)"; onClicked: win.openGoto() },
+        IconButton { size: Theme.px(30); icon: "entry-calendar"; tip: Tr.t("Insert date and time"); onClicked: win.insertDateTime() },
         IconButton { size: Theme.px(30); icon: "applications-graphics"; tip: "TextMate theme"; onClicked: themeDialog.open() },
         IconButton { size: Theme.px(30); icon: "preferences-desktop-theme"; tip: "TextMate colours"; on: TextMate.enabled; onClicked: { TextMate.enabled = !TextMate.enabled; Settings.data.textmateEnabled = TextMate.enabled; Settings.save(); win.recolour(); } },
         IconButton { size: Theme.px(30); icon: "format-justify-left"; tip: Tr.t("Wrap long lines"); on: win.wordWrap; onClicked: win.wordWrap = !win.wordWrap },
@@ -172,6 +173,11 @@ AppWindow {
     function clearExtraCursors() { if (extraCursors.length) extraCursors = []; }
 
     // insert `str` at the primary cursor and every extra cursor at once
+    // CorePad's one-click stamp: the current date and time at every cursor
+    function insertDateTime() {
+        win.insertAtCursors(Qt.formatDateTime(new Date(), "yyyy-MM-dd hh:mm"));
+        edit.forceActiveFocus();
+    }
     function insertAtCursors(str) {
         if (!multiCursor || str === "") return false;
         const all = Array.from(new Set([edit.cursorPosition].concat(extraCursors))).sort((a, b) => a - b);

@@ -20,6 +20,7 @@ AppWindow {
     onTabChanged: Ui.clocksTab = tab
     property string alarmTime: Qt.formatTime(new Date(Date.now() + 3600000), "HH:mm")
     property string alarmLabel: ""
+    property var alarmDays: []             // empty = every day; 0=Sun .. 6=Sat
     property int lastTimerMinutes: 0
     readonly property var alarms: Array.from(WorldClock.alarms || [])
     // an alarm removed elsewhere shifts every index: drop a pending confirmation
@@ -169,8 +170,42 @@ AppWindow {
                         id: addAlarm
                         kind: "primary"
                         text: Tr.t("Add alarm at %1").arg(win.alarmTime)
-                        onClicked: { if (WorldClock.addAlarm(win.alarmTime, win.alarmLabel)) labelField.text = ""; }
+                        onClicked: {
+                            if (WorldClock.addAlarm(win.alarmTime, win.alarmLabel, win.alarmDays)) {
+                                labelField.text = "";
+                                win.alarmDays = [];
+                            }
+                        }
                     }
+                }
+                // CoreTime-style weekday repeat: nothing selected means every day
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(4)
+                    Text { text: Tr.t("Repeat on"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                    Repeater {
+                        model: [{ n: 0, l: "S" }, { n: 1, l: "M" }, { n: 2, l: "T" }, { n: 3, l: "W" }, { n: 4, l: "T" }, { n: 5, l: "F" }, { n: 6, l: "S" }]
+                        Button {
+                            required property var modelData
+                            Layout.preferredWidth: Theme.px(34)
+                            text: modelData.l
+                            checked: win.alarmDays.indexOf(modelData.n) >= 0
+                            onClicked: {
+                                const d = Array.from(win.alarmDays);
+                                const i = d.indexOf(modelData.n);
+                                if (i >= 0) d.splice(i, 1); else d.push(modelData.n);
+                                win.alarmDays = d;
+                            }
+                        }
+                    }
+                    Item { Layout.fillWidth: true }
+                    Text { text: win.alarmDays.length === 0 ? Tr.t("Every day") : Tr.t("Selected days"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                }
+                Button {
+                    Layout.fillWidth: true
+                    text: Tr.t("Snooze 9 minutes")
+                    enabled: WorldClock.snoozes.length === 0
+                    onClicked: WorldClock.snooze(win.alarmLabel || win.alarmTime, 9)
                 }
                 }
             }

@@ -417,9 +417,11 @@ Variants {
                     anchors.margins: Theme.px(14)
                     spacing: Theme.px(6)
                     Repeater {
+                        // severity tint matches the bar chip (cpu > .85, mem > .9):
+                        // a glance tells you a resource is high, not just its number
                         model: [
-                            { label: "cpu", value: SysStats.cpu, tint: Theme.accent },
-                            { label: "mem", value: SysStats.mem, tint: Theme.blue }
+                            { label: "cpu", value: SysStats.cpu, tint: SysStats.cpu > 0.85 ? Theme.amber : Theme.accent },
+                            { label: "mem", value: SysStats.mem, tint: SysStats.mem > 0.9 ? Theme.amber : Theme.blue }
                         ]
                         Row {
                             required property var modelData

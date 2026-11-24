@@ -204,6 +204,44 @@ AppWindow {
             if (event.key === Qt.Key_F2 && Files.selected.length === 1) {
                 win.beginRename(Files.selected[0]);
                 event.accepted = true;
+                return;
+            }
+            // CoreFM / Nautilus muscle memory: keyboard users need not reach for the mouse
+            if (event.key === Qt.Key_F4) {
+                Files.openTerminal(Files.path);
+                event.accepted = true;
+                return;
+            }
+            if (control && (event.modifiers & Qt.ShiftModifier) && event.key === Qt.Key_F2 && Files.selected.length) {
+                win.beginBatchRename(Files.selected.slice());
+                event.accepted = true;
+                return;
+            }
+            if (control && (event.modifiers & Qt.ShiftModifier) && event.key === Qt.Key_V) {
+                Files.setViewMode(Files.viewMode === "grid" ? "list" : "grid");
+                event.accepted = true;
+                return;
+            }
+            if (control && (event.modifiers & Qt.ShiftModifier) && event.key === Qt.Key_S) {
+                const keys = ["name", "size", "mtime"];
+                Files.setSort(keys[(keys.indexOf(Files.sortKey) + 1) % keys.length]);
+                event.accepted = true;
+                return;
+            }
+            if (control && (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && Files.selected.length) {
+                win.openWithPaths = Files.selected.slice();
+                event.accepted = true;
+                return;
+            }
+            if (alt && event.key === Qt.Key_Left) {
+                Files.back();
+                event.accepted = true;
+                return;
+            }
+            if (event.key === Qt.Key_Backspace && !win.typed) {
+                Files.up();
+                event.accepted = true;
+                return;
             }
         }
     }
