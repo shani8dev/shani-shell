@@ -18,6 +18,7 @@ PAGES = [
     ROOT / "shani/Modules/Settings/SettingsPowerKeys.qml",
     ROOT / "shani/Modules/Settings/SettingsStorage.qml",
     ROOT / "shani/Modules/Settings/SettingsPrinters.qml",
+    ROOT / "shani/Modules/Settings/SettingsNetwork.qml",
 ]
 
 
@@ -137,3 +138,9 @@ def test_printers_page_has_cups_browsed_hook():
     text = _read(ROOT / "shani/Modules/Settings/SettingsPrinters.qml")
     for needle in ["cups-browsed-set", "cups-browsed"]:
         assert needle in text, f"SettingsPrinters.qml missing {needle}"
+
+
+def test_network_page_has_bluetooth_service_hook():
+    text = _read(ROOT / "shani/Modules/Settings/SettingsNetwork.qml")
+    assert "bluetooth-set" in text
+    assert "Bluetooth service" in text
