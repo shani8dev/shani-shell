@@ -9,6 +9,7 @@ import QtQuick.Layouts
 import qs.Common
 import qs.Services
 import "SettingsIndex.js" as SettingsIndex
+import "../../Common/Accents.js" as Accents
 
 ColumnLayout {
     id: page
@@ -723,6 +724,25 @@ ColumnLayout {
                             }
                             KeyFocus { onActivated: { page.d.accentName = parent.modelData; page.d.accentFromWallpaper = false; } }
                         }
+                    }
+                    // paperde's Dark.conf blue through the shell's HCT engine
+                    // (Common/Accents.js): the chip previews the preset; picking
+                    // it uses the nearest built-in blue (Theme owns the map).
+                    Rectangle {
+                        readonly property var preset: Accents.derivePreset("CuboCore blue", Theme.dark)
+                        width: Theme.px(30)
+                        height: Theme.px(30)
+                        radius: Theme.px(15)
+                        color: preset.blue.container
+                        Accessible.role: Accessible.RadioButton
+                        Accessible.name: Tr.t("CuboCore blue")
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: { page.d.accentName = "blue"; page.d.accentFromWallpaper = false; }
+                        }
+                        KeyFocus { onActivated: { page.d.accentName = "blue"; page.d.accentFromWallpaper = false; } }
+                        Hint { text: Tr.t("CuboCore blue") }
                     }
                     // the live accent, when the wallpaper is the source: the
                     // swatches above are presets, so without this nothing looks

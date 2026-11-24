@@ -79,3 +79,24 @@ function derive(primary, isLight, overrides) {
     }
     return accents;
 }
+
+// A preset is a colour fact, not a theme: paperde's Dark.conf blue (accent
+// #12608a, highlight #0986d3) run through the same derive() so it keeps the
+// eight slots and their measured inks. No second palette system.
+var PRESETS = {
+    "CuboCore blue": {
+        "primary": "#0986d3",               // highlight
+        "overrides": { "blue": "#12608a" }  // accent
+    }
+};
+
+function derivePreset(name, isLight) {
+    const p = PRESETS[name];
+    return p ? derive(Qt.color(p.primary), isLight, p.overrides) : null;
+}
+
+// The ink on the preset's blue container, picked by measurement (4.5:1).
+function accentInk(name, isLight) {
+    const slots = derivePreset(name, isLight);
+    return slots ? slots.blue.onContainer : null;
+}
