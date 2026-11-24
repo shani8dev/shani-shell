@@ -54,11 +54,12 @@ AppWindow {
     // flip an alarm on/off without losing its label, group or repeat days: the
     // service's addAlarm() takes both, removeAlarm() takes only an index.
     function toggleAlarm(index) {
-        const list = Array.from(win.alarms || []);
-        if (index < 0 || index >= list.length) return;
-        const item = list[index];
-        list.splice(index, 1);
-        WorldClock.addAlarm(item.time, item.label, Array.isArray(item.days) ? item.days : [], item.enabled === false);
+        const item = (win.alarms || [])[index];
+        if (!item) return;
+        // edit in place: addAlarm would append a duplicate, drop the group and
+        // shift every sidebar index
+        WorldClock.updateAlarm(index, item.time, item.label,
+            Array.isArray(item.days) ? item.days : [], item.enabled === false);
     }
     function editAlarm(index) {
         const a = win.alarms[index];
@@ -334,32 +335,64 @@ AppWindow {
 
                     Repeater {
                         model: win.alarms
-                        ListRow {
+                        ColumnLayout {
                             required property var modelData
                             required property int index
                             Layout.fillWidth: true
                             visible: win.alarmVisible(modelData)
-                            icon: "alarm"
-                            title: modelData.time + (modelData.label ? " — " + modelData.label : "") + (modelData.group ? " [" + modelData.group + "]" : "")
-                            subtitle: (Array.isArray(modelData.days) && modelData.days.length ? Tr.t("Repeats") : Tr.t("Daily")) + " · " + (modelData.enabled === false ? Tr.t("Off") : Tr.t("On"))
-                            selected: win.editingAlarm === index
-                            // tapping the row asks first: a stray click must not lose an alarm
-                            trailing: win.confirmAlarm === index ? Tr.t("Tap again to remove") : Tr.t("Remove")
-                            onClicked: {
-                                if (win.confirmAlarm === index) { WorldClock.removeAlarm(index); win.confirmAlarm = -1; alarmTimer.restart(); }
-                                else { win.confirmAlarm = index; alarmTimer.restart(); }
+                            spacing: Theme.px(2)
+                            ListRow {
+                                Layout.fillWidth: true
+                                icon: "alarm"
+                                title: modelData.time + (modelData.label ? " — " + modelData.label : "") + (modelData.group ? " [" + modelData.group + "]" : "")
+                                subtitle: (Array.isArray(modelData.days) && modelData.days.length ? Tr.t("Repeats") : Tr.t("Daily")) + " · " + (modelData.enabled === false ? Tr.t("Off") : Tr.t("On"))
+                                selected: win.editingAlarm === index
+                                // tapping the row asks first: a stray click must not lose an alarm
+                                trailing: win.confirmAlarm === index ? Tr.t("Tap again to remove") : Tr.t("Remove")
+                                onClicked: {
+                                    if (win.confirmAlarm === index) { WorldClock.removeAlarm(index); win.confirmAlarm = -1; alarmTimer.restart(); }
+                                    else { win.confirmAlarm = index; alarmTimer.restart(); }
+                                }
+                                Button {
+                                    objectName: "clocks-alarm-toggle"
+                                    Accessible.name: modelData.enabled === false ? Tr.t("Turn alarm on") : Tr.t("Turn alarm off")
+                                    text: modelData.enabled === false ? Tr.t("On") : Tr.t("Off")
+                                    onClicked: win.toggleAlarm(index)
+                                }
+                                Button {
+                                    objectName: "clocks-alarm-edit"
+                                    Accessible.name: Tr.t("Edit alarm at %1").arg(modelData.time)
+                                    text: Tr.t("Edit")
+                                    onClicked: win.editAlarm(index)
+                                }
                             }
-                            Button {
-                                objectName: "clocks-alarm-toggle"
-                                Accessible.name: modelData.enabled === false ? Tr.t("Turn alarm on") : Tr.t("Turn alarm off")
-                                text: modelData.enabled === false ? Tr.t("On") : Tr.t("Off")
-                                onClicked: win.toggleAlarm(index)
-                            }
-                            Button {
-                                objectName: "clocks-alarm-edit"
-                                Accessible.name: Tr.t("Edit alarm at %1").arg(modelData.time)
-                                text: Tr.t("Edit")
-                                onClicked: win.editAlarm(index)
+                            // Edit the label and sound right in the row: no
+                            // second confirm (only removal needs that), no new
+                            // store - both live on the alarm record itself.
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Layout.leftMargin: Theme.px(10)
+                                spacing: Theme.px(4)
+                                TextField {
+                                    Layout.fillWidth: true
+                                    label: Tr.t("Alarm label")
+                                    placeholder: Tr.t("Label — Wake up, …")
+                                    text: modelData.label || ""
+                                    objectName: "clocks-alarm-row-label"
+                                    onAccepted: {
+                                        if (!WorldClock.setAlarmLabel(index, text)) text = modelData.label || "";
+                                    }
+                                }
+                                Button {
+                                    objectName: "clocks-alarm-sound"
+                                    Accessible.name: Tr.t("Sound: %1").arg(WorldClock.alarmSound(modelData.sound))
+                                    text: WorldClock.alarmSound(modelData.sound)
+                                    onClicked: {
+                                        const sounds = WorldClock.alarmSounds;
+                                        const cur = WorldClock.alarmSound(modelData.sound);
+                                        WorldClock.setAlarmSound(index, sounds[(sounds.indexOf(cur) + 1) % sounds.length]);
+                                    }
+                                }
                             }
                         }
                     }

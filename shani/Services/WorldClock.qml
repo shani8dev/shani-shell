@@ -6,10 +6,10 @@ pragma Singleton
 // them are closed (or none is chosen), no process is spawned.
 //
 // Alarms live in Settings.alarms ({ time "HH:MM", label, days?, enabled?,
-// group? }: optional weekday repeat, on/off and a named group); the check is
-// minute-granular, so it wakes on the minute boundary like Automations and
-// Focus, not on a fixed poll. They ring once through notify-send, the same path
-// snooze and the timers use.
+// group?, sound? }: optional weekday repeat, on/off, a named group and a
+// sound-theme hint); the check is minute-granular, so it wakes on the minute
+// boundary like Automations and Focus, not on a fixed poll. They ring once
+// through notify-send, the same path snooze and the timers use.
 //
 // The stopwatch (start / pause / reset / laps) is the sidebar's, and
 // counts in the foreground only while it is running. Laps keep a split time
@@ -155,9 +155,10 @@ Singleton {
 
     // ---- alarms -------------------------------------------------------------
     // Settings.data.alarms holds { time "HH:MM", label, days?, enabled?,
-    // group? }. days is JS weekday numbers (0=Sun .. 6=Sat); missing/empty
-    // means every day and missing enabled means on, so old {time,label}
-    // records still fire.
+    // group?, sound? }. days is JS weekday numbers (0=Sun .. 6=Sat);
+    // missing/empty means every day, missing enabled means on and a missing
+    // sound means the original alarm hint, so old {time,label} records still
+    // fire unchanged.
     readonly property var alarms: Settings.data.alarms
     property string lastFired: ""          // the minute it last rang, so it rings once
     property var firedKeys: []             // which alarms rang in that minute
@@ -216,6 +217,35 @@ Singleton {
         Settings.data.alarms = list;
         return true;
     }
+    // Only these canonical freedesktop sound-theme names ever reach notify-send
+    // as `-h string:sound-name:<name>`. A persisted record is data, not code:
+    // anything else falls back to the original hint, so no hint or option can
+    // be injected into the detached command line.
+    readonly property var alarmSounds: ["alarm-clock-elapsed", "alarm-clock", "bell", "chime", "default"]
+    function validAlarmSound(name) {
+        return root.alarmSounds.indexOf(String(name || "")) >= 0;
+    }
+    function alarmSound(name) {
+        return root.validAlarmSound(name) ? String(name) : "alarm-clock-elapsed";
+    }
+    function setAlarmSound(index, sound) {
+        const list = Array.from(Settings.data.alarms || []);
+        if (index < 0 || index >= list.length || !root.validAlarmSound(sound)) return false;
+        list[index] = Object.assign({}, list[index], { sound: root.alarmSound(sound) });
+        Settings.data.alarms = list;
+        return true;
+    }
+    // A quick rename in the alarm row: keep the time, days, group, sound and
+    // enabled flag by editing the record in place instead of re-adding it.
+    function setAlarmLabel(index, label) {
+        const list = Array.from(Settings.data.alarms || []);
+        if (index < 0 || index >= list.length) return false;
+        const l = String(label || "").trim();
+        if (!l) return false;
+        list[index] = Object.assign({}, list[index], { label: l });
+        Settings.data.alarms = list;
+        return true;
+    }
     function removeAlarm(index) {
         const list = Array.from(Settings.data.alarms || []);
         if (index >= 0 && index < list.length) {
@@ -223,8 +253,9 @@ Singleton {
             Settings.data.alarms = list;
         }
     }
-    function ring(summary, body) {
-        Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "Alarms", "-i", "alarm-symbolic", "-h", "string:sound-name:alarm-clock-elapsed", summary, body]);
+    function ring(summary, body, soundName) {
+        const sound = root.alarmSound(soundName);
+        Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "Alarms", "-i", "alarm-symbolic", "-h", "string:sound-name:" + sound, summary, body]);
     }
     function checkAlarms() {
         if (!Settings.loaded) return;
@@ -245,7 +276,7 @@ Singleton {
         if (hits.length === 0) return;
         root.firedKeys = root.firedKeys.concat(keys);
         for (const hit of hits)
-            ring("⏰ " + (hit.label || hit.time), Tr.t("Alarm for %1", now));
+            ring("⏰ " + (hit.label || hit.time), Tr.t("Alarm for %1", now), hit.sound);
     }
 
     // Snooze re-notifies through the same notify-send path. The list is in
