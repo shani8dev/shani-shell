@@ -56,6 +56,8 @@ PanelWindow {
     // the app grids' column count, the same expression the grid itself uses,
     // so Up/Down move by one real row whatever the window width is
     readonly property int gridCols: Math.max(1, Math.floor(list.width / Theme.px(132)))
+    // a page of results for PageUp/PageDown (six grid rows when there is a grid)
+    readonly property int pageRows: Math.max(1, Math.min(8, win.gridCols) * 6)
     property string category: "All"
     readonly property string q: search.text
     // the query after an operator's prefix (LauncherEntries.parseQuery), used by
@@ -382,6 +384,15 @@ PanelWindow {
     readonly property var appWords: { const m = {}; for (const a of apps) m[a.id] = Fuzzy.words(a.name + " " + (a.genericName || "")); return m; }
     readonly property var categories: ["All", "Internet", "Office", "Graphics", "AudioVideo", "Development", "Utility", "System", "Game"]
     readonly property var categoryNames: ({ AudioVideo: "Media" })
+    // colored filters in the field: the families of answers — All, Apps,
+    // Files. Each has a color the pill is drawn with; the launcher itself
+    // answers them as section groups.
+    property string filter: "all"
+    readonly property var filters: [
+        { id: "all", title: Tr.t("All"), color: Theme.faint },
+        { id: "app", title: Tr.t("Apps"), color: Theme.accent },
+        { id: "file", title: Tr.t("Files"), color: Theme.dim }
+    ]
 
     // ---- the answer, as sections; `flat` is what the keyboard walks ----------
     readonly property var sections: {
@@ -464,15 +475,23 @@ PanelWindow {
             const f = q.slice(1).trim().toLowerCase();
             if (win.emojiPath === "")
                 Qt.callLater(() => win.emojiPath = "/usr/share/unicode/emoji/emoji-test.txt");
+            // variation selectors (VS15 U+FE0E / VS16 U+FE0F) are stripped for
+            // the search, so "smiling face" matches both emoji- and text-presentation
+            // entries and the glyph itself is searchable too
+            const norm = f.replace(/[\uFE0E\uFE0F]/g, "");
+            const emoMatch = x => { const n = String(x.name || "").toLowerCase();
+                return f === "" || n.indexOf(f) >= 0 || n.indexOf(norm) >= 0; };
+            const emoGlyph = x => { const g = String(x.e || "").toLowerCase();
+                return f !== "" && norm !== "" && g.indexOf(norm) >= 0; };
             // full Unicode as well as emoji (Characters service, by
             // bridge/characters.py): symbols, math, arrows, Indic scripts -
             // asked for in onQChanged, not here: setting Characters.query
             // inside this binding, which reads it, was a binding loop
             const seen = {};
-            const emojiItems = win.emoji.filter(x => f === "" || x.name.toLowerCase().indexOf(f) >= 0).map(x => ({ kind: "emoji", glyph: x.e, icon: "face-smile-big", title: x.name,
+            const emojiItems = win.emoji.filter(x => emoMatch(x) || emoGlyph(x)).map(x => ({ kind: "emoji", glyph: x.e, icon: "face-smile-big", title: x.name,
                 subtitle: Tr.t("Enter types it · Shift+Enter copies"), run: shift => shift ? Quickshell.clipboardText = x.e : Clipboard.typeText(x.e) }));
             for (const it of emojiItems) seen[it.glyph] = true;
-            const charItems = (Characters.results || []).filter(x => f === "" || (x.name || "").toLowerCase().indexOf(f) >= 0).map(x => {
+            const charItems = (Characters.results || []).filter(x => emoMatch(x)).map(x => {
                 if (seen[x.ch]) return null;
                 seen[x.ch] = true;
                 return { kind: "emoji", glyph: x.ch, icon: "face-smile-big", title: x.name, subtitle: ("U+" + x.cp.toString(16).toUpperCase().padStart(4, "0")) + " · " + Tr.t("Enter types it · Shift+Enter copies"), run: shift => shift ? Quickshell.clipboardText = x.ch : Clipboard.typeText(x.ch) };
@@ -661,7 +680,10 @@ PanelWindow {
             { kind: "web", icon: "web-search", title: Tr.t("Choose a search engine…"), subtitle: Tr.t("Or type web: then your query"),
               run: () => { search.text = "web:"; search.forceActiveFocus(); } }
         ] });
-        return finish();
+        const done = finish();
+        // colored filters: "app:"/"file:"/all as the field is set (the operator
+        // lane of the query and the pill are the same thing)
+        return win.filter === "all" ? done : done.filter(s => s.group === win.filter);
     }
     readonly property var flat: sections.reduce((acc, s) => acc.concat(s.items), [])
     readonly property var current: flat[Math.max(0, Math.min(sel, flat.length - 1))] || null
@@ -755,8 +777,8 @@ PanelWindow {
         // the field
         Glass {
             Layout.fillWidth: true
-            Layout.preferredWidth: Theme.px(760)
-            Layout.maximumWidth: Theme.px(760)
+            Layout.preferredWidth: Theme.px(900)
+            Layout.maximumWidth: Theme.px(900)
             Layout.alignment: Qt.AlignHCenter
             implicitHeight: Theme.px(58)
             strong: true
@@ -784,6 +806,19 @@ PanelWindow {
                 anchors.rightMargin: Theme.px(22)
                 spacing: Theme.px(12)
                 Icon { name: "system-search"; size: Theme.px(22); color: Theme.accent }
+                // colored filters, All/Apps/Files: the field can be narrowed to
+                // one family without typing anything (the "app:"/"file:"
+                // operators narrow it too, in the answers)
+                Repeater {
+                    model: win.filters
+                    Choice {
+                        required property var modelData
+                        text: modelData.title
+                        selected: win.filter === modelData.id
+                        visible: !win.narrow || modelData.id !== "file"
+                        onClicked: { win.filter = modelData.id; search.forceActiveFocus(); }
+                    }
+                }
                 TextInput {
                     id: search
                     activeFocusOnTab: true          // the d-pad and Tab reach it (a pad's LB / RB leave it: Ui.navJump)
@@ -816,6 +851,10 @@ PanelWindow {
                         // Home/End: first/last answer, like GNOME/Spotlight
                         if (e.key === Qt.Key_Home && win.flat.length) { win.sel = 0; e.accepted = true; return; }
                         if (e.key === Qt.Key_End && win.flat.length) { win.sel = win.flat.length - 1; e.accepted = true; return; }
+                        // PageUp/PageDown: a page of the results, so a long
+                        // answer list is reachable with the pad only
+                        if (e.key === Qt.Key_PageUp && win.flat.length) { win.sel = Math.max(0, win.sel - win.pageRows); e.accepted = true; return; }
+                        if (e.key === Qt.Key_PageDown && win.flat.length) { win.sel = Math.min(win.flat.length - 1, win.sel + win.pageRows); e.accepted = true; return; }
                         // Ctrl+P: pin or unpin a clipboard entry
                         if (e.key === Qt.Key_P && (e.modifiers & Qt.ControlModifier) && win.flat[win.sel] && win.flat[win.sel].pin) {
                             win.flat[win.sel].pin();

@@ -118,11 +118,17 @@ def test_markdown_preview_toggle_is_wired_both_ways():
         'Shortcut { sequence: "Ctrl+E"; onActivated: win.previewMode = !win.previewMode }'
         in PANEL
     )
-    # The reading view moved to a safe in-QML PlainText parser (NotesMarkdown)
-    # in wave 5; RichText and the service-side markdownHtml() were removed so
-    # a note can never inject markup. The toggle and gated links still work.
+    # The reading view is an in-QML PlainText parser (NotesMarkdown) — wave 5
+    # removed RichText and the service-side markdownHtml() so a note can never
+    # inject markup. The toggle and Alt+Down/Up note stepping still work.
     assert "NotesMarkdown {" in PANEL
-    assert "textFormat: Text.PlainText" in PANEL
+    assert 'Shortcut { sequence: "Alt+Down"; onActivated: win.stepNote(1) }' in PANEL
+    assert 'Shortcut { sequence: "Alt+Up"; onActivated: win.stepNote(-1) }' in PANEL
+    assert (
+        'Shortcut { sequence: "Ctrl+E"; onActivated: win.previewMode = !win.previewMode }'
+        in PANEL
+    )
+    assert 'Shortcut { sequence: "Alt+Down"; onActivated: win.stepNote(1) }' in PANEL
     assert (
         'Shortcut { sequence: "Ctrl+E"; onActivated: win.previewMode = !win.previewMode }'
         in PANEL

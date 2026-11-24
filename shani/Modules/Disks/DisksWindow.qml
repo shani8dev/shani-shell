@@ -31,8 +31,16 @@ AppWindow {
     property bool showLoops: false
     property string mountOptions: ""
     property string smartTestKind: "short"
+    // ---- units: auto or one of bytes/KB/MB/GB/TB ----
+    property string unitScale: "auto"
     function human(n) {
         n = Number(n) || 0;
+        const s = win.unitScale;
+        if (s === "bytes") return Math.round(n) + " B";
+        if (s === "KB") return (n / 1e3).toFixed(1) + " KB";
+        if (s === "MB") return (n / 1e6).toFixed(1) + " MB";
+        if (s === "GB") return (n / 1e9).toFixed(1) + " GB";
+        if (s === "TB") return (n / 1e12).toFixed(1) + " TB";
         if (n >= 1e12) return (n / 1e12).toFixed(1) + " TB";
         if (n >= 1e9) return (n / 1e9).toFixed(1) + " GB";
         if (n >= 1e6) return (n / 1e6).toFixed(1) + " MB";
@@ -89,6 +97,58 @@ AppWindow {
         win.formPassphrase2 = "";
     }
 
+    // ---- selectivity: search + by-fs filter over the disk list ----
+    property string filterText: ""
+    property string fsFilter: ""
+    property var fsChoices: [["", Tr.t("By fs: All")], ["ext4", "ext4"], ["vfat", "vfat"], ["ntfs", "ntfs"], ["exfat", "exfat"], ["xfs", "xfs"], ["btrfs", "btrfs"], ["zfs", "zfs"]]
+    function diskMatch(d) {
+        if (!d) return false;
+        if (d.type !== "disk" && !(win.showLoops && d.type === "loop")) return false;
+        const t = win.filterText.toLowerCase();
+        const s = (d.name + " " + (d.path || "") + " " + (d.label || "") + " " + (d.model || "")).toLowerCase();
+        if (t && s.indexOf(t) < 0) return false;
+        if (win.fsFilter) {
+            const kids = (d.children || []).map(c => String(c.fstype || "")).join(" ");
+            if (String(d.fstype || "") !== win.fsFilter && kids.indexOf(win.fsFilter) < 0) return false;
+        }
+        return true;
+    }
+    function filteredDisks() { return Disks.disks.filter(win.diskMatch); }
+    function clearFilter() { win.filterText = ""; win.fsFilter = ""; }
+
+    // ---- partitions of the selected disk (dedicated list) ----
+    function partList(d) { return (d && d.children) || []; }
+
+    // ---- ATA SMART attributes sometimes arrive without a name; fall back to the id ----
+    function attrName(a) {
+        return String((a && (a.name || a.id)) || "").toUpperCase().replace(/^ATA_SMART_/, "").replace(/^ATA_/, "");
+    }
+
+    // ---- performance view: benchmark history ----
+    property var benchHistory: []
+    property var _lastBench: null
+    function runBench() {
+        if (win.selectedDisk && !Disks.busy) Disks.benchmark(win.selectedDisk.path);
+    }
+    function noteBench() {
+        const r = Disks.benchmarkResult;
+        if (!r || r === win._lastBench || r.mbps === undefined) return;
+        win._lastBench = r;
+        win.benchHistory = win.benchHistory.slice(-9).concat([{
+            at: new Date().toISOString().slice(11, 16),
+            mbps: r.mbps, bytes: r.bytes,
+        }]);
+    }
+
+    // ---- large-file finder: read-only find, sorted by size, shown in a preview dialog ----
+    property var bigFiles: []
+    function scanBigFiles() {
+        const d = win.selectedDisk;
+        if (!d) return;
+        bigFinder.command = ["find", d.path, "-xdev", "-type", "f", "-size", "+1M", "-printf", "%s\t%TY-%Tm-%Td %TH:%TM\t%p\\n"];
+        if (!bigFinder.running) bigFinder.running = true;
+    }
+
     // two-click confirm for destructive ops
     property string confirmAction: ""
     Timer { id: confirmTimer; interval: 4000; onTriggered: win.confirmAction = "" }
@@ -104,6 +164,7 @@ AppWindow {
     Connections {
         target: Disks
         function onDisksChanged() {
+            win.noteBench();
             const p = win.selectedDisk ? win.selectedDisk.path : "";
             if (p) {
                 const fresh = Disks.disks.find(d => d.path === p);
@@ -122,12 +183,28 @@ AppWindow {
         }
     }
 
+    // Large files finder: read-only, sorts by size; "-printf" is GNU findutils (Linux)
+    Process {
+        id: bigFinder
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const out = [];
+                String(text).split("\n").forEach(line => {
+                    const p = String(line).split("\t");
+                    if (p.length >= 3) out.push({ size: Number(p[0]) || 0, when: p[1].trim(), path: p[2] });
+                });
+                out.sort((a, b) => b.size - a.size);
+                win.bigFiles = out.slice(0, 20);
+            }
+        }
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: Theme.px(16)
         spacing: Theme.px(8)
 
-        // ---- header ----
+        // ---- header: title, search + by-fs filter, unit scale, loop devices, actions ----
         RowLayout {
             Layout.fillWidth: true
             Text {
@@ -138,6 +215,30 @@ AppWindow {
                 font.weight: Font.DemiBold
             }
             Item { Layout.fillWidth: true }
+            TextField {
+                Layout.preferredWidth: Theme.px(180)
+                placeholder: Tr.t("Search disks…")
+                text: win.filterText
+                onTextChanged: win.filterText = text
+            }
+            Repeater {
+                model: win.fsChoices
+                Choice {
+                    required property var modelData
+                    text: modelData[1]
+                    selected: win.fsFilter === modelData[0]
+                    onClicked: win.fsFilter = modelData[0]
+                }
+            }
+            Repeater {
+                model: [["auto", Tr.t("Auto")], ["bytes", "B"], ["KB", "KB"], ["MB", "MB"], ["GB", "GB"], ["TB", "TB"]]
+                Choice {
+                    required property var modelData
+                    text: modelData[1]
+                    selected: win.unitScale === modelData[0]
+                    onClicked: win.unitScale = modelData[0]
+                }
+            }
             Choice { text: Tr.t("Loop devices"); selected: win.showLoops; onClicked: win.showLoops = !win.showLoops }
             Button {
                 text: Tr.t("Refresh")
@@ -428,7 +529,7 @@ AppWindow {
             clip: true
             reuseItems: true
             cacheBuffer: 400
-            model: Disks.disks.filter(d => d.type === "disk" || (win.showLoops && d.type === "loop"))
+            model: win.filteredDisks()
             delegate: Rectangle {
                 id: diskRow
                 required property var modelData
@@ -581,6 +682,10 @@ AppWindow {
                         }
                         Button { text: Tr.t("Eject"); flat: true; visible: modelData.removable; onClicked: Disks.powerOff(modelData.path) }
                         Item { Layout.fillWidth: true }
+                        Button { text: Tr.t("Partitions…"); flat: true; visible: modelData.type === "disk"; onClicked: partDialog.open() }
+                        Button { text: Tr.t("Tools…"); flat: true; visible: modelData.type === "disk"; onClicked: toolsDialog.open() }
+                        Button { text: Tr.t("Performance…"); flat: true; visible: modelData.type === "disk"; onClicked: perfDialog.open() }
+                        Button { text: Tr.t("Large files…"); flat: true; visible: modelData.type === "disk"; onClicked: { win.scanBigFiles(); win.bigFiles = []; bigDialog.open() } }
                         Button { text: Tr.t("Erase…"); kind: "danger"; flat: true; onClicked: { win.opMode = "erase"; win.formFsType = "ext4"; win.formLabel = ""; win.formConfirm = ""; } }
                         Button { text: Tr.t("Format…"); kind: "outline"; flat: true; onClicked: { win.opMode = "format"; win.formFsType = "ext4"; win.formLabel = ""; win.formConfirm = ""; } }
                         Button { text: Tr.t("Encrypt…"); kind: "outline"; flat: true; onClicked: { win.opMode = "encrypt"; win.formFsType = "ext4"; win.formPassphrase = ""; win.formPassphrase2 = ""; win.formConfirm = ""; } }
@@ -651,12 +756,17 @@ AppWindow {
                 }
                 KeyFocus { onActivated: win.selectedDisk = win.selectedDisk === modelData ? null : modelData }
             }
+            // ---- empty / error states: no disks, no match, or read failure ----
             EmptyState {
                 anchors.centerIn: parent
                 visible: list.count === 0 && !Disks.busy
                 icon: "drive-harddisk"
-                title: Tr.t("No disks found")
-                subtitle: Tr.t("lsblk could not find any block devices")
+                title: Disks.error !== "" ? Tr.t("Could not read the disks")
+                    : (list.count === 0 && Disks.disks.length === 0 ? Tr.t("No disks found") : Tr.t("No matching disks"))
+                subtitle: Disks.error !== "" ? Tr.t("Is lsblk installed?")
+                    : (list.count === 0 && Disks.disks.length === 0 ? Tr.t("lsblk could not find any block devices") : Tr.t("Try a different search term"))
+                actionText: list.count === 0 && Disks.disks.length > 0 && Disks.error === "" ? Tr.t("Clear filter") : ""
+                onAction: win.clearFilter()
             }
         }
 
@@ -721,7 +831,16 @@ AppWindow {
                     Text { Layout.fillWidth: true; text: Tr.t("Attributes (ID · name · value · worst · threshold · raw)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
                     Repeater {
                         model: smartCol.info.attributes || []
-                        Text { required property var modelData; Layout.fillWidth: true; text: [modelData.id, modelData.name, modelData.value, modelData.worst, modelData.thresh, modelData.raw].join(" · "); color: Theme.faint; font.family: Theme.mono; font.pixelSize: Theme.px(9) * Theme.fontScale }
+                        Text { required property var modelData; Layout.fillWidth: true; text: [modelData.id, win.attrName(modelData), modelData.value, modelData.worst, modelData.thresh, modelData.raw].join(" · "); color: Theme.faint; font.family: Theme.mono; font.pixelSize: Theme.px(9) * Theme.fontScale }
+                    }
+                    // capacity + health refresh (expansion)
+                    Text { Layout.fillWidth: true; text: Tr.t("Capacity: %1", smartCol.info.capacity ? win.human(smartCol.info.capacity) : "—"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.px(6)
+                        readonly property var curHealth: win.selectedDisk ? Disks.health[win.selectedDisk.path] : null
+                        Button { text: Tr.t("Refresh health"); flat: true; enabled: !!win.selectedDisk; onClicked: Disks.checkHealth(win.selectedDisk ? win.selectedDisk.path : "") }
+                        Text { Layout.fillWidth: true; visible: !!curHealth; text: Tr.t("Health: %1", curHealth.overall || "—"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                     }
                     Text { Layout.fillWidth: true; text: Tr.t("Self-test log"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
                     Repeater {
@@ -862,6 +981,160 @@ AppWindow {
                         wrapMode: Text.Wrap
                         text: Disks.scanResult ? (Disks.scanResult.output || Tr.t("Done")) : Tr.t("Working…")
                         color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale
+                    }
+                }
+            }
+        }
+
+        // ---- partition list (per selected disk) ------------------------------------
+        Dialog {
+            id: partDialog
+            anchors.centerIn: parent
+            width: Math.min(win.width * 0.9, Theme.px(520))
+            height: Math.min(win.height * 0.8, Theme.px(480))
+            title: Tr.t("Partitions · %1", win.selectedDisk ? win.selectedDisk.path : "")
+            modal: true
+            standardButtons: Dialog.Close
+            contentItem: ColumnLayout {
+                spacing: Theme.px(4)
+                Repeater {
+                    model: win.partList(win.selectedDisk)
+                    Text {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        text: [modelData.name, (modelData.label || modelData.fstype || "").trim(),
+                               win.human(modelData.size || 0),
+                               (modelData.mountpoints || []).length ? "→ " + modelData.mountpoints[0] : Tr.t("(unmounted)"),
+                               modelData.ro ? Tr.t("read-only") : ""] .filter(t => t !== "").join(" · ")
+                        color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    }
+                }
+                EmptyState {
+                    anchors.centerIn: parent
+                    visible: win.partList(win.selectedDisk).length === 0
+                    icon: "drive-harddisk"
+                    title: Tr.t("No partitions")
+                    subtitle: Tr.t("The disk has no partition table entries yet.")
+                }
+            }
+        }
+
+        // ---- tools: wipe tools on the selected disk ---------------------------------
+        Dialog {
+            id: toolsDialog
+            anchors.centerIn: parent
+            width: Math.min(win.width * 0.8, Theme.px(440))
+            title: Tr.t("Tools · %1", win.selectedDisk ? win.selectedDisk.path : "")
+            modal: true
+            standardButtons: Dialog.Close
+            contentItem: ColumnLayout {
+                spacing: Theme.px(6)
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(8)
+                    Button {
+                        text: win.confirmAction === "wipe-quick" ? Tr.t("Tap again to confirm") : Tr.t("Quick erase")
+                        kind: "danger"
+                        enabled: !!win.selectedDisk
+                        onClicked: {
+                            if (win.confirmAction === "wipe-quick") { win.confirmAction = ""; Disks.eraseQuick(win.selectedDisk.path); }
+                            else { win.confirmAction = "wipe-quick"; confirmTimer.restart(); }
+                        }
+                    }
+                    Button {
+                        text: win.confirmAction === "wipe-secure" ? Tr.t("Tap again to confirm") : Tr.t("Secure erase")
+                        kind: "danger"
+                        enabled: !!win.selectedDisk
+                        onClicked: {
+                            if (win.confirmAction === "wipe-secure") { win.confirmAction = ""; Disks.eraseSecure(win.selectedDisk.path); }
+                            else { win.confirmAction = "wipe-secure"; confirmTimer.restart(); }
+                        }
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: Disks.jobLabel !== "" || Disks.error !== ""
+                    text: Disks.jobLabel || Disks.error
+                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+                EmptyState {
+                    anchors.centerIn: parent
+                    visible: win.selectedDisk === null
+                    icon: "drive-harddisk"
+                    title: Tr.t("No disk selected")
+                    subtitle: Tr.t("Open a disk to run wipe tools on it.")
+                }
+            }
+        }
+
+        // ---- performance view: benchmark history -------------------------------------
+        Dialog {
+            id: perfDialog
+            anchors.centerIn: parent
+            width: Math.min(win.width * 0.8, Theme.px(480))
+            title: Tr.t("Performance")
+            modal: true
+            standardButtons: Dialog.Close
+            contentItem: ColumnLayout {
+                spacing: Theme.px(4)
+                Repeater {
+                    model: win.benchHistory
+                    Text {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        text: modelData.at + "  " + modelData.mbps.toFixed(1) + Tr.t(" MB/s")
+                        color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    }
+                }
+                Button { text: Tr.t("Benchmark now"); flat: true; enabled: !!win.selectedDisk && !Disks.busy; onClicked: win.runBench() }
+                EmptyState {
+                    anchors.centerIn: parent
+                    visible: win.benchHistory.length === 0
+                    icon: "drive-harddisk"
+                    title: Tr.t("No benchmark results yet")
+                    subtitle: Tr.t("Run the benchmark to see read speed.")
+                }
+            }
+        }
+
+        // ---- large files: read-only find with size + modification time preview -------
+        Dialog {
+            id: bigDialog
+            anchors.centerIn: parent
+            width: Math.min(win.width * 0.85, Theme.px(520))
+            height: Math.min(win.height * 0.8, Theme.px(480))
+            title: Tr.t("Large files")
+            modal: true
+            standardButtons: Dialog.Close
+            contentItem: ColumnLayout {
+                spacing: Theme.px(2)
+                Flickable {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+                    contentHeight: bigCol.implicitHeight
+                    ScrollBar.vertical: ScrollBar {}
+                    ColumnLayout {
+                        id: bigCol
+                        width: parent.width
+                        Repeater {
+                            model: win.bigFiles
+                            Text {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                wrapMode: Text.Wrap
+                                text: modelData.when + "  " + win.human(modelData.size || 0) + "\n" + modelData.path
+                                color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale
+                            }
+                        }
+                        EmptyState {
+                            Layout.fillWidth: true
+                            visible: win.bigFiles.length === 0
+                            icon: "document-open"
+                            title: bigFinder.running ? Tr.t("Scanning…") : Tr.t("No large files found")
+                            subtitle: bigFinder.running ? Tr.t("Reading files from the disk") : Tr.t("Nothing above the 1 MB size threshold")
+                        }
                     }
                 }
             }

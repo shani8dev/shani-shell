@@ -21,8 +21,10 @@ PanelWindow {
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     anchors.top: true
     margins.top: 58
-    implicitWidth: Theme.px(620)
-    implicitHeight: Theme.px(64) + (hints.visible ? hints.implicitHeight + Theme.px(8) : 0)
+    implicitWidth: Theme.px(780)
+    implicitHeight: Theme.px(64) + (spaces.visible ? spaces.implicitHeight + Theme.px(4) : 0)
+                                  + (browse.visible ? browse.implicitHeight + Theme.px(4) : 0)
+                                  + (hints.visible ? hints.implicitHeight + Theme.px(8) : 0)
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "shani-overview-search"
@@ -65,13 +67,67 @@ PanelWindow {
         handOver.stop();   // a pending hand-over would toggle the launcher again 220 ms later
         typed = "";
         Niri.action("close-overview");
-        Ui.toggleLauncher(text);
+        // the field's colored filters narrow the launcher the same way the
+        // "app:"/"file:" operators do: the operator lane is the filter
+        const f = win.filter === "all" ? "" : win.filter + ":";
+        Ui.toggleLauncher(f + (text || ""));
     }
     // what is typed is gathered for a moment and handed over whole, so the
     // letters typed while the launcher opens are not lost
     property string typed: ""
     Timer { id: handOver; interval: 220; onTriggered: win.search(win.typed) }
-    onVisibleChanged: if (!visible) { handOver.stop(); typed = ""; }
+    // The overview comes from a command (niri msg action open-overview) or the
+    // Super key: every open starts from a clean field, focused (keys.forceActiveFocus).
+    onVisibleChanged: {
+        if (!visible) { handOver.stop(); typed = ""; }
+        else typed = "";
+    }
+
+    // ---- the field's browse: history and recent files, live ------------------
+    readonly property var historyItems: LauncherEntries.searchHistory.map(h => ({ title: h, icon: "edit-find" }))
+    property var recent: []        // the shared recently-used list: [{ path, name, when, app }]
+    // recently used files, read like the launcher reads the same list
+    FileView {
+        path: (Quickshell.env("XDG_DATA_HOME") || Quickshell.env("HOME") + "/.local/share") + "/recently-used.xbel"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            const raw = text();
+            const out = [];
+            const tagRe = /<bookmark[\s][^>]*>/g;
+            let m;
+            while ((m = tagRe.exec(raw)) !== null) {
+                const tag = m[0];
+                const href = tag.match(/href="file:\/\/([^"]+)"/);
+                if (!href) continue;
+                const when = (tag.match(/\bmodified="([^"]+)"/) || tag.match(/\badded="([^"]+)"/)
+                              || tag.match(/\bvisited="([^"]+)"/) || [])[1] || "";
+                const next = /<bookmark[\s]/.exec(raw.slice(tagRe.lastIndex));
+                const stop = next ? tagRe.lastIndex + next.index : raw.length;
+                const app = (/<bookmark:application\b[^>]*\bname="([^"]+)"/.exec(raw.slice(tagRe.lastIndex, stop)) || [])[1] || "";
+                const path = decodeURIComponent(href[1]);
+                out.push({ path: path, name: path.split("/").pop(), when: when, app: app });
+            }
+            win.recent = out.slice(0, 10);
+        }
+    }
+
+    // ---- the live switcher: more spaces groups --------------------------------
+    // every workspace on the focused output, the live switcher between them
+    // (niri's overview has no Activities-style switch; this is the field's)
+    readonly property var spaceGroups: Niri.workspacesOn(Niri.focusedOutput).map(w => ({
+        label: w.name || Tr.t("Space %1", w.idx), icon: w.is_focused ? "starred-location" : "location-pin",
+        ws: w, windows: Object.values(Niri.windows).filter(x => x.workspace_id === w.id).length
+    }))
+
+    // colored filters, All/Apps/Files, as pills at the left of the field
+    property string filter: "all"
+    readonly property var filters: [
+        { id: "all", title: Tr.t("All"), color: Theme.faint },
+        { id: "app", title: Tr.t("Apps"), color: Theme.accent },
+        { id: "file", title: Tr.t("Files"), color: Theme.dim }
+    ]
 
     Glass {
         id: pill
@@ -88,6 +144,16 @@ PanelWindow {
             anchors.rightMargin: Theme.px(22)
             spacing: Theme.px(12)
             Icon { name: "system-search"; size: Theme.px(20); color: Theme.accent }
+            // colored filters, All/Apps/Files, as pills at the left of the field
+            Repeater {
+                model: win.filters
+                Choice {
+                    required property var modelData
+                    text: modelData.title
+                    selected: win.filter === modelData.id
+                    onClicked: { win.filter = modelData.id; search.forceActiveFocus(); }
+                }
+            }
             Text {
                 Layout.fillWidth: true
                 text: win.typed || Tr.t("Type to search apps, files and settings")
@@ -105,6 +171,94 @@ PanelWindow {
         MouseArea { anchors.fill: parent; cursorShape: Qt.IBeamCursor; onClicked: win.search("") }
     }
 
+    // the field's browse: recent searches and recent files when it is empty
+    // (Spotlight's row; typing searches as the launcher does)
+    Glass {
+        id: browse
+        visible: win.typed === "" && (win.historyItems.length > 0 || win.recent.length > 0)
+        anchors.top: pill.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.margins: Theme.px(4)
+        implicitHeight: row.implicitHeight + Theme.px(10)
+        elevation: "none"
+        RowLayout {
+            id: row
+            anchors.fill: parent
+            anchors.leftMargin: Theme.px(16)
+            anchors.rightMargin: Theme.px(16)
+            spacing: Theme.px(8)
+            Row {
+                height: Theme.px(28)
+                Repeater {
+                    model: win.historyItems.slice(0, 4)
+                    Choice {
+                        required property var modelData
+                        text: modelData.title
+                        onClicked: { win.typed = modelData.title; handOver.restart(); search.forceActiveFocus(); }
+                    }
+                }
+            }
+            Item { Layout.fillWidth: true }
+            Row {
+                Repeater {
+                    model: win.recent.slice(0, 3)
+                    Text {
+                        text: modelData.name
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                    }
+                }
+            }
+        }
+    }
+
+    // more spaces groups, live: the field's switcher — a tile per workspace
+    // on the focused output; a tap switches spaces (the dock's tiles switch
+    // windows the same way)
+    Glass {
+        id: spaces
+        visible: win.spaceGroups.length > 0
+        anchors.top: browse.visible ? browse.bottom : pill.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.margins: Theme.px(4)
+        implicitHeight: spacesRow.implicitHeight + Theme.px(10)
+        elevation: "none"
+        RowLayout {
+            id: spacesRow
+            anchors.fill: parent
+            anchors.leftMargin: Theme.px(16)
+            anchors.rightMargin: Theme.px(16)
+            spacing: Theme.px(8)
+            Repeater {
+                model: win.spaceGroups
+                Rectangle {
+                    required property var modelData
+                    Layout.preferredWidth: Theme.px(90)
+                    Layout.preferredHeight: Theme.px(32)
+                    radius: Theme.px(10)
+                    color: modelData.ws.is_focused ? Theme.accent : Theme.hover
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: Theme.px(5)
+                        anchors.rightMargin: Theme.px(4)
+                        Icon { name: modelData.icon; size: Theme.px(14); color: modelData.ws.is_focused ? Theme.accentInk : Theme.text }
+                        Text { text: modelData.label; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; color: modelData.ws.is_focused ? Theme.accentInk : Theme.text }
+                        Text { text: modelData.windows; color: modelData.ws.is_focused ? Theme.accentInk : Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Niri.focusWorkspace(modelData.ws)
+                    }
+                }
+            }
+        }
+    }
+
     // Only bindings that exist are taught: Super+Alt+Arrow is bound in
     // shani-desktop-niri's config, the bar's zoom button opens layouts on a
     // long press, HoverPeek previews dock tiles and files, and the dock's
@@ -112,7 +266,7 @@ PanelWindow {
     Glass {
         id: hints
         visible: !hintsPrefs.dismissed
-        anchors.top: pill.bottom
+        anchors.top: spaces.visible ? spaces.bottom : (browse.visible ? browse.bottom : pill.bottom)
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.margins: Theme.px(4)

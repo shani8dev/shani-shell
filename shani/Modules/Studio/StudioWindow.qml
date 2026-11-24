@@ -22,6 +22,10 @@ AppWindow {
     property string confirmDelete: ""
     Timer { id: deleteTimer; interval: 4000; onTriggered: win.confirmDelete = "" }
 
+    // the app list is Studio's search + sort view of the apps
+    property var shownApps: Studio.search()
+    property var selectedApp: null
+
     onVisibleChanged: if (visible) Studio.refresh()
 
     Item {
@@ -46,6 +50,20 @@ AppWindow {
                 font.weight: Font.DemiBold
             }
             Item { Layout.fillWidth: true }
+            IconButton {
+                size: Theme.px(26)
+                icon: "edit-undo"
+                tip: Tr.t("Undo last action")
+                visible: Studio.actionIndex >= 0
+                onClicked: Studio.undoLast()
+            }
+            IconButton {
+                size: Theme.px(26)
+                icon: "go-next"
+                tip: Tr.t("Redo last action")
+                visible: Studio.undone.length > 0
+                onClicked: Studio.redoLast()
+            }
             Button { text: Tr.t("Refresh"); flat: true; onClicked: Studio.refresh() }
         }
 
@@ -88,6 +106,47 @@ AppWindow {
                 font.family: Theme.font
                 font.pixelSize: Theme.px(11) * Theme.fontScale
             }
+
+            // ---- template pickers: four starting points ----
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Text {
+                    text: Tr.t("Start from")
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+                Repeater {
+                    model: Studio.templates
+                    delegate: Button {
+                        text: modelData.name
+                        onClicked: Studio.generateFromTemplate(modelData.id)
+                    }
+                }
+            }
+        }
+
+        // ---- search and sorting ----
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            TextField {
+                id: searchField
+                Layout.fillWidth: true
+                placeholder: Tr.t("Search apps")
+                onTextChanged: Studio.searchText = text
+            }
+            Button {
+                text: Tr.t("Name")
+                checked: Studio.sortBy === "name"
+                onClicked: { Studio.sortApps("name"); win.shownApps = Studio.search(); }
+            }
+            Button {
+                text: Tr.t("Newest")
+                checked: Studio.sortBy === "createdAt"
+                onClicked: { Studio.sortApps("createdAt"); win.shownApps = Studio.search(); }
+            }
         }
 
         // ---- generated apps list ----
@@ -105,7 +164,8 @@ AppWindow {
             clip: true
             reuseItems: true
             cacheBuffer: 400
-            model: Studio.apps
+            model: win.shownApps
+            onCurrentIndexChanged: win.selectedApp = win.shownApps[currentIndex] ? win.shownApps[currentIndex] : null
             Accessible.role: Accessible.List
             Accessible.name: Tr.t("Your apps")
             delegate: Rectangle {
@@ -158,6 +218,36 @@ AppWindow {
                             else { win.confirmDelete = modelData.name; deleteTimer.restart(); }
                         }
                     }
+                    IconButton {
+                        size: Theme.px(26)
+                        icon: "utilities-terminal"
+                        tip: Tr.t("Generate run script")
+                        onClicked: Studio.generateScript(modelData)
+                    }
+                    IconButton {
+                        size: Theme.px(26)
+                        icon: "folder-publicshare"
+                        tip: Tr.t("Export")
+                        onClicked: Studio.exportApp(modelData, Studio.devDir + "/" + modelData.name + "-export")
+                    }
+                    IconButton {
+                        size: Theme.px(26)
+                        icon: "document-open"
+                        tip: Tr.t("Preview code")
+                        onClicked: Studio.preview(modelData)
+                    }
+                    IconButton {
+                        size: Theme.px(26)
+                        icon: "security-high"
+                        tip: Tr.t("Check syntax")
+                        onClicked: Studio.lintApp(modelData)
+                    }
+                    IconButton {
+                        size: Theme.px(26)
+                        icon: "media-record"
+                        tip: Studio.tailing ? Tr.t("Stop tail") : Tr.t("Tail logs")
+                        onClicked: Studio.tailing ? Studio.stopTail() : Studio.tailApp(modelData)
+                    }
                 }
                 MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
             }
@@ -170,6 +260,100 @@ AppWindow {
             }
         }
 
+        // ---- wizard: multi-file projects ----
+        Item {
+            Layout.fillWidth: true
+            height: Studio.wizardActive && Studio.wizardCount > 0 ? Theme.px(30) : 0
+            visible: Studio.wizardActive && Studio.wizardCount > 0
+            RowLayout {
+                anchors.fill: parent
+                spacing: Theme.px(8)
+                Button { text: Tr.t("Previous"); enabled: Studio.wizardStep > 0; onClicked: Studio.wizardPrev() }
+                Text {
+                    text: Tr.t("Step %1 of %2", Studio.wizardStep + 1, Studio.wizardCount())
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    Layout.fillWidth: true
+                    elide: Text.ElideMiddle
+                }
+                Button {
+                    text: Studio.wizardStep + 1 < Studio.wizardFiles.length ? Tr.t("Next") : Tr.t("Done")
+                    onClicked: {
+                        if (Studio.wizardStep + 1 < Studio.wizardFiles.length) Studio.wizardNext();
+                        else Studio.wizardFinish();
+                    }
+                }
+            }
+        }
+
+        // ---- code preview ----
+        Text {
+            visible: appList.count > 0 && Studio.previewText !== ""
+            text: Studio.previewText
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: Theme.px(10) * Theme.fontScale
+            wrapMode: Text.Wrap
+            maximumLineCount: 4
+            elide: Text.ElideRight
+            Layout.fillWidth: true
+        }
+        Text {
+            visible: Studio.previewPath !== ""
+            text: Tr.t("Code preview — %1", Studio.previewPath)
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: Theme.px(10) * Theme.fontScale
+            Layout.fillWidth: true
+        }
+
+        // ---- live tail ----
+        Text {
+            visible: Studio.tailing
+            text: Studio.tailText
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: Theme.px(10) * Theme.fontScale
+            wrapMode: Text.Wrap
+            Layout.fillWidth: true
+        }
+
+        // ---- dashboard widgets ----
+        Text {
+            text: Tr.t("Dashboard widgets")
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.weight: Font.DemiBold
+            visible: appList.count > 0
+        }
+        RowLayout {
+            spacing: Theme.px(6)
+            visible: appList.count > 0
+            Repeater {
+                model: Studio.widgetTypes
+                delegate: Button {
+                    text: modelData
+                    onClicked: Studio.addWidget(win.selectedApp, modelData)
+                }
+            }
+        }
+        ListView {
+            id: widgetsList
+            Layout.fillWidth: true
+            height: Math.min(Studio.widgets.length, 3) * Theme.px(24)
+            visible: Studio.widgets.length > 0
+            model: Studio.widgets
+            delegate: Text {
+                text: modelData.type + " — " + modelData.app
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(10) * Theme.fontScale
+                Layout.fillWidth: true
+            }
+        }
+
         // ---- footer ----
         Text {
             Layout.fillWidth: true
@@ -179,6 +363,13 @@ AppWindow {
             font.family: Theme.font
             font.pixelSize: Theme.px(10) * Theme.fontScale
             elide: Text.ElideMiddle
+        }
+
+        // the app list follows the search and the apps themselves
+        Connections {
+            target: Studio
+            function onAppsChanged() { win.shownApps = Studio.search(); }
+            function onSearchTextChanged() { win.shownApps = Studio.search(); }
         }
     }
 }

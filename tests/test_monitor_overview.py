@@ -27,7 +27,7 @@ def qml():
 
 def overview_block(text):
     """The strip, from its section heading to the sparkline row it precedes."""
-    start = text.index('text: "System overview"')
+    start = text.index('Tr.t("System overview")')
     end = text.index("// the last minute, from the samples SysStats")
     return text[start:end]
 
