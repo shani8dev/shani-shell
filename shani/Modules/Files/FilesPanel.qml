@@ -13,6 +13,7 @@
 // deleted by the file manager - the trash is the desktop trash, where it can
 // be put back.
 import Quickshell
+import Quickshell.Io
 import QtQuick
 import QtQuick.Dialogs
 import QtQuick.Layouts
@@ -120,6 +121,34 @@ AppWindow {
                 Files.setZoom(event.key === Qt.Key_0 ? 1 : Files.zoom + (event.key === Qt.Key_Minus ? -0.2 : 0.2));
                 event.accepted = true;
                 return;
+            }
+            // a keyboard shortcut sheet: Ctrl+/ (or ? like a browser's help)
+            if ((control && event.key === Qt.Key_Slash) || (!control && !alt && event.key === Qt.Key_Question)) {
+                win.toggleShortcuts();
+                event.accepted = true;
+                return;
+            }
+            // Ctrl+D bookmarks the folder on screen; Ctrl+Shift+T brings a closed tab back
+            if (control && !alt && event.key === Qt.Key_D) {
+                Files.toggleBookmark();
+                event.accepted = true;
+                return;
+            }
+            if (control && (event.modifiers & Qt.ShiftModifier) && event.key === Qt.Key_T) {
+                Files.reopenClosedTab();
+                event.accepted = true;
+                return;
+            }
+            // Ctrl+Shift+Y: every file of the same kind as the one under the cursor
+            if (control && (event.modifiers & Qt.ShiftModifier) && event.key === Qt.Key_Y) {
+                Files.note = Tr.t("%1 selected", Files.selectByType());
+                event.accepted = true;
+                return;
+            }
+            // Ctrl+1…9 jumps to a tab, the way a browser does (Alt+1 in Dolphin)
+            if (control && !alt && event.key >= Qt.Key_1 && event.key <= Qt.Key_9) {
+                const n = event.key - Qt.Key_1;
+                if (n < Files.tabPaths.length) { Files.switchTab(n); event.accepted = true; return; }
             }
             // tabs: Ctrl+T a new one here, Ctrl+W this one closed, Ctrl+Tab / Ctrl+Shift+Tab the next / the last
             if (control && event.key === Qt.Key_T) { Files.newTab(Files.path); event.accepted = true; return; }
@@ -509,6 +538,7 @@ AppWindow {
                     size: Theme.px(30)
                     tip: Files.splitActive ? Tr.t("Close split view") : Tr.t("Split view (Ctrl+Alt+N)")
                     onClicked: Files.toggleSplit()
+                    Accessible.name: Files.splitActive ? Tr.t("Close split view") : Tr.t("Open split view")
                 }
                 IconButton { icon: "edit-paste"; size: Theme.px(30); tip: Tr.t("Paste here (Ctrl+V)"); onClicked: Files.pasteHere(Files.path) }
                 IconButton { icon: "edit-undo"; size: Theme.px(30); tip: Files.undoLabel ? Tr.t("Undo: %1 (Ctrl+Z)", Files.undoLabel) : Tr.t("Nothing to undo"); enabled: Files.undoLabel !== ""; onClicked: Files.undo() }
@@ -516,8 +546,10 @@ AppWindow {
                              tip: win.confirmEmpty ? Tr.t("Click again: everything in the trash is deleted for good") : Tr.t("Empty the trash")
                              onClicked: { if (!win.confirmEmpty) { win.confirmEmpty = true; confirmTimer.restart(); return; } win.confirmEmpty = false; Files.emptyTrash(); } }
                 IconButton { icon: "folder-new"; size: Theme.px(30); tip: Tr.t("New folder"); onClicked: win.openNewFolder() }
+                IconButton { icon: Files.isBookmarked(Files.path) ? "user-bookmarks" : "bookmark-new"; size: Theme.px(30); tip: Tr.t("Bookmark this folder (Ctrl+D)"); onClicked: Files.toggleBookmark(); Accessible.name: Tr.t("Bookmark this folder") }
                 IconButton { icon: "edit-clear-all"; size: Theme.px(30); tip: Tr.t("Tidy this folder: files into folders by kind"); onClicked: Tidy.plan(Files.path) }
                 IconButton { icon: "view-refresh"; size: Theme.px(30); tip: Tr.t("Refresh (F5)"); onClicked: dir.reload() }
+                IconButton { icon: "help-faq"; size: Theme.px(30); tip: Tr.t("Keyboard shortcuts (Ctrl+/)"); onClicked: win.toggleShortcuts(); Accessible.name: Tr.t("Keyboard shortcuts") }
             }
 
             // search categories: the chips feed the listing's extension filters
@@ -563,6 +595,7 @@ AppWindow {
                     tip: Tr.t("Change split view")
                     onClicked: Files.toggleSplitViewMode()
                 }
+                IconButton { icon: "view-split-left-right"; size: Theme.px(30); tip: Tr.t("Swap panes"); onClicked: Files.swapSplit(); enabled: Files.splitPath !== "" && Files.splitPath !== Files.path; Accessible.name: Tr.t("Swap panes") }
                 IconButton { icon: "edit-copy"; size: Theme.px(30); tip: Tr.t("Copy chosen here"); onClicked: Files.copyToSplit(); enabled: Files.selected.length > 0 }
                 IconButton { icon: "edit-cut"; size: Theme.px(30); tip: Tr.t("Move chosen here"); onClicked: Files.moveToSplit(); enabled: Files.selected.length > 0 }
                 IconButton { icon: "go-up"; size: Theme.px(30); tip: Tr.t("Up"); enabled: Files.splitPath !== "" && Files.splitPath !== "/"; onClicked: { Files.splitPath = FilePaths.parentOf(Files.splitPath); splitDir.reload(); } }
@@ -823,7 +856,39 @@ AppWindow {
                                 border.width: on ? 1 : 0
                                 border.color: Theme.accentLine
                                 FileDropArea { id: tabDrop; anchors.fill: parent; dest: tabChip.modelData.startsWith("/") ? tabChip.modelData : "" }
-                                MouseArea { id: tabArea; anchors.fill: parent; hoverEnabled: true; onClicked: Files.switchTab(tabChip.index) }
+                                // a dragged tab moves among the others, Finder/Dolphin style
+                                Item {
+                                    id: tabDrag
+                                    width: 1; height: 1
+                                    Drag.active: tabArea.drag.active
+                                    Drag.dragType: Drag.Automatic
+                                    Drag.supportedActions: Qt.MoveAction
+                                    Drag.mimeData: ({ "text/x-shani-tab": String(tabChip.index) })
+                                }
+                                DropArea {
+                                    anchors.fill: parent
+                                    keys: ["text/x-shani-tab"]
+                                    onEntered: d => d.accept(Qt.MoveAction)
+                                    onDropped: d => {
+                                        const from = parseInt(String(d.getData("text/x-shani-tab") || ""), 10);
+                                        if (!isNaN(from) && from !== tabChip.index) Files.moveTab(from, tabChip.index);
+                                        d.acceptProposedAction();
+                                    }
+                                }
+                                MouseArea {
+                                    id: tabArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
+                                    drag.target: tabDrag
+                                    onReleased: { tabDrag.x = 0; tabDrag.y = 0; }
+                                    onClicked: mouse => {
+                                        if (mouse.button === Qt.MiddleButton) Files.closeTab(tabChip.index);
+                                        else if (mouse.button === Qt.RightButton)
+                                            win.openTabMenu(tabChip.index, tabArea.mapToItem(win, mouse.x, mouse.y));
+                                        else Files.switchTab(tabChip.index);
+                                    }
+                                }
                                 RowLayout {
                                     id: tabRow
                                     anchors.fill: parent
@@ -841,7 +906,7 @@ AppWindow {
                                     IconButton { icon: "window-close"; size: Theme.px(22); tip: Tr.t("Close this tab"); onClicked: Files.closeTab(tabChip.index) }
                                 }
                                 Accessible.role: Accessible.PageTab
-                                Accessible.name: tabChip.modelData
+                                Accessible.name: Tr.t("Tab %1: %2", tabChip.index + 1, Files.placeTitle(tabChip.modelData))
                                 Accessible.onPressAction: Files.switchTab(tabChip.index)
                             }
                         }
@@ -879,8 +944,13 @@ AppWindow {
                                         font.weight: index === win.crumbsModel.length - 1 ? Font.DemiBold : Font.Normal
                                         MouseArea {
                                             anchors.fill: parent
+                                            acceptedButtons: Qt.LeftButton | Qt.RightButton
                                             cursorShape: Qt.PointingHandCursor
-                                            onClicked: Files.open(modelData.path)
+                                            onClicked: mouse => {
+                                                if (mouse.button === Qt.RightButton)
+                                                    win.openPathMenu(modelData.path, mapToItem(win, mouse.x, mouse.y));
+                                                else Files.open(modelData.path);
+                                            }
                                         }
                                         // keys and a controller: a folder up the path, as the click
                                         Accessible.role: Accessible.Button
@@ -1025,6 +1095,17 @@ AppWindow {
                                         wrapMode: Text.Wrap
                                         font.family: Theme.font
                                         font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    }
+                                    // Finder's View Options: a tile can carry its size or its date
+                                    Text {
+                                        Layout.fillWidth: true
+                                        visible: Files.gridCaption !== "off" && !(cell.modelData.isDir && Files.gridCaption === "size")
+                                        text: Files.gridCaption === "date" ? Files.formatTime(cell.modelData.mtime) : Files.humanSize(cell.modelData.size)
+                                        color: Theme.faint
+                                        horizontalAlignment: Text.AlignHCenter
+                                        elide: Text.ElideRight
+                                        font.family: Theme.font
+                                        font.pixelSize: Theme.px(9) * Theme.fontScale
                                     }
                                 }
                                 // dragged: the file (or the selection it is part of) as text/uri-list,
@@ -1219,8 +1300,21 @@ AppWindow {
                             visible: win.visibleEntries.length === 0 && !dir.loading
                             width: parent.width - 40
                             icon: "folder"
-                            title: dir.error !== "" ? Tr.t("This folder could not be opened") : Tr.t("This folder is empty")
+                            title: dir.error !== "" ? Tr.t("This folder could not be opened")
+                                 : (searchBox.text !== "" || Files.activeFilters.length || Files.foldersOnly) ? Tr.t("Nothing matches this view")
+                                 : Tr.t("This folder is empty")
                             subtitle: dir.error !== "" ? dir.error : Tr.t("Nothing to show here")
+                            actionText: dir.error !== "" ? Tr.t("Retry")
+                                        : (searchBox.text !== "" || Files.activeFilters.length || Files.foldersOnly) ? Tr.t("Clear filters")
+                                        : Tr.t("New folder")
+                            onAction: {
+                                if (dir.error !== "") dir.reload();
+                                else if (searchBox.text !== "" || Files.activeFilters.length || Files.foldersOnly) {
+                                    searchBox.text = "";
+                                    win.applyCategory("all");
+                                } else win.openNewFolder();
+                            }
+                            Accessible.name: title + " · " + subtitle
                         }
                         Text {
                             anchors.centerIn: parent
@@ -1409,8 +1503,11 @@ AppWindow {
                                 visible: win.splitVisibleEntries.length === 0 && !splitDir.loading
                                 width: parent.width - 40
                                 icon: "folder"
-                                title: Tr.t("This folder is empty")
-                                subtitle: Tr.t("Nothing to show here")
+                                title: splitDir.error !== "" ? Tr.t("This folder could not be opened") : Tr.t("This folder is empty")
+                                subtitle: splitDir.error !== "" ? splitDir.error : Tr.t("Nothing to show here")
+                                actionText: splitDir.error !== "" ? Tr.t("Retry") : ""
+                                onAction: splitDir.reload()
+                                Accessible.name: title + " · " + subtitle
                             }
                         }
 
@@ -2239,6 +2336,46 @@ AppWindow {
         anchors.verticalCenter: parent.verticalCenter
         readonly property var p: Files.props || ({})
         function row(label, value) { return value ? [label, value] : null; }
+
+        // CoreFM's Partition tab: the free/total space on the drive the chosen folder is on.
+        // files.py's `free` uses statvfs; argv only, and only for a local folder (a pseudo
+        // place or a remote URI has no local drive to measure).
+        property real freeBytes: -1
+        property real totalBytes: -1
+        readonly property bool localFolder: p.type === "folder" && typeof p.path === "string" && p.path.indexOf("/") === 0
+        function probeCapacity() {
+            const path = propsBox.localFolder ? propsBox.p.path : "";
+            propsBox.freeBytes = -1;
+            propsBox.totalBytes = -1;
+            propsCapacity.forPath = path;
+            if (path === "") return;
+            propsCapacity.command = ["python3", Files.tool, "free", path];
+            propsCapacity.running = false;
+            Qt.callLater(function () { if (propsCapacity.forPath === path) propsCapacity.running = true; });
+        }
+        Connections {
+            target: Files
+            function onPropsChanged() { if (propsBox.visible && !propsBox.p.loading) propsBox.probeCapacity(); }
+        }
+        Process {
+            id: propsCapacity
+            property string forPath: ""
+            stdout: SplitParser {
+                onRead: line => {
+                    if (propsCapacity.forPath !== propsBox.p.path) return;
+                    let r = null;
+                    try { r = JSON.parse(line); } catch (e) { return; }
+                    if (typeof r.free === "number") propsBox.freeBytes = r.free;
+                    if (typeof r.total === "number") propsBox.totalBytes = r.total;
+                }
+            }
+            onExited: code => {
+                if (code !== 0 || propsCapacity.forPath !== propsBox.p.path) {
+                    propsBox.freeBytes = -1;
+                    propsBox.totalBytes = -1;
+                }
+            }
+        }
         ColumnLayout {
             id: propsCol
             anchors.fill: parent
@@ -2263,6 +2400,9 @@ AppWindow {
                     propsBox.row(Tr.t("Size"), Files.humanSize(propsBox.p.size || 0) + (propsBox.p.partial ? " +" : "")
                         + ((propsBox.p.files || propsBox.p.dirs) ? "  ·  " + Tr.t("%1 files, %2 folders", propsBox.p.files || 0, propsBox.p.dirs || 0) : "")),
                     propsBox.row(Tr.t("On disk"), Files.humanSize(propsBox.p.disk || 0)),
+                    propsBox.row(Tr.t("Space"), propsBox.totalBytes > 0
+                        ? Tr.t("%1 free of %2", Files.humanSize(propsBox.freeBytes), Files.humanSize(propsBox.totalBytes))
+                        : ""),
                     propsBox.row(Tr.t("Where"), propsBox.p.path ? FilePaths.parentOf(propsBox.p.path) : ""),
                     propsBox.row(Tr.t("Link target"), propsBox.p.linkTarget ? propsBox.p.linkTarget + (propsBox.p.linkBroken ? "  ·  " + Tr.t("broken") : "") : ""),
                     propsBox.row(Tr.t("Changed"), propsBox.p.mtime ? Files.formatTime(propsBox.p.mtime) : ""),
@@ -3152,6 +3292,64 @@ AppWindow {
         }
     }
 
+    // ---- the keyboard shortcut sheet (Ctrl+/ or ?) -----------------------------------
+    Glass {
+        id: shortcutSheet
+        parent: win.contentItem
+        visible: win.shortcutsShown
+        z: 36
+        strong: true
+        solid: true
+        radius: Theme.px(12)
+        width: Theme.px(430)
+        height: Math.min(Theme.px(520), win.height - Theme.px(40))
+        anchors.centerIn: parent
+        focus: visible
+        Accessible.name: Tr.t("Keyboard shortcuts")
+        Keys.onPressed: event => {
+            const ctrl = (event.modifiers & Qt.ControlModifier) !== 0;
+            if (event.key === Qt.Key_Escape || (ctrl && event.key === Qt.Key_Slash)) {
+                win.toggleShortcuts();
+                event.accepted = true;
+            }
+        }
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: Theme.px(12)
+            spacing: Theme.px(8)
+            Text {
+                text: Tr.t("Keyboard shortcuts")
+                color: Theme.text
+                font.family: Theme.font
+                font.pixelSize: Theme.fontTitle * Theme.fontScale
+                font.weight: Font.DemiBold
+            }
+            Flickable {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                contentHeight: shortcutGrid.implicitHeight
+                GridLayout {
+                    id: shortcutGrid
+                    columns: 2
+                    width: parent.width
+                    rowSpacing: Theme.px(4)
+                    columnSpacing: Theme.px(12)
+                    Repeater {
+                        model: win.shortcutRows
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.px(8)
+                            Text { text: modelData.key; color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold; Layout.minimumWidth: Theme.px(90) }
+                            Text { Layout.fillWidth: true; text: modelData.label; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; wrapMode: Text.Wrap }
+                        }
+                    }
+                }
+            }
+            Button { Layout.alignment: Qt.AlignRight; text: Tr.t("Close"); onClicked: win.toggleShortcuts() }
+        }
+    }
+
     // ---- the pieces that need the window ------------------------------------------
     property var menuEntry: null
     property string typed: ""                // type to find: what was typed so far
@@ -3267,12 +3465,62 @@ AppWindow {
         menuX = point.x;
         menuY = point.y;
     }
+    // the same menu popup serves a tab chip and a breadcrumb button
+    function openTabMenu(i, point) { openMenu({ tabMenu: true, index: i }, point); }
+    function openPathMenu(path, point) { openMenu({ pathMenu: true, path: path }, point); }
+    function openInSplit(path) {
+        Files.openInSplit(path);
+        splitDir.reload();
+    }
+    property bool shortcutsShown: false
+    readonly property var shortcutRows: [
+        { key: "Ctrl+T", label: Tr.t("New tab") },
+        { key: "Ctrl+Shift+T", label: Tr.t("Reopen the last closed tab") },
+        { key: "Ctrl+W / middle click", label: Tr.t("Close tab") },
+        { key: "Ctrl+1…9", label: Tr.t("Go to tab") },
+        { key: "Ctrl+L", label: Tr.t("Type a path") },
+        { key: "Ctrl+D", label: Tr.t("Bookmark this folder") },
+        { key: "Ctrl+H", label: Tr.t("Show hidden files") },
+        { key: "Ctrl+A / Ctrl+Shift+I", label: Tr.t("Select all / invert the selection") },
+        { key: "Ctrl+Shift+Y", label: Tr.t("Select all of this type") },
+        { key: "Ctrl+Alt+N", label: Tr.t("Split view") },
+        { key: "Ctrl+C / Ctrl+X / Ctrl+V", label: Tr.t("Copy / cut / paste") },
+        { key: "Ctrl+F2", label: Tr.t("Batch rename") },
+        { key: "F2 / F4", label: Tr.t("Rename / open a terminal here") },
+        { key: "Delete / Shift+Delete", label: Tr.t("Trash / delete for good") },
+        { key: "Space / F5", label: Tr.t("Quick Look / refresh") },
+        { key: "Ctrl+/", label: Tr.t("This shortcut sheet") }
+    ]
+    function toggleShortcuts() {
+        shortcutsShown = !shortcutsShown;
+        if (shortcutsShown) shortcutSheet.forceActiveFocus();
+        else keys.forceActiveFocus();
+    }
 
     function menuItems() {
         const e = menuEntry;
         if (!e)
             return [];
         const items = [];
+        if (e.tabMenu) {
+            const i = e.index, count = Files.tabPaths.length;
+            items.push({ label: Tr.t("Duplicate tab"), icon: "tab-new", danger: false, run: () => Files.duplicateTab(i) });
+            if (count > 2)
+                items.push({ label: Tr.t("Close other tabs"), icon: "tab-close-other", danger: false, run: () => Files.closeOtherTabs(i) });
+            if (i < count - 1)
+                items.push({ label: Tr.t("Close tabs to the right"), icon: "tab-close-right", danger: false, run: () => Files.closeTabsToRight(i) });
+            items.push({ label: Tr.t("Close tab"), icon: "window-close", danger: false, run: () => Files.closeTab(i) });
+            return items;
+        }
+        if (e.pathMenu) {
+            const p = e.path;
+            items.push({ label: Tr.t("Open in a new tab"), icon: "tab-new", danger: false, run: () => Files.newTab(p) });
+            if (p.startsWith("/"))
+                items.push({ label: Tr.t("Open in split pane"), icon: "view-dual", danger: false, run: () => win.openInSplit(p) });
+            items.push({ label: Tr.t("Copy path"), icon: "edit-copy", danger: false, run: () => Files.copyPath(p) });
+            items.push({ label: Files.isBookmarked(p) ? Tr.t("Remove from the sidebar") : Tr.t("Add to the sidebar"), icon: "user-bookmarks", danger: false, run: () => Files.toggleBookmark(p) });
+            return items;
+        }
         if (e.background) {
             items.push({ label: Tr.t("New folder"), icon: "folder-new", danger: false, run: () => win.openNewFolder() });
             for (const tpl of Files.templates)
@@ -3288,6 +3536,8 @@ AppWindow {
             items.push({ label: Tr.t("Select all"), icon: "edit-select-all", danger: false, run: () => Files.selectAll() });
             items.push({ label: Tr.t("Turn the selection over"), icon: "edit-select-invert", danger: false, run: () => Files.invertSelection() });
             items.push({ label: Tr.t("Select Items Matching…"), icon: "edit-find", danger: false, run: () => win.openMatch() });
+            items.push({ label: Tr.t("Grid captions: %1", Files.gridCaption), icon: "view-grid", danger: false, run: () => Files.cycleGridCaption() });
+            items.push({ label: Tr.t("Reopen closed tab (Ctrl+Shift+T)"), icon: "tab-new", danger: false, run: () => Files.reopenClosedTab() });
             if (e.path.startsWith("/"))
                 items.push({ label: Tr.t("Save folder tree as text…"), icon: "document-save-as", danger: false, run: () => win.askSaveTree(e.path) });
             items.push({ label: Tr.t("Properties"), icon: "document-properties", danger: false, run: () => Files.showProps([e.path]) });
@@ -3309,6 +3559,9 @@ AppWindow {
         else
             items.push({ label: Tr.t("Open"), icon: "document-open", danger: false, run: () => Files.openEntry(e.path) });
         items.push({ label: Tr.t("Open with…"), icon: "view-app-grid", danger: false, run: () => { win.openWithPaths = chosen.slice(); } });
+        items.push({ label: Tr.t("Select all of this type"), icon: "edit-select-all", danger: false, run: () => { Files.select(e.path, "single"); Files.note = Tr.t("%1 selected", Files.selectByType()); } });
+        if (e.isDir && e.path.startsWith("/"))
+            items.push({ label: Tr.t("Open in split pane"), icon: "view-dual", danger: false, run: () => win.openInSplit(e.path) });
         items.push({ label: Tr.t("Rename"), icon: "document-edit", danger: false, run: () => beginRename(e.path) });
         if (!e.isDir)
             items.push({ label: Tr.t("Suggest a name"), icon: "tools-check-spelling", danger: false,
