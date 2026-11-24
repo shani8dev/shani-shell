@@ -25,18 +25,51 @@ def load_admin(tmp_path, monkeypatch):
     sa.LOGIN_DEFS = tmp_path / "login.defs"
     sa.LOGIND_DROPIN = tmp_path / "logind.conf.d" / "50-shani-shell.conf"
     sa.COREDUMP_DROPIN = tmp_path / "coredump.conf.d" / "50-shani-shell.conf"
-    monkeypatch.setattr(sa.shutil, "which", lambda x: "/usr/bin/" + x if x in ("visudo", "aa-enforce", "aa-complain") else None)
+    sa.AUDIT_RULES_FILE = tmp_path / "audit" / "rules.d" / "50-shani-shell.rules"
+    monkeypatch.setattr(
+        sa.shutil,
+        "which",
+        lambda x: (
+            "/usr/bin/" + x
+            if x in ("visudo", "aa-enforce", "aa-complain", "augenrules", "auditctl")
+            else None
+        ),
+    )
     real_exists = sa.os.path.exists
-    monkeypatch.setattr(sa.os.path, "exists", lambda pth: True if str(pth) in ("/usr/bin/visudo", "/usr/bin/aa-enforce", "/usr/bin/aa-complain") else real_exists(pth))
+    monkeypatch.setattr(
+        sa.os.path,
+        "exists",
+        lambda pth: (
+            True
+            if str(pth)
+            in (
+                "/usr/bin/visudo",
+                "/usr/bin/aa-enforce",
+                "/usr/bin/aa-complain",
+                "/usr/bin/augenrules",
+                "/usr/bin/auditctl",
+            )
+            else real_exists(pth)
+        ),
+    )
     real_run = subprocess.run
 
     def fake_run(cmd, *a, **k):
-        # avoid real systemctl/visudo/apparmor
+        # avoid real systemctl/visudo/apparmor/audit reload
         if cmd[0] in (
             "systemctl",
-            "aa-enforce", "aa-complain",
-            "/usr/sbin/aa-enforce", "/usr/sbin/aa-complain",
-            "/usr/bin/aa-enforce", "/usr/bin/aa-complain",
+            "aa-enforce",
+            "aa-complain",
+            "/usr/sbin/aa-enforce",
+            "/usr/sbin/aa-complain",
+            "/usr/bin/aa-enforce",
+            "/usr/bin/aa-complain",
+            "augenrules",
+            "/usr/sbin/augenrules",
+            "/usr/bin/augenrules",
+            "auditctl",
+            "/usr/sbin/auditctl",
+            "/usr/bin/auditctl",
         ):
             return subprocess.CompletedProcess(cmd, 0, "", "")
         if cmd[0] in ("visudo", "/usr/sbin/visudo", "/usr/bin/visudo"):
@@ -49,7 +82,18 @@ def load_admin(tmp_path, monkeypatch):
 
 def test_remote_access_set_writes_dropin(tmp_path, monkeypatch):
     sa = load_admin(tmp_path, monkeypatch)
-    r = sa.remote_access_set({"password": False, "pubkey": True, "root": False, "allowUsers": "alice bob", "allowGroups": "wheel", "tcpForwarding": False, "x11Forwarding": False, "maxAuthTries": 4})
+    r = sa.remote_access_set(
+        {
+            "password": False,
+            "pubkey": True,
+            "root": False,
+            "allowUsers": "alice bob",
+            "allowGroups": "wheel",
+            "tcpForwarding": False,
+            "x11Forwarding": False,
+            "maxAuthTries": 4,
+        }
+    )
     assert r["password"] is False and r["pubkey"] is True and r["root"] is False
     assert r["allowUsers"] == "alice bob"
     assert r["tcpForwarding"] is False
@@ -251,7 +295,10 @@ def test_login_defs_get_set_preserves_other_lines(tmp_path, monkeypatch):
 def test_fstrim_and_cups_browsed_set(tmp_path, monkeypatch):
     sa = load_admin(tmp_path, monkeypatch)
     r = sa.fstrim_set({"enabled": True})
-    assert r["enabled"] in (True, False)  # mocked systemctl returns active/enabled as False in our fake? depends
+    assert r["enabled"] in (
+        True,
+        False,
+    )  # mocked systemctl returns active/enabled as False in our fake? depends
     r = sa.cups_browsed_set({"enabled": False})
     assert "enabled" in r
 
@@ -264,7 +311,15 @@ def test_auditd_set_shape(tmp_path, monkeypatch):
 
 def test_logind_and_coredump_crud(tmp_path, monkeypatch):
     sa = load_admin(tmp_path, monkeypatch)
-    r = sa.logind_set({"settings": {"HandleLidSwitch": "suspend", "IdleAction": "lock", "IdleActionSec": 300}})
+    r = sa.logind_set(
+        {
+            "settings": {
+                "HandleLidSwitch": "suspend",
+                "IdleAction": "lock",
+                "IdleActionSec": 300,
+            }
+        }
+    )
     assert r["settings"]["HandleLidSwitch"] == "suspend"
     txt = sa.LOGIND_DROPIN.read_text()
     assert "[Login]" in txt and "IdleActionSec=300" in txt
@@ -275,3 +330,51 @@ def test_logind_and_coredump_crud(tmp_path, monkeypatch):
     assert "Storage=none" in sa.COREDUMP_DROPIN.read_text()
     with pytest.raises(Exception):
         sa.coredump_set({"settings": {"Storage": "bad"}})
+
+
+def test_audit_profile_list_get_set(tmp_path, monkeypatch):
+    sa = load_admin(tmp_path, monkeypatch)
+    r = sa.audit_profile_list({})
+    assert r["profiles"] == ["off", "minimal", "baseline"]
+
+    r = sa.audit_profile_get({})
+    assert r["profile"] == "off"
+
+    r = sa.audit_profile_set({"profile": "minimal"})
+    assert r["profile"] == "minimal"
+    assert sa.AUDIT_RULES_FILE.exists()
+    txt = sa.AUDIT_RULES_FILE.read_text(encoding="utf-8")
+    assert "# shani-shell-profile: minimal" in txt
+    assert oct(sa.AUDIT_RULES_FILE.stat().st_mode & 0o777) == "0o640"
+
+    r = sa.audit_profile_set({"profile": "baseline"})
+    assert r["profile"] == "baseline"
+    txt = sa.AUDIT_RULES_FILE.read_text(encoding="utf-8")
+    assert "# shani-shell-profile: baseline" in txt
+
+    r = sa.audit_profile_set({"profile": "off"})
+    assert r["profile"] == "off"
+    assert not sa.AUDIT_RULES_FILE.exists()
+
+
+def test_audit_profile_rejects_unknown(tmp_path, monkeypatch):
+    sa = load_admin(tmp_path, monkeypatch)
+    with pytest.raises(sa.Refused):
+        sa.audit_profile_set({"profile": "custom"})
+    with pytest.raises(sa.Refused):
+        sa.audit_profile_set({"profile": "../etc/passwd"})
+    with pytest.raises(sa.Refused):
+        sa.audit_profile_set({"profile": ""})
+
+
+def test_audit_profile_reload_failure(tmp_path, monkeypatch):
+    sa = load_admin(tmp_path, monkeypatch)
+
+    def fail_run(cmd, *a, **k):
+        if cmd[0] in ("augenrules", "/usr/sbin/augenrules", "/usr/bin/augenrules"):
+            return subprocess.CompletedProcess(cmd, 1, "", "load failed")
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(sa.subprocess, "run", fail_run)
+    with pytest.raises(sa.Refused, match="load failed"):
+        sa.audit_profile_set({"profile": "minimal"})

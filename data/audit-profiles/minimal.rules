@@ -1,0 +1,12 @@
+# shani-shell-profile: minimal
+# Minimal audit rules managed by shani-shell.
+
+-w /etc/passwd -p wa -k shani-identity
+-w /etc/group -p wa -k shani-identity
+-w /etc/shadow -p wa -k shani-identity
+-w /etc/sudoers -p wa -k shani-privilege
+-w /etc/sudoers.d -p wa -k shani-privilege
+
+-a always,exit -F arch=b64 -S adjtimex -S settimeofday -k shani-time
+-a always,exit -F arch=b64 -S clock_settime -k shani-time
+-w /etc/localtime -p wa -k shani-time

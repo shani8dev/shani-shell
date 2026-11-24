@@ -1322,7 +1322,9 @@ def login_defs_set(req: dict) -> dict:
 
 def _unit_active(name: str) -> bool:
     try:
-        r = subprocess.run(["systemctl", "is-active", name], capture_output=True, text=True, timeout=5)
+        r = subprocess.run(
+            ["systemctl", "is-active", name], capture_output=True, text=True, timeout=5
+        )
         return r.stdout.strip() == "active"
     except Exception:
         return False
@@ -1330,54 +1332,240 @@ def _unit_active(name: str) -> bool:
 
 def _unit_enabled(name: str) -> bool:
     try:
-        r = subprocess.run(["systemctl", "is-enabled", name], capture_output=True, text=True, timeout=5)
+        r = subprocess.run(
+            ["systemctl", "is-enabled", name], capture_output=True, text=True, timeout=5
+        )
         return r.stdout.strip() in ("enabled", "static")
     except Exception:
         return False
 
 
 def fstrim_get(_req: dict) -> dict:
-    return {"enabled": _unit_enabled("fstrim.timer"), "active": _unit_active("fstrim.timer")}
+    return {
+        "enabled": _unit_enabled("fstrim.timer"),
+        "active": _unit_active("fstrim.timer"),
+    }
 
 
 def fstrim_set(req: dict) -> dict:
     on = bool(req.get("enabled"))
-    r = subprocess.run(["systemctl", "enable" if on else "disable", "--now", "fstrim.timer"], capture_output=True, text=True, timeout=20)
+    r = subprocess.run(
+        ["systemctl", "enable" if on else "disable", "--now", "fstrim.timer"],
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
     if r.returncode != 0:
-        raise Refused((r.stderr or r.stdout).strip().splitlines()[-1][:200] or "fstrim.timer change failed")
+        raise Refused(
+            (r.stderr or r.stdout).strip().splitlines()[-1][:200]
+            or "fstrim.timer change failed"
+        )
     return fstrim_get(req)
 
 
 def cups_browsed_get(_req: dict) -> dict:
-    return {"enabled": _unit_enabled("cups-browsed.service"), "active": _unit_active("cups-browsed.service")}
+    return {
+        "enabled": _unit_enabled("cups-browsed.service"),
+        "active": _unit_active("cups-browsed.service"),
+    }
 
 
 def cups_browsed_set(req: dict) -> dict:
     on = bool(req.get("enabled"))
-    r = subprocess.run(["systemctl", "enable" if on else "disable", "--now", "cups-browsed.service"], capture_output=True, text=True, timeout=20)
+    r = subprocess.run(
+        ["systemctl", "enable" if on else "disable", "--now", "cups-browsed.service"],
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
     if r.returncode != 0:
-        raise Refused((r.stderr or r.stdout).strip().splitlines()[-1][:200] or "cups-browsed change failed")
+        raise Refused(
+            (r.stderr or r.stdout).strip().splitlines()[-1][:200]
+            or "cups-browsed change failed"
+        )
     return cups_browsed_get(req)
 
 
+AUDIT_RULES_FILE = Path("/etc/audit/rules.d/50-shani-shell.rules")
+AUDIT_PROFILE_NAMES = ("off", "minimal", "baseline")
+AUDIT_PROFILE_MARKER = "# shani-shell-profile: "
+
+
+def _audit_profile_dirs() -> list[Path]:
+    here = Path(__file__).resolve().parent
+    return [
+        here / "../data/audit-profiles",
+        Path("/usr/share/shani-shell/audit-profiles"),
+    ]
+
+
+def _audit_profile_path(name: str) -> Path:
+    for d in _audit_profile_dirs():
+        p = (d / f"{name}.rules").resolve()
+        # only files inside the expected data dir
+        try:
+            p.relative_to(d.resolve())
+        except Exception:
+            continue
+        if p.is_file():
+            return p
+    raise Refused(f"audit profile not found: {name}")
+
+
+def _audit_profile_current() -> str:
+    try:
+        text = AUDIT_RULES_FILE.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return "off"
+    for line in text.splitlines()[:5]:
+        if line.startswith(AUDIT_PROFILE_MARKER):
+            name = line[len(AUDIT_PROFILE_MARKER) :].strip()
+            return name if name in AUDIT_PROFILE_NAMES else "unknown"
+    return "unknown"
+
+
+def _audit_reload(name: str) -> None:
+    augenrules = shutil.which("augenrules")
+    if augenrules:
+        r = subprocess.run(
+            [augenrules, "--load"], capture_output=True, text=True, timeout=30
+        )
+        if r.returncode != 0:
+            raise Refused(
+                (r.stderr or r.stdout).strip().splitlines()[-1][:200]
+                or "augenrules --load failed"
+            )
+        return
+    auditctl = shutil.which("auditctl")
+    if auditctl:
+        if name == "off":
+            r = subprocess.run(
+                [auditctl, "-D"], capture_output=True, text=True, timeout=30
+            )
+        else:
+            r = subprocess.run(
+                [auditctl, "-R", str(AUDIT_RULES_FILE)],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+        if r.returncode != 0:
+            raise Refused(
+                (r.stderr or r.stdout).strip().splitlines()[-1][:200]
+                or "auditctl failed"
+            )
+        return
+    raise Refused("neither augenrules nor auditctl is available")
+
+
 def auditd_get(_req: dict) -> dict:
-    return {"enabled": _unit_enabled("auditd.service"), "active": _unit_active("auditd.service")}
+    return {
+        "enabled": _unit_enabled("auditd.service"),
+        "active": _unit_active("auditd.service"),
+    }
 
 
 def auditd_set(req: dict) -> dict:
     on = bool(req.get("enabled"))
-    r = subprocess.run(["systemctl", "enable" if on else "disable", "--now", "auditd.service"], capture_output=True, text=True, timeout=20)
+    r = subprocess.run(
+        ["systemctl", "enable" if on else "disable", "--now", "auditd.service"],
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
     if r.returncode != 0:
-        raise Refused((r.stderr or r.stdout).strip().splitlines()[-1][:200] or "auditd change failed")
+        raise Refused(
+            (r.stderr or r.stdout).strip().splitlines()[-1][:200]
+            or "auditd change failed"
+        )
     return auditd_get(req)
+
+
+def audit_profile_list(_req: dict) -> dict:
+    return {"profiles": list(AUDIT_PROFILE_NAMES)}
+
+
+def audit_profile_get(_req: dict) -> dict:
+    return {"profile": _audit_profile_current(), "path": str(AUDIT_RULES_FILE)}
+
+
+def audit_profile_set(req: dict) -> dict:
+    name = req.get("profile", "")
+    if not isinstance(name, str) or name not in AUDIT_PROFILE_NAMES:
+        raise Refused("unknown audit profile")
+    if name == "off":
+        try:
+            AUDIT_RULES_FILE.unlink()
+        except FileNotFoundError:
+            pass
+        except OSError as e:
+            raise Refused(f"could not remove audit rules: {e}")
+        _audit_reload(name)
+        return audit_profile_get(req)
+    src = _audit_profile_path(name)
+    content = src.read_text(encoding="utf-8", errors="replace")
+    if not content.endswith("\n"):
+        content += "\n"
+    try:
+        AUDIT_RULES_FILE.parent.mkdir(parents=True, exist_ok=True)
+        AUDIT_RULES_FILE.write_text(content, encoding="utf-8")
+        os.chmod(AUDIT_RULES_FILE, 0o640)
+    except OSError as e:
+        raise Refused(f"could not write audit rules: {e}")
+    _audit_reload(name)
+    return audit_profile_get(req)
 
 
 LOGIND_DROPIN = Path("/etc/systemd/logind.conf.d/50-shani-shell.conf")
 LOGIND_KEYS = {
-    "HandleLidSwitch": {"ignore","poweroff","reboot","halt","kexec","suspend","hibernate","hybrid-sleep","suspend-then-hibernate","lock"},
-    "HandleLidSwitchExternalPower": {"ignore","poweroff","reboot","halt","kexec","suspend","hibernate","hybrid-sleep","suspend-then-hibernate","lock"},
-    "HandleLidSwitchDocked": {"ignore","poweroff","reboot","halt","kexec","suspend","hibernate","hybrid-sleep","suspend-then-hibernate","lock"},
-    "IdleAction": {"ignore","poweroff","reboot","halt","kexec","suspend","hibernate","hybrid-sleep","suspend-then-hibernate","lock"},
+    "HandleLidSwitch": {
+        "ignore",
+        "poweroff",
+        "reboot",
+        "halt",
+        "kexec",
+        "suspend",
+        "hibernate",
+        "hybrid-sleep",
+        "suspend-then-hibernate",
+        "lock",
+    },
+    "HandleLidSwitchExternalPower": {
+        "ignore",
+        "poweroff",
+        "reboot",
+        "halt",
+        "kexec",
+        "suspend",
+        "hibernate",
+        "hybrid-sleep",
+        "suspend-then-hibernate",
+        "lock",
+    },
+    "HandleLidSwitchDocked": {
+        "ignore",
+        "poweroff",
+        "reboot",
+        "halt",
+        "kexec",
+        "suspend",
+        "hibernate",
+        "hybrid-sleep",
+        "suspend-then-hibernate",
+        "lock",
+    },
+    "IdleAction": {
+        "ignore",
+        "poweroff",
+        "reboot",
+        "halt",
+        "kexec",
+        "suspend",
+        "hibernate",
+        "hybrid-sleep",
+        "suspend-then-hibernate",
+        "lock",
+    },
 }
 LOGIND_INT_KEYS = {"IdleActionSec": (0, 86400)}
 
@@ -1385,7 +1573,9 @@ LOGIND_INT_KEYS = {"IdleActionSec": (0, 86400)}
 def logind_get(_req: dict) -> dict:
     settings = {}
     try:
-        for line in LOGIND_DROPIN.read_text(encoding="utf-8", errors="replace").splitlines():
+        for line in LOGIND_DROPIN.read_text(
+            encoding="utf-8", errors="replace"
+        ).splitlines():
             s = line.strip()
             if not s or s.startswith("#") or s.startswith("[") or "=" not in s:
                 continue
@@ -1421,26 +1611,43 @@ def logind_set(req: dict) -> dict:
         else:
             raise Refused(f"unknown key: {k}")
     if clean:
-        content = "# Managed by shani-shell\n[Login]\n" + "".join(f"{k}={v}\n" for k, v in clean.items())
+        content = "# Managed by shani-shell\n[Login]\n" + "".join(
+            f"{k}={v}\n" for k, v in clean.items()
+        )
         LOGIND_DROPIN.parent.mkdir(parents=True, exist_ok=True)
         LOGIND_DROPIN.write_text(content, encoding="utf-8")
         os.chmod(LOGIND_DROPIN, 0o644)
     else:
-        try: LOGIND_DROPIN.unlink()
-        except OSError: pass
-    subprocess.run(["systemctl", "restart", "systemd-logind"], capture_output=True, text=True, timeout=20)
+        try:
+            LOGIND_DROPIN.unlink()
+        except OSError:
+            pass
+    subprocess.run(
+        ["systemctl", "restart", "systemd-logind"],
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
     return logind_get(req)
 
 
 COREDUMP_DROPIN = Path("/etc/systemd/coredump.conf.d/50-shani-shell.conf")
-COREDUMP_KEYS = {"Storage": {"none","external","journal"}, "Compress": {"yes","no"}}
-COREDUMP_SIZE_KEYS = {"ProcessSizeMax": None, "ExternalSizeMax": None, "JournalSizeMax": None, "MaxUse": None, "KeepFree": None}
+COREDUMP_KEYS = {"Storage": {"none", "external", "journal"}, "Compress": {"yes", "no"}}
+COREDUMP_SIZE_KEYS = {
+    "ProcessSizeMax": None,
+    "ExternalSizeMax": None,
+    "JournalSizeMax": None,
+    "MaxUse": None,
+    "KeepFree": None,
+}
 
 
 def coredump_get(_req: dict) -> dict:
     settings = {}
     try:
-        for line in COREDUMP_DROPIN.read_text(encoding="utf-8", errors="replace").splitlines():
+        for line in COREDUMP_DROPIN.read_text(
+            encoding="utf-8", errors="replace"
+        ).splitlines():
             s = line.strip()
             if not s or s.startswith("#") or s.startswith("[") or "=" not in s:
                 continue
@@ -1471,13 +1678,17 @@ def coredump_set(req: dict) -> dict:
         else:
             raise Refused(f"unknown key: {k}")
     if clean:
-        content = "# Managed by shani-shell\n[Coredump]\n" + "".join(f"{k}={v}\n" for k, v in clean.items())
+        content = "# Managed by shani-shell\n[Coredump]\n" + "".join(
+            f"{k}={v}\n" for k, v in clean.items()
+        )
         COREDUMP_DROPIN.parent.mkdir(parents=True, exist_ok=True)
         COREDUMP_DROPIN.write_text(content, encoding="utf-8")
         os.chmod(COREDUMP_DROPIN, 0o644)
     else:
-        try: COREDUMP_DROPIN.unlink()
-        except OSError: pass
+        try:
+            COREDUMP_DROPIN.unlink()
+        except OSError:
+            pass
     return coredump_get(req)
 
 
@@ -1526,6 +1737,9 @@ COMMANDS = {
     "cups-browsed-set": cups_browsed_set,
     "auditd-get": auditd_get,
     "auditd-set": auditd_set,
+    "audit-profile-list": audit_profile_list,
+    "audit-profile-get": audit_profile_get,
+    "audit-profile-set": audit_profile_set,
     "logind-get": logind_get,
     "logind-set": logind_set,
     "coredump-get": coredump_get,

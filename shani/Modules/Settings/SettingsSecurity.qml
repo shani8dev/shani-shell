@@ -23,11 +23,14 @@ ColumnLayout {
     property bool aaBusy: false
     property bool auditdOn: false
     property bool auditdLoaded: false
+    property string auditProfile: "unknown"
+    property bool auditProfileBusy: false
+    property string auditProfileNote: ""
     property var coredump: ({})
     property string faillockNote: ""
     property bool faillockBusy: false
-    onActiveChanged: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); page.loadFaillock(); page.loadLoginDefs(); }
-    Component.onCompleted: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); page.loadFaillock(); page.loadLoginDefs(); }
+    onActiveChanged: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); page.loadFaillock(); page.loadLoginDefs(); page.loadAuditProfile(); }
+    Component.onCompleted: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); page.loadFaillock(); page.loadLoginDefs(); page.loadAuditProfile(); }
 
     readonly property var r: SecurityInfo.report || ({})
     readonly property var aa: r.apparmor || ({})
@@ -82,6 +85,35 @@ ColumnLayout {
     Process { id: sudoersRead; command: ["sh","-c","cat /etc/sudoers.d/50-shani-shell 2>/dev/null || true"]; stdout: StdioCollector { onStreamFinished: { page.sudoersText = text; sudoersEdit.text = text; } } }
     Process { id: auditdRead; command: ["sh","-c","systemctl is-active auditd 2>/dev/null || true"]; stdout: StdioCollector { onStreamFinished: { page.auditdOn = text.trim() === "active"; page.auditdLoaded = true; } } }
     Process { id: auditdSet; stdinEnabled: true; property string payload: ""; onStarted: { write(payload + "\n"); stdinEnabled = false; } onExited: code => { stdinEnabled = true; auditdRead.running = false; auditdRead.running = true; SecurityInfo.refresh(); if (code !== 0) page.aaNote = Tr.t("Could not change auditd"); } }
+    Process {
+        id: auditProfileRead
+        command: ["sh", "-c", "p=/etc/audit/rules.d/50-shani-shell.rules; if [ ! -e \"$p\" ]; then echo off; else m=$(grep -m1 '^# shani-shell-profile:' \"$p\" 2>/dev/null | sed 's/^# shani-shell-profile: *//'); if [ -n \"$m\" ]; then echo \"$m\"; else echo unknown; fi; fi"]
+        stdout: StdioCollector { onStreamFinished: { const v = text.trim(); page.auditProfile = v || "unknown"; } }
+    }
+    function loadAuditProfile() { auditProfileRead.running = false; auditProfileRead.running = true; }
+    Process {
+        id: auditProfileSet
+        stdinEnabled: true
+        property string payload: ""
+        stdout: StdioCollector { id: auditProfileOut }
+        stderr: StdioCollector { id: auditProfileErr }
+        onStarted: { write(payload + "\n"); stdinEnabled = false; }
+        onExited: code => {
+            stdinEnabled = true; page.auditProfileBusy = false;
+            if (code === 0) {
+                try { const d = JSON.parse(auditProfileOut.text); if (d.profile) page.auditProfile = d.profile; } catch (e) { page.loadAuditProfile(); }
+                page.auditProfileNote = Tr.t("Audit profile saved");
+            } else {
+                page.auditProfileNote = auditProfileErr.text.trim().split("\n").pop() || Tr.t("Could not save audit profile");
+            }
+        }
+    }
+    function saveAuditProfile(name) {
+        page.auditProfileBusy = true; page.auditProfileNote = "";
+        auditProfileSet.payload = JSON.stringify({ profile: name });
+        auditProfileSet.command = page.adminCmd.concat(["audit-profile-set"]);
+        auditProfileSet.running = true;
+    }
     Process { id: coredumpRead; command: ["sh","-c","f=/etc/systemd/coredump.conf.d/50-shani-shell.conf; [ -r \"$f\" ] && grep -v '^#' \"$f\" | grep '=' || true"]; stdout: StdioCollector { onStreamFinished: { const o={}; for (const l of text.split("\n")) { const m=l.match(/^([^=]+)=(.*)$/); if(m) o[m[1].trim()]=m[2].trim(); } page.coredump=o; } } }
     Process { id: coredumpSet; stdinEnabled: true; property string payload: ""; stderr: StdioCollector { id: coredumpErr } onStarted: { write(payload+"\n"); stdinEnabled=false; } onExited: code => { stdinEnabled=true; coredumpRead.running=false; coredumpRead.running=true; page.aaNote = code===0 ? Tr.t("Coredump settings saved") : (coredumpErr.text.trim().split("\n").pop()||Tr.t("Could not save")); } }
     function saveCoredump(key, value) { const o=Object.assign({}, page.coredump); o[key]=value; coredumpSet.payload=JSON.stringify({settings:o}); coredumpSet.command=page.adminCmd.concat(["coredump-set"]); coredumpSet.running=true; }
@@ -203,7 +235,24 @@ ColumnLayout {
         ListRow { Layout.fillWidth: true; interactive: false; icon: "document-open-recent"; title: Tr.t("auditd"); subtitle: au.active || Tr.t("unknown") }
         ListRow { Layout.fillWidth: true; interactive: false; icon: "document-open-recent"; title: Tr.t("enabled"); subtitle: au.enabled || Tr.t("unknown") }
         SwitchRow { Layout.fillWidth: true; visible: page.auditdLoaded; text: Tr.t("Enable auditd"); hint: Tr.t("System audit logging service"); checked: page.auditdOn; onToggled: on => { auditdSet.payload = JSON.stringify({ enabled: on }); auditdSet.command = page.adminCmd.concat(["auditd-set"]); auditdSet.running = true; } }
+        ListRow { Layout.fillWidth: true; interactive: false; icon: "document-open-recent"; title: Tr.t("Audit profile"); subtitle: page.auditProfile }
     }
+    Text { Layout.fillWidth: true; text: Tr.t("Predefined audit rules managed by shani-shell. Off removes the shell-managed rules file."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+    RowLayout {
+        Layout.fillWidth: true; spacing: Theme.px(6)
+        Repeater {
+            model: ["off", "minimal", "baseline"]
+            Button {
+                required property string modelData
+                text: Tr.t(modelData)
+                kind: page.auditProfile === modelData ? "primary" : "plain"
+                enabled: !page.auditProfileBusy
+                onClicked: page.saveAuditProfile(modelData)
+            }
+        }
+        Item { Layout.fillWidth: true }
+    }
+    Text { Layout.fillWidth: true; visible: page.auditProfileNote !== ""; text: page.auditProfileNote; color: page.auditProfileNote.indexOf("saved") >= 0 ? Theme.accent : Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Coredumps") }
     Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/systemd/coredump.conf.d/50-shani-shell.conf."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }

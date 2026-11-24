@@ -1,0 +1,20 @@
+# shani-shell-profile: baseline
+# Baseline audit rules managed by shani-shell.
+
+-w /etc/passwd -p wa -k shani-identity
+-w /etc/group -p wa -k shani-identity
+-w /etc/shadow -p wa -k shani-identity
+-w /etc/gshadow -p wa -k shani-identity
+-w /etc/sudoers -p wa -k shani-privilege
+-w /etc/sudoers.d -p wa -k shani-privilege
+
+-a always,exit -F arch=b64 -S adjtimex -S settimeofday -k shani-time
+-a always,exit -F arch=b64 -S clock_settime -k shani-time
+-w /etc/localtime -p wa -k shani-time
+
+-w /etc/ssh/sshd_config -p wa -k shani-sshd
+-w /etc/ssh/sshd_config.d -p wa -k shani-sshd
+-w /etc/systemd/system -p wa -k shani-systemd
+-w /etc/systemd/logind.conf -p wa -k shani-logind
+-w /var/log/faillog -p wa -k shani-login
+-w /var/log/lastlog -p wa -k shani-login
