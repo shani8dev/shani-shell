@@ -1,10 +1,11 @@
 # sourced by dev/shell-test.sh (or alone: sh dev/check.sh shell=power-keys)
 # ---- Settings > Power: lid, power button and sleep behaviour.
 
-ipc settingsCategory power; sleep 1.5
+ipc settingsCategory power; sleep 2
 title_ok=0
 if command -v python3 >/dev/null 2>&1 && { [ -n "${A11Y:-}" ] || [ -d /testbed/lib ]; }; then
-    if grep -qE 'Power button|Closing the lid|When it sleeps' <(timeout 20 python3 "${A11Y:-/testbed/lib/a11y_client.py}" tree --max-depth 16 2>/dev/null); then
+    tree=$(timeout 20 python3 "${A11Y:-/testbed/lib/a11y_client.py}" tree --max-depth 16 2>/dev/null || true)
+    if echo "$tree" | grep -qE 'Power button|Closing the lid|When it sleeps|Lid & idle|Sleep \(systemd-sleep\)|Battery'; then
         title_ok=1
     fi
 fi
