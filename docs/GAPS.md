@@ -439,9 +439,11 @@ our code and the upstream source/docs.
   media / documents / text) feed the backend filters and a folders-only
   predicate; search history is deduped, capped at 8 and persisted, shown as
   suggestions with a clear action (`test_files_power_tools.py`).
-  **[open]** The finer filter popover — file type, date preset, size, content
-  vs filename — is still missing (`files.py --filter=` exists; needs
-  `--after=` / `--min-size=`).
+  **[built — wave 4]** The finer filter popover — file type (the chips above),
+  date presets, size bounds and content-vs-filename — is a QML predicate with
+  an active-count badge, a Clear action, a keyboard route and accessible names;
+  content reuses `files.py`'s bounded ripgrep deep search, so no `--after=` /
+  `--min-size=` bridge flags were needed (`test_files_filter_popover.py`).
 - **[built — mass pass]** Breadcrumb dropdowns listing sibling folders (crumbs are click-only).
 - **[built — mass pass]** Visible-columns chooser and clickable list headers (fixed Name / Size / Date).
 - **[built — mass pass]** "Select Items Matching…" wildcard select.
@@ -463,19 +465,27 @@ our code and the upstream source/docs.
 
 ### Viewer / PDF → Evince / Loupe
 
-- **[open]** User bookmarks per document (outline is the PDF's own TOC).
+- **[built — wave 4]** User bookmarks per document — persisted by the bridge's
+  JSON store and keyed by the document's content md5, so a rename keeps the
+  marks (`test_pdf_extras.py`; also `test_gap_pdf.py`). The outline is still the
+  PDF's own TOC.
 - **[built — mass pass]** Clickable PDF links — internal GoTo, external URI and email (clicking turns the page).
 - **[built — mass pass]** Embedded attachments sidebar — list / open / save.
-- **[open]** Navigation history and First / Last page.
+- **[built — wave 4]** Navigation history and First / Last page — a bounded
+  stack of visited pages; search and Find jumps are visits too, so Back can
+  undo them (`test_pdf_extras.py`).
 - **[built — CuboCore pass]** Two-page / facing-pages layout: an odd current
   page is paired with the next, an even page stays in its spread, spread
   navigation moves on spread boundaries, and a missing page image falls back
   to one full-width page. The preference is local to the shell, not a
   settings key (`test_pdf_facing_viewer.py`). The rendered-page limit above
   still applies.
-- **[open]** Annotations list sidebar (we can draw but not review them).
+- **[built — wave 4]** Annotations list sidebar — the flattened markup
+  PyMuPDF reads back from the PDF is now listed (`test_pdf_extras.py`).
 - **[built — mass pass]** Search options — case-sensitive / whole word / wrap (always lowercased).
-- **[open]** Print page range, copies and preview.
+- **[open]** Print copies and preview (the page range is built in wave 4:
+  CUPS `page-ranges=1-3,5` is validated in the service and passed to `lp` as
+  its own argument, never through a shell — `test_pdf_extras.py`).
 
 ### Mail → Geary
 
@@ -741,11 +751,12 @@ still missing; **[bug]** a real defect found while verifying.
 
 ### Files / Photos / PDF / Mail / Feeds — still open
 
-- **[open]** Files: search-filter popover (type/date/size; bridge only has
-  `--sort/--filter/--limit/--offset`); breadcrumb dropdowns; visible-column
-  chooser and clickable headers; "Select Items Matching…" (the matcher in
-  `Common/FileFilter.js` exists, just no action); symlink creation; grid
-  caption settings; sort by Type / Date Created.
+- **[built — wave 4]** Files: finer search-filter popover (type/date/size and
+  content), test-covered (`test_files_filter_popover.py`).
+  **[open]** Files: breadcrumb dropdowns; visible-column chooser and clickable
+  headers; "Select Items Matching…" (the matcher in `Common/FileFilter.js`
+  exists, just no action); symlink creation; grid caption settings; sort by
+  Type / Date Created.
 - **[open]** Photos: multi-select batch ops; sort order (`scan()` is `sort -rn`);
   EXIF panel (bound to Files' selection today); ratings and tags; date-subfolder
   import with delete-from-source.
@@ -825,8 +836,11 @@ pass; the rest are **[open]**.
    has a drop pattern; `Launcher.qml` has none.
 7. **[built — CuboCore pass]** OSK word suggestions — a bounded dictionary,
    prefix match, per-word dismissal, plus compact / fixed size and opacity
-   modes (`test_osk_modes.py`). Still open in the input section below: emoji
-   page, paste key, key repeat, one-handed mode and swipe typing.
+   modes (`test_osk_modes.py`). **[built — wave 4]** paste (clipboard as one
+   `wtype` argv element), bounded held-key repeat that stops on release/hide/
+   remote, and one-handed centre/left/right with the board narrowed to 82% and
+   persisted in OSK's own JSON (`test_osk_extras.py`). Still open in the input
+   section below: emoji page and swipe typing.
 8. **[open]** Dock on left/right/top — `Dock.qml:24` hardcodes `anchors.bottom`
    and the parabolic zoom assumes a horizontal row.
 9. **[fixed]** Move to any named workspace in the window menu.
@@ -935,11 +949,14 @@ sections below and into "Corrections" where they overturned an earlier claim.
 - **[bug] An alarm for the already-fired minute is missed** — `lastFired` is a
   single minute string, so adding an alarm for that minute is silently skipped.
   **[open]**
-- **[open]** Weekday repeat, one-shot, snooze and sound choice; a ringing panel
-  with Dismiss/Snooze (only `notify-send` today); custom timer duration,
-  pause/resume, label and multiple timers; per-lap deltas (laps are cumulative
-  strings); in-app city search; sunrise/sunset/twilight; state persistence;
-  keyboard shortcuts beyond Space.
+- **[built — wave 4]** Per-alarm sound choice (an allowlisted freedesktop hint
+  sent as a single `notify-send` argv item) and inline alarm rename, with the
+  weekday repeat and 5/9/15-minute snooze choice pinned by tests
+  (`test_clocks_wave4.py`); custom timer duration, pause/resume, labels,
+  multiple named timers, per-lap splits, in-app city search and keyboard Home/
+  End/Page navigation were already built (`test_large_clocks_time_fixes.py`).
+  **[open]** One-shot alarms, a ringing panel with Dismiss/Snooze (only
+  `notify-send` today), sunrise/sunset/twilight and state persistence.
 
 ### Characters → Gucharmap
 
@@ -1570,14 +1587,16 @@ app windows are LazyLoaded.
 ### Input methods and multilingual text entry
 
 Handwriting is genuinely implemented (`WritePad.qml`, `bridge/handwriting.py`).
-- **[high]** Plain TextFields have no undo/redo; OSK has no emoji page, no
-  paste key and no key repeat; no IME preedit/candidate integration (fcitx5
-  draws its own window unpositioned); Indic handwriting silently degrades to
-  English OCR and only `tesseract-data-eng` ships.
+- **[high]** Plain TextFields have no undo/redo; OSK has no emoji page (the
+  launcher's picker covers it) and no swipe typing; paste, held-key repeat and
+  one-handed mode are built in wave 4 (`test_osk_extras.py`); no IME
+  preedit/candidate integration (fcitx5 draws its own window unpositioned);
+  Indic handwriting silently degrades to English OCR and only
+  `tesseract-data-eng` ships.
 - **[med]** No long-press accent popups; pre-desktop keyboard is Latin-only;
   voice typing is tap-to-toggle with no push-to-talk; no spellcheck, password
   autofill, autocapitalize hints, deterministic text expansion or per-app IME
-  profiles; no one-handed OSK mode; no swipe typing.
+  profiles. (One-handed OSK mode, paste and repeat are built in wave 4.)
 - **[low]** Mixed-script font fallback relies on fontconfig but has no render
   test; switch access is absent (eye/head pointer are compositor-level).
 
@@ -1921,9 +1940,9 @@ is covered; every **[open]** item above stays open.
   copy and save-page-image survives the spread; the Viewer has an explicit
   full-screen entry and exit. Pages are still rendered PNGs, not reflowed text.
   Per-document bookmarks, an annotations list, navigation history/first-last and
-  a print-page range were not part of this; the app catalogue above still marks
-  them open (an inconsistency with the older mass-pass list, which predates this
-  pass).
+  a print-page range were not part of this pass; wave 4 below now covers them
+  with `test_pdf_extras.py`, resolving the inconsistency with the older
+  mass-pass list.
 - **Terminal close guard** (`147fc38`, `tests/test_terminal_shot_annot.py`): a
   window that launched a session needs a second Esc to close; a passive window
   still closes on the first, and the confirmation disarms on timeout and on hide.
@@ -1945,7 +1964,8 @@ is covered; every **[open]** item above stays open.
   for a local folder from `files.py free` (an argv-only `statvfs` probe, not
   faked); pseudo-places and remote URIs are refused. Search category chips feed
   backend filters, and history is deduped, capped at 8, persisted and shown as
-  suggestions with a clear action. The finer filter popover above is still open.
+  suggestions with a clear action. The finer filter popover is built in wave 4
+  below (`test_files_filter_popover.py`).
 - **Folder-tree export and batch rename** (`f34d899`,
   `tests/test_files_power_tools.py`): the tree command renders an ASCII tree with
   counts, dedupes symlink loops, caps depth and entries, and writes through a save
@@ -1975,9 +1995,9 @@ is covered; every **[open]** item above stays open.
   entry/session counts. Not portable between users.
 - **OSK modes** (`b6ec0a4`, `tests/test_osk_modes.py`): compact / fixed size and
   opacity plus opt-in word suggestions (bounded dictionary, prefix match,
-  shortest-first, capped, per-word dismissal, a strip above the keys). Emoji
-  page, one-handed mode, swipe typing, paste key and key repeat remain open in
-  the input section above.
+  shortest-first, capped, per-word dismissal, a strip above the keys). Wave 4
+  below adds one-handed mode, paste and held-key repeat (`test_osk_extras.py`);
+  emoji page and swipe typing remain open in the input section above.
 - **File facts / rich metadata** (`a434cb2`, `tests/test_filemeta_bridge.py`):
   Quick Look details, media properties reusing the existing probe, `pdfinfo`
   pages and title, optional `exiftool` (absent is fine), argv-only paths, JSON
@@ -1993,3 +2013,54 @@ library, and vnStat belongs to `shani-tools-network` rather than a wave-3 bridge
 The PKGBUILD and program map were therefore left unchanged; this was checked
 with `tests/test_declared_deps.py` at committed HEAD. Not covered here: the
 `3ede7e6` large-feature/Picasa work or any **[open]** item above.
+
+## Wave 4 (Nov 2026) — built, with tests
+
+Waves 1–3 are recorded above; wave 4 closed the six named surfaces below with
+assert-based tests. The six test files were run together on 2026-11-24 (93
+passed). They check the shipped QML as source and execute the small predicates
+in node or against real temporary files — not a QML runtime, hardware or an
+installed-image run. An item being built here is not a claim that its whole
+upstream equivalent is covered; every **[open]** item above stays open.
+
+- **Files filter popover** (`tests/test_files_filter_popover.py`): the finer
+  filters beside the category chips — type (reusing the chips), date presets,
+  size bounds and content vs filename — with an active-count badge, a Clear
+  action, a keyboard route and accessible names. The predicate lives in QML;
+  content reuses `files.py`'s bounded ripgrep deep search, so no `--after=` /
+  `--min-size=` bridge flags were added.
+- **PDF bookmarks / history** (`tests/test_pdf_extras.py`): per-document
+  bookmarks keyed by content md5 (a rename keeps the marks), a bounded visit
+  history with `[` / `]` and First/Last (search jumps are visits), a read-back
+  annotation list, and a validated print-page range passed to `lp` as its own
+  argument. Print copies and preview stay open.
+- **OSK extras** (`5f88648`, `tests/test_osk_extras.py`): paste as one `wtype`
+  argv element, held-key repeat (400 ms delay, 80 ms tick, stops on release,
+  hide and remote), and one-handed centre/left/right persisted in OSK's own
+  JSON. Emoji page and swipe typing stay open — the launcher's picker covers
+  emoji.
+- **Release notes reader** (`0200288`, `tests/test_release_notes.py`):
+  Settings > About hosts a scrollable, accessible reader that parses a plain
+  configured path (no shell interpolation), turns headings/bullets into rows,
+  splits version sections and accepts only absolute plain paths. CI
+  release-note generation and the undated `whats-new.md` content stay open.
+- **Clocks** (`tests/test_clocks_wave4.py`): per-alarm sound choice from an
+  allowlisted freedesktop hint set sent as one `notify-send` argv item, inline
+  alarm rename, and pinned repeat-day / snooze paths; the custom timer,
+  city-search, lap and keyboard paths were already covered by
+  `test_large_clocks_time_fixes.py`. One-shot alarms, a ringing panel,
+  sunrise/sunset and state persistence stay open.
+- **Trimmer / Translate polish** (`d79e758`, `tests/test_trimmer_translate_wave4.py`): an
+  explicit, non-stale save destination for the Video Trimmer with exact-range
+  progress and error states, and on-screen copy confirmation plus preserved
+  swap/clear/keyboard routes in Translate.
+
+No new packaging dependency: these surfaces reuse `wtype`, `lp`, `cat`,
+`notify-send` and `ffmpeg`, all already in `tools/program-packages.tsv`, and the
+Files content filter calls `files.py`'s existing ripgrep/grep fallback. The
+program map was left unchanged; `tests/test_declared_deps.py` at the current
+HEAD reports only unrelated Camera.qml false positives (`ch`, `crop`, `cw`,
+`px`, `sy`) from concurrent work, not real binaries. The i18n catalogs were not
+regenerated here: `tests/test_i18n.py` reports 19 wave-4 Files-filter keys
+missing from `template.json` (18 in `FilesPanel.qml`, plus the shared
+`Filters` key), which belong to the agent that owns those strings.
