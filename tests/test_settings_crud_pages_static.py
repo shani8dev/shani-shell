@@ -59,7 +59,7 @@ def test_crud_settings_pages_have_section_title():
 
 def test_journal_page_has_journald_crud_hooks():
     text = _read(ROOT / "shani/Modules/Settings/SettingsJournal.qml")
-    for needle in ["journald-set", "journald-vacuum", "SystemMaxUse", "Storage"]:
+    for needle in ["journald-set", "journald-vacuum", "SystemMaxUse", "Storage", "ForwardToSyslog", "Compress", "RateLimitBurst"]:
         assert needle in text, f"SettingsJournal.qml missing {needle}"
 
 
