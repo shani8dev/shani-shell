@@ -3,6 +3,7 @@
 // EXIF-aware rotation (applied by the service), batch grid mode, copy path,
 // open-with, delete-to-trash. ← → through its folder, Esc or click to close.
 import Quickshell
+import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
@@ -15,10 +16,16 @@ AppWindow {
     visible: Viewer.shown
     onGone: Viewer.close()
     margins: 0
+    // full screen: the shell header and every toolbar row step aside; the Exit
+    // button below stays put (CoreImage's full-screen has the same way out)
+    header: !immersive
     implicitWidth: Theme.px(920)
     implicitHeight: Theme.px(720)
     // blur behind the card, as on every shell surface (ext-background-effect)
 
+    property bool immersive: false
+    property string saveAsTarget: ""
+    property string note: ""
     property int dragStartX: 0
     property int dragStartY: 0
     property real dragPanX: 0
@@ -31,13 +38,75 @@ AppWindow {
     }
     Timer { id: trashConfirmTimer; interval: 4000; onTriggered: win.trashConfirm = "" }
 
+    // ---- Save as: let the person name the copy (CoreImage's Save As). The edit
+    // service still writes its "(edited)" file; move that one file to the picked
+    // name — no second render and no change to the service's shared API.
+    function saveAs() {
+        if (!Viewer.file || Viewer.saving) return;
+        const ext = Viewer.name.indexOf(".") >= 0 ? Viewer.name.split(".").pop() : "png";
+        FilePicker.open({
+            mode: "save",
+            title: Tr.t("Save image as"),
+            defaultName: Viewer.name.replace(/\.[^.]+$/, "") + " (edited)." + ext,
+            startPath: Viewer.file.substring(0, Viewer.file.lastIndexOf("/")),
+            filters: [ext],
+            onPicked: paths => {
+                if (!paths || !paths.length) return;
+                const to = paths[0];
+                if (to === Viewer.file) { win.note = Tr.t("Choose a different name to save a copy"); return; }
+                win.saveAsTarget = to;
+                Viewer.saveEdit("copy");
+            }
+        });
+    }
+    Process {
+        id: saveAsMove
+        onExited: code => {
+            const to = win.saveAsTarget;
+            win.saveAsTarget = "";
+            win.note = code === 0 ? Tr.t("Saved as %1", to.split("/").pop()) : Tr.t("Could not save as %1", to.split("/").pop());
+            if (code === 0) Viewer.open(to);
+        }
+    }
+    Connections {
+        target: Viewer
+        function onSavedChanged() {
+            if (!win.saveAsTarget || !Viewer.saved) return;
+            saveAsMove.command = ["mv", "-f", "--", Viewer.saved, win.saveAsTarget];
+            saveAsMove.running = true;
+        }
+        function onLastActionChanged() {
+            if (Viewer.lastAction === "edit failed") win.saveAsTarget = "";
+        }
+    }
+    Rectangle {
+        id: noteToast
+        z: 20
+        visible: win.note !== ""
+        anchors { bottom: parent.bottom; right: parent.right; margins: Theme.px(12) }
+        implicitWidth: noteText.implicitWidth + Theme.px(20)
+        implicitHeight: noteText.implicitHeight + Theme.px(12)
+        radius: Theme.px(8)
+        color: Theme.alpha(Theme.surface1, 0.96)
+        border.width: 1
+        border.color: Theme.border
+        Text { id: noteText; anchors.centerIn: parent; text: win.note; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+    }
+    Timer { interval: 4000; onTriggered: win.note = ""; running: noteToast.visible }
+
     Item {
         anchors.fill: parent
         focus: win.visible
-        Keys.onEscapePressed: Viewer.textAt !== null ? Viewer.textAt = null : Viewer.editing ? Viewer.cancelEdit() : Viewer.close()
+        Keys.onEscapePressed: {
+            if (win.immersive) { win.immersive = false; return; }
+            if (Viewer.textAt !== null) Viewer.textAt = null;
+            else if (Viewer.editing) Viewer.cancelEdit();
+            else Viewer.close();
+        }
         Keys.onRightPressed: Viewer.next()
         Keys.onLeftPressed: Viewer.prev()
         Keys.onPressed: e => {
+            if (e.key === Qt.Key_F11) { win.immersive = !win.immersive; e.accepted = true; return; }
             if (e.key === Qt.Key_Home) { if (Viewer.list.length) Viewer.goToIndex(0); e.accepted = true; return; }
             if (e.key === Qt.Key_End) { if (Viewer.list.length) Viewer.goToIndex(Viewer.list.length - 1); e.accepted = true; return; }
             if (e.key === Qt.Key_R && (e.modifiers & Qt.ShiftModifier)) Viewer.rotateCCW();
@@ -69,6 +138,7 @@ AppWindow {
             spacing: Theme.px(8)
 
             RowLayout {
+                visible: !win.immersive
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
                 IconButton { icon: "go-previous"; size: Theme.px(28); tip: Tr.t("Previous (←)"); onClicked: Viewer.prev() }
@@ -388,10 +458,19 @@ AppWindow {
                             Viewer.zoomFit();
                     }
                 }
+                // with the chrome gone, the way out must stay visible and labelled
+                Button {
+                    visible: win.immersive
+                    z: 10
+                    anchors { top: parent.top; right: parent.right; margins: Theme.px(12) }
+                    text: Tr.t("Exit full screen (Esc)")
+                    onClicked: win.immersive = false
+                }
             }
 
             // toolbar: zoom, rotate + flip, slideshow, grid, thumbs, actions
             RowLayout {
+                visible: !win.immersive
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
                 IconButton { icon: "zoom-out"; size: Theme.px(28); tip: Tr.t("Zoom out (−)"); onClicked: Viewer.zoomOut() }
@@ -418,13 +497,15 @@ AppWindow {
                 IconButton { icon: "view-grid"; size: Theme.px(28); tip: Tr.t("Grid (G)"); on: Viewer.gridMode; onClicked: Viewer.toggleGrid() }
                 IconButton { icon: "view-list"; size: Theme.px(28); tip: Tr.t("Thumbnails (T)"); on: Viewer.showThumbs; onClicked: Viewer.toggleThumbs() }
                 IconButton { icon: "preferences-desktop-wallpaper"; size: Theme.px(28); tip: Tr.t("Set as wallpaper"); onClicked: Viewer.setWallpaper() }
+                IconButton { icon: "document-save-as"; size: Theme.px(28); tip: Tr.t("Save as…"); onClicked: win.saveAs() }
+                IconButton { icon: "view-fullscreen"; size: Theme.px(28); tip: Tr.t("Full screen (F11)"); on: win.immersive; onClicked: win.immersive = !win.immersive }
                 IconButton { icon: "document-edit"; size: Theme.px(28); tip: Tr.t("Crop, draw and save (E)"); on: Viewer.editing; onClicked: Viewer.editing ? Viewer.cancelEdit() : Viewer.startEdit() }
             }
             // editing: the crop's shape, and how it is kept - a copy, or in place
             // (the original goes to the trash, where it can be put back)
             RowLayout {
                 Layout.fillWidth: true
-                visible: Viewer.editing
+                visible: !win.immersive && Viewer.editing
                 spacing: Theme.px(6)
                 Repeater {
                     model: Viewer.drawing ? [] : [["free", Tr.t("Free")], ["original", Tr.t("Original")], ["square", Tr.t("Square")], ["4:3", "4:3"], ["16:9", "16:9"]]
@@ -470,6 +551,7 @@ AppWindow {
                 Button { text: Viewer.saving ? Tr.t("Saving…") : Tr.t("Save a copy"); enabled: Viewer.edited && !Viewer.saving; onClicked: Viewer.saveEdit("copy") }
             }
             RowLayout {
+                visible: !win.immersive
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
                 IconButton { icon: "edit-copy"; size: Theme.px(28); tip: Tr.t("Copy path (C)"); onClicked: Viewer.copyPath() }
@@ -487,7 +569,7 @@ AppWindow {
 
             // thumbnail strip
             Flickable {
-                visible: Viewer.showThumbs && !Viewer.gridMode && Viewer.list.length > 1
+                visible: !win.immersive && Viewer.showThumbs && !Viewer.gridMode && Viewer.list.length > 1
                 Layout.fillWidth: true
                 Layout.preferredHeight: Theme.px(68)
                 clip: true

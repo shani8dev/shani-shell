@@ -262,6 +262,52 @@ Singleton {
 
     readonly property string cacheDir: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") || "/tmp") + "/.cache") + "/shani-pdf"
 
+    // ---- facing pages (two-page spread) ------------------------------------
+    // Settings.data's JsonAdapter only accepts keys declared in Common/Settings.qml,
+    // a file this service does not own (other surfaces edit it concurrently).
+    // Like Services/Osk.qml, keep this one preference in a sibling JSON file in
+    // the same config dir, with its default declared on the adapter.
+    readonly property string prefsDir: {
+        const p = Settings.path;
+        return p.substring(0, p.lastIndexOf("/"));
+    }
+    readonly property string prefsPath: prefsDir + "/pdf-viewer.json"
+    FileView {
+        id: prefsFile
+        path: root.prefsPath
+        atomicWrites: true
+        printErrors: false
+        JsonAdapter { id: prefs; property bool facing: false }
+    }
+    property bool facing: prefs.facing === true
+    function toggleFacing() {
+        prefs.facing = !root.facing;
+        Quickshell.execDetached(["mkdir", "-p", root.prefsDir]);
+        prefsFile.writeAdapter();
+    }
+    // Convention (1-based): spreads start on odd pages — 1+2, 3+4, 5+6 — so
+    // "current page 3" shows 3+4. A search hit on an even page lands in the
+    // right half of that same spread; an odd final page stands alone.
+    // Search / links / thumbnails still jump to the exact page; only the
+    // reader's Next / Previous arrows and keys advance a whole spread.
+    // Continuous scroll shows its own column, so facing rests while it is on.
+    readonly property bool facingActive: facing && pages.length > 0 && !continuous
+    readonly property int spreadStart: page - (page % 2)
+    function pageImage(i) {
+        return i >= 0 && i < pages.length && pages[i] ? shownPage(pages[i]) : "";
+    }
+    readonly property int spreadLeft: !facingActive ? page
+        : (pageImage(spreadStart) !== "" ? spreadStart : (pageImage(spreadStart + 1) !== "" ? spreadStart + 1 : -1))
+    readonly property int spreadRight: !facingActive ? -1
+        : (spreadLeft === spreadStart && pageImage(spreadStart + 1) !== "" ? spreadStart + 1 : -1)
+    readonly property string spreadLeftPath: !facingActive ? current : pageImage(spreadLeft)
+    readonly property string spreadRightPath: facingActive ? pageImage(spreadRight) : ""
+    readonly property string spreadLabel: {
+        if (!facingActive || spreadLeft < 0) return label;
+        return spreadRight >= 0 ? (spreadLeft + 1) + "–" + (spreadRight + 1) + " / " + pages.length
+                                : (spreadLeft + 1) + " / " + pages.length;
+    }
+
     function open(pdf) {
         if (!pdf)
             return;
@@ -438,10 +484,24 @@ Singleton {
     }
     function nextPage() { goTo(page + 1); }
     function prevPage() { goTo(page - 1); }
+    // whole-spread turning for the reader's arrows / keys / wheel; other
+    // callers (search, links, thumbnails, the CLI, the signer) keep nextPage()
+    function nextSpread() {
+        if (!facingActive) { nextPage(); return; }
+        const target = spreadStart + 2;
+        goTo(target < pages.length ? target : page);   // no half-step on the last spread
+    }
+    function prevSpread() {
+        if (!facingActive) { prevPage(); return; }
+        goTo(Math.max(0, spreadStart - 2));
+    }
     function navBack() { if (canNavBack) { navIndex--; page = navHistory[navIndex]; } }
     function navForward() { if (canNavForward) { navIndex++; page = navHistory[navIndex]; } }
     function firstPage() { goTo(0); }
-    function lastPage() { goTo(pages.length - 1); }
+    function lastPage() {
+        const n = pages.length - 1;
+        goTo(facingActive ? n - (n % 2) : n);
+    }
     // a click on a PDF link: internal GoTo jumps, a URI opens in the browser
     function followLink(l) {
         if (!l) return;

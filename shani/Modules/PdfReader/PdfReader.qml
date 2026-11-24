@@ -243,12 +243,12 @@ AppWindow {
         anchors.fill: parent
         focus: win.visible
         Keys.onEscapePressed: PdfViewer.info !== null ? PdfViewer.info = null : PdfViewer.close()
-        Keys.onRightPressed: PdfViewer.nextPage()
-        Keys.onLeftPressed: PdfViewer.prevPage()
+        Keys.onRightPressed: PdfViewer.nextSpread()
+        Keys.onLeftPressed: PdfViewer.prevSpread()
         Keys.onPressed: e => {
             if (e.key === Qt.Key_O && (e.modifiers & Qt.ControlModifier)) win.pick();
-            else if (e.key === Qt.Key_PageDown) PdfViewer.nextPage();
-            else if (e.key === Qt.Key_PageUp) PdfViewer.prevPage();
+            else if (e.key === Qt.Key_PageDown) PdfViewer.nextSpread();
+            else if (e.key === Qt.Key_PageUp) PdfViewer.prevSpread();
             else if (e.key === Qt.Key_R && (e.modifiers & Qt.ShiftModifier)) PdfViewer.rotateCCW();
             else if (e.key === Qt.Key_R) PdfViewer.rotate();
             else if (e.key === Qt.Key_F) PdfViewer.setFit("page");
@@ -296,7 +296,7 @@ AppWindow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
                 IconButton { icon: "go-first"; size: Theme.px(28); tip: Tr.t("First page"); onClicked: PdfViewer.firstPage() }
-                IconButton { icon: "go-previous"; size: Theme.px(28); tip: Tr.t("Previous page"); onClicked: PdfViewer.prevPage() }
+                IconButton { icon: "go-previous"; size: Theme.px(28); tip: Tr.t("Previous page"); onClicked: PdfViewer.prevSpread() }
                 IconButton { icon: "edit-undo"; size: Theme.px(28); tip: Tr.t("Back"); enabled: PdfViewer.canNavBack; onClicked: PdfViewer.navBack() }
                 IconButton { icon: "edit-redo"; size: Theme.px(28); tip: Tr.t("Forward"); enabled: PdfViewer.canNavForward; onClicked: PdfViewer.navForward() }
                 Text {
@@ -309,7 +309,7 @@ AppWindow {
                     font.pixelSize: Theme.px(14) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
-                IconButton { icon: "go-next"; size: Theme.px(28); tip: Tr.t("Next page"); onClicked: PdfViewer.nextPage() }
+                IconButton { icon: "go-next"; size: Theme.px(28); tip: Tr.t("Next page"); onClicked: PdfViewer.nextSpread() }
                 IconButton { icon: "go-last"; size: Theme.px(28); tip: Tr.t("Last page"); onClicked: PdfViewer.lastPage() }
                 IconButton { icon: "document-open"; size: Theme.px(28); tip: Tr.t("Toggle thumbnails"); on: PdfViewer.showSidebar; onClicked: PdfViewer.toggleSidebar() }
                 IconButton { icon: "printer"; size: Theme.px(28); tip: Tr.t("Print (P)"); onClicked: PdfViewer.printFile() }
@@ -558,9 +558,46 @@ AppWindow {
                                 Accessible.name: Tr.t("Page text")
                             }
                         }
+                        // facing mode: the two adjacent PNGs the service already
+                        // rendered. A missing second image leaves the first full
+                        // width; a missing first leaves the second full width.
+                        Image {
+                            id: leftPageImage
+                            visible: PdfViewer.facingActive && PdfViewer.spreadLeftPath !== ""
+                            readonly property real m: PdfViewer.fitMode === "width" ? 2 : 10
+                            x: m
+                            y: m
+                            width: (rightPageImage.visible ? parent.width / 2 : parent.width) - 2 * m
+                            height: parent.height - 2 * m
+                            source: PdfViewer.spreadLeftPath !== "" ? "file://" + PdfViewer.spreadLeftPath.split("/").map(encodeURIComponent).join("/") : ""
+                            fillMode: Image.PreserveAspectFit
+                            smooth: true
+                            cache: false
+                            rotation: PdfViewer.rotation
+                            transformOrigin: Item.Center
+                            Accessible.role: Accessible.Graphic
+                            Accessible.name: Tr.t("PDF page %1", PdfViewer.spreadLeft + 1)
+                        }
+                        Image {
+                            id: rightPageImage
+                            visible: PdfViewer.facingActive && PdfViewer.spreadRightPath !== ""
+                            readonly property real m: PdfViewer.fitMode === "width" ? 2 : 10
+                            x: (leftPageImage.visible ? parent.width / 2 : 0) + m
+                            y: m
+                            width: (leftPageImage.visible ? parent.width / 2 : parent.width) - 2 * m
+                            height: parent.height - 2 * m
+                            source: PdfViewer.spreadRightPath !== "" ? "file://" + PdfViewer.spreadRightPath.split("/").map(encodeURIComponent).join("/") : ""
+                            fillMode: Image.PreserveAspectFit
+                            smooth: true
+                            cache: false
+                            rotation: PdfViewer.rotation
+                            transformOrigin: Item.Center
+                            Accessible.role: Accessible.Graphic
+                            Accessible.name: Tr.t("PDF page %1", PdfViewer.spreadRight + 1)
+                        }
                         Image {
                             id: pageImage
-                            visible: PdfViewer.current !== ""
+                            visible: !PdfViewer.facingActive && PdfViewer.current !== ""
                             anchors.fill: parent
                             anchors.margins: PdfViewer.fitMode === "width" ? 2 : 10
                             source: PdfViewer.current !== "" ? "file://" + PdfViewer.current.split("/").map(encodeURIComponent).join("/") : ""
@@ -574,11 +611,18 @@ AppWindow {
                         }
                         // the pdftotext -bbox word that find-next is sitting on
                         Rectangle {
-                            visible: !PdfViewer.continuous && PdfViewer.highlight !== null && PdfViewer.highlight.page === PdfViewer.page
-                                && PdfViewer.highlight.x1 > PdfViewer.highlight.x0
-                            x: PdfViewer.highlight ? (PdfViewer.highlight.x0 / PdfViewer.highlight.pageW) * parent.width : 0
+                            visible: PdfViewer.highlight !== null && PdfViewer.highlight.x1 > PdfViewer.highlight.x0
+                                && (!PdfViewer.facingActive || PdfViewer.highlight.page === PdfViewer.spreadLeft
+                                    || PdfViewer.highlight.page === PdfViewer.spreadRight)
+                            // in facing mode the box maps onto the half holding that page
+                            readonly property bool inRight: PdfViewer.facingActive && PdfViewer.highlight
+                                && PdfViewer.highlight.page === PdfViewer.spreadRight
+                            readonly property real slotW: PdfViewer.facingActive && PdfViewer.highlight
+                                && (PdfViewer.highlight.page === PdfViewer.spreadLeft || inRight) ? parent.width / 2 : parent.width
+                            x: (inRight ? parent.width / 2 : 0)
+                               + (PdfViewer.highlight ? (PdfViewer.highlight.x0 / PdfViewer.highlight.pageW) * slotW : 0)
                             y: PdfViewer.highlight ? (PdfViewer.highlight.y0 / PdfViewer.highlight.pageH) * parent.height : 0
-                            width: PdfViewer.highlight ? ((PdfViewer.highlight.x1 - PdfViewer.highlight.x0) / PdfViewer.highlight.pageW) * parent.width : 0
+                            width: PdfViewer.highlight ? ((PdfViewer.highlight.x1 - PdfViewer.highlight.x0) / PdfViewer.highlight.pageW) * slotW : 0
                             height: PdfViewer.highlight ? Math.max(4, ((PdfViewer.highlight.y1 - PdfViewer.highlight.y0) / PdfViewer.highlight.pageH) * parent.height) : 0
                             color: Theme.alpha(Theme.accent, 0.35)
                             border.width: 1
@@ -592,9 +636,9 @@ AppWindow {
                             onWheel: w => {
                                 if (w.modifiers & Qt.ControlModifier) PdfViewer.setZoom(PdfViewer.zoom * (w.angleDelta.y > 0 ? 1.25 : 0.8));
                                 else if (PdfViewer.zoom > 1.01) w.accepted = false;
-                                else if (w.angleDelta.y < 0) PdfViewer.nextPage(); else PdfViewer.prevPage();
+                                else if (w.angleDelta.y < 0) PdfViewer.nextSpread(); else PdfViewer.prevSpread();
                             }
-                            onClicked: m => { if (PdfViewer.zoom > 1.01) return; if (m.x > width / 2) PdfViewer.nextPage(); else PdfViewer.prevPage(); }
+                            onClicked: m => { if (PdfViewer.zoom > 1.01) return; if (m.x > width / 2) PdfViewer.nextSpread(); else PdfViewer.prevSpread(); }
                         }
                             }
                         }
@@ -1132,13 +1176,15 @@ AppWindow {
                 IconButton { icon: "view-fullscreen"; size: Theme.px(28); tip: Tr.t("Fit width (W)"); on: PdfViewer.fitMode === "width"; onClicked: PdfViewer.setFit("width") }
                 IconButton { icon: "document-save"; size: Theme.px(28); tip: Tr.t("Actual size"); on: PdfViewer.fitMode === "actual"; onClicked: PdfViewer.setFit("actual") }
                 IconButton { icon: "view-dual"; size: Theme.px(28); tip: Tr.t("Continuous scroll"); on: PdfViewer.continuous; onClicked: PdfViewer.toggleContinuous() }
+                IconButton { icon: "view-pages-facing"; size: Theme.px(28); tip: Tr.t("Facing pages (two-page spread)"); on: PdfViewer.facing; onClicked: PdfViewer.toggleFacing() }
                 IconButton { icon: "object-rotate-right"; size: Theme.px(28); tip: Tr.t("Rotate right (R)"); onClicked: PdfViewer.rotate() }
                 IconButton { icon: "object-rotate-left"; size: Theme.px(28); tip: Tr.t("Rotate left"); onClicked: PdfViewer.rotateCCW() }
                 Text {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
-                    text: (PdfViewer.label !== "" ? PdfViewer.label + "  ·  " : "") + Tr.t("← → to turn pages · Esc closes")
+                    text: (PdfViewer.spreadLabel !== "" ? PdfViewer.spreadLabel + "  ·  " : "") + Tr.t("← → to turn pages · Esc closes")
                         + (PdfViewer.rotation !== 0 ? "  ·  " + PdfViewer.rotation + "°" : "")
+                        + (PdfViewer.facingActive ? "  ·  " + Tr.t("facing pages") : "")
                         + (PdfViewer.fitMode === "width" ? "  ·  " + Tr.t("fit width") : PdfViewer.fitMode === "actual" ? "  ·  " + Tr.t("actual size") : "")
                     color: Theme.dim
                     font.family: Theme.font
