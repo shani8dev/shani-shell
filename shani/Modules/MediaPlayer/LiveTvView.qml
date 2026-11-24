@@ -100,15 +100,24 @@ ColumnLayout {
     }
     EmptyState {
         Layout.fillWidth: true
-        visible: LiveTv.loading || LiveTv.error !== "" || LiveTv.channels.length === 0
+        // a loaded playlist can still filter down to nothing: say so instead of
+        // showing a blank list with only a "0 channels" count above it
+        readonly property bool filteredEmpty: !LiveTv.loading && LiveTv.error === ""
+                                              && LiveTv.channels.length > 0 && LiveTv.shown.length === 0
+        visible: LiveTv.loading || LiveTv.error !== "" || LiveTv.shown.length === 0
         icon: "tv"
         title: LiveTv.loading ? Tr.t("Reading the playlist…")
              : LiveTv.error !== "" ? Tr.t("Could not read the playlist")
+             : filteredEmpty ? Tr.t("No matches")
              : Tr.t("No channels yet")
         subtitle: LiveTv.error !== "" ? LiveTv.error
+                : filteredEmpty ? Tr.t("Try a different search")
                 : Tr.t("Load an M3U playlist, or pick free channels to start watching")
-        actionText: LiveTv.loading || LiveTv.error !== "" ? "" : Tr.t("Browse…")
-        onAction: LiveTv.loadDefaults()
+        actionText: LiveTv.loading || LiveTv.error !== "" ? "" : filteredEmpty ? Tr.t("Clear") : Tr.t("Free picks")
+        onAction: {
+            if (filteredEmpty) { find.text = ""; LiveTv.search = ""; LiveTv.group = ""; }
+            else LiveTv.loadDefaults();
+        }
     }
     ListView {
         reuseItems: true

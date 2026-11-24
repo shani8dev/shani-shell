@@ -82,5 +82,6 @@ def test_caption_error_is_exposed_and_shown_in_the_bar():
     )
     assert "root.error = t" in handler
     label = [l for l in BAR.splitlines() if 'Captions.source === "mic"' in l][0]
-    assert "Captions.error ? Captions.error :" in label
-    assert "Captions.error ? Theme.red : Theme.dim" in label
+    assert "Captions.error && !Captions.text" in label
+    assert "Captions.error :" in label
+    assert "Captions.error && !Captions.text) ? Theme.red : Theme.dim" in BAR

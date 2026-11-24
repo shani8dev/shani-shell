@@ -56,8 +56,9 @@ PanelWindow {
                 visible: win.mode === "pin"
                 placeholder: Tr.t("PIN")
                 secret: true
+                mode: "digits"   // numeric OSK keypad; a PIN has no letters to predict
                 onVisibleChanged: if (visible) { text = ""; input.forceActiveFocus(); }
-                onAccepted: { Modem.unlock(text); text = ""; }
+                onAccepted: { if (text.trim() === "") return; Modem.unlock(text); text = ""; }
             }
             TextField {
                 id: to
@@ -84,6 +85,15 @@ PanelWindow {
                 font.family: Theme.font
                 font.pixelSize: Theme.px(11) * Theme.fontScale
             }
+            Text {
+                Layout.fillWidth: true
+                visible: win.mode === "sms" && !Modem.canText
+                text: Tr.t("Unlock the SIM and wait for network service before sending texts")
+                color: Theme.amber
+                wrapMode: Text.Wrap
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
             RowLayout {
                 Layout.alignment: Qt.AlignRight
                 spacing: Theme.px(8)
@@ -92,11 +102,14 @@ PanelWindow {
                     id: send
                     kind: "primary"
                     text: win.mode === "pin" ? "Unlock" : "Send"
+                    enabled: win.mode === "pin" ? pin.text.trim() !== ""
+                                                : (Modem.canText && to.text.trim() !== "" && body.text.trim() !== "")
                     onClicked: {
                         if (win.mode === "pin") {
+                            if (pin.text.trim() === "") return;
                             Modem.unlock(pin.text);
                             pin.text = "";
-                        } else if (to.text.trim() && body.text.trim()) {
+                        } else if (Modem.canText && to.text.trim() && body.text.trim()) {
                             Modem.text(to.text.trim(), body.text.trim());
                             win.close();
                         }

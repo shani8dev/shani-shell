@@ -33,7 +33,18 @@ PanelWindow {
             y: 12
             spacing: Theme.px(8)
             Rectangle { width: Theme.px(8); height: Theme.px(8); radius: Theme.px(4); color: Theme.red; anchors.verticalCenter: parent.verticalCenter }
-            Text { text: Captions.error ? Captions.error : (Captions.source === "mic" ? "Live transcribe · saved to Documents/Transcripts" : "Live captions"); color: Captions.error ? Theme.red : Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+            Text {
+                // keep a long stderr line inside the card; pulseaudio warns on
+                // stderr routinely, so an error only outranks the status before
+                // a caption has actually arrived (the service clears it on start)
+                width: blurCard.width - 36
+                text: (Captions.error && !Captions.text) ? Captions.error : (Captions.source === "mic" ? "Live transcribe · saved to Documents/Transcripts" : "Live captions")
+                color: (Captions.error && !Captions.text) ? Theme.red : Theme.dim
+                elide: Text.ElideRight
+                maximumLineCount: 1
+                font.family: Theme.font
+                font.pixelSize: Theme.px(10) * Theme.fontScale
+            }
         }
         Text {
             anchors.fill: parent
@@ -41,11 +52,13 @@ PanelWindow {
             anchors.rightMargin: Theme.px(18)
             anchors.topMargin: Theme.px(30)
             anchors.bottomMargin: Theme.px(10)
-            text: Captions.text || (Captions.source === "mic" ? "Listening to the room…" : "Listening to what is playing…")
+            // the service buffers three chunks but this card shows two lines;
+            // ElideLeft is ignored with wrapped text, so extra lines were clipped
+            // from the bottom (the newest caption) - bind only the two newest
+            text: (Captions.lines.length ? Captions.lines.slice(-2).join(" ") : "") || (Captions.source === "mic" ? "Listening to the room…" : "Listening to what is playing…")
             color: Captions.text ? Theme.text : Theme.dim
             wrapMode: Text.Wrap
             maximumLineCount: 2
-            elide: Text.ElideLeft
             verticalAlignment: Text.AlignBottom
             font.family: Theme.font
             font.pixelSize: Theme.px(17) * Theme.fontScale

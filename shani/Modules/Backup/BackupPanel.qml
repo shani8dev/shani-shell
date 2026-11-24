@@ -46,15 +46,37 @@ AppWindow {
                 IconButton { icon: "window-close"; tip: Tr.t("Close"); onClicked: win.visible = false }
             }
 
-            // timeline
+            // in-flight feedback: a backup or a shell-driven restore is running
             Text {
-                visible: !Backup.loading && Backup.snapshots.length === 0
+                visible: Backup.running || Backup.restoring !== ""
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
-                text: Backup.driveSetUp ? Tr.t("No snapshots yet") : Tr.t("No backup drive set up")
-                color: Theme.dim
+                text: Backup.restoring !== "" ? Tr.t("Restoring %1…", Backup.restoring) : Tr.t("Backing up your home…")
+                color: Theme.accent
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+
+            // timeline empty state: offer a next step when no drive is set up
+            ColumnLayout {
+                visible: !Backup.loading && Backup.snapshots.length === 0
+                Layout.fillWidth: true
+                spacing: Theme.px(8)
+                Text {
+                    Layout.fillWidth: true
+                    horizontalAlignment: Text.AlignHCenter
+                    text: Backup.driveSetUp ? Tr.t("No snapshots yet") : Tr.t("No backup drive set up")
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                }
+                Button {
+                    visible: !Backup.driveSetUp
+                    Layout.alignment: Qt.AlignHCenter
+                    text: Tr.t("Set up backup drive…")
+                    kind: "outline"
+                    onClicked: Backup.open("backups")
+                }
             }
 
             ListView {

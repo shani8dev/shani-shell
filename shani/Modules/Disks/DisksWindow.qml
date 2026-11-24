@@ -77,6 +77,11 @@ AppWindow {
     property string confirmAction: ""
     Timer { id: confirmTimer; interval: 4000; onTriggered: win.confirmAction = "" }
 
+    // A pending confirm is armed for one device + one op only. Switching either
+    // must re-arm it, otherwise one click on the new target fires the old op.
+    onSelectedDiskChanged: { win.confirmAction = ""; confirmTimer.stop(); }
+    onOpModeChanged: { win.confirmAction = ""; confirmTimer.stop(); }
+
     onVisibleChanged: if (visible) Disks.refresh()
 
     // Esc: leave op mode first, then close
@@ -152,6 +157,17 @@ AppWindow {
                 Accessible.name: Tr.t("Operation progress")
                 Rectangle { width: parent.width * Math.max(0, Disks.jobProgress) / 100; height: parent.height; radius: parent.radius; color: Theme.accent }
             }
+        }
+
+        // ---- error banner: visible with no form open too (e.g. "Operation cancelled") ----
+        Text {
+            visible: Disks.error !== ""
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            text: Disks.error
+            color: Theme.red
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
         }
 
         // ---- operation form (shown when an op is selected) ----
@@ -374,13 +390,6 @@ AppWindow {
                 }
             }
 
-            Text {
-                visible: Disks.error !== ""
-                text: Disks.error
-                color: Theme.red
-                font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
-            }
         }
 
         // ---- disk list ----
@@ -398,6 +407,8 @@ AppWindow {
                 width: list.width
                 height: Theme.px(72)
                 radius: Theme.radiusSmall
+                Accessible.role: Accessible.ListItem
+                Accessible.name: (modelData.model || modelData.name || "") + " · " + win.diskKind(modelData) + " · " + (modelData.size || "")
                 color: win.selectedDisk === modelData ? Theme.alpha(Theme.accent, 0.12)
                     : rowArea.containsMouse ? Theme.hover : "transparent"
                 border.width: win.selectedDisk === modelData ? 2 : 0

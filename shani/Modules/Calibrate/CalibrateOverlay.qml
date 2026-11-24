@@ -28,8 +28,10 @@ PanelWindow {
         width: parent.width * 0.6
         horizontalAlignment: Text.AlignHCenter
         wrapMode: Text.Wrap
-        text: (Calibrate.kind === "tablet" ? Tr.t("With the pen, touch the middle of the ring (%1 of 4)") : Tr.t("Touch the middle of the ring (%1 of 4)")).arg(Calibrate.step + 1)
+        text: (Calibrate.kind === "tablet" ? Tr.t("With the pen, touch the middle of the ring (%1 of %2)") : Tr.t("Touch the middle of the ring (%1 of %2)")).arg(Calibrate.step + 1).arg(Calibrate.targets.length)
               + "\n" + Tr.t("Escape stops, and keeps it as it was")
+        Accessible.role: Accessible.StaticText
+        Accessible.name: text
         color: Theme.text
         font.family: Theme.font
         font.pixelSize: Theme.px(18) * Theme.fontScale
@@ -61,6 +63,10 @@ PanelWindow {
         border.color: Theme.accent
         Accessible.role: Accessible.Button
         Accessible.name: Tr.t("Cancel")
+        Accessible.onPressAction: Calibrate.cancel("cancelled")
+        activeFocusOnTab: true
+        Keys.onReturnPressed: Calibrate.cancel("cancelled")
+        Keys.onSpacePressed: Calibrate.cancel("cancelled")
         Text {
             id: cancelLabel
             anchors.centerIn: parent

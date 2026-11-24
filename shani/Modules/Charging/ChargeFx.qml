@@ -62,6 +62,9 @@ PanelWindow {
         height: Theme.px(220)
         radius: Theme.px(44)
         strong: true
+        // a short-lived overlay still has to say what it is to a screen reader
+        Accessible.role: Accessible.AlertMessage
+        Accessible.name: Math.round(win.level * 100) + "% " + (Power.full ? Tr.t("Full") : Tr.t("Charging"))
         opacity: win.shown ? 1 : 0
         scale: win.shown ? 1 : 0.86
         Behavior on opacity { NumberAnimation { duration: Theme.animEnter * 0.6; easing.type: Easing.OutCubic } }
@@ -106,7 +109,9 @@ PanelWindow {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
             anchors.bottomMargin: Theme.px(14)
-            text: Power.charging && Power.timeLeft ? Power.timeLeft : Tr.t("Charging")
+            // plugging in an already-full battery reports FullyCharged, not
+            // Charging; without this the card claims it is still charging
+            text: Power.full ? Tr.t("Full") : (Power.charging && Power.timeLeft ? Power.timeLeft : Tr.t("Charging"))
             color: Theme.dim
             font.family: Theme.font
             font.pixelSize: Theme.px(12) * Theme.fontScale

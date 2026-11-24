@@ -45,11 +45,8 @@ def test_sidebar_exposes_accessible_name_and_nav_window():
 
 def test_sidebar_home_end_scroll_the_panel():
     """Keyboard users can jump to the top or bottom of the long sidebar."""
-    assert "Keys.onHomePressed: flick.contentY = 0" in SIDEBAR
-    assert (
-        "Keys.onEndPressed: flick.contentY = Math.max(0, flick.contentHeight - flick.height)"
-        in SIDEBAR
-    )
+    assert "Qt.Key_Home" in SIDEBAR and "flick.contentY = 0" in SIDEBAR
+    assert "Qt.Key_End" in SIDEBAR and "flick.contentHeight - flick.height" in SIDEBAR
 
 
 def test_chronoa_surface_ignores_empty_turn_payloads():

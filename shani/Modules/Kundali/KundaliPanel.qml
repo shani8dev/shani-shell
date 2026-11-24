@@ -23,6 +23,16 @@ AppWindow {
     property string lonInput: "77.2090"
     property string result: ""
     property bool loading: false
+    property bool error: false
+    property bool copied: false
+
+    // The chart belongs to the inputs that made it. Editing any of them makes
+    // it stale at once, so it is never left looking like the new answer.
+    function clearResult() {
+        win.result = "";
+        win.error = false;
+        win.copied = false;
+    }
 
     // The calendar opens this with a day in mind: use it, and do the panchang
     // once, so the person sees the tithi rather than an empty form.
@@ -34,7 +44,7 @@ AppWindow {
 
     function calculate() {
         win.loading = true;
-        win.result = "";
+        win.clearResult();
         if (win.mode === "panchang")
             kundaliProc.command = ["python3", win.scriptPath, "panchang", win.dateInput, win.latInput, win.lonInput];
         else
@@ -63,12 +73,12 @@ AppWindow {
                 Choice {
                     text: Tr.t("Panchang")
                     selected: win.mode === "panchang"
-                    onClicked: win.mode = "panchang"
+                    onClicked: { win.mode = "panchang"; win.clearResult() }
                 }
                 Choice {
                     text: Tr.t("Kundali")
                     selected: win.mode === "kundali"
-                    onClicked: win.mode = "kundali"
+                    onClicked: { win.mode = "kundali"; win.clearResult() }
                 }
                 Item { Layout.fillWidth: true }
             }
@@ -81,7 +91,7 @@ AppWindow {
                     Layout.fillWidth: true
                     placeholderText: Tr.t("Date, e.g. 1990-01-01")
                     text: win.dateInput
-                    onTextChanged: win.dateInput = text
+                    onTextChanged: { win.dateInput = text; win.clearResult() }
                     onAccepted: win.calculate()
                 }
                 TextField {
@@ -89,7 +99,7 @@ AppWindow {
                     visible: win.mode === "kundali"
                     placeholderText: Tr.t("Time")
                     text: win.timeInput
-                    onTextChanged: win.timeInput = text
+                    onTextChanged: { win.timeInput = text; win.clearResult() }
                     onAccepted: win.calculate()
                 }
             }
@@ -107,7 +117,7 @@ AppWindow {
                         placeholderText: "28.6139"
                         label: Tr.t("Latitude")
                         text: win.latInput
-                        onTextChanged: win.latInput = text
+                        onTextChanged: { win.latInput = text; win.clearResult() }
                         onAccepted: win.calculate()
                     }
                 }
@@ -120,18 +130,32 @@ AppWindow {
                         placeholderText: "77.2090"
                         label: Tr.t("Longitude")
                         text: win.lonInput
-                        onTextChanged: win.lonInput = text
+                        onTextChanged: { win.lonInput = text; win.clearResult() }
                         onAccepted: win.calculate()
                     }
                 }
             }
 
-            Button {
+            RowLayout {
                 Layout.fillWidth: true
-                kind: "primary"
-                text: win.loading ? Tr.t("Computing…") : Tr.t("Calculate")
-                enabled: !win.loading && win.dateInput !== ""
-                onClicked: win.calculate()
+                spacing: Theme.px(6)
+                Button {
+                    Layout.fillWidth: true
+                    kind: "primary"
+                    text: win.loading ? Tr.t("Computing…") : Tr.t("Calculate")
+                    enabled: !win.loading && win.dateInput !== ""
+                    onClicked: win.calculate()
+                }
+                Button {
+                    Layout.preferredWidth: Theme.px(130)
+                    enabled: win.result !== "" && !win.error
+                    text: win.copied ? Tr.t("Copied") : Tr.t("Copy result")
+                    Accessible.name: win.copied ? Tr.t("Copied") : Tr.t("Copy result")
+                    onClicked: {
+                        Quickshell.execDetached(["sh", "-c", 'printf %s "$1" | wl-copy', "sh", win.result]);
+                        win.copied = true;
+                    }
+                }
             }
 
             // ---- what came back: a card to read, and to copy out of ----
@@ -158,12 +182,12 @@ AppWindow {
                         selectByMouse: true
                         wrapMode: TextEdit.Wrap
                         text: win.result
-                        color: Theme.text
+                        color: win.error ? Theme.danger : Theme.text
                         selectionColor: Theme.accent
                         font.family: Theme.mono
                         font.pixelSize: Theme.px(12) * Theme.fontScale
                         Accessible.role: Accessible.StaticText
-                        Accessible.name: Tr.t("Kundali")
+                        Accessible.name: win.error ? Tr.t("Calculation error") : Tr.t("Kundali")
                     }
                 }
                 Spinner {
@@ -194,6 +218,7 @@ AppWindow {
         onExited: code => {
             if (code !== 0) {
                 win.loading = false;
+                win.error = true;
                 win.result = Tr.t("The calculation failed — is the Kundali helper installed?");
             }
         }
@@ -201,7 +226,9 @@ AppWindow {
             onStreamFinished: {
                 try {
                     const data = JSON.parse(text);
+                    win.error = false;
                     if (data.error) {
+                        win.error = true;
                         win.result = Tr.t("Could not compute: %1").arg(data.error);
                     } else if (win.mode === "panchang") {
                         win.result = Tr.t("Tithi: %1").arg(data.tithi) + "\n" +
@@ -221,6 +248,7 @@ AppWindow {
                         win.result = r;
                     }
                 } catch (e) {
+                    win.error = true;
                     win.result = Tr.t("The result could not be read");
                 }
                 win.loading = false;

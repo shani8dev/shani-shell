@@ -48,6 +48,7 @@ Rectangle {
                 }
             }
             TextField {
+                id: find
                 Layout.fillWidth: true
                 visible: lib.album === null
                 placeholder: Tr.t("Search the music")
@@ -346,10 +347,28 @@ Rectangle {
             }
         }
 
+        // a query can narrow a populated library to zero rows; that is not the
+        // same as having no music, and needs a way back in one click
         EmptyState {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: lib.tab !== "videos" && lib.tab !== "playlists" && !MusicLibrary.scanning && MusicLibrary.songs.length === 0
+            readonly property bool nothingFound: lib.album === null && lib.q !== "" && !MusicLibrary.scanning && (
+                (lib.tab === "albums" && lib.albumsShown.length === 0) ||
+                (lib.tab === "artists" && MusicLibrary.artists.filter(a => a.name.toLowerCase().indexOf(lib.q) >= 0).length === 0) ||
+                (lib.tab === "songs" && lib.songsShown.length === 0) ||
+                (lib.tab === "videos" && videoList.model.length === 0))
+            visible: nothingFound
+            icon: "edit-find"
+            title: Tr.t("No matches")
+            subtitle: Tr.t("Try a different search")
+            actionText: Tr.t("Clear")
+            onAction: { find.text = ""; lib.query = ""; }
+        }
+
+        EmptyState {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            visible: lib.q === "" && lib.tab !== "videos" && lib.tab !== "playlists" && !MusicLibrary.scanning && MusicLibrary.songs.length === 0
             icon: "folder-music"
             title: Tr.t("No music yet")
             subtitle: Tr.t("Songs in your Music folder show here, by album and artist")

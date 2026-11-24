@@ -22,6 +22,15 @@ ColumnLayout {
             onAccepted: if (text.trim()) Radio.show("search:" + text.trim())
         }
         Button { text: Tr.t("Find"); enabled: find.text.trim() !== ""; onClicked: Radio.show("search:" + find.text.trim()) }
+        // a search has no chip of its own in the row below, so without this the
+        // only way back is to guess one of the other categories
+        IconButton {
+            visible: Radio.showing.startsWith("search:")
+            size: Theme.px(26)
+            icon: "edit-clear"
+            tip: Tr.t("Clear")
+            onClicked: { find.text = ""; Radio.show("featured"); }
+        }
     }
     Flow {
         Layout.fillWidth: true
@@ -44,6 +53,7 @@ ColumnLayout {
         visible: Radio.loading || Radio.error !== "" || (!Radio.loading && Radio.stations.length === 0)
         wrapMode: Text.WordWrap
         text: Radio.loading ? Tr.t("Looking…") : Radio.error !== "" ? Radio.error
+            : Radio.showing.startsWith("search:") ? Tr.t("No matches")
             : Radio.showing === "favourites" ? Tr.t("No favourites yet: the star on a station keeps it here.") : Tr.t("No stations found")
         color: Radio.error !== "" ? Theme.danger : Theme.dim
         font.family: Theme.font
@@ -67,6 +77,7 @@ ColumnLayout {
             readonly property bool playing: PlayQueue.current === modelData.url
             color: playing ? Theme.accentSoft : (area.containsMouse ? Theme.hover : "transparent")
             MouseArea { id: area; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Radio.play(row.modelData) }
+            KeyFocus { onActivated: Radio.play(row.modelData) }
             RowLayout {
                 anchors.fill: parent
                 anchors.leftMargin: Theme.px(10)

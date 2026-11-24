@@ -24,7 +24,9 @@ Variants {
             anchors.fill: parent
             color: "black"
             opacity: Idle.dimmed ? 0.55 : 0
-            Behavior on opacity { NumberAnimation { duration: Theme.mot(1200) } }
+            // the dim is a warning before the lock: honour reduce-motion too,
+            // like the Island's other animations, instead of a 1.2 s fade
+            Behavior on opacity { enabled: !Settings.data.reduceMotion; NumberAnimation { duration: Theme.mot(1200) } }
         }
     }
 }

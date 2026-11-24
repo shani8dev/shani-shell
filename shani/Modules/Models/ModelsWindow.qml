@@ -19,6 +19,8 @@ AppWindow {
 
     // tab: "local" (installed models) or "providers" (cloud providers)
     property string tab: "local"
+    // name of the model awaiting delete confirmation; "" means no confirm open
+    property string pendingRemove: ""
     // provider connection form
     property string connectId: ""
     property string connectKey: ""
@@ -125,7 +127,7 @@ AppWindow {
                             size: Theme.px(26)
                             icon: "user-trash"
                             tip: Tr.t("Remove %1", modelData.name)
-                            onClicked: Models.remove(modelData.name)
+                            onClicked: win.pendingRemove = modelData.name
                         }
                     }
                     MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
@@ -277,6 +279,13 @@ AppWindow {
                 if (win.connectKey.trim() === "") return; // Connect is disabled until a key is typed
                 AIProviders.connect(win.connectId, (AIProviders.available.find(a => a.id === win.connectId) || {}).name, win.connectKey, win.connectEndpoint);
                 win.connectId = "";
+                win.connectKey = "";       // don't keep the secret live after connecting
+                win.connectEndpoint = "";
+            }
+            onRejected: {                  // No / Cancel / Escape must dismiss, not re-open
+                win.connectId = "";
+                win.connectKey = "";
+                win.connectEndpoint = "";
             }
             Component.onCompleted: {
                 const yes = connectDialog.standardButton(Dialog.Yes);
@@ -317,6 +326,34 @@ AppWindow {
                     text: win.connectEndpoint
                     onTextChanged: win.connectEndpoint = text
                 }
+            }
+        }
+
+        // ---- remove confirmation (deleting a model frees disk space for good) ----
+        Dialog {
+            id: removeConfirm
+            anchors.centerIn: parent
+            width: Math.min(win.width * 0.8, Theme.px(420))
+            title: Tr.t("Remove %1?", win.pendingRemove)
+            modal: true
+            standardButtons: Dialog.No | Dialog.Yes
+            visible: win.pendingRemove !== ""
+            onRejected: win.pendingRemove = ""
+            onAccepted: {
+                const name = win.pendingRemove;
+                win.pendingRemove = "";
+                // a preference pointing at a deleted model leaves Chronoa naming a
+                // model that no longer exists — clear it while it is still known
+                if (Settings.data.chronoaPreferredModel === name)
+                    Settings.data.chronoaPreferredModel = "";
+                Models.remove(name);
+            }
+            contentItem: Text {
+                wrapMode: Text.Wrap
+                text: Tr.t("Remove the downloaded model from this computer? You will need to download it again to use it.")
+                color: Theme.text
+                font.family: Theme.font
+                font.pixelSize: Theme.px(12) * Theme.fontScale
             }
         }
     }

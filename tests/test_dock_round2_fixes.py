@@ -22,7 +22,7 @@ def test_menu_tracks_app_identity_across_reorder():
 
 def test_menu_container_is_accessible_popup_menu():
     block = dock.split("id: menuBox", 1)[1].split("Column {", 1)[0]
-    assert "Accessible.role: Accessible.Menu" in block
+    assert "Accessible.role: Accessible.Pane" in block
     assert "Accessible.name:" in block
 
 

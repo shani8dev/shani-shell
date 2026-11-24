@@ -30,7 +30,10 @@ PanelWindow {
     readonly property bool working: Chronoa.busy || Chronoa.cueText !== "" || Chronoa.step !== ""
     // an approval owns the card: a question field left open under it is
     // invisible but still holds the exclusive keyboard focus
-    onHasApprovalChanged: if (hasApproval) { asking = false; askInput.text = ""; }
+    onHasApprovalChanged: if (hasApproval) closeAsk()
+    // every way of leaving ask mode must clear both the flag and the text,
+    // or the next question opens with the previous one still typed in
+    function closeAsk() { asking = false; askInput.text = ""; }
     // agent-status expressions for the mascot: pops out when working,
     // blinks faster when thinking, looks up when pondering, waves on connect,
     // and does a happy jump when a task finishes.
@@ -107,7 +110,9 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "shani-island"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: (asking) && !Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    // a permission card is a modal choice: without keyboard focus its buttons
+    // cannot be reached by Tab or read by a screen reader, so the turn hangs
+    WlrLayershell.keyboardFocus: (asking || hasApproval) && !Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     BackgroundEffect.blurRegion: Settings.blurWanted ? islandRegion : null
     Region { id: islandRegion; item: card; radius: card.radius }
 
@@ -313,10 +318,20 @@ PanelWindow {
                     onPositionChanged: m => orb.lookX = (m.x - width / 2) / (width / 2)
                     onExited: orb.lookX = 0
                     // left: the conversation; right: Lens — point at something and ask
-                    onClicked: e => (Hold.swallowed(held) || e.button === Qt.RightButton) ? Lens.capture() : (Chronoa.open = !Chronoa.open)
+                    onClicked: e => {
+                        // ask mode grabs the keyboard; release it before opening
+                        // anything else or the conversation cannot be typed in
+                        if (win.asking) win.closeAsk();
+                        (Hold.swallowed(held) || e.button === Qt.RightButton) ? Lens.capture() : (Chronoa.open = !Chronoa.open)
+                    }
                 }
                 // keys and a controller: Enter the conversation, the Menu key (a pad's X) Lens
-                KeyFocus { name: Tr.t("Chronoa"); menuable: true; onActivated: Chronoa.open = !Chronoa.open; onMenu: Lens.capture() }
+                KeyFocus {
+                    name: Tr.t("Chronoa")
+                    menuable: true
+                    onActivated: { if (win.asking) win.closeAsk(); Chronoa.open = !Chronoa.open; }
+                    onMenu: Lens.capture()
+                }
             }
 
             // ---- the line / the question field ----------------------------
@@ -374,15 +389,11 @@ PanelWindow {
                 font.family: Theme.font
                 font.pixelSize: Theme.px(13) * Theme.fontScale
                 clip: true
-                Keys.onEscapePressed: {
-                    text = "";
-                    win.asking = false;
-                }
+                Keys.onEscapePressed: win.closeAsk()
                 onAccepted: {
                     if (text.trim() !== "")
                         Chronoa.ask(text.trim());
-                    text = "";
-                    win.asking = false;
+                    win.closeAsk();
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
@@ -414,6 +425,8 @@ PanelWindow {
 
             Text {
                 Layout.fillWidth: true
+                Accessible.role: Accessible.StaticText
+                Accessible.name: text
                 text: Chronoa.approval ? Chronoa.approval.text : ""
                 color: Theme.text
                 wrapMode: Text.Wrap
@@ -424,6 +437,8 @@ PanelWindow {
             Text {
                 Layout.fillWidth: true
                 visible: text !== ""
+                Accessible.role: Accessible.StaticText
+                Accessible.name: text
                 text: Chronoa.approval ? Chronoa.approval.detail : ""
                 color: Theme.text
                 wrapMode: Text.Wrap
@@ -438,11 +453,14 @@ PanelWindow {
                     Button {
                         required property string modelData
                         required property int index
+                        // the card can be answered/withdrawn between render and
+                        // click; read the id now, not from a possibly null approval
+                        readonly property string requestId: Chronoa.approval ? Chronoa.approval.id : ""
                         text: modelData
                         // do not make "Allow" the default: a permission choice
                         // must be deliberate, and options can vary by request
                         kind: "plain"
-                        onClicked: Chronoa.approve(Chronoa.approval.id, modelData)
+                        onClicked: if (requestId !== "") Chronoa.approve(requestId, modelData)
                     }
                 }
                 Button {

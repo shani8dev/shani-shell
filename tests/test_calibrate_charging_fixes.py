@@ -53,7 +53,7 @@ def test_time_left_is_not_shown_when_the_battery_is_not_charging():
     t = charge()
     line = next(l for l in t.splitlines() if "Power.timeLeft" in l)
     assert "Power.charging && Power.timeLeft ? Power.timeLeft" in line, line
-    assert line.rstrip().endswith(': Tr.t("Charging")'), line
+    assert line.rstrip().endswith('Tr.t("Charging"))'), line
 
 
 def test_calibration_can_be_cancelled_by_the_device_being_calibrated():
