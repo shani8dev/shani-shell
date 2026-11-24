@@ -42,6 +42,14 @@ AppWindow {
                     font.pixelSize: Theme.px(16) * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
+                // back up now: the same single-flight action the other surfaces use
+                Button {
+                    text: Tr.t("Back up now")
+                    kind: "outline"
+                    busy: Backup.running
+                    enabled: Backup.available && !Backup.running
+                    onClicked: Backup.backupNow()
+                }
                 Item { Layout.fillWidth: true }
                 IconButton { icon: "window-close"; tip: Tr.t("Close"); onClicked: win.visible = false }
             }
@@ -57,9 +65,21 @@ AppWindow {
                 font.pixelSize: Theme.px(11) * Theme.fontScale
             }
 
+            // backup unavailable: say so instead of offering a setup that will fail
+            Text {
+                visible: !Backup.available
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.Wrap
+                text: Tr.t("Shani Backup is not installed — snapshots cannot be made or restored here")
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+
             // timeline empty state: offer a next step when no drive is set up
             ColumnLayout {
-                visible: !Backup.loading && Backup.snapshots.length === 0
+                visible: !Backup.loading && Backup.snapshots.length === 0 && Backup.available
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
                 Text {

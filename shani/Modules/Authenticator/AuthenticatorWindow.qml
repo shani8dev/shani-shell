@@ -69,7 +69,7 @@ AppWindow {
         id: keyCode
         stdout: StdioCollector {
             onStreamFinished: {
-                try { const r = JSON.parse(text); Quickshell.clipboardText = r.code; win.copied = win.touching; copiedTimer.restart(); } catch (e) {}
+                try { const r = JSON.parse(text); win.copyClip(r.code); win.copied = win.touching; copiedTimer.restart(); } catch (e) {}
                 win.touching = "";
             }
         }
@@ -90,10 +90,29 @@ AppWindow {
             keyCode.running = true;
             return;
         }
-        Quickshell.clipboardText = a.code;
+        win.copyClip(a.code);
         win.copied = a.id;
         copiedTimer.restart();
     }
+    // A six-digit code slips past cliphist's "looks like a secret" filter, so
+    // it would otherwise sit in clipboard history forever. Go through
+    // wl-copy's stdin (never argv) and wipe on Passwords' own 45 s timer.
+    function copyClip(text) {
+        if (!text) return;
+        if (clip.running) clip.running = false;
+        clip.payload = text;
+        clip.running = true;
+        clearTimer.restart();
+    }
+    Process {
+        id: clip
+        property string payload: ""
+        command: ["wl-copy"]
+        stdinEnabled: true
+        onStarted: { write(payload); payload = ""; stdinEnabled = false; }
+        onExited: stdinEnabled = true
+    }
+    Timer { id: clearTimer; interval: 45000; onTriggered: Quickshell.execDetached(["wl-copy", "--clear"]) }
     Timer { id: copiedTimer; interval: 1500; onTriggered: win.copied = "" }
     Timer { id: removeTimer; interval: 4000; onTriggered: win.removing = "" }
     // the terminal opens on its own: don't leave "unlock the key" hanging forever

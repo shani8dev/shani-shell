@@ -252,6 +252,11 @@ AppWindow {
                     height: Theme.px(88)
                     radius: Theme.radiusSmall
                     color: Theme.surface1
+                    // the hours are a list to walk with the arrow keys, not just
+                    // a picture: every tile says its hour and temperature
+                    Accessible.role: Accessible.ListItem
+                    Accessible.name: modelData.hour + ", " + Math.round(modelData.temp) + Weather.degree
+                    KeyFocus { }
                     ColumnLayout {
                         anchors.centerIn: parent
                         spacing: Theme.px(4)
@@ -307,7 +312,17 @@ AppWindow {
                         Layout.fillWidth: true
                         Layout.preferredHeight: Theme.px(34)
                         spacing: Theme.px(12)
-                        Text { Layout.preferredWidth: Theme.px(90); text: dayRow.modelData.day; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                        Text {
+                            Layout.preferredWidth: Theme.px(90)
+                            text: dayRow.modelData.day
+                            color: Theme.text
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(13) * Theme.fontScale
+                            // Up/Down walk the week; the name carries the range
+                            Accessible.role: Accessible.ListItem
+                            Accessible.name: dayRow.modelData.day + ", " + Math.round(dayRow.modelData.lo) + "° / " + Math.round(dayRow.modelData.hi) + "°"
+                            KeyFocus { }
+                        }
                         Icon { name: Weather.iconFor(dayRow.modelData.code); size: Theme.px(20); color: Theme.text }
                         Text { Layout.fillWidth: true; text: Weather.describe(dayRow.modelData.code); color: Theme.dim; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                         Text { text: Math.round(dayRow.modelData.lo) + "°"; color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.features: { "tnum": 1 } }

@@ -90,7 +90,9 @@ AppWindow {
                         subtitle: (modelData.tags && modelData.tags.length ? modelData.tags.join(", ") + "  ·  " : "")
                                   + (modelData.unread > 0 ? Tr.t("%1 unread", modelData.unread) : "")
                         selected: Feeds.current === modelData.url
-                        onClicked: { win.leaveSearch(); Feeds.open(modelData.url) }
+                        // a feed wins over the saved pile too: otherwise the
+                        // click looks inert while the list stays on Saved
+                        onClicked: { win.leaveSearch(); win.savedShown = false; Feeds.open(modelData.url) }
                     }
                 }
 

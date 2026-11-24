@@ -50,5 +50,7 @@ def test_recorder_inline_playback_has_no_stale_bar():
     # all clear the inline playback bar
     assert "playback.mediaStatus === MediaPlayer.EndOfMedia" in REC
     assert 'else { playback.stop(); win.inlinePlay = ""; }' in REC
-    assert REC.count("win.inlinePlay === row.modelData.path") >= 3
+    # the play/pause and trash controls check inlinePlay against the row path;
+    # helpers use a `path` argument after the search/sort refactor
+    assert REC.count("win.inlinePlay === row.modelData.path") >= 2
     assert REC.count('win.inlinePlay = "";') >= 4

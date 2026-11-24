@@ -49,6 +49,22 @@ AppWindow {
         return transport ? transport + " · " + kind : kind;
     }
 
+    // lsblk -p puts the full path in `name`; partition nodes are raw lsblk data
+    function partPath(p) {
+        const n = String((p && (p.name || p.path)) || "");
+        return n && n.charAt(0) !== "/" ? "/dev/" + n : n;
+    }
+
+    // A mounted filesystem cannot be checked reliably, even read-only.
+    function isMounted(d) {
+        if (!d) return false;
+        if ((d.mountpoints || []).length > 0) return true;
+        return (d.children || []).some(c => (c.mountpoints || []).length > 0);
+    }
+    function canScan(d) {
+        return !!d && !Disks.busy && !Disks.deviceIsSystem(d.path) && !win.isMounted(d);
+    }
+
     function smartEta() {
         if (Disks.smartTestPercent <= 0) return "—";
         const elapsed = Date.now() - Number(Disks.smartTestStarted);
@@ -83,6 +99,18 @@ AppWindow {
     onOpModeChanged: { win.confirmAction = ""; confirmTimer.stop(); }
 
     onVisibleChanged: if (visible) Disks.refresh()
+
+    // refresh() rebuilds the model: keep the same drive selected by path
+    Connections {
+        target: Disks
+        function onDisksChanged() {
+            const p = win.selectedDisk ? win.selectedDisk.path : "";
+            if (p) {
+                const fresh = Disks.disks.find(d => d.path === p);
+                win.selectedDisk = fresh || null;
+            }
+        }
+    }
 
     // Esc: leave op mode first, then close
     Item {
@@ -457,14 +485,16 @@ AppWindow {
                         spacing: Theme.px(4)
                         Repeater {
                             model: modelData.children || []
+                            // per-volume mount toggle: mount the partition, not the whole disk
                             delegate: Rectangle {
                                 required property var modelData
-                                implicitWidth: Math.max(60, labelText.implicitWidth + 16)
+                                implicitWidth: Math.max(60, labelText.implicitWidth + toggleText.implicitWidth + 20)
                                 implicitHeight: Theme.px(20)
                                 radius: Theme.px(4)
                                 color: Theme.alpha(Theme.accent, 0.1)
                                 RowLayout {
                                     anchors { fill: parent; margins: Theme.px(4) }
+                                    spacing: Theme.px(4)
                                     Text {
                                         id: labelText
                                         text: (modelData.label || modelData.fstype || modelData.name) +
@@ -473,6 +503,29 @@ AppWindow {
                                         font.family: Theme.font
                                         font.pixelSize: Theme.px(10) * Theme.fontScale
                                         elide: Text.ElideRight
+                                    }
+                                    Text {
+                                        id: toggleText
+                                        visible: win.selectedDisk === diskRow.modelData &&
+                                            !!(modelData.fstype || (modelData.mountpoints || []).length)
+                                        text: (modelData.mountpoints || []).length > 0 ? Tr.t("Unmount") : Tr.t("Mount")
+                                        color: Theme.accent
+                                        font.family: Theme.font
+                                        font.pixelSize: Theme.px(9) * Theme.fontScale
+                                        Accessible.role: Accessible.Button
+                                        Accessible.name: toggleText.text
+                                        Accessible.onPressAction: toggleText.toggle()
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: toggleText.toggle()
+                                        }
+                                        function toggle() {
+                                            const p = win.partPath(modelData);
+                                            if (!p || Disks.busy) return;
+                                            if ((modelData.mountpoints || []).length > 0) Disks.unmount(p);
+                                            else Disks.mount(p);
+                                        }
                                     }
                                 }
                             }
@@ -546,7 +599,7 @@ AppWindow {
                         Button {
                             text: win.confirmAction === "fsck-" + modelData.path ? Tr.t("Tap again to confirm") : Tr.t("Check filesystem")
                             flat: true
-                            enabled: !Disks.busy && !Disks.deviceIsSystem(modelData.path)
+                            enabled: win.canScan(modelData)
                             onClicked: {
                                 if (win.confirmAction === "fsck-" + modelData.path) {
                                     win.confirmAction = ""; Disks.fsck(modelData.path); scanDialog.open();
@@ -556,12 +609,20 @@ AppWindow {
                         Button {
                             text: win.confirmAction === "badblocks-" + modelData.path ? Tr.t("Tap again to confirm") : Tr.t("Bad blocks")
                             flat: true
-                            enabled: !Disks.busy && !Disks.deviceIsSystem(modelData.path)
+                            enabled: win.canScan(modelData)
                             onClicked: {
                                 if (win.confirmAction === "badblocks-" + modelData.path) {
                                     win.confirmAction = ""; Disks.badblocks(modelData.path); scanDialog.open();
                                 } else { win.confirmAction = "badblocks-" + modelData.path; confirmTimer.restart(); }
                             }
+                        }
+                        // filesystem checks need an unmounted volume
+                        Text {
+                            visible: win.selectedDisk === modelData && win.isMounted(modelData)
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            text: Tr.t("Unmount this filesystem before checking it")
+                            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
                         }
                         Button {
                             text: Tr.t("Mount options…"); flat: true

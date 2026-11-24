@@ -19,7 +19,7 @@ def test_selecting_a_feed_or_saved_leaves_the_global_search():
     assert "function leaveSearch()" in t
     assert 'articleSearch.text = ""' in t
     assert 'Feeds.search("")' in t
-    assert "onClicked: { win.leaveSearch(); Feeds.open(modelData.url) }" in t
+    assert "win.leaveSearch(); win.savedShown = false; Feeds.open(modelData.url)" in t
     assert "onClicked: { win.leaveSearch(); win.savedShown = !win.savedShown;" in t
 
 

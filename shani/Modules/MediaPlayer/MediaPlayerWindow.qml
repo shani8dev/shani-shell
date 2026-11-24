@@ -4,7 +4,8 @@
 // volume, speed, repeat, shuffle, full screen. QtMultimedia plays (FFmpeg).
 //
 // Space plays and pauses; Left/Right 5 s, Shift for 30; Up/Down the volume;
-// N and P the next and the one before; M mutes; F full screen; O opens a file;
+// N and P the next and the one before, . and , the next and previous chapter;
+// M mutes; S shuffles, Shift+R cycles repeat; F full screen; O opens a file;
 // R Radio, T Live TV, L the queue, I the mini player.
 // The image's default for video and audio files (dev.shani.MediaPlayer.desktop).
 import Quickshell
@@ -95,6 +96,9 @@ AppWindow {
     }
     Timer { id: resumeNote; interval: 8000 }
     Timer { id: frameSavedNote; interval: 3000 }
+    // a video has no now-playing page of its own: the title rides over the picture
+    Timer { id: titleNote; interval: 4000 }
+    Connections { target: PlayQueue; function onCurrentChanged() { titleNote.restart(); } }
     property real pendingResume: 0
     function resumeNow() {
         if (pendingResume <= 0 || !player.seekable || player.playbackState !== MediaPlayer.PlayingState || player.position <= 0)
@@ -274,6 +278,22 @@ AppWindow {
             player.play();
     }
     function skip(seconds) { player.position = Math.max(0, Math.min(player.duration, player.position + seconds * 1000)); }
+    // one function for the toolbar and Shift+R, so they cannot drift apart
+    function cycleRepeat() { PlayQueue.repeat = PlayQueue.repeat === "off" ? "all" : PlayQueue.repeat === "all" ? "one" : "off"; }
+    // chapters are click-only in the tracks card; . and , step through them too
+    function stepChapter(dir) {
+        const cs = PlayQueue.chapters;
+        if (!cs || cs.length === 0 || player.duration <= 0)
+            return false;
+        const t = player.position / 1000;
+        let at = 0;
+        for (let i = 0; i < cs.length; i++) {
+            if (cs[i].start <= t) at = i;
+            else break;
+        }
+        player.position = cs[Math.max(0, Math.min(cs.length - 1, at + dir))].start * 1000;
+        return true;
+    }
     // go to a typed time: "mm:ss" or "hh:mm:ss"; rejects anything else
     function goToTime(s) {
         const parts = String(s || "").trim().split(":");
@@ -310,10 +330,14 @@ AppWindow {
         else if (e.key === Qt.Key_Down) win.louder(-0.05);
         else if (e.key === Qt.Key_N) PlayQueue.next();
         else if (e.key === Qt.Key_P) PlayQueue.previous();
+        else if (e.key === Qt.Key_Comma) win.stepChapter(-1);
+        else if (e.key === Qt.Key_Period) win.stepChapter(1);
+        else if (e.key === Qt.Key_S) PlayQueue.shuffle = !PlayQueue.shuffle;
         else if (e.key === Qt.Key_M) PlayQueue.muted = !PlayQueue.muted;
         else if (e.key === Qt.Key_F) Niri.action("fullscreen-window");
         else if (e.key === Qt.Key_O) win.pick();
         else if (e.key === Qt.Key_L) win.listShown = !win.listShown;
+        else if (e.key === Qt.Key_R && big) win.cycleRepeat();
         else if (e.key === Qt.Key_R) { win.page = "radio"; if (Radio.showing === "") Radio.show(Radio.favourites.length ? "favourites" : "featured"); }
         else if (e.key === Qt.Key_T) { win.page = "live"; if (!LiveTv.channels.length) { if (LiveTv.source) LiveTv.load(LiveTv.source); else LiveTv.loadDefaults(); } }
         else if (e.key === Qt.Key_I) win.setMini(!win.mini);
@@ -359,6 +383,7 @@ AppWindow {
                     color: "black"
                     // the mini player's own controls, over the picture while the pointer is on it
                     HoverHandler { id: miniHover; enabled: win.mini }
+                    HoverHandler { id: videoHover; enabled: !win.mini }
                     MouseArea {
                         objectName: "nav:pointer"          // the mini player moved by its picture (Mod+arrows move it with keys)
                         anchors.fill: parent
@@ -494,6 +519,25 @@ AppWindow {
                         font.pixelSize: Math.max(18, parent.height * 0.045)
                         font.weight: Font.DemiBold
                     }
+                    // the title fades in when a video starts, and returns on hover
+                    Rectangle {
+                        z: 4
+                        anchors { top: parent.top; left: parent.left; right: parent.right; margins: Theme.px(14) }
+                        visible: player.hasVideo && !win.mini && (titleNote.running || videoHover.hovered)
+                        implicitHeight: videoTitle.implicitHeight + Theme.px(16)
+                        radius: Theme.radiusSmall
+                        color: Qt.rgba(0, 0, 0, 0.6)
+                        Text {
+                            id: videoTitle
+                            anchors { fill: parent; margins: Theme.px(8) }
+                            text: win.song ? win.song.title : (win.tagTitle || PlayQueue.name)
+                            color: "white"
+                            elide: Text.ElideRight
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(15) * Theme.fontScale
+                            font.weight: Font.DemiBold
+                        }
+                    }
                     // "Resumed at 12:34" for a few seconds, with the way back to the start
                     Rectangle {
                         anchors { top: parent.top; left: parent.left; margins: Theme.px(14) }
@@ -591,6 +635,15 @@ AppWindow {
                                     selected: win.subSource === "file"
                                     onClicked: win.setSubtitles("file", -1)
                                 }
+                            }
+                            // a downloaded subtitle need not sit beside the video
+                            Button {
+                                Layout.fillWidth: true
+                                text: Tr.t("Open subtitle…")
+                                flat: true
+                                onClicked: FilePicker.open({ mode: "open", title: Tr.t("A subtitle file"),
+                                    filters: ["srt", "vtt"],
+                                    onPicked: paths => { if (paths.length) PlayQueue.subtitleFile = paths[0]; } })
                             }
                             // a subtitle track that is a moment out: move it whole
                             RowLayout {
@@ -775,6 +828,18 @@ AppWindow {
                         width: Theme.px(13); height: Theme.px(13); radius: Theme.px(7)
                         color: Theme.accent
                     }
+                    // chapter marks on the timeline: the list lives in the tracks card,
+                    // but the bar itself should show where the breaks are
+                    Repeater {
+                        model: player.duration > 0 ? PlayQueue.chapters : []
+                        Rectangle {
+                            required property var modelData
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: track.width * Math.max(0, Math.min(1, modelData.start / player.duration)) - width / 2
+                            width: Theme.px(2); height: Theme.px(11); radius: Theme.px(1)
+                            color: Qt.rgba(1, 1, 1, 0.55)
+                        }
+                    }
                     MouseArea {
                         id: seekArea
                         anchors.fill: parent
@@ -848,11 +913,11 @@ AppWindow {
                     }
                     IconButton {
                         icon: PlayQueue.repeat === "one" ? "media-playlist-repeat-song" : "media-playlist-repeat"
-                        tip: PlayQueue.repeat === "off" ? Tr.t("Repeat off") : PlayQueue.repeat === "all" ? Tr.t("Repeat all") : Tr.t("Repeat this one")
+                        tip: (PlayQueue.repeat === "off" ? Tr.t("Repeat off") : PlayQueue.repeat === "all" ? Tr.t("Repeat all") : Tr.t("Repeat this one")) + " (Shift+R)"
                         on: PlayQueue.repeat !== "off"
-                        onClicked: PlayQueue.repeat = PlayQueue.repeat === "off" ? "all" : PlayQueue.repeat === "all" ? "one" : "off"
+                        onClicked: win.cycleRepeat()
                     }
-                    IconButton { icon: "media-playlist-shuffle"; tip: Tr.t("Shuffle"); on: PlayQueue.shuffle; onClicked: PlayQueue.shuffle = !PlayQueue.shuffle }
+                    IconButton { icon: "media-playlist-shuffle"; tip: Tr.t("Shuffle") + " (S)"; on: PlayQueue.shuffle; onClicked: PlayQueue.shuffle = !PlayQueue.shuffle }
                     IconButton {
                         icon: PlayQueue.muted || PlayQueue.volume === 0 ? "audio-volume-muted" : PlayQueue.volume < 0.5 ? "audio-volume-low" : "audio-volume-high"
                         tip: (PlayQueue.muted ? Tr.t("Unmute") : Tr.t("Mute")) + " (M)"

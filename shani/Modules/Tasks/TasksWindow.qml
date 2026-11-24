@@ -21,6 +21,8 @@ AppWindow {
     property string smartList: "all"  // all | today | upcoming | completed | nodate
     property var repeatTask: null     // the task whose repeat rule is being picked
     property var editTask: null       // the task whose name is being renamed
+    property var dueTask: null        // the task whose due date is being picked
+    property real editDue: 0          // its current due, so the picker opens on it
     property string sortBy: "due"     // due | name | priority (the bridge's own order is by due)
     readonly property var smartLists: [
         ["all", Tr.t("All")], ["today", Tr.t("Today")], ["upcoming", Tr.t("Upcoming")],
@@ -80,6 +82,12 @@ AppWindow {
         anchors.fill: parent
         focus: true
         Keys.onEscapePressed: Ui.tasks = false
+        Keys.onPressed: e => {
+            if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_N) {
+                field.forceActiveFocus();   // Ctrl+N starts the next task from anywhere
+                e.accepted = true;
+            }
+        }
 
         ColumnLayout {
             anchors.fill: parent
@@ -172,6 +180,25 @@ AppWindow {
                 }
                 Button { kind: "primary"; text: Tr.t("Save"); enabled: renameField.text.trim() !== ""; onClicked: win.saveRename() }
                 IconButton { size: Theme.px(24); icon: "window-close"; tip: Tr.t("Cancel"); onClicked: win.editTask = null }
+            }
+
+            // due date of an existing task: Tasks.setDue() had no caller, so a
+            // task could only be given a date at creation time
+            Flow {
+                Layout.fillWidth: true
+                visible: win.dueTask !== null
+                spacing: Theme.px(6)
+                Text { text: Tr.t("Due:"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Repeater {
+                    model: win.dueOptions
+                    Choice {
+                        required property var modelData
+                        text: modelData[0]
+                        selected: win.editDue === modelData[1]
+                        onClicked: { Tasks.setDue(win.dueTask, modelData[1]); win.dueTask = null; }
+                    }
+                }
+                IconButton { size: Theme.px(24); icon: "window-close"; tip: Tr.t("Cancel"); onClicked: win.dueTask = null }
             }
 
             // sort: the bridge orders by due; these are the other useful views
@@ -272,6 +299,12 @@ AppWindow {
                             icon: "document-edit"
                             tip: Tr.t("Rename") + " " + row.modelData.summary
                             onClicked: win.editIt(row.modelData)
+                        }
+                        IconButton {
+                            size: Theme.px(28)
+                            icon: "x-office-calendar"
+                            tip: Tr.t("Change due date") + " " + row.modelData.summary
+                            onClicked: { win.dueTask = row.modelData; win.editDue = row.modelData.due || 0; }
                         }
                         IconButton {
                             size: Theme.px(28)

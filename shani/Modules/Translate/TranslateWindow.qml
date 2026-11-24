@@ -36,14 +36,25 @@ AppWindow {
     property int generation: 0
     property bool restart: false
 
+    // show the model's state when the window opens, not only after a tap on
+    // Check — otherwise the status line is blank until something goes wrong
+    Connections {
+        target: win
+        function onVisibleChanged() { if (win.visible) win.checkEndpoint() }
+    }
+
     function swap() {
         if (source === "auto")
             return;
+        // DeepL / Google carry the answer into the source box when the
+        // languages flip, so the next translate goes back the way it came
+        const translated = (win.error === "" && win.mode !== "batch") ? win.result : "";
         win.cancel();
         const old = source;
         source = target;
         target = old;
         Settings.data.translateTo = target;
+        if (translated !== "") input.text = translated;
         if (input.text.trim() !== "") win.go();
     }
     function checkEndpoint() {

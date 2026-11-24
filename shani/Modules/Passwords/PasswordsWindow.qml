@@ -150,6 +150,20 @@ AppWindow {
         const parts = [a.username || a.user || a.account || "", a.server || a.host || a.site || a.url || a.ssid || a.service || a["xdg:schema"] || ""];
         return parts.filter(x => x).join("  ·  ");
     }
+    // the account name is a plain attribute: KeePassXC and 1Password let you
+    // copy it on its own without uncovering the password beside it
+    function username(i) {
+        const a = i.attributes || {};
+        return a.username || a.user || a.account || "";
+    }
+    function copyUser(i) {
+        const u = win.username(i);
+        if (u === "") return;
+        copier.payload = u;
+        copier.running = true;
+        win.note = Tr.t("%1 username copied - the clipboard forgets it in 45 s", i.label);
+        clearTimer.restart();
+    }
     // only a real web address is worth an "open in browser" action - never file:, javascript:, etc.
     function siteUrl(i) {
         const a = i.attributes || {};
@@ -267,7 +281,26 @@ AppWindow {
         RowLayout {
             visible: win.tab === "passwords"
             Layout.fillWidth: true
-            TextField { id: search; Layout.fillWidth: true; placeholderText: Tr.t("Find a password") }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                TextField { id: search; Layout.fillWidth: true; placeholderText: Tr.t("Find a password"); label: Tr.t("Find a password") }
+                Text {
+                    visible: search.text !== ""
+                    text: win.visibleItems.length + " / " + win.items.length
+                    color: Theme.faint
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.features: { "tnum": 1 }
+                }
+                IconButton {
+                    visible: search.text !== ""
+                    icon: "window-close"
+                    size: Theme.px(24)
+                    tip: Tr.t("Clear search")
+                    onClicked: { search.text = ""; search.input.forceActiveFocus(); }
+                }
+            }
             Button { text: Tr.t("Run security check"); onClicked: win.runAudit(); }
             Button { text: Tr.t("Add…"); onClicked: win.adding = !win.adding }
         }
@@ -350,6 +383,13 @@ AppWindow {
                     }
                     IconButton { icon: win.shownPath === prow.modelData.path ? "view-conceal" : "view-reveal"; size: Theme.px(26); tip: win.shownPath === prow.modelData.path ? Tr.t("Hide %1", prow.modelData.label) : Tr.t("Show %1", prow.modelData.label); onClicked: win.reveal(prow.modelData) }
                     IconButton { icon: "edit-copy"; size: Theme.px(26); tip: Tr.t("Copy the password for %1", prow.modelData.label); onClicked: win.copy(prow.modelData) }
+                    IconButton {
+                        visible: win.username(prow.modelData) !== ""
+                        icon: "contact-new"
+                        size: Theme.px(26)
+                        tip: Tr.t("Copy the username for %1", prow.modelData.label)
+                        onClicked: win.copyUser(prow.modelData)
+                    }
                     IconButton {
                         visible: win.siteUrl(prow.modelData) !== ""
                         icon: "web-browser"

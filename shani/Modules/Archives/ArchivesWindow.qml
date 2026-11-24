@@ -25,6 +25,17 @@ AppWindow {
         : archPass.text.length < 4 ? Tr.t("Password must be at least 4 characters")
         : archPass.text !== archPassConfirm.text ? Tr.t("Passwords do not match") : ""
 
+    // File Roller and Ark keep the contents searchable and let a long job be
+    // stopped: a large archive is useless if you must scroll it by eye, and a
+    // mistaken "Extract" should not have to mean closing the window.
+    property string entryFilter: ""
+    readonly property var visibleEntries: {
+        const q = win.entryFilter.trim().toLowerCase();
+        if (q === "") return Archive.entries;
+        return Archive.entries.filter(e => e.path.toLowerCase().indexOf(q) >= 0);
+    }
+    readonly property bool busy: Archive.reading || Archive.extracting || Archive.creating || Archive.appending
+
     function clearPass() { Archive.newPass = ""; archPassConfirm.text = ""; }
     function clearPrompt() { pw.text = ""; }
 
@@ -201,6 +212,26 @@ AppWindow {
             }
 
             // ---- what is inside ----
+            RowLayout {
+                Layout.fillWidth: true
+                visible: Archive.entries.length > 0
+                spacing: Theme.px(8)
+                TextField {
+                    id: entrySearch
+                    Layout.fillWidth: true
+                    placeholderText: Tr.t("Find a file in the archive")
+                    label: Tr.t("Find a file in the archive")
+                    text: win.entryFilter
+                    onTextChanged: win.entryFilter = text
+                }
+                Text {
+                    text: win.visibleEntries.length + " / " + Archive.entries.length + " " + Tr.t("items")
+                    color: Theme.faint
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.features: { "tnum": 1 }
+                }
+            }
             Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -218,7 +249,7 @@ AppWindow {
                     clip: true
                     spacing: 1
                     boundsBehavior: Flickable.StopAtBounds
-                    model: Archive.entries
+                    model: win.visibleEntries
                     delegate: RowLayout {
                         id: row
                         required property var modelData
@@ -255,10 +286,14 @@ AppWindow {
                 }
                 EmptyState {
                     anchors.centerIn: parent
-                    visible: Archive.entries.length === 0 && !Archive.reading
+                    visible: (Archive.entries.length === 0 || win.visibleEntries.length === 0) && !Archive.reading
                     icon: "package-x-generic"
-                    title: Archive.error !== "" ? Archive.error : !Archive.available ? Tr.t("bsdtar (libarchive) is not installed") : Tr.t("No archive open")
-                    subtitle: Archive.error !== "" || !Archive.available ? "" : Tr.t("Open a zip, tar, 7z or ISO to see what is inside")
+                    title: Archive.error !== "" ? Archive.error
+                        : !Archive.available ? Tr.t("bsdtar (libarchive) is not installed")
+                        : Archive.entries.length === 0 ? Tr.t("No archive open")
+                        : Tr.t("Nothing matches")
+                    subtitle: Archive.error !== "" || !Archive.available || Archive.entries.length === 0
+                        ? "" : Tr.t("Clear the filter to see every item")
                 }
             }
 
@@ -314,6 +349,11 @@ AppWindow {
                     enabled: Archive.entries.length > 0 && !Archive.extracting
                     text: Tr.t("Extract to…")
                     onClicked: win.extractTo()
+                }
+                Button {
+                    visible: win.busy
+                    text: Tr.t("Cancel")
+                    onClicked: Archive.cancel()
                 }
             }
         }

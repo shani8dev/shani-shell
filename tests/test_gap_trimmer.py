@@ -138,4 +138,9 @@ def test_multiple_segments_service_and_panel():
         and 'Tr.t("Out (O)")' in PANEL
         and 'Tr.t("Split (S)")' in PANEL
     )
-    assert "Qt.Key_I" in PANEL and "Qt.Key_O" in PANEL and "Qt.Key_S" in PANEL
+    # I/O/S moved from a Keys handler to window Shortcuts so they survive focus
+    assert (
+        'sequence: "I"' in PANEL
+        and 'sequence: "O"' in PANEL
+        and 'sequence: "S"' in PANEL
+    )

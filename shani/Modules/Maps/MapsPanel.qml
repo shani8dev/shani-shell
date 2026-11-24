@@ -55,6 +55,11 @@ AppWindow {
             ? saved.filter(p => !(Math.abs(p.lat - pinLat) < 1e-6 && Math.abs(p.lon - pinLon) < 1e-6))
             : saved.concat([{ name: placeName || Tr.t("Saved place"), desc: placeDesc, lat: pinLat, lon: pinLon }]);
     }
+    // forget one chip directly: otherwise you must select it, then toggle the
+    // star, which silently changes the place you are looking at
+    function removeSaved(p) {
+        Settings.data.mapsSaved = saved.filter(s => !(s.name === p.name && s.lat === p.lat && s.lon === p.lon));
+    }
     // share a place (GNOME Maps' Share): its OpenStreetMap link copied, and shown as a
     // QR code for a phone's camera
     readonly property string shareUrl: pinLat === 0 && pinLon === 0 ? ""
@@ -452,7 +457,17 @@ AppWindow {
                 spacing: Theme.px(6)
                 Repeater {
                     model: win.saved
-                    Choice { required property var modelData; text: modelData.name; onClicked: win.goSaved(modelData) }
+                    Row {
+                        required property var modelData
+                        spacing: Theme.px(2)
+                        Choice { text: parent.modelData.name; onClicked: win.goSaved(parent.modelData) }
+                        IconButton {
+                            icon: "edit-delete"
+                            size: Theme.px(20)
+                            tip: Tr.t("Forget %1", parent.modelData.name)
+                            onClicked: win.removeSaved(parent.modelData)
+                        }
+                    }
                 }
             }
             Text {
@@ -502,6 +517,10 @@ AppWindow {
                 radius: Theme.radiusSmall
                 color: Theme.hover
                 clip: true
+                // a named pane: the surface the pan/zoom controls act on is
+                // identifiable in the accessibility tree, not just a coloured box
+                Accessible.role: Accessible.Pane
+                Accessible.name: win.placeName !== "" ? win.placeName : (Weather.zoneCity || Tr.t("Where you are"))
                 readonly property int cols: Math.ceil(width / win.tile) + 2
                 readonly property int rows: Math.ceil(height / win.tile) + 2
                 // the tile at the view's top left, and where it sits
@@ -593,6 +612,9 @@ AppWindow {
                 Rectangle {
                     id: hereDot
                     readonly property var at: win.toScreen(Location.lat, Location.lon)
+                    // distinct from the search pin in the accessibility tree too
+                    Accessible.role: Accessible.Graphic
+                    Accessible.name: Tr.t("Where you are")
                     // metres per screen pixel at this latitude/zoom (256 px tiles)
                     readonly property real mPerPx: 156543.03392 * Math.cos(win.mapLat * Math.PI / 180) / Math.pow(2, win.z)
                     readonly property real ringR: Math.max(Theme.px(10), Math.min(Theme.px(80), Location.accuracy / mPerPx))
@@ -691,11 +713,16 @@ AppWindow {
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    visible: !Location.available || win.routeError !== ""
+                    // keep the start editable after a route succeeds: closing
+                    // and reopening directions just to change it is needless
+                    visible: win.routeAsked
                     TextField {
                         id: fromField
                         Layout.fillWidth: true
                         placeholder: Tr.t("Start from (a place or an address)")
+                        text: win.routeFrom
+                        // emptying the field goes back to "my location"
+                        onTextChanged: if (text === "" && (win.fromLat !== 0 || win.fromLon !== 0)) { win.fromLat = 0; win.fromLon = 0; win.routeFrom = ""; }
                         onAccepted: win.directionsFrom(text)
                     }
                     Button { text: Tr.t("Go"); onClicked: win.directionsFrom(fromField.text) }

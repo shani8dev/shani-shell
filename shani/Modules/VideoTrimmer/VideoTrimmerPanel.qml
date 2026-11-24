@@ -21,16 +21,18 @@ AppWindow {
 
     property string manualPath: ""
     readonly property real span: VideoTrimmer.inputDuration > 0 ? VideoTrimmer.inputDuration : 60
+    readonly property bool shortcutsOn: !pathField.activeFocus && !startField.activeFocus && !endField.activeFocus
 
     Item {
         anchors.fill: parent
         focus: win.visible
         Keys.onEscapePressed: Ui.videoTrimmer = false
+        // I/O/S are window Shortcuts below: a Keys handler here stopped working
+        // the moment a text field or button took focus, exactly when an editor
+        // is being used. Arrow stepping stays here so arrows still navigate
+        // the controls (the sliders' KeyFocus handles them while focused).
         Keys.onPressed: e => {
-            if (e.key === Qt.Key_I) { VideoTrimmer.markIn(); e.accepted = true; }
-            else if (e.key === Qt.Key_O) { VideoTrimmer.markOut(); e.accepted = true; }
-            else if (e.key === Qt.Key_S) { VideoTrimmer.splitAtPlayhead(); e.accepted = true; }
-            else if (e.key === Qt.Key_Left) { VideoTrimmer.nudgePlayhead(-VideoTrimmer.frameStep); e.accepted = true; }
+            if (e.key === Qt.Key_Left) { VideoTrimmer.nudgePlayhead(-VideoTrimmer.frameStep); e.accepted = true; }
             else if (e.key === Qt.Key_Right) { VideoTrimmer.nudgePlayhead(VideoTrimmer.frameStep); e.accepted = true; }
         }
     }
@@ -209,6 +211,25 @@ AppWindow {
                 }
             }
 
+            // Kdenlive's I/O/S keep working with any control focused. A window
+            // Shortcut does that; disabled in the three fields so typing a
+            // path or a number never marks an in/out point or splits a clip.
+            Shortcut {
+                sequence: "I"
+                enabled: win.shortcutsOn
+                onActivated: VideoTrimmer.markIn()
+            }
+            Shortcut {
+                sequence: "O"
+                enabled: win.shortcutsOn
+                onActivated: VideoTrimmer.markOut()
+            }
+            Shortcut {
+                sequence: "S"
+                enabled: win.shortcutsOn
+                onActivated: VideoTrimmer.splitAtPlayhead()
+            }
+
             // ---- playhead: frame stepping and I / O / S shortcuts ------------
             SectionTitle { Layout.fillWidth: true; text: Tr.t("Playhead") + "  ·  " + VideoTrimmer.fmt(VideoTrimmer.playhead) }
             RowLayout {
@@ -336,7 +357,7 @@ AppWindow {
             Text {
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
-                text: Tr.t("Esc closes · -1s / +1s step the offsets")
+                text: Tr.t("Esc closes · I in · O out · S split · ←/→ frame step")
                 color: Theme.faint
                 font.family: Theme.font
                 font.pixelSize: Theme.px(10) * Theme.fontScale

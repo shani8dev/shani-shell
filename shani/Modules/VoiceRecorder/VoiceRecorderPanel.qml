@@ -25,6 +25,27 @@ AppWindow {
 
     property string renaming: ""        // path being renamed, "" when none
     property string inlinePlay: ""      // take playing in the panel itself
+    property string confirmingDelete: "" // take waiting for a second click before trash
+    property string search: ""          // recordings list filter
+    property int sortMode: 0            // 0 newest, 1 oldest, 2 name
+
+    // Voice Memos and Sound Recorder never trash a take on one accidental
+    // click, and both let a long list be searched and re-sorted. The service
+    // keeps the raw newest-first list; the filter/sort is view-only.
+    function trashTake(path) {
+        if (!path) return;
+        if (win.inlinePlay === path) { playback.stop(); win.inlinePlay = ""; }
+        if (win.renaming === path) win.renaming = "";
+        if (win.confirmingDelete === path) win.confirmingDelete = "";
+        VoiceRecorder.trash(path);
+    }
+    function visibleRows() {
+        const needle = win.search.trim().toLowerCase();
+        const rows = VoiceRecorder.recordings.filter(r => !needle || String(r.name || "").toLowerCase().indexOf(needle) >= 0);
+        if (win.sortMode === 1) return rows.slice().reverse();
+        if (win.sortMode === 2) return rows.slice().sort((a, b) => String(a.name).localeCompare(String(b.name)));
+        return rows;
+    }
 
     // in-app playback, instead of always handing the file to another app
     MediaPlayer {
@@ -191,6 +212,21 @@ AppWindow {
                     font.family: Theme.mono
                     font.pixelSize: Theme.px(10) * Theme.fontScale
                 }
+                Button {
+                    text: win.sortMode === 0 ? Tr.t("Sort: Newest") : win.sortMode === 1 ? Tr.t("Sort: Oldest") : Tr.t("Sort: Name")
+                    flat: true
+                    onClicked: win.sortMode = (win.sortMode + 1) % 3
+                }
+            }
+
+            TextField {
+                Layout.fillWidth: true
+                id: searchField
+                text: win.search
+                placeholder: Tr.t("Search recordings")
+                label: Tr.t("Search recordings")
+                onTextChanged: win.search = text
+                Keys.onEscapePressed: { if (text !== "") { event.accepted = true; text = ""; } }
             }
 
             EmptyState {
@@ -200,17 +236,24 @@ AppWindow {
                 title: Tr.t("No recordings yet")
                 subtitle: Tr.t("Recordings are saved to ~/Music/Voice Recorder")
             }
+            EmptyState {
+                Layout.fillWidth: true
+                visible: win.search !== "" && VoiceRecorder.recordings.length > 0 && win.visibleRows().length === 0
+                icon: "edit-find"
+                title: Tr.t("No matching recordings")
+                subtitle: Tr.t("Try a different search")
+            }
 
             ListView {
                 reuseItems: true
                 cacheBuffer: 400
                 id: list
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(240, Math.max(44, VoiceRecorder.recordings.length * 48))
-                visible: VoiceRecorder.recordings.length > 0
+                Layout.preferredHeight: Math.min(240, Math.max(44, win.visibleRows().length * 48))
+                visible: win.visibleRows().length > 0
                 clip: true
                 spacing: Theme.px(4)
-                model: VoiceRecorder.recordings
+                model: win.visibleRows()
                 boundsBehavior: Flickable.StopAtBounds
 
                 delegate: Rectangle {
@@ -296,10 +339,10 @@ AppWindow {
                         IconButton {
                             icon: "edit-delete"
                             size: Theme.px(30)
-                            tip: Tr.t("Move to trash")
+                            tip: win.confirmingDelete === row.modelData.path ? Tr.t("Tap again to trash") : Tr.t("Move to trash")
                             onClicked: {
-                                if (win.inlinePlay === row.modelData.path) { playback.stop(); win.inlinePlay = ""; }
-                                VoiceRecorder.trash(row.modelData.path);
+                                if (win.confirmingDelete === row.modelData.path) win.trashTake(row.modelData.path);
+                                else win.confirmingDelete = row.modelData.path;
                             }
                         }
                     }
@@ -310,6 +353,22 @@ AppWindow {
                         onClicked: VoiceRecorder.play(row.modelData.path)
                     }
                 }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                visible: win.confirmingDelete !== ""
+                spacing: Theme.px(8)
+                Text {
+                    Layout.fillWidth: true
+                    text: Tr.t("Move %1 to trash?").arg(win.confirmingDelete.split("/").pop())
+                    color: Theme.text
+                    elide: Text.ElideMiddle
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+                Button { text: Tr.t("Cancel"); flat: true; onClicked: win.confirmingDelete = "" }
+                Button { text: Tr.t("Trash"); kind: "danger"; onClicked: win.trashTake(win.confirmingDelete) }
             }
 
             // Monologue-style take trim: two sliders on the take, then a
@@ -341,6 +400,34 @@ AppWindow {
                     onIconClicked: () => VoiceRecorder.setTrimEnd(VoiceRecorder.trimEnd + 1)
                     value: VoiceRecorder.trimDuration > 0 ? (VoiceRecorder.trimEnd > 0 ? VoiceRecorder.trimEnd : VoiceRecorder.trimDuration) / VoiceRecorder.trimDuration : 0
                     onMoved: v => VoiceRecorder.setTrimEnd(v * (VoiceRecorder.trimDuration > 0 ? VoiceRecorder.trimDuration : 60))
+                }
+                // exact in/out entry plus a tenth-of-a-second step: a slider is
+                // fine for a rough cut, not for the first seconds of a voice note
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(8)
+                    Text { text: Tr.t("In"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                    TextField {
+                        Layout.fillWidth: true
+                        text: VoiceRecorder.trimStart.toFixed(1)
+                        label: Tr.t("Trim start (seconds)")
+                        onAccepted: VoiceRecorder.setTrimStart(parseFloat(text))
+                    }
+                    Button { text: "-0.1s"; onClicked: VoiceRecorder.setTrimStart(VoiceRecorder.trimStart - 0.1) }
+                    Button { text: "+0.1s"; onClicked: VoiceRecorder.setTrimStart(VoiceRecorder.trimStart + 0.1) }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(8)
+                    Text { text: Tr.t("Out"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                    TextField {
+                        Layout.fillWidth: true
+                        text: (VoiceRecorder.trimEnd > 0 ? VoiceRecorder.trimEnd : VoiceRecorder.trimDuration).toFixed(1)
+                        label: Tr.t("Trim end (seconds)")
+                        onAccepted: VoiceRecorder.setTrimEnd(parseFloat(text))
+                    }
+                    Button { text: "-0.1s"; onClicked: VoiceRecorder.setTrimEnd(VoiceRecorder.trimEnd - 0.1) }
+                    Button { text: "+0.1s"; onClicked: VoiceRecorder.setTrimEnd(VoiceRecorder.trimEnd + 0.1) }
                 }
                 Text {
                     Layout.fillWidth: true
@@ -401,6 +488,19 @@ AppWindow {
                     onClicked: win.playInline(win.inlinePlay)
                 }
                 Text { Layout.fillWidth: true; text: win.inlinePlay.split("/").pop(); color: Theme.text; elide: Text.ElideMiddle; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                SliderRow {
+                    Layout.fillWidth: true
+                    label: Tr.t("Seek in recording")
+                    icon: "go-next"
+                    value: playback.duration > 0 ? playback.position / playback.duration : 0
+                    onMoved: v => { if (playback.duration > 0) playback.setPosition(v * playback.duration); }
+                }
+                Text {
+                    text: VideoTrimmer.fmt(playback.position / 1000) + " / " + VideoTrimmer.fmt(playback.duration / 1000)
+                    color: Theme.dim
+                    font.family: Theme.mono
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                }
                 Button { text: Tr.t("Stop"); flat: true; onClicked: { playback.stop(); win.inlinePlay = ""; } }
             }
             Text { Layout.fillWidth: true; visible: VoiceRecorder.exported !== ""; text: Tr.t("Exported") + " " + VoiceRecorder.exported; color: Theme.text; elide: Text.ElideMiddle; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale }
