@@ -7,6 +7,7 @@
 // with their children indented beneath, so you can see what spawned what
 // and end a whole family at once.
 import Quickshell
+import Quickshell.Io
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -44,10 +45,51 @@ AppWindow {
     // only siblings at the same indent are compared.
     property string sortKey: "cpu"
     property bool sortDesc: true
+    property bool sortApplied: false
+    readonly property var sortKeys: ["name", "pid", "cpu", "mem", "disk"]
+    function loadSort() {
+        if (win.sortApplied) return;
+        win.sortApplied = true;
+        const k = sortPrefs.key;
+        if (win.sortKeys.indexOf(k) >= 0) {
+            win.sortKey = k;
+            win.sortDesc = sortPrefs.desc !== false;
+            win.treeList = win.buildTree();
+        }
+    }
+    function saveSort() {
+        // a late file load must not undo a click made while it was still reading
+        win.sortApplied = true;
+        sortPrefs.key = win.sortKey;
+        sortPrefs.desc = win.sortDesc;
+        Quickshell.execDetached(["mkdir", "-p", win.prefsDir]);
+        sortPrefsFile.writeAdapter();
+    }
     function setSort(key) {
         if (win.sortKey === key) win.sortDesc = !win.sortDesc;
         else { win.sortKey = key; win.sortDesc = key !== "pid" && key !== "name"; }
         win.treeList = win.buildTree();
+        win.saveSort();
+    }
+    // Settings.data's JsonAdapter only accepts keys declared in
+    // Common/Settings.qml, which this window does not own: the choice lives in
+    // a sibling file in the same config dir, as Services/Osk.qml does.
+    readonly property string prefsDir: {
+        const p = Settings.path;
+        return p.substring(0, p.lastIndexOf("/"));
+    }
+    FileView {
+        id: sortPrefsFile
+        path: win.prefsDir + "/processes-sort.json"
+        atomicWrites: true
+        printErrors: false
+        onLoaded: Qt.callLater(function() { win.loadSort(); })  // let the adapter settle first
+        onLoadFailed: win.sortApplied = true   // no file yet: keep the defaults
+        JsonAdapter {
+            id: sortPrefs
+            property string key: "cpu"
+            property bool desc: true
+        }
     }
     function metric(p, key) {
         if (key === "pid") return p.pid;
@@ -134,6 +176,23 @@ AppWindow {
     // the same >0.9 amber threshold the bar's chips and the desktop widget use
     function capacityTint(used, total) {
         return total > 0 && used / total > 0.9 ? Theme.amber : Theme.accent;
+    }
+    // System pressure meters: 0 normal, 1 busy, 2 saturated. Load is per core,
+    // swap is a share of its total, PSI is the kernel's stall percentage.
+    function loadLevel(load, cores) {
+        const r = cores > 0 ? load / cores : load;
+        return r >= 1 ? 2 : r >= 0.7 ? 1 : 0;
+    }
+    function swapLevel(used, total) {
+        if (!(total > 0)) return 0;
+        const r = used / total;
+        return r >= 0.9 ? 2 : r >= 0.7 ? 1 : 0;
+    }
+    function psiLevel(value) {
+        return value >= 40 ? 2 : value >= 20 ? 1 : 0;
+    }
+    function pressureColor(level) {
+        return level >= 2 ? Theme.red : level >= 1 ? Theme.amber : Theme.accent;
     }
 
     // ---- System overview ---------------------------------------------------
@@ -301,33 +360,6 @@ AppWindow {
                         font.pixelSize: Theme.px(10) * Theme.fontScale
                         wrapMode: Text.Wrap
                     }
-                    // load, swap and the kernel's PSI stall meters
-                    Text {
-                        width: parent.width
-                        text: Tr.t("Load %1 / %2 / %3 · swap %4 / %5 MB").arg(SysStats.load1.toFixed(2)).arg(SysStats.load5.toFixed(2)).arg(SysStats.load15.toFixed(2)).arg(Math.round(SysStats.swapUsedMb)).arg(Math.round(SysStats.swapTotalMb))
-                        color: Theme.dim
-                        font.family: Theme.font
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
-                        wrapMode: Text.Wrap
-                    }
-                    Row {
-                        spacing: Theme.px(8)
-                        Repeater {
-                            model: [
-                                { label: Tr.t("CPU"), value: SysStats.psiCpu },
-                                { label: Tr.t("Memory"), value: SysStats.psiMem },
-                                { label: Tr.t("I/O"), value: SysStats.psiIo }
-                            ]
-                            Row {
-                                spacing: Theme.px(4)
-                                Text { text: modelData.label + " PSI " + modelData.value.toFixed(1) + "%"; color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(9) * Theme.fontScale; anchors.verticalCenter: parent.verticalCenter }
-                                Rectangle {
-                                    width: Theme.px(48); height: Theme.px(6); radius: Theme.px(3); color: Theme.pressed; anchors.verticalCenter: parent.verticalCenter
-                                    Rectangle { width: parent.width * Math.min(1, Math.max(0, modelData.value / 100)); height: parent.height; radius: parent.radius; color: Theme.amber }
-                                }
-                            }
-                        }
-                    }
                     // root / home capacity from df, once a minute; home is
                     // omitted when it shares root's filesystem (same numbers)
                     Repeater {
@@ -411,6 +443,115 @@ AppWindow {
                         font.family: Theme.font
                         font.pixelSize: Theme.px(9) * Theme.fontScale
                         wrapMode: Text.Wrap
+                    }
+                }
+            }
+            // ---- System pressure -------------------------------------------------
+            // One compact row of the values SysStats already samples: load per
+            // core, swap against its total, the kernel's three PSI stalls. No
+            // second poller and no opaque card — thin bars on the surface.
+            SectionTitle {
+                Layout.fillWidth: true
+                Layout.margins: Theme.px(4)
+                text: Tr.t("System pressure")
+                Accessible.name: Tr.t("System pressure meters")
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.margins: Theme.px(4)
+                spacing: Theme.px(8)
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(2)
+                    Text {
+                        text: Tr.t("Load 1/5/15") + "  " + SysStats.load1.toFixed(2) + " / " + SysStats.load5.toFixed(2) + " / " + SysStats.load15.toFixed(2)
+                        color: win.pressureColor(win.loadLevel(SysStats.load1, SysStats.perCore.length))
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(9) * Theme.fontScale
+                        font.features: { "tnum": 1 }
+                        elide: Text.ElideRight
+                        Layout.fillWidth: true
+                        Accessible.name: text
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Theme.px(5)
+                        radius: Theme.px(3)
+                        color: Theme.pressed
+                        Rectangle {
+                            width: parent.width * Math.min(1, Math.max(0, SysStats.load1 / Math.max(1, SysStats.perCore.length)))
+                            height: parent.height
+                            radius: parent.radius
+                            color: win.pressureColor(win.loadLevel(SysStats.load1, SysStats.perCore.length))
+                        }
+                        Accessible.name: Tr.t("Load average") + " " + SysStats.load1.toFixed(2)
+                    }
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(2)
+                    Text {
+                        text: Tr.t("Swap") + "  " + Math.round(SysStats.swapUsedMb) + " / " + Math.round(SysStats.swapTotalMb) + " MB"
+                        color: win.pressureColor(win.swapLevel(SysStats.swapUsedMb, SysStats.swapTotalMb))
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(9) * Theme.fontScale
+                        font.features: { "tnum": 1 }
+                        elide: Text.ElideRight
+                        Layout.fillWidth: true
+                        Accessible.name: text
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Theme.px(5)
+                        radius: Theme.px(3)
+                        color: Theme.pressed
+                        Rectangle {
+                            width: parent.width * Math.min(1, Math.max(0, SysStats.swapTotalMb > 0 ? SysStats.swapUsedMb / SysStats.swapTotalMb : 0))
+                            height: parent.height
+                            radius: parent.radius
+                            color: win.pressureColor(win.swapLevel(SysStats.swapUsedMb, SysStats.swapTotalMb))
+                        }
+                        Accessible.name: Tr.t("Swap") + " " + Math.round(SysStats.swapUsedMb) + " / " + Math.round(SysStats.swapTotalMb) + " MB"
+                    }
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(2)
+                    Text {
+                        text: Tr.t("PSI stalls") + "  " + SysStats.psiCpu.toFixed(1) + " / " + SysStats.psiMem.toFixed(1) + " / " + SysStats.psiIo.toFixed(1) + " %"
+                        color: Theme.text
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(9) * Theme.fontScale
+                        font.features: { "tnum": 1 }
+                        elide: Text.ElideRight
+                        Layout.fillWidth: true
+                        Accessible.name: text
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.px(3)
+                        Repeater {
+                            model: [
+                                { label: Tr.t("CPU"), value: SysStats.psiCpu },
+                                { label: Tr.t("Memory"), value: SysStats.psiMem },
+                                { label: Tr.t("I/O"), value: SysStats.psiIo }
+                            ]
+                            Rectangle {
+                                id: psiMeter
+                                required property var modelData
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: Theme.px(5)
+                                radius: Theme.px(3)
+                                color: Theme.pressed
+                                Rectangle {
+                                    width: psiMeter.width * Math.min(1, Math.max(0, psiMeter.modelData.value / 100))
+                                    height: psiMeter.height
+                                    radius: psiMeter.radius
+                                    color: win.pressureColor(win.psiLevel(psiMeter.modelData.value))
+                                }
+                                Accessible.name: Tr.t("%1 PSI %2%", psiMeter.modelData.label, psiMeter.modelData.value.toFixed(1))
+                            }
+                        }
                     }
                 }
             }
