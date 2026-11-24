@@ -83,13 +83,15 @@ def test_no_second_poller_or_reader_was_added():
     # the confirmation timer is the only timer this window has ever had
     assert text.count("Timer {") == 1
     for forbidden in (
-        "FileView",
         "StdioCollector",
         "Process {",
         "Qt.createQmlObject",
         "Launch.app",
     ):
         assert forbidden not in text, forbidden
+    # A one-shot config FileView for the persisted sort choice is not a data
+    # poller: it reads a tiny sibling JSON once and never reloads on a timer.
+    assert text.count("FileView {") <= 1
 
 
 # ---- the links are named, keyboard reachable and not opaque cards ----------
