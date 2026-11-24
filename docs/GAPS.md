@@ -435,7 +435,13 @@ our code and the upstream source/docs.
 
 ### Files → Nautilus
 
-- **[open]** Search filter popover — file type, date preset, size, content vs filename (`files.py --filter=` exists; needs `--after=` / `--min-size=`).
+- **[built — CuboCore pass]** Search category chips (all / folders / images /
+  media / documents / text) feed the backend filters and a folders-only
+  predicate; search history is deduped, capped at 8 and persisted, shown as
+  suggestions with a clear action (`test_files_power_tools.py`).
+  **[open]** The finer filter popover — file type, date preset, size, content
+  vs filename — is still missing (`files.py --filter=` exists; needs
+  `--after=` / `--min-size=`).
 - **[built — mass pass]** Breadcrumb dropdowns listing sibling folders (crumbs are click-only).
 - **[built — mass pass]** Visible-columns chooser and clickable list headers (fixed Name / Size / Date).
 - **[built — mass pass]** "Select Items Matching…" wildcard select.
@@ -461,7 +467,12 @@ our code and the upstream source/docs.
 - **[built — mass pass]** Clickable PDF links — internal GoTo, external URI and email (clicking turns the page).
 - **[built — mass pass]** Embedded attachments sidebar — list / open / save.
 - **[open]** Navigation history and First / Last page.
-- **[open]** Two-page / facing-pages layout.
+- **[built — CuboCore pass]** Two-page / facing-pages layout: an odd current
+  page is paired with the next, an even page stays in its spread, spread
+  navigation moves on spread boundaries, and a missing page image falls back
+  to one full-width page. The preference is local to the shell, not a
+  settings key (`test_pdf_facing_viewer.py`). The rendered-page limit above
+  still applies.
 - **[open]** Annotations list sidebar (we can draw but not review them).
 - **[built — mass pass]** Search options — case-sensitive / whole word / wrap (always lowercased).
 - **[open]** Print page range, copies and preview.
@@ -812,8 +823,10 @@ pass; the rest are **[open]**.
    `Bar.qml:215-234` is click-only; `Niri.moveWindowTo` exists (`shell.qml:924`).
 6. **[open]** Drag an app from launcher to dock to pin — `Dock.qml:436-455`
    has a drop pattern; `Launcher.qml` has none.
-7. **[open]** OSK predictive word suggestions — `Keyboard.qml` has layouts,
-   handwriting and voice typing but no candidates.
+7. **[built — CuboCore pass]** OSK word suggestions — a bounded dictionary,
+   prefix match, per-word dismissal, plus compact / fixed size and opacity
+   modes (`test_osk_modes.py`). Still open in the input section below: emoji
+   page, paste key, key repeat, one-handed mode and swipe typing.
 8. **[open]** Dock on left/right/top — `Dock.qml:24` hardcodes `anchors.bottom`
    and the parabolic zoom assumes a horizontal row.
 9. **[fixed]** Move to any named workspace in the window menu.
@@ -1887,3 +1900,96 @@ change the browser. The edges are broken:
 
 All seventh-pass verdicts are static — no runtime, hardware, real browser/Flatpak,
 braille/Orca, installed image or live format samples were available.
+
+## CuboCore-inspired pass (Nov 2026) — built, with tests
+
+Waves 1–3 borrowed ideas from the CuboCore / C-Suite desktop suite. Everything
+below is in the tree and has an assert-based test; the named test files were run
+together on 2026-11-24 (148 passed). They pin source wiring and bridge logic
+(some with real temporary files) — not a QML runtime, hardware or installed-image
+run. An item being built here is not a claim that its whole upstream equivalent
+is covered; every **[open]** item above stays open.
+
+- **Wave 1** (`7351c3d`, `tests/test_cubocore_inspired_ux.py`): Files shortcuts
+  (F4 terminal here, Shift+Ctrl+F2 batch rename, view/sort cycle, Ctrl+Return
+  open-with, back/up), Text Editor insert date and time, alarm weekday repeat
+  and snooze, and severity tints matching the bar chip.
+- **PDF facing pages and Viewer** (`4dd5ccb`, `tests/test_pdf_facing_viewer.py`):
+  an odd current page pairs with the next, an even page stays in its spread,
+  navigation moves on spread boundaries, a missing page image falls back to one
+  full-width page, and search highlights map to the right half. Save As names a
+  copy and save-page-image survives the spread; the Viewer has an explicit
+  full-screen entry and exit. Pages are still rendered PNGs, not reflowed text.
+  Per-document bookmarks, an annotations list, navigation history/first-last and
+  a print-page range were not part of this; the app catalogue above still marks
+  them open (an inconsistency with the older mass-pass list, which predates this
+  pass).
+- **Terminal close guard** (`147fc38`, `tests/test_terminal_shot_annot.py`): a
+  window that launched a session needs a second Esc to close; a passive window
+  still closes on the first, and the confirmation disarms on timeout and on hide.
+- **System overview strip** (`1c9857a`, `tests/test_monitor_overview.py`): a strip
+  above the sparklines using only the existing SysStats — no second poller or
+  reader — with theme tokens, accessible names and quick links that each map to
+  exactly one existing surface. It adds no new sensor source.
+- **Gesture hints** (`c6b0049`, `tests/test_gesture_hints.py`): a one-time hint
+  strip under search, dismissed once and remembered, with accessible and
+  keyboard-reachable dismissal, badges read from the key delegate, text-scaled
+  tokens and compact translated tips; the taught bindings are checked against
+  the source. It teaches a few bindings, not a full shortcut sheet.
+- **Text Editor font picker** (`8d4ddf6`, `tests/test_editor_font_status.py`):
+  a font-family picker over installed system fonts whose choice persists without
+  a settings QML key; line/column status is visible. Font size and weight are
+  not part of this.
+- **Files capacity and search** (`24d5756`, `tests/test_files_places_props.py`;
+  `f34d899`, `tests/test_files_power_tools.py`): Properties shows free-of-total
+  for a local folder from `files.py free` (an argv-only `statvfs` probe, not
+  faked); pseudo-places and remote URIs are refused. Search category chips feed
+  backend filters, and history is deduped, capped at 8, persisted and shown as
+  suggestions with a clear action. The finer filter popover above is still open.
+- **Folder-tree export and batch rename** (`f34d899`,
+  `tests/test_files_power_tools.py`): the tree command renders an ASCII tree with
+  counts, dedupes symlink loops, caps depth and entries, and writes through a save
+  picker as a process, not a shell. Batch rename gains case and regex transforms
+  in preview and commit, resets the transforms between dialog uses, and its path
+  validation message was translated in `d780021`.
+- **Archives multi-select** (`ea0ba73`, `tests/test_archives_multiselect.py`):
+  checkbox and Ctrl/Shift-click selection, batch extract as a queue with a
+  per-entry report (a failure is recorded and the rest still run), a modified
+  badge with reload, free-space preflight over the selection, and an unlock path
+  that resumes the batch. Deleting a member is still refused without a safe
+  backend.
+- **Battery time warnings** (`e0942ba`, `tests/test_battery_time_warnings.py`):
+  one-shot five-minute and one-minute time-to-empty notices driven by UPower's
+  estimate, no new timer, with urgency, re-arming on charge/no-battery/new run,
+  jitter suppression and an honest unknown state. No warning is issued on an
+  unknown estimate. Needs a real battery — the container has none.
+- **Disk I/O** (`48821dc`, `tests/test_disk_io_stats.py`): whole-disk read/write
+  rates from `/proc/diskstats` (sector bytes over a measured delta), partitions
+  and virtual devices excluded, a gated capacity read for root/home, rates reset
+  when nobody wants stats, and Processes plus the desktop widget tint their
+  meters. No new poller was added.
+- **Sessions** (`af6a982`, `tests/test_sessions_service.py`): named sets of apps
+  and documents captured from the shell (not process command lines), restored by
+  launching apps and opening paths, persisted in QuickShell state, with a
+  Settings page that confirms removal, short validated names and capped
+  entry/session counts. Not portable between users.
+- **OSK modes** (`b6ec0a4`, `tests/test_osk_modes.py`): compact / fixed size and
+  opacity plus opt-in word suggestions (bounded dictionary, prefix match,
+  shortest-first, capped, per-word dismissal, a strip above the keys). Emoji
+  page, one-handed mode, swipe typing, paste key and key repeat remain open in
+  the input section above.
+- **File facts / rich metadata** (`a434cb2`, `tests/test_filemeta_bridge.py`):
+  Quick Look details, media properties reusing the existing probe, `pdfinfo`
+  pages and title, optional `exiftool` (absent is fine), argv-only paths, JSON
+  instead of a traceback for a bad path, and a save-page image from the rendered
+  PNG through a file picker.
+
+Two QA commits are part of this pass: `1afa43e` added
+`tests/test_deep_pass_qa.py` regression coverage for the first-wave features and
+`1e61f1c` fixed five bugs that sweep found. No new packaging dependency came out
+of these bridges: `filemeta.py` guards `ffprobe`/`pdfinfo`/`exiftool` behind
+`shutil.which`, the capacity and tree code in `files.py` uses the standard
+library, and vnStat belongs to `shani-tools-network` rather than a wave-3 bridge.
+The PKGBUILD and program map were therefore left unchanged; this was checked
+with `tests/test_declared_deps.py` at committed HEAD. Not covered here: the
+`3ede7e6` large-feature/Picasa work or any **[open]** item above.
