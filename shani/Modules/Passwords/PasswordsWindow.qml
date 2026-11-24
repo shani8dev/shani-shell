@@ -40,6 +40,207 @@ AppWindow {
     property string removingPasskey: ""
     property string error: ""
     property string note: ""
+    // ---- vault details: folders, favourites, recent picks and secure notes ----
+    // One keyring item under a fixed id holds this small JSON map. The bridge's
+    // put/lookup carry it over stdin, so no note lands in a cleartext file and
+    // nothing is ever handed to a command line.
+    property var meta: ({})
+    property bool metaDirty: false        // don't let an older lookup undo our own write
+    property string folderFilter: ""          // "" all | "favourites" | "recent" | a folder
+    property string draftPassword: ""         // the add form, mirrored for the live strength meter
+    property string shownNotePath: ""
+    property string uiLockedReason: ""         // "screen" | "idle" | "" - local, not a fake keyring lock
+    property int clipboardLeft: 0
+    property var collections: []
+    readonly property bool uiLocked: win.uiLockedReason !== ""
+    readonly property bool keyringLocked: !!win.collections.find(c => c.path === win.defaultCollection && c.locked)
+    function metaKey(i) {
+        if (!i) return "";
+        return i.path || ((i.label || "") + "|" + ((i.attributes || {}).site || ""));
+    }
+    function metaFor(i) { return win.meta[win.metaKey(i)] || {}; }
+    function categoryOf(i) {
+        const a = i.attributes || {};
+        return win.metaFor(i).category || a.category || a.folder || Tr.t("Other");
+    }
+    function isFav(i) { return !!win.metaFor(i).favorite; }
+    function noteOf(i) { return win.metaFor(i).note || ""; }
+    function isRecent(i) {
+        const m = win.metaFor(i);
+        return !!m.opened && (win.meta.recent || []).indexOf(win.metaKey(i)) >= 0;
+    }
+    readonly property var folders: {
+        const out = [];
+        win.items.forEach(i => {
+            const c = win.categoryOf(i);
+            if (c !== Tr.t("Other") && out.indexOf(c) < 0) out.push(c);
+        });
+        Object.keys(win.meta).forEach(k => {
+            const c = win.meta[k].category;
+            if (c && out.indexOf(c) < 0) out.push(c);
+        });
+        return out.sort((a, b) => String(a).localeCompare(String(b)));
+    }
+    readonly property var shownItems: {
+        let out = win.visibleItems;
+        if (win.folderFilter === "favourites") out = out.filter(i => win.isFav(i));
+        else if (win.folderFilter === "recent") out = out.filter(i => win.isRecent(i));
+        else if (win.folderFilter !== "") out = out.filter(i => win.categoryOf(i) === win.folderFilter);
+        if (win.folderFilter === "recent")
+            out = out.slice().sort((a, b) => (win.metaFor(b).opened || b.modified || 0) - (win.metaFor(a).opened || a.modified || 0));
+        return out;
+    }
+    function remember(i) {
+        const key = win.metaKey(i);
+        if (!key) return;
+        const next = JSON.parse(JSON.stringify(win.meta));
+        const e = next[key] || (next[key] = {});
+        e.opened = Date.now();
+        next.recent = [key].concat((next.recent || []).filter(k => k !== key)).slice(0, 8);
+        win.saveMeta(next);
+    }
+    function saveMeta(next) {
+        win.meta = next;
+        win.metaDirty = true;
+        const blob = JSON.stringify({ secret: JSON.stringify(next) });
+        metaWriter.command = ["python3", win.tool, "put", "shani-vault-meta"];
+        if (metaWriter.running) metaWriter.nextPayload = blob;   // keep the last edit
+        else { metaWriter.payload = blob; metaWriter.stdinEnabled = true; metaWriter.running = true; }
+    }
+    function setMetaField(i, field, value) {
+        const key = win.metaKey(i);
+        if (!key) return;
+        const next = JSON.parse(JSON.stringify(win.meta));
+        const e = next[key] || (next[key] = {});
+        if (value === "") delete e[field]; else e[field] = value;
+        win.saveMeta(next);
+        win.note = Tr.t("Vault details saved");
+    }
+    function toggleFavorite(i) { win.setMetaField(i, "favorite", !win.isFav(i)); }
+    function toggleNote(i) { win.shownNotePath = win.shownNotePath === i.path ? "" : i.path; win.remember(i); }
+    // A local nudge, not a promise: length, character classes and the common
+    // weak picks. No password is sent anywhere to be scored.
+    function strength(p) {
+        const pw = p || "";
+        if (!pw) return { score: 0, label: Tr.t("Empty"), tip: Tr.t("Use at least 12 characters") };
+        let kinds = 0;
+        if (/[a-z]/.test(pw)) kinds++;
+        if (/[A-Z]/.test(pw)) kinds++;
+        if (/\d/.test(pw)) kinds++;
+        if (/[^A-Za-z0-9]/.test(pw)) kinds++;
+        let score = (pw.length >= 12 ? 2 : pw.length >= 8 ? 1 : 0) + (kinds >= 3 ? 1 : 0);
+        if (pw.length >= 16 && kinds >= 3) score++;
+        if (/^(password|123456|qwerty|letmein|admin|welcome)$/i.test(pw) || /^(\d)\1+$/.test(pw)) score = 0;
+        score = Math.min(4, score);
+        const labels = [Tr.t("Very weak"), Tr.t("Weak"), Tr.t("Fair"), Tr.t("Strong"), Tr.t("Very strong")];
+        return { score: score, label: labels[score], tip: score <= 1 ? Tr.t("Use 12+ characters with upper, lower, digit and symbol") : Tr.t("Good - keep it unique to this site") };
+    }
+    readonly property var newStrength: win.strength(win.draftPassword)
+    function poke() { if (win.uiLockedReason === "") idleTimer.restart(); }
+    function generateForForm() {
+        // Python's secrets, not Math.random; no arg and no file, so the made
+        // password only travels from stdout into the form on its way to stdin.
+        gen.command = ["python3", "-c", `import secrets, string
+alphabet = string.ascii_letters + string.digits + "!@#$%^&*()-_=+[]{};:,.?"
+while True:
+    pw = "".join(secrets.choice(alphabet) for _ in range(20))
+    if any(c.isdigit() for c in pw) and any(not c.isalnum() for c in pw) and any(c.islower() for c in pw) and any(c.isupper() for c in pw):
+        print(pw)
+        break`];
+        gen.running = true;
+    }
+    // Export/import vault *details* only: labels, folders, favourites and notes.
+    // Passwords themselves never leave the keyring in a portable file.
+    function exportVault(path) {
+        const entries = win.items.map(i => ({ label: i.label || "", username: win.username(i), site: (i.attributes || {}).site || "", category: win.categoryOf(i), favorite: win.isFav(i), note: win.noteOf(i) }));
+        exporter.payload = JSON.stringify({ format: "shani-vault-1", entries: entries }, null, 2);
+        exporter.command = ["python3", "-c", 'import sys\nwith open(sys.argv[1], "x", encoding="utf-8") as f: f.write(sys.stdin.read())', path];
+        exporter.stdinEnabled = true;
+        exporter.running = true;
+    }
+    function importVault(path) {
+        importer.command = ["python3", "-c", "import sys\nprint(open(sys.argv[1], encoding='utf-8').read())", path];
+        importer.running = true;
+    }
+    Process {
+        id: metaReader
+        command: ["python3", win.tool, "lookup", "shani-vault-meta"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (metaWriter.running || win.metaDirty) return;    // our write is newer than this read
+                try {
+                    const r = JSON.parse(text);
+                    const m = r.secret ? JSON.parse(r.secret) : {};
+                    win.meta = (m && typeof m === "object" && !Array.isArray(m)) ? m : {};
+                } catch (e) { win.meta = {}; }
+            }
+        }
+    }
+    Process {
+        id: metaWriter
+        property string payload: ""
+        property string nextPayload: ""
+        stdinEnabled: true
+        onStarted: { if (payload) { write(payload); payload = ""; stdinEnabled = false; } }
+        stdout: StdioCollector {}
+        onExited: code => {
+            stdinEnabled = true;
+            if (code !== 0) win.error = Tr.t("Vault details could not be saved");
+            if (nextPayload !== "") {
+                payload = nextPayload; nextPayload = "";
+                stdinEnabled = true; running = true;
+            } else win.metaDirty = false;
+        }
+    }
+    Process {
+        id: gen
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const pw = text.trim();
+                if (pw !== "") {
+                    newSecret.text = pw;
+                    win.note = Tr.t("Generated a password - check its strength before saving");
+                }
+            }
+        }
+        onExited: code => { if (code !== 0) win.error = Tr.t("Could not generate a password"); }
+    }
+    Process {
+        id: exporter
+        property string payload: ""
+        stdinEnabled: true
+        onStarted: { if (payload) { write(payload); payload = ""; stdinEnabled = false; } }
+        stdout: StdioCollector {}
+        onExited: code => {
+            stdinEnabled = true;
+            if (code === 0) win.note = Tr.t("Exported details for %1 entries - passwords stay in the keyring", win.items.length);
+            else win.error = Tr.t("Could not export the vault details");
+        }
+    }
+    Process {
+        id: importer
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const data = JSON.parse(text);
+                    const next = JSON.parse(JSON.stringify(win.meta));
+                    let count = 0;
+                    (data.entries || []).forEach(e => {
+                        const it = win.items.find(x => (x.label || "") === (e.label || ""));
+                        if (!it) return;
+                        const m = next[win.metaKey(it)] || (next[win.metaKey(it)] = {});
+                        if (e.category) m.category = e.category;
+                        if (e.favorite) m.favorite = true;
+                        if (e.note) m.note = e.note;
+                        count++;
+                    });
+                    win.saveMeta(next);
+                    win.note = Tr.t("Imported details for %1 entr%2", count, count === 1 ? "y" : "ies");
+                } catch (e) { win.error = Tr.t("That file is not a Shani vault export"); }
+            }
+        }
+        onExited: code => { if (code !== 0) win.error = Tr.t("Could not read that file"); }
+    }
     property string shownPath: ""             // the item whose secret is on screen
     property string shownSecret: ""
     property string removing: ""              // asked once, gone on the second click
@@ -68,7 +269,13 @@ AppWindow {
         }
     }
     // the audit decrypts every keyring item: opt in, or use the explicit button
-    function refresh() { lister.running = true; keyLister.running = true; passkeyLister.running = true; if (Settings.data.passwordAuditEnabled === true) runAudit(); }
+    function refresh() {
+        lister.running = true;
+        keyLister.running = true;
+        passkeyLister.running = true;
+        metaReader.running = true;
+        if (Settings.data.passwordAuditEnabled === true) runAudit();
+    }
     onVisibleChanged: if (visible) refresh()
     Component.onCompleted: refresh()
 
@@ -80,7 +287,9 @@ AppWindow {
                 let r = {};
                 try { r = JSON.parse(text); } catch (e) { r = { error: text.trim() }; }
                 win.error = r.error ? Tr.t("The keyring could not be reached: %1", r.error) : "";
-                win.items = r.items || [];
+                // the metadata item is ours, not a login: don't show it as a password
+                win.items = (r.items || []).filter(i => (i.attributes || {})["shani-id"] !== "shani-vault-meta");
+                win.collections = r.collections || [];
                 win.defaultCollection = r["default"] || "";
                 Ui.passwordsItems = win.items.map(i => i.label);
             }
@@ -115,6 +324,7 @@ AppWindow {
     }
     function run(args, payload, after) {
         if (act.running) return;
+        win.poke();
         act.command = ["python3", win.tool].concat(args);
         act.payload = payload || "";
         act.stdinEnabled = true;
@@ -123,14 +333,18 @@ AppWindow {
     }
     function reveal(i) {
         if (win.shownPath === i.path) { win.shownPath = ""; win.shownSecret = ""; return; }
-        run(["reveal", i.path], "", r => { if (r.secret !== undefined) { win.shownPath = i.path; win.shownSecret = r.secret; Ui.passwordsRevealed = i.label; hideTimer.restart(); } });
+        run(["reveal", i.path], "", r => { if (r.secret !== undefined) { win.shownPath = i.path; win.shownSecret = r.secret; Ui.passwordsRevealed = i.label; win.remember(i); hideTimer.restart(); } });
     }
-    Timer { id: hideTimer; interval: 30000; onTriggered: { win.shownPath = ""; win.shownSecret = ""; } }
+    Timer { id: hideTimer; interval: 30000; onTriggered: { win.shownPath = ""; win.shownSecret = ""; win.shownNotePath = ""; } }
+    // five minutes of no action hides what is on screen and locks the local
+    // vault view; it does not fight other apps over the system keyring
+    Timer { id: idleTimer; interval: 300000; onTriggered: { win.uiLockedReason = "idle"; win.shownPath = ""; win.shownSecret = ""; win.shownNotePath = ""; hideTimer.stop(); } }
+    Timer { id: clipTick; interval: 1000; repeat: true; running: win.clipboardLeft > 0; onTriggered: win.clipboardLeft-- }
     // a screen lock must conceal a revealed secret before the timer gets to it
     Connections {
         target: Lock
         function onLockedChanged() {
-            if (Lock.locked) { win.shownPath = ""; win.shownSecret = ""; hideTimer.stop(); }
+            if (Lock.locked) { win.shownPath = ""; win.shownSecret = ""; hideTimer.stop(); win.shownNotePath = ""; win.uiLockedReason = "screen"; }
         }
     }
     function copy(i) {
@@ -139,11 +353,13 @@ AppWindow {
             copier.payload = r.secret;
             copier.running = true;
             win.note = Tr.t("%1 copied - the clipboard forgets it in 45 s", i.label);
+            win.clipboardLeft = 45;
+            win.remember(i);
             clearTimer.restart();
         });
     }
     Process { id: copier; property string payload: ""; command: ["wl-copy"]; stdinEnabled: true; onStarted: { write(payload); payload = ""; stdinEnabled = false; } onExited: stdinEnabled = true }
-    Timer { id: clearTimer; interval: 45000; onTriggered: Quickshell.execDetached(["wl-copy", "--clear"]) }
+    Timer { id: clearTimer; interval: 45000; onTriggered: { Quickshell.execDetached(["wl-copy", "--clear"]); win.clipboardLeft = 0; } }
     // what an item is for, from its attributes (a website, a Wi-Fi, an app's account)
     function about(i) {
         const a = i.attributes || {};
@@ -162,6 +378,7 @@ AppWindow {
         copier.payload = u;
         copier.running = true;
         win.note = Tr.t("%1 username copied - the clipboard forgets it in 45 s", i.label);
+        win.clipboardLeft = 45;
         clearTimer.restart();
     }
     // only a real web address is worth an "open in browser" action - never file:, javascript:, etc.
@@ -185,9 +402,24 @@ AppWindow {
         const label = newLabel.text.trim();
         const attrs = { site: label };
         if (newUser.text.trim()) attrs.username = newUser.text.trim();
+        if (newCategory.text.trim()) attrs.category = newCategory.text.trim();
         const secret = newSecret.text;
+        const note = newNote.text.trim();
         win.run(["add", win.defaultCollection, label], JSON.stringify({ attributes: attrs, secret: secret }),
-                r => { if (r.ok) { win.adding = false; newLabel.text = ""; newUser.text = ""; newSecret.text = ""; win.duplicate = null; if (onDone) onDone(); } });
+                r => {
+                    if (!r.ok) return;
+                    win.adding = false;
+                    newLabel.text = ""; newUser.text = ""; newSecret.text = "";
+                    newCategory.text = ""; newNote.text = "";
+                    win.duplicate = null;
+                    if (note) {
+                        const next = JSON.parse(JSON.stringify(win.meta));
+                        const m = next[r.path || label] || (next[r.path || label] = {});
+                        m.note = note;
+                        win.saveMeta(next);
+                    }
+                    if (onDone) onDone();
+                });
     }
     function saveNew() {
         const dup = duplicateFor(newLabel.text);
@@ -209,6 +441,11 @@ AppWindow {
         spacing: Theme.px(8)
         focus: true
         Keys.onEscapePressed: win.visible = false
+        Keys.onPressed: e => {
+            if (!(e.modifiers & Qt.ControlModifier)) return;
+            if (e.key === Qt.Key_F) { search.text = ""; search.input.forceActiveFocus(); e.accepted = true; }
+            else if (e.key === Qt.Key_N) { win.adding = true; e.accepted = true; }
+        }
         RowLayout {
             Layout.fillWidth: true
             spacing: Theme.px(6)
@@ -268,6 +505,20 @@ AppWindow {
                 }
             }
         }
+        // folders / favourites / recent: all chips and the folders in the vault
+        RowLayout {
+            visible: win.tab === "passwords"
+            Layout.fillWidth: true
+            spacing: Theme.px(4)
+            Repeater {
+                model: [["", Tr.t("All")], ["favourites", Tr.t("Favourites")], ["recent", Tr.t("Recent")]]
+                Choice { required property var modelData; text: modelData[1]; selected: win.folderFilter === modelData[0]; onClicked: win.folderFilter = modelData[0] }
+            }
+            Repeater {
+                model: win.folders
+                Choice { required property string modelData; text: modelData; selected: win.folderFilter === modelData; onClicked: win.folderFilter = win.folderFilter === modelData ? "" : modelData }
+            }
+        }
         Text {
             visible: win.error !== "" || win.note !== ""
             Layout.fillWidth: true
@@ -275,6 +526,29 @@ AppWindow {
             text: win.error !== "" ? win.error : win.note
             color: win.error !== "" ? Theme.danger : Theme.dim
             font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            Accessible.role: Accessible.StatusBar
+            Accessible.name: text
+        }
+        RowLayout {
+            visible: win.error !== ""
+            Layout.fillWidth: true
+            Text {
+                Layout.fillWidth: true
+                text: Tr.t("Check the keyring and try again")
+                color: Theme.dim
+                font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                Accessible.name: text
+            }
+            Button { text: Tr.t("Try again"); onClicked: win.refresh() }
+        }
+        Text {
+            visible: win.clipboardLeft > 0
+            Layout.fillWidth: true
+            text: Tr.t("Clipboard clears in %1 s", win.clipboardLeft)
+            color: Theme.dim
+            font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+            Accessible.role: Accessible.StatusBar
+            Accessible.name: text
         }
 
         // ---- passwords ----
@@ -302,17 +576,52 @@ AppWindow {
                 }
             }
             Button { text: Tr.t("Run security check"); onClicked: win.runAudit(); }
+            Button {
+                text: Tr.t("Import…")
+                onClicked: FilePicker.open({ mode: "open", title: Tr.t("A Shani vault export"), filters: ["json"], onPicked: paths => { if (paths.length) win.importVault(paths[0]); } })
+            }
+            Button {
+                text: Tr.t("Export…")
+                onClicked: FilePicker.open({ mode: "save", title: Tr.t("Export vault details"), defaultName: "shani-vault.json", filters: ["json"], onPicked: paths => { if (paths.length) win.exportVault(paths[0]); } })
+            }
             Button { text: Tr.t("Add…"); onClicked: win.adding = !win.adding }
         }
         ColumnLayout {
             visible: win.tab === "passwords" && win.adding
             Layout.fillWidth: true
             spacing: Theme.px(6)
-            TextField { id: newLabel; Layout.fillWidth: true; placeholderText: Tr.t("What it is for, e.g. example.org") }
-            TextField { id: newUser; Layout.fillWidth: true; placeholderText: Tr.t("User name (optional)") }
-            TextField { id: newSecret; Layout.fillWidth: true; secret: true; placeholderText: Tr.t("Password") }
+            TextField { id: newLabel; Layout.fillWidth: true; placeholderText: Tr.t("What it is for, e.g. example.org"); label: Tr.t("What it is for") }
+            TextField { id: newUser; Layout.fillWidth: true; placeholderText: Tr.t("User name (optional)"); label: Tr.t("User name") }
+            TextField { id: newCategory; Layout.fillWidth: true; placeholderText: Tr.t("Folder, e.g. Work"); label: Tr.t("Folder") }
+            TextField { id: newSecret; Layout.fillWidth: true; secret: true; placeholderText: Tr.t("Password"); label: Tr.t("Password"); onTextChanged: win.draftPassword = text }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(4)
+                Repeater {
+                    model: 4
+                    Rectangle {
+                        required property int index
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Theme.px(4)
+                        radius: 2
+                        color: index < win.newStrength.score
+                            ? (win.newStrength.score <= 1 ? Theme.danger : win.newStrength.score === 2 ? Theme.amber : Theme.accent)
+                            : Theme.alpha(Theme.text, 0.12)
+                    }
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                text: win.newStrength.label + " - " + win.newStrength.tip
+                color: win.newStrength.score <= 1 ? Theme.danger : Theme.dim
+                font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                Accessible.role: Accessible.StatusBar
+                Accessible.name: text
+            }
+            TextField { id: newNote; Layout.fillWidth: true; placeholderText: Tr.t("Secure note (kept in the keyring)"); label: Tr.t("Secure note") }
             RowLayout {
                 Item { Layout.fillWidth: true }
+                Button { text: Tr.t("Generate"); onClicked: win.generateForForm() }
                 Button { text: Tr.t("Cancel"); flat: true; onClicked: win.adding = false }
                 Button {
                     kind: "primary"
@@ -341,21 +650,22 @@ AppWindow {
                 }
             }
         }
-        Text {
-            visible: win.tab === "passwords" && win.error === "" && win.visibleItems.length === 0
-            text: win.items.length ? Tr.t("Nothing matches") : Tr.t("No passwords saved yet")
-            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+        EmptyState {
+            visible: win.tab === "passwords" && win.error === "" && win.shownItems.length === 0 && !lister.running
+            icon: "dialog-password"
+            title: win.items.length ? Tr.t("Nothing matches") : Tr.t("No passwords saved yet")
+            subtitle: win.items.length ? Tr.t("Try another word or clear the folder filter") : Tr.t("Use Add, or import details from another Shani vault")
         }
         ListView {
             reuseItems: true
             cacheBuffer: 400
             id: plist
-            visible: win.tab === "passwords"
+            visible: win.tab === "passwords" && win.shownItems.length > 0
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
             spacing: 2
-            model: win.visibleItems
+            model: win.shownItems
             delegate: ColumnLayout {
                 id: prow
                 required property var modelData
@@ -364,9 +674,11 @@ AppWindow {
                 Accessible.role: Accessible.ListItem
                 Accessible.name: prow.modelData.label
                 Accessible.description: win.about(prow.modelData)
+                KeyFocus { name: prow.modelData.label + ", " + Tr.t("Show password"); onActivated: win.reveal(prow.modelData) }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(8)
+                    MouseArea { anchors.fill: parent; onClicked: win.reveal(prow.modelData) }
                     Icon { name: "dialog-password"; size: Theme.px(20); color: Theme.dim }
                     ColumnLayout {
                         Layout.fillWidth: true
@@ -380,6 +692,29 @@ AppWindow {
                             font.family: win.shownPath === prow.modelData.path ? Theme.mono : Theme.font
                             font.pixelSize: Theme.px(11) * Theme.fontScale
                         }
+                        Text {
+                            visible: win.categoryOf(prow.modelData) !== Tr.t("Other")
+                            Layout.fillWidth: true
+                            text: win.categoryOf(prow.modelData)
+                            color: Theme.faint
+                            font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+                            Accessible.name: Tr.t("Folder: %1", win.categoryOf(prow.modelData))
+                        }
+                    }
+                    IconButton {
+                        icon: win.isFav(prow.modelData) ? "starred" : "non-starred"
+                        size: Theme.px(26)
+                        on: win.isFav(prow.modelData)
+                        tip: win.isFav(prow.modelData) ? Tr.t("Remove %1 from favourites", prow.modelData.label) : Tr.t("Add %1 to favourites", prow.modelData.label)
+                        onClicked: win.toggleFavorite(prow.modelData)
+                    }
+                    IconButton {
+                        visible: win.noteOf(prow.modelData) !== ""
+                        icon: "text-x-generic"
+                        size: Theme.px(26)
+                        on: win.shownNotePath === prow.modelData.path
+                        tip: win.shownNotePath === prow.modelData.path ? Tr.t("Hide the secure note for %1", prow.modelData.label) : Tr.t("Read the secure note for %1", prow.modelData.label)
+                        onClicked: win.toggleNote(prow.modelData)
                     }
                     IconButton { icon: win.shownPath === prow.modelData.path ? "view-conceal" : "view-reveal"; size: Theme.px(26); tip: win.shownPath === prow.modelData.path ? Tr.t("Hide %1", prow.modelData.label) : Tr.t("Show %1", prow.modelData.label); onClicked: win.reveal(prow.modelData) }
                     IconButton { icon: "edit-copy"; size: Theme.px(26); tip: Tr.t("Copy the password for %1", prow.modelData.label); onClicked: win.copy(prow.modelData) }
@@ -409,8 +744,36 @@ AppWindow {
                     visible: win.changing === prow.modelData.path
                     Layout.fillWidth: true
                     Layout.leftMargin: Theme.px(28)
-                    TextField { id: changed; Layout.fillWidth: true; secret: true; placeholderText: Tr.t("The new password") }
+                    TextField { id: changed; Layout.fillWidth: true; secret: true; placeholderText: Tr.t("The new password"); label: Tr.t("The new password") }
                     Button { text: Tr.t("Save"); enabled: changed.text !== ""; onClicked: { win.run(["set", prow.modelData.path], changed.text, r => { if (r.ok) { win.changing = ""; changed.text = ""; } }); } }
+                }
+                RowLayout {
+                    visible: win.changing === prow.modelData.path
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.px(28)
+                    TextField {
+                        id: changedNote
+                        Layout.fillWidth: true
+                        placeholderText: Tr.t("Secure note (kept in the keyring)")
+                        label: Tr.t("Secure note")
+                        onVisibleChanged: if (visible) text = win.noteOf(prow.modelData)
+                    }
+                    Button {
+                        text: Tr.t("Save note")
+                        enabled: changedNote.text.trim() !== win.noteOf(prow.modelData)
+                        onClicked: win.setMetaField(prow.modelData, "note", changedNote.text.trim())
+                    }
+                }
+                Text {
+                    visible: win.shownNotePath === prow.modelData.path && !win.uiLocked
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.px(28)
+                    wrapMode: Text.WordWrap
+                    text: win.noteOf(prow.modelData)
+                    color: Theme.text
+                    font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    Accessible.role: Accessible.StaticText
+                    Accessible.name: Tr.t("Secure note for %1: %2", prow.modelData.label, win.noteOf(prow.modelData))
                 }
             }
         }
@@ -570,7 +933,7 @@ AppWindow {
                         color: Theme.faint; font.family: Theme.mono; font.pixelSize: Theme.px(9) * Theme.fontScale
                     }
                 }
-                IconButton { icon: "edit-copy"; size: Theme.px(26); tip: Tr.t("Copy the key-handle id"); onClicked: { Quickshell.clipboardText = prow.modelData.id; clearTimer.restart(); win.note = Tr.t("%1 id copied", prow.modelData.label) } }
+                IconButton { icon: "edit-copy"; size: Theme.px(26); tip: Tr.t("Copy the key-handle id"); onClicked: { Quickshell.clipboardText = prow.modelData.id; clearTimer.restart(); win.clipboardLeft = 45; win.note = Tr.t("%1 id copied", prow.modelData.label) } }
                 IconButton {
                     icon: win.removingPasskey === prow.modelData.id ? "edit-delete" : "window-close"
                     size: Theme.px(26)
@@ -589,6 +952,54 @@ AppWindow {
                 icon: "dialog-password"
                 title: Tr.t("No passkeys yet")
                 subtitle: Tr.t("Add one to keep a reference to a passkey you use")
+            }
+        }
+    }
+    // A locked view is honest: nothing is revealed behind it, and unlocking it
+    // only clears the local veil. The system keyring keeps its own lock.
+    Rectangle {
+        anchors.fill: parent
+        z: 10
+        visible: win.uiLocked || win.keyringLocked
+        color: Qt.rgba(0, 0, 0, 0.72)
+        MouseArea { anchors.fill: parent }
+        Rectangle {
+            anchors.centerIn: parent
+            width: Math.min(parent.width - Theme.px(40), Theme.px(380))
+            implicitHeight: lockCol.implicitHeight + Theme.px(32)
+            radius: Theme.radiusLarge
+            color: Theme.surface1
+            ColumnLayout {
+                id: lockCol
+                anchors.centerIn: parent
+                spacing: Theme.px(10)
+                Icon { Layout.alignment: Qt.AlignHCenter; name: "system-lock-screen"; size: Theme.px(36); color: Theme.dim }
+                Text {
+                    Layout.fillWidth: true
+                    horizontalAlignment: Text.AlignHCenter
+                    text: win.keyringLocked ? Tr.t("The system keyring is locked") : Tr.t("Vault locked")
+                    color: Theme.text
+                    font.family: Theme.font; font.pixelSize: Theme.px(15) * Theme.fontScale
+                    font.weight: Font.DemiBold
+                    Accessible.role: Accessible.Alert
+                    Accessible.name: text
+                }
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
+                    text: win.keyringLocked ? Tr.t("Unlock it with your session password, then read again") : Tr.t("Revealed details were hidden on lock or after five minutes of idle time")
+                    color: Theme.dim
+                    font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+                Button {
+                    Layout.alignment: Qt.AlignHCenter
+                    text: win.keyringLocked ? Tr.t("Read again") : Tr.t("Unlock vault")
+                    onClicked: {
+                        if (win.keyringLocked) win.refresh();
+                        else { win.uiLockedReason = ""; idleTimer.restart(); }
+                    }
+                }
             }
         }
     }

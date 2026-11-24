@@ -40,5 +40,6 @@ def test_save_failure_clears_saving_and_surfaces_an_error():
 
 def test_annotate_pen_width_scales_with_dpi():
     t = ANNOTATE.read_text()
-    assert "g.lineWidth = Theme.px(5);" in t
+    # the pen width now comes from the selected stroke-width model
+    assert "g.lineWidth = lw;" in t and "s.w || Theme.px(5)" in t
     assert "g.lineWidth = 5;" not in t

@@ -29,16 +29,54 @@ AppWindow {
     // stopped: a large archive is useless if you must scroll it by eye, and a
     // mistaken "Extract" should not have to mean closing the window.
     property string entryFilter: ""
-    readonly property var visibleEntries: {
+    // Search first, then browse: a filter and a folder both narrow the list, so
+    // the two compose instead of one replacing the other.
+    readonly property var matchedEntries: {
         const q = win.entryFilter.trim().toLowerCase();
         if (q === "") return Archive.entries;
         return Archive.entries.filter(e => e.path.toLowerCase().indexOf(q) >= 0);
     }
-    readonly property var visiblePaths: win.visibleEntries.map(e => e.path)
+    readonly property var visibleEntries: Archive.entriesHere(win.matchedEntries)
+    // synthetic folders are for browsing only: never select or extract them
+    readonly property var visiblePaths: win.visibleEntries.filter(e => !e.virtual).map(e => e.path)
     readonly property bool busy: Archive.reading || Archive.extracting || Archive.creating || Archive.appending || Archive.probeThenExtract
+    readonly property bool working: win.busy || Archive.testing
+    readonly property bool canGoUp: Archive.currentDir !== ""
+    property int cursor: 0
+    readonly property var currentEntry: win.visibleEntries.length
+        ? win.visibleEntries[Math.min(win.cursor, win.visibleEntries.length - 1)] : null
 
     function clearPass() { Archive.newPass = ""; archPassConfirm.text = ""; }
     function clearPrompt() { pw.text = ""; }
+    function openRecent(path) { win.clearPrompt(); Archive.open(path); }
+    function runTest() { Archive.testArchive(); }
+
+    // A dropped archive opens; dropped files are added to the open archive.
+    // file:// URLs are decoded, so a name with spaces works.
+    function dropPaths(drop) {
+        const out = [];
+        if (!drop || !drop.urls) return out;
+        for (const u of drop.urls) {
+            const s = String(u);
+            if (s.indexOf("file://") === 0) out.push(decodeURIComponent(s.substring(7)));
+            else if (s.indexOf("/") === 0) out.push(s);
+        }
+        return out;
+    }
+    function handleDrop(drop) {
+        const paths = win.dropPaths(drop);
+        if (!paths.length) return;
+        const archives = paths.filter(p => Archive.types.some(ext => p.toLowerCase().endsWith("." + ext)));
+        if (archives.length) { win.openRecent(archives[0]); return; }
+        if (Archive.file !== "" && Archive.canAppend) Archive.append(paths);
+    }
+
+    function moveCursor(delta) {
+        if (!win.visibleEntries.length) return;
+        win.cursor = Math.max(0, Math.min(win.visibleEntries.length - 1, win.cursor + delta));
+        list.currentIndex = win.cursor;
+        list.positionViewAtIndex(win.cursor, ListView.Contain);
+    }
 
     function selectAllVisible() { Archive.selectAll(win.visiblePaths); }
     function extractSelectedTo() {
@@ -66,6 +104,14 @@ AppWindow {
             if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_O) { win.pick(); e.accepted = true; }
             else if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_E) { Archive.extract(""); e.accepted = true; }
             else if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_A) { win.selectAllVisible(); e.accepted = true; }
+            else if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_T) { win.runTest(); e.accepted = true; }
+            else if (e.key === Qt.Key_Up) { win.moveCursor(-1); e.accepted = true; }
+            else if (e.key === Qt.Key_Down) { win.moveCursor(1); e.accepted = true; }
+            else if (e.key === Qt.Key_Home) { win.cursor = 0; list.currentIndex = 0; e.accepted = true; }
+            else if (e.key === Qt.Key_End) { win.cursor = win.visibleEntries.length - 1; list.currentIndex = win.cursor; e.accepted = true; }
+            else if (e.key === Qt.Key_Return && win.currentEntry && !win.currentEntry.virtual) {
+                Archive.extractOne(win.currentEntry.path); e.accepted = true;
+            }
             else if (e.key === Qt.Key_Escape && Archive.selection.length) { Archive.clearSelection(); e.accepted = true; }
             else if (e.key === Qt.Key_Escape) { Archive.close(); e.accepted = true; }
         }
@@ -78,6 +124,13 @@ AppWindow {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
                 Icon { name: "package-x-generic"; size: Theme.px(22); color: Theme.accent }
+                Icon {
+                    visible: Archive.wasProtected
+                    name: "dialog-password"
+                    size: Theme.px(16)
+                    color: Theme.accent
+                    Accessible.name: Tr.t("Locked")
+                }
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 0
@@ -120,6 +173,35 @@ AppWindow {
                         startPath: Archive.file.substring(0, Archive.file.lastIndexOf("/")),
                         onPicked: paths => Archive.append(paths),
                     })
+                }
+            }
+
+            // ---- Recently opened archives (File Roller / Ark) ----------------
+            RowLayout {
+                Layout.fillWidth: true
+                visible: Archive.file === "" && Archive.toCompress.length === 0 && Archive.recent.length > 0
+                spacing: Theme.px(8)
+                Text {
+                    text: Tr.t("Recent files")
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+                Repeater {
+                    model: Archive.recent
+                    Button {
+                        required property var modelData
+                        text: modelData.split("/").pop()
+                        flat: true
+                        Accessible.name: modelData
+                        onClicked: win.openRecent(modelData)
+                    }
+                }
+                Button {
+                    text: Tr.t("Clear")
+                    flat: true
+                    Accessible.name: Tr.t("Clear the recent files list")
+                    onClicked: Archive.clearRecent()
                 }
             }
 
@@ -231,6 +313,91 @@ AppWindow {
             }
 
             // ---- what is inside ----
+            // Ark-style folder navigation and sort: the list is the current
+            // directory, not the whole archive, with a synthetic folder per
+            // subdirectory so archives without dir entries still navigate.
+            RowLayout {
+                Layout.fillWidth: true
+                visible: Archive.entries.length > 0
+                spacing: Theme.px(8)
+                Button {
+                    text: Tr.t("Up")
+                    flat: true
+                    enabled: win.canGoUp
+                    Accessible.name: Tr.t("Up")
+                    onClicked: { Archive.up(); win.cursor = 0; list.currentIndex = 0; }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: Archive.currentDir === "" ? Archive.name : Archive.name + "/" + Archive.currentDir
+                    color: Theme.dim
+                    elide: Text.ElideMiddle
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    Accessible.name: text
+                }
+                Text {
+                    text: Tr.t("Sort:")
+                    color: Theme.faint
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+                Choice {
+                    text: Tr.t("Name")
+                    selected: Archive.sortOrder === "name"
+                    onClicked: Archive.setSortOrder("name")
+                }
+                Choice {
+                    text: Tr.t("Size")
+                    selected: Archive.sortOrder === "size"
+                    onClicked: Archive.setSortOrder("size")
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                visible: Archive.entries.length > 0
+                spacing: Theme.px(8)
+                Text {
+                    text: Tr.t("Extract into")
+                    color: Theme.faint
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+                Choice {
+                    text: Tr.t("Rename")
+                    selected: Archive.overwritePolicy === "rename"
+                    Accessible.name: Tr.t("Rename")
+                    onClicked: Archive.setOverwritePolicy("rename")
+                }
+                Choice {
+                    text: Tr.t("Replace")
+                    selected: Archive.overwritePolicy === "overwrite"
+                    Accessible.name: Tr.t("Replace")
+                    onClicked: Archive.setOverwritePolicy("overwrite")
+                }
+                Choice {
+                    text: Tr.t("Skip")
+                    selected: Archive.overwritePolicy === "skip"
+                    Accessible.name: Tr.t("Skip")
+                    onClicked: Archive.setOverwritePolicy("skip")
+                }
+                Button {
+                    text: Tr.t("Test")
+                    flat: true
+                    enabled: !win.working
+                    Accessible.name: Tr.t("Test")
+                    onClicked: win.runTest()
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: Archive.testing || Archive.testResult !== ""
+                    text: Archive.testing ? Tr.t("Working…") : Archive.testResult
+                    color: Theme.dim
+                    elide: Text.ElideMiddle
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+            }
             RowLayout {
                 Layout.fillWidth: true
                 visible: Archive.entries.length > 0
@@ -288,6 +455,7 @@ AppWindow {
                     spacing: 1
                     boundsBehavior: Flickable.StopAtBounds
                     model: win.visibleEntries
+                    highlight: Rectangle { color: Theme.alpha(Theme.accent, 0.08); radius: Theme.radiusSmall }
                     delegate: Item {
                         id: row
                         required property var modelData
@@ -295,6 +463,8 @@ AppWindow {
                         readonly property bool chosen: Archive.isSelected(row.modelData.path)
                         width: list.width
                         height: Theme.px(26)
+                        Accessible.role: Accessible.ListItem
+                        Accessible.name: row.modelData.path
                         Rectangle {
                             anchors.fill: parent
                             radius: Theme.radiusSmall
@@ -309,9 +479,17 @@ AppWindow {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: mouse => {
+                                list.currentIndex = index;
+                                win.cursor = index;
                                 const ctrl = (mouse.modifiers & Qt.ControlModifier) !== 0;
                                 const shift = (mouse.modifiers & Qt.ShiftModifier) !== 0;
                                 Archive.selectEntry(row.modelData.path, shift ? "range" : (ctrl ? "toggle" : "single"), win.visiblePaths);
+                            }
+                            onDoubleClicked: {
+                                if (!row.modelData.dir) return;
+                                Archive.browse(row.modelData.path);
+                                win.cursor = 0;
+                                list.currentIndex = 0;
                             }
                         }
                         RowLayout {
@@ -319,6 +497,7 @@ AppWindow {
                             anchors.margins: Theme.px(3)
                             spacing: Theme.px(8)
                             Choice {
+                                visible: !row.modelData.virtual
                                 selected: row.chosen
                                 text: row.chosen ? "✓" : ""
                                 implicitWidth: Theme.px(16)
@@ -336,6 +515,7 @@ AppWindow {
                                 elide: Text.ElideMiddle
                                 font.family: Theme.font
                                 font.pixelSize: Theme.px(12) * Theme.fontScale
+                                Accessible.name: row.modelData.path
                             }
                             Text {
                                 text: row.modelData.dir ? "" : Archive.human(row.modelData.size)
@@ -346,14 +526,23 @@ AppWindow {
                             }
                             // just this one, beside the archive
                             IconButton {
+                                visible: !row.modelData.virtual
                                 size: Theme.px(24)
                                 icon: "document-save"
                                 tip: Tr.t("Extract only this")
                                 enabled: !Archive.extracting
+                                Accessible.name: Tr.t("Extract only this") + " " + row.modelData.path
                                 onClicked: Archive.extractOne(row.modelData.path)
                             }
                         }
                     }
+                }
+                // Dropping an archive opens it; dropping files adds them to the
+                // open archive (same guard as the Add files button).
+                DropArea {
+                    anchors.fill: parent
+                    keys: ["text/uri-list"]
+                    onDropped: drop => win.handleDrop(drop)
                 }
                 EmptyState {
                     anchors.centerIn: parent
@@ -363,8 +552,35 @@ AppWindow {
                         : !Archive.available ? Tr.t("bsdtar (libarchive) is not installed")
                         : Archive.entries.length === 0 ? Tr.t("No archive open")
                         : Tr.t("Nothing matches")
-                    subtitle: Archive.error !== "" || !Archive.available || Archive.entries.length === 0
-                        ? "" : Tr.t("Clear the filter to see every item")
+                    subtitle: Archive.error !== "" || !Archive.available
+                        ? "" : Archive.entries.length === 0 ? Tr.t("Open an archive")
+                        : Tr.t("Clear the filter to see every item")
+                }
+                // the empty state is actionable: open one, retry a failed open,
+                // or clear a filter that hid every entry
+                RowLayout {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.bottom
+                    anchors.margins: Theme.px(8)
+                    visible: Archive.entries.length === 0 && !Archive.reading && !win.working
+                    spacing: Theme.px(8)
+                    Button {
+                        visible: Archive.file === "" && Archive.toCompress.length === 0
+                        text: Tr.t("Open an archive")
+                        onClicked: win.pick()
+                    }
+                    Button {
+                        visible: Archive.error !== "" && Archive.file !== ""
+                        text: Tr.t("Reload")
+                        flat: true
+                        onClicked: Archive.open(Archive.file)
+                    }
+                    Button {
+                        visible: Archive.entries.length > 0 && win.visibleEntries.length === 0
+                        text: Tr.t("Clear")
+                        flat: true
+                        onClicked: { win.entryFilter = ""; Archive.browse(""); }
+                    }
                 }
             }
 
@@ -422,6 +638,46 @@ AppWindow {
                     text: Tr.t("Dismiss")
                     flat: true
                     onClicked: { Archive.batchSummary = ""; Archive.batchDone = []; Archive.batchFailed = []; Archive.error = ""; }
+                }
+            }
+
+            // an indeterminate progress state: the jobs report no byte counts,
+            // so show that work is in flight and let Cancel stop it
+            RowLayout {
+                Layout.fillWidth: true
+                visible: win.working
+                spacing: Theme.px(8)
+                Text {
+                    text: Archive.reading ? Tr.t("Reading…")
+                        : Archive.extracting ? Tr.t("Extracting…")
+                        : Archive.testing ? Tr.t("Working…") : Tr.t("Working…")
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    Accessible.name: text
+                }
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: Theme.px(4)
+                    radius: Theme.radiusSmall
+                    color: Theme.border
+                    clip: true
+                    Rectangle {
+                        id: progressBar
+                        width: parent.width * 0.35
+                        height: parent.height
+                        color: Theme.accent
+                        NumberAnimation on x {
+                            from: -progressBar.width; to: progressBar.parent.width
+                            duration: 1200; loops: Animation.Infinite
+                        }
+                    }
+                }
+                Button {
+                    visible: Archive.testing
+                    text: Tr.t("Cancel")
+                    flat: true
+                    onClicked: Archive.cancel()
                 }
             }
 

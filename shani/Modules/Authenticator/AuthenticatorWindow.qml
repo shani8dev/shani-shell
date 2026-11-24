@@ -26,6 +26,28 @@ AppWindow {
     property bool adding: false
     property string removing: ""                // an id asked once, removed on the second
     property string copied: ""
+    // ---- finding and grouping codes ----
+    property string searchText: ""              // mirrored from the search box
+    property string groupFilter: ""             // "" all, else one issuer
+    property bool grouped: false
+    property int clipboardLeft: 0               // seconds until the copied code is wiped
+    property string error: ""
+    readonly property var issuers: {
+        const out = [];
+        win.accounts.forEach(a => {
+            const name = a.issuer || Tr.t("Other");
+            if (out.indexOf(name) < 0) out.push(name);
+        });
+        return out.sort((a, b) => String(a).localeCompare(String(b)));
+    }
+    readonly property var visibleAccounts: {
+        const q = win.searchText.trim().toLowerCase();
+        return win.accounts.filter(a => {
+            if (win.groupFilter !== "" && (a.issuer || Tr.t("Other")) !== win.groupFilter) return false;
+            if (q === "") return true;
+            return [a.issuer, a.account].filter(x => x).join(" ").toLowerCase().indexOf(q) >= 0;
+        });
+    }
 
     function refresh() { if (!lister.running) lister.running = true; }
     function clearForm() { issuer.text = ""; account.text = ""; key.text = ""; }
@@ -38,14 +60,27 @@ AppWindow {
     }
     onVisibleChanged: if (visible) refresh()
     Component.onCompleted: refresh()
-    // the codes turn over every period: read again on the turn (and once a second, the time left)
+    // the codes turn over every period: read again just before the turn, not
+    // only when a 1 s tick happens to land exactly on second zero
     property int tick: 0
-    Timer { interval: 1000; running: win.visible; repeat: true; onTriggered: { win.tick++; if (win.accounts.some(a => (Math.floor(Date.now() / 1000) % a.period) === 0)) win.refresh(); } }
+    Timer {
+        interval: 1000
+        running: win.visible
+        repeat: true
+        onTriggered: {
+            win.tick++;
+            if (win.accounts.some(a => (Math.floor(Date.now() / 1000) % a.period) >= a.period - 1)) win.refresh();
+            if (win.clipboardLeft > 0) win.clipboardLeft--;
+        }
+    }
     Process {
         id: lister
         command: ["python3", win.tool, "list"]
         stdout: StdioCollector { onStreamFinished: { try { win.accounts = JSON.parse(text); win.available = true; } catch (e) {} } }
-        onExited: code => { if (code === 2) win.available = false; }
+        onExited: code => {
+            if (code === 2) win.available = false;
+            win.error = code === 0 ? "" : code === 2 ? Tr.t("The keyring is not running") : Tr.t("Could not read the codes");
+        }
     }
     Process {
         id: writer
@@ -102,6 +137,7 @@ AppWindow {
         if (clip.running) clip.running = false;
         clip.payload = text;
         clip.running = true;
+        win.clipboardLeft = 45;
         clearTimer.restart();
     }
     Process {
@@ -112,7 +148,18 @@ AppWindow {
         onStarted: { write(payload); payload = ""; stdinEnabled = false; }
         onExited: stdinEnabled = true
     }
-    Timer { id: clearTimer; interval: 45000; onTriggered: Quickshell.execDetached(["wl-copy", "--clear"]) }
+    Timer { id: clearTimer; interval: 45000; onTriggered: { Quickshell.execDetached(["wl-copy", "--clear"]); win.clipboardLeft = 0; } }
+    // a locked screen must not leave a copied code in the clipboard history
+    Connections {
+        target: Lock
+        function onLockedChanged() {
+            if (Lock.locked) {
+                Quickshell.execDetached(["wl-copy", "--clear"]);
+                win.clipboardLeft = 0;
+                win.copied = "";
+            }
+        }
+    }
     Timer { id: copiedTimer; interval: 1500; onTriggered: win.copied = "" }
     Timer { id: removeTimer; interval: 4000; onTriggered: win.removing = "" }
     // the terminal opens on its own: don't leave "unlock the key" hanging forever
@@ -122,6 +169,12 @@ AppWindow {
         anchors.fill: parent
         focus: true
         Keys.onEscapePressed: Ui.authenticator = false
+        Keys.onPressed: e => {
+            if (!(e.modifiers & Qt.ControlModifier) || e.key !== Qt.Key_F) return;
+            search.text = "";
+            search.input.forceActiveFocus();
+            e.accepted = true;
+        }
 
         ColumnLayout {
             anchors.fill: parent
@@ -134,6 +187,41 @@ AppWindow {
                 Button { text: win.adding ? Tr.t("Cancel") : Tr.t("Enter a setup key"); flat: true; onClicked: { win.adding = !win.adding; if (!win.adding) win.clearForm(); } }
                 Item { Layout.fillWidth: true }
             }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                TextField { id: search; Layout.fillWidth: true; placeholderText: Tr.t("Find a code"); label: Tr.t("Find a code"); onTextChanged: win.searchText = text }
+                Text {
+                    visible: win.searchText !== "" || win.groupFilter !== ""
+                    text: win.visibleAccounts.length + " / " + win.accounts.length
+                    color: Theme.faint
+                    font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    Accessible.role: Accessible.StatusBar
+                    Accessible.name: text
+                }
+                IconButton {
+                    visible: win.searchText !== ""
+                    icon: "window-close"
+                    size: Theme.px(24)
+                    tip: Tr.t("Clear search")
+                    onClicked: { search.text = ""; search.input.forceActiveFocus(); }
+                }
+                Button { text: win.grouped ? Tr.t("List") : Tr.t("Group by issuer"); flat: true; checked: win.grouped; onClicked: win.grouped = !win.grouped }
+            }
+            RowLayout {
+                visible: win.issuers.length > 1
+                Layout.fillWidth: true
+                spacing: Theme.px(4)
+                Repeater {
+                    model: [""].concat(win.issuers)
+                    Choice {
+                        required property string modelData
+                        text: modelData === "" ? Tr.t("All") : modelData
+                        selected: win.groupFilter === modelData
+                        onClicked: win.groupFilter = win.groupFilter === modelData ? "" : modelData
+                    }
+                }
+            }
             Text {
                 Layout.fillWidth: true
                 visible: win.note !== ""
@@ -142,6 +230,29 @@ AppWindow {
                 wrapMode: Text.Wrap
                 font.family: Theme.font
                 font.pixelSize: Theme.px(12) * Theme.fontScale
+                Accessible.role: Accessible.StatusBar
+                Accessible.name: text
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: win.error !== ""
+                text: win.error
+                color: Theme.danger
+                wrapMode: Text.Wrap
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+                Accessible.role: Accessible.Alert
+                Accessible.name: text
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: win.clipboardLeft > 0
+                text: Tr.t("Code copied - clipboard clears in %1 s", win.clipboardLeft)
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+                Accessible.role: Accessible.StatusBar
+                Accessible.name: text
             }
 
             // ---- by hand: where the website offers "can't scan it?" ----
@@ -170,7 +281,24 @@ AppWindow {
                 clip: true
                 spacing: Theme.px(6)
                 boundsBehavior: Flickable.StopAtBounds
-                model: win.accounts
+                model: win.visibleAccounts
+                section.property: win.grouped ? "issuer" : ""
+                section.criteria: ViewSection.FullString
+                section.labelPositioning: ViewSection.CurrentLabelAtStart | ViewSection.InlineLabels
+                section.delegate: Rectangle {
+                    width: list.width
+                    height: Theme.px(26)
+                    color: "transparent"
+                    Text {
+                        anchors { left: parent.left; leftMargin: Theme.px(14); verticalCenter: parent.verticalCenter }
+                        text: section.label
+                        color: Theme.faint
+                        font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.weight: Font.DemiBold
+                        Accessible.role: Accessible.StaticText
+                        Accessible.name: Tr.t("%1 codes", section.label)
+                    }
+                }
                 delegate: Rectangle {
                     id: row
                     required property var modelData
@@ -235,8 +363,10 @@ AppWindow {
                     anchors.centerIn: parent
                     visible: list.count === 0 && !lister.running
                     icon: "dialog-password"
-                    title: win.available ? Tr.t("No codes yet") : Tr.t("The keyring is not running")
+                    title: win.searchText !== "" || win.groupFilter !== "" ? Tr.t("Nothing matches") : win.available ? Tr.t("No codes yet") : Tr.t("The keyring is not running")
                     subtitle: win.available ? Tr.t("When a website offers two-factor sign-in, scan its QR code") : Tr.t("It starts when you sign in; the codes are kept there")
+                    actionText: win.available ? "" : Tr.t("Try again")
+                    action: win.refresh()
                 }
             }
             RowLayout {

@@ -67,6 +67,69 @@ Singleton {
     property string batchSummary: ""      // what the window reports at the end
     property bool modified: false         // this archive changed since it was opened
 
+    // ---- recent archives, browsing and view state --------------------------
+    // Session-local, like File Roller's recent menu: newest first, no duplicates,
+    // capped so a long day cannot fill the header. Nothing is written to disk.
+    property var recent: []                // paths of archives opened or made
+    property string currentDir: ""         // "" is the root of the archive
+    property string sortOrder: "name"      // "name" | "size"
+    property string overwritePolicy: "rename"  // "rename" | "overwrite" | "skip"
+    property bool wasProtected: false     // this archive asked for a password
+    property bool testing: false          // an integrity pass is running
+    property string testResult: ""        // the last integrity result
+
+    function noteRecent(path) {
+        const p = String(path || "");
+        if (p === "") return;
+        const next = [p];
+        for (const r of root.recent)
+            if (r !== p && next.indexOf(r) < 0) next.push(r);
+        root.recent = next.slice(0, 8);
+    }
+    function clearRecent() { root.recent = []; }
+    function setSortOrder(order) { root.sortOrder = order === "size" ? "size" : "name"; }
+    function setOverwritePolicy(policy) {
+        root.overwritePolicy = policy === "overwrite" || policy === "skip" ? policy : "rename";
+    }
+
+    // Only the entries directly inside currentDir, plus one synthetic folder
+    // for each subdirectory (an archive need not carry explicit dir entries).
+    // `list` is the already-filtered visible set, so search and browsing compose.
+    function entriesHere(list) {
+        const all = list && list.length !== undefined ? list : root.entries;
+        const d = root.currentDir;
+        const prefix = d === "" ? "" : d + "/";
+        const out = [], seen = {};
+        for (const e of all) {
+            if (e.path.indexOf(prefix) !== 0) continue;
+            const rest = e.path.slice(prefix.length);
+            if (rest === "") continue;
+            const slash = rest.indexOf("/");
+            if (slash < 0) out.push(e);
+            else {
+                const folder = prefix + rest.slice(0, slash);
+                if (!seen[folder]) {
+                    seen[folder] = true;
+                    out.push({ path: folder, size: 0, dir: true, virtual: true });
+                }
+            }
+        }
+        out.sort((a, b) => {
+            if (root.sortOrder === "size" && !a.dir && !b.dir && b.size !== a.size)
+                return b.size - a.size;
+            if (a.dir !== b.dir) return a.dir ? -1 : 1;
+            return a.path.localeCompare(b.path);
+        });
+        return out;
+    }
+    function browse(path) {
+        if (path) root.currentDir = String(path).replace(/\/$/, "");
+    }
+    function up() {
+        const d = root.currentDir;
+        root.currentDir = d.indexOf("/") < 0 ? "" : d.slice(0, d.lastIndexOf("/"));
+    }
+
     function open(arg) {
         root.shown = true;
         let path = String(arg || "").trim();
@@ -77,12 +140,16 @@ Singleton {
         if (!path.startsWith("/"))
             path = (Quickshell.env("HOME") || "") + "/" + path;
         root.file = path;
+        root.noteRecent(path);
+        root.currentDir = "";
         root.entries = [];
         root.totalSize = 0;
         root.error = "";
         root.extractedTo = "";
         root.passphrase = "";
         root.needsPassword = false;
+        root.wasProtected = false;
+        root.testResult = "";
         root.single = false;
         root.toCompress = [];
         root.abortBatch();
@@ -107,10 +174,12 @@ Singleton {
         if (spaceProbe.running) spaceProbe.running = false;
         if (maker.running) maker.running = false;
         if (appender.running) appender.running = false;
+        if (tester.running) tester.running = false;
         root.reading = false;
         root.extracting = false;
         root.creating = false;
         root.appending = false;
+        root.testing = false;
         root.extractWhenRead = false;
         root.probeThenExtract = false;
     }
@@ -121,6 +190,9 @@ Singleton {
         needsPassword = false;
         retry = "";
         newPass = "";
+        testResult = "";
+        wasProtected = false;
+        currentDir = "";
         clearSelection();
         modified = false;
     }
@@ -275,6 +347,7 @@ Singleton {
             return false;
         root.error = root.passphrase ? Tr.t("That password is not right") : "";
         root.needsPassword = true;
+        root.wasProtected = true;
         root.retry = what;
         return true;
     }
@@ -284,6 +357,7 @@ Singleton {
         if (result && result.wrongPassword) {
             root.error = root.passphrase ? Tr.t("That password is not right") : "";
             root.needsPassword = true;
+            root.wasProtected = true;
             root.retry = what;
             return true;
         }
@@ -296,6 +370,7 @@ Singleton {
         if (root.retry === "list") list();
         else if (root.retry === "extract") extract("");
         else if (root.retry === "batch") { root.retry = ""; root.extracting = true; root.nextBatch(); }
+        else if (root.retry === "test") { root.retry = ""; root.testArchive(); }
         else if (root.retry.indexOf("one:") === 0) extractOne(root.retry.slice(4));
     }
 
@@ -464,10 +539,13 @@ Singleton {
         toCompress = typeof paths === "string" ? [paths] : Array.from(paths || []).map(String);
         // a task of its own: no archive open underneath it
         file = "";
+        currentDir = "";
         entries = [];
         totalSize = 0;
         extractedTo = "";
         needsPassword = false;
+        wasProtected = false;
+        testResult = "";
         made = "";
         error = "";
         newPass = "";
@@ -537,7 +615,7 @@ Singleton {
         stderr: StdioCollector { id: makeErr }
         onExited: code => {
             root.creating = false;
-            if (code === 0) root.made = madeOut.text;
+            if (code === 0) { root.made = madeOut.text; root.noteRecent(root.made); }
             else root.error = Tr.t("Could not make the archive") + ": " + (makeErr.text.trim().split("\n").pop() || "");
         }
     }
@@ -561,7 +639,11 @@ Singleton {
     property string zipTool: Quickshell.env("SHANI_ZIPADD_TOOL") || "/usr/lib/shani-shell/zipadd.py"
 
     function append(paths) {
-        const list = (typeof paths === "string" ? [paths] : Array.from(paths || []).map(String)).filter(p => p);
+        // dedupe and never add the archive to itself: a repeated path would be
+        // stored twice, and adding the archive to itself can corrupt it
+        const given = (typeof paths === "string" ? [paths] : Array.from(paths || []).map(String))
+            .filter(p => p && p !== root.file);
+        const list = given.filter((p, i) => given.indexOf(p) === i);
         if (!list.length || !root.canAppend || root.appending)
             return;
         root.error = "";
@@ -658,8 +740,18 @@ Singleton {
         const stem = root.name.replace(/\.(tar\.(gz|xz|zst|bz2|lz4|lzma)|tgz|txz|tbz2|[A-Za-z0-9]+)$/, "") || "archive";
         // the hardened reader takes back anything it wrote on a wrong password
         extractor.payload = root.pass + "\n";
-        extractor.command = ["sh", "-c", 'd="$1/$2"; n=2; while [ -e "$d" ]; do d="$1/$2 ($n)"; n=$((n+1)); done; exec python3 "$3" extract "$4" "$d"',
-                             "sh", parent, stem, root.extractTool, root.file];
+        // "rename" keeps today's never-overwrite behaviour (the default);
+        // "overwrite" is an explicit choice to replace the named folder, and
+        // "skip" refuses instead of writing beside an existing folder. The
+        // hardened reader still validates every entry inside the temp dir.
+        extractor.command = ["sh", "-c", 'd="$1/$2"
+case "$5" in
+  overwrite) rm -rf -- "$d" ;;
+  skip) if [ -e "$d" ]; then printf "Destination already exists\\n" >&2; exit 3; fi ;;
+  *) n=2; while [ -e "$d" ]; do d="$1/$2 ($n)"; n=$((n+1)); done ;;
+esac
+exec python3 "$3" extract "$4" "$d"',
+                             "sh", parent, stem, root.extractTool, root.file, root.overwritePolicy];
         extractor.stdinEnabled = true;
         extractor.running = true;
     }
@@ -678,6 +770,32 @@ Singleton {
                 return;
             if (code === 0 && result.saved) root.extractedTo = result.saved;
             else root.error = Tr.t("Could not extract") + ": " + (result.error || extractErr.text.trim().split("\n").pop() || root.name);
+        }
+    }
+
+    // ---- integrity: read every entry's bytes, write nothing ----------------
+    // File Roller and Ark both offer "Test archive". libarchive verifies the
+    // checksums as it streams each member; sending that stream to /dev/null
+    // proves the content can be read without writing a single file.
+    function testArchive() {
+        if (root.file === "" || root.testing || root.entries.length === 0)
+            return;
+        root.error = "";
+        root.testResult = "";
+        root.testing = true;
+        tester.command = ["sh", "-c", 'exec bsdtar --passphrase "$1" -xOf "$2" > /dev/null',
+                          "sh", root.pass, root.file];
+        tester.running = true;
+    }
+    Process {
+        id: tester
+        stderr: StdioCollector { id: testErr }
+        onExited: code => {
+            root.testing = false;
+            if (code === 0) { root.testResult = Tr.t("Done testing %1").arg(root.name); return; }
+            if (root.askPassword(testErr.text, "test")) return;
+            root.error = testErr.text.trim().split("\n").pop()
+                || Tr.t("Not an archive that can be read") + ": " + root.name;
         }
     }
 

@@ -48,7 +48,9 @@ def test_clocks_alarms_can_be_toggled():
     assert "function toggleAlarm(index)" in CLOCKS
     fn = CLOCKS[CLOCKS.index("function toggleAlarm(index)") :]
     fn = fn[: fn.index("Item {")]
-    assert "WorldClock.addAlarm(item.time, item.label" in fn
+    # toggling now edits in place (preserves group + position); the old
+    # remove+addAlarm path duplicated alarms and lost their group
+    assert "WorldClock.updateAlarm(index, item.time, item.label" in fn
     assert "item.enabled === false" in fn
     assert "array.isarray(item.days)" in fn.lower()
     assert "onClicked: win.toggleAlarm(index)" in CLOCKS

@@ -55,8 +55,8 @@ def test_authenticator_copies_otp_through_stdin_and_clears_it():
     assert 'command: ["wl-copy"]' in s
     assert 'onStarted: { write(payload); payload = ""; stdinEnabled = false; }' in s
     assert (
-        'Timer { id: clearTimer; interval: 45000; onTriggered: Quickshell.execDetached(["wl-copy", "--clear"]) }'
-        in s
+        "Timer { id: clearTimer; interval: 45000;" in s
+        and 'Quickshell.execDetached(["wl-copy", "--clear"])' in s
     )
     assert "win.copyClip(a.code);" in s
     assert "win.copyClip(r.code);" in s

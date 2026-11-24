@@ -83,9 +83,11 @@ AppWindow {
     }
     function saveAlarm() {
         let ok = false;
-        if (win.editingAlarm >= 0) {
-            // update in place so the index the sidebar uses stays valid
-            ok = WorldClock.updateAlarm(win.editingAlarm, win.alarmTime, win.alarmLabel, win.alarmDays, win.alarms[win.editingAlarm].enabled !== false);
+        const editing = win.alarms ? win.alarms[win.editingAlarm] : null;
+        if (win.editingAlarm >= 0 && editing) {
+            // update in place so the index the sidebar uses stays valid; a
+            // removed alarm must not crash the save (fall through to add)
+            ok = WorldClock.updateAlarm(win.editingAlarm, win.alarmTime, win.alarmLabel, win.alarmDays, editing.enabled !== false);
             if (ok) WorldClock.setAlarmGroup(win.editingAlarm, win.alarmGroup);
         } else {
             ok = WorldClock.addAlarm(win.alarmTime, win.alarmLabel, win.alarmDays);

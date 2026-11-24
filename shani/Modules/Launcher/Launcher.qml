@@ -11,6 +11,9 @@
 //   : smile    emoji       c text  clipboard
 // Files are matched by name and by what is inside them (localsearch / rg / grep).
 //   > cmd      run (Shift: in a terminal)             ? text  ask Chronoa
+//   app:firefox   file:report   web:weather   clip:meeting   action:dark
+// Operators (parsed in Services/LauncherEntries.qml) narrow the answer to one
+// family; Home/End jump to the first/last result; results carry AT names.
 // Apps you launch often rank first (counts in Quickshell's state dir).
 import Quickshell
 import Quickshell.Io
@@ -55,6 +58,9 @@ PanelWindow {
     readonly property int gridCols: Math.max(1, Math.floor(list.width / Theme.px(132)))
     property string category: "All"
     readonly property string q: search.text
+    // the query after an operator's prefix (LauncherEntries.parseQuery), used by
+    // every async search so an "app:…" query never searches files for "app:…"
+    property string searchText: ""
     property var usage: ({})              // desktop id -> launches
     property var emoji: []                // [{ e, name }], loaded on first ":"
     property string emojiPath: ""
@@ -70,7 +76,9 @@ PanelWindow {
         stdout: StdioCollector {
             onStreamFinished: {
                 // a late answer from the previous query must not replace this one's
-                if (providerSearch.terms.join(" ") !== win.q.trim().split(/\s+/).join(" "))
+                // the plain-query comparison is kept too: it is the common case
+                if (providerSearch.terms.join(" ") !== win.searchText.split(/\s+/).filter(x => x).join(" ")
+                    && providerSearch.terms.join(" ") !== win.q.trim().split(/\s+/).join(" "))
                     return;
                 try { win.provided = JSON.parse(text); } catch (e) { win.provided = []; }
             }
@@ -187,7 +195,7 @@ PanelWindow {
             .concat(Array.from(Settings.data.searchFolders).map(f => f.replace(/^~/, Quickshell.env("HOME"))))
         stdout: StdioCollector {
             onStreamFinished: {
-                if (fileSearch.query === win.q.trim())     // not a stale query's answer
+                if (fileSearch.query === win.searchText || fileSearch.query === win.q.trim())     // not a stale query's answer
                     win.found = text.trim().split("\n").filter(x => x);
             }
         }
@@ -201,7 +209,7 @@ PanelWindow {
             .concat(Array.from(Settings.data.searchFolders).map(f => f.replace(/^~/, Quickshell.env("HOME"))))
         stdout: StdioCollector {
             onStreamFinished: {
-                if (contentSearch.query === win.q.trim())  // not a stale query's answer
+                if (contentSearch.query === win.searchText || contentSearch.query === win.q.trim())  // not a stale query's answer
                     win.inside = text.trim().split("\n").filter(x => x).map(p => decodeURIComponent(p));
             }
         }
@@ -224,8 +232,11 @@ PanelWindow {
         id: fileDebounce
         interval: 250
         onTriggered: {
-            const t = win.q.trim();
-            if (t.length >= 3 && !/^[=:c>?]/.test(t)) {
+            const p = LauncherEntries.parseQuery(win.q.trim());
+            const t = p.text;
+            // app:/web:/clip:/action: keep their own lane; file: still walks files
+            const scope = !p.active || p.op === "file";
+            if (t.length >= 3 && scope && !/^[=:c>?]/.test(t)) {
                 // only what Settings > Search allows is looked at
                 win.found = [];
                 win.inside = [];
@@ -332,6 +343,40 @@ PanelWindow {
         return groups.concat(other ? [other] : []);
     }
 
+    // "web:" is an engine picker (KRunner's runners, Spotlight's web results):
+    // the default engine stays the one-row answer in More, this lists them all.
+    function webEngines(text) {
+        const t = (text || "").trim();
+        const items = Object.keys(Ui.webSearches).map(k => {
+            const e = Ui.webSearches[k];
+            return { kind: "web", icon: "web-browser",
+                title: t ? e[0] + ": “" + t + "”" : e[0],
+                subtitle: t ? Tr.t("Open in %1", e[0]) : Tr.t("Type your search after web:"),
+                run: () => t && Qt.openUrlExternally(e[1] + encodeURIComponent(t)) };
+        });
+        return [{ title: Tr.t("Search the web"), group: "web", items: items }];
+    }
+    // The three "nothing matched" states: a plain dead query, a narrow operator
+    // with no hits, and an operator with no term at all. Each offers a way on.
+    function noResults(text, op) {
+        const t = (text || "").trim();
+        const hint = op ? Tr.t("Try another search, or drop the prefix") : Tr.t("Try a shorter word, or app:, file:, web: or clip:");
+        return { title: Tr.t("No results"), group: "meta", items: [
+            { kind: "none", icon: "edit-find",
+              title: t ? Tr.t("No matches for “%1”", t) : Tr.t("Nothing to search for"),
+              subtitle: hint, run: () => {} }
+        ] };
+    }
+    function operatorHelp(op) {
+        const ex = ({ app: "app:firefox", file: "file:report", web: "web:weather",
+                      clip: "clip:meeting", action: "action:dark" })[op] || op + ":";
+        return { title: Tr.t("Search %1", op), group: "meta", items: [
+            { kind: "none", icon: "system-search", title: op + ":",
+              subtitle: Tr.t("Example: %1", ex),
+              run: () => { search.text = ex; search.forceActiveFocus(); } }
+        ] };
+    }
+
     // parental controls' blocked apps are left out (AppFilter)
     readonly property var apps: DesktopEntries.applications.values.filter(a => !a.noDisplay && AppFilter.allowed(a.id))
     readonly property var appWords: { const m = {}; for (const a of apps) m[a.id] = Fuzzy.words(a.name + " " + (a.genericName || "")); return m; }
@@ -340,7 +385,12 @@ PanelWindow {
 
     // ---- the answer, as sections; `flat` is what the keyboard walks ----------
     readonly property var sections: {
-        const q = win.q.trim();
+        const parsed = LauncherEntries.parseQuery(win.q.trim());
+        const op = parsed.op;
+        // "clip:" is the clipboard mode by another name; every other operator
+        // strips its prefix and keeps the remainder as the query. The legacy
+        // = : c > ? modes still read q unchanged.
+        const q = op === "clip" ? "c " + parsed.text : (op ? parsed.text : win.q.trim());
         const ql = q.toLowerCase();
         const out = [];
         const used = a => win.usage[a.id] || 0;
@@ -354,25 +404,55 @@ PanelWindow {
         // without it the subtitle is just the path (no guessing from extensions)
         const fileItem = (p, app) => ({ kind: "file", icon: win.fileIcon(p), path: p, title: p.split("/").pop(), subtitle: (app ? app + " · " : "") + p.replace(Quickshell.env("HOME"), "~"), run: () => Qt.openUrlExternally(Files.uriOf(p)) });
 
+        // One exit for every answer below: operators keep only their own family,
+        // a bare operator offers an example, and a dead query says so instead of
+        // hiding behind "Ask Chronoa". Each section carries the group it belongs to.
+        const finish = () => {
+            if (op === "web")
+                return parsed.empty ? [win.operatorHelp(op)] : win.webEngines(parsed.text);
+            if (op) {
+                if (parsed.empty) return [win.operatorHelp(op)];
+                const kept = out.filter(s => s.group === op);
+                return kept.length ? kept : [win.noResults(parsed.text, op)];
+            }
+            if (q !== "" && !out.some(s => s.group && s.group !== "meta"))
+                out.unshift(win.noResults(q, ""));
+            return out;
+        };
+
         if (q === "") {
+            // a bare "app:" / "web:" / "file:" never falls through to the app grid
+            if (op) return [win.operatorHelp(op)];
+            // Queries submitted earlier (Spotlight's recent searches): one tap
+            // re-runs one, Shift+Delete forgets it, the last row clears them all.
+            const hs = LauncherEntries.searchHistory;
+            if (hs.length) {
+                const hitems = hs.map(h => ({ kind: "history", icon: "edit-find", title: h,
+                    subtitle: Tr.t("Enter to search again · Shift+Delete to forget"),
+                    run: () => { search.text = h; search.forceActiveFocus(); },
+                    remove: () => LauncherEntries.forget(h) }));
+                hitems.push({ kind: "history", icon: "edit-clear", title: Tr.t("Clear search history"),
+                    subtitle: Tr.t("Forget every recent search"), run: () => LauncherEntries.clearHistory() });
+                out.push({ title: Tr.t("Recent searches"), group: "history", items: hitems });
+            }
             const frequent = win.apps.filter(a => used(a) > 0).sort((a, b) => used(b) - used(a)).slice(0, 8);
             if (frequent.length)
-                out.push({ title: Tr.t("Frequent"), grid: true, items: frequent.map(appItem) });
+                out.push({ title: Tr.t("Frequent"), grid: true, group: "app", items: frequent.map(appItem) });
             for (const g of win.groupRecent(win.recent.slice(0, 18), 6))
                 out.push({ title: g.key ? Tr.t("Recent files") + " · " + g.label : g.label,
-                           items: g.items.map(r => fileItem(r.path, r.app)) });
+                           group: "file", items: g.items.map(r => fileItem(r.path, r.app)) });
             const all = win.apps.filter(a => win.category === "All" || [].concat(a.categories || []).indexOf(win.category) >= 0)
                 .sort((a, b) => a.name.localeCompare(b.name));
-            out.push({ title: Tr.t("All apps"), grid: true, chips: true, items: all.map(appItem) });
+            out.push({ title: Tr.t("All apps"), grid: true, chips: true, group: "app", items: all.map(appItem) });
             return out;
         }
         if (q.startsWith("?")) {
             const t = q.slice(1).trim();
-            return [{ title: Tr.t("Chronoa"), items: [{ kind: "ask", icon: "chat-message-new", title: t ? "Ask Chronoa: " + t : "Ask Chronoa…", subtitle: Settings.data.launcherHideNavLabels ? "" : Tr.t("Enter"), run: () => t && Chronoa.ask(t) }] }];
+            return [{ title: Tr.t("Chronoa"), group: "meta", items: [{ kind: "ask", icon: "chat-message-new", title: t ? "Ask Chronoa: " + t : "Ask Chronoa…", subtitle: Settings.data.launcherHideNavLabels ? "" : Tr.t("Enter"), run: () => t && Chronoa.ask(t) }] }];
         }
         if (q.startsWith(">")) {
             const cmd = q.slice(1).trim();
-            return [{ title: Tr.t("Run"), items: [
+            return [{ title: Tr.t("Run"), group: "run", items: [
                 { kind: "run", icon: "utilities-terminal", title: cmd ? "Run: " + cmd : "Run a command…", subtitle: "Shift+Enter: in " + Settings.data.terminal,
                   run: shift => cmd && Quickshell.execDetached(shift ? [Settings.data.terminal, "-e", "sh", "-c", cmd + "; exec $SHELL"] : ["sh", "-c", cmd]) },
                 { kind: "run", icon: "dialog-password", title: cmd ? "Run as administrator: " + cmd : "Run as administrator…",
@@ -398,7 +478,7 @@ PanelWindow {
                 return { kind: "emoji", glyph: x.ch, icon: "face-smile-big", title: x.name, subtitle: ("U+" + x.cp.toString(16).toUpperCase().padStart(4, "0")) + " · " + Tr.t("Enter types it · Shift+Enter copies"), run: shift => shift ? Quickshell.clipboardText = x.ch : Clipboard.typeText(x.ch) };
             }).filter(Boolean);
             const all = emojiItems.concat(charItems).slice(0, 40);
-            return [{ title: Tr.t("Emoji & characters"), items: all }];
+            return [{ title: Tr.t("Emoji & characters"), group: "emoji", items: all }];
         }
         if (q === "c" || q.startsWith("c ")) {
             const f = q.slice(1).trim().toLowerCase();
@@ -413,7 +493,7 @@ PanelWindow {
                 : [{ kind: "none", icon: "edit-paste", title: Clipboard.available ? "Clipboard history is empty" : "cliphist is not installed", subtitle: "", run: () => {} }];
             if (items.length && Clipboard.available)
                 clipItems.push({ kind: "clipclear", icon: "edit-clear", title: Tr.t("Clear clipboard history"), subtitle: Tr.t("Shift+Delete clears all"), run: () => Clipboard.wipe() });
-            const out = (pins.length ? [{ title: Tr.t("Pinned"), items: pins }] : []).concat([{ title: Tr.t("Clipboard"), items: clipItems }]);
+            const out = (pins.length ? [{ title: Tr.t("Pinned"), group: "clip", items: pins }] : []).concat([{ title: Tr.t("Clipboard"), group: "clip", items: clipItems }]);
             // quick changes: transform the most recent text entry
             const latest = items.find(e => !e.image);
             if (latest && Clipboard.available) {
@@ -424,7 +504,7 @@ PanelWindow {
                     { title: Tr.t("Plain text"), icon: "text-x-generic", mode: "plain" },
                     { title: Tr.t("Trim whitespace"), icon: "edit-clear", mode: "trim" },
                 ];
-                out.push({ title: Tr.t("Quick changes"), items: transforms.map(t => ({
+                out.push({ title: Tr.t("Quick changes"), group: "clip", items: transforms.map(t => ({
                     kind: "clip", icon: t.icon, title: t.title, subtitle: Tr.t("Paste the latest clipboard text as %1", t.title.toLowerCase()),
                     run: () => Clipboard.transformAndPaste(latest.text, t.mode),
                 })) });
@@ -435,14 +515,14 @@ PanelWindow {
         const math = q.startsWith("=") ? q.slice(1) : q;
         const v = math !== "" ? Calc.calc(math) : null;
         if (v !== null && Settings.data.searchCalc)
-            out.push({ title: Tr.t("Calculator"), items: [{ kind: "calc", icon: "accessories-calculator", title: "= " + v, subtitle: Tr.t("Enter copies the result"), run: () => Quickshell.clipboardText = String(v) }] });
+            out.push({ title: Tr.t("Calculator"), group: "calc", items: [{ kind: "calc", icon: "accessories-calculator", title: "= " + v, subtitle: Tr.t("Enter copies the result"), run: () => Quickshell.clipboardText = String(v) }] });
         const conv = Settings.data.searchCalc ? Calc.convert(q) : null;
         if (conv)
-            out.push({ title: Tr.t("Convert"), items: [{ kind: "calc", icon: "accessories-calculator", title: "= " + conv.text, subtitle: Tr.t("Enter copies"), run: () => Quickshell.clipboardText = String(Number(conv.value.toPrecision(8))) }] });
+            out.push({ title: Tr.t("Convert"), group: "calc", items: [{ kind: "calc", icon: "accessories-calculator", title: "= " + conv.text, subtitle: Tr.t("Enter copies"), run: () => Quickshell.clipboardText = String(Number(conv.value.toPrecision(8))) }] });
         if (Settings.data.searchCalc && Calc.isCurrency(q))
-            out.push({ title: Tr.t("Currency"), items: [{ kind: "ask", icon: "chat-message-new", title: "Convert " + q + " with Chronoa", subtitle: Tr.t("live rates"), run: () => Chronoa.ask("Convert " + q) }] });
+            out.push({ title: Tr.t("Currency"), group: "meta", items: [{ kind: "ask", icon: "chat-message-new", title: "Convert " + q + " with Chronoa", subtitle: Tr.t("live rates"), run: () => Chronoa.ask("Convert " + q) }] });
         if (q.startsWith("="))
-            return out;
+            return finish();
 
         // contacts search (name, phone, email). Guarded: the launcher is the
         // primary surface, and an address book that fails to read must not take
@@ -456,7 +536,7 @@ PanelWindow {
                 || (c.email || "").toLowerCase().indexOf(ql) >= 0
             ).slice(0, 5);
             if (matches.length) {
-                out.push({ title: Tr.t("Contacts"), items: matches.map(c => ({
+                out.push({ title: Tr.t("Contacts"), group: "contact", items: matches.map(c => ({
                     kind: "contact",
                     icon: "x-office-address-book",
                     title: c.name || c.phone || c.email,
@@ -477,7 +557,7 @@ PanelWindow {
                 (e.title || "").toLowerCase().indexOf(ql) >= 0
             ).slice(0, 5);
             if (matches.length) {
-                out.push({ title: Tr.t("Events"), items: matches.map(e => ({
+                out.push({ title: Tr.t("Events"), group: "event", items: matches.map(e => ({
                     kind: "event",
                     icon: "x-office-calendar",
                     title: e.title || Tr.t("Untitled event"),
@@ -495,7 +575,7 @@ PanelWindow {
         {
             const noteMatches = QuickNotes.search(q);
             if (noteMatches.length > 0) {
-                out.push({ title: Tr.t("Notes"), items: noteMatches.slice(0, 5).map(n => ({
+                out.push({ title: Tr.t("Notes"), group: "note", items: noteMatches.slice(0, 5).map(n => ({
                     kind: "note",
                     icon: "text-x-generic",
                     title: n.name,
@@ -508,7 +588,7 @@ PanelWindow {
             // reads - a loop that spins the shell and empties every answer.
             if (noteMatches.length === 0 && q.length >= 3) {
                 if (QuickNotes.contentHits && QuickNotes.contentHits.length > 0) {
-                    out.push({ title: Tr.t("Notes (in content)"), items: QuickNotes.contentHits.slice(0, 5).map(id => ({
+                    out.push({ title: Tr.t("Notes (in content)"), group: "note", items: QuickNotes.contentHits.slice(0, 5).map(id => ({
                         kind: "note",
                         icon: "text-x-generic",
                         title: id,
@@ -532,11 +612,11 @@ PanelWindow {
                     for (const act of a.actions)
                         items.push({ kind: "app", app: a.icon, title: a.name + " — " + act.name, subtitle: Tr.t("action"), run: () => win.launch(a, act.id) });
             });
-            out.push({ title: Tr.t("Apps"), items: items });
+            out.push({ title: Tr.t("Apps"), group: "app", items: items });
         }
         const wins = Object.values(Niri.windows).filter(w => win.score(w.title, ql) > 0 || win.score(w.app_id, ql) > 0).slice(0, 6);
         if (wins.length)
-            out.push({ title: Tr.t("Windows"), items: wins.map(w => {
+            out.push({ title: Tr.t("Windows"), group: "window", items: wins.map(w => {
                 const e = DesktopEntries.heuristicLookup(w.app_id || "");
                 return { kind: "window", app: e ? e.icon : w.app_id, title: w.title || w.app_id, subtitle: Niri.workspaceLabel(w.workspace_id), run: () => Niri.focusWin(w) };
             }) });
@@ -546,23 +626,24 @@ PanelWindow {
                 .filter(x => x.s > 0).sort((x, y) => y.s - x.s).map(x => x.a));
         acts = acts.slice(0, 6);
         if (acts.length)
-            out.push({ title: Tr.t("Actions"), items: acts.map(a => ({ kind: "action", icon: a.icon, title: a.title,
+            out.push({ title: Tr.t("Actions"), group: "action", items: acts.map(a => ({ kind: "action", icon: a.icon, title: a.title,
                 subtitle: a.state ? (a.state() ? "On — Enter turns off" : "Off — Enter turns on") : "", run: a.run })) });
         const files = win.recent.filter(r => r.name.toLowerCase().indexOf(ql) >= 0).map(r => r.path);
         const allFiles = files.concat(win.found.filter(p => files.indexOf(p) < 0)).slice(0, 10);
         const byContent = win.inside.filter(p => allFiles.indexOf(p) < 0).slice(0, 6);
         if (allFiles.length || byContent.length)
-            out.push({ title: Tr.t("Files"), items: allFiles.map(fileItem).concat(byContent.map(p => Object.assign(fileItem(p), { subtitle: "contains “" + q + "” · " + p.replace(Quickshell.env("HOME"), "~") }))) });
+            out.push({ title: Tr.t("Files"), group: "file", items: allFiles.map(fileItem).concat(byContent.map(p => Object.assign(fileItem(p), { subtitle: "contains “" + q + "” · " + p.replace(Quickshell.env("HOME"), "~") }))) });
         // what Chronoa's index found, by meaning (or by words, when it says so)
         const meant = win.meaning.filter(m => allFiles.indexOf(m.path) < 0 && byContent.indexOf(m.path) < 0).slice(0, 6);
         if (meant.length)
             out.push({ title: /embedding/.test(win.meaningHow) ? Tr.t("In your files, by meaning") : Tr.t("In your files"),
+                       group: "file",
                        items: meant.map(m => Object.assign(fileItem(m.path), { subtitle: (m.excerpt ? "“" + m.excerpt.slice(0, 90) + "…” · " : "") + m.path.replace(Quickshell.env("HOME"), "~") })) });
         // what the apps themselves found, one section per app
         // a sum the launcher already answered is not answered again by Calculator's own provider
         const answered = out.some(s => s.items.some(i => i.kind === "calc"));
         for (const app of [...new Set(win.provided.filter(r => !(answered && /calculator/i.test(String(r.bus) + " " + r.app))).map(r => r.app))].slice(0, 4))
-            out.push({ title: "From " + app, items: win.provided.filter(r => r.app === app).slice(0, 4).map(r => ({
+            out.push({ title: "From " + app, group: "provided", items: win.provided.filter(r => r.app === app).slice(0, 4).map(r => ({
                 kind: "provided", app: r.icon, title: r.name, subtitle: r.description,
                 run: () => Quickshell.execDetached(["python3", win.providersTool, "activate", r.bus, r.path, r.id].concat(q.split(/\s+/))) })) });
         // "Ask Chronoa" takes over only what nothing else could answer: it lands
@@ -571,13 +652,16 @@ PanelWindow {
         // calculator already answered is not a question, so it gets none.
         const calcAnswered = out.some(s => s.items.some(i => i.kind === "calc"));
         if (q !== "" && Settings.data.searchMeaning !== false && !calcAnswered)
-            out.push({ title: Tr.t("Ask Chronoa"), items: [
+            out.push({ title: Tr.t("Ask Chronoa"), group: "meta", items: [
                 { kind: "ask", icon: "chat-message-new", title: "Ask Chronoa: " + q, subtitle: Tr.t("Enter to ask in your own words"), run: () => Chronoa.ask(q) }
             ] });
-        out.push({ title: Tr.t("More"), items: [
-            { kind: "web", icon: "web-browser", title: "Search the web for “" + q + "”", subtitle: Ui.webSearchName(), run: () => Qt.openUrlExternally(Ui.webSearchUrl(q)) }
+        out.push({ title: Tr.t("More"), group: "meta", items: [
+            { kind: "web", icon: "web-browser", title: "Search the web for “" + q + "”", subtitle: Ui.webSearchName(), run: () => Qt.openUrlExternally(Ui.webSearchUrl(q)) },
+            // discoverability for the engine picker without leaving the field
+            { kind: "web", icon: "web-search", title: Tr.t("Choose a search engine…"), subtitle: Tr.t("Or type web: then your query"),
+              run: () => { search.text = "web:"; search.forceActiveFocus(); } }
         ] });
-        return out;
+        return finish();
     }
     readonly property var flat: sections.reduce((acc, s) => acc.concat(s.items), [])
     readonly property var current: flat[Math.max(0, Math.min(sel, flat.length - 1))] || null
@@ -586,6 +670,8 @@ PanelWindow {
     onSectionsChanged: Ui.launcherSections = sections.map(x => x.title)
     onQChanged: {
         searchBar = false;
+        const p = LauncherEntries.parseQuery(q);
+        searchText = p.text;
         if (q.startsWith(":") && Characters.query !== q.slice(1).trim())
             Characters.search(q.slice(1).trim());
         Ui.launcherText = q;
@@ -593,7 +679,7 @@ PanelWindow {
         if (q.trim().length >= 3) QuickNotes.searchBodies(q.trim());
         sel = 0;
         fileDebounce.restart();
-        if (q === "c" || q.startsWith("c "))
+        if (q === "c" || q.startsWith("c ") || p.op === "clip")
             Clipboard.refresh();
     }
 
@@ -601,6 +687,9 @@ PanelWindow {
         const r = flat[Math.max(0, Math.min(i, flat.length - 1))];
         if (!r)
             return;
+        // only a submitted query becomes a recent search, not every keystroke
+        if (!shift && win.q.trim())
+            LauncherEntries.remember(win.q.trim());
         Ui.closeAll();
         r.run(shift);
     }
@@ -719,9 +808,14 @@ PanelWindow {
                         if (win.sel < (win.q === "" ? win.gridCols : 1)) win.searchBar = true;
                         else win.sel = Math.max(win.sel - (win.q === "" ? win.gridCols : 1), 0);
                     }
+                    // Home/End jump to the first/last answer (handled in the
+                    // shared onPressed below); Tab already wraps the same list.
                     Keys.onTabPressed: win.sel = (win.sel + 1) % Math.max(1, win.flat.length)
                     Keys.onBacktabPressed: win.sel = (win.sel - 1 + win.flat.length) % Math.max(1, win.flat.length)
                     Keys.onPressed: e => {
+                        // Home/End: first/last answer, like GNOME/Spotlight
+                        if (e.key === Qt.Key_Home && win.flat.length) { win.sel = 0; e.accepted = true; return; }
+                        if (e.key === Qt.Key_End && win.flat.length) { win.sel = win.flat.length - 1; e.accepted = true; return; }
                         // Ctrl+P: pin or unpin a clipboard entry
                         if (e.key === Qt.Key_P && (e.modifiers & Qt.ControlModifier) && win.flat[win.sel] && win.flat[win.sel].pin) {
                             win.flat[win.sel].pin();
@@ -821,6 +915,7 @@ PanelWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 Text {
+                                    Accessible.role: Accessible.Heading
                                     text: section.modelData.title
                                     color: Theme.dim
                                     font.family: Theme.font
@@ -858,6 +953,8 @@ PanelWindow {
                                         required property var modelData
                                         required property int index
                                         readonly property bool isSel: win.sel === section.base + index
+                                        Accessible.role: Accessible.ListItem
+                                        Accessible.name: (tile.modelData.title || "") + (tile.modelData.subtitle ? ", " + tile.modelData.subtitle : "")
                                         Layout.fillWidth: true
                                         implicitHeight: Theme.px(112)
                                         radius: Theme.px(18)
@@ -911,6 +1008,8 @@ PanelWindow {
                                     required property var modelData
                                     required property int index
                                     readonly property bool isSel: win.sel === section.base + index
+                                    Accessible.role: Accessible.ListItem
+                                    Accessible.name: (row.modelData.title || "") + (row.modelData.subtitle ? ", " + row.modelData.subtitle : "")
                                     Layout.fillWidth: true
                                     implicitHeight: Theme.px(48)
                                     radius: Theme.px(14)

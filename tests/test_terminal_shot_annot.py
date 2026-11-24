@@ -146,7 +146,7 @@ def test_annotate_tool_model_regression():
                 if "required property string modelData" in line
             ]
         )
-        == 1
+        >= 1  # colour swatches + the new tool picker both use modelData
     )
     for token in ('icon: "edit-undo"', 'icon: "draw-eraser"', 'icon: "document-save"'):
         assert token in s
