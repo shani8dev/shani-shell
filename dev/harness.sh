@@ -26,7 +26,9 @@
 fail=${fail:-0}
 
 ipc() { qs $QS_ARGS ipc call "$QS_TARGET" "$@" >/dev/null 2>&1; }
-ipc_line() { eval "qs $QS_ARGS ipc call $QS_TARGET $1" >/dev/null 2>&1 || true; LAST_IPC="$1"; }
+# One quoted command string OR unquoted words: $* joins every arg so
+# `ipc_line dockMenu foot` sends both words (with $1 only "dockMenu" went out).
+ipc_line() { eval "qs $QS_ARGS ipc call $QS_TARGET $*" >/dev/null 2>&1 || true; LAST_IPC="$*"; }
 st() { timeout 5 qs $QS_ARGS ipc call "$QS_TARGET" state 2>/dev/null; }
 q() { st | python3 -c "import json,sys; d=json.load(sys.stdin); print(d$1)"; }
 

@@ -102,3 +102,18 @@ def test_catches_lazy_loader_compile_errors_in_qs_log():
         assert pattern in SCRIPT, f"compile guard missing: {pattern}"
     assert "QML COMPILE ERROR" in SCRIPT
     assert "failed=$((failed+1))" in SCRIPT
+
+
+def test_ipc_line_forwards_every_word():
+    """`ipc_line dockMenu foot` must send both words to the IPC.
+
+    The shared harness helper word-splits a quoted command string. Several
+    render scenes call it unquoted with arguments (`dockMenu foot`,
+    `ringAt 300 500`, `textMessage +919...`); using $1 instead of $* dropped
+    every word after the first, so the state key never set and the shot FAILed.
+    """
+    harness = (ROOT / "dev/harness.sh").read_text(encoding="utf-8")
+    line = next(l for l in harness.splitlines() if l.startswith("ipc_line()"))
+    assert "$*" in line, f"ipc_line drops arguments: {line}"
+    assert "$1" not in line.split("eval")[1], f"ipc_line uses only first word: {line}"
+    assert 'LAST_IPC="$*"' in harness
