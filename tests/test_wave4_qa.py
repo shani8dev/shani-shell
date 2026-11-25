@@ -94,10 +94,18 @@ def funcs(text: str, *names: str) -> str:
     return "\n".join(source_of(text, name) for name in names)
 
 
+TIME_STUB = r"""
+var Time = {
+  clockPadded: function(t){ t=String(t||""); return t.length>=5?t:t.padStart(5,"0"); },
+  dayKey: function(when){ var d=when instanceof Date?when:typeof when==="string"?new Date(when):new Date(Number(when)||Date.now()); if(!d||isNaN(d.getTime())) return ""; return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); },
+  clock: function(s){ s=Number(s)||0; return Math.floor(s/60)+":"+String(Math.floor(s%60)).padStart(2,"0"); },
+  hhmmss: function(s){ s=Number(s)||0; return String(Math.floor(s/3600)).padStart(2,"0")+":"+String(Math.floor(s%3600/60)).padStart(2,"0")+":"+String(Math.floor(s%60)).padStart(2,"0"); }
+};
+"""
 def node(prog: str):
     assert NODE, "node is required"
     out = subprocess.run(
-        [NODE, "-e", prog], capture_output=True, text=True, timeout=30, check=True
+        [NODE, "-e", TIME_STUB + prog], capture_output=True, text=True, timeout=30, check=True
     )
     return json.loads(out.stdout.strip().splitlines()[-1])
 

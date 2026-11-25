@@ -19,15 +19,18 @@ ColumnLayout {
     property var roles: ["primary", "on_primary", "primary_container", "secondary_container", "tertiary", "surface", "surface_high", "on_surface", "on_surface_variant", "outline"]
     readonly property var shown: (Matugen.previewPalette && Object.keys(Matugen.previewPalette).length) ? Matugen.previewPalette : Matugen.palette
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Colours from a picture") }
-    Text {
+    SettingsSection {
         Layout.fillWidth: true
-        text: Tr.t("The desktop's colours, taken from a picture. Extract shows them first; Apply makes the picture your wallpaper and the colours yours.")
-        color: Theme.dim
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
-        wrapMode: Text.Wrap
-    }
+        spacing: Theme.px(10)
+        title: Tr.t("Colours from a picture")
+        Text {
+            Layout.fillWidth: true
+            text: Tr.t("The desktop's colours, taken from a picture. Extract shows them first; Apply makes the picture your wallpaper and the colours yours.")
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+            wrapMode: Text.Wrap
+        }
 
     Rectangle {
         Layout.fillWidth: true
@@ -132,32 +135,39 @@ ColumnLayout {
         Layout.fillWidth: true
     }
 
-    SectionTitle { visible: Object.keys(page.shown || {}).length > 0; Layout.fillWidth: true; text: Tr.t("Dominant colours matugen derives") }
-    ColumnLayout {
-        visible: Object.keys(page.shown || {}).length > 0
+    }
+
+    SettingsSection {
         Layout.fillWidth: true
-        spacing: Theme.px(4)
-        Repeater {
-            model: page.roles
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.px(8)
-                Rectangle {
-                    implicitWidth: Theme.px(28)
-                    implicitHeight: Theme.px(20)
-                    radius: Theme.px(6)
-                    color: (page.shown && page.shown[modelData]) || Theme.accent
-                    border.color: Theme.stroke
-                    border.width: 1
-                    Accessible.role: Accessible.Graphic
-                    Accessible.name: modelData
-                }
-                Text {
+        spacing: Theme.px(10)
+        visible: Object.keys(page.shown || {}).length > 0
+        title: Tr.t("Dominant colours matugen derives")
+        ColumnLayout {
+            visible: Object.keys(page.shown || {}).length > 0
+            Layout.fillWidth: true
+            spacing: Theme.px(4)
+            Repeater {
+                model: page.roles
+                RowLayout {
                     Layout.fillWidth: true
-                    text: modelData + "  " + ((page.shown && page.shown[modelData]) || "—")
-                    color: Theme.text
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    spacing: Theme.px(8)
+                    Rectangle {
+                        implicitWidth: Theme.px(28)
+                        implicitHeight: Theme.px(20)
+                        radius: Theme.px(6)
+                        color: (page.shown && page.shown[modelData]) || Theme.accent
+                        border.color: Theme.stroke
+                        border.width: 1
+                        Accessible.role: Accessible.Graphic
+                        Accessible.name: modelData
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: modelData + "  " + ((page.shown && page.shown[modelData]) || "—")
+                        color: Theme.text
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                    }
                 }
             }
         }

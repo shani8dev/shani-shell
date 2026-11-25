@@ -24,9 +24,15 @@ ColumnLayout {
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("Live wallpaper")
-        hint: Tr.t("A video behind the desktop, without sound. It plays only while you can see it: it pauses under windows, when the screen is locked or dimmed, and on battery.")
-
-    Flow {
+        Text {
+            Layout.fillWidth: true
+            text: Tr.t("A video behind the desktop, without sound. It plays only while you can see it: it pauses under windows, when the screen is locked or dimmed, and on battery.")
+            color: Theme.dim
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
+        Flow {
         Layout.fillWidth: true
         spacing: Theme.px(6)
         Choice { text: Tr.t("None"); selected: !page.d.wallpaperVideo; onClicked: page.d.wallpaperVideo = "" }

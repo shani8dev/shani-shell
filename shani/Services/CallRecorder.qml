@@ -5,18 +5,19 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import "../Common/Time.js" as Time
 
 Singleton {
     id: root
     readonly property bool recording: rec.running
     property string file: ""
     property int seconds: 0
-    readonly property string elapsed: Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0")
+    readonly property string elapsed: Time.clock(seconds)
 
     function toggle() { recording ? stop() : start(); }
     function start() {
         const dir = (Quickshell.env("HOME") || "/tmp") + "/Recordings/Calls";
-        file = dir + "/Call-" + new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-") + ".ogg";
+        file = dir + "/Call-" + Time.fileStamp() + ".ogg";
         seconds = 0;
         rec.command = ["sh", "-c", 'mkdir -p "$1"; sink=$(pactl get-default-sink); exec ffmpeg -loglevel error -f pulse -i default -f pulse -i "$sink.monitor" -filter_complex amix=inputs=2:duration=longest -c:a libopus -b:a 48k "$2"',
                        "sh", dir, file];

@@ -18,7 +18,9 @@ ColumnLayout {
     property string selected: Displays.outputs.length ? Displays.outputs[0].name : ""
     readonly property var sel: Displays.outputs.find(o => o.name === selected) || null
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Displays") }
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Displays")
 
     // ---- the arrangement ---------------------------------------------------------------
     Rectangle {
@@ -258,16 +260,13 @@ ColumnLayout {
     }
 
     // ---- battery: the built-in panel at 60 Hz until the charger is back ------------
-    // ---- scale presets: resolution=scale applied when a display changes ---------
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Scale presets") }
-    Text {
-        Layout.fillWidth: true
-        wrapMode: Text.WordWrap
-        text: Tr.t("Apply a scale automatically when a display's resolution changes. One per line: 2560x1440=1.5 or DP-3:1920x1080=1.25 (port-specific wins).")
-        color: Theme.dim
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
+
+    // ---- scale presets: resolution=scale applied when a display changes ---------
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Scale presets")
+        hint: Tr.t("Apply a scale automatically when a display's resolution changes. One per line: 2560x1440=1.5 or DP-3:1920x1080=1.25 (port-specific wins).")
     TextField {
         Layout.fillWidth: true
         placeholder: Tr.t("Add a preset: 2560x1440=1.5 or DP-3:1920x1080=1.25")
@@ -316,6 +315,7 @@ ColumnLayout {
         checked: Settings.data.displayScalePresetsAuto !== false
         onToggled: on => Settings.data.displayScalePresetsAuto = on
     }
+    }
 
     SwitchRow {
         Layout.fillWidth: true
@@ -329,7 +329,9 @@ ColumnLayout {
     // ---- auto-rotate: tablets and convertibles with an accelerometer --------------
     SectionTitle { Layout.fillWidth: true; visible: AutoRotate.available; text: Tr.t("Rotation") }
     // ---- multi-GPU: which card niri renders on -----------------------------------
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Graphics") }
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Graphics")
     Text {
         Layout.fillWidth: true
         visible: Gpu.renderDevices.length > 1
@@ -354,6 +356,7 @@ ColumnLayout {
         text: Tr.t("Let Niri choose")
         selected: false
         onClicked: Settings.data.niriRenderDevice = ""
+    }
     }
 
     SwitchRow {

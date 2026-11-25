@@ -47,7 +47,7 @@ Rectangle {
     KeyFocus { enabled: root.enabled && root.visible; columns: root.columns; onActivated: root.clicked() }
 
     // a search landed here: a pulsing accent edge until the flash clears
-    Rectangle {
+    Fade {
         id: flashRing
         anchors.fill: parent
         anchors.margins: -3
@@ -57,11 +57,7 @@ Rectangle {
         border.color: Theme.alpha(Theme.accent, 0.8)
         visible: root.highlighted
         z: 10
-        SequentialAnimation on opacity {
-            running: root.highlighted && !Settings.data.reduceMotion
-            loops: Animation.Infinite
-            NumberAnimation { from: 0.35; to: 1; duration: Theme.mot(420); easing.type: Easing.InOutSine }
-            NumberAnimation { from: 1; to: 0.35; duration: Theme.mot(420); easing.type: Easing.InOutSine }
-        }
+        active: root.highlighted
+        duration: Theme.mot(420)
     }
 }

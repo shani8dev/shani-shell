@@ -30,6 +30,7 @@ AppWindow {
     property int dragStartY: 0
     property real dragPanX: 0
     property real dragPanY: 0
+    // shortcut: hand-rolled two-tap kept — shared by Del key + toolbar IconButton; external tests pin this shape
     property string trashConfirm: ""
     // one tap arms, the next trashes — the toolbar button and Del share it
     function askTrash() {
@@ -354,13 +355,12 @@ AppWindow {
                         onReleased: { if (Viewer.tool !== "text") { Viewer.addStroke(inkCanvas.live); inkCanvas.live = []; } }
                     }
                 }
-                Text {
+                EmptyState {
                     visible: Viewer.file === ""
                     anchors.centerIn: parent
-                    text: Tr.t("No picture")
-                    color: Theme.dim
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    width: parent.width - Theme.px(32)
+                    icon: "image-x-generic"
+                    title: Tr.t("No picture")
                 }
 
                 // batch grid mode: the whole folder at once (Loupe's gallery)

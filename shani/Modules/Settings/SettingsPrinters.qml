@@ -156,148 +156,151 @@ ColumnLayout {
         page.pendingAuth = (user && password) ? { name: q, user: user, password: password } : null;
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Printers") }
-    SwitchRow {
+    SettingsSection {
         Layout.fillWidth: true
-        visible: page.cupsBrowsedLoaded
-        text: Tr.t("Discover network printers automatically")
-        hint: Tr.t("Finds printers announced on your local network")
-        checked: page.cupsBrowsed
-        onToggled: on => { cbSet.payload = JSON.stringify({ enabled: on }); cbSet.command = page.adminCmd.concat(["cups-browsed-set"]); cbSet.running = true; }
-    }
-    Text {
-        visible: !page.cups || page.printers.length === 0
-        Layout.fillWidth: true
-        wrapMode: Text.WordWrap
-        text: !page.cups ? Tr.t("The printing service (CUPS) is not running.")
-            : Tr.t("No printers yet. Printers on the network usually appear by themselves; Add a printer finds the rest.")
-        color: Theme.dim
-        font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
-    }
-    Repeater {
-        model: page.printers
-        ColumnLayout {
-            id: pr
-            required property var modelData
+        title: Tr.t("Printers")
+        SwitchRow {
             Layout.fillWidth: true
-            spacing: Theme.px(4)
-            readonly property bool isDefault: modelData.name === page.defaultName
-            RowLayout {
-                spacing: Theme.px(10)
-                Icon { name: "printer"; size: Theme.px(20); color: pr.isDefault ? Theme.accent : Theme.text }
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 1
-                    Text { text: pr.modelData.name.replace(/_/g, " "); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
-                    Text {
-                        text: pr.modelData.state + (pr.isDefault ? " · " + Tr.t("your default") : "")
-                              + (pr.modelData.jobs ? " · " + Tr.t("%1 waiting", pr.modelData.jobs) : "")
-                        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
-                    }
-                }
-            }
-            Flow {
-                Layout.fillWidth: true
-                spacing: Theme.px(6)
-                Choice { visible: !pr.isDefault; text: Tr.t("Make default"); onClicked: page.run(["lpoptions", "-d", pr.modelData.name], Tr.t("%1 is your default printer", pr.modelData.name)) }
-                Choice { text: Tr.t("Print a test page"); onClicked: page.run(["lp", "-d", pr.modelData.name, "/usr/share/cups/data/testprint"], Tr.t("Test page sent")) }
-                Choice { visible: pr.modelData.jobs > 0; text: Tr.t("Cancel my jobs"); onClicked: page.run(["cancel", "-u", Quickshell.env("USER") || "", pr.modelData.name], Tr.t("Your jobs were cancelled")) }
-                Choice { text: Tr.t("Queue"); onClicked: { Ui.closeAll(); Printing.openQueue(); } }
-                ConfirmButton {
-                    id: removePrinter
-                    implicitWidth: Math.max(Theme.touchTarget, armedText.length * 8 + 28)
-                    implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
-                    text: Tr.t("Remove…")
-                    armedText: Tr.t("Tap again to remove")
-                    kind: "danger"
-                    interval: 3000
-                    onConfirmed: page.run(["pkexec", "lpadmin", "-x", pr.modelData.name], Tr.t("%1 removed", pr.modelData.name))
-                }
-            }
-            // your defaults for it: paper, two-sided, colour; and whether others on the network may use it
-            Text {
-                Layout.fillWidth: true
-                text: Tr.t("Your defaults for this printer")
-                color: Theme.dim
-                font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
-            }
-            Flow {
-                Layout.fillWidth: true
-                spacing: Theme.px(6)
-                readonly property var o: page.opts[pr.modelData.name] || ({})
-                Repeater {
-                    model: [["media", "A4", "A4"], ["media", "Letter", Tr.t("Letter")],
-                            ["sides", "one-sided", Tr.t("One side")], ["sides", "two-sided-long-edge", Tr.t("Both sides")],
-                            ["print-color-mode", "color", Tr.t("Colour")], ["print-color-mode", "monochrome", Tr.t("Black and white")]]
-                    Choice {
-                        required property var modelData
-                        text: modelData[2]
-                        selected: (parent.o[modelData[0]] || "") === modelData[1]
-                        onClicked: page.setOpt(pr.modelData.name, modelData[0], modelData[1])
-                    }
-                }
-                Choice {
-                    text: Tr.t("Shared on the network")
-                    selected: (parent.o["printer-is-shared"] || "") === "true"
-                    onClicked: page.run(["pkexec", "lpadmin", "-p", pr.modelData.name, "-o", "printer-is-shared=" + (selected ? "false" : "true")],
-                                        selected ? Tr.t("%1 is no longer shared", pr.modelData.name) : Tr.t("%1 is shared on the network", pr.modelData.name))
-                }
-            }
+            visible: page.cupsBrowsedLoaded
+            text: Tr.t("Discover network printers automatically")
+            hint: Tr.t("Finds printers announced on your local network")
+            checked: page.cupsBrowsed
+            onToggled: on => { cbSet.payload = JSON.stringify({ enabled: on }); cbSet.command = page.adminCmd.concat(["cups-browsed-set"]); cbSet.running = true; }
         }
-    }
-    RowLayout {
-        spacing: Theme.px(8)
-        Button { text: page.found === null ? Tr.t("Add a printer…") : Tr.t("Cancel"); onClicked: page.found === null ? page.startAdding() : page.found = null }
-        Button { text: Tr.t("Refresh"); onClicked: list.running = true }
-    }
-    // adding: what the network offers, or an address typed in
-    ColumnLayout {
-        visible: page.found !== null
-        Layout.fillWidth: true
-        spacing: Theme.px(6)
         Text {
+            visible: !page.cups || page.printers.length === 0
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
-            text: page.finding ? Tr.t("Looking on the network…")
-                : (page.found || []).length ? Tr.t("Printers on the network:")
-                : Tr.t("No other printer is announcing itself. Type its address (as on its own screen or settings page):")
+            text: !page.cups ? Tr.t("The printing service (CUPS) is not running.")
+                : Tr.t("No printers yet. Printers on the network usually appear by themselves; Add a printer finds the rest.")
             color: Theme.dim
             font.family: Theme.font
             font.pixelSize: Theme.px(12) * Theme.fontScale
         }
-        Flow {
-            Layout.fillWidth: true
-            spacing: Theme.px(6)
-            Repeater {
-                model: page.found || []
-                Choice {
-                    required property var modelData
-                    text: modelData.name
-                    onClicked: page.add(modelData.name, modelData.uri, userField.text.trim(), passField.text)
+        Repeater {
+            model: page.printers
+            ColumnLayout {
+                id: pr
+                required property var modelData
+                Layout.fillWidth: true
+                spacing: Theme.px(4)
+                readonly property bool isDefault: modelData.name === page.defaultName
+                RowLayout {
+                    spacing: Theme.px(10)
+                    Icon { name: "printer"; size: Theme.px(20); color: pr.isDefault ? Theme.accent : Theme.text }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 1
+                        Text { text: pr.modelData.name.replace(/_/g, " "); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                        Text {
+                            text: pr.modelData.state + (pr.isDefault ? " · " + Tr.t("your default") : "")
+                                  + (pr.modelData.jobs ? " · " + Tr.t("%1 waiting", pr.modelData.jobs) : "")
+                            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                        }
+                    }
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    Choice { visible: !pr.isDefault; text: Tr.t("Make default"); onClicked: page.run(["lpoptions", "-d", pr.modelData.name], Tr.t("%1 is your default printer", pr.modelData.name)) }
+                    Choice { text: Tr.t("Print a test page"); onClicked: page.run(["lp", "-d", pr.modelData.name, "/usr/share/cups/data/testprint"], Tr.t("Test page sent")) }
+                    Choice { visible: pr.modelData.jobs > 0; text: Tr.t("Cancel my jobs"); onClicked: page.run(["cancel", "-u", Quickshell.env("USER") || "", pr.modelData.name], Tr.t("Your jobs were cancelled")) }
+                    Choice { text: Tr.t("Queue"); onClicked: { Ui.closeAll(); Printing.openQueue(); } }
+                    ConfirmButton {
+                        id: removePrinter
+                        implicitWidth: Math.max(Theme.touchTarget, armedText.length * 8 + 28)
+                        implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
+                        text: Tr.t("Remove…")
+                        armedText: Tr.t("Tap again to remove")
+                        kind: "danger"
+                        interval: 3000
+                        onConfirmed: page.run(["pkexec", "lpadmin", "-x", pr.modelData.name], Tr.t("%1 removed", pr.modelData.name))
+                    }
+                }
+                // your defaults for it: paper, two-sided, colour; and whether others on the network may use it
+                Text {
+                    Layout.fillWidth: true
+                    text: Tr.t("Your defaults for this printer")
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    readonly property var o: page.opts[pr.modelData.name] || ({})
+                    Repeater {
+                        model: [["media", "A4", "A4"], ["media", "Letter", Tr.t("Letter")],
+                                ["sides", "one-sided", Tr.t("One side")], ["sides", "two-sided-long-edge", Tr.t("Both sides")],
+                                ["print-color-mode", "color", Tr.t("Colour")], ["print-color-mode", "monochrome", Tr.t("Black and white")]]
+                        Choice {
+                            required property var modelData
+                            text: modelData[2]
+                            selected: (parent.o[modelData[0]] || "") === modelData[1]
+                            onClicked: page.setOpt(pr.modelData.name, modelData[0], modelData[1])
+                        }
+                    }
+                    Choice {
+                        text: Tr.t("Shared on the network")
+                        selected: (parent.o["printer-is-shared"] || "") === "true"
+                        onClicked: page.run(["pkexec", "lpadmin", "-p", pr.modelData.name, "-o", "printer-is-shared=" + (selected ? "false" : "true")],
+                                            selected ? Tr.t("%1 is no longer shared", pr.modelData.name) : Tr.t("%1 is shared on the network", pr.modelData.name))
+                    }
                 }
             }
         }
         RowLayout {
+            spacing: Theme.px(8)
+            Button { text: page.found === null ? Tr.t("Add a printer…") : Tr.t("Cancel"); onClicked: page.found === null ? page.startAdding() : page.found = null }
+            Button { text: Tr.t("Refresh"); onClicked: list.running = true }
+        }
+        // adding: what the network offers, or an address typed in
+        ColumnLayout {
+            visible: page.found !== null
             Layout.fillWidth: true
             spacing: Theme.px(6)
-            TextField { id: addr; Layout.fillWidth: true; placeholderText: Tr.t("Address, e.g. 192.168.1.20"); onAccepted: page.add(text.trim(), page.uriOf(text), userField.text.trim(), passField.text) }
-            Button { text: Tr.t("Add"); enabled: addr.text.trim() !== ""; onClicked: page.add(addr.text.trim(), page.uriOf(addr.text), userField.text.trim(), passField.text) }
-        }
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Theme.px(6)
-            TextField { id: userField; Layout.fillWidth: true; placeholderText: Tr.t("Username (optional)") }
-            TextField { id: passField; Layout.fillWidth: true; placeholderText: Tr.t("Password (optional)"); secret: true }
-        }
-        Text {
-            Layout.fillWidth: true
-            wrapMode: Text.WordWrap
-            text: Tr.t("Credentials are saved in your CUPS settings (~/.cups/lpoptions).")
-            color: Theme.dim
-            font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: page.finding ? Tr.t("Looking on the network…")
+                    : (page.found || []).length ? Tr.t("Printers on the network:")
+                    : Tr.t("No other printer is announcing itself. Type its address (as on its own screen or settings page):")
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(12) * Theme.fontScale
+            }
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Repeater {
+                    model: page.found || []
+                    Choice {
+                        required property var modelData
+                        text: modelData.name
+                        onClicked: page.add(modelData.name, modelData.uri, userField.text.trim(), passField.text)
+                    }
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                TextField { id: addr; Layout.fillWidth: true; placeholderText: Tr.t("Address, e.g. 192.168.1.20"); onAccepted: page.add(text.trim(), page.uriOf(text), userField.text.trim(), passField.text) }
+                Button { text: Tr.t("Add"); enabled: addr.text.trim() !== ""; onClicked: page.add(addr.text.trim(), page.uriOf(addr.text), userField.text.trim(), passField.text) }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                TextField { id: userField; Layout.fillWidth: true; placeholderText: Tr.t("Username (optional)") }
+                TextField { id: passField; Layout.fillWidth: true; placeholderText: Tr.t("Password (optional)"); secret: true }
+            }
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: Tr.t("Credentials are saved in your CUPS settings (~/.cups/lpoptions).")
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
         }
     }
     InfoBanner {

@@ -22,6 +22,7 @@ ColumnLayout {
     property string alarmLabel: ""
     property bool adding: false
     readonly property var alarms: Array.from(WorldClock.alarms || [])
+    // shortcut: alarm removal confirms on row tap, not a dedicated button; ConfirmButton would change affordance/behavior
     // a row asks before it removes an alarm: two taps, the second within 4 s
     property int confirmAlarm: -1
     Timer { id: alarmTimer; interval: 4000; onTriggered: root.confirmAlarm = -1 }

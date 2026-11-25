@@ -81,74 +81,75 @@ ColumnLayout {
         open = "";
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Default apps") }
-    Repeater {
-        model: page.kinds
-        ColumnLayout {
-            id: kindRow
-            required property var modelData
-            readonly property var info: page.found[modelData.id] || { current: "", candidates: [] }
-            Layout.fillWidth: true
-            spacing: 2
-            ListRow {
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Default apps")
+
+        Repeater {
+            model: page.kinds
+            ColumnLayout {
+                id: kindRow
+                required property var modelData
+                readonly property var info: page.found[modelData.id] || { current: "", candidates: [] }
                 Layout.fillWidth: true
-                icon: kindRow.modelData.icon
-                title: kindRow.modelData.label
-                subtitle: kindRow.info.current ? page.nameOf(kindRow.info.current) : (kindRow.info.candidates.length ? "Not set — choose one" : "No app installed for this")
-                trailing: kindRow.info.candidates.length > 1 ? "›" : ""
-                onClicked: page.open = page.open === kindRow.modelData.id ? "" : kindRow.modelData.id
-            }
-            Repeater {
-                model: page.open === kindRow.modelData.id ? kindRow.info.candidates : []
+                spacing: 2
                 ListRow {
-                    required property string modelData
                     Layout.fillWidth: true
-                    Layout.leftMargin: Theme.px(28)
-                    icon: { const e = page.entry(modelData); return e && e.icon ? e.icon : "application-x-executable"; }
-                    title: page.nameOf(modelData)
-                    selected: modelData === kindRow.info.current
-                    onClicked: page.choose(kindRow.modelData, modelData)
+                    icon: kindRow.modelData.icon
+                    title: kindRow.modelData.label
+                    subtitle: kindRow.info.current ? page.nameOf(kindRow.info.current) : (kindRow.info.candidates.length ? "Not set — choose one" : "No app installed for this")
+                    trailing: kindRow.info.candidates.length > 1 ? "›" : ""
+                    onClicked: page.open = page.open === kindRow.modelData.id ? "" : kindRow.modelData.id
+                }
+                Repeater {
+                    model: page.open === kindRow.modelData.id ? kindRow.info.candidates : []
+                    ListRow {
+                        required property string modelData
+                        Layout.fillWidth: true
+                        Layout.leftMargin: Theme.px(28)
+                        icon: AppIcon.nameFor(page.entry(modelData), "application-x-executable")
+                        title: page.nameOf(modelData)
+                        selected: modelData === kindRow.info.current
+                        onClicked: page.choose(kindRow.modelData, modelData)
+                    }
                 }
             }
         }
     }
 
     // ---- removable media (x-content/*): what opens on inserting a disc/card ----
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Removable media") }
-    Text {
+    SettingsSection {
         Layout.fillWidth: true
-        wrapMode: Text.Wrap
-        text: Tr.t("What opens when you insert a disc, a camera card or a music player.")
-        color: Theme.dim
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
-    }
-    Repeater {
-        model: page.mediaKinds
-        ColumnLayout {
-            id: mediaRow
-            required property var modelData
-            readonly property var info: page.found[modelData.id] || { current: "", candidates: [] }
-            Layout.fillWidth: true
-            spacing: 2
-            ListRow {
+        title: Tr.t("Removable media")
+        hint: Tr.t("What opens when you insert a disc, a camera card or a music player.")
+
+        Repeater {
+            model: page.mediaKinds
+            ColumnLayout {
+                id: mediaRow
+                required property var modelData
+                readonly property var info: page.found[modelData.id] || { current: "", candidates: [] }
                 Layout.fillWidth: true
-                icon: mediaRow.modelData.icon
-                title: mediaRow.modelData.label
-                subtitle: mediaRow.info.current ? page.nameOf(mediaRow.info.current) : (mediaRow.info.candidates.length ? "Not set — choose one" : "No app installed for this")
-                trailing: mediaRow.info.candidates.length > 1 ? "›" : ""
-                onClicked: page.open = page.open === mediaRow.modelData.id ? "" : mediaRow.modelData.id
-            }
-            Repeater {
-                model: page.open === mediaRow.modelData.id ? mediaRow.info.candidates : []
+                spacing: 2
                 ListRow {
-                    required property string modelData
                     Layout.fillWidth: true
-                    Layout.leftMargin: Theme.px(28)
-                    icon: { const e = page.entry(modelData); return e && e.icon ? e.icon : "application-x-executable"; }
-                    title: page.nameOf(modelData)
-                    selected: modelData === mediaRow.info.current
-                    onClicked: page.choose(mediaRow.modelData, modelData)
+                    icon: mediaRow.modelData.icon
+                    title: mediaRow.modelData.label
+                    subtitle: mediaRow.info.current ? page.nameOf(mediaRow.info.current) : (mediaRow.info.candidates.length ? "Not set — choose one" : "No app installed for this")
+                    trailing: mediaRow.info.candidates.length > 1 ? "›" : ""
+                    onClicked: page.open = page.open === mediaRow.modelData.id ? "" : mediaRow.modelData.id
+                }
+                Repeater {
+                    model: page.open === mediaRow.modelData.id ? mediaRow.info.candidates : []
+                    ListRow {
+                        required property string modelData
+                        Layout.fillWidth: true
+                        Layout.leftMargin: Theme.px(28)
+                        icon: AppIcon.nameFor(page.entry(modelData), "application-x-executable")
+                        title: page.nameOf(modelData)
+                        selected: modelData === mediaRow.info.current
+                        onClicked: page.choose(mediaRow.modelData, modelData)
+                    }
                 }
             }
         }
@@ -157,17 +158,6 @@ ColumnLayout {
     // ---- how an app starts (Services/Launch): its graphics card, environment
     // variables and arguments - what a game or a GPU-hungry tool needs set
     // before it starts, kept per app
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("How an app starts") }
-    Text {
-        Layout.fillWidth: true
-        wrapMode: Text.Wrap
-        text: Gpu.hasChoice
-            ? Tr.t("This computer has two graphics cards. Apps that ask for the faster one get it on their own; here any app can be set to it, and given its own settings.")
-            : Tr.t("Give an app its own settings when it starts - environment variables (MANGOHUD=1, for example) and extra arguments.")
-        color: Theme.dim
-        font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
-    }
     property string launchApp: ""
     readonly property var launchOpts: launchApp ? Launch.options(launchApp) : ({})
     function setLaunch(key, value) {
@@ -175,70 +165,79 @@ ColumnLayout {
         o[key] = value;
         Launch.setOptions(launchApp, o);
     }
-    // the apps that already have their own
-    Flow {
+
+    SettingsSection {
         Layout.fillWidth: true
-        spacing: Theme.px(6)
-        visible: Object.keys(page.d.appLaunch || {}).length > 0
-        Repeater {
-            model: Object.keys(page.d.appLaunch || {})
-            Choice {
-                required property string modelData
-                text: page.nameOf(modelData)
-                selected: page.launchApp === modelData
-                onClicked: page.launchApp = modelData
-            }
-        }
-    }
-    AppPicker {
-        Layout.fillWidth: true
-        label: Tr.t("App")
-        value: page.launchApp
-        onPicked: id => page.launchApp = id
-    }
-    ColumnLayout {
-        Layout.fillWidth: true
-        visible: page.launchApp !== ""
-        spacing: Theme.px(8)
-        RowLayout {
+        title: Tr.t("How an app starts")
+        hint: Gpu.hasChoice
+            ? Tr.t("This computer has two graphics cards. Apps that ask for the faster one get it on their own; here any app can be set to it, and given its own settings.")
+            : Tr.t("Give an app its own settings when it starts - environment variables (MANGOHUD=1, for example) and extra arguments.")
+
+        // the apps that already have their own
+        Flow {
             Layout.fillWidth: true
-            visible: Gpu.hasChoice
             spacing: Theme.px(6)
-            Text { text: Tr.t("Graphics card"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.preferredWidth: Theme.px(120) }
+            visible: Object.keys(page.d.appLaunch || {}).length > 0
             Repeater {
-                model: [{ id: "", label: Tr.t("As the app asks") }, { id: "discrete", label: Gpu.other ? Gpu.other.name.split(" ").slice(0, 3).join(" ") : Tr.t("The faster one") }, { id: "default", label: Tr.t("The default one") }]
+                model: Object.keys(page.d.appLaunch || {})
                 Choice {
-                    required property var modelData
-                    text: modelData.label
-                    selected: (page.launchOpts.gpu || "") === modelData.id
-                    onClicked: page.setLaunch("gpu", modelData.id)
+                    required property string modelData
+                    text: page.nameOf(modelData)
+                    selected: page.launchApp === modelData
+                    onClicked: page.launchApp = modelData
                 }
             }
         }
-        RowLayout {
+        AppPicker {
             Layout.fillWidth: true
-            spacing: Theme.px(6)
-            Text { text: Tr.t("Environment"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.preferredWidth: Theme.px(120) }
-            TextField {
-                Layout.fillWidth: true
-                placeholder: page.launchOpts.env || Tr.t("NAME=value, space between - Enter to keep")
-                onAccepted: { page.setLaunch("env", text.trim()); text = ""; }
-            }
+            label: Tr.t("App")
+            value: page.launchApp
+            onPicked: id => page.launchApp = id
         }
-        RowLayout {
+        ColumnLayout {
             Layout.fillWidth: true
-            spacing: Theme.px(6)
-            Text { text: Tr.t("Arguments"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.preferredWidth: Theme.px(120) }
-            TextField {
-                Layout.fillWidth: true
-                placeholder: page.launchOpts.args || Tr.t("added after the app's own - Enter to keep")
-                onAccepted: { page.setLaunch("args", text.trim()); text = ""; }
-            }
-        }
-        RowLayout {
+            visible: page.launchApp !== ""
             spacing: Theme.px(8)
-            Button { text: Tr.t("Start it now"); kind: "primary"; onClicked: Launch.app(page.launchApp) }
-            Button { text: Tr.t("Back to how it came"); onClicked: { Launch.setOptions(page.launchApp, null); } }
+            RowLayout {
+                Layout.fillWidth: true
+                visible: Gpu.hasChoice
+                spacing: Theme.px(6)
+                Text { text: Tr.t("Graphics card"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.preferredWidth: Theme.px(120) }
+                Repeater {
+                    model: [{ id: "", label: Tr.t("As the app asks") }, { id: "discrete", label: Gpu.other ? Gpu.other.name.split(" ").slice(0, 3).join(" ") : Tr.t("The faster one") }, { id: "default", label: Tr.t("The default one") }]
+                    Choice {
+                        required property var modelData
+                        text: modelData.label
+                        selected: (page.launchOpts.gpu || "") === modelData.id
+                        onClicked: page.setLaunch("gpu", modelData.id)
+                    }
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Text { text: Tr.t("Environment"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.preferredWidth: Theme.px(120) }
+                TextField {
+                    Layout.fillWidth: true
+                    placeholder: page.launchOpts.env || Tr.t("NAME=value, space between - Enter to keep")
+                    onAccepted: { page.setLaunch("env", text.trim()); text = ""; }
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Text { text: Tr.t("Arguments"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.preferredWidth: Theme.px(120) }
+                TextField {
+                    Layout.fillWidth: true
+                    placeholder: page.launchOpts.args || Tr.t("added after the app's own - Enter to keep")
+                    onAccepted: { page.setLaunch("args", text.trim()); text = ""; }
+                }
+            }
+            RowLayout {
+                spacing: Theme.px(8)
+                Button { text: Tr.t("Start it now"); kind: "primary"; onClicked: Launch.app(page.launchApp) }
+                Button { text: Tr.t("Back to how it came"); onClicked: { Launch.setOptions(page.launchApp, null); } }
+            }
         }
     }
 }

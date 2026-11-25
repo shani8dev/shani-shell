@@ -682,9 +682,16 @@ AppWindow {
                 }
                 IconButton { icon: "edit-paste"; size: Theme.px(30); tip: Tr.t("Paste here (Ctrl+V)"); onClicked: Files.pasteHere(Files.path) }
                 IconButton { icon: "edit-undo"; size: Theme.px(30); tip: Files.undoLabel ? Tr.t("Undo: %1 (Ctrl+Z)", Files.undoLabel) : Tr.t("Nothing to undo"); enabled: Files.undoLabel !== ""; onClicked: Files.undo() }
-                IconButton { visible: Files.isTrash; icon: "user-trash-full"; size: Theme.px(30); on: win.confirmEmpty
-                             tip: win.confirmEmpty ? Tr.t("Click again: everything in the trash is deleted for good") : Tr.t("Empty the trash")
-                             onClicked: { if (!win.confirmEmpty) { win.confirmEmpty = true; confirmTimer.restart(); return; } win.confirmEmpty = false; Files.emptyTrash(); } }
+                ConfirmButton {
+                    id: emptyTrashConfirm
+                    visible: Files.isTrash
+                    icon: "user-trash-full"
+                    size: Theme.px(30)
+                    tip: Tr.t("Empty the trash")
+                    armedText: Tr.t("Click again: everything in the trash is deleted for good")
+                    interval: 4000
+                    onConfirmed: Files.emptyTrash()
+                }
                 IconButton { icon: "folder-new"; size: Theme.px(30); tip: Tr.t("New folder"); onClicked: win.openNewFolder() }
                 IconButton { icon: Files.isBookmarked(Files.path) ? "user-bookmarks" : "bookmark-new"; size: Theme.px(30); tip: Tr.t("Bookmark this folder (Ctrl+D)"); onClicked: Files.toggleBookmark(); Accessible.name: Tr.t("Bookmark this folder") }
                 IconButton { icon: "edit-clear-all"; size: Theme.px(30); tip: Tr.t("Tidy this folder: files into folders by kind"); onClicked: Tidy.plan(Files.path) }
@@ -973,19 +980,24 @@ AppWindow {
                             required property var modelData
                             Layout.fillWidth: true
                             spacing: 0
-                            property bool confirm: false
                             ListRow {
                                 Layout.fillWidth: true
                                 icon: "folder-cloud"
                                 title: cloudRow.modelData.name + " · " + cloudRow.modelData.label
                                 onClicked: Files.openCloud(cloudRow.modelData)
                             }
-                            IconButton {
-                                icon: cloudRow.confirm ? "edit-delete" : "window-close"
+                            ConfirmButton {
+                                id: removeCloudConfirm
+                                icon: "window-close"
+                                armedIcon: "edit-delete"
                                 size: Theme.px(22)
-                                tip: cloudRow.confirm ? Tr.t("Click again to remove %1 from this computer (the files in the cloud stay)", cloudRow.modelData.name) : Tr.t("Remove %1", cloudRow.modelData.name)
-                                onClicked: { if (cloudRow.confirm) Files.forgetCloud(cloudRow.modelData); cloudRow.confirm = !cloudRow.confirm; }
+                                tip: Tr.t("Remove %1", cloudRow.modelData.name)
+                                armedText: Tr.t("Click again to remove %1 from this computer (the files in the cloud stay)", cloudRow.modelData.name)
+                                value: cloudRow.modelData.name
+                                interval: 4000
+                                onConfirmed: Files.forgetCloud(cloudRow.modelData)
                             }
+                            Connections { target: cloudRow; function onModelDataChanged() { removeCloudConfirm.disarm(); } }
                         }
                     }
                     ListRow {
@@ -3992,10 +4004,9 @@ AppWindow {
         return items;
     }
 
-    // two clicks for what has no undo; the first arms it for a few seconds
-    property bool confirmEmpty: false
+    // shortcut: context-menu delete-for-good uses a menu item (not a ConfirmButton widget); keep hand-rolled path-keyed confirm
     property string confirmDelete: ""
-    Timer { id: confirmTimer; interval: 4000; onTriggered: { win.confirmEmpty = false; win.confirmDelete = ""; } }
+    Timer { id: confirmTimer; interval: 4000; onTriggered: win.confirmDelete = "" }
 
     property var batchPaths: []
     property string batchCase: ""              // "", "lower", "upper", "title"

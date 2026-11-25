@@ -57,4 +57,4 @@ def test_dns_change_is_verified_with_a_bounded_lookup():
         'Tr.t("DNS applied, but a test lookup failed — check the server addresses")'
         in text
     )
-    assert "page.noteOk ? Theme.text : Theme.danger" in text
+    assert ("page.noteOk ? Theme.text : Theme.danger" in text or 'tone: page.noteOk ? "ok" : "error"' in text)

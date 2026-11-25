@@ -155,13 +155,16 @@ PanelWindow {
         onHeightChanged: reportTimer.restart()
 
         // gentle glow when Chronoa is working — a breath behind the card
-        Rectangle {
+        Fade {
             id: breathGlow
             visible: win.working && Chronoa.state !== "offline"
             anchors.fill: parent
             anchors.margins: -8
             radius: card.radius + 8
             color: Theme.alpha(Chronoa.color, 0.12)
+            active: win.working && Chronoa.state !== "offline"
+            duration: Theme.mot(1100)
+            pulseTo: 0.85
             layer.enabled: true
             layer.effect: MultiEffect {
                 shadowEnabled: true
@@ -170,12 +173,6 @@ PanelWindow {
                 shadowVerticalOffset: 0
                 shadowHorizontalOffset: 0
                 autoPaddingEnabled: true
-            }
-            SequentialAnimation {
-                running: win.working && Chronoa.state !== "offline" && !Settings.data.reduceMotion
-                loops: Animation.Infinite
-                NumberAnimation { target: breathGlow; property: "opacity"; from: 0.35; to: 0.85; duration: Theme.mot(1100); easing.type: Easing.InOutSine }
-                NumberAnimation { target: breathGlow; property: "opacity"; from: 0.85; to: 0.35; duration: Theme.mot(1100); easing.type: Easing.InOutSine }
             }
         }
 

@@ -75,25 +75,12 @@ AppWindow {
             }
 
             // timeline empty state: offer a next step when no drive is set up
-            ColumnLayout {
+            EmptyState {
                 visible: !Backup.loading && Backup.snapshots.length === 0 && Backup.available
-                Layout.fillWidth: true
-                spacing: Theme.px(8)
-                Text {
-                    Layout.fillWidth: true
-                    horizontalAlignment: Text.AlignHCenter
-                    text: Backup.driveSetUp ? Tr.t("No snapshots yet") : Tr.t("No backup drive set up")
-                    color: Theme.dim
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
-                }
-                Button {
-                    visible: !Backup.driveSetUp
-                    Layout.alignment: Qt.AlignHCenter
-                    text: Tr.t("Set up backup drive…")
-                    kind: "outline"
-                    onClicked: Backup.open("backups")
-                }
+                icon: "document-open-recent"
+                title: Backup.driveSetUp ? Tr.t("No snapshots yet") : Tr.t("No backup drive set up")
+                actionText: Backup.driveSetUp ? "" : Tr.t("Set up backup drive…")
+                onAction: Backup.open("backups")
             }
 
             ListView {

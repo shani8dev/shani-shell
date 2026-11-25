@@ -77,169 +77,172 @@ ColumnLayout {
     readonly property string verdict: health >= 80 ? Tr.t("Good") : health >= 60 ? Tr.t("Worn, still fine for a day's use") : Tr.t("Worn: a new battery would last much longer")
     readonly property color healthColour: health >= 80 ? Theme.accent : health >= 60 ? Theme.amber : Theme.danger
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Battery") }
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Battery")
 
-    // ---- health: one number, what it means, and why ----
-    // A ring instead of a lone number (the Ananta UI status ring): the arc is the
-    // same health the bar below repeats, so the verdict reads at a glance.
-    RowLayout {
-        Layout.fillWidth: true
-        spacing: Theme.px(16)
-        StatusRing {
-            value: page.health / 100
-            color: page.healthColour
-            label: Tr.t("Battery health: %1 percent", Math.round(page.health))
-            Text {
-                anchors.centerIn: parent
-                text: Math.round(page.health) + " %"
-                color: Theme.text
-                font.family: Theme.font
-                font.pixelSize: Theme.px(20) * Theme.fontScale
-                font.weight: Font.DemiBold
-            }
-        }
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: Theme.px(6)
-            StatusPill {
-                text: page.verdict
-                tone: page.health >= 80 ? "ok" : page.health >= 60 ? "warn" : "error"
-            }
-            Rectangle {
-                Layout.fillWidth: true
-                implicitHeight: Theme.px(8)
-                radius: Theme.px(4)
-                color: Theme.surface3
-                Rectangle { width: parent.width * Math.min(1, page.health / 100); height: parent.height; radius: Theme.px(4); color: page.healthColour }
-            }
-            Text {
-                Layout.fillWidth: true
-                text: Tr.t("Holds %1 Wh of the %2 Wh it held new", page.info.energyFull || 0, page.info.energyDesign || 0)
-                    + (page.info.cycles > 0 ? "  ·  " + Tr.t("%1 charge cycles", page.info.cycles) : "")
-                color: Theme.dim
-                wrapMode: Text.Wrap
-                font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
-            }
-        }
-    }
-
-    // ---- now ----
-    Text {
-        Layout.fillWidth: true
-        text: Math.round(page.info.percent || 0) + " %  ·  "
-            + (page.info.state === "charging" ? Tr.t("charging") + (page.info.timeToFull > 0 ? ", " + Tr.t("full in %1", page.clock(page.info.timeToFull)) : "")
-               : page.info.state === "discharging" ? Tr.t("on battery") + (page.info.timeToEmpty > 0 ? ", " + Tr.t("about %1 left", page.clock(page.info.timeToEmpty)) : "")
-               : page.info.state === "full" ? Tr.t("full") : Tr.t("plugged in, not charging"))
-            + (page.info.rate > 0.05 ? "  ·  " + page.info.rate.toFixed(1) + " W" : "")
-        color: Theme.text
-        font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
-    }
-
-    // ---- the charge over time (upowerd's own record) ----
-    RowLayout {
-        Layout.fillWidth: true
-        Text { Layout.fillWidth: true; text: Tr.t("Charge"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-        SegmentedTabs {
-            options: [Tr.t("24 hours"), Tr.t("7 days")]
-            currentIndex: page.span === 86400 ? 0 : 1
-            onActivated: index => page.span = index === 0 ? 86400 : 604800
-        }
-    }
-    Canvas {
-        id: chart
-        Layout.fillWidth: true
-        implicitHeight: Theme.px(150)
-        onWidthChanged: requestPaint()
-        Connections { target: Theme; function onAccentChanged() { chart.requestPaint(); } }
-        onPaint: {
-            const ctx = getContext("2d");
-            ctx.reset();
-            const w = width, h = height, padL = 30, padB = 18, gw = w - padL - 6, gh = h - padB - 6;
-            const now = Date.now() / 1000, from = now - page.span;
-            ctx.font = Math.round(Theme.px(10) * Theme.fontScale) + "px " + Theme.font;
-            // 0, 50 and 100 %: faint lines, labelled
-            for (const v of [0, 50, 100]) {
-                const y = 6 + gh * (1 - v / 100);
-                ctx.strokeStyle = Theme.alpha(Theme.text, 0.12);
-                ctx.lineWidth = 1;
-                ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - 6, y); ctx.stroke();
-                ctx.fillStyle = Theme.faint;
-                ctx.fillText(v + "%", 0, y + 3);
-            }
-            ctx.fillStyle = Theme.faint;
-            ctx.fillText(page.span > 86400 ? Tr.t("a week ago") : Tr.t("a day ago"), padL, h - 3);
-            ctx.fillText(Tr.t("now"), w - 30, h - 3);
-            const pts = page.history.filter(r => r[0] >= from);
-            if (pts.length < 2)
-                return;
-            const X = t => padL + gw * (t - from) / page.span, Y = v => 6 + gh * (1 - v / 100);
-            // the area under the line, faint; then the line, accent while charging
-            ctx.beginPath();
-            ctx.moveTo(X(pts[0][0]), Y(0));
-            for (const p of pts) ctx.lineTo(X(p[0]), Y(p[1]));
-            ctx.lineTo(X(pts[pts.length - 1][0]), Y(0));
-            ctx.closePath();
-            ctx.fillStyle = Theme.alpha(Theme.accent, 0.14);
-            ctx.fill();
-            ctx.lineWidth = 2;
-            for (let i = 1; i < pts.length; i++) {
-                ctx.strokeStyle = pts[i][2] === "charging" ? Theme.accent : Theme.alpha(Theme.text, 0.75);
-                ctx.beginPath(); ctx.moveTo(X(pts[i - 1][0]), Y(pts[i - 1][1])); ctx.lineTo(X(pts[i][0]), Y(pts[i][1])); ctx.stroke();
-            }
-        }
-    }
-    InfoBanner {
-        Layout.fillWidth: true
-        visible: page.history.filter(r => r[0] >= Date.now() / 1000 - page.span).length < 2
-        tone: "info"
-        text: Tr.t("No history yet: the system records the charge as the battery is used.")
-    }
-    Text {
-        Layout.fillWidth: true
-        text: Tr.t("Accent: charging. The line: on battery.")
-        color: Theme.faint
-        font.family: Theme.font
-        font.pixelSize: Theme.px(10) * Theme.fontScale
-    }
-
-    // ---- what is using the most power right now ----
-    Text {
-        Layout.fillWidth: true
-        visible: page.hungry.length > 0
-        text: Tr.t("Busiest right now (processor use, the best guide to what drains the battery)")
-        color: Theme.dim
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
-    }
-    Repeater {
-        model: page.hungry
+        // ---- health: one number, what it means, and why ----
+        // A ring instead of a lone number (the Ananta UI status ring): the arc is the
+        // same health the bar below repeats, so the verdict reads at a glance.
         RowLayout {
-            required property var modelData
             Layout.fillWidth: true
-            spacing: Theme.px(8)
-            Text { Layout.preferredWidth: Theme.px(160); text: modelData.name; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-            Rectangle {
-                Layout.fillWidth: true
-                implicitHeight: Theme.px(6)
-                radius: Theme.px(3)
-                color: Theme.surface3
-                Rectangle { width: parent.width * Math.min(1, modelData.cpu / 100); height: parent.height; radius: Theme.px(3); color: Theme.accent }
+            spacing: Theme.px(16)
+            StatusRing {
+                value: page.health / 100
+                color: page.healthColour
+                label: Tr.t("Battery health: %1 percent", Math.round(page.health))
+                Text {
+                    anchors.centerIn: parent
+                    text: Math.round(page.health) + " %"
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(20) * Theme.fontScale
+                    font.weight: Font.DemiBold
+                }
             }
-            Text { Layout.preferredWidth: Theme.px(44); horizontalAlignment: Text.AlignRight; text: modelData.cpu + " %"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                StatusPill {
+                    text: page.verdict
+                    tone: page.health >= 80 ? "ok" : page.health >= 60 ? "warn" : "error"
+                }
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: Theme.px(8)
+                    radius: Theme.px(4)
+                    color: Theme.surface3
+                    Rectangle { width: parent.width * Math.min(1, page.health / 100); height: parent.height; radius: Theme.px(4); color: page.healthColour }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: Tr.t("Holds %1 Wh of the %2 Wh it held new", page.info.energyFull || 0, page.info.energyDesign || 0)
+                        + (page.info.cycles > 0 ? "  ·  " + Tr.t("%1 charge cycles", page.info.cycles) : "")
+                    color: Theme.dim
+                    wrapMode: Text.Wrap
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+            }
         }
-    }
 
-    // ---- what it is ----
-    Text {
-        Layout.fillWidth: true
-        text: [page.info.technology, [page.info.vendor, page.info.model].filter(x => x).join(" "),
-               page.info.voltage > 0 ? page.info.voltage.toFixed(1) + " V" : "",
-               page.info.temperature > 0 ? page.info.temperature.toFixed(0) + " °C" : ""].filter(x => x).join("  ·  ")
-        color: Theme.faint
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        // ---- now ----
+        Text {
+            Layout.fillWidth: true
+            text: Math.round(page.info.percent || 0) + " %  ·  "
+                + (page.info.state === "charging" ? Tr.t("charging") + (page.info.timeToFull > 0 ? ", " + Tr.t("full in %1", page.clock(page.info.timeToFull)) : "")
+                   : page.info.state === "discharging" ? Tr.t("on battery") + (page.info.timeToEmpty > 0 ? ", " + Tr.t("about %1 left", page.clock(page.info.timeToEmpty)) : "")
+                   : page.info.state === "full" ? Tr.t("full") : Tr.t("plugged in, not charging"))
+                + (page.info.rate > 0.05 ? "  ·  " + page.info.rate.toFixed(1) + " W" : "")
+            color: Theme.text
+            font.family: Theme.font
+            font.pixelSize: Theme.px(12) * Theme.fontScale
+        }
+
+        // ---- the charge over time (upowerd's own record) ----
+        RowLayout {
+            Layout.fillWidth: true
+            Text { Layout.fillWidth: true; text: Tr.t("Charge"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+            SegmentedTabs {
+                options: [Tr.t("24 hours"), Tr.t("7 days")]
+                currentIndex: page.span === 86400 ? 0 : 1
+                onActivated: index => page.span = index === 0 ? 86400 : 604800
+            }
+        }
+        Canvas {
+            id: chart
+            Layout.fillWidth: true
+            implicitHeight: Theme.px(150)
+            onWidthChanged: requestPaint()
+            Connections { target: Theme; function onAccentChanged() { chart.requestPaint(); } }
+            onPaint: {
+                const ctx = getContext("2d");
+                ctx.reset();
+                const w = width, h = height, padL = 30, padB = 18, gw = w - padL - 6, gh = h - padB - 6;
+                const now = Date.now() / 1000, from = now - page.span;
+                ctx.font = Math.round(Theme.px(10) * Theme.fontScale) + "px " + Theme.font;
+                // 0, 50 and 100 %: faint lines, labelled
+                for (const v of [0, 50, 100]) {
+                    const y = 6 + gh * (1 - v / 100);
+                    ctx.strokeStyle = Theme.alpha(Theme.text, 0.12);
+                    ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - 6, y); ctx.stroke();
+                    ctx.fillStyle = Theme.faint;
+                    ctx.fillText(v + "%", 0, y + 3);
+                }
+                ctx.fillStyle = Theme.faint;
+                ctx.fillText(page.span > 86400 ? Tr.t("a week ago") : Tr.t("a day ago"), padL, h - 3);
+                ctx.fillText(Tr.t("now"), w - 30, h - 3);
+                const pts = page.history.filter(r => r[0] >= from);
+                if (pts.length < 2)
+                    return;
+                const X = t => padL + gw * (t - from) / page.span, Y = v => 6 + gh * (1 - v / 100);
+                // the area under the line, faint; then the line, accent while charging
+                ctx.beginPath();
+                ctx.moveTo(X(pts[0][0]), Y(0));
+                for (const p of pts) ctx.lineTo(X(p[0]), Y(p[1]));
+                ctx.lineTo(X(pts[pts.length - 1][0]), Y(0));
+                ctx.closePath();
+                ctx.fillStyle = Theme.alpha(Theme.accent, 0.14);
+                ctx.fill();
+                ctx.lineWidth = 2;
+                for (let i = 1; i < pts.length; i++) {
+                    ctx.strokeStyle = pts[i][2] === "charging" ? Theme.accent : Theme.alpha(Theme.text, 0.75);
+                    ctx.beginPath(); ctx.moveTo(X(pts[i - 1][0]), Y(pts[i - 1][1])); ctx.lineTo(X(pts[i][0]), Y(pts[i][1])); ctx.stroke();
+                }
+            }
+        }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.history.filter(r => r[0] >= Date.now() / 1000 - page.span).length < 2
+            tone: "info"
+            text: Tr.t("No history yet: the system records the charge as the battery is used.")
+        }
+        Text {
+            Layout.fillWidth: true
+            text: Tr.t("Accent: charging. The line: on battery.")
+            color: Theme.faint
+            font.family: Theme.font
+            font.pixelSize: Theme.px(10) * Theme.fontScale
+        }
+
+        // ---- what is using the most power right now ----
+        Text {
+            Layout.fillWidth: true
+            visible: page.hungry.length > 0
+            text: Tr.t("Busiest right now (processor use, the best guide to what drains the battery)")
+            color: Theme.dim
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(12) * Theme.fontScale
+        }
+        Repeater {
+            model: page.hungry
+            RowLayout {
+                required property var modelData
+                Layout.fillWidth: true
+                spacing: Theme.px(8)
+                Text { Layout.preferredWidth: Theme.px(160); text: modelData.name; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: Theme.px(6)
+                    radius: Theme.px(3)
+                    color: Theme.surface3
+                    Rectangle { width: parent.width * Math.min(1, modelData.cpu / 100); height: parent.height; radius: Theme.px(3); color: Theme.accent }
+                }
+                Text { Layout.preferredWidth: Theme.px(44); horizontalAlignment: Text.AlignRight; text: modelData.cpu + " %"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            }
+        }
+
+        // ---- what it is ----
+        Text {
+            Layout.fillWidth: true
+            text: [page.info.technology, [page.info.vendor, page.info.model].filter(x => x).join(" "),
+                   page.info.voltage > 0 ? page.info.voltage.toFixed(1) + " V" : "",
+                   page.info.temperature > 0 ? page.info.temperature.toFixed(0) + " °C" : ""].filter(x => x).join("  ·  ")
+            color: Theme.faint
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
     }
 }

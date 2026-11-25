@@ -164,8 +164,11 @@ ColumnLayout {
         onGo: page.clean("flatpak", "", Tr.t("unused runtimes removed"))
     }
 
-    SectionTitle { Layout.fillWidth: true; visible: page.fstrimLoaded; text: Tr.t("SSD maintenance") }
-    SwitchRow {
+    SettingsSection {
+        spacing: Theme.px(8)
+        visible: page.fstrimLoaded
+        title: Tr.t("SSD maintenance")
+        SwitchRow {
         Layout.fillWidth: true
         visible: page.fstrimLoaded
         text: Tr.t("Trim SSD weekly (fstrim.timer)")
@@ -173,9 +176,13 @@ ColumnLayout {
         checked: page.fstrimEnabled
         onToggled: on => { fstrimSet.payload = JSON.stringify({ enabled: on }); fstrimSet.command = page.adminCmd.concat(["fstrim-set"]); fstrimSet.running = true; }
     }
+    }
 
-    SectionTitle { Layout.fillWidth: true; visible: !!page.found && page.found.caches.length > 0; text: Tr.t("App caches") }
-    Repeater {
+    SettingsSection {
+        spacing: Theme.px(8)
+        visible: !!page.found && page.found.caches.length > 0
+        title: Tr.t("App caches")
+        Repeater {
         model: page.found ? page.found.caches.filter(c => c.size > 0) : []
         delegate: Row_ {
             required property var modelData
@@ -189,6 +196,7 @@ ColumnLayout {
             working: page.busy === "cache:" + modelData.name
             onGo: page.confirmThen("cache:" + modelData.name, "cache", modelData.name, modelData.name + " " + Tr.t("cleared"))
         }
+    }
     }
 
     Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.border }

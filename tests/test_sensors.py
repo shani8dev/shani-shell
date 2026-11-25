@@ -155,7 +155,7 @@ def test_service_is_gated_and_exposes_the_promised_api():
     q = read(SERVICE)
     assert "pragma Singleton" in q
     assert (
-        'Quickshell.env("SHANI_SENSORS_TOOL") || "/usr/lib/shani-shell/sensors.py"' in q
+        'ToolPath.of(Quickshell.env("SHANI_SENSORS_TOOL"), "sensors.py")' in q
     )
     assert "property bool wanted: Ui.processes" in q
     assert "property var sensors: []" in q

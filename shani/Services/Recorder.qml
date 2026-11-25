@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/Time.js" as Time
 
 Singleton {
     id: root
@@ -16,7 +17,7 @@ Singleton {
     // from the computer (the output's monitor), the microphone, or none
     readonly property string area: Settings.data.recordArea         // screen | region
     readonly property string sound: Settings.data.recordSound       // none | desktop | mic | both
-    readonly property string elapsed: Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0")
+    readonly property string elapsed: Time.clock(seconds)
     property bool available: false
 
     function dir() {
@@ -25,7 +26,7 @@ Singleton {
     function start() {
         if (recording || !available)
             return;
-        const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-");
+        const stamp = Time.fileStamp();
         file = dir() + "/Recording-" + stamp + ".mp4";
         seconds = 0;
         // the region is asked for first (slurp; Escape cancels), the sound

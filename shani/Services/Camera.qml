@@ -10,6 +10,7 @@ import Quickshell.Io
 import Quickshell.Services.Pipewire
 import QtQuick
 import qs.Common
+import "../Common/Time.js" as Time
 
 Singleton {
     id: root
@@ -64,7 +65,7 @@ PY
     property string phase: "idle"         // idle | counting | capturing | recording
     property string last: ""              // the last photo or video
     property int seconds: 0
-    readonly property string elapsed: Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0")
+    readonly property string elapsed: Time.clock(seconds)
     readonly property string photosDir: (Quickshell.env("XDG_PICTURES_DIR") || Quickshell.env("HOME") + "/Pictures") + "/Camera"
     readonly property string videosDir: (Quickshell.env("XDG_VIDEOS_DIR") || Quickshell.env("HOME") + "/Videos") + "/Camera"
     property bool open: false               // the Camera surface (Modules/Camera)

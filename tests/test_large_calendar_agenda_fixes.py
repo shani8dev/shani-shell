@@ -161,7 +161,7 @@ def test_relative_dates_are_anchored_on_the_selected_day():
     assert "const base = anchor instanceof Date ? anchor : selectedDate;" in PANEL
     assert "targetDay = base.getDay();" in PANEL
     assert "const d = new Date(base.getTime());" in PANEL
-    assert 'String(t[1]).padStart(2, "0") + ":" + t[2]' in PANEL
+    assert "Time.clockPadded(" in PANEL
     assert (
         '_parseNaturalDateTime(fTitle.text + " " + fDateA.text + " " + fTimeA.text, selectedDate)'
         in PANEL
@@ -170,8 +170,19 @@ def test_relative_dates_are_anchored_on_the_selected_day():
 
 @node_mark
 def test_parser_uses_the_anchor_not_the_wall_clock():
+    TIME_STUB = """
+    var Time = {
+        clockPadded: function(t) { return String(t).padStart(5, "0"); },
+        dayKey: function(when) {
+            var d = when instanceof Date ? when : typeof when === "string" ? new Date(when) : new Date(Number(when) || Date.now());
+            if (!d || isNaN(d.getTime())) return "";
+            return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+        }
+    };
+    """
     js = (
-        """
+        TIME_STUB
+        + """
     var selectedDate = new Date(2026, 10, 20, 0, 0, 0, 0);  // 20 Nov 2026
     var fAllDay = false;
     """

@@ -37,65 +37,73 @@ ColumnLayout {
     function setRules(list) { d.automations = list; }
     function rulesCopy() { return JSON.parse(JSON.stringify(Array.from(d.automations))); }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("When this happens, do that") }
-    Text {
-        visible: page.d.automations.length === 0
+    SettingsSection {
         Layout.fillWidth: true
-        wrapMode: Text.WordWrap
-        text: Tr.t("No automations yet. A rule acts once, when its moment comes — joining the office Wi-Fi can turn on Work focus; plugging in headphones can set the volume.")
-        color: Theme.dim
-        font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
-    }
-    Repeater {
-        model: page.d.automations
-        RowLayout {
-            required property var modelData
-            required property int index
+        title: Tr.t("When this happens, do that")
+
+        Text {
+            visible: page.d.automations.length === 0
             Layout.fillWidth: true
-            SwitchRow {
+            wrapMode: Text.WordWrap
+            text: Tr.t("No automations yet. A rule acts once, when its moment comes — joining the office Wi-Fi can turn on Work focus; plugging in headphones can set the volume.")
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: Theme.px(12) * Theme.fontScale
+        }
+        Repeater {
+            model: page.d.automations
+            RowLayout {
+                required property var modelData
+                required property int index
                 Layout.fillWidth: true
-                text: page.sentence(modelData)
-                checked: modelData.on !== false
-                onToggled: on => { const l = page.rulesCopy(); l[index].on = on; page.setRules(l); }
+                SwitchRow {
+                    Layout.fillWidth: true
+                    text: page.sentence(modelData)
+                    checked: modelData.on !== false
+                    onToggled: on => { const l = page.rulesCopy(); l[index].on = on; page.setRules(l); }
+                }
+                StatusPill {
+                    visible: Automations.conflictsAt(index)
+                    tone: "warn"
+                    dot: false
+                    text: Tr.t("Conflicting rule")
+                    Layout.alignment: Qt.AlignVCenter
+                }
+                IconButton { icon: "document-edit"; tip: Tr.t("Edit"); onClicked: page.loadRule(modelData, index) }
+                IconButton { icon: "edit-delete"; tip: Tr.t("Remove"); onClicked: { if (page.editIndex >= 0) page.resetForm(); const l = page.rulesCopy(); l.splice(index, 1); page.setRules(l); } }
             }
-            StatusPill {
-                visible: Automations.conflictsAt(index)
-                tone: "warn"
-                dot: false
-                text: Tr.t("Conflicting rule")
-                Layout.alignment: Qt.AlignVCenter
-            }
-            IconButton { icon: "document-edit"; tip: Tr.t("Edit"); onClicked: page.loadRule(modelData, index) }
-            IconButton { icon: "edit-delete"; tip: Tr.t("Remove"); onClicked: { if (page.editIndex >= 0) page.resetForm(); const l = page.rulesCopy(); l.splice(index, 1); page.setRules(l); } }
         }
     }
 
     // your own commands on the shell's events (Services/Hooks); a field is kept
     // when Enter is pressed, emptied to remove it
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Run a command when…") }
-    SwitchRow {
+    SettingsSection {
         Layout.fillWidth: true
-        text: Tr.t("Run my commands")
-        hint: Tr.t("Each runs in a shell; $1 is the wallpaper, or true/false for dark style")
-        checked: !!(Settings.data.hooks && Settings.data.hooks.enabled)
-        onToggled: on => page.setHook("enabled", on)
-    }
-    Repeater {
-        model: [{ key: "wallpaperChange", label: Tr.t("the wallpaper changes") }, { key: "darkModeChange", label: Tr.t("dark style turns on or off") },
-                { key: "screenLock", label: Tr.t("the screen locks") }, { key: "screenUnlock", label: Tr.t("the screen unlocks") },
-                { key: "startup", label: Tr.t("the desktop starts") }]
-        RowLayout {
-            id: hookRow
-            required property var modelData
+        title: Tr.t("Run a command when…")
+
+        SwitchRow {
             Layout.fillWidth: true
-            visible: !!(Settings.data.hooks && Settings.data.hooks.enabled)
-            spacing: Theme.px(8)
-            Text { text: hookRow.modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.preferredWidth: Theme.px(170) }
-            TextField {
+            text: Tr.t("Run my commands")
+            hint: Tr.t("Each runs in a shell; $1 is the wallpaper, or true/false for dark style")
+            checked: !!(Settings.data.hooks && Settings.data.hooks.enabled)
+            onToggled: on => page.setHook("enabled", on)
+        }
+        Repeater {
+            model: [{ key: "wallpaperChange", label: Tr.t("the wallpaper changes") }, { key: "darkModeChange", label: Tr.t("dark style turns on or off") },
+                    { key: "screenLock", label: Tr.t("the screen locks") }, { key: "screenUnlock", label: Tr.t("the screen unlocks") },
+                    { key: "startup", label: Tr.t("the desktop starts") }]
+            RowLayout {
+                id: hookRow
+                required property var modelData
                 Layout.fillWidth: true
-                placeholder: (Settings.data.hooks && Settings.data.hooks[hookRow.modelData.key]) || Tr.t("a command, e.g. notify-send Locked")
-                onAccepted: { page.setHook(hookRow.modelData.key, text.trim()); text = ""; }
+                visible: !!(Settings.data.hooks && Settings.data.hooks.enabled)
+                spacing: Theme.px(8)
+                Text { text: hookRow.modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.preferredWidth: Theme.px(170) }
+                TextField {
+                    Layout.fillWidth: true
+                    placeholder: (Settings.data.hooks && Settings.data.hooks[hookRow.modelData.key]) || Tr.t("a command, e.g. notify-send Locked")
+                    onAccepted: { page.setHook(hookRow.modelData.key, text.trim()); text = ""; }
+                }
             }
         }
     }
@@ -105,7 +113,6 @@ ColumnLayout {
         Settings.data.hooks = h;          // a new object: the settings file is written
     }
 
-    SectionTitle { Layout.fillWidth: true; text: page.editIndex >= 0 ? Tr.t("Edit automation") : Tr.t("Add an automation") }
     property string when: "wifi"
     property string is: ""
     property string then: "focus"
@@ -156,15 +163,19 @@ ColumnLayout {
             page.commitRule();
         }
     }
-    Flow {
+    SettingsSection {
         Layout.fillWidth: true
-        spacing: Theme.px(6)
-        Repeater {
-            model: page.whens
-            Choice { required property var modelData; text: modelData.label; selected: page.when === modelData.id
-                     onClicked: { page.when = modelData.id; page.is = modelData.choices ? modelData.choices[0] : ""; } }
+        title: page.editIndex >= 0 ? Tr.t("Edit automation") : Tr.t("Add an automation")
+
+        Flow {
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Repeater {
+                model: page.whens
+                Choice { required property var modelData; text: modelData.label; selected: page.when === modelData.id
+                         onClicked: { page.when = modelData.id; page.is = modelData.choices ? modelData.choices[0] : ""; } }
+            }
         }
-    }
     // Wi-Fi name: pick from saved networks, or type
     ColumnLayout {
         visible: page.when === "wifi"
@@ -348,5 +359,6 @@ ColumnLayout {
             text: Tr.t("Cancel")
             onClicked: page.resetForm()
         }
+    }
     }
 }

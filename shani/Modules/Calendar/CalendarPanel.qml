@@ -13,6 +13,7 @@ import QtQuick.Layouts
 import qs.Common
 import qs.Services
 import "../../Common/Format.js" as Format
+import "../../Common/Time.js" as Time
 
 AppWindow {
     id: win
@@ -354,8 +355,7 @@ AppWindow {
         return n === "" ? Tr.t("Event") : n;
     }
     function isoDay(ms) {
-        const d = new Date(ms);
-        return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+        return Time.dayKey(new Date(ms));
     }
     function eventNoteBody(e) {
         const ev = e || {};
@@ -606,7 +606,7 @@ AppWindow {
         const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
         if (iso) {
             const t = s.match(/(\d{1,2}):(\d{2})/);
-            return _parseDateTime(iso[0], t ? String(t[1]).padStart(2, "0") + ":" + t[2] : "00:00");
+            return _parseDateTime(iso[0], t ? Time.clockPadded(t[1] + ":" + t[2]) : "00:00");
         }
         // Now/today/tomorrow
         let dayOffset = 0;

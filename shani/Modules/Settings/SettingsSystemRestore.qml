@@ -72,16 +72,19 @@ ColumnLayout {
         }
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Roll back to the previous slot") }
-    Text {
-        objectName: "system-restore-scope"
+    SettingsSection {
         Layout.fillWidth: true
-        text: Tr.t("Restoring here means a blue-green slot switch: the next boot starts from the other system. It does not restore individual files — that stays in Backup.")
-        color: Theme.dim
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
-    }
+        spacing: Theme.px(10)
+        title: Tr.t("Roll back to the previous slot")
+        Text {
+            objectName: "system-restore-scope"
+            Layout.fillWidth: true
+            text: Tr.t("Restoring here means a blue-green slot switch: the next boot starts from the other system. It does not restore individual files — that stays in Backup.")
+            color: Theme.dim
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
 
     // read states: error / offline / empty all say plainly what happened
     InfoBanner {
@@ -268,5 +271,6 @@ ColumnLayout {
             Accessible.name: text
             onClicked: panel.armPrevious()
         }
+    }
     }
 }

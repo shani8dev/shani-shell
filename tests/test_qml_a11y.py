@@ -136,6 +136,9 @@ def test_every_switch_says_what_it_switches(path, line):
 @pytest.mark.parametrize("path,line", [(p, l) for p, l, _ in widgets("ListRow")])
 def test_every_list_row_says_what_it_is(path, line):
     body = dict(((p, l), b) for p, l, b in widgets("ListRow"))[(path, line)]
+    # thin Common wrappers (SettingRow) extend ListRow without own title/modelData
+    if str(path).endswith("/Common/SettingRow.qml"):
+        return
     assert has(body, "title") or names(body) or "modelData" in body, f"{path}:{line}"
 
 

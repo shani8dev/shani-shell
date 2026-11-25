@@ -19,13 +19,12 @@ def read(rel):
 
 def test_delete_confirmation_is_keyed_by_uid_not_row_index():
     s = read(WINDOW)
-    assert 'property string confirmTask: ""' in s
-    assert 'onTriggered: win.confirmTask = ""' in s
-    assert "win.confirmTask === row.modelData.uid" in s
-    assert "win.confirmTask = row.modelData.uid; taskTimer.restart()" in s
-    # a refresh between the two taps must not make the second tap delete
-    # whichever task now occupies the same row
-    assert "row.index" not in s
+    assert "ConfirmButton" in s
+    assert 'id: deleteTaskConfirm' in s
+    assert ("value: String(row.modelData.uid)" in s or "value: row.modelData.uid" in s)
+    assert "onConfirmed:" in s and "Tasks.remove" in s
+    # a refresh/reuse between the two taps must not retarget the confirm
+    assert "onModelDataChanged() { deleteTaskConfirm.disarm(); }" in s
 
 
 def test_a_changed_due_rearms_the_reminder():

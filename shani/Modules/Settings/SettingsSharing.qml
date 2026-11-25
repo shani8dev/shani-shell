@@ -118,222 +118,232 @@ ColumnLayout {
     }
 
     // Nearby Share (LocalSend): found by phones and computers here, for this session only
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Nearby Share") }
-    SwitchRow {
+    SettingsSection {
         Layout.fillWidth: true
-        text: Tr.t("Visible to devices nearby")
-        hint: Nearby.visible_ ? Tr.t("On until you turn it off or sign out — LocalSend apps on this network can send you files, and you say yes to each")
-                              : Tr.t("Off — nothing can find this computer; you can still send")
-        checked: Nearby.visible_
-        onToggled: on => Nearby.setVisible(on)
-    }
-    Text {
-        Layout.fillWidth: true
-        visible: Nearby.note !== ""
-        text: Nearby.note
-        color: Theme.danger
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
-    }
-    ListRow {
-        Layout.fillWidth: true
-        icon: "send-to"
-        title: Tr.t("Open Nearby Share")
-        subtitle: Tr.t("Devices around you, and files on the way")
-        onClicked: { Ui.closeAll(); Ui.nearby = true; }
-    }
-
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Share folders on this network") }
-    SwitchRow {
-        Layout.fillWidth: true
-        text: Tr.t("File sharing")
-        hint: page.smbOn ? Tr.t("On — others on this network can open what you share") : Tr.t("Off")
-        checked: page.smbOn
-        onToggled: on => page.run(["pkexec", "systemctl", on ? "enable" : "disable", "--now", "smb"], on ? Tr.t("File sharing is on") : Tr.t("File sharing is off"))
-    }
-    RowLayout {
-        visible: !page.inGroup
-        Layout.fillWidth: true
-        Text {
-            Layout.fillWidth: true
-            wrapMode: Text.WordWrap
-            text: page.groupNext ? Tr.t("This account may share folders from your next sign-in.")
-                                 : Tr.t("This account may not share folders yet.")
-            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
-        }
-        Button { visible: !page.groupNext; text: Tr.t("Allow"); onClicked: page.run(["pkexec", "gpasswd", "-a", page.user, "sambashare"], Tr.t("Allowed — sign out and in again to share")) }
-    }
-    // Samba's own password for this account: what someone types when opening your share
-    RowLayout {
-        Layout.fillWidth: true
-        spacing: Theme.px(8)
-        TextField {
-            id: pw; Layout.fillWidth: true; secret: true; placeholder: Tr.t("Network password for your shares"); label: Tr.t("Network password")
-            error: pw.text.length > 0 && pw.text.length < 4 ? Tr.t("At least 4 characters") : ""
-        }
-        Button {
-            text: Tr.t("Set")
-            enabled: pw.text.length >= 4
-            onClicked: { page.run(["pkexec", "smbpasswd", "-s", "-a", page.user], Tr.t("Network password set"), pw.text + "\n" + pw.text + "\n"); pw.text = ""; }
-        }
-    }
-
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Remote login") }
-    SwitchRow {
-        Layout.fillWidth: true
-        text: Tr.t("Secure Shell (SSH)")
-        hint: page.sshOn ? "ssh " + page.user + "@" + page.host + ".local" : Tr.t("Off — turn on to allow remote login over SSH")
-        checked: page.sshOn
-        onToggled: on => page.run(["pkexec", "systemctl", on ? "enable" : "disable", "--now", "sshd"], on ? Tr.t("Remote login is on") : Tr.t("Remote login is off"))
-    }
-    ColumnLayout {
-        Layout.fillWidth: true
-        Layout.leftMargin: Theme.px(12)
-        visible: page.sshOn
-        spacing: Theme.px(2)
+        title: Tr.t("Nearby Share")
         SwitchRow {
             Layout.fillWidth: true
-            text: Tr.t("Allow password login")
-            hint: Tr.t("Turn off to allow keys only")
-            checked: page.sshPassword
-            onToggled: on => page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"),
-                JSON.stringify({ password: on, pubkey: page.sshPubkey, root: page.sshRoot, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim(), tcpForwarding: page.sshTcpForwarding, x11Forwarding: page.sshX11Forwarding, maxAuthTries: sshMaxAuthTriesField.text.trim() || "6" }))
-        }
-        SwitchRow {
-            Layout.fillWidth: true
-            text: Tr.t("Allow key login")
-            hint: Tr.t("Sign in with an SSH key instead of a password")
-            checked: page.sshPubkey
-            onToggled: on => page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"),
-                JSON.stringify({ password: page.sshPassword, pubkey: on, root: page.sshRoot, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim(), tcpForwarding: page.sshTcpForwarding, x11Forwarding: page.sshX11Forwarding, maxAuthTries: sshMaxAuthTriesField.text.trim() || "6" }))
-        }
-        SwitchRow {
-            Layout.fillWidth: true
-            text: Tr.t("Allow root login")
-            hint: Tr.t("Off is safer")
-            checked: page.sshRoot
-            onToggled: on => page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"),
-                JSON.stringify({ password: page.sshPassword, pubkey: page.sshPubkey, root: on, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim(), tcpForwarding: page.sshTcpForwarding, x11Forwarding: page.sshX11Forwarding, maxAuthTries: sshMaxAuthTriesField.text.trim() || "6" }))
-        }
-        SwitchRow { Layout.fillWidth: true; text: Tr.t("Allow TCP forwarding"); hint: Tr.t("Let tools tunnel connections through this computer"); checked: page.sshTcpForwarding; onToggled: on => { page.sshTcpForwarding = on; page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"), JSON.stringify({ password: page.sshPassword, pubkey: page.sshPubkey, root: page.sshRoot, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim(), tcpForwarding: on, x11Forwarding: page.sshX11Forwarding, maxAuthTries: sshMaxAuthTriesField.text.trim() || "6" })); } }
-        SwitchRow { Layout.fillWidth: true; text: Tr.t("Allow X11 forwarding"); hint: Tr.t("Let remote apps open windows on this screen"); checked: page.sshX11Forwarding; onToggled: on => { page.sshX11Forwarding = on; page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"), JSON.stringify({ password: page.sshPassword, pubkey: page.sshPubkey, root: page.sshRoot, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim(), tcpForwarding: page.sshTcpForwarding, x11Forwarding: on, maxAuthTries: sshMaxAuthTriesField.text.trim() || "6" })); } }
-        RowLayout { Layout.fillWidth: true; spacing: Theme.px(6); Text { text: Tr.t("Max auth tries"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale } TextField { id: sshMaxAuthTriesField; Layout.preferredWidth: Theme.px(80); placeholder: "6" } }
-        Text { text: Tr.t("Allow users (space separated, empty = all)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: sshAllowUsersField; Layout.fillWidth: true; placeholder: page.user }
-        Text { text: Tr.t("Allow groups (space separated, empty = all)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: sshAllowGroupsField; Layout.fillWidth: true; placeholder: "wheel" }
-        Button { text: Tr.t("Save allow list"); kind: "primary"; enabled: !act.running; busy: act.running; onClicked: page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"), JSON.stringify({ password: page.sshPassword, pubkey: page.sshPubkey, root: page.sshRoot, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim(), tcpForwarding: page.sshTcpForwarding, x11Forwarding: page.sshX11Forwarding, maxAuthTries: sshMaxAuthTriesField.text.trim() || "6" })) }
-    }
-
-    SwitchRow {
-        Layout.fillWidth: true
-        visible: page.sunUnit !== ""
-        text: Tr.t("Remote desktop (Sunshine)")
-        hint: !page.sunCap ? Tr.t("Sunshine cannot capture the screen: it needs cap_sys_admin (sudo setcap cap_sys_admin+p $(command -v sunshine))")
-            : page.sunOn ? Tr.t("Open Moonlight on the other device and pick %1", page.host) : Tr.t("Off — this screen can be shown on another computer, phone or TV with Moonlight")
-        checked: page.sunOn
-        onToggled: on => page.run(["systemctl", "--user", on ? "enable" : "disable", "--now", page.sunUnit], on ? Tr.t("Remote desktop is on") : Tr.t("Remote desktop is off"))
-    }
-    ColumnLayout {
-        visible: page.sunUnit !== "" && page.sunOn
-        Layout.fillWidth: true
-        spacing: Theme.px(6)
-        Button {
-            text: Tr.t("Get pairing PIN")
-            enabled: !page.pairLoading
-            onClicked: { page.pairLoading = true; page.pairPin = ""; pinProc.running = false; pinProc.running = true; }
-        }
-        Text {
-            visible: page.pairPin !== ""
-            Layout.fillWidth: true
-            text: Tr.t("Pairing PIN: %1").arg(page.pairPin)
-            color: Theme.text
-            font.family: Theme.font
-            font.pixelSize: Theme.px(15) * Theme.fontScale
+            text: Tr.t("Visible to devices nearby")
+            hint: Nearby.visible_ ? Tr.t("On until you turn it off or sign out — LocalSend apps on this network can send you files, and you say yes to each")
+                                  : Tr.t("Off — nothing can find this computer; you can still send")
+            checked: Nearby.visible_
+            onToggled: on => Nearby.setVisible(on)
         }
         Text {
             Layout.fillWidth: true
-            wrapMode: Text.WordWrap
-            text: (page.pairPin !== "" ? Tr.t("Enter this in Moonlight within 30 seconds; if it expires, get the PIN again. ")
-                                       : "") + Tr.t("Pairing page: %1 (self-signed certificate — a browser will warn).").arg(page.pairUrl)
-            color: Theme.dim
+            visible: Nearby.note !== ""
+            text: Nearby.note
+            color: Theme.danger
+            wrapMode: Text.Wrap
             font.family: Theme.font
             font.pixelSize: Theme.px(11) * Theme.fontScale
         }
-        Button {
-            text: page.pairPin !== "" ? Tr.t("Copy PIN") : Tr.t("Copy pairing address")
-            onClicked: Quickshell.clipboardText = page.pairPin !== "" ? page.pairPin : page.pairUrl
-        }
-    }
-
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Cast this screen") }
-    Text {
-        visible: Cast.available
-        Layout.fillWidth: true
-        wrapMode: Text.WordWrap
-        text: Cast.active ? Tr.t("Casting — GNOME Network Displays is sharing this screen")
-                          : Tr.t("Off — share this screen with a TV or Chromecast")
-        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
-    }
-    Text {
-        visible: !Cast.available
-        Layout.fillWidth: true
-        wrapMode: Text.Wrap
-        text: Tr.t("Casting is not available on this computer.")
-        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
-    }
-    RowLayout {
-        visible: Cast.available
-        Layout.fillWidth: true
-        spacing: Theme.px(8)
-        Button { text: Tr.t("Cast…"); enabled: !Cast.active; onClicked: { Ui.closeAll(); Cast.open(); } }
-        Button { visible: Cast.active; text: Tr.t("Stop casting"); onClicked: Cast.stop() }
-    }
-
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Shared folders") }
-    Text {
-        visible: page.shares.length === 0
-        text: Tr.t("Nothing shared.")
-        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
-    }
-    Repeater {
-        model: page.shares
-        RowLayout {
-            required property var modelData
+        ListRow {
             Layout.fillWidth: true
-            spacing: Theme.px(10)
-            Icon { name: "folder-remote"; size: Theme.px(20); color: Theme.accent }
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 1
-                Text { text: modelData.name + " — " + modelData.path; elide: Text.ElideMiddle; Layout.fillWidth: true; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
-                Text { text: "smb://" + page.host + ".local/" + modelData.name + " · " + (modelData.write ? Tr.t("others can change files") : Tr.t("read only")); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-            }
-            IconButton { icon: "edit-delete"; tip: Tr.t("Stop sharing"); Accessible.name: Tr.t("Stop sharing %1", modelData.name); onClicked: page.run(["net", "usershare", "delete", modelData.name], Tr.t("%1 is no longer shared", modelData.name)) }
+            icon: "send-to"
+            title: Tr.t("Open Nearby Share")
+            subtitle: Tr.t("Devices around you, and files on the way")
+            onClicked: { Ui.closeAll(); Ui.nearby = true; }
         }
     }
-    ColumnLayout {
-        visible: page.inGroup
+
+    SettingsSection {
         Layout.fillWidth: true
-        spacing: Theme.px(8)
-        FolderPicker {
-            id: folderPicker
-            label: Tr.t("Folder to share")
+        title: Tr.t("Share folders on this network")
+        SwitchRow {
+            Layout.fillWidth: true
+            text: Tr.t("File sharing")
+            hint: page.smbOn ? Tr.t("On — others on this network can open what you share") : Tr.t("Off")
+            checked: page.smbOn
+            onToggled: on => page.run(["pkexec", "systemctl", on ? "enable" : "disable", "--now", "smb"], on ? Tr.t("File sharing is on") : Tr.t("File sharing is off"))
         }
+        RowLayout {
+            visible: !page.inGroup
+            Layout.fillWidth: true
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: page.groupNext ? Tr.t("This account may share folders from your next sign-in.")
+                                     : Tr.t("This account may not share folders yet.")
+                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            }
+            Button { visible: !page.groupNext; text: Tr.t("Allow"); onClicked: page.run(["pkexec", "gpasswd", "-a", page.user, "sambashare"], Tr.t("Allowed — sign out and in again to share")) }
+        }
+        // Samba's own password for this account: what someone types when opening your share
         RowLayout {
             Layout.fillWidth: true
             spacing: Theme.px(8)
-            Choice { id: writable; text: Tr.t("Others can change files"); selected: false; onClicked: selected = !selected }
+            TextField {
+                id: pw; Layout.fillWidth: true; secret: true; placeholder: Tr.t("Network password for your shares"); label: Tr.t("Network password")
+                error: pw.text.length > 0 && pw.text.length < 4 ? Tr.t("At least 4 characters") : ""
+            }
             Button {
-                text: Tr.t("Share")
-                enabled: folderPicker.value !== ""
-                onClicked: {
-                    const path = folderPicker.value;
-                    const name = path.replace(/\/+$/, "").split("/").pop().replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 60) || "share";
-                    page.run(["net", "usershare", "add", name, path, "", "Everyone:" + (writable.selected ? "F" : "R"), "guest_ok=n"],
-                             Tr.t("%1 is shared", name));
-                    folderPicker.value = "";
+                text: Tr.t("Set")
+                enabled: pw.text.length >= 4
+                onClicked: { page.run(["pkexec", "smbpasswd", "-s", "-a", page.user], Tr.t("Network password set"), pw.text + "\n" + pw.text + "\n"); pw.text = ""; }
+            }
+        }
+    }
+
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Remote login")
+        SwitchRow {
+            Layout.fillWidth: true
+            text: Tr.t("Secure Shell (SSH)")
+            hint: page.sshOn ? "ssh " + page.user + "@" + page.host + ".local" : Tr.t("Off — turn on to allow remote login over SSH")
+            checked: page.sshOn
+            onToggled: on => page.run(["pkexec", "systemctl", on ? "enable" : "disable", "--now", "sshd"], on ? Tr.t("Remote login is on") : Tr.t("Remote login is off"))
+        }
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.px(12)
+            visible: page.sshOn
+            spacing: Theme.px(2)
+            SwitchRow {
+                Layout.fillWidth: true
+                text: Tr.t("Allow password login")
+                hint: Tr.t("Turn off to allow keys only")
+                checked: page.sshPassword
+                onToggled: on => page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"),
+                    JSON.stringify({ password: on, pubkey: page.sshPubkey, root: page.sshRoot, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim(), tcpForwarding: page.sshTcpForwarding, x11Forwarding: page.sshX11Forwarding, maxAuthTries: sshMaxAuthTriesField.text.trim() || "6" }))
+            }
+            SwitchRow {
+                Layout.fillWidth: true
+                text: Tr.t("Allow key login")
+                hint: Tr.t("Sign in with an SSH key instead of a password")
+                checked: page.sshPubkey
+                onToggled: on => page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"),
+                    JSON.stringify({ password: page.sshPassword, pubkey: on, root: page.sshRoot, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim(), tcpForwarding: page.sshTcpForwarding, x11Forwarding: page.sshX11Forwarding, maxAuthTries: sshMaxAuthTriesField.text.trim() || "6" }))
+            }
+            SwitchRow {
+                Layout.fillWidth: true
+                text: Tr.t("Allow root login")
+                hint: Tr.t("Off is safer")
+                checked: page.sshRoot
+                onToggled: on => page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"),
+                    JSON.stringify({ password: page.sshPassword, pubkey: page.sshPubkey, root: on, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim(), tcpForwarding: page.sshTcpForwarding, x11Forwarding: page.sshX11Forwarding, maxAuthTries: sshMaxAuthTriesField.text.trim() || "6" }))
+            }
+            SwitchRow { Layout.fillWidth: true; text: Tr.t("Allow TCP forwarding"); hint: Tr.t("Let tools tunnel connections through this computer"); checked: page.sshTcpForwarding; onToggled: on => { page.sshTcpForwarding = on; page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"), JSON.stringify({ password: page.sshPassword, pubkey: page.sshPubkey, root: page.sshRoot, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim(), tcpForwarding: on, x11Forwarding: page.sshX11Forwarding, maxAuthTries: sshMaxAuthTriesField.text.trim() || "6" })); } }
+            SwitchRow { Layout.fillWidth: true; text: Tr.t("Allow X11 forwarding"); hint: Tr.t("Let remote apps open windows on this screen"); checked: page.sshX11Forwarding; onToggled: on => { page.sshX11Forwarding = on; page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"), JSON.stringify({ password: page.sshPassword, pubkey: page.sshPubkey, root: page.sshRoot, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim(), tcpForwarding: page.sshTcpForwarding, x11Forwarding: on, maxAuthTries: sshMaxAuthTriesField.text.trim() || "6" })); } }
+            RowLayout { Layout.fillWidth: true; spacing: Theme.px(6); Text { text: Tr.t("Max auth tries"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale } TextField { id: sshMaxAuthTriesField; Layout.preferredWidth: Theme.px(80); placeholder: "6" } }
+            Text { text: Tr.t("Allow users (space separated, empty = all)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: sshAllowUsersField; Layout.fillWidth: true; placeholder: page.user }
+            Text { text: Tr.t("Allow groups (space separated, empty = all)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: sshAllowGroupsField; Layout.fillWidth: true; placeholder: "wheel" }
+            Button { text: Tr.t("Save allow list"); kind: "primary"; enabled: !act.running; busy: act.running; onClicked: page.run(page.adminCmd.concat(["remote-access-set"]), Tr.t("Remote login rules updated"), JSON.stringify({ password: page.sshPassword, pubkey: page.sshPubkey, root: page.sshRoot, allowUsers: sshAllowUsersField.text.trim(), allowGroups: sshAllowGroupsField.text.trim(), tcpForwarding: page.sshTcpForwarding, x11Forwarding: page.sshX11Forwarding, maxAuthTries: sshMaxAuthTriesField.text.trim() || "6" })) }
+        }
+
+        SwitchRow {
+            Layout.fillWidth: true
+            visible: page.sunUnit !== ""
+            text: Tr.t("Remote desktop (Sunshine)")
+            hint: !page.sunCap ? Tr.t("Sunshine cannot capture the screen: it needs cap_sys_admin (sudo setcap cap_sys_admin+p $(command -v sunshine))")
+                : page.sunOn ? Tr.t("Open Moonlight on the other device and pick %1", page.host) : Tr.t("Off — this screen can be shown on another computer, phone or TV with Moonlight")
+            checked: page.sunOn
+            onToggled: on => page.run(["systemctl", "--user", on ? "enable" : "disable", "--now", page.sunUnit], on ? Tr.t("Remote desktop is on") : Tr.t("Remote desktop is off"))
+        }
+        ColumnLayout {
+            visible: page.sunUnit !== "" && page.sunOn
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Button {
+                text: Tr.t("Get pairing PIN")
+                enabled: !page.pairLoading
+                onClicked: { page.pairLoading = true; page.pairPin = ""; pinProc.running = false; pinProc.running = true; }
+            }
+            Text {
+                visible: page.pairPin !== ""
+                Layout.fillWidth: true
+                text: Tr.t("Pairing PIN: %1").arg(page.pairPin)
+                color: Theme.text
+                font.family: Theme.font
+                font.pixelSize: Theme.px(15) * Theme.fontScale
+            }
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: (page.pairPin !== "" ? Tr.t("Enter this in Moonlight within 30 seconds; if it expires, get the PIN again. ")
+                                           : "") + Tr.t("Pairing page: %1 (self-signed certificate — a browser will warn).").arg(page.pairUrl)
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+            Button {
+                text: page.pairPin !== "" ? Tr.t("Copy PIN") : Tr.t("Copy pairing address")
+                onClicked: Quickshell.clipboardText = page.pairPin !== "" ? page.pairPin : page.pairUrl
+            }
+        }
+    }
+
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Cast this screen")
+        Text {
+            visible: Cast.available
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+            text: Cast.active ? Tr.t("Casting — GNOME Network Displays is sharing this screen")
+                              : Tr.t("Off — share this screen with a TV or Chromecast")
+            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
+        Text {
+            visible: !Cast.available
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            text: Tr.t("Casting is not available on this computer.")
+            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
+        RowLayout {
+            visible: Cast.available
+            Layout.fillWidth: true
+            spacing: Theme.px(8)
+            Button { text: Tr.t("Cast…"); enabled: !Cast.active; onClicked: { Ui.closeAll(); Cast.open(); } }
+            Button { visible: Cast.active; text: Tr.t("Stop casting"); onClicked: Cast.stop() }
+        }
+    }
+
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Shared folders")
+        Text {
+            visible: page.shares.length === 0
+            text: Tr.t("Nothing shared.")
+            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+        }
+        Repeater {
+            model: page.shares
+            SettingRow {
+                required property var modelData
+                Layout.fillWidth: true
+                icon: "folder-remote"
+                title: modelData.name + " — " + modelData.path
+                subtitle: "smb://" + page.host + ".local/" + modelData.name + " · " + (modelData.write ? Tr.t("others can change files") : Tr.t("read only"))
+                IconButton { icon: "edit-delete"; tip: Tr.t("Stop sharing"); Accessible.name: Tr.t("Stop sharing %1", modelData.name); onClicked: page.run(["net", "usershare", "delete", modelData.name], Tr.t("%1 is no longer shared", modelData.name)) }
+            }
+        }
+        ColumnLayout {
+            visible: page.inGroup
+            Layout.fillWidth: true
+            spacing: Theme.px(8)
+            FolderPicker {
+                id: folderPicker
+                label: Tr.t("Folder to share")
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(8)
+                Choice { id: writable; text: Tr.t("Others can change files"); selected: false; onClicked: selected = !selected }
+                Button {
+                    text: Tr.t("Share")
+                    enabled: folderPicker.value !== ""
+                    onClicked: {
+                        const path = folderPicker.value;
+                        const name = path.replace(/\/+$/, "").split("/").pop().replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 60) || "share";
+                        page.run(["net", "usershare", "add", name, path, "", "Everyone:" + (writable.selected ? "F" : "R"), "guest_ok=n"],
+                                 Tr.t("%1 is shared", name));
+                        folderPicker.value = "";
+                    }
                 }
             }
         }

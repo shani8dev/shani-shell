@@ -24,6 +24,7 @@ import Quickshell.Io
 import QtQuick
 import qs.Common
 import "../Common/Format.js" as Format
+import "../Common/Time.js" as Time
 
 Singleton {
     id: root
@@ -181,7 +182,7 @@ Singleton {
         const t = String(time || "").trim();
         if (!/^([01]?\d|2[0-3]):[0-5]\d$/.test(t))
             return false;
-        const rec = { time: t.padStart(5, "0"), label: String(label || "").trim() || t.padStart(5, "0"), enabled: enabled !== false };
+        const rec = { time: Time.clockPadded(t), label: String(label || "").trim() || Time.clockPadded(t), enabled: enabled !== false };
         if (Array.isArray(days) && days.length)
             rec.days = days.map(Number).filter(d => d >= 0 && d <= 6);
         const list = Array.from(Settings.data.alarms || []);
@@ -197,8 +198,8 @@ Singleton {
         const t = String(time || "").trim();
         if (!/^([01]?\d|2[0-3]):[0-5]\d$/.test(t)) return false;
         const rec = Object.assign({}, list[index], {
-            time: t.padStart(5, "0"),
-            label: String(label || "").trim() || t.padStart(5, "0"),
+            time: Time.clockPadded(t),
+            label: String(label || "").trim() || Time.clockPadded(t),
             enabled: enabled !== false
         });
         if (Array.isArray(days) && days.length) rec.days = days.map(Number).filter(d => d >= 0 && d <= 6);
@@ -403,11 +404,7 @@ Singleton {
     property int swStartedAt: 0            // Date.now() when the running span began
     property int swAccum: 0                // ms banked across pause / resume
     function fmt(ms) {
-        const cs = Math.floor(ms / 10) % 100;
-        const s = Math.floor(ms / 1000) % 60;
-        const m = Math.floor(ms / 60000) % 60;
-        const h = Math.floor(ms / 3600000);
-        return (h > 0 ? h + ":" : "") + String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0") + "." + String(cs).padStart(2, "0");
+        return Time.stopwatch(ms);
     }
     function fmtDelta(ms) { return (ms < 0 ? "-" : "+") + fmt(Math.abs(ms)); }
     readonly property string swDisplay: fmt(swElapsed)

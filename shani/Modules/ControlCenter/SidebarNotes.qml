@@ -28,8 +28,6 @@ ColumnLayout {
     property bool renaming: false
     property bool nbNewVisible: false
     property bool nbRenaming: false
-    property bool confirmDelete: false
-    Timer { id: deleteTimer; interval: 4000; onTriggered: root.confirmDelete = false }
     readonly property var shown: {
         const ids = new Set(QuickNotes.search(query).map(n => n.id || n.name).concat(QuickNotes.contentHits));
         let all = QuickNotes.notes.filter(n => ids.has(n.id || n.name) || ids.has(n.name));
@@ -194,20 +192,20 @@ ColumnLayout {
                 tip: Tr.t("Rename this note")
                 onClicked: { root.renameName = QuickNotes.current; root.renaming = true; renameField.text = QuickNotes.current; Qt.callLater(function() { renameField.forceActiveFocus(Qt.MouseFocusReason); }); }
             }
-            IconButton {
+            ConfirmButton {
+                id: deleteNoteConfirm
                 icon: "edit-delete"
                 size: Theme.px(26)
-                tip: root.confirmDelete ? Tr.t("Tap again to delete") : Tr.t("Delete this note")
-                onClicked: {
-                    if (QuickNotes.current === "") return;
-                    if (root.confirmDelete) {
-                        QuickNotes.remove(QuickNotes.current, QuickNotes.currentNotebook);
-                        root.confirmDelete = false;
-                    } else {
-                        root.confirmDelete = true;
-                        deleteTimer.restart();
-                    }
-                }
+                tip: Tr.t("Delete this note")
+                armedText: Tr.t("Tap again to delete")
+                interval: 4000
+                enabled: QuickNotes.current !== ""
+                onConfirmed: { if (QuickNotes.current !== "") QuickNotes.remove(QuickNotes.current, QuickNotes.currentNotebook); }
+            }
+            Connections {
+                target: QuickNotes
+                function onCurrentChanged() { deleteNoteConfirm.disarm(); }
+                function onCurrentNotebookChanged() { deleteNoteConfirm.disarm(); }
             }
             IconButton {
                 icon: "document-save"

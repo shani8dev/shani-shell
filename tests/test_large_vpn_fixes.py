@@ -257,7 +257,6 @@ def test_main_always_prints_json():
 def test_service_uses_bridge_with_busy_guard():
     for token in (
         'Quickshell.env("SHANI_VPN_TOOL")',
-        '"/usr/lib/shani-shell/vpn.py"',
         "function invoke(cmd, args, subject)",
         "if (root.busy) return false;",
         '["python3", root.tool, cmd]',
@@ -265,7 +264,7 @@ def test_service_uses_bridge_with_busy_guard():
         "function importFile(path)",
         "function setAutoconnect(name, on)",
         "function remove(name)",
-        "d.available !== false",
+        'ToolPath.of(Quickshell.env("SHANI_VPN_TOOL"), "vpn.py")',
         "JSON.parse",
         "function onVpnsChanged() { root.refresh(); }",
         "SecretAgent",

@@ -101,13 +101,13 @@ def test_restore_launches_apps_and_opens_paths():
 
 def test_settings_page_has_sessions_with_confirm():
     q = read(PAGE)
-    assert 'SectionTitle { Layout.fillWidth: true; text: Tr.t("Sessions") }' in q
+    assert 'Tr.t("Sessions")' in q
     assert "Sessions.list" in q and "Sessions.validName(" in q
     assert "Sessions.saveCurrent(sessionName.text)" in q
     assert 'page.ask("restore", modelData)' in q
     assert 'page.ask("remove", modelData)' in q
     assert "page.confirmName" in q and "page.answer(true)" in q
-    assert "InfoBanner" in q and "ListRow" in q and "TextField" in q
+    assert "InfoBanner" in q and ("ListRow" in q or "SettingRow" in q) and "TextField" in q
 
 
 def test_shell_instantiates_and_reports_sessions():

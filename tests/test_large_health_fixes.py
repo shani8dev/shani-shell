@@ -262,7 +262,7 @@ def test_service_owns_the_bridge_and_queues_its_calls():
     s = read(SERVICE)
     assert "pragma Singleton" in s
     assert 'Quickshell.env("SHANI_HEALTH_TOOL")' in s
-    assert '"/usr/lib/shani-shell/health.py"' in s
+    assert 'ToolPath.of(Quickshell.env("SHANI_HEALTH_TOOL"), "health.py")' in s
     assert "function refresh() {" in s
     assert 'root.run("summary", []);' in s and 'root.run("history", ["7"]);' in s
     for fn in ("logStep", "logSleep", "logWorkout", "importFile", "spot"):

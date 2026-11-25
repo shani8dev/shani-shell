@@ -118,15 +118,18 @@ ColumnLayout {
     readonly property var otherFs: perms ? (perms.filesystems || []).filter(f => standardFs.indexOf(f.replace(/:(ro|rw|create)$/, "")) < 0) : []
     property bool readOnly: true
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("App permissions") }
-    Text {
+    SettingsSection {
         Layout.fillWidth: true
-        visible: page.apps.length === 0
-        text: Tr.t("No Flatpak apps installed.")
-        color: Theme.dim
-        font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
-    }
+        title: Tr.t("App permissions")
+
+        Text {
+            Layout.fillWidth: true
+            visible: page.apps.length === 0
+            text: Tr.t("No Flatpak apps installed.")
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: Theme.px(12) * Theme.fontScale
+        }
     Repeater {
         model: page.apps
         ColumnLayout {
@@ -136,7 +139,7 @@ ColumnLayout {
             spacing: Theme.px(4)
             readonly property var entry: DesktopEntries.byId(modelData.id)
             readonly property bool isOpen: page.open === modelData.id && page.perms !== null
-            ListRow {
+            SettingRow {
                 Layout.fillWidth: true
                 icon: arow.entry && arow.entry.icon ? arow.entry.icon : "application-x-executable"
                 title: arow.modelData.name
@@ -279,5 +282,6 @@ ColumnLayout {
                 }
             }
         }
+    }
     }
 }

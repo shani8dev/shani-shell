@@ -32,7 +32,7 @@ def test_wiki_link_chips_resolve_notebook_qualified_targets():
 
 
 def test_delete_confirmation_does_not_survive_selection_change():
-    assert "onSelectedNotebookChanged: win.confirmNotebook = false" in PANEL
+    assert "onSelectedNotebookChanged: deleteNotebookConfirm.disarm()" in PANEL
     assert "target: Services.QuickNotes" in PANEL
     # stronger than the original one-liner: a switch also drops a stale editor
     # body and a history view that belonged to the previous note

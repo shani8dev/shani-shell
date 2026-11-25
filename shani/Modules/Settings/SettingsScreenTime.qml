@@ -77,45 +77,53 @@ ColumnLayout {
             }
         }
     }
-    SectionTitle { Layout.fillWidth: true; visible: page.d.screenTime && page.byApp.length > 0; text: Tr.t("Today, by app") }
-    Repeater {
-        model: page.d.screenTime ? page.byApp.slice(0, 8) : []
-        RowLayout {
-            id: appRow
-            required property var modelData
-            Layout.fillWidth: true
-            spacing: Theme.px(10)
-            Text { Layout.preferredWidth: Theme.px(170); text: appRow.modelData[0]; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
-            Rectangle {
+    SettingsSection {
+        Layout.fillWidth: true
+        visible: page.d.screenTime && page.byApp.length > 0
+        title: Tr.t("Today, by app")
+        Repeater {
+            model: page.d.screenTime ? page.byApp.slice(0, 8) : []
+            RowLayout {
+                id: appRow
+                required property var modelData
                 Layout.fillWidth: true
-                Layout.preferredHeight: Theme.px(6)
-                radius: Theme.px(3)
-                color: Theme.surface3
-                Rectangle { width: parent.width * appRow.modelData[1] / Math.max(1, page.byApp[0][1]); height: parent.height; radius: Theme.px(3); color: Theme.accent }
+                spacing: Theme.px(10)
+                Text { Layout.preferredWidth: Theme.px(170); text: appRow.modelData[0]; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Theme.px(6)
+                    radius: Theme.px(3)
+                    color: Theme.surface3
+                    Rectangle { width: parent.width * appRow.modelData[1] / Math.max(1, page.byApp[0][1]); height: parent.height; radius: Theme.px(3); color: Theme.accent }
+                }
+                Text { Layout.preferredWidth: Theme.px(80); horizontalAlignment: Text.AlignRight; text: ScreenTime.label(appRow.modelData[1]); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
             }
-            Text { Layout.preferredWidth: Theme.px(80); horizontalAlignment: Text.AlignRight; text: ScreenTime.label(appRow.modelData[1]); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
         }
     }
 
-    SectionTitle { Layout.fillWidth: true; visible: page.d.screenTime; text: Tr.t("Reminders") }
-    Text { visible: page.d.screenTime; text: Tr.t("Remind me to take a break"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-    Flow {
-        visible: page.d.screenTime
+    SettingsSection {
         Layout.fillWidth: true
-        spacing: Theme.px(6)
-        Repeater {
-            model: [0, 20, 30, 45, 60, 90]
-            Choice { required property int modelData; text: modelData ? Tr.t("every %1 min", modelData) : Tr.t("Never"); selected: page.d.breakEveryMinutes === modelData; onClicked: page.d.breakEveryMinutes = modelData }
+        visible: page.d.screenTime
+        title: Tr.t("Reminders")
+        Text { visible: page.d.screenTime; text: Tr.t("Remind me to take a break"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+        Flow {
+            visible: page.d.screenTime
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Repeater {
+                model: [0, 20, 30, 45, 60, 90]
+                Choice { required property int modelData; text: modelData ? Tr.t("every %1 min", modelData) : Tr.t("Never"); selected: page.d.breakEveryMinutes === modelData; onClicked: page.d.breakEveryMinutes = modelData }
+            }
         }
-    }
-    Text { visible: page.d.screenTime; text: Tr.t("Daily screen time reminder"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-    Flow {
-        visible: page.d.screenTime
-        Layout.fillWidth: true
-        spacing: Theme.px(6)
-        Repeater {
-            model: [0, 120, 240, 360, 480, 600]
-            Choice { required property int modelData; text: modelData ? Tr.t("%1 h", modelData / 60) : Tr.t("Off"); selected: page.d.screenLimitMinutes === modelData; onClicked: page.d.screenLimitMinutes = modelData }
+        Text { visible: page.d.screenTime; text: Tr.t("Daily screen time reminder"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+        Flow {
+            visible: page.d.screenTime
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Repeater {
+                model: [0, 120, 240, 360, 480, 600]
+                Choice { required property int modelData; text: modelData ? Tr.t("%1 h", modelData / 60) : Tr.t("Off"); selected: page.d.screenLimitMinutes === modelData; onClicked: page.d.screenLimitMinutes = modelData }
+            }
         }
     }
 }

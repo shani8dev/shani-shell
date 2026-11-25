@@ -202,70 +202,78 @@ ColumnLayout {
         }
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Your account") }
-    RowLayout {
+    SettingsSection {
         Layout.fillWidth: true
-        spacing: Theme.px(14)
-        Avatar { size: Theme.px(64) }
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 2
-            Text { text: page.realName || page.user; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(17) * Theme.fontScale; font.weight: Font.DemiBold }
-            Text { text: page.user; color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        }
-    }
+        title: Tr.t("Your account")
 
-    Text { text: Tr.t("Picture"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
-    Flow {
-        Layout.fillWidth: true
-        spacing: Theme.px(8)
-        Repeater {
-            model: page.pictures
-            Image {
-                required property string modelData
-                width: Theme.px(48)
-                height: Theme.px(48)
-                source: "file://" + modelData
-                sourceSize: Qt.size(96, 96)
-                fillMode: Image.PreserveAspectCrop
-                asynchronous: true
-                Accessible.role: Accessible.Button
-                Accessible.name: "Use " + modelData.split("/").pop()
-                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.setPicture(parent.modelData) }
-                KeyFocus { onActivated: page.setPicture(parent.modelData) }
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Theme.px(14)
+            Avatar { size: Theme.px(64) }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 2
+                Text { text: page.realName || page.user; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(17) * Theme.fontScale; font.weight: Font.DemiBold }
+                Text { text: page.user; color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            }
+        }
+
+        Text { text: Tr.t("Picture"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+        Flow {
+            Layout.fillWidth: true
+            spacing: Theme.px(8)
+            Repeater {
+                model: page.pictures
+                Image {
+                    required property string modelData
+                    width: Theme.px(48)
+                    height: Theme.px(48)
+                    source: "file://" + modelData
+                    sourceSize: Qt.size(96, 96)
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    Accessible.role: Accessible.Button
+                    Accessible.name: "Use " + modelData.split("/").pop()
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.setPicture(parent.modelData) }
+                    KeyFocus { onActivated: page.setPicture(parent.modelData) }
+                }
+            }
+        }
+        Text {
+            Layout.fillWidth: true
+            visible: page.pictures.length === 0
+            text: Tr.t("Put a picture in Pictures to choose it here.")
+            color: Theme.faint
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
+
+        TextField {
+            Layout.fillWidth: true
+            placeholder: "Your name, as others see it — " + (page.realName || page.user)
+            onAccepted: {
+                const n = text.trim();
+                if (n !== "" && n.indexOf(":") < 0 && n.indexOf(",") < 0)
+                    page.setName(n);
+                text = "";
             }
         }
     }
-    Text {
-        Layout.fillWidth: true
-        visible: page.pictures.length === 0
-        text: Tr.t("Put a picture in Pictures to choose it here.")
-        color: Theme.faint
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
-    }
-
-    TextField {
-        Layout.fillWidth: true
-        placeholder: "Your name, as others see it — " + (page.realName || page.user)
-        onAccepted: {
-            const n = text.trim();
-            if (n !== "" && n.indexOf(":") < 0 && n.indexOf(",") < 0)
-                page.setName(n);
-            text = "";
-        }
-    }
     // ---- sign in faster: a finger or a look instead of the password -------------------
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Sign in faster"); visible: page.hasReader || page.face.camera || page.u2fShown }
-    Text {
+    SettingsSection {
         Layout.fillWidth: true
+        title: Tr.t("Sign in faster")
         visible: page.hasReader || page.face.camera || page.u2fShown
-        text: Tr.t("Unlock with your fingerprint or your face instead of typing your password - on the lock screen and the sign-in screen. Your password always works too, and is still asked for changes to the system.")
-        color: Theme.dim
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
-    }
+
+        Text {
+            Layout.fillWidth: true
+            visible: page.hasReader || page.face.camera || page.u2fShown
+            text: Tr.t("Unlock with your fingerprint or your face instead of typing your password - on the lock screen and the sign-in screen. Your password always works too, and is still asked for changes to the system.")
+            color: Theme.dim
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(12) * Theme.fontScale
+        }
     // face
     RowLayout {
         visible: page.face.camera
@@ -422,88 +430,93 @@ ColumnLayout {
         Button { visible: page.u2f.key; kind: "primary"; text: page.u2f.registered > 0 ? Tr.t("Register another key") : Tr.t("Register this key"); onClicked: page.u2fDo("register") }
         Button { visible: page.u2f.registered > 0; kind: "danger"; text: Tr.t("Remove my keys"); onClicked: page.u2fDo("remove") }
     }
+    }
 
     // ---- SSH keys: what can sign in to this machine over SSH ----------------
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("SSH keys") }
-    Text {
+    SettingsSection {
         Layout.fillWidth: true
-        text: Tr.t("Keys that can sign in to this account over SSH. A public key is not a secret; a private key never belongs here.")
-        color: Theme.dim
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
-    }
-    Text {
-        Layout.fillWidth: true
-        visible: SshKeys.note !== ""
-        text: SshKeys.note
-        color: Theme.dim
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
-    }
-    Text {
-        Layout.fillWidth: true
-        visible: SshKeys.error !== ""
-        text: SshKeys.error
-        color: Theme.danger
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
-    }
-    ColumnLayout {
-        Layout.fillWidth: true
-        spacing: Theme.px(2)
-        Repeater {
-            model: SshKeys.keys
-            ListRow {
-                required property var modelData
-                required property int index
-                Layout.fillWidth: true
-                interactive: false
-                icon: "dialog-password"
-                title: modelData.comment || modelData.type || Tr.t("SSH key")
-                subtitle: [modelData.fingerprint, modelData.type].filter(x => x).join("  ·  ")
-                Button {
-                    text: Tr.t("Remove")
-                    kind: "danger"
-                    flat: true
-                    enabled: SshKeys.editable && !SshKeys.busy
-                    onClicked: SshKeys.remove(index)
+        title: Tr.t("SSH keys")
+
+        Text {
+            Layout.fillWidth: true
+            text: Tr.t("Keys that can sign in to this account over SSH. A public key is not a secret; a private key never belongs here.")
+            color: Theme.dim
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
+        Text {
+            Layout.fillWidth: true
+            visible: SshKeys.note !== ""
+            text: SshKeys.note
+            color: Theme.dim
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
+        Text {
+            Layout.fillWidth: true
+            visible: SshKeys.error !== ""
+            text: SshKeys.error
+            color: Theme.danger
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: Theme.px(2)
+            Repeater {
+                model: SshKeys.keys
+                SettingRow {
+                    required property var modelData
+                    required property int index
+                    Layout.fillWidth: true
+                    interactive: false
+                    icon: "dialog-password"
+                    title: modelData.comment || modelData.type || Tr.t("SSH key")
+                    subtitle: [modelData.fingerprint, modelData.type].filter(x => x).join("  ·  ")
+                    control: Button {
+                        text: Tr.t("Remove")
+                        kind: "danger"
+                        flat: true
+                        enabled: SshKeys.editable && !SshKeys.busy
+                        onClicked: SshKeys.remove(index)
+                    }
                 }
             }
         }
-    }
-    Text {
-        Layout.fillWidth: true
-        visible: SshKeys.keys.length === 0
-        text: Tr.t("No SSH keys yet.")
-        color: Theme.dim
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
-    }
-    RowLayout {
-        Layout.fillWidth: true
-        visible: !page.sshAddOpen
-        spacing: Theme.px(6)
-        Button { text: Tr.t("Add a key…"); enabled: SshKeys.editable && !SshKeys.busy; onClicked: { page.sshAddOpen = true; } }
-        Item { Layout.fillWidth: true }
-    }
-    ColumnLayout {
-        Layout.fillWidth: true
-        visible: page.sshAddOpen
-        spacing: Theme.px(6)
-        TextField {
-            id: sshInput
+        Text {
             Layout.fillWidth: true
-            placeholder: Tr.t("ssh-ed25519 AAAA… comment")
+            visible: SshKeys.keys.length === 0
+            text: Tr.t("No SSH keys yet.")
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
         }
         RowLayout {
             Layout.fillWidth: true
+            visible: !page.sshAddOpen
             spacing: Theme.px(6)
+            Button { text: Tr.t("Add a key…"); enabled: SshKeys.editable && !SshKeys.busy; onClicked: { page.sshAddOpen = true; } }
             Item { Layout.fillWidth: true }
-            Button { flat: true; text: Tr.t("Cancel"); onClicked: { page.sshAddOpen = false; sshInput.text = ""; } }
-            Button { kind: "primary"; text: Tr.t("Add"); enabled: sshInput.text.trim() !== "" && !SshKeys.busy; onClicked: { SshKeys.add(sshInput.text.trim()); page.sshAddOpen = false; sshInput.text = ""; } }
+        }
+        ColumnLayout {
+            Layout.fillWidth: true
+            visible: page.sshAddOpen
+            spacing: Theme.px(6)
+            TextField {
+                id: sshInput
+                Layout.fillWidth: true
+                placeholder: Tr.t("ssh-ed25519 AAAA… comment")
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Item { Layout.fillWidth: true }
+                Button { flat: true; text: Tr.t("Cancel"); onClicked: { page.sshAddOpen = false; sshInput.text = ""; } }
+                Button { kind: "primary"; text: Tr.t("Add"); enabled: sshInput.text.trim() !== "" && !SshKeys.busy; onClicked: { SshKeys.add(sshInput.text.trim()); page.sshAddOpen = false; sshInput.text = ""; } }
+            }
         }
     }
 

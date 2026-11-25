@@ -175,7 +175,8 @@ def test_sort_by_project_is_available_and_stable():
 
 def test_row_actions_have_accessible_names():
     s = window()
-    assert s.count("Accessible.name: tip") >= 5  # notes, rename, due, repeat, delete
+    assert s.count("Accessible.name: tip") >= 4  # notes, rename, due, repeat; delete is ConfirmButton
+    assert "id: deleteTaskConfirm" in s
     assert (
         'Accessible.name: row.modelData.summary + (row.prio > 0 ? ", P" + row.prio : "")'
         in s
@@ -215,9 +216,8 @@ def test_service_rejects_malformed_json_shapes():
 def test_legacy_wiring_still_present():
     # The new features must not break the already-tested fixes.
     s = window()
-    assert 'property string confirmTask: ""' in s
-    assert "win.confirmTask === row.modelData.uid" in s
-    assert "win.confirmTask = row.modelData.uid; taskTimer.restart();" in s
+    assert 'id: deleteTaskConfirm' in s
+    assert "deleteTaskConfirm" in s
     assert "property var dueTask: null" in s
     assert "win.dueTask = row.modelData; win.editDue = row.modelData.due || 0;" in s
     picker = section(s, "// due date of an existing task", "// sort:")

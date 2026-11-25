@@ -21,8 +21,8 @@ def test_an_unknown_app_icon_can_fall_back_to_an_initial_tile():
     never fires and the tile is unreachable. Icon's own || chain needs the same
     emptiness to try its next name."""
     app = source("shani/Common/AppIcon.qml")
-    assert "Quickshell.iconPath(icon, false)" in app
-    assert "Quickshell.iconPath(icon, true)" not in app
+    assert "pathFor(icon, false)" in app
+    assert "pathFor(icon, true)" not in app
     assert 'visible: root.path === ""' in app
 
     icon = source("shani/Common/Icon.qml")

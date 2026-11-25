@@ -97,6 +97,7 @@ AppWindow {
     // go-to-line and TextMate theme chooser
     property bool gotoOpen: false
     property string themeChoice: ""
+    // shortcut: index-keyed tab close confirm is unsafe to migrate to ConfirmButton (tabs reorder/close shifts indices)
     property int confirmClose: -1         // the tab asked to close with changes: a second click closes it
     property var lastClosed: null         // { index, doc } of the last tab closed — Ctrl+Shift+T puts it back
     property bool loading: false          // the editor is being filled, not typed in

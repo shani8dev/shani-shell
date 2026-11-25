@@ -133,113 +133,126 @@ ColumnLayout {
         .concat([{ label: Tr.t("Lock"), value: "lock" }, { label: Tr.t("Nothing"), value: "ignore" }, { label: Tr.t("Power off"), value: "poweroff" }])
     function shown(v) { return ["suspend", "suspend-then-hibernate", "hybrid-sleep"].indexOf(v) >= 0 ? Power.sleepVerb : v; }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Lid, power button and battery") }
-    // how it sleeps: offered only where this machine can hibernate
-    Picks {
-        visible: Power.canSuspendThenHibernate || Power.canHybridSleep
-        label: Tr.t("When it sleeps")
-        options: [{ label: Tr.t("Just sleep"), value: "suspend" }]
-            .concat(Power.canSuspendThenHibernate ? [{ label: Tr.t("Sleep, then hibernate after a while - saves the battery"), value: "suspend-then-hibernate" }] : [])
-            .concat(Power.canHybridSleep ? [{ label: Tr.t("Sleep, with a copy on disk - safe from a power cut"), value: "hybrid-sleep" }] : [])
-        current: Power.sleepVerb
-        onPicked: v => {
-            Settings.data.sleepStyle = v;
-            // the lid's "Sleep" follows the choice (logind runs it, not the shell)
-            const p = {};
-            if (["suspend", "suspend-then-hibernate", "hybrid-sleep"].indexOf(page.lid) >= 0) p.lid = v;
-            if (["suspend", "suspend-then-hibernate", "hybrid-sleep"].indexOf(page.lidOnPower) >= 0) p.lidOnPower = v;
-            if (Object.keys(p).length) page.save(p);
-        }
-    }
-    Picks { visible: page.hasLid; label: Tr.t("Closing the lid"); options: page.lidOptions; current: page.shown(page.lid); onPicked: v => page.save({ lid: v }) }
-    Picks { visible: page.hasLid; label: Tr.t("Closing the lid while plugged in"); options: page.lidOptions; current: page.shown(page.lidOnPower); onPicked: v => page.save({ lidOnPower: v }) }
-    Picks {
-        label: Tr.t("Pressing the power button")
-        options: [{ label: Tr.t("Power off"), value: "poweroff" }, { label: Tr.t("Sleep"), value: "suspend" }]
-            .concat(Power.canHibernate ? [{ label: Tr.t("Hibernate"), value: "hibernate" }] : [])
-            .concat([{ label: Tr.t("Lock"), value: "lock" }, { label: Tr.t("Nothing"), value: "ignore" }])
-        // until a choice is made here niri has the button and sleeps (its default,
-        // logind's would power off); once made, niri lets logind have it (InputConfig)
-        current: Settings.data.powerKeyByLogind ? page.powerKey : "suspend"
-        onPicked: v => { Settings.data.powerKeyByLogind = true; Settings.touch("powerKeyByLogind"); page.save({ powerKey: v }); }
-    }
-    // the firmware accepts every integer 50-100, not just four named steps
-    RowLayout {
-        visible: page.limit > 0
+    SettingsSection {
         Layout.fillWidth: true
-        spacing: Theme.px(8)
-        Text {
-            text: Tr.t("Stop charging at (keeps the battery healthy when mostly plugged in)")
-            color: Theme.text
-            font.family: Theme.font
-            font.pixelSize: Theme.px(13) * Theme.fontScale
-            wrapMode: Text.Wrap
-            Layout.fillWidth: true
-        }
-        TextField {
-            id: limitField
-            Layout.preferredWidth: Theme.px(80)
-            label: Tr.t("Charge limit in percent")
-            placeholder: Tr.t("50 to 100")
-            text: String(page.limit)
-            input.validator: IntValidator { bottom: 50; top: 100 }
-            input.onEditingFinished: {
-                const v = parseInt(text, 10);
-                if (v >= 50 && v <= 100 && v !== page.limit) page.saveLimit(v);
+        title: Tr.t("Lid, power button and battery")
+        // how it sleeps: offered only where this machine can hibernate
+        Picks {
+            visible: Power.canSuspendThenHibernate || Power.canHybridSleep
+            label: Tr.t("When it sleeps")
+            options: [{ label: Tr.t("Just sleep"), value: "suspend" }]
+                .concat(Power.canSuspendThenHibernate ? [{ label: Tr.t("Sleep, then hibernate after a while - saves the battery"), value: "suspend-then-hibernate" }] : [])
+                .concat(Power.canHybridSleep ? [{ label: Tr.t("Sleep, with a copy on disk - safe from a power cut"), value: "hybrid-sleep" }] : [])
+            current: Power.sleepVerb
+            onPicked: v => {
+                Settings.data.sleepStyle = v;
+                // the lid's "Sleep" follows the choice (logind runs it, not the shell)
+                const p = {};
+                if (["suspend", "suspend-then-hibernate", "hybrid-sleep"].indexOf(page.lid) >= 0) p.lid = v;
+                if (["suspend", "suspend-then-hibernate", "hybrid-sleep"].indexOf(page.lidOnPower) >= 0) p.lidOnPower = v;
+                if (Object.keys(p).length) page.save(p);
             }
         }
-        Text { text: "%"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
-    }
-    Picks {
-        visible: page.powerLimitSteps.length > 1
-        label: Tr.t("Chip power limit - more watts, more speed in games; fewer, a cooler, quieter handheld that lasts longer")
-        options: page.powerLimitSteps.map(w => ({ label: w + " W", value: String(w) }))
-        current: page.powerLimit ? String(page.powerLimit.current) : ""
-        onPicked: v => page.savePowerLimit(parseInt(v))
-    }
-    SectionTitle { Layout.fillWidth: true; visible: page.wakers.length > 0; text: Tr.t("What can wake this computer") }
-    Repeater {
-        model: page.wakers
-        SwitchRow {
-            required property var modelData
-            Layout.fillWidth: true
-            text: modelData.name
-            hint: modelData.kind === "usb" ? Tr.t("A key or a click on it wakes the computer from sleep")
-                : modelData.kind === "lid" ? Tr.t("Opening the lid wakes the computer from sleep")
-                : Tr.t("A wake-up signal from another computer on the network wakes it")
-            checked: modelData.enabled
-            onToggled: on => page.saveWake(modelData.path, on)
+        Picks { visible: page.hasLid; label: Tr.t("Closing the lid"); options: page.lidOptions; current: page.shown(page.lid); onPicked: v => page.save({ lid: v }) }
+        Picks { visible: page.hasLid; label: Tr.t("Closing the lid while plugged in"); options: page.lidOptions; current: page.shown(page.lidOnPower); onPicked: v => page.save({ lidOnPower: v }) }
+        Picks {
+            label: Tr.t("Pressing the power button")
+            options: [{ label: Tr.t("Power off"), value: "poweroff" }, { label: Tr.t("Sleep"), value: "suspend" }]
+                .concat(Power.canHibernate ? [{ label: Tr.t("Hibernate"), value: "hibernate" }] : [])
+                .concat([{ label: Tr.t("Lock"), value: "lock" }, { label: Tr.t("Nothing"), value: "ignore" }])
+            // until a choice is made here niri has the button and sleeps (its default,
+            // logind's would power off); once made, niri lets logind have it (InputConfig)
+            current: Settings.data.powerKeyByLogind ? page.powerKey : "suspend"
+            onPicked: v => { Settings.data.powerKeyByLogind = true; Settings.touch("powerKeyByLogind"); page.save({ powerKey: v }); }
         }
-    }
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Lid & idle (logind)") }
-    Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/systemd/logind.conf.d/50-shani-shell.conf. Values: suspend, lock, ignore, poweroff, hibernate, hybrid-sleep, suspend-then-hibernate."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-    Repeater {
-        model: ["HandleLidSwitch","HandleLidSwitchExternalPower","HandleLidSwitchDocked","IdleAction"]
+        // the firmware accepts every integer 50-100, not just four named steps
         RowLayout {
-            required property var modelData
-            Layout.fillWidth: true; spacing: Theme.px(6)
-            Text { Layout.preferredWidth: Theme.px(220); text: modelData; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
-            TextField { id: lidVal; Layout.fillWidth: true; text: (page.logind && page.logind[modelData]) || ""; placeholder: "suspend" }
-            Button { text: Tr.t("Save"); enabled: !writer.running; busy: writer.running; onClicked: page.saveLogind(modelData, lidVal.text.trim()) }
+            visible: page.limit > 0
+            Layout.fillWidth: true
+            spacing: Theme.px(8)
+            Text {
+                text: Tr.t("Stop charging at (keeps the battery healthy when mostly plugged in)")
+                color: Theme.text
+                font.family: Theme.font
+                font.pixelSize: Theme.px(13) * Theme.fontScale
+                wrapMode: Text.Wrap
+                Layout.fillWidth: true
+            }
+            TextField {
+                id: limitField
+                Layout.preferredWidth: Theme.px(80)
+                label: Tr.t("Charge limit in percent")
+                placeholder: Tr.t("50 to 100")
+                text: String(page.limit)
+                input.validator: IntValidator { bottom: 50; top: 100 }
+                input.onEditingFinished: {
+                    const v = parseInt(text, 10);
+                    if (v >= 50 && v <= 100 && v !== page.limit) page.saveLimit(v);
+                }
+            }
+            Text { text: "%"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+        }
+        Picks {
+            visible: page.powerLimitSteps.length > 1
+            label: Tr.t("Chip power limit - more watts, more speed in games; fewer, a cooler, quieter handheld that lasts longer")
+            options: page.powerLimitSteps.map(w => ({ label: w + " W", value: String(w) }))
+            current: page.powerLimit ? String(page.powerLimit.current) : ""
+            onPicked: v => page.savePowerLimit(parseInt(v))
         }
     }
-    RowLayout {
-        Layout.fillWidth: true; spacing: Theme.px(6)
-        Text { Layout.preferredWidth: Theme.px(220); text: "IdleActionSec"; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: idleSec; Layout.fillWidth: true; text: (page.logind && page.logind["IdleActionSec"]) || ""; placeholder: "300" }
-        Button { text: Tr.t("Save"); enabled: !writer.running; busy: writer.running; onClicked: page.saveLogind("IdleActionSec", idleSec.text.trim()) }
+    SettingsSection {
+        Layout.fillWidth: true
+        visible: page.wakers.length > 0
+        title: Tr.t("What can wake this computer")
+        Repeater {
+            model: page.wakers
+            SwitchRow {
+                required property var modelData
+                Layout.fillWidth: true
+                text: modelData.name
+                hint: modelData.kind === "usb" ? Tr.t("A key or a click on it wakes the computer from sleep")
+                    : modelData.kind === "lid" ? Tr.t("Opening the lid wakes the computer from sleep")
+                    : Tr.t("A wake-up signal from another computer on the network wakes it")
+                checked: modelData.enabled
+                onToggled: on => page.saveWake(modelData.path, on)
+            }
+        }
+    }
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Lid & idle (logind)")
+        Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/systemd/logind.conf.d/50-shani-shell.conf. Values: suspend, lock, ignore, poweroff, hibernate, hybrid-sleep, suspend-then-hibernate."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Repeater {
+            model: ["HandleLidSwitch","HandleLidSwitchExternalPower","HandleLidSwitchDocked","IdleAction"]
+            RowLayout {
+                required property var modelData
+                Layout.fillWidth: true; spacing: Theme.px(6)
+                Text { Layout.preferredWidth: Theme.px(220); text: modelData; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                TextField { id: lidVal; Layout.fillWidth: true; text: (page.logind && page.logind[modelData]) || ""; placeholder: "suspend" }
+                Button { text: Tr.t("Save"); enabled: !writer.running; busy: writer.running; onClicked: page.saveLogind(modelData, lidVal.text.trim()) }
+            }
+        }
+        RowLayout {
+            Layout.fillWidth: true; spacing: Theme.px(6)
+            Text { Layout.preferredWidth: Theme.px(220); text: "IdleActionSec"; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: idleSec; Layout.fillWidth: true; text: (page.logind && page.logind["IdleActionSec"]) || ""; placeholder: "300" }
+            Button { text: Tr.t("Save"); enabled: !writer.running; busy: writer.running; onClicked: page.saveLogind("IdleActionSec", idleSec.text.trim()) }
+        }
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Sleep (systemd-sleep)") }
-    Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/systemd/sleep.conf.d/50-shani-shell.conf."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-    Repeater {
-        model: [{k:"SuspendState",ph:"mem"},{k:"HibernateState",ph:"disk"},{k:"HybridSleepState",ph:"disk"},{k:"HibernateDelaySec",ph:"1800"}]
-        RowLayout {
-            required property var modelData
-            Layout.fillWidth: true; spacing: Theme.px(6)
-            Text { Layout.preferredWidth: Theme.px(180); text: modelData.k; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
-            TextField { id: slVal; Layout.fillWidth: true; text: (page.sleep && page.sleep[modelData.k]) || ""; placeholder: modelData.ph }
-            Button { text: Tr.t("Save"); enabled: !writer.running; busy: writer.running; onClicked: page.saveSleep(modelData.k, slVal.text.trim()) }
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Sleep (systemd-sleep)")
+        Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/systemd/sleep.conf.d/50-shani-shell.conf."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Repeater {
+            model: [{k:"SuspendState",ph:"mem"},{k:"HibernateState",ph:"disk"},{k:"HybridSleepState",ph:"disk"},{k:"HibernateDelaySec",ph:"1800"}]
+            RowLayout {
+                required property var modelData
+                Layout.fillWidth: true; spacing: Theme.px(6)
+                Text { Layout.preferredWidth: Theme.px(180); text: modelData.k; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                TextField { id: slVal; Layout.fillWidth: true; text: (page.sleep && page.sleep[modelData.k]) || ""; placeholder: modelData.ph }
+                Button { text: Tr.t("Save"); enabled: !writer.running; busy: writer.running; onClicked: page.saveSleep(modelData.k, slVal.text.trim()) }
+            }
         }
     }
 

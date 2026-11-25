@@ -49,7 +49,14 @@ def js_func(src, name):
 
 
 def node_eval(expr, funcs, prelude=""):
-    js = prelude + "\n".join(js_func(src, name) for src, name in funcs)
+    js = prelude + r"""
+var Time = {
+  clockPadded: function(t){ t=String(t||""); return t.length>=5?t:t.padStart(5,"0"); },
+  dayKey: function(when){ var d=when instanceof Date?when:typeof when==="string"?new Date(when):new Date(Number(when)||Date.now()); if(!d||isNaN(d.getTime())) return ""; return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); },
+  clock: function(s){ s=Number(s)||0; return Math.floor(s/60)+":"+String(Math.floor(s%60)).padStart(2,"0"); },
+  hhmmss: function(s){ s=Number(s)||0; return String(Math.floor(s/3600)).padStart(2,"0")+":"+String(Math.floor(s%3600/60)).padStart(2,"0")+":"+String(Math.floor(s%60)).padStart(2,"0"); }
+};
+""" + "\n".join(js_func(src, name) for src, name in funcs)
     js += "\nconsole.log(JSON.stringify(" + expr + "));\n"
     r = subprocess.run(["node", "-e", js], capture_output=True, text=True, timeout=15)
     assert r.returncode == 0, r.stderr

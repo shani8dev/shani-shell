@@ -52,6 +52,7 @@ AppWindow {
     property string pasteError: ""
     property var testQueue: []
     property int testIndex: 0
+    // shortcut: host delete confirm is coupled to keyboard Delete and global warning text, so per-row ConfirmButton would change behavior
     property string confirmingDelete: ""
     property bool showShortcuts: false
 
@@ -224,8 +225,8 @@ AppWindow {
         Keys.onPressed: e => {
             if (e.modifiers & Qt.ControlModifier) {
                 if (e.key === Qt.Key_F) {
-                    if (win.tab === "hosts" && hostSearch.visible) hostSearch.forceActiveFocus();
-                    else if (win.tab === "snippets") snipSearch.forceActiveFocus();
+                    if (win.tab === "hosts" && hostSearch.visible) hostSearch.input.forceActiveFocus();
+                    else if (win.tab === "snippets") snipSearch.input.forceActiveFocus();
                     e.accepted = true;
                 } else if (e.key >= Qt.Key_1 && e.key <= Qt.Key_4) {
                     win.tab = ["hosts", "keys", "tunnels", "snippets"][e.key - Qt.Key_1];
@@ -248,7 +249,7 @@ AppWindow {
                 if (h) { win.noteLaunch(h); TerminalApp.connect(h); }
                 e.accepted = true;
             } else if (e.key === Qt.Key_Slash && hostSearch.visible) {
-                hostSearch.forceActiveFocus(); e.accepted = true;
+                hostSearch.input.forceActiveFocus(); e.accepted = true;
             } else if (e.key === Qt.Key_F2) {
                 const h = hostList.model[hostList.currentIndex];
                 if (h && !TerminalApp.busy && h.type !== "serial")
@@ -466,7 +467,7 @@ AppWindow {
             }
 
             // find a host by name, address, user, group or ProxyJump
-            TextField {
+            SearchField {
                 id: hostSearch
                 Layout.fillWidth: true
                 visible: TerminalApp.hosts.length > 3
@@ -933,7 +934,7 @@ AppWindow {
                     }
                 }
             }
-            TextField {
+            SearchField {
                 id: snipSearch
                 Layout.fillWidth: true
                 visible: TerminalApp.snippets.length > 3

@@ -12,6 +12,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/Time.js" as Time
 
 Singleton {
     id: root
@@ -21,10 +22,7 @@ Singleton {
     readonly property bool paused: state === "paused"
     property string file: ""             // the file being recorded
     property int seconds: 0
-    readonly property string elapsed: {
-        const h = Math.floor(seconds / 3600), m = Math.floor(seconds % 3600 / 60), s = seconds % 60;
-        return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
-    }
+    readonly property string elapsed: Time.hhmmss(seconds)
     property real level: 0               // 0..1 input peak, while recording
     property var recordings: []          // [{ path, name, when }] newest-first
     property string last: ""             // the last file saved (for `state`)

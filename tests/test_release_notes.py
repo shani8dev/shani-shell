@@ -31,14 +31,14 @@ def read(path):
 
 def test_about_hosts_the_reader_without_disturbing_computer_info():
     src = read(ABOUT)
-    assert 'text: Tr.t("What changed")' in src
+    assert 'Tr.t("What changed")' in src
     assert "SettingsReleaseNotes { Layout.fillWidth: true }" in src
     for marker in (
-        'text: Tr.t("This computer")',
+        'Tr.t("This computer")',
         "id: hostnameField",
         "id: healthProc",
         "id: reportProc",
-        'text: Tr.t("More settings")',
+        'Tr.t("More settings")',
     ):
         assert marker in src
     # appended, not inserted into the machine-info section

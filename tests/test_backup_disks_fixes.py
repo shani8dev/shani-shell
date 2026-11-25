@@ -24,12 +24,10 @@ def test_backup_empty_state_offers_setup_next_step():
     p = read("shani/Modules/Backup/BackupPanel.qml")
     assert 'Tr.t("No backup drive set up")' in p
     assert 'Tr.t("Set up backup drive…")' in p
-    assert 'onClicked: Backup.open("backups")' in p
-    # the CTA is gated on there being no drive, not on the snapshot count
-    block = p.split("// timeline empty state", 1)[1].split(
-        "\n            ListView {", 1
-    )[0]
-    assert "visible: !Backup.driveSetUp" in block
+    assert 'Backup.open("backups")' in p
+    # EmptyState owns the CTA; gated on no drive, not snapshot count
+    assert "EmptyState {" in p
+    assert '!Backup.driveSetUp ? Tr.t("Set up backup drive…") : ""' in p or 'Backup.driveSetUp ? "" : Tr.t("Set up backup drive…")' in p
 
 
 def test_disks_confirm_is_rearmed_on_device_or_op_change():

@@ -64,12 +64,12 @@ ColumnLayout {
 
     Repeater {
         model: page.devices
-        ColumnLayout {
+        SettingsSection {
             id: dev
             required property var modelData
             Layout.fillWidth: true
             spacing: Theme.px(10)
-            SectionTitle { Layout.fillWidth: true; text: Tr.t("Gaming mouse") }
+            title: Tr.t("Gaming mouse")
             ListRow { Layout.fillWidth: true; icon: "input-mouse"; title: dev.modelData.name; subtitle: Tr.t("Settings are kept in the mouse itself") }
             Picks {
                 label: Tr.t("Pointer speed (DPI)")

@@ -59,14 +59,7 @@ def test_autosave_detects_outside_edits_and_panel_offers_reload_discard():
 
 
 def test_sidebar_delete_needs_two_taps():
-    assert "property bool confirmDelete" in SIDEBAR
-    assert "id: deleteTimer" in SIDEBAR
-    button = _section(
-        SIDEBAR,
-        'icon: "edit-delete"',
-        'IconButton {\n                icon: "document-save"',
-    )
-    assert "root.confirmDelete" in button
-    assert "deleteTimer.restart()" in button
-    assert "QuickNotes.remove(" in button
-    assert "Tap again" in button
+    assert "id: deleteNoteConfirm" in SIDEBAR
+    assert "ConfirmButton" in SIDEBAR
+    assert "onConfirmed:" in SIDEBAR
+    assert "QuickNotes.remove(" in SIDEBAR

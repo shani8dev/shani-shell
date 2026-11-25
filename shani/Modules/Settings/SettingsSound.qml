@@ -52,8 +52,9 @@ ColumnLayout {
     }
     Process { id: setProfile; onExited: cardList.running = true }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Sound") }
-    SwitchRow { Layout.fillWidth: true; text: Tr.t("Allow volume above 100 %"); hint: Tr.t("for quiet speakers — loud audio may distort"); checked: page.d.overAmplify; onToggled: on => page.d.overAmplify = on }
+    SettingsSection {
+        title: Tr.t("Sound")
+        SwitchRow { Layout.fillWidth: true; text: Tr.t("Allow volume above 100 %"); hint: Tr.t("for quiet speakers — loud audio may distort"); checked: page.d.overAmplify; onToggled: on => page.d.overAmplify = on }
     Picks {
         label: Tr.t("Volume keys change it by")
         options: [{ label: "2 %", value: 2 }, { label: "5 %", value: 5 }, { label: "10 %", value: 10 }]
@@ -101,9 +102,11 @@ ColumnLayout {
             }
         }
     }
+    }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Sound effects") }
-    SwitchRow {
+    SettingsSection {
+        title: Tr.t("Sound effects")
+        SwitchRow {
         Layout.fillWidth: true
         text: Tr.t("Sound effects")
         hint: SoundFx.error ? SoundFx.error : SoundFx.on ? (SoundFx.running ? "playing through them into " + (SoundFx.target || "the output") : "starting…") : "equaliser, bass, width, crossfeed, headphone correction"
@@ -269,14 +272,17 @@ ColumnLayout {
         checked: page.d.lyrics
         onToggled: on => page.d.lyrics = on
     }
+    }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Microphone") }
+    SettingsSection {
+        title: Tr.t("Microphone")
     SwitchRow {
         Layout.fillWidth: true
         text: Tr.t("Noise suppression")
         hint: SoundFx.micError ? SoundFx.micError : "keyboard, fan and traffic out of calls and recordings (RNNoise)"
         checked: page.d.micNoise
         onToggled: on => page.d.micNoise = on
+    }
     }
 
     property string autoEqPath: ""

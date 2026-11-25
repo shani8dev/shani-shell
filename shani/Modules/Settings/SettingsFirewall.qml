@@ -17,81 +17,82 @@ ColumnLayout {
     Component.onCompleted: if (active) Firewall.refresh()
 
     // ---- the firewall itself ------------------------------------------------
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Firewall") }
-    SwitchRow {
+    SettingsSection {
         Layout.fillWidth: true
-        text: Tr.t("Turn on the firewall")
-        hint: Tr.t("firewalld keeps unsolicited connections out; the rules below say what is let in")
-        checked: Firewall.running
-        enabled: Firewall.available
-        onToggled: on => Firewall.setEnabled(on)
-    }
-    Text {
-        Layout.fillWidth: true
-        visible: !Firewall.available
-        text: Tr.t("firewalld is not installed on this computer")
-        color: Theme.dim
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
-    }
-    Text {
-        Layout.fillWidth: true
-        visible: Firewall.note !== ""
-        text: Firewall.note
-        color: Theme.danger
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
-    }
-
-    // ---- the default zone ---------------------------------------------------
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Default zone") }
-    Text {
-        Layout.fillWidth: true
-        text: Tr.t("Every connection that has no zone of its own lands in this one. Public lets nothing in; home trusts the devices on your own network.")
-        color: Theme.dim
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
-    }
-    Flow {
-        Layout.fillWidth: true
-        spacing: Theme.px(6)
-        Repeater {
-            model: Firewall.named.filter(z => Firewall.zones.some(x => x.name === z))
-            Choice {
-                required property string modelData
-                text: modelData
-                selected: Firewall.defaultZone === modelData
-                enabled: Firewall.running
-                onClicked: Firewall.setDefaultZone(modelData)
-            }
+        title: Tr.t("Firewall")
+        SwitchRow {
+            Layout.fillWidth: true
+            text: Tr.t("Turn on the firewall")
+            hint: Tr.t("firewalld keeps unsolicited connections out; the rules below say what is let in")
+            checked: Firewall.running
+            enabled: Firewall.available
+            onToggled: on => Firewall.setEnabled(on)
+        }
+        Text {
+            Layout.fillWidth: true
+            visible: !Firewall.available
+            text: Tr.t("firewalld is not installed on this computer")
+            color: Theme.dim
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
+        Text {
+            Layout.fillWidth: true
+            visible: Firewall.note !== ""
+            text: Firewall.note
+            color: Theme.danger
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
         }
     }
 
-    // ---- the zone being edited ---------------------------------------------
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Rules") }
-    Flow {
+    // ---- the default zone ---------------------------------------------------
+    SettingsSection {
         Layout.fillWidth: true
-        spacing: Theme.px(6)
-        Repeater {
-            model: Firewall.zones
-            Choice {
-                required property var modelData
-                text: modelData.name
-                // "Edit lab", not "lab": the same zone is also a chip in the
-                // default-zone row above, and a screen reader must be able to
-                // tell the two apart
-                Accessible.name: Tr.t("Edit %1", modelData.name)
-                selected: (page.zone || Firewall.defaultZone) === modelData.name
-                enabled: Firewall.running
-                onClicked: page.zone = modelData.name
+        title: Tr.t("Default zone")
+        hint: Tr.t("Every connection that has no zone of its own lands in this one. Public lets nothing in; home trusts the devices on your own network.")
+        Flow {
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Repeater {
+                model: Firewall.named.filter(z => Firewall.zones.some(x => x.name === z))
+                Choice {
+                    required property string modelData
+                    text: modelData
+                    selected: Firewall.defaultZone === modelData
+                    enabled: Firewall.running
+                    onClicked: Firewall.setDefaultZone(modelData)
+                }
             }
         }
     }
 
     readonly property var editing: Firewall.zone(page.zone || Firewall.defaultZone)
+
+    // ---- the zone being edited ---------------------------------------------
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Rules")
+        Flow {
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Repeater {
+                model: Firewall.zones
+                Choice {
+                    required property var modelData
+                    text: modelData.name
+                    // "Edit lab", not "lab": the same zone is also a chip in the
+                    // default-zone row above, and a screen reader must be able to
+                    // tell the two apart
+                    Accessible.name: Tr.t("Edit %1", modelData.name)
+                    selected: (page.zone || Firewall.defaultZone) === modelData.name
+                    enabled: Firewall.running
+                    onClicked: page.zone = modelData.name
+                }
+            }
+        }
 
     Text { Layout.fillWidth: true; text: Tr.t("Open ports"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.Medium }
     ColumnLayout {
@@ -208,41 +209,38 @@ ColumnLayout {
             }
         }
     }
+    }
 
     // ---- zones --------------------------------------------------------------
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Zones") }
-    Text {
+    SettingsSection {
         Layout.fillWidth: true
-        text: Tr.t("A zone is a set of rules. An interface or a connection joins one; everything else lands in the default. The usual ones are already here — a zone of your own keeps them untouched.")
-        color: Theme.dim
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
-    }
-    RowLayout {
-        Layout.fillWidth: true
-        spacing: Theme.px(6)
-        TextField {
-            id: zoneField
+        title: Tr.t("Zones")
+        hint: Tr.t("A zone is a set of rules. An interface or a connection joins one; everything else lands in the default. The usual ones are already here — a zone of your own keeps them untouched.")
+        RowLayout {
             Layout.fillWidth: true
-            placeholder: Tr.t("the name of a new zone")
+            spacing: Theme.px(6)
+            TextField {
+                id: zoneField
+                Layout.fillWidth: true
+                placeholder: Tr.t("the name of a new zone")
+            }
+            Button {
+                text: Tr.t("New zone")
+                kind: "primary"
+                enabled: zoneField.text.trim() !== "" && Firewall.running
+                onClicked: { Firewall.newZone(zoneField.text.trim()); zoneField.text = "" }
+            }
         }
         Button {
-            text: Tr.t("New zone")
-            kind: "primary"
-            enabled: zoneField.text.trim() !== "" && Firewall.running
-            onClicked: { Firewall.newZone(zoneField.text.trim()); zoneField.text = "" }
-        }
-    }
-    Button {
-        Layout.fillWidth: true
-        visible: (page.zone || Firewall.defaultZone) !== "" && (page.zone || Firewall.defaultZone) !== Firewall.defaultZone
-        text: Tr.t("Delete the zone “%1”", page.zone || Firewall.defaultZone)
-        enabled: Firewall.running
-        onClicked: {
-            const gone = page.zone || Firewall.defaultZone;
-            Firewall.deleteZone(gone);
-            page.zone = "";
+            Layout.fillWidth: true
+            visible: (page.zone || Firewall.defaultZone) !== "" && (page.zone || Firewall.defaultZone) !== Firewall.defaultZone
+            text: Tr.t("Delete the zone “%1”", page.zone || Firewall.defaultZone)
+            enabled: Firewall.running
+            onClicked: {
+                const gone = page.zone || Firewall.defaultZone;
+                Firewall.deleteZone(gone);
+                page.zone = "";
+            }
         }
     }
 }

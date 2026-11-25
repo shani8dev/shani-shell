@@ -43,10 +43,6 @@ AppWindow {
     readonly property var priorityOptions: [
         [0, Tr.t("None")], [1, "P1 " + Tr.t("High")], [2, "P2 " + Tr.t("Medium")], [3, "P3 " + Tr.t("Low")]
     ]
-    // delete asks first: two taps, the second within 4 s. Keyed by uid, not row
-    // index: a refresh or a filter change between the taps reorders the rows.
-    property string confirmTask: ""
-    Timer { id: taskTimer; interval: 4000; onTriggered: win.confirmTask = "" }
     onVisibleChanged: if (visible) Tasks.refresh()
 
     function at(days, hour) { const d = new Date(); d.setDate(d.getDate() + days); d.setHours(hour, 0, 0, 0); return Math.floor(d.getTime() / 1000); }
@@ -528,18 +524,18 @@ AppWindow {
                             Accessible.name: tip
                             onClicked: win.repeatTask = row.modelData
                         }
-                        IconButton {
+                        ConfirmButton {
+                            id: deleteTaskConfirm
                             size: Theme.px(28)
                             icon: "user-trash"
-                            tip: win.confirmTask === row.modelData.uid
-                                 ? Tr.t("Tap again to delete this task")
-                                 : (Tr.t("Delete") + " " + row.modelData.summary)
-                            Accessible.name: tip
-                            onClicked: {
-                                if (win.confirmTask === row.modelData.uid) { Tasks.remove(row.modelData); win.confirmTask = ""; }
-                                else { win.confirmTask = row.modelData.uid; taskTimer.restart(); }
-                            }
+                            tip: Tr.t("Delete") + " " + row.modelData.summary
+                            armedText: Tr.t("Tap again to delete this task")
+                            value: row.modelData.uid
+                            interval: 4000
+                            Accessible.name: armed ? armedText : tip
+                            onConfirmed: Tasks.remove(row.modelData)
                         }
+                        Connections { target: row; function onModelDataChanged() { deleteTaskConfirm.disarm(); } }
                     }
                 }
                 EmptyState {

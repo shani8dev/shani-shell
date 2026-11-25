@@ -84,216 +84,232 @@ ColumnLayout {
         }
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("This computer") }
-    RowLayout {
+    SettingsSection {
         Layout.fillWidth: true
-        spacing: Theme.px(14)
-        Image {
-            source: Theme.wallpaper ? "file://" + Theme.wallpaper : ""
-            Layout.preferredWidth: Theme.px(96)
-            Layout.preferredHeight: Theme.px(60)
-            fillMode: Image.PreserveAspectCrop
-            sourceSize: Qt.size(192, 120)
-            visible: status === Image.Ready
-        }
-        Image {
-            source: "file:///usr/share/pixmaps/shani-logo.svg"
-            Layout.preferredWidth: Theme.px(28)
-            Layout.preferredHeight: Theme.px(28)
-            fillMode: Image.PreserveAspectFit
-            sourceSize: Qt.size(56, 56)
-            visible: status === Image.Ready
-        }
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 2
-            Text { text: page.info.host || ""; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(18) * Theme.fontScale; font.weight: Font.DemiBold }
-            Text { text: page.info.os || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-            Text {
-                text: [page.info.gpu, page.info.driver].filter(x => x).join(" · ")
-                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
-                visible: text !== ""
-            }
-        }
-    }
-    Flow {
-        Layout.fillWidth: true
-        spacing: Theme.px(6)
-        Repeater {
-            // from who uses it and what it is: "asha-laptop", "asha-pc"
-            readonly property string who: (Quickshell.env("USER") || "my").toLowerCase().replace(/[^a-z0-9-]/g, "")
-            model: [who + (Power.hasBattery ? "-laptop" : "-pc"), who + "-shani", "shani-" + (Power.hasBattery ? "laptop" : "desktop")]
-            Choice {
-                required property string modelData
-                text: modelData
-                onClicked: { rename.command = ["hostnamectl", "hostname", modelData]; rename.running = true; }
-            }
-        }
-    }
-    TextField {
-        Layout.fillWidth: true
-        id: hostnameField
-        placeholder: Tr.t("Or another name - letters, digits and '-'")
-        error: page.renameError
-        onAccepted: {
-            page.renameError = "";
-            const n = text.trim();
-            if (!/^[A-Za-z0-9][A-Za-z0-9-]{0,62}$/.test(n)) {
-                page.renameError = "letters, digits and '-' only, up to 63";
-                return;
-            }
-            rename.command = ["hostnamectl", "hostname", n];
-            rename.running = true;
-            text = "";
-        }
-    }
-    GridLayout {
-        Layout.fillWidth: true
-        columns: 2
-        columnSpacing: Theme.px(12)
-        rowSpacing: Theme.px(6)
-        Repeater {
-            model: [["Processor", "cpu"], ["Graphics", "gpu"], ["Memory", "memory"], ["Disk", "disk"], ["Kernel", "kernel"], ["Desktop", "session"], ["Up for", "uptime"]]
-            Text {
-                required property var modelData
-                required property int index
-                Layout.row: index
-                Layout.column: 0
-                text: modelData[0]
-                color: Theme.dim
-                font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
-            }
-        }
-        Repeater {
-            model: [["Processor", "cpu"], ["Graphics", "gpu"], ["Memory", "memory"], ["Disk", "disk"], ["Kernel", "kernel"], ["Desktop", "session"], ["Up for", "uptime"]]
-            Text {
-                required property var modelData
-                required property int index
-                Layout.row: index
-                Layout.column: 1
-                Layout.fillWidth: true
-                text: page.info[modelData[1]] || "—"
-                color: Theme.text
-                wrapMode: Text.Wrap
-                font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
-            }
-        }
-    }
-    RowLayout {
-        spacing: Theme.px(8)
-        Button {
-            text: Tr.t("Copy details")
-            onClicked: Quickshell.clipboardText = [page.info.host, page.info.os, page.info.cpu, page.info.gpu, page.info.driver, page.info.driverpkg, page.info.memory, page.info.disk, page.info.kernel, page.info.session].filter(x => x).join("\n")
-        }
-        Button {
-            text: Tr.t("Problem report…")
-            enabled: !reportProc.running
-            onClicked: reportProc.running = true
-        }
-        Button {
-            text: Tr.t("Save report…")
-            enabled: page.reportName !== ""
-            onClicked: FilePicker.open({
-                mode: "save", title: Tr.t("Save report…"), defaultName: page.reportName, filters: ["txt", "md"],
-                onPicked: paths => { if (paths.length) TextDocs.saveAs(paths[0]); }
-            })
-        }
+        title: Tr.t("This computer")
 
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Theme.px(14)
+            Image {
+                source: Theme.wallpaper ? "file://" + Theme.wallpaper : ""
+                Layout.preferredWidth: Theme.px(96)
+                Layout.preferredHeight: Theme.px(60)
+                fillMode: Image.PreserveAspectCrop
+                sourceSize: Qt.size(192, 120)
+                visible: status === Image.Ready
+            }
+            Image {
+                source: "file:///usr/share/pixmaps/shani-logo.svg"
+                Layout.preferredWidth: Theme.px(28)
+                Layout.preferredHeight: Theme.px(28)
+                fillMode: Image.PreserveAspectFit
+                sourceSize: Qt.size(56, 56)
+                visible: status === Image.Ready
+            }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 2
+                Text { text: page.info.host || ""; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(18) * Theme.fontScale; font.weight: Font.DemiBold }
+                Text { text: page.info.os || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text {
+                    text: [page.info.gpu, page.info.driver].filter(x => x).join(" · ")
+                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                    visible: text !== ""
+                }
+            }
+        }
+        Flow {
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Repeater {
+                // from who uses it and what it is: "asha-laptop", "asha-pc"
+                readonly property string who: (Quickshell.env("USER") || "my").toLowerCase().replace(/[^a-z0-9-]/g, "")
+                model: [who + (Power.hasBattery ? "-laptop" : "-pc"), who + "-shani", "shani-" + (Power.hasBattery ? "laptop" : "desktop")]
+                Choice {
+                    required property string modelData
+                    text: modelData
+                    onClicked: { rename.command = ["hostnamectl", "hostname", modelData]; rename.running = true; }
+                }
+            }
+        }
+        TextField {
+            Layout.fillWidth: true
+            id: hostnameField
+            placeholder: Tr.t("Or another name - letters, digits and '-'")
+            error: page.renameError
+            onAccepted: {
+                page.renameError = "";
+                const n = text.trim();
+                if (!/^[A-Za-z0-9][A-Za-z0-9-]{0,62}$/.test(n)) {
+                    page.renameError = "letters, digits and '-' only, up to 63";
+                    return;
+                }
+                rename.command = ["hostnamectl", "hostname", n];
+                rename.running = true;
+                text = "";
+            }
+        }
+        GridLayout {
+            Layout.fillWidth: true
+            columns: 2
+            columnSpacing: Theme.px(12)
+            rowSpacing: Theme.px(6)
+            Repeater {
+                model: [["Processor", "cpu"], ["Graphics", "gpu"], ["Memory", "memory"], ["Disk", "disk"], ["Kernel", "kernel"], ["Desktop", "session"], ["Up for", "uptime"]]
+                Text {
+                    required property var modelData
+                    required property int index
+                    Layout.row: index
+                    Layout.column: 0
+                    text: modelData[0]
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                }
+            }
+            Repeater {
+                model: [["Processor", "cpu"], ["Graphics", "gpu"], ["Memory", "memory"], ["Disk", "disk"], ["Kernel", "kernel"], ["Desktop", "session"], ["Up for", "uptime"]]
+                Text {
+                    required property var modelData
+                    required property int index
+                    Layout.row: index
+                    Layout.column: 1
+                    Layout.fillWidth: true
+                    text: page.info[modelData[1]] || "—"
+                    color: Theme.text
+                    wrapMode: Text.Wrap
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                }
+            }
+        }
+        RowLayout {
+            spacing: Theme.px(8)
+            Button {
+                text: Tr.t("Copy details")
+                onClicked: Quickshell.clipboardText = [page.info.host, page.info.os, page.info.cpu, page.info.gpu, page.info.driver, page.info.driverpkg, page.info.memory, page.info.disk, page.info.kernel, page.info.session].filter(x => x).join("\n")
+            }
+            Button {
+                text: Tr.t("Problem report…")
+                enabled: !reportProc.running
+                onClicked: reportProc.running = true
+            }
+            Button {
+                text: Tr.t("Save report…")
+                enabled: page.reportName !== ""
+                onClicked: FilePicker.open({
+                    mode: "save", title: Tr.t("Save report…"), defaultName: page.reportName, filters: ["txt", "md"],
+                    onPicked: paths => { if (paths.length) TextDocs.saveAs(paths[0]); }
+                })
+            }
+
+        }
     }
     // System health: one score, one line per check — Ananta Maintenance's checks
     // reduced to what a shell can read without touching anything.
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("System health") }
-    RowLayout {
+    SettingsSection {
         Layout.fillWidth: true
-        spacing: Theme.px(16)
-        StatusRing {
-            value: page.healthScore
-            color: !page.checks.length ? Theme.dim
-                 : page.passedChecks === page.checks.length ? Theme.accent
-                 : page.healthScore >= 0.5 ? Theme.amber : Theme.danger
-            size: Theme.px(72)
-            thickness: Theme.px(7)
-            label: Tr.t("System health: %1 of %2 checks passed", page.passedChecks, page.checks.length)
-            Text {
-                anchors.centerIn: parent
-                text: page.checks.length ? Math.round(page.healthScore * 100) + "%" : "–"
-                color: Theme.text
-                font.family: Theme.font
-                font.pixelSize: Theme.px(18) * Theme.fontScale
-                font.weight: Font.DemiBold
-            }
-        }
-        ColumnLayout {
+        title: Tr.t("System health")
+
+        RowLayout {
             Layout.fillWidth: true
-            spacing: Theme.px(4)
-            Repeater {
-                model: page.checks
-                RowLayout {
-                    required property var modelData
-                    Layout.fillWidth: true
-                    spacing: Theme.px(6)
-                    StatusGlyph { tone: modelData.ok ? "ok" : "error"; size: Theme.px(14) }
-                    Text {
-                        Layout.fillWidth: true
-                        text: modelData.title
-                        color: Theme.text
-                        elide: Text.ElideRight
-                        font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
-                    }
-                    Text {
-                        text: modelData.detail
-                        color: Theme.dim
-                        elide: Text.ElideRight
-                        font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
-                    }
+            spacing: Theme.px(16)
+            StatusRing {
+                value: page.healthScore
+                color: !page.checks.length ? Theme.dim
+                     : page.passedChecks === page.checks.length ? Theme.accent
+                     : page.healthScore >= 0.5 ? Theme.amber : Theme.danger
+                size: Theme.px(72)
+                thickness: Theme.px(7)
+                label: Tr.t("System health: %1 of %2 checks passed", page.passedChecks, page.checks.length)
+                Text {
+                    anchors.centerIn: parent
+                    text: page.checks.length ? Math.round(page.healthScore * 100) + "%" : "–"
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(18) * Theme.fontScale
+                    font.weight: Font.DemiBold
                 }
             }
-            Button {
-                flat: true
-                text: Tr.t("Run check again")
-                busy: healthProc.running
-                enabled: !healthProc.running
-                onClicked: healthProc.running = true
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(4)
+                Repeater {
+                    model: page.checks
+                    RowLayout {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        spacing: Theme.px(6)
+                        StatusGlyph { tone: modelData.ok ? "ok" : "error"; size: Theme.px(14) }
+                        Text {
+                            Layout.fillWidth: true
+                            text: modelData.title
+                            color: Theme.text
+                            elide: Text.ElideRight
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                        }
+                        Text {
+                            text: modelData.detail
+                            color: Theme.dim
+                            elide: Text.ElideRight
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                        }
+                    }
+                }
+                Button {
+                    flat: true
+                    text: Tr.t("Run check again")
+                    busy: healthProc.running
+                    enabled: !healthProc.running
+                    onClicked: healthProc.running = true
+                }
             }
         }
     }
     // What's new: the shipped release notes, read here rather than in an
     // external editor. Older versions in the same file get a disclosure.
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("What changed") }
-    SettingsReleaseNotes { Layout.fillWidth: true }
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("What changed")
+
+        SettingsReleaseNotes { Layout.fillWidth: true }
+    }
 
     // The rest of the shell's Settings, one click away
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("More settings") }
-    Flow {
+    SettingsSection {
         Layout.fillWidth: true
-        spacing: Theme.px(6)
-        Repeater {
-            // where each belongs in *this* shell: a Settings category, or an app
-            model: [
-                { label: Tr.t("Updates"), cat: "updates" },
-                { label: Tr.t("Update channel: %1", Updates.channel === "latest" ? Tr.t("Latest") : Tr.t("Stable")), id: "update-channel" },
-                { label: Tr.t("Disk space & clean-up"), cat: "storage" },
-                { label: Tr.t("Disk health"), app: "models" },
-                { label: Tr.t("Firewall"), cat: "firewall" },
-                { label: Tr.t("Services"), app: "services" },
-                { label: Tr.t("Boot & recovery"), cat: "boot" }]
-            Choice {
-                required property var modelData
-                text: modelData.label
-                onClicked: {
-                    if (modelData.id === "update-channel") {
-                        Updates.setChannel(Updates.channel === "latest" ? "stable" : "latest");
-                    } else if (modelData.cat !== undefined) {
-                        Ui.closeAll();
-                        Ui.settingsCat = modelData.cat;
-                    } else if (modelData.app === "models") {
-                        Ui.closeAll(); Ui.models = true;
-                    } else if (modelData.app === "services") {
-                        Ui.closeAll(); Ui.servicesApp = true;
+        title: Tr.t("More settings")
+
+        Flow {
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Repeater {
+                // where each belongs in *this* shell: a Settings category, or an app
+                model: [
+                    { label: Tr.t("Updates"), cat: "updates" },
+                    { label: Tr.t("Update channel: %1", Updates.channel === "latest" ? Tr.t("Latest") : Tr.t("Stable")), id: "update-channel" },
+                    { label: Tr.t("Disk space & clean-up"), cat: "storage" },
+                    { label: Tr.t("Disk health"), app: "models" },
+                    { label: Tr.t("Firewall"), cat: "firewall" },
+                    { label: Tr.t("Services"), app: "services" },
+                    { label: Tr.t("Boot & recovery"), cat: "boot" }]
+                Choice {
+                    required property var modelData
+                    text: modelData.label
+                    onClicked: {
+                        if (modelData.id === "update-channel") {
+                            Updates.setChannel(Updates.channel === "latest" ? "stable" : "latest");
+                        } else if (modelData.cat !== undefined) {
+                            Ui.closeAll();
+                            Ui.settingsCat = modelData.cat;
+                        } else if (modelData.app === "models") {
+                            Ui.closeAll(); Ui.models = true;
+                        } else if (modelData.app === "services") {
+                            Ui.closeAll(); Ui.servicesApp = true;
+                        }
                     }
                 }
             }

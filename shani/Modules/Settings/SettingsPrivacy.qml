@@ -108,15 +108,18 @@ ColumnLayout {
         }
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Lock screen") }
-    SwitchRow { Layout.fillWidth: true; text: Tr.t("Show notification titles"); hint: Tr.t("off: only how many came in"); checked: page.d.lockPreviews; defaultValue: false; onToggled: on => page.d.lockPreviews = on; onReset: page.d.lockPreviews = false }
-    SwitchRow { Layout.fillWidth: true; text: Tr.t("Show the clock"); checked: page.d.lockScreenClock; defaultValue: true; onToggled: on => page.d.lockScreenClock = on; onReset: page.d.lockScreenClock = true }
-    SwitchRow { Layout.fillWidth: true; text: Tr.t("Show the date"); checked: page.d.lockScreenDate; defaultValue: true; onToggled: on => page.d.lockScreenDate = on; onReset: page.d.lockScreenDate = true }
-    SwitchRow { Layout.fillWidth: true; text: Tr.t("Show battery"); checked: page.d.lockScreenBattery; defaultValue: true; onToggled: on => page.d.lockScreenBattery = on; onReset: page.d.lockScreenBattery = true }
-    SwitchRow { Layout.fillWidth: true; text: Tr.t("Blur the wallpaper"); hint: Tr.t("a soft, out-of-reach desktop behind the lock"); checked: page.d.lockScreenBlur; defaultValue: true; onToggled: on => page.d.lockScreenBlur = on; onReset: page.d.lockScreenBlur = true }
-    SwitchRow { Layout.fillWidth: true; text: Tr.t("Show media controls"); hint: Tr.t("play, pause and skip on the lock screen"); checked: page.d.lockScreenMedia; defaultValue: true; onToggled: on => page.d.lockScreenMedia = on; onReset: page.d.lockScreenMedia = true }
+    SettingsSection {
+        title: Tr.t("Lock screen")
+        SwitchRow { Layout.fillWidth: true; text: Tr.t("Show notification titles"); hint: Tr.t("off: only how many came in"); checked: page.d.lockPreviews; defaultValue: false; onToggled: on => page.d.lockPreviews = on; onReset: page.d.lockPreviews = false }
+        SwitchRow { Layout.fillWidth: true; text: Tr.t("Show the clock"); checked: page.d.lockScreenClock; defaultValue: true; onToggled: on => page.d.lockScreenClock = on; onReset: page.d.lockScreenClock = true }
+        SwitchRow { Layout.fillWidth: true; text: Tr.t("Show the date"); checked: page.d.lockScreenDate; defaultValue: true; onToggled: on => page.d.lockScreenDate = on; onReset: page.d.lockScreenDate = true }
+        SwitchRow { Layout.fillWidth: true; text: Tr.t("Show battery"); checked: page.d.lockScreenBattery; defaultValue: true; onToggled: on => page.d.lockScreenBattery = on; onReset: page.d.lockScreenBattery = true }
+        SwitchRow { Layout.fillWidth: true; text: Tr.t("Blur the wallpaper"); hint: Tr.t("a soft, out-of-reach desktop behind the lock"); checked: page.d.lockScreenBlur; defaultValue: true; onToggled: on => page.d.lockScreenBlur = on; onReset: page.d.lockScreenBlur = true }
+        SwitchRow { Layout.fillWidth: true; text: Tr.t("Show media controls"); hint: Tr.t("play, pause and skip on the lock screen"); checked: page.d.lockScreenMedia; defaultValue: true; onToggled: on => page.d.lockScreenMedia = on; onReset: page.d.lockScreenMedia = true }
+    }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Lock when my phone leaves") }
+    SettingsSection {
+        title: Tr.t("Lock when my phone leaves")
     Text {
         Layout.fillWidth: true
         text: Bluetooth.devices.values.some(d => d.paired) ? Tr.t("Pick a paired phone or watch: when it stays out of Bluetooth range for the delay below, the screen locks.")
@@ -164,9 +167,11 @@ ColumnLayout {
             }
         }
     }
+    }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Recent files") }
-    SwitchRow { Layout.fillWidth: true; text: Tr.t("Remember recently used files"); hint: Tr.t("for apps' Recent lists"); checked: page.d.rememberRecent; onToggled: on => page.d.rememberRecent = on }
+    SettingsSection {
+        title: Tr.t("Recent files")
+        SwitchRow { Layout.fillWidth: true; text: Tr.t("Remember recently used files"); hint: Tr.t("for apps' Recent lists"); checked: page.d.rememberRecent; onToggled: on => page.d.rememberRecent = on }
     RowLayout {
         spacing: Theme.px(6)
         ConfirmButton {
@@ -181,8 +186,10 @@ ColumnLayout {
         }
         Button { visible: clearRecentConfirm.armed; text: Tr.t("Cancel"); onClicked: clearRecentConfirm.disarm() }
     }
+    }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Trash") }
+    SettingsSection {
+        title: Tr.t("Trash")
     RowLayout {
         spacing: Theme.px(6)
         Text { text: Tr.t("Empty automatically"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
@@ -210,8 +217,10 @@ ColumnLayout {
         }
         Button { visible: emptyTrashConfirm.armed; text: Tr.t("Cancel"); onClicked: emptyTrashConfirm.disarm() }
     }
+    }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Clipboard") }
+    SettingsSection {
+        title: Tr.t("Clipboard")
     RowLayout {
         spacing: Theme.px(6)
         ConfirmButton {
@@ -226,8 +235,10 @@ ColumnLayout {
         }
         Button { visible: clearClipboardConfirm.armed; text: Tr.t("Cancel"); onClicked: clearClipboardConfirm.disarm() }
     }
+    }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("What apps may use") }
+    SettingsSection {
+        title: Tr.t("What apps may use")
     Text {
         Layout.fillWidth: true
         visible: page.grants.length === 0
@@ -239,12 +250,12 @@ ColumnLayout {
     }
     Repeater {
         model: page.grants
-        ListRow {
+        SettingRow {
             id: g
             required property var modelData
             Layout.fillWidth: true
             readonly property var entry: DesktopEntries.byId(modelData.app)
-            icon: entry && entry.icon ? entry.icon : "application-x-executable"
+            icon: AppIcon.nameFor(entry, "application-x-executable")
             title: entry ? entry.name : modelData.app
             subtitle: (page.names[modelData.table + "/" + modelData.id] || modelData.table + " " + modelData.id) + ": " + (modelData.perms.indexOf("yes") >= 0 ? "allowed" : "denied")
             IconButton {
@@ -258,7 +269,10 @@ ColumnLayout {
             }
         }
     }
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Location services") }
+    }
+
+    SettingsSection {
+        title: Tr.t("Location services")
     SwitchRow {
         Layout.fillWidth: true
         text: Tr.t("Use my location")
@@ -273,5 +287,6 @@ ColumnLayout {
         wrapMode: Text.Wrap
         font.family: Theme.font
         font.pixelSize: Theme.px(11) * Theme.fontScale
+    }
     }
 }

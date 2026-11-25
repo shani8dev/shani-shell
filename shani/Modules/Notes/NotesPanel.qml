@@ -32,11 +32,10 @@ AppWindow {
 
     property string filterText: ""
     property string selectedNotebook: ""
-    onSelectedNotebookChanged: win.confirmNotebook = false
+    onSelectedNotebookChanged: deleteNotebookConfirm.disarm()
     property string lockMode: ""            // "" | "set" | "check" — the passphrase box
     property string lockPass: ""
     // delete asks first: a note is a file on disk; it goes to Trash, not rm
-    property bool confirmNotebook: false
     property string bodyQuery: ""
     property string tagFilter: ""
     property bool showTrash: false
@@ -52,7 +51,6 @@ AppWindow {
     readonly property string currentId: Services.QuickNotes.noteId(Services.QuickNotes.current, Services.QuickNotes.currentNotebook)
     // any narrowing at all: an empty list is "no match", not "no notes"
     readonly property bool hasFilter: filterText !== "" || tagFilter !== "" || selectedNotebook !== ""
-    Timer { id: notebookTimer; interval: 4000; onTriggered: win.confirmNotebook = false }
     // a pending "tap again" belongs to the item it was armed on: switching
     // notes or notebooks must not delete the new selection on one tap
     Connections {
@@ -122,17 +120,16 @@ AppWindow {
                             }
                         }
                         IconButton { size: Theme.px(28); icon: "list-add"; tip: Tr.t("New notebook"); onClicked: Services.QuickNotes.createNotebook(Tr.t("New notebook")) }
-                        IconButton {
+                        ConfirmButton {
+                            id: deleteNotebookConfirm
                             size: Theme.px(28)
                             visible: win.selectedNotebook !== ""
                             icon: "list-remove"
-                            tip: win.confirmNotebook
-                                ? Tr.t("Tap again to delete the notebook and its notes")
-                                : Tr.t("Remove the notebook %1").arg(win.selectedNotebook)
-                            onClicked: {
-                                if (win.confirmNotebook) { Services.QuickNotes.deleteNotebook(win.selectedNotebook); win.selectedNotebook = ""; win.confirmNotebook = false; }
-                                else { win.confirmNotebook = true; notebookTimer.restart(); }
-                            }
+                            tip: Tr.t("Remove the notebook %1").arg(win.selectedNotebook)
+                            armedText: Tr.t("Tap again to delete the notebook and its notes")
+                            value: win.selectedNotebook
+                            interval: 4000
+                            onConfirmed: { Services.QuickNotes.deleteNotebook(win.selectedNotebook); win.selectedNotebook = ""; }
                         }
                     }
 

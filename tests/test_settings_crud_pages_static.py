@@ -54,7 +54,7 @@ def test_crud_settings_pages_do_not_use_combobox():
 def test_crud_settings_pages_have_section_title():
     for p in PAGES:
         text = _read(p)
-        assert "SectionTitle" in text, f"{p.name}: missing SectionTitle"
+        assert "SectionTitle" in text or "SettingsSection" in text, f"{p.name}: missing SectionTitle/SettingsSection"
 
 
 def test_journal_page_has_journald_crud_hooks():

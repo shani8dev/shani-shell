@@ -20,32 +20,32 @@ ColumnLayout {
     readonly property string summary: Backup.versions + " | " + Backup.drive
     onSummaryChanged: Ui.backupSummary = summary
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Your files") }
-    Text {
-        visible: !page.installed
+    SettingsSection {
         Layout.fillWidth: true
-        wrapMode: Text.WordWrap
-        text: Tr.t("Shani Backup is not installed.")
-        color: Theme.dim
-        font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
-    }
-    Repeater {
-        model: page.installed ? [
-            { title: Tr.t("Earlier versions"), sub: Backup.versions, icon: "document-open-recent", open: "home" },
-            { title: Tr.t("Backups to another drive"), sub: Backup.drive, icon: "drive-harddisk", open: "backups" }] : []
-        RowLayout {
-            required property var modelData
+        title: Tr.t("Your files")
+
+        Text {
+            visible: !page.installed
             Layout.fillWidth: true
-            spacing: Theme.px(10)
-            Icon { name: modelData.icon; size: Theme.px(20); color: Theme.accent }
-            ColumnLayout {
+            wrapMode: Text.WordWrap
+            text: Tr.t("Shani Backup is not installed.")
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: Theme.px(12) * Theme.fontScale
+        }
+        Repeater {
+            model: page.installed ? [
+                { title: Tr.t("Earlier versions"), sub: Backup.versions, icon: "document-open-recent", open: "home" },
+                { title: Tr.t("Backups to another drive"), sub: Backup.drive, icon: "drive-harddisk", open: "backups" }] : []
+            SettingRow {
+                required property var modelData
                 Layout.fillWidth: true
-                spacing: 1
-                Text { text: modelData.title; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
-                Text { Layout.fillWidth: true; text: modelData.sub; elide: Text.ElideRight; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                interactive: false
+                icon: modelData.icon
+                title: modelData.title
+                subtitle: modelData.sub
+                control: Button { text: Tr.t("Open"); onClicked: { Backup.open(modelData.open); Ui.closeAll(); } }
             }
-            Button { text: Tr.t("Open"); onClicked: { Backup.open(modelData.open); Ui.closeAll(); } }
         }
     }
 }

@@ -2158,3 +2158,47 @@ ffmpeg, already in `tools/program-packages.tsv`. At this HEAD
 `tests/test_i18n.py` passes 3296 tests (the wave agents regenerated the
 catalogs), `tests/test_declared_deps.py` passes 1 and `tests/test_qml_static.py`
 passes 2245; no catalog or package file was changed by the docs pass.
+
+## Maintainability
+
+The shell has one canonical widget for each repeated pattern, in
+`shani/Common/` (catalog in `docs/COMPONENTS.md`, layers and the add-an-app
+recipe in `docs/ARCHITECTURE.md`). The remaining duplication is the gap; the
+rule that closes it is:
+
+> **Fix it in the shared component, not per call site.** A look or behaviour
+> that must change everywhere is edited once in `shani/Common/` (or a `*.js`
+> catalog). A surface passes data and semantics; it never copies a component's
+> body. If a surface needs a variant, add a property to the shared component.
+
+Measured duplication at time of writing (counts are
+`grep -rl "<Pattern> {" shani/Modules | wc -l` unless noted):
+
+- **EmptyState** — 56 surfaces use it; the widest reach. Any empty-state layout
+  change lands everywhere at once; do not fork a local empty card.
+- **ListRow** — 58 surfaces. Still ~82 module files draw a raw
+  `Rectangle { … MouseArea/TapHandler … }` as a list row. Each is a candidate
+  to fold into `ListRow` (add a property if a row needs a variant), not a new
+  local row.
+- **BusyNote** — 18 surfaces. No module hand-rolls `Row { Spinner; Text }`
+  (0 found) — keep it that way; new busy rows use `BusyNote`.
+- **InfoBanner** — 17 surfaces. Status messages go through `InfoBanner` with an
+  explicit `tone`; do not infer tone from a translated string.
+- **ConfirmButton** — 12 surfaces. Any "tap again to confirm" uses it and calls
+  `disarm()` on surface change.
+- **SearchField** — 9 surfaces. ~9 module files still pair a search/edit icon
+  with a bare `TextInput`/`TextField` instead of `SearchField`
+  (Notes, TextEditor, Files, Settings, VoiceRecorder, MusicLibrary, Osk,
+  Launcher). Fold each into `SearchField`; add a property for a variant.
+- **Icon** — 63 surfaces, **AppIcon** 5 — the canonical glyph and app-icon
+  atoms; new code uses these, not a bare `Image`/`Text` glyph.
+- **Time.js / Format.js** — 11 and several surfaces respectively; ~26 module
+  files still call `Qt.formatDate`/`Qt.formatTime` directly. Route date and
+  duration text through `Time.js`, sizes through `Format.js` (pass the style),
+  so a format change is one edit.
+- **Tools.js / ToolPath.js** — single sources already: the nine tool rows and
+  every bridge path derive from them. Do not re-declare a tool row or a
+  `Quickshell.env(...) || "/usr/lib/..."` path in a service.
+
+Closing rule of thumb: a count above that grows when a new surface is added is
+the signal to extend the shared component, not to copy it.

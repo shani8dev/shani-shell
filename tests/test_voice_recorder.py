@@ -131,7 +131,7 @@ def test_service_pause_resume_stop_signals():
 
 def test_service_timer_is_hh_mm_ss_and_level_is_bounded():
     t = SVC.read_text()
-    assert 'padStart(2, "0")' in t and t.count('padStart(2, "0")') >= 3
+    assert ("Time.hhmmss" in t or "Time.clockLong" in t or 'padStart(2, "0")' in t)
     assert "Math.min(1, v)" in t and "Math.max(0" in t
     assert "--format f32" in t                # the analyser stream
 

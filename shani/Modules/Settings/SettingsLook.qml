@@ -42,51 +42,57 @@ ColumnLayout {
         }
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Icons, fonts & cursor") }
-    Picks {
-        label: Tr.t("Icons")
-        options: page.iconThemes
-        current: page.d.iconTheme
-        onPicked: v => page.d.iconTheme = v
-    }
-    RowLayout {
-        visible: Appearance.iconsNeedRestart
-        spacing: Theme.px(8)
-        Text {
-            Layout.fillWidth: true
-            text: Tr.t("Apps use it now; the shell's own icons after it restarts.")
-            color: Theme.dim
-            wrapMode: Text.Wrap
-            font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Icons, fonts & cursor")
+        Picks {
+            label: Tr.t("Icons")
+            options: page.iconThemes
+            current: page.d.iconTheme
+            onPicked: v => page.d.iconTheme = v
         }
-        Button { text: Tr.t("Restart the shell"); onClicked: Appearance.restartShell() }
-    }
-    Picks {
-        label: Tr.t("Pointer")
-        options: page.cursorThemes
-        current: page.d.cursorTheme
-        onPicked: v => page.d.cursorTheme = v
-    }
-    Picks {
-        label: Tr.t("Pointer size")
-        options: [{ label: Tr.t("Normal"), value: 24 }, { label: Tr.t("Large"), value: 32 }, { label: Tr.t("Larger"), value: 48 }, { label: Tr.t("Largest"), value: 64 }]
-        current: page.d.cursorSize
-        onPicked: v => page.d.cursorSize = v
+        RowLayout {
+            visible: Appearance.iconsNeedRestart
+            spacing: Theme.px(8)
+            Text {
+                Layout.fillWidth: true
+                text: Tr.t("Apps use it now; the shell's own icons after it restarts.")
+                color: Theme.dim
+                wrapMode: Text.Wrap
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+            Button { text: Tr.t("Restart the shell"); onClicked: Appearance.restartShell() }
+        }
+        Picks {
+            label: Tr.t("Pointer")
+            options: page.cursorThemes
+            current: page.d.cursorTheme
+            onPicked: v => page.d.cursorTheme = v
+        }
+        Picks {
+            label: Tr.t("Pointer size")
+            options: [{ label: Tr.t("Normal"), value: 24 }, { label: Tr.t("Large"), value: 32 }, { label: Tr.t("Larger"), value: 48 }, { label: Tr.t("Largest"), value: 64 }]
+            current: page.d.cursorSize
+            onPicked: v => page.d.cursorSize = v
+        }
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Corner radius") }
-    RowLayout {
+    SettingsSection {
         Layout.fillWidth: true
-        spacing: Theme.px(8)
-        Text { text: Tr.t("Roundness"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; Layout.preferredWidth: Theme.px(80) }
-        Repeater {
-            model: [8, 10, 12, 16, 20, 24, 28]
-            Choice {
-                required property int modelData
-                text: String(modelData)
-                selected: (page.d.cornerRadius || 16) === modelData
-                onClicked: { page.d.cornerRadius = modelData; page.d.cornerRadiusSmall = Math.max(6, modelData - 6) }
+        title: Tr.t("Corner radius")
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Theme.px(8)
+            Text { text: Tr.t("Roundness"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; Layout.preferredWidth: Theme.px(80) }
+            Repeater {
+                model: [8, 10, 12, 16, 20, 24, 28]
+                Choice {
+                    required property int modelData
+                    text: String(modelData)
+                    selected: (page.d.cornerRadius || 16) === modelData
+                    onClicked: { page.d.cornerRadius = modelData; page.d.cornerRadiusSmall = Math.max(6, modelData - 6) }
+                }
             }
         }
     }

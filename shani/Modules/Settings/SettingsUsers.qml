@@ -88,165 +88,172 @@ ColumnLayout {
         admin.running = true;
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Users") }
-    Repeater {
-        model: page.users
-        ColumnLayout {
-            id: urow
-            required property var modelData
-            Layout.fillWidth: true
-            spacing: Theme.px(4)
-            ListRow {
-                Layout.fillWidth: true
-                icon: "avatar-default"
-                title: (urow.modelData.fullname || urow.modelData.name) + (urow.modelData.name === page.me ? "  (you)" : "")
-                subtitle: urow.modelData.name + " · " + (urow.modelData.admin ? "Administrator" : "Standard")
-                    + (page.autologin === urow.modelData.name ? " · signs in automatically" : "")
-                trailing: page.iAmAdmin ? "›" : ""
-                onClicked: if (page.iAmAdmin) page.open = page.open === urow.modelData.name ? "" : urow.modelData.name
-            }
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Users")
+        Repeater {
+            model: page.users
             ColumnLayout {
-                visible: page.open === urow.modelData.name
-                Layout.leftMargin: Theme.px(28)
+                id: urow
+                required property var modelData
                 Layout.fillWidth: true
-                spacing: Theme.px(6)
-                SwitchRow {
+                spacing: Theme.px(4)
+                SettingRow {
                     Layout.fillWidth: true
-                    text: Tr.t("Administrator")
-                    hint: Tr.t("can install software, change the system and manage users")
-                    checked: urow.modelData.admin
-                    enabled: !page.busy && urow.modelData.name !== page.me
-                    onToggled: on => page.act("user-admin", { username: urow.modelData.name, admin: on })
+                    icon: "avatar-default"
+                    title: (urow.modelData.fullname || urow.modelData.name) + (urow.modelData.name === page.me ? "  (you)" : "")
+                    subtitle: urow.modelData.name + " · " + (urow.modelData.admin ? "Administrator" : "Standard")
+                        + (page.autologin === urow.modelData.name ? " · signs in automatically" : "")
+                    trailing: page.iAmAdmin ? "›" : ""
+                    onClicked: if (page.iAmAdmin) page.open = page.open === urow.modelData.name ? "" : urow.modelData.name
                 }
-                SwitchRow {
+                ColumnLayout {
+                    visible: page.open === urow.modelData.name
+                    Layout.leftMargin: Theme.px(28)
                     Layout.fillWidth: true
-                    text: Tr.t("Sign in automatically")
-                    hint: Tr.t("at start-up, without a password — only on a machine nobody else can reach")
-                    checked: page.autologin === urow.modelData.name
-                    enabled: !page.busy
-                    onToggled: on => page.act("autologin", { username: on ? urow.modelData.name : "" })
-                }
-                RowLayout {
-                    Layout.fillWidth: true
-                    visible: urow.modelData.name !== page.me
                     spacing: Theme.px(6)
-                    TextField {
-                        id: pw1
+                    SwitchRow {
                         Layout.fillWidth: true
-                        placeholder: "New password for " + urow.modelData.name
-                        secret: true
-                        onAccepted: pwSet.clicked()
+                        text: Tr.t("Administrator")
+                        hint: Tr.t("can install software, change the system and manage users")
+                        checked: urow.modelData.admin
+                        enabled: !page.busy && urow.modelData.name !== page.me
+                        onToggled: on => page.act("user-admin", { username: urow.modelData.name, admin: on })
                     }
-                    TextField {
-                        id: pw2
+                    SwitchRow {
                         Layout.fillWidth: true
-                        placeholder: Tr.t("Repeat the new password")
-                        secret: true
-                        onAccepted: pwSet.clicked()
+                        text: Tr.t("Sign in automatically")
+                        hint: Tr.t("at start-up, without a password — only on a machine nobody else can reach")
+                        checked: page.autologin === urow.modelData.name
+                        enabled: !page.busy
+                        onToggled: on => page.act("autologin", { username: on ? urow.modelData.name : "" })
                     }
-                    Button {
-                        id: pwSet
-                        text: Tr.t("Set password")
-                        enabled: !page.busy && pw1.text !== "" && pw1.text === pw2.text
-                        onClicked: {
-                            page.act("user-password", { username: urow.modelData.name, password: pw1.text });
-                            pw1.text = ""; pw2.text = "";
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: urow.modelData.name !== page.me
+                        spacing: Theme.px(6)
+                        TextField {
+                            id: pw1
+                            Layout.fillWidth: true
+                            placeholder: "New password for " + urow.modelData.name
+                            secret: true
+                            onAccepted: pwSet.clicked()
+                        }
+                        TextField {
+                            id: pw2
+                            Layout.fillWidth: true
+                            placeholder: Tr.t("Repeat the new password")
+                            secret: true
+                            onAccepted: pwSet.clicked()
+                        }
+                        Button {
+                            id: pwSet
+                            text: Tr.t("Set password")
+                            enabled: !page.busy && pw1.text !== "" && pw1.text === pw2.text
+                            onClicked: {
+                                page.act("user-password", { username: urow.modelData.name, password: pw1.text });
+                                pw1.text = ""; pw2.text = "";
+                            }
                         }
                     }
-                }
-                Text {
-                    Layout.fillWidth: true
-                    visible: urow.modelData.name !== page.me && pw2.text !== "" && pw1.text !== pw2.text
-                    text: Tr.t("The two passwords do not match.")
-                    color: Theme.danger
-                    wrapMode: Text.Wrap
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
-                }
-                RowLayout {
-                    id: removeRow
-                    visible: urow.modelData.name !== page.me
-                    spacing: Theme.px(6)
-                    property bool confirm: false
-                    onConfirmChanged: typedName.text = ""
-                    // what a standard account may run (GNOME's Parental Controls, malcontent)
-                    Button {
-                        visible: !parent.confirm && !urow.modelData.admin && page.iAmAdmin && AppFilter.canControl
-                        text: Tr.t("Parental controls")
-                        onClicked: AppFilter.openControls(urow.modelData.name)
+                    Text {
+                        Layout.fillWidth: true
+                        visible: urow.modelData.name !== page.me && pw2.text !== "" && pw1.text !== pw2.text
+                        text: Tr.t("The two passwords do not match.")
+                        color: Theme.danger
+                        wrapMode: Text.Wrap
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
                     }
-                    Button {
-                        visible: !parent.confirm
-                        kind: "danger"
-                        text: Tr.t("Remove…")
-                        onClicked: parent.confirm = true
+                    RowLayout {
+                        id: removeRow
+                        visible: urow.modelData.name !== page.me
+                        spacing: Theme.px(6)
+                        property bool confirm: false
+                        onConfirmChanged: typedName.text = ""
+                        // what a standard account may run (GNOME's Parental Controls, malcontent)
+                        Button {
+                            visible: !parent.confirm && !urow.modelData.admin && page.iAmAdmin && AppFilter.canControl
+                            text: Tr.t("Parental controls")
+                            onClicked: AppFilter.openControls(urow.modelData.name)
+                        }
+                        Button {
+                            visible: !parent.confirm
+                            kind: "danger"
+                            text: Tr.t("Remove…")
+                            onClicked: parent.confirm = true
+                        }
+                        Button {
+                            visible: parent.confirm
+                            kind: "danger"
+                            text: Tr.t("Remove, keep their files")
+                            onClicked: { page.act("user-remove", { username: urow.modelData.name, deleteHome: false }); parent.confirm = false; page.open = ""; }
+                        }
+                        Button {
+                            visible: parent.confirm
+                            kind: "danger"
+                            text: Tr.t("Remove with their files")
+                            // their home folder goes with no undo: only once their name is typed
+                            // (Ananta OS's rule for destructive actions - deliberate, not a second tap)
+                            enabled: typedName.text.trim() === urow.modelData.name
+                            onClicked: { page.act("user-remove", { username: urow.modelData.name, deleteHome: true }); parent.confirm = false; page.open = ""; }
+                        }
+                        Button { visible: parent.confirm; text: Tr.t("Cancel"); onClicked: parent.confirm = false }
                     }
-                    Button {
-                        visible: parent.confirm
-                        kind: "danger"
-                        text: Tr.t("Remove, keep their files")
-                        onClicked: { page.act("user-remove", { username: urow.modelData.name, deleteHome: false }); parent.confirm = false; page.open = ""; }
+                    TextField {
+                        id: typedName
+                        Layout.fillWidth: true
+                        visible: removeRow.visible && removeRow.confirm
+                        placeholder: Tr.t("To delete their files too, type %1").arg(urow.modelData.name)
+                        label: Tr.t("Their home folder and everything in it is deleted for good. Type %1 to allow it.").arg(urow.modelData.name)
                     }
-                    Button {
-                        visible: parent.confirm
-                        kind: "danger"
-                        text: Tr.t("Remove with their files")
-                        // their home folder goes with no undo: only once their name is typed
-                        // (Ananta OS's rule for destructive actions - deliberate, not a second tap)
-                        enabled: typedName.text.trim() === urow.modelData.name
-                        onClicked: { page.act("user-remove", { username: urow.modelData.name, deleteHome: true }); parent.confirm = false; page.open = ""; }
-                    }
-                    Button { visible: parent.confirm; text: Tr.t("Cancel"); onClicked: parent.confirm = false }
-                }
-                TextField {
-                    id: typedName
-                    Layout.fillWidth: true
-                    visible: removeRow.visible && removeRow.confirm
-                    placeholder: Tr.t("To delete their files too, type %1").arg(urow.modelData.name)
-                    label: Tr.t("Their home folder and everything in it is deleted for good. Type %1 to allow it.").arg(urow.modelData.name)
                 }
             }
         }
-    }
 
-    Text {
-        Layout.fillWidth: true
-        visible: page.users.length === 0
-        text: Tr.t("No users yet.")
-        color: Theme.faint
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        Text {
+            Layout.fillWidth: true
+            visible: page.users.length === 0
+            text: Tr.t("No users yet.")
+            color: Theme.faint
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
     }
     // ---- feature groups: who may share, run VMs, use serial devices ---------
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Groups"); visible: page.featureGroups.length > 0 }
-    Text {
+    SettingsSection {
         Layout.fillWidth: true
         visible: page.featureGroups.length > 0
-        text: Tr.t("A group switches a feature on for a person. A change takes effect at their next sign-in.")
-        color: Theme.dim
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
-    }
-    Repeater {
-        model: page.featureGroups
-        ColumnLayout {
-            id: gcol
-            required property var modelData
+        title: Tr.t("Groups")
+        Text {
             Layout.fillWidth: true
-            spacing: Theme.px(2)
-            Text { text: gcol.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.Medium }
-            Text { Layout.fillWidth: true; text: gcol.modelData.desc; color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-            Repeater {
-                model: page.groupPeople
-                SwitchRow {
-                    required property string modelData
-                    Layout.fillWidth: true
-                    text: modelData
-                    checked: (gcol.modelData.members || []).indexOf(modelData) >= 0
-                    enabled: !page.busy && page.iAmAdmin
-                    onToggled: on => page.act("user-group", { username: modelData, group: gcol.modelData.name, member: on })
+            visible: page.featureGroups.length > 0
+            text: Tr.t("A group switches a feature on for a person. A change takes effect at their next sign-in.")
+            color: Theme.dim
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
+        Repeater {
+            model: page.featureGroups
+            ColumnLayout {
+                id: gcol
+                required property var modelData
+                Layout.fillWidth: true
+                spacing: Theme.px(2)
+                Text { text: gcol.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.Medium }
+                Text { Layout.fillWidth: true; text: gcol.modelData.desc; color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Repeater {
+                    model: page.groupPeople
+                    SwitchRow {
+                        required property string modelData
+                        Layout.fillWidth: true
+                        text: modelData
+                        checked: (gcol.modelData.members || []).indexOf(modelData) >= 0
+                        enabled: !page.busy && page.iAmAdmin
+                        onToggled: on => page.act("user-group", { username: modelData, group: gcol.modelData.name, member: on })
+                    }
                 }
             }
         }

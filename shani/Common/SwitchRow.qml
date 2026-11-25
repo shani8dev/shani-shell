@@ -88,7 +88,7 @@ Item {
     }
 
     // a search landed here: a pulsing accent ring until the flash clears
-    Rectangle {
+    Fade {
         id: flashRing
         anchors.fill: parent
         anchors.margins: -4
@@ -98,11 +98,7 @@ Item {
         border.color: Theme.alpha(Theme.accent, 0.8)
         visible: root.highlighted
         z: 10
-        SequentialAnimation on opacity {
-            running: root.highlighted && !Settings.data.reduceMotion
-            loops: Animation.Infinite
-            NumberAnimation { from: 0.35; to: 1; duration: Theme.mot(420); easing.type: Easing.InOutSine }
-            NumberAnimation { from: 1; to: 0.35; duration: Theme.mot(420); easing.type: Easing.InOutSine }
-        }
+        active: root.highlighted
+        duration: Theme.mot(420)
     }
 }

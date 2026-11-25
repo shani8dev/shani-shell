@@ -30,7 +30,9 @@ ColumnLayout {
         onExited: code => page.loginError = code === 0 ? "Set for the login screen and the console." : (loginErr.text.trim().split("\n").pop() || "not changed")
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Keyboard layouts") }
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Keyboard layouts")
     Text {
         Layout.fillWidth: true
         visible: page.d.kbLayouts.length === 0
@@ -134,7 +136,10 @@ ColumnLayout {
         font.pixelSize: Theme.px(11) * Theme.fontScale
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Touchpad") }
+    }
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Touchpad")
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Tap to click"); checked: page.d.tapToClick; onToggled: on => page.d.tapToClick = on }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Natural scrolling"); hint: Tr.t("content moves with your fingers"); checked: page.d.naturalScroll; onToggled: on => page.d.naturalScroll = on }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Off while typing"); hint: Tr.t("no stray clicks from a palm"); checked: page.d.typingGuard; onToggled: on => page.d.typingGuard = on }
@@ -190,7 +195,10 @@ ColumnLayout {
         font.pixelSize: Theme.px(11) * Theme.fontScale
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Mouse") }
+    }
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Mouse")
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Natural scrolling"); checked: page.d.mouseNaturalScroll; onToggled: on => page.d.mouseNaturalScroll = on }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Left-handed"); hint: Tr.t("swap the buttons (mouse and touchpad)"); checked: page.d.leftHanded; onToggled: on => page.d.leftHanded = on }
     Picks {
@@ -223,7 +231,10 @@ ColumnLayout {
         onToggled: on => page.d.scrollButtonLock = on
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Pointing stick & trackball") }
+    }
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Pointing stick & trackball")
     Picks {
         label: Tr.t("Pointing stick speed")
         options: [{ label: Tr.t("Slow"), value: -0.4 }, { label: Tr.t("Normal"), value: 0 }, { label: Tr.t("Fast"), value: 0.4 }, { label: Tr.t("Fastest"), value: 0.8 }]
@@ -252,7 +263,10 @@ ColumnLayout {
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Trackball: natural scrolling"); checked: page.d.tballNaturalScroll; onToggled: on => page.d.tballNaturalScroll = on }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Trackball: scroll by rolling with a button held"); hint: Tr.t("for a trackball without a wheel"); checked: page.d.tballScrollButton; onToggled: on => page.d.tballScrollButton = on }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Pointer") }
+    }
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Pointer")
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Hide the pointer while typing"); checked: page.d.cursorHideTyping; onToggled: on => page.d.cursorHideTyping = on }
     Picks {
         label: Tr.t("Hide the pointer when it is still")
@@ -274,7 +288,10 @@ ColumnLayout {
     }
     Connections { target: page.d; function onDoubleClickSpeedChanged() { dblClick.running = true; } }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Drawing tablet & touchscreen") }
+    }
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Drawing tablet & touchscreen")
     // which one is plugged in: the settings below apply to the tablet, and with
     // two of them it helps to see which one the system found
     Text {
@@ -341,7 +358,10 @@ ColumnLayout {
         font.pixelSize: Theme.px(11) * Theme.fontScale
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Keyboard") }
+    }
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Keyboard")
     Text { text: Tr.t("Keyboard backlight"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
     Flow {
         Layout.fillWidth: true
@@ -405,5 +425,6 @@ ColumnLayout {
     TextField {
         Layout.fillWidth: true
         placeholder: Tr.t("Try the repeat here")
+    }
     }
 }

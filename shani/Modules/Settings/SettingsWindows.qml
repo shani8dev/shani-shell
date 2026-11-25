@@ -12,78 +12,53 @@ ColumnLayout {
     spacing: Theme.px(12)
     readonly property var d: Settings.data
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Windows") }
-    Picks {
-        label: Tr.t("Gaps between windows")
-        options: [{ label: Tr.t("None"), value: 0 }, { label: Tr.t("Small"), value: 6 }, { label: Tr.t("Medium"), value: 12 }, { label: Tr.t("Large"), value: 20 }]
-        current: page.d.winGaps
-        onPicked: v => page.d.winGaps = v
-    }
-    Picks {
-        label: Tr.t("A new window opens")
-        options: [{ label: Tr.t("A third"), value: 0.33333 }, { label: Tr.t("Half"), value: 0.5 }, { label: Tr.t("Two thirds"), value: 0.66667 }, { label: Tr.t("Full width"), value: 1 }]
-        current: page.d.winDefaultWidth
-        onPicked: v => page.d.winDefaultWidth = v
-    }
-    Picks {
-        label: Tr.t("Focus ring")
-        options: [{ label: Tr.t("Off"), value: 0 }, { label: Tr.t("Thin"), value: 2 }, { label: Tr.t("Thick"), value: 4 }]
-        current: page.d.winFocusRing
-        onPicked: v => page.d.winFocusRing = v
-    }
-    SwitchRow { Layout.fillWidth: true; text: Tr.t("Focus follows the pointer"); hint: Tr.t("the window under the pointer takes the keyboard"); checked: page.d.winFocusFollowsMouse; onToggled: on => page.d.winFocusFollowsMouse = on }
-    SwitchRow { Layout.fillWidth: true; text: Tr.t("New windows open as tabs"); hint: Tr.t("a column shows one window at a time, with tabs at its side"); checked: page.d.winTabbed; onToggled: on => page.d.winTabbed = on }
-    SwitchRow { Layout.fillWidth: true; text: Tr.t("An empty workspace above the first"); hint: Tr.t("somewhere new is one step up, as well as down"); checked: page.d.winEmptyAbove; onToggled: on => page.d.winEmptyAbove = on }
-    SwitchRow { Layout.fillWidth: true; text: Tr.t("A workspace's key twice goes back"); hint: Tr.t("Mod+2 on workspace 2 returns to where you were"); checked: page.d.wsBackAndForth; onToggled: on => page.d.wsBackAndForth = on }
-    Picks {
-        label: Tr.t("The overview shows workspaces")
-        options: [{ label: Tr.t("Small"), value: 0.35 }, { label: Tr.t("Medium"), value: 0.5 }, { label: Tr.t("Large"), value: 0.7 }]
-        current: page.d.overviewZoom
-        onPicked: v => page.d.overviewZoom = v
-    }
-    // room windows leave free at each edge (a panel of your own, a notch, a screen's worn edge)
-    Repeater {
-        model: [{ key: "winStrutLeft", label: Tr.t("Room kept free on the left") }, { key: "winStrutRight", label: Tr.t("Room kept free on the right") },
-                { key: "winStrutTop", label: Tr.t("Room kept free at the top") }, { key: "winStrutBottom", label: Tr.t("Room kept free at the bottom") }]
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Windows")
         Picks {
-            required property var modelData
-            label: modelData.label
-            options: [{ label: Tr.t("None"), value: 0 }, { label: Tr.t("A little"), value: 24 }, { label: Tr.t("Some"), value: 64 }, { label: Tr.t("A lot"), value: 128 }]
-            current: page.d[modelData.key]
-            onPicked: v => page.d[modelData.key] = v
+            label: Tr.t("Gaps between windows")
+            options: [{ label: Tr.t("None"), value: 0 }, { label: Tr.t("Small"), value: 6 }, { label: Tr.t("Medium"), value: 12 }, { label: Tr.t("Large"), value: 20 }]
+            current: page.d.winGaps
+            onPicked: v => page.d.winGaps = v
         }
+        Picks {
+            label: Tr.t("A new window opens")
+            options: [{ label: Tr.t("A third"), value: 0.33333 }, { label: Tr.t("Half"), value: 0.5 }, { label: Tr.t("Two thirds"), value: 0.66667 }, { label: Tr.t("Full width"), value: 1 }]
+            current: page.d.winDefaultWidth
+            onPicked: v => page.d.winDefaultWidth = v
+        }
+        Picks {
+            label: Tr.t("Focus ring")
+            options: [{ label: Tr.t("Off"), value: 0 }, { label: Tr.t("Thin"), value: 2 }, { label: Tr.t("Thick"), value: 4 }]
+            current: page.d.winFocusRing
+            onPicked: v => page.d.winFocusRing = v
+        }
+        SwitchRow { Layout.fillWidth: true; text: Tr.t("Focus follows the pointer"); hint: Tr.t("the window under the pointer takes the keyboard"); checked: page.d.winFocusFollowsMouse; onToggled: on => page.d.winFocusFollowsMouse = on }
+        SwitchRow { Layout.fillWidth: true; text: Tr.t("New windows open as tabs"); hint: Tr.t("a column shows one window at a time, with tabs at its side"); checked: page.d.winTabbed; onToggled: on => page.d.winTabbed = on }
+        SwitchRow { Layout.fillWidth: true; text: Tr.t("An empty workspace above the first"); hint: Tr.t("somewhere new is one step up, as well as down"); checked: page.d.winEmptyAbove; onToggled: on => page.d.winEmptyAbove = on }
+        SwitchRow { Layout.fillWidth: true; text: Tr.t("A workspace's key twice goes back"); hint: Tr.t("Mod+2 on workspace 2 returns to where you were"); checked: page.d.wsBackAndForth; onToggled: on => page.d.wsBackAndForth = on }
+        Picks {
+            label: Tr.t("The overview shows workspaces")
+            options: [{ label: Tr.t("Small"), value: 0.35 }, { label: Tr.t("Medium"), value: 0.5 }, { label: Tr.t("Large"), value: 0.7 }]
+            current: page.d.overviewZoom
+            onPicked: v => page.d.overviewZoom = v
+        }
+        // room windows leave free at each edge (a panel of your own, a notch, a screen's worn edge)
+        Repeater {
+            model: [{ key: "winStrutLeft", label: Tr.t("Room kept free on the left") }, { key: "winStrutRight", label: Tr.t("Room kept free on the right") },
+                    { key: "winStrutTop", label: Tr.t("Room kept free at the top") }, { key: "winStrutBottom", label: Tr.t("Room kept free at the bottom") }]
+            Picks {
+                required property var modelData
+                label: modelData.label
+                options: [{ label: Tr.t("None"), value: 0 }, { label: Tr.t("A little"), value: 24 }, { label: Tr.t("Some"), value: 64 }, { label: Tr.t("A lot"), value: 128 }]
+                current: page.d[modelData.key]
+                onPicked: v => page.d[modelData.key] = v
+            }
+        }
+        SwitchRow { Layout.fillWidth: true; text: Tr.t("Window animations"); hint: Tr.t("opening, closing and scrolling (Reduce motion turns the shell's own off)"); checked: page.d.winAnimations; onToggled: on => page.d.winAnimations = on }
     }
-    SwitchRow { Layout.fillWidth: true; text: Tr.t("Window animations"); hint: Tr.t("opening, closing and scrolling (Reduce motion turns the shell's own off)"); checked: page.d.winAnimations; onToggled: on => page.d.winAnimations = on }
 
     // ---- look and motion: Services/WindowLook writes niri's shani-look.kdl -------------
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Look and motion") }
-    Picks {
-        label: Tr.t("Windows open and close")
-        enabled: page.d.winAnimations && !page.d.reduceMotion
-        options: [{ label: Tr.t("Glide"), value: "glide" }, { label: Tr.t("Pop"), value: "pop" }, { label: Tr.t("Dissolve"), value: "dissolve" }, { label: Tr.t("Plain"), value: "plain" }]
-        current: page.d.winMotion
-        onPicked: v => page.d.winMotion = v
-    }
-    Text {
-        Layout.fillWidth: true
-        text: !page.d.winAnimations || page.d.reduceMotion ? Tr.t("Animations are off, so windows simply appear.")
-            : ({ glide: Tr.t("Rises into place as it fades in; sinks away when closed."),
-                 pop: Tr.t("Springs open with a little bounce; shrinks away quickly."),
-                 dissolve: Tr.t("Gathers in small grains, with your accent colour along the edge."),
-                 plain: Tr.t("niri's own: a quick fade and zoom.") })[page.d.winMotion] || ""
-        color: Theme.faint
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
-    }
-    Picks {
-        label: Tr.t("Speed")
-        enabled: page.d.winAnimations && !page.d.reduceMotion
-        options: [{ label: Tr.t("Brisk"), value: 0.7 }, { label: Tr.t("Normal"), value: 1.0 }, { label: Tr.t("Relaxed"), value: 1.5 }]
-        current: page.d.winSpeed
-        onPicked: v => page.d.winSpeed = v
-    }
-    // ---- animation presets: .kdl files included before our own block -------------
     Process {
         id: presetLister
         command: ["sh", "-c", 'd="${XDG_CONFIG_HOME:-$HOME/.config}/niri/animations"; [ -d "$d" ] && find "$d" -maxdepth 1 -name "*.kdl" -type f 2>/dev/null | sort']
@@ -91,30 +66,60 @@ ColumnLayout {
     }
     property var animationPresets: []
     Component.onCompleted: presetLister.running = true
-    Picks {
-        label: Tr.t("Animation preset")
-        enabled: page.d.winAnimations && !page.d.reduceMotion
-        options: [{ label: Tr.t("No preset"), value: "" }].concat(page.animationPresets.map(p => ({ label: p.split("/").pop().replace(/\.kdl$/, ""), value: p })))
-        current: page.d.winAnimationPreset || ""
-        onPicked: v => page.d.winAnimationPreset = v
-    }
-    Picks {
-        label: Tr.t("Shadow")
-        options: [{ label: Tr.t("None"), value: "off" }, { label: Tr.t("Soft"), value: "soft" }, { label: Tr.t("Deep"), value: "deep" }]
-        current: page.d.winShadow
-        onPicked: v => page.d.winShadow = v
-    }
-    Picks {
-        label: Tr.t("Corners")
-        options: [{ label: Tr.t("Square"), value: 0 }, { label: Tr.t("Slight"), value: 8 }, { label: Tr.t("Rounded"), value: 12 }, { label: Tr.t("Round"), value: 18 }]
-        current: page.d.winCorners
-        onPicked: v => page.d.winCorners = v
-    }
-    Picks {
-        label: Tr.t("Frosted glass")
-        options: [{ label: Tr.t("Light"), value: "light" }, { label: Tr.t("Medium"), value: "medium" }, { label: Tr.t("Strong"), value: "strong" }]
-        current: page.d.blurStrength
-        onPicked: v => page.d.blurStrength = v
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Look and motion")
+        Picks {
+            label: Tr.t("Windows open and close")
+            enabled: page.d.winAnimations && !page.d.reduceMotion
+            options: [{ label: Tr.t("Glide"), value: "glide" }, { label: Tr.t("Pop"), value: "pop" }, { label: Tr.t("Dissolve"), value: "dissolve" }, { label: Tr.t("Plain"), value: "plain" }]
+            current: page.d.winMotion
+            onPicked: v => page.d.winMotion = v
+        }
+        Text {
+            Layout.fillWidth: true
+            text: !page.d.winAnimations || page.d.reduceMotion ? Tr.t("Animations are off, so windows simply appear.")
+                : ({ glide: Tr.t("Rises into place as it fades in; sinks away when closed."),
+                     pop: Tr.t("Springs open with a little bounce; shrinks away quickly."),
+                     dissolve: Tr.t("Gathers in small grains, with your accent colour along the edge."),
+                     plain: Tr.t("niri's own: a quick fade and zoom.") })[page.d.winMotion] || ""
+            color: Theme.faint
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
+        Picks {
+            label: Tr.t("Speed")
+            enabled: page.d.winAnimations && !page.d.reduceMotion
+            options: [{ label: Tr.t("Brisk"), value: 0.7 }, { label: Tr.t("Normal"), value: 1.0 }, { label: Tr.t("Relaxed"), value: 1.5 }]
+            current: page.d.winSpeed
+            onPicked: v => page.d.winSpeed = v
+        }
+        Picks {
+            label: Tr.t("Animation preset")
+            enabled: page.d.winAnimations && !page.d.reduceMotion
+            options: [{ label: Tr.t("No preset"), value: "" }].concat(page.animationPresets.map(p => ({ label: p.split("/").pop().replace(/\.kdl$/, ""), value: p })))
+            current: page.d.winAnimationPreset || ""
+            onPicked: v => page.d.winAnimationPreset = v
+        }
+        Picks {
+            label: Tr.t("Shadow")
+            options: [{ label: Tr.t("None"), value: "off" }, { label: Tr.t("Soft"), value: "soft" }, { label: Tr.t("Deep"), value: "deep" }]
+            current: page.d.winShadow
+            onPicked: v => page.d.winShadow = v
+        }
+        Picks {
+            label: Tr.t("Corners")
+            options: [{ label: Tr.t("Square"), value: 0 }, { label: Tr.t("Slight"), value: 8 }, { label: Tr.t("Rounded"), value: 12 }, { label: Tr.t("Round"), value: 18 }]
+            current: page.d.winCorners
+            onPicked: v => page.d.winCorners = v
+        }
+        Picks {
+            label: Tr.t("Frosted glass")
+            options: [{ label: Tr.t("Light"), value: "light" }, { label: Tr.t("Medium"), value: "medium" }, { label: Tr.t("Strong"), value: "strong" }]
+            current: page.d.blurStrength
+            onPicked: v => page.d.blurStrength = v
+        }
     }
 
     // ---- per-app rules: written to the shell's niri include (WindowRules) -------------
@@ -128,15 +133,17 @@ ColumnLayout {
         rules.splice(i, 1);
         page.d.windowRules = rules;
     }
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Per-app rules") }
-    Text {
+    SettingsSection {
         Layout.fillWidth: true
-        text: Tr.t("How an app's windows open: floating or tiled, on which workspace (one you named in niri's config), how wide. Type the app id (as `niri msg windows` shows it), then pick. Nothing set means niri's usual tiling.")
-        color: Theme.faint
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
-    }
+        title: Tr.t("Per-app rules")
+        Text {
+            Layout.fillWidth: true
+            text: Tr.t("How an app's windows open: floating or tiled, on which workspace (one you named in niri's config), how wide. Type the app id (as `niri msg windows` shows it), then pick. Nothing set means niri's usual tiling.")
+            color: Theme.faint
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
     Repeater {
         model: Array.from(page.d.windowRules || [])
         ColumnLayout {
@@ -272,14 +279,17 @@ ColumnLayout {
             }
         }
     }
-    Button {
-        Layout.fillWidth: true
-        text: Tr.t("Add a rule for an app")
-        onClicked: page.d.windowRules = Array.from(page.d.windowRules || []).concat([{ app: "", float: false, workspace: "", width: 0 }])
+        Button {
+            Layout.fillWidth: true
+            text: Tr.t("Add a rule for an app")
+            onClicked: page.d.windowRules = Array.from(page.d.windowRules || []).concat([{ app: "", float: false, workspace: "", width: 0 }])
+        }
     }
 
     // ---- workspace bar: label modes, hidden names, indicators --------------------
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Workspaces in the bar") }
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Workspaces in the bar")
     Picks {
         label: Tr.t("Workspace label")
         options: [
@@ -378,5 +388,6 @@ ColumnLayout {
         wrapMode: Text.Wrap
         font.family: Theme.font
         font.pixelSize: Theme.px(11) * Theme.fontScale
+    }
     }
 }

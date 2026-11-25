@@ -404,14 +404,20 @@ def test_notes_link_delegate_has_a_translated_accessible_name():
 @pytest.mark.skipif(NODE is None, reason="node is not installed")
 def test_calendar_event_note_body_carries_date_location_and_description():
     s = src(CALENDAR)
-    prog = """
+    prog = r"""
+var Time = {
+  clockPadded: function(t){ t=String(t||""); return t.length>=5?t:t.padStart(5,"0"); },
+  dayKey: function(when){ var d=when instanceof Date?when:typeof when==="string"?new Date(when):new Date(Number(when)||Date.now()); if(!d||isNaN(d.getTime())) return ""; return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); },
+  clock: function(s){ s=Number(s)||0; return Math.floor(s/60)+":"+String(Math.floor(s%60)).padStart(2,"0"); },
+  hhmmss: function(s){ s=Number(s)||0; return String(Math.floor(s/3600)).padStart(2,"0")+":"+String(Math.floor(s%3600/60)).padStart(2,"0")+":"+String(Math.floor(s%60)).padStart(2,"0"); }
+};
     var Tr = { t: function (x) { return x; } };
     var win = {};
-    %s
+    """ + bind(s, "win", "isoDay", "eventNoteBody") + r"""
     var body = win.eventNoteBody({ summary: "Standup", start: 1764000000,
                                    location: "Room 1", description: "agenda" });
     process.stdout.write(JSON.stringify({ body: body, day: win.isoDay(1764000000000) }));
-    """ % bind(s, "win", "isoDay", "eventNoteBody")
+    """
     out = node(prog)
     assert out["body"].startswith("# Standup")
     assert "[[%s]]" % out["day"] in out["body"]

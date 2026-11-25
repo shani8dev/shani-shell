@@ -8,6 +8,29 @@ import qs.Common
 
 Item {
     id: root
+    // The one place an app's icon is resolved, so every site falls back the same
+    // way. `entry` is an icon name/path string, or an object with an .icon.
+    // nameFor: the icon name to show, or `fallback` (a name, "" for none) when
+    // the entry has none - the "application-x-executable" default lives here.
+    static function nameFor(entry, fallback) {
+        if (!entry)
+            return fallback || "";
+        const name = typeof entry === "string" ? entry : entry.icon;
+        return name ? name : (fallback || "");
+    }
+    // pathFor: a source path for IconImage - "" when there is none, a file:// URL
+    // for an absolute path, else the icon theme's answer (fallback: false for
+    // none, true for the theme's missing-image placeholder, or an icon name).
+    static function pathFor(entry, fallback) {
+        if (!entry)
+            return "";
+        const name = typeof entry === "string" ? entry : entry.icon;
+        if (!name)
+            return "";
+        if (name.startsWith("/"))
+            return "file://" + name;
+        return Quickshell.iconPath(name, fallback);
+    }
     property string icon                 // an icon name or a path
     property string name                 // for the initial
     property real implicitSize: 32
@@ -16,7 +39,7 @@ Item {
     // no fallback (false): with true, iconPath always answers with the theme's
     // missing-image placeholder, so path is never "" and the initial tile below
     // never renders for an app whose icon the theme does not know
-    readonly property string path: !icon ? "" : icon.startsWith("/") ? "file://" + icon : Quickshell.iconPath(icon, false)
+    readonly property string path: AppIcon.pathFor(icon, false)
 
     IconImage {
         anchors.fill: parent

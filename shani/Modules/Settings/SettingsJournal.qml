@@ -76,8 +76,10 @@ ColumnLayout {
     Process { id: logProc; command: ["journalctl", "-n", "80", "--no-pager", "-o", "short"]; stdout: StdioCollector { onStreamFinished: page.logText = text } }
     function loadLog() { logProc.running = false; logProc.running = true; }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Journal") }
-    Text { Layout.fillWidth: true; text: Tr.t("Journal storage is managed by a systemd drop-in. Vacuum removes old entries; it does not change the limit."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Journal")
+        hint: Tr.t("Journal storage is managed by a systemd drop-in. Vacuum removes old entries; it does not change the limit.")
 
     Text { text: Tr.t("Storage"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
     RowLayout {
@@ -158,6 +160,7 @@ ColumnLayout {
         Button { text: Tr.t("Vacuum"); enabled: !page.busy && (/^\s*$|^\d+(\.\d+)?\s*[KMGT]?$/i).test(vacField.text.trim()); onClicked: page.vacuum() }
         Button { text: Tr.t("Save"); kind: "primary"; enabled: !page.busy && page.policyValid; busy: page.busy; onClicked: page.save() }
     }
+    }
     property bool policyValid: /^\s*$|^\d+(\.\d+)?\s*[KMGT]?$/i.test(maxUseField.text.trim())
         && (/^\s*$|^\d+\s*(ms|min|s|m|h|d|w)?$/i).test(rateLimitIntervalField.text.trim())
         && /^\s*$|^\d+$/.test(rateLimitBurstField.text.trim())
@@ -168,14 +171,17 @@ ColumnLayout {
         text: page.note
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Recent log") }
-    RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } Button { text: Tr.t("Refresh"); onClicked: page.loadLog() } }
-    Rectangle {
-        Layout.fillWidth: true; Layout.preferredHeight: Theme.px(220)
-        radius: Theme.radiusSmall; color: Theme.surface1; border.width: 1; border.color: Theme.stroke
-        Flickable {
-            anchors.fill: parent; anchors.margins: Theme.px(8); clip: true; contentHeight: logBody.implicitHeight
-            Text { id: logBody; width: parent.width; text: page.logText || Tr.t("No log loaded."); color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale; wrapMode: Text.WrapAnywhere }
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Recent log")
+        RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } Button { text: Tr.t("Refresh"); onClicked: page.loadLog() } }
+        Rectangle {
+            Layout.fillWidth: true; Layout.preferredHeight: Theme.px(220)
+            radius: Theme.radiusSmall; color: Theme.surface1; border.width: 1; border.color: Theme.stroke
+            Flickable {
+                anchors.fill: parent; anchors.margins: Theme.px(8); clip: true; contentHeight: logBody.implicitHeight
+                Text { id: logBody; width: parent.width; text: page.logText || Tr.t("No log loaded."); color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale; wrapMode: Text.WrapAnywhere }
+            }
         }
     }
 }

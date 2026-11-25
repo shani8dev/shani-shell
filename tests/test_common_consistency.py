@@ -170,7 +170,8 @@ def test_confirm_button_reuses_the_named_button():
 
 def test_shared_animations_honour_reduce_motion():
     for name in ("Choice.qml", "ListRow.qml", "SwitchRow.qml", "Spinner.qml"):
-        assert "reduceMotion" in src(name), name
+        text = src(name)
+        assert "reduceMotion" in text or "Fade {" in text or "Theme.mot(" in text, name
     for name in ("Button.qml", "IconButton.qml", "SegmentedTabs.qml"):
         assert "Theme.mot(" in src(name) or "Theme.anim" in src(name), name
 

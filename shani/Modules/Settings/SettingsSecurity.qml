@@ -199,217 +199,257 @@ ColumnLayout {
         loginDefsSaveProc.running = true;
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Security") }
-    Text { Layout.fillWidth: true; text: Tr.t("What the kernel, sign-in and audit subsystems report. Policy edits go through administrator authorisation."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Kernel security (LSM)") }
-    Text { Layout.fillWidth: true; visible: !!(r.lsm && r.lsm.length); text: r.lsm && r.lsm.length ? r.lsm.join(", ") : ""; color: Theme.text; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-    InfoBanner {
+    SettingsSection {
         Layout.fillWidth: true
-        visible: !r.lsm || !r.lsm.length
-        tone: "warn"
-        title: Tr.t("The kernel did not report its security modules")
-        text: Tr.t("This can be normal in a container or a locked-down kernel. The checks below still work.")
-        Button { text: Tr.t("Retry"); onClicked: SecurityInfo.refresh() }
+        title: Tr.t("Security")
+        hint: Tr.t("What the kernel, sign-in and audit subsystems report. Policy edits go through administrator authorisation.")
+
+
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("AppArmor") }
-    ColumnLayout {
-        Layout.fillWidth: true; spacing: Theme.px(2)
-        ListRow { Layout.fillWidth: true; interactive: false; icon: "security-high"; title: Tr.t("Service"); subtitle: aa.active || Tr.t("unknown") }
-        ListRow { Layout.fillWidth: true; interactive: false; icon: "security-high"; title: Tr.t("Profiles"); subtitle: aa.profiles ? Tr.t("%1 loaded, %2 enforcing", Object.keys(aa.profiles).length, aa.enforcing || 0) : (aa.note || Tr.t("No profile report available")) }
-    }
-
-    RowLayout {
-        Layout.fillWidth: true; spacing: Theme.px(6)
-        TextField { id: aaProfile; Layout.fillWidth: true; placeholder: Tr.t("Profile name (from aa-status)") }
-        Button { text: Tr.t("Complain"); enabled: !page.aaBusy && aaProfile.text.trim() !== ""; onClicked: page.setAa("complain") }
-        Button { text: Tr.t("Enforce"); kind: "primary"; enabled: !page.aaBusy && aaProfile.text.trim() !== ""; onClicked: page.setAa("enforce") }
-    }
-    InfoBanner {
+    SettingsSection {
         Layout.fillWidth: true
-        visible: page.aaNote !== ""
-        tone: page.aaNote.indexOf("failed") >= 0 ? "error" : "ok"
-        text: page.aaNote
-    }
-
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Password policy") }
-    ListRow { Layout.fillWidth: true; interactive: false; icon: "dialog-password"; title: Tr.t("pwquality config"); subtitle: pw.present ? pw.file : Tr.t("No /etc/security/pwquality.conf") }
-    ListRow { Layout.fillWidth: true; interactive: false; icon: "dialog-password"; title: Tr.t("PAM wired"); subtitle: pw.pam_wired ? Tr.t("pam_pwquality appears in PAM") : Tr.t("pam_pwquality not found in PAM — policy may not be enforced") }
-    GridLayout {
-        Layout.fillWidth: true; columns: 2; columnSpacing: Theme.px(8); rowSpacing: Theme.px(6)
-        Text { text: Tr.t("Minimum length"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: minlen; Layout.fillWidth: true; placeholder: "8"; error: page.wholeNumberError(minlen) }
-        Text { text: Tr.t("Different from old (difok)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: difok; Layout.fillWidth: true; placeholder: "1"; error: page.wholeNumberError(difok) }
-        Text { text: Tr.t("Digits (dcredit)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: dcredit; Layout.fillWidth: true; placeholder: "0"; error: page.wholeNumberError(dcredit) }
-        Text { text: Tr.t("Uppercase (ucredit)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: ucredit; Layout.fillWidth: true; placeholder: "0"; error: page.wholeNumberError(ucredit) }
-        Text { text: Tr.t("Lowercase (lcredit)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: lcredit; Layout.fillWidth: true; placeholder: "0"; error: page.wholeNumberError(lcredit) }
-        Text { text: Tr.t("Other (ocredit)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: ocredit; Layout.fillWidth: true; placeholder: "0"; error: page.wholeNumberError(ocredit) }
-    }
-    RowLayout {
-        Layout.fillWidth: true; spacing: Theme.px(6)
+        title: Tr.t("Kernel security (LSM)")
+        Text { Layout.fillWidth: true; visible: !!(r.lsm && r.lsm.length); text: r.lsm && r.lsm.length ? r.lsm.join(", ") : ""; color: Theme.text; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
         InfoBanner {
             Layout.fillWidth: true
-            visible: page.pwNote !== ""
-            tone: page.pwNoteOk ? "ok" : "error"
-            text: page.pwNote
+            visible: !r.lsm || !r.lsm.length
+            tone: "warn"
+            title: Tr.t("The kernel did not report its security modules")
+            text: Tr.t("This can be normal in a container or a locked-down kernel. The checks below still work.")
+            Button { text: Tr.t("Retry"); onClicked: SecurityInfo.refresh() }
         }
-        Item { Layout.fillWidth: true; visible: page.pwNote === "" }
-        Button { text: Tr.t("Save policy"); kind: "primary"; enabled: !page.pwBusy && page.pwValid; busy: page.pwBusy; onClicked: page.savePw() }
+
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Audit") }
-    ColumnLayout {
-        Layout.fillWidth: true; spacing: Theme.px(2)
-        ListRow { Layout.fillWidth: true; interactive: false; icon: "document-open-recent"; title: Tr.t("auditd"); subtitle: au.active || Tr.t("unknown") }
-        ListRow { Layout.fillWidth: true; interactive: false; icon: "document-open-recent"; title: Tr.t("enabled"); subtitle: au.enabled || Tr.t("unknown") }
-        SwitchRow { Layout.fillWidth: true; visible: page.auditdLoaded; text: Tr.t("Enable auditd"); hint: Tr.t("System audit logging service"); checked: page.auditdOn; onToggled: on => { auditdSet.payload = JSON.stringify({ enabled: on }); auditdSet.command = page.adminCmd.concat(["auditd-set"]); auditdSet.running = true; } }
-        ListRow { Layout.fillWidth: true; interactive: false; icon: "document-open-recent"; title: Tr.t("Audit profile"); subtitle: page.auditProfile }
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("AppArmor")
+        ColumnLayout {
+            Layout.fillWidth: true; spacing: Theme.px(2)
+            ListRow { Layout.fillWidth: true; interactive: false; icon: "security-high"; title: Tr.t("Service"); subtitle: aa.active || Tr.t("unknown") }
+            ListRow { Layout.fillWidth: true; interactive: false; icon: "security-high"; title: Tr.t("Profiles"); subtitle: aa.profiles ? Tr.t("%1 loaded, %2 enforcing", Object.keys(aa.profiles).length, aa.enforcing || 0) : (aa.note || Tr.t("No profile report available")) }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true; spacing: Theme.px(6)
+            TextField { id: aaProfile; Layout.fillWidth: true; placeholder: Tr.t("Profile name (from aa-status)") }
+            Button { text: Tr.t("Complain"); enabled: !page.aaBusy && aaProfile.text.trim() !== ""; onClicked: page.setAa("complain") }
+            Button { text: Tr.t("Enforce"); kind: "primary"; enabled: !page.aaBusy && aaProfile.text.trim() !== ""; onClicked: page.setAa("enforce") }
+        }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.aaNote !== ""
+            tone: page.aaNote.indexOf("failed") >= 0 ? "error" : "ok"
+            text: page.aaNote
+        }
+
     }
-    Text { Layout.fillWidth: true; text: Tr.t("Predefined audit rules managed by shani-shell. Off removes the shell-managed rules file."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-    RowLayout {
-        Layout.fillWidth: true; spacing: Theme.px(6)
-        Repeater {
-            model: ["off", "minimal", "baseline"]
-            Button {
-                required property string modelData
-                text: page.confirmingAudit === modelData ? Tr.t("Tap again to remove rules") : Tr.t(modelData)
-                kind: page.auditProfile === modelData ? "primary" : (page.confirmingAudit === modelData ? "danger" : "plain")
-                enabled: !page.auditProfileBusy
-                onClicked: {
-                    if (modelData === "off" && page.auditProfile !== "off" && page.confirmingAudit !== "off") {
-                        page.confirmingAudit = "off";
-                        auditConfirmTimer.restart();
-                        return;
+
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Password policy")
+        ListRow { Layout.fillWidth: true; interactive: false; icon: "dialog-password"; title: Tr.t("pwquality config"); subtitle: pw.present ? pw.file : Tr.t("No /etc/security/pwquality.conf") }
+        ListRow { Layout.fillWidth: true; interactive: false; icon: "dialog-password"; title: Tr.t("PAM wired"); subtitle: pw.pam_wired ? Tr.t("pam_pwquality appears in PAM") : Tr.t("pam_pwquality not found in PAM — policy may not be enforced") }
+        GridLayout {
+            Layout.fillWidth: true; columns: 2; columnSpacing: Theme.px(8); rowSpacing: Theme.px(6)
+            Text { text: Tr.t("Minimum length"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: minlen; Layout.fillWidth: true; placeholder: "8"; error: page.wholeNumberError(minlen) }
+            Text { text: Tr.t("Different from old (difok)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: difok; Layout.fillWidth: true; placeholder: "1"; error: page.wholeNumberError(difok) }
+            Text { text: Tr.t("Digits (dcredit)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: dcredit; Layout.fillWidth: true; placeholder: "0"; error: page.wholeNumberError(dcredit) }
+            Text { text: Tr.t("Uppercase (ucredit)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: ucredit; Layout.fillWidth: true; placeholder: "0"; error: page.wholeNumberError(ucredit) }
+            Text { text: Tr.t("Lowercase (lcredit)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: lcredit; Layout.fillWidth: true; placeholder: "0"; error: page.wholeNumberError(lcredit) }
+            Text { text: Tr.t("Other (ocredit)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: ocredit; Layout.fillWidth: true; placeholder: "0"; error: page.wholeNumberError(ocredit) }
+        }
+        RowLayout {
+            Layout.fillWidth: true; spacing: Theme.px(6)
+            InfoBanner {
+                Layout.fillWidth: true
+                visible: page.pwNote !== ""
+                tone: page.pwNoteOk ? "ok" : "error"
+                text: page.pwNote
+            }
+            Item { Layout.fillWidth: true; visible: page.pwNote === "" }
+            Button { text: Tr.t("Save policy"); kind: "primary"; enabled: !page.pwBusy && page.pwValid; busy: page.pwBusy; onClicked: page.savePw() }
+        }
+
+    }
+
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Audit")
+        ColumnLayout {
+            Layout.fillWidth: true; spacing: Theme.px(2)
+            ListRow { Layout.fillWidth: true; interactive: false; icon: "document-open-recent"; title: Tr.t("auditd"); subtitle: au.active || Tr.t("unknown") }
+            ListRow { Layout.fillWidth: true; interactive: false; icon: "document-open-recent"; title: Tr.t("enabled"); subtitle: au.enabled || Tr.t("unknown") }
+            SwitchRow { Layout.fillWidth: true; visible: page.auditdLoaded; text: Tr.t("Enable auditd"); hint: Tr.t("System audit logging service"); checked: page.auditdOn; onToggled: on => { auditdSet.payload = JSON.stringify({ enabled: on }); auditdSet.command = page.adminCmd.concat(["auditd-set"]); auditdSet.running = true; } }
+            ListRow { Layout.fillWidth: true; interactive: false; icon: "document-open-recent"; title: Tr.t("Audit profile"); subtitle: page.auditProfile }
+        }
+        Text { Layout.fillWidth: true; text: Tr.t("Predefined audit rules managed by shani-shell. Off removes the shell-managed rules file."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        RowLayout {
+            Layout.fillWidth: true; spacing: Theme.px(6)
+            Repeater {
+                model: ["off", "minimal", "baseline"]
+                Button {
+                    required property string modelData
+                    text: page.confirmingAudit === modelData ? Tr.t("Tap again to remove rules") : Tr.t(modelData)
+                    kind: page.auditProfile === modelData ? "primary" : (page.confirmingAudit === modelData ? "danger" : "plain")
+                    enabled: !page.auditProfileBusy
+                    onClicked: {
+                        if (modelData === "off" && page.auditProfile !== "off" && page.confirmingAudit !== "off") {
+                            page.confirmingAudit = "off";
+                            auditConfirmTimer.restart();
+                            return;
+                        }
+                        page.confirmingAudit = "";
+                        page.saveAuditProfile(modelData);
                     }
-                    page.confirmingAudit = "";
-                    page.saveAuditProfile(modelData);
                 }
             }
+            Item { Layout.fillWidth: true }
         }
-        Item { Layout.fillWidth: true }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.auditProfileNote !== ""
+            tone: page.auditProfileNoteOk ? "ok" : "error"
+            text: page.auditProfileNote
+        }
+
     }
-    InfoBanner {
+
+    SettingsSection {
         Layout.fillWidth: true
-        visible: page.auditProfileNote !== ""
-        tone: page.auditProfileNoteOk ? "ok" : "error"
-        text: page.auditProfileNote
+        title: Tr.t("Coredumps")
+        Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/systemd/coredump.conf.d/50-shani-shell.conf."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Repeater {
+            model: [{k:"Storage",ph:"none"},{k:"ProcessSizeMax",ph:"0"},{k:"MaxUse",ph:"1G"}]
+            RowLayout {
+                required property var modelData
+                Layout.fillWidth: true; spacing: Theme.px(6)
+                Text { Layout.preferredWidth: Theme.px(160); text: modelData.k; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                TextField { id: cdVal; Layout.fillWidth: true; text: (page.coredump && page.coredump[modelData.k]) || ""; placeholder: modelData.ph }
+                Button { text: Tr.t("Save"); enabled: !coredumpSet.running; busy: coredumpSet.running; onClicked: page.saveCoredump(modelData.k, cdVal.text.trim()) }
+            }
+        }
+
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Coredumps") }
-    Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/systemd/coredump.conf.d/50-shani-shell.conf."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-    Repeater {
-        model: [{k:"Storage",ph:"none"},{k:"ProcessSizeMax",ph:"0"},{k:"MaxUse",ph:"1G"}]
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Hosts")
+        Text { Layout.fillWidth: true; text: Tr.t("Static name mappings in /etc/hosts. Each line: IP address, then hostnames."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Rectangle {
+            Layout.fillWidth: true; Layout.preferredHeight: Theme.px(140)
+            radius: Theme.radiusSmall; color: Theme.surface1; border.width: 1; border.color: hostsEdit.activeFocus ? Theme.accent : Theme.stroke
+            TextEdit {
+                id: hostsEdit; anchors.fill: parent; anchors.margins: Theme.px(8)
+                color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale
+                wrapMode: TextEdit.NoWrap; selectByMouse: true
+                onTextChanged: if (page.hostsText !== text) page.hostsText = text
+            }
+        }
         RowLayout {
-            required property var modelData
             Layout.fillWidth: true; spacing: Theme.px(6)
-            Text { Layout.preferredWidth: Theme.px(160); text: modelData.k; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
-            TextField { id: cdVal; Layout.fillWidth: true; text: (page.coredump && page.coredump[modelData.k]) || ""; placeholder: modelData.ph }
-            Button { text: Tr.t("Save"); enabled: !coredumpSet.running; busy: coredumpSet.running; onClicked: page.saveCoredump(modelData.k, cdVal.text.trim()) }
+            InfoBanner {
+                Layout.fillWidth: true
+                visible: page.hostsNote !== ""
+                tone: page.hostsNoteOk ? "ok" : "error"
+                text: page.hostsNote
+            }
+            Item { Layout.fillWidth: true; visible: page.hostsNote === "" }
+            Button { text: Tr.t("Reload"); enabled: !page.hostsBusy; onClicked: page.loadHosts() }
+            Button { text: Tr.t("Save hosts"); kind: "primary"; enabled: !page.hostsBusy; busy: page.hostsBusy; onClicked: page.saveHosts() }
         }
+
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Hosts") }
-    Text { Layout.fillWidth: true; text: Tr.t("Static name mappings in /etc/hosts. Each line: IP address, then hostnames."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-    Rectangle {
-        Layout.fillWidth: true; Layout.preferredHeight: Theme.px(140)
-        radius: Theme.radiusSmall; color: Theme.surface1; border.width: 1; border.color: hostsEdit.activeFocus ? Theme.accent : Theme.stroke
-        TextEdit {
-            id: hostsEdit; anchors.fill: parent; anchors.margins: Theme.px(8)
-            color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale
-            wrapMode: TextEdit.NoWrap; selectByMouse: true
-            onTextChanged: if (page.hostsText !== text) page.hostsText = text
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Sudo rules")
+        Text { Layout.fillWidth: true; text: Tr.t("Managed drop-in /etc/sudoers.d/50-shani-shell. Checked with visudo before and after saving; a failed check rolls back."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Rectangle {
+            Layout.fillWidth: true; Layout.preferredHeight: Theme.px(120)
+            radius: Theme.radiusSmall; color: Theme.surface1; border.width: 1; border.color: sudoersEdit.activeFocus ? Theme.accent : Theme.stroke
+            TextEdit { id: sudoersEdit; anchors.fill: parent; anchors.margins: Theme.px(8); color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale; wrapMode: TextEdit.NoWrap; selectByMouse: true; onTextChanged: if (page.sudoersText !== text) page.sudoersText = text }
         }
-    }
-    RowLayout {
-        Layout.fillWidth: true; spacing: Theme.px(6)
-        InfoBanner {
-            Layout.fillWidth: true
-            visible: page.hostsNote !== ""
-            tone: page.hostsNoteOk ? "ok" : "error"
-            text: page.hostsNote
+        RowLayout {
+            Layout.fillWidth: true; spacing: Theme.px(6)
+            InfoBanner {
+                Layout.fillWidth: true
+                visible: page.sudoersNote !== ""
+                tone: page.sudoersNoteOk ? "ok" : "error"
+                text: page.sudoersNote
+            }
+            Item { Layout.fillWidth: true; visible: page.sudoersNote === "" }
+            Button { text: Tr.t("Reload"); enabled: !page.sudoersBusy; onClicked: page.loadSudoers() }
+            Button { text: Tr.t("Save sudo rules"); kind: "primary"; enabled: !page.sudoersBusy; busy: page.sudoersBusy; onClicked: page.saveSudoers() }
         }
-        Item { Layout.fillWidth: true; visible: page.hostsNote === "" }
-        Button { text: Tr.t("Reload"); enabled: !page.hostsBusy; onClicked: page.loadHosts() }
-        Button { text: Tr.t("Save hosts"); kind: "primary"; enabled: !page.hostsBusy; busy: page.hostsBusy; onClicked: page.saveHosts() }
+
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Sudo rules") }
-    Text { Layout.fillWidth: true; text: Tr.t("Managed drop-in /etc/sudoers.d/50-shani-shell. Checked with visudo before and after saving; a failed check rolls back."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-    Rectangle {
-        Layout.fillWidth: true; Layout.preferredHeight: Theme.px(120)
-        radius: Theme.radiusSmall; color: Theme.surface1; border.width: 1; border.color: sudoersEdit.activeFocus ? Theme.accent : Theme.stroke
-        TextEdit { id: sudoersEdit; anchors.fill: parent; anchors.margins: Theme.px(8); color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale; wrapMode: TextEdit.NoWrap; selectByMouse: true; onTextChanged: if (page.sudoersText !== text) page.sudoersText = text }
-    }
-    RowLayout {
-        Layout.fillWidth: true; spacing: Theme.px(6)
-        InfoBanner {
-            Layout.fillWidth: true
-            visible: page.sudoersNote !== ""
-            tone: page.sudoersNoteOk ? "ok" : "error"
-            text: page.sudoersNote
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Account lockout (faillock)")
+        Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/security/faillock.conf. Values apply to PAM faillock."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        GridLayout {
+            Layout.fillWidth: true; columns: 2; columnSpacing: Theme.px(8); rowSpacing: Theme.px(6)
+            Text { text: Tr.t("Deny after failures"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: denyField; Layout.fillWidth: true; placeholder: "3" }
+            Text { text: Tr.t("Unlock time (s)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: unlockField; Layout.fillWidth: true; placeholder: "600" }
+            Text { text: Tr.t("Fail interval (s)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: failIntervalField; Layout.fillWidth: true; placeholder: "900" }
+            Text { text: Tr.t("Even deny root"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Button { text: page.evenDenyRoot ? Tr.t("Enabled") : Tr.t("Disabled"); onClicked: page.evenDenyRoot = !page.evenDenyRoot }
         }
-        Item { Layout.fillWidth: true; visible: page.sudoersNote === "" }
-        Button { text: Tr.t("Reload"); enabled: !page.sudoersBusy; onClicked: page.loadSudoers() }
-        Button { text: Tr.t("Save sudo rules"); kind: "primary"; enabled: !page.sudoersBusy; busy: page.sudoersBusy; onClicked: page.saveSudoers() }
+        RowLayout {
+            Layout.fillWidth: true; spacing: Theme.px(6)
+            InfoBanner {
+                Layout.fillWidth: true
+                visible: page.faillockNote !== ""
+                tone: page.faillockNoteOk ? "ok" : "error"
+                text: page.faillockNote
+            }
+            Item { Layout.fillWidth: true; visible: page.faillockNote === "" }
+            Button { text: Tr.t("Reload"); enabled: !page.faillockBusy; onClicked: page.loadFaillock() }
+            Button { text: Tr.t("Save faillock"); kind: "primary"; enabled: !page.faillockBusy; busy: page.faillockBusy; onClicked: page.saveFaillock() }
+        }
+
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Account lockout (faillock)") }
-    Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/security/faillock.conf. Values apply to PAM faillock."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-    GridLayout {
-        Layout.fillWidth: true; columns: 2; columnSpacing: Theme.px(8); rowSpacing: Theme.px(6)
-        Text { text: Tr.t("Deny after failures"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: denyField; Layout.fillWidth: true; placeholder: "3" }
-        Text { text: Tr.t("Unlock time (s)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: unlockField; Layout.fillWidth: true; placeholder: "600" }
-        Text { text: Tr.t("Fail interval (s)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: failIntervalField; Layout.fillWidth: true; placeholder: "900" }
-        Text { text: Tr.t("Even deny root"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        Button { text: page.evenDenyRoot ? Tr.t("Enabled") : Tr.t("Disabled"); onClicked: page.evenDenyRoot = !page.evenDenyRoot }
-    }
-    RowLayout {
-        Layout.fillWidth: true; spacing: Theme.px(6)
-        InfoBanner {
-            Layout.fillWidth: true
-            visible: page.faillockNote !== ""
-            tone: page.faillockNoteOk ? "ok" : "error"
-            text: page.faillockNote
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Login defaults")
+        Text { Layout.fillWidth: true; text: Tr.t("Managed keys in /etc/login.defs. Only the listed keys are changed."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        GridLayout {
+            Layout.fillWidth: true; columns: 2; columnSpacing: Theme.px(8); rowSpacing: Theme.px(6)
+            Text { text: Tr.t("PASS_MAX_DAYS"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: passMaxField; Layout.fillWidth: true; placeholder: "99999" }
+            Text { text: Tr.t("PASS_MIN_DAYS"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: passMinField; Layout.fillWidth: true; placeholder: "0" }
+            Text { text: Tr.t("PASS_WARN_AGE"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: passWarnField; Layout.fillWidth: true; placeholder: "7" }
+            Text { text: Tr.t("LOGIN_RETRIES"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: loginRetriesField; Layout.fillWidth: true; placeholder: "5" }
+            Text { text: Tr.t("LOGIN_TIMEOUT"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            TextField { id: loginTimeoutField; Layout.fillWidth: true; placeholder: "60" }
         }
-        Item { Layout.fillWidth: true; visible: page.faillockNote === "" }
-        Button { text: Tr.t("Reload"); enabled: !page.faillockBusy; onClicked: page.loadFaillock() }
-        Button { text: Tr.t("Save faillock"); kind: "primary"; enabled: !page.faillockBusy; busy: page.faillockBusy; onClicked: page.saveFaillock() }
-    }
-
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Login defaults") }
-    Text { Layout.fillWidth: true; text: Tr.t("Managed keys in /etc/login.defs. Only the listed keys are changed."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-    GridLayout {
-        Layout.fillWidth: true; columns: 2; columnSpacing: Theme.px(8); rowSpacing: Theme.px(6)
-        Text { text: Tr.t("PASS_MAX_DAYS"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: passMaxField; Layout.fillWidth: true; placeholder: "99999" }
-        Text { text: Tr.t("PASS_MIN_DAYS"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: passMinField; Layout.fillWidth: true; placeholder: "0" }
-        Text { text: Tr.t("PASS_WARN_AGE"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: passWarnField; Layout.fillWidth: true; placeholder: "7" }
-        Text { text: Tr.t("LOGIN_RETRIES"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: loginRetriesField; Layout.fillWidth: true; placeholder: "5" }
-        Text { text: Tr.t("LOGIN_TIMEOUT"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        TextField { id: loginTimeoutField; Layout.fillWidth: true; placeholder: "60" }
-    }
-    RowLayout {
-        Layout.fillWidth: true; spacing: Theme.px(6)
-        InfoBanner {
-            Layout.fillWidth: true
-            visible: page.loginDefsNote !== ""
-            tone: page.loginDefsNoteOk ? "ok" : "error"
-            text: page.loginDefsNote
+        RowLayout {
+            Layout.fillWidth: true; spacing: Theme.px(6)
+            InfoBanner {
+                Layout.fillWidth: true
+                visible: page.loginDefsNote !== ""
+                tone: page.loginDefsNoteOk ? "ok" : "error"
+                text: page.loginDefsNote
+            }
+            Item { Layout.fillWidth: true; visible: page.loginDefsNote === "" }
+            Button { text: Tr.t("Reload"); enabled: !page.loginDefsBusy; onClicked: page.loadLoginDefs() }
+            Button { text: Tr.t("Save login defaults"); kind: "primary"; enabled: !page.loginDefsBusy; busy: page.loginDefsBusy; onClicked: page.saveLoginDefs() }
         }
-        Item { Layout.fillWidth: true; visible: page.loginDefsNote === "" }
-        Button { text: Tr.t("Reload"); enabled: !page.loginDefsBusy; onClicked: page.loadLoginDefs() }
-        Button { text: Tr.t("Save login defaults"); kind: "primary"; enabled: !page.loginDefsBusy; busy: page.loginDefsBusy; onClicked: page.saveLoginDefs() }
     }
 }

@@ -95,126 +95,135 @@ ColumnLayout {
         find.text = "";
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Apps open when you signed out") }
-    Flow {
+    SettingsSection {
         Layout.fillWidth: true
-        spacing: Theme.px(6)
-        Repeater {
-            model: [{ id: "ask", label: Tr.t("Offer to reopen them") }, { id: "always", label: Tr.t("Reopen them") }, { id: "never", label: Tr.t("Start fresh") }]
-            Choice {
-                required property var modelData
-                text: modelData.label
-                selected: page.d.reopenApps === modelData.id
-                onClicked: page.d.reopenApps = modelData.id
+        title: Tr.t("Apps open when you signed out")
+        Flow {
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Repeater {
+                model: [{ id: "ask", label: Tr.t("Offer to reopen them") }, { id: "always", label: Tr.t("Reopen them") }, { id: "never", label: Tr.t("Start fresh") }]
+                Choice {
+                    required property var modelData
+                    text: modelData.label
+                    selected: page.d.reopenApps === modelData.id
+                    onClicked: page.d.reopenApps = modelData.id
+                }
             }
         }
     }
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Sessions") }
-    Text {
+    SettingsSection {
         Layout.fillWidth: true
-        text: Tr.t("Save your apps and documents under a name, then bring them all back at once.")
-        color: Theme.dim
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
-    }
-    RowLayout {
-        Layout.fillWidth: true
-        spacing: Theme.px(6)
-        TextField {
-            id: sessionName
+        title: Tr.t("Sessions")
+        Text {
             Layout.fillWidth: true
-            placeholder: Tr.t("Name this session")
-            error: sessionName.text.trim() !== "" && !Sessions.validName(sessionName.text) ? Tr.t("Use a name of 1 to 60 characters, without / or \\") : ""
-            onAccepted: page.saveSession()
+            text: Tr.t("Save your apps and documents under a name, then bring them all back at once.")
+            color: Theme.dim
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
         }
-        Button { kind: "primary"; text: Tr.t("Save current"); enabled: Sessions.validName(sessionName.text); onClicked: page.saveSession() }
-    }
-    InfoBanner {
-        Layout.fillWidth: true
-        visible: Sessions.list().length === 0
-        tone: "info"
-        text: Tr.t("No sessions saved yet")
-    }
-    Repeater {
-        model: Sessions.list()
-        ListRow {
-            required property var modelData
+        RowLayout {
             Layout.fillWidth: true
-            icon: "view-restore"
-            title: modelData.name
-            subtitle: Tr.t("%1 apps, %2 places").arg(modelData.apps.length).arg(modelData.paths.length) + (page.when(modelData.savedAt) ? " · " + page.when(modelData.savedAt) : "")
-            Button { flat: true; text: Tr.t("Restore"); Accessible.name: Tr.t("Restore %1").arg(modelData.name); onClicked: page.ask("restore", modelData) }
-            Button { flat: true; kind: "danger"; text: Tr.t("Remove"); Accessible.name: Tr.t("Remove %1?").arg(modelData.name); onClicked: page.ask("remove", modelData) }
+            spacing: Theme.px(6)
+            TextField {
+                id: sessionName
+                Layout.fillWidth: true
+                placeholder: Tr.t("Name this session")
+                error: sessionName.text.trim() !== "" && !Sessions.validName(sessionName.text) ? Tr.t("Use a name of 1 to 60 characters, without / or \\") : ""
+                onAccepted: page.saveSession()
+            }
+            Button { kind: "primary"; text: Tr.t("Save current"); enabled: Sessions.validName(sessionName.text); onClicked: page.saveSession() }
         }
-    }
-    InfoBanner {
-        Layout.fillWidth: true
-        visible: page.confirmName !== ""
-        tone: page.confirmAction === "remove" ? "warn" : "accent"
-        iconName: page.confirmAction === "remove" ? "edit-delete" : "view-restore"
-        title: (page.confirmAction === "remove" ? Tr.t("Remove %1?") : Tr.t("Restore %1?")).arg(page.confirmName)
-        text: page.confirmAction === "remove" ? Tr.t("This cannot be undone.")
-              : Tr.t("%1 apps and %2 places will open now.").arg(page.confirmSession ? page.confirmSession.apps.length : 0).arg(page.confirmSession ? page.confirmSession.paths.length : 0)
-        Button { flat: true; text: Tr.t("Cancel"); onClicked: page.answer(false) }
-        Button { kind: page.confirmAction === "remove" ? "danger" : "primary"; text: page.confirmAction === "remove" ? Tr.t("Remove") : Tr.t("Restore"); onClicked: page.answer(true) }
-    }
-    InfoBanner {
-        Layout.fillWidth: true
-        visible: page.note !== "" && page.confirmName === ""
-        tone: page.noteTone
-        text: page.note
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: Sessions.list().length === 0
+            tone: "info"
+            text: Tr.t("No sessions saved yet")
+        }
+        Repeater {
+            model: Sessions.list()
+            SettingRow {
+                required property var modelData
+                Layout.fillWidth: true
+                icon: "view-restore"
+                title: modelData.name
+                subtitle: Tr.t("%1 apps, %2 places").arg(modelData.apps.length).arg(modelData.paths.length) + (page.when(modelData.savedAt) ? " · " + page.when(modelData.savedAt) : "")
+                Button { flat: true; text: Tr.t("Restore"); Accessible.name: Tr.t("Restore %1").arg(modelData.name); onClicked: page.ask("restore", modelData) }
+                Button { flat: true; kind: "danger"; text: Tr.t("Remove"); Accessible.name: Tr.t("Remove %1?").arg(modelData.name); onClicked: page.ask("remove", modelData) }
+            }
+        }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.confirmName !== ""
+            tone: page.confirmAction === "remove" ? "warn" : "accent"
+            iconName: page.confirmAction === "remove" ? "edit-delete" : "view-restore"
+            title: (page.confirmAction === "remove" ? Tr.t("Remove %1?") : Tr.t("Restore %1?")).arg(page.confirmName)
+            text: page.confirmAction === "remove" ? Tr.t("This cannot be undone.")
+                  : Tr.t("%1 apps and %2 places will open now.").arg(page.confirmSession ? page.confirmSession.apps.length : 0).arg(page.confirmSession ? page.confirmSession.paths.length : 0)
+            Button { flat: true; text: Tr.t("Cancel"); onClicked: page.answer(false) }
+            Button { kind: page.confirmAction === "remove" ? "danger" : "primary"; text: page.confirmAction === "remove" ? Tr.t("Remove") : Tr.t("Restore"); onClicked: page.answer(true) }
+        }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.note !== "" && page.confirmName === ""
+            tone: page.noteTone
+            text: page.note
+        }
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Startup apps") }
-    Repeater {
-        model: page.entries
-        RowLayout {
-            id: row
-            required property var modelData
-            Layout.fillWidth: true
-            SwitchRow {
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Startup apps")
+        Repeater {
+            model: page.entries
+            RowLayout {
+                id: row
+                required property var modelData
                 Layout.fillWidth: true
-                text: row.modelData.name
-                hint: row.modelData.mine ? "added by you" : "the system's"
-                checked: row.modelData.on
-                onToggled: on => page.setOn(row.modelData, on)
-            }
-            IconButton {
-                visible: row.modelData.mine
-                icon: "edit-delete"
-                size: Theme.px(24)
-                Accessible.name: "Remove " + row.modelData.name + " from startup"
-                onClicked: page.remove(row.modelData)
+                SwitchRow {
+                    Layout.fillWidth: true
+                    text: row.modelData.name
+                    hint: row.modelData.mine ? "added by you" : "the system's"
+                    checked: row.modelData.on
+                    onToggled: on => page.setOn(row.modelData, on)
+                }
+                IconButton {
+                    visible: row.modelData.mine
+                    icon: "edit-delete"
+                    size: Theme.px(24)
+                    Accessible.name: "Remove " + row.modelData.name + " from startup"
+                    onClicked: page.remove(row.modelData)
+                }
             }
         }
-    }
-    // the usual ones, where installed: a tap each
-    Flow {
-        Layout.fillWidth: true
-        spacing: Theme.px(6)
+        // the usual ones, where installed: a tap each
+        Flow {
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Repeater {
+                model: ["dev.shani.Files", "com.vivaldi.Vivaldi", "org.mozilla.firefox", "org.telegram.desktop", "org.signal.Signal",
+                        "com.slack.Slack", "org.mozilla.Thunderbird", "com.spotify.Client", "org.localsend.localsend_app", "dev.shani.chronoa"]
+                    .map(id => DesktopEntries.byId(id)).filter(a => a && !a.noDisplay).slice(0, 8)
+                Choice {
+                    required property var modelData
+                    text: "+ " + modelData.name
+                    onClicked: page.add(modelData)
+                }
+            }
+        }
+        TextField { id: find; Layout.fillWidth: true; placeholder: Tr.t("Or find another app…") }
         Repeater {
-            model: ["dev.shani.Files", "com.vivaldi.Vivaldi", "org.mozilla.firefox", "org.telegram.desktop", "org.signal.Signal",
-                    "com.slack.Slack", "org.mozilla.Thunderbird", "com.spotify.Client", "org.localsend.localsend_app", "dev.shani.chronoa"]
-                .map(id => DesktopEntries.byId(id)).filter(a => a && !a.noDisplay).slice(0, 8)
-            Choice {
+            model: find.text.trim().length < 2 ? [] : DesktopEntries.applications.values
+                .filter(a => !a.noDisplay && a.name.toLowerCase().indexOf(find.text.trim().toLowerCase()) >= 0).slice(0, 6)
+            SettingRow {
                 required property var modelData
-                text: "+ " + modelData.name
+                Layout.fillWidth: true
+                icon: modelData.icon || "application-x-executable"
+                title: modelData.name
+                subtitle: Tr.t("start at login")
                 onClicked: page.add(modelData)
             }
-        }
-    }
-    TextField { id: find; Layout.fillWidth: true; placeholder: Tr.t("Or find another app…") }
-    Repeater {
-        model: find.text.trim().length < 2 ? [] : DesktopEntries.applications.values
-            .filter(a => !a.noDisplay && a.name.toLowerCase().indexOf(find.text.trim().toLowerCase()) >= 0).slice(0, 6)
-        ListRow {
-            required property var modelData
-            Layout.fillWidth: true
-            icon: modelData.icon || "application-x-executable"
-            title: modelData.name
-            subtitle: Tr.t("start at login")
-            onClicked: page.add(modelData)
         }
     }
 }

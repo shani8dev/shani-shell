@@ -62,6 +62,40 @@ function fullDate(when) {
     return days[d.getDay()] + " " + d.getDate() + " " + months[d.getMonth()] + " " + d.getFullYear();
 }
 
+// "HH:MM" — a 24-hour clock string zero-padded to five chars ("9:05" → "09:05").
+// Alarm pickers and the calendar's natural-language parser both need it.
+function clockPadded(t) {
+    return String(t).padStart(5, "0");
+}
+
+// "HH:MM:SS" with the hours zero-padded too (a voice-recorder counter, where
+// "0:00" would look broken). Hours past 99 keep their digits.
+function hhmmss(seconds) {
+    const s = Number(seconds) || 0;
+    return String(Math.floor(s / 3600)).padStart(2, "0")
+        + ":" + String(Math.floor(s % 3600 / 60)).padStart(2, "0")
+        + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+}
+
+// Stopwatch "MM:SS.cc", or "H:MM:SS.cc" past an hour — the World Clock's
+// running split, with centiseconds.
+function stopwatch(ms) {
+    const t = Number(ms) || 0;
+    const cs = Math.floor(t / 10) % 100;
+    const s = Math.floor(t / 1000) % 60;
+    const m = Math.floor(t / 60000) % 60;
+    const h = Math.floor(t / 3600000);
+    return (h > 0 ? h + ":" : "") + String(m).padStart(2, "0")
+        + ":" + String(s).padStart(2, "0") + "." + String(cs).padStart(2, "0");
+}
+
+// "YYYY-MM-DD-HH-MM-SS" (UTC) for a filename — a colon is awkward in a path, so
+// the recorder stamps use dashes. `when` defaults to now.
+function fileStamp(when) {
+    const d = when instanceof Date ? when : new Date(Number(when) || Date.now());
+    return d.toISOString().slice(0, 19).replace(/[T:]/g, "-");
+}
+
 // "HH:MM" minutes-of-day → minutes since midnight, or -1 when unparseable.
 // Used by DND schedules and dark-mode windows so both agree.
 function minutes(hhmm) {
