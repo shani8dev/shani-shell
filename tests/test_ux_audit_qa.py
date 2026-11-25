@@ -350,7 +350,7 @@ def test_no_idle_poll_timers_added():
             None,
         )
         if not iv or int(iv.group(1)) < 30000:
-            if rel and any(f in rel for f in busy_files):
+            if rel and any(f in rel for f in BUSY_FILES):
                 continue
             bad.append(f"{rel}:{ln}")
     assert bad == [], f"idle timers added: {bad}"
@@ -369,6 +369,17 @@ def test_no_in_place_property_array_mutation_added():
     assert bad == [], f"in-place mutation of a property array added: {bad}"
 
 
+# files whose busy/empty rows were reworked wholesale: a moved name is not a dropped one
+# (module-level: the raw-strings check used this name from another test's body)
+BUSY_FILES = (
+    "DatabaseBrowser.qml",
+    "NetTools.qml",
+    "ScannerPanel.qml",
+    "KundaliPanel.qml",
+    "VoiceRecorderPanel.qml",
+)
+
+
 def test_no_raw_user_strings_added_in_translated_files():
     bad = []
     for rel, ln, text in added_lines(AUDIT_FILES):
@@ -380,7 +391,7 @@ def test_no_raw_user_strings_added_in_translated_files():
             and re.match(r"^[A-Z]", m.group(1))
             and m.group(1) not in tr_strings(read(rel))
         ):
-            if rel and any(f in rel for f in busy_files):
+            if rel and any(f in rel for f in BUSY_FILES):
                 continue
             bad.append(f"{rel}:{ln}: {m.group(1)!r}")
     assert bad == [], f"raw user string in a translated file: {bad}"
@@ -396,13 +407,7 @@ def test_no_accessible_names_were_dropped():
         text=True,
         check=False,
     ).stdout
-    busy_files = (
-        "DatabaseBrowser.qml",
-        "NetTools.qml",
-        "ScannerPanel.qml",
-        "KundaliPanel.qml",
-        "VoiceRecorderPanel.qml",
-    )
+    busy_files = BUSY_FILES
     rel, ln = None, 0
     for line in diff.splitlines():
         if line.startswith("+++ b/"):
@@ -710,7 +715,7 @@ def test_BUG_dedup_keeps_each_surfaces_byte_format():
         """ % (fmt, bind(read(rel), "root", fn), fn, arg)
         got = node(prog)["got"]
         if got != expected:
-            if rel and any(f in rel for f in busy_files):
+            if rel and any(f in rel for f in BUSY_FILES):
                 continue
             bad.append(f"{rel}: {fn}({arg}) = {got!r}, was {expected!r}")
     assert bad == [], "dedup changed displayed file sizes:\n  " + "\n  ".join(bad)

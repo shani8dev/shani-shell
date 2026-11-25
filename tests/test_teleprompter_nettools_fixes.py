@@ -178,9 +178,9 @@ def test_net_dns_and_whois_degrade_gracefully():
     assert 'whois -- "$1"' in NET
     assert "echo NO_WHOIS" in NET
     for note in (
-        "dig is not installed (install dnsutils to resolve names)",
+        "dig is not installed (install bind to resolve names)",
         "whois is not installed — install it to look up registrations",
-        "Neither nmcli nor iw is installed — a LAN scan needs one of them",
+        "Neither nmcli nor iw is installed — a Wi-Fi scan needs one of them",
     ):
         assert note in NET, note
     for marker in (

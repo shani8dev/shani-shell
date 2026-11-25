@@ -1,4 +1,5 @@
-// Network Tools: LAN scan (nmcli/iw), ping, DNS (dig +short) and whois, in one
+// Network Tools: a Wi-Fi scan (the networks in range: nmcli/iw - shown as
+// "Wi-Fi scan"; its id stays "LAN scan"), ping, DNS (dig +short) and whois, in one
 // window. Every command runs through a fixed "sh -c" script with the person's
 // input passed as positional arguments ($1, $2); the script text is a literal,
 // so a host like "example.com; rm -rf ~" can never become shell code. Hosts are
@@ -82,9 +83,9 @@ AppWindow {
     function collect(kind, target, output) {
         const text = String(output || "");
         const trimmed = text.trim();
-        if (trimmed === "NO_TOOLS") { win.note = "Neither nmcli nor iw is installed — a LAN scan needs one of them"; return; }
-        if (trimmed === "NO_DIG") { win.note = "dig is not installed (install dnsutils to resolve names)"; return; }
-        if (trimmed === "NO_WHOIS") { win.note = "whois is not installed — install it to look up registrations"; return; }
+        if (trimmed === "NO_TOOLS") { win.note = Tr.t("Neither nmcli nor iw is installed — a Wi-Fi scan needs one of them"); return; }
+        if (trimmed === "NO_DIG") { win.note = Tr.t("dig is not installed (install bind to resolve names)"); return; }
+        if (trimmed === "NO_WHOIS") { win.note = Tr.t("whois is not installed — install it to look up registrations"); return; }
         if (trimmed === "") return;
         const when = Qt.formatDateTime(new Date(), "HH:mm:ss");
         const rows = [];
@@ -240,7 +241,7 @@ AppWindow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
                 Repeater {
-                    model: [{ id: "LAN scan", label: "LAN scan" }, { id: "Ping", label: "Ping" }, { id: "DNS", label: "DNS" }, { id: "Whois", label: "Whois" }]
+                    model: [{ id: "LAN scan", label: Tr.t("Wi-Fi scan") }, { id: "Ping", label: "Ping" }, { id: "DNS", label: "DNS" }, { id: "Whois", label: "Whois" }]
                     Choice {
                         required property var modelData
                         text: modelData.label
@@ -322,7 +323,7 @@ AppWindow {
                 Layout.fillHeight: true
                 icon: "network-workgroup"
                 title: "No results yet"
-                subtitle: "Scan the local network, or run a ping, DNS or whois lookup"
+                subtitle: Tr.t("See the Wi-Fi networks in range, or run a ping, DNS or whois lookup")
                 actionText: "Run " + win.tool
                 onAction: win.run(win.tool)
             }

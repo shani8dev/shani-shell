@@ -15,7 +15,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 # ignored on purpose (.gitignore): run output and tool caches
-IGNORED_OK = {"out", "__pycache__", ".pytest_cache", ".ruff_cache", ".serena", ".git"}
+IGNORED_OK = {"out", "__pycache__", ".pytest_cache", ".ruff_cache", ".serena", ".codegraph", ".git"}
 
 
 def tracked_top_level():
@@ -38,7 +38,7 @@ def test_no_stray_entries_at_the_top():
 
 def test_ignore_covers_the_output_and_cache_places():
     ignore = (ROOT / ".gitignore").read_text().split()
-    for place in ("out/", "__pycache__/", ".pytest_cache/", ".ruff_cache/", ".serena/"):
+    for place in ("out/", "__pycache__/", ".pytest_cache/", ".ruff_cache/", ".serena/", ".codegraph/"):
         assert place in ignore, place
 
 
