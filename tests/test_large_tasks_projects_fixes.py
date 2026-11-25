@@ -143,27 +143,19 @@ def test_bulk_actions_are_uid_keyed_and_never_touch_hidden_tasks():
     assert f.count("const a = Array.isArray(list) ? list : [];") >= 2
 
 
-def test_clear_done_needs_two_taps():
+def test_clear_and_bulk_delete_use_confirm_button():
     s = window()
-    assert "property bool confirmClear: false" in s
-    assert (
-        "Timer { id: clearTimer; interval: 4000; onTriggered: win.confirmClear = false }"
-        in s
-    )
-    assert "function clearDone() {" in s
-    assert (
-        "if (!win.confirmClear) { win.confirmClear = true; clearTimer.restart(); return; }"
-        in s
-    )
+    assert "id: clearDoneConfirm" in s
+    assert 'text: Tr.t("Clear done")' in s
+    assert 'armedText: Tr.t("Tap again to clear done")' in s
+    assert "onConfirmed: win.clearDone()" in s
+    assert "id: bulkDeleteConfirm" in s
+    assert 'text: Tr.t("Delete")' in s
+    assert 'armedText: Tr.t("Tap again to delete")' in s
+    assert "onConfirmed: win.bulkDelete()" in s
     assert "Tasks.removeMany(Tasks.done);" in s
-    assert (
-        'win.confirmClear ? Tr.t("Tap again to clear done") : Tr.t("Clear done")' in s
-    )
-    assert (
-        "Timer { id: bulkTimer; interval: 4000; onTriggered: win.confirmBulk = false }"
-        in s
-    )
-    assert 'win.confirmBulk ? Tr.t("Tap again to delete") : Tr.t("Delete")' in s
+    for stale in ("confirmClear", "confirmBulk", "clearTimer", "bulkTimer"):
+        assert stale not in s
 
 
 def test_sort_by_project_is_available_and_stable():

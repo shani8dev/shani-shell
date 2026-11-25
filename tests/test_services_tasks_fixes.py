@@ -47,20 +47,17 @@ def test_services_windows_show_empty_states():
     assert "visible: cronList.count === 0 && !SysServices.busy" in s
 
 
-def test_cron_remove_requires_two_tap_confirmation():
+def test_cron_remove_uses_confirm_button():
     s = read("shani/Modules/Services/ServicesWindow.qml")
-    assert "property int confirmCron: -1" in s
-    assert (
-        "Timer { id: cronConfirmTimer; interval: 4000; onTriggered: win.confirmCron = -1 }"
-        in s
-    )
-    assert (
-        'win.confirmCron === modelData.index ? Tr.t("Tap again to remove") : Tr.t("Remove")'
-        in s
-    )
-    assert "SysServices.cronRemove(modelData.index);" in s
-    assert "win.confirmCron = modelData.index;" in s
-    assert "cronConfirmTimer.restart();" in s
+    assert "extra: ConfirmButton {" in s
+    assert "id: cronRemoveConfirm" in s
+    assert 'text: Tr.t("Remove")' in s
+    assert 'armedText: Tr.t("Tap again to remove")' in s
+    assert 'kind: "danger"' in s
+    assert "interval: 4000" in s
+    assert 'Accessible.name: text + " " + modelData.line' in s
+    assert "onConfirmed: SysServices.cronRemove(modelData.index)" in s
+    assert "property int confirmCron" not in s and "cronConfirmTimer" not in s
 
 
 def test_tasks_empty_state_is_filter_aware_and_show_done_scoped():

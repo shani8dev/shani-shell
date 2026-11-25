@@ -34,7 +34,6 @@ AppWindow {
     property string lockMode: ""            // "" | "set" | "check" — the passphrase box
     property string lockPass: ""
     // delete asks first: a note is a file on disk; it goes to Trash, not rm
-    property bool confirmDelete: false
     property bool confirmNotebook: false
     property string bodyQuery: ""
     property string tagFilter: ""
@@ -51,14 +50,15 @@ AppWindow {
     readonly property string currentId: Services.QuickNotes.noteId(Services.QuickNotes.current, Services.QuickNotes.currentNotebook)
     // any narrowing at all: an empty list is "no match", not "no notes"
     readonly property bool hasFilter: filterText !== "" || tagFilter !== "" || selectedNotebook !== ""
-    Timer { id: deleteTimer; interval: 4000; onTriggered: win.confirmDelete = false }
     Timer { id: notebookTimer; interval: 4000; onTriggered: win.confirmNotebook = false }
     // a pending "tap again" belongs to the item it was armed on: switching
     // notes or notebooks must not delete the new selection on one tap
     Connections {
         target: Services.QuickNotes
         function onCurrentChanged() {
-            win.confirmDelete = false;
+            // switching notes cancels the pending two-tap delete (the button
+            // exists by the time a real note switch happens)
+            if (deleteNoteConfirm) deleteNoteConfirm.disarm();
             win.note = "";
             win.historyIndex = -1;
             win.targetNotebook = "";
@@ -393,20 +393,16 @@ AppWindow {
                     Button { text: Tr.t("Export HTML"); enabled: Services.QuickNotes.current !== "" && (!Services.QuickNotes.locked || Services.QuickNotes.unlocked); onClicked: Services.QuickNotes.exportHtml() }
                     Button { text: Tr.t("Print"); enabled: Services.QuickNotes.current !== "" && (!Services.QuickNotes.locked || Services.QuickNotes.unlocked); onClicked: Services.QuickNotes.printNote() }
                     // the note is a file on disk: ask before it goes
-                    Button {
-                        text: win.confirmDelete ? Tr.t("Tap again to delete") : Tr.t("Delete")
+                    ConfirmButton {
+                        id: deleteNoteConfirm
+                        implicitWidth: Math.max(Theme.touchTarget, armedText.length * 8 + 28)
+                        implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
+                        text: Tr.t("Delete")
+                        armedText: Tr.t("Tap again to delete")
                         kind: "danger"
+                        interval: 4000
                         enabled: Services.QuickNotes.current !== ""
-                        onClicked: {
-                            if (Services.QuickNotes.current === "") return;
-                            if (win.confirmDelete) {
-                                Services.QuickNotes.remove(Services.QuickNotes.current, Services.QuickNotes.currentNotebook);
-                                win.confirmDelete = false;
-                            } else {
-                                win.confirmDelete = true;
-                                deleteTimer.restart();
-                            }
-                        }
+                        onConfirmed: Services.QuickNotes.remove(Services.QuickNotes.current, Services.QuickNotes.currentNotebook)
                     }
                 }
 

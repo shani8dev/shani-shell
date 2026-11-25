@@ -633,13 +633,13 @@ AppWindow {
                     ConfirmButton {
                         id: removeAppConfirm
                         visible: !!appCol.a.installed
-                        enabled: !jobProc.running
+                        armedText: Tr.t("Click again to remove")
                         implicitWidth: Math.max(Theme.touchTarget, armedText.length * 8 + 28)
                         implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
                         text: Tr.t("Remove")
-                        armedText: Tr.t("Click again to remove")
                         kind: "danger"
                         interval: 4000
+                        enabled: !jobProc.running
                         onConfirmed: win.runJob(["remove", appCol.a.id], appCol.a.id)
                     }
                     Button { visible: !appCol.a.installed; kind: "primary"; text: jobProc.running && win.job === appCol.a.id ? Tr.t("Installing…") : Tr.t("Install"); enabled: !jobProc.running; onClicked: win.runJob(["install", appCol.a.id], appCol.a.id) }

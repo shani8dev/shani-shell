@@ -68,13 +68,11 @@ ColumnLayout {
         }
     }
 
-    property bool confirmingReset: false      // the two-tap "reset everything" guard
     // how many keys in each category differ from the shipped defaults (counted
     // on open and after every reset - a tiny fixed cost, never during typing)
     property var modified: ({})
     // the settings matching the query, for the results row (see SettingsIndex.js)
     property var settingsMatches: []
-    property bool confirmResetSection: false  // the two-tap "reset this section" guard guard
     readonly property var tileNames: ({ wifi: "Wi-Fi", bluetooth: "Bluetooth", airplane: "Airplane mode", mobile: "Mobile data", hotspot: "Hotspot", vpn: "VPN",
         dnd: "Do Not Disturb", focus: "Focus", phone: "Phone", timer: "Focus timer", caffeine: "Caffeine", power: "Power mode",
         nightlight: "Night light", dark: "Dark style", mic: "Microphone", camera: "Camera", record: "Screen record",
@@ -302,20 +300,16 @@ ColumnLayout {
             font.family: Theme.font
             font.pixelSize: Theme.px(11) * Theme.fontScale
         }
-        Button {
-            kind: page.confirmResetSection ? "danger" : "plain"
-            text: page.confirmResetSection ? Tr.t("Tap again to reset") : Tr.t("Reset this section")
-            onClicked: {
-                if (!page.confirmResetSection) {
-                    page.confirmResetSection = true;
-                    sectionResetTimer.restart();
-                    return;
-                }
-                page.resetSection();
-                page.confirmResetSection = false;
-            }
+        ConfirmButton {
+            id: resetSectionConfirm
+            implicitWidth: Math.max(Theme.touchTarget, armedText.length * 8 + 28)
+            implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
+            text: Tr.t("Reset this section")
+            armedText: Tr.t("Tap again to reset")
+            kind: resetSectionConfirm.armed ? "danger" : "plain"
+            interval: 4000
+            onConfirmed: page.resetSection()
         }
-        Timer { id: sectionResetTimer; interval: 4000; onTriggered: page.confirmResetSection = false }
     }
     GridLayout {
         Layout.fillWidth: true
@@ -399,21 +393,16 @@ ColumnLayout {
                     font.family: Theme.font
                     font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
-                Button {
+                ConfirmButton {
+                    id: resetAllConfirm
                     Layout.fillWidth: true
-                    kind: page.confirmingReset ? "danger" : "plain"
-                    text: page.confirmingReset ? Tr.t("Tap again to reset everything") : Tr.t("Reset all settings to their defaults")
-                    onClicked: {
-                        if (!page.confirmingReset) {
-                            page.confirmingReset = true;
-                            resetTimer.restart();
-                            return;
-                        }
-                        page.resetAll();
-                        page.confirmingReset = false;
-                    }
+                    implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
+                    text: Tr.t("Reset all settings to their defaults")
+                    armedText: Tr.t("Tap again to reset everything")
+                    kind: resetAllConfirm.armed ? "danger" : "plain"
+                    interval: 4000
+                    onConfirmed: page.resetAll()
                 }
-                Timer { id: resetTimer; interval: 4000; onTriggered: page.confirmingReset = false }
             }
         }
     }
@@ -1109,6 +1098,20 @@ ColumnLayout {
                     hint: Tr.t("docked and on its own, each keeps the layout you last used there")
                     checked: page.d.layoutFollowsDock
                     onToggled: on => page.d.layoutFollowsDock = on
+                }
+                SwitchRow {
+                    Layout.fillWidth: true
+                    text: Tr.t("Left workspace rail")
+                    hint: Tr.t("a slim strip of workspaces down the left edge")
+                    checked: page.d.leftRail
+                    onToggled: on => page.d.leftRail = on
+                }
+                SwitchRow {
+                    Layout.fillWidth: true
+                    text: Tr.t("Edge swipes")
+                    hint: Tr.t("swipe a screen's edges on a touch device")
+                    checked: page.d.edgeSwipes
+                    onToggled: on => page.d.edgeSwipes = on
                 }
 
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("Quick tiles") }

@@ -10,7 +10,7 @@ CALC = (ROOT / "shani/Modules/Calculator/Calculator.qml").read_text(encoding="ut
 def test_note_switch_drops_pending_delete_and_history():
     conn = NOTES[NOTES.index("target: Services.QuickNotes") :]
     assert "function onCurrentChanged()" in conn
-    assert "win.confirmDelete = false;" in conn
+    assert "deleteNoteConfirm.disarm();" in conn
     assert 'win.note = "";' in conn
     assert "win.showHistory = false;" in conn
 

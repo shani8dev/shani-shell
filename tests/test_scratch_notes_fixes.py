@@ -37,7 +37,7 @@ def test_delete_confirmation_does_not_survive_selection_change():
     # stronger than the original one-liner: a switch also drops a stale editor
     # body and a history view that belonged to the previous note
     handler = PANEL[PANEL.index("function onCurrentChanged()") :]
-    assert "win.confirmDelete = false;" in handler
+    assert "deleteNoteConfirm.disarm();" in handler
     assert 'win.note = "";' in handler
     assert "win.showHistory = false;" in handler
 

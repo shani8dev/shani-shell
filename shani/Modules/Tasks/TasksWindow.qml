@@ -33,8 +33,6 @@ AppWindow {
     property bool selectMode: false
     property var selected: []         // uids, never row indexes
     property var noteTask: null
-    property bool confirmClear: false
-    property bool confirmBulk: false
     readonly property var smartLists: [
         ["all", Tr.t("All")], ["today", Tr.t("Today")], ["upcoming", Tr.t("Upcoming")],
         ["overdue", Tr.t("Overdue")], ["completed", Tr.t("Completed")], ["nodate", Tr.t("No date")]
@@ -49,8 +47,6 @@ AppWindow {
     // index: a refresh or a filter change between the taps reorders the rows.
     property string confirmTask: ""
     Timer { id: taskTimer; interval: 4000; onTriggered: win.confirmTask = "" }
-    Timer { id: clearTimer; interval: 4000; onTriggered: win.confirmClear = false }
-    Timer { id: bulkTimer; interval: 4000; onTriggered: win.confirmBulk = false }
     onVisibleChanged: if (visible) Tasks.refresh()
 
     function at(days, hour) { const d = new Date(); d.setDate(d.getDate() + days); d.setHours(hour, 0, 0, 0); return Math.floor(d.getTime() / 1000); }
@@ -127,7 +123,7 @@ AppWindow {
         win.selected = a;
     }
     function selectAllNow() { win.selected = win.visibleTasks().map(t => t.uid); }
-    function clearSelection() { win.selected = []; win.selectMode = false; win.confirmBulk = false; }
+    function clearSelection() { win.selected = []; win.selectMode = false; }
     function activate(t) {
         if (win.selectMode) win.toggleSelected(t.uid);
         else Tasks.setDone(t, !t.done);
@@ -137,15 +133,10 @@ AppWindow {
         win.clearSelection();
     }
     function bulkDelete() {
-        if (!win.confirmBulk) { win.confirmBulk = true; bulkTimer.restart(); return; }
         Tasks.removeMany(win.visibleTasks().filter(t => win.selected.indexOf(t.uid) !== -1));
         win.clearSelection();
     }
-    function clearDone() {
-        if (!win.confirmClear) { win.confirmClear = true; clearTimer.restart(); return; }
-        Tasks.removeMany(Tasks.done);
-        win.confirmClear = false;
-    }
+    function clearDone() { Tasks.removeMany(Tasks.done); }
 
     Item {
         anchors.fill: parent
@@ -194,7 +185,7 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
-                TextField {
+                SearchField {
                     id: searchField
                     Layout.fillWidth: true
                     placeholder: Tr.t("Find a task ( / )")
@@ -202,7 +193,6 @@ AppWindow {
                     onTextChanged: win.search = text
                     Keys.onEscapePressed: e => { if (text !== "") { win.clearSearch(); e.accepted = true; } }
                 }
-                IconButton { size: Theme.px(24); icon: "edit-clear"; tip: Tr.t("Clear search"); enabled: win.search !== ""; onClicked: win.clearSearch() }
             }
             Flow {
                 Layout.fillWidth: true
@@ -392,18 +382,28 @@ AppWindow {
                     text: Tr.t("Complete") + " (" + win.selected.length + ")"
                     onClicked: win.bulkComplete()
                 }
-                Button {
+                ConfirmButton {
+                    id: bulkDeleteConfirm
                     visible: win.selectMode
-                    flat: true
                     enabled: win.selected.length > 0
-                    text: win.confirmBulk ? Tr.t("Tap again to delete") : Tr.t("Delete")
-                    onClicked: win.bulkDelete()
+                    implicitWidth: Math.max(Theme.touchTarget, armedText.length * 8 + 28)
+                    implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
+                    text: Tr.t("Delete")
+                    armedText: Tr.t("Tap again to delete")
+                    kind: bulkDeleteConfirm.armed ? "danger" : "plain"
+                    interval: 4000
+                    onConfirmed: win.bulkDelete()
                 }
-                Button {
+                ConfirmButton {
+                    id: clearDoneConfirm
                     visible: !win.selectMode && Tasks.done.length > 0
-                    flat: true
-                    text: win.confirmClear ? Tr.t("Tap again to clear done") : Tr.t("Clear done")
-                    onClicked: win.clearDone()
+                    implicitWidth: Math.max(Theme.touchTarget, armedText.length * 8 + 28)
+                    implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
+                    text: Tr.t("Clear done")
+                    armedText: Tr.t("Tap again to clear done")
+                    kind: clearDoneConfirm.armed ? "danger" : "plain"
+                    interval: 4000
+                    onConfirmed: win.clearDone()
                 }
             }
 

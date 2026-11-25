@@ -15,11 +15,9 @@ AppWindow {
     implicitWidth: Theme.px(860)
     implicitHeight: Theme.px(640)
 
-    property int confirmCron: -1
     // The service only writes these two strings on success; everything else
     // it puts in note is a failure. One flag keeps the banner honest.
     readonly property bool noteOk: SysServices.note === Tr.t("Saved") || SysServices.note === Tr.t("Job removed")
-    Timer { id: cronConfirmTimer; interval: 4000; onTriggered: win.confirmCron = -1 }
 
     tools: [
         IconButton { icon: "view-refresh"; tip: Tr.t("Refresh"); size: Theme.px(26); on: SysServices.busy; onClicked: SysServices.refresh() }
@@ -156,21 +154,17 @@ AppWindow {
                 icon: "preferences-system-time"
                 title: modelData.line
                 subtitle: Tr.t("Entry %1", modelData.index + 1)
-                extra: Button {
-                    text: win.confirmCron === modelData.index ? Tr.t("Tap again to remove") : Tr.t("Remove")
-                    flat: true
+                extra: ConfirmButton {
+                    id: cronRemoveConfirm
+                    implicitWidth: Math.max(Theme.touchTarget, armedText.length * 8 + 28)
+                    implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
+                    text: Tr.t("Remove")
+                    armedText: Tr.t("Tap again to remove")
                     kind: "danger"
+                    interval: 4000
                     enabled: !SysServices.busy
-                    Accessible.name: (win.confirmCron === modelData.index ? Tr.t("Tap again to remove") : Tr.t("Remove")) + " " + modelData.line
-                    onClicked: {
-                        if (win.confirmCron === modelData.index) {
-                            SysServices.cronRemove(modelData.index);
-                            win.confirmCron = -1;
-                        } else {
-                            win.confirmCron = modelData.index;
-                            cronConfirmTimer.restart();
-                        }
-                    }
+                    Accessible.name: text + " " + modelData.line
+                    onConfirmed: SysServices.cronRemove(modelData.index)
                 }
             }
             EmptyState {

@@ -64,14 +64,11 @@ def test_update_all_is_confirmed_and_shows_its_scope():
     w = QML.read_text()
     # exactly one launch site, behind a two-tap confirm (the window's Remove pattern)
     assert w.count('runJob(["update-all"]') == 1
-    assert 'win.confirmUpdateAll = false; win.runJob(["update-all"], "all")' in w
-    assert (
-        'text: win.confirmUpdateAll ? Tr.t("Click again to update all") : Tr.t("Update all")'
-        in w
-    )
+    assert "onConfirmed:" in w and "runJob(" in w
+    assert 'Tr.t("Click again to update all")' in w and 'Tr.t("Update all")' in w
     assert 'Tr.t("Update %1 apps:", win.updates)' in w
     assert 'Tr.t("Total size: %1", win.updateSize())' in w
-    assert "confirmTimer.restart()" in w
+    assert "id: updateAllConfirm" in w and "interval: 4000" in w
 
 
 def test_skip_version_is_persisted_and_hides_the_update(tmp_path):
