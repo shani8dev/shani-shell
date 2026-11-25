@@ -155,7 +155,9 @@ def test_shift_click_range_selection():
 def test_album_writes_are_routed_to_a_real_function():
     """`Photos.createAlbum` had no service singleton behind it."""
     s = source()
-    assert "id: Photos" in s
+    # the album writer lives in a local QtObject helper (QML ids cannot start
+    # uppercase; the concurrent wave renamed it photosApi)
+    assert "photosApi" in s or "id: Photos" in s
     assert "function createAlbum(name, paths) { win.createAlbum(name, paths); }" in s
     assert "function createAlbum(name, photoPaths)" in s
     # the + Album button passed photo objects; the writer needs paths
