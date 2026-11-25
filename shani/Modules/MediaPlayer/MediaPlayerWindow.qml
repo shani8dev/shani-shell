@@ -307,7 +307,9 @@ AppWindow {
     }
     function playStreamUrl(u) {
         const url = String(u || "").trim();
-        if (/^https?:\/\//.test(url)) { PlayQueue.playStream(url); win.streamShown = false; return true; }
+        // the old /^https?:\/\// check left cameras and RTMP feeds out; the
+        // service's allowlist is the one place that decides what is a stream
+        if (PlayQueue.validStreamUrl(url)) { PlayQueue.playStream(url); win.streamShown = false; return true; }
         return false;
     }
     property bool streamShown: false
@@ -745,63 +747,16 @@ AppWindow {
                                 Layout.fillWidth: true
                                 placeholder: "https://…"
                                 label: Tr.t("Stream address")
+                                mode: "url"
                                 onAccepted: { win.streamError = !win.playStreamUrl(text); }
                             }
-                            Text { visible: win.streamError; text: Tr.t("Enter an http(s) address"); color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                            Text { visible: win.streamError; text: Tr.t("Enter an http, rtsp or rtmp address"); color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                            Text { text: Tr.t("http(s), rtsp, rtmp, udp, tcp, srt, ftp or mms"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
                             RowLayout {
                                 Layout.fillWidth: true
                                 Item { Layout.fillWidth: true }
                                 Button { text: Tr.t("Play stream"); kind: "primary"; onClicked: { win.streamError = !win.playStreamUrl(streamField.text); } }
                             }
-                        }
-                    }
-
-                    // ---- recent media: files with a saved resume point ----
-                    Rectangle {
-                        anchors { top: parent.top; right: parent.right; margins: Theme.px(12) }
-                        visible: win.recentShown
-                        width: Theme.px(320)
-                        implicitHeight: Math.min(360, recentCol.implicitHeight + 24)
-                        radius: Theme.radiusSmall
-                        color: Theme.alpha(Theme.bg, 0.96)
-                        border.width: 1
-                        border.color: Theme.border
-                        MouseArea { anchors.fill: parent; objectName: "nav:pointer" }
-                        ColumnLayout {
-                            id: recentCol
-                            x: 12; y: 12
-                            width: parent.width - 24
-                            spacing: Theme.px(6)
-                            SectionTitle { Layout.fillWidth: true; text: Tr.t("Recent media") }
-                            ListView {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                clip: true
-                                model: PlayQueue.recent
-                                delegate: Rectangle {
-                                    required property string modelData
-                                    width: ListView.view.width
-                                    height: Theme.px(34)
-                                    radius: Theme.radiusSmall
-                                    color: recentArea.containsMouse ? Theme.hover : "transparent"
-                                    Text {
-                                        anchors { left: parent.left; right: parent.right; margins: Theme.px(8); verticalCenter: parent.verticalCenter }
-                                        text: modelData.split("/").pop() + "  ·  " + PlayQueue.clock(PlayQueue.resumePoint(modelData))
-                                        color: Theme.text
-                                        elide: Text.ElideMiddle
-                                        font.family: Theme.font
-                                        font.pixelSize: Theme.px(11) * Theme.fontScale
-                                    }
-                                    MouseArea {
-                                        id: recentArea
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: { PlayQueue.playRecent(modelData); win.recentShown = false; }
-                                    }
-                                }
-                            }
-                            Text { visible: PlayQueue.recent.length === 0; text: Tr.t("Nothing watched yet"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                         }
                     }
 
@@ -1051,6 +1006,37 @@ AppWindow {
                         SectionTitle { Layout.fillWidth: true; text: Tr.t("Queue") + "  ·  " + PlayQueue.queue.length }
                         Button { text: Tr.t("Clear"); flat: true; enabled: PlayQueue.queue.length > 0; onClicked: PlayQueue.clear() }
                     }
+                    // the queue is session-only: .m3u is the way to keep it
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.px(6)
+                        Button {
+                            Layout.fillWidth: true
+                            text: Tr.t("Save .m3u…")
+                            enabled: PlayQueue.queue.length > 0
+                            onClicked: FilePicker.open({ mode: "save", title: Tr.t("Save the queue as a playlist"),
+                                filters: ["m3u"], defaultName: "playlist.m3u",
+                                startPath: PlayQueue.current !== "" ? PlayQueue.current.substring(0, PlayQueue.current.lastIndexOf("/")) : (Quickshell.env("HOME") + "/Music"),
+                                onPicked: paths => { if (paths.length) PlayQueue.saveQueueM3u(paths[0]); } })
+                        }
+                        Button {
+                            Layout.fillWidth: true
+                            text: Tr.t("Load .m3u…")
+                            onClicked: FilePicker.open({ mode: "open", title: Tr.t("Load a playlist"),
+                                filters: ["m3u", "m3u8"],
+                                startPath: (Quickshell.env("HOME") || "") + "/Music",
+                                onPicked: paths => { if (paths.length) PlayQueue.loadPlaylistM3u(paths[0]); } })
+                        }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: PlayQueue.playlistNote !== ""
+                        text: PlayQueue.playlistNote
+                        color: Theme.faint
+                        wrapMode: Text.Wrap
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                    }
                     ListView {
                         reuseItems: true
                         cacheBuffer: 400
@@ -1093,6 +1079,75 @@ AppWindow {
                         }
                     }
                 }
+            }
+        }
+
+        // ---- recent media: over the Library or what is playing, so the list
+        // is reachable from the tab people start in ----
+        Rectangle {
+            z: 5
+            anchors { top: parent.top; right: parent.right; margins: Theme.px(12) }
+            visible: win.recentShown && !win.mini && (win.page === "library" || win.page === "playing")
+            width: Theme.px(320)
+            implicitHeight: Math.min(360, recentCol.implicitHeight + 24)
+            radius: Theme.radiusSmall
+            color: Theme.alpha(Theme.bg, 0.96)
+            border.width: 1
+            border.color: Theme.border
+            MouseArea { anchors.fill: parent; objectName: "nav:pointer" }
+            ColumnLayout {
+                id: recentCol
+                x: 12; y: 12
+                width: parent.width - 24
+                spacing: Theme.px(6)
+                RowLayout {
+                    Layout.fillWidth: true
+                    SectionTitle { Layout.fillWidth: true; text: Tr.t("Recent media") }
+                    Button {
+                        text: Tr.t("Clear")
+                        flat: true
+                        enabled: PlayQueue.recent.length > 0
+                        Accessible.name: Tr.t("Clear recent media")
+                        onClicked: PlayQueue.clearRecent()
+                    }
+                }
+                ListView {
+                    Layout.fillWidth: true
+                    // implicitHeight only counts the header: without this the
+                    // card renders as a title with no rows in it
+                    Layout.preferredHeight: Math.min(Theme.px(238), Math.max(Theme.px(34), PlayQueue.recent.length * Theme.px(34)))
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    model: PlayQueue.recentRows
+                    delegate: Rectangle {
+                        id: recentRow
+                        required property var modelData
+                        width: ListView.view.width
+                        height: Theme.px(34)
+                        radius: Theme.radiusSmall
+                        color: recentArea.containsMouse ? Theme.hover : "transparent"
+                        Accessible.role: Accessible.ListItem
+                        Accessible.name: (recentRow.modelData.title || recentRow.modelData.path) + ", " + Tr.t("Play")
+                        Accessible.onPressAction: { PlayQueue.playRecent(recentRow.modelData.path); win.recentShown = false; }
+                        Text {
+                            anchors { left: parent.left; right: parent.right; margins: Theme.px(8); verticalCenter: parent.verticalCenter }
+                            text: recentRow.modelData.title || String(recentRow.modelData.path).split("/").pop()
+                            color: Theme.text
+                            elide: Text.ElideMiddle
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                        }
+                        MouseArea {
+                            id: recentArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: { PlayQueue.playRecent(recentRow.modelData.path); win.recentShown = false; }
+                        }
+                        KeyFocus { onActivated: { PlayQueue.playRecent(recentRow.modelData.path); win.recentShown = false; } }
+                    }
+                }
+                Text { visible: PlayQueue.recent.length === 0; text: Tr.t("Nothing played yet"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
             }
         }
     }

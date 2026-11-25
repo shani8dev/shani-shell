@@ -28,7 +28,7 @@ Singleton {
     onFileChanged: {
         root.raw = ({});
         root.details = [];
-        if (!file || /^https?:/.test(file)) { line = ""; loading = false; return; }
+        if (!file || PlayQueue.isStream) { line = ""; loading = false; return; }
         info.running = false;
         info.running = true;
         loading = true;

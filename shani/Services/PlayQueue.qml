@@ -20,8 +20,15 @@ Singleton {
     property int index: -1
     readonly property string current: index >= 0 && index < queue.length ? queue[index] : ""
     readonly property string name: isStream ? (streamNames[current] || current) : current.split("/").pop()
-    // a radio station (Radio.qml): its address in the queue, its name and picture here
-    readonly property bool isStream: /^https?:\/\//.test(current)
+    // a radio station (Radio.qml): its address in the queue, its name and picture here.
+    // Cameras (rtsp), live feeds (rtmp) and http(s) all go straight to the
+    // player: one allowlist, no shell, no local-file fallback for a URL.
+    readonly property var streamSchemes: ["http", "https", "rtsp", "rtsps", "rtmp", "rtmps", "rtmpe", "udp", "tcp", "srt", "ftp", "ftps", "mms", "mmsh"]
+    function validStreamUrl(u) {
+        const m = /^([a-z][a-z0-9+.-]*):\/\//i.exec(String(u || "").trim());
+        return !!m && root.streamSchemes.indexOf(m[1].toLowerCase()) >= 0;
+    }
+    readonly property bool isStream: validStreamUrl(current)
     property var streamNames: ({})
     property string streamPicture: ""
     function playStream(url, title, picture) {
@@ -61,7 +68,7 @@ Singleton {
     property real resumedFrom: 0          // where the one playing was resumed from (0: from the start)
     property string resumedPath: ""       // which file that was: only another one clears it
     function remember(path, pos, dur) {
-        if (!path || dur < 120 || /^https?:/.test(path))     // a stream has no place to come back to
+        if (!path || dur < 120 || root.validStreamUrl(path)) // a stream has no place to come back to
             return;
         const m = Object.assign({}, resumeAt);
         delete m[path];
@@ -75,6 +82,9 @@ Singleton {
     }
     function forget(path) { remember(path, 0, 9999); }
     function resumePoint(path) { return resumeAt[path] || 0; }
+    // the old resume-only reading, kept for readers that want it; the UI now
+    // shows the persisted recent list below, which includes streams as well
+    readonly property var resumeRecent: Object.keys(resumeAt).sort((a, b) => resumeAt[b] - resumeAt[a])
     FileView {
         id: resumeStore
         path: Quickshell.statePath("media-resume.json")
@@ -83,9 +93,56 @@ Singleton {
     }
     Timer { id: resumeSave; interval: 1500; onTriggered: resumeStore.setText(JSON.stringify(root.resumeAt)) }
 
-    // ---- recent media: files with resume points, most recently played first ----
-    readonly property var recent: Object.keys(resumeAt).sort((a, b) => resumeAt[b] - resumeAt[a])
-    function playRecent(path) { if (path) open(path); }
+    // ---- recent media: the last things played, newest first, kept in a
+    // sibling of the settings file (as OSK does) so a restart does not forget
+    // them. Streams are listed by address; resume points stay in resumeAt.
+    readonly property string recentPrefsDir: {
+        const p = Settings.path;
+        return p.substring(0, p.lastIndexOf("/"));
+    }
+    readonly property int recentCap: 20
+    FileView {
+        id: recentFile
+        path: root.recentPrefsDir + "/media-recent.json"
+        atomicWrites: true
+        printErrors: false
+        onLoaded: root.recentLoaded = true
+        onLoadFailed: root.recentLoaded = true
+        onAdapterUpdated: root.recentLoaded = true
+        // a list of JSON strings: JsonAdapter reads typed lists, not a bare var
+        JsonAdapter { id: recentPrefs; property list<string> items: [] }
+    }
+    property bool recentLoaded: false
+    // pure: one row per address, newest first, never longer than recentCap
+    function recentAdd(items, entry) {
+        if (!entry || !entry.path)
+            return items;
+        const p = String(entry.path);
+        const rest = (items || []).filter(x => x && x.path !== p);
+        return [Object.assign({ path: p, title: "", at: 0 }, entry)].concat(rest).slice(0, root.recentCap);
+    }
+    readonly property var recentRows: (recentPrefs.items || []).map(s => {
+        try { return JSON.parse(s); } catch (e) { return null; }
+    }).filter(x => x && x.path)
+    readonly property var recent: recentRows.map(x => x.path)
+    function rememberRecent(path, title) {
+        if (!root.recentLoaded || !path)
+            return;
+        recentPrefs.items = root.recentAdd(root.recentRows, { path: String(path), title: title || "", at: Date.now() }).map(x => JSON.stringify(x));
+        recentFile.writeAdapter();
+    }
+    function playRecent(path) {
+        if (!path)
+            return;
+        if (root.validStreamUrl(path))
+            root.playStream(path);
+        else
+            root.open(path);
+    }
+    function clearRecent() {
+        recentPrefs.items = [];
+        recentFile.writeAdapter();
+    }
 
     // ---- playlists of its own: the person's own lists, kept as JSON in the
     // shell's state folder (like the resume points), each { name, paths }.
@@ -141,6 +198,64 @@ Singleton {
         }
     }
 
+    // ---- .m3u in and out: bridge/playlist.py parses and writes the format;
+    // the queue owns the entries. Only local paths and allowed stream
+    // addresses are taken back in, so a playlist cannot point the player at
+    // anything else. The bridge takes argv only and never runs a shell.
+    readonly property string playlistTool: Quickshell.env("SHANI_PLAYLIST_TOOL") || "/usr/lib/shani-shell/playlist.py"
+    property string playlistNote: ""
+    function saveQueueM3u(path) {
+        const p = String(path || "").trim();
+        if (!p.startsWith("/") || root.queue.length === 0)
+            return false;
+        const entries = root.queue.map(x => ({ path: x, title: root.streamNames[x] || "" }));
+        m3uWrite.running = false;
+        m3uWrite.command = ["python3", root.playlistTool, "write", p, JSON.stringify({ entries: entries })];
+        m3uWrite.running = true;
+        return true;
+    }
+    function loadPlaylistM3u(path) {
+        const p = String(path || "").trim();
+        if (!p.startsWith("/"))
+            return false;
+        m3uRead.running = false;
+        m3uRead.command = ["python3", root.playlistTool, "read", p];
+        m3uRead.running = true;
+        return true;
+    }
+    Process {
+        id: m3uWrite
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let d = {};
+                try { d = JSON.parse(text) || {}; } catch (e) {}
+                root.playlistNote = d.error || (d.ok ? Tr.t("Saved %1 tracks", d.count) : Tr.t("Could not save the playlist"));
+            }
+        }
+        onExited: code => { if (code !== 0) root.playlistNote = Tr.t("Could not save the playlist"); }
+    }
+    Process {
+        id: m3uRead
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let d = {};
+                try { d = JSON.parse(text) || {}; } catch (e) {}
+                if (d.error) { root.playlistNote = d.error; return; }
+                const found = d.entries || [];
+                const paths = found.map(x => String(x.path || "")).filter(x => x.startsWith("/") || root.validStreamUrl(x));
+                const names = {};
+                for (const x of found) if (x.title && x.path) names[x.path] = x.title;
+                root.streamNames = Object.assign({}, root.streamNames, names);
+                if (paths.length) {
+                    root.playList(paths, 0);
+                    root.playlistNote = Tr.t("Loaded %1 tracks", paths.length);
+                } else
+                    root.playlistNote = Tr.t("That playlist is empty");
+            }
+        }
+        onExited: code => { if (code !== 0) root.playlistNote = Tr.t("Could not read the playlist"); }
+    }
+
     // ---- A→B loop: jump back to A when the playhead passes B ----
     property real loopA: -1
     property real loopB: -1
@@ -180,6 +295,7 @@ Singleton {
     function setSubtitleShift(s) { subtitleShift = Math.max(-60, Math.min(60, Number(s) || 0)); }
     onCurrentChanged: {
         tellMpris();
+        root.rememberRecent(current, root.streamNames[current] || "");
         if (current !== resumedPath) { resumedFrom = 0; resumedPath = ""; }
         subtitleFile = "";
         root.chapters = [];
@@ -353,7 +469,7 @@ Singleton {
     readonly property string mprisTool: Quickshell.env("SHANI_MPRIS_TOOL") || "/usr/lib/shani-shell/mpris-player.py"
     function mprisState() {
         return JSON.stringify({ status: current === "" ? "Stopped" : playing ? "Playing" : "Paused", title: name,
-            url: current !== "" ? "file://" + current.split("/").map(encodeURIComponent).join("/") : "",
+            url: current !== "" ? (isStream ? current : "file://" + current.split("/").map(encodeURIComponent).join("/")) : "",
             length: duration, position: position, volume: muted ? 0 : volume, rate: rate,
             canNext: queue.length > 1, canPrevious: queue.length > 1,
             loop: repeat === "one" ? "Track" : repeat === "all" ? "Playlist" : "None", shuffle: shuffle }) + "\n";
