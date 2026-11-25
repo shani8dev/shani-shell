@@ -21,15 +21,11 @@ ColumnLayout {
         stdout: StdioCollector { onStreamFinished: page.found = text.trim().split("\n").filter(x => x) }
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Live wallpaper") }
-    Text {
+    SettingsSection {
         Layout.fillWidth: true
-        text: Tr.t("A video behind the desktop, without sound. It plays only while you can see it: it pauses under windows, when the screen is locked or dimmed, and on battery.")
-        color: Theme.dim
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
-    }
+        title: Tr.t("Live wallpaper")
+        hint: Tr.t("A video behind the desktop, without sound. It plays only while you can see it: it pauses under windows, when the screen is locked or dimmed, and on battery.")
+
     Flow {
         Layout.fillWidth: true
         spacing: Theme.px(6)
@@ -56,5 +52,6 @@ ColumnLayout {
         hint: Tr.t("off: it pauses on battery, as a video costs power")
         checked: page.d.wallpaperVideoOnBattery
         onToggled: on => page.d.wallpaperVideoOnBattery = on
+    }
     }
 }

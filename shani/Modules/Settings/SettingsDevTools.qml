@@ -12,17 +12,12 @@ ColumnLayout {
     spacing: Theme.px(12)
     property bool active: false
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Developer tools") }
-    Text {
+    SettingsSection {
         Layout.fillWidth: true
-        text: Tr.t("Quick install of common tools. Installing asks for your password (pkexec) and uses this system's package manager.")
-        color: Theme.dim
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
-        wrapMode: Text.Wrap
-    }
+        title: Tr.t("Developer tools")
+        hint: Tr.t("Quick install of common tools. Installing asks for your password (pkexec) and uses this system's package manager.")
 
-    Repeater {
+        Repeater {
         model: [
             { name: "git", cmd: "git", pkg: "git" },
             { name: "Node.js", cmd: "node", pkg: "nodejs" },
@@ -95,5 +90,6 @@ ColumnLayout {
                 stdout: StdioCollector { onStreamFinished: tool.installed = text.trim() === "yes" }
             }
         }
+    }
     }
 }

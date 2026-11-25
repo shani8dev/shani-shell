@@ -10,11 +10,12 @@ ColumnLayout {
     id: root
     property string title
     property string hint: ""
+    property bool hintVisible: true
     spacing: Theme.px(12)
     SectionTitle { Layout.fillWidth: true; text: root.title }
     Text {
         Layout.fillWidth: true
-        visible: root.hint !== ""
+        visible: root.hint !== "" && root.hintVisible
         text: root.hint
         color: Theme.dim
         wrapMode: Text.Wrap
