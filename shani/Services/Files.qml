@@ -430,7 +430,133 @@ Singleton {
             root.mountImage(p);
             return;
         }
+        if (root.openRoute([p]))
+            return;
         Quickshell.execDetached(["xdg-open", p]);
+    }
+
+    // ---- Files → the shell's own apps ----------------------------------------
+    // The mapping is pure (no services, no Tr): other surfaces can reuse it and
+    // the tests run this very code in node. "" means no shell app owns the type,
+    // so the existing "Open with…" picker and xdg-open stay the fallback.
+    function routeForPath(path, notesDir) {
+        const p = String(path || "");
+        const base = p.slice(p.lastIndexOf("/") + 1).toLowerCase();
+        const dot = base.lastIndexOf(".");
+        const ext = dot > 0 ? base.slice(dot + 1) : "";
+        if (!ext)
+            return "";
+        if (/(?:^|\.)(tar\.(?:gz|bz2|xz|zst)|tgz|tbz2|txz)$/.test(base))
+            return "archive";
+        const routes = {
+            png: "viewer", jpg: "viewer", jpeg: "viewer", webp: "viewer", avif: "viewer",
+            gif: "viewer", bmp: "viewer", tif: "viewer", tiff: "viewer", heic: "viewer",
+            heif: "viewer", svg: "viewer",
+            pdf: "pdf", epub: "pdf", cbz: "pdf", cbr: "pdf", cb7: "pdf", cbt: "pdf",
+            djvu: "pdf", djv: "pdf", xps: "pdf", oxps: "pdf", fb2: "pdf", mobi: "pdf",
+            ps: "pdf", eps: "pdf",
+            zip: "archive", tar: "archive", gz: "archive", xz: "archive", zst: "archive",
+            bz2: "archive", "7z": "archive", rar: "archive", cpio: "archive", jar: "archive",
+            apk: "archive", deb: "archive", rpm: "archive", cab: "archive", lz4: "archive",
+            lzma: "archive", iso: "archive",
+            mp4: "media", mkv: "media", webm: "media", mov: "media", avi: "media",
+            m4v: "media", mpg: "media", mpeg: "media", ogv: "media", wmv: "media",
+            flv: "media", "3gp": "media", ts: "media", mp3: "media", flac: "media",
+            ogg: "media", oga: "media", opus: "media", m4a: "media", aac: "media",
+            wav: "media", wma: "media", aiff: "media", mka: "media",
+            txt: "text", md: "text", markdown: "text", rst: "text", log: "text",
+            ini: "text", conf: "text", cfg: "text", json: "text", yaml: "text",
+            yml: "text", toml: "text", xml: "text", html: "text", htm: "text",
+            // ".ts" is TypeScript here; an MPEG transport stream shares the
+            // suffix and keeps the app picker as its fallback
+            css: "text", js: "text", ts: "text", jsx: "text", tsx: "text", py: "text",
+            sh: "text", bash: "text", zsh: "text", fish: "text", c: "text", h: "text",
+            cpp: "text", hpp: "text", rs: "text", go: "text", java: "text", rb: "text",
+            php: "text", sql: "text", csv: "text", tsv: "text", env: "text",
+            ics: "calendar", vcf: "contacts", vcard: "contacts"
+        };
+        // a Markdown note inside QuickNotes' folder belongs to Notes, not the
+        // editor; notebooks are one folder deep, anything deeper is a plain file
+        if (ext === "md" && notesDir) {
+            const dir = String(notesDir).replace(/\/+$/, "").toLowerCase();
+            const lower = p.toLowerCase();
+            if (lower.indexOf(dir + "/") === 0) {
+                const rel = lower.slice(dir.length + 1);
+                if (rel.indexOf("/") === rel.lastIndexOf("/"))
+                    return "notes";
+            }
+        }
+        return routes[ext] || "";
+    }
+
+    // One route valid for every chosen file, else "" (the picker's fallback).
+    // Only the viewer (its folder list) and the player (its queue) can take a
+    // set: the other surfaces show one document at a time.
+    function routeForPaths(paths, notesDir) {
+        const list = Array.isArray(paths) ? paths : [];
+        if (!list.length)
+            return "";
+        const app = routeForPath(list[0], notesDir);
+        if (!app)
+            return "";
+        if (list.length > 1 && app !== "viewer" && app !== "media")
+            return "";
+        for (const p of list) {
+            if (routeForPath(p, notesDir) !== app)
+                return "";
+        }
+        return app;
+    }
+
+    function routeInfo(app) {
+        const info = {
+            viewer: { label: "Image Viewer", icon: "applications-graphics" },
+            pdf: { label: "Document Viewer", icon: "document-open" },
+            text: { label: "Text Editor", icon: "accessories-text-editor" },
+            archive: { label: "Archive Manager", icon: "package-x-generic" },
+            media: { label: "Media Player", icon: "media-playback-start" },
+            calendar: { label: "Calendar", icon: "entry-calendar" },
+            contacts: { label: "Contacts", icon: "x-office-address-book" },
+            notes: { label: "Notes", icon: "document-edit" }
+        };
+        return info[app] || { label: "", icon: "" };
+    }
+
+    // The one dispatcher. Returns the app id, or "" when nothing was routed.
+    function openRoute(paths, notesDir) {
+        const list = Array.isArray(paths) ? paths.slice() : [];
+        const dir = notesDir === undefined ? QuickNotes.dir : notesDir;
+        const app = routeForPaths(list, dir);
+        if (!app)
+            return "";
+        Ui.closeAll();
+        if (app === "viewer")
+            Viewer.open(list[0]);                    // its folder joins the list
+        else if (app === "pdf")
+            PdfViewer.open(list[0]);
+        else if (app === "archive")
+            Archive.open(list[0]);
+        else if (app === "media") {
+            if (list.length > 1) PlayQueue.playList(list, 0);
+            else PlayQueue.open(list[0]);
+        } else if (app === "text") {
+            Ui.textEditor = true;
+            TextDocs.open(list[0]);
+        } else if (app === "calendar") {              // .ics is imported, not read
+            Ui.calendar = true;
+            Agenda.importFile(list[0]);
+        } else if (app === "contacts") {              // .vcf is imported too
+            Ui.contacts = true;
+            Contacts.importFile(list[0]);
+        } else if (app === "notes") {
+            const note = list[0].slice(0, -3);        // drop ".md"
+            const rel = note.slice(String(dir).replace(/\/+$/, "").length + 1);
+            const slash = rel.lastIndexOf("/");
+            Ui.notes = true;
+            QuickNotes.open(slash < 0 ? rel : rel.slice(slash + 1), slash < 0 ? "" : rel.slice(0, slash));
+            QuickNotes.refresh();
+        }
+        return app;
     }
 
     function openWith(appId, paths) {

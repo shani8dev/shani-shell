@@ -3860,6 +3860,15 @@ AppWindow {
             items.push({ label: Tr.t("Open"), icon: "folder-open", danger: false, run: () => Files.open(e.path) });
         else
             items.push({ label: Tr.t("Open"), icon: "document-open", danger: false, run: () => Files.openEntry(e.path) });
+        // the shell's own app first, when the whole selection has one owner;
+        // the desktop app picker below stays the fallback for everything else
+        const routed = !e.isDir && chosen.every(p => !(Files.entryFor(p) || {}).isDir)
+                       ? Files.routeForPaths(chosen, QuickNotes.dir) : "";
+        if (routed) {
+            const info = Files.routeInfo(routed);
+            items.push({ label: Tr.t("Open in %1", info.label), icon: info.icon, danger: false,
+                         run: () => Files.openRoute(chosen) });
+        }
         items.push({ label: Tr.t("Open with…"), icon: "view-app-grid", danger: false, run: () => { win.openWithPaths = chosen.slice(); } });
         items.push({ label: Tr.t("Select all of this type"), icon: "edit-select-all", danger: false, run: () => { Files.select(e.path, "single"); Files.note = Tr.t("%1 selected", Files.selectByType()); } });
         if (e.isDir && e.path.startsWith("/"))
