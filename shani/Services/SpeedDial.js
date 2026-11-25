@@ -16,6 +16,7 @@ var MAX_NAME = 60;
 var MAX_PATH = 4096;
 var MAX_SECTIONS = 12;
 var MAX_ENTRIES = 40;
+var MAX_PLACES = 18;
 
 // User-entered names become JSON field labels, so no path characters, no
 // controls and no key that could shadow Object.prototype.
@@ -138,6 +139,26 @@ function entries(data, name) {
     return d.sections[i].entries.slice().sort(function (a, b) {
         return b.pinnedAt - a.pinnedAt || a.name.localeCompare(b.name);
     });
+}
+
+// One flat list for the launcher and the dock menu. normalise() has already
+// dropped duplicate canonical paths, so every place appears once even when a
+// hand-edited file pins the same folder in two sections.
+function places(data, home, limit) {
+    var d = normalise(data, home);
+    var out = [];
+    for (var i = 0; i < d.sections.length; i++) {
+        var section = d.sections[i];
+        for (var j = 0; j < section.entries.length; j++) {
+            var e = section.entries[j];
+            out.push({ name: e.name, section: section.name, path: e.path, pinnedAt: e.pinnedAt });
+        }
+    }
+    out.sort(function (a, b) {
+        return b.pinnedAt - a.pinnedAt || a.name.localeCompare(b.name);
+    });
+    var n = typeof limit === "number" && limit > 0 ? limit : MAX_PLACES;
+    return out.slice(0, n);
 }
 
 // Where a path is already pinned, for a useful duplicate error.

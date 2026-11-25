@@ -78,7 +78,24 @@ PanelWindow {
     property string menuAppId: ""       // the app the open menu belongs to (survives reorder)
     property Item menuAnchor: null      // tile focus to restore when the menu closes
     property real menuHeight: 0         // the open menu's, which grows with an app's windows and actions
+    property bool speedDialOpen: false  // the Speed Dial rows in the open app menu
+    property bool toolsOpen: false      // the "Open tools" rows in the open app menu
+    // the shell's newer apps, opened with the same Ui flags the shell's IPC
+    // *Open() functions set; kept in a menu so no tiles are added to the dock
+    readonly property var tools: [
+        { label: "Dictionary", run: () => { Ui.closeAll(); Ui.dictionary = true; } },
+        { label: "Scheduled tasks", run: () => { Ui.closeAll(); Ui.scheduled = true; } },
+        { label: "Podcasts", run: () => { Ui.closeAll(); Ui.podcasts = true; } },
+        { label: "Teleprompter", run: () => { Ui.closeAll(); Ui.teleprompter = true; } },
+        { label: "Network Tools", run: () => { Ui.closeAll(); Ui.netTools = true; } },
+        { label: "Database browser", run: () => { Ui.closeAll(); Ui.databaseBrowser = true; } },
+        { label: "Startup manager", run: () => { Ui.closeAll(); Ui.startupManager = true; } },
+        { label: "Gateway", run: () => { Ui.closeAll(); Ui.gateway = true; } },
+        { label: "Paste history", run: () => { Ui.closeAll(); Ui.pasteHistory = true; } }
+    ]
     function setMenu(index, anchor) {
+        win.speedDialOpen = false;
+        win.toolsOpen = false;
         if (index >= 0 && index < win.items.length) {
             win.menuFor = index;
             win.menuAppId = win.items[index].id;
@@ -635,6 +652,21 @@ PanelWindow {
                                 // app's own actions (Plank's and Windows' jump list)
                                 ...cell.modelData.windows.slice(0, 8).map(w => ({ label: (Niri.isMinimised(w) ? "▾ " : "") + ((Niri.windows[w.id] || w).title || cell.modelData.id), show: true, sep: false,
                                     run: () => Niri.focusWin(w) })),
+                                // Speed Dial's own pins, from the same service the Files
+                                // sidebar uses. The first row expands a short list; each
+                                // place opens through SpeedDial.open (dirs in Files).
+                                { label: Tr.t("Open Speed Dial place…"), sep: cell.modelData.windows.length > 0, show: SpeedDial.places().length > 0, keep: true,
+                                  run: () => { win.speedDialOpen = !win.speedDialOpen; Ui.focusFirst(menuBox); } },
+                                ...(win.speedDialOpen ? SpeedDial.places().slice(0, 10).map(p => ({
+                                    label: "  " + p.name + " · " + p.section, show: true, sep: false,
+                                    run: () => SpeedDial.open(p.path) })) : []),
+                                // one expandable row for the newer shell apps: no new dock
+                                // tiles, the same Ui flags shell.qml's *Open() IPCs set
+                                { label: Tr.t("Open tools…"), sep: true, show: true, keep: true,
+                                  run: () => { win.toolsOpen = !win.toolsOpen; Ui.focusFirst(menuBox); } },
+                                ...(win.toolsOpen ? win.tools.map(t => ({
+                                    label: "  " + Tr.t(t.label), show: true, sep: false,
+                                    run: t.run })) : []),
                                 ...(cell.modelData.entry ? Array.from(cell.modelData.entry.actions).slice(0, 6).map((act, i) => ({ label: act.name, show: true, sep: i === 0 && cell.modelData.windows.length > 0,
                                     run: () => { Launch.app(cell.modelData.entry.id, { action: act.id }); bounce.restart(); } })) : []),
                                 { label: Tr.t("New window"), sep: true, show: !!cell.modelData.entry, run: () => { Launch.app(cell.modelData.entry.id); bounce.restart(); } },
@@ -659,7 +691,7 @@ PanelWindow {
                                 color: item.containsMouse ? Theme.hover : "transparent"
                                 Accessible.role: Accessible.MenuItem
                                 Accessible.name: modelData.label
-                                Accessible.onPressAction: { modelData.run(); win.setMenu(-1); tileFocus.forceActiveFocus(Qt.TabFocusReason); }
+                                Accessible.onPressAction: { modelData.run(); if (!modelData.keep) { win.setMenu(-1); tileFocus.forceActiveFocus(Qt.TabFocusReason); } }
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter
                                     x: 10
@@ -675,9 +707,9 @@ PanelWindow {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: { parent.modelData.run(); win.setMenu(-1); tileFocus.forceActiveFocus(Qt.TabFocusReason); }
+                                    onClicked: { parent.modelData.run(); if (!parent.modelData.keep) { win.setMenu(-1); tileFocus.forceActiveFocus(Qt.TabFocusReason); } }
                                 }
-                                KeyFocus { radius: Theme.px(8); onActivated: { parent.modelData.run(); win.setMenu(-1); tileFocus.forceActiveFocus(Qt.TabFocusReason); } }
+                                KeyFocus { radius: Theme.px(8); onActivated: { parent.modelData.run(); if (!parent.modelData.keep) { win.setMenu(-1); tileFocus.forceActiveFocus(Qt.TabFocusReason); } } }
                             }
                         }
                     }

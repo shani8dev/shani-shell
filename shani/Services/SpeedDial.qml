@@ -45,6 +45,8 @@ Singleton {
     // ---- what the panel shows ---------------------------------------------------
     function sections() { return Logic.sections(root.data); }
     function entries(section) { return Logic.entries(root.data, section); }
+    // read-only, flat newest-first places for launcher actions and dock menus
+    function places() { return Logic.places(root.data, root.home); }
     function hasSection(name) { return Logic.sectionIndex(root.data, name) >= 0; }
     function count() { return Logic.sections(root.data).reduce((n, s) => n + s.count, 0); }
     function canonical(path) { return Logic.canonical(path, root.home); }

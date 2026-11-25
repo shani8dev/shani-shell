@@ -33,6 +33,11 @@ QtObject {
         { title: Tr.t("Screen keyboard"), words: "keyboard osk touch", icon: "input-keyboard", run: () => Osk.toggle(), state: () => Osk.shown },
         { title: Tr.t("Clipboard history"), words: "clipboard paste history", icon: "edit-paste", run: () => Ui.toggleLauncher("c ") },
         { app: "dev.shani.Files", title: Tr.t("Files"), words: "files folders folder documents browse file manager disk drive pictures downloads", icon: "system-file-manager", run: () => Files.show(""), state: () => Ui.files },
+        // Speed Dial places are searchable here too: the same read-only service
+        // the Files sidebar shows, opened through the service's own path API.
+        ...SpeedDial.places().map(p => ({ title: p.name + " · " + p.section,
+            words: "speed dial place pin " + p.section + " " + p.path, icon: "user-bookmarks",
+            run: () => SpeedDial.open(p.path) })),
         { app: "dev.shani.Settings", title: Tr.t("Shell settings"), words: "settings preferences control centre center", icon: "preferences-system", run: () => launcher.openSettings("") },
         // each settings category, by what people call what is in it
         { title: Tr.t("Personalisation"), words: "wallpaper background accent theme look blur dock bar tiles hot corners weather icons icon theme fonts font cursor pointer", icon: "preferences-desktop-wallpaper", run: () => launcher.openSettings("personal") },
@@ -69,6 +74,16 @@ QtObject {
         { title: Tr.t("Show all keyboard shortcuts"), words: "keyboard shortcuts keys hotkeys cheat sheet help what keys super", icon: "preferences-desktop-keyboard-shortcuts", run: () => { Ui.closeAll(); Niri.action("show-hotkey-overlay"); } },
         { title: Tr.t("Change keyboard shortcuts"), words: "keyboard shortcuts keys hotkeys binds compose caps lock settings", icon: "preferences-desktop-keyboard-shortcuts", run: () => launcher.openSettings("input") },
         { title: Tr.t("Startup apps"), words: "startup apps autostart login start", icon: "system-run", run: () => launcher.openSettings("apps") },
+        // Named sessions (Settings > Default apps > Sessions owns the forms):
+        // a direct restore for each saved set, and a route to that page for
+        // saving, where the name is validated and a restore is confirmed.
+        ...Sessions.list().slice(0, 8).map(s => ({ title: Tr.t("Restore session %1").arg(s.name),
+            words: "restore session reopen apps documents " + s.name, icon: "view-restore",
+            run: () => Sessions.restore(s.name) })),
+        { title: Tr.t("Save this session…"), words: "save session current apps documents name", icon: "document-save",
+          run: () => launcher.openSettings("apps") },
+        { title: Tr.t("Restore session…"), words: "restore session reopen apps documents", icon: "view-restore",
+          run: () => launcher.openSettings("apps") },
         { title: Tr.t("Displays"), words: "displays display screens monitor monitors resolution refresh rate hz scale rotation rotate arrange arrangement external projector vrr freesync", icon: "video-display", run: () => launcher.openSettings("displays") },
         { title: Tr.t("Sound effects"), words: "sound effects equaliser equalizer eq bass boost crossfeed headphones autoeq impulse response convolver width jamesdsp viper", icon: "audio-speakers", run: () => launcher.openSettings("sound") },
         { title: Tr.t("Users"), words: "users add user new user account accounts remove user administrator admin automatic login autologin family", icon: "system-users", run: () => launcher.openSettings("users") },
@@ -93,6 +108,17 @@ QtObject {
         { title: Tr.t("Show diff"), words: "diff changes changed git what changed", icon: "document-open-recent", run: () => Chronoa.openDiff() },
         { title: Tr.t("AI models"), words: "models ai llm ollama llama download provider openai anthropic mistral", icon: "applications-internet", run: () => { Ui.closeAll(); Ui.models = true; Models.refresh(); } },
         { title: Tr.t("Studio"), words: "studio build create app developer generate ai chronoa qml", icon: "applications-development", run: () => { Ui.closeAll(); Ui.studio = true; Studio.refresh(); } },
+        // ---- new app tools: the nine surfaces behind Ui flags. Each carries the
+        // "tool" keyword so the bar's Tools chip (launcher query "tool") finds them.
+        { title: Tr.t("Dictionary"), words: "tool dictionary thesaurus words definitions synonyms offline lookup", icon: "book", run: () => { Ui.closeAll(); Ui.dictionary = true; } },
+        { title: Tr.t("Podcasts"), words: "tool podcasts podcast audio episodes rss subscribe", icon: "audio-headphones", run: () => { Ui.closeAll(); Ui.podcasts = true; } },
+        { title: Tr.t("Teleprompter"), words: "tool teleprompter prompter script read scrolling autocue", icon: "view-paged", run: () => { Ui.closeAll(); Ui.teleprompter = true; } },
+        { title: Tr.t("Network Tools"), words: "tool network tools ping dns scan lookup host diagnose", icon: "network-workgroup", run: () => { Ui.closeAll(); Ui.netTools = true; } },
+        { title: Tr.t("Database Browser"), words: "tool database browser sqlite db query sql table rows", icon: "database", run: () => { Ui.closeAll(); Ui.databaseBrowser = true; } },
+        { title: Tr.t("Startup Manager"), words: "tool startup manager autostart autostart apps login boot", icon: "system-run", run: () => { Ui.closeAll(); Ui.startupManager = true; } },
+        { title: Tr.t("Gateway"), words: "tool gateway peers qr vpn share connect pair", icon: "network-vpn", run: () => { Ui.closeAll(); Ui.gateway = true; } },
+        { title: Tr.t("Paste History"), words: "tool paste history clipboard numbered slots multi", icon: "edit-paste", run: () => { Ui.closeAll(); Ui.pasteHistory = true; } },
+        { title: Tr.t("Scheduled Tasks"), words: "tool scheduled tasks schedule cron jobs reminders plan", icon: "alarm", run: () => { Ui.closeAll(); Ui.scheduled = true; } },
         { title: Tr.t("Suspend"), words: "suspend sleep", icon: "weather-clear-night", run: () => Power.suspend() },
         { title: Tr.t("Log out"), words: "logout log out sign out", icon: "system-log-out", run: () => Power.logout() },
         // irreversible: these open the sidebar's confirm row instead of acting
