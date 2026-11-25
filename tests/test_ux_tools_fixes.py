@@ -85,23 +85,17 @@ def test_2_tool_query_raises_the_action_cap_to_all_nine():
 
 
 def test_3_nine_tool_labels_and_icons_agree_across_owned_files():
-    actions = source(ACTIONS)
-    ring = source(RING)
-    tiles = sidebar_tiles(source(SIDEBAR))
+    # Tools.list is now the single source of truth; each surface derives from it.
+    tools = source("shani/Common/Tools.js")
     for title, icon in CANONICAL.items():
-        # LauncherActions rows hold title and icon on one line
-        line = next(l for l in actions.splitlines() if 'Tr.t("%s")' % title in l)
-        assert 'icon: "%s"' % icon in line, (title, "LauncherActions", line)
-        # the ring names only four tools, but each must match the same choice
-        if 'Tr.t("%s")' % title in ring:
-            rline = next(l for l in ring.splitlines() if 'Tr.t("%s")' % title in l)
-            assert 'icon: "%s"' % icon in rline, (title, "Ring", rline)
-        # the sidebar has all nine tiles
-        assert tiles[TIDS[title]] == (title, icon), (title, tiles.get(TIDS[title]))
-    assert "NetTools" not in source(SEARCH)
-    assert "NetTools" not in source(HINTS)
-    assert 'query: "tool:network"' in source(SEARCH)  # matches the shared label
-
+        assert f'label: "{title}"' in tools, title
+        assert f'icon: "{icon}"' in tools, (title, icon)
+    for rel in (ACTIONS, SIDEBAR,
+                "shani/Modules/Dock/Dock.qml", "shani/Modules/WindowMenu/WindowMenu.qml",
+                "shani/Modules/QuickPanel/QuickPanel.qml",
+                "shani/Modules/Settings/SettingsIndex.js"):
+        assert "Tools.list" in source(rel), rel
+    assert 'query: "tool:network"' in source(SEARCH)
 
 def test_4_launcher_startup_entry_is_not_the_startup_manager_tile():
     actions = source(ACTIONS)
@@ -112,13 +106,9 @@ def test_4_launcher_startup_entry_is_not_the_startup_manager_tile():
     )
     assert 'Tr.t("Default apps and sessions")' in line
     assert "Ui.startupManager" not in line
-    tile = next(
-        b
-        for b in re.split(r"\n\s*Tile \{", source(SIDEBAR))
-        if 'tid: "startupManager"' in b
-    )
-    assert 'title: Tr.t("Startup manager")' in tile
-    assert "Ui.startupManager = true" in tile
+    # sidebar tool tiles are generated from Tools.list; the flag is in `known`
+    assert '...Tools.list.map(t => t.flag)' in source(SIDEBAR)
+    assert 'label: "Startup manager"' in source("shani/Common/Tools.js")
 
 
 def test_5_overview_tool_chips_have_an_accessible_name():

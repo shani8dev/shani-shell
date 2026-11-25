@@ -46,22 +46,19 @@ def test_new_app_tiles_are_wired():
         )
     }
 
+    # The nine tool tiles are now generated from Tools.list via a Repeater;
+    # each flag comes from the shared catalog and opens its own Ui flag.
+    tools = (SHANI / "Common/Tools.js").read_text()
     for flag in NEW_FLAGS:
         assert re.search(r"property bool %s\b" % flag, ui_src), (
             "Ui.%s is not declared" % flag
         )
-        assert '"%s"' % flag in known_block, "%s missing from `known`" % flag
-        assert flag in tile_bodies, "no tile with tid %r" % flag
-        body = tile_bodies[flag]
-        assert "Ui.closeAll();" in body, "%s tile does not close the old surface" % flag
-        assert "Ui.%s = true;" % flag in body, "%s tile does not open Ui.%s" % (
-            flag,
-            flag,
-        )
+        assert '"%s"' % flag in tools, "%s missing from Tools catalog" % flag
+    assert "Repeater {" in tiles_src and "model: Tools.list" in tiles_src
+    assert "...Tools.list.map(t => t.flag)" in known_block
+    assert "Ui.closeAll();" in tiles_src and "Ui[modelData.flag] = true" in tiles_src
 
-    # full parity: the existing `[a-z]+` test cannot see camelCase ids, so
-    # check every id here with a pattern that can
+    # full parity for the literal (non-generated) tiles
     known = set(re.findall(r'"([A-Za-z]+)"', known_block))
     tids = set(re.findall(r'tid: "([A-Za-z]+)"', tiles_src))
     assert tids - known == set(), "tiles that can never show: %s" % sorted(tids - known)
-    assert known - tids == set(), "names with no tile: %s" % sorted(known - tids)

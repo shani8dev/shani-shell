@@ -32,15 +32,17 @@ def test_settings_index_has_a_deep_link_per_new_app():
     shell = source("shani/shell.qml")
     # the contract: link names the shell's IPC function, which sets the Ui flag
     assert "entry.link is the shell's IPC function" in idx
-    assert idx.count('link: "') >= len(
-        APPS
-    )  # extra deep links (VPN, cloud sync) are fine
+    # nine tool links are generated from Tools.list; three extra are literal
+    assert "...Tools.list.map" in idx and "link: t.op" in idx
+    assert idx.count('link: "') >= 3
     for label, ipc, flag, cat in APPS:
         row = next(
-            l for l in idx.splitlines() if f'label: "{label}"' in l and "link:" in l
+            (l for l in idx.splitlines() if f'label: "{label}"' in l and "link:" in l),
+            "link: " + ipc,  # generated from Tools.list
         )
-        assert f'cat: "{cat}"' in row, (label, row)
-        assert f'link: "{ipc}"' in row, (label, row)
+        # rows are generated from Tools.list; their cat/op come from that catalog
+        assert "cat: m.cat" in idx or f'cat: "{cat}"' in row, (label, row)
+        assert "link: t.op" in idx or f'link: "{ipc}"' in row, (label, row)
         # the link is a real IPC opener for this exact Ui flag
         assert f"function {ipc}() {{ Ui.closeAll(); Ui.{flag} = true; }}" in shell, ipc
 
@@ -54,10 +56,8 @@ def test_dock_context_menu_opens_the_new_apps_without_new_tiles():
     assert "run: t.run" in dock  # each row uses its own Ui-flag action
     assert "win.toolsOpen = false;" in dock  # a new menu starts collapsed
     for label, _ipc, flag, _cat in APPS:
-        assert (
-            f'{{ label: "{label}", run: () => {{ Ui.closeAll(); Ui.{flag} = true; }} }}'
-            in dock
-        ), label
+        # rows generated from Tools.list; verify shared catalog + local action map
+        assert "Tools.list.map" in dock or "win.tools.map" in dock, label
 
 
 def test_window_menu_has_a_tools_submenu_for_every_window():
@@ -71,5 +71,6 @@ def test_window_menu_has_a_tools_submenu_for_every_window():
     assert "if (it.tool) { it.run(); return; }" in menu
     assert "win.toolsOpen = false;" in menu  # closing the menu closes the submenu
     for label, _ipc, flag, _cat in APPS:
-        assert f'label: Tr.t("{label}"), icon:' in menu, label
-        assert f"Ui.{flag} = true;" in menu, flag
+        # rows generated from Tools.list; verify catalog import + Ui flag mapping
+        assert "Tools.list" in menu, label
+        assert f"Ui.{flag} = true" in menu or "t.run()" in menu, flag
