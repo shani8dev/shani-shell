@@ -23,6 +23,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/Format.js" as Format
 
 Singleton {
     id: root
@@ -319,10 +320,7 @@ Singleton {
     }
     // minute-granular (“HH:MM”), so like Automations and Focus the wake is
     // the minute boundary itself, re-armed for the next one
-    function msToNextMinute() {
-        const n = new Date();
-        return Math.max(1000, 60000 - (n.getSeconds() * 1000 + n.getMilliseconds()) + 250);
-    }
+    function msToNextMinute() { return Format.msToNextMinute(); }
     Timer {
         id: alarmClock
         interval: 1000

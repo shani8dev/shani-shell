@@ -8,6 +8,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/Format.js" as Format
 
 Singleton {
     id: root
@@ -46,7 +47,7 @@ Singleton {
         const tz = -now.getTimezoneOffset() / 60;
         return [Math.round((noonUtc - h + tz) * 60), Math.round((noonUtc + h + tz) * 60)].map(m => (m % 1440 + 1440) % 1440);
     }
-    function minutes(s) { const m = /^(\d\d?):(\d\d)$/.exec(s || ""); return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : -1; }
+    function minutes(s) { return Format.minutes(s); }
     function wantDark() {
         if (d.darkSchedule === "system")
             return root.systemScheme === "prefer-dark";

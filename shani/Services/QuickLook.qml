@@ -11,6 +11,7 @@ import Quickshell.Io
 import QtQuick
 import qs.Common
 import "../Common/FileIcons.js" as FileIcons
+import "../Common/Format.js" as Format
 
 Singleton {
     id: root
@@ -73,13 +74,7 @@ Singleton {
     function close() { shown = false; reader.running = false; }
     function openIt() { Quickshell.execDetached(["gio", "open", path]); close(); }
 
-    function humanSize(b) {
-        if (b < 0) return "";
-        const u = ["B", "kB", "MB", "GB", "TB"];
-        let i = 0;
-        while (b >= 1000 && i < u.length - 1) { b /= 1000; i++; }
-        return (i ? b.toFixed(b < 10 ? 1 : 0) : b) + " " + u[i];
-    }
+    function humanSize(b) { return b < 0 ? "" : Format.humanSize(b, "si"); }
     function icon() {
         const ext = name.indexOf(".") > 0 ? "." + name.split(".").pop().toLowerCase() : "";
         return FileIcons.iconFor({ isDir: kind === "folder", ext: ext, image: kind === "image" });

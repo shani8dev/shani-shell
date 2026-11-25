@@ -12,6 +12,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import "../../Common/Format.js" as Format
 
 AppWindow {
     id: win
@@ -102,12 +103,7 @@ AppWindow {
     readonly property int days: new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()
     readonly property bool weekNumbers: Settings.data.weekNumbers
     // ISO 8601: the week holding the year's first Thursday is week 1
-    function isoWeek(d) {
-        const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-        t.setUTCDate(t.getUTCDate() + 3 - (t.getUTCDay() + 6) % 7);
-        const y = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
-        return 1 + Math.round(((t - y) / 86400000 - 3 + (y.getUTCDay() + 6) % 7) / 7);
-    }
+    function isoWeek(d) { return Format.isoWeek(d); }
     // day numbers for one month of the year view: leading blanks, then 1..N
     function yearMonthDays(y, m) {
         const out = [];

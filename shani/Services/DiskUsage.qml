@@ -13,6 +13,7 @@ import Quickshell.Io
 import QtQuick
 import qs.Common
 import "DiskUsage.js" as DiskUsageLogic
+import "../Common/Format.js" as Format
 
 Singleton {
     id: root
@@ -190,13 +191,7 @@ Singleton {
     }
     // the treemap for the panel: rectangles whose area is their size
     function treemap(W, H) { return DiskUsageLogic.treemap(entries, W, H); }
-    function humanSize(n) {
-        n = Number(n) || 0;
-        if (n >= 1073741824) return (n / 1073741824).toFixed(1) + " GB";
-        if (n >= 1048576) return (n / 1048576).toFixed(1) + " MB";
-        if (n >= 1024) return (n / 1024).toFixed(1) + " KB";
-        return n + " B";
-    }
+    function humanSize(n) { return Format.humanSize(n); }
 
     // ---- mark for removal: toggle, review, gio trash -------------------------
     function isMarked(path) { return marked.indexOf(path) >= 0; }

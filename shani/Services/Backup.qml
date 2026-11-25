@@ -8,6 +8,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/Format.js" as Format
 
 Singleton {
     id: root
@@ -58,13 +59,7 @@ Singleton {
         restoreJob.running = true;
     }
 
-    function formatBytes(n) {
-        const m = parseFloat(n) || 0;
-        if (m >= 1024*1024*1024) return (m/(1024*1024*1024)).toFixed(1) + " GB";
-        if (m >= 1024*1024) return (m/(1024*1024)).toFixed(0) + " MB";
-        if (m >= 1024) return (m/1024).toFixed(0) + " KB";
-        return m + " B";
-    }
+    function formatBytes(n) { return Format.humanSize(n, "whole"); }
 
     function day(stamp) {
         const m = /(\d{4}-\d\d-\d\d)/.exec(stamp || "");

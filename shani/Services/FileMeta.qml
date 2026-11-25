@@ -8,6 +8,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/Format.js" as Format
 
 Singleton {
     id: root
@@ -78,13 +79,7 @@ Singleton {
         return out;
     }
 
-    function humanSize(b) {
-        let n = Number(b) || 0;
-        const units = ["B", "KB", "MB", "GB", "TB"];
-        let i = 0;
-        while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
-        return (i ? n.toFixed(n < 10 ? 1 : 0) : n) + " " + units[i];
-    }
+    function humanSize(b) { return Format.humanSize(b, "tb"); }
 
     function clock(s) {
         const t = Math.round(Number(s) || 0);

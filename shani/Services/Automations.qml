@@ -16,6 +16,7 @@ pragma Singleton
 import Quickshell
 import QtQuick
 import qs.Common
+import "../Common/Format.js" as Format
 
 Singleton {
     id: root
@@ -107,10 +108,7 @@ Singleton {
     // sets timeNow (flipping rules at their minute) and re-arms itself for
     // the next boundary. The other triggers already became events above
     // (wifi / power / output / displays change signals).
-    function msToNextMinute() {
-        const n = new Date();
-        return Math.max(1000, 60000 - (n.getSeconds() * 1000 + n.getMilliseconds()) + 250);
-    }
+    function msToNextMinute() { return Format.msToNextMinute(); }
     Timer {
         id: clock
         interval: 1000

@@ -9,6 +9,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import "../../Common/Format.js" as Format
 
 ColumnLayout {
     id: page
@@ -62,12 +63,7 @@ ColumnLayout {
             page.scan();
         }
     }
-    function human(b) {
-        const u = ["B", "kB", "MB", "GB", "TB"];
-        let v = b, i = 0;
-        while (v >= 1000 && i < u.length - 1) { v /= 1000; i++; }
-        return (i === 0 ? v : v.toFixed(v < 10 ? 1 : 0)) + " " + u[i];
-    }
+    function human(b) { return Format.humanSize(b, "si"); }
 
     component Row_: RowLayout {
         id: r

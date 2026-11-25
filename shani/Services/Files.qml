@@ -18,6 +18,7 @@ import qs.Common
 import "../Common/FilePaths.js" as FilePaths
 import "../Common/FileIcons.js" as FileIcons
 import "../Common/FileFilter.js" as FileFilter
+import "../Common/Format.js" as Format
 
 Singleton {
     id: root
@@ -1897,13 +1898,7 @@ Singleton {
 
     function validName(name) { return FilePaths.validName(name); }
 
-    function humanSize(bytes) {
-        const n = Number(bytes) || 0;
-        if (n >= 1073741824) return (n / 1073741824).toFixed(1) + " GB";
-        if (n >= 1048576) return (n / 1048576).toFixed(1) + " MB";
-        if (n >= 1024) return (n / 1024).toFixed(1) + " KB";
-        return n + " B";
-    }
+    function humanSize(bytes) { return Format.humanSize(bytes); }
 
     function formatTime(ms) {
         if (!ms)

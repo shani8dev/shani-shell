@@ -28,6 +28,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/Format.js" as Format
 
 Singleton {
     id: root
@@ -799,10 +800,5 @@ exec python3 "$3" extract "$4" "$d"',
         }
     }
 
-    function human(bytes) {
-        const units = ["B", "kB", "MB", "GB", "TB"];
-        let v = bytes, i = 0;
-        while (v >= 1000 && i < units.length - 1) { v /= 1000; i++; }
-        return (i === 0 ? v : v.toFixed(v < 10 ? 1 : 0)) + " " + units[i];
-    }
+    function human(bytes) { return Format.humanSize(bytes, "si"); }
 }

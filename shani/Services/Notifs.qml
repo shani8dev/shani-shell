@@ -8,6 +8,7 @@ import Quickshell.Services.Notifications
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/Format.js" as Format
 
 Singleton {
     id: root
@@ -101,7 +102,7 @@ Singleton {
     property var arrived: ({})
     readonly property bool dnd: Settings.data.doNotDisturb
     property var lastDndWanted: null
-    function minutes(s) { const m = /^(\d\d?):(\d\d)$/.exec(s || ""); return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : -1; }
+    function minutes(s) { return Format.minutes(s); }
     function wantDnd() {
         const from = minutes(Settings.data.dndFrom), to = minutes(Settings.data.dndTo);
         if (from < 0 || to < 0) return false;

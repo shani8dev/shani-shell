@@ -6,6 +6,7 @@ pragma Singleton
 import Quickshell
 import QtQuick
 import qs.Common
+import "../Common/Format.js" as Format
 
 Singleton {
     id: root
@@ -59,10 +60,7 @@ Singleton {
     // each minute boundary instead of every 30 s: the wake is the clock
     // itself, re-armed for the next boundary. A changed schedule is
     // evaluated at once (onModesChanged above).
-    function msToNextMinute() {
-        const n = new Date();
-        return Math.max(1000, 60000 - (n.getSeconds() * 1000 + n.getMilliseconds()) + 250);
-    }
+    function msToNextMinute() { return Format.msToNextMinute(); }
     Timer {
         id: clock
         interval: 1000
