@@ -8,6 +8,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
@@ -16,7 +17,7 @@ Singleton {
     property string error: ""
     property int secondsLeft: 0          // recording countdown, for a listening chip
     readonly property string wav: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/shani-dictation.wav"
-    readonly property string tool: Quickshell.env("SHANI_DICTATE_TOOL") || "/usr/lib/shani-shell/dictate.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_DICTATE_TOOL"), "dictate.py")
 
     // the language the keyboard shows: "en", "mr", or an xkb layout's ISO code
     function lang() {

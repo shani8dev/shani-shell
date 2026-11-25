@@ -22,6 +22,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
@@ -790,7 +791,7 @@ Singleton {
         root.unlocked = isUnlocked(noteId(root.current, root.currentNotebook));
     }
 
-    readonly property string cryptoTool: Quickshell.env("SHANI_NOTES_CRYPTO") || "/usr/lib/shani-shell/note-crypto.py"
+    readonly property string cryptoTool: ToolPath.of(Quickshell.env("SHANI_NOTES_CRYPTO"), "note-crypto.py")
     property bool cryptoAvailable: true
     property string pass: ""                  // passphrase of the unlocked note, memory only
     Process {

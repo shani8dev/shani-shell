@@ -6,10 +6,11 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_TASKS_TOOL") || "/usr/lib/shani-shell/tasks.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_TASKS_TOOL"), "tasks.py")
     property var tasks: []            // [{ uid, summary, due, done, list, priority, notes }]
     property var lists: []            // [{ name, uid, readOnly }]
     property var repeats: ({})        // uid -> daily | weekly | monthly (bridge sidecar)

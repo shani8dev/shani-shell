@@ -4,10 +4,11 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_MODULES_TOOL") || "/usr/lib/shani-shell/modules.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_MODULES_TOOL"), "modules.py")
     property var modules: []
     property int count: 0
     property bool loaded: false

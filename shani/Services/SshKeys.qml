@@ -5,10 +5,11 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_SSHKEYS_TOOL") || "/usr/lib/shani-shell/sshkeys.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_SSHKEYS_TOOL"), "sshkeys.py")
 
     property var keys: []
     property string note: ""

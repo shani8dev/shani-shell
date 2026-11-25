@@ -10,6 +10,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
@@ -29,7 +30,7 @@ Singleton {
     property string error: ""
     property bool busy: false
 
-    readonly property var tool: Quickshell.env("SHANI_DISKS_TOOL") || "/usr/lib/shani-shell/disks.py"
+    readonly property var tool: ToolPath.of(Quickshell.env("SHANI_DISKS_TOOL"), "disks.py")
 
     function refresh() {
         if (!lister.running) lister.running = true;

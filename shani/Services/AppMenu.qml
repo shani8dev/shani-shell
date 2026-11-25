@@ -9,10 +9,11 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_APPMENU_TOOL") || "/usr/lib/shani-shell/appmenu.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_APPMENU_TOOL"), "appmenu.py")
     property int pid: 0
     property string title: ""
     property var menus: []              // [{ label, path, enabled, checked, shortcut, items: [...] }]

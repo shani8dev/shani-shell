@@ -13,10 +13,11 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_NEARBY_TOOL") || "/usr/lib/shani-shell/nearby.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_NEARBY_TOOL"), "nearby.py")
     readonly property string firewallCmd: Quickshell.env("SHANI_FIREWALL_CMD") || "firewall-cmd"
     readonly property int port: 53317
     property var devices: []          // [{ alias, fingerprint, deviceModel, deviceType, ip, port, protocol }]

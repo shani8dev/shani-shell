@@ -15,10 +15,11 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_CHARACTERS_TOOL") || "/usr/lib/shani-shell/characters.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_CHARACTERS_TOOL"), "characters.py")
     property var results: []        // [{ ch, name, cat, cp }], best first
     property bool loaded: false     // one answer has come back
     property string query: ""       // the last query asked for

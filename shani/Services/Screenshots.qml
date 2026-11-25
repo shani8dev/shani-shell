@@ -9,6 +9,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
@@ -70,7 +71,7 @@ Singleton {
         // Select a region, capture a series of parts while scrolling, and stitch
         // them into one tall image. bridge/scroll-capture.py handles slop/grim/
         // ydotool/PIL. The result is announced like any screenshot.
-        const tool = Quickshell.env("SHANI_SCROLL_CAPTURE_TOOL") || "/usr/lib/shani-shell/scroll-capture.py";
+        const tool = ToolPath.of(Quickshell.env("SHANI_SCROLL_CAPTURE_TOOL"), "scroll-capture.py");
         scrollSelect.command = ["python3", tool, "select"];
         scrollSelect.running = true;
     }
@@ -80,7 +81,7 @@ Singleton {
             onStreamFinished: {
                 const geom = text.trim().split(/\s+/);
                 if (geom.length !== 4) { return; }  // user cancelled
-                const tool = Quickshell.env("SHANI_SCROLL_CAPTURE_TOOL") || "/usr/lib/shani-shell/scroll-capture.py";
+                const tool = ToolPath.of(Quickshell.env("SHANI_SCROLL_CAPTURE_TOOL"), "scroll-capture.py");
                 scrollCap.command = ["python3", tool, "capture", geom[0], geom[1], geom[2], geom[3], "8"];
                 scrollCap.running = true;
             }

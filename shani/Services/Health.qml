@@ -7,10 +7,11 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_HEALTH_TOOL") || "/usr/lib/shani-shell/health.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_HEALTH_TOOL"), "health.py")
 
     property bool loaded: false
     property bool busy: false

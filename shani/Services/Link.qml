@@ -10,10 +10,12 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/Time.js" as Time
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_LINK_TOOL") || "/usr/lib/shani-shell/link.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_LINK_TOOL"), "link.py")
 
     property string backend: ""          // kdeconnect | gsconnect | bluetooth | ""
     property bool placesCalls: false     // the phone's link can carry a call
@@ -139,8 +141,7 @@ Singleton {
 
     // 95 -> "1:35": how long a call lasted
     function clock(secs) {
-        const s = Math.max(0, Math.floor(secs || 0));
-        return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+        return Time.clock(Math.max(0, Math.floor(secs || 0)));
     }
 
     // one Process, reused: `what` says which answer this is. A call that arrives

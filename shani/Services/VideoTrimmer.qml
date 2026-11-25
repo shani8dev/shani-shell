@@ -12,6 +12,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
@@ -43,7 +44,7 @@ Singleton {
     property bool cancelled: false
     property string frameCaptured: ""      // the snapshot written by captureFrame
     property string captureError: ""
-    readonly property string convertTool: Quickshell.env("SHANI_CONVERT_TOOL") || "/usr/lib/shani-shell/convert.py"
+    readonly property string convertTool: ToolPath.of(Quickshell.env("SHANI_CONVERT_TOOL"), "convert.py")
 
     signal trimmed(string path)
 

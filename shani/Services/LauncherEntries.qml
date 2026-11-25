@@ -5,10 +5,11 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_LAUNCHER_ENTRY_TOOL") || "/usr/lib/shani-shell/launcher-entry.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_LAUNCHER_ENTRY_TOOL"), "launcher-entry.py")
     property var entries: ({})            // id -> { count, countVisible, progress, progressVisible, urgent }
     property bool ready: false
 

@@ -18,10 +18,11 @@ import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_GAMEPAD_TOOL") || "/usr/lib/shani-shell/gamepad.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_GAMEPAD_TOOL"), "gamepad.py")
     property int controllers: 0
     readonly property var top: ToplevelManager.activeToplevel
     readonly property bool fullscreen: !!top && Boolean(top.fullscreen)

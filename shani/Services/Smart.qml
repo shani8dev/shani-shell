@@ -7,6 +7,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
@@ -50,7 +51,7 @@ Singleton {
                 [ "$a" = copy ] && printf %s "$r" | wl-copy
             else
                 notify-send -a Translate -i preferences-desktop-locale "$5" "$6"
-            fi`, "sh", text, Quickshell.env("SHANI_TRANSLATE_TOOL") || "/usr/lib/shani-shell/translate.py",
+            fi`, "sh", text, ToolPath.of(Quickshell.env("SHANI_TRANSLATE_TOOL"), "translate.py"),
             Tr.t("Copy"), Tr.t("Translation"), Tr.t("Could not translate"),
             Tr.t("Chronoa's model is not running on this computer — the text was not sent anywhere.")]);
     }

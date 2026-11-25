@@ -14,10 +14,11 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_VPN_TOOL") || "/usr/lib/shani-shell/vpn.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_VPN_TOOL"), "vpn.py")
 
     property bool busy: false
     property bool available: false       // nmcli is installed

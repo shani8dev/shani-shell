@@ -9,10 +9,11 @@ import Quickshell.Io
 import QtQuick
 import qs.Common
 import "../Common/TextMate.js" as TM
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_TEXTMATE_TOOL") || "/usr/lib/shani-shell/textmate.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_TEXTMATE_TOOL"), "textmate.py")
     readonly property var bundleDirs: [
         (Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") + "/.local/share")) + "/shani-textmate",
         "/usr/share/shani-shell/textmate"

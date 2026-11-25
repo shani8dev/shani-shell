@@ -9,6 +9,8 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/Time.js" as Time
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
@@ -236,7 +238,7 @@ Singleton {
     // the queue owns the entries. Only local paths and allowed stream
     // addresses are taken back in, so a playlist cannot point the player at
     // anything else. The bridge takes argv only and never runs a shell.
-    readonly property string playlistTool: Quickshell.env("SHANI_PLAYLIST_TOOL") || "/usr/lib/shani-shell/playlist.py"
+    readonly property string playlistTool: ToolPath.of(Quickshell.env("SHANI_PLAYLIST_TOOL"), "playlist.py")
     property string playlistNote: ""
     function saveQueueM3u(path) {
         const p = String(path || "").trim();
@@ -519,7 +521,7 @@ Singleton {
     }
     // ---- MPRIS (bridge/mpris-player.py): what the bar, the sidebar, the lock
     // screen and the media keys read - they see this player as they see any other
-    readonly property string mprisTool: Quickshell.env("SHANI_MPRIS_TOOL") || "/usr/lib/shani-shell/mpris-player.py"
+    readonly property string mprisTool: ToolPath.of(Quickshell.env("SHANI_MPRIS_TOOL"), "mpris-player.py")
     function mprisState() {
         return JSON.stringify({ status: current === "" ? "Stopped" : playing ? "Playing" : "Paused", title: name,
             url: current !== "" ? (isStream ? current : "file://" + current.split("/").map(encodeURIComponent).join("/")) : "",
@@ -673,7 +675,6 @@ Singleton {
     }
 
     function clock(s) {
-        const t = Math.max(0, Math.floor(s)), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
-        return (h > 0 ? h + ":" + String(m).padStart(2, "0") : String(m)) + ":" + String(sec).padStart(2, "0");
+        return Time.clockLong(Math.max(0, s));
     }
 }

@@ -8,10 +8,11 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_MODEM_TOOL") || "/usr/lib/shani-shell/modem.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_MODEM_TOOL"), "modem.py")
     property var modem: null              // { path, state, locked, operator, signal, number, voice, messaging }
     property var call: null               // the call in progress: { path, number, state, incoming }
     property int callSeconds: 0

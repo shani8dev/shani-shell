@@ -9,10 +9,11 @@ import Quickshell.Io
 import QtQuick
 import qs.Common
 import "../Common/Format.js" as Format
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_FILEMETA_TOOL") || "/usr/lib/shani-shell/filemeta.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_FILEMETA_TOOL"), "filemeta.py")
 
     property string path: ""                  // the last path asked for
     property var info: ({})                   // the last answer

@@ -22,11 +22,12 @@ import Quickshell.Io
 import Quickshell.Services.UPower
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_PLUGWATCH_TOOL") || "/usr/lib/shani-shell/plugwatch.py"
-    readonly property string mountsTool: Quickshell.env("SHANI_MOUNTS_TOOL") || "/usr/lib/shani-shell/mounts.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_PLUGWATCH_TOOL"), "plugwatch.py")
+    readonly property string mountsTool: ToolPath.of(Quickshell.env("SHANI_MOUNTS_TOOL"), "mounts.py")
     property var seen: ({})               // kind + key: greeted this session
     property var askers: ({})             // pending notify-send actions, by kind + key
     property int greeted: 0               // for the tests

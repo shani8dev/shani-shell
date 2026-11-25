@@ -9,10 +9,11 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_CONTACTS_TOOL") || "/usr/lib/shani-shell/contacts.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_CONTACTS_TOOL"), "contacts.py")
     property var contacts: []            // [{ uid, name, given, family, phone, email, phones, emails }]
     property string query: ""            // live search filter
     property string error: ""

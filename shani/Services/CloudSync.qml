@@ -8,12 +8,13 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
 
-    readonly property string tool: Quickshell.env("SHANI_CLOUDSYNC_TOOL") || "/usr/lib/shani-shell/cloudsync.py"
-    readonly property string cloudTool: Quickshell.env("SHANI_CLOUD_TOOL") || "/usr/lib/shani-shell/cloud.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_CLOUDSYNC_TOOL"), "cloudsync.py")
+    readonly property string cloudTool: ToolPath.of(Quickshell.env("SHANI_CLOUD_TOOL"), "cloud.py")
     readonly property var log: Log.scoped("CloudSync")
 
     property var jobs: []              // [{ id, remote, local, direction, conflict, bandwidth, interval, state, progress, file, history }]

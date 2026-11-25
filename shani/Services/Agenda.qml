@@ -14,10 +14,11 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_AGENDA_TOOL") || "/usr/lib/shani-shell/agenda.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_AGENDA_TOOL"), "agenda.py")
     property var allEvents: []            // [{ start, end, summary, location, calendar, allDay, uid }] (seconds)
     // Date-keyed cache of everything read so far. Each read replaces only the
     // window it covers, so stepping to another week/month fills the gaps and

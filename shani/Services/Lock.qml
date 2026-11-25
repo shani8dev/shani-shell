@@ -8,6 +8,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
@@ -18,7 +19,7 @@ Singleton {
     // A locked shell must not leave vault plaintext readable: drop every gocryptfs mount
     // on lock/suspend via the same bridge tool Files uses. Unlocking only clears the UI —
     // remounting is out of scope (each vault is reopened with its password in Files).
-    readonly property string lockTool: Quickshell.env("SHANI_LOCK_TOOL") || "/usr/lib/shani-shell/lock.py"
+    readonly property string lockTool: ToolPath.of(Quickshell.env("SHANI_LOCK_TOOL"), "lock.py")
 
     function closeVaults() {
         if (!vaultCloser.running)

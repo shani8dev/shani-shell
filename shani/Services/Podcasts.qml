@@ -8,11 +8,12 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
 
-    readonly property string tool: Quickshell.env("SHANI_FEEDS_TOOL") || "/usr/lib/shani-shell/feeds.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_FEEDS_TOOL"), "feeds.py")
     property var feeds: []              // [{ title, url, items, unread }] from `list`
     property string search: ""
     property var searchResults: []

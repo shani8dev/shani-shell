@@ -7,10 +7,11 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_TIDY_TOOL") || "/usr/lib/shani-shell/tidy.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_TIDY_TOOL"), "tidy.py")
 
     // ---- sorting -------------------------------------------------------------
     property string folder: ""

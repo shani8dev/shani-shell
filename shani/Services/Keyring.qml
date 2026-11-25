@@ -5,10 +5,11 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_PASSWORDS_TOOL") || "/usr/lib/shani-shell/passwords.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_PASSWORDS_TOOL"), "passwords.py")
 
     function get(id, cb) {
         const p = getProc.createObject(root, {});

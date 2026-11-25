@@ -6,10 +6,11 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_MAIL_TOOL") || "/usr/lib/shani-shell/mail.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_MAIL_TOOL"), "mail.py")
 
     property string kind: ""          // "imap" | "mailhog", from the bridge
     property var account: ({})        // { name, email }

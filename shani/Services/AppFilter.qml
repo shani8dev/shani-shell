@@ -8,10 +8,11 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_APPFILTER_TOOL") || "/usr/lib/shani-shell/appfilter.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_APPFILTER_TOOL"), "appfilter.py")
     property bool available: false
     property var blocked: []              // desktop ids
     property bool canControl: false       // malcontent-control is installed

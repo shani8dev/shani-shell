@@ -6,10 +6,11 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_MUSIC_LIBRARY_TOOL") || "/usr/lib/shani-shell/music-library.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_MUSIC_LIBRARY_TOOL"), "music-library.py")
     property var songs: []        // [{ path, title, artist, album, albumArtist, track, disc, year, duration, cover }]
     property bool scanning: false
     property bool scanned: false

@@ -7,6 +7,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
@@ -29,7 +30,7 @@ Singleton {
     }
     Process {
         id: geo
-        command: [Quickshell.env("SHANI_LOCATION_TOOL") || "/usr/lib/shani-shell/location.py"]
+        command: [ToolPath.of(Quickshell.env("SHANI_LOCATION_TOOL"), "location.py")]
         stdout: StdioCollector {
             onStreamFinished: {
                 root.running = false;

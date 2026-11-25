@@ -9,10 +9,11 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_LAUNCH_TOOL") || "/usr/lib/shani-shell/launch-app.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_LAUNCH_TOOL"), "launch-app.py")
 
     function options(id) { return (Settings.data.appLaunch || {})[id] || {}; }
     // settings.json is hand-editable: keep only values the launch bridge understands

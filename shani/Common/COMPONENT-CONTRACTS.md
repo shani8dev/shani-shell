@@ -65,8 +65,17 @@ of showing a toast for invalid input.
 ### `ListRow.qml` — `icon`, `title`, `subtitle`, `selected`, `interactive`,
 `trailing`, `columns`, `extra`; `clicked()`. Use for list content; do not draw
 a raw `Rectangle` as a row.
+### `SettingRow.qml` — `ListRow` for Settings pages: `control` aliases the
+trailing slot (`extra`), so a row reads as "label + control". Same a11y/flash
+as `ListRow`. Use for icon+title+subtitle rows with a trailing control.
+### `SettingsSection.qml` — titled settings block: `title`, `hint`, default
+children are the rows. Replaces repeated `SectionTitle + hint Text + rows`
+scaffolding; one spacing/typography change reaches every adopting page.
 ### `SegmentedTabs.qml` — `options`, `currentIndex`, `segmentWidth`,
 `activated(int)`. Height is `max(Theme.px(40), Theme.touchTarget)`.
+### `Fade.qml` — one accent pulse: `active` (loop while true), `flash()` (one
+shot), `duration`, `pulseFrom`/`pulseTo`. Honours `Settings.data.reduceMotion`
+in one place; use instead of hand-rolled `SequentialAnimation on opacity`.
 
 ## Catalogs (pure JS, `pragma library`)
 
@@ -76,8 +85,13 @@ a raw `Rectangle` as a row.
 - `Format.js` — `humanSize(bytes, style)` with `style`: `binary` (default),
   `si`, `tb`, `whole`. Each surface passes its style to preserve displayed
   values; changing a style here changes that surface everywhere.
-- `Time.js` — date/day labels and duration helpers. Surfaces call these rather
-  than hand-formatting `Qt.formatDate`/`Qt.formatTime`.
+- `Time.js` — date/day labels and duration helpers (`dayKey`, `dayLabel`,
+  `fullDate`, `minutes`, `clock`, `clockLong`, `duration`, `clockPadded`,
+  `hhmmss`, `stopwatch`, `fileStamp`). Surfaces call these rather than
+  hand-formatting `Qt.formatDate`/`Qt.formatTime` for shared patterns.
+- `ToolPath.js` — single source of the bridge-tool install prefix
+  (`DEFAULT_DIR`). Call `ToolPath.of(Quickshell.env("KEY"), "file.py")`;
+  never spell `/usr/lib/shani-shell/...` in a service.
 - `FilePaths.js` / `FileFilter.js` — path and extension rules, shared by Files,
   QuickLook and pickers.
 - `Accents.js` — `derive()` and named `PRESETS`; `Theme.accent` is the single

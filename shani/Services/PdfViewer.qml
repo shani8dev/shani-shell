@@ -11,6 +11,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
@@ -21,7 +22,7 @@ Singleton {
     property string pdf: ""
     // ---- a PDF's form (bridge/pdfform.py, PyMuPDF): its fields, what is typed in
     // them, and a filled copy saved beside the original ----
-    readonly property string formTool: Quickshell.env("SHANI_PDFFORM_TOOL") || "/usr/lib/shani-shell/pdfform.py"
+    readonly property string formTool: ToolPath.of(Quickshell.env("SHANI_PDFFORM_TOOL"), "pdfform.py")
     property var formFields: []             // [{ name, label, type, value, options, page }]
     property var formValues: ({})           // name -> value, as filled in here
     property bool formShown: false
@@ -373,7 +374,7 @@ Singleton {
     }
     // ---- a PDF with a password: asked for, then a private unlocked copy (in this
     //      cache, 0700) is what is drawn; it goes when the document is closed
-    readonly property string lockTool: Quickshell.env("SHANI_LOCK_TOOL") || "/usr/lib/shani-shell/lock.py"
+    readonly property string lockTool: ToolPath.of(Quickshell.env("SHANI_LOCK_TOOL"), "lock.py")
     property bool needsPassword: false
     property string passwordError: ""
     property string unlockedCopy: ""

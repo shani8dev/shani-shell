@@ -12,6 +12,7 @@ import Quickshell.Io
 import QtQuick
 import qs.Common
 import "WriteLang.js" as WriteLang
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
@@ -141,7 +142,7 @@ Singleton {
     }
 
     // handwriting: rows of strokes read on this machine (Tesseract), typed in order
-    readonly property string writeTool: Quickshell.env("SHANI_HANDWRITING_TOOL") || "/usr/lib/shani-shell/handwriting.py"
+    readonly property string writeTool: ToolPath.of(Quickshell.env("SHANI_HANDWRITING_TOOL"), "handwriting.py")
     // the Tesseract language handwriting is read in (WriteLang.js: the hand-made ones,
     // and the xkb layouts of the Indian languages the image ships data for)
     readonly property string writeLang: WriteLang.tesseractLang(lang)
@@ -238,7 +239,7 @@ Singleton {
     property var xkb: ({})                  // id -> { name, rows: [[{n, s}]] }
     readonly property bool isXkb: lang !== "en" && lang !== "mr"
     readonly property var current: isXkb ? (xkb[lang] || null) : null
-    readonly property string script: Quickshell.env("SHANI_OSK_LAYOUT_TOOL") || "/usr/lib/shani-shell/osk-layout.py"
+    readonly property string script: ToolPath.of(Quickshell.env("SHANI_OSK_LAYOUT_TOOL"), "osk-layout.py")
 
     function load(id) {
         if (id === "en" || id === "mr" || xkb[id] !== undefined)

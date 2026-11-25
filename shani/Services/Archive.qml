@@ -29,6 +29,7 @@ import Quickshell.Io
 import QtQuick
 import qs.Common
 import "../Common/Format.js" as Format
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
@@ -78,7 +79,7 @@ Singleton {
     // never empty: bsdtar would ask on a terminal it does not have, forever
     readonly property string pass: passphrase || "\u0001no-password"
     readonly property bool available: tool.found
-    readonly property string extractTool: Quickshell.env("SHANI_ARCHIVE_EXTRACT_TOOL") || "/usr/lib/shani-shell/zipcrypt.py"
+    readonly property string extractTool: ToolPath.of(Quickshell.env("SHANI_ARCHIVE_EXTRACT_TOOL"), "zipcrypt.py")
     property bool single: false           // a lone compressed file, not an archive (bsdcat takes it out)
     readonly property var singleExts: ["gz", "bz2", "xz", "zst", "lz", "lzma", "lz4", "Z"]
     readonly property string singleExt: { const m = /\.([A-Za-z0-9]+)$/.exec(name); return m && singleExts.indexOf(m[1]) >= 0 ? m[1] : ""; }
@@ -671,7 +672,7 @@ Singleton {
     }
     readonly property bool canAppend: root.appendExt !== "" && root.file !== "" && !root.single
     property bool appending: false
-    property string zipTool: Quickshell.env("SHANI_ZIPADD_TOOL") || "/usr/lib/shani-shell/zipadd.py"
+    property string zipTool: ToolPath.of(Quickshell.env("SHANI_ZIPADD_TOOL"), "zipadd.py")
 
     function append(paths) {
         // dedupe and never add the archive to itself: a repeated path would be

@@ -8,10 +8,11 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_LIVETV_TOOL") || "/usr/lib/shani-shell/live-tv.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_LIVETV_TOOL"), "live-tv.py")
     property var channels: []              // [{ name, url, group, logo, id }]
     property string source: Settings.data.liveTvSource || ""
     property string group: ""              // "" = every group

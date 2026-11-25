@@ -6,6 +6,7 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
@@ -29,7 +30,7 @@ Singleton {
     Process {
         id: watcher
         running: true
-        command: ["python3", Quickshell.env("SHANI_DEVWATCH_TOOL") || "/usr/lib/shani-shell/devwatch.py"]
+        command: ["python3", ToolPath.of(Quickshell.env("SHANI_DEVWATCH_TOOL"), "devwatch.py")]
         stdout: SplitParser {
             onRead: line => {
                 if (line === "devices") root.camerasChanged();

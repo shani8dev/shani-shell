@@ -9,10 +9,11 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_INPUT_KINDS_TOOL") || "/usr/lib/shani-shell/input-kinds.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_INPUT_KINDS_TOOL"), "input-kinds.py")
     property bool keyboard: true          // until asked: as before this existed
     property bool touchscreen: false
     property bool tabletSwitch: false

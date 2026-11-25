@@ -14,6 +14,7 @@ import QtQuick
 import qs.Common
 import "DiskUsage.js" as DiskUsageLogic
 import "../Common/Format.js" as Format
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
@@ -147,7 +148,7 @@ Singleton {
 
     // ---- the other views: the biggest files, and duplicates (bridge/dupes.py), of
     //      the folder on screen - marked and trashed the same way as the map's
-    readonly property string dupesTool: Quickshell.env("SHANI_DUPES_TOOL") || "/usr/lib/shani-shell/dupes.py"
+    readonly property string dupesTool: ToolPath.of(Quickshell.env("SHANI_DUPES_TOOL"), "dupes.py")
     property string view: "map"            // map | big | dupes
     property var big: []                   // [{ path, size, mtime }]
     property var dupes: []                 // [{ size, paths: [oldest first] }]

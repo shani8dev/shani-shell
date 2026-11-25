@@ -14,10 +14,11 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_INPUTPLUMBER_TOOL") || "/usr/lib/shani-shell/inputplumber.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_INPUTPLUMBER_TOOL"), "inputplumber.py")
     property bool running: false            // InputPlumber is on the bus
     property bool manageAll: false
     property var supported: []              // ["Microsoft X-Box Elite", ...]

@@ -19,11 +19,12 @@ import "../Common/FilePaths.js" as FilePaths
 import "../Common/FileIcons.js" as FileIcons
 import "../Common/FileFilter.js" as FileFilter
 import "../Common/Format.js" as Format
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
 
-    readonly property string tool: Quickshell.env("SHANI_FILES_TOOL") || "/usr/lib/shani-shell/files.py"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_FILES_TOOL"), "files.py")
     readonly property string home: Quickshell.env("HOME") || "/home"
     readonly property var log: Log.scoped("Files")
 
@@ -1287,7 +1288,7 @@ Singleton {
     // ---- locked with a password: a PDF (a PDF password), any other file or a
     //      folder (sealed with gpg), an encrypted folder (gocryptfs) - lock.py, the
     //      password on its stdin. One dialog for all of them.
-    readonly property string lockTool: Quickshell.env("SHANI_LOCK_TOOL") || "/usr/lib/shani-shell/lock.py"
+    readonly property string lockTool: ToolPath.of(Quickshell.env("SHANI_LOCK_TOOL"), "lock.py")
     property var locker: null                // { mode: lock|unlock|vault-new|vault-open, path } while asked
     property string lockError: ""
     property string lockResult: ""           // the last one made, for the tests
@@ -1349,7 +1350,7 @@ Singleton {
 
     // ---- cloud drives (cloud.py: rclone): listed in the sidebar, opened (mounted)
     //      with a click, added with the provider's own sign-in in the browser
-    readonly property string cloudTool: Quickshell.env("SHANI_CLOUD_TOOL") || "/usr/lib/shani-shell/cloud.py"
+    readonly property string cloudTool: ToolPath.of(Quickshell.env("SHANI_CLOUD_TOOL"), "cloud.py")
     property var clouds: []
     property bool cloudAdding: false
     property string cloudError: ""
@@ -1407,7 +1408,7 @@ Singleton {
     // ---- a folder opened to phones on this network for a while (serve.py): a link
     //      behind a secret, shown as a QR code; its port opened in the firewall
     //      only while it runs (as Nearby does for LocalSend)
-    readonly property string serveTool: Quickshell.env("SHANI_SERVE_TOOL") || "/usr/lib/shani-shell/serve.py"
+    readonly property string serveTool: ToolPath.of(Quickshell.env("SHANI_SERVE_TOOL"), "serve.py")
     readonly property string firewallCmd: Quickshell.env("SHANI_FIREWALL_CMD") || "firewall-cmd"
     readonly property int servePort: parseInt(Quickshell.env("SHANI_SERVE_PORT") || "53318")
     property string servedPath: ""
@@ -1698,7 +1699,7 @@ Singleton {
     // ---- USB drives (Impression's and GNOME Disks' jobs): a disk image written to
     //      one, or one formatted - udisks2 through drives.py, its polkit question
     //      answered in the shell's own agent. Asked for by typing the drive's name.
-    readonly property string drivesTool: Quickshell.env("SHANI_DRIVES_TOOL") || "/usr/lib/shani-shell/drives.py"
+    readonly property string drivesTool: ToolPath.of(Quickshell.env("SHANI_DRIVES_TOOL"), "drives.py")
     property var usb: null                   // { mode: write|format, image, drives, loading } while the dialog is up
     property bool usbBusy: false
     property real usbDone: 0

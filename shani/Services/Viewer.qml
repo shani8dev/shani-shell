@@ -8,6 +8,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
@@ -248,7 +249,7 @@ Singleton {
         saveProc.stdinEnabled = true;
         saveProc.running = true;
     }
-    readonly property string imgeditTool: Quickshell.env("SHANI_IMGEDIT_TOOL") || "/usr/lib/shani-shell/imgedit.py"
+    readonly property string imgeditTool: ToolPath.of(Quickshell.env("SHANI_IMGEDIT_TOOL"), "imgedit.py")
     Process {
         id: saveProc
         property string mode: ""
