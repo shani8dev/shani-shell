@@ -3,7 +3,8 @@
 // as clickable tiles. Clicking one applies it to the focused window via
 // niri actions. Ctrl+Z undoes the last arrangement.
 //
-// Opened from the launcher, Super+Shift+L, or `qs ipc call shell windowLayouts`.
+// Opened with Super+Z, by holding the bar's maximise button, from a window's
+// menu, the launcher, or `qs ipc call shani windowLayoutsToggle`.
 import Quickshell
 import Quickshell.Wayland
 import QtQuick

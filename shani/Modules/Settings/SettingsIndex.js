@@ -47,7 +47,7 @@ var entries = [
     { key: "dock", label: "Show the dock", cat: "personal", hint: "the icons along the bottom", words: "dock icons bottom bar" },
     { key: "dockVisibility", label: "When the dock shows", cat: "personal", hint: "always, out of a window's way, or only at the edge", words: "dock hide auto hidden reveal intelligent intellihide smart dodge windows" },
     { key: "barVisibility", label: "When the bar shows", cat: "personal", hint: "always, out of a window's way, or only at the edge", words: "bar panel top hide auto hidden reveal intelligent smart" },
-    { key: "leftRail", label: "Left workspace rail", cat: "personal", hint: "a slim strip of workspaces down the left edge", words: "left rail workspace strip edge sidebar" },
+    { key: "leftRail", label: "Left workspace rail", cat: "personal", hint: "your workspaces down the left edge; off puts them in the dock", words: "left rail workspace strip edge sidebar" },
     { key: "edgeSwipes", label: "Edge swipes", cat: "personal", hint: "swipe a screen's edges on a touch device", words: "edge swipe gesture touch tablet phone launcher overview back" },
     { key: "dockIconSize", label: "Dock icon size", cat: "personal", hint: "the icons in the dock", words: "dock icon size icons" },
     { key: "dockPinned", label: "Dock pins", cat: "personal", hint: "which apps live in the dock", words: "dock pin apps favourites" },
@@ -110,7 +110,7 @@ var entries = [
 
     // ---- Displays
     { key: "autoRotate", label: "Auto-rotate the screen", cat: "displays", hint: "following the accelerometer", words: "rotate rotation auto orient tablet convertible" },
-    { key: "displays", label: "Displays", cat: "displays", hint: "the screens, their layout and resolution", words: "displays screens monitor resolution arrange layout vrr scale" },
+    { key: "displays", label: "Displays", cat: "displays", hint: "the screens, their layout and resolution", words: "displays screens monitor resolution arrange layout vrr scale form factor kind of screen tablet mode phone tv handheld laptop shell size" },
     // These six live in Personalisation's own page (SettingsPage), not in
     // SettingsDisplays: search must land where the control actually is.
     { key: "adaptiveBrightness", label: "Adaptive brightness", cat: "personal", hint: "the ambient sensor drives the backlight", words: "brightness adaptive ambient sensor auto" },

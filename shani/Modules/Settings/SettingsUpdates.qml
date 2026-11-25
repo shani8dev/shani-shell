@@ -83,6 +83,20 @@ ColumnLayout {
         }
     }
 
+    // ---- apps: Flatpaks and snaps update in Software, not here --------------
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Apps")
+        ListRow {
+            Layout.fillWidth: true
+            icon: "system-software-install"
+            title: Tr.t("App updates")
+            subtitle: Tr.t("Flathub apps update on their own every 12 hours; snaps, command-line tools and the rest are in Software")
+            trailing: "›"
+            onClicked: Ui.openSoftware("installed")
+        }
+    }
+
     // ---- firmware ----------------------------------------------------------
     property bool confirmFirmware: false
 

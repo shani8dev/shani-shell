@@ -74,9 +74,9 @@ def test_fix2_both_back_inputs_delegate_to_ui_back():
 
 def test_fix3_left_back_strip_yields_to_the_left_rail():
     s = read("shani/Modules/EdgeStrips/EdgeStrips.qml")
-    assert "Settings.data.leftRail && modelData.name === Niri.focusedOutput" in s
+    assert "Settings.data.leftRail && FormFactor.hasRail(modelData.name)" in s
     visible = [ln for ln in s.splitlines() if ln.strip().startswith("visible:")][0]
-    assert 'modelData === "left"' in visible and "railOnFocused" in visible
+    assert 'modelData === "left"' in visible and "railHere" in visible
     # the gesture mapping is pinned: gating is a visible condition, not a new action
     gestures = read("shani/Common/Gestures.js")
     assert (

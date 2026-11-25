@@ -950,10 +950,15 @@ PY
     # ---- surfaces behind a setting or a passing state ----------------------------
     # dev/surfaces.tsv lists every surface shell.qml loads; these are the ones
     # the default session never shows (tools/surfaces.py check finds the next one)
+    # the left rail is on by default (so in every render above); off, the dock
+    # shows the workspaces instead
     settings_merge '{"leftRail": true}'
     waitfor "d.get('leftRail')" 10 || log "warn: left rail setting not applied"
     capture_current left-rail 1.5 "d.get('leftRail')"
     settings_merge '{"leftRail": false}'
+    waitfor "not d.get('leftRail')" 10 || log "warn: left rail setting not cleared"
+    capture_current dock-workspaces 1.5 "not d.get('leftRail')"
+    settings_merge '{"leftRail": true}'
     settings_merge '{"desktopWidgets": ["agenda", "battery", "note", "clocks"]}'
     sleep 2.5
     capture_current more-widgets 0.5

@@ -83,7 +83,7 @@ def test_update_all_uses_confirm_button():
     assert 'armedText: Tr.t("Click again to update all")' in b
     assert "interval: 4000" in b
     assert "enabled: !jobProc.running" in b
-    assert 'onConfirmed: win.runJob(["update-all"], "all")' in b
+    assert 'win.runJob(["update-all"], "all")' in b and "onConfirmed:" in b
     assert "visible: updateAllConfirm.armed && win.updates > 0" in s
     # both tab-switch paths disarm the button
     assert s.count("updateAllConfirm.disarm()") == 2

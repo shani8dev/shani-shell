@@ -23,9 +23,22 @@ Lever's jobs), through the `flatpak` command and Flathub's own catalogue.
                                             and icon taken from inside it (Gear Lever's job)
     appstore.py appimage-remove <file>      its launcher entry and icon gone, the file to the trash
 
+ShaniOS's other ways in (docs/software in shani-docs), each as the docs do it:
+
+    appstore.py nix-tools                   [{"name", "attr", "cmd", "about", "installed", "nix"}]:
+                                            the everyday command-line tools; "nix" when Nix put it there
+    appstore.py nix-install|nix-remove <attr>   nix-env -iA nixpkgs.<attr> (adding the nixpkgs channel
+                                            the first time) / nix-env -e, per user, no password
+    appstore.py snap-search <words>         [{"name", "version", "publisher", "summary", "classic"}]
+    appstore.py snap-installed              [{"name", "version", "publisher", "classic", "update"}]
+    appstore.py snap-install <name> [classic] | snap-remove <name> | snap-refresh [<name>]
+    appstore.py nix-upgrade                 the channel updated, then nix-env -u '*'
+                                            snapd asks the password through the shell's polkit agent
+
 The catalogue is Flathub's AppStream file, which flatpak keeps; an index of it is
 kept in ~/.cache/shani-shell/appstore-index.json until the file changes.
-SHANI_FLATPAK (tests): the flatpak to run; SHANI_APPSTREAM: the catalogue file.
+SHANI_FLATPAK (tests): the flatpak to run; SHANI_APPSTREAM: the catalogue file;
+SHANI_SNAP, SHANI_NIX_ENV, SHANI_NIX_CHANNEL: the snap, nix-env and nix-channel to run.
 """
 
 from __future__ import annotations
@@ -42,6 +55,9 @@ import sys
 import xml.etree.ElementTree as ET
 
 FLATPAK = shlex.split(os.environ.get("SHANI_FLATPAK", "flatpak"))
+SNAP = shlex.split(os.environ.get("SHANI_SNAP", "snap"))
+NIX_ENV = shlex.split(os.environ.get("SHANI_NIX_ENV", "nix-env"))
+NIX_CHANNEL = shlex.split(os.environ.get("SHANI_NIX_CHANNEL", "nix-channel"))
 HOME = os.path.expanduser("~")
 CACHE = os.path.join(
     os.environ.get("XDG_CACHE_HOME") or os.path.join(HOME, ".cache"),
@@ -483,9 +499,9 @@ def installed() -> list[dict]:
 PCT = re.compile(r"(\d{1,3})%")
 
 
-def stream(args: list[str]) -> int:
+def stream(args: list[str], tool: list[str] | None = None) -> int:
     p = subprocess.Popen(
-        FLATPAK + args,
+        (FLATPAK if tool is None else tool) + args,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -505,7 +521,7 @@ def stream(args: list[str]) -> int:
             )
     rc = p.wait()
     print(
-        json.dumps({"ok": True} if rc == 0 else {"error": last or "flatpak failed"}),
+        json.dumps({"ok": True} if rc == 0 else {"error": last or "%s failed" % ((tool or FLATPAK)[0])}),
         flush=True,
     )
     return rc
@@ -659,6 +675,101 @@ def appimage_remove(path: str) -> dict:
     return _trash(path) if os.path.exists(path) else {"ok": True}
 
 
+# ---- Nix: the command-line tools (shani-docs software/nix.md, development.md) ----
+# Per user, in ~/.nix-profile on the @nix subvolume: kept across OS updates and
+# rollbacks, no password. Docker is not here: it needs a system service, and
+# rootless Podman (the Containers app) is ShaniOS's container engine.
+NIX_TOOLS = [
+    ("git", "git", "git", "version control"),
+    ("Node.js", "nodejs", "node", "JavaScript runtime"),
+    ("Python", "python3", "python3", "Python 3"),
+    ("uv", "uv", "uv", "fast Python packages and virtualenvs"),
+    ("Go", "go", "go", "the Go toolchain"),
+    ("rustup", "rustup", "rustup", "the Rust toolchain installer"),
+    ("mise", "mise", "mise", "per-project tool versions"),
+    ("Neovim", "neovim", "nvim", "editor"),
+    ("ripgrep", "ripgrep", "rg", "search file contents"),
+    ("fd", "fd", "fd", "find files"),
+    ("jq", "jq", "jq", "JSON on the command line"),
+    ("GitHub CLI", "gh", "gh", "pull requests and issues"),
+    ("lazygit", "lazygit", "lazygit", "git in the terminal"),
+]
+NIX_ATTR = re.compile(r"^[A-Za-z0-9_.+-]+$")
+
+
+def _nix_names() -> set:
+    """pnames of what nix-env put in this user's profile."""
+    try:
+        r = subprocess.run(NIX_ENV + ["-q", "--json"], capture_output=True, text=True, timeout=60)
+        return {v.get("pname", "") for v in json.loads(r.stdout or "{}").values()}
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return set()
+
+
+def nix_tools() -> list[dict]:
+    have = shutil.which(NIX_ENV[0]) is not None
+    mine = _nix_names() if have else set()
+    prof = os.path.join(HOME, ".nix-profile", "bin")
+    out = []
+    for name, attr, cmd, about in NIX_TOOLS:
+        nix = attr in mine or cmd in mine
+        out.append({"name": name, "attr": attr, "cmd": cmd, "about": about, "nix": nix,
+                    "installed": nix or shutil.which(cmd) is not None or os.access(os.path.join(prof, cmd), os.X_OK)})
+    return out
+
+
+def nix_install(attr: str) -> int:
+    # the docs' first-time setup: the nixpkgs channel, once
+    chans = subprocess.run(NIX_CHANNEL + ["--list"], capture_output=True, text=True, timeout=30).stdout
+    if not any(l.split()[:1] == ["nixpkgs"] for l in chans.splitlines()):
+        print(json.dumps({"progress": None, "line": "Adding the nixpkgs channel (once)"}), flush=True)
+        if subprocess.run(NIX_CHANNEL + ["--add", "https://nixos.org/channels/nixpkgs-unstable", "nixpkgs"],
+                          capture_output=True, text=True, timeout=60).returncode != 0:
+            print(json.dumps({"error": "could not add the nixpkgs channel"}), flush=True)
+            return 1
+        print(json.dumps({"progress": None, "line": "Fetching the package list (the first time takes a while)"}), flush=True)
+        if stream(["--update"], NIX_CHANNEL) != 0:
+            return 1
+    return stream(["-iA", "nixpkgs." + attr], NIX_ENV)
+
+
+# ---- Snap (shani-docs software/snaps.md): snapd is socket-activated ----------
+def _snap_table(args: list[str]) -> list[list[str]]:
+    r = subprocess.run(SNAP + args, capture_output=True, text=True, timeout=60)
+    rows = [re.split(r"\s{2,}", l.strip()) for l in r.stdout.splitlines() if l.strip()]
+    return rows[1:] if rows and rows[0] and rows[0][0] == "Name" else []
+
+
+def _publisher(p: str) -> str:
+    return re.sub(r"[*✓✪]+$", "", p).strip()
+
+
+def snap_search(words: str) -> list[dict]:
+    out = []
+    for row in _snap_table(["find", words]):
+        if len(row) < 5:
+            continue
+        name, version, pub, notes, summary = row[0], row[1], row[2], row[3], " ".join(row[4:])
+        out.append({"name": name, "version": version, "publisher": _publisher(pub),
+                    "summary": summary, "classic": "classic" in notes})
+    return out
+
+
+def snap_installed() -> list[dict]:
+    updates = {r[0] for r in _snap_table(["refresh", "--list"]) if r}
+    out = []
+    for row in _snap_table(["list"]):
+        if len(row) < 6:
+            row = row + [""] * (6 - len(row))
+        name, version, _rev, _track, pub, notes = row[:6]
+        # the snaps snapd runs on are not apps to manage here
+        if any(n in notes.split(",") for n in ("base", "core", "snapd")) or name in ("snapd", "bare"):
+            continue
+        out.append({"name": name, "version": version, "publisher": _publisher(pub),
+                    "classic": "classic" in notes, "update": name in updates})
+    return out
+
+
 def main(argv: list[str]) -> int:
     cmd, args = (argv[1], argv[2:]) if len(argv) > 1 else ("", [])
     try:
@@ -754,6 +865,30 @@ def main(argv: list[str]) -> int:
                 and args[0] not in _installed_ids()
                 else {"error": "not a leftover"}
             )
+        elif cmd == "nix-tools":
+            out = nix_tools()
+        elif cmd in ("nix-install", "nix-remove") and len(args) == 1:
+            if not NIX_ATTR.match(args[0]):
+                out = {"error": "not a package name: %s" % args[0]}
+            elif cmd == "nix-install":
+                return 0 if nix_install(args[0]) == 0 else 1
+            else:
+                return 0 if stream(["-e", args[0]], NIX_ENV) == 0 else 1
+        elif cmd == "snap-search" and len(args) == 1:
+            out = snap_search(args[0])
+        elif cmd == "snap-installed":
+            out = snap_installed()
+        elif cmd in ("snap-install", "snap-remove") and args and NIX_ATTR.match(args[0]):
+            verb = ["install", args[0]] + (["--classic"] if args[1:] == ["classic"] else []) \
+                if cmd == "snap-install" else ["remove", args[0]]
+            return 0 if stream(verb, SNAP) == 0 else 1
+        elif cmd == "snap-refresh" and (not args or NIX_ATTR.match(args[0])):
+            return 0 if stream(["refresh"] + args[:1], SNAP) == 0 else 1
+        elif cmd == "nix-upgrade":
+            # the docs' "upgrade all": the channel, then every package in the profile
+            if stream(["--update"], NIX_CHANNEL) != 0:
+                return 1
+            return 0 if stream(["-u", "*"], NIX_ENV) == 0 else 1
         elif cmd == "appimages":
             out = appimages()
         elif cmd == "appimage-add" and len(args) == 1:

@@ -266,7 +266,7 @@ The Tour app shows every shortcut.
 | **Input methods** | fcitx5 (English + Hindi phonetic by default, 179 m17n tables); the active one in the bar (हि), switched from the sidebar |
 | **Window menu** | click the focused window's title: the app's own menus (File, Edit …), then close, fullscreen, float, maximize, center, move to a workspace, ask Chronoa about it |
 | **Global menu** | the focused app's menus inline in the bar, macOS style: read over D-Bus from Qt, GTK and XWayland apps that register with the shell's registrar, or from the accessibility tree as a fallback; native Wayland Qt 6 and Chromium need XWayland |
-| **Window layouts** | hold the bar's maximise/zoom button for the layout palette; Super+Alt+Arrow snaps to an edge; arrange all windows, Ctrl+Z to undo |
+| **Window layouts** | Super+Z (or hold the bar's maximise button) for the layout palette; Super+Alt+Arrow snaps to an edge; arrange all windows, Ctrl+Z to undo |
 | **Workspace map** | a proportional map of workspaces in the bar, with a ribbon showing the viewport you can see |
 | **Hover previews** | hovering a dock icon captures its window (grim -g); hovering a path previews the file |
 | **New apps** | Contacts (vCard, groups, your own card), Disks (erase, format, encrypt, health, install stick), Models (find and download models that fit, cloud providers), Studio (describe an app, Chronoa builds it), Terminal (SSH hosts, keys, tunnels, snippets), Backup (snapshot timeline, restore all or files), Mail (by folder, send), Feeds (RSS/Atom), Firewall settings |

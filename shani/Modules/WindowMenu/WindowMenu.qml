@@ -11,7 +11,6 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
-import "../../Common/Tools.js" as Tools
 
 PanelWindow {
     id: win
@@ -27,15 +26,8 @@ PanelWindow {
     Region { id: menuRegion; item: card; radius: Theme.radius }
 
     property var target: null            // the window, captured when the menu opens
-    // the Tools submenu: the shell's newer apps, reached from any window with the
-    // same Ui flags shell.qml's *Open() IPC functions set
-    property bool toolsOpen: false
-    // Tools.list owns the tools submenu label, icon and order; Ui.openTool opens them.
-    readonly property var tools: Tools.list.map(t => ({
-        id: "tool" + t.flag.charAt(0).toUpperCase() + t.flag.slice(1),
-        tool: true, label: Tr.t(t.label), icon: t.icon, run: () => Ui.openTool(t.flag)
-    }))
-    onToolsOpenChanged: if (toolsOpen) { win.openMenu = -1; win.expanded = ({}); Ui.focusFirst(menuCard); }
+    // The window's own menus only: the shell's tools are in the launcher, the
+    // app grid and the sidebar, not beside an app's File and Edit.
     readonly property bool targetAlive: target !== null && Niri.windows[target.id] !== undefined
     onTargetAliveChanged: if (visible && !targetAlive) { target = null; Ui.windowMenu = false }
     // the app's desktop actions, when it shows no menu bar of its own
@@ -49,7 +41,7 @@ PanelWindow {
         { id: "minimise", label: Tr.t("Minimise"), icon: "window-minimize", run: () => Niri.minimise(target.id) },
         { id: "fullscreen", label: Tr.t("Fullscreen"), icon: "view-fullscreen", run: () => Niri.action("fullscreen-window", "--id", target.id) },
         { id: "pin", label: Niri.isPinned(target.id) ? Tr.t("Only on this workspace") : Tr.t("Show on all workspaces"), icon: "view-pin", run: () => Niri.togglePinned(target.id) },
-        { id: "float", sep: true, label: target.is_floating ? "Tile" : "Float", icon: "window-restore", run: () => Niri.action("toggle-window-floating", "--id", target.id) },
+        { id: "float", sep: true, label: target.is_floating ? Tr.t("Tile") : Tr.t("Float"), icon: "window-restore", run: () => Niri.action("toggle-window-floating", "--id", target.id) },
         { id: "maximize", label: Tr.t("Maximize column"), icon: "window-maximize", run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("maximize-column"); } },
         { id: "center", label: Tr.t("Center"), icon: "zoom-fit-best", run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("center-column"); } },
         // fill the screen to its edges (no gaps, no bar's room), and fullscreen kept inside its tile
@@ -68,6 +60,7 @@ PanelWindow {
         { id: "twothirds", label: Tr.t("Two thirds"), icon: "view-dual", run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("set-column-width", "66.667%"); } },
         // edge snap through the layout service (which knows the accepted edges)
         { id: "snapleft", label: Tr.t("Snap left"), icon: "go-previous", run: () => { Niri.action("focus-window", "--id", target.id); WindowLayouts.snapToEdge("left"); } },
+        { id: "layouts", label: Tr.t("More layouts…"), icon: "view-grid", run: () => { Niri.action("focus-window", "--id", target.id); Ui.toggleWindowLayouts(); } },
         { id: "snapright", label: Tr.t("Snap right"), icon: "go-next", run: () => { Niri.action("focus-window", "--id", target.id); WindowLayouts.snapToEdge("right"); } },
         ...(Displays.outputs.length > 1 ? [{ id: "monitor", sep: true, label: Tr.t("Move to the other monitor"), icon: "video-display",
             run: () => { Niri.action("focus-window", "--id", target.id); Niri.action("move-column-to-monitor-next"); } }] : []),
@@ -99,10 +92,8 @@ PanelWindow {
         }
         return out;
     }
-    readonly property var openItems: win.toolsOpen ? flatten(win.tools, 0)
-        : openMenu >= 0 && AppMenu.menus[openMenu] ? flatten(AppMenu.menus[openMenu].items, 0) : []
+    readonly property var openItems: openMenu >= 0 && AppMenu.menus[openMenu] ? flatten(AppMenu.menus[openMenu].items, 0) : []
     function press(it) {
-        if (it.tool) { it.run(); return; }
         if (it.items) {
             const e = Object.assign({}, expanded);
             e[it.path] = !e[it.path];
@@ -135,7 +126,6 @@ PanelWindow {
         function onWindowMenuChanged() {
             win.openMenu = -1;
             win.expanded = ({});
-            win.toolsOpen = false;
             if (Ui.windowMenu) {
                 win.target = Niri.focusedWindow;
                 AppMenu.load(win.target);
@@ -153,8 +143,7 @@ PanelWindow {
         anchors.fill: parent
         focus: true
         Keys.onEscapePressed: {
-            if (win.toolsOpen) win.toolsOpen = false;
-            else if (win.openMenu >= 0) { win.openMenu = -1; win.expanded = ({}); }
+            if (win.openMenu >= 0) { win.openMenu = -1; win.expanded = ({}); }
             else Ui.windowMenu = false;
         }
         Keys.onPressed: {
@@ -180,8 +169,7 @@ PanelWindow {
         width: Theme.px(300)
         height: menuCol.implicitHeight + 16
         Keys.onEscapePressed: {
-            if (win.toolsOpen) { win.toolsOpen = false; Ui.focusFirst(chipRow); }
-            else if (win.openMenu >= 0) { win.openMenu = -1; win.expanded = ({}); Ui.focusFirst(chipRow); }
+            if (win.openMenu >= 0) { win.openMenu = -1; win.expanded = ({}); Ui.focusFirst(chipRow); }
             else Ui.windowMenu = false;
         }
         MouseArea { anchors.fill: parent }
@@ -278,31 +266,6 @@ PanelWindow {
                 Layout.leftMargin: Theme.px(4)
                 Layout.rightMargin: Theme.px(4)
                 spacing: Theme.px(4)
-                // always here: the Tools submenu is reachable from any window
-                Rectangle {
-                    id: toolsChip
-                    width: toolsChipText.implicitWidth + 18
-                    height: Theme.px(28)
-                    radius: Theme.radiusSmall
-                    color: win.toolsOpen ? Theme.accent : (toolsChipMouse.containsMouse ? Theme.hover : "transparent")
-                    Accessible.role: Accessible.Button
-                    Accessible.name: Tr.t("Tools")
-                    Text {
-                        id: toolsChipText
-                        anchors.centerIn: parent
-                        text: Tr.t("Tools")
-                        color: win.toolsOpen ? Theme.accentInk : Theme.text
-                        font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
-                    }
-                    MouseArea {
-                        id: toolsChipMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: { win.toolsOpen = !win.toolsOpen; win.openMenu = -1; win.expanded = ({}); }
-                    }
-                    KeyFocus { onActivated: { win.toolsOpen = !win.toolsOpen; win.openMenu = -1; win.expanded = ({}); } }
-                }
                 Text {
                     visible: AppMenu.loading
                     text: Tr.t("Reading the app's menus…")

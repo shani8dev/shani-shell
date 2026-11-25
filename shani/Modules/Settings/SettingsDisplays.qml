@@ -180,6 +180,8 @@ ColumnLayout {
             current: (Settings.data.formFactors || {})[page.selected] || "auto"
             onPicked: v => FormFactor.choose(page.selected, v)
         }
+        // the same pick beside the layouts that suit each kind, tried on at once
+        Button { text: Tr.t("Try it with a layout that suits it…"); kind: "outline"; onClicked: Ui.toggleLayoutSwitcher() }
         Picks {
             label: Tr.t("Shell size")
             options: [{ label: Tr.t("Automatic"), value: "auto" }]

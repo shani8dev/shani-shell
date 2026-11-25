@@ -239,7 +239,38 @@ ColumnLayout {
     readonly property string catTitle: (cats.find(c => c.id === cat) || { label: Tr.t("Settings") }).label
     // find a setting by what is in it: "proxy" → Network, "lid" → Power
     property string query: ""
-    readonly property var shownCats: query.trim() === "" ? cats : cats.filter(c => {
+    // the sidebar in sections, personal first and the system's last (as Windows'
+    // and GNOME's Settings do): 29 categories in one flat list hid most of them
+    readonly property var catGroups: [
+        { name: Tr.t("Personal"), ids: ["personal", "displays", "sound", "windows", "notifications", "access", "input", "time"] },
+        { name: Tr.t("Connections"), ids: ["network", "sharing", "printers"] },
+        { name: Tr.t("Apps & AI"), ids: ["apps", "search", "automations", "chronoa", "screentime"] },
+        { name: Tr.t("Privacy & security"), ids: ["privacy", "security", "firewall", "account", "users"] },
+        { name: Tr.t("System"), ids: ["power", "storage", "backup", "updates", "boot", "journal", "modules", "about"] }
+    ]
+    // the categories in their sections' order, each with its section's name
+    readonly property var groupedCats: {
+        const out = [];
+        for (const g of catGroups)
+            for (const id of g.ids) {
+                const c = cats.find(x => x.id === id);
+                if (c) out.push(Object.assign({ group: g.name }, c));
+            }
+        for (const c of cats)                       // a category not in a section still shows
+            if (!out.some(x => x.id === c.id)) out.push(Object.assign({ group: Tr.t("More") }, c));
+        return out;
+    }
+    // the sidebar's rows: a heading before each section's first category
+    readonly property var sidebarRows: {
+        const out = [];
+        let last = "";
+        for (const c of groupedCats) {
+            if (c.group !== last) { out.push({ header: true, label: c.group, id: "" }); last = c.group; }
+            out.push(c);
+        }
+        return out;
+    }
+    readonly property var shownCats: query.trim() === "" ? groupedCats : groupedCats.filter(c => {
         const hay = (c.label + " " + c.words).toLowerCase();
         return query.trim().toLowerCase().split(/\s+/).every(t => hay.split(/[\s&]+/).some(w => w.startsWith(t)));
     })
@@ -512,8 +543,8 @@ ColumnLayout {
                 ListRow {
                     Layout.fillWidth: true
                     icon: "view-grid"
-                    title: Tr.t("Desktop layout")
-                    subtitle: Tr.t("Shani, Classic, Focus, Tiling, Dashboard or Touch — see each one and try it on")
+                    title: Tr.t("Screen and layout")
+                    subtitle: Tr.t("What kind of screen this is, and Shani, Classic, Focus, Tiling, Dashboard or Touch — see each one and try it on")
                     trailing: "›"
                     onClicked: Ui.layoutSwitcher = true
                 }
@@ -1108,7 +1139,7 @@ ColumnLayout {
                 SwitchRow {
                     Layout.fillWidth: true
                     text: Tr.t("Left workspace rail")
-                    hint: Tr.t("a slim strip of workspaces down the left edge")
+                    hint: Tr.t("your workspaces down the left edge; off puts them in the dock")
                     checked: page.d.leftRail
                     onToggled: on => page.d.leftRail = on
                 }
@@ -1605,7 +1636,15 @@ ColumnLayout {
                 SettingsDefaultApps { Layout.fillWidth: true; active: page.cat === "apps" }
                 SettingsWebApps { Layout.fillWidth: true; active: page.cat === "apps" }
                 SettingsComponents { Layout.fillWidth: true; active: page.cat === "apps" }
-                SettingsDevTools { Layout.fillWidth: true; active: page.cat === "apps" }
+                // command-line tools are installed in Software now (from Nix, per user)
+                ListRow {
+                    Layout.fillWidth: true
+                    icon: "utilities-terminal"
+                    title: Tr.t("Command-line tools")
+                    subtitle: Tr.t("git, Node.js, Python, ripgrep and more — in Software")
+                    trailing: "›"
+                    onClicked: Ui.openSoftware("tools")
+                }
                 SettingsStartup { Layout.fillWidth: true; active: page.cat === "apps" }
                 SettingsAppPermissions { Layout.fillWidth: true; active: page.cat === "apps" }
 

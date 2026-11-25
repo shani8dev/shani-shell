@@ -17,9 +17,9 @@ Scope {
     readonly property bool on: Settings.data.edgeSwipes && !Lock.locked
         && !(GameMode.top && GameMode.top.fullscreen)   // a game's own edges are its own
         && ["tablet", "phone"].indexOf(FormFactor.of(modelData.name).profile) >= 0
-    // the left rail lives on the focused output: a swipe there must reach the
-    // rail's workspace wheel, not the shell's Back (Alt+Left)
-    readonly property bool railOnFocused: Settings.data.leftRail && modelData.name === Niri.focusedOutput
+    // where the left rail is, a swipe there must reach the rail, not the
+    // shell's Back (Alt+Left)
+    readonly property bool railHere: Settings.data.leftRail && FormFactor.hasRail(modelData.name)
     // four layer-shell surfaces, one per edge: Variants, not a Repeater, so the
     // windows are made the way every other surface is (tests/test_qml_patterns.py)
     Variants {
@@ -29,7 +29,7 @@ Scope {
             required property string modelData
             readonly property bool across: modelData === "top" || modelData === "bottom"
             screen: root.modelData
-            visible: root.on && !(modelData === "left" && root.railOnFocused)
+            visible: root.on && !(modelData === "left" && root.railHere)
             color: "transparent"
             exclusionMode: ExclusionMode.Ignore
             WlrLayershell.namespace: "shani-edge-" + modelData

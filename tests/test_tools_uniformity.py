@@ -27,7 +27,10 @@ SIDEBAR = "shani/Modules/ControlCenter/SidebarTiles.qml"
 SETTINGS = "shani/Modules/Settings/SettingsIndex.js"
 QUICK = "shani/Modules/QuickPanel/QuickPanel.qml"
 
-SURFACES = [LAUNCHER, WINDOWMENU, DOCK, SIDEBAR, SETTINGS, QUICK]
+SURFACES = [LAUNCHER, SIDEBAR, SETTINGS, QUICK]
+# an app's dock menu and a window's menu are about that app or window: the
+# tools are not repeated there (they were, in seven places)
+APP_MENUS = [WINDOWMENU, DOCK]
 QML_IMPORT = 'import "../../Common/Tools.js" as Tools'
 JS_IMPORT = '.import "../../Common/Tools.js" as Tools'
 
@@ -123,22 +126,6 @@ def test_surfaces_derive_rows_instead_of_hand_copying():
     ):
         assert needle in launcher, needle
 
-    menu = src(WINDOWMENU)
-    assert "readonly property var tools: Tools.list.map(t => ({" in menu
-    for needle in (
-        "tool: true",
-        "label: Tr.t(t.label)",
-        "icon: t.icon",
-        "run: () => Ui.openTool(t.flag)",
-    ):
-        assert needle in menu, needle
-
-    dock = src(DOCK)
-    assert (
-        "readonly property var tools: Tools.list.map(t => ({ label: t.label, run: () => Ui.openTool(t.flag) }))"
-        in dock
-    )
-
     sidebar = src(SIDEBAR)
     assert "...Tools.list.map(t => t.flag)" in sidebar  # tile order
     assert "model: Tools.list" in sidebar
@@ -189,18 +176,20 @@ def test_catalog_has_nine_coherent_rows():
         assert r["op"] == r["flag"] + "Open", r
 
 
+@pytest.mark.parametrize("rel", APP_MENUS)
+def test_app_and_window_menus_do_not_repeat_the_tools(rel):
+    body = src(rel)
+    assert "Tools.js" not in body and "Tools.list" not in body, rel
+    assert "Ui.openTool(" not in body, rel
+
+
 @node_mark
-def test_launcher_menu_and_dock_agree_with_the_catalog():
+def test_launcher_agrees_with_the_catalog():
     full = catalog()
     launcher = eval_rows(map_expr(LAUNCHER, "...Tools.list.map"))
-    menu = eval_rows(map_expr(WINDOWMENU, "readonly property var tools:"))
-    dock = eval_rows(map_expr(DOCK, "readonly property var tools:"))
     assert [r["title"] for r in launcher] == [r["label"] for r in full]
     assert [r["words"] for r in launcher] == [r["words"] for r in full]
     assert [r["icon"] for r in launcher] == [r["icon"] for r in full]
-    assert [r["label"] for r in menu] == [r["label"] for r in full]
-    assert [r["icon"] for r in menu] == [r["icon"] for r in full]
-    assert [r["label"] for r in dock] == [r["label"] for r in full]
 
 
 @node_mark

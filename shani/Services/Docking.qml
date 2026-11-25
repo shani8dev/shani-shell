@@ -19,7 +19,7 @@ Singleton {
     // the settings a layout preset owns: the ones carried between docks
     readonly property var keys: ["dock", "dockVisibility", "barVisibility", "dockIconSize", "desktopWidgets", "desktopIcons",
         "deskStacks", "winGaps", "winFocusRing", "winDefaultWidth", "winFocusFollowsMouse", "assistiveTouch",
-        "showSysStats", "hotCornerTopLeft", "hotCornerTopRight", "hotCornerBottomLeft", "hotCornerBottomRight"]
+        "showSysStats", "leftRail", "hotCornerTopLeft", "hotCornerTopRight", "hotCornerBottomLeft", "hotCornerBottomRight"]
     property string forced: ""            // "docked" / "alone": the tests (a nested niri has no panel to undock)
     readonly property bool hasPanel: Displays.outputs.some(o => DisplayModes.internal(o.name))
     readonly property string state: {

@@ -53,30 +53,11 @@ def test_settings_index_has_a_deep_link_per_new_app():
         assert opener in shell or opener_with_file in shell, ipc
 
 
-def test_dock_context_menu_opens_the_new_apps_without_new_tiles():
-    dock = source("shani/Modules/Dock/Dock.qml")
-    assert "property bool toolsOpen: false" in dock
-    assert 'Tr.t("Open tools…")' in dock
-    assert "keep: true" in dock  # expanding the list keeps the menu open
-    assert "win.tools.map(t =>" in dock
-    assert "run: t.run" in dock  # each row uses its own Ui-flag action
-    assert "win.toolsOpen = false;" in dock  # a new menu starts collapsed
-    for label, _ipc, flag, _cat in APPS:
-        # rows generated from Tools.list; verify shared catalog + local action map
-        assert "Tools.list.map" in dock or "win.tools.map" in dock, label
-
-
-def test_window_menu_has_a_tools_submenu_for_every_window():
-    menu = source("shani/Modules/WindowMenu/WindowMenu.qml")
-    assert "property bool toolsOpen: false" in menu
-    assert "readonly property var tools:" in menu
-    assert 'Accessible.name: Tr.t("Tools")' in menu  # always-present chip
-    assert (
-        "win.toolsOpen ? flatten(win.tools, 0)" in menu
-    )  # rendered in the submenu card
-    assert "if (it.tool) { it.run(); return; }" in menu
-    assert "win.toolsOpen = false;" in menu  # closing the menu closes the submenu
-    for label, _ipc, flag, _cat in APPS:
-        # rows generated from Tools.list; verify catalog import + Ui flag mapping
-        assert "Tools.list" in menu, label
-        assert f"Ui.{flag} = true" in menu or "t.run()" in menu, flag
+def test_app_menus_leave_the_tools_to_the_launcher_and_quick_settings():
+    # the dock's app menu and a window's menu once each listed every tool; they
+    # are about that app or window now, and the tools stay one search away
+    for rel in ("shani/Modules/Dock/Dock.qml", "shani/Modules/WindowMenu/WindowMenu.qml"):
+        menu = source(rel)
+        assert "toolsOpen" not in menu and "Tools.list" not in menu, rel
+    actions = source("shani/Modules/Launcher/LauncherActions.qml")
+    assert "...Tools.list.map" in actions

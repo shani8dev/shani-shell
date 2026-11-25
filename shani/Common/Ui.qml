@@ -93,7 +93,11 @@ Singleton {
     property string softwareDone: ""         // ...the last job's "<id>:ok",
     property var softwareLeftovers: []
     property var softwareAppImages: []
+    property var softwareSnaps: []           // ...installed snaps,
+    property var softwareTools: []           // ...command-line tools installed (Nix)
     property string softwareRef: ""          // a .flatpakref opened with Software: installed when the window is up
+    property string softwareTab: ""          // a tab asked for from elsewhere (Settings' links): taken when the window is up
+    property string appPermFocus: ""         // Settings > App permissions: the app to open there (Software's "Change…")
     property bool passwords: false           // Passwords and Keys (Modules/Passwords: Seahorse parity)
     property bool clocks: false              // the Clocks app (Modules/Clocks): world, alarms, stopwatch, timer
     property string clocksTab: "world"
@@ -303,6 +307,13 @@ Singleton {
     // the tools (Common/Tools.js): each opens the Ui flag of the same name. One
     // opener for the dock, window menu, launcher, quick panel and sidebar tiles,
     // which each used to carry their own copy of the same nine closures.
+    // Software on one of its tabs: Settings' links to it (command-line tools,
+    // app updates, leftovers) land on the right place
+    function openSoftware(tab) {
+        closeAll();
+        softwareTab = tab || "";
+        software = true;
+    }
     function openTool(flag) {
         const tool = Tools.list.find(t => t.flag === flag);
         if (!tool) return;

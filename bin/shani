@@ -12,6 +12,9 @@ already exposes
     shani volume up
     shani doctor
     shani state --json
+    shani install node          (a command-line tool: Nix; an app: Flathub)
+    shani update                (the apps: Flathub, snaps, Nix tools)
+    shani upgrade               (ShaniOS itself, through shani-deploy)
 
 Groups mirror the shell's surfaces; every command either drives the shell,
 reads live state as JSON, or hands off to shani-doctor. Exit 0 on success,
@@ -557,7 +560,7 @@ APPS: dict[str, tuple] = {
                   [], ["converterOpen", ""], "converterOpen", "converterShown"),
     "nearby-share": ("dev.shani.Nearby", "Nearby Share", "Send files to phones and computers on the Wi-Fi (LocalSend)", "localsend", "Network;FileTransfer;",
                [], ["nearbyOpen", ""], "nearbyOpen", "nearbyShown"),
-    "software": ("dev.shani.Software", "Software", "Find, install and update apps (Flathub), and AppImages", "org.gnome.Software", "System;PackageManager;",
+    "software": ("dev.shani.Software", "Software", "Find, install and update apps (Flathub and the Snap Store), AppImages and command-line tools (Nix)", "org.gnome.Software", "System;PackageManager;",
                  ["application/vnd.flatpak.ref", "application/vnd.flatpak.repo"], ["softwareOpen"], "softwareInstallRef", "softwareShown"),
     "containers": ("dev.shani.Containers", "Containers", "Toolboxes (a whole Ubuntu, Fedora, Arch or Debian) and your Podman containers", "application-x-addon", "System;Development;",
                    [], ["containersOpen"], None, "containersShown"),
@@ -630,7 +633,7 @@ APP_KEYWORDS: dict[str, tuple] = {
     "settings": (("preferences", "configure", "options"), "Settings"),
     "system-monitor": (("processes", "cpu", "memory", "monitor"), "System Monitor"),
     "contacts": (("addressbook", "people", "phone"), "Address Book"),
-    "software": (("store", "install", "update", "app"), "Software Center"),
+    "software": (("store", "install", "update", "app", "flatpak", "snap", "nix", "appimage"), "Software Center"),
     "converter": (("convert", "transcode", "format"), None),
     "maps": (("navigation", "location", "map"), None),
     "clocks": (("alarm", "timer", "stopwatch", "time"), None),
@@ -735,6 +738,179 @@ def _cmd_report(_args) -> int:
     return subprocess.run([sys.executable, here]).returncode
 
 
+# ---- software: one front for every ShaniOS way in (shani-docs software/*) ----
+# The same bridge the Software window uses (bridge/appstore.py), so the CLI and
+# the window cannot disagree. ShaniOS itself updates only through shani-deploy
+# (blue-green: the new OS is written to the other slot, used from the next boot).
+#: what people type -> the nixpkgs attribute
+NIX_ALIASES = {
+    "node": "nodejs", "nodejs": "nodejs", "npm": "nodejs", "python": "python3", "pip": "python3",
+    "nvim": "neovim", "vim": "vim", "rg": "ripgrep", "fd": "fd", "go": "go", "golang": "go",
+    "rust": "rustup", "cargo": "rustup", "gh": "gh", "jq": "jq", "uv": "uv",
+}
+
+
+def _appstore() -> list[str]:
+    here = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "bridge", "appstore.py"))
+    for p in (os.environ.get("SHANI_APPSTORE_TOOL", ""), "/usr/lib/shani-shell/appstore.py", here):
+        if p and os.path.isfile(p):
+            return [sys.executable, p]
+    raise RuntimeError("the software bridge (appstore.py) is not installed")
+
+
+def _store_json(*args: str):
+    r = subprocess.run(_appstore() + list(args), capture_output=True, text=True)
+    try:
+        return json.loads(r.stdout.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        return None
+
+
+def _store_stream(*args: str) -> int:
+    """A job (install, remove, update) with its progress lines shown as they come."""
+    p = subprocess.Popen(_appstore() + list(args), stdout=subprocess.PIPE, text=True)
+    rc_err = None
+    for line in p.stdout:
+        try:
+            r = json.loads(line)
+        except ValueError:
+            continue
+        if r.get("line"):
+            print("  " + r["line"], flush=True)
+        if r.get("error"):
+            rc_err = r["error"]
+    rc = p.wait()
+    if rc_err:
+        print("error: " + rc_err, file=sys.stderr)
+    return rc
+
+
+def _which(name: str) -> bool:
+    import shutil
+    return shutil.which(name) is not None
+
+
+def _resolve(name: str, source: str | None) -> tuple[str, str]:
+    """(source, id) for a name: a Flathub id or an app's exact name is a Flatpak;
+    a snap only when asked for; anything else is a command-line tool from Nix."""
+    if source == "snap":
+        return "snap", name
+    if source == "nix":
+        return "nix", NIX_ALIASES.get(name.lower(), name)
+    if source == "flatpak" or (name.count(".") >= 2 and " " not in name):
+        return "flatpak", name
+    hits = _store_json("search", name) or []
+    exact = [a for a in hits if isinstance(a, dict) and a.get("name", "").lower() == name.lower()]
+    if exact:
+        return "flatpak", exact[0]["id"]
+    return "nix", NIX_ALIASES.get(name.lower(), name)
+
+
+def _source_flag(args) -> str | None:
+    return "flatpak" if args.flatpak else "snap" if args.snap else "nix" if args.nix else None
+
+
+def _cmd_install(args) -> int:
+    rc = 0
+    for name in args.names:
+        source, ident = _resolve(name, _source_flag(args))
+        print(f"{name}: installing {ident} from " + {"flatpak": "Flathub", "snap": "the Snap Store", "nix": "Nix (just for you)"}[source])
+        if source == "flatpak":
+            rc |= _store_stream("install", ident)
+        elif source == "snap":
+            found = next((x for x in (_store_json("snap-search", ident) or []) if x.get("name") == ident), None)
+            rc |= _store_stream("snap-install", ident, *(["classic"] if found and found.get("classic") else []))
+        else:
+            r = _store_stream("nix-install", ident)
+            if r:
+                print(f"  not a Nix package name? try: shani search {name}", file=sys.stderr)
+            rc |= r
+    return 1 if rc else 0
+
+
+def _cmd_remove(args) -> int:
+    rc = 0
+    flat = {a.get("id"): a for a in (_store_json("installed") or []) if isinstance(a, dict)}
+    flat_by_name = {str(a.get("name", "")).lower(): i for i, a in flat.items()}
+    snaps = {x.get("name") for x in (_store_json("snap-installed") or []) if isinstance(x, dict)}
+    for name in args.names:
+        forced = _source_flag(args)
+        if forced == "flatpak" or (not forced and (name in flat or name.lower() in flat_by_name)):
+            rc |= _store_stream("remove", name if name in flat else flat_by_name.get(name.lower(), name))
+        elif forced == "snap" or (not forced and name in snaps):
+            rc |= _store_stream("snap-remove", name)
+        else:
+            rc |= _store_stream("nix-remove", NIX_ALIASES.get(name.lower(), name))
+    return 1 if rc else 0
+
+
+def _cmd_search(args) -> int:
+    words = " ".join(args.words)
+    rows = [("Flathub", a.get("id", ""), a.get("summary", "")) for a in (_store_json("search", words) or [])[:10] if isinstance(a, dict)]
+    rows += [("Snap", a.get("name", ""), a.get("summary", "")) for a in (_store_json("snap-search", words) or [])[:10] if isinstance(a, dict)]
+    rows += [("Nix", t["attr"], t["about"]) for t in (_store_json("nix-tools") or [])
+             if isinstance(t, dict) and any(w.lower() in (t["name"] + " " + t["attr"] + " " + t["cmd"]).lower() for w in args.words)]
+    if args.json:
+        print(json.dumps([{"source": s, "id": i, "summary": d} for s, i, d in rows]))
+    else:
+        for s, i, d in rows:
+            print(f"{s:8} {i:40} {d}")
+    return 0 if rows else 1
+
+
+def _os_status() -> dict:
+    if not _which("shani-deploy"):
+        return {}
+    r = subprocess.run(["shani-deploy", "--status", "--check", "--json"], capture_output=True, text=True)
+    try:
+        return json.loads(r.stdout or "{}")
+    except ValueError:
+        return {}
+
+
+def _cmd_upgrade(args) -> int:
+    """ShaniOS itself: a new image into the other slot (shani-deploy), used from the next restart."""
+    if args.gui:
+        try:
+            _ipc("settingsCategory", "updates")
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        return 0
+    if not _which("shani-deploy"):
+        print("shani-deploy is not installed here", file=sys.stderr)
+        return 1
+    if args.check:
+        return subprocess.run(["shani-deploy", "--status", "--check", "--json"]).returncode
+    print("ShaniOS: writing the new version to the other slot (shani-deploy); it is used from the next restart")
+    return subprocess.run(["pkexec", "shani-deploy"]).returncode
+
+
+def _cmd_update(args) -> int:
+    """The apps: Flathub, snaps and the Nix command-line tools - live, no restart."""
+    rc = 0
+    if args.check:
+        ups = [a["id"] for a in (_store_json("installed") or []) if isinstance(a, dict) and a.get("update")]
+        ups += ["snap:" + a["name"] for a in (_store_json("snap-installed") or []) if isinstance(a, dict) and a.get("update")]
+        print("\n".join(ups) if ups else "Apps: all up to date")
+    else:
+        if _which("flatpak"):
+            print("Apps (Flathub):")
+            rc |= _store_stream("update-all")
+        if _which("snap"):
+            print("Snaps:")
+            rc |= _store_stream("snap-refresh")
+        if _which("nix-env") and any(t.get("nix") for t in (_store_json("nix-tools") or []) if isinstance(t, dict)):
+            print("Command-line tools (Nix):")
+            rc |= _store_stream("nix-upgrade")
+    if args.all:
+        args.gui = False
+        rc |= _cmd_upgrade(args)
+    elif _os_status().get("update_available"):
+        print("A new ShaniOS is available: shani upgrade")
+    return 1 if rc else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog=PROG,
@@ -759,6 +935,30 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("file", nargs="?")
     p.add_argument("--write-desktop", metavar="DIR", help="write the apps' desktop entries into DIR (the package does)")
     p.set_defaults(func=_cmd_app)
+    # software, every source behind one front
+    for cmd, aliases, helptext, fn in (
+        ("install", ["add"], "install apps (Flathub) or command-line tools (Nix): shani install node", _cmd_install),
+        ("remove", ["uninstall", "rm"], "remove what install put there, from whichever source has it", _cmd_remove),
+    ):
+        p = sub.add_parser(cmd, aliases=aliases, help=helptext)
+        p.add_argument("names", nargs="+")
+        g = p.add_mutually_exclusive_group()
+        g.add_argument("--flatpak", action="store_true", help="from Flathub")
+        g.add_argument("--snap", action="store_true", help="from the Snap Store")
+        g.add_argument("--nix", action="store_true", help="a command-line tool from Nix")
+        p.set_defaults(func=fn)
+    p = sub.add_parser("search", aliases=["find"], help="search Flathub, the Snap Store and the command-line tools")
+    p.add_argument("words", nargs="+")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=_cmd_search)
+    p = sub.add_parser("update", help="update the apps: Flathub, snaps, Nix command-line tools (live, no restart)")
+    p.add_argument("--check", action="store_true", help="only list what would be updated")
+    p.add_argument("--all", action="store_true", help="and upgrade ShaniOS too")
+    p.set_defaults(func=_cmd_update)
+    p = sub.add_parser("upgrade", help="upgrade ShaniOS through shani-deploy (used from the next restart)")
+    p.add_argument("--check", action="store_true", help="only say whether a new version is out")
+    p.add_argument("--gui", action="store_true", help="open Settings > Updates instead")
+    p.set_defaults(func=_cmd_upgrade)
     # a raw call, for anything not in the groups
     p = sub.add_parser("call", help="call any shell IPC function directly")
     p.add_argument("fn")

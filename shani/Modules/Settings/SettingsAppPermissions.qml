@@ -14,6 +14,7 @@ import qs.Services
 
 ColumnLayout {
     id: page
+    objectName: "section:apppermissions"     // Software's "Change permissions…" scrolls here
     spacing: Theme.px(12)
     property bool active: false
     property var apps: []                 // [{ id, name }]
@@ -34,6 +35,7 @@ ColumnLayout {
                 try { r = JSON.parse(text); } catch (e) { r = []; }
                 page.apps = Array.isArray(r) ? r : [];
                 Ui.appPermApps = page.apps.map(a => a.id);
+                page.takeFocus();
             }
         }
     }
@@ -73,6 +75,14 @@ ColumnLayout {
         error = "";
         if (open) call(["show", id]);
     }
+    // an app asked for from elsewhere (Software): opened once the list is in
+    function takeFocus() {
+        const id = Ui.appPermFocus;
+        if (!id || !page.apps.some(a => a.id === id)) return;
+        Ui.appPermFocus = "";
+        if (page.open !== id) page.openApp(id);
+    }
+    Connections { target: Ui; function onAppPermFocusChanged() { page.takeFocus(); } }
     function has(list, x) { return !!perms && (perms[list] || []).indexOf(x) >= 0; }
     function mine(list, x) { return !!perms && ((perms.changed || {})[list] || []).indexOf(x) >= 0; }
     // a switch: on/off are override's own pair of flags

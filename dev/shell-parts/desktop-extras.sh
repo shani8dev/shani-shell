@@ -47,7 +47,7 @@ closewin shani-pad-ai
 # the binds are checked by niri itself, as remote.sh does)
 settings '{"barWorldClock": true, "worldClocks": ["Asia/Tokyo"]}'
 waitfor "True" 1
-for b in 'Mod+Shift+Grave' 'Mod+Shift+Space' 'Mod+I '; do grep -q "^ *$b" /work/dev/niri/session.kdl || missing="$missing $b"; done
+for b in 'Mod+Shift+Grave' 'Mod+Shift+Space' 'Mod+Shift+I ' 'Mod+I ' 'Mod+Z '; do grep -q "^ *$b" /work/dev/niri/session.kdl || missing="$missing $b"; done
 niri validate -c /work/dev/niri/session.kdl >/dev/null 2>&1 && [ -z "$missing" ] \
     && result desktop-extras-binds PASS || result desktop-extras-binds FAIL "missing:$missing"
 settings '{}'

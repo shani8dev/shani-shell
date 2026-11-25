@@ -37,6 +37,10 @@ Variants {
         // a phone is one column: the workspaces, the world clock and the date
         // go, and the launcher, the status cluster and the clock stay
         readonly property bool narrow: FormFactor.of(output).profile === "phone"
+        // workspaces are shown in one place: the left rail, else the dock, else
+        // here (no dock, or one that waits below the edge)
+        readonly property bool workspacesHere: !(Settings.data.leftRail && FormFactor.hasRail(output))
+            && (!Settings.data.dock || Settings.data.dockVisibility === "hide")
         // the surface starts at the screen's edge, so a hidden bar can be
         // called back by resting the pointer there; the bar itself sits 8 px in
         margins { left: 10; right: 10 }
@@ -60,8 +64,10 @@ Variants {
         Connections { target: barHover; function onHoveredChanged() { if (!barHover.hovered) bar.revealed = false; } }
         Timer { interval: 250; running: barEdgeHover.hovered && !bar.revealed; onTriggered: bar.revealed = true }
         onShownChanged: { Hiding.setBarShown(output, shown); if (!shown) bar.trayOpen = false; }
-        // workspace suggestion (floating windows that this window could sit beside)
-        readonly property var otherFloating: Object.values(Niri.windows).filter(w => w.is_floating && w !== Niri.focusedWindow)
+        // a floating window on this workspace that the focused one could sit beside:
+        // offered on the title while it is hovered, and done when clicked
+        readonly property var otherFloating: Object.values(Niri.windows).filter(w => w.is_floating && w !== Niri.focusedWindow
+            && Niri.focusedWindow && w.workspace_id === Niri.focusedWindow.workspace_id)
         readonly property string suggestion: otherFloating.length ? Tr.t("Put this window beside %1", otherFloating[0].title || otherFloating[0].app_id) : ""
         function openAppMenu() {
             AppMenu.load(Niri.focusedWindow);
@@ -326,7 +332,7 @@ Variants {
                     }
                 }
                 Item {
-                    visible: !bar.narrow
+                    visible: !bar.narrow && bar.workspacesHere
                     implicitWidth: wsRow.implicitWidth
                     implicitHeight: Theme.px(22)
                     readonly property var activeItem: {
@@ -563,15 +569,33 @@ Variants {
                             font.pixelSize: Theme.px(12) * Theme.fontScale
                             font.weight: Font.Medium
                         }
-                        // Layout suggestion when hovering the title
+                        // the layout suggestion: only while the title is hovered or the
+                        // bar is walked with the keyboard, and a click or Enter does it
+                        // (it was always on, and clicking did nothing)
+                        Item { Layout.fillWidth: true; visible: !suggestionChip.visible }
                         Text {
+                            id: suggestionChip
+                            visible: bar.suggestion !== "" && (titleHover.hovered || Ui.barFocus)
                             text: bar.suggestion
                             font.family: Theme.font
                             font.pixelSize: Theme.px(10) * Theme.fontScale
-                            color: bar.suggestion !== "" ? Theme.accent : Theme.dim
+                            font.underline: suggestionArea.containsMouse
+                            color: Theme.accent
+                            elide: Text.ElideRight
                             Layout.leftMargin: Theme.px(6)
                             horizontalAlignment: Text.AlignRight
                             Layout.fillWidth: true
+                            Accessible.role: Accessible.Button
+                            Accessible.name: text
+                            Accessible.onPressAction: suggestionArea.clicked(null)
+                            MouseArea {
+                                id: suggestionArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: Niri.sideBySide(Niri.focusedWindowId, bar.otherFloating[0].id)
+                            }
+                            KeyFocus { onActivated: Niri.sideBySide(Niri.focusedWindowId, bar.otherFloating[0].id) }
                         }
                         // minimise, maximise, close: dim at rest, plain on hover
                         RowLayout {
@@ -585,7 +609,7 @@ Variants {
                             IconButton {
                                 size: Theme.px(22)
                                 icon: "window-maximize-symbolic"
-                                tip: Tr.t("Hold for window layout · Click to maximise")
+                                tip: Tr.t("Click to maximise · Hold or Super+Z for window layout")
                                 accessibleName: Tr.t("Maximise")
                                 onClicked: Niri.action("maximize-column")
                                 onPressAndHold: Ui.toggleWindowLayouts()

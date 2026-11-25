@@ -4,12 +4,16 @@
 // have, with their updates; what removed apps left in ~/.var/app; and AppImages
 // added to the launcher. Everything is bridge/appstore.py over `flatpak`; a
 // system-wide install asks the administrator's password in the shell's polkit agent.
+// Command-line tools (git, Node.js, ripgrep...) come from Nix, per user
+// (SoftwareCliTools); this was Settings > Developer tools, which used the
+// system's package manager - read-only on ShaniOS.
 import Quickshell
 import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import qs.Modules.Software   // SoftwareCliTools: a file read on first open does not see its folder by itself
 
 AppWindow {
     id: win
@@ -22,6 +26,10 @@ AppWindow {
     readonly property string tool: Quickshell.env("SHANI_APPSTORE_TOOL") || "/usr/lib/shani-shell/appstore.py"
     property string tab: "explore"
     property var results: []
+    // the Snap Store's answers to the same search, listed after Flathub's (as
+    // Shelly orders its sources) with a "Snap" mark; snapd is on every ShaniOS
+    property var snapResults: []
+    property var snaps: []                       // installed snaps, in the Installed list with the Flatpaks
     property string showing: ""               // what the list shows: a search or a category
     property var app: null                    // the app whose page is open
     property var appPermissions: null         // Flatpak permissions for the open app
@@ -40,7 +48,7 @@ AppWindow {
     property string error: ""
     property string removing: ""
     property string removingLeftover: ""
-    readonly property int updates: installedApps.filter(a => a.update).length
+    readonly property int updates: installedApps.filter(a => a.update).length + snaps.filter(a => a.update).length
     property var skippedIds: []                  // apps held back with "Skip this version"
     property string installedQuery: ""           // filter the Installed list
     property bool updatesOnly: false             // show only apps with an update
@@ -56,7 +64,7 @@ AppWindow {
     property int searchGen: 0                    // ignore answers from a query the person already replaced
     property bool installedOnly: false           // filter Explore search results to installed apps
     property bool showAllReleases: false         // expand a long changelog on the app page
-    readonly property var tabIds: ["explore", "installed", "leftovers", "appimages", "history", "repositories"]
+    readonly property var tabIds: ["explore", "installed", "tools", "leftovers", "appimages", "history", "repositories"]
 
     readonly property var categories: [["AudioVideo", Tr.t("Music and video")], ["Development", Tr.t("Developer tools")], ["Education", Tr.t("Learning")],
                                        ["Game", Tr.t("Games")], ["Graphics", Tr.t("Graphics")], ["Network", Tr.t("Internet")], ["Office", Tr.t("Office")],
@@ -70,7 +78,14 @@ AppWindow {
     onVisibleChanged: if (visible) start()
     Component.onCompleted: if (visible) start()
     // a .flatpakref opened with Software (a website's Install link): installed at once
-    Connections { target: Ui; function onSoftwareRefChanged() { win.takeRef(); } }
+    Connections { target: Ui; function onSoftwareRefChanged() { win.takeRef(); } function onSoftwareTabChanged() { win.takeTab(); } }
+    function takeTab() {
+        const t = Ui.softwareTab;
+        if (!t || win.tabIds.indexOf(t) < 0) return;
+        Ui.softwareTab = "";
+        win.tab = t; win.app = null;
+        win.onTabChanged(t);
+    }
     function takeRef() {
         if (!Ui.softwareRef) return;
         const p = Ui.softwareRef;
@@ -80,7 +95,9 @@ AppWindow {
     }
     function start() {
         Qt.callLater(win.takeRef);
+        Qt.callLater(win.takeTab);
         ask(["installed"], r => { win.installedApps = Array.isArray(r) ? r : []; Ui.softwareInstalled = win.installedApps.map(a => a.id); });
+        win.loadSnaps();
         ask(["skipped"], r => { win.skippedIds = Array.isArray(r) ? r : []; });
         ask(["catalogue"], r => { win.catalogue = r && !r.error ? r : ({}); });
         if (!win.results.length) showCategory("Utility");
@@ -130,7 +147,14 @@ AppWindow {
         win.error = "";
         const gen = ++win.searchGen;
         win.showing = "search:" + words;
+        win.snapResults = [];
         ask(["search", words], r => win.applyResults(gen, r));
+        ask(["snap-search", words], r => {
+            if (gen !== win.searchGen || !Array.isArray(r)) return;
+            win.snapResults = r.map(x => ({ id: "snap:" + x.name, snap: x.name, source: "snap", name: x.name, summary: x.summary,
+                                            publisher: x.publisher, classic: x.classic, icon: "",
+                                            installed: win.snaps.some(i => i.snap === x.name) }));
+        });
     }
     // a slow answer from an earlier query must not replace what is on screen now
     function applyResults(gen, r) {
@@ -140,14 +164,28 @@ AppWindow {
         return true;
     }
     function filteredResults() {
-        const all = Array.isArray(win.results) ? win.results : [];
+        const all = (Array.isArray(win.results) ? win.results : []).concat(win.snapResults || []);
         const out = win.installedOnly ? all.filter(a => a.installed) : all.slice();
-        return out.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+        // Flathub first, then the Snap Store; by name within each
+        return out.sort((a, b) => ((a.source === "snap") - (b.source === "snap")) || String(a.name || "").localeCompare(String(b.name || "")));
+    }
+    function loadSnaps() {
+        ask(["snap-installed"], r => {
+            win.snaps = Array.isArray(r) ? r.map(x => Object.assign({ id: "snap:" + x.name, snap: x.name, source: "snap" }, x)) : [];
+            win.snapResults = win.snapResults.map(x => Object.assign({}, x, { installed: win.snaps.some(i => i.snap === x.snap) }));
+            Ui.softwareSnaps = win.snaps.map(x => x.snap);
+        });
+    }
+    function snapJob(verb, item) {
+        const args = verb === "install" ? ["snap-install", item.snap].concat(item.classic ? ["classic"] : [])
+                   : verb === "remove" ? ["snap-remove", item.snap] : ["snap-refresh", item.snap];
+        win.runJob(args, item.id);
     }
     // a collection is several categories merged into one list, de-duplicated by id
     function showCollection(name, cats) {
         win.error = "";
         win.showing = "collection:" + name;
+        win.snapResults = [];
         let left = cats.length;
         let merged = [];
         cats.forEach(c => ask(["category", c], r => {
@@ -166,6 +204,7 @@ AppWindow {
     function showCategory(c) {
         win.error = "";
         win.showing = "category:" + c;
+        win.snapResults = [];
         ask(["category", c], r => { win.results = Array.isArray(r) ? r : []; Ui.softwareResults = win.results.map(a => a.id); });
     }
     function openApp(id) {
@@ -350,7 +389,7 @@ AppWindow {
             spacing: Theme.px(6)
             Repeater {
                 model: [["explore", Tr.t("Explore")], ["installed", win.updates ? Tr.t("Installed · %1 updates", win.updates) : Tr.t("Installed")],
-                        ["leftovers", Tr.t("Leftovers")], ["appimages", Tr.t("AppImages")],
+                        ["tools", Tr.t("Command-line tools")], ["leftovers", Tr.t("Leftovers")], ["appimages", Tr.t("AppImages")],
                         ["history", Tr.t("History")], ["repositories", Tr.t("Repositories")]]
                 Choice {
                     required property var modelData
@@ -586,23 +625,34 @@ AppWindow {
                 height: grid.cellHeight - Theme.px(6)
                 radius: Theme.px(10)
                 color: cardArea.containsMouse ? Theme.hover : Theme.card
-                MouseArea { id: cardArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.openApp(card.modelData.id) }
+                readonly property bool isSnap: card.modelData.source === "snap"
+                MouseArea { id: cardArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; enabled: !card.isSnap; onClicked: win.openApp(card.modelData.id) }
                 RowLayout {
                     anchors.fill: parent
                     anchors.margins: Theme.px(8)
                     spacing: Theme.px(10)
-                    Image { Layout.preferredWidth: Theme.px(48); Layout.preferredHeight: Theme.px(48); source: card.modelData.icon ? "file://" + card.modelData.icon : ""; sourceSize: Qt.size(96, 96); fillMode: Image.PreserveAspectFit; asynchronous: true }
+                    Image { visible: !card.isSnap; Layout.preferredWidth: Theme.px(48); Layout.preferredHeight: Theme.px(48); source: card.modelData.icon ? "file://" + card.modelData.icon : ""; sourceSize: Qt.size(96, 96); fillMode: Image.PreserveAspectFit; asynchronous: true }
+                    Icon { visible: card.isSnap; name: "package-x-generic"; size: Theme.px(40); color: Theme.dim }
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 0
                         Text { Layout.fillWidth: true; elide: Text.ElideRight; text: card.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.DemiBold }
                         Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.WordWrap; text: card.modelData.summary; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        Text { visible: card.isSnap; Layout.fillWidth: true; elide: Text.ElideRight; text: Tr.t("Snap") + (card.modelData.publisher ? "  ·  " + card.modelData.publisher : "") + (card.modelData.classic ? "  ·  " + Tr.t("not sandboxed") : ""); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
                     }
-                    Text { visible: card.modelData.installed; text: "✓"; color: Theme.accent; font.pixelSize: Theme.px(14) }
+                    Text { visible: card.modelData.installed && !card.isSnap; text: "✓"; color: Theme.accent; font.pixelSize: Theme.px(14) }
+                    // a snap has no page here: install or remove from its card
+                    Button {
+                        visible: card.isSnap
+                        text: win.job === card.modelData.id ? Tr.t("Working…") : card.modelData.installed ? Tr.t("Remove") : Tr.t("Install")
+                        kind: card.modelData.installed ? "outline" : "primary"
+                        enabled: !jobProc.running
+                        onClicked: win.snapJob(card.modelData.installed ? "remove" : "install", card.modelData)
+                    }
                 }
                 Accessible.role: Accessible.Button
                 Accessible.name: card.modelData.name
-                Accessible.onPressAction: win.openApp(card.modelData.id)
+                Accessible.onPressAction: card.isSnap ? win.snapJob(card.modelData.installed ? "remove" : "install", card.modelData) : win.openApp(card.modelData.id)
             }
         }
         Text {
@@ -787,7 +837,23 @@ AppWindow {
                     visible: win.permsLoading
                     note: Tr.t("Reading permissions…")
                 }
+                // changing them is Settings' job (App permissions), opened on this app
+                Button {
+                    visible: !win.permsLoading && win.installedApps.some(x => x.id === appCol.a.id)
+                    text: Tr.t("Change permissions…")
+                    kind: "outline"
+                    onClicked: { Ui.appPermFocus = appCol.a.id; Ui.openSettings("apps", "section:apppermissions"); }
+                }
             }
+        }
+
+        // ---- Command-line tools ----
+        SoftwareCliTools {
+            visible: win.tab === "tools"
+            active: visible
+            store: win
+            Layout.fillWidth: true
+            Layout.fillHeight: true
         }
 
         // ---- Installed ----
@@ -805,7 +871,11 @@ AppWindow {
                 kind: updateAllConfirm.armed ? "danger" : "plain"
                 interval: 4000
                 enabled: !jobProc.running
-                onConfirmed: win.runJob(["update-all"], "all")
+                // every source at once, as Shelly's upgrade does: Flathub, then the snaps
+                onConfirmed: {
+                    if (win.installedApps.some(a => a.update)) win.runJob(["update-all"], "all");
+                    if (win.snaps.some(a => a.update)) win.runJob(["snap-refresh"], "snaps");
+                }
             }
         }
         RowLayout {
@@ -837,7 +907,7 @@ AppWindow {
                 anchors.margins: Theme.px(8)
                 spacing: 2
                 Text { Layout.fillWidth: true; text: Tr.t("Update %1 apps:", win.updates); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.DemiBold }
-                Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: installedApps.filter(a => a.update).map(a => a.name).join(", "); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: installedApps.concat(win.snaps).filter(a => a.update).map(a => a.name).join(", "); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                 Text { Layout.fillWidth: true; visible: win.updateSize() !== ""; text: Tr.t("Total size: %1", win.updateSize()); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
             }
         }
@@ -853,7 +923,7 @@ AppWindow {
             currentIndex: 0
             onCountChanged: ilist.currentIndex = win.clampIndex(ilist.currentIndex, ilist.count)
             highlight: Rectangle { z: 2; color: "transparent"; border.width: 2; border.color: Theme.accent; radius: Theme.px(6); width: ilist.width; height: ilist.currentItem ? ilist.currentItem.height : 0 }
-            model: win.installedApps.filter(a =>
+            model: win.installedApps.concat(win.snaps).filter(a =>
                 (!win.updatesOnly || a.update) &&
                 (!win.installedQuery ||
                  String(a.name || a.id || "").toLowerCase().includes(win.installedQuery.toLowerCase()) ||
@@ -861,6 +931,7 @@ AppWindow {
             delegate: RowLayout {
                 id: irow
                 required property var modelData
+                readonly property bool isSnap: modelData.source === "snap"
                 width: ilist.width
                 spacing: Theme.px(10)
                 Accessible.role: Accessible.ListItem
@@ -870,17 +941,26 @@ AppWindow {
                     Layout.fillWidth: true
                     spacing: 0
                     Text { Layout.fillWidth: true; elide: Text.ElideRight; text: irow.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
-                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: [irow.modelData.version, irow.modelData.size, irow.modelData.installation === "user" ? Tr.t("just for you") : Tr.t("for everyone")].filter(x => x).join("  ·  "); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: (irow.isSnap ? [irow.modelData.version, Tr.t("Snap"), irow.modelData.publisher]
+                        : [irow.modelData.version, irow.modelData.size, irow.modelData.installation === "user" ? Tr.t("just for you") : Tr.t("for everyone")]).filter(x => x).join("  ·  "); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                 }
-                Button { visible: irow.modelData.update; text: Tr.t("Update"); enabled: !jobProc.running; onClicked: win.runJob(["update", irow.modelData.id], irow.modelData.id) }
+                Button { visible: irow.modelData.update; text: Tr.t("Update"); enabled: !jobProc.running; onClicked: irow.isSnap ? win.snapJob("refresh", irow.modelData) : win.runJob(["update", irow.modelData.id], irow.modelData.id) }
                 Button {
-                    visible: irow.modelData.update || win.skippedIds.indexOf(irow.modelData.id) >= 0
+                    visible: irow.isSnap
+                    kind: "danger"
+                    flat: true
+                    enabled: !jobProc.running
+                    text: win.removing === irow.modelData.id ? Tr.t("Click again to remove") : Tr.t("Remove")
+                    onClicked: { if (win.removing === irow.modelData.id) { win.removing = ""; removeTimer.stop(); win.snapJob("remove", irow.modelData); } else { win.removing = irow.modelData.id; removeTimer.restart(); } }
+                }
+                Button {
+                    visible: !irow.isSnap && (irow.modelData.update || win.skippedIds.indexOf(irow.modelData.id) >= 0)
                     flat: true
                     enabled: !jobProc.running
                     text: win.skippedIds.indexOf(irow.modelData.id) >= 0 ? Tr.t("Resume updates") : Tr.t("Skip this version")
                     onClicked: win.ask(["skip", irow.modelData.id, win.skippedIds.indexOf(irow.modelData.id) >= 0 ? "off" : "on"], () => win.start())
                 }
-                Button { text: Tr.t("Details"); flat: true; onClicked: { win.tab = "explore"; win.openApp(irow.modelData.id); } }
+                Button { visible: !irow.isSnap; text: Tr.t("Details"); flat: true; onClicked: { win.tab = "explore"; win.openApp(irow.modelData.id); } }
             }
             EmptyState {
                 anchors.centerIn: parent

@@ -15,6 +15,23 @@ def test_left_rail_uses_the_left_edge_only():
     assert "WlrLayershell.keyboardFocus: WlrKeyboardFocus.None" in RAIL
 
 
+def test_left_rail_reserves_its_strip_and_is_one_per_screen():
+    # a window is never tiled under it, and it does not hop between outputs
+    assert "exclusionMode: ExclusionMode.Normal" in RAIL
+    assert "exclusiveZone: implicitWidth" in RAIL
+    assert "model: Quickshell.screens" in RAIL
+    assert "mask: Region { item: card }" in RAIL
+
+
+def test_the_dock_and_the_rail_never_both_show_workspaces():
+    dock = (ROOT / "shani/Modules/Dock/Dock.qml").read_text()
+    assert "readonly property bool spacesHere: !(Settings.data.leftRail && FormFactor.hasRail(output))" in dock
+    assert "model: win.spacesHere ? win.spaces.concat([null]) : []" in dock
+    niri = (ROOT / "shani/Services/Niri.qml").read_text()
+    assert "function windowsOn(ws)" in niri and "function newWorkspaceOn(output)" in niri
+    assert "Niri.newWorkspaceOn(" in RAIL and "Niri.windowsOn(" in RAIL
+
+
 def test_left_rail_uses_existing_niri_workspace_apis():
     assert "Niri.workspacesOn(" in RAIL
     assert "Niri.focusWorkspace(" in RAIL
@@ -23,13 +40,13 @@ def test_left_rail_uses_existing_niri_workspace_apis():
 
 def test_left_rail_is_keyboard_and_at_reachable():
     assert "Accessible.role: Accessible.Button" in RAIL
-    assert 'Accessible.name: Tr.t("Workspace %1"' in RAIL
-    assert "KeyFocus { onActivated: Niri.focusWorkspace(ws) }" in RAIL
+    assert 'Tr.t("Workspace %1"' in RAIL and 'Tr.t("New workspace")' in RAIL
+    assert "KeyFocus { onActivated: cell.activate() }" in RAIL
 
 
-def test_left_rail_is_opt_in_and_lazy_loaded():
+def test_left_rail_is_on_by_default_and_lazy_loaded():
     assert "visible: Settings.data.leftRail" in RAIL
-    assert "property bool leftRail: false" in SETTINGS
+    assert "property bool leftRail: true" in SETTINGS
     assert (
         'LazyLoader { active: Settings.data.leftRail; source: "Modules/LeftRail/LeftRail.qml" }'
         in SHELL

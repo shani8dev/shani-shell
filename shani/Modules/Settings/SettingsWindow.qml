@@ -92,25 +92,44 @@ AppWindow {
                     spacing: 2
                     boundsBehavior: Flickable.StopAtBounds
                     ScrollBar.vertical: ScrollBar { policy: ScrollBar.AlwaysOn }
-                    model: page.shownCats
+                    // in sections (a heading row before each); a search shows the matches alone
+                    model: page.query.trim() === "" ? page.sidebarRows : page.shownCats
                     delegate: Rectangle {
                         id: row
                         required property var modelData
-                        readonly property bool current: Ui.settingsCat === modelData.id
+                        readonly property bool header: !!modelData.header
+                        readonly property bool current: !header && Ui.settingsCat === modelData.id
                         width: ListView.view.width
-                        height: Theme.px(40)
+                        height: header ? Theme.px(30) : Theme.px(40)
                         radius: Theme.radiusSmall
-                        color: current ? Theme.accentSoft : (rowArea.containsMouse ? Theme.surface2 : "transparent")
+                        color: current ? Theme.accentSoft : (!header && rowArea.containsMouse ? Theme.surface2 : "transparent")
+                        // a section's name: read as a heading, not a page to open
+                        Text {
+                            visible: row.header
+                            anchors.left: parent.left
+                            anchors.leftMargin: Theme.px(12)
+                            anchors.bottom: parent.bottom
+                            anchors.bottomMargin: Theme.px(4)
+                            text: row.modelData.label.toUpperCase()
+                            color: Theme.faint
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.weight: Font.DemiBold
+                            font.letterSpacing: 0.6
+                            Accessible.role: Accessible.Heading
+                            Accessible.name: row.modelData.label
+                        }
                         Behavior on color { ColorAnimation { duration: Theme.anim } }
-                        Accessible.role: Accessible.PageTab
+                        Accessible.role: header ? Accessible.Heading : Accessible.PageTab
                         Accessible.name: modelData.label
-                        Accessible.onPressAction: Ui.settingsCat = modelData.id
+                        Accessible.onPressAction: if (!header) Ui.settingsCat = modelData.id
                         RowLayout {
+                            visible: !row.header
                             anchors.fill: parent
                             anchors.leftMargin: Theme.px(12)
                             anchors.rightMargin: Theme.px(12)
                             spacing: Theme.px(12)
-                            Icon { name: row.modelData.icon; size: Theme.px(18); color: row.current ? Theme.accent : Theme.dim }
+                            Icon { name: row.modelData.icon || ""; size: Theme.px(18); color: row.current ? Theme.accent : Theme.dim }
                             Text {
                                 Layout.fillWidth: true
                                 text: row.modelData.label
@@ -129,8 +148,8 @@ AppWindow {
                                 Layout.alignment: Qt.AlignVCenter
                             }
                         }
-                        MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { Ui.settingsCat = row.modelData.id; winRoot.showingPage = true; } }
-                        KeyFocus { name: row.modelData.label; onActivated: Ui.settingsCat = row.modelData.id }
+                        MouseArea { id: rowArea; anchors.fill: parent; enabled: !row.header; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { Ui.settingsCat = row.modelData.id; winRoot.showingPage = true; } }
+                        KeyFocus { enabled: !row.header; name: row.modelData.label; onActivated: Ui.settingsCat = row.modelData.id }
                     }
                 }
                 // ---- changed since sign-in: take one back, or all. Below the categories, so
@@ -148,12 +167,34 @@ AppWindow {
                     visible: keys.length > 0 && page.query === ""
                     spacing: Theme.px(6)
                     Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.stroke }
-                    SectionTitle {
+                    // one line until asked: the list took the column the categories need
+                    property bool open: false
+                    RowLayout {
                         Layout.fillWidth: true
-                        text: Tr.t("Changed this session")
+                        spacing: Theme.px(6)
+                        Text {
+                            Layout.fillWidth: true
+                            text: Tr.t("%1 changed this session", changed.keys.length)
+                            color: Theme.dim
+                            elide: Text.ElideRight
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                        }
+                        Button {
+                            text: changed.keys.length > 1 ? Tr.t("Undo all") : Tr.t("Undo")
+                            flat: true
+                            Accessible.name: changed.keys.length > 1 ? Tr.t("Undo all %1 changes", changed.keys.length) : Tr.t("Undo")
+                            onClicked: changed.keys.length > 1 ? Settings.undoAll() : Settings.undo(changed.keys[0])
+                        }
+                        IconButton {
+                            size: Theme.px(26)
+                            icon: changed.open ? "go-up" : "go-down"
+                            tip: changed.open ? Tr.t("Hide the changes") : Tr.t("Show the changes")
+                            onClicked: changed.open = !changed.open
+                        }
                     }
                     Repeater {
-                        model: changed.keys.slice(0, 5)
+                        model: changed.open ? changed.keys.slice(0, 5) : []
                         delegate: RowLayout {
                             id: changedRow
                             required property string modelData
@@ -180,13 +221,6 @@ AppWindow {
                                 onClicked: Settings.undo(changedRow.modelData)
                             }
                         }
-                    }
-                    Button {
-                        Layout.fillWidth: true
-                        visible: changed.keys.length > 1
-                        text: Tr.t("Undo all") + " (" + changed.keys.length + ")"
-                        kind: "outline"
-                        onClicked: Settings.undoAll()
                     }
                 }
             }

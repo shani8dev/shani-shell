@@ -10,21 +10,15 @@ def read(rel):
     return (ROOT / rel).read_text()
 
 
-def test_devtools_uses_settings_section_and_keeps_actions():
-    s = read("shani/Modules/Settings/SettingsDevTools.qml")
-    assert "SettingsSection {" in s
-    assert 'title: Tr.t("Developer tools")' in s
-    assert (
-        "Quick install of common tools. Installing asks for your password (pkexec) and uses this system's package manager."
-        in s
-    )
-    assert 'text: tool.installed ? Tr.t("Installed") : Tr.t("Install")' in s
-    assert "pkexec pacman -S --needed --noconfirm " in s
-    assert "pkexec apt-get install -y " in s
-    assert "pkexec dnf install -y " in s
-    assert "command -v " in s
-    assert "install.running = true;" in s
-
+def test_command_line_tools_moved_to_software_and_use_nix():
+    # Settings > Developer tools ran pacman/apt/dnf: read-only on ShaniOS. The
+    # tools are Software's now, from Nix, per user (shani-docs software/nix.md)
+    assert not (ROOT / "shani/Modules/Settings/SettingsDevTools.qml").exists()
+    page = read("shani/Modules/Settings/SettingsPage.qml")
+    assert 'Ui.openSoftware("tools")' in page
+    tools = read("shani/Modules/Software/SoftwareCliTools.qml")
+    assert '"nix-install"' in tools and '"nix-remove"' in tools
+    assert "pkexec" not in tools and "pacman" not in tools
 
 def test_displays_uses_settings_sections_and_keeps_actions():
     s = read("shani/Modules/Settings/SettingsDisplays.qml")

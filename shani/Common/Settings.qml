@@ -214,7 +214,7 @@ Singleton {
             // always | smart (in view, steps aside only for a window over it - Plank's
             // and Dash-to-Dock's default) | hide (until the pointer asks)
             property string dockVisibility: "smart"
-            property bool leftRail: false                // slim vertical workspace rail on the left edge
+            property bool leftRail: true                 // the workspaces down the left edge (else in the dock)
             property string barVisibility: "always"
             // which edge the bar is on: "auto" (the screen's kind decides - a
             // classroom board's bar is at the bottom, within reach) | "top" | "bottom"

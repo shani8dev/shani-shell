@@ -133,11 +133,10 @@ def tool_action_lines(text):
 # ---- fix 1: window menu's tools submenu agrees on each tool ----------------
 
 
-def test_1_window_menu_tool_labels_and_icons_are_canonical():
-    menu = src(WINDOWMENU)
-    tools = menu
-    assert "Tools.list.map(t => ({" in tools
-    assert "label: Tr.t(t.label)" in tools and "icon: t.icon" in tools
+def test_1_window_menu_is_about_the_window_and_the_catalog_is_canonical():
+    # a window's menu no longer repeats the tools: the launcher and Quick
+    # settings carry them
+    assert "Tools.list" not in src(WINDOWMENU)
     catalog = src("shani/Common/Tools.js")
     for label, icon, _ in CANONICAL:
         assert f'label: "{label}"' in catalog, label
@@ -157,10 +156,8 @@ def test_2_quick_panel_first_four_match_the_canonical_order():
 # ---- fix 3: the dock's tools menu follows the same order --------------------
 
 
-def test_3_dock_tool_menu_order_matches_the_shared_order():
-    d = src(DOCK)
-    tools = d
-    assert "Tools.list.map(t => ({ label: t.label, run: () => Ui.openTool(t.flag) }))" in tools
+def test_3_dock_app_menu_is_about_the_app():
+    assert "Tools.list" not in src(DOCK) and "Open tools" not in src(DOCK)
 
 
 # ---- fix 4: launcher actions are the single reference list ------------------
@@ -194,8 +191,6 @@ def test_5_bar_tools_chip_agrees_with_the_shared_order():
 
 def test_6_every_full_surface_reaches_all_nine_tools():
     regions = {
-        WINDOWMENU: tool_runs(src(WINDOWMENU)),
-        DOCK: tool_runs(src(DOCK)),
         ACTIONS: tool_runs(src(ACTIONS)),
     }
     ui = src("shani/Common/Ui.qml")

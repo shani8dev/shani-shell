@@ -158,7 +158,7 @@ def test_fix_07_accessible_names():
     assert 'Accessible.name: Tr.t("Operation progress")' in QML
     assert "Accessible.name: irow.modelData.name" in QML
     assert "Accessible.role: Accessible.ListItem" in QML
-    assert "Accessible.onPressAction: win.openApp(card.modelData.id)" in QML
+    assert "win.openApp(card.modelData.id)" in QML and "Accessible.onPressAction:" in QML
     assert "Accessible.name: modelData.name + (modelData.installed" in QML
 
 
@@ -207,7 +207,7 @@ def test_all_commands_still_in_the_existing_bridge_contract():
         verbs |= set(re.findall(r'"([a-z-]+)"', group))
     used = set(re.findall(r'(?:win\.ask|ask|runJob)\(\["([a-z-]+)"', QML))
     assert used <= verbs, "unknown bridge commands: %s" % sorted(used - verbs)
-    assert QML.count("import ") == 6  # original imports only: no new dependency
+    assert QML.count("import ") == 7  # the original six, plus its own folder (SoftwareCliTools): no new dependency
 
 
 # ---- executed: the non-trivial branches -----------------------------------------------

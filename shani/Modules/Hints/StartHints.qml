@@ -49,6 +49,7 @@ PanelWindow {
                         { keys: "Super + Space", what: Tr.t("find tools: type tool: for Dictionary, Podcasts, Network Tools and Nearby Share") },
                         { keys: "Super + O", what: Tr.t("see every window and workspace") },
                         { keys: "Super + ,", what: Tr.t("Wi-Fi, sound, brightness and more") },
+                        { keys: "Super + I", what: Tr.t("Settings") },
                         { keys: "Super + S", what: Tr.t("read, scan or ask about anything on screen") },
                         { keys: "Super + Shift + /", what: Tr.t("every keyboard shortcut") }]
                 Row {

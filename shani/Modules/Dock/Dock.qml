@@ -15,7 +15,6 @@ import Qt.labs.folderlistmodel
 import qs.Common
 import qs.Services
 import "../../Common/Gestures.js" as Hold
-import "../../Common/Tools.js" as Tools
 
 PanelWindow {
     id: win
@@ -80,13 +79,10 @@ PanelWindow {
     property Item menuAnchor: null      // tile focus to restore when the menu closes
     property real menuHeight: 0         // the open menu's, which grows with an app's windows and actions
     property bool speedDialOpen: false  // the Speed Dial rows in the open app menu
-    property bool toolsOpen: false      // the "Open tools" rows in the open app menu
-    // Tools.list owns label and order; Ui.openTool sets the same Ui flags the
-    // shell's *Open() IPC functions set. Menu-only: no new dock tiles.
-    readonly property var tools: Tools.list.map(t => ({ label: t.label, run: () => Ui.openTool(t.flag) }))
+    // An app's menu is about that app: the shell's tools are in the launcher,
+    // the app grid and the sidebar's tiles, not in every app's right-click menu.
     function setMenu(index, anchor) {
         win.speedDialOpen = false;
-        win.toolsOpen = false;
         if (index >= 0 && index < win.items.length) {
             win.menuFor = index;
             win.menuAppId = win.items[index].id;
@@ -116,14 +112,11 @@ PanelWindow {
     readonly property string output: screen ? screen.name : Niri.focusedOutput
     readonly property var allSpaces: Niri.workspacesOn(output)
     readonly property var spaces: allSpaces.filter(w => w.is_active || Object.values(Niri.windows).some(x => x.workspace_id === w.id))
-    function windowsOn(ws) { return Object.values(Niri.windows).filter(x => x.workspace_id === ws.id); }
-    function newWorkspace() {
-        const last = allSpaces[allSpaces.length - 1];
-        if (last && windowsOn(last).length === 0)
-            Niri.focusWorkspace(last);
-        else if (last)
-            Niri.action("focus-workspace", last.idx + 1);
-    }
+    function windowsOn(ws) { return Niri.windowsOn(ws); }
+    function newWorkspace() { Niri.newWorkspaceOn(output); }
+    // the left rail, when it is on, is where the workspaces are: the dock does
+    // not show a second copy of them
+    readonly property bool spacesHere: !(Settings.data.leftRail && FormFactor.hasRail(output))
     readonly property var entryOf: id => DesktopEntries.byId(id) || DesktopEntries.heuristicLookup(id)
     readonly property var running: {
         const groups = {};
@@ -651,13 +644,6 @@ PanelWindow {
                                 ...(win.speedDialOpen ? SpeedDial.places().slice(0, 10).map(p => ({
                                     label: "  " + p.name + " · " + p.section, show: true, sep: false,
                                     run: () => SpeedDial.open(p.path) })) : []),
-                                // one expandable row for the newer shell apps: no new dock
-                                // tiles, the same Ui flags shell.qml's *Open() IPCs set
-                                { label: Tr.t("Open tools…"), sep: true, show: true, keep: true,
-                                  run: () => { win.toolsOpen = !win.toolsOpen; Ui.focusFirst(menuBox); } },
-                                ...(win.toolsOpen ? win.tools.map(t => ({
-                                    label: "  " + Tr.t(t.label), show: true, sep: false,
-                                    run: t.run })) : []),
                                 ...(cell.modelData.entry ? Array.from(cell.modelData.entry.actions).slice(0, 6).map((act, i) => ({ label: act.name, show: true, sep: i === 0 && cell.modelData.windows.length > 0,
                                     run: () => { Launch.app(cell.modelData.entry.id, { action: act.id }); bounce.restart(); } })) : []),
                                 { label: Tr.t("New window"), sep: true, show: !!cell.modelData.entry, run: () => { Launch.app(cell.modelData.entry.id); bounce.restart(); } },
@@ -740,9 +726,9 @@ PanelWindow {
                 onDropped: d => { win.dropsIn = 0; win.dragging = false; Shelf.park(d.urls); d.acceptProposedAction(); }
             }
         }
-        DockSeparator {}
+        DockSeparator { visible: win.spacesHere }
         Repeater {
-            model: win.spaces.concat([null])
+            model: win.spacesHere ? win.spaces.concat([null]) : []
             DockTile {
                 id: wsCell
                 required property var modelData

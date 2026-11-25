@@ -237,6 +237,17 @@ Singleton {
         Quickshell.execDetached(["niri", "msg", "action", ...args.map(String)]);
     }
 
+    // two windows side by side: each tiled (out of floating) as a half-width
+    // column, the other first so `a` lands beside it, `a` focused at the end
+    function sideBySide(a, b) {
+        if (a === null || b === null || a === undefined || b === undefined || a === b) return false;
+        Quickshell.execDetached(["sh", "-c", 'for id in "$2" "$1"; do
+                niri msg action focus-window --id "$id" &&
+                niri msg action move-window-to-tiling --id "$id" &&
+                niri msg action set-column-width 50%; done; true', "sh", String(a), String(b)]);
+        return true;
+    }
+
     // stop sharing the screen: every PipeWire screencast niri is making, ended
     // (`niri msg casts` lists them, `stop-cast --session-id` ends one)
     property var lastStoppedCasts: []     // for the tests
@@ -286,6 +297,17 @@ Singleton {
         const ws = workspaces.find(w => w.output === focusedOutput && w.idx === idx);
         if (ws)
             renameWorkspace(ws, name);
+    }
+    // the windows on a workspace, and "a new workspace" on an output: niri keeps
+    // one empty at the end, so that is where a new one is (the dock and the rail)
+    function windowsOn(ws) { return ws ? Object.values(windows).filter(x => x.workspace_id === ws.id) : []; }
+    function newWorkspaceOn(output) {
+        const all = workspacesOn(output);
+        const last = all[all.length - 1];
+        if (last && windowsOn(last).length === 0)
+            focusWorkspace(last);
+        else if (last)
+            action("focus-workspace", last.idx + 1);
     }
     function focusWorkspace(ws) {
         // niri resolves a named workspace on its own output, so skip the

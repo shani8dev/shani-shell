@@ -1,5 +1,7 @@
-// Desktop layouts: a few ways to set this desktop up, each a picture of what you
-// will get and a plain list of what it changes. Every layout only sets things
+// Screen and layout: what kind of screen this is (Settings > Displays has the
+// same pick) and a few ways to set the desktop up for it, each a picture of what
+// you will get and a plain list of what it changes. Picking a kind of screen
+// tries it and the layout that suits it; Keep holds both, Cancel puts both back. Every layout only sets things
 // this shell has (dock, desktop widgets and icons, hot corners, window spacing
 // and width, Smart Touch), so what the picture shows is what you get.
 // Clicking a layout tries it on at once; Keep holds it, Cancel or Esc puts back
@@ -11,6 +13,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import "../../Common/FormFactor.js" as FF
 
 PanelWindow {
     id: root
@@ -28,28 +31,42 @@ PanelWindow {
     readonly property var corners: ["hotCornerTopLeft", "hotCornerTopRight", "hotCornerBottomLeft", "hotCornerBottomRight"]
     function cornersAll(tl) { return { hotCornerTopLeft: tl, hotCornerTopRight: "none", hotCornerBottomLeft: "none", hotCornerBottomRight: "none" } }
     readonly property var presets: [
-        { id: "default", name: Tr.t("Shani"), icon: "start-here", desc: Tr.t("The bar, and a dock that steps aside only when a window is moved over it. A clock on a clear desktop; windows open side by side."),
+        { id: "default", suits: ["computer", "laptop"], name: Tr.t("Shani"), icon: "start-here", desc: Tr.t("The bar, your workspaces down the left, and a dock that steps aside only when a window is moved over it. A clock on a clear desktop; windows open side by side."),
           set: Object.assign({ dock: true, dockVisibility: "smart", barVisibility: "always", dockIconSize: 48, desktopWidgets: ["clock"], desktopIcons: false, deskStacks: false,
-                 winGaps: 12, winFocusRing: 2, winDefaultWidth: 0.5, winFocusFollowsMouse: false, assistiveTouch: false, showSysStats: false }, cornersAll("overview")) },
-        { id: "classic", name: Tr.t("Classic"), icon: "user-desktop", desc: Tr.t("Like most computers: each window opens full width, your files and drives on the desktop, the dock always there."),
+                 winGaps: 12, winFocusRing: 2, winDefaultWidth: 0.5, winFocusFollowsMouse: false, assistiveTouch: false, showSysStats: false, leftRail: true }, cornersAll("overview")) },
+        { id: "classic", suits: ["computer"], name: Tr.t("Classic"), icon: "user-desktop", desc: Tr.t("Like most computers: each window opens full width, your files and drives on the desktop, the dock always there."),
           set: Object.assign({ dock: true, dockVisibility: "always", barVisibility: "always", dockIconSize: 48, desktopWidgets: ["clock", "agenda", "weather"], desktopIcons: true, deskStacks: false,
-                 winGaps: 8, winFocusRing: 2, winDefaultWidth: 1.0, winFocusFollowsMouse: false, assistiveTouch: false, showSysStats: false }, cornersAll("none")) },
-        { id: "focus", name: Tr.t("Focus"), icon: "view-fullscreen", desc: Tr.t("Nothing but your work: the dock waits at the bottom edge, the bar steps aside for a window over it, an empty desktop."),
+                 winGaps: 8, winFocusRing: 2, winDefaultWidth: 1.0, winFocusFollowsMouse: false, assistiveTouch: false, showSysStats: false, leftRail: false }, cornersAll("none")) },
+        { id: "focus", suits: ["laptop"], name: Tr.t("Focus"), icon: "view-fullscreen", desc: Tr.t("Nothing but your work: the dock waits at the bottom edge, the bar steps aside for a window over it, an empty desktop."),
           set: Object.assign({ dock: true, dockVisibility: "hide", barVisibility: "smart", dockIconSize: 48, desktopWidgets: [], desktopIcons: false, deskStacks: false,
-                 winGaps: 16, winFocusRing: 2, winDefaultWidth: 0.5, winFocusFollowsMouse: false, assistiveTouch: false, showSysStats: false }, cornersAll("overview")) },
-        { id: "tiling", name: Tr.t("Tiling"), icon: "view-grid", desc: Tr.t("For the keyboard: no dock, tight gaps, a strong focus ring, focus follows the pointer."),
+                 winGaps: 16, winFocusRing: 2, winDefaultWidth: 0.5, winFocusFollowsMouse: false, assistiveTouch: false, showSysStats: false, leftRail: false }, cornersAll("overview")) },
+        { id: "tiling", suits: [], name: Tr.t("Tiling"), icon: "view-grid", desc: Tr.t("For the keyboard: no dock, tight gaps, a strong focus ring, focus follows the pointer."),
           set: Object.assign({ dock: false, dockVisibility: "hide", barVisibility: "always", dockIconSize: 48, desktopWidgets: [], desktopIcons: false, deskStacks: false,
-                 winGaps: 6, winFocusRing: 3, winDefaultWidth: 0.5, winFocusFollowsMouse: true, assistiveTouch: false, showSysStats: true }, cornersAll("none")) },
-        { id: "dashboard", name: Tr.t("Dashboard"), icon: "view-list", desc: Tr.t("Everything at a glance: agenda, weather, music, a note, system use; files grouped into stacks."),
+                 winGaps: 6, winFocusRing: 3, winDefaultWidth: 0.5, winFocusFollowsMouse: true, assistiveTouch: false, showSysStats: true, leftRail: false }, cornersAll("none")) },
+        { id: "dashboard", suits: ["computer"], name: Tr.t("Dashboard"), icon: "view-list", desc: Tr.t("Everything at a glance: agenda, weather, music, a note, system use; files grouped into stacks."),
           set: Object.assign({ dock: true, dockVisibility: "always", barVisibility: "always", dockIconSize: 44, desktopWidgets: ["clock", "agenda", "weather", "media", "stats", "note"], desktopIcons: true, deskStacks: true,
-                 winGaps: 12, winFocusRing: 2, winDefaultWidth: 0.5, winFocusFollowsMouse: false, assistiveTouch: false, showSysStats: true }, cornersAll("overview")) },
-        { id: "touch", name: Tr.t("Touch"), icon: "input-tablet", desc: Tr.t("For fingers: big dock icons, full-width windows, the Smart Touch button, no hot corners to brush by mistake."),
+                 winGaps: 12, winFocusRing: 2, winDefaultWidth: 0.5, winFocusFollowsMouse: false, assistiveTouch: false, showSysStats: true, leftRail: true }, cornersAll("overview")) },
+        { id: "touch", suits: ["tablet", "handheld", "phone", "board"], name: Tr.t("Touch"), icon: "input-tablet", desc: Tr.t("For fingers: big dock icons, full-width windows, the Smart Touch button, no hot corners to brush by mistake."),
           set: Object.assign({ dock: true, dockVisibility: "always", barVisibility: "always", dockIconSize: 64, desktopWidgets: ["clock", "media"], desktopIcons: false, deskStacks: false,
-                 winGaps: 12, winFocusRing: 0, winDefaultWidth: 1.0, winFocusFollowsMouse: false, assistiveTouch: true, showSysStats: false }, cornersAll("none")) }
+                 winGaps: 12, winFocusRing: 0, winDefaultWidth: 1.0, winFocusFollowsMouse: false, assistiveTouch: true, showSysStats: false, leftRail: true }, cornersAll("none")) }
     ]
     readonly property var keys: Object.keys(presets[0].set)
 
     property int sel: 0
+    // the kind of screen: this output's pick ("auto" when it is told by itself)
+    readonly property string output: screen ? screen.name : Niri.focusedOutput
+    readonly property var kinds: ["computer", "laptop", "tablet", "handheld", "phone", "tv", "board"]
+    readonly property string kind: (Settings.data.formFactors || {})[output] || "auto"
+    readonly property string kindNow: FormFactor.of(output).profile
+    property string kindBefore: "auto"
+    property bool kindTried: false
+    function tryKind(k) {
+        FormFactor.choose(root.output, k);
+        kindTried = k !== kindBefore;
+        const now = k === "auto" ? FormFactor.detected(root.output) : k;
+        const i = presets.findIndex(x => x.suits.indexOf(now) >= 0);
+        if (i >= 0) tryOn(i);
+    }
     property var before: ({})          // the settings as they were when this opened
     property bool tried: false
     readonly property var p: presets[sel]
@@ -82,8 +99,12 @@ PanelWindow {
             keysItem.forceActiveFocus();
         }
     }
-    function keep() { Settings.data.layoutPreset = presets[sel].id; tried = false; Ui.layoutSwitcher = false; }
-    function cancel() { if (tried) put(before); tried = false; Ui.layoutSwitcher = false; }
+    function keep() { Settings.data.layoutPreset = presets[sel].id; tried = false; kindTried = false; Ui.layoutSwitcher = false; }
+    function cancel() {
+        if (tried) put(before);
+        if (kindTried) FormFactor.choose(root.output, kindBefore);
+        tried = false; kindTried = false; Ui.layoutSwitcher = false;
+    }
     // what this layout changes, against what you had, in words
     function changes(set) {
         const was = before, out = [];
@@ -92,6 +113,8 @@ PanelWindow {
         const vis = { always: Tr.t("always there"), smart: Tr.t("there until a window is moved over it"), hide: Tr.t("hidden until the pointer rests on the edge") };
         if (set.dock !== was.dock || set.dockVisibility !== was.dockVisibility)
             out.push(!set.dock ? Tr.t("No dock — open apps with Super+Space") : Tr.t("The dock: ") + vis[set.dockVisibility]);
+        if (set.leftRail !== was.leftRail)
+            out.push(set.leftRail ? Tr.t("Your workspaces down the left edge") : set.dock && set.dockVisibility !== "hide" ? Tr.t("Your workspaces in the dock") : Tr.t("Your workspaces in the bar"));
         if (set.barVisibility !== was.barVisibility) out.push(Tr.t("The bar: ") + vis[set.barVisibility]);
         if (set.dock && set.dockIconSize !== was.dockIconSize) out.push(set.dockIconSize > was.dockIconSize ? Tr.t("Bigger dock icons") : Tr.t("Smaller dock icons"));
         if (JSON.stringify(set.desktopWidgets) !== JSON.stringify(was.desktopWidgets)) out.push(Tr.t("Desktop widgets: ") + w(set.desktopWidgets));
@@ -115,6 +138,8 @@ PanelWindow {
             return;
         before = snapshot();
         tried = false;
+        kindBefore = kind;
+        kindTried = false;
         const m = matching();
         sel = m >= 0 ? m : Math.max(0, presets.findIndex(x => x.id === Settings.data.layoutPreset));
         Ui.layoutTrying = presets[sel].id;
@@ -138,17 +163,31 @@ PanelWindow {
         // the bar, with the Island in the middle
         Rectangle { width: parent.width; height: (mini.s.barVisibility === "hide" ? 1.5 : 7) * mini.u; color: Theme.alpha("#000000", 0.45); clip: true
             Rectangle { anchors.centerIn: parent; width: 22 * mini.u; height: 4 * mini.u; radius: height / 2; color: "#000000" }
-            Row { x: 4 * mini.u; anchors.verticalCenter: parent.verticalCenter; spacing: 1.5 * mini.u
+            Row { visible: !mini.s.leftRail && (!mini.s.dock || mini.s.dockVisibility === "hide")
+                x: 4 * mini.u; anchors.verticalCenter: parent.verticalCenter; spacing: 1.5 * mini.u
                 Repeater { model: 3; Rectangle { width: 2.5 * mini.u; height: width; radius: width / 2; color: Theme.alpha("#ffffff", 0.7) } } }
             Rectangle { visible: !!mini.s.showSysStats; x: parent.width - 30 * mini.u; anchors.verticalCenter: parent.verticalCenter; width: 10 * mini.u; height: 2 * mini.u; color: Theme.alpha("#ffffff", 0.6) }
             Rectangle { x: parent.width - 16 * mini.u; anchors.verticalCenter: parent.verticalCenter; width: 12 * mini.u; height: 2 * mini.u; color: Theme.alpha("#ffffff", 0.8) }
+        }
+        // the left rail: the workspaces, a slim pill down the left edge
+        readonly property real railW: s.leftRail ? 7 * u : 0
+        Rectangle {
+            visible: !!mini.s.leftRail
+            x: 1.5 * mini.u
+            anchors.verticalCenter: parent.verticalCenter
+            width: 4.5 * mini.u
+            height: 18 * mini.u
+            radius: 2 * mini.u
+            color: Theme.alpha(Theme.bg, 0.7)
+            Column { anchors.centerIn: parent; spacing: 1.5 * mini.u
+                Repeater { model: 3; Rectangle { width: 2.5 * mini.u; height: width; radius: width / 2; color: index === 0 ? Theme.accent : Theme.alpha(Theme.text, 0.5) } } }
         }
         // the left column, as on the real desktop: widgets from the top, then files
         readonly property int nw: Math.min(3, wd.length)
         readonly property int ni: s.desktopIcons ? (s.deskStacks ? 2 : 3) : 0
         readonly property real colW: nw ? 26 * u : (ni ? 9 * u : 0)
         Column {
-            x: 3 * mini.u; y: 10 * mini.u; spacing: 2 * mini.u
+            x: mini.railW + 3 * mini.u; y: 10 * mini.u; spacing: 2 * mini.u
             Repeater { model: mini.nw
                 Rectangle { width: 24 * mini.u; height: 11 * mini.u; radius: 3 * mini.u; color: Theme.alpha("#ffffff", 0.35); border.width: 1; border.color: Theme.alpha("#ffffff", 0.4) } }
             Repeater { model: mini.ni
@@ -156,7 +195,7 @@ PanelWindow {
         }
         // windows: half width side by side, or one full width
         Row {
-            x: mini.colW + Math.max(2, (mini.s.winGaps || 0) / 3) * mini.u + (mini.colW ? 3 * mini.u : 0)
+            x: mini.railW + mini.colW + Math.max(2, (mini.s.winGaps || 0) / 3) * mini.u + (mini.colW ? 3 * mini.u : 0)
             y: 7 * mini.u + Math.max(1.5, (mini.s.winGaps || 0) / 3) * mini.u
             spacing: Math.max(1, (mini.s.winGaps || 0) / 3) * mini.u
             readonly property real h: mini.height - y - (mini.s.dock && mini.s.dockVisibility !== "hide" ? 14 : 4) * mini.u
@@ -227,9 +266,25 @@ PanelWindow {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignTop
                 spacing: Theme.px(14)
-                Text { text: Tr.t("Desktop layout"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(20) * Theme.fontScale; font.weight: Font.DemiBold }
+                Text { text: Tr.t("Screen and layout"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(20) * Theme.fontScale; font.weight: Font.DemiBold }
                 Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale
                     text: Tr.t("Pick one to try it on — your desktop changes at once. Keep it, or Cancel to go back. You can still change any part of it in Settings afterwards.") }
+                // what kind of screen this is: the shell's size and its edges follow it
+                Text { text: Tr.t("This screen is a"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.Medium }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    Repeater {
+                        model: ["auto"].concat(root.kinds)
+                        Choice {
+                            required property string modelData
+                            text: modelData === "auto" ? Tr.t("Automatic") + " (" + Tr.t(FF.label(FormFactor.detected(root.output))) + ")" : Tr.t(FF.label(modelData))
+                            selected: root.kind === modelData
+                            onClicked: root.tryKind(modelData)
+                        }
+                    }
+                }
+                Text { text: Tr.t("Layout"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.Medium }
                 GridLayout {
                     Layout.fillWidth: true
                     columns: 3
@@ -263,6 +318,8 @@ PanelWindow {
                                     spacing: Theme.px(6)
                                     Icon { name: tile.modelData.icon; size: Theme.px(16); color: tile.chosen ? Theme.accent : Theme.text }
                                     Text { text: tile.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(14) * Theme.fontScale; font.weight: Font.Medium }
+                                    Rectangle { visible: tile.modelData.suits.indexOf(root.kindNow) >= 0; radius: Theme.px(8); color: Theme.alpha(Theme.text, 0.1); implicitWidth: suitsL.implicitWidth + 12; implicitHeight: suitsL.implicitHeight + 4
+                                        Text { id: suitsL; anchors.centerIn: parent; text: Tr.t("Suits a %1", Tr.t(FF.label(root.kindNow)).toLowerCase()); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale } }
                                     Rectangle { visible: root.now === tile.index && !root.tried; radius: Theme.px(8); color: Theme.alpha(Theme.accent, 0.25); implicitWidth: nowL.implicitWidth + 12; implicitHeight: nowL.implicitHeight + 4
                                         Text { id: nowL; anchors.centerIn: parent; text: Tr.t("Now"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale } }
                                 }
@@ -304,10 +361,10 @@ PanelWindow {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(8)
-                    Button { text: Tr.t("More settings…"); onClicked: { root.tried ? root.keep() : root.cancel(); Ui.openSettings("personal"); } }
+                    Button { text: Tr.t("More settings…"); onClicked: { root.tried || root.kindTried ? root.keep() : root.cancel(); Ui.openSettings("personal"); } }
                     Item { Layout.fillWidth: true }
                     Button { text: Tr.t("Cancel"); kind: "outline"; onClicked: root.cancel() }
-                    Button { text: root.tried ? Tr.t("Keep") : Tr.t("Use this"); kind: "primary"; onClicked: root.tried ? root.keep() : (root.tryOn(root.sel), root.keep()) }
+                    Button { text: root.tried || root.kindTried ? Tr.t("Keep") : Tr.t("Use this"); kind: "primary"; onClicked: root.tried ? root.keep() : (root.tryOn(root.sel), root.keep()) }
                 }
             }
         }

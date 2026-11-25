@@ -90,8 +90,8 @@ def test_3_nine_tool_labels_and_icons_agree_across_owned_files():
     for title, icon in CANONICAL.items():
         assert f'label: "{title}"' in tools, title
         assert f'icon: "{icon}"' in tools, (title, icon)
+    # (an app's dock menu and a window's menu no longer repeat them)
     for rel in (ACTIONS, SIDEBAR,
-                "shani/Modules/Dock/Dock.qml", "shani/Modules/WindowMenu/WindowMenu.qml",
                 "shani/Modules/QuickPanel/QuickPanel.qml",
                 "shani/Modules/Settings/SettingsIndex.js"):
         assert "Tools.list" in source(rel), rel

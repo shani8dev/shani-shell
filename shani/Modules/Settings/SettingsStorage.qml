@@ -163,6 +163,15 @@ ColumnLayout {
         working: page.busy === "flatpak"
         onGo: page.clean("flatpak", "", Tr.t("unused runtimes removed"))
     }
+    // what removed apps left in your home folder is Software's Leftovers list
+    ListRow {
+        Layout.fillWidth: true
+        icon: "edit-clear"
+        title: Tr.t("Data left by removed apps")
+        subtitle: Tr.t("settings and files apps leave in your home folder — in Software")
+        trailing: "›"
+        onClicked: Ui.openSoftware("leftovers")
+    }
 
     SettingsSection {
         spacing: Theme.px(8)

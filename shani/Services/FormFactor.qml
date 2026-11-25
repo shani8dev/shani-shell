@@ -65,6 +65,8 @@ Singleton {
     }
     // which edge this screen's bar is on ("top" or "bottom"): the owner's
     // choice, else the kind's own - a board's is at the bottom
+    // the left workspace rail: not on a phone (no room) nor a ten-foot screen
+    function hasRail(name) { const p = of(name).profile; return p !== "phone" && !tenFootKind(p); }
     function barEdge(name) { return FF.barEdge(of(name).profile, Settings.data.barEdge); }
     readonly property string focusedBarEdge: barEdge(Niri.focusedOutput || "")
     // seen from across a room or at arm's length, driven by a remote or a pad:

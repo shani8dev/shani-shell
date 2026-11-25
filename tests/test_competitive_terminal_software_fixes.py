@@ -61,7 +61,7 @@ def test_software_installed_search_and_updates_filter():
     assert "property bool updatesOnly" in s
     assert 'Tr.t("Find installed apps…")' in s
     assert 'Tr.t("Updates only")' in s
-    assert "win.installedApps.filter(a =>" in s
+    assert "win.installedApps.concat(win.snaps).filter(a =>" in s
     assert "(!win.updatesOnly || a.update)" in s
     assert "win.installedQuery.toLowerCase()" in s
 
