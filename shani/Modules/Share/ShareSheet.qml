@@ -1,5 +1,6 @@
 // The share sheet (Share): where a file can go, one click each.
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
@@ -9,7 +10,7 @@ import qs.Services
 PanelWindow {
     NavWindow {}     // known to the keys-and-controller reach check (Ui.navAuditAll)
     id: win
-    visible: Share.file !== "" && !Lock.locked
+    visible: Share.files.length > 0 && !Lock.locked
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     anchors { top: true; bottom: true; left: true; right: true }
     color: Theme.scrim
@@ -20,6 +21,7 @@ PanelWindow {
     Region { id: blurArea; item: blurCard; radius: blurCard.radius }
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: (visible) && !Osk.remote ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    Accessible.name: Tr.t("Share %1").arg(Share.name)
 
     // nothing preselected: a stray Enter must not share over the network
     property int sel: -1
@@ -41,6 +43,30 @@ PanelWindow {
             e.accepted = true
         }
     }
+    // ---- a failed target (the last command answered false) -----------------
+    Text {
+        visible: Share.lastError !== ""
+        anchors { horizontalCenter: parent.horizontalCenter; top: win.top; margins: Theme.px(10) }
+        text: Share.lastError
+        color: Theme.danger
+        font.family: Theme.font
+        font.pixelSize: Theme.px(12) * Theme.fontScale
+        Accessible.name: text
+    }
+    // ---- drop files onto the sheet -----------------------------------------
+    DropArea {
+        id: dropArea
+        anchors.fill: win
+        keys: ["text/uri-list"]
+        Accessible.name: Tr.t("Drop files onto the sheet")
+        onEntered: drag => { if (!drag.hasUrls) drag.accepted = false; }
+        onDropped: drop => {
+            if (!drop.hasUrls)
+                return;
+            Share.open(drop.urls.map(u => u.toLocalFile()).filter(p => p !== ""));
+            drop.accept();
+        }
+    }
     Glass {
         id: blurCard
         anchors.centerIn: parent
@@ -57,7 +83,14 @@ PanelWindow {
             size: Theme.px(22)
             tip: Tr.t("Cancel")
             Accessible.name: Tr.t("Cancel")
-            onClicked: Share.close()
+            onClicked: Share.cancel()
+        }
+        // "Archive and share (zip)": the sheet stays open while the archive is made
+        Timer {
+            id: archiveTimer
+            interval: 400
+            running: Share.archiveWait
+            onTriggered: Share.archiveChanged()
         }
         ColumnLayout {
             id: col
@@ -68,6 +101,7 @@ PanelWindow {
             Text {
                 Layout.fillWidth: true
                 text: Tr.t("Share %1").arg(Share.name)
+                Accessible.name: text
                 color: Theme.text
                 elide: Text.ElideMiddle
                 font.family: Theme.font
@@ -75,8 +109,17 @@ PanelWindow {
                 font.weight: Font.DemiBold
             }
             Item { implicitHeight: Theme.px(4) }
+            // the sheet is empty only when there is nothing to share it to
+            EmptyState {
+                id: empty
+                visible: Share.targets.length === 0
+                icon: "folder-publicshare"
+                title: Tr.t("No targets yet")
+                subtitle: Tr.t("Turn on Phone or Bluetooth to see targets here")
+            }
             Flickable {
                 id: targetFlick
+                visible: Share.targets.length > 0
                 Layout.fillWidth: true
                 // the card is capped above; many Bluetooth targets now scroll
                 implicitHeight: Math.min(targetsCol.implicitHeight, win.height - 160)
@@ -93,8 +136,10 @@ PanelWindow {
                             required property var modelData
                             required property int index
                             Layout.fillWidth: true
-                            icon: modelData.icon
+                            icon: Share.iconFor(modelData.icon)
                             title: modelData.label
+                            subtitle: modelData.subtitle !== "" ? modelData.subtitle : Share.targetStateText(modelData.state)
+                            Accessible.name: modelData.recent ? Tr.t("Recent: %1").arg(modelData.label) : modelData.label
                             selected: index === win.sel
                             onClicked: Share.choose(index)
                         }

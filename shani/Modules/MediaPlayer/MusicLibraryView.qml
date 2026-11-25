@@ -18,7 +18,23 @@ Rectangle {
     property string artist: ""             // an artist chosen, or ""
     property string query: ""
     readonly property string q: query.trim().toLowerCase()
-    function hit(s) { return q === "" || (s.title + " " + s.artist + " " + s.album).toLowerCase().indexOf(q) >= 0; }
+    property var selected: []                   // [path, ...] of songs picked with the checkboxes
+    property bool selectMode: false
+    function toggleSelected(p) {
+        const i = lib.selected.indexOf(p);
+        if (i >= 0) lib.selected.splice(i, 1); else lib.selected.push(p);
+    }
+    function playSelected() { if (lib.selected.length) PlayQueue.playList(lib.selected, 0); }
+    function hit(s) {
+        const text = lib.q.trim(); if (!text) return true;
+        const want = [], minus = [];
+        for (const t of text.split(/\s+/)) {
+            if (!t) continue;
+            if (t.startsWith("-")) minus.push(t.slice(1).toLowerCase()); else want.push(t.toLowerCase());
+        }
+        const hay = (s.title + " " + s.artist + " " + s.album).toLowerCase();
+        return want.every(t => hay.indexOf(t) >= 0) && minus.every(t => hay.indexOf(t) < 0);
+    }
     readonly property var albumsShown: MusicLibrary.albums.filter(a => (artist === "" || a.artist === artist)
         && (q === "" || (a.title + " " + a.artist).toLowerCase().indexOf(q) >= 0 || a.songs.some(hit)))
     readonly property var songsShown: MusicLibrary.songs.filter(hit)
@@ -63,6 +79,22 @@ Rectangle {
                 font.pixelSize: Theme.px(12) * Theme.fontScale
             }
             IconButton { size: Theme.px(30); icon: "view-refresh"; tip: Tr.t("Look again"); onClicked: lib.tab === "videos" ? MusicLibrary.scanVideos() : MusicLibrary.scan() }
+            IconButton {
+                icon: "edit-select-all"
+                tip: Tr.t("Pick songs")
+                visible: lib.selectMode || (lib.tab === "songs" && lib.artist === "")
+                onClicked: lib.selectMode = !lib.selectMode
+            }
+            Button {
+                visible: lib.selectMode && lib.selected.length > 0
+                text: Tr.t("Play selected")
+                onClicked: { lib.playSelected(); lib.selectMode = false; lib.selected = []; }
+            }
+            Button {
+                visible: lib.album === null && lib.tab === "songs" && lib.artist === ""
+                text: Tr.t("Shuffle")
+                onClicked: { PlayQueue.shuffle = true; MusicLibrary.play(lib.songsShown, Math.floor(Math.random() * Math.max(1, lib.songsShown.length))); }
+            }
         }
 
         // ---- albums (all, or an artist's) ----
@@ -169,6 +201,7 @@ Rectangle {
                 required property var modelData
                 required property int index
                 readonly property bool now: PlayQueue.current === modelData.path
+                readonly property bool isSelected: lib.selected.indexOf(modelData.path) >= 0
                 width: songList.width
                 height: Theme.px(38)
                 radius: Theme.radiusSmall
@@ -176,6 +209,7 @@ Rectangle {
                 RowLayout {
                     anchors { fill: parent; leftMargin: Theme.px(10); rightMargin: Theme.px(10) }
                     spacing: Theme.px(12)
+                    Text { Layout.preferredWidth: Theme.px(26); horizontalAlignment: Text.AlignCenter; text: songRow.isSelected ? "✓" : ""; visible: lib.selectMode; color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.px(16) * Theme.fontScale; MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: lib.toggleSelected(songRow.modelData.path) } }
                     Text { Layout.preferredWidth: Theme.px(26); horizontalAlignment: Text.AlignRight; text: songRow.now ? "▶" : (lib.album !== null && songRow.modelData.track ? songRow.modelData.track : ""); color: songRow.now ? Theme.accent : Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.features: { "tnum": 1 } }
                     ColumnLayout {
                         Layout.fillWidth: true

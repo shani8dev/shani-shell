@@ -10,6 +10,18 @@ ColumnLayout {
     id: view
     spacing: Theme.px(8)
 
+    property string sort: ""                    // "" = playlist order | "name" | "group"
+    // the search the view applies: a station matches the term in name, group or url
+    readonly property var shown: LiveTv.channels.filter(matches)
+        .sort((a, b) => sort === "name" ? (a.name + " " + a.group).localeCompare(b.name + " " + b.group)
+                     : sort === "group" ? (a.group + " " + a.name).localeCompare(b.group + " " + b.name) : 0)
+    function matches(c) {
+        const text = find ? find.text.trim().toLowerCase() : "";
+        if (!text) return true;
+        const hay = (c.name + " " + (c.group || "") + " " + (c.url || "")).toLowerCase();
+        return text.split(/\s+/).filter(t => t).every(t => hay.indexOf(t) >= 0);
+    }
+
     RowLayout {
         Layout.fillWidth: true
         Layout.margins: Theme.px(10)
@@ -32,6 +44,11 @@ ColumnLayout {
             enabled: source.text.trim() !== "" && !LiveTv.loading
             onClicked: LiveTv.load(source.text.trim())
         }
+        IconButton {
+            icon: "view-refresh"
+            tip: Tr.t("Refresh")
+            onClicked: LiveTv.source ? LiveTv.load(LiveTv.source) : LiveTv.loadDefaults()
+        }
     }
     Flow {
         Layout.fillWidth: true
@@ -44,6 +61,16 @@ ColumnLayout {
             selected: !LiveTv.builtIn && LiveTv.source === LiveTv.freeTvUrl
             onClicked: LiveTv.load(LiveTv.freeTvUrl)
         }
+    }
+    Flow {
+        visible: LiveTv.channels.length > 0
+        Layout.fillWidth: true
+        Layout.leftMargin: Theme.px(10)
+        Layout.rightMargin: Theme.px(10)
+        spacing: Theme.px(6)
+        Choice { text: Tr.t("Playlist order"); selected: sort === ""; onClicked: sort = "" }
+        Choice { text: Tr.t("By name"); selected: sort === "name"; onClicked: sort = "name" }
+        Choice { text: Tr.t("By group"); selected: sort === "group"; onClicked: sort = "group" }
     }
     Text {
         Layout.fillWidth: true
@@ -69,7 +96,7 @@ ColumnLayout {
         }
         Text {
             visible: LiveTv.channels.length > 0
-            text: Tr.t("%1 channels", LiveTv.shown.length)
+            text: Tr.t("%1 channels", shown.length)
             color: Theme.dim
             font.family: Theme.font
             font.pixelSize: Theme.px(11) * Theme.fontScale
@@ -103,8 +130,8 @@ ColumnLayout {
         // a loaded playlist can still filter down to nothing: say so instead of
         // showing a blank list with only a "0 channels" count above it
         readonly property bool filteredEmpty: !LiveTv.loading && LiveTv.error === ""
-                                              && LiveTv.channels.length > 0 && LiveTv.shown.length === 0
-        visible: LiveTv.loading || LiveTv.error !== "" || LiveTv.shown.length === 0
+                                              && LiveTv.channels.length > 0 && shown.length === 0
+        visible: LiveTv.loading || LiveTv.error !== "" || shown.length === 0
         icon: "tv"
         title: LiveTv.loading ? Tr.t("Reading the playlist…")
              : LiveTv.error !== "" ? Tr.t("Could not read the playlist")
@@ -127,7 +154,7 @@ ColumnLayout {
         Layout.fillHeight: true
         clip: true
         spacing: 2
-        model: LiveTv.shown
+        model: shown
         delegate: Rectangle {
             id: row
             required property var modelData

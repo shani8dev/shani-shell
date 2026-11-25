@@ -33,6 +33,15 @@ AppWindow {
             onAccepted: PdfSigner.setSignature(selectedFile.toString().replace(/^file:\/\//, ""))
         }
     }
+    Loader {
+        id: bmFileDlg
+        active: false
+        function open() { active = true; item.open(); }
+        sourceComponent: FileDialog {
+            title: Tr.t("Import bookmarks")
+            onAccepted: PdfSigner.importBookmarks(selectedFile.toString().replace(/^file:\/\//, ""))
+        }
+    }
 
     Item {
         anchors.fill: parent
@@ -240,6 +249,66 @@ AppWindow {
                             text: String(PdfSigner.textY)
                             onAccepted: PdfSigner.setTextPosition(textXField.text, text)
                         }
+                    }
+
+                    SectionTitle { Layout.fillWidth: true; text: Tr.t("Pages, stamps, password") }
+                    TextField {
+                        Layout.fillWidth: true
+                        placeholder: "1-3,5"
+                        label: Tr.t("Pages to stamp")
+                        text: PdfSigner.pageRange
+                        onAccepted: PdfSigner.setPageRange(text)
+                    }
+                    TextField {
+                        id: stampTextField
+                        Layout.fillWidth: true
+                        placeholder: Tr.t("Stamp text")
+                        label: Tr.t("Stamp text")
+                        text: PdfSigner.stampText
+                        onAccepted: PdfSigner.setStampText(text)
+                    }
+                    Button {
+                        Layout.fillWidth: true
+                        text: PdfSigner.stampDate || PdfSigner.stampPageNumber
+                            ? Tr.t("Stamp date and page numbers ✓") : Tr.t("Stamp date and page numbers")
+                        onClicked: { PdfSigner.stampDate = !PdfSigner.stampDate; PdfSigner.stampPageNumber = PdfSigner.stampDate; }
+                    }
+                    TextField {
+                        id: passwordField
+                        Layout.fillWidth: true
+                        placeholder: Tr.t("Password")
+                        label: Tr.t("Password")
+                        text: PdfSigner.password
+                        echoMode: TextInput.PasswordEchoOnEdit
+                        onAccepted: PdfSigner.setPassword(text)
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.px(6)
+                        Button {
+                            Layout.fillWidth: true
+                            text: Tr.t("Protect with password")
+                            onClicked: PdfSigner.protect()
+                        }
+                        Button {
+                            Layout.fillWidth: true
+                            text: Tr.t("Show signatures")
+                            onClicked: PdfSigner.signatures()
+                        }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.px(6)
+                        Button { text: Tr.t("Export bookmarks"); onClicked: PdfSigner.exportBookmarks() }
+                        Button { text: Tr.t("Import bookmarks"); onClicked: bmFileDlg.open() }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: PdfSigner.rangeError !== ""
+                        text: PdfSigner.rangeError
+                        color: Theme.red
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
                     }
 
                     Item { Layout.fillHeight: true }

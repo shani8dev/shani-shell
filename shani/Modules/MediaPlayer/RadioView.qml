@@ -10,6 +10,9 @@ import qs.Services
 ColumnLayout {
     id: view
     spacing: Theme.px(8)
+    // stations you have played lately, newest first (the Shortwave-ish history):
+    // the close thing to double-tapping a station again
+    property var recent: []
 
     RowLayout {
         Layout.fillWidth: true
@@ -30,6 +33,27 @@ ColumnLayout {
             icon: "edit-clear"
             tip: Tr.t("Clear")
             onClicked: { find.text = ""; Radio.show("featured"); }
+        }
+    }
+    // remember the played stations, newest first, eight of them
+    function notePlayed(s) {
+        if (!s || !s.url) return;
+        recent = [s].concat(recent.filter(r => r.url !== s.url)).slice(0, 8);
+    }
+
+    // a station is playing when it matches what the queue is playing now
+    function played(s) { return !!s && !!s.url && PlayQueue.current === s.url; }
+
+    Flow {
+        visible: recent.length > 0
+        Layout.fillWidth: true
+        Layout.leftMargin: Theme.px(10)
+        Layout.rightMargin: Theme.px(10)
+        spacing: Theme.px(6)
+        clip: true
+        Repeater {
+            model: recent
+            Choice { required property var modelData; text: modelData.name; onClicked: Radio.play(modelData) }
         }
     }
     Flow {
@@ -74,10 +98,10 @@ ColumnLayout {
             width: list.width
             height: Theme.px(52)
             radius: Theme.px(8)
-            readonly property bool playing: PlayQueue.current === modelData.url
+            readonly property bool playing: played(row.modelData)
             color: playing ? Theme.accentSoft : (area.containsMouse ? Theme.hover : "transparent")
-            MouseArea { id: area; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Radio.play(row.modelData) }
-            KeyFocus { onActivated: Radio.play(row.modelData) }
+            MouseArea { id: area; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { Radio.play(row.modelData); notePlayed(row.modelData); } }
+            KeyFocus { onActivated: { Radio.play(row.modelData); notePlayed(row.modelData); } }
             RowLayout {
                 anchors.fill: parent
                 anchors.leftMargin: Theme.px(10)

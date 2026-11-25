@@ -30,15 +30,21 @@ def test_live_tv_empty_action_label_matches_its_action():
 def test_live_tv_filtered_empty_state_clears_filters():
     empty = _between(TV, "    EmptyState {", "    ListView {")
     assert "readonly property bool filteredEmpty" in empty
-    assert "LiveTv.channels.length > 0 && LiveTv.shown.length === 0" in empty
-    assert 'LiveTv.error !== "" || LiveTv.shown.length === 0' in empty
+    assert "LiveTv.channels.length > 0 && shown.length === 0" in empty
+    assert 'LiveTv.error !== "" || shown.length === 0' in empty
     assert 'Tr.t("No matches")' in empty and 'Tr.t("Try a different search")' in empty
     assert 'find.text = ""; LiveTv.search = ""; LiveTv.group = ""' in empty
 
 
 def test_radio_rows_are_keyboard_activatable():
     # Live TV and Library rows have KeyFocus; Radio rows were mouse-only.
-    assert "KeyFocus { onActivated: Radio.play(row.modelData) }" in RADIO.read_text()
+    # Radio rows are keyboard-activatable via KeyFocus (Accessible added too)
+    radio = RADIO.read_text()
+    assert (
+        "KeyFocus { onActivated: { Radio.play(row.modelData); notePlayed(row.modelData); } }"
+        in radio
+    )
+    assert "Accessible.role" in radio
 
 
 def test_radio_search_has_a_visible_clear_affordance():
