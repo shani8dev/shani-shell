@@ -61,8 +61,9 @@ def test_nettools_reads_the_handoff_keeps_per_tool_history_and_copies_all():
     assert 'const marker = "shani-nettools:"' in n
     assert "raw.slice(marker.length)" in n
     assert "win.validHost(host)" in n
-    assert "Component.onCompleted: win.takeHandoff()" in n
-    assert "onVisibleChanged: if (visible) win.takeHandoff()" in n
+    # one-shot handoff is now armed at construction and consumed on first show
+    assert "Component.onCompleted: win.handoffArmed = true" in n
+    assert "win.handoffArmed) win.takeHandoff()" in n
     # per-tool history, with the flat history kept for existing callers
     assert "property var toolHistory: ({})" in n
     assert "function historyFor(tool)" in n

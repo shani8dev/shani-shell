@@ -495,13 +495,14 @@ def test_dock_and_ipc_share_one_open_files_with_entry_point():
 def test_share_send_to_gateway_uses_a_clipboard_handoff():
     s = src(SHARE_SVC)
     body = source_of(s, "sendToGatewayPeer")
-    assert "Quickshell.clipboardText = fs[0]" in body
+    assert 'Quickshell.clipboardText = "shani-gateway:" + fs[0]' in body
     assert "Ui.closeAll();" in body and "Ui.gateway = true" in body
     assert "if (!fs.length) return false;" in body
     gw = src(GATEWAY)
     prefetch = source_of(gw, "prefillFromClipboard")
-    assert 't.charAt(0) === "/"' in prefetch
-    assert "win.pendingFile = t" in prefetch
+    # the marker is validated with an argv-only `test -f` before pendingFile is set
+    assert 'const marker = "shani-gateway:"' in prefetch
+    assert "handoffCheck.checkedPath = path" in prefetch
 
 
 @pytest.mark.skipif(NODE is None, reason="node is not installed")
@@ -536,7 +537,9 @@ def test_nettools_handoff_is_marker_gated_and_validated():
     assert 'const marker = "shani-nettools:"' in body
     assert "raw.indexOf(marker) !== 0" in body
     assert "win.validHost(host)" in body
-    assert 'Quickshell.clipboardText = ""' in body
+    assert (
+        'Quickshell.clipboardText = ""' not in body
+    )  # never destroy the user's clipboard
 
 
 def test_screenshots_and_recorder_reach_share_and_launcher():
