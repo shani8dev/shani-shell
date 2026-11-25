@@ -78,6 +78,7 @@ AppWindow {
                     onTextChanged: Irc.server = text
                     onAccepted: win.connectClicked()
                     enabled: Irc.status === "disconnected" || Irc.status === "error"
+                    Accessible.name: Tr.t("IRC server")
                 }
                 TextField {
                     id: portField; objectName: "irc-port"
@@ -87,6 +88,7 @@ AppWindow {
                     text: String(Irc.port)
                     onTextChanged: Irc.port = Number(text) || 6667
                     enabled: Irc.status === "disconnected" || Irc.status === "error"
+                    Accessible.name: Tr.t("Port")
                 }
                 TextField {
                     id: nickField; objectName: "irc-nick"
@@ -96,6 +98,7 @@ AppWindow {
                     text: Irc.nick
                     onTextChanged: Irc.nick = text
                     enabled: Irc.status === "disconnected" || Irc.status === "error"
+                    Accessible.name: Tr.t("Nickname")
                 }
                 CheckBox {
                     id: tlsBox
@@ -110,35 +113,37 @@ AppWindow {
                     kind: "primary"
                     text: (Irc.status === "disconnected" || Irc.status === "error") ? Tr.t("Connect") : Tr.t("Disconnect")
                     onClicked: win.connectClicked()
+                    Accessible.name: text
                 }
                 Button {
                     id: reconnectButton
                     visible: Irc.status === "error" || Irc.status === "disconnected"
                     text: Tr.t("Reconnect")
                     onClicked: Irc.reconnect()
-                }
-                Item { Layout.fillWidth: true }
-                Text {
-                    id: statusLabel
-                    text: win.statusText()
-                    color: Irc.status === "connected" ? Theme.accent
-                         : Irc.status === "error" ? Theme.danger : Theme.dim
-                    font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
-                    Accessible.role: Accessible.StaticText
                     Accessible.name: text
                 }
+                Item { Layout.fillWidth: true }
             }
+        }
+        InfoBanner {
+            objectName: "irc-status"
+            Layout.fillWidth: true
+            tone: Irc.status === "connected" ? "ok" : Irc.status === "error" ? "error" : "info"
+            iconName: Irc.status === "connected" ? "dialog-ok" : ""
+            text: win.statusText()
+            accessibleRole: Accessible.StatusBar
         }
 
         // a failed connection is distinct from an empty channel
-        Text {
+        InfoBanner {
+            objectName: "irc-error"
             Layout.fillWidth: true
             visible: Irc.error !== ""
+            tone: "error"
+            iconName: "dialog-error"
+            title: Tr.t("Could not connect")
             text: Tr.t("IRC error: %1", Irc.error)
-            color: Theme.danger; wrapMode: Text.WordWrap
-            font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
-            Accessible.role: Accessible.StaticText
-            Accessible.name: text
+            accessibleRole: Accessible.StatusBar
         }
 
         RowLayout {
@@ -166,12 +171,14 @@ AppWindow {
                             label: Tr.t("Channel")
                             placeholder: Tr.t("#channel")
                             onAccepted: win.joinClicked()
+                            Accessible.name: Tr.t("Channel")
                         }
                         Button {
                             id: joinButton
                             text: Tr.t("Join")
                             enabled: joinField.text.trim() !== ""
                             onClicked: win.joinClicked()
+                            Accessible.name: Tr.t("Join a channel")
                         }
                     }
                     ListView {
@@ -180,52 +187,28 @@ AppWindow {
                         Layout.fillHeight: true
                         clip: true
                         model: Irc.channels
-                        delegate: Rectangle {
+                        delegate: ListRow {
                             width: channelsView.width
-                            implicitHeight: Theme.px(34)
+                            icon: "group"
+                            title: modelData
+                            subtitle: (Irc.mentions[modelData] || 0) > 0 ? Tr.t("%1 mentions", Irc.mentions[modelData]) : ""
+                            trailing: (Irc.unread[modelData] || 0) > 0 ? String(Irc.unread[modelData]) : ""
+                            selected: modelData === Irc.activeChannel
                             color: modelData === Irc.activeChannel ? Theme.alpha(Theme.accent, 0.2) : "transparent"
-                            radius: Theme.radiusSmall
                             Accessible.role: Accessible.ListItem
                             Accessible.name: modelData
                                 + ((Irc.unread[modelData] || 0) > 0 ? ", " + Tr.t("%1 unread", Irc.unread[modelData]) : "")
                                 + ((Irc.mentions[modelData] || 0) > 0 ? ", " + Tr.t("%1 mentions", Irc.mentions[modelData]) : "")
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.margins: Theme.px(6)
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: modelData
-                                    color: Theme.text
-                                    font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale
-                                    font.weight: (Irc.mentions[modelData] || 0) > 0 ? Font.DemiBold : Font.Normal
-                                    elide: Text.ElideRight
-                                }
-                                Rectangle {
-                                    visible: (Irc.unread[modelData] || 0) > 0
-                                    implicitWidth: badge.implicitWidth + Theme.px(12)
-                                    implicitHeight: Theme.px(20)
-                                    radius: Theme.px(10)
-                                    color: (Irc.mentions[modelData] || 0) > 0 ? Theme.danger : Theme.accent
-                                    Text {
-                                        id: badge; anchors.centerIn: parent
-                                        text: String(Irc.unread[modelData] || 0)
-                                        color: Theme.bg
-                                        font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
-                                    }
-                                }
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: Irc.markRead(modelData)
-                            }
+                            onClicked: Irc.markRead(modelData)
                         }
-                        Text {
+                        EmptyState {
+                            objectName: "irc-channels-empty"
                             anchors.centerIn: parent
+                            width: parent.width - Theme.px(12)
                             visible: Irc.channels.length === 0
-                            text: Tr.t("No channels — connect and join one")
-                            color: Theme.dim; wrapMode: Text.WordWrap
-                            font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
-                            Accessible.name: text
+                            icon: "group"
+                            title: Tr.t("No channels — connect and join one")
+                            subtitle: Tr.t("Connect above, then join a channel with the field above")
                         }
                     }
                 }
@@ -248,52 +231,36 @@ AppWindow {
                         Layout.fillHeight: true
                         clip: true
                         model: win.shownMessages()
-                        delegate: Rectangle {
+                        delegate: ListRow {
                             width: timeline.width
-                            implicitHeight: row.implicitHeight + Theme.px(4)
+                            icon: modelData.mention ? "dialog-warning-symbolic" : "chat-message-new"
+                            title: modelData.mention ? "✱ " + modelData.text : modelData.text
+                            subtitle: modelData.nick + " · " + modelData.channel
+                            trailing: modelData.time
+                            interactive: false
+                            selected: modelData.mention
                             color: modelData.mention ? Theme.alpha(Theme.accent, 0.16) : "transparent"
-                            radius: Theme.radiusSmall
-                            Accessible.role: Accessible.StaticText
+                            Accessible.role: Accessible.ListItem
                             Accessible.name: Tr.t("%1 at %2 in %3%4: %5", modelData.nick, modelData.time,
                                 modelData.channel, modelData.mention ? ", mention" : "", modelData.text)
-                            RowLayout {
-                                id: row
-                                anchors.fill: parent
-                                spacing: Theme.px(6)
-                                Text {
-                                    text: modelData.time
-                                    color: Theme.dim
-                                    font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
-                                }
-                                Text {
-                                    text: modelData.nick
-                                    color: modelData.mention ? Theme.danger : Theme.accent
-                                    font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
-                                    font.weight: Font.DemiBold
-                                }
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: modelData.mention ? "✱ " + modelData.text : modelData.text
-                                    color: Theme.text; wrapMode: Text.WordWrap
-                                    font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale
-                                }
-                            }
                         }
-                        Text {
+                        EmptyState {
+                            objectName: "irc-messages-empty"
                             anchors.centerIn: parent
+                            width: parent.width - Theme.px(12)
                             visible: Irc.channels.length > 0 && win.shownMessages().length === 0
-                            text: Tr.t("No messages yet — say hello")
-                            color: Theme.dim
-                            font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
-                            Accessible.name: text
+                            icon: "mail-message-new"
+                            title: Tr.t("No messages yet — say hello")
+                            subtitle: Tr.t("Write a message below to start the conversation")
                         }
-                        Text {
+                        EmptyState {
+                            objectName: "irc-timeline-empty"
                             anchors.centerIn: parent
+                            width: parent.width - Theme.px(12)
                             visible: Irc.channels.length === 0
-                            text: Tr.t("Connect and join a channel to start chatting")
-                            color: Theme.dim; wrapMode: Text.WordWrap
-                            font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
-                            Accessible.name: text
+                            icon: "mail-message-new"
+                            title: Tr.t("Connect and join a channel to start chatting")
+                            subtitle: Tr.t("Use Connect above, then join a channel on the left")
                         }
                     }
                     RowLayout {
@@ -305,6 +272,7 @@ AppWindow {
                             label: Tr.t("Message")
                             placeholder: Tr.t("Write a message…")
                             onAccepted: win.sendClicked()
+                            Accessible.name: Tr.t("Message")
                         }
                         Button {
                             id: sendButton
@@ -312,6 +280,7 @@ AppWindow {
                             text: Tr.t("Send")
                             enabled: sendField.text.trim() !== "" && Irc.activeChannel !== ""
                             onClicked: win.sendClicked()
+                            Accessible.name: Tr.t("Send a message")
                         }
                     }
                 }
@@ -336,15 +305,17 @@ AppWindow {
                         font.weight: Font.DemiBold
                     }
                     ListView {
+                        id: nicksView
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         clip: true
                         model: win.nicksFor(Irc.activeChannel)
-                        delegate: Text {
-                            width: parent ? parent.width : 0
-                            text: modelData
-                            color: modelData === Irc.nick ? Theme.accent : Theme.text
-                            font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                        delegate: ListRow {
+                            width: nicksView.width
+                            icon: "user"
+                            title: modelData
+                            interactive: false
+                            selected: modelData === Irc.nick
                             Accessible.role: Accessible.ListItem
                             Accessible.name: modelData
                         }

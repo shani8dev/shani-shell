@@ -50,7 +50,7 @@ def test_dictionary_is_an_offline_window_over_its_bundled_entries():
     assert "win.history = win.history.slice(0, 20);" in DICTIONARY
     assert "function recall(w)" in DICTIONARY
     assert "Quickshell.clipboardText" in DICTIONARY
-    assert "Keys.onEscapePressed: win.requestClose()" in DICTIONARY
+    assert "AppWindow {" in DICTIONARY  # Escape/Ctrl+W now central in AppWindow
     assert 'Tr.t("Clear"); kind: "plain"; onClicked: win.history = []' in DICTIONARY
 
 

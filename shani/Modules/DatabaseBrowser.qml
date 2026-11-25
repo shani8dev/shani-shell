@@ -17,6 +17,8 @@ AppWindow {
     onGone: Ui.databaseBrowser = false
     implicitWidth: Theme.px(900)
     implicitHeight: Theme.px(640)
+    shortcutRefresh: win.listTables   // Ctrl+R reloads tables; Ctrl+F is N/A (path and SQL are the inputs)
+    // the refresh action lives in AppWindow's tools row, not a second toolbar
 
     // fixed code: sys.argv[1] is the file, sys.argv[2] the statement. No user
     // text is ever concatenated into this string or into a shell command.
@@ -100,6 +102,14 @@ except Exception as e:
         win.listTables();
     }
 
+    tools: [
+        IconButton {
+            icon: "view-refresh"; tip: Tr.t("Reload tables")
+            accessibleName: Tr.t("Reload tables"); size: Theme.px(30)
+            onClicked: win.listTables()
+        }
+    ]
+
     Process {
         id: listProc
         stdout: StdioCollector {
@@ -139,7 +149,7 @@ except Exception as e:
         id: root
         anchors.fill: parent
         focus: true
-        Keys.onEscapePressed: win.visible = false
+        // Escape / Ctrl+W are handled by AppWindow through requestClose()
 
         ColumnLayout {
             anchors.fill: parent
@@ -157,11 +167,6 @@ except Exception as e:
                     text: win.dbPath
                     onEditingFinished: win.dbPath = text.trim()
                     Keys.onAccepted: win.dbPath = text.trim()
-                }
-                IconButton {
-                    icon: "view-refresh"; tip: Tr.t("Reload tables")
-                    Accessible.name: Tr.t("Reload tables")
-                    onClicked: win.listTables()
                 }
                 Spinner { visible: listProc.running || win.busy; size: Theme.px(16)
                           Layout.preferredWidth: Theme.px(16); Layout.preferredHeight: Theme.px(16) }
@@ -286,6 +291,8 @@ except Exception as e:
                     required property var modelData
                     width: grid.width; height: Theme.px(30); radius: Theme.radiusSmall; color: Theme.surface1
                     Accessible.name: win.columns.map((c, i) => c + ": " + modelData[i]).join(", ")
+                    // result rows are keyboard reachable too, not only the header buttons
+                    KeyFocus { onActivated: Quickshell.clipboardText = cellRow.Accessible.name }
                     RowLayout {
                         anchors.fill: parent; anchors.leftMargin: Theme.px(6); anchors.rightMargin: Theme.px(6)
                         spacing: Theme.px(6)

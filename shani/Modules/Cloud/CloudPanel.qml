@@ -96,16 +96,17 @@ AppWindow {
                     onClicked: win.visible = false
                 }
             }
-            Text {
+            InfoBanner {
+                objectName: "cloud-error"
                 Layout.fillWidth: true
                 visible: !CloudSync.available || CloudSync.error !== "" || win.notice !== ""
-                wrapMode: Text.Wrap
+                tone: "error"
+                iconName: "dialog-error"
+                title: !CloudSync.available ? Tr.t("Could not load cloud sync")
+                     : CloudSync.error !== "" ? Tr.t("Could not sync") : Tr.t("Check the job details")
                 text: !CloudSync.available ? Tr.t("rclone is not installed — cloud sync cannot run")
                                            : (CloudSync.error !== "" ? CloudSync.error : win.notice)
-                color: Theme.danger
-                font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
-                Accessible.role: Accessible.StaticText
+                accessibleRole: Accessible.StatusBar
             }
 
             RowLayout {
@@ -345,14 +346,13 @@ AppWindow {
                                 font.family: Theme.font
                                 font.pixelSize: Theme.px(11) * Theme.fontScale
                             }
-                            Text {
+                            InfoBanner {
+                                objectName: "cloud-job-error"
                                 Layout.fillWidth: true
                                 visible: row.modelData.state === "error"
+                                tone: "error"
+                                title: Tr.t("Could not sync %1", row.modelData.id)
                                 text: row.modelData.error
-                                color: Theme.danger
-                                wrapMode: Text.Wrap
-                                font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
                             }
                             // ---- settings and history, revealed by the title ----------
                             GridLayout {
@@ -416,12 +416,15 @@ AppWindow {
                         }
                     }
                     EmptyState {
+                        objectName: "cloud-empty"
                         anchors.centerIn: parent
                         width: Math.min(parent.width - Theme.px(30), Theme.px(360))
                         visible: jobs.count === 0
                         icon: "folder-remote"
                         title: Tr.t("No sync jobs yet")
                         subtitle: Tr.t("Choose a cloud folder and a local folder to copy between them")
+                        actionText: Tr.t("Try again")
+                        onAction: CloudSync.refresh()
                     }
                 }
             }

@@ -34,6 +34,12 @@ FloatingWindow {
     signal gone()
     default property alias content: body.data
     property alias tools: toolRow.data
+    // Uniform shortcuts: an app points Ctrl+F at its search field and Ctrl+R at
+    // its refresh action (both default to null, so existing apps keep theirs).
+    // Escape and Ctrl+W always go through requestClose() so the unsaved-work
+    // guard cannot be bypassed. A child that handles a key first still wins.
+    property var shortcutSearch: null
+    property var shortcutRefresh: null
     readonly property alias body: body
     readonly property string desktopId: ShellApps.idFor(appName)
     readonly property var entry: desktopId !== "" ? DesktopEntries.byId(desktopId) : null
@@ -78,10 +84,30 @@ FloatingWindow {
     Item {
         id: frame
         anchors.fill: parent
+        Accessible.role: Accessible.Window
+        Accessible.name: win.title
         // Reach a scrolling toolbar without tabbing through a document's text.
         Keys.onPressed: e => {
             if (e.key === Qt.Key_F6) {
                 Ui.focusFirst(e.modifiers & Qt.ShiftModifier ? body : toolRow);
+                e.accepted = true;
+            }
+            // the standard set shared by every app window: the app supplies the
+            // search field and refresh action, closing goes through the guard
+            else if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_F && win.shortcutSearch) {
+                win.shortcutSearch.forceActiveFocus();
+                e.accepted = true;
+            }
+            else if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_R && win.shortcutRefresh) {
+                win.shortcutRefresh();
+                e.accepted = true;
+            }
+            else if (e.key === Qt.Key_Escape) {
+                win.requestClose();
+                e.accepted = true;
+            }
+            else if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_W) {
+                win.requestClose();
                 e.accepted = true;
             }
             // the Menu key (a controller's X) on something with no menu of its own:

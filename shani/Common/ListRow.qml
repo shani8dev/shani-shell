@@ -10,12 +10,14 @@ Rectangle {
     property bool selected: false
     property bool interactive: true      // a row that only shows a value, not one that opens something
     property string trailing: ""
+    property int columns: 0              // grid width: Up/Down jump a row in the KeyFocus chain
     default property alias extra: tail.data
     signal clicked()
     // flashed after a search lands here (see Ui.flashSetting)
     readonly property bool highlighted: Ui.settingsFlash.length > 0 && String(root.title).toLowerCase().indexOf(Ui.settingsFlash) >= 0
 
-    Accessible.role: interactive ? Accessible.ListItem : Accessible.StaticText
+    // a list item for every instance, so Accessible.selected is always spoken
+    Accessible.role: Accessible.ListItem
     Accessible.name: root.title
     Accessible.description: root.subtitle
     Accessible.selected: root.selected
@@ -66,7 +68,7 @@ Rectangle {
         cursorShape: root.interactive ? Qt.PointingHandCursor : Qt.ArrowCursor
         onClicked: root.clicked()
     }
-    KeyFocus { enabled: root.interactive; onActivated: root.clicked() }
+    KeyFocus { enabled: root.interactive; columns: root.columns; onActivated: root.clicked() }
     Row {
         id: tail
         anchors.right: parent.right

@@ -87,9 +87,10 @@ Singleton {
     }
 
     // one Process, reused; `what` names the answer so a queued log cannot
-    // overwrite a freshly arrived summary.
+    // overwrite a freshly arrived summary. busy mirrors that single in-flight
+    // Process so callers can queue on one guard.
     function run(what, args) {
-        if (job.running) { root.pending = root.pending.concat([{ what: what, args: args }]); return; }
+        if (job.running || root.busy) { root.pending = root.pending.concat([{ what: what, args: args }]); return; }
         start(what, args);
     }
     function start(what, args) {
@@ -147,7 +148,11 @@ Singleton {
         property string what: ""
         stdout: StdioCollector { id: out }
         onExited: code => {
-            if (code === 0) root.finished(job.what, out.text);
+            if (code === 127) {
+                root.busy = false;
+                root.loaded = true;
+                root.error = Tr.t("The health service is not installed");
+            } else if (code === 0) root.finished(job.what, out.text);
             else if (job.what === "summary") { root.busy = false; root.loaded = true; root.error = Tr.t("Health could not answer"); }
             if (root.pending.length) {
                 const next = root.pending[0];

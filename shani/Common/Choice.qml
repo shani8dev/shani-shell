@@ -7,12 +7,14 @@ Rectangle {
     property string text
     property bool selected: false
     property bool danger: false      // destructive one-shot action, not a choice
+    property string accessibleName: ""   // overrides text as the AT name when text is only a hint
+    property int columns: 0              // grid width: Up/Down jump a row in the KeyFocus chain
     signal clicked()
     // flashed after a search lands here (see Ui.flashSetting)
     readonly property bool highlighted: Ui.settingsFlash.length > 0 && String(root.text).toLowerCase().indexOf(Ui.settingsFlash) >= 0
 
     Accessible.role: Accessible.RadioButton
-    Accessible.name: root.text
+    Accessible.name: root.accessibleName !== "" ? root.accessibleName : root.text
     Accessible.checked: root.selected
     Accessible.onPressAction: root.clicked()
     Accessible.onToggleAction: root.clicked()      // a radio button's action is Toggle
@@ -41,7 +43,7 @@ Rectangle {
         cursorShape: Qt.PointingHandCursor
         onClicked: root.clicked()
     }
-    KeyFocus { enabled: root.enabled; onActivated: root.clicked() }
+    KeyFocus { enabled: root.enabled && root.visible; columns: root.columns; onActivated: root.clicked() }
 
     // a search landed here: a pulsing accent edge until the flash clears
     Rectangle {

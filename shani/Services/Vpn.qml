@@ -29,7 +29,8 @@ Singleton {
     property string pending: ""          // command in flight, for the reply
     property string subject: ""          // name it was about
 
-    function invoke(cmd, args, subject) {
+    // run() owns the single busy guard; invoke() is the name the panel calls.
+    function run(cmd, args, subject) {
         if (root.busy) return false;
         root.pending = cmd;
         root.subject = subject || "";
@@ -39,6 +40,7 @@ Singleton {
         job.running = true;
         return true;
     }
+    function invoke(cmd, args, subject) { return root.run(cmd, args, subject); }
 
     function refresh() { return invoke("list", []); }
     function up(name) { return invoke("up", [name]); }
@@ -49,48 +51,48 @@ Singleton {
     function remove(name) { return invoke("delete", [name], name); }
     function refreshStats(name) { if (name) return invoke("stats", [name], name); return false; }
 
+    function finished(what, who, code, text, stderr) {
+        let d = {};
+        try { d = JSON.parse((text || "").trim() || "{}") || {}; } catch (e) { d = {}; }
+        root.pending = "";
+        root.subject = "";
+        root.busy = false;
+
+        const bad = code !== 0 || d.ok !== true;
+        const raw = String((stderr || "")).trim().split("\n").pop();
+        root.error = bad ? (d.error || raw || Tr.t("VPN command failed")) : "";
+        if (bad) root.note = root.error;
+
+        if (what === "list") {
+            root.probed = true;
+            root.available = d.available !== false;
+            root.connections = Array.isArray(d.connections) ? d.connections : [];
+            // an absent nmcli is a healthy answer with an empty list, but
+            // the panel must still say why it has nothing to show
+            if (!root.available) root.error = d.error || Tr.t("nmcli is not installed");
+        } else if (what === "stats") {
+            if (who) {
+                const all = Object.assign({}, root.stats);
+                all[who] = d;
+                root.stats = all;
+            }
+        } else {
+            if (!bad) {
+                root.note = what === "import" ? Tr.t("Profile imported as %1").arg(d.name || "")
+                           : what === "autoconnect" ? Tr.t("Autoconnect updated for %1").arg(who)
+                           : what === "delete" ? Tr.t("Connection deleted")
+                           : what === "up" ? Tr.t("Connected to %1").arg(who)
+                           : Tr.t("Disconnected from %1").arg(who);
+            }
+            root.refresh();
+        }
+    }
+
     Process {
         id: job
         stdout: StdioCollector { id: vpnOut }
         stderr: StdioCollector { id: vpnErr }
-        onExited: code => {
-            let d = {};
-            try { d = JSON.parse((vpnOut.text || "").trim() || "{}") || {}; } catch (e) { d = {}; }
-            const what = root.pending;
-            const who = root.subject;
-            root.pending = "";
-            root.subject = "";
-            root.busy = false;
-
-            const bad = code !== 0 || d.ok !== true;
-            const raw = String((vpnErr.text || "")).trim().split("\n").pop();
-            root.error = bad ? (d.error || raw || Tr.t("VPN command failed")) : "";
-            if (bad) root.note = root.error;
-
-            if (what === "list") {
-                root.probed = true;
-                root.available = d.available !== false;
-                root.connections = Array.isArray(d.connections) ? d.connections : [];
-                // an absent nmcli is a healthy answer with an empty list, but
-                // the panel must still say why it has nothing to show
-                if (!root.available) root.error = d.error || Tr.t("nmcli is not installed");
-            } else if (what === "stats") {
-                if (who) {
-                    const all = Object.assign({}, root.stats);
-                    all[who] = d;
-                    root.stats = all;
-                }
-            } else {
-                if (!bad) {
-                    root.note = what === "import" ? Tr.t("Profile imported as %1").arg(d.name || "")
-                               : what === "autoconnect" ? Tr.t("Autoconnect updated for %1").arg(who)
-                               : what === "delete" ? Tr.t("Connection deleted")
-                               : what === "up" ? Tr.t("Connected to %1").arg(who)
-                               : Tr.t("Disconnected from %1").arg(who);
-                }
-                root.refresh();
-            }
-        }
+        onExited: code => root.finished(root.pending, root.subject, code, vpnOut.text, vpnErr.text)
     }
 
     // Net's nmcli monitor already tells us when VPN connections come and go.

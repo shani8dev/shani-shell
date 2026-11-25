@@ -272,7 +272,7 @@ def test_service_owns_the_bridge_and_queues_its_calls():
     assert 'root.run("log", ["workout"' in s
     assert 'root.run("import", [String(path)])' in s
     assert 'root.run("spot", [String(kind || "hr")])' in s
-    assert "if (job.running) { root.pending = root.pending.concat(" in s
+    assert "job.running || root.busy" in s and "root.pending = root.pending.concat" in s
     assert 'job.command = ["python3", root.tool, what].concat(args);' in s
     assert "Component.onCompleted: refresh()" in s
 

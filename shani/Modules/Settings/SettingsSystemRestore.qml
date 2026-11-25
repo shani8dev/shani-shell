@@ -50,8 +50,14 @@ ColumnLayout {
             panel.confirming = id;
         }
     }
+    // A panel, not an AppWindow: Escape unwinds the armed tap here, Ctrl+R
+    // refreshes the slots. Ctrl+F (search) and Ctrl+W (close) belong to the
+    // hosting Settings window — a Ctrl+W here would close that whole window.
     Keys.onPressed: event => {
         if (event.key === Qt.Key_Escape) { panel.confirming = ""; event.accepted = true; }
+        else if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_R) {
+            SystemRestore.refresh(); event.accepted = true;
+        }
         else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && panel.selected >= 0
                  && panel.selected < SystemRestore.slots.length) {
             const slot = SystemRestore.slots[panel.selected];
@@ -78,46 +84,40 @@ ColumnLayout {
     }
 
     // read states: error / offline / empty all say plainly what happened
-    Text {
+    InfoBanner {
         objectName: "system-restore-error"
         Layout.fillWidth: true
         visible: SystemRestore.error !== ""
+        tone: "error"
+        iconName: "dialog-error"
+        title: Tr.t("Could not load slots")
         text: SystemRestore.error
-        color: Theme.danger
-        wrapMode: Text.Wrap
-        Accessible.name: SystemRestore.error
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        accessibleRole: Accessible.StatusBar
     }
-    Text {
+    InfoBanner {
         objectName: "system-restore-offline"
         Layout.fillWidth: true
         visible: SystemRestore.error !== "" && panel.active
+        tone: "warn"
         text: Tr.t("System slots are unavailable; nothing here can be switched until shani-deploy answers.")
-        color: Theme.dim
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
-    Text {
+    EmptyState {
         objectName: "system-restore-empty"
         Layout.fillWidth: true
         visible: !SystemRestore.loading && SystemRestore.error === "" && SystemRestore.slots.length === 0
-        text: SystemRestore.note || Tr.t("No installed slots were reported.")
-        color: Theme.dim
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        icon: "system-software-update"
+        title: Tr.t("Nothing yet")
+        subtitle: SystemRestore.note || Tr.t("No installed slots were reported.")
+        actionText: Tr.t("Refresh slots")
+        onAction: SystemRestore.refresh()
     }
-    Text {
+    InfoBanner {
         objectName: "system-restore-note"
         Layout.fillWidth: true
         visible: SystemRestore.note !== ""
+        tone: "accent"
         text: SystemRestore.note
-        color: Theme.accent
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        accessibleRole: Accessible.StatusBar
     }
     // restart/update status lives in SettingsUpdates (Services/Updates) above;
     // this panel only owns the slot switch and its rollback actions
@@ -179,25 +179,21 @@ ColumnLayout {
     }
 
     // progress / busy; the action streams shani-deploy's own lines
-    Text {
+    InfoBanner {
         objectName: "system-restore-busy"
         Layout.fillWidth: true
         visible: SystemRestore.busy
+        tone: "accent"
         text: Tr.t("Asking shani-deploy to switch slots…")
-        color: Theme.accent
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
-    Text {
+    InfoBanner {
         objectName: "system-restore-action-error"
         Layout.fillWidth: true
         visible: SystemRestore.actionError !== ""
+        tone: "error"
+        title: Tr.t("Could not switch slots")
         text: SystemRestore.actionError
-        color: Theme.danger
-        wrapMode: Text.Wrap
-        Accessible.name: SystemRestore.actionError
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        accessibleRole: Accessible.StatusBar
     }
     ListView {
         Layout.fillWidth: true
@@ -228,15 +224,12 @@ ColumnLayout {
         }
         Item { Layout.fillWidth: true }
     }
-    Text {
+    InfoBanner {
         objectName: "system-restore-no-dry-run"
         Layout.fillWidth: true
         visible: !SystemRestore.dryRunSupported
+        tone: "info"
         text: Tr.t("This shani-deploy has no dry run for a slot switch; the target and confirmation above are the preview.")
-        color: Theme.dim
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
     }
     ListView {
         Layout.fillWidth: true

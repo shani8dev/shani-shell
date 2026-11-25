@@ -16,6 +16,7 @@ import qs.Services
 // not this singleton — qualify it (see the Quickshell docs)
 import qs.Services as Services
 import qs.Modules.Notifications
+import "../../Common/Tools.js" as Tools
 
 ColumnLayout {
     // made on first use, as in Settings > Sound: a native dialog waits on
@@ -43,7 +44,20 @@ ColumnLayout {
         readonly property real cell: (width - gap) / 2
         // the default order: what people reach for most first (GNOME's and Android's
         // quick settings lead the same way), the rest after
-        readonly property var known: ["wifi", "bluetooth", "dnd", "nightlight", "dark", "power", "mic", "screenshot", "record", "focus", "caffeine", "airplane", "mobile", "hotspot", "vpn", "phone", "timer", "camera", "photo", "lens", "ruler", "colorpicker", "snippets", "compress", "qrgen", "rotate", "compass", "flashlight", "kbdbacklight", "display", "osk", "keyboard", "clipboard", "backup", "access", "captions", "transcribe", "speak", "magnifier", "callrecord", "cast", "touch", "chronoa", "characters", "dictionary", "podcasts", "teleprompter", "netTools", "databaseBrowser", "startupManager", "gateway", "pasteHistory", "scheduled"]
+        readonly property var known: ["wifi", "bluetooth", "dnd", "nightlight", "dark", "power", "mic", "screenshot", "record", "focus", "caffeine", "airplane", "mobile", "hotspot", "vpn", "phone", "timer", "camera", "photo", "lens", "ruler", "colorpicker", "compress", "qrgen", "rotate", "compass", "flashlight", "kbdbacklight", "display", "osk", "keyboard", "clipboard", "backup", "access", "captions", "transcribe", "speak", "magnifier", "callrecord", "cast", "touch", "chronoa", "characters", ...Tools.list.map(t => t.flag)]
+        // Tools.list owns the nine tools' flag, label, icon and order; only the
+        // one-line subtitle below is local to this surface.
+        readonly property var toolSubtitles: ({
+            dictionary: Tr.t("Words and meanings, offline"),
+            podcasts: Tr.t("Episodes and subscriptions"),
+            teleprompter: Tr.t("Scroll your script"),
+            netTools: Tr.t("Ping, DNS and scan"),
+            databaseBrowser: Tr.t("Open an SQLite file"),
+            startupManager: Tr.t("Manage autostart entries"),
+            gateway: Tr.t("Peers, QR and VPN"),
+            pasteHistory: Tr.t("Clipboard slots"),
+            scheduled: Tr.t("Tasks at their time")
+        })
         readonly property var order: {
             const o = Settings.data.tileOrder.filter(t => known.indexOf(t) >= 0);
             return o.concat(known.filter(t => o.indexOf(t) < 0));       // new tiles join at the end
@@ -357,7 +371,10 @@ ColumnLayout {
             subtitle: Tr.t("Loupe")
             onToggled: {
                 Ui.closeAll();
-                Ui.magnifier = true;
+                // Magnifier has no onGone to reset its flag: drop it now and raise it
+                // next frame so an already-open loupe re-grabs instead of staying stale.
+                Ui.magnifier = false;
+                Qt.callLater(() => { Ui.magnifier = true; });
             }
         }
         Tile {
@@ -411,16 +428,6 @@ ColumnLayout {
             }
         }
         // ---- tiles -------------------------------------------
-        // Snippets: the clipboard's pinned texts (Clipboard.pin), above its
-        // history in the launcher - a click puts one back on the clipboard
-        Tile {
-            tid: "snippets"
-            can: Clipboard.available
-            icon: "accessories-text-editor"
-            title: Tr.t("Snippets")
-            subtitle: Tr.t("Pinned texts")
-            onToggled: Ui.toggleLauncher("c ")
-        }
         // Compress: pick a file (Qt's dialog, the desktop portal's) and the
         // "what to do with it" card offers "A smaller file" (FileActions)
         Tile {
@@ -579,95 +586,17 @@ ColumnLayout {
                 Ui.characters = true;
             }
         }
-        // ---- the newer apps: each tile opens its shell window ------------
-        Tile {
-            tid: "dictionary"
-            icon: "accessories-dictionary"
-            title: Tr.t("Dictionary")
-            subtitle: Tr.t("Words and meanings, offline")
-            onToggled: {
-                Ui.closeAll();
-                Ui.dictionary = true;
-            }
-        }
-        Tile {
-            tid: "podcasts"
-            icon: "audio-headphones"
-            title: Tr.t("Podcasts")
-            subtitle: Tr.t("Episodes and subscriptions")
-            onToggled: {
-                Ui.closeAll();
-                Ui.podcasts = true;
-            }
-        }
-        Tile {
-            tid: "teleprompter"
-            icon: "view-list-text"
-            title: Tr.t("Teleprompter")
-            subtitle: Tr.t("Scroll your script")
-            onToggled: {
-                Ui.closeAll();
-                Ui.teleprompter = true;
-            }
-        }
-        Tile {
-            tid: "netTools"
-            icon: "network-workgroup"
-            title: Tr.t("Network Tools")
-            subtitle: Tr.t("Ping, DNS and scan")
-            onToggled: {
-                Ui.closeAll();
-                Ui.netTools = true;
-            }
-        }
-        Tile {
-            tid: "databaseBrowser"
-            icon: "database"
-            title: Tr.t("Database browser")
-            subtitle: Tr.t("Open an SQLite file")
-            onToggled: {
-                Ui.closeAll();
-                Ui.databaseBrowser = true;
-            }
-        }
-        Tile {
-            tid: "startupManager"
-            icon: "system-run"
-            title: Tr.t("Startup manager")
-            subtitle: Tr.t("Manage autostart entries")
-            onToggled: {
-                Ui.closeAll();
-                Ui.startupManager = true;
-            }
-        }
-        Tile {
-            tid: "gateway"
-            icon: "network-server"
-            title: Tr.t("Gateway")
-            subtitle: Tr.t("Peers, QR and VPN")
-            onToggled: {
-                Ui.closeAll();
-                Ui.gateway = true;
-            }
-        }
-        Tile {
-            tid: "pasteHistory"
-            icon: "edit-paste"
-            title: Tr.t("Paste history")
-            subtitle: Tr.t("Clipboard slots")
-            onToggled: {
-                Ui.closeAll();
-                Ui.pasteHistory = true;
-            }
-        }
-        Tile {
-            tid: "scheduled"
-            icon: "x-office-calendar"
-            title: Tr.t("Scheduled tasks")
-            subtitle: Tr.t("Tasks at their time")
-            onToggled: {
-                Ui.closeAll();
-                Ui.scheduled = true;
+        // ---- the newer apps: Tools.list owns tid, label, icon and order; each
+        // tile opens the same Ui flag shell.qml's *Open() IPC sets
+        Repeater {
+            model: Tools.list
+            delegate: Tile {
+                required property var modelData
+                tid: modelData.flag
+                icon: modelData.icon
+                title: Tr.t(modelData.label)
+                subtitle: tileGrid.toolSubtitles[modelData.flag] || ""
+                onToggled: { Ui.closeAll(); Ui[modelData.flag] = true; }
             }
         }
     }

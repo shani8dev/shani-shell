@@ -22,6 +22,9 @@ AppWindow {
     onVisibleChanged: if (visible) win.prefillFromClipboard()
     implicitWidth: Theme.px(900)
     implicitHeight: Theme.px(640)
+    // Ctrl+F / Ctrl+R are N/A (no search field, no remote data to refresh);
+    // the header tools row is AppWindow's, not a second toolbar. Escape and
+    // Ctrl+W close via AppWindow, so the close guard is shared.
 
     // the largest script we will hold: a bigger paste is refused with a reason,
     // rather than making the text layout hang the shell
@@ -131,7 +134,7 @@ AppWindow {
         anchors.fill: parent
         focus: win.visible
         Keys.onPressed: e => { if (win.shortcut(e)) e.accepted = true; }
-        Keys.onEscapePressed: Ui.teleprompter = false
+        // Escape is handled by AppWindow (requestClose), not here
 
         ColumnLayout {
             anchors.fill: parent

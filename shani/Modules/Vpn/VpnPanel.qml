@@ -103,24 +103,21 @@ Item {
             }
         }
 
-        Text {
+        InfoBanner {
             objectName: "vpn-error"
             Layout.fillWidth: true
             visible: Vpn.error !== ""
+            tone: "error"
+            iconName: "dialog-error"
+            title: Tr.t("Could not load VPN connections")
             text: Vpn.error
-            color: Theme.danger
-            wrapMode: Text.WordWrap
-            font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
-            Accessible.role: Accessible.StaticText; Accessible.name: Vpn.error
         }
-        Text {
+        InfoBanner {
+            objectName: "vpn-note"
             Layout.fillWidth: true
             visible: Vpn.note !== "" && Vpn.error === ""
+            tone: "accent"
             text: Vpn.note
-            color: Theme.accent
-            wrapMode: Text.WordWrap
-            font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
-            Accessible.role: Accessible.StaticText; Accessible.name: Vpn.note
         }
 
         ListView {

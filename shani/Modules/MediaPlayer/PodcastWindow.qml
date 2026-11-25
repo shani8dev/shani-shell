@@ -13,9 +13,20 @@ AppWindow {
     onGone: Ui.podcasts = false
     implicitWidth: Theme.px(760)
     implicitHeight: Theme.px(620)
+    shortcutSearch: searchField   // Ctrl+F focuses the podcast search
+    shortcutRefresh: win.refresh  // Ctrl+R re-lists feeds; Escape / Ctrl+W close via AppWindow
 
     property string filter: "all"   // all | favourites | downloaded
     Component.onCompleted: Podcasts.restore()
+    function refresh() { Podcasts.run("list", []); }
+
+    tools: [
+        IconButton {
+            icon: "view-refresh"; tip: Tr.t("Refresh feeds")
+            accessibleName: Tr.t("Refresh podcast feeds"); size: Theme.px(30)
+            onClicked: win.refresh()
+        }
+    ]
 
     function shownEpisodes() {
         if (win.filter === "favourites")
@@ -90,6 +101,8 @@ AppWindow {
             clip: true
             model: win.shownEpisodes()
             spacing: 2
+            // ListRow carries a KeyFocus: the row is reachable by keyboard,
+            // not just the favourite / download IconButtons inside it
             delegate: ListRow {
                 required property var modelData
                 width: episodes.width

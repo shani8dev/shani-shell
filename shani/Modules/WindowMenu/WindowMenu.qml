@@ -11,6 +11,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import "../../Common/Tools.js" as Tools
 
 PanelWindow {
     id: win
@@ -29,17 +30,23 @@ PanelWindow {
     // the Tools submenu: the shell's newer apps, reached from any window with the
     // same Ui flags shell.qml's *Open() IPC functions set
     property bool toolsOpen: false
-    readonly property var tools: [
-        { id: "toolDictionary", tool: true, label: Tr.t("Dictionary"), icon: "accessories-dictionary", run: () => { Ui.closeAll(); Ui.dictionary = true; } },
-        { id: "toolScheduled", tool: true, label: Tr.t("Scheduled tasks"), icon: "appointment-new", run: () => { Ui.closeAll(); Ui.scheduled = true; } },
-        { id: "toolPodcasts", tool: true, label: Tr.t("Podcasts"), icon: "podcast", run: () => { Ui.closeAll(); Ui.podcasts = true; } },
-        { id: "toolTeleprompter", tool: true, label: Tr.t("Teleprompter"), icon: "accessories-text-editor", run: () => { Ui.closeAll(); Ui.teleprompter = true; } },
-        { id: "toolNetTools", tool: true, label: Tr.t("Network Tools"), icon: "network-workgroup", run: () => { Ui.closeAll(); Ui.netTools = true; } },
-        { id: "toolDatabaseBrowser", tool: true, label: Tr.t("Database browser"), icon: "office-database", run: () => { Ui.closeAll(); Ui.databaseBrowser = true; } },
-        { id: "toolStartupManager", tool: true, label: Tr.t("Startup manager"), icon: "preferences-system", run: () => { Ui.closeAll(); Ui.startupManager = true; } },
-        { id: "toolGateway", tool: true, label: Tr.t("Gateway"), icon: "network-server", run: () => { Ui.closeAll(); Ui.gateway = true; } },
-        { id: "toolPasteHistory", tool: true, label: Tr.t("Paste history"), icon: "edit-paste", run: () => { Ui.closeAll(); Ui.pasteHistory = true; } }
-    ]
+    // Tools.list owns the tools submenu label, icon and order; QML
+    // closures cannot live in the JS catalog, so opens stay local.
+    readonly property var toolRuns: ({
+        dictionary: () => { Ui.closeAll(); Ui.dictionary = true; },
+        podcasts: () => { Ui.closeAll(); Ui.podcasts = true; },
+        teleprompter: () => { Ui.closeAll(); Ui.teleprompter = true; },
+        netTools: () => { Ui.closeAll(); Ui.netTools = true; },
+        databaseBrowser: () => { Ui.closeAll(); Ui.databaseBrowser = true; },
+        startupManager: () => { Ui.closeAll(); Ui.startupManager = true; },
+        gateway: () => { Ui.closeAll(); Ui.gateway = true; },
+        pasteHistory: () => { Ui.closeAll(); Ui.pasteHistory = true; },
+        scheduled: () => { Ui.closeAll(); Ui.scheduled = true; }
+    })
+    readonly property var tools: Tools.list.map(t => ({
+        id: "tool" + t.flag.charAt(0).toUpperCase() + t.flag.slice(1),
+        tool: true, label: Tr.t(t.label), icon: t.icon, run: toolRuns[t.flag]
+    }))
     onToolsOpenChanged: if (toolsOpen) { win.openMenu = -1; win.expanded = ({}); Ui.focusFirst(menuCard); }
     readonly property bool targetAlive: target !== null && Niri.windows[target.id] !== undefined
     onTargetAliveChanged: if (visible && !targetAlive) { target = null; Ui.windowMenu = false }

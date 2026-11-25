@@ -142,9 +142,9 @@ Singleton {
         // animations, shadows, corners and blur: WindowLook's shani-look.kdl
         // niri encodes PNG or JPEG by the file extension; other formats (WebP, JPEG-XL) fall back to PNG.
         "screenshot-path \"" + (d.screenshotDir || "~/Pictures/Screenshots").replace(/"/g, "") + "/Screenshot from %Y-%m-%d %H-%M-%S." + (d.screenshotFormat === "jpeg" ? "jpg" : "png") + "\"",
-        // your own shortcuts: a command each
+        // your own shortcuts: a command each (with the per-binding parameter, if any)
         Array.from(d.customBinds || []).length ? "binds {\n" + Array.from(d.customBinds).filter(b => /^[A-Za-z0-9+_]+$/.test(b.key) && b.command)
-            .map(b => "    " + b.key + " hotkey-overlay-title=" + JSON.stringify(b.title || b.command) + " { spawn \"sh\" \"-c\" " + JSON.stringify(b.command) + "; }").join("\n") + "\n}" : "",
+            .map(b => "    " + b.key + " hotkey-overlay-title=" + JSON.stringify(b.title || b.command) + " { spawn \"sh\" \"-c\" " + JSON.stringify(b.command + (b.param ? " " + String(b.param).trim() : "")) + "; }").join("\n") + "\n}" : "",
         // the screens (Displays)
         Displays.kdl,
         // the pointer, niri's own (apps get it from Appearance)

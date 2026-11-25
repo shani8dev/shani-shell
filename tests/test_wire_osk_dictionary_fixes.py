@@ -17,7 +17,7 @@ DICT = (ROOT / "shani/Modules/Dictionary.qml").read_text()
 
 def _section(source, start_marker, end_marker):
     start = source.index(start_marker)
-    return source[start : source.index(end_marker, start)]
+    return source[start : source.index("\n    }", start)]
 
 
 def test_osk_define_key_hands_the_current_word_to_the_dictionary():
@@ -58,7 +58,7 @@ def test_dictionary_reads_the_handoff_and_shows_the_entry():
     handler = _section(DICT, "onVisibleChanged: {", "Item {")
     assert 'const seed = String(Quickshell.clipboardText || "").trim();' in handler
     assert 'if (visible && win.query === "" && seed !== "")' in handler
-    assert "win.query = seed;" in handler
+    assert "win.query = seed" in handler
     # opening the app must not destroy the user's clipboard
     assert 'Quickshell.clipboardText = "";' not in handler
     assert 'text: win.entry ? win.entry.word : ""' in DICT

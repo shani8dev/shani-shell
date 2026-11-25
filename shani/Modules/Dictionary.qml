@@ -19,6 +19,7 @@ AppWindow {
     margins: 0
     implicitWidth: Theme.px(520)
     implicitHeight: Theme.px(640)
+    shortcutSearch: searchBox   // Ctrl+F; Ctrl+R is N/A — the word list is bundled, nothing to refresh
 
     // ---- the local word list: { word, definitions, synonyms, antonyms } ----
     readonly property var entries: [
@@ -119,13 +120,8 @@ AppWindow {
             win.query = seed;
     }
 
-    Item {
-        id: body
-        anchors.fill: parent
-        focus: win.visible
-        Keys.onEscapePressed: win.requestClose()
-    }
-
+    // Escape / Ctrl+W come from AppWindow and go through requestClose(); this
+    // window uses AppWindow's body (and its header) rather than a second one.
     body {
         ColumnLayout {
             id: col

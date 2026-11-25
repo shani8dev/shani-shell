@@ -18,8 +18,9 @@ Singleton {
     property var searchResults: []
     property var favourites: []         // "url|id", newest first
     property string sortOrder: "newest" // newest | oldest | title
-    property string note: ""
-    property string error: ""
+    property string note: ""            // last successful action
+    property string error: ""           // last failure, including a missing tool
+    property bool busy: false           // the single guard for the feeds Process
     property string lastFeed: ""        // feed followed last, on disk
     property string lastEpisode: ""     // "url|id" of the episode left open
     property string currentFeed: ""     // restored when the window opens
@@ -66,7 +67,8 @@ Singleton {
 
     // ---- feeds ----------------------------------------------------------------
     function run(what, args) {
-        if (job.running) { root.pending = { what: what, args: args }; return; }
+        if (job.running || root.busy) { root.pending = { what: what, args: args }; return; }
+        root.busy = true;
         job.what = what;
         job.command = ["python3", root.tool, what].concat(args);
         job.running = true;
@@ -182,6 +184,8 @@ Singleton {
         property string what: ""
         stdout: StdioCollector { id: out }
         onExited: code => {
+            root.busy = false;
+            if (code === 127) { root.error = Tr.t("The feed service is not installed"); return; }
             if (code !== 0) { root.error = Tr.t("The feed service could not answer"); return; }
             root.finished(job.what, out.text);
             if (root.pending) {

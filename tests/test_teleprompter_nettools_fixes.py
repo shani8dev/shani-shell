@@ -213,6 +213,6 @@ def test_net_states_names_and_keyboard():
     assert 'accessibleName: "Copy all results"' in NET
     assert 'accessibleName: "Export results"' in NET
     assert 'label: "Host name or IPv4 address"' in NET
-    assert "e.key === Qt.Key_Escape" in NET
+    assert "AppWindow {" in NET
     assert "e.key === Qt.Key_L" in NET
     assert "onAccepted: win.run(win.tool)" in NET

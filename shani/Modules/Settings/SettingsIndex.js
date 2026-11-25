@@ -4,6 +4,22 @@
 // reset-this-section counts the same keys (scalar values only — arrays and
 // objects stay untouched, so a customised setup is never destroyed).
 .pragma library
+.import "../../Common/Tools.js" as Tools
+
+// Tools.list owns these nine rows' label, op (the deep link) and order. Only the
+// settings-side key, category and hint stay here; the words are the catalog's
+// search words without the launcher's leading "tool" operator.
+var toolMeta = {
+    dictionary: { key: "appDictionary", cat: "apps", hint: "look a word up offline; dictionary and thesaurus" },
+    podcasts: { key: "appPodcasts", cat: "sound", hint: "subscribe to podcasts and listen" },
+    teleprompter: { key: "appTeleprompter", cat: "apps", hint: "scroll a script while you speak" },
+    netTools: { key: "appNetTools", cat: "network", hint: "ping, DNS, whois and a LAN scan" },
+    databaseBrowser: { key: "appDatabaseBrowser", cat: "apps", hint: "browse and query SQLite files" },
+    startupManager: { key: "appStartupManager", cat: "apps", hint: "which apps start at login" },
+    gateway: { key: "appGateway", cat: "network", hint: "peers, QR codes and VPN connections" },
+    pasteHistory: { key: "appPasteHistory", cat: "apps", hint: "clipboard slots, favourites and search" },
+    scheduled: { key: "appScheduled", cat: "automations", hint: "your automations, hooks and timed jobs" }
+};
 
 var entries = [
     // ---- Personalisation (wallpaper, look, bar & dock, tiles, hot corners, weather)
@@ -32,6 +48,8 @@ var entries = [
     { key: "dock", label: "Show the dock", cat: "personal", hint: "the icons along the bottom", words: "dock icons bottom bar" },
     { key: "dockVisibility", label: "When the dock shows", cat: "personal", hint: "always, out of a window's way, or only at the edge", words: "dock hide auto hidden reveal intelligent intellihide smart dodge windows" },
     { key: "barVisibility", label: "When the bar shows", cat: "personal", hint: "always, out of a window's way, or only at the edge", words: "bar panel top hide auto hidden reveal intelligent smart" },
+    { key: "leftRail", label: "Left workspace rail", cat: "personal", hint: "a slim strip of workspaces down the left edge", words: "left rail workspace strip edge sidebar" },
+    { key: "edgeSwipes", label: "Edge swipes", cat: "personal", hint: "swipe a screen's edges on a touch device", words: "edge swipe gesture touch tablet phone launcher overview back" },
     { key: "dockIconSize", label: "Dock icon size", cat: "personal", hint: "the icons in the dock", words: "dock icon size icons" },
     { key: "dockPinned", label: "Dock pins", cat: "personal", hint: "which apps live in the dock", words: "dock pin apps favourites" },
     { key: "layoutPreset", label: "Layout preset", cat: "personal", hint: "a whole arrangement in one choice", words: "layout preset arrangement" },
@@ -93,6 +111,7 @@ var entries = [
 
     // ---- Displays
     { key: "autoRotate", label: "Auto-rotate the screen", cat: "displays", hint: "following the accelerometer", words: "rotate rotation auto orient tablet convertible" },
+    { key: "displays", label: "Displays", cat: "displays", hint: "the screens, their layout and resolution", words: "displays screens monitor resolution arrange layout vrr scale" },
     // These six live in Personalisation's own page (SettingsPage), not in
     // SettingsDisplays: search must land where the control actually is.
     { key: "adaptiveBrightness", label: "Adaptive brightness", cat: "personal", hint: "the ambient sensor drives the backlight", words: "brightness adaptive ambient sensor auto" },
@@ -146,15 +165,19 @@ var entries = [
     { key: "speechRate", label: "Speech rate", cat: "access", hint: "slow, normal, fast", words: "speech rate speed voice reading accessibility" },
     { key: "captionLanguage", label: "Captions language", cat: "access", hint: "the language of live captions", words: "captions transcribe language accessibility" },
     { key: "sttBackend", label: "Voice typing engine", cat: "access", hint: "Chronoa, or whisper on its own", words: "voice typing dictation engine whisper chronoa speech input" },
+    { key: "whisperModel", label: "Whisper model", cat: "access", hint: "the local model used when Whisper does the typing", words: "whisper model ggml voice typing dictation speech stt" },
     { key: "compassEnabled", label: "Compass", cat: "access", hint: "the heading tile, where a magnetometer is", words: "compass heading north direction magnetometer tile" },
     { key: "tourEnabled", label: "First-login tour", cat: "access", hint: "the walkthrough shown at first sign-in", words: "tour walkthrough onboarding first login" },
     { key: "assistiveTouch", label: "Smart touch", cat: "access", hint: "a floating bubble that opens the Ring", words: "smart touch assistive touch bubble ring accessibility touchscreen" },
+    { key: "touchX", label: "Smart touch position X", cat: "access", hint: "how far across the screen the bubble sits", words: "smart touch bubble position x horizontal accessibility" },
+    { key: "touchY", label: "Smart touch position Y", cat: "access", hint: "how far down the screen the bubble sits", words: "smart touch bubble position y vertical accessibility" },
     { key: "reduceTransparency", label: "Reduce transparency", cat: "access", hint: "opaque panels, no glass", words: "reduce transparency opaque accessibility" },
     { key: "reduceTransparencyOnBattery", label: "Opaque panels on battery", cat: "access", hint: "glass is pixels; on battery, none", words: "battery opaque reduce transparency blur accessibility" },
 
     // ---- Keyboard & input
     { key: "kbLayouts", label: "Keyboard layouts", cat: "input", hint: "the layouts Switch (Ctrl+Space) cycles", words: "keyboard layout language input" },
     { key: "kbSwitch", label: "Layout switch shortcut", cat: "input", hint: "the key that switches layouts", words: "keyboard layout switch shortcut ctrl space" },
+    { key: "customBinds", label: "Your own shortcuts", cat: "input", hint: "shortcuts you made for yourself", words: "custom shortcuts keys binds keybindings keyboard own" },
     { key: "kbCompose", label: "Compose key", cat: "input", hint: "a key for accents and symbols", words: "compose key keyboard accents" },
     { key: "kbCaps", label: "Caps Lock behaviour", cat: "input", hint: "no caps, escape, or backspace", words: "caps lock keyboard escape backspace" },
     { key: "numlock", label: "Num lock on start", cat: "input", hint: "numbers always on", words: "numlock num lock keyboard" },
@@ -162,6 +185,8 @@ var entries = [
     { key: "keyRepeatDelay", label: "Key repeat delay", cat: "input", hint: "how long before a held key repeats", words: "key repeat delay keyboard hold" },
     { key: "keyRepeatRate", label: "Key repeat rate", cat: "input", hint: "how fast it repeats", words: "key repeat rate keyboard speed" },
     { key: "oskButton", label: "Keyboard button when hidden", cat: "input", hint: "brings the screen keyboard back on a touchscreen", words: "screen keyboard osk button hidden touch tablet floating" },
+    { key: "oskLanguages", label: "Screen keyboard languages", cat: "input", hint: "the languages the globe key cycles", words: "osk languages screen keyboard dictation layout globe input" },
+    { key: "middlePaste", label: "Middle-click pastes", cat: "input", hint: "the text last selected, with the middle button", words: "middle click paste selection primary clipboard x11" },
     { key: "oskWithTabletMode", label: "Screen keyboard in tablet mode", cat: "input", hint: "folded: it comes up; unfolded: it goes", words: "tablet mode convertible fold screen keyboard osk" },
     { key: "gamepadNav", label: "Move around with a controller", cat: "input", hint: "the d-pad moves, A selects, B goes back", words: "game controller gamepad joystick navigate desktop" },
     { key: "plugGreetings", label: "Greet plugged-in devices", cat: "notifications", hint: "what it is and the next step", words: "plug plugged device usb monitor tablet controller security key scanner greeting" },
@@ -227,9 +252,12 @@ var entries = [
 
     // ---- Privacy
     { key: "dimAfterBattery", label: "Dim the screen (battery)", cat: "power", hint: "dim sooner on battery", words: "dim screen battery idle power" },
+    { key: "lockPreviews", label: "Show notification titles", cat: "privacy", hint: "off: only how many came in", words: "notification preview titles lock screen hide private privacy" },
+    { key: "lockScreenClock", label: "Show the clock", cat: "privacy", hint: "the time on the lock screen", words: "clock time lock screen" },
     { key: "lockScreenDate", label: "Date on lock screen", cat: "privacy", hint: "the day under the clock", words: "date lock screen" },
     { key: "lockScreenBattery", label: "Battery on lock screen", cat: "privacy", hint: "the charge percentage", words: "battery lock screen charge" },
     { key: "lockScreenBlur", label: "Blur on lock screen", cat: "privacy", hint: "the desktop, softened behind the lock", words: "blur lock screen wallpaper" },
+    { key: "lockScreenMedia", label: "Show media controls", cat: "privacy", hint: "play, pause and skip on the lock screen", words: "media music player controls lock screen now playing" },
     { key: "rememberRecent", label: "Recent files", cat: "privacy", hint: "the launcher's recent files list", words: "recent files privacy launcher" },
     { key: "trashDays", label: "Empty trash automatically", cat: "privacy", hint: "after this many days", words: "trash empty auto delete days" },
     { key: "dynamicLockDevice", label: "Lock when my phone leaves", cat: "privacy", hint: "the desktop locks when the paired phone goes", words: "dynamic lock phone proximity lock device" },
@@ -242,6 +270,9 @@ var entries = [
     // ---- Power
     { key: "autoLockOnLowBattery", label: "Lock when critically low", cat: "power", hint: "lock the screen at 7 % battery", words: "lock battery low critical auto" },
     { key: "profileFollowsCharger", label: "Power mode follows the charger", cat: "power", hint: "one power mode on battery, another plugged in", words: "power mode profile charger battery plugged performance balanced saver" },
+    { key: "autoPowerSaver", label: "Battery saver", cat: "power", hint: "power saver at the charge below, back when charging", words: "battery saver power automatic threshold charge" },
+    { key: "profileOnBattery", label: "On battery use", cat: "power", hint: "the power mode when the charger is unplugged", words: "battery power profile mode saver balanced unplugged" },
+    { key: "profilePluggedIn", label: "Plugged in use", cat: "power", hint: "the power mode while charging", words: "plugged charger power profile mode balanced performance" },
     { key: "powerSaverAt", label: "Battery saver turns on at", cat: "power", hint: "10, 15, 20 or 30 percent", words: "battery saver percentage threshold power" },
     { key: "screenTime", label: "Screen time", cat: "screentime", hint: "per-app time, kept on this machine", words: "screen time wellbeing usage break" },
     { key: "breakEveryMinutes", label: "Break reminder", cat: "screentime", hint: "a nudge to look away", words: "break reminder every minutes wellbeing" },
@@ -262,15 +293,11 @@ var entries = [
     // ---- Apps reachable as deep links (entry.link is the shell's IPC function;
     // consumers open the app instead of jumping to entry.cat — the words carry the
     // desktop categories so a search by "Office", "AudioVideo", "Network" finds them)
-    { key: "appDictionary", label: "Dictionary", cat: "apps", hint: "look a word up offline; dictionary and thesaurus", words: "dictionary thesaurus define word office utility lookup", link: "dictionaryOpen" },
-    { key: "appPodcasts", label: "Podcasts", cat: "sound", hint: "subscribe to podcasts and listen", words: "podcasts podcast audio video audiobook subscribe audiovideo", link: "podcastsOpen" },
-    { key: "appScheduled", label: "Scheduled tasks", cat: "automations", hint: "your automations, hooks and timed jobs", words: "scheduled tasks schedule automation cron timer utility", link: "scheduledOpen" },
-    { key: "appTeleprompter", label: "Teleprompter", cat: "apps", hint: "scroll a script while you speak", words: "teleprompter script prompt office presentation scroll", link: "teleprompterOpen" },
-    { key: "appNetTools", label: "Network Tools", cat: "network", hint: "ping, DNS, whois and a LAN scan", words: "network tools ping dns whois scan system", link: "netToolsOpen" },
-    { key: "appStartupManager", label: "Startup manager", cat: "apps", hint: "which apps start at login", words: "startup manager autostart login system utility", link: "startupManagerOpen" },
-    { key: "appGateway", label: "Gateway", cat: "network", hint: "peers, QR codes and VPN connections", words: "gateway peers qr vpn network utility share", link: "gatewayOpen" },
-    { key: "appDatabaseBrowser", label: "Database browser", cat: "apps", hint: "browse and query SQLite files", words: "database browser sqlite query office development", link: "databaseBrowserOpen" },
-    { key: "appPasteHistory", label: "Paste history", cat: "apps", hint: "clipboard slots, favourites and search", words: "paste history clipboard slots favourite utility", link: "pasteHistoryOpen" },
+    ...Tools.list.map(t => {
+        const m = toolMeta[t.flag];
+        return { key: m.key, label: t.label, cat: m.cat, hint: m.hint,
+                 words: t.words.replace(/^tool /, ""), link: t.op };
+    }),
 
     // ---- About (read-only machine info)
     // "Updates" is the one label for this destination (SettingsAbout, SidebarHeader);
@@ -288,7 +315,7 @@ var entries = [
 // every key, grouped by category: for “N customised” and “Reset this section”
 // (scalars only — arrays and objects in a section survive a reset)
 var groups = {
-    personal: ["blur", "darkMode", "darkSchedule", "darkFrom", "darkTo", "wallpaper", "wallpaperLight", "wallpaperDark", "accentFromWallpaper", "accentName", "iconTheme", "cursorTheme", "cursorSize", "uiFont", "uiFontSize", "monoFont", "monoFontSize", "cornerRadius", "cornerRadiusSmall", "showScrollbars", "reduceMotion", "dock", "dockVisibility", "barVisibility", "dockIconSize", "layoutPreset", "tileOrder", "hiddenTiles", "desktopWidgets", "slideshowDir", "slideshowMinutes", "showSysStats", "showNetSpeed", "barBatteryPercent", "barDate", "hideVolumeGlyph", "hideBrightnessGlyph", "barClickThrough", "hotCornerTopLeft", "hotCornerTopRight", "hotCornerBottomLeft", "hotCornerBottomRight", "hotCornersInFullscreen", "weatherCity", "weatherLat", "weatherLon", "useLocation", "weatherUnits", "adaptiveBrightness", "nightLight", "nightLightTemp", "nightLightSchedule", "nightLightFrom", "nightLightTo", "showSeconds", ],
+    personal: ["blur", "darkMode", "darkSchedule", "darkFrom", "darkTo", "wallpaper", "wallpaperLight", "wallpaperDark", "accentFromWallpaper", "accentName", "iconTheme", "cursorTheme", "cursorSize", "uiFont", "uiFontSize", "monoFont", "monoFontSize", "cornerRadius", "cornerRadiusSmall", "showScrollbars", "reduceMotion", "dock", "dockVisibility", "barVisibility", "dockIconSize", "layoutPreset", "tileOrder", "hiddenTiles", "desktopWidgets", "slideshowDir", "slideshowMinutes", "showSysStats", "showNetSpeed", "barBatteryPercent", "barDate", "hideVolumeGlyph", "hideBrightnessGlyph", "barClickThrough", "hotCornerTopLeft", "hotCornerTopRight", "hotCornerBottomLeft", "hotCornerBottomRight", "hotCornersInFullscreen", "weatherCity", "weatherLat", "weatherLon", "useLocation", "weatherUnits", "adaptiveBrightness", "nightLight", "nightLightTemp", "nightLightSchedule", "nightLightFrom", "nightLightTo", "showSeconds", "leftRail", "edgeSwipes", ],
     notifications: ["smartReplies", "doNotDisturb", "plugGreetings", "dndSchedule", "dndFrom", "dndTo", "dndWhileLocked", "notifHideContent", "notifSound", "popupSeconds", "popupPosition", "silentApps", "dndAllowedApps", "notifApps", "quietWhileSharing", "quietWhileFullscreen", "focusModes", "focusMode"],
     network: ["proxyMode", "proxyHttp", "proxyHttps", "proxySocks", "proxyPac", "bluetoothAutoConnect", "bluetoothOnBoot", "hotspotName", "hotspotBand", "wifiMacRandom", "wakeOnLan", "obexDir"],
     displays: ["displays", "autoRotate"],
@@ -302,6 +329,13 @@ var groups = {
     backup: [],
     sharing: [],
     printers: [],
+    firewall: [],
+    boot: [],
+    updates: [],
+    security: [],
+    journal: [],
+    storage: [],
+    modules: [],
     automations: ["automations"],
     privacy: ["clipPins", "lockPreviews", "lockScreenClock", "lockScreenDate", "lockScreenBattery", "lockScreenBlur", "lockScreenMedia", "rememberRecent", "trashDays", "dynamicLockDevice", "dynamicLockGrace"],
     chronoa: ["islandActivities"],

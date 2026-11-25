@@ -207,6 +207,7 @@ ShellRoot {
     LazyLoader { active: Ui.videoTrimmer; source: "Modules/VideoTrimmer/VideoTrimmerPanel.qml" }
     LazyLoader { active: Ui.characters; source: "Modules/Characters/CharactersPanel.qml" }
     LazyLoader { active: Ui.irc; source: "Modules/Irc/IrcWindow.qml" }
+    LazyLoader { active: Settings.data.leftRail; source: "Modules/LeftRail/LeftRail.qml" }
     LazyLoader { active: Ui.cloudSync; source: "Modules/Cloud/CloudPanel.qml" }
     ModemDialog {}
     LazyLoader { active: Share.file !== ""; source: "Modules/Share/ShareSheet.qml" }

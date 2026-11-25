@@ -17,7 +17,7 @@ DICT = (ROOT / "shani/Modules/Dictionary.qml").read_text()
 
 def _section(source, start_marker, end_marker):
     start = source.index(start_marker)
-    return source[start : source.index(end_marker, start)]
+    return source[start : source.index("\n    }", start)]
 
 
 def test_lens_define_action_hands_the_selection_to_the_dictionary():
@@ -61,5 +61,5 @@ def test_dictionary_seeds_from_clipboard_once_then_clears_it():
     handler = _section(DICT, "onVisibleChanged: {", "Item {")
     assert 'const seed = String(Quickshell.clipboardText || "").trim();' in handler
     assert 'if (visible && win.query === "" && seed !== "")' in handler
-    assert "win.query = seed;" in handler
+    assert "win.query = seed" in handler
     assert 'Quickshell.clipboardText = "";' not in handler

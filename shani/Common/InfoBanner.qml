@@ -10,6 +10,12 @@ Rectangle {
     property string title: ""
     property string text: ""
     property string iconName: ""
+    // Shared tokens with EmptyState: one radius, padding and icon size scale,
+    // and an overridable role for windows that already expose a status region.
+    property int cornerRadius: Theme.radius
+    property int padding: Theme.px(12)
+    property int iconSize: Theme.px(18)
+    property int accessibleRole: Accessible.StaticText
     default property alias actions: actionRow.data
     readonly property color toneColor: tone === "ok" ? Theme.accent
                                       : tone === "warn" ? Theme.amber
@@ -18,27 +24,27 @@ Rectangle {
                                       : Theme.blue
 
     implicitHeight: row.implicitHeight + Theme.px(20)
-    radius: Theme.radius
+    radius: banner.cornerRadius
     color: Theme.alpha(toneColor, 0.12)
     border.width: 1
     border.color: Theme.alpha(toneColor, 0.28)
 
     RowLayout {
         id: row
-        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: Theme.px(12) }
+        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: banner.padding }
         spacing: Theme.px(10)
 
         Icon {
             visible: banner.iconName.length > 0
             name: banner.iconName
-            size: Theme.px(18)
+            size: banner.iconSize
             color: banner.toneColor
             Layout.alignment: Qt.AlignTop
         }
         StatusGlyph {
             visible: banner.iconName.length === 0
             tone: banner.tone
-            size: Theme.px(18)
+            size: banner.iconSize
             Layout.alignment: Qt.AlignTop
         }
         ColumnLayout {
@@ -72,6 +78,6 @@ Rectangle {
         }
     }
 
-    Accessible.role: Accessible.StaticText
+    Accessible.role: banner.accessibleRole
     Accessible.name: banner.title.length ? banner.title + ". " + banner.text : banner.text
 }

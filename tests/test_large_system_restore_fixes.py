@@ -235,7 +235,7 @@ def test_panel_is_named_and_keyboard_reachable():
         assert key in PANEL
     assert "Accessible.name: panel.labelFor(modelData)" in PANEL
     assert "Accessible.name: text" in PANEL
-    assert "Accessible.name: SystemRestore.error" in PANEL
+    assert "Could not load slots" in PANEL
 
 
 # ---- 10. scope is stated -----------------------------------------------------

@@ -6,6 +6,7 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs.Common
 
 Singleton {
     id: root
@@ -18,7 +19,9 @@ Singleton {
     property bool tls: true
 
     property string status: "disconnected"  // disconnected | connecting | connected | error
-    property string error: ""
+    property string error: ""               // last failure, including a missing tool
+    property string note: ""                // last successful status
+    property bool busy: false               // one connect command in flight
     property var channels: []
     property var nicks: ({})                // channel -> [nick]
     property var messages: []               // [{ seq, channel, nick, text, time, mention }]
@@ -29,6 +32,7 @@ Singleton {
     property bool shown: false              // the window is up: its channel is read
     signal messageArrived(var msg)
 
+    function run(obj) { return root.send(obj); }
     function send(obj) {
         if (!proc.running) return false;
         proc.write(JSON.stringify(obj) + "\n");
@@ -37,6 +41,7 @@ Singleton {
 
     function connect() {
         root.error = "";
+        root.busy = true;
         if (!root.nick) root.nick = "shani" + Math.floor(Math.random() * 1000);
         root.status = "connecting";
         root.pendingConnect = { op: "connect", server: root.server, port: root.port,
@@ -100,13 +105,16 @@ Singleton {
         root.messageArrived(msg);
     }
 
-    function onLine(line) {
+    // the stdin daemon's result path: SplitParser -> onLine -> finished
+    function finished(line) {
         let msg = null;
         try { msg = JSON.parse(line); } catch (e) { return; }
         if (!msg || !msg.event) return;
         if (msg.event === "status") {
             root.status = msg.status || "disconnected";
             root.error = msg.error || "";
+            root.busy = false;
+            root.note = root.status === "connected" ? Tr.t("Connected to %1", root.server) : "";
             if (root.status === "disconnected" || root.status === "error") {
                 root.channels = [];
                 root.nicks = ({});
@@ -127,6 +135,7 @@ Singleton {
             root.error = msg.error || "";
         }
     }
+    function onLine(line) { root.finished(line); }
 
     Process {
         id: proc
@@ -139,7 +148,12 @@ Singleton {
             }
         }
         stdout: SplitParser { onRead: line => root.onLine(line) }
-        onExited: {
+        onExited: code => {
+            root.busy = false;
+            if (code === 127) {
+                root.error = Tr.t("The IRC service is not installed");
+                root.status = "error";
+            }
             if (root.status !== "disconnected") {
                 root.status = "disconnected";
                 root.channels = [];

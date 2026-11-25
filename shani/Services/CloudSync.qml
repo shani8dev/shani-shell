@@ -18,10 +18,14 @@ Singleton {
 
     property var jobs: []              // [{ id, remote, local, direction, conflict, bandwidth, interval, state, progress, file, history }]
     property var remotes: []           // the cloud drives cloud.py knows about
-    property string error: ""
+    property string note: ""           // last successful action, from a notify event
+    property string error: ""          // last failure, including a missing tool
     property bool available: false
+    property bool busy: true           // until the daemon's first list answer
     readonly property bool anyRunning: jobs.some(j => j.state === "running" || j.state === "paused")
 
+    // run() is the single entry point; a long-lived daemon answers through finished().
+    function run(obj) { return root.send(obj); }
     function send(obj) {
         if (!daemon.running) { root.error = Tr.t("The sync daemon is not running"); return false; }
         daemon.write(JSON.stringify(obj) + "\n");
@@ -53,6 +57,18 @@ Singleton {
     }
     function loadRemotes() { if (remoteList.running !== true) remoteList.running = true; }
 
+    // every daemon event lands here, so the panel binds to one note/error pair
+    function finished(e) {
+        if (!e) return;
+        if (e.event === "jobs") { root.jobs = e.jobs || []; root.busy = false; }
+        else if (e.event === "job") root.merge(e.job);
+        else if (e.event === "progress") root.merge({ id: e.id, progress: e.progress, file: e.file,
+                                                      transferred: e.transferred, total: e.total });
+        else if (e.event === "removed") root.jobs = root.jobs.filter(j => j.id !== e.id);
+        else if (e.event === "error") root.error = e.error || Tr.t("That did not work");
+        else if (e.event === "notify") { root.note = e.message || ""; root.announce(e); }
+    }
+
     // one long-lived copy of the daemon, independent of any window
     Process {
         id: daemon
@@ -63,16 +79,10 @@ Singleton {
             onRead: line => {
                 let e = null;
                 try { e = JSON.parse(line); } catch (err) { return; }
-                if (e.event === "jobs") root.jobs = e.jobs || [];
-                else if (e.event === "job") root.merge(e.job);
-                else if (e.event === "progress") root.merge({ id: e.id, progress: e.progress, file: e.file,
-                                                               transferred: e.transferred, total: e.total });
-                else if (e.event === "removed") root.jobs = root.jobs.filter(j => j.id !== e.id);
-                else if (e.event === "error") root.error = e.error || Tr.t("That did not work");
-                else if (e.event === "notify") root.announce(e);
+                root.finished(e);
             }
         }
-        onExited: root.error = Tr.t("The sync daemon stopped")
+        onExited: { root.busy = false; root.error = Tr.t("The sync daemon is not installed or stopped"); }
     }
     Process {
         running: true

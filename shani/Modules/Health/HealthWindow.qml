@@ -92,30 +92,26 @@ AppWindow {
                 font.family: Theme.font
                 font.pixelSize: Theme.px(11) * Theme.fontScale
                 wrapMode: Text.Wrap
-                Accessible.role: Accessible.StaticText
+                Accessible.role: Accessible.StatusBar
                 Accessible.name: text
             }
-            Text {
+            InfoBanner {
+                objectName: "health-error"
                 visible: Health.error !== ""
                 Layout.fillWidth: true
-                wrapMode: Text.Wrap
+                tone: "warn"
+                iconName: "dialog-warning"
+                title: Tr.t("Could not load health data")
                 text: Health.error
-                color: Theme.amber
-                font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
-                Accessible.role: Accessible.StatusBar
-                Accessible.name: Tr.t("Watch unavailable: %1", Health.error)
+                accessibleRole: Accessible.StatusBar
             }
-            Text {
+            InfoBanner {
+                objectName: "health-note"
                 visible: Health.note !== ""
                 Layout.fillWidth: true
-                wrapMode: Text.Wrap
+                tone: "accent"
                 text: Health.note
-                color: Theme.accent
-                font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
-                Accessible.role: Accessible.StatusBar
-                Accessible.name: Health.note
+                accessibleRole: Accessible.StatusBar
             }
 
             // ---- today's tiles -----------------------------------------------
@@ -208,10 +204,13 @@ AppWindow {
                 Accessible.name: Tr.t("Steps over the last seven days")
             }
             EmptyState {
+                objectName: "health-loading"
                 visible: !Health.loaded
                 icon: "activity"
                 title: Tr.t("Reading your journal…")
                 subtitle: Tr.t("Nothing leaves this computer")
+                actionText: Tr.t("Try again")
+                onAction: Health.refresh()
             }
 
             // ---- sleep stages -------------------------------------------------
@@ -379,6 +378,7 @@ AppWindow {
                     color: Theme.dim
                     font.family: Theme.font
                     font.pixelSize: Theme.px(11) * Theme.fontScale
+                    Accessible.role: Accessible.StatusBar
                     Accessible.name: text
                 }
                 Button {

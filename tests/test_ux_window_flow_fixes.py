@@ -56,12 +56,9 @@ def test_fix1_four_windows_reset_their_flag_on_gone():
 def test_fix2_dictionary_seed_keeps_the_clipboard():
     d = source("Dictionary.qml")
     # the seed lives in the root onVisibleChanged handler
-    seed = d[
-        d.index("onVisibleChanged: {") : d.index(
-            "Item {", d.index("onVisibleChanged: {")
-        )
-    ]
-    assert "win.query = seed;" in seed
+    start = d.index("onVisibleChanged: {")
+    seed = d[start : d.index("// Escape", start)]
+    assert "win.query = seed" in seed
     assert 'win.query === "" && seed !== ""' in seed
     assert "clipboardText" not in seed.replace(
         'String(Quickshell.clipboardText || "")', ""

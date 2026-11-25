@@ -15,6 +15,7 @@ import Qt.labs.folderlistmodel
 import qs.Common
 import qs.Services
 import "../../Common/Gestures.js" as Hold
+import "../../Common/Tools.js" as Tools
 
 PanelWindow {
     id: win
@@ -80,19 +81,22 @@ PanelWindow {
     property real menuHeight: 0         // the open menu's, which grows with an app's windows and actions
     property bool speedDialOpen: false  // the Speed Dial rows in the open app menu
     property bool toolsOpen: false      // the "Open tools" rows in the open app menu
-    // the shell's newer apps, opened with the same Ui flags the shell's IPC
-    // *Open() functions set; kept in a menu so no tiles are added to the dock
-    readonly property var tools: [
-        { label: "Dictionary", run: () => { Ui.closeAll(); Ui.dictionary = true; } },
-        { label: "Scheduled tasks", run: () => { Ui.closeAll(); Ui.scheduled = true; } },
-        { label: "Podcasts", run: () => { Ui.closeAll(); Ui.podcasts = true; } },
-        { label: "Teleprompter", run: () => { Ui.closeAll(); Ui.teleprompter = true; } },
-        { label: "Network Tools", run: () => { Ui.closeAll(); Ui.netTools = true; } },
-        { label: "Database browser", run: () => { Ui.closeAll(); Ui.databaseBrowser = true; } },
-        { label: "Startup manager", run: () => { Ui.closeAll(); Ui.startupManager = true; } },
-        { label: "Gateway", run: () => { Ui.closeAll(); Ui.gateway = true; } },
-        { label: "Paste history", run: () => { Ui.closeAll(); Ui.pasteHistory = true; } }
-    ]
+    // Tools.list owns label and order; QML opens stay local. Menu-only: the
+    // same Ui flags the shell's *Open() IPC functions set; no new dock tiles.
+    readonly property var toolRuns: ({
+        dictionary: () => { Ui.closeAll(); Ui.dictionary = true; },
+        podcasts: () => { Ui.closeAll(); Ui.podcasts = true; },
+        teleprompter: () => { Ui.closeAll(); Ui.teleprompter = true; },
+        netTools: () => { Ui.closeAll(); Ui.netTools = true; },
+        databaseBrowser: () => { Ui.closeAll(); Ui.databaseBrowser = true; },
+        startupManager: () => { Ui.closeAll(); Ui.startupManager = true; },
+        gateway: () => { Ui.closeAll(); Ui.gateway = true; },
+        pasteHistory: () => { Ui.closeAll(); Ui.pasteHistory = true; },
+        scheduled: () => { Ui.closeAll(); Ui.scheduled = true; }
+    })
+
+    // Tools.list owns label and order; QML opens stay local. Menu-only.
+    readonly property var tools: Tools.list.map(t => ({ label: t.label, run: toolRuns[t.flag] }))
     function setMenu(index, anchor) {
         win.speedDialOpen = false;
         win.toolsOpen = false;

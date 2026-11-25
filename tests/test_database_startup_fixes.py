@@ -123,10 +123,10 @@ def test_db_keyboard_and_accessible_names():
     for token in (
         'label: Tr.t("Database file")',
         'Accessible.name: Tr.t("SQL query")',
-        'Accessible.name: Tr.t("Reload tables")',
+        'accessibleName: Tr.t("Reload tables")',
         'Accessible.name: Tr.t("Query results")',
         'Accessible.name: Tr.t("Run again: %1")',
-        "Keys.onEscapePressed: win.visible = false",
+        "onGone: Ui.databaseBrowser = false",
         "Qt.Key_Return",
         "Qt.ControlModifier",
         "KeyFocus { onActivated",

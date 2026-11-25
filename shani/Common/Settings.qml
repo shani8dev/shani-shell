@@ -214,6 +214,7 @@ Singleton {
             // always | smart (in view, steps aside only for a window over it - Plank's
             // and Dash-to-Dock's default) | hide (until the pointer asks)
             property string dockVisibility: "smart"
+            property bool leftRail: false                // slim vertical workspace rail on the left edge
             property string barVisibility: "always"
             // which edge the bar is on: "auto" (the screen's kind decides - a
             // classroom board's bar is at the bottom, within reach) | "top" | "bottom"
@@ -388,7 +389,7 @@ Singleton {
             property var formFactorScales: ({})    // optional UI scale per connector; does not change app DPI
             property string kbCompose: ""            // xkb: "" | ralt | rwin | menu | caps
             property string kbCaps: ""               // xkb: "" | ctrl:nocaps | caps:escape | caps:backspace
-            // your own shortcuts: [{ key: "Mod+Alt+T", title, command }]
+            // your own shortcuts: [{ key: "Mod+Alt+T", title, command, param: "", fav: false, lastUsed: 0 }]
             property var customBinds: []
             // windows (niri layout)
             property int winGaps: 12

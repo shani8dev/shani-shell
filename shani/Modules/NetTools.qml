@@ -4,7 +4,8 @@
 // so a host like "example.com; rm -rf ~" can never become shell code. Hosts are
 // checked by validHost() before any command starts, ping counts are clamped,
 // and whois/dig/nmcli missing is a note rather than a failure.
-// Keyboard: Enter in the host field runs, Ctrl+L focuses it, Esc closes.
+// Keyboard: Enter in the host field runs, Ctrl+F / Ctrl+L focus it, Ctrl+R
+// reruns the current tool, Esc / Ctrl+W close.
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -19,6 +20,8 @@ AppWindow {
     onGone: Ui.netTools = false
     implicitWidth: Theme.px(860)
     implicitHeight: Theme.px(640)
+    shortcutSearch: hostField.input   // Ctrl+F; Ctrl+L below is the older alias for the same field
+    shortcutRefresh: win.refresh      // Ctrl+R reruns the active tool
 
     property string tool: "LAN scan"    // LAN scan | Ping | DNS | Whois
     property string host: ""
@@ -155,9 +158,12 @@ AppWindow {
         FilePicker.open({ mode: "save", title: "Export network results", defaultName: "shani-nettools.txt",
                           onPicked: paths => { if (paths.length) { exportView.path = paths[0]; exportView.setText(win.exportText()); } } });
     }
+    function focusHost() { hostField.input.forceActiveFocus(); }
+    function refresh() { win.run(win.tool); }
     function shortcut(e) {
-        if (e.key === Qt.Key_Escape) { Ui.netTools = false; e.accepted = true; return true; }
-        if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_L) { hostField.input.forceActiveFocus(); e.accepted = true; return true; }
+        // Ctrl+L predates the standard Ctrl+F and is kept as an alias; Escape
+        // and Ctrl+W are handled by AppWindow through requestClose().
+        if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_L) { win.focusHost(); e.accepted = true; return true; }
         return false;
     }
 
@@ -409,7 +415,7 @@ AppWindow {
             Text {
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
-                text: win.results.length + " results · Enter runs · Ctrl+L focuses the host · Esc closes"
+                text: win.results.length + " results · Enter runs · Ctrl+F/L focuses the host · Ctrl+R reruns · Esc closes"
                 color: Theme.dim
                 font.family: Theme.font
                 font.pixelSize: Theme.px(10) * Theme.fontScale

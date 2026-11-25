@@ -17,6 +17,8 @@ AppWindow {
     onGone: Ui.startupManager = false
     implicitWidth: Theme.px(700)
     implicitHeight: Theme.px(620)
+    shortcutRefresh: win.refresh   // Ctrl+R reloads the autostart list; Ctrl+F is N/A (no filter field)
+    // refresh lives in AppWindow's tools row, not a second toolbar
 
     readonly property string pyCode: `
 import os, sys, json, shutil
@@ -188,11 +190,22 @@ else:
         onExited: code => { if (code !== 0 && win.error === "") win.error = Tr.t("The change could not be made"); }
     }
 
+    // refresh action in AppWindow's header tools
+    tools: [
+        IconButton {
+            icon: "view-refresh"; tip: Tr.t("Refresh the list")
+            accessibleName: Tr.t("Refresh the startup apps"); size: Theme.px(30)
+            onClicked: win.refresh()
+        }
+    ]
+
     Item {
         id: root
         anchors.fill: parent
         focus: true
-        Keys.onEscapePressed: win.confirmFile !== "" ? win.confirmFile = "" : win.visible = false
+        // Escape unwinds the confirmation first, then closes through the guard;
+        // Ctrl+W closes straight through AppWindow
+        Keys.onEscapePressed: win.confirmFile !== "" ? win.confirmFile = "" : win.requestClose()
 
         ColumnLayout {
             anchors.fill: parent
@@ -204,11 +217,6 @@ else:
                 text: Tr.t("Apps that start at login")
                 Row { spacing: Theme.px(6)
                     Spinner { visible: lister.running; size: Theme.px(16) }
-                    IconButton {
-                        icon: "view-refresh"; tip: Tr.t("Refresh the list")
-                        Accessible.name: Tr.t("Refresh the startup apps")
-                        onClicked: win.refresh()
-                    }
                 }
             }
             Text {

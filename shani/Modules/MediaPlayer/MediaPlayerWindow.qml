@@ -991,6 +991,7 @@ AppWindow {
                     }
                     IconButton { icon: "view-list"; tip: Tr.t("Queue") + " (L)"; on: win.listShown; onClicked: win.listShown = !win.listShown }
                     IconButton { icon: "document-open-recent"; tip: Tr.t("Recent media"); on: win.recentShown; onClicked: { win.recentShown = !win.recentShown; if (win.recentShown) win.streamShown = false; } }
+                    IconButton { icon: "book"; tip: Tr.t("Audiobook"); on: win.audiobookShown; onClicked: { win.audiobookShown = !win.audiobookShown; if (win.audiobookShown) { win.recentShown = false; win.streamShown = false; } }; Accessible.name: Tr.t("Audiobook mode") }
                     IconButton { icon: "network-workgroup"; tip: Tr.t("Open network stream"); on: win.streamShown; onClicked: { win.streamShown = !win.streamShown; if (win.streamShown) win.recentShown = false; } }
                     IconButton { icon: "document-save-as"; tip: Tr.t("Convert this file…"); enabled: PlayQueue.current !== ""; onClicked: { Ui.converterFiles = [PlayQueue.current]; Ui.converter = true; } }
                     IconButton { icon: "document-open"; tip: Tr.t("Open") + " (O)"; onClicked: win.pick() }
@@ -1156,6 +1157,260 @@ AppWindow {
                     }
                 }
                 Text { visible: PlayQueue.recent.length === 0; text: Tr.t("Nothing played yet"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            }
+        }
+    }
+
+    // =========================================================================
+    // Audiobook mode - part of this player, not another app. This whole block
+    // is additive: the service owns the data, the panel only shows and drives
+    // it. No app id and no bridge were added.
+    // =========================================================================
+    property bool audiobookShown: false
+    property real sleepChoice: 0             // 0 off, -1 end of chapter, else minutes
+    property string bookmarkError: ""
+    // the chapter arm of the sleep timer follows the playhead
+    Connections {
+        target: player
+        function onPositionChanged() { PlayQueue.checkSleep(player.position / 1000); }
+    }
+    // chapters and bookmarks in one list, sorted by where they are
+    readonly property var timelineRows: {
+        const out = [];
+        const cs = PlayQueue.chapters || [];
+        for (let i = 0; i < cs.length; i++)
+            out.push({ at: cs[i].start, title: cs[i].title || Tr.t("Chapter %1", i + 1), chapter: true, bookmarkIndex: -1 });
+        const bs = PlayQueue.bookmarksFor(PlayQueue.current) || [];
+        for (let i = 0; i < bs.length; i++)
+            out.push({ at: bs[i].at, title: bs[i].name, chapter: false, bookmarkIndex: i });
+        out.sort((a, b) => a.at - b.at);
+        return out;
+    }
+    function audiobookJump(at) { player.position = Math.max(0, Math.min(player.duration, Number(at) * 1000)); }
+    function addBookmarkNow() {
+        if (PlayQueue.current === "") { win.bookmarkError = Tr.t("Open a book first"); return false; }
+        const name = bookmarkField.text;
+        const ok = PlayQueue.addBookmark(PlayQueue.current, name, player.position / 1000);
+        if (ok) bookmarkField.text = "";
+        win.bookmarkError = ok ? "" : Tr.t("Could not save the bookmark");
+        return ok;
+    }
+    function openContinue(path) { win.audiobookShown = false; PlayQueue.playRecent(path); }
+
+    Rectangle {
+        z: 6
+        anchors { top: parent.top; right: parent.right; margins: Theme.px(12) }
+        visible: win.audiobookShown && !win.mini && (win.page === "library" || win.page === "playing")
+        width: Theme.px(360)
+        implicitHeight: Math.min(parent.height - Theme.px(24), bookCol.implicitHeight + Theme.px(24))
+        radius: Theme.radiusSmall
+        color: Theme.alpha(Theme.bg, 0.96)
+        border.width: 1
+        border.color: Theme.border
+        MouseArea { anchors.fill: parent; objectName: "nav:pointer" }   // swallows clicks on the card
+        ColumnLayout {
+            id: bookCol
+            x: 12; y: 12
+            width: parent.width - 24
+            spacing: Theme.px(6)
+            RowLayout {
+                Layout.fillWidth: true
+                SectionTitle { Layout.fillWidth: true; text: Tr.t("Audiobook") }
+                IconButton {
+                    icon: "window-close"; size: Theme.px(24); tip: Tr.t("Close")
+                    onClicked: win.audiobookShown = false
+                    Accessible.name: Tr.t("Close the audiobook panel")
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: PlayQueue.error !== "" || win.bookmarkError !== ""
+                text: win.bookmarkError !== "" ? win.bookmarkError : PlayQueue.error
+                color: Theme.danger
+                wrapMode: Text.Wrap
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+                Accessible.role: Accessible.StaticText
+            }
+            // ---- pick up where the book was left ----
+            SectionTitle { Layout.fillWidth: true; text: Tr.t("Continue listening") }
+            ListView {
+                id: continueList
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(Theme.px(120), Math.max(Theme.px(30), PlayQueue.continueRows.length * Theme.px(30)))
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                model: PlayQueue.continueRows
+                delegate: Rectangle {
+                    id: contRow
+                    required property var modelData
+                    width: continueList.width
+                    height: Theme.px(30)
+                    radius: Theme.radiusSmall
+                    color: contArea.containsMouse ? Theme.hover : "transparent"
+                    Accessible.role: Accessible.ListItem
+                    Accessible.name: Tr.t("Continue listening to %1 from %2", contRow.modelData.title, PlayQueue.clock(contRow.modelData.at))
+                    Accessible.onPressAction: win.openContinue(contRow.modelData.path)
+                    RowLayout {
+                        anchors { fill: parent; leftMargin: Theme.px(8); rightMargin: Theme.px(8) }
+                        spacing: Theme.px(8)
+                        Text { Layout.fillWidth: true; text: contRow.modelData.title; color: Theme.text; elide: Text.ElideMiddle; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        Text { text: PlayQueue.clock(contRow.modelData.at); color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    }
+                    MouseArea { id: contArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.openContinue(contRow.modelData.path) }
+                    KeyFocus { onActivated: win.openContinue(contRow.modelData.path) }
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: PlayQueue.continueRows.length === 0
+                text: Tr.t("Nothing to continue yet")
+                color: Theme.faint
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+            // ---- sleep timer: a number of minutes, or the chapter's end ----
+            SectionTitle { Layout.fillWidth: true; text: Tr.t("Sleep timer") }
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Repeater {
+                    model: [5, 10, 15, 30, 60]
+                    Choice {
+                        required property int modelData
+                        text: Tr.t("%1 min", modelData)
+                        selected: win.sleepChoice === modelData
+                        onClicked: { win.sleepChoice = modelData; PlayQueue.armSleepMinutes(modelData); }
+                        Accessible.name: Tr.t("Sleep after %1 minutes", modelData)
+                    }
+                }
+                Choice {
+                    text: Tr.t("End of chapter")
+                    selected: PlayQueue.sleepArmed && PlayQueue.sleepAtChapterEnd
+                    onClicked: { win.sleepChoice = -1; PlayQueue.armSleepChapter(); }
+                    Accessible.name: Tr.t("Sleep at the end of the chapter")
+                }
+                Choice {
+                    text: Tr.t("Off")
+                    selected: !PlayQueue.sleepArmed
+                    onClicked: { win.sleepChoice = 0; PlayQueue.cancelSleep(); }
+                    Accessible.name: Tr.t("Sleep timer off")
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: PlayQueue.sleepArmed
+                text: PlayQueue.sleepAtChapterEnd ? Tr.t("Pausing at the end of the chapter")
+                    : Tr.t("Pausing in %1 min", PlayQueue.sleepMinutesLeft.toFixed(1))
+                color: Theme.accent
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+            // ---- 15-second skips and the full speed ladder ----
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                IconButton {
+                    icon: "media-seek-backward"; tip: Tr.t("Back 15 seconds")
+                    enabled: PlayQueue.current !== ""
+                    onClicked: win.skip(-15)
+                    Accessible.name: Tr.t("Skip back 15 seconds")
+                }
+                IconButton {
+                    icon: "media-seek-forward"; tip: Tr.t("Forward 15 seconds")
+                    enabled: PlayQueue.current !== ""
+                    onClicked: win.skip(15)
+                    Accessible.name: Tr.t("Skip forward 15 seconds")
+                }
+                Text { text: Tr.t("Speed"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    Repeater {
+                        model: PlayQueue.speedPresets
+                        Choice {
+                            required property real modelData
+                            text: modelData + "×"
+                            selected: PlayQueue.rate === modelData
+                            onClicked: PlayQueue.setRate(modelData)
+                            Accessible.name: Tr.t("Playback speed %1 times", modelData)
+                        }
+                    }
+                }
+            }
+            // ---- name a place and keep it ----
+            SectionTitle { Layout.fillWidth: true; text: Tr.t("Bookmarks") }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                TextField {
+                    id: bookmarkField
+                    Layout.fillWidth: true
+                    placeholder: Tr.t("Bookmark name")
+                    label: Tr.t("Name")
+                    onAccepted: win.addBookmarkNow()
+                }
+                Button {
+                    text: Tr.t("Add bookmark")
+                    flat: true
+                    enabled: PlayQueue.current !== ""
+                    onClicked: win.addBookmarkNow()
+                    Accessible.name: Tr.t("Add a bookmark at the current position")
+                }
+            }
+            // ---- chapters and bookmarks share one list, ordered by time ----
+            SectionTitle { Layout.fillWidth: true; text: Tr.t("Chapters & bookmarks") + "  ·  " + win.timelineRows.length }
+            ListView {
+                id: timelineList
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(Theme.px(150), Math.max(Theme.px(34), win.timelineRows.length * Theme.px(30)))
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                model: win.timelineRows
+                delegate: Rectangle {
+                    id: tlRow
+                    required property var modelData
+                    width: timelineList.width
+                    height: Theme.px(30)
+                    radius: Theme.radiusSmall
+                    color: tlArea.containsMouse ? Theme.hover : "transparent"
+                    Accessible.role: Accessible.ListItem
+                    Accessible.name: (tlRow.modelData.chapter ? Tr.t("Chapter") : Tr.t("Bookmark")) + ", " + tlRow.modelData.title + ", " + PlayQueue.clock(tlRow.modelData.at)
+                    Accessible.onPressAction: win.audiobookJump(tlRow.modelData.at)
+                    RowLayout {
+                        anchors { fill: parent; leftMargin: Theme.px(8); rightMargin: Theme.px(30) }
+                        spacing: Theme.px(8)
+                        Text { text: tlRow.modelData.chapter ? "C" : "B"; color: Theme.accent; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                        Text { text: PlayQueue.clock(tlRow.modelData.at); color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                        Text { Layout.fillWidth: true; text: tlRow.modelData.title; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                    }
+                    MouseArea {
+                        id: tlArea
+                        anchors.fill: parent
+                        anchors.rightMargin: tlRow.modelData.chapter ? 0 : Theme.px(28)
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: win.audiobookJump(tlRow.modelData.at)
+                    }
+                    KeyFocus { onActivated: win.audiobookJump(tlRow.modelData.at) }
+                    IconButton {
+                        visible: !tlRow.modelData.chapter
+                        width: parent.height; height: parent.height
+                        anchors { right: parent.right; verticalCenter: parent.verticalCenter; rightMargin: Theme.px(2) }
+                        size: Theme.px(16)
+                        icon: "list-remove"
+                        tip: Tr.t("Delete bookmark")
+                        Accessible.name: Tr.t("Delete bookmark %1", tlRow.modelData.title)
+                        onClicked: PlayQueue.deleteBookmark(PlayQueue.current, tlRow.modelData.bookmarkIndex)
+                    }
+                }
+            }
+            EmptyState {
+                Layout.fillWidth: true
+                visible: win.timelineRows.length === 0
+                icon: "bookmark-new"
+                title: Tr.t("No chapters or bookmarks yet")
+                subtitle: Tr.t("Add a bookmark to come back to this place")
             }
         }
     }

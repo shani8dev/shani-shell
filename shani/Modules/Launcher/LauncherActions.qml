@@ -8,9 +8,23 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import "../../Common/Tools.js" as Tools
 
 QtObject {
     required property var launcher
+    // QML closures cannot live in the JS catalog: Tools.list owns the label,
+    // icon, words and order; these local runs own the opens.
+    readonly property var toolRuns: ({
+        dictionary: () => { Ui.closeAll(); Ui.dictionary = true; },
+        podcasts: () => { Ui.closeAll(); Ui.podcasts = true; },
+        teleprompter: () => { Ui.closeAll(); Ui.teleprompter = true; },
+        netTools: () => { Ui.closeAll(); Ui.netTools = true; },
+        databaseBrowser: () => { Ui.closeAll(); Ui.databaseBrowser = true; },
+        startupManager: () => { Ui.closeAll(); Ui.startupManager = true; },
+        gateway: () => { Ui.closeAll(); Ui.gateway = true; },
+        pasteHistory: () => { Ui.closeAll(); Ui.pasteHistory = true; },
+        scheduled: () => { Ui.closeAll(); Ui.scheduled = true; }
+    })
     readonly property var list: [
         { title: Tr.t("Lock screen"), words: "lock away", icon: "system-lock-screen", run: () => Lock.lock() },
         { title: Tr.t("Do Not Disturb"), words: "dnd quiet notifications silence", icon: "notifications-disabled", run: () => Notifs.setDnd(!Notifs.dnd), state: () => Notifs.dnd },
@@ -98,7 +112,7 @@ QtObject {
         { title: Tr.t("Live captions"), words: "captions subtitles live transcribe hearing", icon: "media-view-subtitles", run: () => Captions.toggle(), state: () => Captions.on && Captions.source === "speakers" },
         { title: Tr.t("Live transcribe"), words: "transcribe transcript meeting lecture microphone dictate", icon: "audio-input-microphone", run: () => Captions.transcribe(), state: () => Captions.on && Captions.source === "mic" },
         { title: Tr.t("Read aloud"), words: "read aloud speak tts selection voice", icon: "audio-speakers", run: () => Speak.speakSelection() },
-        { title: Tr.t("Magnifier"), words: "magnifier zoom loupe enlarge", icon: "zoom-in", run: () => Ui.magnifier = true },
+        { title: Tr.t("Magnifier"), words: "magnifier zoom loupe enlarge", icon: "zoom-in", run: () => { Ui.magnifier = false; Qt.callLater(() => { Ui.magnifier = true; }); } }, // no onGone: force a fresh open
         { title: Tr.t("Record a call"), words: "call record recording meeting phone", icon: "call-start", run: () => CallRecorder.toggle(), state: () => CallRecorder.recording },
         { title: Tr.t("Cast screen"), words: "cast miracast tv display wireless project", icon: "video-display", run: () => Cast.open() },
         { title: Tr.t("Earlier versions of my files"), words: "restore deleted file earlier version undo backup snapshot time machine history recover", icon: "document-open-recent", run: () => Backup.open("home") },
@@ -114,17 +128,11 @@ QtObject {
         { title: Tr.t("Show diff"), words: "diff changes changed git what changed", icon: "document-open-recent", run: () => Chronoa.openDiff() },
         { title: Tr.t("AI models"), words: "models ai llm ollama llama download provider openai anthropic mistral", icon: "applications-internet", run: () => { Ui.closeAll(); Ui.models = true; Models.refresh(); } },
         { title: Tr.t("Studio"), words: "studio build create app developer generate ai chronoa qml", icon: "applications-development", run: () => { Ui.closeAll(); Ui.studio = true; Studio.refresh(); } },
-        // ---- new app tools: the nine surfaces behind Ui flags. Each carries the
-        // "tool" keyword so the bar's Tools chip (launcher query "tool") finds them.
-        { title: Tr.t("Dictionary"), words: "tool dictionary thesaurus words definitions synonyms offline lookup", icon: "accessories-dictionary", run: () => { Ui.closeAll(); Ui.dictionary = true; } },
-        { title: Tr.t("Podcasts"), words: "tool podcasts podcast audio episodes rss subscribe", icon: "audio-headphones", run: () => { Ui.closeAll(); Ui.podcasts = true; } },
-        { title: Tr.t("Teleprompter"), words: "tool teleprompter prompter script read scrolling autocue", icon: "view-list-text", run: () => { Ui.closeAll(); Ui.teleprompter = true; } },
-        { title: Tr.t("Network Tools"), words: "tool network tools ping dns scan lookup host diagnose", icon: "network-workgroup", run: () => { Ui.closeAll(); Ui.netTools = true; } },
-        { title: Tr.t("Database browser"), words: "tool database browser sqlite db query sql table rows", icon: "database", run: () => { Ui.closeAll(); Ui.databaseBrowser = true; } },
-        { title: Tr.t("Startup manager"), words: "tool startup manager autostart autostart apps login boot", icon: "system-run", run: () => { Ui.closeAll(); Ui.startupManager = true; } },
-        { title: Tr.t("Gateway"), words: "tool gateway peers qr vpn share connect pair", icon: "network-server", run: () => { Ui.closeAll(); Ui.gateway = true; } },
-        { title: Tr.t("Paste history"), words: "tool paste history clipboard numbered slots multi", icon: "edit-paste", run: () => { Ui.closeAll(); Ui.pasteHistory = true; } },
-        { title: Tr.t("Scheduled tasks"), words: "tool scheduled tasks schedule cron jobs reminders plan", icon: "x-office-calendar", run: () => { Ui.closeAll(); Ui.scheduled = true; } },
+        // ---- new app tools: the nine surfaces behind Ui flags. Tools.list owns
+        // their order, spelling, icon and words (each word list starts "tool"
+        // so the bar's Tools chip finds them); only the opens stay local.
+        ...Tools.list.map(t => ({ title: Tr.t(t.label), words: t.words, icon: t.icon,
+                                  run: toolRuns[t.flag] })),
         { title: Tr.t("Suspend"), words: "suspend sleep", icon: "weather-clear-night", run: () => Power.suspend() },
         { title: Tr.t("Log out"), words: "logout log out sign out", icon: "system-log-out", run: () => Power.logout() },
         // irreversible: these open the sidebar's confirm row instead of acting

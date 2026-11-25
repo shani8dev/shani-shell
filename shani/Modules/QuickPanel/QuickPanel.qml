@@ -10,10 +10,18 @@ import QtQuick
 import qs.Common
 import qs.Services
 import "../../Common/Gestures.js" as G
+import "../../Common/Tools.js" as Tools
 
 PanelWindow {
     NavWindow {}     // known to the keys-and-controller reach check (Ui.navAuditAll)
     id: win
+    // Tools.list owns the first four labels, icons and order.
+    readonly property var toolRuns: ({
+        dictionary: () => { Ui.closeAll(); Ui.dictionary = true; },
+        podcasts: () => { Ui.closeAll(); Ui.podcasts = true; },
+        teleprompter: () => { Ui.closeAll(); Ui.teleprompter = true; },
+        netTools: () => { Ui.closeAll(); Ui.netTools = true; }
+    })
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     visible: Ui.quickPanel && !Lock.locked
     anchors { top: true; bottom: true; right: true }
@@ -231,12 +239,9 @@ PanelWindow {
                         font.pixelSize: Theme.px(12) * Theme.fontScale
                     }
                     Repeater {
-                        model: [
-                            { label: Tr.t("Dictionary"), icon: "book", run: () => { Ui.closeAll(); Ui.dictionary = true; } },
-                            { label: Tr.t("Podcasts"), icon: "audio-headphones", run: () => { Ui.closeAll(); Ui.podcasts = true; } },
-                            { label: Tr.t("Network tools"), icon: "network-workgroup", run: () => { Ui.closeAll(); Ui.netTools = true; } },
-                            { label: Tr.t("Gateway"), icon: "network-vpn", run: () => { Ui.closeAll(); Ui.gateway = true; } }
-                        ]
+                        model: Tools.list.slice(0, 4).map(t => ({
+                                label: Tr.t(t.label), icon: t.icon, run: toolRuns[t.flag]
+                            }))
                         delegate: Rectangle {
                             required property var modelData
                             width: Theme.px(44); height: Theme.px(36)

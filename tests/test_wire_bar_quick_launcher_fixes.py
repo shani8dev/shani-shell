@@ -22,7 +22,7 @@ NEW_APPS = {
     "Network Tools": "netTools",
     "Database browser": "databaseBrowser",
     "Startup manager": "startupManager",
-    "Gateway": "gateway",
+    "Teleprompter": "teleprompter",
     "Paste history": "pasteHistory",
     "Scheduled tasks": "scheduled",
 }
@@ -54,8 +54,8 @@ def test_quickpanel_has_more_apps_row_for_four_tools():
     for title, flag in {
         "Dictionary": "dictionary",
         "Podcasts": "podcasts",
-        "Network tools": "netTools",
-        "Gateway": "gateway",
+        "Network Tools": "netTools",
+        "Teleprompter": "teleprompter",
     }.items():
         lines = [line for line in more_apps.splitlines() if f'Tr.t("{title}")' in line]
         assert lines, f"no quick-panel button for {title}"

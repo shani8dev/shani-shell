@@ -347,6 +347,22 @@ Singleton {
         calls = false;
         messages = false;
         backup = false;
+        // newer apps and views added after the first closeApps() pass — without
+        // these, "empty desktop" and Back leave them on screen
+        dictionary = false;
+        podcasts = false;
+        teleprompter = false;
+        netTools = false;
+        databaseBrowser = false;
+        startupManager = false;
+        gateway = false;
+        pasteHistory = false;
+        scheduled = false;
+        irc = false;
+        health = false;
+        cloudSync = false;
+        servicesApp = false;
+        settingsOpen = false;
         closedApps();
     }
     function closeAll() {
