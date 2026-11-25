@@ -54,7 +54,7 @@ ColumnLayout {
             netTools: Tr.t("Ping, DNS and scan"),
             databaseBrowser: Tr.t("Open an SQLite file"),
             startupManager: Tr.t("Manage autostart entries"),
-            gateway: Tr.t("Peers, QR and VPN"),
+            nearby: Tr.t("Send to devices nearby"),
             pasteHistory: Tr.t("Clipboard slots"),
             scheduled: Tr.t("Tasks at their time")
         })

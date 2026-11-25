@@ -204,11 +204,13 @@ Each of these is a real screen of the shell — the gaps the clips above leave.
 </tr>
 </table>
 
-Also: Contacts, Disks, Models, Studio, Terminal, Mail, Feeds, Text Editor, Calendar, Notes, Tasks,
+Also: Contacts, Disks, Models, Studio, Remote Hosts, Mail, Feeds, Text Editor, Calendar, Notes, Tasks,
 Translate, Kundali, Camera, Voice Recorder, Screenshot, Screen Recorder, Color Picker, Magnifier,
-Live Captions, Characters, Fonts, Disk Usage, Logs, Document Scanner, Password Generator,
+Live Captions, Characters, Fonts, Disk Usage, Logs, Document Scanner,
 Authenticator, PDF Signer, Video Trimmer, Converter, Nearby Share, Screen Ruler,
-Passwords and Keys, Software, Containers and a Tour.
+Passwords and Keys (with its password generator), Software, Containers and a Tour.
+Startup apps and automations are Settings pages; Media Player also controls other
+apps' players.
 `shani app` lists them; each opens from the launcher like any app.
 
 ## The keys worth knowing

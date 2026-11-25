@@ -84,7 +84,7 @@ PanelWindow {
                     { label: Tr.t("Dictionary"), icon: "accessories-dictionary", act: () => { Ui.closeAll(); Ui.dictionary = true; } },
                     { label: Tr.t("Podcasts"), icon: "audio-headphones", act: () => { Ui.closeAll(); Ui.podcasts = true; } },
                     { label: Tr.t("Network Tools"), icon: "network-workgroup", act: () => { Ui.closeAll(); Ui.netTools = true; } },
-                    { label: Tr.t("Gateway"), icon: "network-server", act: () => { Ui.closeAll(); Ui.gateway = true; } },
+                    { label: Tr.t("Nearby Share"), icon: "network-wireless", act: () => { Ui.closeAll(); Ui.nearby = true; } },
                     { label: Tr.t("All tools…"), icon: "system-search", act: () => Ui.toggleLauncher("tool:") }
                 ] }
             ].concat(apps.slice(0, 8).map(e => (

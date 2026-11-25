@@ -44,10 +44,9 @@ def test_switcher_home_end_keyboard_navigation():
 
 def test_player_global_play_pause_and_seek_keys():
     """Space/Left/Right work at panel level, not only on the seek KeyFocus."""
-    qml = read("shani/Modules/Player/Player.qml")
-    keys = qml.split("Keys.onEscapePressed: Ui.player = false", 1)[1].split(
-        "Glass {", 1
-    )[0]
+    qml = read("shani/Modules/MediaPlayer/OtherPlayersPage.qml")
+    # a page of the Media Player now: the keys work while the page has focus
+    keys = qml.split("focus: win.pageShown", 1)[1].split("Item {\n        id: card", 1)[0]
     assert "Qt.Key_Space" in keys
     assert "togglePlaying()" in keys
     assert "Qt.Key_Left" in keys
@@ -58,6 +57,6 @@ def test_player_global_play_pause_and_seek_keys():
 
 def test_player_queue_path_encodes_special_characters():
     """File URIs must encode # and ? so queue items with them open correctly."""
-    qml = read("shani/Modules/Player/Player.qml")
+    qml = read("shani/Modules/MediaPlayer/OtherPlayersPage.qml")
     assert 'path.split("/").map(s => encodeURIComponent(s)).join("/")' in qml
     assert "encodeURI(path)" not in qml

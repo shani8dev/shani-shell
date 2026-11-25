@@ -24,7 +24,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 SHANI = ROOT / "shani"
-CALC = SHANI / "Modules/Launcher/Calc.js"
+CALC = SHANI / "Common/Calc.js"
 AGENDA = ROOT / "bridge" / "agenda.py"
 CLI = ROOT / "bin" / "shani"
 

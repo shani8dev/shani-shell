@@ -55,7 +55,6 @@ import qs.Modules.Viewer as ViewerMod
 import qs.Modules.PdfReader
 import qs.Modules.Maps
 import qs.Modules.Camera
-import qs.Modules.Player
 import qs.Modules.Fonts
 import qs.Modules.Characters
 import qs.Modules.Modem
@@ -72,7 +71,6 @@ import qs.Modules.VoiceRecorder
 import qs.Modules.Notes
 import qs.Modules.TextEditor
 import qs.Modules.Scanner
-import qs.Modules.PasswordGenerator
 import qs.Modules.Kundali
 import qs.Modules.Models
 import qs.Modules.Studio
@@ -85,6 +83,7 @@ import qs.Modules.VideoTrimmer
 // registers the folder as a module for the Media Player window, which a `source:`
 // loader reads (an import loads nothing by itself)
 import qs.Modules.MediaPlayer
+import qs.Modules.Passwords
 import qs.Modules.TvHome
 import qs.Modules.QuickPanel
 import qs.Modules.EdgeStrips
@@ -156,7 +155,6 @@ ShellRoot {
     LazyLoader { active: PdfViewer.shown; source: "Modules/PdfReader/PdfReader.qml" }
     LazyLoader { active: Camera.open; source: "Modules/Camera/CameraPanel.qml" }
     LazyLoader { active: Ui.maps; source: "Modules/Maps/MapsPanel.qml" }
-    LazyLoader { active: Ui.player; source: "Modules/Player/Player.qml" }
     LazyLoader { active: Ui.fonts; source: "Modules/Fonts/FontsPanel.qml" }
     LazyLoader { active: Ui.voiceRecorder; source: "Modules/VoiceRecorder/VoiceRecorderPanel.qml" }
     LazyLoader { active: Ui.notes; source: "Modules/Notes/NotesPanel.qml" }
@@ -185,18 +183,14 @@ ShellRoot {
     LazyLoader { active: Ui.weather; source: "Modules/Weather/WeatherWindow.qml" }
     LazyLoader { active: Archive.shown; source: "Modules/Archives/ArchivesWindow.qml" }
     LazyLoader { active: Ui.scanner; source: "Modules/Scanner/ScannerPanel.qml" }
-    LazyLoader { active: Ui.passwordGenerator; source: "Modules/PasswordGenerator/PasswordGeneratorPanel.qml" }
     LazyLoader { active: Ui.kundali; source: "Modules/Kundali/KundaliPanel.qml" }
     LazyLoader { active: Ui.models; source: "Modules/Models/ModelsWindow.qml" }
     LazyLoader { active: Ui.studio; source: "Modules/Studio/StudioWindow.qml" }
-    LazyLoader { active: Ui.scheduled; source: "Modules/ScheduledTasksWindow.qml" }
     LazyLoader { active: Ui.dictionary; source: "Modules/Dictionary.qml" }
     LazyLoader { active: Ui.podcasts; source: "Modules/MediaPlayer/PodcastWindow.qml" }
     LazyLoader { active: Ui.teleprompter; source: "Modules/Teleprompter.qml" }
     LazyLoader { active: Ui.netTools; source: "Modules/NetTools.qml" }
     LazyLoader { active: Ui.databaseBrowser; source: "Modules/DatabaseBrowser.qml" }
-    LazyLoader { active: Ui.startupManager; source: "Modules/StartupManager.qml" }
-    LazyLoader { active: Ui.gateway; source: "Modules/GatewayWindow.qml" }
     LazyLoader { active: Ui.pasteHistory; source: "Modules/PasteHistoryWindow.qml" }
     LazyLoader { active: Ui.pdfSigner; source: "Modules/PdfSigner/PdfSignerPanel.qml" }
     LazyLoader { active: Ui.diskUsage; source: "Modules/DiskUsage/DiskUsagePanel.qml" }
@@ -394,7 +388,12 @@ ShellRoot {
         function charactersOpen() { Ui.closeAll(); Ui.characters = true; }
         function processes() { const was = Ui.processes; Ui.closeAll(); Ui.processes = !was; }
         function toggleLogs() { const was = Ui.logs; Ui.closeAll(); Ui.logs = !was; }
-        function togglePlayer() { const was = Ui.player; Ui.closeAll(); Ui.player = !was; }
+        // the Player panel is Media Player's "Other apps" page now (MPRIS: any app's player)
+        function togglePlayer() {
+            const was = PlayQueue.shown && PlayQueue.page === "apps";
+            if (was) { PlayQueue.shown = false; return; }
+            Ui.closeAll(); PlayQueue.page = "apps"; PlayQueue.shown = true;
+        }
         function toggleFonts() { const was = Ui.fonts; Ui.closeAll(); Ui.fonts = !was; }
         function toggleCharacters() { const was = Ui.characters; Ui.closeAll(); Ui.characters = !was; }
         function voiceRecorderOpen() { Ui.closeAll(); Ui.voiceRecorder = true; VoiceRecorder.refresh(); }
@@ -464,8 +463,9 @@ ShellRoot {
         function studioToggle() { const was = Ui.studio; Ui.closeAll(); Ui.studio = !was; }
         function dictionaryOpen() { Ui.closeAll(); Ui.dictionary = true; }
         function dictionaryClose() { Ui.dictionary = false; }
-        function scheduledOpen() { Ui.closeAll(); Ui.scheduled = true; }
-        function scheduledClose() { Ui.scheduled = false; }
+        // Scheduled tasks and the Startup manager are Settings pages now
+        function scheduledOpen() { Ui.openSettings("automations"); }
+        function scheduledClose() { if (Ui.settingsCat === "automations") Ui.settingsOpen = false; }
         function podcastsOpen() { Ui.closeAll(); Ui.podcasts = true; }
         function podcastsClose() { Ui.podcasts = false; }
         function teleprompterOpen() { Ui.closeAll(); Ui.teleprompter = true; }
@@ -474,10 +474,11 @@ ShellRoot {
         function netToolsClose() { Ui.netTools = false; }
         function databaseBrowserOpen() { Ui.closeAll(); Ui.databaseBrowser = true; }
         function databaseBrowserClose() { Ui.databaseBrowser = false; }
-        function startupManagerOpen() { Ui.closeAll(); Ui.startupManager = true; }
-        function startupManagerClose() { Ui.startupManager = false; }
-        function gatewayOpen() { Ui.closeAll(); Ui.gateway = true; }
-        function gatewayClose() { Ui.gateway = false; }
+        function startupManagerOpen() { Ui.openSettings("apps"); }
+        function startupManagerClose() { if (Ui.settingsCat === "apps") Ui.settingsOpen = false; }
+        // Gateway was merged: its peers are Nearby Share's, its VPN list Settings > Network's
+        function gatewayOpen() { Ui.closeAll(); Ui.nearby = true; }
+        function gatewayClose() { Ui.nearby = false; }
         function pasteHistoryOpen() { Ui.closeAll(); Ui.pasteHistory = true; }
         function pasteHistoryClose() { Ui.pasteHistory = false; }
         function disksOpen() { Ui.closeAll(); Ui.disks = true; }
@@ -568,9 +569,10 @@ ShellRoot {
         function scannerOpen() { Ui.closeAll(); Ui.scanner = true; }
         function scannerClose() { Ui.scanner = false; }
         function scannerToggle() { const was = Ui.scanner; Ui.closeAll(); Ui.scanner = !was; }
-        function passwordGeneratorOpen() { Ui.closeAll(); Ui.passwordGenerator = true; }
-        function passwordGeneratorClose() { Ui.passwordGenerator = false; }
-        function passwordGeneratorToggle() { const was = Ui.passwordGenerator; Ui.closeAll(); Ui.passwordGenerator = !was; }
+        // the Password Generator is Passwords and Keys' Generator tab now
+        function passwordGeneratorOpen() { Ui.closeAll(); Ui.passwordsTab = "generator"; Ui.passwords = true; }
+        function passwordGeneratorClose() { Ui.passwords = false; }
+        function passwordGeneratorToggle() { const was = Ui.passwords; Ui.closeAll(); if (!was) { Ui.passwordsTab = "generator"; Ui.passwords = true; } }
         function kundaliOpen() { Ui.closeAll(); Ui.kundali = true; }
         function kundaliClose() { Ui.kundali = false; }
         function kundaliToggle() { const was = Ui.kundali; Ui.closeAll(); Ui.kundali = !was; }
@@ -698,6 +700,9 @@ ShellRoot {
         function upsRefresh() { Ups.refresh(); }
         // the same path a tap takes (tests drive the keyboard with it)
         function oskPress(key: string) { Osk.press(key); }
+        // a swipe through these letters, as a finger over the keys reports it
+        function oskSwipe(keys: string) { Osk.swipe(keys); }
+        function oskPage(page: string) { if (page === "emoji") Characters.loadEmoji(); Osk.page = page; }
         function oskTapMod(name: string) { if (name === "ctrl" || name === "alt") Osk.tapMod(name); }
         function oskLanguage() { Osk.nextLanguage(); }
         function oskPad(action: string) { Osk.pad(action); }
@@ -1150,7 +1155,8 @@ ShellRoot {
                 dictation: Dictation.phase,
                 dictated: Dictation.last,
                 oskLang: Osk.lang,
-                oskTyped: Osk.typed,
+                oskTyped: Osk.typed, oskEngine: Osk.engineUp, oskPredicted: Osk.predicted, oskCorrection: Osk.correction,
+                oskShift: Osk.shift, oskCapsLock: Osk.capsLock, oskPage: Osk.page, emojiGroups: Characters.emojiGroups.length,
                 oskCursor: Osk.cursorLabel,
                 oskRemote: Osk.remote, oskDraft: Osk.draft, oskCommitted: Osk.lastCommitted,
                 launcherSelected: Ui.launcherSelected, launcherText: Ui.launcherText,
@@ -1223,13 +1229,13 @@ ShellRoot {
                 speaking: Speak.speaking,
                 spoken: Speak.last,
                 magnifier: Ui.magnifier,
-                player: Ui.player,
+                player: PlayQueue.shown && PlayQueue.page === "apps",
                 fonts: Ui.fonts,
                 contacts: Ui.contacts,
                 modelsShown: Ui.models, studioShown: Ui.studio, disksShown: Ui.disks, terminalAppShown: Ui.terminalApp, backupShown: Ui.backup, windowLayouts: Ui.windowLayouts,
-                dictionaryShown: Ui.dictionary, scheduledShown: Ui.scheduled, podcastsShown: Ui.podcasts, teleprompterShown: Ui.teleprompter,
-                netToolsShown: Ui.netTools, databaseBrowserShown: Ui.databaseBrowser, startupManagerShown: Ui.startupManager,
-                gatewayShown: Ui.gateway, pasteHistoryShown: Ui.pasteHistory,
+                dictionaryShown: Ui.dictionary, scheduledShown: Ui.settingsOpen && Ui.settingsCat === "automations", podcastsShown: Ui.podcasts, teleprompterShown: Ui.teleprompter,
+                netToolsShown: Ui.netTools, databaseBrowserShown: Ui.databaseBrowser, startupManagerShown: Ui.settingsOpen && Ui.settingsCat === "apps",
+                gatewayShown: Ui.nearby, pasteHistoryShown: Ui.pasteHistory,
                 ircShown: Ui.irc, ircStatus: Irc.status, ircChannels: Irc.channels, ircMessages: Irc.messages.length, ircError: Irc.error,
                 cloudSyncShown: Ui.cloudSync,
                 playerVolume: Media.current && Media.current.volumeSupported ? Math.round(Media.current.volume * 100) : -1,
@@ -1257,7 +1263,7 @@ ShellRoot {
                 archiveShown: Archive.shown, archiveFile: Archive.file, archiveEntries: Archive.entries.length, archiveSize: Archive.totalSize, archiveExtractedTo: Archive.extractedTo, archiveError: Archive.error, archiveReading: Archive.reading, archiveExtracting: Archive.extracting, archivePassword: Archive.needsPassword, archiveMade: Archive.made, archiveCreating: Archive.creating,
                 archiveCanAppend: Archive.canAppend, archiveAppending: Archive.appending, archiveNames: Archive.entries.map(e => e.path),
                 librarySongs: MusicLibrary.songs.length, libraryVideos: MusicLibrary.videos.length, libraryAlbums: MusicLibrary.albums.map(a => a.title), libraryScanning: MusicLibrary.scanning, mediaPage: PlayQueue.page, mediaShown: PlayQueue.shown, radioStations: Radio.stations.map(s => s.name), radioShowing: Radio.showing, radioFavourites: Radio.favourites.map(s => s.name), liveTvChannels: LiveTv.channels.map(c => c.name), liveTvShown: LiveTv.shown.length, liveTvGroups: LiveTv.groups, liveTvSource: LiveTv.source, liveTvLoading: LiveTv.loading, liveTvError: LiveTv.error, mediaName: PlayQueue.name, mediaFrameSaved: Ui.mediaFrameSaved, mediaFile: PlayQueue.current, mediaPlayerPlaying: PlayQueue.playing, mediaMini: PlayQueue.mini, mediaResumedFrom: PlayQueue.resumedFrom, mediaSubtitleFile: PlayQueue.subtitleFile, mediaSubShift: PlayQueue.subtitleShift, mediaCue: PlayQueue.cue, mediaAudioTracks: PlayQueue.audioTrackCount, mediaTagLine: PlayQueue.tagLine, mediaCover: PlayQueue.coverShown, mediaPinned: Niri.pinned.length, mediaPosition: Math.round(PlayQueue.position * 10) / 10, mediaDuration: Math.round(PlayQueue.duration * 10) / 10, mediaHasVideo: PlayQueue.hasVideo, mediaQueue: PlayQueue.queue.length, mediaIndex: PlayQueue.index, mediaError: PlayQueue.error, mediaVolume: PlayQueue.volume, mediaRate: PlayQueue.rate, mediaChapters: PlayQueue.chapters.length, mediaPlaylists: PlayQueue.playlists.map(p => p.name + ":" + p.paths.length),
-                scanner: Ui.scanner, passwordGenerator: Ui.passwordGenerator, kundali: Ui.kundali,
+                scanner: Ui.scanner, passwordGenerator: Ui.passwords, kundali: Ui.kundali,
                 pdfSigner: Ui.pdfSigner, pdfSignerFile: PdfSigner.file, pdfSignerName: PdfSigner.name, pdfSignerSignature: PdfSigner.signature, pdfSignerX: PdfSigner.x, pdfSignerY: PdfSigner.y, pdfSignerScale: PdfSigner.scale, pdfSignerText: PdfSigner.fillText, pdfSignerTextX: PdfSigner.textX, pdfSignerTextY: PdfSigner.textY, pdfSignerSaved: PdfSigner.pdfSignerFile, pdfSignerLastSaved: PdfSigner.lastSaved, pdfSignerSaving: PdfSigner.saving,
                 disktree: Ui.diskUsage, diskUsageRoot: DiskUsage.scanRoot, diskUsageCurrent: DiskUsage.current, diskUsageEntries: DiskUsage.entries.length, diskUsageMarked: DiskUsage.markedCount, diskUsageTotal: DiskUsage.totalSize, diskUsageScanning: DiskUsage.scanning, diskUsageLast: DiskUsage.last, diskUsageView: DiskUsage.view, diskUsageDupes: DiskUsage.dupes.map(g => g.paths.length), diskUsageBig: DiskUsage.big.length, diskUsageMarkedPaths: DiskUsage.marked,
                 filesShown: Ui.files, filesPath: Files.path, filesTabs: Files.tabPaths, filesTabIndex: Files.tabIndex, filesZoom: Files.zoom, filesStarred: Files.starred, filesFree: Files.freeBytes, filesTemplates: Files.templates.map(x => x.name), filesSelectedNames: Files.selected.map(p => p.split("/").pop()), filesThumbs: Object.keys(Files.thumbs).map(p => p.split("/").pop()), filesDevices: Files.devices.map(d => d.name + (d.mounted ? ":open" : ":closed")), filesConnectError: Files.connectError, filesConnectLogin: Files.connectNeedsLogin, filesJobRunning: Files.jobRunning, filesJobTotal: Files.jobTotal, filesJobDone: Files.jobDone, filesSelected: Files.selected.length, filesView: Files.viewMode, filesError: Files.error, filesPlaces: Files.places.length, filesEntries: Files.entryCount, filesNote: Files.note, filesUndo: Files.undoLabel, filesProps: Files.props ? JSON.stringify(Files.props) : "", filesUsbDrives: Files.usb ? (Files.usb.drives || []).map(d => d.name) : [], filesUsbBusy: Files.usbBusy, filesUsbResult: Files.usbResult, filesImageMounted: Files.imageMounted, filesUnlockFor: Files.unlockFor ? Files.unlockFor.name : "", filesUnlockError: Files.unlockError, filesShares: Object.keys(Files.shares), filesServers: Files.servers.map(s => s.name), filesLocker: Files.locker ? Files.locker.mode : "", filesLockError: Files.lockError, filesLockResult: Files.lockResult, filesServedUrl: Files.servedUrl, filesServedGot: Files.servedGot, filesClouds: Files.clouds.map(c => c.name + ":" + c.type), filesCloudError: Files.cloudError, filesAsAdmin: Files.asAdmin, filesConflict: Files.conflictAsk ? Files.conflictAsk.names : [], filesJobPaused: Files.jobPaused, filesJobRate: Files.jobRate, filesJobFailed: Files.jobFailed.map(f => f.path.split("/").pop()), filesJobsWaiting: Files.jobsWaiting, filesLastCheck: Files.lastCheck ? JSON.stringify({ good: Files.lastCheck.good, bad: (Files.lastCheck.bad || []).length, missing: (Files.lastCheck.missing || []).length }) : "", filesCopyHistory: Files.copyHistory.length, filesBurst: Files.lastBurstCount + "/" + Math.round(Files.lastBurstMs), filesRedo: Files.redoLabel, filesScripts: Files.scripts.map(s => s.name), filesCompare: Files.comparison ? JSON.stringify({ kind: Files.comparison.kind || "", changes: Files.comparison.changes || 0, same: !!Files.comparison.same, rows: (Files.comparison.rows || []).length, loading: !!Files.comparison.loading }) : "", filesTrashNames: Object.keys(Files.trashItems), filesBookmarks: Files.places.filter(p => p.bookmark).map(p => p.path), filesNames: Files._paths.map(p => p.split("/").pop()),

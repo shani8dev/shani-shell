@@ -169,12 +169,12 @@ AppWindow {
                     onAccepted: win.addIt()
                 }
                 Button { kind: "primary"; text: Tr.t("Add"); enabled: field.text.trim() !== "" && Tasks.available; onClicked: win.addIt() }
-                // the same Ui path the shell's `scheduledOpen` IPC uses
+                // Settings > Automations, where the shell's `scheduledOpen` IPC goes too
                 Button {
                     flat: true
-                    text: Tr.t("Scheduled tasks")
+                    text: Tr.t("Automations")
                     Accessible.name: Tr.t("Open scheduled tasks")
-                    onClicked: { Ui.closeAll(); Ui.scheduled = true; }
+                    onClicked: Ui.openSettings("automations")
                 }
             }
             // quick find: / from anywhere, Escape clears it (then closes the window)

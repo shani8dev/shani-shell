@@ -24,7 +24,6 @@ Singleton {
     property bool windowMenu: false
     property bool processes: false
     property bool logs: false                  // the Logs surface (Modules/Logs)
-    property bool player: false  // the Player surface (Modules/Player): queue, seek, volume, lyrics
     property bool fonts: false  // the Fonts surface (Modules/Fonts): preview, size, install
     property string fontFile: ""  // a font file opened in Fonts (a .ttf from Files): shown, then installable
     property string mediaFrameSaved: ""     // the Media Player's last saved frame, for the tests
@@ -56,21 +55,18 @@ Singleton {
     property bool textEditor: false         // the TextEditor surface (Modules/TextEditor)
     property bool terminalApp: false          // the Terminal app (Modules/Terminal)
     property bool scanner: false           // the Scanner surface (Modules/Scanner)
-    property bool passwordGenerator: false           // the Secrets surface (Modules/PasswordGenerator)
+    property string passwordsTab: ""                 // the tab Passwords and Keys opens on, once (its Generator: the old Password Generator)
     property bool kundali: false          // the Kundali/Panchang surface (Modules/Kundali)
     property bool models: false            // the Models app (Modules/Models): AI model discovery/download
     property bool studio: false            // the Studio app (Modules/Studio): AI app builder
     property string kundaliDate: ""       // the day the calendar asked about (YYYY-MM-DD)
     property bool weather: false             // the Weather app (Modules/Weather)
     property bool tasks: false               // the Tasks app (Modules/Tasks)
-    property bool scheduled: false           // the Scheduled tasks view (Modules/ScheduledTasksWindow)
     property bool dictionary: false          // the offline Dictionary/Thesaurus app
     property bool podcasts: false            // the Podcasts app
     property bool teleprompter: false        // the Teleprompter app
     property bool netTools: false            // the Network Tools app (ping/DNS/scan)
     property bool databaseBrowser: false     // the SQLite database browser
-    property bool startupManager: false      // the XDG autostart manager
-    property bool gateway: false             // the Gateway peers/QR + VPN app
     property bool pasteHistory: false        // the multi-slot clipboard history app
     property bool contacts: false            // the Contacts app (Modules/Contacts)
     property bool health: false              // the Health app (Modules/Health): local-first fitness journal
@@ -308,7 +304,9 @@ Singleton {
     // opener for the dock, window menu, launcher, quick panel and sidebar tiles,
     // which each used to carry their own copy of the same nine closures.
     function openTool(flag) {
-        if (!Tools.list.some(t => t.flag === flag)) return;
+        const tool = Tools.list.find(t => t.flag === flag);
+        if (!tool) return;
+        if (tool.settings) { openSettings(tool.settings); return; }   // a Settings page
         closeAll();
         root[flag] = true;
     }
@@ -347,7 +345,6 @@ Singleton {
         maps = false;
         terminalApp = false;
         scanner = false;
-        passwordGenerator = false;
         kundali = false;
         models = false;
         studio = false;
@@ -364,8 +361,6 @@ Singleton {
         teleprompter = false;
         netTools = false;
         databaseBrowser = false;
-        startupManager = false;
-        gateway = false;
         pasteHistory = false;
         scheduled = false;
         irc = false;
@@ -385,7 +380,6 @@ Singleton {
         ring = false;
         switcher = false;
         windowMenu = false;
-        player = false;
         magnifier = false;
         annotate = false;
         controlCenter = false;

@@ -118,11 +118,11 @@ def test_journal_uses_settings_sections_and_keeps_actions():
     s = read("shani/Modules/Settings/SettingsJournal.qml")
     assert s.count("SettingsSection {") >= 2
     assert 'title: Tr.t("Journal")' in s
-    assert 'title: Tr.t("Recent log")' in s
+    assert 'title: Tr.t("Read the log")' in s and "Ui.logs = true" in s   # the Logs app reads it
     assert "page.save()" in s
     assert "page.vacuum()" in s
-    assert "page.loadLog()" in s
-    assert '["journalctl", "-n", "80", "--no-pager", "-o", "short"]' in s
+    assert "page.loadLog()" not in s   # the log is read in the Logs app
+    assert '"journalctl", "-n", "80"' not in s   # no second log viewer here
     assert "journald-set" in s
     assert "journald-vacuum" in s
     assert "page.storage = modelData;" in s

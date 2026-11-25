@@ -12,8 +12,8 @@ def read(path):
 FILES = read("shani/Modules/Files/FilesPanel.qml")
 TASKS = read("shani/Modules/Tasks/TasksWindow.qml")
 DB = read("shani/Modules/DatabaseBrowser.qml")
-START = read("shani/Modules/StartupManager.qml")
-SCHED = read("shani/Modules/ScheduledTasksWindow.qml")
+START = read("shani/Modules/Settings/SettingsStartup.qml")      # the Startup manager, merged
+SCHED = read("shani/Modules/Settings/SettingsAutomations.qml")  # Scheduled tasks, merged
 SHELL = read("shani/shell.qml")
 
 
@@ -25,10 +25,10 @@ def test_files_offers_database_browser_for_sqlite_files():
 
 
 def test_tasks_header_opens_scheduled_through_the_shells_ui_path():
-    assert 'text: Tr.t("Scheduled tasks")' in TASKS
-    assert "Ui.closeAll(); Ui.scheduled = true;" in TASKS
-    # the button mirrors the shell's own IPC handler, not a second open path
-    assert "function scheduledOpen() { Ui.closeAll(); Ui.scheduled = true; }" in SHELL
+    # Scheduled tasks is Settings > Automations now: the button and the IPC go there
+    assert 'text: Tr.t("Automations")' in TASKS
+    assert 'onClicked: Ui.openSettings("automations")' in TASKS
+    assert 'function scheduledOpen() { Ui.openSettings("automations"); }' in SHELL
 
 
 def test_database_browser_prefills_its_path_from_the_clipboard():
@@ -47,12 +47,10 @@ def test_database_browser_exposes_copy_query():
 
 
 def test_startup_manager_find_app_hands_off_to_the_launcher():
-    assert 'text: Tr.t("Find app")' in START
-    assert "onClicked: win.findApp()" in START
-    assert "function findApp()" in START
-    assert "Quickshell.clipboardText = q" in START
-    assert 'Ui.toggleLauncher("app:" + q)' in START
-    assert "Ui.startupManager = false" in START
+    # merged into Settings: apps are found in place (the window handed off to the launcher)
+    assert 'placeholder: Tr.t("Or find another app…")' in START
+    assert "DesktopEntries.applications.values" in START
+    assert "onClicked: page.add(modelData)" in START
 
 
 def test_scheduled_tasks_adds_rules_from_open_tasks_without_duplicates():
@@ -60,9 +58,9 @@ def test_scheduled_tasks_adds_rules_from_open_tasks_without_duplicates():
     assert 'text: Tr.t("Add from Tasks")' in SCHED
     assert "Tasks.refresh()" in SCHED
     assert "function addFromTask(t)" in SCHED
-    assert "Automations.rules.some(r => r.uid === t.uid)" in SCHED
-    assert 'win.showNote(Tr.t("That task already has a rule"))' in SCHED
-    assert 'when: "time", is: win.taskClock(t)' in SCHED
-    assert '"notify-send " + win.shellQuote(t.summary' in SCHED
+    assert "some(r => r.uid === t.uid)" in SCHED
+    assert 'Tr.t("That task already has a rule")' in SCHED
+    assert 'when: "time", is: page.taskClock(t)' in SCHED
+    assert '"notify-send " + page.shellQuote(t.summary' in SCHED
     assert r"""replace(/'/g, "'\\''")""" in SCHED
-    assert "Settings.save()" in SCHED
+    assert "page.setRules(l)" in SCHED

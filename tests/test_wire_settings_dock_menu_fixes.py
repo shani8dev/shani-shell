@@ -16,13 +16,13 @@ def source(rel):
 
 APPS = [
     ("Dictionary", "dictionaryOpen", "dictionary", "apps"),
-    ("Scheduled tasks", "scheduledOpen", "scheduled", "automations"),
+    ("Automations", "scheduledOpen", "scheduled", "automations"),
     ("Podcasts", "podcastsOpen", "podcasts", "sound"),
     ("Teleprompter", "teleprompterOpen", "teleprompter", "apps"),
     ("Network Tools", "netToolsOpen", "netTools", "network"),
     ("Database browser", "databaseBrowserOpen", "databaseBrowser", "apps"),
-    ("Startup manager", "startupManagerOpen", "startupManager", "apps"),
-    ("Gateway", "gatewayOpen", "gateway", "network"),
+    ("Startup apps", "startupManagerOpen", "startupManager", "apps"),
+    ("Nearby Share", "nearbyOpen", "nearby", "sharing"),
     ("Paste history", "pasteHistoryOpen", "pasteHistory", "apps"),
 ]
 
@@ -33,7 +33,7 @@ def test_settings_index_has_a_deep_link_per_new_app():
     # the contract: link names the shell's IPC function, which sets the Ui flag
     assert "entry.link is the shell's IPC function" in idx
     # nine tool links are generated from Tools.list; three extra are literal
-    assert "...Tools.list.map" in idx and "link: t.op" in idx
+    assert "...Tools.list.filter(t => !t.settings).map" in idx and "link: t.op" in idx
     assert idx.count('link: "') >= 3
     for label, ipc, flag, cat in APPS:
         row = next(
@@ -44,7 +44,13 @@ def test_settings_index_has_a_deep_link_per_new_app():
         assert "cat: m.cat" in idx or f'cat: "{cat}"' in row, (label, row)
         assert "link: t.op" in idx or f'link: "{ipc}"' in row, (label, row)
         # the link is a real IPC opener for this exact Ui flag
-        assert f"function {ipc}() {{ Ui.closeAll(); Ui.{flag} = true; }}" in shell, ipc
+        if cat in ("apps", "automations") and flag in ("startupManager", "scheduled"):
+            # a Settings page now: the IPC opens that page
+            assert f'function {ipc}() {{ Ui.openSettings("{cat}"); }}' in shell, ipc
+            continue
+        opener = f"function {ipc}() {{ Ui.closeAll(); Ui.{flag} = true; }}"
+        opener_with_file = f"function {ipc}(path: string) {{ Ui.closeAll(); if (path) Nearby.pending = [path]; Ui.{flag} = true; }}"
+        assert opener in shell or opener_with_file in shell, ipc
 
 
 def test_dock_context_menu_opens_the_new_apps_without_new_tiles():

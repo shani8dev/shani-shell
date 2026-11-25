@@ -27,9 +27,3 @@ def test_quicklook_listing_is_readonly_textedit():
     assert "textFormat: Text.RichText" not in listing
     assert "wrapMode: Text.WrapAnywhere" not in listing
 
-
-def test_scheduled_tasks_fields_use_accepted_signal():
-    src = _read("Modules/ScheduledTasksWindow.qml")
-    assert "onEditingFinished" not in src
-    assert "onAccepted: win.is = text.trim()" in src
-    assert "onAccepted: win.arg = text.trim()" in src

@@ -26,10 +26,10 @@ CANONICAL = {
     "Teleprompter": "view-list-text",
     "Network Tools": "network-workgroup",
     "Database browser": "database",
-    "Startup manager": "system-run",
-    "Gateway": "network-server",
+    "Startup apps": "system-run",
+    "Nearby Share": "network-wireless",
     "Paste history": "edit-paste",
-    "Scheduled tasks": "x-office-calendar",
+    "Automations": "x-office-calendar",
 }
 TIDS = {
     "Dictionary": "dictionary",
@@ -37,10 +37,10 @@ TIDS = {
     "Teleprompter": "teleprompter",
     "Network Tools": "netTools",
     "Database browser": "databaseBrowser",
-    "Startup manager": "startupManager",
-    "Gateway": "gateway",
+    "Startup apps": "startupManager",
+    "Nearby Share": "nearby",
     "Paste history": "pasteHistory",
-    "Scheduled tasks": "scheduled",
+    "Automations": "scheduled",
 }
 
 
@@ -108,7 +108,7 @@ def test_4_launcher_startup_entry_is_not_the_startup_manager_tile():
     assert "Ui.startupManager" not in line
     # sidebar tool tiles are generated from Tools.list; the flag is in `known`
     assert '...Tools.list.map(t => t.flag)' in source(SIDEBAR)
-    assert 'label: "Startup manager"' in source("shani/Common/Tools.js")
+    assert 'label: "Startup apps"' in source("shani/Common/Tools.js")
 
 
 def test_5_overview_tool_chips_have_an_accessible_name():

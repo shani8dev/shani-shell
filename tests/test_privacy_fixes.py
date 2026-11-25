@@ -35,7 +35,7 @@ def test_keyring_audit_is_opt_in_with_explicit_button():
 
 
 def test_generated_password_is_masked_after_30s():
-    s = read("shani/Modules/PasswordGenerator/PasswordGeneratorPanel.qml")
+    s = read("shani/Modules/Passwords/PasswordGenerator.qml")
     assert "generatedHidden" in s
     assert "Timer { id: hideTimer; interval: 30000" in s
     assert "hideTimer.restart()" in s

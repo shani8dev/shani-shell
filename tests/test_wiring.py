@@ -321,3 +321,12 @@ def test_every_phone_action_reaches_a_function():
     assert used - funcs == set(), (
         f"launcher calls Phone.{sorted(used - funcs)} which is not there"
     )
+
+
+def test_every_module_shell_qml_imports_exists():
+    """A removed module still imported stops the whole shell loading
+    ('module "qs.Modules.Player" is not installed' after a merge)."""
+    shell = (SHANI / "shell.qml").read_text()
+    missing = [m for m in re.findall(r"^import qs\.Modules\.(\w+)", shell, re.M)
+               if not (SHANI / "Modules" / m).is_dir()]
+    assert missing == []

@@ -15,7 +15,6 @@ WINDOWS = {
     "Teleprompter": ROOT / "shani/Modules/Teleprompter.qml",
     "NetTools": ROOT / "shani/Modules/NetTools.qml",
     "DatabaseBrowser": ROOT / "shani/Modules/DatabaseBrowser.qml",
-    "StartupManager": ROOT / "shani/Modules/StartupManager.qml",
     "PodcastWindow": ROOT / "shani/Modules/MediaPlayer/PodcastWindow.qml",
 }
 RESTORE = ROOT / "shani/Modules/Settings/SettingsSystemRestore.qml"
@@ -83,13 +82,13 @@ def test_05_ctrl_f_focuses_the_search_field_or_documents_the_skip():
     for name in ("Dictionary", "NetTools", "PodcastWindow"):
         s = src(WINDOWS[name])
         assert re.search(r"^    shortcutSearch: \w[\w.]*", s, re.M), name
-    for name in ("Teleprompter", "DatabaseBrowser", "StartupManager"):
+    for name in ("Teleprompter", "DatabaseBrowser"):
         s = src(WINDOWS[name])
         assert "Ctrl+F" in s and "N/A" in s, name
 
 
 def test_06_ctrl_r_refreshes_or_documents_that_there_is_nothing_to_refresh():
-    for name in ("NetTools", "DatabaseBrowser", "StartupManager", "PodcastWindow"):
+    for name in ("NetTools", "DatabaseBrowser", "PodcastWindow"):
         s = src(WINDOWS[name])
         assert re.search(r"^    shortcutRefresh: win\.\w+", s, re.M), name
     for name in ("Dictionary", "Teleprompter"):
@@ -100,7 +99,8 @@ def test_06_ctrl_r_refreshes_or_documents_that_there_is_nothing_to_refresh():
     assert 'function refresh() { Podcasts.run("list", []); }' in src(
         WINDOWS["PodcastWindow"]
     )
-    assert "function refresh() {" in src(WINDOWS["StartupManager"])
+    # the Startup manager is Settings > Startup apps now
+    assert "function refresh() {" in src(ROOT / "shani/Modules/Settings/SettingsStartup.qml")
     assert "function listTables() {" in src(WINDOWS["DatabaseBrowser"])
 
 
@@ -113,7 +113,6 @@ def test_07_header_actions_use_appwindows_tools_row_not_a_second_toolbar():
         "Teleprompter",
         "NetTools",
         "DatabaseBrowser",
-        "StartupManager",
         "PodcastWindow",
     ):
         assert re.search(r"^    tools: \[", src(WINDOWS[name]), re.M), name
@@ -131,7 +130,7 @@ def test_08_list_rows_are_keyboard_reachable_not_only_their_iconbuttons():
     assert "ListRow carries a KeyFocus" in pod
     assert "ListRow {" in src(WINDOWS["Dictionary"])
     assert "ListRow {" in src(WINDOWS["NetTools"])
-    assert "SwitchRow {" in src(WINDOWS["StartupManager"])
+    assert "SwitchRow {" in src(ROOT / "shani/Modules/Settings/SettingsStartup.qml")
     assert "KeyFocus { onActivated:" in src(RESTORE)
 
 

@@ -9,6 +9,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import "../../Common/ToolPath.js" as ToolPath
 
 ColumnLayout {
     id: page
@@ -62,37 +63,45 @@ ColumnLayout {
         page.confirmSession = null;
     }
 
-    // one line each: file<TAB>name<TAB>hidden(true|false)<TAB>user|system — the user's copy wins
+    // XDG autostart through bridge/autostart.py: the one implementation (the
+    // Startup manager window had a second one; it is this page now)
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_AUTOSTART_TOOL"), "autostart.py")
+    property string startupError: ""
     Process {
         id: list
-        command: ["sh", "-c", 'u="$1"; for f in "$u"/*.desktop /etc/xdg/autostart/*.desktop; do [ -f "$f" ] || continue
-                b=${f##*/}; case "$f" in /etc/*) [ -f "$u/$b" ] && continue; src=system;; *) src=user;; esac
-                n=$(sed -n "s/^Name=//p" "$f" | head -1); h=$(grep -qiE "^Hidden=true|^X-GNOME-Autostart-enabled=false" "$f" && echo true || echo false)
-                printf "%s\\t%s\\t%s\\t%s\\n" "$b" "${n:-$b}" "$h" "$src"; done', "sh", page.userDir]
+        command: ["python3", page.tool, "list"]
         stdout: StdioCollector {
-            onStreamFinished: page.entries = text.trim().split("\n").filter(x => x).map(l => {
-                const f = l.split("\t");
-                return { file: f[0], name: f[1], on: f[2] !== "true", mine: f[3] === "user" };
-            }).sort((a, b) => a.name.localeCompare(b.name))
+            onStreamFinished: {
+                let r = {};
+                try { r = JSON.parse(text); } catch (e) { r = { error: Tr.t("Could not read the autostart folder") }; }
+                page.startupError = r.error || "";
+                page.entries = r.entries || [];
+            }
         }
     }
-    Process { id: change; onExited: page.refresh() }
-    function setOn(e, on) {
-        // a system entry: a user copy, hidden or not; a user entry: edited in place
-        change.command = ["sh", "-c", 'u="$1"; f="$2"; mkdir -p "$u"; [ -f "$u/$f" ] || cp "/etc/xdg/autostart/$f" "$u/$f"
-            sed -i "/^Hidden=/d; /^X-GNOME-Autostart-enabled=/d" "$u/$f"; [ "$3" = off ] && printf "Hidden=true\\n" >> "$u/$f"; true', "sh", userDir, e.file, on ? "on" : "off"];
+    Process {
+        id: change
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r = {};
+                try { r = JSON.parse(text); } catch (e) { r = { error: Tr.t("Could not change the autostart folder") }; }
+                page.startupError = r.error || "";
+            }
+        }
+        onExited: page.refresh()
+    }
+    function run(args) {
+        change.command = ["python3", page.tool].concat(args);
         change.running = true;
     }
-    function remove(e) {
-        change.command = ["rm", "-f", userDir + "/" + e.file];
-        change.running = true;
-    }
-    function add(app) {
-        // the app's own desktop file, wherever XDG keeps it
-        change.command = ["sh", "-c", 'u="$1"; id="$2"; mkdir -p "$u"; for d in "${XDG_DATA_HOME:-$HOME/.local/share}" $(echo "${XDG_DATA_DIRS:-/usr/local/share:/usr/share}" | tr ":" " "); do
-                f="$d/applications/$id.desktop"; [ -f "$f" ] && { cp "$f" "$u/$id.desktop"; exit 0; }; done; exit 1', "sh", userDir, app.id];
-        change.running = true;
-        find.text = "";
+    function setOn(e, on) { run(["set", JSON.stringify({ file: e.file, on: on })]); }
+    function remove(e) { run(["remove", e.file]); }
+    function add(app) { run(["add", JSON.stringify({ id: app.id })]); find.text = ""; }
+    // any .desktop file, picked - not typed
+    function addFile() {
+        FilePicker.open({ mode: "open", title: Tr.t("Start at login"), filters: ["desktop"],
+                          startPath: Quickshell.env("HOME") + "/.local/share/applications",
+                          onPicked: paths => { if (paths && paths.length) page.run(["add", JSON.stringify({ path: paths[0] })]); } });
     }
 
     SettingsSection {
@@ -175,6 +184,13 @@ ColumnLayout {
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("Startup apps")
+        BusyNote { Layout.fillWidth: true; visible: list.running; note: Tr.t("Loading…"); iconSize: Theme.px(16) }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.entries.length === 0 && page.startupError === "" && !list.running
+            tone: "info"
+            text: Tr.t("No startup apps")
+        }
         Repeater {
             model: page.entries
             RowLayout {
@@ -184,16 +200,18 @@ ColumnLayout {
                 SwitchRow {
                     Layout.fillWidth: true
                     text: row.modelData.name
-                    hint: row.modelData.mine ? "added by you" : "the system's"
+                    // what it is (its Comment), and whose it is
+                    hint: (row.modelData.desc ? row.modelData.desc + " · " : "") + (row.modelData.mine ? Tr.t("added by you") : Tr.t("the system's"))
                     checked: row.modelData.on
                     onToggled: on => page.setOn(row.modelData, on)
                 }
-                IconButton {
+                // two taps, as the Startup manager asked before removing
+                ConfirmButton {
                     visible: row.modelData.mine
-                    icon: "edit-delete"
-                    size: Theme.px(24)
-                    Accessible.name: "Remove " + row.modelData.name + " from startup"
-                    onClicked: page.remove(row.modelData)
+                    text: Tr.t("Remove")
+                    kind: "danger"
+                    Accessible.name: Tr.t("Remove %1 from startup").arg(row.modelData.name)
+                    onConfirmed: page.remove(row.modelData)
                 }
             }
         }
@@ -212,7 +230,19 @@ ColumnLayout {
                 }
             }
         }
-        TextField { id: find; Layout.fillWidth: true; placeholder: Tr.t("Or find another app…") }
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            TextField { id: find; Layout.fillWidth: true; placeholder: Tr.t("Or find another app…") }
+            Button { text: Tr.t("Add a .desktop file…"); onClicked: page.addFile() }
+        }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.startupError !== ""
+            tone: "error"
+            text: page.startupError
+            accessibleRole: Accessible.AlertMessage
+        }
         Repeater {
             model: find.text.trim().length < 2 ? [] : DesktopEntries.applications.values
                 .filter(a => !a.noDisplay && a.name.toLowerCase().indexOf(find.text.trim().toLowerCase()) >= 0).slice(0, 6)

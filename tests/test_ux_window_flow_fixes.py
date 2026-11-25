@@ -40,7 +40,6 @@ def test_fix1_four_windows_reset_their_flag_on_gone():
         "Dictionary.qml": "dictionary",
         "MediaPlayer/PodcastWindow.qml": "podcasts",
         "DatabaseBrowser.qml": "databaseBrowser",
-        "StartupManager.qml": "startupManager",
     }
     for rel, flag in expected.items():
         s = source(rel)
@@ -115,22 +114,13 @@ def test_fix5_nettools_handoff_is_armed_and_clipboard_safe():
 
 
 def test_fix6_gateway_handoff_is_explicit_validated_and_repeated():
-    g = source("GatewayWindow.qml")
-    body = function_body(g, "prefillFromClipboard")
-    assert 'const marker = "shani-gateway:"' in body
-    assert "t.indexOf(marker) === 0" in body
-    assert 't.charAt(0) === "/"' not in body
-    # existence is confirmed before pendingFile is set
-    assert 'test -f "$1"' in body
-    assert "handoffCheck.checkedPath = path;" in body
-    assert "property string pendingFile:" in g
-    # a bare user@host (email) must not claim the search field
-    handle = function_body(g, "looksLikeHandleOrUrl")
-    assert "[^\\s@/]+@[^\\s@/]{4,}" not in handle
-    assert "win.peers.some(" in handle
-    # every open, not a one-shot prefilled flag
-    assert "prefilled" not in g
-    assert "onVisibleChanged: if (visible) win.prefillFromClipboard()" in g
+    # Gateway was merged into Nearby Share: a shared file reaches it directly
+    # (Nearby.pending), so nothing is read back from the clipboard any more
+    share = (ROOT / "shani/Services/Share.qml").read_text()
+    assert "Nearby.pending = root.files; Ui.closeAll(); Ui.nearby = true;" in share
+    assert "shani-gateway:" not in share
+    g = source("Nearby/NearbyWindow.qml")
+    assert "prefillFromClipboard" not in g and "Quickshell.clipboardText = v;" in g
 
 
 # ---- fix 7: no same-frame Ui false -> true in the owned windows -------------
@@ -141,10 +131,9 @@ def test_fix7_no_same_frame_ui_toggle_in_owned_windows():
         "Dictionary.qml",
         "MediaPlayer/PodcastWindow.qml",
         "DatabaseBrowser.qml",
-        "StartupManager.qml",
         "Teleprompter.qml",
         "NetTools.qml",
-        "GatewayWindow.qml",
+        "Nearby/NearbyWindow.qml",
     ]
     same_frame = re.compile(r"Ui\.(\w+)\s*=\s*false\s*;\s*Ui\.\1\s*=\s*true")
     for rel in owned:

@@ -7,7 +7,7 @@ MODULES = ROOT / "shani/Modules"
 NET = (MODULES / "NetTools.qml").read_text()
 DB = (MODULES / "DatabaseBrowser.qml").read_text()
 SCANNER = (MODULES / "Scanner/ScannerPanel.qml").read_text()
-STARTUP = (MODULES / "StartupManager.qml").read_text()
+STARTUP = (MODULES / "Settings" / "SettingsStartup.qml").read_text()   # the Startup manager, merged
 KUNDALI = (MODULES / "Kundali/KundaliPanel.qml").read_text()
 RECORDER = (MODULES / "VoiceRecorder/VoiceRecorderPanel.qml").read_text()
 BUSY = (ROOT / "shani/Common/BusyNote.qml").read_text()
@@ -66,7 +66,7 @@ def test_scanner_scanning_row_uses_busy_note():
 def test_startup_busy_row_uses_busy_note():
     _busy_row(
         STARTUP,
-        "visible: lister.running",
+        "visible: list.running",
         'note: Tr.t("Loading…")',
         "iconSize: Theme.px(16)",
     )

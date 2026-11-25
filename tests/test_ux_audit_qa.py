@@ -51,10 +51,9 @@ RING = "shani/Modules/Ring/Ring.qml"
 DICTIONARY = "shani/Modules/Dictionary.qml"
 PODCAST_WINDOW = "shani/Modules/MediaPlayer/PodcastWindow.qml"
 DATABASE_BROWSER = "shani/Modules/DatabaseBrowser.qml"
-STARTUP_MANAGER = "shani/Modules/StartupManager.qml"
 TELEPROMPTER = "shani/Modules/Teleprompter.qml"
 NETTOOLS = "shani/Modules/NetTools.qml"
-GATEWAY = "shani/Modules/GatewayWindow.qml"
+GATEWAY = "shani/Modules/Nearby/NearbyWindow.qml"
 
 FILES_SVC = "shani/Services/Files.qml"
 FILES_PANEL = "shani/Modules/Files/FilesPanel.qml"
@@ -77,12 +76,11 @@ MARKERS = {
     LAUNCHER: 'op === "tool" ? "tool" : "action"',
     LAUNCHER_ENTRIES: '{ id: "tool", hint: "tool:dictionary" }',
     OVERVIEW_SEARCH: 'Accessible.name: Tr.t("Open %1 tool"',
-    START_HINTS: "for Dictionary, Podcasts, Network Tools and Gateway",
+    START_HINTS: "for Dictionary, Podcasts, Network Tools and Nearby Share",
     RING: 'Tr.t("Network Tools")',
     DICTIONARY: "onGone: Ui.dictionary = false",
     PODCAST_WINDOW: "onGone: Ui.podcasts = false",
     DATABASE_BROWSER: "onGone: Ui.databaseBrowser = false",
-    STARTUP_MANAGER: "onGone: Ui.startupManager = false",
     TELEPROMPTER: "copyFirstLineForTranslation",
     NETTOOLS: "property bool handoffArmed: false",
     GATEWAY: 'const marker = "shani-gateway:"',
@@ -401,7 +399,6 @@ def test_no_accessible_names_were_dropped():
     busy_files = (
         "DatabaseBrowser.qml",
         "NetTools.qml",
-        "StartupManager.qml",
         "ScannerPanel.qml",
         "KundaliPanel.qml",
         "VoiceRecorderPanel.qml",
@@ -611,10 +608,10 @@ def test_nine_tools_have_one_spelling_and_one_icon():
         "Teleprompter": "view-list-text",
         "Network Tools": "network-workgroup",
         "Database browser": "database",
-        "Startup manager": "system-run",
-        "Gateway": "network-server",
+        "Startup apps": "system-run",
+        "Nearby Share": "network-wireless",
         "Paste history": "edit-paste",
-        "Scheduled tasks": "x-office-calendar",
+        "Automations": "x-office-calendar",
     }
     # Tools.js owns the labels/icons; the surfaces pass them through Tr.t().
     catalog = src("shani/Common/Tools.js")
@@ -645,7 +642,6 @@ def test_four_windows_reset_their_flag_when_closed():
         DICTIONARY: "dictionary",
         PODCAST_WINDOW: "podcasts",
         DATABASE_BROWSER: "databaseBrowser",
-        STARTUP_MANAGER: "startupManager",
     }
     for rel, flag in expected.items():
         s = src(rel)

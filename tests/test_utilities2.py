@@ -15,7 +15,8 @@ def read(rel):
 
 
 def test_calculator_trig_respects_angle_unit():
-    q = read("shani/Services/Calculator.qml")
+    # the evaluator is Common/Calc.js, shared with the launcher; the service passes its angle unit
+    q = read("shani/Services/Calculator.qml") + read("shani/Common/Calc.js")
     assert 'property string angleUnit: "deg"' in q
     assert "function setAngleUnit(u)" in q
     assert '["deg", "rad", "grad"].indexOf(s) >= 0' in q

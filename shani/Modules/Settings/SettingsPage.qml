@@ -152,9 +152,9 @@ ColumnLayout {
     }
     // app deep-links: link → the Ui flag the shell's matching IPC sets
     readonly property var linkFlags: ({
-        dictionaryOpen: "dictionary", podcastsOpen: "podcasts", scheduledOpen: "scheduled",
-        teleprompterOpen: "teleprompter", netToolsOpen: "netTools", startupManagerOpen: "startupManager",
-        gatewayOpen: "gateway", databaseBrowserOpen: "databaseBrowser", pasteHistoryOpen: "pasteHistory",
+        dictionaryOpen: "dictionary", podcastsOpen: "podcasts",
+        teleprompterOpen: "teleprompter", netToolsOpen: "netTools",
+        gatewayOpen: "nearby", nearbyOpen: "nearby", databaseBrowserOpen: "databaseBrowser", pasteHistoryOpen: "pasteHistory",
         cloudSyncOpen: "cloudSync", ircOpen: "irc", healthOpen: "health"
     })
     // jump to a setting found by search: open the category, flash the control

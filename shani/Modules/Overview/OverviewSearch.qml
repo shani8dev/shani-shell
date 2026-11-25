@@ -91,7 +91,7 @@ PanelWindow {
         { title: Tr.t("Dictionary"), query: "tool:dictionary" },
         { title: Tr.t("Podcasts"), query: "tool:podcasts" },
         { title: Tr.t("Network Tools"), query: "tool:network" },
-        { title: Tr.t("Gateway"), query: "tool:gateway" }
+        { title: Tr.t("Nearby Share"), query: "tool:nearby" }
     ]
     readonly property var recent: RecentFiles.files.slice(0, 10)   // newest first (Services/RecentFiles)
 

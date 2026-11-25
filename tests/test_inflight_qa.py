@@ -31,13 +31,11 @@ NEW_COMMON = [
 NEW_HELPERS = ["Tools.js", "Time.js", "SearchField.qml"]
 NEW_APPS = [
     "dictionary",
-    "scheduled-tasks",
     "podcasts",
     "teleprompter",
     "network-tools",
     "database-browser",
-    "startup-manager",
-    "gateway",
+    "nearby-share",
     "paste-history",
 ]
 TOOL_FLAGS = (
@@ -47,7 +45,7 @@ TOOL_FLAGS = (
     "netTools",
     "databaseBrowser",
     "startupManager",
-    "gateway",
+    "nearby",
     "pasteHistory",
     "scheduled",
 )
@@ -155,6 +153,9 @@ def test_new_apps_are_registered_in_cli_shell_ids_and_ipc():
         title = spec[1]
         assert f'"{title}"' in ids, f"ShellApps.js has no {title}"
     for flag in TOOL_FLAGS:
+        if flag in ("startupManager", "scheduled"):     # Settings pages now: the IPC opens the page
+            assert f"{flag}Open() {{ Ui.openSettings(" in shell, flag
+            continue
         assert f"Ui.{flag}" in shell, f"shell.qml does not load the {flag} surface"
         assert f"{flag}Open" in shell, f"shell.qml has no {flag}Open IPC"
 

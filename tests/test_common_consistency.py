@@ -201,7 +201,7 @@ def test_tools_catalog_is_a_frozen_unique_nine():
     assert "var list = [" in text
     assert "function" not in text
     entries = re.findall(
-        r'\{ label: "([^"]+)", icon: "([^"]+)", flag: "([^"]+)", op: "([^"]+)", words: "([^"]+)" \}',
+        r'\{ label: "([^"]+)", icon: "([^"]+)", flag: "([^"]+)", op: "([^"]+)",(?: settings: "[^"]+",)? words: "([^"]+)" \}',
         text,
     )
     assert len(entries) == 9
@@ -210,7 +210,8 @@ def test_tools_catalog_is_a_frozen_unique_nine():
     ui = (ROOT / "shani/Common/Ui.qml").read_text(encoding="utf-8")
     for label, icon, flag, op, words in entries:
         assert op == flag + "Open", (flag, op)
-        assert f"property bool {flag}:" in ui, flag
+        if f'flag: "{flag}", op: "{op}", settings:' not in text:   # not a Settings page
+            assert f"property bool {flag}:" in ui, flag
         assert "tool" in words.split(), flag
         for part in re.findall(r"[A-Z]?[a-z]+", flag):
             assert part.lower() in words.lower(), (flag, part)

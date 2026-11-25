@@ -15,10 +15,9 @@ var toolMeta = {
     teleprompter: { key: "appTeleprompter", cat: "apps", hint: "scroll a script while you speak" },
     netTools: { key: "appNetTools", cat: "network", hint: "ping, DNS, whois and a LAN scan" },
     databaseBrowser: { key: "appDatabaseBrowser", cat: "apps", hint: "browse and query SQLite files" },
-    startupManager: { key: "appStartupManager", cat: "apps", hint: "which apps start at login" },
-    gateway: { key: "appGateway", cat: "network", hint: "peers, QR codes and VPN connections" },
+    nearby: { key: "appNearby", cat: "sharing", hint: "send files to devices nearby; copy a device's address or show it as a QR" },
     pasteHistory: { key: "appPasteHistory", cat: "apps", hint: "clipboard slots, favourites and search" },
-    scheduled: { key: "appScheduled", cat: "automations", hint: "your automations, hooks and timed jobs" }
+    // startupManager and scheduled are Settings pages (rows: startupApps, automations)
 };
 
 var entries = [
@@ -226,6 +225,7 @@ var entries = [
     // ---- Apps & files
     { key: "terminal", label: "Terminal", cat: "apps", hint: "the one Mod+Return and every app opens", words: "terminal shell foot footclient ghostty kitty xterm console default" },
     { key: "terminalThemed", label: "Foot in the desktop's colours", cat: "apps", hint: "background, text, accent, titlebar", words: "terminal foot colours colors theme dark light accent titlebar" },
+    { key: "startupApps", label: "Startup apps", cat: "apps", hint: "which apps start at login; add any app or .desktop file", words: "startup autostart login apps desktop file manager" },
     { key: "reopenApps", label: "Reopen apps at login", cat: "apps", hint: "bring back what you had open", words: "reopen apps session restore login startup" },
     { key: "recordingsDir", label: "Recordings folder", cat: "apps", hint: "where screen recordings go", words: "recordings folder screen record videos directory" },
     { key: "screenshotDir", label: "Screenshots folder", cat: "apps", hint: "where screenshots go", words: "screenshots folder pictures directory screenshot" },
@@ -293,7 +293,9 @@ var entries = [
     // ---- Apps reachable as deep links (entry.link is the shell's IPC function;
     // consumers open the app instead of jumping to entry.cat — the words carry the
     // desktop categories so a search by "Office", "AudioVideo", "Network" finds them)
-    ...Tools.list.map(t => {
+    // (a tool that is a Settings page - Startup apps, Automations - has its own
+    // row above, so it is not listed twice)
+    ...Tools.list.filter(t => !t.settings).map(t => {
         const m = toolMeta[t.flag];
         return { key: m.key, label: t.label, cat: m.cat, hint: m.hint,
                  words: t.words.replace(/^tool /, ""), link: t.op };

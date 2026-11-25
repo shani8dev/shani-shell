@@ -20,13 +20,13 @@ UI_SRC = (ROOT / "shani/Common/Ui.qml").read_text(encoding="utf-8")
 NEW_APPS = {
     "Dictionary": "dictionary",
     "Podcasts": "podcasts",
-    "Gateway": "gateway",
+    "Nearby Share": "nearby",
     "Network Tools": "netTools",
     "Database browser": "databaseBrowser",
-    "Startup manager": "startupManager",
-    "Gateway": "gateway",
+    "Startup apps": "startupManager",
+    "Nearby Share": "nearby",
     "Paste history": "pasteHistory",
-    "Scheduled tasks": "scheduled",
+    "Automations": "scheduled",
 }
 
 
@@ -41,8 +41,10 @@ def test_launcher_actions_cover_all_nine_new_apps():
     catalog = (ROOT / "shani/Common/Tools.js").read_text()
     assert "Tools.list" in LAUNCHER_ACTIONS
     for flag in ("dictionary", "podcasts", "teleprompter", "netTools",
-                 "databaseBrowser", "startupManager", "gateway", "pasteHistory", "scheduled"):
+                 "databaseBrowser", "startupManager", "nearby", "pasteHistory", "scheduled"):
         assert f'flag: "{flag}"' in catalog
+        if flag in ("startupManager", "scheduled"):
+            continue                                   # Settings pages now (Tools.js `settings`)
         assert re.search(r"property bool %s\b" % flag, UI_SRC), flag
     assert "run: () => Ui.openTool(t.flag)" in LAUNCHER_ACTIONS
 

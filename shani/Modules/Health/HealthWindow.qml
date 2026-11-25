@@ -138,7 +138,8 @@ AppWindow {
                             Accessible.name: Tr.t("%1 steps today", Health.stepsToday)
                         }
                         Text {
-                            text: Tr.t("of %1 · %2 yesterday", Health.stepsGoal, Health.stepsYesterday)
+                            text: !Health.device && !win.hasJournal ? Tr.t("Pair a watch, or log a day, to count steps")
+                                : Tr.t("of %1 · %2 yesterday", Health.stepsGoal, Health.stepsYesterday)
                             color: Theme.faint
                             font.family: Theme.font
                             font.pixelSize: Theme.px(10) * Theme.fontScale
@@ -170,7 +171,8 @@ AppWindow {
                             Accessible.name: Tr.t("Asleep %1", Health.duration(Health.sleep.asleep))
                         }
                         Text {
-                            text: Health.device ? Tr.t("From %1", Health.device) : Tr.t("From this computer")
+                            // the computer measures nothing itself: without a watch it is what was logged
+                            text: Health.device ? Tr.t("From %1", Health.device) : Tr.t("Logged by you · no watch paired")
                             color: Theme.faint
                             font.family: Theme.font
                             font.pixelSize: Theme.px(10) * Theme.fontScale

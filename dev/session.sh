@@ -7,7 +7,7 @@
 export XDG_RUNTIME_DIR=/run/user/0 HOME=/root USER=root XDG_SESSION_TYPE=wayland
 # a login has a UTF-8 locale; C would make every non-ASCII comparison fail
 export LANG=C.UTF-8 PYTHONUTF8=1
-export SHANI_OSK_LAYOUT_TOOL=/work/bridge/osk-layout.py SHANI_SEARCH_PROVIDERS_TOOL=/work/bridge/search-providers.py
+export SHANI_OSK_LAYOUT_TOOL=/work/bridge/osk-layout.py SHANI_OSK_PREDICT_TOOL=/work/bridge/osk-predict.py SHANI_SEARCH_PROVIDERS_TOOL=/work/bridge/search-providers.py
 # voice typing without Chronoa in the image: whisper.cpp and its tiny model
 export SHANI_DICTATE_TOOL=/work/bridge/dictate.py SHANI_DICTATE_ENGINE=whisper-cli
 export SHANI_WHISPER_MODEL=/opt/whisper/ggml-tiny.en.bin
@@ -20,7 +20,7 @@ export SHANI_NIRI_CONFIG=/work/dev/niri/session.kdl
 # the first-login tour would sit over every other check; one test opens it by hand
 export SHANI_NO_TOUR=1
 export SHANI_BACKUP_TOOL=/work/dev/fake-backup.sh
-export SHANI_DEVWATCH_TOOL=/work/bridge/devwatch.py SHANI_FEEDS_TOOL=/work/bridge/feeds.py SHANI_MAIL_TOOL=/work/bridge/mail.py SHANI_MEDIAINFO_TOOL=/work/dev/fake-mediainfo.sh SHANI_EXIV2_TOOL=/work/dev/fake-exiv2.sh
+export SHANI_DEVWATCH_TOOL=/work/bridge/devwatch.py SHANI_FEEDS_TOOL=/work/bridge/feeds.py SHANI_MAIL_TOOL=/work/bridge/mail.py SHANI_AUTOSTART_TOOL=/work/bridge/autostart.py SHANI_MEDIAINFO_TOOL=/work/dev/fake-mediainfo.sh SHANI_EXIV2_TOOL=/work/dev/fake-exiv2.sh
 # devices plugged in: the real watcher over recorded udev events (dev/udev/, written
 # into the FIFO /tmp/udev-events by the suite), a second monitor through a niri
 # shim, a gaming mouse (fake ratbagctl), a security key (fake fido2-token and

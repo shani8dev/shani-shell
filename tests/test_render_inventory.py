@@ -108,7 +108,7 @@ def test_every_app_has_a_render_shot(shani_cli, render_src):
 
     # hyphenation: a key with a hyphen maps to that exact shot suffix
     rendered_shots = {f"app-{name}" for name in rendered}
-    assert "app-scheduled-tasks" in rendered_shots
+    assert "app-paste-history" in rendered_shots
     assert "app-text-editor" in rendered_shots
 
 

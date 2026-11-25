@@ -35,10 +35,10 @@ TOOL_CATALOG = {
     "teleprompter": ("Teleprompter", "view-list-text", "Scroll your script"),
     "netTools": ("Network Tools", "network-workgroup", "Ping, DNS and scan"),
     "databaseBrowser": ("Database browser", "database", "Open an SQLite file"),
-    "startupManager": ("Startup manager", "system-run", "Manage autostart entries"),
-    "gateway": ("Gateway", "network-server", "Peers, QR and VPN"),
+    "startupManager": ("Startup apps", "system-run", "Manage autostart entries"),
+    "nearby": ("Nearby Share", "network-wireless", "Send to devices nearby"),
     "pasteHistory": ("Paste history", "edit-paste", "Clipboard slots"),
-    "scheduled": ("Scheduled tasks", "x-office-calendar", "Tasks at their time"),
+    "scheduled": ("Automations", "x-office-calendar", "Tasks at their time"),
 }
 
 
@@ -104,13 +104,17 @@ def test_sidebar_tool_subtitles_are_preserved():
 def test_settings_index_tool_rows_come_from_catalog():
     idx = source(INDEX)
     assert '.import "../../Common/Tools.js" as Tools' in idx
-    assert "...Tools.list.map(t => {" in idx
-    mapping = idx.split("...Tools.list.map(t => {", 1)[1].split("}),", 1)[0]
+    assert "...Tools.list.filter(t => !t.settings).map(t => {" in idx
+    mapping = idx.split("...Tools.list.filter(t => !t.settings).map(t => {", 1)[1].split("}),", 1)[0]
     assert "label: t.label" in mapping
     assert "link: t.op" in mapping
     assert 'words: t.words.replace(/^tool /, "")' in mapping
     for flag in tool_rows():
+        if flag in ("startupManager", "scheduled"):    # Settings pages: literal rows instead
+            continue
         assert f"{flag}: {{ key:" in idx, f"{flag}: missing toolMeta"
+    assert 'key: "startupApps", label: "Startup apps", cat: "apps"' in idx
+    assert 'key: "automations", label: "Automations", cat: "automations"' in idx
     # the old hand-written app *entry rows* are gone (toolMeta still owns the
     # settings keys, so check rows, not the whole file)
     rows = [ln for ln in idx.splitlines() if re.match(r"\s*\{\s*key:", ln)]

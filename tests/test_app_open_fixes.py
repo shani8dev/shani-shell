@@ -79,7 +79,7 @@ def test_lazyloader_sources_exist():
 OPENERS = {
     "clocksOpen": ("Ui.clocks = true",),
     "dictionaryOpen": ("Ui.dictionary = true",),
-    "scheduledOpen": ("Ui.scheduled = true",),
+    "scheduledOpen": ('Ui.openSettings("automations")',),   # a Settings page now
     "databaseBrowserOpen": ("Ui.databaseBrowser = true",),
     "disksOpen": ("Ui.disks = true",),
     "authenticatorOpen": ("Ui.authenticator = true",),

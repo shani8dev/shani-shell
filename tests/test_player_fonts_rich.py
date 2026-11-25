@@ -18,7 +18,7 @@ def read(rel):
 # ---- Player: queue, repeat/shuffle, seek drag, volume, gapless, lyrics ----
 
 def test_player_queue_from_folder_with_mpris_tracklist_fallback():
-    t = read("shani/Modules/Player/Player.qml")
+    t = read("shani/Modules/MediaPlayer/OtherPlayersPage.qml")
     # folder queue: a music folder scanned for audio files, capped for perf
     assert "musicFolder" in t
     assert "queue" in t
@@ -35,7 +35,7 @@ def test_player_queue_from_folder_with_mpris_tracklist_fallback():
 
 
 def test_player_repeat_shuffle_volume_seek_gapless_lyrics():
-    t = read("shani/Modules/Player/Player.qml")
+    t = read("shani/Modules/MediaPlayer/OtherPlayersPage.qml")
     # repeat cycling off -> playlist -> track, shuffle toggle
     assert "loopState" in t and "MprisLoopState" in t
     assert "cycleRepeat" in t and "toggleShuffle" in t
@@ -104,14 +104,15 @@ def test_fonts_install_from_file_refreshes_cache_without_freezing():
 
 def test_player_and_fonts_are_registered():
     shell = read("shani/shell.qml")
-    assert 'LazyLoader { active: Ui.player; source: "Modules/Player/Player.qml" }' in shell
+    # the Player panel is the Media Player's "Other apps" page now
+    assert "OtherPlayersPage {" in read("shani/Modules/MediaPlayer/MediaPlayerWindow.qml")
+    assert 'PlayQueue.page = "apps"; PlayQueue.shown = true;' in shell
     assert 'LazyLoader { active: Ui.fonts; source: "Modules/Fonts/FontsPanel.qml" }' in shell
     assert "function togglePlayer(" in shell
     assert "function toggleFonts(" in shell
     ui = read("shani/Common/Ui.qml")
-    assert "property bool player" in ui
     assert "property bool fonts" in ui
-    assert "player = false" in ui and "fonts = false" in ui
+    assert "fonts = false" in ui
     # the rich IPC the CLI drives, and the state it reads back
     for fn in ["function playerSeek(", "function playerVolume(", "function playerShuffle(",
                "function playerRepeat(", "function playerOpen(", "function fontInstall(",
@@ -120,7 +121,7 @@ def test_player_and_fonts_are_registered():
     for key in ["playerVolume", "playerShuffle", "playerLoop", "playerPosition",
                 "playerSeekable"]:
         assert key in shell, key
-    assert "player: Ui.player" in shell and "fonts: Ui.fonts" in shell
+    assert 'player: PlayQueue.shown && PlayQueue.page === "apps"' in shell and "fonts: Ui.fonts" in shell
 
 
 def test_cli_reaches_the_rich_controls():

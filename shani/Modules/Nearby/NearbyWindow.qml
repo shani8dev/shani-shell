@@ -25,6 +25,39 @@ AppWindow {
     }
     function icon(t) { return t === "mobile" ? "phone" : t === "web" ? "web-browser" : t === "server" ? "network-server" : "computer"; }
 
+    // ---- a device handed to someone else (the Gateway window's peers, merged
+    //      here): its address or handle copied, or shown as a QR; found by the
+    //      start of its name; the ones used lately first ---------------------
+    property string search: ""
+    property var recent: []            // fingerprints, newest first
+    property string note: ""
+    Timer { id: noteTimer; interval: 4000; onTriggered: win.note = "" }
+    function flash(msg) { win.note = msg; noteTimer.restart(); }
+    function handleOf(d) {
+        const key = d.fingerprint || d.ip || "";
+        return key ? (d.alias || Tr.t("Nearby device")) + "@" + String(key).slice(0, 8) : (d.alias || "");
+    }
+    function addressOf(d) { return d.ip && d.port ? d.ip + ":" + d.port : ""; }
+    function used(d) { win.recent = [d.fingerprint].concat(win.recent.filter(f => f !== d.fingerprint)).slice(0, 6); }
+    function copyOf(d, what) {
+        const v = what === "address" ? win.addressOf(d) : win.handleOf(d);
+        if (!v) { win.flash(Tr.t("This device has no %1").arg(what === "address" ? Tr.t("address") : Tr.t("handle"))); return; }
+        Quickshell.clipboardText = v;
+        win.used(d);
+        win.flash(what === "address" ? Tr.t("Copied the address") : Tr.t("Copied the handle"));
+    }
+    function qrOf(d) {
+        const v = win.addressOf(d) || win.handleOf(d);
+        if (v) Qr.show(d.alias || Tr.t("Nearby device"), v);
+    }
+    readonly property var shownDevices: {
+        const q = win.search.trim().toLowerCase();
+        const list = Nearby.devices.filter(d => q === "" || String(d.alias || "").toLowerCase().indexOf(q) === 0
+                                               || win.handleOf(d).toLowerCase().indexOf(q) === 0);
+        const rank = d => { const i = win.recent.indexOf(d.fingerprint); return i < 0 ? 99 : i; };
+        return list.slice().sort((a, b) => rank(a) - rank(b));
+    }
+
     Item {
         anchors.fill: parent
         focus: true
@@ -90,6 +123,13 @@ AppWindow {
                 BusyNote { visible: Nearby.scanning; note: Tr.t("Looking…") }
                 IconButton { size: Theme.px(28); icon: "view-refresh"; tip: Tr.t("Look again"); enabled: !Nearby.scanning; onClicked: Nearby.scan() }
             }
+            SearchField {
+                Layout.fillWidth: true
+                visible: Nearby.devices.length > 4 || win.search !== ""
+                placeholder: Tr.t("Type the start of a name or handle")
+                onTextChanged: win.search = text
+            }
+            InfoBanner { Layout.fillWidth: true; visible: win.note !== ""; tone: "ok"; text: win.note }
             ListView {
                 reuseItems: true
                 cacheBuffer: 400
@@ -99,7 +139,7 @@ AppWindow {
                 clip: true
                 spacing: Theme.px(4)
                 boundsBehavior: Flickable.StopAtBounds
-                model: Nearby.devices
+                model: win.shownDevices
                 delegate: ListRow {
                     required property var modelData
                     width: devList.width
@@ -107,7 +147,10 @@ AppWindow {
                     title: modelData.alias
                     subtitle: Nearby.pending.length ? [modelData.deviceModel, modelData.ip].filter(x => x).join("  ·  ") : Tr.t("Click to choose files first")
                     trailing: Nearby.pending.length ? Tr.t("Send") : ""
-                    onClicked: Nearby.pending.length ? Nearby.sendTo(modelData.fingerprint) : win.pick()
+                    onClicked: { win.used(modelData); Nearby.pending.length ? Nearby.sendTo(modelData.fingerprint) : win.pick(); }
+                    IconButton { size: Theme.px(26); icon: "edit-copy"; tip: Tr.t("Copy %1's address").arg(modelData.alias); onClicked: win.copyOf(modelData, "address") }
+                    IconButton { size: Theme.px(26); icon: "contact-new"; tip: Tr.t("Copy %1's handle").arg(modelData.alias); onClicked: win.copyOf(modelData, "handle") }
+                    IconButton { size: Theme.px(26); icon: "view-barcode-qr"; tip: Tr.t("Show QR for %1").arg(modelData.alias); onClicked: win.qrOf(modelData) }
                 }
                 EmptyState {
                     anchors.centerIn: parent

@@ -156,7 +156,7 @@ def test_surfaces_derive_rows_instead_of_hand_copying():
         assert needle in quick, needle
 
     settings = src(SETTINGS)
-    assert "...Tools.list.map(t => {" in settings
+    assert "...Tools.list.filter(t => !t.settings).map(t => {" in settings
     for needle in (
         "label: t.label",
         "link: t.op",
@@ -168,7 +168,8 @@ def test_surfaces_derive_rows_instead_of_hand_copying():
 def test_no_surface_spells_a_catalog_label_itself():
     for rel in SURFACES:
         body = src(rel)
-        for label, _icon, _flag, _op, _words in catalog():
+        # a tool that is a Settings page is named by that page, which Settings spells
+        for label in (row["label"] for row in catalog() if not row.get("settings")):
             assert 'Tr.t("%s")' % label not in body, (rel, label)
             assert 'label: "%s"' % label not in body, (rel, label)
 
@@ -243,10 +244,11 @@ def test_settings_deep_links_agree_with_the_catalog():
     settings = src(SETTINGS)
     meta = re.search(r"var toolMeta = (\{.*?\});", settings, re.S).group(1)
     rows = eval_rows(
-        map_expr(SETTINGS, "...Tools.list.map"), "var toolMeta = " + meta + ";\n"
+        map_expr(SETTINGS, "...Tools.list.filter(t => !t.settings).map"), "var toolMeta = " + meta + ";\n"
     )
-    full = catalog()
+    # tools that are Settings pages have their own literal rows (startupApps, automations)
+    full = [r for r in catalog() if not r.get("settings")]
     assert [r["label"] for r in rows] == [r["label"] for r in full]
     assert [r["link"] for r in rows] == [r["op"] for r in full]
     assert [r["words"].split() for r in rows] == [r["words"][5:].split() for r in full]
-    assert len({r["key"] for r in rows}) == 9
+    assert len({r["key"] for r in rows}) == len(full) == 7

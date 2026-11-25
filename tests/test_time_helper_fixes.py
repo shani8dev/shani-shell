@@ -21,7 +21,7 @@ SITES = {
     "desktop": ROOT / "shani/Modules/Background/DesktopWidgets.qml",
     "sidebar": ROOT / "shani/Modules/ControlCenter/SidebarNowPlaying.qml",
     "quicklook": ROOT / "shani/Modules/QuickLook/QuickLookSheet.qml",
-    "player": ROOT / "shani/Modules/Player/Player.qml",
+    "player": ROOT / "shani/Modules/MediaPlayer/OtherPlayersPage.qml",
 }
 SRC = {name: path.read_text(encoding="utf-8") for name, path in SITES.items()}
 

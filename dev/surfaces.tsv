@@ -44,7 +44,6 @@ FilePickerPanel	-	a layer-shell Overlay the nested niri does not composite; the 
 FilesPanel	app-files files-all-pictures files-cloud files-compare files-copy-history files-copy-paused files-devices files-job files-lock files-properties files-tabs files-thumbs files-unlock files-usb-write	
 FlashAlert	67-flash flash-alert	
 FontsPanel	app-fonts fonts-file	
-GatewayWindow	app-gateway	
 HealthWindow	app-health	
 HotCorners	-	invisible input regions in the screen corners: nothing is drawn
 IrcWindow	app-irc	
@@ -73,14 +72,12 @@ OskButton	-	shows only without a keyboard or with a touchscreen (InputKinds); th
 OverviewSearch	overview-search	
 OverviewStats	30c-overview overview-open	
 PairDialog	68-bt-pair 69-bt-passkey bt-pair-confirm bt-passkey	
-PasswordGeneratorPanel	app-password-generator	
 PasswordsWindow	app-passwords	
 PasteHistoryWindow	app-paste-history	
 PdfReader	app-document-viewer documents-form documents-zoomed	
 PdfSignerPanel	app-pdf-signer	
 PhotosWindow	app-photos app-photos-grid	
 PinCapture	pinned-screenshot	
-Player	media-mini media-resumed	
 PodcastWindow	app-podcasts	
 PolkitDialog	29-polkit 30-polkit-wrong	
 Popups	21-notification-popup 70-notification-cards notification-actions notification-critical notification-dnd notification-popup notification-sms	
@@ -91,7 +88,6 @@ QuickPanel	handheld-quick-panel
 Ring	31-ring 32-ring-sub 65-ring-at-bubble ring-at-point ring-main ring-sub	
 RulerPanel	ruler	
 ScannerPanel	app-document-scanner	
-ScheduledTasksWindow	app-scheduled-tasks	
 ScreenCorners	desktop-rest	the rounded screen corners are drawn in every shot
 ServicesWindow	app-services services-app	
 SettingsWindow	71-settings-categories 72-settings-backup 72-settings-input 73-settings-apps 74-settings-date-language 75-settings-about 76-settings-layouts 77-settings-account 78-settings-look 79-settings-sound 86-settings-displays 88-settings-shortcuts 89-settings-privacy settings-about settings-access settings-account settings-apps settings-automations settings-backup settings-battery settings-chronoa settings-date-language settings-displays settings-input settings-journal settings-main settings-modules settings-network settings-notifications settings-personal settings-personal-colours settings-power settings-power-keys settings-printers settings-privacy settings-screen-time settings-search settings-search-empty settings-search-empty-folders settings-search-proxy settings-security settings-sharing settings-sharing-nearby settings-sound settings-storage settings-terminal settings-time settings-users settings-windows	
@@ -99,7 +95,6 @@ ShareSheet	70-share-sheet share-sheet
 Sidebar	25-sidebar 45-sidebar-shelf 55-sidebar-tiles-mic cc-access cc-audio cc-bluetooth cc-display cc-focus cc-main cc-phone cc-power cc-record cc-timer cc-vpn cc-wifi	
 SoftwareWindow	app-software app-software-page	
 StartHints	26i-start-hints	
-StartupManager	app-startup-manager	
 StudioWindow	app-studio	
 Switcher	33-switcher switcher-open	
 TasksWindow	app-tasks app-tasks-list	

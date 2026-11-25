@@ -1,7 +1,7 @@
 // The VPN client panel: the NetworkManager connections bridge/vpn.py reports,
 // with connect/disconnect, an autoconnect switch, profile import through the
 // shell's own FilePicker, per-connection counters and a two-step delete. The
-// Gateway window can embed this Item next to its peers; the service owns all
+// Settings > Network embeds this Item (Gateway, which also did, was merged); the service owns all
 // process work, so this surface only renders state and asks for changes.
 //
 // A system-bus SecretAgent (automatic VPN credentials) is out of scope here.

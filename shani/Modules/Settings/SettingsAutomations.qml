@@ -37,6 +37,27 @@ ColumnLayout {
     function setRules(list) { d.automations = list; }
     function rulesCopy() { return JSON.parse(JSON.stringify(Array.from(d.automations))); }
 
+    // ---- from the Scheduled tasks window (merged here): an open task's due
+    // time as a rule, and the recent firings ---------------------------------
+    property bool taskPicker: false
+    property string taskNote: ""
+    readonly property var schedulableTasks: Tasks.open.filter(t => t.due > 0)
+    function taskClock(t) {
+        const dt = new Date((t && t.due || 0) * 1000);
+        return t && t.due && !isNaN(dt.getTime()) ? Qt.formatTime(dt, "HH:mm") : "";
+    }
+    function shellQuote(s) { return "'" + String(s || "").replace(/'/g, "'\\''") + "'"; }
+    function addFromTask(t) {
+        if (!t || !t.due) return;
+        // one rule per task: a second click or a reschedule must not pile up rules
+        if (Array.from(d.automations).some(r => r.uid === t.uid)) { page.taskNote = Tr.t("That task already has a rule"); return; }
+        const l = page.rulesCopy();
+        l.push({ uid: t.uid, when: "time", is: page.taskClock(t), then: "run",
+                 arg: "notify-send " + page.shellQuote(t.summary || Tr.t("Task")), on: true });
+        page.setRules(l);
+        page.taskPicker = false; page.taskNote = "";
+    }
+
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("When this happens, do that")
@@ -69,8 +90,77 @@ ColumnLayout {
                     text: Tr.t("Conflicting rule")
                     Layout.alignment: Qt.AlignVCenter
                 }
+                IconButton {
+                    icon: "media-play"; tip: Tr.t("Run now")
+                    Accessible.name: Tr.t("Run now: ") + page.sentence(modelData)
+                    onClicked: Automations.act(modelData)
+                }
                 IconButton { icon: "document-edit"; tip: Tr.t("Edit"); onClicked: page.loadRule(modelData, index) }
                 IconButton { icon: "edit-delete"; tip: Tr.t("Remove"); onClicked: { if (page.editIndex >= 0) page.resetForm(); const l = page.rulesCopy(); l.splice(index, 1); page.setRules(l); } }
+            }
+        }
+    }
+
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("From Tasks")
+        Button {
+            flat: true
+            text: Tr.t("Add from Tasks")
+            Accessible.name: Tr.t("Schedule a rule from an open task")
+            onClicked: { page.taskPicker = !page.taskPicker; if (page.taskPicker) Tasks.refresh(); }
+        }
+        Repeater {
+            model: page.taskPicker ? page.schedulableTasks : []
+            SettingRow {
+                required property var modelData
+                Layout.fillWidth: true
+                icon: "appointment-new"
+                title: modelData.summary
+                subtitle: page.taskClock(modelData)
+                Button {
+                    flat: true
+                    text: Tr.t("Add rule")
+                    Accessible.name: Tr.t("Schedule %1").arg(modelData.summary)
+                    onClicked: page.addFromTask(modelData)
+                }
+            }
+        }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.taskPicker && page.schedulableTasks.length === 0
+            tone: "info"
+            text: Tr.t("No open tasks have a due time")
+        }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.taskNote !== ""
+            tone: "warn"
+            text: page.taskNote
+        }
+    }
+
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Recent firings") + (Automations.fired.length > 0 ? " (" + Automations.fired.length + ")" : "")
+        Text {
+            Layout.fillWidth: true
+            visible: Automations.fired.length === 0
+            text: Tr.t("Nothing has fired yet")
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
+        Repeater {
+            model: Automations.fired
+            RowLayout {
+                required property var modelData
+                Layout.fillWidth: true
+                spacing: Theme.px(8)
+                Text { text: Qt.formatDateTime(modelData.at, "hh:mm"); color: Theme.dim
+                       font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { Layout.fillWidth: true; text: modelData.rule; elide: Text.ElideRight; color: Theme.text
+                       font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
             }
         }
     }

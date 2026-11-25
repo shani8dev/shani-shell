@@ -14,7 +14,8 @@ def read(rel):
 
 
 def test_calculator_log_is_base_10_ln_is_natural():
-    q = read("shani/Services/Calculator.qml")
+    # the evaluator is Common/Calc.js, shared with the launcher; the service passes its angle unit
+    q = read("shani/Services/Calculator.qml") + read("shani/Common/Calc.js")
     assert '"Math.log10("' in q and '"Math.log("' in q
     assert "/Math\\.log\\(/g" in q and "/Math\\.ln\\(/g" in q
     assert 'replace(/\\bln\\(/gi, "log(")' not in q

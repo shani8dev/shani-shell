@@ -14,7 +14,7 @@ def read(rel):
 
 
 SHARE = lambda: read("shani/Services/Share.qml")
-GW = lambda: read("shani/Modules/GatewayWindow.qml")
+GW = lambda: read("shani/Modules/Nearby/NearbyWindow.qml")
 PH = lambda: read("shani/Modules/PasteHistoryWindow.qml")
 LAUNCH = lambda: read("shani/Modules/Launcher/Launcher.qml")
 
@@ -35,31 +35,27 @@ def function_body(src, name):
 
 
 def test_share_sends_the_shared_file_to_gateway():
+    # the sheet's Nearby target hands the files over directly - no clipboard
     s = SHARE()
-    assert 'Tr.t("Send to gateway peer")' in s
-    assert "function sendToGatewayPeer(paths)" in s
-    assert 'Quickshell.clipboardText = "shani-gateway:" + fs[0];' in s
-    assert "Ui.gateway = true;" in s
-    assert "run: () => root.sendToGatewayPeer()" in s
+    assert "run: () => { Nearby.pending = root.files; Ui.closeAll(); Ui.nearby = true; }" in s
+    assert "shani-gateway:" not in s and "Send to gateway peer" not in s
 
 
 def test_share_copies_a_share_link():
+    # a link that works: the folder served by serve.py, the file's address copied
     s = SHARE()
-    assert 'Tr.t("Copy as share link")' in s
-    assert "function shareLink()" in s
-    assert '"https://gateway.local/share/" + encodeURIComponent(p)' in s
-    assert "Quickshell.clipboardText = link;" in s
+    assert "function copyShareLink()" in s and "Files.serveFolder(dir, false)" in s
+    assert "root.linkTo(Files.servedUrl, p)" in s
+    assert "https://gateway.local" not in s.replace("It used to be a\n    // https://gateway.local", "")
 
 
 def test_files_file_action_reaches_the_gateway_peer_target():
-    # Files reaches Share through its existing "Share…" action; the sheet's
-    # "Send to gateway peer" target takes a path argument for that handoff.
+    # Files reaches Share through its existing "Share…" action, and the sheet's
+    # Nearby target sends to the devices Gateway used to list
     files_actions = read("shani/Services/FileActions.qml")
     assert 'add("share", Tr.t("Share…"), "emblem-shared", "")' in files_actions
     assert 'if (id === "share") { Share.open(fs[0]); return; }' in files_actions
-    s = SHARE()
-    assert 'Tr.t("Send to gateway peer")' in s
-    assert 'paths ? (typeof paths === "string" ? [paths]' in s
+    assert 'label: Tr.t("Nearby devices (LocalSend)")' in SHARE()
 
 
 def test_launcher_clipboard_mode_opens_paste_history():
@@ -95,12 +91,6 @@ def test_paste_history_opens_text_snippets_in_the_editor():
 
 
 def test_gateway_prefills_from_clipboard_without_inventing_an_error():
-    g = GW()
-    assert "function prefillFromClipboard()" in g
-    assert "function looksLikeHandleOrUrl(text)" in g
-    assert "win.prefillFromClipboard()" in g
-    assert "win.search = m ? decodeURIComponent(m[1]) : t;" in g
-    assert "win.pendingFile = handoffCheck.checkedPath;" in g  # verified path only
-    # A prefill is a note about the clipboard, never a peer failure.
-    assert "peerError" not in function_body(g, "prefillFromClipboard")
-    assert 'visible: win.peerError !== ""' in g
+    # the clipboard handoff is gone with the window: Nearby gets the files
+    # directly, so a person's clipboard is never overwritten to pass a path
+    assert "Quickshell.clipboardText = \"shani-gateway:" not in SHARE()

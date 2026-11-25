@@ -1,4 +1,5 @@
-// The player surface: now playing with album art, controls, a seek bar
+// Media Player > Other apps (was the Player panel): any app's player over MPRIS
+// - now playing with album art, controls, a seek bar
 // and a folder queue (Decibels parity). Follows Media.current; the source
 // list lets you follow any of Media.players instead (remembered in
 // Settings.preferredPlayer). The queue scans a music folder for audio
@@ -8,7 +9,6 @@
 // Quickshell does not expose it yet, so the folder queue is the fallback.
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
 import Quickshell.Widgets
 import Quickshell.Services.Mpris
 import QtQuick
@@ -18,29 +18,20 @@ import qs.Common
 import qs.Services
 import "../../Common/Time.js" as Time
 
-PanelWindow {
+Item {
     id: win
-    visible: Ui.player && !Lock.locked
-    screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
-    anchors { top: true; bottom: true; left: true; right: true }
-    color: Theme.scrim
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "shani-player"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
-    BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurRegion : null
-    Region { id: blurRegion; item: card; radius: Theme.radiusLarge }
-
+    // shown as a page of the Media Player window; the window sets it
+    property bool pageShown: false
     readonly property var player: Media.current
     // the track's position, sampled while it plays (the bar moves)
     property real shown: player ? player.position : 0
     property bool dragging: false
     onPlayerChanged: shown = player ? player.position : 0
-    onVisibleChanged: { Lyrics.wanted = visible; if (visible) win.refreshQueue(); }
-    Component.onCompleted: Lyrics.wanted = visible
+    onPageShownChanged: { Lyrics.wanted = pageShown; if (pageShown) win.refreshQueue(); }
+    Component.onCompleted: { Lyrics.wanted = pageShown; if (pageShown) win.refreshQueue(); }
     Timer {
         interval: 400
-        running: win.visible && win.player && win.player.isPlaying && !win.dragging
+        running: win.pageShown && win.player && win.player.isPlaying && !win.dragging
         repeat: true
         onTriggered: win.shown = win.player.position
     }
@@ -170,11 +161,9 @@ PanelWindow {
         }
     }
 
-    MouseArea { objectName: "nav:pointer"; anchors.fill: parent; onClicked: Ui.player = false }
     Item {
         anchors.fill: parent
-        focus: win.visible
-        Keys.onEscapePressed: Ui.player = false
+        focus: win.pageShown
         Keys.onPressed: e => {
             if (e.key === Qt.Key_Space) {
                 if (win.player && win.player.canControl)
@@ -190,14 +179,9 @@ PanelWindow {
         }
     }
 
-    Glass {
+    Item {
         id: card
-        anchors.centerIn: parent
-        width: Math.min(560, parent.width - 40)
-        height: Math.min(680, parent.height - 80)
-        strong: true
-        radius: Theme.radiusLarge
-
+        anchors.fill: parent
         MouseArea { anchors.fill: parent }
 
         ColumnLayout {
@@ -225,12 +209,6 @@ PanelWindow {
                     size: Theme.px(28)
                     tip: Tr.t("Refresh queue")
                     onClicked: win.refreshQueue()
-                }
-                IconButton {
-                    icon: "window-close"
-                    size: Theme.px(28)
-                    tip: Tr.t("Close")
-                    onClicked: Ui.player = false
                 }
             }
 

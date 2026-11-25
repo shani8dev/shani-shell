@@ -85,7 +85,9 @@ AppWindow {
         Choice { text: Tr.t("Library"); selected: win.page === "library"; onClicked: win.page = "library" },
         Choice { text: Tr.t("Radio"); selected: win.page === "radio"; onClicked: { win.page = "radio"; if (Radio.showing === "") Radio.show(Radio.favourites.length ? "favourites" : "featured"); } },
         Choice { text: Tr.t("Live TV"); selected: win.page === "live"; onClicked: { win.page = "live"; if (LiveTv.channels.length === 0) { if (LiveTv.source) LiveTv.load(LiveTv.source); else LiveTv.loadDefaults(); } } },
-        Choice { text: Tr.t("Now playing"); selected: win.page === "playing"; enabled: PlayQueue.current !== ""; onClicked: win.page = "playing" }
+        Choice { text: Tr.t("Now playing"); selected: win.page === "playing"; enabled: PlayQueue.current !== ""; onClicked: win.page = "playing" },
+        // another app's player (Spotify, a browser…) over MPRIS: the Player panel, merged here
+        Choice { text: Tr.t("Other apps"); selected: win.page === "apps"; onClicked: win.page = "apps" }
     ]
 
     // where it is, every few seconds while it plays, for next time
@@ -385,6 +387,12 @@ AppWindow {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     visible: win.page === "live" && !win.mini
+                }
+                OtherPlayersPage {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    visible: win.page === "apps" && !win.mini
+                    pageShown: visible && win.visible
                 }
                 // ---- the picture (or, for music, what is playing) ----
                 Rectangle {

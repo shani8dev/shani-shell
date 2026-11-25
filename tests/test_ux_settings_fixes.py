@@ -67,11 +67,9 @@ def test_open_setting_uses_explicit_link_map():
     for ipc, flag in (
         ("dictionaryOpen", "dictionary"),
         ("podcastsOpen", "podcasts"),
-        ("scheduledOpen", "scheduled"),
         ("teleprompterOpen", "teleprompter"),
         ("netToolsOpen", "netTools"),
-        ("startupManagerOpen", "startupManager"),
-        ("gatewayOpen", "gateway"),
+        ("gatewayOpen", "nearby"),
         ("databaseBrowserOpen", "databaseBrowser"),
         ("pasteHistoryOpen", "pasteHistory"),
         ("cloudSyncOpen", "cloudSync"),

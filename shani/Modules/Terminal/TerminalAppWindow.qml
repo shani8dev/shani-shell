@@ -11,7 +11,9 @@ import qs.Services
 
 AppWindow {
     id: win
-    appName: "Terminal"
+    // "Remote Hosts", not "Terminal": it manages SSH hosts and keys; the
+    // terminal itself is foot (Services/Terminal)
+    appName: "Remote Hosts"
     visible: Ui.terminalApp
     onGone: Ui.terminalApp = false
     implicitWidth: Theme.px(680)

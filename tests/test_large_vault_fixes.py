@@ -190,10 +190,11 @@ def test_unit_strength_scoring_branches(tmp_path):
 def test_generator_uses_python_secrets_and_hands_off_to_the_form():
     s = read(PW)
     gen = block(s, "function generateForForm()", "    // Export/import vault")
-    assert "import secrets, string" in gen
-    assert 'gen.command = ["python3", "-c"' in gen
-    assert "secrets.choice(alphabet)" in gen
-    assert "Math.random(" not in s
+    # one script for the form and the Generator tab (Services/PasswordGen)
+    assert "gen.command = PasswordGen.command(20, true, true, false);" in gen
+    svc = read(ROOT / "shani/Services/PasswordGen.qml")
+    assert "import secrets, string" in svc and "secrets.choice(alphabet)" in svc
+    assert "Math.random(" not in s and "Math.random(" not in svc
     assert "newSecret.text = pw;" in s
     assert 'Button { text: Tr.t("Generate")' in s
     assert "attrs.category = newCategory.text.trim();" in s

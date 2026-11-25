@@ -17,7 +17,7 @@ def read(rel: str) -> str:
 
 PODCASTS = read("shani/Services/Podcasts.qml")
 DICTIONARY = read("shani/Modules/Dictionary.qml")
-SCHEDULED = read("shani/Modules/ScheduledTasksWindow.qml")
+SCHEDULED = read("shani/Modules/Settings/SettingsAutomations.qml")   # Scheduled tasks, merged
 PODCAST_WINDOW = read("shani/Modules/MediaPlayer/PodcastWindow.qml")
 
 
@@ -55,24 +55,14 @@ def test_dictionary_is_an_offline_window_over_its_bundled_entries():
 
 
 def test_scheduled_tasks_window_reads_and_writes_the_services():
-    assert "AppWindow {" in SCHEDULED
-    assert 'appName: Tr.t("Scheduled tasks")' in SCHEDULED
-    assert "visible: Ui.scheduled" in SCHEDULED
-    assert "onGone: Ui.scheduled = false" in SCHEDULED
-    assert "readonly property var rules: Automations.rules" in SCHEDULED
-    assert "readonly property var fired: Automations.fired" in SCHEDULED
-    assert "readonly property var hooks: Settings.data.hooks || {}" in SCHEDULED
-    assert "function setRuleOn(i, on)" in SCHEDULED
-    assert "Automations.prime();" in SCHEDULED
-    assert "Automations.rulesChanged();" in SCHEDULED
-    assert "function removeRule(i)" in SCHEDULED
-    assert "function addRule()" in SCHEDULED
-    assert 'if (win.is === "")' in SCHEDULED
-    assert (
-        '(win.then === "run" || win.then === "volume") && win.arg === ""' in SCHEDULED
-    )
-    assert "Settings.data.hooks = h" in SCHEDULED
-    assert "model: win.fired" in SCHEDULED
+    # merged into Settings > Automations: rules, run now, hooks and the firings
+    assert "model: page.d.automations" in SCHEDULED
+    assert "function setRules(list)" in SCHEDULED and "function rulesCopy()" in SCHEDULED
+    assert "onClicked: Automations.act(modelData)" in SCHEDULED          # Run now
+    assert "model: Automations.fired" in SCHEDULED                       # Recent firings
+    assert "Settings.data.hooks" in SCHEDULED
+    tools = read("shani/Common/Tools.js")
+    assert 'op: "scheduledOpen", settings: "automations"' in tools
 
 
 def test_podcast_window_is_registered_and_drives_the_podcasts_service():

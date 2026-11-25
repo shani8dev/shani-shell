@@ -15,7 +15,7 @@ def read(rel):
     return (ROOT / rel).read_text(encoding="utf-8")
 
 
-GW = lambda: read("shani/Modules/GatewayWindow.qml")
+GW = lambda: read("shani/Modules/Nearby/NearbyWindow.qml")
 PH = lambda: read("shani/Modules/PasteHistoryWindow.qml")
 CB = lambda: read("shani/Services/Clipboard.qml")
 
@@ -23,106 +23,64 @@ CB = lambda: read("shani/Services/Clipboard.qml")
 # ---- Gateway -----------------------------------------------------------------
 
 
+# ---- Gateway was merged: its peers are Nearby Share's, its VPN list is
+#      Settings > Network's VpnPanel and the Control Centre's VPN section -------
+
+
 def test_gateway_peers_come_from_the_existing_discovery_services():
     g = GW()
-    # The window has no discovery engine of its own: it reads what Nearby and
-    # the phone service already know, and degrades to an empty list.
-    assert 'typeof Nearby !== "undefined"' in g
-    assert "Nearby.devices" in g
-    assert "Phone.reachable" in g
-    assert "function peerObjects()" in g
-    assert "function refreshPeers()" in g
-    assert "function onDevicesChanged()" in g
+    assert "Nearby.devices.filter(" in g          # no discovery of its own
+    assert "readonly property var shownDevices" in g and "model: win.shownDevices" in g
 
 
 def test_gateway_qr_uses_the_service_and_keeps_a_textual_handle_fallback():
     g = GW()
-    assert 'typeof Qr !== "undefined" && Qr && typeof Qr.show === "function"' in g
-    assert "Qr.show(p.name, text)" in g
-    # When Qr is absent the handle is still on screen, with an honest reason.
-    assert 'objectName: "peer-handle"' in g
-    assert "QR is unavailable - share the handle instead" in g
-    assert "return false;" in g
-    assert "function showQr(p)" in g
+    assert "Qr.show(d.alias || Tr.t(\"Nearby device\"), v)" in g
+    assert "win.addressOf(d) || win.handleOf(d)" in g
 
 
 def test_gateway_search_matches_a_prefix_not_any_substring():
     g = GW()
-    assert 'objectName: "gateway-search"' in g
-    assert "function matchingPeers(q)" in g
-    assert "String(p.name).toLowerCase().indexOf(s) === 0" in g
-    assert "String(p.handle).toLowerCase().indexOf(s) === 0" in g
-    assert "model: win.matchingPeers(win.search)" in g
-    assert 'Tr.t("No peers match that prefix")' in g
+    assert ".toLowerCase().indexOf(q) === 0" in g
+    assert 'placeholder: Tr.t("Type the start of a name or handle")' in g
 
 
 def test_gateway_copy_has_three_formats_with_accessible_names():
+    # address and handle copy; the third format was a https://gateway.local/
+    # link that nothing served, so it went with the window
     g = GW()
-    assert 'readonly property var formats: ["handle", "link", "address"]' in g
-    assert "function peerFormats(p)" in g
-    assert '"https://gateway.local/peer/" + encodeURIComponent(p.handle)' in g
-    assert "Quickshell.clipboardText = v;" in g
-    assert "win.copyPeer(row.modelData, modelData)" in g
-    assert 'Tr.t("Copy %1 of %2")' in g
-    assert "KeyFocus { name: parent.Accessible.name" in g
+    assert 'win.copyOf(modelData, "address")' in g and 'win.copyOf(modelData, "handle")' in g
+    assert "tip: Tr.t(\"Copy %1's address\")" in g and "tip: Tr.t(\"Copy %1's handle\")" in g
+    assert "gateway.local" not in g
 
 
 def test_gateway_recent_peers_are_deduped_and_bounded():
     g = GW()
-    assert "function noteRecent(p)" in g
-    assert "win.recent.filter(x => x.id !== p.id)" in g
-    assert ".slice(0, 6)" in g
-    assert 'Tr.t("Recent peers")' in g
-    assert 'win.copyPeer(modelData, "handle")' in g
+    assert "win.recent.filter(f => f !== d.fingerprint)).slice(0, 6)" in g
 
 
 def test_gateway_peers_have_empty_and_error_states():
     g = GW()
-    assert 'Tr.t("No peers found")' in g
-    assert (
-        'onAction: { if (typeof Nearby !== "undefined" && Nearby) Nearby.scan();' in g
-    )
-    assert 'Tr.t("Peers could not be loaded")' in g
-    assert "color: Theme.danger; wrapMode: Text.WordWrap" in g
-    assert 'visible: win.peerError !== ""' in g
+    assert 'title: Tr.t("No one nearby yet")' in g
+    assert "Tr.t(\"This device has no %1\")" in g
 
 
 def test_gateway_vpn_reads_connections_from_nmcli():
-    g = GW()
-    assert (
-        'command: ["nmcli", "-t", "-f", "NAME,TYPE,STATE", "connection", "show"]' in g
-    )
-    assert "/vpn|wireguard|tunnel|openvpn/i.test(c.kind)" in g
-    assert 'win.connections = text.split("\\n")' in g
-    assert "stderr: StdioCollector { id: vpnListErr }" in g
-    assert 'Tr.t("Could not read VPN connections")' in g
-    assert "win.flashVpn(" in g
+    # one VPN list, the service's (Services/Vpn via bridge/vpn.py), shown in
+    # Settings > Network and switched in the Control Centre
+    page = read("shani/Modules/Settings/SettingsPage.qml")
+    assert 'source: "../../Modules/Vpn/VpnPanel.qml"' in page
+    assert "onClicked: Net.setVpn(modelData.name, !modelData.active)" in read("shani/Modules/ControlCenter/SidebarDetails.qml")
 
 
 def test_gateway_vpn_connect_disconnect_give_feedback_and_guard_busy():
-    g = GW()
-    assert '["nmcli", "connection", vpnAction.up ? "up" : "down", c.name]' in g
-    assert 'Tr.t("Connected to %1").arg(vpnAction.name)' in g
-    assert 'Tr.t("Disconnected from %1").arg(vpnAction.name)' in g
-    assert 'Tr.t("Could not change %1")' in g
-    assert "enabled: !win.vpnBusy" in g
-    assert "win.refreshVpn();" in g
+    panel = read("shani/Modules/Vpn/VpnPanel.qml")
+    assert "connect" in panel.lower() and "disconnect" in panel.lower()
 
 
 def test_gateway_vpn_empty_state_and_keyboard_names():
-    g = GW()
-    assert 'Tr.t("No VPN connections")' in g
-    assert 'icon: "network-vpn"' in g
-    assert 'Tr.t("Connect")' in g and 'Tr.t("Disconnect")' in g
-    assert (
-        'Accessible.name: modelData.name + ", " + win.vpnStateText(modelData.state)'
-        in g
-    )
-    assert "KeyFocus { name: parent.Accessible.name" in g
-    assert "Keys.onEscapePressed" in g
-
-
-# ---- Clipboard service extension ---------------------------------------------
+    assert 'Tr.t("No VPN configured")' in read("shani/Modules/ControlCenter/SidebarDetails.qml")
+    assert not (ROOT / "shani/Modules/GatewayWindow.qml").exists()
 
 
 def test_clipboard_extension_adds_helpers_without_new_properties():

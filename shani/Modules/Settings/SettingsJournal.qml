@@ -24,10 +24,9 @@ ColumnLayout {
     property string confirmingStorage: ""
     Timer { id: storageConfirmTimer; interval: 4000; onTriggered: page.confirmingStorage = "" }
     property bool busy: false
-    property string logText: ""
 
-    onActiveChanged: if (active) { load(); loadLog(); }
-    Component.onCompleted: if (active) { load(); loadLog(); }
+    onActiveChanged: if (active) load()
+    Component.onCompleted: if (active) load()
 
     Process {
         id: getProc; command: ["sh","-c","f=/etc/systemd/journald.conf.d/50-shani-shell.conf; [ -r \"$f\" ] && grep -E '^(Storage|SystemMaxUse|ForwardToSyslog|Compress|Seal|RateLimitIntervalSec|RateLimitBurst)=' \"$f\" || true"]
@@ -73,8 +72,6 @@ ColumnLayout {
         onExited: code => { stdinEnabled = true; page.busy = false; page.note = code === 0 ? (vacOut.text.trim().split("\n").pop() || Tr.t("Vacuum complete")) : (vacErr.text.trim().split("\n").pop() || Tr.t("Vacuum failed")); page.noteOk = code === 0; }
     }
     function vacuum() { page.busy = true; page.note = ""; vacProc.payload = JSON.stringify({ mode: "size", value: vacField.text.trim() || "500M" }); vacProc.command = page.adminCmd.concat(["journald-vacuum"]); vacProc.running = true; }
-    Process { id: logProc; command: ["journalctl", "-n", "80", "--no-pager", "-o", "short"]; stdout: StdioCollector { onStreamFinished: page.logText = text } }
-    function loadLog() { logProc.running = false; logProc.running = true; }
 
     SettingsSection {
         Layout.fillWidth: true
@@ -171,17 +168,18 @@ ColumnLayout {
         text: page.note
     }
 
+    // reading the log is the Logs app's (filters, search, an entry's details,
+    // follow); this page keeps the journal's storage. Its own 80-line copy of a
+    // log view was a second, smaller viewer.
     SettingsSection {
         Layout.fillWidth: true
-        title: Tr.t("Recent log")
-        RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } Button { text: Tr.t("Refresh"); onClicked: page.loadLog() } }
-        Rectangle {
-            Layout.fillWidth: true; Layout.preferredHeight: Theme.px(220)
-            radius: Theme.radiusSmall; color: Theme.surface1; border.width: 1; border.color: Theme.stroke
-            Flickable {
-                anchors.fill: parent; anchors.margins: Theme.px(8); clip: true; contentHeight: logBody.implicitHeight
-                Text { id: logBody; width: parent.width; text: page.logText || Tr.t("No log loaded."); color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale; wrapMode: Text.WrapAnywhere }
-            }
+        title: Tr.t("Read the log")
+        SettingRow {
+            Layout.fillWidth: true
+            icon: "gnome-logs"
+            title: Tr.t("Open Logs")
+            subtitle: Tr.t("Everything the system wrote down, with filters and search")
+            onClicked: { Ui.closeAll(); Ui.logs = true; }
         }
     }
 }

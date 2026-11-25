@@ -28,7 +28,7 @@ def test_qr_action_buttons_guard_missing_data():
 
 
 def test_password_generate_reports_failure():
-    q = read("shani/Modules/PasswordGenerator/PasswordGeneratorPanel.qml")
+    q = read("shani/Modules/Passwords/PasswordGenerator.qml")
     # A failed/empty generation must not silently keep stale state.
     assert "onExited" in q
     assert "code !== 0" in q or "code != 0" in q
@@ -36,7 +36,7 @@ def test_password_generate_reports_failure():
 
 
 def test_password_hidden_can_be_revealed():
-    q = read("shani/Modules/PasswordGenerator/PasswordGeneratorPanel.qml")
+    q = read("shani/Modules/Passwords/PasswordGenerator.qml")
     # After the 30s auto-hide, the person must be able to reveal the password again.
     assert "reveal" in q.lower()
     assert "generatedHidden = false" in q
@@ -45,7 +45,7 @@ def test_password_hidden_can_be_revealed():
 
 
 def test_password_words_fallback_is_reported():
-    q = read("shani/Modules/PasswordGenerator/PasswordGeneratorPanel.qml")
+    q = read("shani/Modules/Passwords/PasswordGenerator.qml")
     # Words mode falls back to characters when no usable dict exists; say so.
     assert "wordsFallback" in q
     assert "FALLBACK" in q

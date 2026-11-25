@@ -20,7 +20,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Widgets
 import QtQuick
-import "Calc.js" as Calc
+import "../../Common/Calc.js" as Calc
 import "Fuzzy.js" as Fuzzy
 import QtQuick.Layouts
 import qs.Common
@@ -514,7 +514,8 @@ PanelWindow {
         }
 
         const math = q.startsWith("=") ? q.slice(1) : q;
-        const v = math !== "" ? Calc.calc(math) : null;
+        // the Calculator app's angle unit, so sin(30) means the same everywhere
+        const v = math !== "" ? Calc.calc(math, Calculator.angleUnit) : null;
         if (v !== null && Settings.data.searchCalc)
             out.push({ title: Tr.t("Calculator"), group: "calc", items: [{ kind: "calc", icon: "accessories-calculator", title: "= " + v, subtitle: Tr.t("Enter copies the result"), run: () => Quickshell.clipboardText = String(v) }] });
         const conv = Settings.data.searchCalc ? Calc.convert(q) : null;

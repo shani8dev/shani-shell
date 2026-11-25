@@ -21,7 +21,7 @@ NEW_FLAGS = [
     "netTools",
     "databaseBrowser",
     "startupManager",
-    "gateway",
+    "nearby",
     "pasteHistory",
     "scheduled",
 ]
@@ -49,7 +49,11 @@ def test_new_app_tiles_are_wired():
     # The nine tool tiles are now generated from Tools.list via a Repeater;
     # each flag comes from the shared catalog and opens its own Ui flag.
     tools = (SHANI / "Common/Tools.js").read_text()
+    pages = {"startupManager": "apps", "scheduled": "automations"}   # tools that are Settings pages now
     for flag in NEW_FLAGS:
+        if flag in pages:
+            assert 'settings: "%s"' % pages[flag] in tools, flag
+            continue
         assert re.search(r"property bool %s\b" % flag, ui_src), (
             "Ui.%s is not declared" % flag
         )

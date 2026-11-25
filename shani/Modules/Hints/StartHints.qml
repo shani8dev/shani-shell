@@ -46,7 +46,7 @@ PanelWindow {
             }
             Repeater {
                 model: [{ keys: "Super + Space", what: Tr.t("open an app, a file or a setting - just type") },
-                        { keys: "Super + Space", what: Tr.t("find tools: type tool: for Dictionary, Podcasts, Network Tools and Gateway") },
+                        { keys: "Super + Space", what: Tr.t("find tools: type tool: for Dictionary, Podcasts, Network Tools and Nearby Share") },
                         { keys: "Super + O", what: Tr.t("see every window and workspace") },
                         { keys: "Super + ,", what: Tr.t("Wi-Fi, sound, brightness and more") },
                         { keys: "Super + S", what: Tr.t("read, scan or ask about anything on screen") },

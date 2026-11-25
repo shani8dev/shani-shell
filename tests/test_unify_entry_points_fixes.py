@@ -30,10 +30,10 @@ CANONICAL = [
     ("Teleprompter", "view-list-text", "teleprompter"),
     ("Network Tools", "network-workgroup", "netTools"),
     ("Database browser", "database", "databaseBrowser"),
-    ("Startup manager", "system-run", "startupManager"),
-    ("Gateway", "network-server", "gateway"),
+    ("Startup apps", "system-run", "startupManager"),
+    ("Nearby Share", "network-wireless", "nearby"),
     ("Paste history", "edit-paste", "pasteHistory"),
-    ("Scheduled tasks", "x-office-calendar", "scheduled"),
+    ("Automations", "x-office-calendar", "scheduled"),
 ]
 TIDS = {
     "Dictionary": "dictionary",
@@ -41,10 +41,10 @@ TIDS = {
     "Teleprompter": "teleprompter",
     "Network Tools": "netTools",
     "Database browser": "databaseBrowser",
-    "Startup manager": "startupManager",
-    "Gateway": "gateway",
+    "Startup apps": "startupManager",
+    "Nearby Share": "nearby",
     "Paste history": "pasteHistory",
-    "Scheduled tasks": "scheduled",
+    "Automations": "scheduled",
 }
 # each tool window except the loupe resets its flag when it goes away
 WINDOWS = {
@@ -53,10 +53,8 @@ WINDOWS = {
     "teleprompter": "shani/Modules/Teleprompter.qml",
     "netTools": "shani/Modules/NetTools.qml",
     "databaseBrowser": "shani/Modules/DatabaseBrowser.qml",
-    "startupManager": "shani/Modules/StartupManager.qml",
-    "gateway": "shani/Modules/GatewayWindow.qml",
+    "nearby": "shani/Modules/Nearby/NearbyWindow.qml",
     "pasteHistory": "shani/Modules/PasteHistoryWindow.qml",
-    "scheduled": "shani/Modules/ScheduledTasksWindow.qml",
 }
 
 
@@ -204,7 +202,13 @@ def test_6_every_full_surface_reaches_all_nine_tools():
     assert "function openTool(flag)" in ui and "root[flag] = true" in ui
     for rel, region in regions.items():
         assert "Tools.list" in region, rel
+    tools = src("shani/Common/Tools.js")
+    pages = {"startupManager": "apps", "scheduled": "automations"}   # tools that are Settings pages now
+    assert "if (tool.settings) { openSettings(tool.settings); return; }" in ui
     for _, _, flag in CANONICAL:
+        if flag in pages:
+            assert 'flag: "%s", op: "%sOpen", settings: "%s"' % (flag, flag, pages[flag]) in tools, flag
+            continue
         # openTool sets the flag by name: it must be a real Ui property
         assert re.search(r"property bool %s\b" % flag, ui), flag
 

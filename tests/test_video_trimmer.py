@@ -353,7 +353,7 @@ def test_cli_trim_group_maps_onto_real_ipc_functions():
 
 
 def test_player_and_camera_offer_trim():
-    player = (SHANI / "Modules/Player/Player.qml").read_text()
+    player = (SHANI / "Modules/MediaPlayer/OtherPlayersPage.qml").read_text()
     camera = (SHANI / "Modules/Camera/CameraPanel.qml").read_text()
     assert "Trim" in player and "openTrim" in player
     assert "Trim" in camera and "Trim video" in camera

@@ -54,14 +54,14 @@ def test_start_hints_teaches_the_launcher_tool_operator():
     s = source("shani/Modules/Hints/StartHints.qml")
     # one more entry in the existing hints model - no new state was added
     assert 'model: [{ keys: "Super + Space", what: Tr.t("open an app' in s
-    assert "find tools: type tool: for Dictionary, Podcasts, Network Tools and Gateway" in s
+    assert "find tools: type tool: for Dictionary, Podcasts, Network Tools and Nearby Share" in s
     assert "Settings.data.startHintsDone" in s  # the existing dismissal still owns it
 
 
 def test_overview_has_tool_chips_that_use_the_existing_search_path():
     s = source("shani/Modules/Overview/OverviewSearch.qml")
     assert "readonly property var toolChips:" in s
-    for q in ("tool:dictionary", "tool:podcasts", "tool:network", "tool:gateway"):
+    for q in ("tool:dictionary", "tool:podcasts", "tool:network", "tool:nearby"):
         assert f'query: "{q}"' in s
     # a chip goes through search(), which applies the field filter and hands
     # over to the launcher - it never bypasses the operator logic
@@ -85,7 +85,7 @@ def test_ring_has_a_tools_hub_without_growing_past_eight_keys():
         ("Dictionary", "dictionary"),
         ("Podcasts", "podcasts"),
         ("Network Tools", "netTools"),
-        ("Gateway", "gateway"),
+        ("Nearby Share", "nearby"),
     ):
         assert f'label: Tr.t("{label}")' in root
         assert f"Ui.{flag} = true;" in root

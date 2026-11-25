@@ -57,7 +57,7 @@ def test_lock_preview_does_not_print_undefined_summary():
 
 def test_player_can_unpin_the_preferred_player():
     """Choosing a source sets preferredPlayer; without Auto there is no way back."""
-    player = source("shani/Modules/Player/Player.qml")
+    player = source("shani/Modules/MediaPlayer/OtherPlayersPage.qml")
     assert 'onClicked: Settings.data.preferredPlayer = ""' in player
     assert 'title: Tr.t("Auto")' in player
     assert "selected: !Settings.data.preferredPlayer" in player

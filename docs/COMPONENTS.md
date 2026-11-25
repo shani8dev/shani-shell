@@ -126,6 +126,8 @@ and a `Theme.touchTarget` hit area (pinned by
 - **Format.js** — `humanSize(bytes, style)` with `style`: `binary` (default),
   `si`, `tb`, `whole`; plus `msToNextMinute`, `isoWeek`, `minutes`. Each surface
   passes its style to preserve displayed values.
+- **Calc.js** — `calc(expr, angleUnit)` and `convert(q)` / `convertUnit(v, from, to)`:
+  the one evaluator and unit table for the launcher and the Calculator app.
 - **Month.js** — `lead`, `daysIn`, `cells` (week numbers optional) and
   `weekNames(sundayFirst, Tr.dayNamesShort)` for every month grid.
 - **Markup.js** — `draw(ctx, w, h, kind, …)`: one markup mark (pen, line,

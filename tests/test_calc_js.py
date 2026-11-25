@@ -1,4 +1,4 @@
-"""The launcher's calculator (Modules/Launcher/Calc.js), run through node.
+"""The launcher's calculator (Common/Calc.js), run through node.
 
 The calculator is plain JS with `.pragma library`, so it can be run directly -
 which is the only way to check the parts a UI cannot show: that a sum is
@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-CALC = ROOT / "shani/Modules/Launcher/Calc.js"
+CALC = ROOT / "shani/Common/Calc.js"
 NODE = shutil.which("node") or shutil.which("nodejs")
 
 pytestmark = pytest.mark.skipif(NODE is None, reason="node is not installed")

@@ -10,6 +10,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import qs.Modules.Passwords   // PasswordGenerator: a file read on first open does not see its folder by itself
 
 AppWindow {
     id: win
@@ -138,15 +139,9 @@ AppWindow {
     readonly property var newStrength: win.strength(win.draftPassword)
     function poke() { if (win.uiLockedReason === "") idleTimer.restart(); }
     function generateForForm() {
-        // Python's secrets, not Math.random; no arg and no file, so the made
-        // password only travels from stdout into the form on its way to stdin.
-        gen.command = ["python3", "-c", `import secrets, string
-alphabet = string.ascii_letters + string.digits + "!@#$%^&*()-_=+[]{};:,.?"
-while True:
-    pw = "".join(secrets.choice(alphabet) for _ in range(20))
-    if any(c.isdigit() for c in pw) and any(not c.isalnum() for c in pw) and any(c.islower() for c in pw) and any(c.isupper() for c in pw):
-        print(pw)
-        break`];
+        // Python's secrets via the shared script (Services/PasswordGen); the made
+        // password only travels from stdout into the form on its way to stdin
+        gen.command = PasswordGen.command(20, true, true, false);
         gen.running = true;
     }
     // Export/import vault *details* only: labels, folders, favourites and notes.
@@ -276,8 +271,11 @@ while True:
         metaReader.running = true;
         if (Settings.data.passwordAuditEnabled === true) runAudit();
     }
-    onVisibleChanged: if (visible) refresh()
-    Component.onCompleted: refresh()
+    onVisibleChanged: if (visible) { refresh(); takeTab(); }
+    Component.onCompleted: { refresh(); takeTab(); }
+    // a tab asked for from outside (the Password Generator's IPC and CLI open the Generator)
+    function takeTab() { if (Ui.passwordsTab !== "") { win.tab = Ui.passwordsTab; Ui.passwordsTab = ""; } }
+    Connections { target: Ui; function onPasswordsTabChanged() { if (win.visible) win.takeTab(); } }
 
     Process {
         id: lister
@@ -450,7 +448,7 @@ while True:
             Layout.fillWidth: true
             spacing: Theme.px(6)
             Repeater {
-                model: [["passwords", Tr.t("Passwords")], ["gpg", Tr.t("GPG keys")], ["passkeys", Tr.t("Passkeys")]]
+                model: [["passwords", Tr.t("Passwords")], ["gpg", Tr.t("GPG keys")], ["passkeys", Tr.t("Passkeys")], ["generator", Tr.t("Generator")]]
                 Choice { required property var modelData; text: modelData[1]; selected: win.tab === modelData[0]; onClicked: win.tab = modelData[0] }
             }
 
@@ -852,6 +850,13 @@ while True:
                     onClicked: { if (win.removing === krow.modelData.id) { win.removing = ""; win.run(["gpg-delete", krow.modelData.id]); } else win.removing = krow.modelData.id; }
                 }
             }
+        }
+
+        // ---- the generator (the Password Generator app, merged here) ----
+        PasswordGenerator {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            visible: win.tab === "generator"
         }
 
         // ---- passkeys (a registry of references, not real WebAuthn credentials) ----
