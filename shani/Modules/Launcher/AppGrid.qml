@@ -29,11 +29,14 @@ Item {
 
     // ---- folders: the categories the grid can wrap into ---------------------
     readonly property var folders: ["Internet", "Office", "Graphics", "AudioVideo", "Development", "Utility", "System", "Game", "Other"]
+    // the freedesktop category is Network, the folder people look in is Internet
+    readonly property var folderAliases: ({ Network: "Internet" })
     function folderOf(a) {
         for (const c of (a.categories || [])) {
             const name = String(c).replace(/;+$/, "").trim()
+            const folder = root.folderAliases[name] || name
             for (const f of root.folders)
-                if (name.toLowerCase() === f.toLowerCase())
+                if (folder.toLowerCase() === f.toLowerCase())
                     return f
         }
         return "Other"
@@ -45,7 +48,7 @@ Item {
     function tagsOf(a) {
         const mine = root.tags[a.id] || []
         const fromEntry = ((a.categories || []).map(c => String(c).replace(/;+$/, "").trim()))
-            .filter(c => c && !root.folders.some(f => f.toLowerCase() === c.toLowerCase()))
+            .filter(c => c && !root.folders.some(f => f.toLowerCase() === c.toLowerCase()) && !root.folderAliases[c])
         const out = []
         for (const t of mine.concat(fromEntry))
             if (t && out.indexOf(t) < 0) out.push(t)

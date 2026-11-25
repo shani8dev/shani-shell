@@ -24,6 +24,25 @@ Singleton {
         { id: "clip", hint: "clip:meeting" },
         { id: "action", hint: "action:dark" }
     ]
+    // Settings categories the launcher could not reach by name: the sidebar's
+    // category id, its label and the words people actually type. Kept in the
+    // service (not in Settings/*) so every search surface can use one list.
+    readonly property var settingsLinks: [
+        { id: "search", label: "Search", words: "search launcher files folders documents web engine google duckduckgo calculator nav hints", icon: "system-search" },
+        { id: "printers", label: "Printers", words: "printers printer print cups default test page queue scanner add", icon: "printer" },
+        { id: "sharing", label: "Sharing", words: "sharing share folder network samba smb files public remote nearby localsend airdrop send to phone visible", icon: "folder-remote" },
+        { id: "firewall", label: "Firewall", words: "firewall ports services zones open block allow deny firewalld incoming connections", icon: "security-high" },
+        { id: "backup", label: "Backup", words: "backup backups restore earlier versions snapshots time machine history deleted files drive restic", icon: "drive-harddisk" },
+        { id: "boot", label: "Boot & Recovery", words: "boot recovery slot blue green rollback candidate boot failure A B", icon: "system-reboot" },
+        { id: "updates", label: "Updates", words: "updates update upgrade channel stable latest rollback firmware fwupd restart reboot version", icon: "software-update-available" },
+        { id: "automations", label: "Automations", words: "automations rules when then routines triggers wifi plugged headphones schedule shortcuts", icon: "system-run" },
+        { id: "security", label: "Security", words: "security lsm apparmor audit password policy pwquality secure boot encryption kernel lockdown", icon: "security-high" },
+        { id: "journal", label: "Journal", words: "journal logs journald vacuum storage systemd log rotate retention", icon: "document-open-recent" },
+        { id: "chronoa", label: "Chronoa", words: "chronoa assistant ai island model voice wake word", icon: "face-smile-big" },
+        { id: "storage", label: "Storage", words: "storage disk space free clean up cleanup trash cache thumbnails downloads flatpak", icon: "drive-harddisk" },
+        { id: "screentime", label: "Screen time", words: "screen time wellbeing digital break reminder limit usage apps today week focus", icon: "preferences-desktop-screensaver" },
+        { id: "modules", label: "Kernel modules", words: "kernel modules drivers loaded modprobe lsmod dependencies parameters", icon: "application-x-addon" }
+    ]
     // A leading word + colon is an operator only when that word is one of ours:
     // URLs, paths and the existing ":" emoji mode keep their usual meaning.
     function parseQuery(raw) {

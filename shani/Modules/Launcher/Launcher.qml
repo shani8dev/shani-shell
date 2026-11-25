@@ -382,8 +382,10 @@ PanelWindow {
     // parental controls' blocked apps are left out (AppFilter)
     readonly property var apps: DesktopEntries.applications.values.filter(a => !a.noDisplay && AppFilter.allowed(a.id))
     readonly property var appWords: { const m = {}; for (const a of apps) m[a.id] = Fuzzy.words(a.name + " " + (a.genericName || "")); return m; }
-    readonly property var categories: ["All", "Internet", "Office", "Graphics", "AudioVideo", "Development", "Utility", "System", "Game"]
-    readonly property var categoryNames: ({ AudioVideo: "Media" })
+    // desktop entries say "Network", the chip is called "Internet"; filter on
+    // the id and only change the label, so the chip reaches Mail/Feeds/IRC etc.
+    readonly property var categories: ["All", "Network", "Office", "Graphics", "AudioVideo", "Development", "Utility", "System", "Game"]
+    readonly property var categoryNames: ({ AudioVideo: "Media", Network: "Internet" })
     // colored filters in the field: the families of answers — All, Apps,
     // Files. Each has a color the pill is drawn with; the launcher itself
     // answers them as section groups.
@@ -413,7 +415,9 @@ PanelWindow {
             run: () => win.launch(a) });
         // `app` is only ever the name xbel's bookmark:application metadata gave us;
         // without it the subtitle is just the path (no guessing from extensions)
-        const fileItem = (p, app) => ({ kind: "file", icon: win.fileIcon(p), path: p, title: p.split("/").pop(), subtitle: (app ? app + " · " : "") + p.replace(Quickshell.env("HOME"), "~"), run: () => Qt.openUrlExternally(Files.uriOf(p)) });
+        // the same dispatcher Files' double-click uses: a .txt opens in the
+        // shell's editor here too, not in whatever xdg-open picks
+        const fileItem = (p, app) => ({ kind: "file", icon: win.fileIcon(p), path: p, title: p.split("/").pop(), subtitle: (app ? app + " · " : "") + p.replace(Quickshell.env("HOME"), "~"), run: () => Files.openEntry(p) });
 
         // One exit for every answer below: operators keep only their own family,
         // a bare operator offers an example, and a dead query says so instead of

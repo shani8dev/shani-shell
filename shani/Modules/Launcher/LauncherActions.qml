@@ -89,6 +89,12 @@ QtObject {
         { title: Tr.t("Users"), words: "users add user new user account accounts remove user administrator admin automatic login autologin family", icon: "system-users", run: () => launcher.openSettings("users") },
         { title: Tr.t("Power settings"), words: "power battery saver idle lock suspend screen off sleep lid power button", icon: "system-run", run: () => launcher.openSettings("power") },
         { title: Tr.t("About this computer"), words: "about system computer name hostname rename version kernel memory disk cpu", icon: "help-about", run: () => launcher.openSettings("about") },
+        // the rest of the Settings categories, by the words their pages use.
+        // One list in LauncherEntries: no category is left unreachable from search.
+        ...LauncherEntries.settingsLinks.map(link => ({
+            title: Tr.t(link.label), words: "settings page " + link.words, icon: link.icon,
+            run: () => launcher.openSettings(link.id)
+        })),
         { title: Tr.t("Live captions"), words: "captions subtitles live transcribe hearing", icon: "media-view-subtitles", run: () => Captions.toggle(), state: () => Captions.on && Captions.source === "speakers" },
         { title: Tr.t("Live transcribe"), words: "transcribe transcript meeting lecture microphone dictate", icon: "audio-input-microphone", run: () => Captions.transcribe(), state: () => Captions.on && Captions.source === "mic" },
         { title: Tr.t("Read aloud"), words: "read aloud speak tts selection voice", icon: "audio-speakers", run: () => Speak.speakSelection() },

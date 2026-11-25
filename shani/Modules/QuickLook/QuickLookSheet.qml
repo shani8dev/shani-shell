@@ -25,6 +25,23 @@ PanelWindow {
     Region { id: blurArea; item: card; radius: card.radius }
 
     function fileUrl(p) { return "file://" + p.split("/").map(encodeURIComponent).join("/"); }
+    // Open takes the same route as a double click in Files (the shell's viewer,
+    // editor, player …), and Show in Files reveals the file in its folder, as
+    // the other apps' reveal buttons do.
+    function openIt() {
+        const p = QuickLook.path;
+        const folder = QuickLook.kind === "folder";
+        QuickLook.close();
+        if (folder) Files.show(p);
+        else Files.openEntry(p);
+    }
+    function showInFiles(p) {
+        const at = String(p || "").lastIndexOf("/");
+        if (at < 0) return;
+        Files.show(at === 0 ? "/" : p.substring(0, at));
+        Files.select(p, "single");
+        QuickLook.close();
+    }
     readonly property string url: QuickLook.path ? fileUrl(QuickLook.path) : ""
     readonly property var tints: Theme.dark
         ? ({ comment: "#8a93a0", string: "#8fd18a", number: "#f2a65a", keyword: "#6cb6ff", heading: "#ffd166", added: "#8fd18a", removed: "#ff8f8f" })
@@ -52,7 +69,7 @@ PanelWindow {
         Keys.onSpacePressed: QuickLook.close()
         Keys.onLeftPressed: QuickLook.step(-1)
         Keys.onRightPressed: QuickLook.step(1)
-        Keys.onReturnPressed: QuickLook.openIt()
+        Keys.onReturnPressed: win.openIt()
         // Home/End jump to the ends of the sibling list the header counts
         function jumpTo(i) {
             const cur = QuickLook.list.indexOf(QuickLook.path);
@@ -114,8 +131,8 @@ PanelWindow {
                 }
                 IconButton { visible: QuickLook.list.length > 1; icon: "go-previous"; tip: Tr.t("Previous") + " (←)"; onClicked: QuickLook.step(-1) }
                 IconButton { visible: QuickLook.list.length > 1; icon: "go-next"; tip: Tr.t("Next") + " (→)"; onClicked: QuickLook.step(1) }
-                IconButton { icon: "folder-open"; tip: Tr.t("Show in Files"); onClicked: { Files.show(QuickLook.path); QuickLook.close(); } }
-                Button { kind: "primary"; text: Tr.t("Open"); onClicked: QuickLook.openIt() }
+                IconButton { icon: "folder-open"; tip: Tr.t("Show in Files"); onClicked: win.showInFiles(QuickLook.path) }
+                Button { kind: "primary"; text: Tr.t("Open"); onClicked: win.openIt() }
                 IconButton { icon: "window-close"; tip: Tr.t("Close") + " (Space)"; onClicked: QuickLook.close() }
             }
 

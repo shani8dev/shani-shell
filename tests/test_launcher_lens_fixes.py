@@ -59,8 +59,10 @@ def test_launcher_contact_copy_action_is_reachable():
 
 def test_launcher_file_urls_use_the_shared_encoder():
     # A path with #, ? or % broke both opening and previewing a result; Files
-    # already ships uriOf(), so no second encoder is needed.
-    assert "run: () => Qt.openUrlExternally(Files.uriOf(p))" in LAUNCHER
+    # already ships uriOf(), so no second encoder is needed. Opening a hit goes
+    # through Files' own dispatcher, the same route a double click takes.
+    assert "run: () => Files.openEntry(p)" in LAUNCHER
+    assert "Qt.openUrlExternally(Files.uriOf(p))" not in LAUNCHER
     assert 'Files.uriOf(row.modelData.thumb || "")' in LAUNCHER
     assert "Files.uriOf(win.lookPdfImage)" in LAUNCHER
     assert "Files.uriOf(win.current.path)" in LAUNCHER
