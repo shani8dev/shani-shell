@@ -58,7 +58,8 @@ Rectangle {
                 visible: banner.text.length > 0
                 Layout.fillWidth: true
                 text: banner.text
-                color: Theme.dim
+                // An error in a dim label is an error nobody reads.
+                color: banner.tone === "error" || banner.tone === "danger" || banner.tone === "warn" ? Theme.text : Theme.dim
                 font.family: Theme.font
                 font.pixelSize: Theme.px(11) * Theme.fontScale
                 wrapMode: Text.Wrap

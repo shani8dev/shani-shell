@@ -16,6 +16,9 @@ AppWindow {
     implicitHeight: Theme.px(640)
 
     property int confirmCron: -1
+    // The service only writes these two strings on success; everything else
+    // it puts in note is a failure. One flag keeps the banner honest.
+    readonly property bool noteOk: SysServices.note === Tr.t("Saved") || SysServices.note === Tr.t("Job removed")
     Timer { id: cronConfirmTimer; interval: 4000; onTriggered: win.confirmCron = -1 }
 
     tools: [
@@ -43,14 +46,12 @@ AppWindow {
             Item { Layout.fillWidth: true }
         }
 
-        Text {
+        InfoBanner {
             Layout.fillWidth: true
             visible: SysServices.note !== ""
+            tone: win.noteOk ? "ok" : "error"
+            iconName: win.noteOk ? "dialog-ok" : "dialog-error"
             text: SysServices.note
-            color: SysServices.note === Tr.t("Saved") || SysServices.note === Tr.t("Job removed") ? Theme.dim : Theme.danger
-            wrapMode: Text.Wrap
-            font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
         }
 
         // ---- services -------------------------------------------------------

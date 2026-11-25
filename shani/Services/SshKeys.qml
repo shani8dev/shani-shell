@@ -32,6 +32,8 @@ Singleton {
                 root.path = d.path || "";
             }
         }
+        stderr: StdioCollector {}
+        onExited: code => { root.error = code !== 0 ? Tr.t("Could not read the keys") : ""; }
     }
 
     function add(key) {

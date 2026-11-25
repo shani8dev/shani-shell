@@ -28,6 +28,8 @@ Singleton {
             catch (e) { root.sessions = {}; }
         }
         onLoadFailed: root.sessions = {}
+        // A "session saved" note is a lie if the write never landed.
+        onSaveFailed: root.error = Tr.t("Could not save the session")
     }
 
     function list() { return Logic.toList(root.sessions); }
@@ -102,19 +104,19 @@ Singleton {
         return true;
     }
     function openNext() {
-        if (!root.pendingPaths.length)
+        if (root.error !== "" || !root.pendingPaths.length)
             return;
         const p = root.pendingPaths.shift();
-        probe.path = p;
+        probe.attempted = p;
         probe.command = ["sh", "-c", '[ -d "$1" ] && echo dir || echo file', "sh", p];
         probe.running = true;
     }
     Process {
         id: probe
-        property string path: ""
+        property string attempted: ""
         stdout: StdioCollector {
             onStreamFinished: {
-                const p = probe.path;
+                const p = probe.attempted;
                 if (text.trim() === "dir")
                     Files.show(p);
                 else {
@@ -126,6 +128,13 @@ Singleton {
                 }
                 root.openNext();
             }
+        }
+        stderr: StdioCollector {}
+        // Without this, a failed probe just stops the chain with no word to UI.
+        onExited: code => {
+            if (code === 0) return;
+            root.pendingPaths = [];
+            root.error = Tr.t("Could not open %1").arg(probe.attempted);
         }
     }
 }
