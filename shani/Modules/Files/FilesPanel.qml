@@ -370,6 +370,54 @@ AppWindow {
     }
     Component.onCompleted: win.applyCategory(Files.activeCategory)
 
+    // A share path (smb/nfs) or a selected .desktop's URL carries a host worth
+    // checking. Ui.qml/shell.qml are out of scope, so there is no handoff flag:
+    // write a clipboard marker and set Ui.netTools, the flag shell.qml's
+    // netToolsOpen() sets, and NetTools consumes the marker on open.
+    function openNetTools(host) {
+        const h = String(host || "").trim();
+        if (!h) return;
+        Quickshell.clipboardText = "shani-nettools:" + h;
+        Ui.closeAll();
+        Ui.netTools = true;
+    }
+    function hostFromUri(raw) {
+        let s = String(raw || "").trim();
+        s = s.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "");
+        // drop userinfo first: sftp://user@host/share must hand `host` to
+        // Network Tools, not the user name (`user:pw` for https basic auth)
+        s = s.replace(/^[^@]*@/, "");
+        s = s.split(/[/?#@]/)[0];
+        s = s.replace(/:\d+$/, "");
+        return s;
+    }
+    function isNetHost(s) {
+        return /^[A-Za-z0-9][A-Za-z0-9.-]*$/.test(String(s || "")) && String(s).length <= 253;
+    }
+    function networkPathHost() {
+        if (!/^(smb|nfs|cifs|sftp|ssh):\/\//i.test(Files.path)) return "";
+        const h = win.hostFromUri(Files.path);
+        return win.isNetHost(h) ? h : "";
+    }
+    readonly property bool desktopSelected: Files.selected.length === 1 && /\.desktop$/i.test(Files.selected[0] || "")
+    function checkNetworkHost() {
+        const h = win.networkPathHost();
+        if (h) { win.openNetTools(h); return; }
+        if (win.desktopSelected) {
+            desktopUrlProc.command = ["sh", "-c", 'grep -m1 "^URL=" "$1" 2>/dev/null | cut -d= -f2-', "sh", Files.selected[0]];
+            desktopUrlProc.running = true;
+        }
+    }
+    Process {
+        id: desktopUrlProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const h = win.hostFromUri(text.trim());
+                if (win.isNetHost(h)) win.openNetTools(h);
+            }
+        }
+    }
+
     // ---- the finer filter popover (date / size / content) -------------------------
     // Type is not redefined here: the chips above and the popover's Type row share
     // win.searchCategories and applyCategory, so there is one source of truth.
@@ -562,6 +610,13 @@ AppWindow {
                     font.family: Theme.font
                     font.pixelSize: Theme.fontTitle * Theme.fontScale
                     font.weight: Font.DemiBold
+                }
+                Button {
+                    visible: win.networkPathHost() !== "" || win.desktopSelected
+                    text: Tr.t("Network tools")
+                    flat: true
+                    Accessible.name: Tr.t("Check host in Network Tools")
+                    onClicked: win.checkNetworkHost()
                 }
 
                 Item { Layout.fillWidth: true }
@@ -3870,6 +3925,10 @@ AppWindow {
                          run: () => Files.openRoute(chosen) });
         }
         items.push({ label: Tr.t("Open with…"), icon: "view-app-grid", danger: false, run: () => { win.openWithPaths = chosen.slice(); } });
+        // the database browser reads the path off the clipboard as it opens
+        if (!e.isDir && /\.(db|sqlite|sqlite3)$/i.test(e.path))
+            items.push({ label: Tr.t("Open in Database Browser"), icon: "database", danger: false,
+                         run: () => { Quickshell.clipboardText = e.path; Files.hide(); Ui.closeAll(); Ui.databaseBrowser = true; } });
         items.push({ label: Tr.t("Select all of this type"), icon: "edit-select-all", danger: false, run: () => { Files.select(e.path, "single"); Files.note = Tr.t("%1 selected", Files.selectByType()); } });
         if (e.isDir && e.path.startsWith("/"))
             items.push({ label: Tr.t("Open in split pane"), icon: "view-dual", danger: false, run: () => win.openInSplit(e.path) });
