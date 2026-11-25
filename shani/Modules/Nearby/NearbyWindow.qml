@@ -87,7 +87,7 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("Devices nearby") }
-                Text { visible: Nearby.scanning; text: Tr.t("Looking…"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                BusyNote { visible: Nearby.scanning; note: Tr.t("Looking…") }
                 IconButton { size: Theme.px(28); icon: "view-refresh"; tip: Tr.t("Look again"); enabled: !Nearby.scanning; onClicked: Nearby.scan() }
             }
             ListView {

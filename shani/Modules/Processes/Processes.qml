@@ -645,13 +645,10 @@ AppWindow {
                             font.pixelSize: Theme.px(10) * Theme.fontScale
                             wrapMode: Text.Wrap
                         }
-                        Text {
+                        BusyNote {
                             Layout.fillWidth: true
                             visible: Sensors.loading && !Sensors.answered && Sensors.sensors.length === 0
-                            text: Tr.t("Reading sensors…")
-                            color: Theme.faint
-                            font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            note: Tr.t("Reading sensors…")
                         }
                     }
                 }

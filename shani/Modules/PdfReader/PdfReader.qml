@@ -868,13 +868,10 @@ AppWindow {
                                 }
                             }
                         }
-                        Text {
+                        BusyNote {
                             visible: PdfViewer.loading
                             anchors.centerIn: parent
-                            text: Tr.t("Rendering pages…")
-                            color: Theme.dim
-                            font.family: Theme.font
-                            font.pixelSize: Theme.px(13) * Theme.fontScale
+                            note: Tr.t("Rendering pages…")
                         }
                         // a PDF with a password: asked for here
                         ColumnLayout {

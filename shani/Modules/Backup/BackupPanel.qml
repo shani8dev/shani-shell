@@ -55,14 +55,11 @@ AppWindow {
             }
 
             // in-flight feedback: a backup or a shell-driven restore is running
-            Text {
+            BusyNote {
                 visible: Backup.running || Backup.restoring !== ""
                 Layout.fillWidth: true
-                horizontalAlignment: Text.AlignHCenter
-                text: Backup.restoring !== "" ? Tr.t("Restoring %1…", Backup.restoring) : Tr.t("Backing up your home…")
-                color: Theme.accent
-                font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                align: Text.AlignHCenter
+                note: Backup.restoring !== "" ? Tr.t("Restoring %1…", Backup.restoring) : Tr.t("Backing up your home…")
             }
 
             // backup unavailable: say so instead of offering a setup that will fail

@@ -10,6 +10,7 @@ import qs.Common
 import qs.Services
 import "../../Common/Highlight.js" as Highlight
 import "../../Common/FileIcons.js" as FileIcons
+import "../../Common/Time.js" as Time
 
 PanelWindow {
     id: win
@@ -166,12 +167,9 @@ PanelWindow {
                     Accessible.name: text
                     onClicked: { win.metaShown = !win.metaShown; if (win.metaShown) win.loadMeta(); }
                 }
-                Text {
+                BusyNote {
                     visible: win.metaShown && FileMeta.loading
-                    text: Tr.t("Reading…")
-                    color: Theme.dim
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    note: Tr.t("Reading…")
                 }
                 Item { Layout.fillWidth: true }
             }
@@ -221,13 +219,10 @@ PanelWindow {
                         }
                     }
                 }
-                Text {
+                BusyNote {
                     anchors.centerIn: parent
                     visible: win.metaShown && FileMeta.loading
-                    text: Tr.t("Reading file details…")
-                    color: Theme.dim
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    note: Tr.t("Reading file details…")
                 }
                 EmptyState {
                     anchors.centerIn: parent
@@ -311,11 +306,12 @@ PanelWindow {
                     }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
-                        text: player.duration > 0 ? Math.floor(player.position / 60000) + ":" + String(Math.floor(player.position / 1000) % 60).padStart(2, "0")
-                              + " / " + Math.floor(player.duration / 60000) + ":" + String(Math.floor(player.duration / 1000) % 60).padStart(2, "0") : ""
+                        text: player.duration > 0 ? Time.clock(player.position / 1000)
+                              + " / " + Time.clock(player.duration / 1000) : ""
                         color: Theme.dim
                         font.family: Theme.font
                         font.pixelSize: Theme.px(12) * Theme.fontScale
+                        Accessible.name: Tr.t("Position %1").arg(text)
                     }
                 }
 

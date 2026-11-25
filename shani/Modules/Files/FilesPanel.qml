@@ -1491,13 +1491,10 @@ AppWindow {
                             }
                             Accessible.name: title + " · " + subtitle
                         }
-                        Text {
+                        BusyNote {
                             anchors.centerIn: parent
                             visible: dir.loading && win.visibleEntries.length === 0
-                            text: Tr.t("Loading…")
-                            color: Theme.dim
-                            font.family: Theme.font
-                            font.pixelSize: Theme.px(13) * Theme.fontScale
+                            note: Tr.t("Loading…")
                         }
                     }
 
@@ -2370,12 +2367,9 @@ AppWindow {
                     onClicked: Files.syncMode = Files.syncMode === "mirror" ? "update" : "mirror"
                     Hint { text: Files.syncMode === "mirror" ? Tr.t("rsync -a --delete: the right side becomes a copy of the left") : Tr.t("rsync -au: only newer files are copied, nothing is deleted") }
                 }
-                Text {
+                BusyNote {
                     visible: Files.syncBusy
-                    text: Tr.t("Syncing…")
-                    color: Theme.accent
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    note: Tr.t("Syncing…")
                 }
                 Item { Layout.fillWidth: true }
                 Button {

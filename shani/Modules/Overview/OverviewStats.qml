@@ -28,18 +28,10 @@ PanelWindow {
     Region { id: cardRegion; item: card; radius: card.radius }
 
     readonly property var windows: Object.values(Niri.windows)
-    property bool confirming: false
     property bool _watching: false
-    onVisibleChanged: { confirming = false; if (visible && !_watching) { TopProcesses.requestWatch(); _watching = true; } else if (!visible && _watching) { TopProcesses.releaseWatch(); _watching = false; } }
+    onVisibleChanged: { if (closeAllConfirm) closeAllConfirm.disarm(); if (visible && !_watching) { TopProcesses.requestWatch(); _watching = true; } else if (!visible && _watching) { TopProcesses.releaseWatch(); _watching = false; } }
     Component.onCompleted: { if (visible) { TopProcesses.requestWatch(); _watching = true; } }  // made on first use, already visible
     Component.onDestruction: if (_watching) TopProcesses.releaseWatch()
-    Timer { id: unconfirm; interval: 4000; onTriggered: win.confirming = false }
-    function closeAll() {
-        if (!confirming) { confirming = true; unconfirm.restart(); return; }
-        for (const w of windows)
-            Niri.action("close-window", "--id", w.id);
-        confirming = false;
-    }
     // the apps holding the most memory, by name, from the process list
     readonly property var heavy: {
         const by = {};
@@ -93,7 +85,7 @@ PanelWindow {
                 value: SysStats.memTotalGb > 0 ? (SysStats.mem * SysStats.memTotalGb).toFixed(1) + " " + Tr.t("of") + " " + SysStats.memTotalGb.toFixed(1) + " GB" : Math.round(SysStats.mem * 100) + "%"
                 fraction: SysStats.mem
             }
-            Text { visible: TopProcesses.list.length === 0; text: Tr.t("Reading…"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            BusyNote { visible: TopProcesses.list.length === 0; note: Tr.t("Reading…") }
             Text { visible: win.heavy.length > 0; text: Tr.t("Using the most memory"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
             Repeater {
                 model: win.heavy
@@ -104,12 +96,19 @@ PanelWindow {
                     Text { text: modelData.mem.toFixed(1) + "%"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.features: { "tnum": 1 } }
                 }
             }
-            Button {
+            ConfirmButton {
+                id: closeAllConfirm
                 Layout.fillWidth: true
+                implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
                 visible: win.windows.length > 0
-                kind: win.confirming ? "danger" : "outline"
-                text: win.confirming ? Tr.t("Close %1 windows — click again", win.windows.length) : Tr.t("Close all windows")
-                onClicked: win.closeAll()
+                text: Tr.t("Close all windows")
+                armedText: Tr.t("Close %1 windows — click again", win.windows.length)
+                kind: closeAllConfirm.armed ? "danger" : "outline"
+                interval: 4000
+                onConfirmed: {
+                    for (const w of win.windows)
+                        Niri.action("close-window", "--id", w.id);
+                }
             }
             Text {
                 Layout.fillWidth: true

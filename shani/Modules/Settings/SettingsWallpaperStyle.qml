@@ -100,12 +100,9 @@ ColumnLayout {
         }
     }
 
-    Text {
+    BusyNote {
         visible: Matugen.previewRunning
-        text: Tr.t("Extracting…")
-        color: Theme.dim
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        note: Tr.t("Extracting…")
     }
     Text {
         visible: !Matugen.previewRunning && Matugen.previewError !== ""

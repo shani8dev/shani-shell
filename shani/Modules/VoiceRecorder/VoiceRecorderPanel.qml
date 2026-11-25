@@ -519,9 +519,11 @@ AppWindow {
                     enabled: VoiceRecorder.trimFile !== "" && !VideoTrimmer.cutting
                     onClicked: VoiceRecorder.saveTrimmedCopy()
                 }
-                Spinner {
+                BusyNote {
                     Layout.alignment: Qt.AlignHCenter
                     visible: VideoTrimmer.cutting
+                    note: Tr.t("Saving…")
+                    iconSize: Theme.px(18)
                 }
                 Text {
                     Layout.fillWidth: true
@@ -614,13 +616,10 @@ AppWindow {
                         onClicked: { playback.stop(); win.inlinePlay = ""; }
                     }
                 } // waveform controls row
-                Text {
+                BusyNote {
                     Layout.fillWidth: true
                     visible: win.peaksLoading
-                    text: Tr.t("Reading waveform…")
-                    color: Theme.faint
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    note: Tr.t("Reading waveform…")
                 }
             }
 

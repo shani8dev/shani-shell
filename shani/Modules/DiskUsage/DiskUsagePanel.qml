@@ -209,13 +209,10 @@ AppWindow {
                         }
                     }
                 }
-                Text {
+                BusyNote {
                     visible: DiskUsage.scanning
                     anchors.centerIn: parent
-                    text: Tr.t("Scanning…")
-                    color: Theme.dim
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    note: Tr.t("Scanning…")
                 }
                 Text {
                     visible: !DiskUsage.scanning && DiskUsage.entries.length === 0

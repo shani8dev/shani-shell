@@ -34,7 +34,6 @@ AppWindow {
     property var remotes: []
     property bool busy: false
     Timer { id: removeTimer; interval: 4000; onTriggered: { win.removing = ""; win.removingLeftover = ""; } }
-    Timer { id: confirmTimer; interval: 4000; onTriggered: win.confirmUpdateAll = false }
     property string job: ""                   // the app a job runs for
     property real progress: -1
     property string jobLine: ""
@@ -42,7 +41,6 @@ AppWindow {
     property string removing: ""
     property string removingLeftover: ""
     readonly property int updates: installedApps.filter(a => a.update).length
-    property bool confirmUpdateAll: false        // two-tap confirm, armed for a few seconds
     property var skippedIds: []                  // apps held back with "Skip this version"
     property string installedQuery: ""           // filter the Installed list
     property bool updatesOnly: false             // show only apps with an update
@@ -99,7 +97,7 @@ AppWindow {
     function gotoTab(i) {
         const id = win.tabIds[i];
         if (!id) return;
-        win.tab = id; win.app = null; win.confirmUpdateAll = false; confirmTimer.stop();
+        win.tab = id; win.app = null; updateAllConfirm.disarm();
         win.onTabChanged(id);
     }
     function toggleRemote(name, on) {
@@ -359,7 +357,7 @@ AppWindow {
                     text: modelData[1]
                     selected: win.tab === modelData[0]
                     Accessible.name: modelData[1]
-                    onClicked: { win.tab = modelData[0]; win.app = null; win.confirmUpdateAll = false; confirmTimer.stop(); win.onTabChanged(modelData[0]); }
+                    onClicked: { win.tab = modelData[0]; win.app = null; updateAllConfirm.disarm(); win.onTabChanged(modelData[0]); }
                 }
             }
             Item { Layout.fillWidth: true }
@@ -632,12 +630,17 @@ AppWindow {
                         Text { text: [appCol.a.developer, appCol.a.license].filter(x => x).join("  ·  "); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                     }
                     Button { visible: !!appCol.a.installed; text: Tr.t("Open"); onClicked: Quickshell.execDetached(["flatpak", "run", appCol.a.id]) }
-                    Button {
+                    ConfirmButton {
+                        id: removeAppConfirm
                         visible: !!appCol.a.installed
-                        kind: "danger"
-                        text: win.removing === appCol.a.id ? Tr.t("Click again to remove") : Tr.t("Remove")
                         enabled: !jobProc.running
-                        onClicked: { if (win.removing === appCol.a.id) { win.removing = ""; removeTimer.stop(); win.runJob(["remove", appCol.a.id], appCol.a.id); } else { win.removing = appCol.a.id; removeTimer.restart(); } }
+                        implicitWidth: Math.max(Theme.touchTarget, armedText.length * 8 + 28)
+                        implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
+                        text: Tr.t("Remove")
+                        armedText: Tr.t("Click again to remove")
+                        kind: "danger"
+                        interval: 4000
+                        onConfirmed: win.runJob(["remove", appCol.a.id], appCol.a.id)
                     }
                     Button { visible: !appCol.a.installed; kind: "primary"; text: jobProc.running && win.job === appCol.a.id ? Tr.t("Installing…") : Tr.t("Install"); enabled: !jobProc.running; onClicked: win.runJob(["install", appCol.a.id], appCol.a.id) }
                 }
@@ -773,12 +776,9 @@ AppWindow {
                     color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
                     Accessible.name: text
                 }
-                Text {
+                BusyNote {
                     visible: win.permsLoading
-                    text: Tr.t("Reading permissions…")
-                    color: Theme.faint
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    note: Tr.t("Reading permissions…")
                 }
             }
         }
@@ -788,15 +788,17 @@ AppWindow {
             visible: win.tab === "installed"
             Layout.fillWidth: true
             Text { Layout.fillWidth: true; text: win.updates ? Tr.t("%1 apps can be updated", win.updates) : Tr.t("Everything is up to date"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-            Button {
+            ConfirmButton {
+                id: updateAllConfirm
+                implicitWidth: Math.max(Theme.touchTarget, armedText.length * 8 + 28)
+                implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
                 visible: win.updates > 0
-                kind: win.confirmUpdateAll ? "danger" : "primary"
-                text: win.confirmUpdateAll ? Tr.t("Click again to update all") : Tr.t("Update all")
+                text: Tr.t("Update all")
+                armedText: Tr.t("Click again to update all")
+                kind: updateAllConfirm.armed ? "danger" : "plain"
+                interval: 4000
                 enabled: !jobProc.running
-                onClicked: {
-                    if (win.confirmUpdateAll) { win.confirmUpdateAll = false; win.runJob(["update-all"], "all"); }
-                    else { win.confirmUpdateAll = true; confirmTimer.restart(); }
-                }
+                onConfirmed: win.runJob(["update-all"], "all")
             }
         }
         RowLayout {
@@ -818,7 +820,7 @@ AppWindow {
             }
         }
         Rectangle {
-            visible: win.confirmUpdateAll && win.updates > 0
+            visible: updateAllConfirm.armed && win.updates > 0
             Layout.fillWidth: true
             Layout.preferredHeight: Theme.px(80)
             radius: Theme.px(6)

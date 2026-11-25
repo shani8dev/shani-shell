@@ -99,12 +99,9 @@ AppWindow {
                     onClicked: { Studio.generate(win.description); win.description = ""; }
                 }
             }
-            Text {
+            BusyNote {
                 visible: Studio.busy
-                text: Tr.t("Chronoa is generating your app… check the Chronoa panel for progress")
-                color: Theme.accent
-                font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                note: Tr.t("Chronoa is generating your app… check the Chronoa panel for progress")
             }
 
             // ---- template pickers: four starting points ----

@@ -547,13 +547,10 @@ AppWindow {
                     }
                 }
             }
-            Text {
+            BusyNote {
                 Layout.fillWidth: true
                 visible: Mail.busy && Mail.messages.length === 0
-                text: Tr.t("Loading mail…")
-                color: Theme.dim
-                font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                note: Tr.t("Loading mail…")
             }
             EmptyState {
                 visible: !Mail.busy && win.visibleMessages().length === 0
