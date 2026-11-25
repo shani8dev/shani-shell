@@ -83,14 +83,17 @@ ColumnLayout {
     Process { id: btSet; stdinEnabled: true; property string payload: ""; onStarted: { write(payload + "\n"); stdinEnabled = false; } onExited: code => { stdinEnabled = true; btGet.running = false; btGet.running = true; } }
 
     // ---- proxy (applied by the Proxy service) ----------------------------------
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Data used"); visible: page.usage !== "" }
-    Text {
+    SettingsSection {
         Layout.fillWidth: true
         visible: page.usage !== ""
-        text: page.usage
-        color: Theme.text
-        font.family: Theme.font
-        font.pixelSize: Theme.px(13) * Theme.fontScale
+        title: Tr.t("Data used")
+        Text {
+            Layout.fillWidth: true
+            text: page.usage
+            color: Theme.text
+            font.family: Theme.font
+            font.pixelSize: Theme.px(13) * Theme.fontScale
+        }
     }
 
     Process {
@@ -655,8 +658,10 @@ ColumnLayout {
             tone: page.noteOk ? "ok" : "error"
             text: page.note
         }
-        SectionTitle { Layout.fillWidth: true; text: Tr.t("System DNS resolver (systemd-resolved)") }
-        Text { Layout.fillWidth: true; text: Tr.t("Managed drop-in /etc/systemd/resolved.conf.d/50-shani-shell.conf. Restarted on save."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        SettingsSection {
+            Layout.fillWidth: true
+            title: Tr.t("System DNS resolver (systemd-resolved)")
+            hint: Tr.t("Managed drop-in /etc/systemd/resolved.conf.d/50-shani-shell.conf. Restarted on save.")
         GridLayout {
             Layout.fillWidth: true; columns: 2; columnSpacing: Theme.px(8); rowSpacing: Theme.px(6)
             Text { text: Tr.t("DNS"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
@@ -679,6 +684,7 @@ ColumnLayout {
             Item { Layout.fillWidth: true; visible: page.resolvedNote === "" }
             Button { text: Tr.t("Reload"); enabled: !page.resolvedBusy; busy: page.resolvedBusy; onClicked: page.loadResolved() }
             Button { text: Tr.t("Save resolved"); kind: "primary"; enabled: !page.resolvedBusy; busy: page.resolvedBusy; onClicked: page.saveResolved() }
+        }
         }
 
         Button { text: Tr.t("Advanced connection settings…"); onClicked: { Ui.closeAll(); Net.editConnections(); } }
