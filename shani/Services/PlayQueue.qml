@@ -337,6 +337,17 @@ Singleton {
         return videoTypes.indexOf(ext) >= 0 ? "video" : audioTypes.indexOf(ext) >= 0 ? "audio" : "";
     }
 
+    // Pure: what a path asked of the player means - a file:// URI is decoded,
+    // a relative path is from $HOME. Kept apart from open() so the mapping a
+    // caller (a recorder take, a session restore) relies on can be checked alone.
+    function playerPath(arg) {
+        let path = String(arg || "").trim();
+        if (path.startsWith("file://"))
+            path = decodeURIComponent(path.substring(7));
+        if (path === "")
+            return "";
+        return path.startsWith("/") ? path : (Quickshell.env("HOME") || "") + "/" + path;
+    }
     // a file ("" just opens the player), a file:// URI, or a folder (its files in order)
     signal opened()
     function open(arg) {
@@ -347,13 +358,9 @@ Singleton {
         if (String(arg || "").trim() !== "")
             root.opened();
         root.error = "";
-        let path = String(arg || "").trim();
-        if (path.startsWith("file://"))
-            path = decodeURIComponent(path.substring(7));
+        const path = root.playerPath(arg);
         if (path === "")
             return;
-        if (!path.startsWith("/"))
-            path = (Quickshell.env("HOME") || "") + "/" + path;
         // it plays at once; the folder's other files join the queue when they are listed
         root.queue = [path];
         root.index = 0;

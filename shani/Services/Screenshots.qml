@@ -252,6 +252,16 @@ Singleton {
         target: Niri
         function onScreenshotSaved(path) { root.offer(path); }
     }
+    // the Media Player already writes each saved frame here (Ui.mediaFrameSaved):
+    // treat it like any other screenshot, so the same share / annotate / pin
+    // actions are offered for it. No second capture or copy of the file.
+    Connections {
+        target: Ui
+        function onMediaFrameSavedChanged() {
+            if (Ui.mediaFrameSaved !== "")
+                root.offer(Ui.mediaFrameSaved);
+        }
+    }
 
     function annotate() {
         if (!root.last) { notifySend(Tr.t("No screenshot to annotate")); return; }

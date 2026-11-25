@@ -113,6 +113,14 @@ AppWindow {
         // down so the waveform and controls are visible without a manual flick
         Qt.callLater(() => contentScroll.contentY = Math.max(0, contentScroll.contentHeight - contentScroll.height));
     }
+    // a take can be handed to the full player as well as played in this panel;
+    // close the panel so the player is not left behind it, and let the panel's
+    // own playback stop with it rather than fighting the player for the audio
+    function openInPlayer(path) {
+        if (!path) return;
+        Ui.voiceRecorder = false;
+        PlayQueue.open(path);
+    }
     function exportDialog(path) {
         FilePicker.open({
             mode: "save",
@@ -365,6 +373,13 @@ AppWindow {
                             tip: Tr.t("Play here")
                             Accessible.name: Tr.t("Play in the recorder")
                             onClicked: win.playInline(row.modelData.path)
+                        }
+                        IconButton {
+                            icon: "applications-multimedia"
+                            size: Theme.px(30)
+                            tip: Tr.t("Open in %1", "Media Player")
+                            Accessible.name: Tr.t("Open in %1", "Media Player")
+                            onClicked: win.openInPlayer(row.modelData.path)
                         }
                         IconButton {
                             icon: "document-save-as"
