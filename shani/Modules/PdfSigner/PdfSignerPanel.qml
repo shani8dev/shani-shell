@@ -279,7 +279,7 @@ AppWindow {
                         placeholder: Tr.t("Password")
                         label: Tr.t("Password")
                         text: PdfSigner.password
-                        echoMode: TextInput.PasswordEchoOnEdit
+                        secret: true
                         onAccepted: PdfSigner.setPassword(text)
                     }
                     RowLayout {

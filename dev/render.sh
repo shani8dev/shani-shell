@@ -343,12 +343,20 @@ render_shell() {
     # suite sets the same variable, dev/shell-parts/apps.sh)
     export SHANI_QS_CONFIG=/work/shani
 
-    ipc() { eval "qs -p /work/shani ipc call shani $*" >/dev/null 2>&1 || true; }
+    ipc() { eval "qs -p /work/shani ipc call shani $*" >/dev/null 2>&1 || true; LAST_IPC="$*"; }
     st() { timeout 5 qs -p /work/shani ipc call shani state 2>/dev/null; }
+    BASE="$OUTDIR/01-desktop-rest.png"   # the plain desktop, captured by shot 01
     # dismissAll, not closeAll: closeAll only closes the panels Ui tracks, so
     # the ruler banner, the Lens, live captions, the QR/share cards and old
-    # notification pop-ups used to stay on screen for every later shot
-    close_all() { ipc dismissAll; sleep 0.8; }
+    # notification pop-ups used to stay on screen for every later shot.
+    # Wait until the panels really cleared: a stuck surface used to stay up for
+    # the next capture, which then photographed it instead of its own subject.
+    close_all() {
+        ipc dismissAll
+        waitfor "not d.get('controlCenter') and not d.get('launcher') and not d.get('settingsOpen') and not d.get('chronoaOpen') and not d.get('ring') and not d.get('switcher') and not d.get('layoutSwitcher') and d.get('expanded', '') == ''" 12 \
+            || log "warn: closeAll — a surface did not clear before the next shot"
+        sleep 0.5
+    }
 
     # wait for shell to load
     i=0
@@ -358,6 +366,58 @@ render_shell() {
     n=0
     failed=0
     last_bad=""
+    # Only shots whose subject is a centred window/panel can be judged by their
+    # centre. This is the same set tests/test_render_surfaces.py checks; island,
+    # OSD, dock and notification shots are exempt — their subject is not centred.
+    needs_visual() {
+        [ -n "$2" ] || return 1                  # opt-in: a declared want only
+        case "$1" in
+            app-*|media-*|clocks-*|quick-look*|settings-*|launcher-*|overview-*) return 0 ;;
+        esac
+        return 1
+    }
+    # Is the centre of a frame effectively still the plain desktop? Mean abs
+    # channel diff over the centre band; a real surface differs by >= 40, a
+    # never-drew surface by < 1. Pillow is already a dependency. A missing
+    # baseline or a broken image is NOT a blank (fail safe, never false-FAIL).
+    frame_is_blank() {
+        [ -f "$BASE" ] || return 1
+        if python3 - "$1" "$BASE" <<'PY'
+import sys
+try:
+    from PIL import Image
+    W, H = 96, 54
+    def crop(p):
+        im = Image.open(p).convert("RGB").resize((W, H))
+        px = list(im.getdata())
+        return [px[y * W + x] for y in range(int(H * 0.15), int(H * 0.85))
+                             for x in range(int(W * 0.22), int(W * 0.78))]
+    a, b = crop(sys.argv[1]), crop(sys.argv[2])
+    diff = sum(abs(v - c) for p, q in zip(a, b) for v, c in zip(p, q)) / (len(a) * 3)
+    sys.exit(0 if diff < 12 else 1)
+except Exception:
+    sys.exit(1)
+PY
+        then return 0; fi
+        return 1
+    }
+    # Shoot one frame. If a centred surface looks blank even though its state
+    # said it was up, reissue the opening IPC once and recapture before failing.
+    shoot() {
+        _name="$1"; _want="$2"; _cmd="$3"
+        _path="$OUTDIR/$(printf '%02d' "$n")-$_name.png"
+        grim "$_path"
+        if needs_visual "$_name" "$_want" && frame_is_blank "$_path"; then
+            [ -n "$_cmd" ] && ipc "$_cmd"
+            [ -n "$_want" ] && waitfor "$_want" 10 || true
+            sleep 1.5
+            grim "$_path"
+            if frame_is_blank "$_path"; then
+                failed=$((failed+1)); last_bad="$_name"
+                log "FAIL: $_name — state said $_want but no surface drew"
+            fi
+        fi
+    }
     # capture() takes a 4th argument: a python expression over `d`, the state
     # IPC's JSON, that must be true once the surface is up. Without one a failed
     # IPC or a section id nothing reads leaves the PREVIOUS surface on screen and
@@ -372,7 +432,7 @@ render_shell() {
             log "FAIL: $name — the shell's state never said: $want"
         fi
         sleep "$delay"
-        n=$((n+1)); grim "$OUTDIR/$(printf '%02d' "$n")-$name.png"
+        n=$((n+1)); shoot "$name" "$want" "$cmd"
         echo "[$n] $name"
         result "$name"
     }
@@ -392,7 +452,7 @@ render_shell() {
         last_bad=""
         check_want "$name" "$want"
         sleep "$delay"
-        n=$((n+1)); grim "$OUTDIR/$(printf '%02d' "$n")-$name.png"
+        n=$((n+1)); shoot "$name" "$want" "$LAST_IPC"
         echo "[$n] $name"
         result "$name"
     }
@@ -848,6 +908,16 @@ PY
     # window, when a binding loops, or when a handler throws: the render still
     # looks plausible at a glance. The guard is the log. Only QML's own words
     # count - the compositor's MESA and font noise is not ours.
+    # LazyLoader compile errors are the dangerous case: the Ui flag flips (so
+    # the state expectation PASSes) but the window never maps and the frame is
+    # bare wallpaper. Quickshell logs these as WARN `qs:@/...:line:col: msg`,
+    # not "QML ERROR", so they previously passed silently. Catch them here.
+    compile_bad=$(grep -aE "qs:@/.*(Unexpected token|Cannot assign to non-existent property|is not a type|is not a function|Unknown type|is not a valid|Expected token)" /work/out/logs/qs.log | head -5)
+    if [ -n "$compile_bad" ]; then
+        echo "QML COMPILE ERROR in $n renders:" >&2
+        printf '%s\n' "$compile_bad" >&2
+        failed=$((failed+1))
+    fi
     bad=$(grep -aE "QQuickLayout|Layout::|is larger than|does not fit|Unable to (fit|arrange)|Binding loop|TypeError|ReferenceError|is not a function|is not defined|Unable to assign" /work/out/logs/qs.log | head -5)
     if [ -n "$bad" ]; then
         echo "QML ERROR in $n renders:" >&2

@@ -165,8 +165,7 @@ except Exception as e:
                     label: Tr.t("Database file")
                     placeholder: Tr.t("Path to a .db or .sqlite file")
                     text: win.dbPath
-                    onEditingFinished: win.dbPath = text.trim()
-                    Keys.onAccepted: win.dbPath = text.trim()
+                    onAccepted: win.dbPath = text.trim()
                 }
             }
             BusyNote {

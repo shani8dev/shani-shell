@@ -192,7 +192,7 @@ AppWindow {
                 id: formIs
                 Layout.fillWidth: true; spacing: Theme.px(4)
                 Flow {
-                    visible: win.w && win.w.choices
+                    visible: !!win.w && !!win.w.choices
                     Layout.fillWidth: true; spacing: Theme.px(6)
                     Repeater {
                         model: win.w ? win.w.choices : []
@@ -216,7 +216,7 @@ AppWindow {
                     Layout.fillWidth: true
                     placeholder: Tr.t("Type the value, e.g. my Wi-Fi name")
                     text: win.is
-                    onEditingFinished: win.is = text.trim()
+                    onAccepted: win.is = text.trim()
                 }
             }
             Flow {
@@ -234,7 +234,7 @@ AppWindow {
             }
             Flow {
                 Layout.fillWidth: true; spacing: Theme.px(6)
-                visible: win.t && win.t.choices
+                visible: !!win.t && !!win.t.choices
                 Repeater {
                     model: win.t.choices
                     Choice {
@@ -251,8 +251,7 @@ AppWindow {
                 Layout.fillWidth: true
                 placeholder: Tr.t("Shell command, e.g. notify-send it works")
                 text: win.arg
-                onEditingFinished: win.arg = text.trim()
-                Keys.onAccepted: win.addRule()
+                onAccepted: win.arg = text.trim()
             }
             Text {
                 Layout.fillWidth: true

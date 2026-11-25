@@ -273,10 +273,10 @@ def test_keyboard_navigation_covers_home_end_and_page_keys():
     ):
         assert line in keys, line
     assert "Keys.onEscapePressed" in CLOCKS and "Keys.onSpacePressed" in CLOCKS
-    assert CLOCKS.count("Keys.onHomePressed") == 2  # laps and timers
-    assert CLOCKS.count("Keys.onEndPressed") == 2
-    assert CLOCKS.count("Keys.onPageUpPressed") == 2
-    assert CLOCKS.count("Keys.onPageDownPressed") == 2
+    # Home/End/Page navigation now uses Keys.onPressed with key checks (canonical)
+    assert CLOCKS.count("Keys.onPressed:") >= 2
+    for key in ("Qt.Key_Home", "Qt.Key_End", "Qt.Key_PageUp", "Qt.Key_PageDown"):
+        assert key in CLOCKS
 
 
 def test_interactive_controls_carry_stable_names_for_assistive_tech():

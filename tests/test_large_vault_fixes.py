@@ -354,7 +354,7 @@ def test_otp_empty_error_and_retry_states():
     )
     assert 'code === 2 ? Tr.t("The keyring is not running")' in s
     assert 'actionText: win.available ? "" : Tr.t("Try again")' in s
-    assert "action: win.refresh()" in s
+    assert "onAction: win.refresh()" in s
 
 
 # ---- 15. no secrets in argv, still ------------------------------------------

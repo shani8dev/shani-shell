@@ -554,10 +554,12 @@ AppWindow {
                     clip: true
                     spacing: 2
                     model: WorldClock.swLaps
-                    Keys.onHomePressed: if (count) currentIndex = 0
-                    Keys.onEndPressed: if (count) currentIndex = count - 1
-                    Keys.onPageUpPressed: currentIndex = Math.max(0, currentIndex - 8)
-                    Keys.onPageDownPressed: currentIndex = Math.min(count - 1, currentIndex + 8)
+                    Keys.onPressed: e => {
+                        if (e.key === Qt.Key_Home) { if (count) currentIndex = 0; e.accepted = true; }
+                        else if (e.key === Qt.Key_End) { if (count) currentIndex = count - 1; e.accepted = true; }
+                        else if (e.key === Qt.Key_PageUp) { currentIndex = Math.max(0, currentIndex - 8); e.accepted = true; }
+                        else if (e.key === Qt.Key_PageDown) { currentIndex = Math.min(count - 1, currentIndex + 8); e.accepted = true; }
+                    }
                     delegate: ListRow {
                         required property string modelData
                         required property int index
@@ -732,10 +734,12 @@ AppWindow {
                     clip: true
                     spacing: 2
                     model: WorldClock.timers
-                    Keys.onHomePressed: if (count) currentIndex = 0
-                    Keys.onEndPressed: if (count) currentIndex = count - 1
-                    Keys.onPageUpPressed: currentIndex = Math.max(0, currentIndex - 8)
-                    Keys.onPageDownPressed: currentIndex = Math.min(count - 1, currentIndex + 8)
+                    Keys.onPressed: e => {
+                        if (e.key === Qt.Key_Home) { if (count) currentIndex = 0; e.accepted = true; }
+                        else if (e.key === Qt.Key_End) { if (count) currentIndex = count - 1; e.accepted = true; }
+                        else if (e.key === Qt.Key_PageUp) { currentIndex = Math.max(0, currentIndex - 8); e.accepted = true; }
+                        else if (e.key === Qt.Key_PageDown) { currentIndex = Math.min(count - 1, currentIndex + 8); e.accepted = true; }
+                    }
                     delegate: ListRow {
                         required property var modelData
                         required property int index

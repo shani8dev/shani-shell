@@ -7,6 +7,7 @@
 // remembered, newest first, capped at 20, with a Clear action; clicking a
 // result or a history row shows its definitions, synonyms and antonyms.
 import Quickshell
+import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
@@ -122,10 +123,11 @@ AppWindow {
 
     // Escape / Ctrl+W come from AppWindow and go through requestClose(); this
     // window uses AppWindow's body (and its header) rather than a second one.
-    body {
-        ColumnLayout {
-            id: col
-            anchors.fill: body
+    // content is AppWindow's default property alias to body.data, so children
+    // go straight in — `body { }` is an invalid grouped assignment.
+    ColumnLayout {
+        id: col
+        anchors.fill: parent
             anchors.margins: Theme.px(14)
             spacing: Theme.px(10)
 
@@ -342,5 +344,4 @@ AppWindow {
                 }
             }
         }
-    }
 }

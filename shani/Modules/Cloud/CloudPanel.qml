@@ -328,7 +328,9 @@ AppWindow {
                                 visible: row.modelData.state === "running" || row.modelData.state === "paused" || row.modelData.state === "done"
                                 Accessible.role: Accessible.ProgressBar
                                 Accessible.name: Tr.t("Progress of %1").arg(row.modelData.id)
-                                Accessible.value: win.percent(row.modelData) * 100
+                                // Qt reads a ProgressBar's value off the object's own `value`
+                                // property - assigning Accessible.value is an error
+                                property real value: win.percent(row.modelData)
                                 Rectangle {
                                     width: parent.width * win.percent(row.modelData)
                                     height: parent.height

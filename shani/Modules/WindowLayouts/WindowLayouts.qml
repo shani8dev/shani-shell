@@ -230,7 +230,14 @@ PanelWindow {
                                 height: Theme.px(24)
                                 radius: Theme.px(12)
                                 color: Theme.hover
-                                Text { id: customLabel; anchors { left: parent.left; leftMargin: 8; verticalCenter: parent.verticalCenter }; text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                                Text {
+                                    id: customLabel
+                                    anchors { left: parent.left; leftMargin: 8; verticalCenter: parent.verticalCenter }
+                                    text: modelData.name
+                                    color: Theme.text
+                                    font.family: Theme.font
+                                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                                }
                                 ConfirmButton {
                                     id: deleteLayoutConfirm
                                     anchors { right: parent.right; verticalCenter: parent.verticalCenter }

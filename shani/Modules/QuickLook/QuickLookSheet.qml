@@ -352,14 +352,16 @@ PanelWindow {
                     visible: QuickLook.kind === "text" && QuickLook.text !== ""
                     contentHeight: listing.implicitHeight
                     clip: true
-                    Text {
+                    TextEdit {
                         id: listing
                         width: parent.width
+                        readOnly: true
                         selectByMouse: true
-                        textFormat: Text.RichText
+                        selectByKeyboard: true
+                        textFormat: TextEdit.RichText
                         text: QuickLook.kind !== "text" ? "" : '<pre style="margin:0; white-space:pre-wrap;">' + Highlight.html(QuickLook.text, Highlight.langFor(QuickLook.path, QuickLook.text.split("\n")[0]), win.tints) + "</pre>"
                         color: Theme.text
-                        wrapMode: Text.WrapAnywhere
+                        wrapMode: TextEdit.WrapAnywhere
                         font.family: Theme.mono
                         font.pixelSize: Theme.px(13) * Theme.fontScale
                     }

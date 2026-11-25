@@ -54,7 +54,7 @@ def test_smart_details_expansion_at_names_capacity_refresh():
         'text: Tr.t("Capacity: %1", smartCol.info.capacity ? win.human(smartCol.info.capacity) : "—")'
         in w
     )
-    assert 'text: Tr.t("Health: %1", curHealth.overall || "—")' in w
+    assert 'Tr.t("Health: %1", (healthRow.curHealth && healthRow.curHealth.overall) || "—")' in w
     assert (
         'Tr.t("Refresh health")' in w
         and 'onClicked: Disks.checkHealth(win.selectedDisk ? win.selectedDisk.path : "")'

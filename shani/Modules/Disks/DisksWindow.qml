@@ -2,6 +2,7 @@
 // mount points, and SMART health. Destructive operations (erase, format,
 // encrypt, install stick) need two-click confirmation and polkit authorisation.
 import Quickshell
+import Quickshell.Io
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -839,9 +840,10 @@ AppWindow {
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Theme.px(6)
+                        id: healthRow
                         readonly property var curHealth: win.selectedDisk ? Disks.health[win.selectedDisk.path] : null
                         Button { text: Tr.t("Refresh health"); flat: true; enabled: !!win.selectedDisk; onClicked: Disks.checkHealth(win.selectedDisk ? win.selectedDisk.path : "") }
-                        Text { Layout.fillWidth: true; visible: !!curHealth; text: Tr.t("Health: %1", curHealth.overall || "—"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        Text { Layout.fillWidth: true; visible: !!healthRow.curHealth; text: Tr.t("Health: %1", (healthRow.curHealth && healthRow.curHealth.overall) || "—"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                     }
                     Text { Layout.fillWidth: true; text: Tr.t("Self-test log"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
                     Repeater {

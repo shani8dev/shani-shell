@@ -992,7 +992,13 @@ AppWindow {
                     }
                     IconButton { icon: "view-list"; tip: Tr.t("Queue") + " (L)"; on: win.listShown; onClicked: win.listShown = !win.listShown }
                     IconButton { icon: "document-open-recent"; tip: Tr.t("Recent media"); on: win.recentShown; onClicked: { win.recentShown = !win.recentShown; if (win.recentShown) win.streamShown = false; } }
-                    IconButton { icon: "book"; tip: Tr.t("Audiobook"); on: win.audiobookShown; onClicked: { win.audiobookShown = !win.audiobookShown; if (win.audiobookShown) { win.recentShown = false; win.streamShown = false; } }; Accessible.name: Tr.t("Audiobook mode") }
+                    IconButton {
+                        icon: "book"
+                        tip: Tr.t("Audiobook")
+                        on: win.audiobookShown
+                        onClicked: { win.audiobookShown = !win.audiobookShown; if (win.audiobookShown) { win.recentShown = false; win.streamShown = false; } }
+                        Accessible.name: Tr.t("Audiobook mode")
+                    }
                     IconButton { icon: "network-workgroup"; tip: Tr.t("Open network stream"); on: win.streamShown; onClicked: { win.streamShown = !win.streamShown; if (win.streamShown) win.recentShown = false; } }
                     IconButton { icon: "document-save-as"; tip: Tr.t("Convert this file…"); enabled: PlayQueue.current !== ""; onClicked: { Ui.converterFiles = [PlayQueue.current]; Ui.converter = true; } }
                     IconButton { icon: "document-open"; tip: Tr.t("Open") + " (O)"; onClicked: win.pick() }

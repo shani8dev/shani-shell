@@ -284,7 +284,7 @@ AppWindow {
                     color: "transparent"
                     Text {
                         anchors { left: parent.left; leftMargin: Theme.px(14); verticalCenter: parent.verticalCenter }
-                        text: section.label
+                        text: section.label || ""
                         color: Theme.faint
                         font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
                         font.weight: Font.DemiBold
@@ -359,7 +359,7 @@ AppWindow {
                     title: win.searchText !== "" || win.groupFilter !== "" ? Tr.t("Nothing matches") : win.available ? Tr.t("No codes yet") : Tr.t("The keyring is not running")
                     subtitle: win.available ? Tr.t("When a website offers two-factor sign-in, scan its QR code") : Tr.t("It starts when you sign in; the codes are kept there")
                     actionText: win.available ? "" : Tr.t("Try again")
-                    action: win.refresh()
+                    onAction: win.refresh()
                 }
             }
             RowLayout {
