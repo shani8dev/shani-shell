@@ -8,7 +8,8 @@
 # keyring was unlocked by the sign-in; a second sign-in (the user's systemd and
 # the daemon gone in between, as after a restart) must unlock the same keyring.
 fail=0
-result() { echo "RESULT $1 $2${3:+ ($3)}"; if [ "$2" = FAIL ]; then fail=1; fi; }
+# result: the helpers every harness shares (dev/harness.sh)
+. /work/dev/harness.sh
 pacman -Sy --noconfirm --needed oo7 >/dev/null 2>&1 || { result keyring-oo7-installed FAIL "pacman -S oo7"; exit 1; }
 cp /desk/etc/pam.d/shani-greetd /etc/pam.d/shani-greetd
 mkdir -p /usr/lib/shani-desktop-niri /usr/lib/systemd/user/default.target.wants

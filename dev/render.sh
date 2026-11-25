@@ -69,21 +69,35 @@ ONE_NAME=""
 ONE_IPC=""
 ONE_DELAY="1.5"
 
+# Everything a render writes stays in out/ (git-ignored). A directory given
+# outside it - `render.sh --one x '' 1 /work/renderone` once left 143 MB of PNGs
+# in the repo root - is taken as a name under out/renders instead.
+in_out() {
+    case "$1" in
+        /work/out/*) printf '%s' "$1" ;;
+        *) printf '/work/out/renders/%s' "$(basename "$1")" ;;
+    esac
+}
+
 # ---- parse args -----------------------------------------------------------
 if [ "${1:-}" = "--one" ]; then
     MODE="one"
     ONE_NAME="${2:?usage: render.sh --one <name> [ipc-cmd] [delay] [outdir]}"
     ONE_IPC="${3:-}"
     ONE_DELAY="${4:-1.5}"
-    OUTDIR="${5:-/work/out/renders/shell}"
+    OUTDIR=$(in_out "${5:-/work/out/renders/shell}")
+    mkdir -p "$OUTDIR"
+elif [ "${1:-}" = "matrix" ]; then
+    MODE=matrix
+    OUTDIR=$(in_out "${2:-/work/out/renders/matrix/${SHANI_FORM_FACTOR:-computer}}")
     mkdir -p "$OUTDIR"
 elif [ "${1:-}" = "shell" ] || [ "${1:-}" = "greeter" ] || [ "${1:-}" = "setup" ] || [ "${1:-}" = "all" ]; then
     MODE="$1"
-    OUTDIR="${2:-$OUTDIR}"
+    OUTDIR=$(in_out "${2:-$OUTDIR}")
     mkdir -p "$OUTDIR"
 elif [ $# -ge 1 ]; then
     # backwards compatible: render.sh <outdir> renders the shell
-    OUTDIR="$1"
+    OUTDIR=$(in_out "$1")
     mkdir -p "$OUTDIR"
 else
     mkdir -p "$OUTDIR"
@@ -92,31 +106,9 @@ fi
 # ---- shared helpers --------------------------------------------------------
 log() { printf '%s\n' "$*" >&2; }
 
-# merge keys into the live settings file (it is watched; applies on write)
-settings_merge() {
-    SHANI_MERGE_JSON="$1" python3 -c 'import json,os
-p = os.environ["SHANI_SHELL_SETTINGS"]
-with open(p) as f:
-    text = f.read()
-cur = json.loads(text) if text.strip() else {}
-cur.update(json.loads(os.environ["SHANI_MERGE_JSON"]))
-with open(p, "w") as f:
-    json.dump(cur, f)'
-}
-
-# wait (up to $2 * 0.5 s, default 15 s) for a python expression over state → 0
-waitfor() {
-    _i=0
-    while [ "$_i" -lt "${2:-30}" ]; do
-        st 2>/dev/null | python3 -c "import json,sys
-try: d = json.load(sys.stdin)
-except Exception: sys.exit(1)
-sys.exit(0 if ($1) else 1)" >/dev/null 2>&1 && return 0
-        sleep 0.5
-        _i=$((_i+1))
-    done
-    return 1
-}
+# ipc/ipc_line, st, q, waitfor (seconds), result, shot, settings_merge: the
+# helpers every harness shares (dev/harness.sh)
+. /work/dev/harness.sh
 
 # teardown between compositor sessions (used by `all`): everything from a phase
 # is killed and the wayland sockets are removed before the next phase boots one
@@ -140,7 +132,6 @@ teardown() {
 # ===========================================================================
 if [ "$MODE" = "one" ]; then
     . /work/dev/session.sh
-    st() { timeout 5 qs -p /work/shani ipc call shani state 2>/dev/null; }
     i=0
     until st >/dev/null 2>&1; do sleep 0.5; i=$((i+1)); [ $i -ge 60 ] && { echo "shell never loaded"; exit 1; }; done
     # PRERUN: shell commands to stage the scene first (settings, notifications, apps)
@@ -303,9 +294,8 @@ KDL
     export WAYLAND_DISPLAY=wayland-1
     sleep 2
 
-    st() { timeout 5 qs -c shani-setup ipc call setup state 2>/dev/null; }
-    call() { qs -c shani-setup ipc call setup "$@" >/dev/null 2>&1 || log "warn: setup IPC failed: $*"; }
-    shot() { sleep "${2:-0.8}"; grim "$_out/$1.png"; }
+    QS_ARGS="-c shani-setup"; QS_TARGET=setup; SHOTS="$_out"
+    call() { ipc_line "$@" || log "warn: setup IPC failed: $*"; }
 
     i=0; until st >/dev/null 2>&1 || [ $i -ge 30 ]; do sleep 0.5; i=$((i + 1)); done
 
@@ -332,8 +322,60 @@ KDL
 # ===========================================================================
 # SHELL — every shell surface, in capture order
 # ===========================================================================
+# The same key surfaces on every form factor (sh dev/check.sh render=matrix runs
+# one session per kind of screen, SHANI_FORM_FACTOR) and, on a computer, every
+# desktop layout of the Layout switcher. What the full render shows once, at
+# 1920x1080 on a computer, this shows at each size people actually use.
+MATRIX_LAYOUTS="default classic focus tiling dashboard touch"   # LayoutSwitcher.qml presets, in order
+matrix_scenes() {
+    ff="${SHANI_FORM_FACTOR:-computer}"
+    capture desktop "" 1.5
+    ipc_line "launcher ''"; sleep 1.5; capture_current launcher 0.5 "d['launcher']"
+    close_all
+    capture sidebar "toggleControlCenter" 1.5 "d['controlCenter']"
+    capture settings "settings" 2 "d['settingsOpen']"
+    close_all
+    notify-send -a Mail "Lunch at 1?" "Priya: the usual place, I'll book a table."
+    sleep 2; capture_current notification 0.5 "d['popups'] > 0"
+    close_all
+    ipc closeAll; sleep 0.6
+    python3 /work/bin/shani app files >/dev/null 2>&1 || true
+    waitfor "d.get('filesShown')" 10 && capture_current app-files 1.0 "d.get('filesShown')"
+    ipc closeAll; sleep 0.6
+    case "$ff" in
+        handheld|tv) capture quick-panel "quickPanel true" 1.5 "d['quickPanel']"; ipc quickPanel false; close_all ;;
+    esac
+    ipc_line lock; sleep 2
+    capture_current lock 0.5 "d['locked']"
+    wtype shani-test; sleep 0.3; wtype -k Return
+    waitfor "not d['locked']" 12 || { echo "lock did not unlock"; exit 1; }
+    [ "$ff" = computer ] || return 0
+    # every layout, kept through the switcher the way a person picks one
+    k=0
+    for id in $MATRIX_LAYOUTS; do
+        ipc layoutSwitcher
+        waitfor "d['layoutSwitcher']" 5 || log "warn: layout switcher did not open"
+        sleep 0.5
+        j=0; while [ "$j" -lt "$k" ]; do wtype -k Right; sleep 0.2; j=$((j + 1)); done
+        wtype -k Return
+        if waitfor "d['layoutPreset'] == '$id' and not d['layoutSwitcher']" 8; then
+            python3 /work/bin/shani app files >/dev/null 2>&1 || true
+            waitfor "d.get('filesShown')" 10 || true
+            capture_current "layout-$id" 1.5 "d['layoutPreset'] == '$id'"
+        else
+            last_bad="layout-$id"; failed=$((failed+1)); shot_result "layout-$id"
+        fi
+        ipc closeAll; sleep 0.6
+        k=$((k + 1))
+    done
+    # back to the default for whatever runs next
+    ipc layoutSwitcher; waitfor "d['layoutSwitcher']" 5; sleep 0.5; wtype -k Return
+    waitfor "d['layoutPreset'] == 'default'" 8 || log "warn: layout not restored"
+}
+
 render_shell() {
     _out="$OUTDIR/shell"
+    [ "$MODE" = matrix ] && _out="$OUTDIR"
     mkdir -p "$_out"
     rm -f "$_out"/*.png
     OUTDIR="$_out"
@@ -343,8 +385,6 @@ render_shell() {
     # suite sets the same variable, dev/shell-parts/apps.sh)
     export SHANI_QS_CONFIG=/work/shani
 
-    ipc() { eval "qs -p /work/shani ipc call shani $*" >/dev/null 2>&1 || true; LAST_IPC="$*"; }
-    st() { timeout 5 qs -p /work/shani ipc call shani state 2>/dev/null; }
     BASE="$OUTDIR/01-desktop-rest.png"   # the plain desktop, captured by shot 01
     # dismissAll, not closeAll: closeAll only closes the panels Ui tracks, so
     # the ruler banner, the Lens, live captions, the QR/share cards and old
@@ -352,7 +392,7 @@ render_shell() {
     # Wait until the panels really cleared: a stuck surface used to stay up for
     # the next capture, which then photographed it instead of its own subject.
     close_all() {
-        ipc dismissAll
+        ipc_line dismissAll
         waitfor "not d.get('controlCenter') and not d.get('launcher') and not d.get('settingsOpen') and not d.get('chronoaOpen') and not d.get('ring') and not d.get('switcher') and not d.get('layoutSwitcher') and d.get('expanded', '') == ''" 12 \
             || log "warn: closeAll — a surface did not clear before the next shot"
         sleep 0.5
@@ -408,7 +448,7 @@ PY
         _path="$OUTDIR/$(printf '%02d' "$n")-$_name.png"
         grim "$_path"
         if needs_visual "$_name" "$_want" && frame_is_blank "$_path"; then
-            [ -n "$_cmd" ] && ipc "$_cmd"
+            [ -n "$_cmd" ] && ipc_line "$_cmd"
             [ -n "$_want" ] && waitfor "$_want" 10 || true
             sleep 1.5
             grim "$_path"
@@ -434,15 +474,15 @@ PY
         sleep "$delay"
         n=$((n+1)); shoot "$name" "$want" "$cmd"
         echo "[$n] $name"
-        result "$name"
+        shot_result "$name"
     }
     # An IPC can be lost to a busy shell (the full run fires hundreds back to
     # back); reissue it once before calling the surface a failure.
     open_surface() {
         [ -z "$3" ] && return 0          # no expectation: nothing to wait for
-        [ -n "$2" ] && ipc "$2"
+        [ -n "$2" ] && ipc_line "$2"
         waitfor "$3" 20 && return 0
-        [ -n "$2" ] && { ipc "$2"; sleep 1; }
+        [ -n "$2" ] && { ipc_line "$2"; sleep 1; }
         waitfor "$3" 20
     }
     # capture what is already on screen (the surface was opened by the caller;
@@ -454,7 +494,7 @@ PY
         sleep "$delay"
         n=$((n+1)); shoot "$name" "$want" "$LAST_IPC"
         echo "[$n] $name"
-        result "$name"
+        shot_result "$name"
     }
     check_want() {
         if [ -n "$2" ] && ! waitfor "$2" 40; then
@@ -465,11 +505,12 @@ PY
     }
     # one RESULT line per shot, so dev/check.sh's summary counts what was
     # rendered and what never came up (the suites' convention)
-    result() {
+    # one RESULT per scene, through the shared result (dev/harness.sh)
+    shot_result() {
         if [ "$last_bad" = "$1" ]; then
-            echo "RESULT shot-$1 FAIL the surface never came up"
+            result "shot-$1" FAIL "the surface never came up"
         else
-            echo "RESULT shot-$1 PASS"
+            result "shot-$1" PASS
         fi
     }
 
@@ -477,13 +518,17 @@ PY
     # suite does, and unlock through the keyboard after the lock shots
     echo 'root:shani-test' | chpasswd
 
+    if [ "$MODE" = matrix ]; then
+        matrix_scenes
+    else
+
     # ---- core desktop (window-free: the wallpaper is the subject) ---------------
     capture desktop-rest "" 1.5
-    ipc setting darkMode false
+    ipc_line setting darkMode false
     waitfor "not d['dark']" 20 || log "warn: light theme not applied"
     sleep 2.5   # the wallpaper cross-fade is Theme.anim*4 — let it finish
     capture desktop-light "" 0.8
-    ipc setting darkMode true
+    ipc_line setting darkMode true
     waitfor "d['dark']" 20 || log "warn: dark theme not applied"
     sleep 2.5   # the wallpaper cross-fade is Theme.anim*4 — let it finish
     capture desktop-dark "" 0.8
@@ -501,35 +546,35 @@ PY
 
     # ---- island ----------------------------------------------------------------
     capture island-rest "" 1
-    ipc "ask 'Tidy my desktop'"; sleep 2.5
+    ipc_line "ask 'Tidy my desktop'"; sleep 2.5
     capture_current island-working 0.5
     i=0
     until [ "$(st 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('approval'))" 2>/dev/null)" != "None" ] && [ $i -lt 30 ]; do sleep 0.5; i=$((i+1)); done
     if [ $i -lt 30 ]; then
         capture_current island-approval 0.5
-        ipc "approve 'Allow this once'"; sleep 2
+        ipc_line "approve 'Allow this once'"; sleep 2
     fi
     close_all
-    ipc askIsland; sleep 1.5
+    ipc_line askIsland; sleep 1.5
     capture_current island-ask 0.5
     # leaving the ask field open would keep the island in "Enter to send,
     # Esc to close" mode for every shot until the ring's Escape — close it here
-    ipc closeChronoa; sleep 0.5
+    ipc_line closeChronoa; sleep 0.5
     close_all
-    ipc timer 1; sleep 1.5
+    ipc_line timer 1; sleep 1.5
     capture_current island-timer 0.5
-    ipc timer 0; sleep 0.5
+    ipc_line timer 0; sleep 0.5
     # nested niri gives the recorder a 0×0 frame: this captures the region-select
     # stage (slurp), which is what a person sees first — not a live recording
-    ipc record; sleep 1.5
+    ipc_line record; sleep 1.5
     capture_current island-record 0.5
-    ipc record; sleep 0.5           # stop/cancel
-    ipc dnd; sleep 1.5
+    ipc_line record; sleep 0.5           # stop/cancel
+    ipc_line dnd; sleep 1.5
     capture_current island-dnd 0.5
-    ipc dnd; sleep 0.5
-    ipc caffeine; sleep 1.5
+    ipc_line dnd; sleep 0.5
+    ipc_line caffeine; sleep 1.5
     capture_current island-caffeine 0.5
-    ipc caffeine; sleep 0.5
+    ipc_line caffeine; sleep 0.5
     close_all
 
     # ---- control centre: main + every section id Ui.expanded understands ------
@@ -549,9 +594,9 @@ PY
     foot -a shani-demo -T "Win one" sh -c 'printf "\033[36m~/Projects/shani\033[0m $ shani-deploy --status\n\n  slot   A  (active)  2026.10.27  verified\n  slot   B            2026.10.21  verified\n  next   update ready  ·  312 MB  ·  signed\n\n\033[36m~/Projects/shani\033[0m $ "; sleep 600' >/dev/null 2>&1 &
     foot -a shani-demo -T "Win two" sh -c 'printf "\033[36m~\033[0m $ systemctl --user status shani-shell\n\n  Active: active (running)\n  Main PID: 912 (qs)\n  Memory: 84.2M\n\n\033[36m~\033[0m $ "; sleep 600' >/dev/null 2>&1 &
     sleep 1.5
-    ipc dockMenu foot; sleep 1
+    ipc_line dockMenu foot; sleep 1
     capture_current dock-menu 0.5 "d['dockMenu'] != ''"
-    ipc "dockMenu ''"; sleep 0.5
+    ipc_line "dockMenu ''"; sleep 0.5
     close_all
 
     # ---- switcher (the two foot windows from the top) ---------------------------
@@ -563,11 +608,11 @@ PY
     # ---- ring (pie menu), at the pointer and one level deep ---------------------
     capture ring-main "ring" 1.5 "d['ring']"
     close_all
-    ipc ringAt 300 500; sleep 1.2
+    ipc_line ringAt 300 500; sleep 1.2
     capture_current ring-at-point 0.5 "d['ring']"
     wtype -k Escape; sleep 0.5
     close_all
-    ipc ring; sleep 1; wtype 8; sleep 1
+    ipc_line ring; sleep 1; wtype 8; sleep 1
     capture_current ring-sub 0.5     # Power slice: a ring of its own
     wtype -k Escape; sleep 0.5
     close_all
@@ -585,16 +630,16 @@ PY
     # the null sink starts late in a fresh boot; wait for a real volume before
     # asking it to move, and reissue once if the first IPC was lost
     waitfor "d['volume'] is not None" 40 || log "warn: no audio sink in this render"
-    ipc volumeDown; sleep 0.6
-    waitfor "d['volume'] < 100" 10 || { ipc volumeDown; sleep 0.6; }
+    ipc_line volumeDown; sleep 0.6
+    waitfor "d['volume'] < 100" 10 || { ipc_line volumeDown; sleep 0.6; }
     capture_current osd-volume-down 0.6 "d['volume'] < 100"
-    ipc volumeUp;        sleep 0.4; capture_current osd-volume 0.6 "d['volume'] == 100"
-    ipc volumeMute;      sleep 0.4; capture_current osd-mute 0.6 "d['muted']"
-    ipc volumeMute;      sleep 0.5
-    ipc micMute;         sleep 0.4; capture_current osd-mic-mute 0.6
-    ipc micMute;         sleep 0.5
-    ipc brightnessUp;    sleep 0.4; capture_current osd-brightness-up 0.6
-    ipc brightnessDown;  sleep 0.4; capture_current osd-brightness-down 0.6
+    ipc_line volumeUp;        sleep 0.4; capture_current osd-volume 0.6 "d['volume'] == 100"
+    ipc_line volumeMute;      sleep 0.4; capture_current osd-mute 0.6 "d['muted']"
+    ipc_line volumeMute;      sleep 0.5
+    ipc_line micMute;         sleep 0.4; capture_current osd-mic-mute 0.6
+    ipc_line micMute;         sleep 0.5
+    ipc_line brightnessUp;    sleep 0.4; capture_current osd-brightness-up 0.6
+    ipc_line brightnessDown;  sleep 0.4; capture_current osd-brightness-down 0.6
     brightnessctl set 50% >/dev/null 2>&1 || true
 
     # ---- notifications -------------------------------------------------------------
@@ -612,10 +657,10 @@ PY
     kill "$actions_pid" 2>/dev/null || true
     notify-send -u critical -a Power "Battery low" "5% left"
     sleep 1; capture_current notification-critical 0.5 "d['popups'] > 0"
-    ipc dnd
+    ipc_line dnd
     notify-send -a Backup "Backup finished" "142 files, 3.1 GB"
     sleep 1; capture_current notification-dnd 0.5 "d['popups'] > 0"
-    ipc dnd
+    ipc_line dnd
 
     # ---- the SMS/call path (fake modem drives the real shell code) ---------------
     echo '{"modem": {"path": "/m/0", "state": "registered", "locked": "", "operator": "Jio", "signal": 63, "number": "+9198", "voice": true, "messaging": true}}' > /tmp/modem-ask
@@ -634,21 +679,21 @@ PY
     kill "$call_pid" 2>/dev/null || true
     echo '{"call": {"path": "/c/1", "number": "+919844444444", "state": "terminated", "incoming": true}}' > /tmp/modem-ask
     sleep 1
-    ipc textMessage +919822222222; sleep 1.2
+    ipc_line textMessage +919822222222; sleep 1.2
     capture_current modem-sms-composer 0.5 "d['smsTo'] != ''"
     close_all
 
     # ---- chronoa panel ------------------------------------------------------------
     capture chronoa-panel-idle "toggleChronoa" 1.5 "d['chronoaOpen']"
-    ipc "ask 'What is using my battery?'"; sleep 3
+    ipc_line "ask 'What is using my battery?'"; sleep 3
     capture_current chronoa-panel-thinking 0.5 "d['chronoaOpen']"
     sleep 5
     capture_current chronoa-panel-speaking 0.5 "d['chronoaOpen']"
-    ipc closeChronoa; sleep 0.5
+    ipc_line closeChronoa; sleep 0.5
     close_all
 
     # ---- lock screen (unlock by typing the password) -------------------------------
-    ipc lock; sleep 2
+    ipc_line lock; sleep 2
     capture_current lock-screen 0.5 "d['locked']"
     wtype wrong-password; sleep 0.3; wtype -k Return; sleep 2.5
     capture_current lock-wrong 0.5 "d['locked']"       # the refusal, in place
@@ -669,18 +714,18 @@ PY
     close_all
 
     # ---- display confirm (niri applies, keeps or reverts) ---------------------------
-    ipc display "winit scale 1.5"
+    ipc_line display "winit scale 1.5"
     waitfor "d['displayPending']" 10
     capture_current display-confirm 0.5 "d['displayPending']"
-    ipc displayKeep; sleep 1
-    ipc display "winit scale 1"; sleep 2
+    ipc_line displayKeep; sleep 1
+    ipc_line display "winit scale 1"; sleep 2
 
     # ---- bluetooth pairing (fake agent drives the real shell dialog) ---------------
     rm -f /tmp/bt-ask /tmp/bt-answers
     echo '{"ask": "confirm", "id": 7, "device": "Pixel 8", "passkey": "012345"}' > /tmp/bt-ask
     waitfor "d['btAsk'] == 'confirm:Pixel 8'" 10
     capture_current bt-pair-confirm 0.5 "d['btAsk'] != ''"
-    ipc "btAnswer true ''"; sleep 1
+    ipc_line "btAnswer true ''"; sleep 1
     echo '{"show": "passkey", "device": "K380", "passkey": "045123", "entered": 0}' > /tmp/bt-ask
     waitfor "d['btShow'] == 'K380'" 10
     capture_current bt-passkey 0.5 "d['btShow'] != ''"
@@ -708,9 +753,9 @@ PY
 
     # ---- on-screen keyboard -------------------------------------------------------------
     capture osk-main "osk" 1.5 "d['osk']"
-    ipc oskLanguage; sleep 0.5
+    ipc_line oskLanguage; sleep 0.5
     capture_current osk-language 0.5 "d['oskLang'] != ''"
-    ipc osk; sleep 0.5
+    ipc_line osk; sleep 0.5
     close_all
 
     # ---- captions ----------------------------------------------------------------------
@@ -719,16 +764,16 @@ PY
 
     # ---- launcher: empty → answers → full grid; clipboard mode --------------------------
     capture "launcher-empty" "launcher ''" 1.5 "d['launcher']"
-    ipc launcher text;       sleep 1.5; capture_current launcher-apps 0.5 "d['launcher']"
-    ipc "launcher '= 2*(3+4)^2'"; sleep 1.5; capture_current launcher-calc 0.5 "d['launcher']"
-    ipc "launcher ':grinning face'"; sleep 1.5; capture_current launcher-emoji 0.5 "d['launcher']"
-    ipc launcher quarterly;  sleep 1.5; capture_current launcher-files 0.5 "d['launcher']"
-    ipc "launcher '5 km in miles'"; sleep 1.5; capture_current launcher-convert 0.5 "d['launcher']"
-    ipc launcher dark;       sleep 1.5; capture_current launcher-actions 0.5 "d['launcher']"
-    ipc "launcher ''";         sleep 1.5; capture_current launcher-full 0.5 "d['launcher']"
+    ipc_line launcher text;       sleep 1.5; capture_current launcher-apps 0.5 "d['launcher']"
+    ipc_line "launcher '= 2*(3+4)^2'"; sleep 1.5; capture_current launcher-calc 0.5 "d['launcher']"
+    ipc_line "launcher ':grinning face'"; sleep 1.5; capture_current launcher-emoji 0.5 "d['launcher']"
+    ipc_line launcher quarterly;  sleep 1.5; capture_current launcher-files 0.5 "d['launcher']"
+    ipc_line "launcher '5 km in miles'"; sleep 1.5; capture_current launcher-convert 0.5 "d['launcher']"
+    ipc_line launcher dark;       sleep 1.5; capture_current launcher-actions 0.5 "d['launcher']"
+    ipc_line "launcher ''";         sleep 1.5; capture_current launcher-full 0.5 "d['launcher']"
     wl-copy "render clipboard probe"; sleep 0.5
-    ipc "launcher 'c probe'";  sleep 1.5
-    waitfor "d['launcher']" 10 || { ipc "launcher 'c probe'"; sleep 1.5; }
+    ipc_line "launcher 'c probe'";  sleep 1.5
+    waitfor "d['launcher']" 10 || { ipc_line "launcher 'c probe'"; sleep 1.5; }
     capture_current launcher-clipboard 0.5 "d['launcher']"
     close_all
 
@@ -751,13 +796,13 @@ PY
     done
     close_all
     # ---- settings search: highlighted matches + empty state -----------------------
-    ipc settings; sleep 1.5
+    ipc_line settings; sleep 1.5
     wtype proxy; sleep 1.5
     capture_current settings-search-proxy 0.5 "d['settingsOpen']"
     # clear the query and show the empty state by searching for nonsense
     # type a query with no matches to exercise the empty state
     close_all
-    ipc settings; sleep 1.5
+    ipc_line settings; sleep 1.5
     wtype zzzzzzz; sleep 1.2
     capture_current settings-search-empty 0.5 "d['settingsOpen']"
     close_all
@@ -778,16 +823,16 @@ PY
     close_all
 
     # ---- flash alerts (edge glow on a notification; opt-in setting) ---------------------
-    ipc setting flashAlerts true; sleep 0.5
+    ipc_line setting flashAlerts true; sleep 0.5
     notify-send -a Mail "Flash test" "the edge glows"
     waitfor "d['lastFlash'] != ''" 10
     capture_current flash-alert 0.5 "d['lastFlash'] != ''"
-    ipc setting flashAlerts false; sleep 0.5
+    ipc_line setting flashAlerts false; sleep 0.5
     close_all
 
     # ---- share sheet ----------------------------------------------------------------------
     touch /tmp/test-share.txt
-    ipc share /tmp/test-share.txt; sleep 1.5
+    ipc_line share /tmp/test-share.txt; sleep 1.5
     capture_current share-sheet 0.5 "len(d['shareTargets']) > 0"
     rm -f /tmp/test-share.txt
     close_all
@@ -851,13 +896,13 @@ PY
                              if [ -f "$F/clip.mp4" ]; then set -- "$name" "$F/clip.mp4"; else set -- "$name"; fi ;;
             *)               set -- "$name" ;;
         esac
-        ipc closeAll; sleep 0.6
+        ipc_line closeAll; sleep 0.6
         python3 /work/bin/shani app "$@" >/dev/null 2>&1 || true
         # the CLI's IPC can be dropped under the load of 100+ prior shots
-        waitfor "d.get('$key')" 10 || { ipc closeAll; sleep 0.6; python3 /work/bin/shani app "$@" >/dev/null 2>&1 || true; }
+        waitfor "d.get('$key')" 10 || { ipc_line closeAll; sleep 0.6; python3 /work/bin/shani app "$@" >/dev/null 2>&1 || true; }
         capture_current "app-$name" 1.0 "d.get('$key')"
     done
-    ipc closeAll; sleep 0.5
+    ipc_line closeAll; sleep 0.5
     close_all
 
     # ---- the Media Player's pages, each with real content behind it ----
@@ -866,11 +911,11 @@ PY
     capture media-live-tv "liveTvOpen" 3 "len(d['liveTvChannels']) >= 100"
     close_all
     # the library and now-playing views need the player open first, so two IPCs
-    ipc "mediaOpen ''"; sleep 1; ipc "mediaPage library"; sleep 1
+    ipc_line "mediaOpen ''"; sleep 1; ipc_line "mediaPage library"; sleep 1
     capture_current media-library 1.0 "d['mediaShown'] and d['mediaPage'] == 'library'"
     close_all
     if [ -f "$F/clip.mp4" ]; then
-        ipc "mediaOpen '$F/clip.mp4'"; sleep 1.5
+        ipc_line "mediaOpen '$F/clip.mp4'"; sleep 1.5
         capture_current media-playing 1.0 "d['mediaShown'] and d['mediaPage'] == 'playing'"
         close_all
     fi
@@ -895,13 +940,35 @@ PY
     # "What's new" is a notification, not a window: a version the shell has not
     # told about yet, then the check (WhatsNew reads /etc/shani-version)
     printf '99.0.0-render\n' > /etc/shani-version
-    ipc whatsNewCheck; sleep 2
+    ipc_line whatsNewCheck; sleep 2
     capture_current whats-new 0.5 "d['whatsNewShown'] != ''"
     close_all
     # the screensaver's cover, previewed (its state key is the idle saver, not the preview)
     capture screensaver "screenSaverPreview" 1.5 "d['screenSaverPreview']"
     close_all
+
+    # ---- surfaces behind a setting or a passing state ----------------------------
+    # dev/surfaces.tsv lists every surface shell.qml loads; these are the ones
+    # the default session never shows (tools/surfaces.py check finds the next one)
+    settings_merge '{"leftRail": true}'
+    waitfor "d.get('leftRail')" 10 || log "warn: left rail setting not applied"
+    capture_current left-rail 1.5 "d.get('leftRail')"
+    settings_merge '{"leftRail": false}'
+    settings_merge '{"desktopWidgets": ["agenda", "battery", "note", "clocks"]}'
+    sleep 2.5
+    capture_current more-widgets 0.5
+    settings_merge '{"desktopWidgets": []}'
+    capture backup-panel "backupOpen" 1.5 "d['backupShown']"
+    close_all
+    capture calibrate-touch "calibrateStart touch" 1.2 "d['calibrating'] == 'touch'"
+    ipc_line calibrateCancel; sleep 0.5
+    ipc_line "screenshotPin '$F/photo.jpg'"
+    waitfor "d['screenshotPinned']" 10 || log "warn: screenshot pin did not open"
+    capture_current pinned-screenshot 1.0 "d['screenshotPinned']"
+    ipc_line "screenshotPin '$F/photo.jpg'"; sleep 0.5
     rm -rf "$F"
+
+    fi   # the full set of scenes
 
     # ---- what makes a render run a failure --------------------------------------
     # Qt warns rather than failing when a layout's minimum is wider than the
@@ -912,7 +979,7 @@ PY
     # the state expectation PASSes) but the window never maps and the frame is
     # bare wallpaper. Quickshell logs these as WARN `qs:@/...:line:col: msg`,
     # not "QML ERROR", so they previously passed silently. Catch them here.
-    compile_bad=$(grep -aE "qs:@/.*(Unexpected token|Cannot assign to non-existent property|is not a type|is not a function|Unknown type|is not a valid|Expected token)" /work/out/logs/qs.log | head -5)
+    compile_bad=$(grep -aE "qs:@/.*(Unexpected token|Cannot assign to non-existent property|Cannot assign a value directly|is not a type|is not a function|Unknown type|is not a valid|Expected token)" /work/out/logs/qs.log | head -5)
     if [ -n "$compile_bad" ]; then
         echo "QML COMPILE ERROR in $n renders:" >&2
         printf '%s\n' "$compile_bad" >&2
@@ -942,6 +1009,7 @@ PY
 # ===========================================================================
 case "$MODE" in
     shell)   render_shell ;;
+    matrix)  render_shell ;;
     greeter) render_greeter ;;
     setup)   render_setup ;;
     all)

@@ -9,16 +9,8 @@ export XDG_SESSION_TYPE=wayland SHANI_SHELL_SETTINGS=/tmp/shani-settings-$USER.j
 export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
 L=/work/out/logs
 fail=0
-result() { echo "RESULT $1 $2${3:+ ($3)}"; if [ "$2" = FAIL ]; then fail=1; fi; }   # a SKIP is not a failure
-st() { qs -p /work/shani ipc call shani state 2>/dev/null; }
-waitfor() {
-    i=0
-    while [ $i -lt $(( $2 * 4 )) ]; do
-        st | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if ($1) else 1)" 2>/dev/null && return 0
-        sleep 0.25; i=$((i+1))
-    done
-    return 1
-}
+# result, st, waitfor: the helpers every harness shares (dev/harness.sh)
+. /work/dev/harness.sh
 
 [ -n "$XDG_SESSION_ID" ] && result logind-session PASS "$XDG_SESSION_ID" || result logind-session FAIL "no XDG_SESSION_ID"
 

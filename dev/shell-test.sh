@@ -9,14 +9,8 @@
 SHOTS=/work/out/shots
 mkdir -p "$SHOTS"     # not in git (a run's output): made here
 fail=0
-result() {
-    echo "RESULT $1 $2${3:+ ($3)}"
-    if [ "$2" = FAIL ]; then fail=1; fi   # a SKIP (a mode not on, hardware not there) is not a failure
-}
-# a hung shell must fail the next check, not stall the run
-st() { timeout 5 qs -p /work/shani ipc call shani state 2>/dev/null; }
-q() { st | python3 -c "import json,sys; d=json.load(sys.stdin); print(d$1)"; }
-ipc() { qs -p /work/shani ipc call shani "$@" >/dev/null 2>&1; }
+# ipc, st, q, waitfor, result, shot, settings: the helpers every harness shares
+. /work/dev/harness.sh
 # stop the shell AND its bridges, as systemd does for shani-shell.service (it kills
 # the unit's whole cgroup): killing qs alone left its plugwatch running, an orphan
 # reading the udev FIFO, and the next shell's device greetings went missing
@@ -25,24 +19,10 @@ stopshell() {
     kill "$1" 2>/dev/null; while kill -0 "$1" 2>/dev/null; do sleep 0.1; done
     [ -n "$kids" ] && kill $kids 2>/dev/null; sleep 0.3
 }
-shot() { sleep "${2:-0.8}"; grim "$SHOTS/$1.png"; }
-# the suite runs longer than the default idle lock (5 min) between keyboard
-# inputs: no dimming, lock or screen-off unless a test sets them itself
-# (the dock's pins: this image's own Nautilus and GNOME Text Editor, whose jump lists
-# and launcher entries the dock checks use; the shipped default pins the shell's apps)
-settings() { python3 -c 'import json,sys; d={"dimAfter":0,"lockAfter":0,"screenOffAfter":0,"lockAfterBattery":0,"screenOffAfterBattery":0,"startHintsDone":True,"dynamicLockGrace":1500,"dockPinned":["org.gnome.Nautilus","com.vivaldi.Vivaldi","foot","dev.shani.cassini","shani-chronoa","org.gnome.TextEditor"]}; d.update(json.loads(sys.argv[1])); print(json.dumps(d), end="")' "$1" > "$SHANI_SHELL_SETTINGS"; sleep 1.5; }
 retry() { _n=$(( $1 * 4 )); shift; while [ $_n -gt 0 ]; do "$@" && return 0; sleep 0.25; _n=$((_n-1)); done; return 1; }   # retry <seconds> <command...>
 unlock() {    # the lock screen's password, retried; a session left locked would fail everything after
     _i=0; until [ "$(q "['locked']")" = False ] || [ $_i -ge 4 ]; do wtype "shani-test" -k Return; sleep 1.5; _i=$((_i+1)); done
     [ "$(q "['locked']")" = False ] || { result session-unlocks FAIL "still locked after $_i tries"; exit 1; }
-}
-waitfor() {   # waitfor <python expr over d> <seconds>
-    i=0
-    while [ $i -lt $(( $2 * 4 )) ]; do
-        st | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if ($1) else 1)" 2>/dev/null && return 0
-        sleep 0.25; i=$((i+1))
-    done
-    return 1
 }
 
 # ---- loads clean -------------------------------------------------------------

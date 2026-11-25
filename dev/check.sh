@@ -15,12 +15,15 @@
 #   setup-polkit  first-boot's pkexec rule                    (needs shani-desktop-niri)
 #   pam           the lock screen's and greeter's PAM stacks through real libpam (needs shani-desktop-niri)
 #   keyring       a real sign-in unlocks the keyring (oo7), systemd-booted container (needs shani-desktop-niri)
+#   surfaces      every surface shell.qml loads has a capture (dev/surfaces.tsv)
 #   render[=mode] every surface to PNG in out/renders; mode shell|greeter|setup|all
+#   render=matrix the key surfaces on all 7 form factors (and all 6 layouts on a
+#                 computer), each at its own screen shape: out/renders/matrix/<kind>
 #                 (SHANI_FORM_FACTOR=tv sh dev/check.sh render: drawn as on a TV)
 #   showcase      restage the README's two pictures in docs/ (the rest: out/showcase)
 #   demo[=a,b]    record the README's GIFs into out/demos (CHRONOA=real for the AI scenes)
 #   montage       join out/demos' clips into out/demos/tour.mp4 (LinkedIn, the blog)
-#   all           unit shell greeter setup polkit admin setup-polkit pam keyring
+#   all           unit surfaces shell greeter setup polkit admin setup-polkit pam keyring
 #
 # --build rebuilds shani-shell-dev first (it is built anyway when missing).
 # SHANI_ONLINE=1 sh dev/check.sh shell=maps-online: Maps against OpenStreetMap's real
@@ -61,7 +64,7 @@ own
 # a review cannot mistake last week's screenshots for this run's
 rm -f "$REPO"/out/shots/*.png
 [ $# -eq 0 ] && set -- all
-[ "$*" = all ] && set -- unit shell greeter setup polkit admin setup-polkit pam keyring
+[ "$*" = all ] && set -- unit surfaces shell greeter setup polkit admin setup-polkit pam keyring
 
 # a dev/ script in a plain container, the repo at /work
 box() {
@@ -104,11 +107,25 @@ run() {
                      box -v "$DESK":/desk:ro $IMG sh /work/dev/demo.sh $sc ;;
         # the clips joined into one MP4 (out/demos/tour.mp4), for where a GIF does not play
         montage) box $IMG sh /work/dev/montage.sh ;;
+        # every surface shell.qml loads vs every capture any harness takes
+        # (dev/surfaces.tsv); host python, no container: RESULT per problem
+        surfaces) python3 "$REPO/tools/surfaces.py" check | sed -E 's/^([0-9]+ surfaces, 0 problem.*)$/RESULT surfaces-covered PASS (\1)/; t; s/^([0-9]+ surfaces, .*)$/RESULT surfaces-covered FAIL (\1)/; t; s/^/  /' ;;
+        # key surfaces on every kind of screen, each in its own session at its
+        # shape, plus every desktop layout on the computer: out/renders/matrix/<kind>
+        render=matrix)
+            rc=0
+            for spec in computer:1920x1080 laptop:1920x1080 tablet:1280x800 handheld:1280x800 phone:412x915 tv:1920x1080 board:1920x1080; do
+                kind=${spec%%:*}; wh=${spec#*:}
+                echo "== form factor $kind ($wh)"
+                ( SHANI_FORM_FACTOR=$kind SHANI_WIDTH=${wh%x*} SHANI_SCREEN=${wh#*x}
+                  box $IMG sh /work/dev/render.sh matrix ) || rc=1
+            done
+            return $rc ;;
         render|render=*)
             mode=${1#render=}
             case "$mode" in
                 ""|shell|greeter|setup|all) ;;
-                *) echo "unknown render mode: $mode (shell|greeter|setup|all)"; return 2 ;;
+                *) echo "unknown render mode: $mode (shell|greeter|setup|all|matrix)"; return 2 ;;
             esac
             box $IMG sh /work/dev/render.sh "$mode" ;;
         *) echo "unknown suite: $1 (see the top of dev/check.sh)"; return 2 ;;

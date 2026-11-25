@@ -61,7 +61,8 @@ def test_render_ipcs_and_wants_are_real():
     keys = _state_keys(shell)
     render = (ROOT / "dev/render.sh").read_text()
 
-    cmds = set(re.findall(r"\bipc\s+([A-Za-z_]\w*)", render))
+    # ipc_line "cmd args" (dev/harness.sh) is how render.sh calls the shell
+    cmds = set(re.findall(r"\bipc(?:_line)?\s+\"?([A-Za-z_]\w*)", render))
     cmds |= {
         m.group(1).split()[0]
         for m in re.finditer(r'\bcapture\s+\S+\s+"([A-Za-z_][^"]*)"', render)

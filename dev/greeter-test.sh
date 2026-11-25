@@ -13,10 +13,8 @@ export SHANI_INPUT_KINDS_TOOL=/work/bridge/input-kinds.py SHANI_UDEV_DB=/work/de
 mkdir -p "$XDG_RUNTIME_DIR" /work/out/logs
 chmod 700 "$XDG_RUNTIME_DIR"
 fail=0
-result() {
-    echo "RESULT $1 $2"
-    if [ "$2" = FAIL ]; then fail=1; fi   # a SKIP is not a failure
-}
+# result: the helpers every harness shares (dev/harness.sh)
+. /work/dev/harness.sh
 
 pkill -f fake-greetd.py 2>/dev/null || true
 pkill -f 'qs -c shani-greeter' 2>/dev/null || true

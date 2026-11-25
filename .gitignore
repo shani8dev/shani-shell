@@ -2,3 +2,6 @@ __pycache__/
 .pytest_cache/
 # everything a test run writes: logs, screenshots, renders (dev/check.sh)
 out/
+# tool state and caches that are not the project
+.serena/
+.ruff_cache/

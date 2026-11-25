@@ -24,7 +24,8 @@ EOF
     printf '[Desktop Entry]\nType=Application\nName=%s\nExec=true\nIcon=%s\n' "$name" "$icon" > "$A/$id.desktop"
 done
 . /work/dev/session.sh
-ipc() { qs -p /work/shani ipc call shani "$@" >/dev/null 2>&1; }
+# ipc: the helpers every harness shares (dev/harness.sh)
+. /work/dev/harness.sh
 M="--session --dest org.shani.Chronoa.Mascot --object-path /org/shani/Chronoa/Mascot"
 
 # the shell's defaults, as on a first login (only the idle lock kept away while staging)

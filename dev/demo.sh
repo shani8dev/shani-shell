@@ -14,17 +14,8 @@ if [ -d /desk/usr/share/glib-2.0/schemas ]; then
 fi
 export QS_ICON_THEME=$(gsettings get org.gnome.desktop.interface icon-theme 2>/dev/null | tr -d "'")
 . /work/dev/session.sh
-ipc() { qs -p /work/shani ipc call shani "$@" >/dev/null 2>&1; }
-st() { timeout 5 qs -p /work/shani ipc call shani state 2>/dev/null; }
-q() { st | python3 -c "import json,sys; d=json.load(sys.stdin); print(d$1)"; }
-waitfor() {   # waitfor <python expr over d> <seconds>
-    i=0
-    while [ $i -lt $(( $2 * 4 )) ]; do
-        st | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if ($1) else 1)" 2>/dev/null && return 0
-        sleep 0.25; i=$((i+1))
-    done
-    return 1
-}
+# ipc, st, q, waitfor: the helpers every harness shares (dev/harness.sh)
+. /work/dev/harness.sh
 printf '{"dimAfter": 0, "lockAfter": 0, "screenOffAfter": 0, "startHintsDone": true}' > "$SHANI_SHELL_SETTINGS"
 real=no; [ "${CHRONOA:-}" = real ] && real=yes
 

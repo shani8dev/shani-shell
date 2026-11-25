@@ -10,7 +10,8 @@ DESK=$(cd "${1:?shani-desktop-niri dir}" && pwd)
 box_up -v "$REPO":/work:ro -v "$DESK":/desk:ro
 docker exec -i "$cid" sh -s <<'IN'
 fail=0
-result() { echo "RESULT $1 $2 ${3:+($3)}"; [ "$2" = FAIL ] && fail=1; true; }
+# result: the helpers every harness shares (dev/harness.sh)
+. /work/dev/harness.sh
 # as the packages lay it out
 install -Dm755 /work/bridge/first-account.py /usr/lib/shani-shell/first-account.py
 install -Dm644 /desk/usr/share/polkit-1/rules.d/50-shani-setup.rules /usr/share/polkit-1/rules.d/50-shani-setup.rules

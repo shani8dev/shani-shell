@@ -1,0 +1,120 @@
+# Every surface shani/shell.qml can put on screen, and where it is photographed.
+# The surface list comes from the code (tools/surfaces.py list); this file says
+# which captures show each one: dev/render.sh scene names, or shot names from
+# the shell suite and the other harnesses (dev/*.sh, dev/shell-parts/*.sh).
+# `-` with a reason when the nested session cannot show it.
+# tools/surfaces.py check (and tests/test_surfaces.py) fail when shell.qml
+# loads a surface that is not here, or a capture named here is never taken.
+#
+# surface<TAB>captures<TAB>note
+Annotate	71-annotate annotate	
+ArchivesWindow	app-archive-manager app-archives-zip archive-compress archive-password	
+AssistiveTouch	assistive-touch	
+AuthenticatorWindow	app-authenticator app-authenticator-codes	
+BackupPanel	backup-panel	
+Bar	board-bar desktop-rest phone-bar	
+Calculator	app-calculator	
+CalendarPanel	app-calendar	
+CalibrateOverlay	calibrate-touch	
+CallsWindow	app-calls calls-app	
+CameraPanel	87-photo-countdown app-camera	
+CaptionBar	61-captions captions	
+CharactersPanel	app-characters	
+ChargeFx	26h-charging	
+ChronoaSurface	chronoa-panel-idle chronoa-panel-speaking chronoa-panel-thinking	
+ClocksWindow	app-clocks app-clocks-stopwatch clocks-alarms clocks-stopwatch clocks-timer	
+CloudPanel	app-cloud-sync files-cloud	
+ContactsWindow	app-contacts	
+ContainersWindow	app-containers	
+ConverterWindow	app-converter app-converter-list	
+Cover	26g-screensaver screensaver	
+DatabaseBrowser	app-database-browser	
+DesktopIcons	26m-desktop-icons	
+DesktopWidgets	26n-desktop-widgets desktop-widgets	
+Dictionary	app-dictionary	
+Dim	-	a whole-screen fade to black: the idle part checks d.dimmed, a picture shows only black
+DiskUsagePanel	app-disk-usage diskusage-dupes	
+DisksWindow	app-disks	
+DisplayConfirm	85-display-confirm display-confirm	
+Dock	26-dock-menu 26a-dock-badge 26c-dock-progress 26e-dock-workspaces 26o-dock-stepped-aside dock-menu	
+EdgeStrips	-	invisible input strips along the screen edges (gestures): nothing is drawn
+FeedsWindow	app-feeds	
+FileActionsCard	26j-file-actions	
+FilePickerPanel	-	a layer-shell Overlay the nested niri does not composite; the suite drives it by state
+FilesPanel	app-files files-all-pictures files-cloud files-compare files-copy-history files-copy-paused files-devices files-job files-lock files-properties files-tabs files-thumbs files-unlock files-usb-write	
+FlashAlert	67-flash flash-alert	
+FontsPanel	app-fonts fonts-file	
+GatewayWindow	app-gateway	
+HealthWindow	app-health	
+HotCorners	-	invisible input regions in the screen corners: nothing is drawn
+IrcWindow	app-irc	
+Island	24-island-approval 53-island-activity island-approval island-ask island-caffeine island-dnd island-media island-record island-rest island-timer island-working	
+Keyboard	38-osk-marathi 39-osk-typed 40-osk-russian 41-osk-controller 41-osk-tamil 46-osk-dictating osk-language osk-main	
+KundaliPanel	app-kundali	
+Launcher	22-launcher-calc 23-launcher-apps 42-launcher-full 43-launcher-file 54-launcher-providers launcher-actions launcher-apps launcher-by-meaning launcher-calc launcher-clipboard launcher-convert launcher-emoji launcher-empty launcher-files launcher-full	
+LayoutSwitcher	26k-layout-switcher 26l-layout-classic layout-switcher	
+LeftRail	left-rail	
+LensPanel	28-lens lens-ready	
+LockScreen	26-lock 27-lock-wrong 27b-lock-camera lock-screen lock-wrong	
+LogsPanel	app-logs	
+Magnifier	63-magnifier magnifier	
+MailWindow	app-mail mail-list	
+MapsPanel	app-maps maps-online-place maps-online-route maps-place maps-route maps-saved	
+MediaPlayerWindow	app-media-player app-media-player-audio app-media-player-library app-media-player-song app-media-player-video	
+MessagesWindow	app-messages messages-app	
+ModelsWindow	app-models	
+ModemDialog	95-sms 96-call-ringing modem-call modem-sms-composer	
+MoreWidgets	more-widgets	
+NearbyWindow	app-nearby-offer app-nearby-share	
+NetTools	app-network-tools	
+NotesPanel	app-notes	
+Osd	20-osd-volume osd-brightness-down osd-brightness-up osd-mic-mute osd-mute osd-volume osd-volume-down	
+OskButton	-	shows only without a keyboard or with a touchscreen (InputKinds); the nested session has a keyboard - photographed by form-factor renders
+OverviewSearch	overview-search	
+OverviewStats	30c-overview overview-open	
+PairDialog	68-bt-pair 69-bt-passkey bt-pair-confirm bt-passkey	
+PasswordGeneratorPanel	app-password-generator	
+PasswordsWindow	app-passwords	
+PasteHistoryWindow	app-paste-history	
+PdfReader	app-document-viewer documents-form documents-zoomed	
+PdfSignerPanel	app-pdf-signer	
+PhotosWindow	app-photos app-photos-grid	
+PinCapture	pinned-screenshot	
+Player	media-mini media-resumed	
+PodcastWindow	app-podcasts	
+PolkitDialog	29-polkit 30-polkit-wrong	
+Popups	21-notification-popup 70-notification-cards notification-actions notification-critical notification-dnd notification-popup notification-sms	
+Processes	50-processes app-system-monitor processes	
+QrView	93-qr qr-code	
+QuickLookSheet	quick-look quicklook-from-files	
+QuickPanel	handheld-quick-panel	
+Ring	31-ring 32-ring-sub 65-ring-at-bubble ring-at-point ring-main ring-sub	
+RulerPanel	ruler	
+ScannerPanel	app-document-scanner	
+ScheduledTasksWindow	app-scheduled-tasks	
+ScreenCorners	desktop-rest	the rounded screen corners are drawn in every shot
+ServicesWindow	app-services services-app	
+SettingsWindow	71-settings-categories 72-settings-backup 72-settings-input 73-settings-apps 74-settings-date-language 75-settings-about 76-settings-layouts 77-settings-account 78-settings-look 79-settings-sound 86-settings-displays 88-settings-shortcuts 89-settings-privacy settings-about settings-access settings-account settings-apps settings-automations settings-backup settings-battery settings-chronoa settings-date-language settings-displays settings-input settings-journal settings-main settings-modules settings-network settings-notifications settings-personal settings-personal-colours settings-power settings-power-keys settings-printers settings-privacy settings-screen-time settings-search settings-search-empty settings-search-empty-folders settings-search-proxy settings-security settings-sharing settings-sharing-nearby settings-sound settings-storage settings-terminal settings-time settings-users settings-windows	
+ShareSheet	70-share-sheet share-sheet	
+Sidebar	25-sidebar 45-sidebar-shelf 55-sidebar-tiles-mic cc-access cc-audio cc-bluetooth cc-display cc-focus cc-main cc-phone cc-power cc-record cc-timer cc-vpn cc-wifi	
+SoftwareWindow	app-software app-software-page	
+StartHints	26i-start-hints	
+StartupManager	app-startup-manager	
+StudioWindow	app-studio	
+Switcher	33-switcher switcher-open	
+TasksWindow	app-tasks app-tasks-list	
+Teleprompter	app-teleprompter	
+TerminalAppWindow	app-terminal-app	
+TextEditorPanel	app-text-editor	
+Tour	91-tour 91b-tour-make-it-yours tour	
+TranslateWindow	app-translate	
+TvHome	tv-home	
+VideoTrimmerPanel	app-video-trimmer	
+Viewer	app-image-viewer viewer-edit viewer-marks viewer-markup	
+VoiceRecorderPanel	app-voice-recorder	
+Wallpaper	desktop-light desktop-rest	
+WeatherWindow	app-weather	
+Whiteboard	board-whiteboard	
+WindowLayouts	app-window-layouts	
+WindowMenu	44-window-menu window-menu-app-menus	
+WritingToolsSheet	writing-tools writing-tools-real	

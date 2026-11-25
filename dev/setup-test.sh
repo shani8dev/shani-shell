@@ -14,10 +14,10 @@ mkdir -p "$XDG_RUNTIME_DIR" /work/out/logs /work/out/shots
 [ -d /desk/etc/skel ] && cp -a /desk/etc/skel/. /etc/skel/
 chmod 700 "$XDG_RUNTIME_DIR"
 fail=0
-result() {
-    echo "RESULT $1 $2 ${3:+($3)}"
-    if [ "$2" = FAIL ]; then fail=1; fi   # a SKIP is not a failure
-}
+# result, st, waitfor, shot: the helpers every harness shares (dev/harness.sh)
+QS_ARGS="-c shani-setup"; QS_TARGET=setup
+SHOTS=/work/out/shots
+. /work/dev/harness.sh
 
 if getent passwd | awk -F: '$3 >= 1000 && $3 < 60000 && $7 !~ /(nologin|false)$/ { f = 1 } END { exit !f }'; then
     echo "this container already has an account: the first-boot path cannot be tested"; exit 1
@@ -47,15 +47,7 @@ i=0
 until pgrep -f '^qs -c shani-setup' >/dev/null && [ -S "$XDG_RUNTIME_DIR/wayland-1" ] || [ "$i" -ge 40 ]; do sleep 0.25; i=$((i + 1)); done
 pgrep -f '^qs -c shani-setup' >/dev/null && result setup-starts-without-accounts PASS || result setup-starts-without-accounts FAIL "$(pgrep -af 'qs -c')"
 export WAYLAND_DISPLAY=wayland-1
-st() { timeout 5 qs -c shani-setup ipc call setup state 2>/dev/null; }
 call() { qs -c shani-setup ipc call setup "$@" >/dev/null 2>&1; }
-waitfor() {
-    i=0; while [ "$i" -lt $(($2 * 4)) ]; do
-        st | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if ($1) else 1)" 2>/dev/null && return 0
-        sleep 0.25; i=$((i + 1))
-    done; return 1
-}
-shot() { sleep "${2:-0.8}"; grim "/work/out/shots/$1.png" 2>/dev/null || true; }
 
 waitfor "d['locales'] > 0 and d['zones'] > 0 and d['locale'] != ''" 10 && result setup-reads-system PASS || result setup-reads-system FAIL "$(st)"
 # Super+Alt+S turns the screen reader on and off - a person who cannot see

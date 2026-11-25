@@ -117,7 +117,7 @@ def test_has_retry(render_src):
     """A lost IPC under load is reissued once before the surface is called bad."""
     body = _fn_body(render_src, "open_surface")
     assert body is not None, "render.sh has no open_surface() retry helper"
-    assert body.count('ipc "$2"') >= 2, (
+    assert body.count('ipc_line "$2"') >= 2, (
         "open_surface() must reissue the IPC once on failure"
     )
     assert body.count('waitfor "$3"') >= 2, (
@@ -126,7 +126,7 @@ def test_has_retry(render_src):
     assert "reissue it once" in render_src
     # a blank-looking centred surface is re-opened and re-shot, not left as-is
     shoot = _fn_body(render_src, "shoot") or ""
-    assert shoot.count("grim") >= 2 and 'ipc "$_cmd"' in shoot, (
+    assert shoot.count("grim") >= 2 and 'ipc_line "$_cmd"' in shoot, (
         "shoot() must retry the IPC and recapture a blank frame"
     )
 
@@ -135,7 +135,7 @@ def test_has_close_wait(render_src):
     """Closing one surface must settle before the next shot is taken."""
     body = _fn_body(render_src, "close_all")
     assert body is not None, "render.sh has no close_all() helper"
-    assert re.search(r"ipc\s+dismissAll\b", body), (
+    assert re.search(r"ipc(?:_line)?\s+dismissAll\b", body), (
         "close_all() must dismiss the tracked surfaces"
     )
     assert re.search(r"\bwaitfor\b", body) and re.search(r"\bsleep\s+", body), (
@@ -146,7 +146,7 @@ def test_has_close_wait(render_src):
 def test_has_fail_path(render_src):
     """A surface that never came up makes the run fail, not log a PASS."""
     assert 'log "FAIL:' in render_src
-    assert "RESULT shot-$1 FAIL" in render_src
+    assert 'result "shot-$1" FAIL' in render_src
     assert "failed=$((failed+1))" in render_src
     assert "exit 1" in render_src
 
