@@ -73,7 +73,7 @@ QtObject {
         { title: Tr.t("Window layout"), words: "window layout grid half split columns rows arrange tile undo", icon: "view-grid", run: () => { Ui.closeAll(); Ui.toggleWindowLayouts(); } },
         { title: Tr.t("Show all keyboard shortcuts"), words: "keyboard shortcuts keys hotkeys cheat sheet help what keys super", icon: "preferences-desktop-keyboard-shortcuts", run: () => { Ui.closeAll(); Niri.action("show-hotkey-overlay"); } },
         { title: Tr.t("Change keyboard shortcuts"), words: "keyboard shortcuts keys hotkeys binds compose caps lock settings", icon: "preferences-desktop-keyboard-shortcuts", run: () => launcher.openSettings("input") },
-        { title: Tr.t("Startup apps"), words: "startup apps autostart login start", icon: "system-run", run: () => launcher.openSettings("apps") },
+        { title: Tr.t("Default apps and sessions"), words: "startup apps autostart login start default sessions", icon: "system-run", run: () => launcher.openSettings("apps") },
         // Named sessions (Settings > Default apps > Sessions owns the forms):
         // a direct restore for each saved set, and a route to that page for
         // saving, where the name is validated and a restore is confirmed.
@@ -116,15 +116,15 @@ QtObject {
         { title: Tr.t("Studio"), words: "studio build create app developer generate ai chronoa qml", icon: "applications-development", run: () => { Ui.closeAll(); Ui.studio = true; Studio.refresh(); } },
         // ---- new app tools: the nine surfaces behind Ui flags. Each carries the
         // "tool" keyword so the bar's Tools chip (launcher query "tool") finds them.
-        { title: Tr.t("Dictionary"), words: "tool dictionary thesaurus words definitions synonyms offline lookup", icon: "book", run: () => { Ui.closeAll(); Ui.dictionary = true; } },
+        { title: Tr.t("Dictionary"), words: "tool dictionary thesaurus words definitions synonyms offline lookup", icon: "accessories-dictionary", run: () => { Ui.closeAll(); Ui.dictionary = true; } },
         { title: Tr.t("Podcasts"), words: "tool podcasts podcast audio episodes rss subscribe", icon: "audio-headphones", run: () => { Ui.closeAll(); Ui.podcasts = true; } },
-        { title: Tr.t("Teleprompter"), words: "tool teleprompter prompter script read scrolling autocue", icon: "view-paged", run: () => { Ui.closeAll(); Ui.teleprompter = true; } },
+        { title: Tr.t("Teleprompter"), words: "tool teleprompter prompter script read scrolling autocue", icon: "view-list-text", run: () => { Ui.closeAll(); Ui.teleprompter = true; } },
         { title: Tr.t("Network Tools"), words: "tool network tools ping dns scan lookup host diagnose", icon: "network-workgroup", run: () => { Ui.closeAll(); Ui.netTools = true; } },
-        { title: Tr.t("Database Browser"), words: "tool database browser sqlite db query sql table rows", icon: "database", run: () => { Ui.closeAll(); Ui.databaseBrowser = true; } },
-        { title: Tr.t("Startup Manager"), words: "tool startup manager autostart autostart apps login boot", icon: "system-run", run: () => { Ui.closeAll(); Ui.startupManager = true; } },
-        { title: Tr.t("Gateway"), words: "tool gateway peers qr vpn share connect pair", icon: "network-vpn", run: () => { Ui.closeAll(); Ui.gateway = true; } },
-        { title: Tr.t("Paste History"), words: "tool paste history clipboard numbered slots multi", icon: "edit-paste", run: () => { Ui.closeAll(); Ui.pasteHistory = true; } },
-        { title: Tr.t("Scheduled Tasks"), words: "tool scheduled tasks schedule cron jobs reminders plan", icon: "alarm", run: () => { Ui.closeAll(); Ui.scheduled = true; } },
+        { title: Tr.t("Database browser"), words: "tool database browser sqlite db query sql table rows", icon: "database", run: () => { Ui.closeAll(); Ui.databaseBrowser = true; } },
+        { title: Tr.t("Startup manager"), words: "tool startup manager autostart autostart apps login boot", icon: "system-run", run: () => { Ui.closeAll(); Ui.startupManager = true; } },
+        { title: Tr.t("Gateway"), words: "tool gateway peers qr vpn share connect pair", icon: "network-server", run: () => { Ui.closeAll(); Ui.gateway = true; } },
+        { title: Tr.t("Paste history"), words: "tool paste history clipboard numbered slots multi", icon: "edit-paste", run: () => { Ui.closeAll(); Ui.pasteHistory = true; } },
+        { title: Tr.t("Scheduled tasks"), words: "tool scheduled tasks schedule cron jobs reminders plan", icon: "x-office-calendar", run: () => { Ui.closeAll(); Ui.scheduled = true; } },
         { title: Tr.t("Suspend"), words: "suspend sleep", icon: "weather-clear-night", run: () => Power.suspend() },
         { title: Tr.t("Log out"), words: "logout log out sign out", icon: "system-log-out", run: () => Power.logout() },
         // irreversible: these open the sidebar's confirm row instead of acting

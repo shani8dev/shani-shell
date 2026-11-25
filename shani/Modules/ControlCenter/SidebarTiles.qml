@@ -43,7 +43,7 @@ ColumnLayout {
         readonly property real cell: (width - gap) / 2
         // the default order: what people reach for most first (GNOME's and Android's
         // quick settings lead the same way), the rest after
-        readonly property var known: ["wifi", "bluetooth", "dnd", "nightlight", "dark", "power", "mic", "screenshot", "record", "focus", "caffeine", "airplane", "mobile", "hotspot", "vpn", "phone", "timer", "camera", "photo", "lens", "ruler", "colorpicker", "snippets", "compress", "qrgen", "rotate", "compass", "flashlight", "kbdbacklight", "display", "osk", "keyboard", "clipboard", "backup", "access", "captions", "transcribe", "speak", "magnifier", "callrecord", "cast", "touch", "chronoa", "characters"]
+        readonly property var known: ["wifi", "bluetooth", "dnd", "nightlight", "dark", "power", "mic", "screenshot", "record", "focus", "caffeine", "airplane", "mobile", "hotspot", "vpn", "phone", "timer", "camera", "photo", "lens", "ruler", "colorpicker", "snippets", "compress", "qrgen", "rotate", "compass", "flashlight", "kbdbacklight", "display", "osk", "keyboard", "clipboard", "backup", "access", "captions", "transcribe", "speak", "magnifier", "callrecord", "cast", "touch", "chronoa", "characters", "dictionary", "podcasts", "teleprompter", "netTools", "databaseBrowser", "startupManager", "gateway", "pasteHistory", "scheduled"]
         readonly property var order: {
             const o = Settings.data.tileOrder.filter(t => known.indexOf(t) >= 0);
             return o.concat(known.filter(t => o.indexOf(t) < 0));       // new tiles join at the end
@@ -577,6 +577,97 @@ ColumnLayout {
             onToggled: {
                 Ui.closeAll();
                 Ui.characters = true;
+            }
+        }
+        // ---- the newer apps: each tile opens its shell window ------------
+        Tile {
+            tid: "dictionary"
+            icon: "accessories-dictionary"
+            title: Tr.t("Dictionary")
+            subtitle: Tr.t("Words and meanings, offline")
+            onToggled: {
+                Ui.closeAll();
+                Ui.dictionary = true;
+            }
+        }
+        Tile {
+            tid: "podcasts"
+            icon: "audio-headphones"
+            title: Tr.t("Podcasts")
+            subtitle: Tr.t("Episodes and subscriptions")
+            onToggled: {
+                Ui.closeAll();
+                Ui.podcasts = true;
+            }
+        }
+        Tile {
+            tid: "teleprompter"
+            icon: "view-list-text"
+            title: Tr.t("Teleprompter")
+            subtitle: Tr.t("Scroll your script")
+            onToggled: {
+                Ui.closeAll();
+                Ui.teleprompter = true;
+            }
+        }
+        Tile {
+            tid: "netTools"
+            icon: "network-workgroup"
+            title: Tr.t("Network Tools")
+            subtitle: Tr.t("Ping, DNS and scan")
+            onToggled: {
+                Ui.closeAll();
+                Ui.netTools = true;
+            }
+        }
+        Tile {
+            tid: "databaseBrowser"
+            icon: "database"
+            title: Tr.t("Database browser")
+            subtitle: Tr.t("Open an SQLite file")
+            onToggled: {
+                Ui.closeAll();
+                Ui.databaseBrowser = true;
+            }
+        }
+        Tile {
+            tid: "startupManager"
+            icon: "system-run"
+            title: Tr.t("Startup manager")
+            subtitle: Tr.t("Manage autostart entries")
+            onToggled: {
+                Ui.closeAll();
+                Ui.startupManager = true;
+            }
+        }
+        Tile {
+            tid: "gateway"
+            icon: "network-server"
+            title: Tr.t("Gateway")
+            subtitle: Tr.t("Peers, QR and VPN")
+            onToggled: {
+                Ui.closeAll();
+                Ui.gateway = true;
+            }
+        }
+        Tile {
+            tid: "pasteHistory"
+            icon: "edit-paste"
+            title: Tr.t("Paste history")
+            subtitle: Tr.t("Clipboard slots")
+            onToggled: {
+                Ui.closeAll();
+                Ui.pasteHistory = true;
+            }
+        }
+        Tile {
+            tid: "scheduled"
+            icon: "x-office-calendar"
+            title: Tr.t("Scheduled tasks")
+            subtitle: Tr.t("Tasks at their time")
+            onToggled: {
+                Ui.closeAll();
+                Ui.scheduled = true;
             }
         }
     }

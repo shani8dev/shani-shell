@@ -79,8 +79,16 @@ PanelWindow {
             ] },
             { label: Tr.t("Workspaces"), icon: "view-grid", children: ws.map(w => (
                 { label: w.name || ("Workspace " + w.idx), icon: w.is_active ? "object-select" : "view-grid", act: () => Niri.focusWorkspace(w) })) },
-            { label: Tr.t("Apps"), icon: "view-app-grid", children: apps.slice(0, 8).map(e => (
-                { label: e.name, app: e.icon, act: () => Launch.app(e.id) })) },
+            { label: Tr.t("Apps"), icon: "view-app-grid", children: [
+                { label: Tr.t("Tools"), icon: "tools", children: [
+                    { label: Tr.t("Dictionary"), icon: "accessories-dictionary", act: () => { Ui.closeAll(); Ui.dictionary = true; } },
+                    { label: Tr.t("Podcasts"), icon: "audio-headphones", act: () => { Ui.closeAll(); Ui.podcasts = true; } },
+                    { label: Tr.t("Network Tools"), icon: "network-workgroup", act: () => { Ui.closeAll(); Ui.netTools = true; } },
+                    { label: Tr.t("Gateway"), icon: "network-server", act: () => { Ui.closeAll(); Ui.gateway = true; } },
+                    { label: Tr.t("All tools…"), icon: "system-search", act: () => Ui.toggleLauncher("tool:") }
+                ] }
+            ].concat(apps.slice(0, 8).map(e => (
+                { label: e.name, app: e.icon, act: () => Launch.app(e.id) }))) },
             { label: Tr.t("Power"), icon: "system-shutdown", children: [
                 { label: Tr.t("Lock"), icon: "system-lock-screen", act: () => Lock.lock() },
                 { label: Tr.t("Suspend"), icon: "weather-clear-night", act: () => Power.suspend() },

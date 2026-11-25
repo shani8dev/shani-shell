@@ -264,8 +264,8 @@ ColumnLayout {
         visible: Updates.attention
         icon: Updates.rebootNeeded ? "system-reboot" : "software-update-available"
         title: Updates.summary
-        subtitle: Tr.t("Open Updates")
+        subtitle: Tr.t("Updates")
         selected: true
-        onClicked: { Ui.closeAll(); Ui.settingsCat = "updates"; }
+        onClicked: Ui.openSettings("updates")
     }
 }

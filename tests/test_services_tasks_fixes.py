@@ -12,10 +12,7 @@ def read(rel):
 def test_services_note_color_distinguishes_success_from_error():
     s = read("shani/Modules/Services/ServicesWindow.qml")
     # Success notes must not be painted as danger; errors remain danger.
-    assert (
-        'SysServices.note === Tr.t("Saved") || SysServices.note === Tr.t("Job removed") ? Theme.dim : Theme.danger'
-        in s
-    )
+    assert "noteOk" in s and 'win.noteOk ? "ok" : "error"' in s
     # The old always-danger binding must be gone.
     assert (
         'visible: SysServices.note !== ""\n            text: SysServices.note\n            color: Theme.danger'

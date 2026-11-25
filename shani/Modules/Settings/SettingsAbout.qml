@@ -274,7 +274,7 @@ ColumnLayout {
         Repeater {
             // where each belongs in *this* shell: a Settings category, or an app
             model: [
-                { label: Tr.t("Updates & going back"), cat: "updates" },
+                { label: Tr.t("Updates"), cat: "updates" },
                 { label: Tr.t("Update channel: %1", Updates.channel === "latest" ? Tr.t("Latest") : Tr.t("Stable")), id: "update-channel" },
                 { label: Tr.t("Firmware"), cat: "updates" },
                 { label: Tr.t("Disk space & clean-up"), cat: "storage" },

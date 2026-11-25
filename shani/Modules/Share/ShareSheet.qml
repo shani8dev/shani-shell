@@ -56,9 +56,10 @@ PanelWindow {
     // ---- drop files onto the sheet -----------------------------------------
     DropArea {
         id: dropArea
-        anchors.fill: win
+        anchors.fill: parent
         keys: ["text/uri-list"]
-        Accessible.name: Tr.t("Drop files onto the sheet")
+        // DropArea is a QtObject: an Accessible attached property needs an Item
+        property string accessibleName: Tr.t("Drop files onto the sheet")
         onEntered: drag => { if (!drag.hasUrls) drag.accepted = false; }
         onDropped: drop => {
             if (!drop.hasUrls)
@@ -138,7 +139,7 @@ PanelWindow {
                             Layout.fillWidth: true
                             icon: Share.iconFor(modelData.icon)
                             title: modelData.label
-                            subtitle: modelData.subtitle !== "" ? modelData.subtitle : Share.targetStateText(modelData.state)
+                            subtitle: modelData.subtitle && modelData.subtitle !== "" ? modelData.subtitle : Share.targetStateText(modelData.state)
                             Accessible.name: modelData.recent ? Tr.t("Recent: %1").arg(modelData.label) : modelData.label
                             selected: index === win.sel
                             onClicked: Share.choose(index)

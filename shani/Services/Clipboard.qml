@@ -221,4 +221,57 @@ Singleton {
         command: ["sh", "-c", "command -v cliphist"]
         onExited: code => root.available = code === 0
     }
+
+    // ---- helpers for the Paste history window ------------------------------------
+    // Functions only: no new properties, so the settings/i18n wiring keeps its
+    // existing shape. Slots are 0-based here; the window shows them as 1..9.
+    function slotCount() { return root.entries.length; }
+    function slot(n) { return (n >= 0 && n < root.entries.length) ? root.entries[n] : null; }
+    function slotLabel(n) { return String(n + 1); }
+    function pasteSlot(n) {
+        const e = root.slot(n);
+        if (!e) return false;
+        root.copyAndPaste(e);
+        return true;
+    }
+    function deleteSlot(n) {
+        const e = root.slot(n);
+        if (!e) return false;
+        root.remove(e);
+        return true;
+    }
+    // A small subsequence ranker: word starts score higher, and a match near
+    // the front of the text scores higher. 0 means the query is not in there.
+    function fuzzyScore(text, query) {
+        const hay = String(text || "").toLowerCase();
+        let needle = String(query || "").toLowerCase().trim();
+        if (!needle) return 1;
+        let score = 0, at = -1, wordStart = true;
+        for (let i = 0; i < hay.length && needle.length; i++) {
+            if (hay[i] === needle[0]) {
+                score += wordStart ? 4 : 1;
+                needle = needle.slice(1);
+                at = i;
+                wordStart = false;
+            } else {
+                wordStart = /\s/.test(hay[i]);
+            }
+        }
+        return needle.length ? 0 : score + (at >= 0 && at < 8 ? 3 : 0);
+    }
+    function isFavourite(text) {
+        return Array.from(Settings.data.clipPins).indexOf(String(text || "")) >= 0;
+    }
+    // Favourites reuse the existing clipPins setting; returns true when added.
+    function toggleFavourite(text) {
+        const t = String(text || "");
+        if (!t) return false;
+        const pins = Array.from(Settings.data.clipPins);
+        const i = pins.indexOf(t);
+        if (i >= 0) pins.splice(i, 1); else pins.unshift(t);
+        Settings.data.clipPins = pins.slice(0, 25);
+        return i < 0;
+    }
+    // The Paste window probes these targets; without image/* it says so.
+    function imageTypesCommand() { return ["wl-paste", "--list-types"]; }
 }

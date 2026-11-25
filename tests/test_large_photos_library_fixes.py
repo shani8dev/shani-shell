@@ -114,7 +114,7 @@ def test_metadata_actions_copy_reveal_and_open_with():
     assert "function copyPath(path) { if (path) Files.copyPath(path); }" in s
     assert (
         "function reveal(path)" in s
-        and 'Files.show(path.substring(0, path.lastIndexOf("/"))' in s
+        and 'Files.show(at === 0 ? "/" : p.substring(0, at))' in s
     )
     assert 'Quickshell.execDetached(["gio", "open", "--", path])' in s
     for icon in ('icon: "edit-copy"', 'icon: "folder-open"', 'icon: "system-run"'):

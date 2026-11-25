@@ -141,7 +141,7 @@ def test_operators_narrow_the_answer_to_one_group():
     for group in [
         "app",
         "file",
-        "action",
+        "tool",
         "clip",
         "calc",
         "event",
@@ -150,7 +150,10 @@ def test_operators_narrow_the_answer_to_one_group():
         "window",
         "provided",
     ]:
-        assert 'group: "' + group + '"' in s, group
+        if group == "tool":
+            assert 'group: op === "tool" ? "tool" : "action"' in s
+        else:
+            assert 'group: "' + group + '"' in s, group
     assert 'group: "meta"' in s
 
 

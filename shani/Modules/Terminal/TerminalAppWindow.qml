@@ -123,6 +123,16 @@ AppWindow {
         win.newHostName = ""; win.newHostGroup = ""; win.editId = "";
         win.pasteError = ""; win.tab = "add";
     }
+    // We do not own the Ui singleton source file or shell.qml, so there is no a handoff flag to carry
+    // the host: write a clipboard marker and set Ui.netTools, the same flag
+    // shell.qml's netToolsOpen() sets. NetTools consumes the marker on open.
+    function openNetTools(host) {
+        const h = String(host || "").trim();
+        if (!h) return;
+        Quickshell.clipboardText = "shani-nettools:" + h;
+        Ui.closeAll();
+        Ui.netTools = true;
+    }
     function requestDelete(h) {
         if (!h || h.id === undefined) return;
         if (win.confirmingDelete !== h.id) { win.confirmingDelete = h.id; unconfirmDelete.restart(); return; }
@@ -381,6 +391,7 @@ AppWindow {
                         }
                         Button { text: Tr.t("Connect"); kind: "primary"; onClicked: { win.noteLaunch(modelData); TerminalApp.connect(modelData) } }
                         Button { text: Tr.t("Test"); enabled: !TerminalApp.busy && modelData.type !== "serial"; onClicked: TerminalApp.testConnection(modelData, (ok, msg) => win.hostNote = (ok === "ok" ? Tr.t("Connected to %1", modelData.name) : Tr.t("Test failed: %1", msg))) }
+                        Button { text: Tr.t("Ping / DNS"); flat: true; onClicked: win.openNetTools(modelData.host) }
                         IconButton { icon: "folder-remote"; size: Theme.px(26); tip: Tr.t("Browse files on this host"); onClicked: Files.connectServer("ssh://" + modelData.user + "@" + modelData.host + ":" + modelData.port + "/", "", "", "") }
                         IconButton { icon: "go-previous"; tip: Tr.t("Edit"); onClicked: win.editHost(modelData) }
                     }
@@ -548,6 +559,7 @@ AppWindow {
                             }
                             Button { text: Tr.t("Connect"); kind: "outline"; onClicked: { win.noteLaunch(modelData); TerminalApp.connect(modelData) } }
                             Button { text: Tr.t("Test"); enabled: !TerminalApp.busy && modelData.type !== "serial"; onClicked: TerminalApp.testConnection(modelData, (ok, msg) => win.hostNote = (ok === "ok" ? Tr.t("Connected to %1", modelData.name) : Tr.t("Test failed: %1", msg))) }
+                            IconButton { icon: "network-transmit-receive"; size: Theme.px(26); tip: Tr.t("Ping / DNS"); accessibleName: Tr.t("Ping / DNS for %1", modelData.name); onClicked: win.openNetTools(modelData.host) }
                             IconButton { icon: "folder-remote"; size: Theme.px(26); tip: Tr.t("Browse files on this host"); onClicked: Files.connectServer("ssh://" + modelData.user + "@" + modelData.host + ":" + modelData.port + "/", "", "", "") }
                             IconButton { icon: "edit-copy"; size: Theme.px(26); tip: Tr.t("Copy address"); onClicked: { const addr = modelData.user + "@" + modelData.host; Quickshell.clipboardText = addr; win.hostNote = Tr.t("Copied %1", addr) } }
                             IconButton { icon: "edit-copy"; size: Theme.px(26); tip: Tr.t("Copy SSH command"); onClicked: { Quickshell.clipboardText = win.sshCommand(modelData); win.hostNote = Tr.t("Copied SSH command for %1", modelData.name) } }

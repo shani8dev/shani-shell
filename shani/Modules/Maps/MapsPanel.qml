@@ -395,6 +395,40 @@ AppWindow {
         if (routeUrl !== "")
             Quickshell.execDetached(["xdg-open", routeUrl]);
     }
+    // No Ui handoff property is owned here (the Ui singleton source file/shell.qml are out of scope),
+    // so the domain travels by clipboard marker and Ui.netTools is set — the
+    // same flag shell.qml's netToolsOpen() uses.
+    function openNetTools(host) {
+        const h = String(host || "").trim();
+        if (!h) return;
+        Quickshell.clipboardText = "shani-nettools:" + h;
+        Ui.closeAll();
+        Ui.netTools = true;
+    }
+    function hostFromText(raw) {
+        let s = String(raw || "").trim();
+        s = s.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "");  // scheme
+        s = s.split(/[/?#@]/)[0];                       // path, query, user info
+        s = s.replace(/:\d+$/, "");                     // port
+        return s.replace(/^www\./i, "");
+    }
+    function looksLikeHost(s) {
+        return /^[A-Za-z0-9][A-Za-z0-9.-]*$/.test(String(s || "")) && String(s).length <= 253;
+    }
+    // website domain first, then a domain-like place name; with only a current
+    // location fix, check the tile host serving the map the person is looking at
+    function checkHostTarget() {
+        const web = win.hostFromText(win.placeWebsite);
+        if (win.looksLikeHost(web)) return web;
+        const name = win.hostFromText(win.placeName || win.searchField || "");
+        if (win.looksLikeHost(name)) return name;
+        const tiles = win.hostFromText(win.tileUrl);
+        return Location.available && win.looksLikeHost(tiles) ? tiles : "";
+    }
+    function checkHost() {
+        const h = win.checkHostTarget();
+        if (h) win.openNetTools(h);
+    }
 
     Item {
         id: blurCard
@@ -505,6 +539,7 @@ AppWindow {
                 Text { visible: win.placeHours !== ""; text: Tr.t("Open: %1", win.placeHours); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                 Button { visible: win.placePhone !== ""; flat: true; text: win.placePhone; onClicked: Quickshell.execDetached(["xdg-open", "tel:" + win.placePhone.replace(/\s/g, "")]) }
                 Button { visible: win.placeWebsite !== ""; flat: true; text: Tr.t("Website"); onClicked: Quickshell.execDetached(["xdg-open", win.placeWebsite]) }
+                Button { visible: win.checkHostTarget() !== ""; flat: true; text: Tr.t("Check host"); Accessible.name: Tr.t("Check host in Network Tools"); onClicked: win.checkHost() }
                 Item { Layout.fillWidth: true }
             }
 

@@ -5,6 +5,15 @@
 // dock, the switcher and the bar find the app's entry, icon and name.
 // The same names and ids as bin/shani's APPS (tests/test_apps.py keeps them equal).
 var ids = {
+    "Dictionary": "dev.shani.Dictionary",
+    "Scheduled tasks": "dev.shani.ScheduledTasks",
+    "Podcasts": "dev.shani.Podcasts",
+    "Teleprompter": "dev.shani.Teleprompter",
+    "Network Tools": "dev.shani.NetTools",
+    "Database browser": "dev.shani.DatabaseBrowser",
+    "Startup manager": "dev.shani.StartupManager",
+    "Gateway": "dev.shani.Gateway",
+    "Paste history": "dev.shani.PasteHistory",
     "Services": "dev.shani.Services",
     "Calls": "dev.shani.Calls",
     "Messages": "dev.shani.Messages",
@@ -51,13 +60,16 @@ var ids = {
     "Kundali": "dev.shani.Kundali",
     "Settings": "dev.shani.Settings",
     "Contacts": "dev.shani.Contacts",
+    "Health": "dev.shani.Health",
     "Models": "dev.shani.Models",
     "Studio": "dev.shani.Studio",
     "Disks": "dev.shani.Disks",
     "Terminal": "dev.shani.TerminalApp",
     "Shani Backup": "dev.shani.Backup",
     "Feeds": "dev.shani.Feeds",
-    "Mail": "dev.shani.Mail"
+    "Mail": "dev.shani.Mail",
+    "IRC": "dev.shani.Irc",
+    "Cloud sync": "dev.shani.CloudSync"
 };
 
 // "notes.txt — Text Editor" and "Text Editor" are both the Text Editor

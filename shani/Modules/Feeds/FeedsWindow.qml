@@ -17,6 +17,7 @@ AppWindow {
 
     property string tagFilter: ""   // the category the feed list is narrowed to
     property bool savedShown: false // show the saved pile instead of a feed
+    property var audioFeeds: []     // feeds whose items carried an audio enclosure
 
     // a feed or the saved pile must win over an old search: otherwise the list
     // keeps showing search results and the click looks inert
@@ -29,6 +30,25 @@ AppWindow {
     function isEditing() {
         const f = win.activeFocusItem;
         return !!f && (f.objectName === "feedEdit" || f.objectName === "articleSearch" || f.objectName === "tagEdit");
+    }
+
+    // shortcut: only feeds opened once are known to carry audio (bridge `list`
+    // carries a count, not flags) — upgrade when list exposes enclosure flags.
+    // Learn from the items as they arrive; a row then knows it can hand off.
+    function rememberAudio() {
+        const url = Feeds.current;
+        if (!url) return;
+        const rest = win.audioFeeds.filter(f => f !== url);
+        win.audioFeeds = Feeds.items.some(i => i.enclosure && i.enclosure.url)
+            ? [url].concat(rest) : rest;
+    }
+    function hasAudio(url) { return win.audioFeeds.indexOf(url) >= 0 }
+    // Ui is the shell's own open path: shell.qml's podcastsOpen() sets this flag
+    function listenAsPodcast(url) {
+        if (!url) return;
+        Podcasts.listenToFeed(url);
+        Ui.closeAll();
+        Ui.podcasts = true;
     }
 
     // the keyboard walks what is on screen, not the cache: a search or the
@@ -68,6 +88,7 @@ AppWindow {
         function onCurrentChanged() {
             if (tagField && Feeds.current !== "") tagField.text = Feeds.tagsFor(Feeds.current);
         }
+        function onItemsChanged() { win.rememberAudio(); }
     }
 
     Item {
@@ -171,6 +192,14 @@ AppWindow {
                         // a feed wins over the saved pile too: otherwise the
                         // click looks inert while the list stays on Saved
                         onClicked: { win.leaveSearch(); win.savedShown = false; Feeds.open(modelData.url) }
+                        IconButton {
+                            visible: win.hasAudio(modelData.url)
+                            size: Theme.px(26)
+                            icon: "audio-x-generic"
+                            tip: Tr.t("Listen as podcast")
+                            accessibleName: Tr.t("Listen as podcast")
+                            onClicked: win.listenAsPodcast(modelData.url)
+                        }
                     }
                 }
 

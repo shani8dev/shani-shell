@@ -85,6 +85,14 @@ PanelWindow {
 
     // ---- the field's browse: history and recent files, live ------------------
     readonly property var historyItems: LauncherEntries.searchHistory.map(h => ({ title: h, icon: "edit-find" }))
+    // quick chips for the shell tools: one tap hands the tool: operator to the
+    // launcher through search(), so the field's current filter still applies
+    readonly property var toolChips: [
+        { title: Tr.t("Dictionary"), query: "tool:dictionary" },
+        { title: Tr.t("Podcasts"), query: "tool:podcasts" },
+        { title: Tr.t("Network Tools"), query: "tool:network" },
+        { title: Tr.t("Gateway"), query: "tool:gateway" }
+    ]
     property var recent: []        // the shared recently-used list: [{ path, name, when, app }]
     // recently used files, read like the launcher reads the same list
     FileView {
@@ -175,7 +183,7 @@ PanelWindow {
     // (Spotlight's row; typing searches as the launcher does)
     Glass {
         id: browse
-        visible: win.typed === "" && (win.historyItems.length > 0 || win.recent.length > 0)
+        visible: win.typed === ""   // the tool chips are always available while the field is empty
         anchors.top: pill.bottom
         anchors.left: parent.left
         anchors.right: parent.right
@@ -196,6 +204,25 @@ PanelWindow {
                         required property var modelData
                         text: modelData.title
                         onClicked: { win.typed = modelData.title; handOver.restart(); search.forceActiveFocus(); }
+                    }
+                }
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: Tr.t("Tools:")
+                color: Theme.faint
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+            Row {
+                height: Theme.px(28)
+                Repeater {
+                    model: win.toolChips
+                    Choice {
+                        required property var modelData
+                        text: modelData.title
+                        Accessible.name: Tr.t("Open %1 tool", modelData.title)
+                        onClicked: { win.search(modelData.query); }
                     }
                 }
             }

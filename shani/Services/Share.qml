@@ -24,6 +24,27 @@ Singleton {
             .filter(p => p !== "");
     }
     function close() { files = []; lastError = ""; }
+
+    // A link to the file(s), for a chat, a note or the gateway's peer list.
+    function shareLink() {
+        const p = root.file;
+        return p ? "https://gateway.local/share/" + encodeURIComponent(p) : "";
+    }
+    // Hand a file to Gateway. The path travels on the clipboard (Gateway reads
+    // it once on open), so the same entry point works for the Files "Share…"
+    // action and for the sheet's own target. An explicit path wins over the
+    // sheet's files, as a file action hands over a chosen file.
+    function sendToGatewayPeer(paths) {
+        const fs = paths ? (typeof paths === "string" ? [paths] : Array.from(paths).map(String)) : root.files;
+        if (!fs.length) return false;
+        // GatewayWindow only consumes an explicitly-prefixed handoff, so a
+        // user's ordinary clipboard text is never mistaken for a file path
+        Quickshell.clipboardText = "shani-gateway:" + fs[0];
+        Ui.closeAll();
+        Ui.gateway = true;
+        return true;
+    }
+
     function noteRecent(label) {
         const l = String(label || "");
         if (!l) return;
@@ -91,6 +112,17 @@ Singleton {
               run: () => { copyFile.command = ["sh", "-c", 'printf "file://%s\\r\\n" "$@" | wl-copy --type text/uri-list', "sh"].concat(root.files); copyFile.running = true; } },
             { icon: root.iconFor("edit-copy"), label: Tr.t("Copy its path"),
               run: () => { Quickshell.clipboardText = root.files.join("\n"); } },
+            { icon: root.iconFor("edit-copy"), label: Tr.t("Copy as share link"),
+              run: () => {
+                  const link = root.shareLink();
+                  if (!link) { root.lastError = Tr.t("There is no file to share"); return false; }
+                  Quickshell.clipboardText = link;
+                  return true;
+              } },
+            // Reached from Files' "Share…" action as well as from the sheet.
+            { icon: root.iconFor("network-workgroup"), label: Tr.t("Send to gateway peer"),
+              state: "ready",
+              run: () => root.sendToGatewayPeer() },
             { icon: root.iconFor("document-open"), label: Tr.t("Open with…"),
               run: () => root.run(Quickshell.execDetached, ["gio", "open", root.files[0]]) },
             // ---- archive first ----------------------------------------------

@@ -137,7 +137,7 @@ ipc closeAll
 
 # the other surfaces read only when first opened (shell.qml's `source:` loaders):
 # each opens, and writes no QML error doing so
-for spec in kundaliOpen:kundali passwordGeneratorOpen:passwordGenerator "pdfSignerOpen $A/one.pdf:pdfSigner" "wallpaperStyleOpen :wallpaperStyleShown" screenTimeOpen:screenTimeShown videoTrimmerToggle:videoTrimmer togglePlayer:player filePickerHome:pickerShown; do
+for spec in kundaliOpen:kundali passwordGeneratorOpen:passwordGenerator "pdfSignerOpen $A/one.pdf:pdfSigner" "wallpaperStyleOpen :wallpaperStyleShown" screenTimeOpen:screenTimeShown videoTrimmerToggle:videoTrimmer togglePlayer:player filePickerHome:pickerShown dictionaryOpen:dictionaryShown scheduledOpen:scheduledShown podcastsOpen:podcastsShown teleprompterOpen:teleprompterShown netToolsOpen:netToolsShown databaseBrowserOpen:databaseBrowserShown startupManagerOpen:startupManagerShown gatewayOpen:gatewayShown pasteHistoryOpen:pasteHistoryShown; do
     call=${spec%%:*}; key=${spec#*:}; fn=${call%% *}; arg=${call#* }; [ "$arg" = "$call" ] && arg=
     ipc closeAll; sleep 0.3; before=$(errs)
     case "$call" in *" "*) ipc "$fn" "$arg" ;; *) ipc "$fn" ;; esac

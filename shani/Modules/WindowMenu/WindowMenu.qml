@@ -26,6 +26,21 @@ PanelWindow {
     Region { id: menuRegion; item: card; radius: Theme.radius }
 
     property var target: null            // the window, captured when the menu opens
+    // the Tools submenu: the shell's newer apps, reached from any window with the
+    // same Ui flags shell.qml's *Open() IPC functions set
+    property bool toolsOpen: false
+    readonly property var tools: [
+        { id: "toolDictionary", tool: true, label: Tr.t("Dictionary"), icon: "accessories-dictionary", run: () => { Ui.closeAll(); Ui.dictionary = true; } },
+        { id: "toolScheduled", tool: true, label: Tr.t("Scheduled tasks"), icon: "appointment-new", run: () => { Ui.closeAll(); Ui.scheduled = true; } },
+        { id: "toolPodcasts", tool: true, label: Tr.t("Podcasts"), icon: "podcast", run: () => { Ui.closeAll(); Ui.podcasts = true; } },
+        { id: "toolTeleprompter", tool: true, label: Tr.t("Teleprompter"), icon: "accessories-text-editor", run: () => { Ui.closeAll(); Ui.teleprompter = true; } },
+        { id: "toolNetTools", tool: true, label: Tr.t("Network Tools"), icon: "network-workgroup", run: () => { Ui.closeAll(); Ui.netTools = true; } },
+        { id: "toolDatabaseBrowser", tool: true, label: Tr.t("Database browser"), icon: "office-database", run: () => { Ui.closeAll(); Ui.databaseBrowser = true; } },
+        { id: "toolStartupManager", tool: true, label: Tr.t("Startup manager"), icon: "preferences-system", run: () => { Ui.closeAll(); Ui.startupManager = true; } },
+        { id: "toolGateway", tool: true, label: Tr.t("Gateway"), icon: "network-server", run: () => { Ui.closeAll(); Ui.gateway = true; } },
+        { id: "toolPasteHistory", tool: true, label: Tr.t("Paste history"), icon: "edit-paste", run: () => { Ui.closeAll(); Ui.pasteHistory = true; } }
+    ]
+    onToolsOpenChanged: if (toolsOpen) { win.openMenu = -1; win.expanded = ({}); Ui.focusFirst(menuCard); }
     readonly property bool targetAlive: target !== null && Niri.windows[target.id] !== undefined
     onTargetAliveChanged: if (visible && !targetAlive) { target = null; Ui.windowMenu = false }
     // the app's desktop actions, when it shows no menu bar of its own
@@ -89,8 +104,10 @@ PanelWindow {
         }
         return out;
     }
-    readonly property var openItems: openMenu >= 0 && AppMenu.menus[openMenu] ? flatten(AppMenu.menus[openMenu].items, 0) : []
+    readonly property var openItems: win.toolsOpen ? flatten(win.tools, 0)
+        : openMenu >= 0 && AppMenu.menus[openMenu] ? flatten(AppMenu.menus[openMenu].items, 0) : []
     function press(it) {
+        if (it.tool) { it.run(); return; }
         if (it.items) {
             const e = Object.assign({}, expanded);
             e[it.path] = !e[it.path];
@@ -123,6 +140,7 @@ PanelWindow {
         function onWindowMenuChanged() {
             win.openMenu = -1;
             win.expanded = ({});
+            win.toolsOpen = false;
             if (Ui.windowMenu) {
                 win.target = Niri.focusedWindow;
                 AppMenu.load(win.target);
@@ -140,7 +158,8 @@ PanelWindow {
         anchors.fill: parent
         focus: true
         Keys.onEscapePressed: {
-            if (win.openMenu >= 0) { win.openMenu = -1; win.expanded = ({}); }
+            if (win.toolsOpen) win.toolsOpen = false;
+            else if (win.openMenu >= 0) { win.openMenu = -1; win.expanded = ({}); }
             else Ui.windowMenu = false;
         }
         Keys.onPressed: {
@@ -166,7 +185,8 @@ PanelWindow {
         width: Theme.px(300)
         height: menuCol.implicitHeight + 16
         Keys.onEscapePressed: {
-            if (win.openMenu >= 0) { win.openMenu = -1; win.expanded = ({}); keys.forceActiveFocus(); }
+            if (win.toolsOpen) { win.toolsOpen = false; Ui.focusFirst(chipRow); }
+            else if (win.openMenu >= 0) { win.openMenu = -1; win.expanded = ({}); Ui.focusFirst(chipRow); }
             else Ui.windowMenu = false;
         }
         MouseArea { anchors.fill: parent }
@@ -258,11 +278,36 @@ PanelWindow {
             }
             // the app's own menus: File, Edit, View ... (one opens beside the card)
             Flow {
+                id: chipRow
                 Layout.fillWidth: true
                 Layout.leftMargin: Theme.px(4)
                 Layout.rightMargin: Theme.px(4)
-                visible: AppMenu.menus.length > 0 || AppMenu.loading
                 spacing: Theme.px(4)
+                // always here: the Tools submenu is reachable from any window
+                Rectangle {
+                    id: toolsChip
+                    width: toolsChipText.implicitWidth + 18
+                    height: Theme.px(28)
+                    radius: Theme.radiusSmall
+                    color: win.toolsOpen ? Theme.accent : (toolsChipMouse.containsMouse ? Theme.hover : "transparent")
+                    Accessible.role: Accessible.Button
+                    Accessible.name: Tr.t("Tools")
+                    Text {
+                        id: toolsChipText
+                        anchors.centerIn: parent
+                        text: Tr.t("Tools")
+                        color: win.toolsOpen ? Theme.accentInk : Theme.text
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                    }
+                    MouseArea {
+                        id: toolsChipMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: { win.toolsOpen = !win.toolsOpen; win.openMenu = -1; win.expanded = ({}); }
+                    }
+                    KeyFocus { onActivated: { win.toolsOpen = !win.toolsOpen; win.openMenu = -1; win.expanded = ({}); } }
+                }
                 Text {
                     visible: AppMenu.loading
                     text: Tr.t("Reading the app's menus…")

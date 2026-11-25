@@ -177,6 +177,7 @@ ShellRoot {
     LazyLoader { active: Ui.converter; source: "Modules/Converter/ConverterWindow.qml" }
     LazyLoader { active: Ui.tasks; source: "Modules/Tasks/TasksWindow.qml" }
     LazyLoader { active: Ui.contacts; source: "Modules/Contacts/ContactsWindow.qml" }
+    LazyLoader { active: Ui.health; source: "Modules/Health/HealthWindow.qml" }
     LazyLoader { active: QuickLook.shown; source: "Modules/QuickLook/QuickLookSheet.qml" }
     LazyLoader { active: WritingTools.shown; source: "Modules/WritingTools/WritingToolsSheet.qml" }
     LazyLoader { active: Ui.photos; source: "Modules/Photos/PhotosWindow.qml" }
@@ -188,6 +189,15 @@ ShellRoot {
     LazyLoader { active: Ui.kundali; source: "Modules/Kundali/KundaliPanel.qml" }
     LazyLoader { active: Ui.models; source: "Modules/Models/ModelsWindow.qml" }
     LazyLoader { active: Ui.studio; source: "Modules/Studio/StudioWindow.qml" }
+    LazyLoader { active: Ui.scheduled; source: "Modules/ScheduledTasksWindow.qml" }
+    LazyLoader { active: Ui.dictionary; source: "Modules/Dictionary.qml" }
+    LazyLoader { active: Ui.podcasts; source: "Modules/MediaPlayer/PodcastWindow.qml" }
+    LazyLoader { active: Ui.teleprompter; source: "Modules/Teleprompter.qml" }
+    LazyLoader { active: Ui.netTools; source: "Modules/NetTools.qml" }
+    LazyLoader { active: Ui.databaseBrowser; source: "Modules/DatabaseBrowser.qml" }
+    LazyLoader { active: Ui.startupManager; source: "Modules/StartupManager.qml" }
+    LazyLoader { active: Ui.gateway; source: "Modules/GatewayWindow.qml" }
+    LazyLoader { active: Ui.pasteHistory; source: "Modules/PasteHistoryWindow.qml" }
     LazyLoader { active: Ui.pdfSigner; source: "Modules/PdfSigner/PdfSignerPanel.qml" }
     LazyLoader { active: Ui.diskUsage; source: "Modules/DiskUsage/DiskUsagePanel.qml" }
     LazyLoader { active: Ui.disks; source: "Modules/Disks/DisksWindow.qml" }
@@ -196,6 +206,8 @@ ShellRoot {
     LazyLoader { active: FilePicker.shown; source: "Modules/FilePicker/FilePickerPanel.qml" }
     LazyLoader { active: Ui.videoTrimmer; source: "Modules/VideoTrimmer/VideoTrimmerPanel.qml" }
     LazyLoader { active: Ui.characters; source: "Modules/Characters/CharactersPanel.qml" }
+    LazyLoader { active: Ui.irc; source: "Modules/Irc/IrcWindow.qml" }
+    LazyLoader { active: Ui.cloudSync; source: "Modules/Cloud/CloudPanel.qml" }
     ModemDialog {}
     LazyLoader { active: Share.file !== ""; source: "Modules/Share/ShareSheet.qml" }
     LockScreen { id: lockScreen }
@@ -234,7 +246,7 @@ ShellRoot {
     }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [BootInfo, SshKeys, KernelModules, SecurityInfo, SysServices, Link, Idle, InputPlumber, Ups, Polkit, NightLight, AutoRotate, Appearance, Firewall, Feeds, Mail, Tablet, Privacy, Updates, Drives, Disks, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, Sessions, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WindowLook, Terminal, TerminalApp, TextMate, Keyring, WindowPreview, SmartReplies, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, PdfSigner, DiskUsage, WallpaperStyle, VideoTrimmer, Models, AIProviders, Studio]
+    readonly property var _services: [BootInfo, SshKeys, KernelModules, SecurityInfo, SysServices, Link, Idle, InputPlumber, Ups, Polkit, NightLight, AutoRotate, Appearance, Firewall, Feeds, Mail, Irc, Tablet, Privacy, Updates, Drives, Disks, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, Sessions, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WindowLook, Terminal, TerminalApp, TextMate, Keyring, WindowPreview, SmartReplies, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, PdfSigner, DiskUsage, WallpaperStyle, VideoTrimmer, Models, AIProviders, Studio]
 
     // The test-only CalDAV hook reads a password from a file: keeping it out of
     // an IPC argument keeps it out of `ps`. Declared at root, not in IpcHandler;
@@ -440,12 +452,32 @@ ShellRoot {
         function contactsOpen() { Ui.closeAll(); Ui.contacts = true; }
         function contactsClose() { Ui.contacts = false; }
         function contactsToggle() { const was = Ui.contacts; Ui.closeAll(); Ui.contacts = !was; }
+        function healthOpen() { Ui.closeAll(); Ui.health = true; }
+        function healthClose() { Ui.health = false; }
         function modelsOpen() { Ui.closeAll(); Ui.models = true; }
         function modelsClose() { Ui.models = false; }
         function modelsToggle() { const was = Ui.models; Ui.closeAll(); Ui.models = !was; }
         function studioOpen() { Ui.closeAll(); Ui.studio = true; }
         function studioClose() { Ui.studio = false; }
         function studioToggle() { const was = Ui.studio; Ui.closeAll(); Ui.studio = !was; }
+        function dictionaryOpen() { Ui.closeAll(); Ui.dictionary = true; }
+        function dictionaryClose() { Ui.dictionary = false; }
+        function scheduledOpen() { Ui.closeAll(); Ui.scheduled = true; }
+        function scheduledClose() { Ui.scheduled = false; }
+        function podcastsOpen() { Ui.closeAll(); Ui.podcasts = true; }
+        function podcastsClose() { Ui.podcasts = false; }
+        function teleprompterOpen() { Ui.closeAll(); Ui.teleprompter = true; }
+        function teleprompterClose() { Ui.teleprompter = false; }
+        function netToolsOpen() { Ui.closeAll(); Ui.netTools = true; }
+        function netToolsClose() { Ui.netTools = false; }
+        function databaseBrowserOpen() { Ui.closeAll(); Ui.databaseBrowser = true; }
+        function databaseBrowserClose() { Ui.databaseBrowser = false; }
+        function startupManagerOpen() { Ui.closeAll(); Ui.startupManager = true; }
+        function startupManagerClose() { Ui.startupManager = false; }
+        function gatewayOpen() { Ui.closeAll(); Ui.gateway = true; }
+        function gatewayClose() { Ui.gateway = false; }
+        function pasteHistoryOpen() { Ui.closeAll(); Ui.pasteHistory = true; }
+        function pasteHistoryClose() { Ui.pasteHistory = false; }
         function disksOpen() { Ui.closeAll(); Ui.disks = true; }
         function disksClose() { Ui.disks = false; }
         function disksToggle() { const was = Ui.disks; Ui.closeAll(); Ui.disks = !was; }
@@ -458,6 +490,10 @@ ShellRoot {
         function backupOpen() { Ui.closeAll(); Ui.backup = true; }
         function backupClose() { Ui.backup = false; }
         function backupToggle() { const was = Ui.backup; Ui.closeAll(); Ui.backup = !was; }
+        function ircOpen() { Ui.closeAll(); Ui.irc = true; }
+        function cloudSyncOpen() { Ui.closeAll(); Ui.cloudSync = true; }
+        function cloudSyncClose() { Ui.cloudSync = false; }
+        function ircClose() { Ui.irc = false; }
         // Converter: files, if any, then the window
         function converterOpen(path: string) { Ui.closeAll(); if (path) Ui.converterFiles = [path]; Ui.converter = true; }
         // Nearby (LocalSend): files to send, if any, then the window
@@ -1195,6 +1231,11 @@ ShellRoot {
                 fonts: Ui.fonts,
                 contacts: Ui.contacts,
                 modelsShown: Ui.models, studioShown: Ui.studio, disksShown: Ui.disks, terminalAppShown: Ui.terminalApp, backupShown: Ui.backup, windowLayouts: Ui.windowLayouts,
+                dictionaryShown: Ui.dictionary, scheduledShown: Ui.scheduled, podcastsShown: Ui.podcasts, teleprompterShown: Ui.teleprompter,
+                netToolsShown: Ui.netTools, databaseBrowserShown: Ui.databaseBrowser, startupManagerShown: Ui.startupManager,
+                gatewayShown: Ui.gateway, pasteHistoryShown: Ui.pasteHistory,
+                ircShown: Ui.irc, ircStatus: Irc.status, ircChannels: Irc.channels, ircMessages: Irc.messages.length, ircError: Irc.error,
+                cloudSyncShown: Ui.cloudSync,
                 playerVolume: Media.current && Media.current.volumeSupported ? Math.round(Media.current.volume * 100) : -1,
                 playerShuffle: Media.current ? Media.current.shuffle : false,
                 playerLoop: Media.current ? Media.current.loopState : -1,
@@ -1209,6 +1250,7 @@ ShellRoot {
                 cronCount: SysServices.cron.length, servicesNote: SysServices.note,
                 callsShown: Ui.calls, callsCount: Link.calls.length, callsLines: Link.lines.join(','),
                 messagesShown: Ui.messages, messagesCount: Link.messages.length,
+                healthShown: Ui.health, healthSteps: Health.stepsToday, healthDevice: Health.device, healthError: Health.error,
                 linkPhone: Link.phoneName, linkBackend: Link.backend,
                 mailKind: Mail.kind, mailFolders: Mail.folders.length, mailCount: Mail.messages.length,
                 mailSubject: Mail.subject, mailFrom: Mail.from, mailBody: Mail.body.slice(0, 80),

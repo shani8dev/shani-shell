@@ -22,7 +22,8 @@ Singleton {
         { id: "file", hint: "file:report" },
         { id: "web", hint: "web:weather" },
         { id: "clip", hint: "clip:meeting" },
-        { id: "action", hint: "action:dark" }
+        { id: "action", hint: "action:dark" },
+        { id: "tool", hint: "tool:dictionary" }
     ]
     // Settings categories the launcher could not reach by name: the sidebar's
     // category id, its label and the words people actually type. Kept in the

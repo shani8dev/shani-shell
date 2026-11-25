@@ -443,6 +443,7 @@ AppWindow {
                         onClicked: win.showMove = !win.showMove
                     }
                     Button { text: Tr.t("Export MD"); enabled: Services.QuickNotes.current !== ""; onClicked: Services.QuickNotes.exportMarkdownDialog() }
+                    Button { text: Tr.t("Present note"); enabled: Services.QuickNotes.current !== ""; onClicked: win.presentNote() }
                 }
 
                 // One line of feedback for pin/tag/export actions and gpg
@@ -845,6 +846,12 @@ AppWindow {
     function openHistory() {
         win.showHistory = !win.showHistory;
         if (win.showHistory) Services.QuickNotes.history(Services.QuickNotes.noteId(Services.QuickNotes.current, Services.QuickNotes.currentNotebook));
+    }
+    /// Send the open note to the Teleprompter through the clipboard.
+    function presentNote() {
+        if (Services.QuickNotes.current === "") return;
+        Quickshell.clipboardText = Services.QuickNotes.text;
+        Ui.teleprompter = true;
     }
     /// Adds (or clears) @due(YYYY-MM-DD) on the task line the cursor is on.
     function addDue(date) {

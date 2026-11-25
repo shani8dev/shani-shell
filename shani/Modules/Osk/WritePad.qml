@@ -19,6 +19,18 @@ Item {
     property bool pen: false
     readonly property bool reading: Osk.reading
 
+    // the recognised word lands in Osk.lastWritten (Services/Osk); the last row
+    // read is the one to look up. The clipboard is the word channel to the
+    // Dictionary and Ui.dictionary is the flag its shell IPC uses too, so no
+    // the Ui singleton source file change is needed.
+    function lookUp() {
+        const word = String(Osk.lastWritten || "").trim().split("\n").pop().trim();
+        if (word === "") return;
+        Quickshell.clipboardText = word;
+        Ui.dictionary = false;   // re-open so Dictionary re-reads the clipboard
+        Ui.dictionary = true;
+    }
+
     function finish() {
         if (current.length > 1) {
             if (HW.isScribble(current))
@@ -95,5 +107,17 @@ Item {
             pad.current = pad.current.concat([pt]);
             ink.requestPaint();
         }
+    }
+
+    // look up the word just written, without leaving the handwriting page
+    IconButton {
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.margins: Theme.px(6)
+        visible: String(Osk.lastWritten || "").trim() !== ""
+        icon: "accessories-dictionary"
+        size: Theme.px(26)
+        tip: Tr.t("Look up")
+        onClicked: pad.lookUp()
     }
 }

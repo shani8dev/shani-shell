@@ -1,0 +1,17 @@
+[Unit]
+Description=ShaniOS background cloud sync (rclone)
+Documentation=https://github.com/shani8dev/shani-shell
+# The panel talks to the daemon only through its JSON-lines stdin/stdout.
+# It lives with the shell: started after it, stopped when it stops.
+PartOf=shani-shell.service
+After=shani-shell.service
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/lib/shani-shell/cloudsync.py
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

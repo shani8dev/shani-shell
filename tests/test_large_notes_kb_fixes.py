@@ -171,7 +171,7 @@ def test_backlinks_scan_and_pane():
     assert "model: Services.QuickNotes.backlinkResults" in drawer
     assert "No notes link here yet" in drawer
     assert "Services.QuickNotes.updateBacklinks()" in PANEL
-    assert "Services.QuickNotes.jumpTo(modelData)" in PANEL  # chips create stubs
+    assert "QuickNotes.jumpTo(name)" in PANEL  # chips create stubs
 
 
 def test_backlink_grep_script_finds_only_real_links(tmp_path):

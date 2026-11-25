@@ -7,7 +7,7 @@
 // Ctrl+O open, Ctrl+S save, Ctrl+Shift+S save as, Ctrl+W close the tab,
 // Ctrl+Z undo, Ctrl+Shift+Z / Ctrl+Y redo, Ctrl+F find, Ctrl+H replace,
 // Ctrl +/-/0 text size, Ctrl+Tab / Ctrl+PgUp/PgDn switch tabs,
-// Ctrl+Shift+T reopen the last closed tab.
+// Ctrl+Shift+T reopen the last closed tab, Ctrl+Shift+P present in the teleprompter.
 // The image's default for text files (dev.shani.TextEditor.desktop).
 import Quickshell
 import Quickshell.Io
@@ -36,7 +36,9 @@ AppWindow {
         IconButton { size: Theme.px(30); icon: "applications-graphics"; tip: "Syntax language"; onClicked: syntaxDialog.open() },
         Button { text: Tr.t("Save"); kind: TextDocs.current && TextDocs.current.modified ? "primary" : "plain"; enabled: TextDocs.current !== null && !TextDocs.saving; onClicked: win.save() },
         Button { text: Tr.t("Save as…"); flat: true; onClicked: win.saveAs() },
+        IconButton { size: Theme.px(30); icon: "view-fullscreen"; tip: "Present (Ctrl+Shift+P)"; onClicked: win.present() },
         IconButton { size: Theme.px(30); icon: "edit-find"; tip: Tr.t("Find") + " (Ctrl+F)"; on: win.finding; onClicked: { win.finding = !win.finding; if (win.finding) findField.input.forceActiveFocus(); } },
+        IconButton { size: Theme.px(30); icon: "accessories-dictionary"; tip: Tr.t("Look up word"); enabled: win.canDefine; onClicked: win.lookUpWord() },
         IconButton { size: Theme.px(30); icon: "bookmark-new"; tip: "Toggle bookmark (Ctrl+B)"; onClicked: win.toggleBookmark() },
         IconButton { size: Theme.px(30); icon: "go-jump"; tip: "Go to line (Ctrl+G)"; onClicked: win.openGoto() },
         IconButton { size: Theme.px(30); icon: "entry-calendar"; tip: Tr.t("Insert date and time"); onClicked: win.insertDateTime() },
@@ -83,6 +85,7 @@ AppWindow {
         }
     }
     property bool finding: false
+    property bool canDefine: false            // a selection is ready to look up in the Dictionary
     property bool replacing: false
     property bool markdownPreview: false   // rendered view of the current document (Ctrl+Shift+M)
     // find options
@@ -491,6 +494,12 @@ AppWindow {
         if (!TextDocs.save())
             win.saveAs();
     }
+    // Hand the whole document to the Teleprompter. The clipboard is the channel
+    // (there is no shared service); the prompter reads and clears it on open.
+    function present() {
+        Quickshell.clipboardText = edit.text;
+        Ui.teleprompter = true;
+    }
     function closeTab(i) {
         if (TextDocs.docs[i].modified && win.confirmClose !== i) {
             win.confirmClose = i;
@@ -548,6 +557,15 @@ AppWindow {
         win.gotoOpen = true;
         gotoField.text = String(win.lineCol(edit.cursorPosition).line + 1);
         gotoField.input.forceActiveFocus();
+    }
+    // the clipboard hands the selection to the Dictionary; Ui.dictionary is the
+    // same flag the shell's dictionaryOpen IPC sets (no the Ui singleton source file change needed)
+    function lookUpWord() {
+        const word = edit.selectedText.trim();
+        if (word === "") return;
+        Quickshell.clipboardText = word;
+        Ui.dictionary = false;   // re-open so Dictionary re-reads the clipboard
+        Qt.callLater(() => { Ui.dictionary = true; });
     }
     function submitGoto() {
         const n = parseInt(gotoField.text, 10);
@@ -638,6 +656,7 @@ AppWindow {
         else if (e.key === Qt.Key_N) TextDocs.newDoc();
         else if (e.key === Qt.Key_W) win.closeTab(TextDocs.active);
         else if (e.key === Qt.Key_T && shift) win.reopenTab();
+        else if (e.key === Qt.Key_P && shift) win.present();
         else if (e.key === Qt.Key_Tab && TextDocs.docs.length > 1)
             TextDocs.show((TextDocs.active + (shift ? -1 : 1) + TextDocs.docs.length) % TextDocs.docs.length);
         else if ((e.key === Qt.Key_PageDown || e.key === Qt.Key_PageUp) && TextDocs.docs.length > 1)
@@ -1229,7 +1248,7 @@ AppWindow {
                             win.saveCaret();
                             if (win.multiCursor) win.clearExtraCursors();
                         }
-                        onSelectedTextChanged: { if (!win.loading && !win.computingRects) win.saveCaret(); }
+                        onSelectedTextChanged: { if (!win.loading && !win.computingRects) win.saveCaret(); win.canDefine = edit.selectedText.trim() !== ""; }
                     }
                     // draw the extra cursors (column selection) as thin overlays
                     Repeater {

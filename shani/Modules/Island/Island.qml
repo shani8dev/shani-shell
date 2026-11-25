@@ -49,7 +49,7 @@ PanelWindow {
     readonly property var activity: !Settings.data.islandActivities ? null : liveActivity
     readonly property var liveActivity: {
         if (Camera.phase === "counting")
-            return { icon: "camera-photo", text: "Photo in " + Camera.countdown + "…", color: Theme.accent, run: () => {} };
+            return { icon: "camera-photo", text: "Photo in " + Camera.countdown + "…", color: Theme.accent, run: () => { Ui.closeAll(); Ui.photos = true; } };
         if (Camera.phase === "recording")
             return { icon: "camera-video", text: "Recording video · " + Camera.elapsed, color: Theme.red, run: () => Camera.video() };
         if (Modem.call && Modem.call.state !== "ringing-in")
@@ -71,13 +71,13 @@ PanelWindow {
         if (Dictation.phase === "recording")
             return { icon: "audio-input-microphone", text: Tr.t("Listening — tap to stop"), color: Theme.red, run: () => Dictation.toggle() };
         if (Dictation.phase === "transcribing")
-            return { icon: "audio-input-microphone", text: Tr.t("Writing it down…"), color: Theme.accent, run: () => {} };
+            return { icon: "audio-input-microphone", text: Tr.t("Writing it down…"), color: Theme.accent, run: () => Ui.openNotes() };
         if (FocusTimer.running)
             return { icon: "alarm", text: "Focus · " + FocusTimer.label, color: Theme.accent, run: () => Ui.openClocks("timer") };
         if (Audio.screenShared)
             return { icon: "screen-shared", text: Tr.t("Sharing your screen — tap to stop"), color: Theme.red, run: () => Niri.stopCasts() };
         if (Backup.running)
-            return { icon: "drive-harddisk", text: Tr.t("Backing up…"), color: Theme.accent, run: () => {} };
+            return { icon: "drive-harddisk", text: Tr.t("Backing up…"), color: Theme.accent, run: () => { Ui.closeAll(); Ui.backup = true; } };
         if (player)
             return { icon: "media-playback-pause", text: player.trackTitle + (player.trackArtist ? " · " + player.trackArtist : ""), color: Theme.text, run: () => player.togglePlaying() };
         return null;

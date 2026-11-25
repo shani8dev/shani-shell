@@ -1,6 +1,6 @@
 // What Lens found in the region you selected: the snippet, its text (select
 // any of it), decoded QR/barcodes as links, and what to do next — copy,
-// search, translate, save, or ask Chronoa (with your own question, or not).
+// search, define, translate, save, or ask Chronoa (with your own question, or not).
 import Quickshell
 import Quickshell.Wayland
 import QtQuick
@@ -23,6 +23,18 @@ PanelWindow {
 
     // deferred so the focus sink below cannot take focus after the field does
     onVisibleChanged: if (visible) Qt.callLater(() => question.input.forceActiveFocus())
+
+    // the clipboard is the word channel to the Dictionary (which seeds its
+    // search box from it on open); Ui.dictionary is the same flag the shell's
+    // dictionaryOpen IPC uses. No the Ui singleton source file change needed.
+    function defineSelection() {
+        const word = String(Lens.text || "").trim();
+        if (word === "") return;
+        Quickshell.clipboardText = word;
+        Ui.dictionary = false;   // re-open so Dictionary re-reads the clipboard
+        Qt.callLater(() => { Ui.dictionary = true; });
+        Lens.close();
+    }
 
     MouseArea { objectName: "nav:pointer"; anchors.fill: parent; onClicked: Lens.close() }
     // Escape closes from anywhere in the card, not only while the question has focus.
@@ -117,6 +129,7 @@ PanelWindow {
                 spacing: Theme.px(8)
                 Button { text: Tr.t("Copy text"); enabled: Lens.text !== ""; onClicked: { Lens.copyText(); Lens.close(); } }
                 Button { text: Tr.t("Search"); enabled: Lens.text !== ""; onClicked: { Lens.search(); Lens.close(); } }
+                Button { text: Tr.t("Define"); enabled: Lens.text.trim() !== ""; onClicked: win.defineSelection() }
                 Button { text: Tr.t("Translate"); enabled: Lens.text !== ""; onClicked: { Lens.translate(); Lens.close(); } }
                 Button { text: Tr.t("Save image"); enabled: Lens.image !== ""; onClicked: { Lens.save(); Lens.close(); } }
                 Button { text: Tr.t("Open image"); enabled: Lens.image !== ""; onClicked: { Lens.openImage(); Lens.close(); } }

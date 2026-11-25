@@ -218,6 +218,38 @@ PanelWindow {
                         }
                     }
                 }
+
+                // More apps: the four tools people reach for most. A compact row
+                // of icon buttons that fits the same column as the tile rows.
+                Row {
+                    width: parent.width
+                    spacing: Theme.px(8)
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Tr.t("More apps")
+                        color: Theme.dim
+                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                    }
+                    Repeater {
+                        model: [
+                            { label: Tr.t("Dictionary"), icon: "book", run: () => { Ui.closeAll(); Ui.dictionary = true; } },
+                            { label: Tr.t("Podcasts"), icon: "audio-headphones", run: () => { Ui.closeAll(); Ui.podcasts = true; } },
+                            { label: Tr.t("Network tools"), icon: "network-workgroup", run: () => { Ui.closeAll(); Ui.netTools = true; } },
+                            { label: Tr.t("Gateway"), icon: "network-vpn", run: () => { Ui.closeAll(); Ui.gateway = true; } }
+                        ]
+                        delegate: Rectangle {
+                            required property var modelData
+                            width: Theme.px(44); height: Theme.px(36)
+                            radius: Theme.px(8)
+                            color: Theme.alpha(Theme.text, 0.08)
+                            Icon { anchors.centerIn: parent; name: modelData.icon; size: Theme.px(18) }
+                            MouseArea { anchors.fill: parent; onClicked: modelData.run() }
+                            KeyFocus { name: modelData.label; onActivated: modelData.run() }
+                            Accessible.role: Accessible.Button
+                            Accessible.name: modelData.label
+                        }
+                    }
+                }
             }
         }
     }

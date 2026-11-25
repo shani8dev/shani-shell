@@ -61,7 +61,17 @@ Singleton {
     property string kundaliDate: ""       // the day the calendar asked about (YYYY-MM-DD)
     property bool weather: false             // the Weather app (Modules/Weather)
     property bool tasks: false               // the Tasks app (Modules/Tasks)
+    property bool scheduled: false           // the Scheduled tasks view (Modules/ScheduledTasksWindow)
+    property bool dictionary: false          // the offline Dictionary/Thesaurus app
+    property bool podcasts: false            // the Podcasts app
+    property bool teleprompter: false        // the Teleprompter app
+    property bool netTools: false            // the Network Tools app (ping/DNS/scan)
+    property bool databaseBrowser: false     // the SQLite database browser
+    property bool startupManager: false      // the XDG autostart manager
+    property bool gateway: false             // the Gateway peers/QR + VPN app
+    property bool pasteHistory: false        // the multi-slot clipboard history app
     property bool contacts: false            // the Contacts app (Modules/Contacts)
+    property bool health: false              // the Health app (Modules/Health): local-first fitness journal
     property bool photos: false              // the Photos app (Modules/Photos)
     property bool translate: false           // the Translate app (Modules/Translate)
     property bool converter: false           // the Converter app (Modules/Converter)
@@ -96,6 +106,8 @@ Singleton {
     property bool servicesApp: false         // the Services app (Modules/Services): user units + cron
     property bool calls: false               // the Calls app (Modules/Calls): dial pad + history
     property bool messages: false            // the Messages app (Modules/Messages): the phone's texts
+    property bool irc: false                 // the IRC app (Modules/Irc): channels, chat and nick list
+    property bool cloudSync: false           // the Cloud sync app (Modules/Cloud)
     property string callsNumber: ""          // the Calls app: the number the dial pad opens with
     property string messagesNumber: ""       // the Messages app: the conversation to open
     property string calculatorTab: "standard" // the Calculator tab (Modules/Calculator): standard | scientific | financial | programming | converter

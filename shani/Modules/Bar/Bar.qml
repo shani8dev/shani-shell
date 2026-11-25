@@ -794,6 +794,14 @@ Variants {
                     hint: Tr.t("A disk is over 90% full - click to see what is using it")
                     onClicked: DiskUsage.open()
                 }
+                // one entry point for the tools behind Ui flags: a launcher filtered to "tool"
+                Chip {
+                    icon: "applications-utilities"
+                    tint: Theme.dim
+                    name: Tr.t("Tools")
+                    hint: Tr.t("Dictionary, podcasts, teleprompter and more - opens the launcher")
+                    onClicked: Ui.toggleLauncher("tool")
+                }
                 // status cluster: one target, opens the control center
                 Chip {
                     name: Tr.t("Quick settings") + (!Settings.data.hideVolumeGlyph ? (Audio.ready ? ", " + Tr.t("volume %1%", Math.round(Audio.volume * 100)) + (Audio.muted ? " " + Tr.t("muted") : "") : "") : "")

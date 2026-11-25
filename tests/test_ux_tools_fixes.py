@@ -1,0 +1,127 @@
+"""Static asserts for the tool: entry-point / label / icon fixes.
+
+The audits are read-only, so these tests guard the QML source itself: the
+operator list, the nine-tool cap, one spelling+icon per tool, the two distinct
+"startup" destinations, and the accessible name on the overview's tool chips.
+"""
+
+import re
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+
+OPERATORS = "shani/Services/LauncherEntries.qml"
+LAUNCHER = "shani/Modules/Launcher/Launcher.qml"
+ACTIONS = "shani/Modules/Launcher/LauncherActions.qml"
+SIDEBAR = "shani/Modules/ControlCenter/SidebarTiles.qml"
+RING = "shani/Modules/Ring/Ring.qml"
+SEARCH = "shani/Modules/Overview/OverviewSearch.qml"
+HINTS = "shani/Modules/Hints/StartHints.qml"
+
+# one spelling and one icon per tool, agreed across the launcher, the sidebar
+# and the ring (the bar keeps a single generic "Tools" chip)
+CANONICAL = {
+    "Dictionary": "accessories-dictionary",
+    "Podcasts": "audio-headphones",
+    "Teleprompter": "view-list-text",
+    "Network Tools": "network-workgroup",
+    "Database browser": "database",
+    "Startup manager": "system-run",
+    "Gateway": "network-server",
+    "Paste history": "edit-paste",
+    "Scheduled tasks": "x-office-calendar",
+}
+TIDS = {
+    "Dictionary": "dictionary",
+    "Podcasts": "podcasts",
+    "Teleprompter": "teleprompter",
+    "Network Tools": "netTools",
+    "Database browser": "databaseBrowser",
+    "Startup manager": "startupManager",
+    "Gateway": "gateway",
+    "Paste history": "pasteHistory",
+    "Scheduled tasks": "scheduled",
+}
+
+
+def source(rel):
+    return (ROOT / rel).read_text(encoding="utf-8")
+
+
+def sidebar_tiles(text):
+    out = {}
+    for block in re.split(r"\n\s*Tile \{", text)[1:]:
+        tid = re.search(r'\btid:\s*"([^"]+)"', block)
+        title = re.search(r'\btitle:\s*Tr\.t\("([^"]+)"\)', block)
+        icon = re.search(r'\bicon:\s*"([^"]*)"', block)
+        if tid and title:
+            out[tid.group(1)] = (title.group(1), icon.group(1) if icon else None)
+    return out
+
+
+def test_1_tool_operator_is_recognised_and_keeps_the_action_group():
+    entries = source(OPERATORS)
+    block = re.search(r"operators:\s*\[(.*?)\]", entries, re.S).group(1)
+    assert re.search(r'\{\s*id:\s*"tool",\s*hint:\s*"tool:dictionary"\s*\}', block)
+    assert "operators.some(o => o.id === id)" in entries  # parseQuery uses the list
+    launcher = source(LAUNCHER)
+    # finish() keeps only sections whose group is the operator: the action
+    # group must therefore be named "tool" for tool: queries
+    assert 'group: op === "tool" ? "tool" : "action"' in launcher
+    assert 'tool: "tool:dictionary"' in launcher  # bare tool: offers an example
+    assert (
+        'q.trim().toLowerCase() === "tool") acts = acts.filter(a => /\\btool\\b/.test(a.words));'
+        in launcher
+    )
+
+
+def test_2_tool_query_raises_the_action_cap_to_all_nine():
+    launcher = source(LAUNCHER)
+    m = re.search(r"acts\.slice\(0, ([^;]+)\);", launcher)
+    assert m, "the action cap is missing"
+    expr = m.group(1)
+    assert 'op === "tool"' in expr and 'q.trim().toLowerCase() === "tool"' in expr
+    assert "? 9 : 6" in expr
+
+
+def test_3_nine_tool_labels_and_icons_agree_across_owned_files():
+    actions = source(ACTIONS)
+    ring = source(RING)
+    tiles = sidebar_tiles(source(SIDEBAR))
+    for title, icon in CANONICAL.items():
+        # LauncherActions rows hold title and icon on one line
+        line = next(l for l in actions.splitlines() if 'Tr.t("%s")' % title in l)
+        assert 'icon: "%s"' % icon in line, (title, "LauncherActions", line)
+        # the ring names only four tools, but each must match the same choice
+        if 'Tr.t("%s")' % title in ring:
+            rline = next(l for l in ring.splitlines() if 'Tr.t("%s")' % title in l)
+            assert 'icon: "%s"' % icon in rline, (title, "Ring", rline)
+        # the sidebar has all nine tiles
+        assert tiles[TIDS[title]] == (title, icon), (title, tiles.get(TIDS[title]))
+    assert "NetTools" not in source(SEARCH)
+    assert "NetTools" not in source(HINTS)
+    assert 'query: "tool:network"' in source(SEARCH)  # matches the shared label
+
+
+def test_4_launcher_startup_entry_is_not_the_startup_manager_tile():
+    actions = source(ACTIONS)
+    line = next(
+        l
+        for l in actions.splitlines()
+        if 'launcher.openSettings("apps")' in l and "startup" in l.lower()
+    )
+    assert 'Tr.t("Default apps and sessions")' in line
+    assert "Ui.startupManager" not in line
+    tile = next(
+        b
+        for b in re.split(r"\n\s*Tile \{", source(SIDEBAR))
+        if 'tid: "startupManager"' in b
+    )
+    assert 'title: Tr.t("Startup manager")' in tile
+    assert "Ui.startupManager = true" in tile
+
+
+def test_5_overview_tool_chips_have_an_accessible_name():
+    text = source(SEARCH)
+    block = re.search(r"model: win\.toolChips(.*?)\n\s*\}\n", text, re.S).group(1)
+    assert 'Accessible.name: Tr.t("Open %1 tool", modelData.title)' in block

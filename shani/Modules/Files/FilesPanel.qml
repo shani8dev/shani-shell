@@ -371,7 +371,7 @@ AppWindow {
     Component.onCompleted: win.applyCategory(Files.activeCategory)
 
     // A share path (smb/nfs) or a selected .desktop's URL carries a host worth
-    // checking. Ui.qml/shell.qml are out of scope, so there is no handoff flag:
+    // checking. the Ui singleton source file/shell.qml are out of scope, so there is no handoff flag:
     // write a clipboard marker and set Ui.netTools, the flag shell.qml's
     // netToolsOpen() sets, and NetTools consumes the marker on open.
     function openNetTools(host) {

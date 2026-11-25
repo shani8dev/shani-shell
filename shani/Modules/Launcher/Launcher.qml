@@ -371,7 +371,7 @@ PanelWindow {
     }
     function operatorHelp(op) {
         const ex = ({ app: "app:firefox", file: "file:report", web: "web:weather",
-                      clip: "clip:meeting", action: "action:dark" })[op] || op + ":";
+                      clip: "clip:meeting", action: "action:dark", tool: "tool:dictionary" })[op] || op + ":";
         return { title: Tr.t("Search %1", op), group: "meta", items: [
             { kind: "none", icon: "system-search", title: op + ":",
               subtitle: Tr.t("Example: %1", ex),
@@ -517,6 +517,13 @@ PanelWindow {
             if (items.length && Clipboard.available)
                 clipItems.push({ kind: "clipclear", icon: "edit-clear", title: Tr.t("Clear clipboard history"), subtitle: Tr.t("Shift+Delete clears all"), run: () => Clipboard.wipe() });
             const out = (pins.length ? [{ title: Tr.t("Pinned"), group: "clip", items: pins }] : []).concat([{ title: Tr.t("Clipboard"), group: "clip", items: clipItems }]);
+            // the numbered history is a window of its own; one row reaches it
+            // from the same "c " mode, so it works with the clip: operator too
+            out.push({ title: Tr.t("Clipboard history"), group: "clip", items: [
+                { kind: "clip", icon: "edit-paste", title: Tr.t("Paste history"),
+                  subtitle: Tr.t("Open the numbered clipboard history"),
+                  run: () => { Ui.closeAll(); Ui.pasteHistory = true; } }
+            ] });
             // quick changes: transform the most recent text entry
             const latest = items.find(e => !e.image);
             if (latest && Clipboard.available) {
@@ -647,9 +654,12 @@ PanelWindow {
         if (acts.length < 6)
             acts = acts.concat(win.actions.map((a, i) => ({ a: a, s: acts.indexOf(a) < 0 ? Fuzzy.score(win.actionWords[i], ql) : 0 }))
                 .filter(x => x.s > 0).sort((x, y) => y.s - x.s).map(x => x.a));
-        acts = acts.slice(0, 6);
+        // the tool: operator and the bar's "tool" chip are only for the nine built-in tools
+        if (op === "tool" || q.trim().toLowerCase() === "tool") acts = acts.filter(a => /\btool\b/.test(a.words));
+        // the bar's "tool" chip and the tool: operator want all nine tools, not six
+        acts = acts.slice(0, (op === "tool" || q.trim().toLowerCase() === "tool") ? 9 : 6);
         if (acts.length)
-            out.push({ title: Tr.t("Actions"), group: "action", items: acts.map(a => ({ kind: "action", icon: a.icon, title: a.title,
+            out.push({ title: Tr.t("Actions"), group: op === "tool" ? "tool" : "action", items: acts.map(a => ({ kind: "action", icon: a.icon, title: a.title,
                 subtitle: a.state ? (a.state() ? "On — Enter turns off" : "Off — Enter turns on") : "", run: a.run })) });
         const files = win.recent.filter(r => r.name.toLowerCase().indexOf(ql) >= 0).map(r => r.path);
         const allFiles = files.concat(win.found.filter(p => files.indexOf(p) < 0)).slice(0, 10);

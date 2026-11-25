@@ -61,6 +61,17 @@ PanelWindow {
     }
     Connections { target: QuickLook; function onPathChanged() { win.metaShown = false; win.loadMeta(); } }
 
+    // the clipboard is the word channel to the Dictionary (it seeds its box on
+    // open); Ui.dictionary is the shell's flag, so no the Ui singleton source file change is needed.
+    function defineSelection() {
+        const word = String(listing.selectedText || "").trim();
+        if (word === "") return;
+        Quickshell.clipboardText = word;
+        Ui.dictionary = false;   // re-open so Dictionary re-reads the clipboard
+        Ui.dictionary = true;
+        QuickLook.close();
+    }
+
     MouseArea { anchors.fill: parent; onClicked: QuickLook.close() }
     Item {
         anchors.fill: parent
@@ -132,6 +143,14 @@ PanelWindow {
                 IconButton { visible: QuickLook.list.length > 1; icon: "go-previous"; tip: Tr.t("Previous") + " (←)"; onClicked: QuickLook.step(-1) }
                 IconButton { visible: QuickLook.list.length > 1; icon: "go-next"; tip: Tr.t("Next") + " (→)"; onClicked: QuickLook.step(1) }
                 IconButton { icon: "folder-open"; tip: Tr.t("Show in Files"); onClicked: win.showInFiles(QuickLook.path) }
+                Button {
+                    visible: QuickLook.kind === "text"
+                    flat: true
+                    enabled: listing.selectedText.trim() !== ""
+                    text: Tr.t("Define selection")
+                    Accessible.name: text
+                    onClicked: win.defineSelection()
+                }
                 Button { kind: "primary"; text: Tr.t("Open"); onClicked: win.openIt() }
                 IconButton { icon: "window-close"; tip: Tr.t("Close") + " (Space)"; onClicked: QuickLook.close() }
             }
@@ -340,6 +359,7 @@ PanelWindow {
                     Text {
                         id: listing
                         width: parent.width
+                        selectByMouse: true
                         textFormat: Text.RichText
                         text: QuickLook.kind !== "text" ? "" : '<pre style="margin:0; white-space:pre-wrap;">' + Highlight.html(QuickLook.text, Highlight.langFor(QuickLook.path, QuickLook.text.split("\n")[0]), win.tints) + "</pre>"
                         color: Theme.text

@@ -60,6 +60,13 @@ Singleton {
         const n = Number(seconds), end = Number(length);
         return Math.max(0, Math.min(isFinite(end) && end > 0 ? end : 0, isFinite(n) ? n : 0));
     }
+    // the whole speed ladder (Audiobook mode uses all of it); a typed or MPRIS
+    // rate is clamped to the same range the player itself accepts
+    readonly property var speedPresets: [0.75, 1, 1.25, 1.5, 2, 3]
+    function setRate(r) {
+        const n = Number(r);
+        rate = isFinite(n) && n > 0 ? Math.max(0.25, Math.min(4, n)) : 1;
+    }
 
     // ---- where each long video or song was left: it starts there again ----
     // (over two minutes long, more than ten seconds in, not near the end;
@@ -284,6 +291,14 @@ Singleton {
                 } catch (e) { root.chapters = []; }
             }
         }
+    }
+
+    // the chapter containing a time, or null before the first one
+    function chapterAt(seconds) {
+        const t = Number(seconds) || 0;
+        for (let i = root.chapters.length - 1; i >= 0; i--)
+            if (t >= root.chapters[i].start) return root.chapters[i];
+        return null;
     }
 
     // a subtitle file beside the video: "film.mkv" -> "film.srt" (or .vtt, or "film.en.srt")
@@ -520,6 +535,110 @@ Singleton {
                 else if (c.op === "quit") root.close();
             }
         }
+    }
+
+    // ---- Audiobook mode: part of this player, not another app. Named
+    // bookmarks, a sleep timer and a resume-based "Continue listening" list
+    // all reuse the queue/duration/chapters above. Bookmarks are persisted
+    // exactly like resumeAt: one JSON file in the shell's state folder.
+    property var bookmarks: ({})              // path -> [{ name, at }]
+    function bookmarksFor(path) { return bookmarks[String(path || "")] || []; }
+    function addBookmark(path, name, at) {
+        const p = String(path || "");
+        if (p === "")
+            return false;
+        const list = bookmarksFor(p).slice();
+        const label = String(name || "").trim() || Tr.t("Bookmark %1", list.length + 1);
+        list.push({ name: label, at: Math.max(0, Number(at) || 0) });
+        list.sort((a, b) => a.at - b.at);
+        const m = Object.assign({}, bookmarks);
+        m[p] = list;
+        bookmarks = m;
+        bookmarkSave.restart();
+        return true;
+    }
+    function deleteBookmark(path, index) {
+        const p = String(path || "");
+        const list = bookmarksFor(p).slice();
+        if (index < 0 || index >= list.length)
+            return false;
+        list.splice(index, 1);
+        const m = Object.assign({}, bookmarks);
+        if (list.length) m[p] = list;
+        else delete m[p];
+        bookmarks = m;
+        bookmarkSave.restart();
+        return true;
+    }
+    FileView {
+        id: bookmarkStore
+        path: Quickshell.statePath("media-bookmarks.json")
+        printErrors: false                    // none yet: no bookmark saved
+        onLoaded: { try { root.bookmarks = JSON.parse(text()) || {}; } catch (e) {} }
+    }
+    Timer { id: bookmarkSave; interval: 1000; onTriggered: bookmarkStore.setText(JSON.stringify(root.bookmarks)) }
+
+    // the files with a resume point, most recently listened first; titles come
+    // from the recent list / stream names when they are known
+    readonly property var continueRows: root.resumeRecent.map(p => ({
+        path: p,
+        at: root.resumePoint(p),
+        title: root.streamNames[p] || String(p).split("/").pop()
+    })).filter(x => x.at > 0)
+
+    // Sleep timer: pause in N minutes, or at the end of the current chapter.
+    // The minutes arm is a wall-clock QML Timer; the chapter arm is checked
+    // from the player's position by the window. Both only ask the window to
+    // pause - the service never touches the player itself.
+    property bool sleepArmed: false
+    property bool sleepAtChapterEnd: false
+    property real sleepDeadline: 0            // epoch ms, minutes arm
+    property real sleepChapterEnd: -1         // seconds, chapter arm
+    property real sleepNow: 0
+    function armSleepMinutes(minutes) {
+        const n = Number(minutes) || 0;
+        if (n <= 0) { root.cancelSleep(); return; }
+        sleepAtChapterEnd = false;
+        sleepChapterEnd = -1;
+        sleepDeadline = Date.now() + n * 60000;
+        sleepNow = Date.now();
+        sleepArmed = true;
+    }
+    function armSleepChapter() {
+        const c = root.chapterAt(root.position);
+        sleepAtChapterEnd = true;
+        sleepChapterEnd = c && c.end > root.position ? c.end : (root.duration > 0 ? root.duration : -1);
+        sleepDeadline = 0;
+        sleepArmed = true;
+    }
+    function cancelSleep() {
+        sleepArmed = false;
+        sleepAtChapterEnd = false;
+        sleepDeadline = 0;
+        sleepChapterEnd = -1;
+        sleepNow = 0;
+    }
+    function checkSleep(pos) {
+        if (!sleepArmed) return;
+        if (sleepAtChapterEnd) {
+            // a second of slack: the last position before EndOfMedia need not
+            // be exactly the length the player reported
+            if (sleepChapterEnd > 0 && Number(pos) >= sleepChapterEnd - 1) {
+                root.cancelSleep();
+                root.pauseRequested();
+            }
+        } else if (sleepDeadline > 0 && Date.now() >= sleepDeadline) {
+            root.cancelSleep();
+            root.pauseRequested();
+        }
+    }
+    readonly property real sleepMinutesLeft: sleepArmed && !sleepAtChapterEnd && sleepDeadline > 0
+        ? Math.max(0, (sleepDeadline - (sleepNow || Date.now())) / 60000) : 0
+    Timer {
+        interval: 1000
+        repeat: true
+        running: root.sleepArmed && !root.sleepAtChapterEnd && root.playing
+        onTriggered: { root.sleepNow = Date.now(); root.checkSleep(root.position); }
     }
 
     function clock(s) {

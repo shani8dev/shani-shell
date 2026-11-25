@@ -104,6 +104,17 @@ PanelWindow {
             Osk.press(k);
     }
 
+    // the clipboard is the word channel to the Dictionary, which seeds its
+    // search box from it on open; Ui.dictionary is the flag the shell's
+    // dictionaryOpen IPC sets too, so no the Ui singleton source file change is needed
+    function defineWord() {
+        const word = Osk.currentWord();
+        if (word === "") return;
+        Quickshell.clipboardText = word;
+        Ui.dictionary = false;   // re-open so Dictionary re-reads the clipboard
+        Ui.dictionary = true;
+    }
+
     // ---- a controller on the keys (Services/Osk.pad): a highlighted key moved by
     // where the keys are on screen, so every layout - hand-made, xkb, the
     // handwriting page's side keys, the wide bottom row - works the same
@@ -483,6 +494,14 @@ PanelWindow {
                     icon: "edit-paste"
                     accessibleName: Tr.t("Paste")
                     onTapped: Osk.paste()
+                }
+                // look the word being typed up in the offline Dictionary
+                Key {
+                    Layout.preferredWidth: Theme.px(64)
+                    Layout.fillHeight: true
+                    icon: "accessories-dictionary"
+                    accessibleName: Tr.t("Define")
+                    onTapped: win.defineWord()
                 }
                 // one-handed: shift the board left or right, tap again for center
                 Key {

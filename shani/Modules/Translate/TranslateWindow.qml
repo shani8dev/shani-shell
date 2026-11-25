@@ -58,6 +58,15 @@ AppWindow {
         if (translated !== "") input.text = translated;
         if (input.text.trim() !== "") win.go();
     }
+    // hand the source text to the Dictionary through the clipboard, then open
+    // it with the same Ui flag the shell's dictionaryOpen IPC uses
+    function lookUp() {
+        const word = input.text.trim();
+        if (word === "") return;
+        Quickshell.clipboardText = word;
+        Ui.dictionary = false;   // re-open so Dictionary re-reads the clipboard
+        Qt.callLater(() => { Ui.dictionary = true; });
+    }
     function checkEndpoint() {
         statusOk = false;               // the old answer belongs to the old endpoint
         statusText = Tr.t("Checking…");
@@ -277,6 +286,7 @@ AppWindow {
                         }
                     }
                 }
+                Button { text: Tr.t("Dictionary"); flat: true; enabled: input.text.trim() !== ""; onClicked: win.lookUp() }
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
@@ -323,6 +333,7 @@ AppWindow {
                 Item { Layout.fillWidth: true }
                 Text { text: Tr.t("On this computer — nothing is sent anywhere"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                 Button { text: Tr.t("Read aloud"); enabled: win.result !== "" && win.error === ""; onClicked: Speak.speaking ? Speak.stop() : Speak.speak(win.result) }
+                Button { text: Tr.t("Prompter"); enabled: win.result !== "" && win.error === ""; onClicked: { Quickshell.clipboardText = win.result; Ui.teleprompter = true; } }
                 Button {
                     text: win.copied ? Tr.t("Copied") : Tr.t("Copy")
                     Accessible.name: Tr.t("Copy")
