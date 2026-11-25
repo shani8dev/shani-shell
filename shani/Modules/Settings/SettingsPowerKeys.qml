@@ -220,14 +220,14 @@ ColumnLayout {
             Layout.fillWidth: true; spacing: Theme.px(6)
             Text { Layout.preferredWidth: Theme.px(220); text: modelData; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
             TextField { id: lidVal; Layout.fillWidth: true; text: (page.logind && page.logind[modelData]) || ""; placeholder: "suspend" }
-            Button { text: Tr.t("Save"); onClicked: page.saveLogind(modelData, lidVal.text.trim()) }
+            Button { text: Tr.t("Save"); enabled: !writer.running; busy: writer.running; onClicked: page.saveLogind(modelData, lidVal.text.trim()) }
         }
     }
     RowLayout {
         Layout.fillWidth: true; spacing: Theme.px(6)
         Text { Layout.preferredWidth: Theme.px(220); text: "IdleActionSec"; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
         TextField { id: idleSec; Layout.fillWidth: true; text: (page.logind && page.logind["IdleActionSec"]) || ""; placeholder: "300" }
-        Button { text: Tr.t("Save"); onClicked: page.saveLogind("IdleActionSec", idleSec.text.trim()) }
+        Button { text: Tr.t("Save"); enabled: !writer.running; busy: writer.running; onClicked: page.saveLogind("IdleActionSec", idleSec.text.trim()) }
     }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Sleep (systemd-sleep)") }
@@ -239,17 +239,15 @@ ColumnLayout {
             Layout.fillWidth: true; spacing: Theme.px(6)
             Text { Layout.preferredWidth: Theme.px(180); text: modelData.k; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
             TextField { id: slVal; Layout.fillWidth: true; text: (page.sleep && page.sleep[modelData.k]) || ""; placeholder: modelData.ph }
-            Button { text: Tr.t("Save"); onClicked: page.saveSleep(modelData.k, slVal.text.trim()) }
+            Button { text: Tr.t("Save"); enabled: !writer.running; busy: writer.running; onClicked: page.saveSleep(modelData.k, slVal.text.trim()) }
         }
     }
 
-    Text {
+    InfoBanner {
         Layout.fillWidth: true
         visible: page.note !== ""
+        tone: "error"
         text: page.note
-        color: Theme.danger
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        accessibleRole: Accessible.StatusBar
     }
 }

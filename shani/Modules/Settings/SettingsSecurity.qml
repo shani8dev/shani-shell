@@ -220,7 +220,12 @@ ColumnLayout {
         Button { text: Tr.t("Complain"); enabled: !page.aaBusy && aaProfile.text.trim() !== ""; onClicked: page.setAa("complain") }
         Button { text: Tr.t("Enforce"); kind: "primary"; enabled: !page.aaBusy && aaProfile.text.trim() !== ""; onClicked: page.setAa("enforce") }
     }
-    Text { Layout.fillWidth: true; visible: page.aaNote !== ""; text: page.aaNote; color: page.aaNote.indexOf("failed") >= 0 ? Theme.danger : Theme.accent; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+    InfoBanner {
+        Layout.fillWidth: true
+        visible: page.aaNote !== ""
+        tone: page.aaNote.indexOf("failed") >= 0 ? "error" : "ok"
+        text: page.aaNote
+    }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Password policy") }
     ListRow { Layout.fillWidth: true; interactive: false; icon: "dialog-password"; title: Tr.t("pwquality config"); subtitle: pw.present ? pw.file : Tr.t("No /etc/security/pwquality.conf") }
@@ -242,9 +247,14 @@ ColumnLayout {
     }
     RowLayout {
         Layout.fillWidth: true; spacing: Theme.px(6)
-        Text { Layout.fillWidth: true; text: page.pwNote; color: page.pwNote.indexOf("saved") >= 0 ? Theme.accent : Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; visible: page.pwNote !== "" }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.pwNote !== ""
+            tone: page.pwNote.indexOf("saved") >= 0 ? "ok" : "error"
+            text: page.pwNote
+        }
         Item { Layout.fillWidth: true; visible: page.pwNote === "" }
-        Button { text: Tr.t("Save policy"); kind: "primary"; enabled: !page.pwBusy && page.pwValid; onClicked: page.savePw() }
+        Button { text: Tr.t("Save policy"); kind: "primary"; enabled: !page.pwBusy && page.pwValid; busy: page.pwBusy; onClicked: page.savePw() }
     }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Audit") }
@@ -278,7 +288,12 @@ ColumnLayout {
         }
         Item { Layout.fillWidth: true }
     }
-    Text { Layout.fillWidth: true; visible: page.auditProfileNote !== ""; text: page.auditProfileNote; color: page.auditProfileNote.indexOf("saved") >= 0 ? Theme.accent : Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+    InfoBanner {
+        Layout.fillWidth: true
+        visible: page.auditProfileNote !== ""
+        tone: page.auditProfileNote.indexOf("saved") >= 0 ? "ok" : "error"
+        text: page.auditProfileNote
+    }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Coredumps") }
     Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/systemd/coredump.conf.d/50-shani-shell.conf."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
@@ -289,7 +304,7 @@ ColumnLayout {
             Layout.fillWidth: true; spacing: Theme.px(6)
             Text { Layout.preferredWidth: Theme.px(160); text: modelData.k; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
             TextField { id: cdVal; Layout.fillWidth: true; text: (page.coredump && page.coredump[modelData.k]) || ""; placeholder: modelData.ph }
-            Button { text: Tr.t("Save"); onClicked: page.saveCoredump(modelData.k, cdVal.text.trim()) }
+            Button { text: Tr.t("Save"); enabled: !coredumpSet.running; busy: coredumpSet.running; onClicked: page.saveCoredump(modelData.k, cdVal.text.trim()) }
         }
     }
 
@@ -307,10 +322,15 @@ ColumnLayout {
     }
     RowLayout {
         Layout.fillWidth: true; spacing: Theme.px(6)
-        Text { Layout.fillWidth: true; text: page.hostsNote; color: page.hostsNote.indexOf("saved") >= 0 ? Theme.accent : Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; visible: page.hostsNote !== "" }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.hostsNote !== ""
+            tone: page.hostsNote.indexOf("saved") >= 0 ? "ok" : "error"
+            text: page.hostsNote
+        }
         Item { Layout.fillWidth: true; visible: page.hostsNote === "" }
         Button { text: Tr.t("Reload"); enabled: !page.hostsBusy; onClicked: page.loadHosts() }
-        Button { text: Tr.t("Save hosts"); kind: "primary"; enabled: !page.hostsBusy; onClicked: page.saveHosts() }
+        Button { text: Tr.t("Save hosts"); kind: "primary"; enabled: !page.hostsBusy; busy: page.hostsBusy; onClicked: page.saveHosts() }
     }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Sudo rules") }
@@ -322,10 +342,15 @@ ColumnLayout {
     }
     RowLayout {
         Layout.fillWidth: true; spacing: Theme.px(6)
-        Text { Layout.fillWidth: true; text: page.sudoersNote; color: page.sudoersNote.indexOf("saved") >= 0 ? Theme.accent : Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; visible: page.sudoersNote !== "" }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.sudoersNote !== ""
+            tone: page.sudoersNote.indexOf("saved") >= 0 ? "ok" : "error"
+            text: page.sudoersNote
+        }
         Item { Layout.fillWidth: true; visible: page.sudoersNote === "" }
         Button { text: Tr.t("Reload"); enabled: !page.sudoersBusy; onClicked: page.loadSudoers() }
-        Button { text: Tr.t("Save sudo rules"); kind: "primary"; enabled: !page.sudoersBusy; onClicked: page.saveSudoers() }
+        Button { text: Tr.t("Save sudo rules"); kind: "primary"; enabled: !page.sudoersBusy; busy: page.sudoersBusy; onClicked: page.saveSudoers() }
     }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Account lockout (faillock)") }
@@ -343,10 +368,15 @@ ColumnLayout {
     }
     RowLayout {
         Layout.fillWidth: true; spacing: Theme.px(6)
-        Text { Layout.fillWidth: true; text: page.faillockNote; color: page.faillockNote.indexOf("saved") >= 0 ? Theme.accent : Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; visible: page.faillockNote !== "" }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.faillockNote !== ""
+            tone: page.faillockNote.indexOf("saved") >= 0 ? "ok" : "error"
+            text: page.faillockNote
+        }
         Item { Layout.fillWidth: true; visible: page.faillockNote === "" }
         Button { text: Tr.t("Reload"); enabled: !page.faillockBusy; onClicked: page.loadFaillock() }
-        Button { text: Tr.t("Save faillock"); kind: "primary"; enabled: !page.faillockBusy; onClicked: page.saveFaillock() }
+        Button { text: Tr.t("Save faillock"); kind: "primary"; enabled: !page.faillockBusy; busy: page.faillockBusy; onClicked: page.saveFaillock() }
     }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Login defaults") }
@@ -366,9 +396,14 @@ ColumnLayout {
     }
     RowLayout {
         Layout.fillWidth: true; spacing: Theme.px(6)
-        Text { Layout.fillWidth: true; text: page.loginDefsNote; color: page.loginDefsNote.indexOf("saved") >= 0 ? Theme.accent : Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; visible: page.loginDefsNote !== "" }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.loginDefsNote !== ""
+            tone: page.loginDefsNote.indexOf("saved") >= 0 ? "ok" : "error"
+            text: page.loginDefsNote
+        }
         Item { Layout.fillWidth: true; visible: page.loginDefsNote === "" }
         Button { text: Tr.t("Reload"); enabled: !page.loginDefsBusy; onClicked: page.loadLoginDefs() }
-        Button { text: Tr.t("Save login defaults"); kind: "primary"; enabled: !page.loginDefsBusy; onClicked: page.saveLoginDefs() }
+        Button { text: Tr.t("Save login defaults"); kind: "primary"; enabled: !page.loginDefsBusy; busy: page.loginDefsBusy; onClicked: page.saveLoginDefs() }
     }
 }

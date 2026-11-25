@@ -108,7 +108,7 @@ ColumnLayout {
                 id: sysField; Layout.fillWidth: true; placeholder: (page.sysctlLive && page.sysctlLive[modelData]) || ""; text: (page.sysctl && page.sysctl[modelData]) || ""
                 error: sysField.text.trim() !== "" && !/^\d+$/.test(sysField.text.trim()) ? Tr.t("Use a whole number") : ""
             }
-            Button { text: Tr.t("Save"); enabled: !page.busy && /^\d+$/.test(sysField.text.trim()); onClicked: { const o = Object.assign({}, page.sysctl); o[modelData] = sysField.text.trim(); page.saveSysctl(o); } }
+            Button { text: Tr.t("Save"); enabled: !page.busy && /^\d+$/.test(sysField.text.trim()); busy: page.busy; onClicked: { const o = Object.assign({}, page.sysctl); o[modelData] = sysField.text.trim(); page.saveSysctl(o); } }
         }
     }
     InfoBanner {

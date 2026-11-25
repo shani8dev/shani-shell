@@ -13,7 +13,7 @@ ColumnLayout {
     readonly property var d: Settings.data
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Search") }
-    SwitchRow { Layout.fillWidth: true; text: Tr.t("File names"); checked: page.d.searchFiles; onToggled: on => page.d.searchFiles = on }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("File names"); hint: Tr.t("Names in the folders listed below"); checked: page.d.searchFiles; onToggled: on => page.d.searchFiles = on }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Inside documents"); hint: Tr.t("words in Documents, Desktop and Downloads"); checked: page.d.searchInside; onToggled: on => page.d.searchInside = on }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("By meaning"); hint: Tr.t("Chronoa finds “the electricity bill from March” even when the words differ"); checked: page.d.searchMeaning; onToggled: on => page.d.searchMeaning = on }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Results from apps"); hint: Tr.t("what Files, Characters, Calculator … find themselves"); checked: page.d.searchProviders; onToggled: on => page.d.searchProviders = on }

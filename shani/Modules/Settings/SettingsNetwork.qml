@@ -233,8 +233,6 @@ ColumnLayout {
             Layout.fillWidth: true
             spacing: 2
             // forgetting a network is not undoable: the password must be typed again
-            property bool confirmingForget: false
-            Timer { id: forgetTimer; interval: 4000; onTriggered: net.confirmingForget = false }
             RowLayout {
                 Layout.fillWidth: true
                 Icon { name: net.modelData.type === "802-11-wireless" ? "network-wireless" : net.modelData.type === "gsm" ? "network-cellular" : net.modelData.type === "bluetooth" ? "bluetooth-active" : "network-wired"; size: Theme.px(18); color: Theme.dim }
@@ -246,24 +244,22 @@ ColumnLayout {
                     font.family: Theme.font
                     font.pixelSize: Theme.px(13) * Theme.fontScale
                 }
-                Button {
-                    text: net.confirmingForget ? Tr.t("Tap again to forget") : Tr.t("Forget")
-                    kind: net.confirmingForget ? "danger" : "plain"
+                ConfirmButton {
+                    id: forgetConfirm
+                    implicitWidth: Math.max(Theme.touchTarget, armedText.length * 8 + 28)
+                    implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
+                    text: Tr.t("Forget")
+                    armedText: Tr.t("Tap again to forget")
+                    kind: forgetConfirm.armed ? "danger" : "plain"
+                    interval: 4000
                     Accessible.name: text + " " + (net.modelData.name || net.modelData.type || net.modelData.uuid)
-                    onClicked: {
-                        if (net.confirmingForget) {
-                            page.modify(net.modelData.uuid, ["delete"]);
-                            net.confirmingForget = false;
-                        } else {
-                            net.confirmingForget = true;
-                            forgetTimer.restart();
-                        }
-                    }
+                    onConfirmed: page.modify(net.modelData.uuid, ["delete"])
                 }
             }
             SwitchRow {
                 Layout.fillWidth: true
                 text: Tr.t("Connect automatically")
+                hint: Tr.t("Join this network when it is in range")
                 checked: net.modelData.auto
                 onToggled: on => page.modify(net.modelData.uuid, ["connection.autoconnect", on ? "yes" : "no"])
             }
@@ -475,6 +471,7 @@ ColumnLayout {
             SwitchRow {
                 Layout.fillWidth: true
                 text: Tr.t("Connect automatically")
+                hint: Tr.t("Start this VPN when the network it needs is available")
                 checked: page.vpnAuto[vpnRow.modelData.name] === true
                 onToggled: on => page.setVpnAuto(vpnRow.modelData.name, on)
             }
@@ -675,10 +672,15 @@ ColumnLayout {
         }
         RowLayout {
             Layout.fillWidth: true; spacing: Theme.px(6)
-            Text { Layout.fillWidth: true; text: page.resolvedNote; color: page.resolvedNote.indexOf("saved") >= 0 ? Theme.accent : Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; visible: page.resolvedNote !== "" }
+            InfoBanner {
+                Layout.fillWidth: true
+                visible: page.resolvedNote !== ""
+                tone: page.resolvedNote.indexOf("saved") >= 0 ? "ok" : "error"
+                text: page.resolvedNote
+            }
             Item { Layout.fillWidth: true; visible: page.resolvedNote === "" }
-            Button { text: Tr.t("Reload"); enabled: !page.resolvedBusy; onClicked: page.loadResolved() }
-            Button { text: Tr.t("Save resolved"); kind: "primary"; enabled: !page.resolvedBusy; onClicked: page.saveResolved() }
+            Button { text: Tr.t("Reload"); enabled: !page.resolvedBusy; busy: page.resolvedBusy; onClicked: page.loadResolved() }
+            Button { text: Tr.t("Save resolved"); kind: "primary"; enabled: !page.resolvedBusy; busy: page.resolvedBusy; onClicked: page.saveResolved() }
         }
 
         Button { text: Tr.t("Advanced connection settings…"); onClicked: { Ui.closeAll(); Net.editConnections(); } }

@@ -107,9 +107,14 @@ ColumnLayout {
         TextField { id: ntpFallbackField; Layout.fillWidth: true; placeholder: "1.pool.ntp.org" }
         RowLayout {
             Layout.fillWidth: true
-            Text { Layout.fillWidth: true; text: page.ntpNote; color: page.ntpNote.indexOf("saved") >= 0 ? Theme.accent : Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; visible: page.ntpNote !== "" }
+            InfoBanner {
+                Layout.fillWidth: true
+                visible: page.ntpNote !== ""
+                tone: page.ntpNote.indexOf("saved") >= 0 ? "ok" : "error"
+                text: page.ntpNote
+            }
             Item { Layout.fillWidth: true; visible: page.ntpNote === "" }
-            Button { text: Tr.t("Save NTP servers"); enabled: !page.ntpBusy; onClicked: page.saveNtp() }
+            Button { text: Tr.t("Save NTP servers"); kind: "primary"; enabled: !page.ntpBusy; busy: page.ntpBusy; onClicked: page.saveNtp() }
         }
     }
     // automatic time off: set it here (timedated; the polkit agent asks)
@@ -142,7 +147,7 @@ ColumnLayout {
         checked: page.d.machineTranslate
         onToggled: on => page.d.machineTranslate = on
     }
-    SwitchRow { Layout.fillWidth: true; text: Tr.t("24-hour clock"); checked: page.d.use24h; onToggled: on => page.d.use24h = on }
+    SwitchRow { Layout.fillWidth: true; text: Tr.t("24-hour clock"); hint: Tr.t("Use 00:00–23:59 instead of 12-hour time"); checked: page.d.use24h; onToggled: on => page.d.use24h = on }
     Text {
         text: Tr.t("Time zone: %1").arg(page.zone || Tr.t("unknown"))
         color: Theme.text
@@ -192,6 +197,7 @@ ColumnLayout {
     SwitchRow {
         Layout.fillWidth: true
         text: Tr.t("The first city's time in the bar")
+        hint: Tr.t("Keep the clock on the bar in the first zone below")
         checked: page.d.barWorldClock
         defaultValue: false
         onToggled: on => { page.d.barWorldClock = on; Settings.touch("barWorldClock"); }
@@ -326,8 +332,6 @@ ColumnLayout {
     property string systemLocaleNote: ""
     property bool systemLocaleOk: false
     // affects every account and the login screen, not just this one
-    property bool confirmingSystemLocale: false
-    Timer { id: systemLocaleConfirmTimer; interval: 4000; onTriggered: page.confirmingSystemLocale = false }
     Process {
         id: systemLocale
         stderr: StdioCollector { id: sysLocErr }
@@ -336,17 +340,16 @@ ColumnLayout {
             page.systemLocaleOk = code === 0;
         }
     }
-    Button {
+    ConfirmButton {
+        id: resetLanguage
         visible: page.lang !== ""
-        text: page.confirmingSystemLocale ? Tr.t("Tap again for everyone") : Tr.t("Use for everyone and the login screen")
-        kind: page.confirmingSystemLocale ? "danger" : "plain"
-        onClicked: {
-            if (!page.confirmingSystemLocale) {
-                page.confirmingSystemLocale = true;
-                systemLocaleConfirmTimer.restart();
-                return;
-            }
-            page.confirmingSystemLocale = false;
+        implicitWidth: Math.max(Theme.touchTarget, armedText.length * 8 + 28)
+        implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
+        text: Tr.t("Use for everyone and the login screen")
+        armedText: Tr.t("Tap again for everyone")
+        kind: resetLanguage.armed ? "danger" : "plain"
+        interval: 4000
+        onConfirmed: {
             const args = ["localectl", "set-locale", "LANG=" + page.lang];
             if (page.formats)
                 for (const k of ["LC_TIME", "LC_NUMERIC", "LC_MONETARY", "LC_MEASUREMENT", "LC_PAPER"])

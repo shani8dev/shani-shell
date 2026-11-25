@@ -156,7 +156,7 @@ ColumnLayout {
             error: vacField.text.trim() !== "" && !/^\d+(\.\d+)?\s*[KMGT]?$/i.test(vacField.text.trim()) ? Tr.t("Use a size like 500M or 2G") : ""
         }
         Button { text: Tr.t("Vacuum"); enabled: !page.busy && (/^\s*$|^\d+(\.\d+)?\s*[KMGT]?$/i).test(vacField.text.trim()); onClicked: page.vacuum() }
-        Button { text: Tr.t("Save"); kind: "primary"; enabled: !page.busy && page.policyValid; onClicked: page.save() }
+        Button { text: Tr.t("Save"); kind: "primary"; enabled: !page.busy && page.policyValid; busy: page.busy; onClicked: page.save() }
     }
     property bool policyValid: /^\s*$|^\d+(\.\d+)?\s*[KMGT]?$/i.test(maxUseField.text.trim())
         && (/^\s*$|^\d+\s*(ms|min|s|m|h|d|w)?$/i).test(rateLimitIntervalField.text.trim())

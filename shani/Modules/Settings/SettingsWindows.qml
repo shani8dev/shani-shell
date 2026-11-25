@@ -366,6 +366,7 @@ ColumnLayout {
     SwitchRow {
         Layout.fillWidth: true
         text: Tr.t("Show floating windows in the map")
+        hint: Tr.t("Include windows that are not attached to a workspace")
         checked: page.d.wsMapFloating !== false
         onToggled: on => page.d.wsMapFloating = on
     }
