@@ -1626,5 +1626,15 @@
  "System pressure meters": "सिस्टम दबाव मीटर",
  "Trash…": "कचरा…",
  "Version %1": "आवृत्ती %1",
- "Wiki link %1": "विकी दुवा %1"
+ "Wiki link %1": "विकी दुवा %1",
+ "Add another phone number": "अन्य फोन क्रमांक जोडा",
+ "Add email": "ईमेल जोडा",
+ "Add phone": "फोन जोडा",
+ "Description: %1": "वर्णन: %1",
+ "Email addresses": "ईमेल पत्ते",
+ "Event description": "कार्यक्रमाचे वर्णन",
+ "Mobile": "मोबाइल",
+ "Phone number %1": "फोन क्रमांक %1",
+ "Phone numbers": "फोन क्रमांक",
+ "Remove phone %1": "फोन %1 काढा"
 }

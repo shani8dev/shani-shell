@@ -245,7 +245,8 @@ var Quickshell = {
   },
   execDetached: function (a) { argv = a; }
 };
-var win = {};
+// createAlbum now routes through win.dataDir (the same dir the lister reads).
+var win = { dataDir: "/tmp/xdg/shani-photos" };
 %s
 win.createAlbum("Trip", ["/pics/a.jpg", "/pics/b.jpg"]);
 process.stdout.write(JSON.stringify({ argv: argv }));

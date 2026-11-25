@@ -603,7 +603,7 @@ AppWindow {
         Quickshell.execDetached(["sh", "-c",
             'd="$1/albums.json"; mkdir -p "$2"; ex=$(cat "$d" 2>/dev/null || echo "[]");'
             + 'echo "$ex" | python3 -c "import json,sys; a=json.loads(sys.stdin.read() or \"[]\"); a.append({\\\"name\\\":$3, \\\"members\\\":$4}); print(json.dumps(a))" > "$d.tmp" 2>/dev/null && mv "$d.tmp" "$d" || true'
-        , "sh", Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") + "/.local/share") + "/shani-photos", Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") + "/.local/share") + "/shani-photos", JSON.stringify(String(name)), JSON.stringify(photoPaths)]);
+        , "sh", win.dataDir, win.dataDir, JSON.stringify(String(name)), JSON.stringify(photoPaths)]);
     }
     Process {
         id: lister

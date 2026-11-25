@@ -51,8 +51,8 @@ AppWindow {
         function onQueryChanged() { win.currentIndex = -1; }
     }
     // The form offers four labels; older cards use vCard's "cell" for mobile.
-    // Labels stay literal: the i18n catalog is generated from Tr.t calls.
-    readonly property var phoneTypes: [["home", "Home"], ["work", "Work"], ["mobile", "Mobile"], ["other", "Other"]]
+    // Display labels go through Tr.t; the first element is the vCard type key.
+    readonly property var phoneTypes: [["home", Tr.t("Home")], ["work", Tr.t("Work")], ["mobile", Tr.t("Mobile")], ["other", Tr.t("Other")]]
     function phoneType(t) {
         const v = String(t || "").toLowerCase();
         return v === "cell" ? "mobile" : win.phoneTypes.some(x => x[0] === v) ? v : "mobile";
@@ -232,7 +232,7 @@ AppWindow {
                 text: win.editName
                 onTextChanged: win.editName = text
             }
-            Text { text: "Phone numbers"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Phone numbers"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
             Repeater {
                 model: win.editPhones
                 RowLayout {
@@ -260,22 +260,22 @@ AppWindow {
                         Layout.fillWidth: true
                         text: modelData.number || ""
                         placeholder: Tr.t("Phone number")
-                        label: "Phone number " + (index + 1)
+                        label: Tr.t("Phone number %1", index + 1)
                         onTextChanged: win.setPhone(index, "number", text)
                     }
                     IconButton {
-                        size: Theme.px(24); icon: "list-remove"; tip: "Remove phone " + (index + 1)
+                        size: Theme.px(24); icon: "list-remove"; tip: Tr.t("Remove phone %1", index + 1)
                         accessibleName: tip
                         onClicked: { const rows = win.editPhones.slice(); rows.splice(index, 1); win.editPhones = rows; }
                     }
                 }
             }
             Button {
-                text: "Add phone"; flat: true
-                Accessible.name: "Add another phone number"
+                text: Tr.t("Add phone"); flat: true
+                Accessible.name: Tr.t("Add another phone number")
                 onClicked: win.editPhones = win.editPhones.concat([{ type: "mobile", number: "" }])
             }
-            Text { text: "Email addresses"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Email addresses"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
             Repeater {
                 model: win.editEmails
                 RowLayout {
@@ -314,7 +314,7 @@ AppWindow {
                 }
             }
             Button {
-                text: "Add email"; flat: true
+                text: Tr.t("Add email"); flat: true
                 Accessible.name: "Add another email address"
                 onClicked: win.editEmails = win.editEmails.concat([{ type: "home", address: "" }])
             }

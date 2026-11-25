@@ -143,9 +143,9 @@ def test_form_uses_type_choices_not_free_text():
 def test_form_rows_and_actions_have_names():
     assert 'Accessible.name: "Phone " + (row + 1) + ", type "' in WINDOW
     assert 'Accessible.name: "Email " + (row + 1) + ", type "' in WINDOW
-    assert 'label: "Phone number " + (index + 1)' in WINDOW
+    assert 'label: Tr.t("Phone number %1", index + 1)' in WINDOW
     assert 'label: "Email address " + (index + 1)' in WINDOW
-    assert 'Accessible.name: "Add another phone number"' in WINDOW
+    assert 'Accessible.name: Tr.t("Add another phone number")' in WINDOW
     assert 'Accessible.name: "Add another email address"' in WINDOW
     assert "Accessible.ignored" not in WINDOW  # no hidden/unlabelled cards
 
@@ -336,7 +336,7 @@ def test_form_has_a_description_field_and_writes_it():
 def test_detail_shows_the_description_with_a_name():
     assert "visible: !!((win.viewingEvent || {}).description)" in PANEL
     assert 'text: (win.viewingEvent || {}).description || ""' in PANEL
-    assert 'Accessible.name: "Description: " + text' in PANEL
+    assert 'Accessible.name: Tr.t("Description: %1", text)' in PANEL
     assert "function viewEvent(e)" in PANEL
     assert "function editViewed()" in PANEL
 
