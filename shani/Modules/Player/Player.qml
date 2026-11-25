@@ -16,6 +16,7 @@ import QtQuick.Dialogs
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import "../../Common/Time.js" as Time
 
 PanelWindow {
     id: win
@@ -75,8 +76,7 @@ PanelWindow {
         const home = Quickshell.env("HOME") || "";
         return home ? home + "/Music" : "";
     }
-    function fmt(s) { return Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0"); }
-    function fmtRemaining(pos, len) { return "-" + win.fmt(Math.max(0, len - pos)); }
+    function fmtRemaining(pos, len) { return "-" + Time.clock(Math.max(0, len - pos)); }
     function seekTo(frac) {
         if (!win.player || !win.player.canSeek || win.player.length <= 0)
             return;
@@ -336,10 +336,11 @@ PanelWindow {
                 }
                 Text {
                     anchors { left: parent.left; bottom: parent.bottom }
-                    text: win.player ? win.fmt(win.shown) : "0:00"
+                    text: win.player ? Time.clock(win.shown) : "0:00"
                     color: Theme.faint
                     font.family: Theme.mono
                     font.pixelSize: Theme.px(9) * Theme.fontScale
+                    Accessible.name: Tr.t("Elapsed %1").arg(text)
                 }
                 Text {
                     anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom }
@@ -348,13 +349,15 @@ PanelWindow {
                     color: Theme.faint
                     font.family: Theme.mono
                     font.pixelSize: Theme.px(9) * Theme.fontScale
+                    Accessible.name: Tr.t("Remaining %1").arg(text)
                 }
                 Text {
                     anchors { right: parent.right; bottom: parent.bottom }
-                    text: win.player ? win.fmt(seek.len) : "0:00"
+                    text: win.player ? Time.clock(seek.len) : "0:00"
                     color: Theme.faint
                     font.family: Theme.mono
                     font.pixelSize: Theme.px(9) * Theme.fontScale
+                    Accessible.name: Tr.t("Total %1").arg(text)
                 }
                 MouseArea {
                     anchors.fill: parent

@@ -23,7 +23,12 @@ pytestmark = pytest.mark.skipif(NODE is None, reason="node is not installed")
 def js():
     """The file with `.pragma library` dropped, as a plain script."""
     body = INDEX.read_text(encoding="utf-8")
-    return "\n".join(l for l in body.splitlines() if not l.startswith(".pragma"))
+    # node cannot evaluate QML's .import/.pragma directives; strip them and
+    # provide a minimal Tools stand-in so the generated tool entries still work
+    prog = "\n".join(
+        l for l in body.splitlines() if not l.startswith((".pragma", ".import"))
+    )
+    return "var Tools = { list: [] };\n" + prog
 
 
 def matches(js, query):

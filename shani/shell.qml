@@ -236,6 +236,7 @@ ShellRoot {
     }
     Connections {
         target: Ui
+        function onCloseWhiteboardRequested() { if (whiteboardLoader.item) whiteboardLoader.item.requestClose(); }
         function onClosedApps() {
             if (Calculator.shown) Calculator.close();
             if (Viewer.shown) Viewer.close();
@@ -723,16 +724,7 @@ ShellRoot {
         function netOpenPortal() { Net.openPortal(); }
         function displayDeparted(name: string) { Displays.departed(name); }
         function quickPanel(show: bool) { if (show) Ui.closeAll(); Ui.quickPanel = show; }
-        function remoteBack() {
-            if (Lock.locked) return;
-            if (Osk.remote) Osk.cancelRemote();
-            else if (Ui.quickPanel) Ui.quickPanel = false;
-            else if (Osk.shown) Osk.toggle();
-            // the TV home goes back to what is open behind it, if anything is
-            else if (Ui.tvHome && FormFactor.tenFoot && !Ui.launcher) { if (Niri.mru().some(w => w.app_id && w.app_id !== "org.quickshell")) Ui.tvHome = false; }
-            else if (GamepadNav.shellHasKeys || Ui.launcher || Niri.overviewOpen) { Ui.closeAll(); if (Niri.overviewOpen) Niri.action("close-overview"); }
-            else Quickshell.execDetached(["wtype", "-M", "alt", "-k", "Left", "-m", "alt"]);
-        }
+        function remoteBack() { Ui.back(); }
         function remoteMenu() { if (!Lock.locked) GamepadNav.act("menu"); }
         function remoteKeyboard() { Osk.remote ? Osk.cancelRemote() : Osk.openRemote(); }
         function whatsNewCheck() { WhatsNew.check(); }

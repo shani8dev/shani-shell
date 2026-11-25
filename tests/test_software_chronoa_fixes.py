@@ -12,9 +12,7 @@ def read(rel):
 def test_software_remove_hidden_when_not_installed():
     w = read("shani/Modules/Software/SoftwareWindow.qml")
     # The detail-page Remove button must only show for installed apps.
-    block = 'kind: "danger"\n                        text: win.removing === appCol.a.id ? Tr.t("Click again to remove") : Tr.t("Remove")'
-    assert block in w
-    idx = w.index(block)
+    idx = w.index('Tr.t("Click again to remove")')
     nearby = w[idx - 120 : idx]
     assert "visible: !!appCol.a.installed" in nearby
 
@@ -28,10 +26,10 @@ def test_software_clears_stale_error_on_user_actions():
 
 def test_software_tab_change_resets_update_confirm():
     w = read("shani/Modules/Software/SoftwareWindow.qml")
-    assert "win.confirmUpdateAll = false; confirmTimer.stop();" in w
+    assert "updateAllConfirm.disarm()" in w
     # It should be in the tab click handler.
     assert (
-        "win.tab = modelData[0]; win.app = null; win.confirmUpdateAll = false; confirmTimer.stop();"
+        "win.tab = modelData[0]; win.app = null; updateAllConfirm.disarm();"
         in w
     )
 

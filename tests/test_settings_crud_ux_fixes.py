@@ -13,9 +13,9 @@ def src(name: str) -> str:
 
 def test_destructive_actions_need_a_second_click():
     net = src("SettingsNetwork.qml")
-    assert "property bool confirmingForget: false" in net
+    assert "ConfirmButton {" in net
     assert 'Tr.t("Tap again to forget")' in net
-    assert 'net.confirmingForget ? "danger" : "plain"' in net
+    assert 'forgetConfirm.armed ? "danger" : "plain"' in net
 
     security = src("SettingsSecurity.qml")
     assert 'property string confirmingAudit: ""' in security
@@ -26,7 +26,7 @@ def test_destructive_actions_need_a_second_click():
     assert 'Tr.t("Tap again to stop storing")' in journal
 
     date = src("SettingsDateLanguage.qml")
-    assert "property bool confirmingSystemLocale: false" in date
+    assert "ConfirmButton {" in date
     assert 'Tr.t("Tap again for everyone")' in date
 
 

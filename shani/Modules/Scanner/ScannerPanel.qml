@@ -147,17 +147,11 @@ AppWindow {
                         }
                     }
                 }
-                RowLayout {
+                BusyNote {
                     anchors.centerIn: parent
                     visible: win.looking
-                    spacing: Theme.px(8)
-                    Spinner { size: Theme.px(16) }
-                    Text {
-                        text: Tr.t("Looking…")
-                        color: Theme.dim
-                        font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
-                    }
+                    note: Tr.t("Looking…")
+                    iconSize: Theme.px(16)
                 }
                 EmptyState {
                     anchors.centerIn: parent
@@ -215,18 +209,11 @@ AppWindow {
                     sourceSize: Qt.size(800, 800)
                     source: visible ? "file://" + win.lastScan.split("/").map(encodeURIComponent).join("/") : ""
                 }
-                ColumnLayout {
+                BusyNote {
                     anchors.centerIn: parent
                     visible: win.scanning
-                    spacing: Theme.px(8)
-                    Spinner { Layout.alignment: Qt.AlignHCenter; size: Theme.px(28) }
-                    Text {
-                        Layout.alignment: Qt.AlignHCenter
-                        text: Tr.t("Scanning…")
-                        color: Theme.dim
-                        font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
-                    }
+                    note: Tr.t("Scanning…")
+                    iconSize: Theme.px(28)
                 }
                 EmptyState {
                     anchors.centerIn: parent

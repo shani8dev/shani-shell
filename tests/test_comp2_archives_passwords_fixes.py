@@ -81,6 +81,12 @@ def test_passwords_search_has_a_clear_button_and_match_count():
     see how many entries remain. The query already filtered the list; the
     clear control and the 'N / total' readout were missing."""
     s = read(PASSWORDS)
-    assert 'tip: Tr.t("Clear search")' in s
-    assert 'onClicked: { search.text = ""; search.input.forceActiveFocus(); }' in s
+    # the clear button lives in the shared SearchField now, not in each window
+    field = read("shani/Common/SearchField.qml")
+    assert "SearchField {" in s
+    assert 'tip: Tr.t("Clear search")' in field
+    assert (
+        'onClicked: { field.text = ""; field.input.forceActiveFocus(); root.cleared(); }'
+        in field
+    )
     assert 'text: win.visibleItems.length + " / " + win.items.length' in s

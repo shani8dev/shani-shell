@@ -190,10 +190,11 @@ AppWindow {
                         Accessible.name: win.error ? Tr.t("Calculation error") : Tr.t("Kundali")
                     }
                 }
-                Spinner {
+                BusyNote {
                     anchors.centerIn: parent
                     visible: win.loading
-                    size: Theme.px(24)
+                    note: Tr.t("Loading…")
+                    iconSize: Theme.px(24)
                 }
                 Text {
                     anchors.centerIn: parent

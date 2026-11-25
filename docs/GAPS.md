@@ -51,6 +51,12 @@ and against what a session needs before any app runs.
 
 ## Not built — yet
 
+- **App categories once listed as missing** — Podcasts, IRC, Health, VPN, Cloud
+  sync, Database browser, Teleprompter, Network tools, Startup manager, Scheduled
+  tasks, Offline dictionary and System restore are now built and marked **[fixed]**
+  under *Entirely missing app categories* below. That section carries the note
+  that real-hardware/bridge verification remains and lists the remaining
+  duplicate mentions elsewhere in this file.
 - **Headphone virtual surround (stereo widening is done).** Implemented via the matrix_spatialiser LADSPA plugin (shipped in ladspa) as a "Stereo widening" toggle in Settings › Sound effects, behind `SoundFx.canSpatial`. The convolver-based virtual surround (KEMAR/Hesuvi HRIR) still needs HRIR wav files that no package ships; stereo widening is what is available.
 - **More setup-wizard languages** than English, मराठी, हिन्दी, Deutsch, Español,
   Français (strings.js).
@@ -1109,30 +1115,39 @@ entry points (`Services/Phone.qml:41-59`) and the modem dialog
 Codes: **Q** = QML + existing bridge; **D** = small daemon; **S** = server;
 **H** = hardware.
 
-- **[open, Q]** Podcasts — highest value × ease; reuse `feeds.py` polling and
-  cache plus Media Player's `PlayQueue` for enclosures.
+- **[fixed]** Podcasts — `Modules/MediaPlayer/PodcastWindow.qml` over `feeds.py`
+  polling/cache and Media Player's `PlayQueue` (`podcastsShown`). The enclosure
+  *download queue* is still a separate gap in the Feeds section.
 - **[open, Q]** Audiobook mode — bookmarks, chapters and a sleep timer in
   Media Player (no new app).
-- **[open, Q]** IRC client — `bridge/irc.py` (socket/WebSocket), Feeds-style
-  list/entry UI.
-- **[open, Q]** SQLite/database client — `bridge/db.py` with the stdlib
-  `sqlite3`.
-- **[open, Q]** Teleprompter — QML only; reuse Text Editor's font/window
-  settings.
-- **[open, Q]** Network tools (LAN scan, ping, DNS, whois) — wrap
-  `nmcli`/`iw`/`dig`/`ping`.
-- **[open, Q+D]** Local-first health/fitness — shani-link already sees
-  watches/bands; log steps/sleep, import sensor data, no cloud.
-- **[open, Q]** Startup/login-items manager — XDG `autostart/*.desktop`.
-- **[open, Q]** Scheduled-tasks view — thin view over the existing Hooks and
-  Automations services, not a new engine.
-- **[open, Q]** Offline dictionary/thesaurus — local wordnet data, reuse
-  Lens' selection-to-query path.
-- **[open, partial]** VPN client — Quick Settings tile and Settings VPN list
-  exist; full NetworkManager D-B management is missing.
-- **[open, D/S]** Cloud-storage client — Files has rclone cloud folders; a
-  real sync daemon needs a service and account.
-- **[open, D]** System-level restore — Backup restores home snapshots only.
+- **[fixed]** IRC client — `bridge/irc.py` (socket/WebSocket) with a Feeds-style
+  list/entry UI (`Modules/Irc/IrcWindow.qml`, `ircShown`).
+- **[fixed]** SQLite/database client — `bridge/db.py` with the stdlib `sqlite3`
+  (`Modules/DatabaseBrowser.qml`, `databaseBrowserShown`).
+- **[fixed]** Teleprompter — QML only, reusing Text Editor's font/window
+  settings (`Modules/Teleprompter.qml`, `teleprompterShown`).
+- **[fixed]** Network tools (LAN scan, ping, DNS, whois) — wraps
+  `nmcli`/`iw`/`dig`/`ping` (`Modules/NetTools.qml`, `netToolsShown`).
+- **[fixed]** Local-first health/fitness — shani-link watches/bands; steps,
+  sleep and workouts logged locally (`Modules/Health/HealthWindow.qml`,
+  `healthShown`).
+- **[fixed]** Startup/login-items manager — XDG `autostart/*.desktop`
+  (`Modules/StartupManager.qml`, `startupManagerShown`).
+- **[fixed]** Scheduled-tasks view — thin view over the existing Hooks and
+  Automations services, not a new engine (`Modules/ScheduledTasksWindow.qml`,
+  `scheduledShown`).
+- **[fixed]** Offline dictionary/thesaurus — local wordnet data, reusing Lens'
+  selection-to-query path (`Modules/Dictionary.qml`, `dictionaryShown`).
+- **[fixed]** VPN client — Quick Settings tile, Settings VPN list and a full
+  NetworkManager panel with connect/disconnect, autoconnect, profile import and
+  stats (`Modules/Vpn/VpnPanel.qml`, `bridge/vpn.py`). It is an Item embedded in
+  Settings > Network, not its own window, so it has no `APPS`/`ShellApps` id.
+- **[fixed]** Cloud-storage client — a real rclone sync service and account
+  flow with progress (`Services/CloudSync.qml`, `bridge/cloudsync.py`,
+  `Modules/Cloud/CloudPanel.qml`, `cloudSyncShown`).
+- **[fixed]** System-level restore — blue-green slot rollback with
+  `shani-deploy` (Settings > Updates > System restore); Backup still restores
+  home snapshots only.
 - **[open, WebApp]** Video conferencing — needs WebRTC/GStreamer; Flatpak/WebApp
   fallback.
 - **[open, partial]** E-book reflow — Document Viewer opens EPUB/FB2/MOBI with
@@ -1141,6 +1156,17 @@ Codes: **Q** = QML + existing bridge; **D** = small daemon; **S** = server;
   a native-package app store, browser/office/torrent/VM/games (Flatpak-only,
   already in the first list), remote desktop *control* (no portal backend),
   NFC tools, Emergency SOS.
+
+**Status note (Nov 2026):** the apps marked fixed above are built, registered
+(`bin/shani` `APPS`, `ShellApps.js`, the shell's IPC/`Ui` flags and
+`SettingsIndex.js` deep links) and opened with a state expectation by the dev
+harness (`dev/shell-parts/apps.sh`); the cross-check is enforced by
+`tests/test_app_registry_unify_fixes.py`. **Real-hardware and bridge verification
+remains** — actual feeds/IRC servers, Databases, LANs, watches, rclone accounts,
+NetworkManager and shani-deploy slots are still exercised only against
+stand-ins in the nested session. The same gaps are also described, as
+**remaining duplicates**, in the Feeds/Reader, Media, Health-report and Deploy
+sections above; those mentions are historical, not separate outstanding gaps.
 
 ### Accessibility — "Accessible by default" is overstated
 

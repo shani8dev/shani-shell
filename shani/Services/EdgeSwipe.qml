@@ -23,12 +23,8 @@ Singleton {
             Ui.closeAll();
             if (!open) Ui.toggleControlCenter();
         } else if (action === "back") {
-            // the shell's own surface closes; otherwise the app goes back (Alt+Left)
-            if (Ui.launcher || Ui.controlCenter || Ui.settingsOpen || Niri.overviewOpen) {
-                Ui.closeAll();
-                if (Niri.overviewOpen) Niri.action("close-overview");
-            } else
-                Quickshell.execDetached(["wtype", "-M", "alt", "-k", "Left", "-m", "alt"]);
+            // one Back for the remote, the edge swipe and the IPC
+            Ui.back();
         } else if (action === "overview")
             Niri.action("toggle-overview");
     }

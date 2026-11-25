@@ -63,7 +63,7 @@ def test_backspace_corrects_the_query():
 def test_stats_card_says_it_is_still_reading():
     text = source(STATS)
     assert re.search(r"visible: TopProcesses\.list\.length === 0", text)
-    assert re.search(r'text: Tr\.t\("Reading…"\)', text)
+    assert re.search(r'note: Tr\.t\("Reading…"\)', text)
     # reused catalog string: no template edit needed for this fix
     catalog = json.loads(source("shani/i18n/template.json"))
     assert "Reading…" in catalog

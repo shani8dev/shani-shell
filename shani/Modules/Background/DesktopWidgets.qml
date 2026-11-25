@@ -11,6 +11,7 @@ import Quickshell.Services.Mpris
 import QtQuick
 import qs.Common
 import qs.Services
+import "../../Common/Time.js" as Time
 
 Variants {
     model: Quickshell.screens
@@ -53,9 +54,6 @@ Variants {
             keep[id] = { x: Math.round(x), y: Math.round(y) };
             Settings.data.deskPos = keep;
         }
-        // m:ss
-        function fmt(s) { return Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0"); }
-
         // a card over the desktop: glass, soft shadow, draggable, with the click
         // doing the sensible thing behind. `area` is its MouseArea, for telling a
         // drag from a plain click
@@ -260,17 +258,19 @@ Variants {
                             color: "transparent"
                             Text {
                                 anchors.left: parent.left
-                                text: scr.fmt(mediaWin.player ? mediaWin.shown : 0)
+                                text: Time.clock(mediaWin.player ? mediaWin.shown : 0)
                                 color: Theme.faint
                                 font.family: Theme.mono
                                 font.pixelSize: Theme.px(9) * Theme.fontScale
+                                Accessible.name: Tr.t("Elapsed %1").arg(text)
                             }
                             Text {
                                 anchors.right: parent.right
-                                text: scr.fmt(mediaWin.player ? mediaWin.player.length : 0)
+                                text: Time.clock(mediaWin.player ? mediaWin.player.length : 0)
                                 color: Theme.faint
                                 font.family: Theme.mono
                                 font.pixelSize: Theme.px(9) * Theme.fontScale
+                                Accessible.name: Tr.t("Total %1").arg(text)
                             }
                         }
                     }

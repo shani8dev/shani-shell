@@ -207,7 +207,7 @@ def test_net_results_history_copy_and_export():
 def test_net_states_names_and_keyboard():
     assert "EmptyState {" in NET
     assert 'title: "No results yet"' in NET
-    assert "Spinner { size: Theme.px(16) }" in NET
+    assert "BusyNote {" in NET
     assert "visible: win.loading" in NET
     assert 'visible: win.error !== ""' in NET
     assert 'accessibleName: "Copy all results"' in NET

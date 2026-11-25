@@ -16,6 +16,7 @@ import QtMultimedia
 import qs.Common
 import qs.Services
 import qs.Modules.MediaPlayer   // MusicLibraryView: a file read on first open does not see its folder by itself
+import "../../Common/Time.js" as Time
 
 AppWindow {
     id: win
@@ -217,7 +218,7 @@ AppWindow {
     function saveFrame() {
         if (!player.hasVideo || PlayQueue.current === "") return;
         const s = Math.max(0, player.position / 1000);
-        const stamp = Math.floor(s / 3600) + "-" + String(Math.floor(s % 3600 / 60)).padStart(2, "0") + "-" + String(Math.floor(s % 60)).padStart(2, "0");
+        const stamp = Time.duration(s);
         const name = PlayQueue.current.split("/").pop().replace(/\.[^.]+$/, "");
         frameProc.command = ["sh", "-c", 'd="${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots"; mkdir -p "$d"; o="$d/$2 $3.png"; i=2
             while [ -e "$o" ]; do o="$d/$2 $3 ($i).png"; i=$((i+1)); done

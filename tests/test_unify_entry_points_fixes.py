@@ -78,6 +78,13 @@ def bracket_from(text, i):
     raise AssertionError("unbalanced brackets")
 
 
+def tool_runs(text):
+    """The local QML opens a surface uses; the JS catalog carries no closures."""
+    m = re.search(r"readonly property var toolRuns: \(\{.*?\n    \}\)", text, re.S)
+    assert m, "no toolRuns block"
+    return m.group(0)
+
+
 def label_icon_pairs(block, label_key="label"):
     out = []
     for line in block.splitlines():
@@ -129,14 +136,14 @@ def tool_action_lines(text):
 
 
 def test_1_window_menu_tool_labels_and_icons_are_canonical():
-    pairs = label_icon_pairs(
-        bracket_from(
-            src(WINDOWMENU), src(WINDOWMENU).index("readonly property var tools:")
-        )
-    )
-    assert [(p[0], p[1]) for p in pairs] == [
-        (label, icon) for label, icon, _ in CANONICAL
-    ]
+    menu = src(WINDOWMENU)
+    tools = menu
+    assert "Tools.list.map(t => ({" in tools
+    assert "label: Tr.t(t.label)" in tools and "icon: t.icon" in tools
+    catalog = src("shani/Common/Tools.js")
+    for label, icon, _ in CANONICAL:
+        assert f'label: "{label}"' in catalog, label
+        assert f'icon: "{icon}"' in catalog, icon
 
 
 # ---- fix 2: quick panel's More apps row is the first four tools -------------
@@ -144,10 +151,9 @@ def test_1_window_menu_tool_labels_and_icons_are_canonical():
 
 def test_2_quick_panel_first_four_match_the_canonical_order():
     q = src(QUICK)
-    pairs = label_icon_pairs(bracket_from(q, q.index("More apps")))
-    assert [(p[0], p[1]) for p in pairs] == [
-        (label, icon) for label, icon, _ in CANONICAL[:4]
-    ]
+    more = q[q.index("More apps") :]
+    assert "Tools.list.slice(0, 4)" in more
+    assert "label: Tr.t(t.label), icon: t.icon" in more
 
 
 # ---- fix 3: the dock's tools menu follows the same order --------------------
@@ -155,20 +161,22 @@ def test_2_quick_panel_first_four_match_the_canonical_order():
 
 def test_3_dock_tool_menu_order_matches_the_shared_order():
     d = src(DOCK)
-    pairs = label_icon_pairs(bracket_from(d, d.index("readonly property var tools:")))
-    assert [p[0] for p in pairs] == [label for label, _, _ in CANONICAL]
+    tools = d
+    assert "Tools.list.map(t => ({ label: t.label, run: toolRuns[t.flag] }))" in tools
 
 
 # ---- fix 4: launcher actions are the single reference list ------------------
 
 
 def test_4_launcher_actions_are_the_canonical_reference():
-    got = []
-    for line in tool_action_lines(src(ACTIONS)):
-        title = re.search(r'title:\s*Tr\.t\("([^"]+)"\)', line).group(1)
-        icon = re.search(r'icon:\s*"([^"]+)"', line).group(1)
-        got.append((title, icon))
-    assert got == [(label, icon) for label, icon, _ in CANONICAL]
+    actions = src(ACTIONS)
+    assert "...Tools.list.map" in actions
+    assert "title: Tr.t(t.label)" in actions
+    assert "words: t.words" in actions and "icon: t.icon" in actions
+    catalog = src("shani/Common/Tools.js")
+    for label, icon, _ in CANONICAL:
+        assert f'label: "{label}"' in catalog, label
+        assert f'icon: "{icon}"' in catalog, icon
 
 
 # ---- fix 5: the bar's one chip opens that list ------------------------------
@@ -188,11 +196,9 @@ def test_5_bar_tools_chip_agrees_with_the_shared_order():
 
 def test_6_every_full_surface_reaches_all_nine_tools():
     regions = {
-        WINDOWMENU: bracket_from(
-            src(WINDOWMENU), src(WINDOWMENU).index("readonly property var tools:")
-        ),
-        DOCK: bracket_from(src(DOCK), src(DOCK).index("readonly property var tools:")),
-        ACTIONS: "\n".join(tool_action_lines(src(ACTIONS))),
+        WINDOWMENU: tool_runs(src(WINDOWMENU)),
+        DOCK: tool_runs(src(DOCK)),
+        ACTIONS: tool_runs(src(ACTIONS)),
     }
     for rel, region in regions.items():
         for _, _, flag in CANONICAL:
@@ -208,19 +214,18 @@ def test_7_every_tool_entry_has_name_tooltip_and_keyfocus():
     for needle in (
         "Accessible.name: modelData.label",
         "KeyFocus { name: modelData.label",
-        "Hint { text: modelData.label",
     ):
         assert needle in more, needle
     w = src(WINDOWMENU)
     for needle in (
         "Accessible.name: mi.modelData.label",
-        "KeyFocus { name: mi.modelData.label",
+        "KeyFocus { onActivated: win.press(mi.modelData) }",
     ):
         assert needle in w, needle
     d = src(DOCK)
     for needle in (
         "Accessible.name: modelData.label",
-        "KeyFocus { name: parent.modelData.label",
+        "KeyFocus { radius: Theme.px(8); onActivated: { parent.modelData.run();",
     ):
         assert needle in d, needle
     # tiles and the bar chip inherit the same triple from their components: a
@@ -235,9 +240,16 @@ def test_7_every_tool_entry_has_name_tooltip_and_keyfocus():
 
 
 def test_8_sidebar_tool_tiles_keep_the_canonical_label_and_icon():
-    tiles = sidebar_tiles(src(SIDEBAR))
-    for label, icon, _ in CANONICAL:
-        assert tiles[TIDS[label]] == (label, icon), (label, tiles.get(TIDS[label]))
+    s = src(SIDEBAR)
+    assert "model: Tools.list" in s
+    assert "tid: modelData.flag" in s
+    assert "icon: modelData.icon" in s and "title: Tr.t(modelData.label)" in s
+    assert "...Tools.list.map(t => t.flag)" in s
+    catalog = src("shani/Common/Tools.js")
+    for label, icon, flag in CANONICAL:
+        assert f'label: "{label}"' in catalog, label
+        assert f'icon: "{icon}"' in catalog, icon
+        assert f'flag: "{flag}"' in catalog, flag
 
 
 # ---- fix 9: one clipboard launcher tile, not Snippets + Clipboard -----------

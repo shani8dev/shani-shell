@@ -190,7 +190,7 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
-                TextField { id: search; Layout.fillWidth: true; placeholderText: Tr.t("Find a code"); label: Tr.t("Find a code"); onTextChanged: win.searchText = text }
+                SearchField { id: search; Layout.fillWidth: true; placeholder: Tr.t("Find a code"); label: Tr.t("Find a code"); onTextChanged: win.searchText = text }
                 Text {
                     visible: win.searchText !== "" || win.groupFilter !== ""
                     text: win.visibleAccounts.length + " / " + win.accounts.length
@@ -198,13 +198,6 @@ AppWindow {
                     font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
                     Accessible.role: Accessible.StatusBar
                     Accessible.name: text
-                }
-                IconButton {
-                    visible: win.searchText !== ""
-                    icon: "window-close"
-                    size: Theme.px(24)
-                    tip: Tr.t("Clear search")
-                    onClicked: { search.text = ""; search.input.forceActiveFocus(); }
                 }
                 Button { text: win.grouped ? Tr.t("List") : Tr.t("Group by issuer"); flat: true; checked: win.grouped; onClicked: win.grouped = !win.grouped }
             }

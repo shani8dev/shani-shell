@@ -48,8 +48,8 @@ def test_seek_is_exposed_as_a_slider_to_assistive_tech():
     """AT gets the Slider role and a spoken elapsed / duration name and value."""
     assert "Accessible.role: Accessible.Slider" in SEEK
     assert 'Accessible.name: Tr.t("Position")' in SEEK
-    assert "Math.floor(np.shown / 60)" in SEEK, "elapsed in the name"
-    assert "Math.floor(len / 60)" in SEEK, "duration in the name"
+    assert "Time.clockLong(np.shown)" in SEEK, "elapsed in the name"
+    assert "Time.clockLong(len)" in SEEK, "duration in the name"
     assert "property real value: len > 0 ? np.shown / len : 0" in SEEK
     # this codebase has no attachable Accessible.value - assigning one is an error
     assert "Accessible.value:" not in SEEK

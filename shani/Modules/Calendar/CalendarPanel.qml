@@ -1617,20 +1617,12 @@ AppWindow {
                 visible: !win.editor
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
-                TextField {
+                SearchField {
                     id: searchField
                     Layout.fillWidth: true
                     placeholder: Tr.t("Search title, place or notes")
                     label: Tr.t("Search title, place or notes")
                     onTextChanged: { if (text !== Agenda.search) Agenda.search = text; }
-                }
-                IconButton {
-                    visible: searchField.text !== ""
-                    icon: "edit-clear"
-                    size: Theme.px(22)
-                    tip: Tr.t("Clear search")
-                    Accessible.name: Tr.t("Clear search")
-                    onClicked: { searchField.text = ""; Agenda.search = ""; }
                 }
             }
             Connections { target: Agenda; function onSearchChanged() { if (Agenda.search !== searchField.text) searchField.text = Agenda.search; } }

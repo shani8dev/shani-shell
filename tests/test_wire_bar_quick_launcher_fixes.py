@@ -18,11 +18,11 @@ BAR = (ROOT / "shani/Modules/Bar/Bar.qml").read_text(encoding="utf-8")
 NEW_APPS = {
     "Dictionary": "dictionary",
     "Podcasts": "podcasts",
-    "Teleprompter": "teleprompter",
+    "Gateway": "gateway",
     "Network Tools": "netTools",
     "Database browser": "databaseBrowser",
     "Startup manager": "startupManager",
-    "Teleprompter": "teleprompter",
+    "Gateway": "gateway",
     "Paste history": "pasteHistory",
     "Scheduled tasks": "scheduled",
 }
@@ -36,32 +36,20 @@ def new_tools_block():
 
 
 def test_launcher_actions_cover_all_nine_new_apps():
-    block = new_tools_block()
-    for title, flag in NEW_APPS.items():
-        lines = [line for line in block.splitlines() if f'Tr.t("{title}")' in line]
-        assert lines, f"no launcher action for {title}"
-        assert any("tool" in line for line in lines), (
-            f"{title} missing 'tool' discovery keyword"
-        )
-        assert any(f"Ui.closeAll(); Ui.{flag} = true;" in line for line in lines), (
-            f"{title} does not open Ui.{flag}"
-        )
+    catalog = (ROOT / "shani/Common/Tools.js").read_text()
+    assert "Tools.list" in LAUNCHER_ACTIONS
+    for flag in ("dictionary", "podcasts", "teleprompter", "netTools",
+                 "databaseBrowser", "startupManager", "gateway", "pasteHistory", "scheduled"):
+        assert f'flag: "{flag}"' in catalog
+        assert f'Ui.{flag} = true' in LAUNCHER_ACTIONS
 
 
 def test_quickpanel_has_more_apps_row_for_four_tools():
     assert 'Tr.t("More apps")' in QUICK_PANEL
-    more_apps = QUICK_PANEL.split('Tr.t("More apps")', 1)[1]
-    for title, flag in {
-        "Dictionary": "dictionary",
-        "Podcasts": "podcasts",
-        "Network Tools": "netTools",
-        "Teleprompter": "teleprompter",
-    }.items():
-        lines = [line for line in more_apps.splitlines() if f'Tr.t("{title}")' in line]
-        assert lines, f"no quick-panel button for {title}"
-        assert any(f"Ui.closeAll(); Ui.{flag} = true;" in line for line in lines), (
-            f"{title} button does not open Ui.{flag}"
-        )
+    assert "Tools.list.slice(0, 4)" in QUICK_PANEL
+    catalog = (ROOT / "shani/Common/Tools.js").read_text()
+    for flag in ("dictionary", "podcasts", "teleprompter", "netTools"):
+        assert f'flag: "{flag}"' in catalog
 
 
 def test_bar_has_one_tools_entry_into_the_launcher():

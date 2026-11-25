@@ -42,7 +42,7 @@ def test_player_repeat_shuffle_volume_seek_gapless_lyrics():
     assert "shuffle" in t and "shuffleSupported" in t
     assert "loopSupported" in t
     # seekbar with time display + drag
-    assert "fmt(" in t and "fmtRemaining" in t
+    assert "Time.clock(" in t and "fmtRemaining" in t
     assert "dragging" in t
     assert "onPressed" in t and "onPositionChanged" in t and "onReleased" in t
     assert "canSeek" in t

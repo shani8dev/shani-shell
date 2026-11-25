@@ -21,6 +21,7 @@ PANEL_PATH = ROOT / "shani/Modules/Calendar/CalendarPanel.qml"
 SERVICE_PATH = ROOT / "shani/Services/Agenda.qml"
 PANEL = PANEL_PATH.read_text(encoding="utf-8")
 SERVICE = SERVICE_PATH.read_text(encoding="utf-8")
+SEARCH = (ROOT / "shani/Common/SearchField.qml").read_text(encoding="utf-8")
 
 node = shutil.which("node")
 node_mark = pytest.mark.skipif(node is None, reason="node is not installed")
@@ -232,8 +233,9 @@ def test_search_is_global_multi_term_and_clearable():
     assert "readonly property var searchResults:" in PANEL
     assert "return searchTerms.every(t => hay.indexOf(t) >= 0);" in PANEL
     assert "model: win.searchActive ? win.searchResults : win.shownEvents" in PANEL
-    assert 'icon: "edit-clear"' in PANEL
-    assert 'tip: Tr.t("Clear search")' in PANEL
+    assert "SearchField {" in PANEL
+    assert 'icon: "edit-clear"' in SEARCH
+    assert 'tip: Tr.t("Clear search")' in SEARCH
     assert "matches across all calendars" in PANEL
     assert "if (win.searchActive) win.showDayOf(modelData);" in PANEL
 
@@ -275,7 +277,7 @@ def test_accessible_names_describe_events_and_actions():
     assert 'Tr.t("drag to another day or hour")' in PANEL
     assert 'Tr.t("Agenda: upcoming and earlier events")' in PANEL
     assert 'Accessible.name: Tr.t("New event")' in PANEL
-    assert 'Accessible.name: Tr.t("Clear search")' in PANEL
+    assert 'accessibleName: Tr.t("Clear search")' in SEARCH
 
 
 # ---- nothing previously built was lost ------------------------------------

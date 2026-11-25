@@ -3,8 +3,8 @@
 // what a person might type to find it, and a one-line hint. The sidebar's
 // reset-this-section counts the same keys (scalar values only — arrays and
 // objects stay untouched, so a customised setup is never destroyed).
-.pragma library
 .import "../../Common/Tools.js" as Tools
+.pragma library
 
 // Tools.list owns these nine rows' label, op (the deep link) and order. Only the
 // settings-side key, category and hint stay here; the words are the catalog's

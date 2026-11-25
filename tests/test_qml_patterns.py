@@ -495,7 +495,7 @@ def test_no_deferrals_round5_are_wired():
             "property bool danger: false",
             "font.weight: root.selected ? Font.DemiBold : Font.Normal",
         ],
-        "shani/Modules/Settings/SettingsPrinters.qml": ["danger: true"],
+        "shani/Modules/Settings/SettingsPrinters.qml": ['kind: "danger"'],
         "shani/Modules/Osk/Keyboard.qml": [
             'label: "WRITE"',
             'label: Osk.languages.length > 1 ? "LANG "',

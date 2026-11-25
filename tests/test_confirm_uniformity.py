@@ -130,7 +130,7 @@ def test_no_stale_confirm_flags_left_behind():
 def test_confirm_button_implements_the_expected_state_machine():
     src = read("shani/Common/ConfirmButton.qml")
     assert "property bool armed: false" in src
-    assert "root.confirmed(root.id)" in src
+    assert "root.confirmed(root.value)" in src
     assert "root.disarm()" in src
     assert "root.armed = true; timer.restart()" in src
     assert "onTriggered: root.armed = false" in src

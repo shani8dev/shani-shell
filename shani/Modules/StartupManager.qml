@@ -215,8 +215,10 @@ else:
             SectionTitle {
                 Layout.fillWidth: true
                 text: Tr.t("Apps that start at login")
-                Row { spacing: Theme.px(6)
-                    Spinner { visible: lister.running; size: Theme.px(16) }
+                BusyNote {
+                    visible: lister.running
+                    note: Tr.t("Loading…")
+                    iconSize: Theme.px(16)
                 }
             }
             Text {

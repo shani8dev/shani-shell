@@ -168,16 +168,12 @@ except Exception as e:
                     onEditingFinished: win.dbPath = text.trim()
                     Keys.onAccepted: win.dbPath = text.trim()
                 }
-                Spinner { visible: listProc.running || win.busy; size: Theme.px(16)
-                          Layout.preferredWidth: Theme.px(16); Layout.preferredHeight: Theme.px(16) }
             }
-            Text {
+            BusyNote {
                 Layout.fillWidth: true
                 visible: listProc.running || win.busy
-                text: win.busy ? Tr.t("Running query…") : Tr.t("Reading tables…")
-                color: Theme.dim
-                font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
-                Accessible.role: Accessible.StaticText; Accessible.name: text
+                note: win.busy ? Tr.t("Running query…") : Tr.t("Reading tables…")
+                iconSize: Theme.px(16)
             }
             Text {
                 Layout.fillWidth: true

@@ -143,7 +143,7 @@ def test_db_history_run_cancel_and_states():
     assert "h.slice(0, 20)" in db_text and "win.history.filter(x => x !== s)" in db_text
     for token in (
         "EmptyState",
-        "Spinner {",
+        "BusyNote {",
         'win.error !== ""',
         "onExited:",
         'Tr.t("The query returned no rows")',
@@ -264,7 +264,7 @@ def test_startup_remove_and_empty_error_states():
         "EmptyState",
         'Tr.t("No startup apps")',
         "Accessible.name: win.error",
-        "Spinner {",
+        "BusyNote {",
         "onExited:",
         "win.entries = win.error ? [] : (r.entries || [])",
     ):

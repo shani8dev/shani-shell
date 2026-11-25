@@ -116,7 +116,7 @@ def test_dock_menu_keeps_its_height_focus_and_accessibility():
     assert "onHeightChanged: if (visible) win.menuHeight = height" in dock
     assert "Accessible.role: Accessible.MenuItem" in dock
     assert "Accessible.name: modelData.label" in dock
-    assert "KeyFocus { name: parent.modelData.label; radius: Theme.px(8);" in dock
+    assert "KeyFocus { radius: Theme.px(8);" in dock
     assert "win.setMenu(-1); tileFocus.forceActiveFocus(Qt.TabFocusReason);" in dock
     # no opaque card for the new rows: they reuse the menu row's Theme colours
     block = dock.split('Tr.t("Open Speed Dial place…")', 1)[1].split(

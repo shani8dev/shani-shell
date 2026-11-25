@@ -558,7 +558,7 @@ while True:
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
-                TextField { id: search; Layout.fillWidth: true; placeholderText: Tr.t("Find a password"); label: Tr.t("Find a password") }
+                SearchField { id: search; Layout.fillWidth: true; placeholder: Tr.t("Find a password"); label: Tr.t("Find a password") }
                 Text {
                     visible: search.text !== ""
                     text: win.visibleItems.length + " / " + win.items.length
@@ -566,13 +566,6 @@ while True:
                     font.family: Theme.font
                     font.pixelSize: Theme.px(11) * Theme.fontScale
                     font.features: { "tnum": 1 }
-                }
-                IconButton {
-                    visible: search.text !== ""
-                    icon: "window-close"
-                    size: Theme.px(24)
-                    tip: Tr.t("Clear search")
-                    onClicked: { search.text = ""; search.input.forceActiveFocus(); }
                 }
             }
             Button { text: Tr.t("Run security check"); onClicked: win.runAudit(); }

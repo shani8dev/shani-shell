@@ -12,6 +12,7 @@ A catalog maps English -> translation; a missing key shows the English.
 Strings built by concatenation are not wrapped by `wrap`; write Tr.t("…%1…", x)
 for those by hand.
 """
+
 import json
 import re
 import sys
@@ -20,7 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1] / "shani"
 I18N = ROOT / "i18n"
 PROPS = r"(?:text|title|label|hint|placeholder|subtitle|tip|Accessible\.name)"
-LITERAL = re.compile(r'(\b' + PROPS + r'\s*:\s*)"((?:[^"\\]|\\.){2,}?)"(?=\s*[,;}\n])')
+LITERAL = re.compile(r"(\b" + PROPS + r'\s*:\s*)"((?:[^"\\]|\\.){2,}?)"(?=\s*[,;}\n])')
 CALL = re.compile(r'Tr\.t\("((?:[^"\\]|\\.)*)"')
 
 
@@ -35,13 +36,22 @@ def wrap() -> int:
 
         def sub(m):
             text = m.group(2)
-            if not re.search(r"[A-Za-z]{2}", text) or text.startswith(("file:", "/", "http")):
+            if not re.search(r"[A-Za-z]{2}", text) or text.startswith(
+                ("file:", "/", "http")
+            ):
                 return m.group(0)
             return f'{m.group(1)}Tr.t("{text}")'
+
         new = LITERAL.sub(sub, s)
         if new != s:
             if "qs.Common" not in new and p.parent.name != "Common":
-                new = re.sub(r"(^import QtQuick\n)", r"\1import qs.Common\n", new, count=1, flags=re.M)
+                new = re.sub(
+                    r"(^import QtQuick\n)",
+                    r"\1import qs.Common\n",
+                    new,
+                    count=1,
+                    flags=re.M,
+                )
             p.write_text(new)
             changed += 1
     print(f"wrapped strings in {changed} files")
@@ -54,14 +64,26 @@ def strings() -> list:
         # the literal as QML reads it: its escapes (\" \n \\) undone, its
         # Unicode left alone (unicode_escape would re-read UTF-8 as Latin-1:
         # "·" became "Â·" and no such key ever matched)
-        out.update(json.loads('"' + m.group(1) + '"') for m in CALL.finditer(p.read_text()))
+        out.update(
+            json.loads('"' + m.group(1) + '"') for m in CALL.finditer(p.read_text())
+        )
+    # Tools.list labels reach Tr.t() dynamically (Tr.t(t.label)) in four
+    # surfaces; the literals live in the JS catalog, not in a QML call.
+    tools = ROOT / "Common/Tools.js"
+    if tools.is_file():
+        out.update(
+            json.loads('"' + m.group(1) + '"')
+            for m in re.finditer(r'\blabel:\s*"((?:[^"\\]|\\.)*)"', tools.read_text())
+        )
     return sorted(out)
 
 
 def extract() -> int:
     I18N.mkdir(exist_ok=True)
     keys = strings()
-    (I18N / "template.json").write_text(json.dumps({k: "" for k in keys}, ensure_ascii=False, indent=1) + "\n")
+    (I18N / "template.json").write_text(
+        json.dumps({k: "" for k in keys}, ensure_ascii=False, indent=1) + "\n"
+    )
     print(f"{len(keys)} strings -> {I18N / 'template.json'}")
     return 0
 
@@ -75,7 +97,9 @@ def check() -> int:
         cat = json.loads(p.read_text())
         done = {k for k, v in cat.items() if v and k in keys}
         stale = sorted(k for k in cat if k not in keys)
-        print(f"{p.stem}: {len(done)}/{len(keys)} translated, {len(keys) - len(done)} missing, {len(stale)} stale")
+        print(
+            f"{p.stem}: {len(done)}/{len(keys)} translated, {len(keys) - len(done)} missing, {len(stale)} stale"
+        )
         for k in stale[:10]:
             print(f"   stale: {k!r}")
         bad += bool(stale)
@@ -84,4 +108,8 @@ def check() -> int:
 
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "check"
-    sys.exit({"wrap": wrap, "extract": extract, "check": check}.get(cmd, lambda: print(__doc__) or 2)())
+    sys.exit(
+        {"wrap": wrap, "extract": extract, "check": check}.get(
+            cmd, lambda: print(__doc__) or 2
+        )()
+    )

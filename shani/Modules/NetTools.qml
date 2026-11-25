@@ -243,17 +243,11 @@ AppWindow {
                 }
                 Button { text: "Dismiss"; flat: true; onClicked: win.note = "" }
             }
-            RowLayout {
+            BusyNote {
                 Layout.fillWidth: true
                 visible: win.loading
-                spacing: Theme.px(8)
-                Spinner { size: Theme.px(16) }
-                Text {
-                    text: win.activeTool + "…"
-                    color: Theme.dim
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
-                }
+                note: win.activeTool + "…"
+                iconSize: Theme.px(16)
             }
 
             Flow {

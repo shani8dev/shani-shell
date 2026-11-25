@@ -12,6 +12,7 @@ import QtQuick.Layouts
 import qs.Common
 import qs.Services
 import qs.Modules.Notifications
+import "../../Common/Time.js" as Time
 
 ColumnLayout {
     required property var sidebar
@@ -111,22 +112,23 @@ ColumnLayout {
                     // property - assigning Accessible.value would be an error
                     property real value: len > 0 ? np.shown / len : 0
                     Accessible.role: Accessible.Slider
-                    Accessible.name: Tr.t("Position") + " "
-                        + Math.floor(np.shown / 60) + ":" + String(Math.floor(np.shown % 60)).padStart(2, "0")
-                        + " / " + Math.floor(len / 60) + ":" + String(Math.floor(len % 60)).padStart(2, "0")
+                    Accessible.name: Tr.t("Position") + " " + Time.clockLong(np.shown)
+                        + " / " + Time.clockLong(len)
                     Text {
                         anchors { left: parent.left; bottom: parent.bottom }
-                        text: Math.floor(np.shown / 60) + ":" + String(Math.floor(np.shown % 60)).padStart(2, "0")
+                        text: Time.clock(np.shown)
                         color: Theme.faint
                         font.family: Theme.mono
                         font.pixelSize: Theme.px(9) * Theme.fontScale
+                        Accessible.name: Tr.t("Elapsed %1").arg(text)
                     }
                     Text {
                         anchors { right: parent.right; bottom: parent.bottom }
-                        text: Math.floor(parent.len / 60) + ":" + String(Math.floor(parent.len % 60)).padStart(2, "0")
+                        text: Time.clock(parent.len)
                         color: Theme.faint
                         font.family: Theme.mono
                         font.pixelSize: Theme.px(9) * Theme.fontScale
+                        Accessible.name: Tr.t("Total %1").arg(text)
                     }
                     Rectangle {
                         anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
